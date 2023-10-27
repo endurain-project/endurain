@@ -6,6 +6,7 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy import create_engine, Column, Integer, String, Date, DateTime, ForeignKey, LargeBinary, DECIMAL
 from dotenv import load_dotenv
 from datetime import datetime
+from sqlalchemy.dialects.mysql import JSON
 
 # Load the environment variables from config/.env
 load_dotenv('config/.env')
@@ -94,30 +95,34 @@ class Activity(Base):
     activity_type = Column(Integer, nullable=False, comment='Gear type (1 - mountain bike, 2 - gravel bike, ...)')
     start_time = Column(DateTime, nullable=False, comment='Activity start date (datetime)')
     end_time = Column(DateTime, nullable=False, comment='Activity end date (datetime)')
+    city = Column(String(length=45), nullable=True, comment='Activity city (May include spaces)')
+    town = Column(String(length=45), nullable=True, comment='Activity town (May include spaces)')
+    country = Column(String(length=45), nullable=True, comment='Activity country (May include spaces)')
     created_at = Column(DateTime, nullable=False, comment='Activity creation date (datetime)')
+    waypoints = Column(JSON, nullable=True, doc='Store waypoints data')
 
     # Define a relationship to the User model
     user = relationship('User', back_populates='activities')
 
     # Establish a one-to-many relationship with 'waypoints'
-    waypoints = relationship('Waypoint', back_populates='activity')
+    #waypoints = relationship('Waypoint', back_populates='activity')
 
 # Data model for waypoints table using SQLAlchemy's ORM
-class Waypoint(Base):
-    __tablename__ = 'waypoints'
+# class Waypoint(Base):
+#     __tablename__ = 'waypoints'
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    activity_id = Column(Integer, ForeignKey('activities.id'), nullable=False, comment='Activity ID that the waypoint belongs')
-    latitude = Column(DECIMAL(precision=10, scale=6), nullable=True, comment='Latitude with 6 decimal places')
-    longitude = Column(DECIMAL(precision=10, scale=6), nullable=True, comment='Longitude with 6 decimal places')
-    elevation = Column(DECIMAL(precision=8, scale=2), nullable=True, comment='Elevation with 2 decimal places')
-    time = Column(DateTime, nullable=True, comment='Timestamp of the waypoint')
-    heart_rate = Column(Integer, nullable=True, comment='Heart rate data')
-    cadence = Column(Integer, nullable=True, comment='Cadence data')
-    power = Column(Integer, nullable=True, comment='Power data')
+#     id = Column(Integer, primary_key=True, autoincrement=True)
+#     activity_id = Column(Integer, ForeignKey('activities.id'), nullable=False, comment='Activity ID that the waypoint belongs')
+#     latitude = Column(DECIMAL(precision=10, scale=6), nullable=True, comment='Latitude with 6 decimal places')
+#     longitude = Column(DECIMAL(precision=10, scale=6), nullable=True, comment='Longitude with 6 decimal places')
+#     elevation = Column(DECIMAL(precision=8, scale=2), nullable=True, comment='Elevation with 2 decimal places')
+#     time = Column(DateTime, nullable=True, comment='Timestamp of the waypoint')
+#     heart_rate = Column(Integer, nullable=True, comment='Heart rate data')
+#     cadence = Column(Integer, nullable=True, comment='Cadence data')
+#     power = Column(Integer, nullable=True, comment='Power data')
 
-    # Define a relationship to the Activity model
-    activity = relationship('Activity', back_populates='waypoints')
+#     # Define a relationship to the Activity model
+#     activity = relationship('Activity', back_populates='waypoints')
 
 # Context manager to get a database session
 from contextlib import contextmanager

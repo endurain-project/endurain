@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from apscheduler.schedulers.background import BackgroundScheduler
-from controllers import sessionController, userController, gearController, activitiesController, waypointsController
+from controllers import sessionController, userController, gearController, activitiesController
 import logging
 #from db.db import User  # Import your SQLAlchemy session management from db.db
 
@@ -22,7 +22,6 @@ app.include_router(sessionController.router)
 app.include_router(userController.router)
 app.include_router(gearController.router)
 app.include_router(activitiesController.router)
-app.include_router(waypointsController.router)
 
 # Create a background scheduler instance
 scheduler = BackgroundScheduler()

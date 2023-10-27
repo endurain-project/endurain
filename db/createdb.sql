@@ -83,7 +83,11 @@ CREATE  TABLE IF NOT EXISTS `gearguardian`.`activities` (
   `activity_type` INT(2) NOT NULL COMMENT 'Gear type (1 - mountain bike, 2 - gravel bike, 3 - road bike, 4 - indoor bike, 5 - road run, 6 - trail run, 7 - indoor run, 8 - indoor swim, 9 - openwater swim, 10 - other)' ,
   `start_time` DATETIME NOT NULL COMMENT 'Actvitiy start date (datetime)' ,
   `end_time` DATETIME NOT NULL COMMENT 'Actvitiy end date (datetime)' ,
+  `city` VARCHAR(45) NULL COMMENT 'Activity city (May include spaces)' ,
+  `town` VARCHAR(45) NULL COMMENT 'Activity town (May include spaces)' ,
+  `country` VARCHAR(45) NULL COMMENT 'Activity country (May include spaces)' ,
   `created_at` DATETIME NOT NULL COMMENT 'Actvitiy creation date (datetime)' ,
+  `waypoints` LONGTEXT NULL COMMENT 'Store waypoints data',
   PRIMARY KEY (`id`) ,
   INDEX `FK_user_id_idx` (`user_id` ASC) ,
   CONSTRAINT `FK_activity_user`

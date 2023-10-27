@@ -93,39 +93,20 @@ async def read_activities_all_pagination(
 
     return results
 
-def determine_activity_type(gpx):
-    # Default to 'other' if no activity type is specified
-    activity_type = 'other'
-    
-    # Check the GPX 'type' element within the 'trk' section
-    if gpx.tracks:
-        track = gpx.tracks[0]
-        if track.type:
-            if track.type.lower() == "running":
-                activity_type = 1
-            elif track.type.lower() == "trail running":
-                activity_type = 2
-            else:
-                activity_type = 1
-    
-    return activity_type
-
-def extract_activity_datetime(gpx):
-    # Default to None if no datetime is specified
-    activity_datetime = None
-    
-    if gpx.metadata and gpx.metadata.time:
-        activity_datetime = gpx.metadata.time.isoformat()
-    
-    return activity_datetime
+class CreateActivityRequest(BaseModel):
+    distance: int
+    name: str
+    type: str
+    starttime: str
+    endtime: str
+    city: str
+    town: str
+    country: str
+    waypoints: List[dict]
 
 @router.post("/activities/create")
 async def create_activity(
-    distance: int = Form(...),
-    name: str = Form(...),
-    type: str = Form(...),
-    starttime: str = Form(...),
-    endtime: str = Form(...),
+    activity_data: CreateActivityRequest,
     token: str = Depends(oauth2_scheme)
 ):
     from . import sessionController
@@ -138,36 +119,35 @@ async def create_activity(
         user_id = payload.get("id")
 
         # Convert the 'starttime' string to a datetime
-        starttime = datetime.strptime(starttime, "%Y-%m-%dT%H:%M:%SZ")
+        starttime = datetime.strptime(activity_data.starttime, "%Y-%m-%dT%H:%M:%SZ")
         # Convert the 'endtime' string to a datetime
-        endtime = datetime.strptime(endtime, "%Y-%m-%dT%H:%M:%SZ")
+        endtime = datetime.strptime(activity_data.endtime, "%Y-%m-%dT%H:%M:%SZ")
 
-        if type == "running":
-            auxType=1
-        elif type == "trail running":
-            auxType=2
-        elif type == "VirtualRun":
-            auxType=3
-        elif type == "Ride":
-            auxType=4
-        elif type == "GravelRide":
-            auxType=5
-        elif type == "EBikeRide":
-            auxType=6
-        elif type == "VirtualRide":
-            auxType=7
-        else:
-            auxType=10
+        auxType = 10  # Default value
+        type_mapping = {
+            "running": 1,
+            "trail running": 2,
+            "VirtualRun": 3,
+            "Ride": 4,
+            "GravelRide": 5,
+            "EBikeRide": 6,
+            "VirtualRide": 7
+        }
+        auxType = type_mapping.get(activity_data.type, 10)
         
         # Create a new Activity record
         activity = Activity(
             user_id=user_id,
-            name=name,
-            distance=distance,
+            name=activity_data.name,
+            distance=activity_data.distance,
             activity_type=auxType,
             start_time=starttime,
             end_time=endtime,
-            created_at=func.now()  # Use func.now() to set 'created_at' to the current timestamp
+            city=activity_data.city,
+            town=activity_data.town,
+            country=activity_data.country,
+            created_at=func.now(),  # Use func.now() to set 'created_at' to the current timestamp
+            waypoints=activity_data.waypoints
         )
 
         # Store the Activity record in the database
