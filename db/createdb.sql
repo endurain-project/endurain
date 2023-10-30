@@ -73,6 +73,29 @@ CREATE  TABLE IF NOT EXISTS `gearguardian`.`gear` (
 ENGINE = InnoDB;
 
 -- -----------------------------------------------------
+-- Table `gearguardian`.`user_settings`
+-- -----------------------------------------------------
+CREATE  TABLE IF NOT EXISTS `gearguardian`.`user_settings` (
+  `id` INT(10) NOT NULL AUTO_INCREMENT ,
+  `user_id` INT(10) NOT NULL COMMENT 'User ID that the activity belongs' ,
+  `activity_type` INT(2) NULL COMMENT 'Gear type' ,
+  `gear_id` INT(10) NULL COMMENT 'Gear ID associated with this activity' ,
+  PRIMARY KEY (`id`) ,
+  INDEX `FK_user_id_idx` (`user_id` ASC) ,
+  CONSTRAINT `FK_user_settings_user`
+    FOREIGN KEY (`user_id` )
+    REFERENCES `gearguardian`.`users` (`id` )
+    ON DELETE NO ACTION
+    ON UPDATE NO ACTION,
+  INDEX `FK_gear_id_idx` (`gear_id` ASC) ,
+  CONSTRAINT `FK_user_settings_gear`
+    FOREIGN KEY (`gear_id` )
+    REFERENCES `gearguardian`.`gear` (`id` )
+    ON DELETE NO ACTION
+    ON UPDATE NO ACTION)
+ENGINE = InnoDB;
+
+-- -----------------------------------------------------
 -- Table `gearguardian`.`activities`
 -- -----------------------------------------------------
 CREATE  TABLE IF NOT EXISTS `gearguardian`.`activities` (
@@ -80,7 +103,7 @@ CREATE  TABLE IF NOT EXISTS `gearguardian`.`activities` (
   `user_id` INT(10) NOT NULL COMMENT 'User ID that the activity belongs' ,
   `name` VARCHAR(45) NULL COMMENT 'Activity name (May include spaces)' ,
   `distance` INT(9) NOT NULL COMMENT 'Distance in meters' ,
-  `activity_type` INT(2) NOT NULL COMMENT 'Gear type (1 - mountain bike, 2 - gravel bike, 3 - road bike, 4 - indoor bike, 5 - road run, 6 - trail run, 7 - indoor run, 8 - indoor swim, 9 - openwater swim, 10 - other)' ,
+  `activity_type` INT(2) NOT NULL COMMENT 'Gear type' ,
   `start_time` DATETIME NOT NULL COMMENT 'Actvitiy start date (datetime)' ,
   `end_time` DATETIME NOT NULL COMMENT 'Actvitiy end date (datetime)' ,
   `city` VARCHAR(45) NULL COMMENT 'Activity city (May include spaces)' ,
@@ -88,34 +111,23 @@ CREATE  TABLE IF NOT EXISTS `gearguardian`.`activities` (
   `country` VARCHAR(45) NULL COMMENT 'Activity country (May include spaces)' ,
   `created_at` DATETIME NOT NULL COMMENT 'Actvitiy creation date (datetime)' ,
   `waypoints` LONGTEXT NULL COMMENT 'Store waypoints data',
+  `elevation_gain` INT(5) NOT NULL COMMENT 'Elevation gain in meters' ,
+  `elevation_loss` INT(5) NOT NULL COMMENT 'Elevation loss in meters' ,
+  `pace` DECIMAL(20, 10) NOT NULL COMMENT 'Pace seconds per meter (s/m)' ,
+  `gear_id` INT(10) NULL COMMENT 'Gear ID associated with this activity' ,
   PRIMARY KEY (`id`) ,
   INDEX `FK_user_id_idx` (`user_id` ASC) ,
   CONSTRAINT `FK_activity_user`
     FOREIGN KEY (`user_id` )
     REFERENCES `gearguardian`.`users` (`id` )
     ON DELETE NO ACTION
-    ON UPDATE NO ACTION)
-ENGINE = InnoDB;
-
--- -----------------------------------------------------
--- Table `gearguardian`.`waypoints`
--- -----------------------------------------------------
-CREATE  TABLE IF NOT EXISTS `gearguardian`.`waypoints` (
-  `id` INT(10) NOT NULL AUTO_INCREMENT ,
-  `activity_id` INT(10) NOT NULL COMMENT 'Activity ID that the waypoint belongs' ,
-  `latitude` DECIMAL(10, 6) NULL COMMENT 'Latitude with 6 decimal places' ,
-  `longitude` DECIMAL(10, 6) NULL COMMENT 'Longitude with 6 decimal places' ,
-  `elevation` DECIMAL(8, 2) NULL COMMENT 'Elevation with 2 decimal places' ,
-  `time` DATETIME NULL COMMENT 'Timestamp of the waypoint' ,
-  `heart_rate` INT NULL COMMENT 'Heart rate data' ,
-  `cadence` INT NULL COMMENT 'Cadence data' ,
-  PRIMARY KEY (`id`) ,
-  INDEX `FK_activity_id_idx` (`activity_id` ASC) ,
-  CONSTRAINT `FK_waypoint_activity`
-    FOREIGN KEY (`activity_id` )
-    REFERENCES `gearguardian`.`activities` (`id` )
+    ON UPDATE NO ACTION,
+  INDEX `FK_gear_id_idx` (`gear_id` ASC) ,
+  CONSTRAINT `FK_activity_gear`
+    FOREIGN KEY (`gear_id` )
+    REFERENCES `gearguardian`.`gear` (`id` )
     ON DELETE NO ACTION
-    ON UPDATE NO ACTION)
+    ON UPDATE NO ACTION,)
 ENGINE = InnoDB;
 
 -- -----------------------------------------------------

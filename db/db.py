@@ -54,6 +54,8 @@ class User(Base):
     gear = relationship('Gear', back_populates='user')
     # Establish a one-to-many relationship with 'activities'
     activities = relationship('Activity', back_populates='user')
+    # Establish a one-to-many relationship between User and UserSettings
+    user_settings = relationship("UserSettings", back_populates="user")
 
 # Data model for access_tokens table using SQLAlchemy's ORM
 class AccessToken(Base):
@@ -83,6 +85,22 @@ class Gear(Base):
 
     # Define a relationship to the User model
     user = relationship('User', back_populates='gear')
+    # Establish a one-to-many relationship with 'activities'
+    activities = relationship('Activity', back_populates='gear')
+    # Establish a one-to-many relationship between Gear and UserSettings
+    user_settings = relationship("UserSettings", back_populates="gear")
+
+class UserSettings(Base):
+    __tablename__ = 'user_settings'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, nullable=False, doc='User ID that the activity belongs')
+    activity_type = Column(Integer, nullable=True, doc='Gear type')
+    gear_id = Column(Integer, nullable=True, doc='Gear ID associated with this activity')
+
+    # Define the foreign key relationships
+    user = relationship("User", back_populates="user_settings")
+    gear = relationship("Gear", back_populates="user_settings")
 
 # Data model for activities table using SQLAlchemy's ORM
 class Activity(Base):
@@ -100,29 +118,16 @@ class Activity(Base):
     country = Column(String(length=45), nullable=True, comment='Activity country (May include spaces)')
     created_at = Column(DateTime, nullable=False, comment='Activity creation date (datetime)')
     waypoints = Column(JSON, nullable=True, doc='Store waypoints data')
+    elevation_gain = Column(Integer, nullable=False, comment='Elevation gain in meters')
+    elevation_loss = Column(Integer, nullable=False, comment='Elevation loss in meters')
+    pace = Column(DECIMAL(precision=20, scale=10), nullable=False, comment='Pace seconds per meter (s/m)')
+    gear_id = Column(Integer, ForeignKey('gear.id'), nullable=True, comment='Gear ID associated with this activity')
 
     # Define a relationship to the User model
     user = relationship('User', back_populates='activities')
 
-    # Establish a one-to-many relationship with 'waypoints'
-    #waypoints = relationship('Waypoint', back_populates='activity')
-
-# Data model for waypoints table using SQLAlchemy's ORM
-# class Waypoint(Base):
-#     __tablename__ = 'waypoints'
-
-#     id = Column(Integer, primary_key=True, autoincrement=True)
-#     activity_id = Column(Integer, ForeignKey('activities.id'), nullable=False, comment='Activity ID that the waypoint belongs')
-#     latitude = Column(DECIMAL(precision=10, scale=6), nullable=True, comment='Latitude with 6 decimal places')
-#     longitude = Column(DECIMAL(precision=10, scale=6), nullable=True, comment='Longitude with 6 decimal places')
-#     elevation = Column(DECIMAL(precision=8, scale=2), nullable=True, comment='Elevation with 2 decimal places')
-#     time = Column(DateTime, nullable=True, comment='Timestamp of the waypoint')
-#     heart_rate = Column(Integer, nullable=True, comment='Heart rate data')
-#     cadence = Column(Integer, nullable=True, comment='Cadence data')
-#     power = Column(Integer, nullable=True, comment='Power data')
-
-#     # Define a relationship to the Activity model
-#     activity = relationship('Activity', back_populates='waypoints')
+    # Define a relationship to the Gear model
+    gear = relationship('Gear', back_populates='activities')
 
 # Context manager to get a database session
 from contextlib import contextmanager
