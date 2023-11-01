@@ -40,7 +40,7 @@ class User(Base):
     birthdate = Column(Date, nullable=True, comment='User birthdate (date)')
     preferred_language = Column(String(length=5), nullable=False, comment='User preferred language (en, pt, others)')
     gender = Column(Integer, nullable=False, comment='User gender (one digit)(1 - male, 2 - female)')
-    access_type = Column(Integer, nullable=False, comment='User type (one digit)(1 - student, 2 - admin, 3 - teacher, 4 - parent)')
+    access_type = Column(Integer, nullable=False, comment='User type (one digit)(1 - student, 2 - admin)')
     photo_path = Column(String(length=250), nullable=True, comment='User photo path')
     photo_path_aux = Column(String(length=250), nullable=True, comment='Auxiliary photo path')
     is_active = Column(Integer, nullable=False, comment='Is user active (0 - not active, 1 - active)')
@@ -55,7 +55,7 @@ class User(Base):
     # Establish a one-to-many relationship with 'activities'
     activities = relationship('Activity', back_populates='user')
     # Establish a one-to-many relationship between User and UserSettings
-    user_settings = relationship("UserSettings", back_populates="user")
+  #  user_settings = relationship("UserSettings", back_populates="user")
 
 # Data model for access_tokens table using SQLAlchemy's ORM
 class AccessToken(Base):
@@ -88,19 +88,19 @@ class Gear(Base):
     # Establish a one-to-many relationship with 'activities'
     activities = relationship('Activity', back_populates='gear')
     # Establish a one-to-many relationship between Gear and UserSettings
-    user_settings = relationship("UserSettings", back_populates="gear")
+ #   user_settings = relationship("UserSettings", back_populates="gear")
 
-class UserSettings(Base):
-    __tablename__ = 'user_settings'
+#class UserSettings(Base):
+#    __tablename__ = 'user_settings'
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    user_id = Column(Integer, nullable=False, doc='User ID that the activity belongs')
-    activity_type = Column(Integer, nullable=True, doc='Gear type')
-    gear_id = Column(Integer, nullable=True, doc='Gear ID associated with this activity')
+#    id = Column(Integer, primary_key=True, autoincrement=True)
+#    user_id = Column(Integer, ForeignKey('users.id'), nullable=False, doc='User ID that the activity belongs')
+#    activity_type = Column(Integer, nullable=True, doc='Gear type')
+#    gear_id = Column(Integer, ForeignKey('gear.id'), nullable=True, doc='Gear ID associated with this activity')
 
-    # Define the foreign key relationships
-    user = relationship("User", back_populates="user_settings")
-    gear = relationship("Gear", back_populates="user_settings")
+#    # Define the foreign key relationships
+#    user = relationship("User", back_populates="user_settings")
+#    gear = relationship("Gear", back_populates="user_settings")
 
 # Data model for activities table using SQLAlchemy's ORM
 class Activity(Base):

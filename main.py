@@ -2,7 +2,6 @@ from fastapi import FastAPI
 from apscheduler.schedulers.background import BackgroundScheduler
 from controllers import sessionController, userController, gearController, activitiesController
 import logging
-#from db.db import User  # Import your SQLAlchemy session management from db.db
 
 app = FastAPI()
 

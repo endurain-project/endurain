@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Form, Response
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
@@ -14,23 +14,6 @@ from urllib.parse import unquote
 router = APIRouter()
 
 logger = logging.getLogger("myLogger")
-
-class UserResponse(BaseModel):
-    id: int
-    name: str
-    username: str
-    email: str
-    city: Optional[str]
-    birthdate: Optional[date]
-    preferred_language: str
-    gender: int
-    access_type: int
-    photo_path: Optional[str]
-    photo_path_aux: Optional[str]
-    is_active: int
-    strava_token: Optional[str]
-    strava_refresh_token: Optional[str]
-    strava_token_expires_at: Optional[str]
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
@@ -252,7 +235,7 @@ async def read_users_userPhotoAuxFromID(user_id: int, token: str = Depends(oauth
                 photo_path_aux = user.photo_path_aux
             else:
                 # Handle the case where the user was not found or doesn't have a photo path
-                raise HTTPException(status_code=404, detail="User not found or no photo path available")
+                raise HTTPException(status_code=404, detail="User not found or no photo path aux available")
 
     except JWTError:
         # Handle JWT (JSON Web Token) authentication error
@@ -261,21 +244,24 @@ async def read_users_userPhotoAuxFromID(user_id: int, token: str = Depends(oauth
     # Return the user's photo path as a JSON response
     return {0: photo_path_aux}
 
+class CreateUserRequest(BaseModel):
+    name: str
+    username: str
+    email: str
+    password: str
+    preferred_language: str
+    city: Optional[str]
+    birthdate: Optional[str]
+    gender: int
+    access_type: int
+    photo_path: Optional[str]
+    photo_path_aux: Optional[str]
+    is_active: int
+
 # Define an HTTP POST route to create a new user
 @router.post("/users/create")
 async def create_user(
-    name: str = Form(...),
-    username: str = Form(...),
-    email: str = Form(...),
-    password: str = Form(...),
-    preferred_language: str = Form(...),
-    city: Optional[str] = Form(None),
-    birthdate: Optional[str] = Form(None),
-    gender: int = Form(...),
-    access_type: int = Form(...),
-    photo_path: Optional[str] = Form(None),
-    photo_path_aux: Optional[str] = Form(None),
-    is_active: int = Form(...),
+    user: CreateUserRequest,
     token: str = Depends(oauth2_scheme)
 ):
     try:
@@ -287,18 +273,18 @@ async def create_user(
 
         # Create a new User instance using SQLAlchemy's ORM
         new_user = User(
-            name=name,
-            username=username,
-            email=email,
-            password=password,
-            preferred_language=preferred_language,
-            city=city,
-            birthdate=birthdate,
-            gender=gender,
-            access_type=access_type,
-            photo_path=photo_path,
-            photo_path_aux=photo_path_aux,
-            is_active=is_active
+            name=user.name,
+            username=user.username,
+            email=user.email,
+            password=user.password,
+            preferred_language=user.preferred_language,
+            city=user.city,
+            birthdate=user.birthdate,
+            gender=user.gender,
+            access_type=user.access_type,
+            photo_path=user.photo_path,
+            photo_path_aux=user.photo_path_aux,
+            is_active=user.is_active
         )
 
         with get_db_session() as db_session:
@@ -312,22 +298,25 @@ async def create_user(
         print(err)
         raise HTTPException(status_code=500, detail="Internal server error")
 
+class EditUserRequest(BaseModel):
+    name: str
+    username: str
+    email: str
+    preferred_language: str
+    city: Optional[str]
+    birthdate: Optional[str]
+    gender: int
+    access_type: int
+    photo_path: Optional[str]
+    photo_path_aux: Optional[str]
+    is_active: int
+
 # Define an HTTP PUT route to edit a user's information
-@router.put("/users/edit/{user_id}")
+@router.put("/users/{user_id}/edit")
 async def edit_user(
     user_id: int,
-    name: str = Form(None),
-    username: str = Form(None),
-    email: str = Form(None),
-    preferred_language: str = Form(None),
-    city: Optional[str] = Form(None),
-    birthdate: Optional[str] = Form(None),
-    gender: int = Form(None),
-    access_type: int = Form(None),
-    photo_path: Optional[str] = Form(None),
-    photo_path_aux: Optional[str] = Form(None),
-    is_active: int = Form(None),
-    token: str = Depends(oauth2_scheme)
+    user_attributtes: EditUserRequest,
+    token: str = Depends(oauth2_scheme) # Add the Request dependency
 ):
     try:
         # Validate the user's access token using the oauth2_scheme
@@ -345,28 +334,28 @@ async def edit_user(
                 raise HTTPException(status_code=404, detail="User not found")
 
             # Update user information if provided in the form data
-            if name is not None:
-                user.name = name
-            if username is not None:
-                user.username = username
-            if email is not None:
-                user.email = email
-            if preferred_language is not None:
-                user.preferred_language = preferred_language
-            if city is not None:
-                user.city = city
-            if birthdate is not None:
-                user.birthdate = birthdate
-            if gender is not None:
-                user.gender = gender
-            if access_type is not None:
-                user.access_type = access_type
-            if photo_path is not None:
-                user.photo_path = photo_path
-            if photo_path_aux is not None:
-                user.photo_path_aux = photo_path_aux
-            if is_active is not None:
-                user.is_active = is_active
+            if user_attributtes.name is not None:
+                user.name = user_attributtes.name
+            if user_attributtes.username is not None:
+                user.username = user_attributtes.username
+            if user_attributtes.email is not None:
+                user.email = user_attributtes.email
+            if user_attributtes.preferred_language is not None:
+                user.preferred_language = user_attributtes.preferred_language
+            if user_attributtes.city is not None:
+                user.city = user_attributtes.city
+            if user_attributtes.birthdate is not None:
+                user.birthdate = user_attributtes.birthdate
+            if user_attributtes.gender is not None:
+                user.gender = user_attributtes.gender
+            if user_attributtes.access_type is not None:
+                user.access_type = user_attributtes.access_type
+            if user_attributtes.photo_path is not None:
+                user.photo_path = user_attributtes.photo_path
+            if user_attributtes.photo_path_aux is not None:
+                user.photo_path_aux = user_attributtes.photo_path_aux
+            if user_attributtes.is_active is not None:
+                user.is_active = user_attributtes.is_active
 
             # Commit the changes to the database
             db_session.commit()
@@ -382,7 +371,10 @@ async def edit_user(
 
 # Define an HTTP PUT route to delete a user's photo
 @router.put("/users/{user_id}/delete-photo")
-async def delete_user_photo(user_id: int, token: str = Depends(oauth2_scheme)):
+async def delete_user_photo(
+    user_id: int, 
+    token: str = Depends(oauth2_scheme)
+):
     try:
         # Validate the user's access token using the oauth2_scheme
         sessionController.validate_token(token)
@@ -417,7 +409,10 @@ async def delete_user_photo(user_id: int, token: str = Depends(oauth2_scheme)):
 
 # Define an HTTP DELETE route to delete a user
 @router.delete("/users/{user_id}/delete")
-async def delete_user(user_id: int, response: Response, token: str = Depends(oauth2_scheme)):
+async def delete_user(
+    user_id: int, 
+    token: str = Depends(oauth2_scheme)
+):
     try:
         # Validate the user's access token using the oauth2_scheme
         sessionController.validate_token(token)
@@ -431,12 +426,11 @@ async def delete_user(user_id: int, response: Response, token: str = Depends(oau
             # Check if the user with the given ID exists
             if not user:
                 raise HTTPException(status_code=404, detail="User not found")
-
+                
             # Check for existing dependencies if needed (e.g., related systems)
-            count_gear = db_session.query(Gear).filter(gear.user_id == user_id).count()
+            count_gear = db_session.query(Gear).filter(Gear.user_id == user_id).count()
             if count_gear > 0:
                 raise HTTPException(status_code=409, detail="Cannot delete user due to existing dependencies")
-
             # Delete the user from the database
             db_session.delete(user)
             db_session.commit()
