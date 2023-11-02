@@ -9,6 +9,7 @@ from jose import jwt, JWTError
 from dotenv import load_dotenv
 import mysql.connector.errors
 from urllib.parse import unquote
+from pydantic import BaseModel
 
 router = APIRouter()
 
@@ -151,15 +152,17 @@ async def read_gear_gearFromId(id: int, token: str = Depends(oauth2_scheme)):
 
     return results
 
+class CreateGearRequest(BaseModel):
+    brand: Optional[str]
+    model: Optional[str]
+    nickname: str
+    gear_type: int
+    date: str
+    user_id: int
 
 @router.post("/gear/create")
 async def create_gear(
-    brand: Optional[str] = Form(None), 
-    model: Optional[str] = Form(None), 
-    nickname: str = Form(...), 
-    gear_type: int = Form(...), 
-    user_id: int = Form(...), 
-    date: str = Form(...), 
+    gear: CreateGearRequest, 
     token: str = Depends(oauth2_scheme)
 ):
     from . import sessionController
@@ -168,12 +171,12 @@ async def create_gear(
         with get_db_session() as db_session:
             # Use SQLAlchemy to create a new gear record
             gear_record = Gear(
-                brand=unquote(brand).replace("+", " "),
-                model=unquote(model).replace("+", " "),
-                nickname=unquote(nickname).replace("+", " "),
-                gear_type=gear_type,
-                user_id=user_id,
-                created_at=date,
+                brand=unquote(gear.brand).replace("+", " "),
+                model=unquote(gear.model).replace("+", " "),
+                nickname=unquote(gear.nickname).replace("+", " "),
+                gear_type=gear.gear_type,
+                user_id=gear.user_id,
+                created_at=gear.date,
                 is_active=True,
             )
 
@@ -189,16 +192,18 @@ async def create_gear(
 
     return {"message": "Gear added successfully"}
 
+class EditGearRequest(BaseModel):
+    brand: Optional[str]
+    model: Optional[str]
+    nickname: str
+    gear_type: int
+    date: str
+    is_active: int
 
-@router.put("/gear/edit/{gear_id}")
+@router.put("/gear/{gear_id}/edit")
 async def edit_gear(
     gear_id: int,
-    brand: Optional[str] = Form(None),
-    model: Optional[str] = Form(None),
-    nickname: str = Form(...),
-    gear_type: int = Form(...),
-    date: str = Form(...),
-    is_active: int = Form(...),
+    gear: EditGearRequest,
     token: str = Depends(oauth2_scheme)
 ):
     from . import sessionController
@@ -210,14 +215,14 @@ async def edit_gear(
             gear_record = db_session.query(Gear).filter(Gear.id == gear_id).first()
 
             if gear_record:
-                if brand is not None:
-                    gear_record.brand = unquote(brand).replace("+", " ")
-                if model is not None:
-                    gear_record.model = unquote(model).replace("+", " ")
-                gear_record.nickname = unquote(nickname).replace("+", " ")
-                gear_record.gear_type = gear_type
-                gear_record.created_at = date
-                gear_record.is_active = is_active
+                if gear.brand is not None:
+                    gear_record.brand = unquote(gear.brand).replace("+", " ")
+                if gear.model is not None:
+                    gear_record.model = unquote(gear.model).replace("+", " ")
+                gear_record.nickname = unquote(gear.nickname).replace("+", " ")
+                gear_record.gear_type = gear.gear_type
+                gear_record.created_at = gear.date
+                gear_record.is_active = gear.is_active
 
                 # Commit the transaction
                 db_session.commit()

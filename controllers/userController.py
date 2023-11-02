@@ -15,6 +15,23 @@ router = APIRouter()
 
 logger = logging.getLogger("myLogger")
 
+class UserResponse(BaseModel):
+    id: int
+    name: str
+    username: str
+    email: str
+    city: Optional[str]
+    birthdate: Optional[date]
+    preferred_language: str
+    gender: int
+    access_type: int
+    photo_path: Optional[str]
+    photo_path_aux: Optional[str]
+    is_active: int
+    strava_token: Optional[str]
+    strava_refresh_token: Optional[str]
+    strava_token_expires_at: Optional[str]
+
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 # Define an HTTP GET route to retrieve all users
