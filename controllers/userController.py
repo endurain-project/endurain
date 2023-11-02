@@ -118,7 +118,7 @@ async def read_users_all_pagination(
     return results
 
 # Define an HTTP GET route to retrieve user records by username
-@router.get("/users/userfromusername/{username}", response_model=List[dict])
+@router.get("/users/{username}/userfromusername", response_model=List[dict])
 async def read_users_userFromUsername(username: str, token: str = Depends(oauth2_scheme)):
     try:
         # Validate the user's access token using the oauth2_scheme
@@ -127,12 +127,15 @@ async def read_users_userFromUsername(username: str, token: str = Depends(oauth2
         # Validate that the user has admin access
         sessionController.validate_admin_access(token)
 
+        # Define a search term
+        partial_username = unquote(username).replace("+", " ")
+
         # Create a database session using the get_db_session context manager
         with get_db_session() as db_session:
             # Use SQLAlchemy to query the user records by username
             user_records = (
                 db_session.query(User)
-                .filter(User.username == unquote(username).replace("+", " "))
+                .filter(User.username.like(f"%{partial_username}%"))
                 .all()
             )
 
@@ -150,7 +153,7 @@ async def read_users_userFromUsername(username: str, token: str = Depends(oauth2
     return results
 
 # Define an HTTP GET route to retrieve user records by user ID
-@router.get("/users/userfromid/{user_id}", response_model=List[dict])
+@router.get("/users/{user_id}/userfromid", response_model=List[dict])
 async def read_users_userFromId(user_id: int, token: str = Depends(oauth2_scheme)):
     try:
         # Validate the user's access token using the oauth2_scheme
@@ -182,7 +185,7 @@ async def read_users_userFromId(user_id: int, token: str = Depends(oauth2_scheme
     return results
 
 # Define an HTTP GET route to retrieve user ID by username
-@router.get("/users/useridfromusername/{username}")
+@router.get("/users/{username}/useridfromusername")
 async def read_users_userIDFromUsername(username: str, token: str = Depends(oauth2_scheme)):
     try:
         # Validate the user's access token using the oauth2_scheme
@@ -203,7 +206,7 @@ async def read_users_userIDFromUsername(username: str, token: str = Depends(oaut
     return {0: user_id}
 
 # Define an HTTP GET route to retrieve user photos by user ID
-@router.get("/users/userphotofromid/{user_id}")
+@router.get("/users/{user_id}/userphotofromid")
 async def read_users_userPhotoFromID(user_id: int, token: str = Depends(oauth2_scheme)):
     try:
         # Validate the user's access token using the oauth2_scheme
@@ -233,7 +236,7 @@ async def read_users_userPhotoFromID(user_id: int, token: str = Depends(oauth2_s
     
 
 # Define an HTTP GET route to retrieve user photos aux by user ID
-@router.get("/users/userphotoauxfromid/{user_id}")
+@router.get("/users/{user_id}/userphotoauxfromid")
 async def read_users_userPhotoAuxFromID(user_id: int, token: str = Depends(oauth2_scheme)):
     try:
         # Validate the user's access token using the oauth2_scheme

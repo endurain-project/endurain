@@ -95,7 +95,7 @@ async def read_gear_all_pagination(
     return results
 
 
-@router.get("/gear/gearfromnickname/{nickname}", response_model=List[dict])
+@router.get("/gear/{nickname}/gearfromnickname", response_model=List[dict])
 async def read_gear_gearFromNickname(nickname: str, token: str = Depends(oauth2_scheme)):
     from . import sessionController
     try:
@@ -104,10 +104,13 @@ async def read_gear_gearFromNickname(nickname: str, token: str = Depends(oauth2_
             payload = jwt.decode(token, os.getenv("SECRET_KEY"), algorithms=[os.getenv("ALGORITHM")])
             user_id = payload.get("id")
 
+            # Define a search term
+            partial_nickname = unquote(nickname).replace("+", " ")
+
             # Use SQLAlchemy to query the gear records by nickname
             gear_records = (
                 db_session.query(Gear)
-                .filter(Gear.nickname == unquote(nickname).replace("+", " "), Gear.user_id == user_id)
+                .filter(Gear.nickname.like(f"%{partial_nickname}%"), Gear.user_id == user_id)
                 .all()
             )
 
@@ -123,7 +126,7 @@ async def read_gear_gearFromNickname(nickname: str, token: str = Depends(oauth2_
 
 
 # Get gear from id
-@router.get("/gear/gearfromid/{id}", response_model=List[dict])
+@router.get("/gear/{id}/gearfromid", response_model=List[dict])
 async def read_gear_gearFromId(id: int, token: str = Depends(oauth2_scheme)):
     from . import sessionController
     try:
@@ -158,7 +161,6 @@ class CreateGearRequest(BaseModel):
     nickname: str
     gear_type: int
     date: str
-    user_id: int
 
 @router.post("/gear/create")
 async def create_gear(
@@ -168,6 +170,10 @@ async def create_gear(
     from . import sessionController
     try:
         sessionController.validate_token(token)
+
+        payload = jwt.decode(token, os.getenv("SECRET_KEY"), algorithms=[os.getenv("ALGORITHM")])
+        user_id = payload.get("id")
+
         with get_db_session() as db_session:
             # Use SQLAlchemy to create a new gear record
             gear_record = Gear(
@@ -175,7 +181,7 @@ async def create_gear(
                 model=unquote(gear.model).replace("+", " "),
                 nickname=unquote(gear.nickname).replace("+", " "),
                 gear_type=gear.gear_type,
-                user_id=gear.user_id,
+                user_id=user_id,
                 created_at=gear.date,
                 is_active=True,
             )

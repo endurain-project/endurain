@@ -6,6 +6,7 @@ from jose import jwt, JWTError
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from db.db import get_db_session, User, AccessToken  # Import your SQLAlchemy session management from db.db and models
 from controllers.userController import UserResponse
+from pydantic import BaseModel
 
 router = APIRouter()
 
@@ -132,9 +133,16 @@ def validate_admin_access(token: str):
     except JWTError:
         raise JWTError("Invalid token")
 
+class CreateTokenRequest(BaseModel):
+    username: str
+    password: str
+    neverExpires: bool
+
 @router.post("/token")
-async def login_for_access_token(username: str = Form(...), password: str = Form(...), loginNeverExpires: bool = Form(...)):
-    access_token = await authenticate_user(username, password, loginNeverExpires)
+async def login_for_access_token(
+    token: CreateTokenRequest
+):
+    access_token = await authenticate_user(token.username, token.password, token.neverExpires)
     if not access_token:
         raise HTTPException(status_code=400, detail="Unable to retrieve access token")
     return {"access_token": access_token, "token_type": "bearer"}
