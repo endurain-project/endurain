@@ -121,6 +121,8 @@ class Activity(Base):
     elevation_gain = Column(Integer, nullable=False, comment='Elevation gain in meters')
     elevation_loss = Column(Integer, nullable=False, comment='Elevation loss in meters')
     pace = Column(DECIMAL(precision=20, scale=10), nullable=False, comment='Pace seconds per meter (s/m)')
+    average_speed = Column(DECIMAL(precision=20, scale=10), nullable=False, comment='Average speed seconds per meter (s/m)')
+    average_power = Column(Integer, nullable=False, comment='Average power (watts)')
     gear_id = Column(Integer, ForeignKey('gear.id'), nullable=True, comment='Gear ID associated with this activity')
 
     # Define a relationship to the User model

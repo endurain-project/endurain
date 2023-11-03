@@ -114,6 +114,8 @@ CREATE  TABLE IF NOT EXISTS `gearguardian`.`activities` (
   `elevation_gain` INT(5) NOT NULL COMMENT 'Elevation gain in meters' ,
   `elevation_loss` INT(5) NOT NULL COMMENT 'Elevation loss in meters' ,
   `pace` DECIMAL(20, 10) NOT NULL COMMENT 'Pace seconds per meter (s/m)' ,
+  `average_speed` DECIMAL(20, 10) NOT NULL COMMENT 'Average speed seconds per meter (s/m)' ,
+  `average_power` INT(4) NOT NULL COMMENT 'Average power (watts)' ,
   `gear_id` INT(10) NULL COMMENT 'Gear ID associated with this activity' ,
   PRIMARY KEY (`id`) ,
   INDEX `FK_user_id_idx` (`user_id` ASC) ,

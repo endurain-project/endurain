@@ -33,7 +33,82 @@ async def read_gear_all(token: str = Depends(oauth2_scheme)):
             gear_records = db_session.query(Gear).filter(Gear.user_id == user_id).order_by(Gear.nickname).all()
 
             # Convert the SQLAlchemy objects to dictionaries
-            results = [gear.to_dict() for gear in gear_records]
+            results = [gear.__dict__ for gear in gear_records]
+
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    except Error as err:
+        print(err)
+
+    return results
+
+@router.get("/gear/all/running", response_model=List[dict])
+async def read_gear_all_running(token: str = Depends(oauth2_scheme)):
+    from . import sessionController
+    try:
+        sessionController.validate_token(token)
+        with get_db_session() as db_session:
+            payload = jwt.decode(token, os.getenv("SECRET_KEY"), algorithms=[os.getenv("ALGORITHM")])
+            user_id = payload.get("id")
+
+            # Query the gear records using SQLAlchemy
+            gear_records = db_session.query(Gear).filter(
+                Gear.gear_type == 2,
+                Gear.user_id == user_id
+                ).order_by(Gear.nickname).all()
+
+            # Convert the SQLAlchemy objects to dictionaries
+            results = [gear.__dict__ for gear in gear_records]
+
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    except Error as err:
+        print(err)
+
+    return results
+
+@router.get("/gear/all/cycling", response_model=List[dict])
+async def read_gear_all_cycling(token: str = Depends(oauth2_scheme)):
+    from . import sessionController
+    try:
+        sessionController.validate_token(token)
+        with get_db_session() as db_session:
+            payload = jwt.decode(token, os.getenv("SECRET_KEY"), algorithms=[os.getenv("ALGORITHM")])
+            user_id = payload.get("id")
+
+            # Query the gear records using SQLAlchemy
+            gear_records = db_session.query(Gear).filter(
+                Gear.gear_type == 1,
+                Gear.user_id == user_id
+                ).order_by(Gear.nickname).all()
+
+            # Convert the SQLAlchemy objects to dictionaries
+            results = [gear.__dict__ for gear in gear_records]
+
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    except Error as err:
+        print(err)
+
+    return results
+
+@router.get("/gear/all/swimming", response_model=List[dict])
+async def read_gear_all_swimming(token: str = Depends(oauth2_scheme)):
+    from . import sessionController
+    try:
+        sessionController.validate_token(token)
+        with get_db_session() as db_session:
+            payload = jwt.decode(token, os.getenv("SECRET_KEY"), algorithms=[os.getenv("ALGORITHM")])
+            user_id = payload.get("id")
+
+            # Query the gear records using SQLAlchemy
+            gear_records = db_session.query(Gear).filter(
+                Gear.gear_type == 3,
+                Gear.user_id == user_id
+                ).order_by(Gear.nickname).all()
+
+            # Convert the SQLAlchemy objects to dictionaries
+            results = [gear.__dict__ for gear in gear_records]
 
     except JWTError:
         raise HTTPException(status_code=401, detail="Unauthorized")
@@ -268,14 +343,11 @@ async def delete_gear(gear_id: int, response: Response, token: str = Depends(oau
                 db_session.commit()
                 return {"message": f"Gear {gear_id} has been deleted"}
             else:
-                response.status_code = 404
-                return {"detail": "Gear not found"}
+                raise HTTPException(status_code=404, detail="Gear not found")
 
     except JWTError:
-        response.status_code = 401
-        return {"detail": "Unauthorized"}
+        raise HTTPException(status_code=401, detail="Unauthorized")
     except Exception as err:
-        response.status_code = 500
-        return {"detail": "Failed to delete gear"}
+        raise HTTPException(status_code=500, detail="Failed to delete gear")
 
     return {"message": f"Gear {gear_id} has been deleted"}

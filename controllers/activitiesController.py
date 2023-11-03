@@ -27,8 +27,6 @@ async def read_activities_all(token: str = Depends(oauth2_scheme)):
     try:
         sessionController.validate_token(token)
         with get_db_session() as db_session:
-            #payload = jwt.decode(token, os.getenv("SECRET_KEY"), algorithms=[os.getenv("ALGORITHM")])
-            #user_id = payload.get("id")
 
             # Query the activities records using SQLAlchemy
             activity_records = db_session.query(Activity).order_by(desc(Activity.start_time)).all()
@@ -43,17 +41,56 @@ async def read_activities_all(token: str = Depends(oauth2_scheme)):
 
     return results
 
-@router.get("/activities/number")
-async def read_activities_number(token: str = Depends(oauth2_scheme)):
+@router.get("/activities/useractivities", response_model=List[dict])
+async def read_activities_useractivities(token: str = Depends(oauth2_scheme)):
     from . import sessionController
     try:
         sessionController.validate_token(token)
         with get_db_session() as db_session:
-            #payload = jwt.decode(token, os.getenv("SECRET_KEY"), algorithms=[os.getenv("ALGORITHM")])
-            #user_id = payload.get("id")
+            payload = jwt.decode(token, os.getenv("SECRET_KEY"), algorithms=[os.getenv("ALGORITHM")])
+            user_id = payload.get("id")
+
+            # Query the activities records using SQLAlchemy
+            activity_records = db_session.query(Activity).filter(Activity.user_id == user_id).order_by(desc(Activity.start_time)).all()
+
+            # Convert the SQLAlchemy objects to dictionaries
+            results = [activity.to_dict() for activity in activity_records]
+
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    except Error as err:
+        print(err)
+
+    return results
+
+@router.get("/activities/all/number")
+async def read_activities_all_number(token: str = Depends(oauth2_scheme)):
+    from . import sessionController
+    try:
+        sessionController.validate_token(token)
+        with get_db_session() as db_session:
 
             # Query the number of activities records for the user using SQLAlchemy
             activities_count = db_session.query(func.count(Activity.id)).scalar()
+
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    except Error as err:
+        print(err)
+
+    return {0: activities_count}
+
+@router.get("/activities/useractivities/number")
+async def read_activities_useractivities_number(token: str = Depends(oauth2_scheme)):
+    from . import sessionController
+    try:
+        sessionController.validate_token(token)
+        with get_db_session() as db_session:
+            payload = jwt.decode(token, os.getenv("SECRET_KEY"), algorithms=[os.getenv("ALGORITHM")])
+            user_id = payload.get("id")
+
+            # Query the number of activities records for the user using SQLAlchemy
+            activities_count = db_session.query(func.count(Activity.id)).filter(Activity.user_id == user_id).scalar()
 
     except JWTError:
         raise HTTPException(status_code=401, detail="Unauthorized")
@@ -72,8 +109,6 @@ async def read_activities_all_pagination(
     try:
         sessionController.validate_token(token)
         with get_db_session() as db_session:
-            #payload = jwt.decode(token, os.getenv("SECRET_KEY"), algorithms=[os.getenv("ALGORITHM")])
-            #user_id = payload.get("id")
 
             # Use SQLAlchemy to query the gear records with pagination
             activity_records = (
@@ -94,6 +129,95 @@ async def read_activities_all_pagination(
 
     return results
 
+@router.get("/activities/useractivities/pagenumber/{pageNumber}/numRecords/{numRecords}", response_model=List[dict])
+async def read_activities_useractivities_pagination(
+    pageNumber: int,
+    numRecords: int,
+    token: str = Depends(oauth2_scheme)
+):
+    from . import sessionController
+    try:
+        sessionController.validate_token(token)
+        with get_db_session() as db_session:
+            payload = jwt.decode(token, os.getenv("SECRET_KEY"), algorithms=[os.getenv("ALGORITHM")])
+            user_id = payload.get("id")
+
+            # Use SQLAlchemy to query the gear records with pagination
+            activity_records = (
+                db_session.query(Activity)
+                .filter(Activity.user_id == user_id)
+                .order_by(desc(Activity.start_time))
+                .offset((pageNumber - 1) * numRecords)
+                .limit(numRecords)
+                .all()
+            )
+
+            # Convert the SQLAlchemy results to a list of dictionaries
+            results = [record.__dict__ for record in activity_records]
+
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    except Error as err:
+        print(err)
+
+    return results
+
+# Get gear from id
+@router.get("/activities/{id}/activityfromid", response_model=List[dict])
+async def read_activities_activityFromId(id: int, token: str = Depends(oauth2_scheme)):
+    from . import sessionController
+    try:
+        sessionController.validate_token(token)
+        with get_db_session() as db_session:
+            payload = jwt.decode(token, os.getenv("SECRET_KEY"), algorithms=[os.getenv("ALGORITHM")])
+            user_id = payload.get("id")
+
+            # Use SQLAlchemy to query the gear record by ID
+            activity_record = (
+                db_session.query(Activity)
+                .filter(Activity.id == id, Activity.user_id == user_id)
+                .first()
+            )
+
+            # Convert the SQLAlchemy result to a list of dictionaries
+            if activity_record:
+                results = [activity_record.__dict__]
+            else:
+                results = []
+
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    except Error as err:
+        print(err)
+
+    return results
+
+@router.put("/activities/{activity_id}/addgear/{gear_id}")
+async def activity_add_gear(activity_id: int, gear_id: int, token: str = Depends(oauth2_scheme)):
+    from . import sessionController
+    try:
+        sessionController.validate_token(token)
+
+        # Use SQLAlchemy to query and delete the gear record
+        with get_db_session() as db_session:
+            activity_record = db_session.query(Activity).filter(Activity.id == activity_id).first()
+
+            if activity_record:
+                activity_record.gear_id = gear_id
+
+                # Commit the transaction
+                db_session.commit()
+                return {"message": "Gear added to activity successfully"}
+            else:
+                raise HTTPException(status_code=404, detail="Activity not found")
+
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    except Exception as err:
+        raise HTTPException(status_code=500, detail="Failed to add gear to activity")
+
+    return {"message": f"Gear added to {activity_id}"}
+
 class CreateActivityRequest(BaseModel):
     distance: int
     name: str
@@ -107,6 +231,8 @@ class CreateActivityRequest(BaseModel):
     elevationGain: int
     elevationLoss: int
     pace: float
+    averageSpeed: float
+    averagePower: int
 
 @router.post("/activities/create")
 async def create_activity(
@@ -160,7 +286,9 @@ async def create_activity(
             waypoints=activity_data.waypoints,
             elevation_gain=activity_data.elevationGain,
             elevation_loss=activity_data.elevationLoss,
-            pace=activity_data.pace
+            pace=activity_data.pace,
+            average_speed=activity_data.averageSpeed,
+            average_power=activity_data.averagePower
         )
 
         # Store the Activity record in the database
@@ -188,3 +316,75 @@ def parse_timestamp(timestamp_string):
     except ValueError:
         # If milliseconds are not present, use a default value of 0
         return datetime.strptime(timestamp_string, "%Y-%m-%dT%H:%M:%SZ")
+
+# Define an HTTP PUT route to delete an activity gear
+@router.put("/activities/{activity_id}/deletegear")
+async def delete_activity_gear(
+    activity_id: int, 
+    token: str = Depends(oauth2_scheme)
+):
+    from . import sessionController
+    try:
+        # Validate the user's access token using the oauth2_scheme
+        sessionController.validate_token(token)
+
+        with get_db_session() as db_session:
+            # get user_id
+            payload = jwt.decode(token, os.getenv("SECRET_KEY"), algorithms=[os.getenv("ALGORITHM")])
+            user_id = payload.get("id")
+
+            # Query the database to find the user by their ID
+            activity = db_session.query(Activity).filter(Activity.id == activity_id,Activity.user_id == user_id).first()
+            
+            # Check if the user with the given ID exists
+            if not activity:
+                raise HTTPException(status_code=404, detail="Activity not found")
+
+            # Set the user's photo paths to None to delete the photo
+            activity.gear_id = None
+
+            # Commit the changes to the database
+            db_session.commit()
+    except JWTError:
+        # Handle JWT (JSON Web Token) authentication error
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    except Exception as err:
+        # Handle any other unexpected exceptions
+        print(err)
+        raise HTTPException(status_code=500, detail="Failed to update activity gear")
+
+    # Return a success message
+    return {"message": f"Activity gear {activity_id} has been deleted"}
+
+@router.delete("/activities/{activity_id}/delete")
+async def delete_activity(activity_id: int, token: str = Depends(oauth2_scheme)):
+    from . import sessionController
+    try:
+        sessionController.validate_token(token)
+
+        # Use SQLAlchemy to query and delete the gear record
+        with get_db_session() as db_session:
+            activity_record = db_session.query(Activity).filter(Activity.id == activity_id).first()
+
+            if gear_record:
+                # Check for existing dependencies (uncomment if needed)
+                # Example: Check if there are dependencies in another table
+                # if db_session.query(OtherModel).filter(OtherModel.gear_id == gear_id).count() > 0:
+                #     response.status_code = 409
+                #     return {"detail": "Cannot delete gear due to existing dependencies"}
+
+                # Delete the gear record
+                db_session.delete(activity_record)
+
+                # Commit the transaction
+                db_session.commit()
+                return {"message": f"Activity {activity_id} has been deleted"}
+            else:
+                raise HTTPException(status_code=404, detail="Gear not found")
+
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    except Exception as err:
+        raise HTTPException(status_code=500, detail="Failed to delete activity")
+
+    return {"message": f"Activity {activity_id} has been deleted"}
