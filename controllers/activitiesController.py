@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 import mysql.connector.errors
 from urllib.parse import unquote
 from pydantic import BaseModel
-from datetime import datetime
+from datetime import datetime, timedelta
 
 router = APIRouter()
 
@@ -60,6 +60,57 @@ async def read_activities_useractivities(token: str = Depends(oauth2_scheme)):
         raise HTTPException(status_code=401, detail="Unauthorized")
     except Error as err:
         print(err)
+
+    return results
+
+@router.get("/activities/useractivities/thisweek/distances")
+async def read_activities_useractivities_thisweek_distances(token: str = Depends(oauth2_scheme)):
+    from . import sessionController
+    try:
+        sessionController.validate_token(token)
+        with get_db_session() as db_session:
+            payload = jwt.decode(token, os.getenv("SECRET_KEY"), algorithms=[os.getenv("ALGORITHM")])
+            user_id = payload.get("id")
+            
+            # Calculate the start of the current week
+            today = datetime.utcnow().date()
+            start_of_week = today - timedelta(days=today.weekday())  # Monday is the first day of the week, which is denoted by 0
+            end_of_week = start_of_week + timedelta(days=7)
+
+            # Query the activities records for the current week
+            activity_records = db_session.query(Activity)\
+                .filter(
+                    Activity.user_id == user_id,
+                    func.date(Activity.start_time) >= start_of_week,
+                    func.date(Activity.start_time) < end_of_week
+                )\
+                .order_by(desc(Activity.start_time))\
+                .all()
+
+            # Initialize distance variables
+            run = bike = swim = 0
+
+            # Iterate over the activity records and aggregate the distances
+            for activity in activity_records:
+                if activity.activity_type in [1, 2, 3]:
+                    run += activity.distance
+                elif activity.activity_type in [4, 5, 6, 7]:
+                    bike += activity.distance
+                elif activity.activity_type == 8:
+                    swim += activity.distance
+
+            # Prepare the result as JSON
+            results = {
+                "run": run,
+                "bike": bike,
+                "swim": swim
+            }
+
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    except Error as err:
+        print(err)
+        raise HTTPException(status_code=500, detail="Internal Server Error")
 
     return results
 
