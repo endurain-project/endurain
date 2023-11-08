@@ -63,14 +63,14 @@ async def read_activities_useractivities(token: str = Depends(oauth2_scheme)):
 
     return results
 
-@router.get("/activities/useractivities/thisweek/distances")
-async def read_activities_useractivities_thisweek_distances(token: str = Depends(oauth2_scheme)):
+@router.get("/activities/useractivities/{user_id}/thisweek/distances")
+async def read_activities_useractivities_thisweek_distances(user_id = int, token: str = Depends(oauth2_scheme)):
     from . import sessionController
     try:
         sessionController.validate_token(token)
         with get_db_session() as db_session:
-            payload = jwt.decode(token, os.getenv("SECRET_KEY"), algorithms=[os.getenv("ALGORITHM")])
-            user_id = payload.get("id")
+            #payload = jwt.decode(token, os.getenv("SECRET_KEY"), algorithms=[os.getenv("ALGORITHM")])
+            #user_id = payload.get("id")
             
             # Calculate the start of the current week
             today = datetime.utcnow().date()
