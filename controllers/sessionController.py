@@ -86,6 +86,11 @@ def get_user_data(token: str):
             if not user:
                 raise HTTPException(status_code=404, detail="User not found")
 
+            if user.strava_token is None:
+                is_strava_linked = 0
+            else:
+                is_strava_linked = 1
+
             # Map the user object to a dictionary that matches the UserResponse model
             user_data = {
                 "id": user.id,
@@ -100,9 +105,7 @@ def get_user_data(token: str):
                 "photo_path": user.photo_path,
                 "photo_path_aux": user.photo_path_aux,
                 "is_active": user.is_active,
-                "strava_token": user.strava_token,
-                "strava_refresh_token": user.strava_refresh_token,
-                "strava_token_expires_at": user.strava_token_expires_at,
+                "is_strava_linked": is_strava_linked,
             }
 
             return user_data
@@ -112,15 +115,26 @@ def get_user_data(token: str):
 def validate_token(token: str):
     try:
         decoded_token = jwt.decode(token, os.getenv("SECRET_KEY"), algorithms=[os.getenv("ALGORITHM")])
+        user_id = decoded_token.get("id")
+        with get_db_session() as db_session:
+            access_token = db_session.query(AccessToken).filter(
+                AccessToken.user_id == user_id,
+                AccessToken.token == token
+            ).first()
+            
+            if access_token:
+                expiration_datetime = datetime.fromtimestamp(decoded_token['exp'])
+                current_time = datetime.utcnow()
+                if current_time > expiration_datetime:
+                    raise JWTError("Token expired")
+                else:
+                    return {"message": "Token is valid"}
+            else:
+                raise JWTError("Token expired")
+
         #if 'exp' not in decoded_token:
         #    return {"message": "Token is valid"}
         #else:
-        expiration_datetime = datetime.fromtimestamp(decoded_token['exp'])
-        current_time = datetime.utcnow()
-        if current_time > expiration_datetime:
-            raise JWTError("Token expired")
-        else:
-            return {"message": "Token is valid"}
     except JWTError:
         raise JWTError("Invalid token")
 

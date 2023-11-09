@@ -28,9 +28,7 @@ class UserResponse(BaseModel):
     photo_path: Optional[str]
     photo_path_aux: Optional[str]
     is_active: int
-    strava_token: Optional[str]
-    strava_refresh_token: Optional[str]
-    strava_token_expires_at: Optional[str]
+    is_strava_linked: Optional[int]
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
@@ -50,7 +48,7 @@ async def read_users_all(token: str = Depends(oauth2_scheme)):
             users = db_session.query(User).all()
 
             # Convert the SQLAlchemy User objects to dictionaries
-            results = [user.to_dict() for user in users]
+            results = [user.__dict__ for user in users]
     except JWTError:
         # Handle JWT (JSON Web Token) authentication error
         raise HTTPException(status_code=401, detail="Unauthorized")

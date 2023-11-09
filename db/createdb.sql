@@ -22,6 +22,7 @@ CREATE  TABLE IF NOT EXISTS `gearguardian`.`users` (
   `photo_path` VARCHAR(250) NULL COMMENT 'User photo path' ,
   `photo_path_aux` VARCHAR(250) NULL COMMENT 'Auxiliar photo path' ,
   `is_active` INT(1) NOT NULL COMMENT 'Is user active (2 - not active, 1 - active)' ,
+  `strava_state` VARCHAR(45) NULL ,
   `strava_token` VARCHAR(250) NULL ,
   `strava_refresh_token` VARCHAR(250) NULL ,
   `strava_token_expires_at` DATETIME NULL ,

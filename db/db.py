@@ -44,6 +44,7 @@ class User(Base):
     photo_path = Column(String(length=250), nullable=True, comment='User photo path')
     photo_path_aux = Column(String(length=250), nullable=True, comment='Auxiliary photo path')
     is_active = Column(Integer, nullable=False, comment='Is user active (2 - not active, 1 - active)')
+    strava_state = Column(String(length=45), nullable=True)
     strava_token = Column(String(length=250), nullable=True)
     strava_refresh_token = Column(String(length=250), nullable=True)
     strava_token_expires_at = Column(DateTime, nullable=True)
