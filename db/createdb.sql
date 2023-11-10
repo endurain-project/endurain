@@ -118,6 +118,7 @@ CREATE  TABLE IF NOT EXISTS `gearguardian`.`activities` (
   `average_speed` DECIMAL(20, 10) NOT NULL COMMENT 'Average speed seconds per meter (s/m)' ,
   `average_power` INT(4) NOT NULL COMMENT 'Average power (watts)' ,
   `gear_id` INT(10) NULL COMMENT 'Gear ID associated with this activity' ,
+  `strava_activity_id` BIGINT(20) NULL COMMENT 'Strava activity ID' ,
   PRIMARY KEY (`id`) ,
   INDEX `FK_user_id_idx` (`user_id` ASC) ,
   CONSTRAINT `FK_activity_user`

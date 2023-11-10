@@ -306,6 +306,7 @@ class CreateActivityRequest(BaseModel):
     pace: float
     averageSpeed: float
     averagePower: int
+    strava_id: Optional[int]
 
 @router.post("/activities/create")
 async def create_activity(
@@ -361,7 +362,8 @@ async def create_activity(
             elevation_loss=activity_data.elevationLoss,
             pace=activity_data.pace,
             average_speed=activity_data.averageSpeed,
-            average_power=activity_data.averagePower
+            average_power=activity_data.averagePower,
+            strava_activity_id=activity.strava_id
         )
 
         # Store the Activity record in the database

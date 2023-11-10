@@ -3,7 +3,7 @@ import urllib.parse  # Import urllib.parse for URL encoding
 import logging
 from sqlalchemy.orm import sessionmaker, relationship
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy import create_engine, Column, Integer, String, Date, DateTime, ForeignKey, LargeBinary, DECIMAL
+from sqlalchemy import create_engine, Column, Integer, String, Date, DateTime, ForeignKey, LargeBinary, DECIMAL, BigInteger
 from dotenv import load_dotenv
 from datetime import datetime
 from sqlalchemy.dialects.mysql import JSON
@@ -125,6 +125,7 @@ class Activity(Base):
     average_speed = Column(DECIMAL(precision=20, scale=10), nullable=False, comment='Average speed seconds per meter (s/m)')
     average_power = Column(Integer, nullable=False, comment='Average power (watts)')
     gear_id = Column(Integer, ForeignKey('gear.id'), nullable=True, comment='Gear ID associated with this activity')
+    strava_activity_id = Column(BigInteger, nullable=True, comment='Strava activity ID')
 
     # Define a relationship to the User model
     user = relationship('User', back_populates='activities')
