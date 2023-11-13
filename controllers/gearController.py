@@ -1,13 +1,12 @@
 import os
 import logging
-from fastapi import APIRouter, Depends, HTTPException, Form, Response
+from fastapi import APIRouter, Depends, HTTPException, Response
 from fastapi.security import OAuth2PasswordBearer
 from typing import List, Optional
 from sqlalchemy import func
 from db.db import get_db_session, Gear
 from jose import jwt, JWTError
 from dotenv import load_dotenv
-import mysql.connector.errors
 from urllib.parse import unquote
 from pydantic import BaseModel
 
@@ -16,137 +15,177 @@ router = APIRouter()
 logger = logging.getLogger("myLogger")
 
 # Load the environment variables from config/.env
-load_dotenv('config/.env')
+load_dotenv("config/.env")
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+
 
 @router.get("/gear/all", response_model=List[dict])
 async def read_gear_all(token: str = Depends(oauth2_scheme)):
     from . import sessionController
+
     try:
         sessionController.validate_token(token)
         with get_db_session() as db_session:
-            payload = jwt.decode(token, os.getenv("SECRET_KEY"), algorithms=[os.getenv("ALGORITHM")])
+            payload = jwt.decode(
+                token, os.getenv("SECRET_KEY"), algorithms=[os.getenv("ALGORITHM")]
+            )
             user_id = payload.get("id")
 
             # Query the gear records using SQLAlchemy
-            gear_records = db_session.query(Gear).filter(Gear.user_id == user_id).order_by(Gear.nickname).all()
+            gear_records = (
+                db_session.query(Gear)
+                .filter(Gear.user_id == user_id)
+                .order_by(Gear.nickname)
+                .all()
+            )
 
             # Convert the SQLAlchemy objects to dictionaries
             results = [gear.__dict__ for gear in gear_records]
 
     except JWTError:
         raise HTTPException(status_code=401, detail="Unauthorized")
-    except Error as err:
+    except NameError as err:
         print(err)
 
     return results
+
 
 @router.get("/gear/all/running", response_model=List[dict])
 async def read_gear_all_running(token: str = Depends(oauth2_scheme)):
     from . import sessionController
+
     try:
         sessionController.validate_token(token)
         with get_db_session() as db_session:
-            payload = jwt.decode(token, os.getenv("SECRET_KEY"), algorithms=[os.getenv("ALGORITHM")])
+            payload = jwt.decode(
+                token, os.getenv("SECRET_KEY"), algorithms=[os.getenv("ALGORITHM")]
+            )
             user_id = payload.get("id")
 
             # Query the gear records using SQLAlchemy
-            gear_records = db_session.query(Gear).filter(
-                Gear.gear_type == 2,
-                Gear.user_id == user_id
-                ).order_by(Gear.nickname).all()
+            gear_records = (
+                db_session.query(Gear)
+                .filter(Gear.gear_type == 2, Gear.user_id == user_id)
+                .order_by(Gear.nickname)
+                .all()
+            )
 
             # Convert the SQLAlchemy objects to dictionaries
             results = [gear.__dict__ for gear in gear_records]
 
     except JWTError:
         raise HTTPException(status_code=401, detail="Unauthorized")
-    except Error as err:
+    except NameError as err:
         print(err)
 
     return results
+
 
 @router.get("/gear/all/cycling", response_model=List[dict])
 async def read_gear_all_cycling(token: str = Depends(oauth2_scheme)):
     from . import sessionController
+
     try:
         sessionController.validate_token(token)
         with get_db_session() as db_session:
-            payload = jwt.decode(token, os.getenv("SECRET_KEY"), algorithms=[os.getenv("ALGORITHM")])
+            payload = jwt.decode(
+                token, os.getenv("SECRET_KEY"), algorithms=[os.getenv("ALGORITHM")]
+            )
             user_id = payload.get("id")
 
             # Query the gear records using SQLAlchemy
-            gear_records = db_session.query(Gear).filter(
-                Gear.gear_type == 1,
-                Gear.user_id == user_id
-                ).order_by(Gear.nickname).all()
+            gear_records = (
+                db_session.query(Gear)
+                .filter(Gear.gear_type == 1, Gear.user_id == user_id)
+                .order_by(Gear.nickname)
+                .all()
+            )
 
             # Convert the SQLAlchemy objects to dictionaries
             results = [gear.__dict__ for gear in gear_records]
 
     except JWTError:
         raise HTTPException(status_code=401, detail="Unauthorized")
-    except Error as err:
+    except NameError as err:
         print(err)
 
     return results
+
 
 @router.get("/gear/all/swimming", response_model=List[dict])
 async def read_gear_all_swimming(token: str = Depends(oauth2_scheme)):
     from . import sessionController
+
     try:
         sessionController.validate_token(token)
         with get_db_session() as db_session:
-            payload = jwt.decode(token, os.getenv("SECRET_KEY"), algorithms=[os.getenv("ALGORITHM")])
+            payload = jwt.decode(
+                token, os.getenv("SECRET_KEY"), algorithms=[os.getenv("ALGORITHM")]
+            )
             user_id = payload.get("id")
 
             # Query the gear records using SQLAlchemy
-            gear_records = db_session.query(Gear).filter(
-                Gear.gear_type == 3,
-                Gear.user_id == user_id
-                ).order_by(Gear.nickname).all()
+            gear_records = (
+                db_session.query(Gear)
+                .filter(Gear.gear_type == 3, Gear.user_id == user_id)
+                .order_by(Gear.nickname)
+                .all()
+            )
 
             # Convert the SQLAlchemy objects to dictionaries
             results = [gear.__dict__ for gear in gear_records]
 
     except JWTError:
         raise HTTPException(status_code=401, detail="Unauthorized")
-    except Error as err:
+    except NameError as err:
         print(err)
 
     return results
 
+
 @router.get("/gear/number")
 async def read_gear_number(token: str = Depends(oauth2_scheme)):
     from . import sessionController
+
     try:
         sessionController.validate_token(token)
         with get_db_session() as db_session:
-            payload = jwt.decode(token, os.getenv("SECRET_KEY"), algorithms=[os.getenv("ALGORITHM")])
+            payload = jwt.decode(
+                token, os.getenv("SECRET_KEY"), algorithms=[os.getenv("ALGORITHM")]
+            )
             user_id = payload.get("id")
 
             # Query the number of gear records for the user using SQLAlchemy
-            gear_count = db_session.query(func.count(Gear.id)).filter(Gear.user_id == user_id).scalar()
+            gear_count = (
+                db_session.query(func.count(Gear.id))
+                .filter(Gear.user_id == user_id)
+                .scalar()
+            )
 
     except JWTError:
         raise HTTPException(status_code=401, detail="Unauthorized")
-    except Error as err:
+    except NameError as err:
         print(err)
 
     return {0: gear_count}
 
-@router.get("/gear/all/pagenumber/{pageNumber}/numRecords/{numRecords}", response_model=List[dict])
+
+@router.get(
+    "/gear/all/pagenumber/{pageNumber}/numRecords/{numRecords}",
+    response_model=List[dict],
+)
 async def read_gear_all_pagination(
-    pageNumber: int,
-    numRecords: int,
-    token: str = Depends(oauth2_scheme)
+    pageNumber: int, numRecords: int, token: str = Depends(oauth2_scheme)
 ):
     from . import sessionController
+
     try:
         sessionController.validate_token(token)
         with get_db_session() as db_session:
-            payload = jwt.decode(token, os.getenv("SECRET_KEY"), algorithms=[os.getenv("ALGORITHM")])
+            payload = jwt.decode(
+                token, os.getenv("SECRET_KEY"), algorithms=[os.getenv("ALGORITHM")]
+            )
             user_id = payload.get("id")
 
             # Use SQLAlchemy to query the gear records with pagination
@@ -164,19 +203,24 @@ async def read_gear_all_pagination(
 
     except JWTError:
         raise HTTPException(status_code=401, detail="Unauthorized")
-    except Error as err:
+    except NameError as err:
         print(err)
 
     return results
 
 
 @router.get("/gear/{nickname}/gearfromnickname", response_model=List[dict])
-async def read_gear_gearFromNickname(nickname: str, token: str = Depends(oauth2_scheme)):
+async def read_gear_gearFromNickname(
+    nickname: str, token: str = Depends(oauth2_scheme)
+):
     from . import sessionController
+
     try:
         sessionController.validate_token(token)
         with get_db_session() as db_session:
-            payload = jwt.decode(token, os.getenv("SECRET_KEY"), algorithms=[os.getenv("ALGORITHM")])
+            payload = jwt.decode(
+                token, os.getenv("SECRET_KEY"), algorithms=[os.getenv("ALGORITHM")]
+            )
             user_id = payload.get("id")
 
             # Define a search term
@@ -185,7 +229,9 @@ async def read_gear_gearFromNickname(nickname: str, token: str = Depends(oauth2_
             # Use SQLAlchemy to query the gear records by nickname
             gear_records = (
                 db_session.query(Gear)
-                .filter(Gear.nickname.like(f"%{partial_nickname}%"), Gear.user_id == user_id)
+                .filter(
+                    Gear.nickname.like(f"%{partial_nickname}%"), Gear.user_id == user_id
+                )
                 .all()
             )
 
@@ -194,7 +240,7 @@ async def read_gear_gearFromNickname(nickname: str, token: str = Depends(oauth2_
 
     except JWTError:
         raise HTTPException(status_code=401, detail="Unauthorized")
-    except Error as err:
+    except NameError as err:
         print(err)
 
     return results
@@ -204,10 +250,13 @@ async def read_gear_gearFromNickname(nickname: str, token: str = Depends(oauth2_
 @router.get("/gear/{id}/gearfromid", response_model=List[dict])
 async def read_gear_gearFromId(id: int, token: str = Depends(oauth2_scheme)):
     from . import sessionController
+
     try:
         sessionController.validate_token(token)
         with get_db_session() as db_session:
-            payload = jwt.decode(token, os.getenv("SECRET_KEY"), algorithms=[os.getenv("ALGORITHM")])
+            payload = jwt.decode(
+                token, os.getenv("SECRET_KEY"), algorithms=[os.getenv("ALGORITHM")]
+            )
             user_id = payload.get("id")
 
             # Use SQLAlchemy to query the gear record by ID
@@ -225,10 +274,11 @@ async def read_gear_gearFromId(id: int, token: str = Depends(oauth2_scheme)):
 
     except JWTError:
         raise HTTPException(status_code=401, detail="Unauthorized")
-    except Error as err:
+    except NameError as err:
         print(err)
 
     return results
+
 
 class CreateGearRequest(BaseModel):
     brand: Optional[str]
@@ -237,16 +287,17 @@ class CreateGearRequest(BaseModel):
     gear_type: int
     date: str
 
+
 @router.post("/gear/create")
-async def create_gear(
-    gear: CreateGearRequest, 
-    token: str = Depends(oauth2_scheme)
-):
+async def create_gear(gear: CreateGearRequest, token: str = Depends(oauth2_scheme)):
     from . import sessionController
+
     try:
         sessionController.validate_token(token)
 
-        payload = jwt.decode(token, os.getenv("SECRET_KEY"), algorithms=[os.getenv("ALGORITHM")])
+        payload = jwt.decode(
+            token, os.getenv("SECRET_KEY"), algorithms=[os.getenv("ALGORITHM")]
+        )
         user_id = payload.get("id")
 
         with get_db_session() as db_session:
@@ -267,11 +318,12 @@ async def create_gear(
 
     except JWTError:
         raise HTTPException(status_code=401, detail="Unauthorized")
-    except Error as err:
+    except NameError as err:
         print(err)
         raise HTTPException(status_code=500, detail="Failed to create gear")
 
     return {"message": "Gear added successfully"}
+
 
 class EditGearRequest(BaseModel):
     brand: Optional[str]
@@ -281,13 +333,13 @@ class EditGearRequest(BaseModel):
     date: str
     is_active: int
 
+
 @router.put("/gear/{gear_id}/edit")
 async def edit_gear(
-    gear_id: int,
-    gear: EditGearRequest,
-    token: str = Depends(oauth2_scheme)
+    gear_id: int, gear: EditGearRequest, token: str = Depends(oauth2_scheme)
 ):
     from . import sessionController
+
     try:
         sessionController.validate_token(token)
 
@@ -319,9 +371,13 @@ async def edit_gear(
 
     return {"message": "Gear edited successfully"}
 
+
 @router.delete("/gear/{gear_id}/delete")
-async def delete_gear(gear_id: int, response: Response, token: str = Depends(oauth2_scheme)):
+async def delete_gear(
+    gear_id: int, response: Response, token: str = Depends(oauth2_scheme)
+):
     from . import sessionController
+
     try:
         sessionController.validate_token(token)
 
@@ -348,6 +404,7 @@ async def delete_gear(gear_id: int, response: Response, token: str = Depends(oau
     except JWTError:
         raise HTTPException(status_code=401, detail="Unauthorized")
     except Exception as err:
+        print(err)
         raise HTTPException(status_code=500, detail="Failed to delete gear")
 
     return {"message": f"Gear {gear_id} has been deleted"}

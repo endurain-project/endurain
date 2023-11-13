@@ -1,20 +1,24 @@
 from fastapi import FastAPI
 from apscheduler.schedulers.background import BackgroundScheduler
-from controllers import sessionController, userController, gearController, activitiesController, stravaController
+from controllers import (
+    sessionController,
+    userController,
+    gearController,
+    activitiesController,
+    stravaController,
+)
 from datetime import datetime, timedelta
 import logging
-import asyncio
-import threading
 
 app = FastAPI()
 
 logger = logging.getLogger("myLogger")
 logger.setLevel(logging.DEBUG)
 
-file_handler = logging.FileHandler('app.log')
+file_handler = logging.FileHandler("app.log")
 file_handler.setLevel(logging.DEBUG)
 
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 file_handler.setFormatter(formatter)
 
 logger.addHandler(file_handler)
@@ -31,11 +35,16 @@ scheduler = BackgroundScheduler()
 scheduler.start()
 
 # Remove the leading space
-scheduler.add_job(sessionController.remove_expired_tokens, 'interval', minutes=1)
-scheduler.add_job(stravaController.refresh_strava_token, 'interval', minutes=30)
-#scheduler.add_job(stravaController.get_strava_activities, 'interval', minutes=1, args=((datetime.utcnow() - timedelta(days=7)).strftime('%Y-%m-%dT%H:%M:%SZ'),))
-start_date = (datetime.utcnow() - timedelta(days=7)).strftime('%Y-%m-%dT%H:%M:%SZ')
-scheduler.add_job(lambda: stravaController.get_strava_activities(start_date), 'interval', minutes=1)
+scheduler.add_job(sessionController.remove_expired_tokens, "interval", minutes=1)
+scheduler.add_job(stravaController.refresh_strava_token, "interval", minutes=30)
+scheduler.add_job(
+    lambda: stravaController.get_strava_activities(
+        (datetime.utcnow() - timedelta(days=7)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    ),
+    "interval",
+    minutes=60,
+)
+
 
 # Add the background scheduler to the app's shutdown event
 @app.on_event("shutdown")

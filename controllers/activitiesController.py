@@ -1,14 +1,12 @@
 import os
 import logging
-from fastapi import APIRouter, Depends, HTTPException, Response, File, UploadFile, Request
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.security import OAuth2PasswordBearer
 from typing import List, Optional
-from sqlalchemy import func, DECIMAL, DateTime, desc
+from sqlalchemy import func, desc
 from db.db import get_db_session, Activity
 from jose import jwt, JWTError
 from dotenv import load_dotenv
-import mysql.connector.errors
-from urllib.parse import unquote
 from pydantic import BaseModel
 from datetime import datetime, timedelta
 
@@ -17,75 +15,95 @@ router = APIRouter()
 logger = logging.getLogger("myLogger")
 
 # Load the environment variables from config/.env
-load_dotenv('config/.env')
+load_dotenv("config/.env")
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+
 
 @router.get("/activities/all", response_model=List[dict])
 async def read_activities_all(token: str = Depends(oauth2_scheme)):
     from . import sessionController
+
     try:
         sessionController.validate_token(token)
         with get_db_session() as db_session:
-
             # Query the activities records using SQLAlchemy
-            activity_records = db_session.query(Activity).order_by(desc(Activity.start_time)).all()
+            activity_records = (
+                db_session.query(Activity).order_by(desc(Activity.start_time)).all()
+            )
 
             # Convert the SQLAlchemy objects to dictionaries
             results = [activity.__dict__ for activity in activity_records]
 
     except JWTError:
         raise HTTPException(status_code=401, detail="Unauthorized")
-    except Error as err:
+    except NameError as err:
         print(err)
 
     return results
+
 
 @router.get("/activities/useractivities", response_model=List[dict])
 async def read_activities_useractivities(token: str = Depends(oauth2_scheme)):
     from . import sessionController
+
     try:
         sessionController.validate_token(token)
         with get_db_session() as db_session:
-            payload = jwt.decode(token, os.getenv("SECRET_KEY"), algorithms=[os.getenv("ALGORITHM")])
+            payload = jwt.decode(
+                token, os.getenv("SECRET_KEY"), algorithms=[os.getenv("ALGORITHM")]
+            )
             user_id = payload.get("id")
 
             # Query the activities records using SQLAlchemy
-            activity_records = db_session.query(Activity).filter(Activity.user_id == user_id).order_by(desc(Activity.start_time)).all()
+            activity_records = (
+                db_session.query(Activity)
+                .filter(Activity.user_id == user_id)
+                .order_by(desc(Activity.start_time))
+                .all()
+            )
 
             # Convert the SQLAlchemy objects to dictionaries
             results = [activity.__dict__ for activity in activity_records]
 
     except JWTError:
         raise HTTPException(status_code=401, detail="Unauthorized")
-    except Error as err:
+    except NameError as err:
         print(err)
 
     return results
 
+
 @router.get("/activities/useractivities/{user_id}/thisweek/distances")
-async def read_activities_useractivities_thisweek_distances(user_id = int, token: str = Depends(oauth2_scheme)):
+async def read_activities_useractivities_thisweek_distances(
+    user_id=int, token: str = Depends(oauth2_scheme)
+):
     from . import sessionController
+
     try:
         sessionController.validate_token(token)
         with get_db_session() as db_session:
-            #payload = jwt.decode(token, os.getenv("SECRET_KEY"), algorithms=[os.getenv("ALGORITHM")])
-            #user_id = payload.get("id")
-            
+            # payload = jwt.decode(token, os.getenv("SECRET_KEY"), algorithms=[os.getenv("ALGORITHM")])
+            # user_id = payload.get("id")
+
             # Calculate the start of the current week
             today = datetime.utcnow().date()
-            start_of_week = today - timedelta(days=today.weekday())  # Monday is the first day of the week, which is denoted by 0
+            start_of_week = today - timedelta(
+                days=today.weekday()
+            )  # Monday is the first day of the week, which is denoted by 0
             end_of_week = start_of_week + timedelta(days=7)
 
             # Query the activities records for the current week
-            activity_records = db_session.query(Activity)\
+            activity_records = (
+                db_session.query(Activity)
                 .filter(
                     Activity.user_id == user_id,
                     func.date(Activity.start_time) >= start_of_week,
-                    func.date(Activity.start_time) < end_of_week
-                )\
-                .order_by(desc(Activity.start_time))\
+                    func.date(Activity.start_time) < end_of_week,
+                )
+                .order_by(desc(Activity.start_time))
                 .all()
+            )
 
             # Initialize distance variables
             run = bike = swim = 0
@@ -100,89 +118,107 @@ async def read_activities_useractivities_thisweek_distances(user_id = int, token
                     swim += activity.distance
 
             # Prepare the result as JSON
-            results = {
-                "run": run,
-                "bike": bike,
-                "swim": swim
-            }
+            results = {"run": run, "bike": bike, "swim": swim}
 
     except JWTError:
         raise HTTPException(status_code=401, detail="Unauthorized")
-    except Error as err:
+    except NameError as err:
         print(err)
         raise HTTPException(status_code=500, detail="Internal Server Error")
 
     return results
 
+
 @router.get("/activities/gear/{gearID}", response_model=List[dict])
-async def read_activities_gearactivities(gearID = int, token: str = Depends(oauth2_scheme)):
+async def read_activities_gearactivities(
+    gearID=int, token: str = Depends(oauth2_scheme)
+):
     from . import sessionController
+
     try:
         sessionController.validate_token(token)
         with get_db_session() as db_session:
-            payload = jwt.decode(token, os.getenv("SECRET_KEY"), algorithms=[os.getenv("ALGORITHM")])
+            payload = jwt.decode(
+                token, os.getenv("SECRET_KEY"), algorithms=[os.getenv("ALGORITHM")]
+            )
             user_id = payload.get("id")
 
             # Query the activities records using SQLAlchemy
-            activity_records = db_session.query(Activity).filter(Activity.user_id == user_id, Activity.gear_id == gearID).order_by(desc(Activity.start_time)).all()
+            activity_records = (
+                db_session.query(Activity)
+                .filter(Activity.user_id == user_id, Activity.gear_id == gearID)
+                .order_by(desc(Activity.start_time))
+                .all()
+            )
 
             # Convert the SQLAlchemy objects to dictionaries
             results = [activity.__dict__ for activity in activity_records]
 
     except JWTError:
         raise HTTPException(status_code=401, detail="Unauthorized")
-    except Error as err:
+    except NameError as err:
         print(err)
 
     return results
 
+
 @router.get("/activities/all/number")
 async def read_activities_all_number(token: str = Depends(oauth2_scheme)):
     from . import sessionController
+
     try:
         sessionController.validate_token(token)
         with get_db_session() as db_session:
-
             # Query the number of activities records for the user using SQLAlchemy
             activities_count = db_session.query(func.count(Activity.id)).scalar()
 
     except JWTError:
         raise HTTPException(status_code=401, detail="Unauthorized")
-    except Error as err:
+    except NameError as err:
         print(err)
 
     return {0: activities_count}
+
 
 @router.get("/activities/useractivities/number")
 async def read_activities_useractivities_number(token: str = Depends(oauth2_scheme)):
     from . import sessionController
+
     try:
         sessionController.validate_token(token)
         with get_db_session() as db_session:
-            payload = jwt.decode(token, os.getenv("SECRET_KEY"), algorithms=[os.getenv("ALGORITHM")])
+            payload = jwt.decode(
+                token, os.getenv("SECRET_KEY"), algorithms=[os.getenv("ALGORITHM")]
+            )
             user_id = payload.get("id")
 
             # Query the number of activities records for the user using SQLAlchemy
-            activities_count = db_session.query(func.count(Activity.id)).filter(Activity.user_id == user_id).scalar()
+            activities_count = (
+                db_session.query(func.count(Activity.id))
+                .filter(Activity.user_id == user_id)
+                .scalar()
+            )
 
     except JWTError:
         raise HTTPException(status_code=401, detail="Unauthorized")
-    except Error as err:
+    except NameError as err:
         print(err)
 
     return {0: activities_count}
 
-@router.get("/activities/all/pagenumber/{pageNumber}/numRecords/{numRecords}", response_model=List[dict])
+
+@router.get(
+    "/activities/all/pagenumber/{pageNumber}/numRecords/{numRecords}",
+    response_model=List[dict],
+)
 async def read_activities_all_pagination(
-    pageNumber: int,
-    numRecords: int,
-    token: str = Depends(oauth2_scheme)
+    pageNumber: int, numRecords: int, token: str = Depends(oauth2_scheme)
 ):
     from . import sessionController
+
     try:
         sessionController.validate_token(token)
         with get_db_session() as db_session:
-
             # Use SQLAlchemy to query the gear records with pagination
             activity_records = (
                 db_session.query(Activity)
@@ -197,22 +233,27 @@ async def read_activities_all_pagination(
 
     except JWTError:
         raise HTTPException(status_code=401, detail="Unauthorized")
-    except Error as err:
+    except NameError as err:
         print(err)
 
     return results
 
-@router.get("/activities/useractivities/pagenumber/{pageNumber}/numRecords/{numRecords}", response_model=List[dict])
+
+@router.get(
+    "/activities/useractivities/pagenumber/{pageNumber}/numRecords/{numRecords}",
+    response_model=List[dict],
+)
 async def read_activities_useractivities_pagination(
-    pageNumber: int,
-    numRecords: int,
-    token: str = Depends(oauth2_scheme)
+    pageNumber: int, numRecords: int, token: str = Depends(oauth2_scheme)
 ):
     from . import sessionController
+
     try:
         sessionController.validate_token(token)
         with get_db_session() as db_session:
-            payload = jwt.decode(token, os.getenv("SECRET_KEY"), algorithms=[os.getenv("ALGORITHM")])
+            payload = jwt.decode(
+                token, os.getenv("SECRET_KEY"), algorithms=[os.getenv("ALGORITHM")]
+            )
             user_id = payload.get("id")
 
             # Use SQLAlchemy to query the gear records with pagination
@@ -230,19 +271,23 @@ async def read_activities_useractivities_pagination(
 
     except JWTError:
         raise HTTPException(status_code=401, detail="Unauthorized")
-    except Error as err:
+    except NameError as err:
         print(err)
 
     return results
+
 
 # Get gear from id
 @router.get("/activities/{id}/activityfromid", response_model=List[dict])
 async def read_activities_activityFromId(id: int, token: str = Depends(oauth2_scheme)):
     from . import sessionController
+
     try:
         sessionController.validate_token(token)
         with get_db_session() as db_session:
-            payload = jwt.decode(token, os.getenv("SECRET_KEY"), algorithms=[os.getenv("ALGORITHM")])
+            payload = jwt.decode(
+                token, os.getenv("SECRET_KEY"), algorithms=[os.getenv("ALGORITHM")]
+            )
             user_id = payload.get("id")
 
             # Use SQLAlchemy to query the gear record by ID
@@ -260,20 +305,26 @@ async def read_activities_activityFromId(id: int, token: str = Depends(oauth2_sc
 
     except JWTError:
         raise HTTPException(status_code=401, detail="Unauthorized")
-    except Error as err:
+    except NameError as err:
         print(err)
 
     return results
 
+
 @router.put("/activities/{activity_id}/addgear/{gear_id}")
-async def activity_add_gear(activity_id: int, gear_id: int, token: str = Depends(oauth2_scheme)):
+async def activity_add_gear(
+    activity_id: int, gear_id: int, token: str = Depends(oauth2_scheme)
+):
     from . import sessionController
+
     try:
         sessionController.validate_token(token)
 
         # Use SQLAlchemy to query and delete the gear record
         with get_db_session() as db_session:
-            activity_record = db_session.query(Activity).filter(Activity.id == activity_id).first()
+            activity_record = (
+                db_session.query(Activity).filter(Activity.id == activity_id).first()
+            )
 
             if activity_record:
                 activity_record.gear_id = gear_id
@@ -287,9 +338,11 @@ async def activity_add_gear(activity_id: int, gear_id: int, token: str = Depends
     except JWTError:
         raise HTTPException(status_code=401, detail="Unauthorized")
     except Exception as err:
+        print(err)
         raise HTTPException(status_code=500, detail="Failed to add gear to activity")
 
     return {"message": f"Gear added to {activity_id}"}
+
 
 class CreateActivityRequest(BaseModel):
     distance: int
@@ -308,25 +361,28 @@ class CreateActivityRequest(BaseModel):
     averagePower: int
     strava_id: Optional[int]
 
+
 @router.post("/activities/create")
 async def create_activity(
-    activity_data: CreateActivityRequest,
-    token: str = Depends(oauth2_scheme)
+    activity_data: CreateActivityRequest, token: str = Depends(oauth2_scheme)
 ):
     from . import sessionController
+
     try:
         # Validate the user's token
         sessionController.validate_token(token)
 
         # get user_id
-        payload = jwt.decode(token, os.getenv("SECRET_KEY"), algorithms=[os.getenv("ALGORITHM")])
+        payload = jwt.decode(
+            token, os.getenv("SECRET_KEY"), algorithms=[os.getenv("ALGORITHM")]
+        )
         user_id = payload.get("id")
 
         # Convert the 'starttime' string to a datetime
-        #starttime = datetime.strptime(activity_data.starttime, "%Y-%m-%dT%H:%M:%SZ")
+        # starttime = datetime.strptime(activity_data.starttime, "%Y-%m-%dT%H:%M:%SZ")
         starttime = parse_timestamp(activity_data.starttime)
         # Convert the 'endtime' string to a datetime
-        #endtime = datetime.strptime(activity_data.endtime, "%Y-%m-%dT%H:%M:%SZ")
+        # endtime = datetime.strptime(activity_data.endtime, "%Y-%m-%dT%H:%M:%SZ")
         endtime = parse_timestamp(activity_data.endtime)
 
         auxType = 10  # Default value
@@ -341,10 +397,10 @@ async def create_activity(
             "VirtualRide": 7,
             "virtual_ride": 7,
             "swimming": 8,
-            "open_water_swimming": 8
+            "open_water_swimming": 8,
         }
         auxType = type_mapping.get(activity_data.type, 10)
-        
+
         # Create a new Activity record
         activity = Activity(
             user_id=user_id,
@@ -363,16 +419,18 @@ async def create_activity(
             pace=activity_data.pace,
             average_speed=activity_data.averageSpeed,
             average_power=activity_data.averagePower,
-            strava_activity_id=activity.strava_id
+            strava_activity_id=activity_data.strava_id,
         )
 
         # Store the Activity record in the database
         with get_db_session() as db_session:
             db_session.add(activity)
             db_session.commit()
-            db_session.refresh(activity)  # This will ensure that the activity object is updated with the ID from the database
-        
-        #return {"message": "Activity stored successfully", "id": activity.id}
+            db_session.refresh(
+                activity
+            )  # This will ensure that the activity object is updated with the ID from the database
+
+        # return {"message": "Activity stored successfully", "id": activity.id}
         return {"message": "Activity stored successfully"}
 
     except JWTError:
@@ -382,7 +440,8 @@ async def create_activity(
         logger.error(err)
         raise HTTPException(status_code=500, detail="Failed to store activity")
 
-    #return {"message": "Activity stored successfully"}
+    # return {"message": "Activity stored successfully"}
+
 
 def parse_timestamp(timestamp_string):
     try:
@@ -392,25 +451,30 @@ def parse_timestamp(timestamp_string):
         # If milliseconds are not present, use a default value of 0
         return datetime.strptime(timestamp_string, "%Y-%m-%dT%H:%M:%SZ")
 
+
 # Define an HTTP PUT route to delete an activity gear
 @router.put("/activities/{activity_id}/deletegear")
-async def delete_activity_gear(
-    activity_id: int, 
-    token: str = Depends(oauth2_scheme)
-):
+async def delete_activity_gear(activity_id: int, token: str = Depends(oauth2_scheme)):
     from . import sessionController
+
     try:
         # Validate the user's access token using the oauth2_scheme
         sessionController.validate_token(token)
 
         with get_db_session() as db_session:
             # get user_id
-            payload = jwt.decode(token, os.getenv("SECRET_KEY"), algorithms=[os.getenv("ALGORITHM")])
+            payload = jwt.decode(
+                token, os.getenv("SECRET_KEY"), algorithms=[os.getenv("ALGORITHM")]
+            )
             user_id = payload.get("id")
 
             # Query the database to find the user by their ID
-            activity = db_session.query(Activity).filter(Activity.id == activity_id,Activity.user_id == user_id).first()
-            
+            activity = (
+                db_session.query(Activity)
+                .filter(Activity.id == activity_id, Activity.user_id == user_id)
+                .first()
+            )
+
             # Check if the user with the given ID exists
             if not activity:
                 raise HTTPException(status_code=404, detail="Activity not found")
@@ -431,19 +495,27 @@ async def delete_activity_gear(
     # Return a success message
     return {"message": f"Activity gear {activity_id} has been deleted"}
 
+
 @router.delete("/activities/{activity_id}/delete")
 async def delete_activity(activity_id: int, token: str = Depends(oauth2_scheme)):
     from . import sessionController
+
     try:
         sessionController.validate_token(token)
 
         # Use SQLAlchemy to query and delete the gear record
         with get_db_session() as db_session:
             # get user_id
-            payload = jwt.decode(token, os.getenv("SECRET_KEY"), algorithms=[os.getenv("ALGORITHM")])
+            payload = jwt.decode(
+                token, os.getenv("SECRET_KEY"), algorithms=[os.getenv("ALGORITHM")]
+            )
             user_id = payload.get("id")
 
-            activity_record = db_session.query(Activity).filter(Activity.id == activity_id,Activity.user_id == user_id).first()
+            activity_record = (
+                db_session.query(Activity)
+                .filter(Activity.id == activity_id, Activity.user_id == user_id)
+                .first()
+            )
 
             if activity_record:
                 # Check for existing dependencies (uncomment if needed)
@@ -464,6 +536,7 @@ async def delete_activity(activity_id: int, token: str = Depends(oauth2_scheme))
     except JWTError:
         raise HTTPException(status_code=401, detail="Unauthorized")
     except Exception as err:
+        print(err)
         raise HTTPException(status_code=500, detail="Failed to delete activity")
 
     return {"message": f"Activity {activity_id} has been deleted"}
