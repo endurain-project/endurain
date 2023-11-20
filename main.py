@@ -39,10 +39,10 @@ scheduler.add_job(sessionController.remove_expired_tokens, "interval", minutes=1
 scheduler.add_job(stravaController.refresh_strava_token, "interval", minutes=30)
 scheduler.add_job(
     lambda: stravaController.get_strava_activities(
-        (datetime.utcnow() - timedelta(days=7)).strftime("%Y-%m-%dT%H:%M:%SZ")
+        (datetime.utcnow() - timedelta(days=14)).strftime("%Y-%m-%dT%H:%M:%SZ")
     ),
     "interval",
-    minutes=60,
+    minutes=1,
 )
 
 

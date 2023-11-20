@@ -112,9 +112,9 @@ async def read_activities_useractivities_thisweek_distances(
             for activity in activity_records:
                 if activity.activity_type in [1, 2, 3]:
                     run += activity.distance
-                elif activity.activity_type in [4, 5, 6, 7]:
+                elif activity.activity_type in [4, 5, 6, 7, 8]:
                     bike += activity.distance
-                elif activity.activity_type == 8:
+                elif activity.activity_type == 9:
                     swim += activity.distance
 
             # Prepare the result as JSON
