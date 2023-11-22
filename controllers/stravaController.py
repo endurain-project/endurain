@@ -6,11 +6,10 @@ from fastapi import APIRouter, HTTPException, Depends
 from fastapi.responses import RedirectResponse
 from fastapi.security import OAuth2PasswordBearer
 from jose import jwt, JWTError
-from sqlalchemy import func
 from stravalib.client import Client
 from pint import Quantity
 from concurrent.futures import ThreadPoolExecutor
-from math import radians, sin, cos, sqrt, atan2
+from fastapi import BackgroundTasks
 import logging
 import requests
 
@@ -26,7 +25,7 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 # Strava route to link user Strava account
 @router.get("/strava/strava-callback")
-async def strava_callback(state: str, code: str):
+async def strava_callback(state: str, code: str, background_tasks: BackgroundTasks):
     token_url = "https://www.strava.com/oauth/token"
     payload = {
         "client_id": os.getenv("STRAVA_CLIENT_ID"),
@@ -55,6 +54,15 @@ async def strava_callback(state: str, code: str):
                     tokens["expires_at"]
                 )
                 db_session.commit()  # Commit the changes to the database
+
+                # get_strava_activities((datetime.utcnow() - timedelta(days=90)).strftime("%Y-%m-%dT%H:%M:%SZ"))
+                background_tasks.add_task(
+                    get_user_strava_activities,
+                    (datetime.utcnow() - timedelta(days=90)).strftime(
+                        "%Y-%m-%dT%H:%M:%SZ"
+                    ),
+                    db_user.id,
+                )
 
                 # Redirect to the main page or any other desired page after processing
                 redirect_url = "https://gearguardian.jvslab.pt/settings/settings.php?profileSettings=1&stravaLinked=1"  # Change this URL to your main page
@@ -216,9 +224,6 @@ async def strava_unset_user_unique_state(token: str = Depends(oauth2_scheme)):
 
 # Strava logic to refresh user Strava account refresh account
 def get_strava_activities(start_date: datetime):
-    # Strava token refresh endpoint
-    # activities_url = 'https://www.strava.com/api/v3/athlete/activities'
-
     try:
         with get_db_session() as db_session:
             # Query all users from the database
@@ -226,23 +231,6 @@ def get_strava_activities(start_date: datetime):
 
             for user in users:
                 if user.strava_token_expires_at is not None:
-                    # Calculate the start date (7 days ago from today)
-                    # start_date = (datetime.utcnow() - timedelta(days=7)).strftime('%Y-%m-%dT%H:%M:%SZ')
-
-                    # Set parameters for the API request
-                    # params = {
-                    #    'access_token': user.strava_token,
-                    #    'after': start_date,
-                    # }
-
-                    # try:
-                    # Make a GET request to retrieve activities
-                    #    response = requests.get(activities_url, params=params)
-                    #    response.raise_for_status()  # Raise an error for bad responses
-
-                    # store_strava_activities_stravaLib(response.json(), user.id, user.strava_token)
-                    # store_strava_activities_stravaLib(user.id, user.strava_token, start_date)
-
                     stravaClient = Client(access_token=user.strava_token)
 
                     strava_activities = list(
@@ -251,21 +239,40 @@ def get_strava_activities(start_date: datetime):
                     chunk_size = (
                         len(strava_activities) // 4
                     )  # Adjust the number of threads as needed
-                    activity_chunks = [
-                        strava_activities[i : i + chunk_size]
-                        for i in range(0, len(strava_activities), chunk_size)
-                    ]
 
-                    with ThreadPoolExecutor() as executor:
-                        # Process each chunk of activities using threads
-                        results = list(
-                            executor.map(
-                                lambda chunk: process_activities(
-                                    chunk, user.id, stravaClient
-                                ),
-                                activity_chunks,
+                    # activity_chunks = [
+                    #     strava_activities[i : i + chunk_size]
+                    #     for i in range(0, len(strava_activities), chunk_size)
+                    # ]
+
+                    # with ThreadPoolExecutor() as executor:
+                    #     # Process each chunk of activities using threads
+                    #     results = list(
+                    #         executor.map(
+                    #             lambda chunk: process_activities(
+                    #                 chunk, user.id, stravaClient
+                    #             ),
+                    #             activity_chunks,
+                    #         )
+                    #     )
+
+                    # Check if chunk_size is zero
+                    for i in (
+                        range(0, len(strava_activities), chunk_size)
+                        if chunk_size > 0
+                        else [0]
+                    ):
+                        activity_chunk = strava_activities[i : i + chunk_size]
+
+                        with ThreadPoolExecutor() as executor:
+                            results = list(
+                                executor.map(
+                                    lambda chunk: process_activities(
+                                        chunk, user.id, stravaClient
+                                    ),
+                                    [activity_chunk],  # Wrap in a list for map
+                                )
                             )
-                        )
 
                     # Flatten the list of results
                     activities_to_insert = [
@@ -277,14 +284,74 @@ def get_strava_activities(start_date: datetime):
                         db_session.bulk_save_objects(activities_to_insert)
                         db_session.commit()
 
-                    # except requests.exceptions.RequestException as req_err:
-                    # Handle request errors
-                    #    logger.error(f"Error retrieving activities for user {user.id}: {req_err}")
-                    #    return None
                 else:
                     logger.info(f"User {user.id} does not have strava linked")
     except NameError as db_err:
         logger.error(f"Database error: {db_err}")
+
+
+# Strava logic to refresh user Strava account refresh account
+def get_user_strava_activities(start_date: datetime, user_id: int):
+    with get_db_session() as db_session:
+        db_user = db_session.query(User).get(user_id)
+
+        if db_user:
+            if db_user.strava_token_expires_at is not None:
+                stravaClient = Client(access_token=db_user.strava_token)
+
+                strava_activities = list(stravaClient.get_activities(after=start_date))
+                chunk_size = (
+                    len(strava_activities) // 4
+                )  # Adjust the number of threads as needed
+
+                # activity_chunks = [
+                #     strava_activities[i : i + chunk_size]
+                #     for i in range(0, len(strava_activities), chunk_size)
+                # ]
+
+                # with ThreadPoolExecutor() as executor:
+                #     # Process each chunk of activities using threads
+                #     results = list(
+                #         executor.map(
+                #             lambda chunk: process_activities(
+                #                 chunk, db_user.id, stravaClient
+                #             ),
+                #             activity_chunks,
+                #         )
+                #     )
+
+                # Check if chunk_size is zero
+                for i in (
+                    range(0, len(strava_activities), chunk_size)
+                    if chunk_size > 0
+                    else [0]
+                ):
+                    activity_chunk = strava_activities[i : i + chunk_size]
+
+                    with ThreadPoolExecutor() as executor:
+                        results = list(
+                            executor.map(
+                                lambda chunk: process_activities(
+                                    chunk, db_user.id, stravaClient
+                                ),
+                                [activity_chunk],  # Wrap in a list for map
+                            )
+                        )
+
+                # Flatten the list of results
+                activities_to_insert = [
+                    activity for sublist in results for activity in sublist
+                ]
+
+                # Bulk insert all activities
+                with get_db_session() as db_session:
+                    db_session.bulk_save_objects(activities_to_insert)
+                    db_session.commit()
+
+            else:
+                logger.info(f"User {db_user.id} does not have strava linked")
+        else:
+            logger.info(f"User with ID {user_id} not found.")
 
 
 def process_activities(strava_activities, user_id, stravaClient):
@@ -391,7 +458,9 @@ def process_activity(activity, user_id, stravaClient):
             "cad": cadences[i] if i < len(cadences) else None,
             "power": powers[i] if i < len(powers) else None,
             "vel": velocities[i] if i < len(velocities) else None,
-            "pace": 1/velocities[i] if i < len(velocities) and velocities[i] != 0 else None,
+            "pace": 1 / velocities[i]
+            if i < len(velocities) and velocities[i] != 0
+            else None,
             # Add other relevant fields based on your requirements
         }
 
