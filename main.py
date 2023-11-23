@@ -14,9 +14,13 @@ from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+from dotenv import load_dotenv
 import logging
+import os
 
 app = FastAPI()
+
+load_dotenv("config/.env")
 
 logger = logging.getLogger("myLogger")
 logger.setLevel(logging.DEBUG)
@@ -31,7 +35,7 @@ logger.addHandler(file_handler)
 
 # Configure Jaeger Exporter
 jaeger_exporter = JaegerExporter(
-    agent_host_name="192.168.2.80",  # Update with your Jaeger host
+    agent_host_name=os.getenv('JAEGER_HOST'),  # Update with your Jaeger host
     agent_port=6831,            # Update with your Jaeger port
 )
 
