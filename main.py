@@ -8,6 +8,12 @@ from controllers import (
     stravaController,
 )
 from datetime import datetime, timedelta
+from opentelemetry import trace
+from opentelemetry.exporter.jaeger.thrift import JaegerExporter
+from opentelemetry.sdk.resources import Resource
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 import logging
 
 app = FastAPI()
@@ -22,6 +28,20 @@ formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(messag
 file_handler.setFormatter(formatter)
 
 logger.addHandler(file_handler)
+
+# Configure Jaeger Exporter
+jaeger_exporter = JaegerExporter(
+    agent_host_name="192.168.2.80",  # Update with your Jaeger host
+    agent_port=6831,            # Update with your Jaeger port
+)
+
+# Create a TracerProvider with Jaeger exporter
+tracer_provider = TracerProvider(resource=Resource.create({"service.name": "gearguardian-api"}))
+trace.set_tracer_provider(tracer_provider)
+tracer_provider.add_span_processor(SimpleSpanProcessor(jaeger_exporter))
+
+# Instrument FastAPI app
+FastAPIInstrumentor.instrument_app(app, tracer_provider=tracer_provider)
 
 # Router files
 app.include_router(sessionController.router)
@@ -47,9 +67,19 @@ scheduler.add_job(
 
 @app.on_event("startup")
 async def startup_event():
-    print("Backend started!")
+    # Get the tracer
+    tracer = trace.get_tracer(__name__)
+
+    # Start a span for the startup event
+    with tracer.start_as_current_span("startup_event"):
+        print("Backend started!")
 
 # Add the background scheduler to the app's shutdown event
 @app.on_event("shutdown")
 async def shutdown_event():
-    scheduler.shutdown()
+    # Get the tracer
+    tracer = trace.get_tracer(__name__)
+
+    # Start a span for the startup event
+    with tracer.start_as_current_span("shutdown_event"):
+        scheduler.shutdown()
