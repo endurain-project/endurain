@@ -59,7 +59,7 @@ scheduler = BackgroundScheduler()
 scheduler.start()
 
 # Remove the leading space
-scheduler.add_job(sessionController.remove_expired_tokens, "interval", minutes=1)
+scheduler.add_job(sessionController.remove_expired_tokens, "interval", minutes=5)
 scheduler.add_job(stravaController.refresh_strava_token, "interval", minutes=30)
 scheduler.add_job(
     lambda: stravaController.get_strava_activities(

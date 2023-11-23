@@ -11,6 +11,7 @@ from db.db import (
 )  # Import your SQLAlchemy session management from db.db and models
 from controllers.userController import UserResponse
 from pydantic import BaseModel
+from opentelemetry import trace
 
 router = APIRouter()
 
@@ -96,24 +97,36 @@ async def create_access_token(
 
 
 def remove_expired_tokens():
-    try:
-        # Calculate the expiration time
-        expiration_time = datetime.utcnow() - timedelta(
-            minutes=int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES"))
-        )
+    # Get the tracer from the main module
+    tracer = trace.get_tracer(__name__)
 
-        # Delete expired access tokens using SQLAlchemy ORM
-        with get_db_session() as db_session:
-            rows_deleted = (
-                db_session.query(AccessToken)
-                .filter(AccessToken.created_at < expiration_time)
-                .delete()
+    with tracer.start_as_current_span("remove_expired_tokens"):
+        try:
+            # Calculate the expiration time
+            expiration_time = datetime.utcnow() - timedelta(
+                minutes=int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES"))
             )
-            db_session.commit()
 
-        logger.info(f"{rows_deleted} access tokens deleted from the database")
-    except Exception as e:
-        logger.error(e)
+            # Delete expired access tokens using SQLAlchemy ORM
+            with get_db_session() as db_session:
+                rows_deleted = (
+                    db_session.query(AccessToken)
+                    .filter(AccessToken.created_at < expiration_time)
+                    .delete()
+                )
+                db_session.commit()
+
+            logger.info(f"{rows_deleted} access tokens deleted from the database")
+            # Log a success event
+            trace.get_current_span().add_event(
+                "SuccessEvent",
+                {"message": f"{rows_deleted} access tokens deleted from the database"},
+            )
+        except Exception as e:
+            logger.error(e)
+            trace.get_current_span().set_status(
+                trace.status.Status(trace.StatusCode.ERROR, str(e))
+            )
 
 
 def get_user_data(token: str):
