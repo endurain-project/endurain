@@ -1,5 +1,6 @@
 # Python
 app/__pycache__/
+app/*/__pycache__/
 app/*.pyc
 
 # Logs
