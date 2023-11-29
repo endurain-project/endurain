@@ -14,7 +14,8 @@ COPY . /app
 RUN python -m venv /venv
 ENV PATH=/venv/bin:$PATH
 # Install any needed packages specified in requirements.txt
-RUN pip install --no-cache-dir -r requirements.txt
+#RUN pip install --no-cache-dir -r requirements.txt
+RUN PKG_CONFIG_PATH=/usr/lib/x86_64-linux-gnu/pkgconfig pip install --no-cache-dir -r requirements.txt
 
 # Make port 8000 available to the world outside this container
 EXPOSE 8000
