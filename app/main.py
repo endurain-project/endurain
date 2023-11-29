@@ -8,19 +8,28 @@ from controllers import (
     stravaController,
 )
 from datetime import datetime, timedelta
+
+# from opentelemetry import trace
+# from opentelemetry.exporter.jaeger.thrift import JaegerExporter
+# from opentelemetry.sdk.resources import Resource
+# from opentelemetry.sdk.trace import TracerProvider
+# from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+# from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 from opentelemetry import trace
-from opentelemetry.exporter.jaeger.thrift import JaegerExporter
+from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
-from dotenv import load_dotenv
+
+# from dotenv import load_dotenv
 import logging
-import os
+
+# import os
 
 app = FastAPI()
 
-load_dotenv("config/.env")
+# load_dotenv("config/.env")
 
 logger = logging.getLogger("myLogger")
 logger.setLevel(logging.DEBUG)
@@ -34,18 +43,29 @@ file_handler.setFormatter(formatter)
 logger.addHandler(file_handler)
 
 # Configure Jaeger Exporter
-jaeger_exporter = JaegerExporter(
-    agent_host_name=os.getenv('JAEGER_HOST'),  # Update with your Jaeger host
-    agent_port=6831,            # Update with your Jaeger port
-)
+# jaeger_exporter = JaegerExporter(
+#    agent_host_name=os.getenv("JAEGER_HOST"),  # Update with your Jaeger host
+#    agent_port=6831,  # Update with your Jaeger port
+# )
 
 # Create a TracerProvider with Jaeger exporter
-tracer_provider = TracerProvider(resource=Resource.create({"service.name": "gearguardian-api"}))
-trace.set_tracer_provider(tracer_provider)
-tracer_provider.add_span_processor(SimpleSpanProcessor(jaeger_exporter))
+# tracer_provider = TracerProvider(
+#    resource=Resource.create({"service.name": "gearguardian-api"})
+# )
+# trace.set_tracer_provider(tracer_provider)
+# tracer_provider.add_span_processor(SimpleSpanProcessor(jaeger_exporter))
+
+# trace.set_tracer_provider(TracerProvider(resource=Resource.create().add_attribute("service.name", "backend_api")))
+trace.set_tracer_provider(
+    TracerProvider(resource=Resource.create({"service.name": "backend_api"}))
+)
+trace.get_tracer_provider().add_span_processor(
+    BatchSpanProcessor(OTLPSpanExporter(endpoint="http://192.168.2.80:4317"))
+)
+
 
 # Instrument FastAPI app
-FastAPIInstrumentor.instrument_app(app, tracer_provider=tracer_provider)
+FastAPIInstrumentor.instrument_app(app)
 
 # Router files
 app.include_router(sessionController.router)
@@ -69,6 +89,7 @@ scheduler.add_job(
     minutes=60,
 )
 
+
 @app.on_event("startup")
 async def startup_event():
     # Get the tracer
@@ -77,6 +98,7 @@ async def startup_event():
     # Start a span for the startup event
     with tracer.start_as_current_span("startup_event"):
         print("Backend started!")
+
 
 # Add the background scheduler to the app's shutdown event
 @app.on_event("shutdown")

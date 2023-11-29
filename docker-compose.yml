@@ -1,0 +1,88 @@
+version: '3'
+services:
+  # API logic
+  gearguardian-api:
+    container_name: gearguardian-api
+    image: your-image-name
+    environment:
+        - DB_HOST=<change me> #required
+        - DB_PORT=3306 #optional - will use port 3306 by default
+        - DB_USER=<change me> #required
+        - DB_PASSWORD=<change me> #required
+        - DB_DATABASE=<change me> #required
+        - SECRET_KEY=<change me> #required
+        - ALGORITHM=HS256 #optional - will use HS256 by default
+        - ACCESS_TOKEN_EXPIRE_MINUTES=30 #optional - will use 30 minutes by default
+        - STRAVA_CLIENT_ID=<change me> #required
+        - STRAVA_CLIENT_SECRET=<change me> #required
+        - STRAVA_AUTH_CODE=<change me> #required
+        - JAEGER_HOST=<change me> #required
+        - STRAVA_DAYS_ACTIVITIES_ONLINK=30 #optional - will use 30 days by default
+    ports:
+      - "98:8000"
+    volumes:
+      - <host_path>/gearguardian-api:/app
+    env_file:
+      - ./app/config/.env # this will be removed. .env file will be moved to root folder
+    depends_on:
+      - mariadb
+      - otel-collector
+    networks:
+      - backend_network
+    restart: unless-stopped
+  
+  # mysql mariadb logic
+  mariadb:
+    image: mariadb:latest
+    container_name: mariadb
+    environment:
+      - MYSQL_ROOT_PASSWORD=<change me> #required
+      - MYSQL_DATABASE=<change me> #required
+      - MYSQL_USER=<change me> #required
+      - MYSQL_PASSWORD=<change me> #required
+    ports:
+      - "3306:3306"
+    volumes:
+      - <host_path>/mariadb:/var/lib/mysql
+    networks:
+      - backend_network
+    restart: unless-stopped
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    container_name: otel-collector
+    # Add any necessary configuration for the OpenTelemetry Collector here
+    volumes:
+      - <host_path>/otel-collector/otel-collector-config.yaml:/etc/otel-collector-config.yaml
+    ports:
+      - "4317:4317"
+    networks:
+      - backend_network
+    restart: unless-stopped
+
+  jaeger:
+    container_name: jaeger
+    image: jaegertracing/all-in-one:latest
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Europe/Lisbon
+      - COLLECTOR_ZIPKIN_HOST_PORT=:9411
+    ports:
+      - 6831:6831/udp
+      - 6832:6832/udp
+      - 5778:5778
+      - 16686:16686
+      - 4317:4317
+      - 4318:4318
+      - 14250:14250
+      - 14268:14268
+      - 14269:14269
+      - 9411:9411
+    networks:
+      - backend_network
+    restart: unless-stopped
+
+networks:
+  backend_network:
+    driver: bridge

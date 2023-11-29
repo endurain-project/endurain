@@ -1,0 +1,12 @@
+fastapi
+uvicorn
+sqlalchemy
+mysqlclient
+mysql-connector-python
+python-jose[cryptography]
+passlib[bcrypt]
+apscheduler
+requests
+stravalib
+opentelemetry-sdk
+opentelemetry-instrumentation-fastapi

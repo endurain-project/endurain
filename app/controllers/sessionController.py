@@ -107,6 +107,10 @@ def remove_expired_tokens():
                 minutes=int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES"))
             )
 
+            # Add tags related to the expiration check
+            trace.get_current_span().set_attribute("expiration_time", expiration_time.isoformat())
+            trace.get_current_span().set_attribute("token_expire_minutes", os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES"))
+
             # Delete expired access tokens using SQLAlchemy ORM
             with get_db_session() as db_session:
                 rows_deleted = (
@@ -116,6 +120,10 @@ def remove_expired_tokens():
                 )
                 db_session.commit()
 
+            # Add tags related to the database operation
+            trace.get_current_span().set_attribute("tokens_deleted", rows_deleted)
+            trace.get_current_span().set_attribute("database_commit", "success")
+
             logger.info(f"{rows_deleted} access tokens deleted from the database")
             # Log a success event
             trace.get_current_span().add_event(
@@ -124,6 +132,11 @@ def remove_expired_tokens():
             )
         except Exception as e:
             logger.error(e)
+
+            # Add tags related to the error
+            trace.get_current_span().set_attribute("error_message", str(e))
+            trace.get_current_span().set_attribute("database_commit", "failure")
+
             trace.get_current_span().set_status(
                 trace.status.Status(trace.StatusCode.ERROR, str(e))
             )
