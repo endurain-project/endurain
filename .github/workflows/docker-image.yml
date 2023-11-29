@@ -30,7 +30,7 @@ jobs:
     - name: Build the Docker image
       run: |
         if [ "${{ github.event_name }}" == 'workflow_dispatch' ]; then
-          IMAGE_TAG="dev_$(date +"%Y%m%d")"
+          export IMAGE_TAG="dev_$(date +"%Y%m%d")"
         fi
         echo "IMAGE_TAG=${IMAGE_TAG}"
         docker build . --file Dockerfile --tag ${{ github.repository }}:$IMAGE_TAG
