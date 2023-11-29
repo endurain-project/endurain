@@ -27,7 +27,7 @@ jobs:
     - name: Build the Docker image
       run: |
         if [ "${{ github.event_name }}" == 'workflow_dispatch' ]; then
-          IMAGE_TAG="dev_$(date +"%Y%m%d")"
+          IMAGE_TAG="dev_$(date +"%d%m%Y")"
         else
           IMAGE_TAG="${{ github.event.release.tag_name }}"
         fi
