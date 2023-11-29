@@ -8,7 +8,7 @@ RUN apt-get update && apt-get install -y pkg-config python3-dev default-libmysql
 WORKDIR /app
 
 # Copy the current directory contents into the container at /app
-COPY . /app
+COPY app/ /app
 
 # Create a virtual environment and install dependencies
 RUN python -m venv /venv
