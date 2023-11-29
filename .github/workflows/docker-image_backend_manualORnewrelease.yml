@@ -23,6 +23,7 @@ jobs:
     - name: Build the backend Docker image
       run: |
         cd $GITHUB_WORKSPACE
+        ls -al
         if [ "${{ github.event_name }}" == 'workflow_dispatch' ]; then
           IMAGE_TAG="dev_$(date +"%d%m%Y")"
         else
