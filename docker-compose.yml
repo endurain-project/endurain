@@ -1,9 +1,21 @@
 version: '3'
 services:
+  gearguardian-frontend:
+    image: gearguardian-frontend:latest
+    volumes:
+      - ./app:/app
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf
+    ports:
+      - "8080:80"
+    networks:
+      - frontend_network
+      - backend_network
+    restart: unless-stopped
+
   # API logic
-  gearguardian-api:
-    container_name: gearguardian-api
-    image: your-image-name
+  gearguardian-backend:
+    container_name: gearguardian-backend
+    image: gearguardian-backend:latest
     environment:
         - DB_HOST=<change me> #required
         - DB_PORT=3306 #optional - will use port 3306 by default
@@ -85,4 +97,6 @@ services:
 
 networks:
   backend_network:
+    driver: bridge
+  frontend_network:
     driver: bridge

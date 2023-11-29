@@ -1,11 +1,10 @@
 # Python
-app/__pycache__/
-app/*/__pycache__/
-app/*.pyc
+backend/*/__pycache__/
+backend/*.pyc
 
 # Logs
-app/logs/
-app/*.log
+backend/logs/
+backend/*.log
 
 # Environment variables
-app/config/.env
+backend/config/.env
