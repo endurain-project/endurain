@@ -31,7 +31,6 @@ jobs:
         else
           IMAGE_TAG="${{ github.event.release.tag_name }}"
         fi
-        echo "IMAGE_TAG=${IMAGE_TAG}"
         docker build . --file Dockerfile --tag ${{ github.repository }}:$IMAGE_TAG
         echo "IMAGE_TAG=${IMAGE_TAG}" >> $GITHUB_ENV
       if: github.event_name == 'release' || github.event_name == 'workflow_dispatch'
@@ -40,10 +39,7 @@ jobs:
     - name: Push the Docker image to GHCR
       if: success() && (github.event_name == 'release' || github.event_name == 'workflow_dispatch')
       run: |
-        echo "github.event_name=${{ github.event_name }}"
-        echo "IMAGE_TAG=${IMAGE_TAG}"
-        echo "github.repository=${{ github.repository }}"
-        echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.repository_owner }} --password-stdin
+        echo ${{ secrets.TOKEN_FOR_ACTIONS }} | docker login ghcr.io -u ${{ github.repository_owner }} --password-stdin
         IMAGE_NAME="ghcr.io/${{ github.repository }}"
         docker tag ${{ github.repository }}:$IMAGE_TAG $IMAGE_NAME:$IMAGE_TAG
         docker push $IMAGE_NAME:$IMAGE_TAG
