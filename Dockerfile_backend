@@ -1,6 +1,12 @@
 # Use an official Python runtime as a parent image
 FROM python:3.11-slim
 
+# Links Docker image with repository
+LABEL org.opencontainers.image.source https://github.com/joaovitoriasilva/gearguardian
+
+# Set the working directory
+WORKDIR /app
+
 # Install pkg-config
 RUN apt-get update && apt-get install -y pkg-config python3-dev default-libmysqlclient-dev build-essential
 
