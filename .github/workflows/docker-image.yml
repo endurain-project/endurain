@@ -33,10 +33,10 @@ jobs:
         fi
         docker build . --file Dockerfile --tag ${{ github.repository }}:$IMAGE_TAG
       #run: docker build . --file Dockerfile --tag ${{ github.repository }}:latest
-      if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && github.event.action == 'workflow_dispatch')
+      if: github.event_name == 'release' || github.event_name == 'workflow_dispatch'
 
     - name: Push the Docker image to GHCR
-      if: success() && (github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && github.event.action == 'workflow_dispatch'))
+      if: success() && (github.event_name == 'release' || github.event_name == 'workflow_dispatch')
       run: |
         echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.repository_owner }} --password-stdin
         IMAGE_NAME="ghcr.io/${{ github.repository }}"
