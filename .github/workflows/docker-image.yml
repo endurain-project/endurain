@@ -31,6 +31,7 @@ jobs:
         else
           IMAGE_TAG="${{ github.event.release.tag_name }}"
         fi
+        echo "IMAGE_TAG=${IMAGE_TAG}"
         docker build . --file Dockerfile --tag ${{ github.repository }}:$IMAGE_TAG
       #run: docker build . --file Dockerfile --tag ${{ github.repository }}:latest
       if: github.event_name == 'release' || github.event_name == 'workflow_dispatch'
