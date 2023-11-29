@@ -16,24 +16,24 @@ jobs:
 
     runs-on: ubuntu-latest
 
-    env:
-      IMAGE_TAG: ${{ github.event.release.tag_name }}
-
     steps:
     - name: Checkout code
       uses: actions/checkout@v3
     
-    - name: Set release version or use default
-      run: echo "RELEASE_VERSION=${{ github.event.release.tag_name }}" >> $GITHUB_ENV
-      if: github.event_name == 'release'
+    #- name: Set release version or use default
+    #  run: echo "RELEASE_VERSION=${{ github.event.release.tag_name }}" >> $GITHUB_ENV
+    #  if: github.event_name == 'release'
 
     - name: Build the Docker image
       run: |
         if [ "${{ github.event_name }}" == 'workflow_dispatch' ]; then
-          export IMAGE_TAG="dev_$(date +"%Y%m%d")"
+          IMAGE_TAG="dev_$(date +"%Y%m%d")"
+        else
+          IMAGE_TAG="${{ github.event.release.tag_name }}"
         fi
         echo "IMAGE_TAG=${IMAGE_TAG}"
         docker build . --file Dockerfile --tag ${{ github.repository }}:$IMAGE_TAG
+        echo "IMAGE_TAG=${IMAGE_TAG}" >> $GITHUB_ENV
       if: github.event_name == 'release' || github.event_name == 'workflow_dispatch'
 
 
