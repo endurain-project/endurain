@@ -4,21 +4,24 @@ FROM python:3.11
 LABEL org.opencontainers.image.source https://github.com/joaovitoriasilva/gearguardian
 
 # Set the working directory
-WORKDIR /code
+WORKDIR /app
 
 # Copy the requirements.txt file to /app
-COPY ./requirements.txt /code/requirements.txt
+COPY requirements.txt /app/
 
 # Install any needed packages specified in requirements.txt and then remove requirements.txt file
 # Remove any temporary files or directories created during the build process
 # Cache Cleanup
-RUN pip install --no-cache-dir --upgrade -r /code/requirements.txt \
-  && rm /code/requirements.txt \
+RUN pip install --no-cache-dir --upgrade -r requirements.txt \
+  && rm requirements.txt \
   && apt-get clean \
   && rm -rf /var/lib/apt/lists/*
 
+# Make port 80 available to the world outside this container
+EXPOSE 80
+
 # Copy the directory backend contents to /app
-COPY ./backend /code/app
+COPY backend /app/backend/
 
 # Define environment variable
 ENV DB_HOST=""
@@ -36,4 +39,4 @@ ENV JAEGER_HOST=""
 ENV STRAVA_DAYS_ACTIVITIES_ONLINK=30
 
 # Run main.py when the container launches
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "80"]
+CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "80"]
