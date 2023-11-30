@@ -1,4 +1,5 @@
 fastapi
+pydantic
 uvicorn
 sqlalchemy
 mysqlclient
