@@ -5,23 +5,19 @@ FROM tiangolo/uvicorn-gunicorn-fastapi:latest
 LABEL org.opencontainers.image.source https://github.com/joaovitoriasilva/gearguardian
 
 # Set the working directory
-WORKDIR /app
+#WORKDIR /app
 
 # Install pkg-config
-RUN apt-get update && apt-get install -y pkg-config python3-dev default-libmysqlclient-dev build-essential
+#RUN apt-get update && apt-get install -y pkg-config python3-dev default-libmysqlclient-dev build-essential
 
-# Copy the directory backend contents and requirements.txt file into the container at /app
-COPY backend/ /app
-COPY requirements.txt /app
+# Copy the requirements.txt file to /app
+COPY ./requirements.txt /app/requirements.txt
 
-# Create a virtual environment and install dependencies
-RUN python -m venv /venv
-ENV PATH=/venv/bin:$PATH
 # Install any needed packages specified in requirements.txt
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r /app/requirements.txt
 
-# Make port 8000 available to the world outside this container
-#EXPOSE 8000
+# Copy the directory backend contents to /app
+COPY ./backend/ /app
 
 # Define environment variable
 ENV DB_HOST=""
@@ -39,4 +35,4 @@ ENV JAEGER_HOST=""
 ENV STRAVA_DAYS_ACTIVITIES_ONLINK=30
 
 # Run app.py when the container launches
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+#CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
