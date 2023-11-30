@@ -1,23 +1,22 @@
-# Use the official tiangolo/uvicorn-gunicorn-fastapi image as a parent image
-FROM tiangolo/uvicorn-gunicorn-fastapi:latest
+FROM python:3.11
 
 # Links Docker image with repository
 LABEL org.opencontainers.image.source https://github.com/joaovitoriasilva/gearguardian
 
 # Set the working directory
-#WORKDIR /app
+WORKDIR /code
 
 # Install pkg-config
 #RUN apt-get update && apt-get install -y pkg-config python3-dev default-libmysqlclient-dev build-essential
 
 # Copy the requirements.txt file to /app
-COPY ./requirements.txt /app/requirements.txt
+COPY ./requirements.txt /code/requirements.txt
 
 # Install any needed packages specified in requirements.txt
-RUN pip install --no-cache-dir -r /app/requirements.txt
+RUN pip install --no-cache-dir -r /code/requirements.txt
 
 # Copy the directory backend contents to /app
-COPY ./backend/ /app
+COPY ./backend /code/app
 
 # Define environment variable
 ENV DB_HOST=""
@@ -35,4 +34,4 @@ ENV JAEGER_HOST=""
 ENV STRAVA_DAYS_ACTIVITIES_ONLINK=30
 
 # Run app.py when the container launches
-#CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "80"]
