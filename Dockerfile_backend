@@ -18,7 +18,7 @@ RUN pip install --no-cache-dir --upgrade -r /code/requirements.txt \
   && rm -rf /var/lib/apt/lists/*
 
 # Copy the directory backend contents to /app
-COPY ./backend /code/backend
+COPY ./backend /code/app
 
 # Define environment variable
 ENV DB_HOST=""
@@ -35,5 +35,5 @@ ENV STRAVA_AUTH_CODE=""
 ENV JAEGER_HOST=""
 ENV STRAVA_DAYS_ACTIVITIES_ONLINK=30
 
-# Run app.py when the container launches
-CMD ["uvicorn", "app.main:backend", "--host", "0.0.0.0", "--port", "80"]
+# Run main.py when the container launches
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "80"]
