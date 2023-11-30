@@ -1,5 +1,5 @@
-# Use an official Python runtime as a parent image
-FROM python:3.11-slim
+# Use the official tiangolo/uvicorn-gunicorn-fastapi image as a parent image
+FROM tiangolo/uvicorn-gunicorn-fastapi:latest
 
 # Links Docker image with repository
 LABEL org.opencontainers.image.source https://github.com/joaovitoriasilva/gearguardian
@@ -21,7 +21,7 @@ ENV PATH=/venv/bin:$PATH
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Make port 8000 available to the world outside this container
-EXPOSE 8000
+#EXPOSE 8000
 
 # Define environment variable
 ENV DB_HOST=""
