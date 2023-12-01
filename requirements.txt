@@ -1,6 +1,7 @@
 fastapi
 pydantic
 uvicorn
+python-dotenv
 sqlalchemy
 mysqlclient
 python-jose[cryptography]
