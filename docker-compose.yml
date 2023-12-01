@@ -7,7 +7,7 @@ services:
     environment:
       - APACHE_DOCUMENT_ROOT=/var/www/html
     volumes:
-      - /home/joaovitoriasilva/Documents/containers/gearguardian/frontend:/var/www/html
+      - <local_path>/gearguardian/frontend:/var/www/html
     ports:
       - "8080:80"
     restart: unless-stopped
@@ -25,7 +25,7 @@ services:
     ports:
       - "98:80"
     volumes:
-      - /home/joaovitoriasilva/Documents/containers/gearguardian/backend:/app
+      - <local_path>/gearguardian/backend:/app
     env_file:
       - config/.env
     depends_on:
@@ -38,14 +38,14 @@ services:
     image: mariadb:latest
     container_name: mariadb
     environment:
-      - MYSQL_ROOT_PASSWORD=123Testes@
+      - MYSQL_ROOT_PASSWORD=changeme
       - MYSQL_DATABASE=gearguardian
       - MYSQL_USER=gearguardian
-      - MYSQL_PASSWORD=123Testes@
+      - MYSQL_PASSWORD=changeme
     ports:
       - "3306:3306"
     volumes:
-      - /home/joaovitoriasilva/Documents/containers/mariadb:/var/lib/mysql
+      - <local_path>/mariadb:/var/lib/mysql
     restart: unless-stopped
 
   # Jaeger for opentelemetry
