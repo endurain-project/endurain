@@ -34,18 +34,6 @@
 
     /* Do a login */
     function loginUser($username, $password, $neverExpires){
-        #$api_url = 'http://192.168.2.80:98';
-        #$ch = curl_init();
-        #curl_setopt($ch, CURLOPT_URL, $api_url . '/token');
-        #curl_setopt($ch, CURLOPT_POST, 1);
-        #curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query([
-        #    'username' => $username,
-        #    'password' => $password,
-        #    'loginNeverExpires' => $neverExpires,
-        #]));
-        #curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        #$response = curl_exec($ch);
-        #curl_close($ch);
         $response = callAPIRoute("/token", 0, 5, json_encode(array(
             'username' => $username,
             'password' => $password,
@@ -108,4 +96,3 @@
             }
         }
     }
-?>

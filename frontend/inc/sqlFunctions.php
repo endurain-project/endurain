@@ -6,4 +6,3 @@
 	require_once $_SERVER['DOCUMENT_ROOT']."/inc/func/activities-funcs.php";
 	require_once $_SERVER['DOCUMENT_ROOT']."/inc/func/waypoints-funcs.php";
 	require_once $_SERVER['DOCUMENT_ROOT']."/inc/func/strava-funcs.php";
-?>

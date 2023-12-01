@@ -17,7 +17,7 @@ RUN apt-get update
 EXPOSE 80
 
 # Define environment variables
-ENV APACHE_DOCUMENT_ROOT /var/www/html/public
+ENV APACHE_DOCUMENT_ROOT /var/www/html
 
 # Enable Apache modules
 RUN a2enmod rewrite

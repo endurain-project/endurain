@@ -1,46 +1,36 @@
 version: '3'
 services:
-  gearguardian-frontend:
-    image: gearguardian-frontend:latest
+  # frontend logic
+  frontend:
+    container_name: frontend
+    image: ghcr.io/joaovitoriasilva/gearguardian/frontend:dev_29112023
+    environment:
+      - APACHE_DOCUMENT_ROOT=/var/www/html
     volumes:
-      - ./app:/app
-      - ./nginx.conf:/etc/nginx/conf.d/default.conf
+      - /home/joaovitoriasilva/Documents/containers/gearguardian/frontend:/var/www/html
     ports:
       - "8080:80"
-    networks:
-      - frontend_network
-      - backend_network
     restart: unless-stopped
-
+    
   # API logic
-  gearguardian-backend:
-    container_name: gearguardian-backend
-    image: gearguardian-backend:latest
+  backend:
+    container_name: backend
+    image: ghcr.io/joaovitoriasilva/gearguardian/backend:dev_01122023
     environment:
-        - DB_HOST=<change me> #required
-        - DB_PORT=3306 #optional - will use port 3306 by default
-        - DB_USER=<change me> #required
-        - DB_PASSWORD=<change me> #required
-        - DB_DATABASE=<change me> #required
-        - SECRET_KEY=<change me> #required
-        - ALGORITHM=HS256 #optional - will use HS256 by default
-        - ACCESS_TOKEN_EXPIRE_MINUTES=30 #optional - will use 30 minutes by default
-        - STRAVA_CLIENT_ID=<change me> #required
-        - STRAVA_CLIENT_SECRET=<change me> #required
-        - STRAVA_AUTH_CODE=<change me> #required
-        - JAEGER_HOST=<change me> #required
-        - STRAVA_DAYS_ACTIVITIES_ONLINK=30 #optional - will use 30 days by default
+      - DB_PASSWORD=changeme
+      - SECRET_KEY=changeme
+      - STRAVA_CLIENT_ID=changeme
+      - STRAVA_CLIENT_SECRET=changeme
+      - STRAVA_AUTH_CODE=changeme
     ports:
-      - "98:8000"
+      - "98:80"
     volumes:
-      - <host_path>/gearguardian-api:/app
+      - /home/joaovitoriasilva/Documents/containers/gearguardian/backend:/app
     env_file:
-      - ./app/config/.env # this will be removed. .env file will be moved to root folder
+      - config/.env
     depends_on:
       - mariadb
-      - otel-collector
-    networks:
-      - backend_network
+      - jaeger
     restart: unless-stopped
   
   # mysql mariadb logic
@@ -48,30 +38,17 @@ services:
     image: mariadb:latest
     container_name: mariadb
     environment:
-      - MYSQL_ROOT_PASSWORD=<change me> #required
-      - MYSQL_DATABASE=<change me> #required
-      - MYSQL_USER=<change me> #required
-      - MYSQL_PASSWORD=<change me> #required
+      - MYSQL_ROOT_PASSWORD=123Testes@
+      - MYSQL_DATABASE=gearguardian
+      - MYSQL_USER=gearguardian
+      - MYSQL_PASSWORD=123Testes@
     ports:
       - "3306:3306"
     volumes:
-      - <host_path>/mariadb:/var/lib/mysql
-    networks:
-      - backend_network
+      - /home/joaovitoriasilva/Documents/containers/mariadb:/var/lib/mysql
     restart: unless-stopped
 
-  otel-collector:
-    image: otel/opentelemetry-collector-contrib:latest
-    container_name: otel-collector
-    # Add any necessary configuration for the OpenTelemetry Collector here
-    volumes:
-      - <host_path>/otel-collector/otel-collector-config.yaml:/etc/otel-collector-config.yaml
-    ports:
-      - "4317:4317"
-    networks:
-      - backend_network
-    restart: unless-stopped
-
+  # Jaeger for opentelemetry
   jaeger:
     container_name: jaeger
     image: jaegertracing/all-in-one:latest
@@ -91,12 +68,22 @@ services:
       - 14268:14268
       - 14269:14269
       - 9411:9411
-    networks:
-      - backend_network
+    restart: unless-stopped
+
+# phpmyadmin for DB manipulation
+  phpmyadmin:
+    container_name: phpmyadmin
+    image: phpmyadmin
+    ports:
+      - 81:80
+    environment:
+      - PMA_HOST=mariadb
+      - PMA_ARBITRARY=1
+    depends_on:
+      - mariadb
     restart: unless-stopped
 
 networks:
-  backend_network:
-    driver: bridge
-  frontend_network:
-    driver: bridge
+  default:
+    external: true
+    name: backend_network

@@ -53,11 +53,11 @@
 
 <main class="form-signin w-100 m-auto text-center p-5" style="max-width: 500px">
     <!-- Info banners -->
-    <?php if($_GET["sessionExpired"] == 1){ ?>
+    <?php if(isset($_GET["sessionExpired"]) && $_GET["sessionExpired"] == 1){ ?>
             <div class="alert alert-warning alert-dismissible d-flex align-items-center" role="alert">
                 <i class="fa-solid fa-triangle-exclamation me-1"></i>
                 <div>
-                    <?php if($_GET["sessionExpired"] == 1){ ?>
+                    <?php if(isset($_GET["sessionExpired"]) && $_GET["sessionExpired"] == 1){ ?>
                         <?php echo $translationsLogin['login_info_session expired']; ?>.
                     <?php } ?>
                     <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>

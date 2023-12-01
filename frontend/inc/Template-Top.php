@@ -1,15 +1,21 @@
 <?php
-    // Load the language file based on the user's preferred language
-    switch ($_SESSION["preferred_language"]) {
-      case 'en':
-          $translationsTemplateTop = include $_SERVER['DOCUMENT_ROOT'].'/lang/inc/Template-Top/en.php';
-          break;
-      case 'pt':
-          $translationsTemplateTop = include $_SERVER['DOCUMENT_ROOT'].'/lang/inc/Template-Top/pt.php';
-          break;
-      // ...
-      default:
-          $translationsTemplateTop = include $_SERVER['DOCUMENT_ROOT'].'/lang/inc/Template-Top/en.php';
+    // Check if the "preferred_language" key is set in the session
+    if (isset($_SESSION["preferred_language"])) {
+        // Load the language file based on the user's preferred language
+        switch ($_SESSION["preferred_language"]) {
+            case 'en':
+                $translationsTemplateTop = include $_SERVER['DOCUMENT_ROOT'].'/lang/inc/Template-Top/en.php';
+                break;
+            case 'pt':
+                $translationsTemplateTop = include $_SERVER['DOCUMENT_ROOT'].'/lang/inc/Template-Top/pt.php';
+                break;
+            // ...
+            default:
+                $translationsTemplateTop = include $_SERVER['DOCUMENT_ROOT'].'/lang/inc/Template-Top/en.php';
+        }
+    } else {
+        // Set a default language or handle the case when "preferred_language" is not set
+        $translationsTemplateTop = include $_SERVER['DOCUMENT_ROOT'].'/lang/inc/Template-Top/en.php';
     }
 ?>
 

@@ -32,7 +32,7 @@
     function linkStrava($state){
         // Example PHP code for the authentication link
         $client_id = '115321';
-        $redirect_uri = urlencode('https://api-gearguardian.jvslab.pt/strava/strava-callback');
+        $redirect_uri = urlencode('https://backend:98/strava/strava-callback');
         $scope = 'read,read_all,profile:read_all,activity:read,activity:read_all'; // Set your required scope
 
         $strava_auth_url = "http://www.strava.com/oauth/authorize?client_id={$client_id}&response_type=code&redirect_uri={$redirect_uri}&approval_prompt=force&scope={$scope}&state={$state}";
@@ -52,5 +52,3 @@
             }
         }
     }
-
-?>
