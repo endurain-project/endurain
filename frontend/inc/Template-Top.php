@@ -76,7 +76,7 @@
                         <?php if(isLogged()) {?>
                             <span class="border-top d-sm-none d-block mb-2"></span>
                             <a class="nav-link" href="../settings/settings.php?profileSettings=1">
-                                <img src="<?php if(is_null($_SESSION["photo_path"])){ if($_SESSION["gender"] == 1) { echo ("../img/avatar/farmer_avatar_male_1.png"); }else{ echo ("../img/avatar/farmer_avatar_female_1.png"); } }else{ echo ($_SESSION["photo_path"]); }?>" alt="userPhoto" width="24" height="24" class="rounded-circle"><span class="ms-2"><?php echo $translationsTemplateTop['template_top_navbar_profile']; ?></span>
+                                <img src="<?php if(is_null($_SESSION["photo_path"])){ if($_SESSION["gender"] == 1) { echo ("../img/avatar/male1.png"); }else{ echo ("../img/avatar/female1.png"); } }else{ echo ($_SESSION["photo_path"]); }?>" alt="userPhoto" width="24" height="24" class="rounded-circle"><span class="ms-2"><?php echo $translationsTemplateTop['template_top_navbar_profile']; ?></span>
                             </a>
                             <span class="border-top d-sm-none d-block mb-2"></span>
                             <a class="nav-link d-none d-sm-block">|</a>

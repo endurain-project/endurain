@@ -780,7 +780,7 @@
             <!-- Info banners -->
 
             <!-- Success banners -->
-            <?php if($deletePhotoProfileAction == 0 || $editProfileAction == 0 || $_GET["stravaLinked"] == 1){ ?>
+            <?php if($deletePhotoProfileAction == 0 || $editProfileAction == 0 || (isset($_GET["stravaLinked"]) && $_GET["stravaLinked"] == 1)){ ?>
                 <div class="alert alert-success alert-dismissible d-flex align-items-center" role="alert">   
                     <div>
                         <i class="fa-regular fa-circle-check me-1"></i> 
@@ -790,7 +790,7 @@
                             <?php if($editProfileAction == 0){ ?>
                                 <?php echo $translationsSettings['settings_sidebar_profile_success_profileEdited']; ?>
                             <?php }else{ ?>
-                                <?php if($_GET["stravaLinked"] == 1){ ?>
+                                <?php if(isset($_GET["stravaLinked"]) && $_GET["stravaLinked"] == 1){ ?>
                                     <?php echo $translationsSettings['settings_sidebar_profile_success_stravaLinked']; ?>
                                 <?php } ?>
                             <?php } ?>
@@ -905,7 +905,13 @@
                     <h2><?php echo ($_SESSION["name"]); ?></h2>
                     <p><b><?php  echo $translationsSettings['settings_sidebar_profile_username_subtitle']; ?></b><?php echo ($_SESSION["username"]); ?></p>
                     <p><b><?php  echo $translationsSettings['settings_sidebar_profile_email_subtitle']; ?></b><?php echo ($_SESSION["email"]); ?></p>
-                    <p><b><?php  echo $translationsSettings['settings_sidebar_profile_birthdate_subtitle']; ?></b><?php echo (date("d/m/Y", strtotime($_SESSION["birthdate"]))); ?></p>
+                    <p><b><?php  echo $translationsSettings['settings_sidebar_profile_birthdate_subtitle']; ?></b><?php
+                                                                                                                        if (isset($_SESSION["birthdate"]) && !empty($_SESSION["birthdate"])) {
+                                                                                                                            echo date("d/m/Y", strtotime($_SESSION["birthdate"]));
+                                                                                                                        } else {
+                                                                                                                            echo "N/A"; // Or any default value you prefer when birthdate is not set
+                                                                                                                        }
+                                                                                                                        ?></p>
                     <p><b><?php  echo $translationsSettings['settings_sidebar_profile_city_subtitle']; ?></b><?php echo ($_SESSION["city"]); ?></p>
                     <p><b><?php  echo $translationsSettings['settings_sidebar_profile_gender_subtitle']; ?></b><?php if ($_SESSION["gender"] == 1){ echo $translationsSettings['settings_sidebar_profile_gender_male']; }else{ echo $translationsSettings['settings_sidebar_profile_gender_female']; } ?></p>
                     <p><b><?php  echo $translationsSettings['settings_sidebar_profile_preferredlanguage_subtitle']; ?></b><?php echo ($_SESSION["preferred_language"]); ?></p>
@@ -942,14 +948,14 @@
             <?php } ?>
 
             <!-- Info banners -->
-            <?php if($gears == NULL || $_GET["invalidGear"] == 1){ ?>
+            <?php if($gears == NULL || (isset($_GET["invalidGear"]) && $_GET["invalidGear"] == 1)){ ?>
                 <div class="alert alert-warning alert-dismissible d-flex align-items-center" role="alert">
                     <i class="fa-solid fa-triangle-exclamation me-1"></i>
                     <div>
-                        <?php if($users == NULL){ ?>
+                        <?php if($gears == NULL){ ?>
                             <?php echo $translationsSettings['settings_sidebar_gear_info_searchGear_NULL']; ?> (NULL).
                         <?php }else{ ?>
-                            <?php if($_GET["invalidGear"] == 1){ ?>
+                            <?php if(isset($_GET["invalidGear"]) && $_GET["invalidGear"] == 1){ ?>
                                 <?php echo $translationsSettings['settings_sidebar_gear_info_fromGear_invalidGear']; ?> (1).
                             <?php } ?>
                         <?php } ?>

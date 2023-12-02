@@ -6,7 +6,7 @@ from typing import List, Optional
 from sqlalchemy import func
 from db.db import get_db_session, Gear
 from jose import jwt, JWTError
-from dotenv import load_dotenv
+#from dotenv import load_dotenv
 from urllib.parse import unquote
 from pydantic import BaseModel
 
@@ -15,7 +15,7 @@ router = APIRouter()
 logger = logging.getLogger("myLogger")
 
 # Load the environment variables from config/.env
-load_dotenv("config/.env")
+#load_dotenv("config/.env")
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
@@ -28,7 +28,7 @@ async def read_gear_all(token: str = Depends(oauth2_scheme)):
         sessionController.validate_token(token)
         with get_db_session() as db_session:
             payload = jwt.decode(
-                token, os.getenv("SECRET_KEY"), algorithms=[os.getenv("ALGORITHM")]
+                token, os.environ.get("SECRET_KEY"), algorithms=[os.environ.get("ALGORITHM")]
             )
             user_id = payload.get("id")
 
@@ -59,7 +59,7 @@ async def read_gear_all_running(token: str = Depends(oauth2_scheme)):
         sessionController.validate_token(token)
         with get_db_session() as db_session:
             payload = jwt.decode(
-                token, os.getenv("SECRET_KEY"), algorithms=[os.getenv("ALGORITHM")]
+                token, os.environ.get("SECRET_KEY"), algorithms=[os.environ.get("ALGORITHM")]
             )
             user_id = payload.get("id")
 
@@ -90,7 +90,7 @@ async def read_gear_all_cycling(token: str = Depends(oauth2_scheme)):
         sessionController.validate_token(token)
         with get_db_session() as db_session:
             payload = jwt.decode(
-                token, os.getenv("SECRET_KEY"), algorithms=[os.getenv("ALGORITHM")]
+                token, os.environ.get("SECRET_KEY"), algorithms=[os.environ.get("ALGORITHM")]
             )
             user_id = payload.get("id")
 
@@ -121,7 +121,7 @@ async def read_gear_all_swimming(token: str = Depends(oauth2_scheme)):
         sessionController.validate_token(token)
         with get_db_session() as db_session:
             payload = jwt.decode(
-                token, os.getenv("SECRET_KEY"), algorithms=[os.getenv("ALGORITHM")]
+                token, os.environ.get("SECRET_KEY"), algorithms=[os.environ.get("ALGORITHM")]
             )
             user_id = payload.get("id")
 
@@ -152,7 +152,7 @@ async def read_gear_number(token: str = Depends(oauth2_scheme)):
         sessionController.validate_token(token)
         with get_db_session() as db_session:
             payload = jwt.decode(
-                token, os.getenv("SECRET_KEY"), algorithms=[os.getenv("ALGORITHM")]
+                token, os.environ.get("SECRET_KEY"), algorithms=[os.environ.get("ALGORITHM")]
             )
             user_id = payload.get("id")
 
@@ -184,7 +184,7 @@ async def read_gear_all_pagination(
         sessionController.validate_token(token)
         with get_db_session() as db_session:
             payload = jwt.decode(
-                token, os.getenv("SECRET_KEY"), algorithms=[os.getenv("ALGORITHM")]
+                token, os.environ.get("SECRET_KEY"), algorithms=[os.environ.get("ALGORITHM")]
             )
             user_id = payload.get("id")
 
@@ -219,7 +219,7 @@ async def read_gear_gearFromNickname(
         sessionController.validate_token(token)
         with get_db_session() as db_session:
             payload = jwt.decode(
-                token, os.getenv("SECRET_KEY"), algorithms=[os.getenv("ALGORITHM")]
+                token, os.environ.get("SECRET_KEY"), algorithms=[os.environ.get("ALGORITHM")]
             )
             user_id = payload.get("id")
 
@@ -255,7 +255,7 @@ async def read_gear_gearFromId(id: int, token: str = Depends(oauth2_scheme)):
         sessionController.validate_token(token)
         with get_db_session() as db_session:
             payload = jwt.decode(
-                token, os.getenv("SECRET_KEY"), algorithms=[os.getenv("ALGORITHM")]
+                token, os.environ.get("SECRET_KEY"), algorithms=[os.environ.get("ALGORITHM")]
             )
             user_id = payload.get("id")
 
@@ -296,7 +296,7 @@ async def create_gear(gear: CreateGearRequest, token: str = Depends(oauth2_schem
         sessionController.validate_token(token)
 
         payload = jwt.decode(
-            token, os.getenv("SECRET_KEY"), algorithms=[os.getenv("ALGORITHM")]
+            token, os.environ.get("SECRET_KEY"), algorithms=[os.environ.get("ALGORITHM")]
         )
         user_id = payload.get("id")
 

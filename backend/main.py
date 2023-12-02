@@ -60,7 +60,7 @@ trace.set_tracer_provider(
     TracerProvider(resource=Resource.create({"service.name": "backend_api"}))
 )
 trace.get_tracer_provider().add_span_processor(
-    BatchSpanProcessor(OTLPSpanExporter(endpoint="http://192.168.2.80:4317"))
+    BatchSpanProcessor(OTLPSpanExporter(endpoint="http://jaeger:4317"))
 )
 
 

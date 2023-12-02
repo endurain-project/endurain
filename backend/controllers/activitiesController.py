@@ -6,7 +6,7 @@ from typing import List, Optional
 from sqlalchemy import func, desc
 from db.db import get_db_session, Activity
 from jose import jwt, JWTError
-from dotenv import load_dotenv
+#from dotenv import load_dotenv
 from pydantic import BaseModel
 from datetime import datetime, timedelta
 
@@ -15,7 +15,7 @@ router = APIRouter()
 logger = logging.getLogger("myLogger")
 
 # Load the environment variables from config/.env
-load_dotenv("config/.env")
+#load_dotenv("config/.env")
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
@@ -51,7 +51,7 @@ async def read_activities_useractivities(token: str = Depends(oauth2_scheme)):
         sessionController.validate_token(token)
         with get_db_session() as db_session:
             payload = jwt.decode(
-                token, os.getenv("SECRET_KEY"), algorithms=[os.getenv("ALGORITHM")]
+                token, os.environ.get("SECRET_KEY"), algorithms=[os.environ.get("ALGORITHM")]
             )
             user_id = payload.get("id")
 
@@ -83,7 +83,7 @@ async def read_activities_useractivities_thisweek_distances(
     try:
         sessionController.validate_token(token)
         with get_db_session() as db_session:
-            # payload = jwt.decode(token, os.getenv("SECRET_KEY"), algorithms=[os.getenv("ALGORITHM")])
+            # payload = jwt.decode(token, os.environ.get("SECRET_KEY"), algorithms=[os.environ.get("ALGORITHM")])
             # user_id = payload.get("id")
 
             # Calculate the start of the current week
@@ -139,7 +139,7 @@ async def read_activities_gearactivities(
         sessionController.validate_token(token)
         with get_db_session() as db_session:
             payload = jwt.decode(
-                token, os.getenv("SECRET_KEY"), algorithms=[os.getenv("ALGORITHM")]
+                token, os.environ.get("SECRET_KEY"), algorithms=[os.environ.get("ALGORITHM")]
             )
             user_id = payload.get("id")
 
@@ -188,7 +188,7 @@ async def read_activities_useractivities_number(token: str = Depends(oauth2_sche
         sessionController.validate_token(token)
         with get_db_session() as db_session:
             payload = jwt.decode(
-                token, os.getenv("SECRET_KEY"), algorithms=[os.getenv("ALGORITHM")]
+                token, os.environ.get("SECRET_KEY"), algorithms=[os.environ.get("ALGORITHM")]
             )
             user_id = payload.get("id")
 
@@ -252,7 +252,7 @@ async def read_activities_useractivities_pagination(
         sessionController.validate_token(token)
         with get_db_session() as db_session:
             payload = jwt.decode(
-                token, os.getenv("SECRET_KEY"), algorithms=[os.getenv("ALGORITHM")]
+                token, os.environ.get("SECRET_KEY"), algorithms=[os.environ.get("ALGORITHM")]
             )
             user_id = payload.get("id")
 
@@ -286,7 +286,7 @@ async def read_activities_activityFromId(id: int, token: str = Depends(oauth2_sc
         sessionController.validate_token(token)
         with get_db_session() as db_session:
             payload = jwt.decode(
-                token, os.getenv("SECRET_KEY"), algorithms=[os.getenv("ALGORITHM")]
+                token, os.environ.get("SECRET_KEY"), algorithms=[os.environ.get("ALGORITHM")]
             )
             user_id = payload.get("id")
 
@@ -374,7 +374,7 @@ async def create_activity(
 
         # get user_id
         payload = jwt.decode(
-            token, os.getenv("SECRET_KEY"), algorithms=[os.getenv("ALGORITHM")]
+            token, os.environ.get("SECRET_KEY"), algorithms=[os.environ.get("ALGORITHM")]
         )
         user_id = payload.get("id")
 
@@ -464,7 +464,7 @@ async def delete_activity_gear(activity_id: int, token: str = Depends(oauth2_sch
         with get_db_session() as db_session:
             # get user_id
             payload = jwt.decode(
-                token, os.getenv("SECRET_KEY"), algorithms=[os.getenv("ALGORITHM")]
+                token, os.environ.get("SECRET_KEY"), algorithms=[os.environ.get("ALGORITHM")]
             )
             user_id = payload.get("id")
 
@@ -507,7 +507,7 @@ async def delete_activity(activity_id: int, token: str = Depends(oauth2_scheme))
         with get_db_session() as db_session:
             # get user_id
             payload = jwt.decode(
-                token, os.getenv("SECRET_KEY"), algorithms=[os.getenv("ALGORITHM")]
+                token, os.environ.get("SECRET_KEY"), algorithms=[os.environ.get("ALGORITHM")]
             )
             user_id = payload.get("id")
 

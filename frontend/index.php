@@ -149,8 +149,8 @@
                             
                             <!-- date fields -->
                             <label for="activityGpxFileAdd"><b>* <?php echo $translationsIndex['index_sidebar_addActivity_modal_addGpxFile_placeholder']; ?></b></label>
-                            <input class="form-control" type="file" name="activityGpxFileAdd" accept=".gpx" placeholder="<?php echo $translationsIndex['index_sidebar_addActivity_modal_addGpxFile_placeholder']; ?>"  value="<?php echo($_POST["activityGpxFileAdd"]); ?>" required>
-                            * <?php echo $translationsTemplateTop['template_top_global_requiredFields']; ?>
+                            <input class="form-control" type="file" name="activityGpxFileAdd" accept=".gpx" required>
+                            <p>* <?php echo $translationsTemplateTop['template_top_global_requiredFields']; ?></p>
                         </div>
                         <div class="modal-footer">
                             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><?php echo $translationsTemplateTop['template_top_global_close']; ?></button>
@@ -163,7 +163,7 @@
     </div>
     <div class="col">
       <!-- Error banners -->
-      <?php if($activities == -1 || $activities == -2 || $addActivityAction == -1 || $addActivityAction == -2 || $addActivityAction == -3 || $addActivityAction == -4 || $_GET["invalidActivity"] == 1){ ?>
+      <?php if($activities == -1 || $activities == -2 || $addActivityAction == -1 || $addActivityAction == -2 || $addActivityAction == -3 || $addActivityAction == -4 || (isset($_GET["invalidActivity"]) && $_GET["invalidActivity"] == 1)){ ?>
           <div class="alert alert-danger alert-dismissible d-flex align-items-center" role="alert">
               <i class="fa-solid fa-circle-exclamation me-1"></i>
               <div>
@@ -205,14 +205,14 @@
       <?php } ?>
 
       <!-- Success banners -->
-      <?php if($addActivityAction == 0 || $_GET["deleteActivity"] == 1){ ?>
+      <?php if($addActivityAction == 0 || (isset($_GET["deleteActivity"]) && $_GET["deleteActivity"] == 1)){ ?>
           <div class="alert alert-success alert-dismissible d-flex align-items-center" role="alert">   
               <div>
                   <i class="fa-regular fa-circle-check me-1"></i> 
                   <?php if($addActivityAction == 0){ ?>
                     <?php echo $translationsIndex['index_sidebar_addActivity_success_activityAdded']; ?>
                   <?php }else{ ?>
-                    <?php if($_GET["deleteActivity"] == 1){ ?>
+                    <?php if(isset($_GET["deleteActivity"]) && $_GET["deleteActivity"] == 1){ ?>
                       <?php echo $translationsIndex['index_sidebar_addActivity_success_activityDeleted']; ?>
                     <?php } ?>
                   <?php } ?>

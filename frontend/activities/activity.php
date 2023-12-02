@@ -176,7 +176,9 @@
                 <i class="fa-solid fa-ellipsis-vertical"></i>
             </button>
             <ul class="dropdown-menu">
-                <li><a class="dropdown-item" href="https://www.strava.com/activities/<?php echo $activity[0]['strava_activity_id']; ?>"><?php echo $translationsActivitiesActivity['activity_title_dropdown_seeItOnStrava']; ?></a></li>
+                <?php if($activity[0]['strava_activity_id'] != null){ ?>
+                    <li><a class="dropdown-item" href="https://www.strava.com/activities/<?php echo $activity[0]['strava_activity_id']; ?>"><?php echo $translationsActivitiesActivity['activity_title_dropdown_seeItOnStrava']; ?></a></li>
+                <?php } ?>
                 <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#deleteActivityModal"><?php echo $translationsActivitiesActivity['activity_title_dropdown_deleteActivity']; ?></a></li>
             </ul>
         </div>

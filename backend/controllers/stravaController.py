@@ -1,4 +1,4 @@
-from dotenv import load_dotenv
+#from dotenv import load_dotenv
 from datetime import datetime, timedelta
 from db.db import get_db_session, User, Activity
 from fastapi import APIRouter, HTTPException, Depends
@@ -20,7 +20,7 @@ router = APIRouter()
 logger = logging.getLogger("myLogger")
 
 # Load the environment variables from config/.env
-load_dotenv("config/.env")
+#load_dotenv("config/.env")
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
@@ -48,8 +48,8 @@ async def strava_callback(state: str, code: str, background_tasks: BackgroundTas
     """
     token_url = "https://www.strava.com/oauth/token"
     payload = {
-        "client_id": os.getenv("STRAVA_CLIENT_ID"),
-        "client_secret": os.getenv("STRAVA_CLIENT_SECRET"),
+        "client_id": os.environ.get("STRAVA_CLIENT_ID"),
+        "client_secret": os.environ.get("STRAVA_CLIENT_SECRET"),
         "code": code,
         "grant_type": "authorization_code",
     }
@@ -81,7 +81,7 @@ async def strava_callback(state: str, code: str, background_tasks: BackgroundTas
                     (
                         datetime.utcnow()
                         - timedelta(
-                            days=int(os.getenv("STRAVA_DAYS_ACTIVITIES_ONLINK"))
+                            days=int(os.environ.get("STRAVA_DAYS_ACTIVITIES_ONLINK"))
                         )
                     ).strftime("%Y-%m-%dT%H:%M:%SZ"),
                     db_user.id,
@@ -138,8 +138,8 @@ def refresh_strava_token():
                         if datetime.utcnow() > refresh_time:
                             # Parameters for the token refresh request
                             payload = {
-                                "client_id": os.getenv("STRAVA_CLIENT_ID"),
-                                "client_secret": os.getenv("STRAVA_CLIENT_SECRET"),
+                                "client_id": os.environ.get("STRAVA_CLIENT_ID"),
+                                "client_secret": os.environ.get("STRAVA_CLIENT_SECRET"),
                                 "refresh_token": user.strava_refresh_token,
                                 "grant_type": "refresh_token",
                             }
@@ -213,7 +213,7 @@ async def strava_set_user_unique_state(state: str, token: str = Depends(oauth2_s
         with get_db_session() as db_session:
             # From the token retrieve the user_id
             payload = jwt.decode(
-                token, os.getenv("SECRET_KEY"), algorithms=[os.getenv("ALGORITHM")]
+                token, os.environ.get("SECRET_KEY"), algorithms=[os.environ.get("ALGORITHM")]
             )
             user_id = payload.get("id")
 
@@ -269,7 +269,7 @@ async def strava_unset_user_unique_state(token: str = Depends(oauth2_scheme)):
         with get_db_session() as db_session:
             # From the token retrieve the user_id
             payload = jwt.decode(
-                token, os.getenv("SECRET_KEY"), algorithms=[os.getenv("ALGORITHM")]
+                token, os.environ.get("SECRET_KEY"), algorithms=[os.environ.get("ALGORITHM")]
             )
             user_id = payload.get("id")
 

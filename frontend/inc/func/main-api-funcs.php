@@ -4,7 +4,7 @@
     /* ************************************************************************** */
     /* Get to call a API route */
     function callAPIRoute($endpoint, $multipleReturns, $callType, $dataFields){
-        $api_url = 'http://127.0.1.1:98';
+        $api_url = 'http://backend';
         $responseArray = [];
 
         // Initialize a new cURL session

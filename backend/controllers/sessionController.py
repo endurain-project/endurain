@@ -47,7 +47,7 @@ async def authenticate_user(
 
             # If there is no existing access token, create a new one
             access_token_expires = timedelta(
-                minutes=int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES"))
+                minutes=int(os.environ.get("ACCESS_TOKEN_EXPIRE_MINUTES"))
             )
             access_token = await create_access_token(
                 data={"id": user.id, "access_type": user.access_type},
@@ -79,7 +79,7 @@ async def create_access_token(
 
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(
-        to_encode, os.getenv("SECRET_KEY"), algorithm=os.getenv("ALGORITHM")
+        to_encode, os.environ.get("SECRET_KEY"), algorithm=os.environ.get("ALGORITHM")
     )
 
     # Insert the access token into the database using SQLAlchemy
@@ -104,12 +104,12 @@ def remove_expired_tokens():
         try:
             # Calculate the expiration time
             expiration_time = datetime.utcnow() - timedelta(
-                minutes=int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES"))
+                minutes=int(os.environ.get("ACCESS_TOKEN_EXPIRE_MINUTES"))
             )
 
             # Add tags related to the expiration check
             trace.get_current_span().set_attribute("expiration_time", expiration_time.isoformat())
-            trace.get_current_span().set_attribute("token_expire_minutes", os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES"))
+            trace.get_current_span().set_attribute("token_expire_minutes", os.environ.get("ACCESS_TOKEN_EXPIRE_MINUTES"))
 
             # Delete expired access tokens using SQLAlchemy ORM
             with get_db_session() as db_session:
@@ -146,7 +146,7 @@ def get_user_data(token: str):
     try:
         validate_token(token)
         payload = jwt.decode(
-            token, os.getenv("SECRET_KEY"), algorithms=[os.getenv("ALGORITHM")]
+            token, os.environ.get("SECRET_KEY"), algorithms=[os.environ.get("ALGORITHM")]
         )
         user_id = payload.get("id")
         if user_id is None:
@@ -191,7 +191,7 @@ def get_user_data(token: str):
 def validate_token(token: str):
     try:
         decoded_token = jwt.decode(
-            token, os.getenv("SECRET_KEY"), algorithms=[os.getenv("ALGORITHM")]
+            token, os.environ.get("SECRET_KEY"), algorithms=[os.environ.get("ALGORITHM")]
         )
         user_id = decoded_token.get("id")
         with get_db_session() as db_session:
@@ -221,7 +221,7 @@ def validate_token(token: str):
 def validate_admin_access(token: str):
     try:
         payload = jwt.decode(
-            token, os.getenv("SECRET_KEY"), algorithms=[os.getenv("ALGORITHM")]
+            token, os.environ.get("SECRET_KEY"), algorithms=[os.environ.get("ALGORITHM")]
         )
         user_access_type = payload.get("access_type")
         if user_access_type != 2:
@@ -238,6 +238,7 @@ class CreateTokenRequest(BaseModel):
 
 @router.post("/token")
 async def login_for_access_token(token: CreateTokenRequest):
+    print("cheguei aqui")
     access_token = await authenticate_user(
         token.username, token.password, token.neverExpires
     )

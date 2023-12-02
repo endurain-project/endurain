@@ -375,7 +375,14 @@
 
     function calculateInstantSpeed($prevTime, $time, $latitude, $longitude, $prevLatitude, $prevLongitude) {
         $timeCalc = new DateTime($time);
-        $prevTimeCalc = new DateTime($prevTime); 
+        if ($prevTime !== null) {
+            $prevTimeCalc = new DateTime($prevTime);
+        }else{
+            return 0; // Return a default value when $prevTime is null
+        }
+
+        $instantSpeed = 0; // Initialize $instantSpeed
+
         if ($prevTimeCalc !== null) {
             $timeDifference = $timeCalc->getTimestamp() - $prevTimeCalc->getTimestamp();
             if ($timeDifference > 0) {

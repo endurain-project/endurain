@@ -14,19 +14,19 @@ from sqlalchemy import (
     DECIMAL,
     BigInteger,
 )
-from dotenv import load_dotenv
+#from dotenv import load_dotenv
 from sqlalchemy.dialects.mysql import JSON
 from contextlib import contextmanager
 
 # Load the environment variables from config/.env
-load_dotenv("config/.env")
+#load_dotenv("config/.env")
 
 logger = logging.getLogger("myLogger")
 
 # Define the database connection URL using environment variables
 # db_url = f"mysql+mysqlconnector://{os.getenv('DB_USER')}:{os.getenv('DB_PASSWORD')}@{os.getenv('DB_HOST')}:{os.getenv('DB_PORT')}/{os.getenv('DB_DATABASE')}"
-db_password = urllib.parse.quote_plus(os.getenv("DB_PASSWORD"))
-db_url = f"mysql://{os.getenv('DB_USER')}:{db_password}@{os.getenv('DB_HOST')}:{os.getenv('DB_PORT')}/{os.getenv('DB_DATABASE')}"
+db_password = urllib.parse.quote_plus(os.environ.get("DB_PASSWORD"))
+db_url = f"mysql://{os.environ.get('DB_USER')}:{db_password}@{os.environ.get('DB_HOST')}:{os.environ.get('DB_PORT')}/{os.environ.get('DB_DATABASE')}"
 
 # Create the SQLAlchemy engine
 engine = create_engine(db_url, pool_size=10, max_overflow=20, pool_timeout=180)
