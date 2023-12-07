@@ -21,6 +21,7 @@ from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+import os
 
 # from dotenv import load_dotenv
 import logging
@@ -60,7 +61,9 @@ trace.set_tracer_provider(
     TracerProvider(resource=Resource.create({"service.name": "backend_api"}))
 )
 trace.get_tracer_provider().add_span_processor(
-    BatchSpanProcessor(OTLPSpanExporter(endpoint="http://jaeger:4317"))
+    BatchSpanProcessor(
+        OTLPSpanExporter(endpoint="http://" + os.environ.get("JAEGER_HOST") + ":4317")
+    )
 )
 
 

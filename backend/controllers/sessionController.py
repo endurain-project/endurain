@@ -108,8 +108,12 @@ def remove_expired_tokens():
             )
 
             # Add tags related to the expiration check
-            trace.get_current_span().set_attribute("expiration_time", expiration_time.isoformat())
-            trace.get_current_span().set_attribute("token_expire_minutes", os.environ.get("ACCESS_TOKEN_EXPIRE_MINUTES"))
+            trace.get_current_span().set_attribute(
+                "expiration_time", expiration_time.isoformat()
+            )
+            trace.get_current_span().set_attribute(
+                "token_expire_minutes", os.environ.get("ACCESS_TOKEN_EXPIRE_MINUTES")
+            )
 
             # Delete expired access tokens using SQLAlchemy ORM
             with get_db_session() as db_session:
@@ -146,7 +150,9 @@ def get_user_data(token: str):
     try:
         validate_token(token)
         payload = jwt.decode(
-            token, os.environ.get("SECRET_KEY"), algorithms=[os.environ.get("ALGORITHM")]
+            token,
+            os.environ.get("SECRET_KEY"),
+            algorithms=[os.environ.get("ALGORITHM")],
         )
         user_id = payload.get("id")
         if user_id is None:
@@ -191,7 +197,9 @@ def get_user_data(token: str):
 def validate_token(token: str):
     try:
         decoded_token = jwt.decode(
-            token, os.environ.get("SECRET_KEY"), algorithms=[os.environ.get("ALGORITHM")]
+            token,
+            os.environ.get("SECRET_KEY"),
+            algorithms=[os.environ.get("ALGORITHM")],
         )
         user_id = decoded_token.get("id")
         with get_db_session() as db_session:
@@ -221,7 +229,9 @@ def validate_token(token: str):
 def validate_admin_access(token: str):
     try:
         payload = jwt.decode(
-            token, os.environ.get("SECRET_KEY"), algorithms=[os.environ.get("ALGORITHM")]
+            token,
+            os.environ.get("SECRET_KEY"),
+            algorithms=[os.environ.get("ALGORITHM")],
         )
         user_access_type = payload.get("access_type")
         if user_access_type != 2:
@@ -238,7 +248,6 @@ class CreateTokenRequest(BaseModel):
 
 @router.post("/token")
 async def login_for_access_token(token: CreateTokenRequest):
-    print("cheguei aqui")
     access_token = await authenticate_user(
         token.username, token.password, token.neverExpires
     )

@@ -20,3 +20,12 @@ STRAVA_CLIENT_SECRET | changeme | `No`
 STRAVA_AUTH_CODE | changeme | `No`
 JAEGER_HOST | jaeger | Yes
 STRAVA_DAYS_ACTIVITIES_ONLINK | 30 | Yes
+
+Table bellow shows the obligatory environemnt variables for mariadb container. You should set them based on what was also set for backend container.
+
+Environemnt variable  | Default value | Optional
+--- | --- | ---
+MYSQL_ROOT_PASSWORD | changeme | `No`
+MYSQL_DATABASE | gearguardian | `No`
+MYSQL_USER | gearguardian | `No`
+MYSQL_PASSWORD | changeme | `No`
