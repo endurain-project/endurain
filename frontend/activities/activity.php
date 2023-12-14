@@ -32,7 +32,7 @@ switch ($_SESSION["preferred_language"]) {
     case 'pt':
         $translationsActivitiesActivity = include $_SERVER['DOCUMENT_ROOT'] . '/lang/activities/pt.php';
         break;
-        // ...
+    // ...
     default:
         $translationsActivitiesActivity = include $_SERVER['DOCUMENT_ROOT'] . '/lang/activities/en.php';
 }
@@ -77,7 +77,7 @@ foreach ($activity[0]['waypoints'] as $waypoint) {
     $cadData[] = $waypoint['cad'];
     $powerData[] = $waypoint['power'];
     $eleData[] = $waypoint['ele'];
-    $velData[] = (float)number_format(($waypoint['vel'] * 3.6), 0);
+    $velData[] = (float) number_format(($waypoint['vel'] * 3.6), 0);
     if ($activity[0]["activity_type"] == 1 || $activity[0]["activity_type"] == 2 || $activity[0]["activity_type"] == 3) {
         if ($waypoint['pace'] == 0 || $waypoint['pace'] == null) {
             $paceData[] = 0;
@@ -123,10 +123,12 @@ if ($activity[0]["activity_type"] == 1 || $activity[0]["activity_type"] == 2 || 
             <i class="fa-solid fa-circle-exclamation me-1"></i>
             <div>
                 <?php if ($addGearToActivity == -1 || $editGearActivity == -1 || $deleteActivity == -1) { ?>
-                    API ERROR | <?php echo $translationsActivitiesActivity['activity_addEditGear_API_error_-1']; ?> (-1).
+                    API ERROR |
+                    <?php echo $translationsActivitiesActivity['activity_addEditGear_API_error_-1']; ?> (-1).
                 <?php } else { ?>
                     <?php if ($addGearToActivity == -2 || $editGearActivity == -2 || $deleteActivity == -2) { ?>
-                        API ERROR | <?php echo $translationsActivitiesActivity['activity_addEditGear_API_error_-2']; ?> (-2).
+                        API ERROR |
+                        <?php echo $translationsActivitiesActivity['activity_addEditGear_API_error_-2']; ?> (-2).
                     <?php } ?>
                 <?php } ?>
                 <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
@@ -162,20 +164,23 @@ if ($activity[0]["activity_type"] == 1 || $activity[0]["activity_type"] == 2 || 
         <!-- Activity user details -->
         <div class="d-flex align-items-center">
             <img src=<?php if (is_null($activityUser[0]["photo_path"])) {
-                            if ($activityUser[0]["gender"] == 1) {
-                                echo ("../img/avatar/male1.png");
-                            } else {
-                                echo ("../img/avatar/female1.png");
-                            }
-                        } else {
-                            echo ($activityUser[0]["photo_path"]);
-                        } ?> alt="userPicture" class="rounded-circle" width="55" height="55">
+                if ($activityUser[0]["gender"] == 1) {
+                    echo ("../img/avatar/male1.png");
+                } else {
+                    echo ("../img/avatar/female1.png");
+                }
+            } else {
+                echo ($activityUser[0]["photo_path"]);
+            } ?> alt="userPicture" class="rounded-circle" width="55" height="55">
             <div class="ms-3 me-3">
                 <div class="fw-bold">
-                    <a href="../users/user.php?userID=<?php echo ($activityUser[0]["id"]); ?>"><?php echo ($activityUser[0]["name"]); ?></a>
+                    <a href="../users/user.php?userID=<?php echo ($activityUser[0]["id"]); ?>">
+                        <?php echo ($activityUser[0]["name"]); ?>
+                    </a>
                 </div>
                 <!-- Activity time and place details -->
-                <h7><?php if ($activity[0]["activity_type"] == 1) {
+                <h7>
+                    <?php if ($activity[0]["activity_type"] == 1) {
                         echo '<i class="fa-solid fa-person-running"></i>';
                     } else {
                         if ($activity[0]["activity_type"] == 4 || $activity[0]["activity_type"] == 5 || $activity[0]["activity_type"] == 6 || $activity[0]["activity_type"] == 7 || $activity[0]["activity_type"] == 8) {
@@ -185,13 +190,19 @@ if ($activity[0]["activity_type"] == 1 || $activity[0]["activity_type"] == 2 || 
                                 echo '<i class="fa-solid fa-person-swimming"></i>';
                             }
                         }
-                    } ?> <?php echo (new DateTime($activity[0]["start_time"]))->format("d/m/y"); ?>@<?php echo (new DateTime($activity[0]["start_time"]))->format("H:i"); ?><?php if (isset($activity[0]["city"]) || isset($activity[0]["country"])) {
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    echo " - ";
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                } ?><?php if (isset($activity[0]["city"]) && !empty($activity[0]["city"])) {
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            echo $activity[0]["city"] . ", ";
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        } ?><?php if (isset($activity[0]["country"]) && !empty($activity[0]["country"])) {
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    echo $activity[0]["country"];
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                } ?></h7>
+                    } ?>
+                    <?php echo (new DateTime($activity[0]["start_time"]))->format("d/m/y"); ?>@
+                    <?php echo (new DateTime($activity[0]["start_time"]))->format("H:i"); ?>
+                    <?php if (isset($activity[0]["city"]) || isset($activity[0]["country"])) {
+                        echo " - ";
+                    } ?>
+                    <?php if (isset($activity[0]["city"]) && !empty($activity[0]["city"])) {
+                        echo $activity[0]["city"] . ", ";
+                    } ?>
+                    <?php if (isset($activity[0]["country"]) && !empty($activity[0]["country"])) {
+                        echo $activity[0]["country"];
+                    } ?>
+                </h7>
             </div>
         </div>
         <div class="dropdown d-flex">
@@ -200,39 +211,59 @@ if ($activity[0]["activity_type"] == 1 || $activity[0]["activity_type"] == 2 || 
             </button>
             <ul class="dropdown-menu">
                 <?php if ($activity[0]['strava_activity_id'] != null) { ?>
-                    <li><a class="dropdown-item" href="https://www.strava.com/activities/<?php echo $activity[0]['strava_activity_id']; ?>"><?php echo $translationsActivitiesActivity['activity_title_dropdown_seeItOnStrava']; ?></a></li>
+                    <li><a class="dropdown-item"
+                            href="https://www.strava.com/activities/<?php echo $activity[0]['strava_activity_id']; ?>">
+                            <?php echo $translationsActivitiesActivity['activity_title_dropdown_seeItOnStrava']; ?>
+                        </a></li>
                 <?php } ?>
-                <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#deleteActivityModal"><?php echo $translationsActivitiesActivity['activity_title_dropdown_deleteActivity']; ?></a></li>
+                <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#deleteActivityModal">
+                        <?php echo $translationsActivitiesActivity['activity_title_dropdown_deleteActivity']; ?>
+                    </a></li>
             </ul>
         </div>
     </div>
 
     <!-- Modal delete gear -->
-    <div class="modal fade" id="deleteActivityModal" tabindex="-1" aria-labelledby="deleteActivityModal" aria-hidden="true">
+    <div class="modal fade" id="deleteActivityModal" tabindex="-1" aria-labelledby="deleteActivityModal"
+        aria-hidden="true">
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h1 class="modal-title fs-5" id="deleteActivityModal"><?php echo $translationsActivitiesActivity['activity_title_dropdown_deleteActivity']; ?></h1>
+                    <h1 class="modal-title fs-5" id="deleteActivityModal">
+                        <?php echo $translationsActivitiesActivity['activity_title_dropdown_deleteActivity']; ?>
+                    </h1>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    <?php echo $translationsActivitiesActivity['activity_title_dropdown_deleteActivity_modal_body']; ?> <b><?php echo $activity[0]['name']; ?></b>?
+                    <?php echo $translationsActivitiesActivity['activity_title_dropdown_deleteActivity_modal_body']; ?>
+                    <b>
+                        <?php echo $activity[0]['name']; ?>
+                    </b>?
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><?php echo $translationsTemplateTop['template_top_global_close']; ?></button>
-                    <a type="button" class="btn btn-danger" href="../activities/activity.php?activityID=<?php echo $activity[0]["id"]; ?>&deleteActivity=1"><?php echo $translationsActivitiesActivity['activity_title_dropdown_deleteActivity']; ?></a>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <?php echo $translationsTemplateTop['template_top_global_close']; ?>
+                    </button>
+                    <a type="button" class="btn btn-danger"
+                        href="../activities/activity.php?activityID=<?php echo $activity[0]["id"]; ?>&deleteActivity=1">
+                        <?php echo $translationsActivitiesActivity['activity_title_dropdown_deleteActivity']; ?>
+                    </a>
                 </div>
             </div>
         </div>
     </div>
 
     <!-- Activity title -->
-    <h1 class="mt-3"><?php echo $activity[0]["name"]; ?></h1>
+    <h1 class="mt-3">
+        <?php echo $activity[0]["name"]; ?>
+    </h1>
 
     <!-- Details -->
     <div class=" row d-flex mt-3">
         <div class="col">
-            <span class="fw-lighter"><?php echo $translationsActivitiesActivity['activity_detail_distance']; ?></span>
+            <span class="fw-lighter">
+                <?php echo $translationsActivitiesActivity['activity_detail_distance']; ?>
+            </span>
             <br>
             <?php if ($activity[0]["activity_type"] != 9) { ?>
                 <?php echo number_format(($activity[0]["distance"] / 1000), 2); ?> km
@@ -241,7 +272,9 @@ if ($activity[0]["activity_type"] == 1 || $activity[0]["activity_type"] == 2 || 
             <?php } ?>
         </div>
         <div class="col border-start border-opacity-50">
-            <span class="fw-lighter"><?php echo $translationsActivitiesActivity['activity_detail_time']; ?></span>
+            <span class="fw-lighter">
+                <?php echo $translationsActivitiesActivity['activity_detail_time']; ?>
+            </span>
             <br>
             <?php
             $startDateTime = DateTime::createFromFormat("Y-m-d\TH:i:s", $activity[0]["start_time"]);
@@ -259,19 +292,27 @@ if ($activity[0]["activity_type"] == 1 || $activity[0]["activity_type"] == 2 || 
         </div>
         <div class="col border-start border-opacity-50">
             <?php if ($activity[0]["activity_type"] != 9 && $activity[0]["activity_type"] != 1) { ?>
-                <span class="fw-lighter"><?php echo $translationsActivitiesActivity['activity_detail_elevationGain']; ?></span>
+                <span class="fw-lighter">
+                    <?php echo $translationsActivitiesActivity['activity_detail_elevationGain']; ?>
+                </span>
                 <br>
                 <?php echo ($activity[0]["elevation_gain"]); ?> m
             <?php } else { ?>
                 <?php if ($activity[0]["activity_type"] == 1 || $activity[0]["activity_type"] == 2 || $activity[0]["activity_type"] == 3) { ?>
-                    <span class="fw-lighter"><?php echo $translationsActivitiesActivity['activity_detail_pace']; ?></span>
+                    <span class="fw-lighter">
+                        <?php echo $translationsActivitiesActivity['activity_detail_pace']; ?>
+                    </span>
                     <br>
-                    <?php echo floor(($activity[0]["pace"] * 1000) / 60) . ":" . number_format((((($activity[0]["pace"] * 1000) / 60) - floor(($activity[0]["pace"] * 1000) / 60)) * 60), 0); ?> min/km
+                    <?php echo floor(($activity[0]["pace"] * 1000) / 60) . ":" . number_format((((($activity[0]["pace"] * 1000) / 60) - floor(($activity[0]["pace"] * 1000) / 60)) * 60), 0); ?>
+                    min/km
                 <?php } else { ?>
                     <?php if ($activity[0]["activity_type"] == 9) { ?>
-                        <span class="fw-lighter"><?php echo $translationsActivitiesActivity['activity_detail_pace']; ?></span>
+                        <span class="fw-lighter">
+                            <?php echo $translationsActivitiesActivity['activity_detail_pace']; ?>
+                        </span>
                         <br>
-                        <?php echo floor(($activity[0]["pace"] * 100) / 60) . ":" . number_format((((($activity[0]["pace"] * 100) / 60) - floor(($activity[0]["pace"] * 100) / 60)) * 60), 0); ?> min/100m
+                        <?php echo floor(($activity[0]["pace"] * 100) / 60) . ":" . number_format((((($activity[0]["pace"] * 100) / 60) - floor(($activity[0]["pace"] * 100) / 60)) * 60), 0); ?>
+                        min/100m
                     <?php } ?>
                 <?php } ?>
             <?php } ?>
@@ -281,7 +322,9 @@ if ($activity[0]["activity_type"] == 1 || $activity[0]["activity_type"] == 2 || 
     <div class="row d-flex mt-3">
         <?php if ($activity[0]["activity_type"] == 1 || $activity[0]["activity_type"] == 2 || $activity[0]["activity_type"] == 3) { ?>
             <div class="col">
-                <span class="fw-lighter"><?php echo $translationsActivitiesActivity['activity_detail_avgPower']; ?></span>
+                <span class="fw-lighter">
+                    <?php echo $translationsActivitiesActivity['activity_detail_avgPower']; ?>
+                </span>
                 <br>
                 <?php if ($activity[0]["average_power"]) {
                     echo ($activity[0]["average_power"]); ?> W
@@ -290,24 +333,32 @@ if ($activity[0]["activity_type"] == 1 || $activity[0]["activity_type"] == 2 || 
                 } ?>
             </div>
             <div class="col border-start border-opacity-50">
-                <span class="fw-lighter"><?php echo $translationsActivitiesActivity['activity_detail_elevationGain']; ?></span>
+                <span class="fw-lighter">
+                    <?php echo $translationsActivitiesActivity['activity_detail_elevationGain']; ?>
+                </span>
                 <br>
                 <?php echo ($activity[0]["elevation_gain"]); ?> m
             </div>
             <div class="col border-start border-opacity-50">
-                <span class="fw-lighter"><?php echo $translationsActivitiesActivity['activity_detail_elevationLoss']; ?></span>
+                <span class="fw-lighter">
+                    <?php echo $translationsActivitiesActivity['activity_detail_elevationLoss']; ?>
+                </span>
                 <br>
                 <?php echo ($activity[0]["elevation_loss"]); ?> m
             </div>
         <?php } ?>
         <?php if ($activity[0]["activity_type"] != 9 && $activity[0]["activity_type"] != 1) { ?>
             <div class="col">
-                <span class="fw-lighter"><?php echo $translationsActivitiesActivity['activity_detail_avgSpeed']; ?></span>
+                <span class="fw-lighter">
+                    <?php echo $translationsActivitiesActivity['activity_detail_avgSpeed']; ?>
+                </span>
                 <br>
                 <?php echo (number_format($activity[0]["average_speed"] * 3.6)); ?> km/h
             </div>
             <div class="col border-start border-opacity-50">
-                <span class="fw-lighter"><?php echo $translationsActivitiesActivity['activity_detail_avgPower']; ?></span>
+                <span class="fw-lighter">
+                    <?php echo $translationsActivitiesActivity['activity_detail_avgPower']; ?>
+                </span>
                 <br>
                 <?php if ($activity[0]["average_power"]) {
                     echo ($activity[0]["average_power"]); ?> W
@@ -316,7 +367,9 @@ if ($activity[0]["activity_type"] == 1 || $activity[0]["activity_type"] == 2 || 
                 } ?>
             </div>
             <div class="col border-start border-opacity-50">
-                <span class="fw-lighter"><?php echo $translationsActivitiesActivity['activity_detail_elevationLoss']; ?></span>
+                <span class="fw-lighter">
+                    <?php echo $translationsActivitiesActivity['activity_detail_elevationLoss']; ?>
+                </span>
                 <br>
                 <?php echo $activity[0]["elevation_loss"]; ?> m
             </div>
@@ -345,7 +398,7 @@ if ($activity[0]["activity_type"] == 1 || $activity[0]["activity_type"] == 2 || 
                     maxZoom: 19,
                 }).addTo(map);
 
-                var latlngs = waypoints.map(function(waypoint) {
+                var latlngs = waypoints.map(function (waypoint) {
                     return [waypoint.lat, waypoint.lon];
                 });
 
@@ -376,7 +429,9 @@ if ($activity[0]["activity_type"] == 1 || $activity[0]["activity_type"] == 2 || 
             <hr class="mb-2 mt-2">
             <div class="d-flex justify-content-between align-items-center">
                 <p class="pt-2">
-                    <span class="fw-lighter"><?php echo $translationsActivitiesActivity['activity_gear_title']; ?></span>
+                    <span class="fw-lighter">
+                        <?php echo $translationsActivitiesActivity['activity_gear_title']; ?>
+                    </span>
                     <br>
                     <?php if ($activity[0]["activity_type"] == 1) {
                         echo '<i class="fa-solid fa-person-running"></i>';
@@ -398,29 +453,44 @@ if ($activity[0]["activity_type"] == 1 || $activity[0]["activity_type"] == 2 || 
                 <div class="justify-content-end">
                     <?php if ($activity[0]["gear_id"] == null) { ?>
                         <!-- add gear zone -->
-                        <a class="btn btn-link btn-lg" href="#" role="button" data-bs-toggle="modal" data-bs-target="#addGearToActivityModal"><i class="fa-solid fa-plus"></i></a>
+                        <a class="btn btn-link btn-lg" href="#" role="button" data-bs-toggle="modal"
+                            data-bs-target="#addGearToActivityModal"><i class="fa-solid fa-plus"></i></a>
 
                         <!-- modal -->
-                        <div class="modal fade" id="addGearToActivityModal" tabindex="-1" aria-labelledby="addGearToActivityModal" aria-hidden="true">
+                        <div class="modal fade" id="addGearToActivityModal" tabindex="-1"
+                            aria-labelledby="addGearToActivityModal" aria-hidden="true">
                             <div class="modal-dialog">
                                 <div class="modal-content">
                                     <div class="modal-header">
-                                        <h1 class="modal-title fs-5" id="addGearToActivityModal"><?php echo $translationsActivitiesActivity['activity_gear_addGear_title']; ?></h1>
-                                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                        <h1 class="modal-title fs-5" id="addGearToActivityModal">
+                                            <?php echo $translationsActivitiesActivity['activity_gear_addGear_title']; ?>
+                                        </h1>
+                                        <button type="button" class="btn-close" data-bs-dismiss="modal"
+                                            aria-label="Close"></button>
                                     </div>
-                                    <form action="../activities/activity.php?activityID=<?php echo $activity[0]["id"]; ?>&addGearToActivity=1" method="post" enctype="multipart/form-data">
+                                    <form
+                                        action="../activities/activity.php?activityID=<?php echo $activity[0]["id"]; ?>&addGearToActivity=1"
+                                        method="post" enctype="multipart/form-data">
                                         <div class="modal-body">
                                             <!-- gear type fields -->
-                                            <label for="gearIDAdd"><b>* <?php echo $translationsActivitiesActivity['activity_gear_addGear_label']; ?></b></label>
+                                            <label for="gearIDAdd"><b>*
+                                                    <?php echo $translationsActivitiesActivity['activity_gear_addGear_label']; ?>
+                                                </b></label>
                                             <select class="form-control" name="gearIDAdd">
                                                 <?php foreach ($activityGearOptions as $option) { ?>
-                                                    <option value="<?php echo $option["id"]; ?>"><?php echo $option["nickname"]; ?></option>
+                                                    <option value="<?php echo $option["id"]; ?>">
+                                                        <?php echo $option["nickname"]; ?>
+                                                    </option>
                                                 <?php } ?>
                                             </select required>
                                         </div>
                                         <div class="modal-footer">
-                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><?php echo $translationsTemplateTop['template_top_global_close']; ?></button>
-                                            <button type="submit" class="btn btn-success" name="addGearToActivity"><?php echo $translationsActivitiesActivity['activity_gear_addGear_submit']; ?></button>
+                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                                                <?php echo $translationsTemplateTop['template_top_global_close']; ?>
+                                            </button>
+                                            <button type="submit" class="btn btn-success" name="addGearToActivity">
+                                                <?php echo $translationsActivitiesActivity['activity_gear_addGear_submit']; ?>
+                                            </button>
                                         </div>
                                     </form>
                                 </div>
@@ -428,29 +498,44 @@ if ($activity[0]["activity_type"] == 1 || $activity[0]["activity_type"] == 2 || 
                         </div>
                     <?php } else { ?>
                         <!-- Edit zone -->
-                        <a class="btn btn-link btn-lg" href="#" role="button" data-bs-toggle="modal" data-bs-target="#editGearActivityModal"><i class="fa-regular fa-pen-to-square"></i></a>
+                        <a class="btn btn-link btn-lg" href="#" role="button" data-bs-toggle="modal"
+                            data-bs-target="#editGearActivityModal"><i class="fa-regular fa-pen-to-square"></i></a>
 
                         <!-- modal -->
-                        <div class="modal fade" id="editGearActivityModal" tabindex="-1" aria-labelledby="editGearActivityModal" aria-hidden="true">
+                        <div class="modal fade" id="editGearActivityModal" tabindex="-1"
+                            aria-labelledby="editGearActivityModal" aria-hidden="true">
                             <div class="modal-dialog">
                                 <div class="modal-content">
                                     <div class="modal-header">
-                                        <h1 class="modal-title fs-5" id="editGearActivityModal"><?php echo $translationsActivitiesActivity['activity_gear_editGear_title']; ?></h1>
-                                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                        <h1 class="modal-title fs-5" id="editGearActivityModal">
+                                            <?php echo $translationsActivitiesActivity['activity_gear_editGear_title']; ?>
+                                        </h1>
+                                        <button type="button" class="btn-close" data-bs-dismiss="modal"
+                                            aria-label="Close"></button>
                                     </div>
-                                    <form action="../activities/activity.php?activityID=<?php echo $activity[0]["id"]; ?>&editGearActivity=1" method="post" enctype="multipart/form-data">
+                                    <form
+                                        action="../activities/activity.php?activityID=<?php echo $activity[0]["id"]; ?>&editGearActivity=1"
+                                        method="post" enctype="multipart/form-data">
                                         <div class="modal-body">
                                             <!-- gear type fields -->
-                                            <label for="gearIDEdit"><b>* <?php echo $translationsActivitiesActivity['activity_gear_addGear_label']; ?></b></label>
+                                            <label for="gearIDEdit"><b>*
+                                                    <?php echo $translationsActivitiesActivity['activity_gear_addGear_label']; ?>
+                                                </b></label>
                                             <select class="form-control" name="gearIDEdit">
                                                 <?php foreach ($activityGearOptions as $option) { ?>
-                                                    <option value="<?php echo $option["id"]; ?>"><?php echo $option["nickname"]; ?></option>
+                                                    <option value="<?php echo $option["id"]; ?>">
+                                                        <?php echo $option["nickname"]; ?>
+                                                    </option>
                                                 <?php } ?>
                                             </select required>
                                         </div>
                                         <div class="modal-footer">
-                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><?php echo $translationsTemplateTop['template_top_global_close']; ?></button>
-                                            <button type="submit" class="btn btn-success" name="editGearActivity"><?php echo $translationsActivitiesActivity['activity_gear_editGear_submit']; ?></button>
+                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                                                <?php echo $translationsTemplateTop['template_top_global_close']; ?>
+                                            </button>
+                                            <button type="submit" class="btn btn-success" name="editGearActivity">
+                                                <?php echo $translationsActivitiesActivity['activity_gear_editGear_submit']; ?>
+                                            </button>
                                         </div>
                                     </form>
                                 </div>
@@ -458,22 +543,34 @@ if ($activity[0]["activity_type"] == 1 || $activity[0]["activity_type"] == 2 || 
                         </div>
 
                         <!-- Delete zone -->
-                        <a class="btn btn-link btn-lg" href="#" role="button" data-bs-toggle="modal" data-bs-target="#deleteGearActivityModal"><i class="fa-solid fa-trash"></i></a>
+                        <a class="btn btn-link btn-lg" href="#" role="button" data-bs-toggle="modal"
+                            data-bs-target="#deleteGearActivityModal"><i class="fa-solid fa-trash"></i></a>
 
                         <!-- Modal delete gear -->
-                        <div class="modal fade" id="deleteGearActivityModal" tabindex="-1" aria-labelledby="deleteGearActivityModal" aria-hidden="true">
+                        <div class="modal fade" id="deleteGearActivityModal" tabindex="-1"
+                            aria-labelledby="deleteGearActivityModal" aria-hidden="true">
                             <div class="modal-dialog">
                                 <div class="modal-content">
                                     <div class="modal-header">
-                                        <h1 class="modal-title fs-5" id="deleteGearActivityModal"><?php echo $translationsActivitiesActivity['activity_gear_deleteGear_title']; ?></h1>
-                                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                        <h1 class="modal-title fs-5" id="deleteGearActivityModal">
+                                            <?php echo $translationsActivitiesActivity['activity_gear_deleteGear_title']; ?>
+                                        </h1>
+                                        <button type="button" class="btn-close" data-bs-dismiss="modal"
+                                            aria-label="Close"></button>
                                     </div>
                                     <div class="modal-body">
-                                        <?php echo $translationsActivitiesActivity['activity_gear_deleteGear_body']; ?> <b><?php echo $activityGear[0]['nickname']; ?></b>?
+                                        <?php echo $translationsActivitiesActivity['activity_gear_deleteGear_body']; ?> <b>
+                                            <?php echo $activityGear[0]['nickname']; ?>
+                                        </b>?
                                     </div>
                                     <div class="modal-footer">
-                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><?php echo $translationsTemplateTop['template_top_global_close']; ?></button>
-                                        <a type="button" class="btn btn-danger" href="../activities/activity.php?activityID=<?php echo $activity[0]["id"]; ?>&deleteGearActivity=1"><?php echo $translationsActivitiesActivity['activity_gear_deleteGear_title']; ?></a>
+                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                                            <?php echo $translationsTemplateTop['template_top_global_close']; ?>
+                                        </button>
+                                        <a type="button" class="btn btn-danger"
+                                            href="../activities/activity.php?activityID=<?php echo $activity[0]["id"]; ?>&deleteGearActivity=1">
+                                            <?php echo $translationsActivitiesActivity['activity_gear_deleteGear_title']; ?>
+                                        </a>
                                     </div>
                                 </div>
                             </div>
@@ -489,38 +586,54 @@ if ($activity[0]["activity_type"] == 1 || $activity[0]["activity_type"] == 2 || 
                 <!--<h2 class="mb-3"><?php echo $translationsActivitiesActivity['activity_dataGraph_title']; ?></h2>-->
 
                 <div class="col-md-2">
-                    <p><?php echo $translationsActivitiesActivity['activity_dataGraph_dataSelection']; ?></p>
+                    <p>
+                        <?php echo $translationsActivitiesActivity['activity_dataGraph_dataSelection']; ?>
+                    </p>
                     <div class="form-check">
                         <input class="form-check-input" type="checkbox" id="hrCheckbox" checked>
-                        <label class="form-check-label" for="hrCheckbox"><?php echo $translationsActivitiesActivity['activity_dataGraph_hr']; ?></label>
+                        <label class="form-check-label" for="hrCheckbox">
+                            <?php echo $translationsActivitiesActivity['activity_dataGraph_hr']; ?>
+                        </label>
                     </div>
                     <div class="form-check">
                         <input class="form-check-input" type="checkbox" id="cadenceCheckbox">
-                        <label class="form-check-label" for="cadenceCheckbox"><?php echo $translationsActivitiesActivity['activity_dataGraph_cad']; ?></label>
+                        <label class="form-check-label" for="cadenceCheckbox">
+                            <?php echo $translationsActivitiesActivity['activity_dataGraph_cad']; ?>
+                        </label>
                     </div>
                     <div class="form-check">
                         <input class="form-check-input" type="checkbox" id="powerCheckbox">
-                        <label class="form-check-label" for="powerCheckbox"><?php echo $translationsActivitiesActivity['activity_dataGraph_power']; ?></label>
+                        <label class="form-check-label" for="powerCheckbox">
+                            <?php echo $translationsActivitiesActivity['activity_dataGraph_power']; ?>
+                        </label>
                     </div>
                     <div class="form-check">
                         <input class="form-check-input" type="checkbox" id="elevationCheckbox">
-                        <label class="form-check-label" for="elevationCheckbox"><?php echo $translationsActivitiesActivity['activity_dataGraph_ele']; ?></label>
+                        <label class="form-check-label" for="elevationCheckbox">
+                            <?php echo $translationsActivitiesActivity['activity_dataGraph_ele']; ?>
+                        </label>
                     </div>
                     <?php if ($activity[0]["activity_type"] == 4 || $activity[0]["activity_type"] == 5 || $activity[0]["activity_type"] == 6 || $activity[0]["activity_type"] == 7 || $activity[0]["activity_type"] == 8) { ?>
                         <div class="form-check">
                             <input class="form-check-input" type="checkbox" id="velocityCheckbox">
-                            <label class="form-check-label" for="velocityCheckbox"><?php echo $translationsActivitiesActivity['activity_dataGraph_vel']; ?></label>
+                            <label class="form-check-label" for="velocityCheckbox">
+                                <?php echo $translationsActivitiesActivity['activity_dataGraph_vel']; ?>
+                            </label>
                         </div>
                     <?php } else { ?>
                         <div class="form-check">
                             <input class="form-check-input" type="checkbox" id="paceCheckbox">
-                            <label class="form-check-label" for="paceCheckbox"><?php echo $translationsActivitiesActivity['activity_dataGraph_pace']; ?></label>
+                            <label class="form-check-label" for="paceCheckbox">
+                                <?php echo $translationsActivitiesActivity['activity_dataGraph_pace']; ?>
+                            </label>
                         </div>
                     <?php } ?>
                 </div>
                 <div class="col">
                     <canvas id="dataChart" height="100"></canvas>
-                    <p class="fw-lighter"><?php echo $translationsActivitiesActivity['activity_dataGraph_downsampleDataInfo']; ?></p>
+                    <p class="fw-lighter">
+                        <?php echo $translationsActivitiesActivity['activity_dataGraph_downsampleDataInfo']; ?>
+                    </p>
                 </div>
             </div>
 
@@ -570,7 +683,7 @@ if ($activity[0]["activity_type"] == 1 || $activity[0]["activity_type"] == 2 || 
                     };
                 }
 
-                var timestamps = data.hr.map(function(value, index) {
+                var timestamps = data.hr.map(function (value, index) {
                     return index;
                 });
 
@@ -708,33 +821,33 @@ if ($activity[0]["activity_type"] == 1 || $activity[0]["activity_type"] == 2 || 
                 }
 
                 // Listen for checkbox changes
-                document.getElementById('hrCheckbox').addEventListener('change', function() {
+                document.getElementById('hrCheckbox').addEventListener('change', function () {
                     selectedData.hr = this.checked;
                     updateChart();
                 });
 
-                document.getElementById('cadenceCheckbox').addEventListener('change', function() {
+                document.getElementById('cadenceCheckbox').addEventListener('change', function () {
                     selectedData.cadence = this.checked;
                     updateChart();
                 });
 
-                document.getElementById('powerCheckbox').addEventListener('change', function() {
+                document.getElementById('powerCheckbox').addEventListener('change', function () {
                     selectedData.power = this.checked;
                     updateChart();
                 });
 
-                document.getElementById('elevationCheckbox').addEventListener('change', function() {
+                document.getElementById('elevationCheckbox').addEventListener('change', function () {
                     selectedData.elevation = this.checked;
                     updateChart();
                 });
 
                 if (activityType === 4 || activityType === 5 || activityType === 6 || activityType === 7 || activityType === 8) {
-                    document.getElementById('velocityCheckbox').addEventListener('change', function() {
+                    document.getElementById('velocityCheckbox').addEventListener('change', function () {
                         selectedData.velocity = this.checked;
                         updateChart();
                     });
                 } else {
-                    document.getElementById('paceCheckbox').addEventListener('change', function() {
+                    document.getElementById('paceCheckbox').addEventListener('change', function () {
                         selectedData.pace = this.checked;
                         updateChart();
                     });
@@ -794,7 +907,9 @@ if ($activity[0]["activity_type"] == 1 || $activity[0]["activity_type"] == 2 || 
 
             <div>
                 <br class="d-lg-none">
-                <button onclick="window.history.back();" type="button" class="w-100 btn btn-primary d-lg-none"><?php echo $translationsTemplateTop['template_top_global_back']; ?></button>
+                <button onclick="window.history.back();" type="button" class="w-100 btn btn-primary d-lg-none">
+                    <?php echo $translationsTemplateTop['template_top_global_back']; ?>
+                </button>
             </div>
 
         </div>

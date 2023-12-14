@@ -93,7 +93,7 @@ if (isset($_POST["loginUsername"]) && isset($_POST["loginPassword"])) {
                                                                 } else {
                                                                     echo ("male1");
                                                                 } ?>.png" alt="avatar" width="150" height="150">-->
-        <img class="mb-4" src="../img/logo/logo.png" alt="app logo" width="200" height="200">
+        <img class="mb-4 rounded-3" src="../img/logo/logo.png" alt="app logo" width="200" height="200">
         <br>
 
         <div class="form-floating">

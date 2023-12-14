@@ -49,7 +49,7 @@ switch ($_SESSION["preferred_language"]) {
     case 'pt':
         $translationsSettings = include $_SERVER['DOCUMENT_ROOT'] . '/lang/settings/pt.php';
         break;
-        // ...
+    // ...
     default:
         $translationsSettings = include $_SERVER['DOCUMENT_ROOT'] . '/lang/settings/en.php';
 }
@@ -283,7 +283,7 @@ if (isset($_POST["editProfile"])) {
         }
     } else {
         $profilePhoto = getUserPhotoFromID($_SESSION["id"])[0];
-        $profilePhotoAux = getUserPhotoAuxFromID($_SESSION["id"]);
+        $profilePhotoAux = getUserPhotoAuxFromID($_SESSION["id"])[0];
         $editProfileAction = editUser(trim($_POST["profileNameEdit"]), trim($_POST["profileUsernameEdit"]), trim($_POST["profileEmailEdit"]), $_SESSION["id"], $_POST["profilePreferredLanguageEdit"], trim($_POST["profileCityEdit"]), $_POST["profileBirthDateEdit"], $_POST["profileGenderEdit"], $_SESSION["access_type"], $profilePhoto, $profilePhotoAux, 1);
         setUserRelatedInfoSession($_SESSION["token"]);
     }
@@ -307,7 +307,7 @@ if (isset($_GET["linkStrava"]) && $_GET["linkStrava"] == 1) {
     $generate_user_state = setUniqueUserStateStravaLink($state);
     if ($generate_user_state == 0) {
         // Example PHP code for the authentication link
-        $linkStrava = linkStrava($state);
+        linkStrava($state);
     }
     #$unset_user_state = unsetUniqueUserStateStravaLink();
 }
@@ -383,36 +383,36 @@ if (!isset($_POST["gearSearch"])) {
         <div class="col-lg-4 col-md-12">
             <ul class="nav nav-pills flex-column mb-auto" id="sidebarNav">
                 <?php if ($_SESSION["access_type"] == 2) { ?>
-                    <li class="nav-item">
-                        <a href="#" class="nav-link <?php if (!isset($_GET["profileSettings"]) && !isset($_GET["global"]) && !isset($_GET["gearSettings"]) && $_SESSION["access_type"] == 2) {
-                                                        echo "text-white active";
-                                                    } ?>" onclick="changeActive(event, 'divUsers')">
-                            <svg class="bi pe-none me-2" width="16" height="16"></svg>
-                            <?php echo $translationsSettings['settings_sidebar_users']; ?>
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a href="#" class="nav-link <?php if (isset($_GET["global"]) && $_SESSION["access_type"] == 2) {
-                                                        echo "text-white active";
-                                                    } ?>" onclick="changeActive(event, 'divGlobal')">
-                            <svg class="bi pe-none me-2" width="16" height="16"></svg>
-                            <?php echo $translationsSettings['settings_sidebar_global']; ?>
-                        </a>
-                    </li>
-                    <hr>
+                            <li class="nav-item">
+                                <a href="#" class="nav-link <?php if (!isset($_GET["profileSettings"]) && !isset($_GET["global"]) && !isset($_GET["gearSettings"]) && $_SESSION["access_type"] == 2) {
+                                    echo "text-white active";
+                                } ?>" onclick="changeActive(event, 'divUsers')">
+                                    <svg class="bi pe-none me-2" width="16" height="16"></svg>
+                                    <?php echo $translationsSettings['settings_sidebar_users']; ?>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="#" class="nav-link <?php if (isset($_GET["global"]) && $_SESSION["access_type"] == 2) {
+                                    echo "text-white active";
+                                } ?>" onclick="changeActive(event, 'divGlobal')">
+                                    <svg class="bi pe-none me-2" width="16" height="16"></svg>
+                                    <?php echo $translationsSettings['settings_sidebar_global']; ?>
+                                </a>
+                            </li>
+                            <hr>
                 <?php } ?>
                 <li class="nav-item">
                     <a href="#" class="nav-link <?php if (isset($_GET["profileSettings"]) || ($_SESSION["access_type"] == 1 && !isset($_GET["profileSettings"]) && !isset($_GET["gearSettings"]))) {
-                                                    echo "text-white active";
-                                                } ?>" onclick="changeActive(event, 'divProfileSettings')">
+                        echo "text-white active";
+                    } ?>" onclick="changeActive(event, 'divProfileSettings')">
                         <svg class="bi pe-none me-2" width="16" height="16"></svg>
                         <?php echo $translationsSettings['settings_sidebar_profileSettings']; ?>
                     </a>
                 </li>
                 <li class="nav-item">
                     <a href="#" class="nav-link <?php if (isset($_GET["gearSettings"])) {
-                                                    echo "text-white active";
-                                                } ?>" onclick="changeActive(event, 'divGearSettings')">
+                        echo "text-white active";
+                    } ?>" onclick="changeActive(event, 'divGearSettings')">
                         <svg class="bi pe-none me-2" width="16" height="16"></svg>
                         <?php echo $translationsSettings['settings_sidebar_gearSettings']; ?>
                     </a>
@@ -424,111 +424,111 @@ if (!isset($_POST["gearSearch"])) {
 
         <!-- users zone -->
         <div class="col" id="divUsers" style="display: <?php if (isset($_GET["global"]) || isset($_GET["profileSettings"]) || isset($_GET["gearSettings"])) {
-                                                            echo "none";
-                                                        } else {
-                                                            echo "block";
-                                                        } ?>;">
+            echo "none";
+        } else {
+            echo "block";
+        } ?>;">
             <!-- Error banners -->
             <?php if ($users == -1 || $users == -2 || $editUserAction == -1 || $editUserAction == -2 || $editUserAction == -3 || $editUserAction == -4 || $editUserAction == -5 || $editUserAction == -6 || $deleteAction == -1 || $deleteAction == -2 || $deleteAction == -409 || $deleteAction == -3 || $addUserAction == -1 || $addUserAction == -2 || $addUserAction == -3 || $addUserAction == -4 || $addUserAction == -5 || $addUserAction == -6 || $deletePhotoUserAction == -1 || $deletePhotoUserAction == -2 || $deletePhotoUserAction == -3) { ?>
-                <div class="alert alert-danger alert-dismissible d-flex align-items-center" role="alert">
-                    <i class="fa-solid fa-circle-exclamation me-1"></i>
-                    <div>
-                        <?php if ($users == -1 || $addUserAction == -1 || $editUserAction == -1 || $deletePhotoUserAction == -1 || $deleteAction == -1) { ?>
-                            API ERROR | <?php echo $translationsSettings['settings_API_error_-1']; ?> (-1).
-                        <?php } else { ?>
-                            <?php if ($users == -2 || $addUserAction == -2 || $editUserAction == -2 || $deletePhotoUserAction == -2 || $deleteAction == -2) { ?>
-                                API ERROR | <?php echo $translationsSettings['settings_API_error_-2']; ?> (-2).
-                            <?php } else { ?>
-                                <?php if ($editUserAction == -3) { ?>
-                                    <?php echo $translationsSettings['settings_sidebar_users_error_editUser_-3']; ?> (-3).
+                        <div class="alert alert-danger alert-dismissible d-flex align-items-center" role="alert">
+                            <i class="fa-solid fa-circle-exclamation me-1"></i>
+                            <div>
+                                <?php if ($users == -1 || $addUserAction == -1 || $editUserAction == -1 || $deletePhotoUserAction == -1 || $deleteAction == -1) { ?>
+                                            API ERROR | <?php echo $translationsSettings['settings_API_error_-1']; ?> (-1).
                                 <?php } else { ?>
-                                    <?php if ($editUserAction == -4) { ?>
-                                        <?php echo $translationsSettings['settings_sidebar_users_error_addEditUser_-4']; ?> (-4).
-                                    <?php } else { ?>
-                                        <?php if ($editUserAction == -5) { ?>
-                                            <?php echo $translationsSettings['settings_sidebar_users_error_addEditUser_-5']; ?> (-5).
-                                        <?php } else { ?>
-                                            <?php if ($editUserAction == -6) { ?>
-                                                <?php echo $translationsSettings['settings_sidebar_users_error_addEditUser_-6']; ?> (-6).
+                                            <?php if ($users == -2 || $addUserAction == -2 || $editUserAction == -2 || $deletePhotoUserAction == -2 || $deleteAction == -2) { ?>
+                                                        API ERROR | <?php echo $translationsSettings['settings_API_error_-2']; ?> (-2).
                                             <?php } else { ?>
-                                                <?php if ($deleteAction == -3) { ?>
-                                                    <?php echo $translationsSettings['settings_sidebar_users_error_deleteUser_-3']; ?> (-3).
-                                                <?php } else { ?>
-                                                    <?php if ($deleteAction == -409) { ?>
-                                                        <?php echo $translationsSettings['settings_sidebar_users_error_deleteUser_-409']; ?> (-3).
-                                                    <?php } else { ?>
-                                                        <?php if ($addUserAction == -3) { ?>
-                                                            <?php echo $translationsSettings['settings_sidebar_users_error_addUser_-3']; ?> (-3).
+                                                        <?php if ($editUserAction == -3) { ?>
+                                                                    <?php echo $translationsSettings['settings_sidebar_users_error_editUser_-3']; ?> (-3).
                                                         <?php } else { ?>
-                                                            <?php if ($addUserAction == -4) { ?>
-                                                                <?php echo $translationsSettings['settings_sidebar_users_error_addEditUser_-4']; ?> (-4).
-                                                            <?php } else { ?>
-                                                                <?php if ($addUserAction == -5) { ?>
-                                                                    <?php echo $translationsSettings['settings_sidebar_users_error_addEditUser_-5']; ?> (-5).
-                                                                <?php } else { ?>
-                                                                    <?php if ($addUserAction == -6) { ?>
-                                                                        <?php echo $translationsSettings['settings_sidebar_users_error_addEditUser_-6']; ?> (-6).
+                                                                    <?php if ($editUserAction == -4) { ?>
+                                                                                <?php echo $translationsSettings['settings_sidebar_users_error_addEditUser_-4']; ?> (-4).
                                                                     <?php } else { ?>
-                                                                        <?php if ($deletePhotoUserAction == -3) { ?>
-                                                                            <?php echo $translationsSettings['settings_sidebar_users_error_deleteUserPhoto_-3']; ?> (-3).
-                                                                        <?php } ?>
+                                                                                <?php if ($editUserAction == -5) { ?>
+                                                                                            <?php echo $translationsSettings['settings_sidebar_users_error_addEditUser_-5']; ?> (-5).
+                                                                                <?php } else { ?>
+                                                                                            <?php if ($editUserAction == -6) { ?>
+                                                                                                        <?php echo $translationsSettings['settings_sidebar_users_error_addEditUser_-6']; ?> (-6).
+                                                                                            <?php } else { ?>
+                                                                                                        <?php if ($deleteAction == -3) { ?>
+                                                                                                                    <?php echo $translationsSettings['settings_sidebar_users_error_deleteUser_-3']; ?> (-3).
+                                                                                                        <?php } else { ?>
+                                                                                                                    <?php if ($deleteAction == -409) { ?>
+                                                                                                                                <?php echo $translationsSettings['settings_sidebar_users_error_deleteUser_-409']; ?> (-3).
+                                                                                                                    <?php } else { ?>
+                                                                                                                                <?php if ($addUserAction == -3) { ?>
+                                                                                                                                            <?php echo $translationsSettings['settings_sidebar_users_error_addUser_-3']; ?> (-3).
+                                                                                                                                <?php } else { ?>
+                                                                                                                                            <?php if ($addUserAction == -4) { ?>
+                                                                                                                                                        <?php echo $translationsSettings['settings_sidebar_users_error_addEditUser_-4']; ?> (-4).
+                                                                                                                                            <?php } else { ?>
+                                                                                                                                                        <?php if ($addUserAction == -5) { ?>
+                                                                                                                                                                    <?php echo $translationsSettings['settings_sidebar_users_error_addEditUser_-5']; ?> (-5).
+                                                                                                                                                        <?php } else { ?>
+                                                                                                                                                                    <?php if ($addUserAction == -6) { ?>
+                                                                                                                                                                                <?php echo $translationsSettings['settings_sidebar_users_error_addEditUser_-6']; ?> (-6).
+                                                                                                                                                                    <?php } else { ?>
+                                                                                                                                                                                <?php if ($deletePhotoUserAction == -3) { ?>
+                                                                                                                                                                                            <?php echo $translationsSettings['settings_sidebar_users_error_deleteUserPhoto_-3']; ?> (-3).
+                                                                                                                                                                                <?php } ?>
+                                                                                                                                                                    <?php } ?>
+                                                                                                                                                        <?php } ?>
+                                                                                                                                            <?php } ?>
+                                                                                                                                <?php } ?>
+                                                                                                                    <?php } ?>
+                                                                                                        <?php } ?>
+                                                                                            <?php } ?>
+                                                                                <?php } ?>
                                                                     <?php } ?>
-                                                                <?php } ?>
-                                                            <?php } ?>
                                                         <?php } ?>
-                                                    <?php } ?>
-                                                <?php } ?>
                                             <?php } ?>
-                                        <?php } ?>
-                                    <?php } ?>
                                 <?php } ?>
-                            <?php } ?>
-                        <?php } ?>
-                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                    </div>
-                </div>
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        </div>
             <?php } ?>
 
             <!-- Info banners -->
             <?php if ($users == NULL || ($deleteAction == 0 && $photoDeleted == 1)) { ?>
-                <div class="alert alert-warning alert-dismissible d-flex align-items-center" role="alert">
-                    <i class="fa-solid fa-triangle-exclamation me-1"></i>
-                    <div>
-                        <?php if ($users == NULL) { ?>
-                            <?php echo $translationsSettings['settings_sidebar_users_error_searchUser_NULL']; ?> (NULL).
-                        <?php } else { ?>
-                            <?php if ($deleteAction == 0 && $photoDeleted == 1) { ?>
-                                <?php echo $translationsSettings['settings_sidebar_users_info_userDeleted_photoNotDeleted']; ?>
-                            <?php } ?>
-                        <?php } ?>
-                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                    </div>
-                </div>
+                        <div class="alert alert-warning alert-dismissible d-flex align-items-center" role="alert">
+                            <i class="fa-solid fa-triangle-exclamation me-1"></i>
+                            <div>
+                                <?php if ($users == NULL) { ?>
+                                            <?php echo $translationsSettings['settings_sidebar_users_error_searchUser_NULL']; ?> (NULL).
+                                <?php } else { ?>
+                                            <?php if ($deleteAction == 0 && $photoDeleted == 1) { ?>
+                                                        <?php echo $translationsSettings['settings_sidebar_users_info_userDeleted_photoNotDeleted']; ?>
+                                            <?php } ?>
+                                <?php } ?>
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        </div>
             <?php } ?>
 
             <!-- Success banners -->
             <?php if ($addUserAction == 0 || $editUserAction == 0 || ($deleteAction == 0 && $photoDeleted == 0) || ($deleteAction == 0 && $photoDeleted == 2) || $deletePhotoUserAction == 0) { ?>
-                <div class="alert alert-success alert-dismissible d-flex align-items-center" role="alert">
-                    <div>
-                        <i class="fa-regular fa-circle-check me-1"></i>
-                        <?php if ($addUserAction == 0) { ?>
-                            <?php echo $translationsSettings['settings_sidebar_users_success_userAdded']; ?>
-                        <?php } else { ?>
-                            <?php if ($editUserAction == 0) { ?>
-                                <?php echo $translationsSettings['settings_sidebar_users_success_userEdited']; ?>
-                            <?php } else { ?>
-                                <?php if (($deleteAction == 0 && $photoDeleted == 0) || ($deleteAction == 0 && $photoDeleted == 2)) { ?>
-                                    <?php echo $translationsSettings['settings_sidebar_users_success_userDeleted']; ?>
+                        <div class="alert alert-success alert-dismissible d-flex align-items-center" role="alert">
+                            <div>
+                                <i class="fa-regular fa-circle-check me-1"></i>
+                                <?php if ($addUserAction == 0) { ?>
+                                            <?php echo $translationsSettings['settings_sidebar_users_success_userAdded']; ?>
                                 <?php } else { ?>
-                                    <?php if ($deletePhotoUserAction == 0) { ?>
-                                        <?php echo $translationsSettings['settings_sidebar_users_success_userPhotoDeleted']; ?>
-                                    <?php } ?>
+                                            <?php if ($editUserAction == 0) { ?>
+                                                        <?php echo $translationsSettings['settings_sidebar_users_success_userEdited']; ?>
+                                            <?php } else { ?>
+                                                        <?php if (($deleteAction == 0 && $photoDeleted == 0) || ($deleteAction == 0 && $photoDeleted == 2)) { ?>
+                                                                    <?php echo $translationsSettings['settings_sidebar_users_success_userDeleted']; ?>
+                                                        <?php } else { ?>
+                                                                    <?php if ($deletePhotoUserAction == 0) { ?>
+                                                                                <?php echo $translationsSettings['settings_sidebar_users_success_userPhotoDeleted']; ?>
+                                                                    <?php } ?>
+                                                        <?php } ?>
+                                            <?php } ?>
                                 <?php } ?>
-                            <?php } ?>
-                        <?php } ?>
-                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                    </div>
-                </div>
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        </div>
             <?php } ?>
 
             <div class="row row-gap-3">
@@ -601,7 +601,7 @@ if (!isset($_POST["gearSearch"])) {
                         <input class="form-control me-2" type="text" name="userUsername" placeholder="<?php echo $translationsSettings['settings_sidebar_form_searchUser_usernamePlaceholder']; ?>" required>
                         <button class="btn btn-success" type="submit" name="userSearch"><?php echo $translationsSettings['settings_sidebar_form_searchSpaceRoomUser_namePlaceholder']; ?></button>
                         <?php if (isset($_POST["userSearch"])) { ?>
-                            <a class="ms-2 w-25 btn btn-primary" href="../settings/settings.php?users=1" role="button"><?php echo $translationsTemplateTop['template_top_global_button_listAll']; ?></a>
+                                    <a class="ms-2 w-25 btn btn-primary" href="../settings/settings.php?users=1" role="button"><?php echo $translationsTemplateTop['template_top_global_button_listAll']; ?></a>
                         <?php } ?>
                     </form>
                 </div>
@@ -609,234 +609,234 @@ if (!isset($_POST["gearSearch"])) {
 
             <!-- users list zone -->
             <?php if ($users != NULL && $users != -1 && $users != -2 && $users != -3) { ?>
-                <!-- title zone -->
-                <br>
-                <p><?php echo $translationsSettings['settings_sidebar_users_list_title1']; ?> <?php echo ($numUsers); ?> <?php echo $translationsSettings['settings_sidebar_users_list_title2']; ?> (<?php echo $numRecords; ?> <?php echo $translationsSettings['settings_sidebar_users_list_title3']; ?>:</p>
-                <!-- list zone -->
-                <ul class="list-group list-group-flush">
-                    <?php foreach ($users as $user) { ?>
-                        <li class="list-group-item d-flex justify-content-between">
-                            <div class="d-flex align-items-center">
-                                <img src=<?php if (is_null($user["photo_path"])) {
-                                                if ($user["gender"] == 1) {
-                                                    echo ("../img/avatar/male1.png");
+                        <!-- title zone -->
+                        <br>
+                        <p><?php echo $translationsSettings['settings_sidebar_users_list_title1']; ?>         <?php echo ($numUsers); ?>         <?php echo $translationsSettings['settings_sidebar_users_list_title2']; ?> (<?php echo $numRecords; ?>         <?php echo $translationsSettings['settings_sidebar_users_list_title3']; ?>:</p>
+                        <!-- list zone -->
+                        <ul class="list-group list-group-flush">
+                            <?php foreach ($users as $user) { ?>
+                                        <li class="list-group-item d-flex justify-content-between">
+                                            <div class="d-flex align-items-center">
+                                                <img src=<?php if (is_null($user["photo_path"])) {
+                                                    if ($user["gender"] == 1) {
+                                                        echo ("../img/avatar/male1.png");
+                                                    } else {
+                                                        echo ("../img/avatar/female1.png");
+                                                    }
                                                 } else {
-                                                    echo ("../img/avatar/female1.png");
-                                                }
-                                            } else {
-                                                echo ($user["photo_path"]);
-                                            } ?> alt="userPicture" class="rounded-circle" width="55" height="55">
-                                <div class="ms-3">
-                                    <div class="fw-bold">
-                                        <?php echo ($user["username"]); ?>
-                                    </div>
-                                    <b><?php echo $translationsSettings['settings_sidebar_users_list_user_accesstype']; ?></b><?php if ($user["access_type"] == 1) {
-                                                                                                                                    echo $translationsSettings['settings_sidebar_users_modal_addEditUser_typeOption1'];
-                                                                                                                                } else {
-                                                                                                                                    if ($user["access_type"] == 2) {
-                                                                                                                                        echo $translationsSettings['settings_sidebar_users_modal_addEditUser_typeOption2'];
-                                                                                                                                    }
-                                                                                                                                } ?>
-                                </div>
-                            </div>
-                            <div>
-                                <?php if ($user["is_active"] == 1) { ?>
-                                    <span class="badge bg-success-subtle border border-success-subtle text-success-emphasis rounded-pill align-middle"><?php echo $translationsSettings['settings_sidebar_users_list_isactive']; ?></span>
-                                <?php } else { ?>
-                                    <span class="badge bg-danger-subtle border border-danger-subtle text-danger-emphasis rounded-pill align-middle"><?php echo $translationsSettings['settings_sidebar_users_list_isinactive']; ?></span>
-                                <?php } ?>
-
-                                <a class="btn btn-link btn-lg" href="#" role="button" data-bs-toggle="modal" data-bs-target="#editUserModal<?php echo ($user["id"]); ?>"><i class="fa-solid fa-pen-to-square"></i></a>
-
-                                <!-- Modal edit user -->
-                                <div class="modal fade" id="editUserModal<?php echo ($user["id"]); ?>" tabindex="-1" aria-labelledby="editUserModal<?php echo ($user["id"]); ?>" aria-hidden="true">
-                                    <div class="modal-dialog">
-                                        <div class="modal-content">
-                                            <div class="modal-header">
-                                                <h1 class="modal-title fs-5" id="editUserModal<?php echo ($user["id"]); ?>"><?php echo $translationsSettings['settings_sidebar_users_modal_editUser_title']; ?></h1>
-                                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                                    echo ($user["photo_path"]);
+                                                } ?> alt="userPicture" class="rounded-circle" width="55" height="55">
+                                                <div class="ms-3">
+                                                    <div class="fw-bold">
+                                                        <?php echo ($user["username"]); ?>
+                                                    </div>
+                                                    <b><?php echo $translationsSettings['settings_sidebar_users_list_user_accesstype']; ?></b><?php if ($user["access_type"] == 1) {
+                                                           echo $translationsSettings['settings_sidebar_users_modal_addEditUser_typeOption1'];
+                                                       } else {
+                                                           if ($user["access_type"] == 2) {
+                                                               echo $translationsSettings['settings_sidebar_users_modal_addEditUser_typeOption2'];
+                                                           }
+                                                       } ?>
+                                                </div>
                                             </div>
-                                            <form action="../settings/settings.php?userID=<?php echo ($user["id"]); ?>&editUser=1&users=1" method="post" enctype="multipart/form-data">
-                                                <div class="modal-body">
-                                                    <label for="userImgEdit"><b><?php echo $translationsSettings['settings_sidebar_users_modal_addEditUser_photoLabel']; ?></b></label>
-                                                    <div>
-                                                        <div class="row">
-                                                            <div class="col">
-                                                                <input class="form-control" type="file" accept="image/*" name="userImgEdit" id="userImgEdit" value="<?php echo ($user["photo_path"]); ?>">
+                                            <div>
+                                                <?php if ($user["is_active"] == 1) { ?>
+                                                            <span class="badge bg-success-subtle border border-success-subtle text-success-emphasis rounded-pill align-middle"><?php echo $translationsSettings['settings_sidebar_users_list_isactive']; ?></span>
+                                                <?php } else { ?>
+                                                            <span class="badge bg-danger-subtle border border-danger-subtle text-danger-emphasis rounded-pill align-middle"><?php echo $translationsSettings['settings_sidebar_users_list_isinactive']; ?></span>
+                                                <?php } ?>
+
+                                                <a class="btn btn-link btn-lg" href="#" role="button" data-bs-toggle="modal" data-bs-target="#editUserModal<?php echo ($user["id"]); ?>"><i class="fa-solid fa-pen-to-square"></i></a>
+
+                                                <!-- Modal edit user -->
+                                                <div class="modal fade" id="editUserModal<?php echo ($user["id"]); ?>" tabindex="-1" aria-labelledby="editUserModal<?php echo ($user["id"]); ?>" aria-hidden="true">
+                                                    <div class="modal-dialog">
+                                                        <div class="modal-content">
+                                                            <div class="modal-header">
+                                                                <h1 class="modal-title fs-5" id="editUserModal<?php echo ($user["id"]); ?>"><?php echo $translationsSettings['settings_sidebar_users_modal_editUser_title']; ?></h1>
+                                                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                                                             </div>
-                                                            <?php if (!is_null($user["photo_path"])) { ?>
-                                                                <div class="col">
-                                                                    <a class="w-100 btn btn-danger" href="../settings/settings.php?userID=<?php echo ($user["id"]); ?>&deletePhotoUser=1&users=1" role="button"><?php echo $translationsSettings['settings_sidebar_users_modal_editUser_deleteUserPhoto']; ?></a>
+                                                            <form action="../settings/settings.php?userID=<?php echo ($user["id"]); ?>&editUser=1&users=1" method="post" enctype="multipart/form-data">
+                                                                <div class="modal-body">
+                                                                    <label for="userImgEdit"><b><?php echo $translationsSettings['settings_sidebar_users_modal_addEditUser_photoLabel']; ?></b></label>
+                                                                    <div>
+                                                                        <div class="row">
+                                                                            <div class="col">
+                                                                                <input class="form-control" type="file" accept="image/*" name="userImgEdit" id="userImgEdit" value="<?php echo ($user["photo_path"]); ?>">
+                                                                            </div>
+                                                                            <?php if (!is_null($user["photo_path"])) { ?>
+                                                                                        <div class="col">
+                                                                                            <a class="w-100 btn btn-danger" href="../settings/settings.php?userID=<?php echo ($user["id"]); ?>&deletePhotoUser=1&users=1" role="button"><?php echo $translationsSettings['settings_sidebar_users_modal_editUser_deleteUserPhoto']; ?></a>
+                                                                                        </div>
+                                                                            <?php } ?>
+                                                                        </div>
+                                                                    </div>
+                                                                    <!-- username fields -->
+                                                                    <label for="userUsernameEdit"><b>* <?php echo $translationsSettings['settings_sidebar_users_modal_addEditUser_usernameLabel']; ?></b></label>
+                                                                    <input class="form-control" type="text" name="userUsernameEdit" placeholder="<?php echo $translationsSettings['settings_sidebar_users_modal_addEditUser_usernamePlaceholder']; ?>" maxlength="250" value="<?php echo ($user["username"]); ?>" required>
+                                                                    <!-- name fields -->
+                                                                    <label for="userNameEdit"><b>* <?php echo $translationsSettings['settings_sidebar_users_modal_addEditUser_nameLabel']; ?></b></label>
+                                                                    <input class="form-control" type="text" name="userNameEdit" placeholder="<?php echo $translationsSettings['settings_sidebar_users_modal_addEditUser_namePlaceholder']; ?>" maxlength="250" value="<?php echo ($user["name"]); ?>" required>
+                                                                    <!-- email fields -->
+                                                                    <label for="userEmailEdit"><b>* <?php echo $translationsSettings['settings_sidebar_users_modal_addEditUser_emailLabel']; ?></b></label>
+                                                                    <input class="form-control" type="text" name="userEmailEdit" placeholder="<?php echo $translationsSettings['settings_sidebar_users_modal_addEditUser_emailPlaceholder']; ?>" maxlength="45" value="<?php echo ($user["email"]); ?>" required>
+                                                                    <!-- city fields -->
+                                                                    <label for="userCityEdit"><b><?php echo $translationsSettings['settings_sidebar_users_modal_addEditUser_cityLabel']; ?></b></label>
+                                                                    <input class="form-control" type="text" name="userCityEdit" placeholder="<?php echo $translationsSettings['settings_sidebar_users_modal_addEditUser_cityPlaceholder']; ?>" maxlength="45" value="<?php echo ($user["city"]); ?>">
+                                                                    <!-- birth date fields -->
+                                                                    <label for="userBirthDateEdit"><b><?php echo $translationsSettings['settings_sidebar_users_modal_addEditUser_birthdateLabel']; ?></b></label>
+                                                                    <input class="form-control" type="date" name="userBirthDateEdit" value="<?php echo ($user["birthdate"]); ?>">
+                                                                    <!-- gender fields -->
+                                                                    <label for="userGenderEdit"><b>* <?php echo $translationsSettings['settings_sidebar_users_modal_addEditUser_genderLabel']; ?></b></label>
+                                                                    <select class="form-control" name="userGenderEdit">
+                                                                        <option value="1" <?php if ($user["gender"] == 1) { ?> selected="selected" <?php } ?>><?php echo $translationsSettings['settings_sidebar_users_modal_addEditUser_genderOption1']; ?></option>
+                                                                        <option value="2" <?php if ($user["gender"] == 2) { ?> selected="selected" <?php } ?>><?php echo $translationsSettings['settings_sidebar_users_modal_addEditUser_genderOption2']; ?></option>
+                                                                    </select required>
+                                                                    <!-- preferred language fields -->
+                                                                    <label for="userPreferredLanguageEdit"><b>* <?php echo $translationsSettings['settings_sidebar_users_modal_addEditUser_preferredLanguageLabel']; ?></b></label>
+                                                                    <select class="form-control" name="userPreferredLanguageEdit">
+                                                                        <option value="en" <?php if ($user["preferred_language"] == "en") { ?> selected="selected" <?php } ?>><?php echo $translationsSettings['settings_sidebar_users_modal_addEditUser_preferredLanguageOption1']; ?></option>
+                                                                        <option value="pt" <?php if ($user["preferred_language"] == "pt") { ?> selected="selected" <?php } ?>><?php echo $translationsSettings['settings_sidebar_users_modal_addEditUser_preferredLanguageOption2']; ?></option>
+                                                                    </select required>
+                                                                    <!-- access type fields -->
+                                                                    <label for="userTypeEdit"><b>* <?php echo $translationsSettings['settings_sidebar_users_modal_addEditUser_typeLabel']; ?></b></label>
+                                                                    <select class="form-control" name="userTypeEdit">
+                                                                        <option value="1" <?php if ($user["access_type"] == 1) { ?> selected="selected" <?php } ?>><?php echo $translationsSettings['settings_sidebar_users_modal_addEditUser_typeOption1']; ?></option>
+                                                                        <option value="2" <?php if ($user["access_type"] == 2) { ?> selected="selected" <?php } ?>><?php echo $translationsSettings['settings_sidebar_users_modal_addEditUser_typeOption2']; ?></option>
+                                                                    </select required>
+                                                                    <!-- user is_active fields -->
+                                                                    <label for="userIsActiveEdit"><b>* <?php echo $translationsSettings['settings_sidebar_users_modal_addEditUser_isActiveLabel']; ?></b></label>
+                                                                    <select class="form-control" name="userIsActiveEdit">
+                                                                        <option value="1" <?php if ($user["is_active"] == 1) { ?> selected="selected" <?php } ?>><?php echo $translationsSettings['settings_sidebar_users_modal_addEditUser_isActiveOption1']; ?></option>
+                                                                        <option value="2" <?php if ($user["is_active"] == 2) { ?> selected="selected" <?php } ?>><?php echo $translationsSettings['settings_sidebar_users_modal_addEditUser_isActiveOption2']; ?></option>
+                                                                    </select required>
+                                                                    * <?php echo $translationsTemplateTop['template_top_global_requiredFields']; ?>
                                                                 </div>
-                                                            <?php } ?>
+                                                                <div class="modal-footer">
+                                                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><?php echo $translationsTemplateTop['template_top_global_close']; ?></button>
+                                                                    <button type="submit" class="btn btn-success" name="userEdit"><?php echo $translationsSettings['settings_sidebar_users_modal_editUser_title']; ?></button>
+                                                                </div>
+                                                            </form>
                                                         </div>
                                                     </div>
-                                                    <!-- username fields -->
-                                                    <label for="userUsernameEdit"><b>* <?php echo $translationsSettings['settings_sidebar_users_modal_addEditUser_usernameLabel']; ?></b></label>
-                                                    <input class="form-control" type="text" name="userUsernameEdit" placeholder="<?php echo $translationsSettings['settings_sidebar_users_modal_addEditUser_usernamePlaceholder']; ?>" maxlength="250" value="<?php echo ($user["username"]); ?>" required>
-                                                    <!-- name fields -->
-                                                    <label for="userNameEdit"><b>* <?php echo $translationsSettings['settings_sidebar_users_modal_addEditUser_nameLabel']; ?></b></label>
-                                                    <input class="form-control" type="text" name="userNameEdit" placeholder="<?php echo $translationsSettings['settings_sidebar_users_modal_addEditUser_namePlaceholder']; ?>" maxlength="250" value="<?php echo ($user["name"]); ?>" required>
-                                                    <!-- email fields -->
-                                                    <label for="userEmailEdit"><b>* <?php echo $translationsSettings['settings_sidebar_users_modal_addEditUser_emailLabel']; ?></b></label>
-                                                    <input class="form-control" type="text" name="userEmailEdit" placeholder="<?php echo $translationsSettings['settings_sidebar_users_modal_addEditUser_emailPlaceholder']; ?>" maxlength="45" value="<?php echo ($user["email"]); ?>" required>
-                                                    <!-- city fields -->
-                                                    <label for="userCityEdit"><b><?php echo $translationsSettings['settings_sidebar_users_modal_addEditUser_cityLabel']; ?></b></label>
-                                                    <input class="form-control" type="text" name="userCityEdit" placeholder="<?php echo $translationsSettings['settings_sidebar_users_modal_addEditUser_cityPlaceholder']; ?>" maxlength="45" value="<?php echo ($user["city"]); ?>">
-                                                    <!-- birth date fields -->
-                                                    <label for="userBirthDateEdit"><b><?php echo $translationsSettings['settings_sidebar_users_modal_addEditUser_birthdateLabel']; ?></b></label>
-                                                    <input class="form-control" type="date" name="userBirthDateEdit" value="<?php echo ($user["birthdate"]); ?>">
-                                                    <!-- gender fields -->
-                                                    <label for="userGenderEdit"><b>* <?php echo $translationsSettings['settings_sidebar_users_modal_addEditUser_genderLabel']; ?></b></label>
-                                                    <select class="form-control" name="userGenderEdit">
-                                                        <option value="1" <?php if ($user["gender"] == 1) { ?> selected="selected" <?php } ?>><?php echo $translationsSettings['settings_sidebar_users_modal_addEditUser_genderOption1']; ?></option>
-                                                        <option value="2" <?php if ($user["gender"] == 2) { ?> selected="selected" <?php } ?>><?php echo $translationsSettings['settings_sidebar_users_modal_addEditUser_genderOption2']; ?></option>
-                                                    </select required>
-                                                    <!-- preferred language fields -->
-                                                    <label for="userPreferredLanguageEdit"><b>* <?php echo $translationsSettings['settings_sidebar_users_modal_addEditUser_preferredLanguageLabel']; ?></b></label>
-                                                    <select class="form-control" name="userPreferredLanguageEdit">
-                                                        <option value="en" <?php if ($user["preferred_language"] == "en") { ?> selected="selected" <?php } ?>><?php echo $translationsSettings['settings_sidebar_users_modal_addEditUser_preferredLanguageOption1']; ?></option>
-                                                        <option value="pt" <?php if ($user["preferred_language"] == "pt") { ?> selected="selected" <?php } ?>><?php echo $translationsSettings['settings_sidebar_users_modal_addEditUser_preferredLanguageOption2']; ?></option>
-                                                    </select required>
-                                                    <!-- access type fields -->
-                                                    <label for="userTypeEdit"><b>* <?php echo $translationsSettings['settings_sidebar_users_modal_addEditUser_typeLabel']; ?></b></label>
-                                                    <select class="form-control" name="userTypeEdit">
-                                                        <option value="1" <?php if ($user["access_type"] == 1) { ?> selected="selected" <?php } ?>><?php echo $translationsSettings['settings_sidebar_users_modal_addEditUser_typeOption1']; ?></option>
-                                                        <option value="2" <?php if ($user["access_type"] == 2) { ?> selected="selected" <?php } ?>><?php echo $translationsSettings['settings_sidebar_users_modal_addEditUser_typeOption2']; ?></option>
-                                                    </select required>
-                                                    <!-- user is_active fields -->
-                                                    <label for="userIsActiveEdit"><b>* <?php echo $translationsSettings['settings_sidebar_users_modal_addEditUser_isActiveLabel']; ?></b></label>
-                                                    <select class="form-control" name="userIsActiveEdit">
-                                                        <option value="1" <?php if ($user["is_active"] == 1) { ?> selected="selected" <?php } ?>><?php echo $translationsSettings['settings_sidebar_users_modal_addEditUser_isActiveOption1']; ?></option>
-                                                        <option value="2" <?php if ($user["is_active"] == 2) { ?> selected="selected" <?php } ?>><?php echo $translationsSettings['settings_sidebar_users_modal_addEditUser_isActiveOption2']; ?></option>
-                                                    </select required>
-                                                    * <?php echo $translationsTemplateTop['template_top_global_requiredFields']; ?>
                                                 </div>
-                                                <div class="modal-footer">
-                                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><?php echo $translationsTemplateTop['template_top_global_close']; ?></button>
-                                                    <button type="submit" class="btn btn-success" name="userEdit"><?php echo $translationsSettings['settings_sidebar_users_modal_editUser_title']; ?></button>
+
+                                                <?php if ($user["id"] != $_SESSION["id"]) { ?>
+                                                            <a class="btn btn-link btn-lg" href="#" role="button" data-bs-toggle="modal" data-bs-target="#deleteUserModal<?php echo ($user["id"]); ?>"><i class="fa-solid fa-trash-can"></i></a>
+                                                <?php } ?>
+
+                                                <!-- Modal -->
+                                                <div class="modal fade" id="deleteUserModal<?php echo ($user["id"]); ?>" tabindex="-1" aria-labelledby="deleteUserModal<?php echo ($user["id"]); ?>" aria-hidden="true">
+                                                    <div class="modal-dialog">
+                                                        <div class="modal-content">
+                                                            <div class="modal-header">
+                                                                <h1 class="modal-title fs-5" id="deleteUserModal<?php echo ($user["id"]); ?>"><?php echo $translationsSettings['settings_sidebar_users_modal_deleteUser_title']; ?></h1>
+                                                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                                            </div>
+                                                            <div class="modal-body">
+                                                                <?php echo $translationsSettings['settings_sidebar_users_modal_deleteUser_body']; ?> <b><?php echo ($user["username"]); ?></b>?
+                                                            </div>
+                                                            <div class="modal-footer">
+                                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><?php echo $translationsTemplateTop['template_top_global_close']; ?></button>
+                                                                <a type="button" class="btn btn-danger" href="../settings/settings.php?userID=<?php echo ($user["id"]); ?>&deleteUser=1&users=1"><?php echo $translationsSettings['settings_sidebar_users_modal_deleteUser_title']; ?></a>
+                                                            </div>
+                                                        </div>
+                                                    </div>
                                                 </div>
-                                            </form>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <?php if ($user["id"] != $_SESSION["id"]) { ?>
-                                    <a class="btn btn-link btn-lg" href="#" role="button" data-bs-toggle="modal" data-bs-target="#deleteUserModal<?php echo ($user["id"]); ?>"><i class="fa-solid fa-trash-can"></i></a>
-                                <?php } ?>
-
-                                <!-- Modal -->
-                                <div class="modal fade" id="deleteUserModal<?php echo ($user["id"]); ?>" tabindex="-1" aria-labelledby="deleteUserModal<?php echo ($user["id"]); ?>" aria-hidden="true">
-                                    <div class="modal-dialog">
-                                        <div class="modal-content">
-                                            <div class="modal-header">
-                                                <h1 class="modal-title fs-5" id="deleteUserModal<?php echo ($user["id"]); ?>"><?php echo $translationsSettings['settings_sidebar_users_modal_deleteUser_title']; ?></h1>
-                                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                                             </div>
-                                            <div class="modal-body">
-                                                <?php echo $translationsSettings['settings_sidebar_users_modal_deleteUser_body']; ?> <b><?php echo ($user["username"]); ?></b>?
-                                            </div>
-                                            <div class="modal-footer">
-                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><?php echo $translationsTemplateTop['template_top_global_close']; ?></button>
-                                                <a type="button" class="btn btn-danger" href="../settings/settings.php?userID=<?php echo ($user["id"]); ?>&deleteUser=1&users=1"><?php echo $translationsSettings['settings_sidebar_users_modal_deleteUser_title']; ?></a>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </li>
-                    <?php } ?>
-                </ul>
-                <?php if (!isset($_POST["userSearch"])) { ?>
-                    <br>
-                    <nav>
-                        <ul class="pagination justify-content-center">
-                            <li class="page-item <?php if ($pageNumberUsers == 1) {
-                                                        echo "disabled";
-                                                    } ?>"><a class="page-link" href="?pageNumberUsers=1">«</a></li>
-                            <?php for ($i = 1; $i <= $total_pages; $i++) { ?>
-                                <li class="page-item <?php if ($i == $pageNumberUsers) {
+                                        </li>
+                            <?php } ?>
+                        </ul>
+                        <?php if (!isset($_POST["userSearch"])) { ?>
+                                    <br>
+                                    <nav>
+                                        <ul class="pagination justify-content-center">
+                                            <li class="page-item <?php if ($pageNumberUsers == 1) {
+                                                echo "disabled";
+                                            } ?>"><a class="page-link" href="?pageNumberUsers=1">«</a></li>
+                                            <?php for ($i = 1; $i <= $total_pages; $i++) { ?>
+                                                        <li class="page-item <?php if ($i == $pageNumberUsers) {
                                                             echo "active";
                                                         } ?>"><a class="page-link" href="?pageNumberUsers=<?php echo ($i); ?>"><?php echo ($i); ?></a></li>
-                            <?php } ?>
-                            <li class="page-item <?php if ($pageNumberUsers == $total_pages) {
-                                                        echo "disabled";
-                                                    } ?>"><a class="page-link" href="?pageNumberUsers=<?php echo ($total_pages); ?>">»</a></li>
-                        </ul>
-                    </nav>
-                <?php } ?>
+                                            <?php } ?>
+                                            <li class="page-item <?php if ($pageNumberUsers == $total_pages) {
+                                                echo "disabled";
+                                            } ?>"><a class="page-link" href="?pageNumberUsers=<?php echo ($total_pages); ?>">»</a></li>
+                                        </ul>
+                                    </nav>
+                        <?php } ?>
             <?php } ?>
         </div>
 
         <!-- global zone -->
         <div class="col" id="divGlobal" style="display: <?php if (isset($_GET["global"])) {
-                                                            echo "block";
-                                                        } else {
-                                                            echo "none";
-                                                        } ?>;">
+            echo "block";
+        } else {
+            echo "none";
+        } ?>;">
 
         </div>
 
         <!-- user settings zone -->
         <div class="col" id="divProfileSettings" style="display: <?php if (isset($_GET["profileSettings"])) {
-                                                                        echo "block";
-                                                                    } else {
-                                                                        echo "none";
-                                                                    } ?>;">
+            echo "block";
+        } else {
+            echo "none";
+        } ?>;">
             <!-- Error banners -->
             <?php if ($deletePhotoProfileAction == -1 || $deletePhotoProfileAction == -2 || $deletePhotoProfileAction == -3 || $editProfileAction == -1 || $editProfileAction == -2 || $editProfileAction == -3 || $editProfileAction == -4 || $editProfileAction == -5) { ?>
-                <div class="alert alert-danger alert-dismissible d-flex align-items-center" role="alert">
-                    <i class="fa-solid fa-circle-exclamation me-1"></i>
-                    <div>
-                        <?php if ($deletePhotoProfileAction == -1 || $editProfileAction == -1) { ?>
-                            API ERROR | <?php echo $translationsSettings['settings_API_error_-1']; ?> (-1).
-                        <?php } else { ?>
-                            <?php if ($deletePhotoProfileAction == -2 || $editProfileAction == -2) { ?>
-                                API ERROR | <?php echo $translationsSettings['settings_API_error_-2']; ?> (-2).
-                            <?php } else { ?>
-                                <?php if ($deletePhotoProfileAction == -3) { ?>
-                                    <?php echo $translationsSettings['settings_sidebar_profile_error_deleteProfilePhoto_-3']; ?> (-3).
+                        <div class="alert alert-danger alert-dismissible d-flex align-items-center" role="alert">
+                            <i class="fa-solid fa-circle-exclamation me-1"></i>
+                            <div>
+                                <?php if ($deletePhotoProfileAction == -1 || $editProfileAction == -1) { ?>
+                                            API ERROR | <?php echo $translationsSettings['settings_API_error_-1']; ?> (-1).
                                 <?php } else { ?>
-                                    <?php if ($editProfileAction == -3) { ?>
-                                        <?php echo $translationsSettings['settings_sidebar_spaces_error_addEditSpace_-3']; ?> (-3).
-                                    <?php } else { ?>
-                                        <?php if ($editProfileAction == -4) { ?>
-                                            <?php echo $translationsSettings['settings_sidebar_spaces_error_addEditSpace_-4']; ?> (-4).
-                                        <?php } else { ?>
-                                            <?php if ($editProfileAction == -5) { ?>
-                                                <?php echo $translationsSettings['settings_sidebar_spaces_error_addEditSpace_-5']; ?> (-5).
+                                            <?php if ($deletePhotoProfileAction == -2 || $editProfileAction == -2) { ?>
+                                                        API ERROR | <?php echo $translationsSettings['settings_API_error_-2']; ?> (-2).
+                                            <?php } else { ?>
+                                                        <?php if ($deletePhotoProfileAction == -3) { ?>
+                                                                    <?php echo $translationsSettings['settings_sidebar_profile_error_deleteProfilePhoto_-3']; ?> (-3).
+                                                        <?php } else { ?>
+                                                                    <?php if ($editProfileAction == -3) { ?>
+                                                                                <?php echo $translationsSettings['settings_sidebar_spaces_error_addEditSpace_-3']; ?> (-3).
+                                                                    <?php } else { ?>
+                                                                                <?php if ($editProfileAction == -4) { ?>
+                                                                                            <?php echo $translationsSettings['settings_sidebar_spaces_error_addEditSpace_-4']; ?> (-4).
+                                                                                <?php } else { ?>
+                                                                                            <?php if ($editProfileAction == -5) { ?>
+                                                                                                        <?php echo $translationsSettings['settings_sidebar_spaces_error_addEditSpace_-5']; ?> (-5).
+                                                                                            <?php } ?>
+                                                                                <?php } ?>
+                                                                    <?php } ?>
+                                                        <?php } ?>
                                             <?php } ?>
-                                        <?php } ?>
-                                    <?php } ?>
                                 <?php } ?>
-                            <?php } ?>
-                        <?php } ?>
-                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                    </div>
-                </div>
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        </div>
             <?php } ?>
 
             <!-- Info banners -->
 
             <!-- Success banners -->
             <?php if ($deletePhotoProfileAction == 0 || $editProfileAction == 0 || (isset($_GET["stravaLinked"]) && $_GET["stravaLinked"] == 1)) { ?>
-                <div class="alert alert-success alert-dismissible d-flex align-items-center" role="alert">
-                    <div>
-                        <i class="fa-regular fa-circle-check me-1"></i>
-                        <?php if ($deletePhotoProfileAction == 0) { ?>
-                            <?php echo $translationsSettings['settings_sidebar_profile_success_profilePhotoDeleted']; ?>
-                        <?php } else { ?>
-                            <?php if ($editProfileAction == 0) { ?>
-                                <?php echo $translationsSettings['settings_sidebar_profile_success_profileEdited']; ?>
-                            <?php } else { ?>
-                                <?php if (isset($_GET["stravaLinked"]) && $_GET["stravaLinked"] == 1) { ?>
-                                    <?php echo $translationsSettings['settings_sidebar_profile_success_stravaLinked']; ?>
+                        <div class="alert alert-success alert-dismissible d-flex align-items-center" role="alert">
+                            <div>
+                                <i class="fa-regular fa-circle-check me-1"></i>
+                                <?php if ($deletePhotoProfileAction == 0) { ?>
+                                            <?php echo $translationsSettings['settings_sidebar_profile_success_profilePhotoDeleted']; ?>
+                                <?php } else { ?>
+                                            <?php if ($editProfileAction == 0) { ?>
+                                                        <?php echo $translationsSettings['settings_sidebar_profile_success_profileEdited']; ?>
+                                            <?php } else { ?>
+                                                        <?php if (isset($_GET["stravaLinked"]) && $_GET["stravaLinked"] == 1) { ?>
+                                                                    <?php echo $translationsSettings['settings_sidebar_profile_success_stravaLinked']; ?>
+                                                        <?php } ?>
+                                            <?php } ?>
                                 <?php } ?>
-                            <?php } ?>
-                        <?php } ?>
-                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                    </div>
-                </div>
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        </div>
             <?php } ?>
 
             <!-- Profile photo and buttons zone -->
@@ -844,19 +844,19 @@ if (!isset($_POST["gearSearch"])) {
                 <div class="col-lg-4 col-md-12">
                     <div class="justify-content-center align-items-center d-flex">
                         <img src=<?php if (is_null($_SESSION["photo_path"])) {
-                                        if ($_SESSION["gender"] == 1) {
-                                            echo ("../img/avatar/male1.png");
-                                        } else {
-                                            echo ("../img/avatar/female1.png");
-                                        }
-                                    } else {
-                                        echo ($_SESSION["photo_path"]);
-                                    } ?> alt="Profile picture" width="180" height="180" class="rounded-circle">
+                            if ($_SESSION["gender"] == 1) {
+                                echo ("../img/avatar/male1.png");
+                            } else {
+                                echo ("../img/avatar/female1.png");
+                            }
+                        } else {
+                            echo ($_SESSION["photo_path"]);
+                        } ?> alt="Profile picture" width="180" height="180" class="rounded-circle">
                     </div>
 
                     <!-- Delete profile photo section -->
                     <?php if (!is_null($_SESSION["photo_path"])) { ?>
-                        <a class="mt-4 w-100 btn btn-danger" href="#" role="button" data-bs-toggle="modal" data-bs-target="#deleteProfilePhotoModal"><?php echo $translationsSettings['settings_sidebar_profile_deleteProfilePhoto']; ?></a>
+                                <a class="mt-4 w-100 btn btn-danger" href="#" role="button" data-bs-toggle="modal" data-bs-target="#deleteProfilePhotoModal"><?php echo $translationsSettings['settings_sidebar_profile_deleteProfilePhoto']; ?></a>
                     <?php } ?>
 
                     <!-- Modal delete profile photo -->
@@ -940,15 +940,15 @@ if (!isset($_POST["gearSearch"])) {
 
                     <!-- Strava button -->
                     <?php if ($_SESSION["is_strava_linked"] == 1) { ?>
-                        <div class="mt-2">
-                            <span class="fs-6">Strava already linked</span>
-                        </div>
+                                <div class="mt-2">
+                                    <span class="fs-6">Strava already linked</span>
+                                </div>
                     <?php } ?>
                     <a class="mt-2 w-100 btn <?php if ($_SESSION["is_strava_linked"] == 1) {
-                                                    echo 'disabled';
-                                                } ?>" style="--bs-btn-bg: #FC4C02; --bs-btn-active-bg: #FC4C02; --bs-btn-hover-bg: #FC4C02; --bs-btn-disabled-bg: #FC4C02; --bs-btn-disabled-border-color: #FC4C02;" href="../settings/settings.php?profileSettings=1&linkStrava=1" <?php if ($_SESSION["is_strava_linked"] == 1) {
-                                                                                                                                                                                                                                                                                                                                                    echo 'aria-disabled="true"';
-                                                                                                                                                                                                                                                                                                                                                } ?> role="button"><img src="../img/strava/btn_strava_connectwith_orange.png" alt="Link with strava button" width="65%" height="65%"></a>
+                        echo 'disabled';
+                    } ?>" style="--bs-btn-bg: #FC4C02; --bs-btn-active-bg: #FC4C02; --bs-btn-hover-bg: #FC4C02; --bs-btn-disabled-bg: #FC4C02; --bs-btn-disabled-border-color: #FC4C02;" href="../settings/settings.php?profileSettings=1&linkStrava=1" <?php if ($_SESSION["is_strava_linked"] == 1) {
+                         echo 'aria-disabled="true"';
+                     } ?> role="button"><img src="../img/strava/btn_strava_connectwith_orange.png" alt="Link with strava button" width="65%" height="65%"></a>
                 </div>
 
                 <!-- Profile attributes -->
@@ -957,103 +957,103 @@ if (!isset($_POST["gearSearch"])) {
                     <p><b><?php echo $translationsSettings['settings_sidebar_profile_username_subtitle']; ?></b><?php echo ($_SESSION["username"]); ?></p>
                     <p><b><?php echo $translationsSettings['settings_sidebar_profile_email_subtitle']; ?></b><?php echo ($_SESSION["email"]); ?></p>
                     <p><b><?php echo $translationsSettings['settings_sidebar_profile_birthdate_subtitle']; ?></b><?php
-                                                                                                                    if (isset($_SESSION["birthdate"]) && !empty($_SESSION["birthdate"])) {
-                                                                                                                        echo date("d/m/Y", strtotime($_SESSION["birthdate"]));
-                                                                                                                    } else {
-                                                                                                                        echo "N/A"; // Or any default value you prefer when birthdate is not set
-                                                                                                                    }
-                                                                                                                    ?></p>
+                       if (isset($_SESSION["birthdate"]) && !empty($_SESSION["birthdate"])) {
+                           echo date("d/m/Y", strtotime($_SESSION["birthdate"]));
+                       } else {
+                           echo "N/A"; // Or any default value you prefer when birthdate is not set
+                       }
+                       ?></p>
                     <p><b><?php echo $translationsSettings['settings_sidebar_profile_city_subtitle']; ?></b><?php echo ($_SESSION["city"]); ?></p>
                     <p><b><?php echo $translationsSettings['settings_sidebar_profile_gender_subtitle']; ?></b><?php if ($_SESSION["gender"] == 1) {
-                                                                                                                    echo $translationsSettings['settings_sidebar_profile_gender_male'];
-                                                                                                                } else {
-                                                                                                                    echo $translationsSettings['settings_sidebar_profile_gender_female'];
-                                                                                                                } ?></p>
+                           echo $translationsSettings['settings_sidebar_profile_gender_male'];
+                       } else {
+                           echo $translationsSettings['settings_sidebar_profile_gender_female'];
+                       } ?></p>
                     <p><b><?php echo $translationsSettings['settings_sidebar_profile_preferredlanguage_subtitle']; ?></b><?php echo ($_SESSION["preferred_language"]); ?></p>
                     <p><b><?php echo $translationsSettings['settings_sidebar_profile_access_type_subtitle']; ?></b> <?php if ($_SESSION["access_type"] == 1) {
-                                                                                                                            echo $translationsSettings['settings_sidebar_profile_access_type_regular_user'];
-                                                                                                                        } else {
-                                                                                                                            if ($_SESSION["access_type"] == 2) {
-                                                                                                                                echo $translationsSettings['settings_sidebar_profile_access_type_admin'];
-                                                                                                                            } else {
-                                                                                                                                if ($_SESSION["access_type"] == 3) {
-                                                                                                                                    echo $translationsSettings['settings_sidebar_profile_access_type_teacher'];
-                                                                                                                                } else {
-                                                                                                                                    echo $translationsSettings['settings_sidebar_profile_access_type_parent'];
-                                                                                                                                }
-                                                                                                                            }
-                                                                                                                        } ?>
+                           echo $translationsSettings['settings_sidebar_profile_access_type_regular_user'];
+                       } else {
+                           if ($_SESSION["access_type"] == 2) {
+                               echo $translationsSettings['settings_sidebar_profile_access_type_admin'];
+                           } else {
+                               if ($_SESSION["access_type"] == 3) {
+                                   echo $translationsSettings['settings_sidebar_profile_access_type_teacher'];
+                               } else {
+                                   echo $translationsSettings['settings_sidebar_profile_access_type_parent'];
+                               }
+                           }
+                       } ?>
                 </div>
             </div>
         </div>
 
         <!-- gear zone -->
         <div class="col" id="divGearSettings" style="display: <?php if (isset($_GET["gearSettings"])) {
-                                                                    echo "block";
-                                                                } else {
-                                                                    echo "none";
-                                                                } ?>;">
+            echo "block";
+        } else {
+            echo "none";
+        } ?>;">
             <!-- Error banners -->
             <?php if ($gears == -1 || $gears == -2 || $editGearAction == -1 || $editGearAction == -2 || $editGearAction == -3 || $deleteGearAction == -1 || $deleteGearAction == -2 || $deleteGearAction == -3 || $addGearAction == -1 || $addGearAction == -2 || $addGearAction == -3) { ?>
-                <div class="alert alert-danger alert-dismissible d-flex align-items-center" role="alert">
-                    <i class="fa-solid fa-circle-exclamation me-1"></i>
-                    <div>
-                        <?php if ($gears == -1 || $addGearAction == -1 || $editGearAction == -1 || $deleteGearAction == -1) { ?>
-                            API ERROR | <?php echo $translationsSettings['settings_sidebar_gear_API_error_-1']; ?> (-1).
-                        <?php } else { ?>
-                            <?php if ($gears == -2 || $addGearAction == -2 || $editGearAction == -2 || $deleteGearAction == -2) { ?>
-                                API ERROR | <?php echo $translationsSettings['settings_sidebar_gear_API_error_-2']; ?> (-2).
-                            <?php } else { ?>
-                                <?php if ($editGearAction == -3) { ?>
-                                    <?php echo $translationsSettings['settings_sidebar_gear_error_editGear_-3']; ?> (-3).
+                        <div class="alert alert-danger alert-dismissible d-flex align-items-center" role="alert">
+                            <i class="fa-solid fa-circle-exclamation me-1"></i>
+                            <div>
+                                <?php if ($gears == -1 || $addGearAction == -1 || $editGearAction == -1 || $deleteGearAction == -1) { ?>
+                                            API ERROR | <?php echo $translationsSettings['settings_sidebar_gear_API_error_-1']; ?> (-1).
                                 <?php } else { ?>
-                                    <?php if ($addGearAction == -3) { ?>
-                                        <?php echo $translationsSettings['settings_sidebar_gear_error_addGear_-3']; ?> (-3).
-                                    <?php } ?>
+                                            <?php if ($gears == -2 || $addGearAction == -2 || $editGearAction == -2 || $deleteGearAction == -2) { ?>
+                                                        API ERROR | <?php echo $translationsSettings['settings_sidebar_gear_API_error_-2']; ?> (-2).
+                                            <?php } else { ?>
+                                                        <?php if ($editGearAction == -3) { ?>
+                                                                    <?php echo $translationsSettings['settings_sidebar_gear_error_editGear_-3']; ?> (-3).
+                                                        <?php } else { ?>
+                                                                    <?php if ($addGearAction == -3) { ?>
+                                                                                <?php echo $translationsSettings['settings_sidebar_gear_error_addGear_-3']; ?> (-3).
+                                                                    <?php } ?>
+                                                        <?php } ?>
+                                            <?php } ?>
                                 <?php } ?>
-                            <?php } ?>
-                        <?php } ?>
-                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                    </div>
-                </div>
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        </div>
             <?php } ?>
 
             <!-- Info banners -->
             <?php if ($gears == NULL || (isset($_GET["invalidGear"]) && $_GET["invalidGear"] == 1)) { ?>
-                <div class="alert alert-warning alert-dismissible d-flex align-items-center" role="alert">
-                    <i class="fa-solid fa-triangle-exclamation me-1"></i>
-                    <div>
-                        <?php if ($gears == NULL) { ?>
-                            <?php echo $translationsSettings['settings_sidebar_gear_info_searchGear_NULL']; ?> (NULL).
-                        <?php } else { ?>
-                            <?php if (isset($_GET["invalidGear"]) && $_GET["invalidGear"] == 1) { ?>
-                                <?php echo $translationsSettings['settings_sidebar_gear_info_fromGear_invalidGear']; ?> (1).
-                            <?php } ?>
-                        <?php } ?>
-                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                    </div>
-                </div>
+                        <div class="alert alert-warning alert-dismissible d-flex align-items-center" role="alert">
+                            <i class="fa-solid fa-triangle-exclamation me-1"></i>
+                            <div>
+                                <?php if ($gears == NULL) { ?>
+                                            <?php echo $translationsSettings['settings_sidebar_gear_info_searchGear_NULL']; ?> (NULL).
+                                <?php } else { ?>
+                                            <?php if (isset($_GET["invalidGear"]) && $_GET["invalidGear"] == 1) { ?>
+                                                        <?php echo $translationsSettings['settings_sidebar_gear_info_fromGear_invalidGear']; ?> (1).
+                                            <?php } ?>
+                                <?php } ?>
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        </div>
             <?php } ?>
 
             <!-- Success banners -->
             <?php if ($addGearAction == 0 || $editGearAction == 0 || $deleteGearAction == 0) { ?>
-                <div class="alert alert-success alert-dismissible d-flex align-items-center" role="alert">
-                    <div>
-                        <i class="fa-regular fa-circle-check me-1"></i>
-                        <?php if ($addGearAction == 0) { ?>
-                            <?php echo $translationsSettings['settings_sidebar_gear_success_gearAdded']; ?>
-                        <?php } else { ?>
-                            <?php if ($editGearAction == 0) { ?>
-                                <?php echo $translationsSettings['settings_sidebar_gear_success_gearEdited']; ?>
-                            <?php } else { ?>
-                                <?php if ($deleteGearAction == 0) { ?>
-                                    <?php echo $translationsSettings['settings_sidebar_gear_success_gearDeleted']; ?>
+                        <div class="alert alert-success alert-dismissible d-flex align-items-center" role="alert">
+                            <div>
+                                <i class="fa-regular fa-circle-check me-1"></i>
+                                <?php if ($addGearAction == 0) { ?>
+                                            <?php echo $translationsSettings['settings_sidebar_gear_success_gearAdded']; ?>
+                                <?php } else { ?>
+                                            <?php if ($editGearAction == 0) { ?>
+                                                        <?php echo $translationsSettings['settings_sidebar_gear_success_gearEdited']; ?>
+                                            <?php } else { ?>
+                                                        <?php if ($deleteGearAction == 0) { ?>
+                                                                    <?php echo $translationsSettings['settings_sidebar_gear_success_gearDeleted']; ?>
+                                                        <?php } ?>
+                                            <?php } ?>
                                 <?php } ?>
-                            <?php } ?>
-                        <?php } ?>
-                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                    </div>
-                </div>
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        </div>
             <?php } ?>
 
             <div class="row row-gap-3">
@@ -1105,139 +1105,139 @@ if (!isset($_POST["gearSearch"])) {
                         <input class="form-control me-2" type="text" name="gearNickname" placeholder="<?php echo $translationsSettings['settings_sidebar_gear_form_searchGear_nicknamePlaceholder']; ?>" required>
                         <button class="btn btn-success" type="submit" name="gearSearch"><?php echo $translationsSettings['settings_sidebar_gear_button_searchGear']; ?></button>
                         <?php if (isset($_POST["gearSearch"])) { ?>
-                            <a class="ms-2 w-25 btn btn-primary" href="../settings/settings.php?gearSettings=1" role="button"><?php echo $translationsTemplateTop['template_top_global_button_listAll']; ?></a>
+                                    <a class="ms-2 w-25 btn btn-primary" href="../settings/settings.php?gearSettings=1" role="button"><?php echo $translationsTemplateTop['template_top_global_button_listAll']; ?></a>
                         <?php } ?>
                     </form>
                 </div>
             </div>
             <!-- gears list zone -->
             <?php if ($gears != NULL && $gears != -1 && $gears != -2 && $gears != -3) { ?>
-                <!-- title zone -->
-                <br>
-                <p><?php echo $translationsSettings['settings_sidebar_gear_list_title1']; ?> <?php echo ($numGears); ?> <?php echo $translationsSettings['settings_sidebar_gear_list_title2']; ?> (<?php echo $numRecords; ?> <?php echo $translationsSettings['settings_sidebar_gear_list_title3']; ?>:</p>
-                <!-- list zone -->
-                <ul class="list-group list-group-flush">
-                    <?php foreach ($gears as $gear) { ?>
-                        <li class="list-group-item d-flex justify-content-between">
-                            <div class="d-flex align-items-center">
-                                <img src=<?php echo ("../img/avatar/male1.png"); ?> alt="gearPicture" class="rounded-circle" width="55" height="55">
-                                <div class="ms-3">
-                                    <div class="fw-bold">
-                                        <?php echo ($gear["nickname"]); ?>
-                                    </div>
-                                    <b><?php echo $translationsSettings['settings_sidebar_settings_sidebar_gear_type']; ?></b><?php if ($gear["gear_type"] == 1) {
-                                                                                                                                    echo $translationsSettings['settings_sidebar_gear_modal_addEditGear_gearTypeOption1'];
-                                                                                                                                } else {
-                                                                                                                                    if ($gear["gear_type"] == 2) {
-                                                                                                                                        echo $translationsSettings['settings_sidebar_gear_modal_addEditGear_gearTypeOption2'];
-                                                                                                                                    } else {
-                                                                                                                                        if ($gear["gear_type"] == 3) {
-                                                                                                                                            echo $translationsSettings['settings_sidebar_gear_modal_addEditGear_gearTypeOption3'];
-                                                                                                                                        }
-                                                                                                                                    }
-                                                                                                                                } ?>
-                                </div>
-                            </div>
-                            <div>
-                                <!-- gear status zone -->
-                                <?php if ($gear["is_active"] == 1) { ?>
-                                    <span class="badge bg-success-subtle border border-success-subtle text-success-emphasis rounded-pill align-middle"><?php echo $translationsSettings['settings_sidebar_gear_list_isactive']; ?></span>
-                                <?php } else { ?>
-                                    <span class="badge bg-danger-subtle border border-danger-subtle text-danger-emphasis rounded-pill align-middle"><?php echo $translationsSettings['settings_sidebar_gear_list_isinactive']; ?></span>
-                                <?php } ?>
-
-                                <!-- edit gear zone -->
-                                <a class="btn btn-link btn-lg" href="#" role="button" data-bs-toggle="modal" data-bs-target="#editGearModal<?php echo ($gear["id"]); ?>"><i class="fa-solid fa-pen-to-square"></i></a>
-
-                                <!-- Modal edit gear -->
-                                <div class="modal fade" id="editGearModal<?php echo ($gear["id"]); ?>" tabindex="-1" aria-labelledby="editGearModal" aria-hidden="true">
-                                    <div class="modal-dialog">
-                                        <div class="modal-content">
-                                            <div class="modal-header">
-                                                <h1 class="modal-title fs-5" id="editGearModal<?php echo ($gear["id"]); ?>"><?php echo $translationsSettings['settings_sidebar_gear_modal_editGear_title']; ?></h1>
-                                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                                            </div>
-                                            <form action="../settings/settings.php?gearID=<?php echo ($gear["id"]); ?>&editGear=1&gearSettings=1" method="post" enctype="multipart/form-data">
-                                                <div class="modal-body">
-                                                    <!-- brand fields -->
-                                                    <label for="gearBrandEdit"><b><?php echo $translationsSettings['settings_sidebar_gear_modal_addEditGear_brandLabel']; ?></b></label>
-                                                    <input class="form-control" type="text" name="gearBrandEdit" placeholder="<?php echo $translationsSettings['settings_sidebar_gear_modal_addEditGear_brandPlaceholder']; ?>" maxlength="45" value="<?php echo ($gear["brand"]); ?>">
-                                                    <!-- model fields -->
-                                                    <label for="gearModelEdit"><b><?php echo $translationsSettings['settings_sidebar_gear_modal_addEditGear_modelLabel']; ?></b></label>
-                                                    <input class="form-control" type="text" name="gearModelEdit" placeholder="<?php echo $translationsSettings['settings_sidebar_gear_modal_addEditGear_modelPlaceholder']; ?>" maxlength="45" value="<?php echo ($gear["model"]); ?>">
-                                                    <!-- nickname fields -->
-                                                    <label for="gearNicknameEdit"><b><?php echo $translationsSettings['settings_sidebar_gear_modal_addEditGear_nicknameLabel']; ?></b></label>
-                                                    <input class="form-control" type="text" name="gearNicknameEdit" placeholder="<?php echo $translationsSettings['settings_sidebar_gear_modal_addEditGear_nicknamePlaceholder']; ?>" maxlength="45" value="<?php echo ($gear["nickname"]); ?>">
-                                                    <!-- gear type fields -->
-                                                    <label for="gearTypeEdit"><b>* <?php echo $translationsSettings['settings_sidebar_gear_modal_addEditGear_gearTypeLabel']; ?></b></label>
-                                                    <select class="form-control" name="gearTypeEdit">
-                                                        <option value="1" <?php if ($gear["gear_type"] == 1) { ?> selected="selected" <?php } ?>><?php echo $translationsSettings['settings_sidebar_gear_modal_addEditGear_gearTypeOption1']; ?></option>
-                                                        <option value="2" <?php if ($gear["gear_type"] == 2) { ?> selected="selected" <?php } ?>><?php echo $translationsSettings['settings_sidebar_gear_modal_addEditGear_gearTypeOption2']; ?></option>
-                                                        <option value="3" <?php if ($gear["gear_type"] == 3) { ?> selected="selected" <?php } ?>><?php echo $translationsSettings['settings_sidebar_gear_modal_addEditGear_gearTypeOption3']; ?></option>
-                                                    </select required>
-                                                    <!-- date fields -->
-                                                    <label for="gearDateEdit"><b><?php echo $translationsSettings['settings_sidebar_gear_modal_addEditGear_dateLabel']; ?></b></label>
-                                                    <input class="form-control" type="date" name="gearDateEdit" placeholder="<?php echo $translationsSettings['settings_sidebar_gear_modal_addEditGear_datePlaceholder']; ?>" value="<?php echo date("Y-m-d", strtotime($gear["created_at"])); ?>" required>
-                                                    <!-- gear is_active fields -->
-                                                    <label for="gearIsActiveEdit"><b>* <?php echo $translationsSettings['settings_sidebar_gear_modal_editGear_gearIsActiveLabel']; ?></b></label>
-                                                    <select class="form-control" name="gearIsActiveEdit">
-                                                        <option value="1" <?php if ($gear["is_active"] == 1) { ?> selected="selected" <?php } ?>><?php echo $translationsSettings['settings_sidebar_gear_modal_editGear_gearIsActiveOption1']; ?></option>
-                                                        <option value="2" <?php if ($gear["is_active"] == 2) { ?> selected="selected" <?php } ?>><?php echo $translationsSettings['settings_sidebar_gear_modal_editGear_gearIsActiveOption2']; ?></option>
-                                                    </select required>
-                                                    * <?php echo $translationsTemplateTop['template_top_global_requiredFields']; ?>
+                        <!-- title zone -->
+                        <br>
+                        <p><?php echo $translationsSettings['settings_sidebar_gear_list_title1']; ?>         <?php echo ($numGears); ?>         <?php echo $translationsSettings['settings_sidebar_gear_list_title2']; ?> (<?php echo $numRecords; ?>         <?php echo $translationsSettings['settings_sidebar_gear_list_title3']; ?>:</p>
+                        <!-- list zone -->
+                        <ul class="list-group list-group-flush">
+                            <?php foreach ($gears as $gear) { ?>
+                                        <li class="list-group-item d-flex justify-content-between">
+                                            <div class="d-flex align-items-center">
+                                                <img src=<?php echo ("../img/avatar/male1.png"); ?> alt="gearPicture" class="rounded-circle" width="55" height="55">
+                                                <div class="ms-3">
+                                                    <div class="fw-bold">
+                                                        <?php echo ($gear["nickname"]); ?>
+                                                    </div>
+                                                    <b><?php echo $translationsSettings['settings_sidebar_settings_sidebar_gear_type']; ?></b><?php if ($gear["gear_type"] == 1) {
+                                                           echo $translationsSettings['settings_sidebar_gear_modal_addEditGear_gearTypeOption1'];
+                                                       } else {
+                                                           if ($gear["gear_type"] == 2) {
+                                                               echo $translationsSettings['settings_sidebar_gear_modal_addEditGear_gearTypeOption2'];
+                                                           } else {
+                                                               if ($gear["gear_type"] == 3) {
+                                                                   echo $translationsSettings['settings_sidebar_gear_modal_addEditGear_gearTypeOption3'];
+                                                               }
+                                                           }
+                                                       } ?>
                                                 </div>
-                                                <div class="modal-footer">
-                                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><?php echo $translationsTemplateTop['template_top_global_close']; ?></button>
-                                                    <button type="submit" class="btn btn-success" name="editGear"><?php echo $translationsSettings['settings_sidebar_gear_modal_editGear_title']; ?></button>
+                                            </div>
+                                            <div>
+                                                <!-- gear status zone -->
+                                                <?php if ($gear["is_active"] == 1) { ?>
+                                                            <span class="badge bg-success-subtle border border-success-subtle text-success-emphasis rounded-pill align-middle"><?php echo $translationsSettings['settings_sidebar_gear_list_isactive']; ?></span>
+                                                <?php } else { ?>
+                                                            <span class="badge bg-danger-subtle border border-danger-subtle text-danger-emphasis rounded-pill align-middle"><?php echo $translationsSettings['settings_sidebar_gear_list_isinactive']; ?></span>
+                                                <?php } ?>
+
+                                                <!-- edit gear zone -->
+                                                <a class="btn btn-link btn-lg" href="#" role="button" data-bs-toggle="modal" data-bs-target="#editGearModal<?php echo ($gear["id"]); ?>"><i class="fa-solid fa-pen-to-square"></i></a>
+
+                                                <!-- Modal edit gear -->
+                                                <div class="modal fade" id="editGearModal<?php echo ($gear["id"]); ?>" tabindex="-1" aria-labelledby="editGearModal" aria-hidden="true">
+                                                    <div class="modal-dialog">
+                                                        <div class="modal-content">
+                                                            <div class="modal-header">
+                                                                <h1 class="modal-title fs-5" id="editGearModal<?php echo ($gear["id"]); ?>"><?php echo $translationsSettings['settings_sidebar_gear_modal_editGear_title']; ?></h1>
+                                                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                                            </div>
+                                                            <form action="../settings/settings.php?gearID=<?php echo ($gear["id"]); ?>&editGear=1&gearSettings=1" method="post" enctype="multipart/form-data">
+                                                                <div class="modal-body">
+                                                                    <!-- brand fields -->
+                                                                    <label for="gearBrandEdit"><b><?php echo $translationsSettings['settings_sidebar_gear_modal_addEditGear_brandLabel']; ?></b></label>
+                                                                    <input class="form-control" type="text" name="gearBrandEdit" placeholder="<?php echo $translationsSettings['settings_sidebar_gear_modal_addEditGear_brandPlaceholder']; ?>" maxlength="45" value="<?php echo ($gear["brand"]); ?>">
+                                                                    <!-- model fields -->
+                                                                    <label for="gearModelEdit"><b><?php echo $translationsSettings['settings_sidebar_gear_modal_addEditGear_modelLabel']; ?></b></label>
+                                                                    <input class="form-control" type="text" name="gearModelEdit" placeholder="<?php echo $translationsSettings['settings_sidebar_gear_modal_addEditGear_modelPlaceholder']; ?>" maxlength="45" value="<?php echo ($gear["model"]); ?>">
+                                                                    <!-- nickname fields -->
+                                                                    <label for="gearNicknameEdit"><b><?php echo $translationsSettings['settings_sidebar_gear_modal_addEditGear_nicknameLabel']; ?></b></label>
+                                                                    <input class="form-control" type="text" name="gearNicknameEdit" placeholder="<?php echo $translationsSettings['settings_sidebar_gear_modal_addEditGear_nicknamePlaceholder']; ?>" maxlength="45" value="<?php echo ($gear["nickname"]); ?>">
+                                                                    <!-- gear type fields -->
+                                                                    <label for="gearTypeEdit"><b>* <?php echo $translationsSettings['settings_sidebar_gear_modal_addEditGear_gearTypeLabel']; ?></b></label>
+                                                                    <select class="form-control" name="gearTypeEdit">
+                                                                        <option value="1" <?php if ($gear["gear_type"] == 1) { ?> selected="selected" <?php } ?>><?php echo $translationsSettings['settings_sidebar_gear_modal_addEditGear_gearTypeOption1']; ?></option>
+                                                                        <option value="2" <?php if ($gear["gear_type"] == 2) { ?> selected="selected" <?php } ?>><?php echo $translationsSettings['settings_sidebar_gear_modal_addEditGear_gearTypeOption2']; ?></option>
+                                                                        <option value="3" <?php if ($gear["gear_type"] == 3) { ?> selected="selected" <?php } ?>><?php echo $translationsSettings['settings_sidebar_gear_modal_addEditGear_gearTypeOption3']; ?></option>
+                                                                    </select required>
+                                                                    <!-- date fields -->
+                                                                    <label for="gearDateEdit"><b><?php echo $translationsSettings['settings_sidebar_gear_modal_addEditGear_dateLabel']; ?></b></label>
+                                                                    <input class="form-control" type="date" name="gearDateEdit" placeholder="<?php echo $translationsSettings['settings_sidebar_gear_modal_addEditGear_datePlaceholder']; ?>" value="<?php echo date("Y-m-d", strtotime($gear["created_at"])); ?>" required>
+                                                                    <!-- gear is_active fields -->
+                                                                    <label for="gearIsActiveEdit"><b>* <?php echo $translationsSettings['settings_sidebar_gear_modal_editGear_gearIsActiveLabel']; ?></b></label>
+                                                                    <select class="form-control" name="gearIsActiveEdit">
+                                                                        <option value="1" <?php if ($gear["is_active"] == 1) { ?> selected="selected" <?php } ?>><?php echo $translationsSettings['settings_sidebar_gear_modal_editGear_gearIsActiveOption1']; ?></option>
+                                                                        <option value="2" <?php if ($gear["is_active"] == 2) { ?> selected="selected" <?php } ?>><?php echo $translationsSettings['settings_sidebar_gear_modal_editGear_gearIsActiveOption2']; ?></option>
+                                                                    </select required>
+                                                                    * <?php echo $translationsTemplateTop['template_top_global_requiredFields']; ?>
+                                                                </div>
+                                                                <div class="modal-footer">
+                                                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><?php echo $translationsTemplateTop['template_top_global_close']; ?></button>
+                                                                    <button type="submit" class="btn btn-success" name="editGear"><?php echo $translationsSettings['settings_sidebar_gear_modal_editGear_title']; ?></button>
+                                                                </div>
+                                                            </form>
+                                                        </div>
+                                                    </div>
                                                 </div>
-                                            </form>
-                                        </div>
-                                    </div>
-                                </div>
 
-                                <!-- delete gear zone -->
-                                <a class="btn btn-link btn-lg" href="#" role="button" data-bs-toggle="modal" data-bs-target="#deleteGearModal<?php echo ($gear["id"]); ?>"><i class="fa-solid fa-trash-can"></i></a>
+                                                <!-- delete gear zone -->
+                                                <a class="btn btn-link btn-lg" href="#" role="button" data-bs-toggle="modal" data-bs-target="#deleteGearModal<?php echo ($gear["id"]); ?>"><i class="fa-solid fa-trash-can"></i></a>
 
-                                <!-- Modal delete gear -->
-                                <div class="modal fade" id="deleteGearModal<?php echo ($gear["id"]); ?>" tabindex="-1" aria-labelledby="deleteGearModal<?php echo ($user["id"]); ?>" aria-hidden="true">
-                                    <div class="modal-dialog">
-                                        <div class="modal-content">
-                                            <div class="modal-header">
-                                                <h1 class="modal-title fs-5" id="deleteGearModal<?php echo ($gear["id"]); ?>"><?php echo $translationsSettings['settings_sidebar_gear_modal_deleteGear_title']; ?></h1>
-                                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                                <!-- Modal delete gear -->
+                                                <div class="modal fade" id="deleteGearModal<?php echo ($gear["id"]); ?>" tabindex="-1" aria-labelledby="deleteGearModal<?php echo ($user["id"]); ?>" aria-hidden="true">
+                                                    <div class="modal-dialog">
+                                                        <div class="modal-content">
+                                                            <div class="modal-header">
+                                                                <h1 class="modal-title fs-5" id="deleteGearModal<?php echo ($gear["id"]); ?>"><?php echo $translationsSettings['settings_sidebar_gear_modal_deleteGear_title']; ?></h1>
+                                                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                                            </div>
+                                                            <div class="modal-body">
+                                                                <?php echo $translationsSettings['settings_sidebar_gear_modal_deleteGear_body']; ?> <b><?php echo ($gear["nickname"]); ?></b>
+                                                            </div>
+                                                            <div class="modal-footer">
+                                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><?php echo $translationsTemplateTop['template_top_global_close']; ?></button>
+                                                                <a type="button" class="btn btn-danger" href="../settings/settings.php?gearID=<?php echo ($gear["id"]); ?>&deleteGear=1&gearSettings=1"><?php echo $translationsSettings['settings_sidebar_gear_modal_deleteGear_title']; ?></a>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
                                             </div>
-                                            <div class="modal-body">
-                                                <?php echo $translationsSettings['settings_sidebar_gear_modal_deleteGear_body']; ?> <b><?php echo ($gear["nickname"]); ?></b>
-                                            </div>
-                                            <div class="modal-footer">
-                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><?php echo $translationsTemplateTop['template_top_global_close']; ?></button>
-                                                <a type="button" class="btn btn-danger" href="../settings/settings.php?gearID=<?php echo ($gear["id"]); ?>&deleteGear=1&gearSettings=1"><?php echo $translationsSettings['settings_sidebar_gear_modal_deleteGear_title']; ?></a>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </li>
-                    <?php } ?>
-                </ul>
-                <?php if (!isset($_POST["gearSearch"])) { ?>
-                    <br>
-                    <nav>
-                        <ul class="pagination justify-content-center">
-                            <li class="page-item <?php if ($pageNumberGears == 1) {
-                                                        echo "disabled";
-                                                    } ?>"><a class="page-link" href="?pageNumberGears=1">«</a></li>
-                            <?php for ($i = 1; $i <= $total_pages; $i++) { ?>
-                                <li class="page-item <?php if ($i == $pageNumberGears) {
+                                        </li>
+                            <?php } ?>
+                        </ul>
+                        <?php if (!isset($_POST["gearSearch"])) { ?>
+                                    <br>
+                                    <nav>
+                                        <ul class="pagination justify-content-center">
+                                            <li class="page-item <?php if ($pageNumberGears == 1) {
+                                                echo "disabled";
+                                            } ?>"><a class="page-link" href="?pageNumberGears=1">«</a></li>
+                                            <?php for ($i = 1; $i <= $total_pages; $i++) { ?>
+                                                        <li class="page-item <?php if ($i == $pageNumberGears) {
                                                             echo "active";
                                                         } ?>"><a class="page-link" href="?pageNumberGears=<?php echo ($i); ?>"><?php echo ($i); ?></a></li>
-                            <?php } ?>
-                            <li class="page-item <?php if ($pageNumberGears == $total_pages) {
-                                                        echo "disabled";
-                                                    } ?>"><a class="page-link" href="?pageNumberGears=<?php echo ($total_pages); ?>">»</a></li>
-                        </ul>
-                    </nav>
-                <?php } ?>
+                                            <?php } ?>
+                                            <li class="page-item <?php if ($pageNumberGears == $total_pages) {
+                                                echo "disabled";
+                                            } ?>"><a class="page-link" href="?pageNumberGears=<?php echo ($total_pages); ?>">»</a></li>
+                                        </ul>
+                                    </nav>
+                        <?php } ?>
             <?php } ?>
         </div>
 

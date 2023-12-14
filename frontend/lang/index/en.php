@@ -8,6 +8,7 @@ return [
   "index_userZone_thisWeekDistances_run" => "Run",
   "index_userZone_thisWeekDistances_bike" => "Bike",
   "index_userZone_thisWeekDistances_swim" => "Swim",
+  "index_userZone_thisMonthDistances_title" => "This month distances",
   // add activity
   "index_sidebar_addActivity" => "Add Activity",
   "index_sidebar_addActivity_modal_addGpxFile_placeholder" => "Add GPX activity",

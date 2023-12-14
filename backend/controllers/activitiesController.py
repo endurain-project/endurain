@@ -9,6 +9,7 @@ from jose import jwt, JWTError
 #from dotenv import load_dotenv
 from pydantic import BaseModel
 from datetime import datetime, timedelta
+import calendar
 
 router = APIRouter()
 
@@ -73,6 +74,39 @@ async def read_activities_useractivities(token: str = Depends(oauth2_scheme)):
 
     return results
 
+@router.get("/activities/useractivities/{user_id}/week/{week_number}")
+async def read_activities_useractivities_thismonth_number(
+    user_id: int, week_number: int, token: str = Depends(oauth2_scheme)
+):
+    from . import sessionController
+
+    try:
+        sessionController.validate_token(token)
+        with get_db_session() as db_session:
+            # Calculate the start of the requested week
+            today = datetime.utcnow().date()
+            start_of_week = today - timedelta(
+                days=(today.weekday() + 7 * week_number)
+            )
+            end_of_week = start_of_week + timedelta(days=7)
+
+            # Query the count of activities records for the requested week
+            activities = (
+                db_session.query(Activity)
+                .filter(
+                    Activity.user_id == user_id,
+                    func.date(Activity.start_time) >= start_of_week,
+                    func.date(Activity.start_time) <= end_of_week,
+                )
+            ).all()
+
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    except Exception as err:
+        print(err)
+        raise HTTPException(status_code=500, detail="Internal Server Error")
+
+    return activities
 
 @router.get("/activities/useractivities/{user_id}/thisweek/distances")
 async def read_activities_useractivities_thisweek_distances(
@@ -128,6 +162,91 @@ async def read_activities_useractivities_thisweek_distances(
 
     return results
 
+@router.get("/activities/useractivities/{user_id}/thismonth/distances")
+async def read_activities_useractivities_thismonth_distances(
+    user_id: int, token: str = Depends(oauth2_scheme)
+):
+    from . import sessionController
+
+    try:
+        sessionController.validate_token(token)
+        with get_db_session() as db_session:
+            # Calculate the start of the current month
+            today = datetime.utcnow().date()
+            start_of_month = today.replace(day=1)
+            end_of_month = start_of_month.replace(
+                day=calendar.monthrange(today.year, today.month)[1]
+            )
+
+            # Query the activities records for the current month
+            activity_records = (
+                db_session.query(Activity)
+                .filter(
+                    Activity.user_id == user_id,
+                    func.date(Activity.start_time) >= start_of_month,
+                    func.date(Activity.start_time) <= end_of_month,
+                )
+                .order_by(desc(Activity.start_time))
+                .all()
+            )
+
+            # Initialize distance variables
+            run = bike = swim = 0
+
+            # Iterate over the activity records and aggregate the distances
+            for activity in activity_records:
+                if activity.activity_type in [1, 2, 3]:
+                    run += activity.distance
+                elif activity.activity_type in [4, 5, 6, 7, 8]:
+                    bike += activity.distance
+                elif activity.activity_type == 9:
+                    swim += activity.distance
+
+            # Prepare the result as JSON
+            results = {"run": run, "bike": bike, "swim": swim}
+
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    except NameError as err:
+        print(err)
+        raise HTTPException(status_code=500, detail="Internal Server Error")
+
+    return results
+
+@router.get("/activities/useractivities/{user_id}/thismonth/number")
+async def read_activities_useractivities_thismonth_number(
+    user_id: int, token: str = Depends(oauth2_scheme)
+):
+    from . import sessionController
+
+    try:
+        sessionController.validate_token(token)
+        with get_db_session() as db_session:
+            # Calculate the start of the current month
+            today = datetime.utcnow().date()
+            start_of_month = today.replace(day=1)
+            end_of_month = start_of_month.replace(
+                day=calendar.monthrange(today.year, today.month)[1]
+            )
+
+            # Query the count of activities records for the current month
+            activity_count = (
+                db_session.query(func.count(Activity.id))
+                .filter(
+                    Activity.user_id == user_id,
+                    func.date(Activity.start_time) >= start_of_month,
+                    func.date(Activity.start_time) <= end_of_month,
+                )
+                .scalar()
+            )
+
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    except Exception as err:
+        print(err)
+        raise HTTPException(status_code=500, detail="Internal Server Error")
+
+    return {"activity_count": activity_count}
 
 @router.get("/activities/gear/{gearID}", response_model=List[dict])
 async def read_activities_gearactivities(

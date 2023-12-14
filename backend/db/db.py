@@ -37,7 +37,6 @@ Session = sessionmaker(bind=engine)
 # Create a base class for declarative models
 Base = declarative_base()
 
-
 # Data model for users table using SQLAlchemy's ORM
 class User(Base):
     __tablename__ = "users"
@@ -235,6 +234,9 @@ class Activity(Base):
     # Define a relationship to the Gear model
     gear = relationship("Gear", back_populates="activities")
 
+def create_database_tables():
+    # Create tables
+    Base.metadata.create_all(bind=engine)
 
 @contextmanager
 def get_db_session():

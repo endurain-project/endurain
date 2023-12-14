@@ -22,6 +22,7 @@ from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 import os
+from db.db import create_database_tables, get_db_session
 
 # from dotenv import load_dotenv
 import logging
@@ -101,6 +102,10 @@ async def startup_event():
     # Start a span for the startup event
     with tracer.start_as_current_span("startup_event"):
         print("Backend started!")
+
+        # Create the database and tables if they don't exist
+        with get_db_session() as session:
+            create_database_tables()
 
 
 # Add the background scheduler to the app's shutdown event

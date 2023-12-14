@@ -32,10 +32,55 @@ function getUserActivities()
     }
 }
 
-/* Get user activities */
+/* Get user activities for provided week */
+function getUserActivitiesWeek($userID, $week)
+{
+    $response = callAPIRoute("/activities/useractivities/$userID/week/$week", 0, 0, NULL);
+    if ($response[0] === false) {
+        return -1;
+    } else {
+        if ($response[1] === 200) {
+            return json_decode($response[0], true);
+        } else {
+            return -2;
+        }
+    }
+}
+
+/* Get user activities for this week */
 function getUserActivitiesThisWeekDistances($userID)
 {
     $response = callAPIRoute("/activities/useractivities/$userID/thisweek/distances", 0, 0, NULL);
+    if ($response[0] === false) {
+        return -1;
+    } else {
+        if ($response[1] === 200) {
+            return json_decode($response[0], true);
+        } else {
+            return -2;
+        }
+    }
+}
+
+/* Get user activities for this month */
+function getUserActivitiesThisMonthDistances($userID)
+{
+    $response = callAPIRoute("/activities/useractivities/$userID/thismonth/distances", 0, 0, NULL);
+    if ($response[0] === false) {
+        return -1;
+    } else {
+        if ($response[1] === 200) {
+            return json_decode($response[0], true);
+        } else {
+            return -2;
+        }
+    }
+}
+
+/* Get user activities count for this month */
+function getUserActivitiesThisMonthNumber($userID)
+{
+    $response = callAPIRoute("/activities/useractivities/$userID/thismonth/number", 0, 0, NULL);
     if ($response[0] === false) {
         return -1;
     } else {
@@ -199,13 +244,13 @@ function parseActivityGPX($gpx_file)
             throw new Exception("Invalid GPX file or could not load the file.");
         }
 
-        if ((string)$xml['creator'] != 'StravaGPX' && (string)$xml['creator'] != 'Garmin Connect') {
+        if ((string) $xml['creator'] != 'StravaGPX' && (string) $xml['creator'] != 'Garmin Connect') {
             return -5;
         }
 
         // Extract metadata
-        $activityType = (string)($xml->trk->type ?? "Workout"); // Extract activity type
-        $activityName = (string)($xml->trk->name ?? "Workout"); // Extract activity name
+        $activityType = (string) ($xml->trk->type ?? "Workout"); // Extract activity type
+        $activityName = (string) ($xml->trk->name ?? "Workout"); // Extract activity name
         $distance = 0;  // Initialize total distance to 0
         $firstWaypointTime = null;  // Variable to store the first waypoint time
         $lastWaypointTime = null;   // Variable to store the last waypoint time
@@ -225,18 +270,18 @@ function parseActivityGPX($gpx_file)
 
         // Iterate through track segments and track points
         foreach ($xml->trk->trkseg->trkpt as $point) {
-            $latitude = (float)$point['lat'];
-            $longitude = (float)$point['lon'];
+            $latitude = (float) $point['lat'];
+            $longitude = (float) $point['lon'];
 
             if ($prevLatitude !== null && $prevLongitude !== null) {
                 // Calculate distance between waypoints (Haversine formula) and add to total distance
                 $distance += calculateDistance($prevLatitude, $prevLongitude, $latitude, $longitude);
             }
 
-            $elevation = (float)$point->ele;
+            $elevation = (float) $point->ele;
 
             // You can access other data like time, heart rate, cadence, etc. from the extensions as needed
-            $time = (string)$point->time;
+            $time = (string) $point->time;
             // Store the first and last waypoint times
             if ($firstWaypointTime === null) {
                 $firstWaypointTime = $time;
@@ -256,13 +301,13 @@ function parseActivityGPX($gpx_file)
                         #echo $data;
                         // Extract the town and country from the address components
                         if (isset($data->address->city)) {
-                            $city = (string)$data->address->city;
+                            $city = (string) $data->address->city;
                         }
                         if (isset($data->address->town)) {
-                            $town = (string)$data->address->town;
+                            $town = (string) $data->address->town;
                         }
                         if (isset($data->address->country)) {
-                            $country = (string)$data->address->country;
+                            $country = (string) $data->address->country;
                         }
                     }
                 } catch (Exception $e) {
@@ -272,16 +317,16 @@ function parseActivityGPX($gpx_file)
                 $processOneTimeFields = 1;
             }
 
-            if ((string)$xml['creator'] === 'StravaGPX') {
-                $heartRate = (int)$point->extensions->children('gpxtpx', true)->TrackPointExtension->hr;
-                $cadence = (int)$point->extensions->children('gpxtpx', true)->TrackPointExtension->cad;
+            if ((string) $xml['creator'] === 'StravaGPX') {
+                $heartRate = (int) $point->extensions->children('gpxtpx', true)->TrackPointExtension->hr;
+                $cadence = (int) $point->extensions->children('gpxtpx', true)->TrackPointExtension->cad;
             } else {
-                $heartRate = (int)$point->extensions->children('ns3', true)->TrackPointExtension->hr;
-                $cadence = (int)$point->extensions->children('ns3', true)->TrackPointExtension->cad;
+                $heartRate = (int) $point->extensions->children('ns3', true)->TrackPointExtension->hr;
+                $cadence = (int) $point->extensions->children('ns3', true)->TrackPointExtension->cad;
             }
-            $power = (int)$point->extensions->power;
+            $power = (int) $point->extensions->power;
 
-            $instantSpeed = (float)calculateInstantSpeed($lastWaypointTime, $time, $latitude, $longitude, $prevLatitude, $prevLongitude);
+            $instantSpeed = (float) calculateInstantSpeed($lastWaypointTime, $time, $latitude, $longitude, $prevLatitude, $prevLongitude);
 
             if ($instantSpeed > 0) {
                 $instantPace = 1 / $instantSpeed; // Calculate instant pace in s/m
