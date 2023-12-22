@@ -13,6 +13,9 @@ COPY frontend/ /var/www/html
 # Install any dependencies your application needs
 RUN apt-get update
 
+# Change ownership of the directory to www-data:www-data
+RUN chown -R www-data:www-data /var/www/html
+
 # Expose port 80 to the outside world
 EXPOSE 80
 

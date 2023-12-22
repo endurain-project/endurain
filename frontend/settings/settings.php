@@ -148,8 +148,10 @@ if (isset($_POST["userEdit"])) {
             }
             // Check if $uploadOk is set to 0 by an error
             if ($uploadOk == 1) {
-                if (unlink(getUserPhotoAuxFromID($_GET["userID"])[0])) {
-                    unsetUserPhoto($_GET["userID"]);
+                if(getUserPhotoAuxFromID($_GET["userID"])[0] != null){
+                    if (unlink(getUserPhotoAuxFromID($_GET["userID"])[0])) {
+                        unsetUserPhoto($_GET["userID"]);
+                    }
                 }
                 if (move_uploaded_file($_FILES["userImgEdit"]["tmp_name"], $target_file)) {
                     $photoPath = "..\img\users_img\\" . $newname;
@@ -261,8 +263,10 @@ if (isset($_POST["editProfile"])) {
         }
         // Check if $uploadOk is set to 0 by an error
         if ($uploadOk == 1) {
-            if (unlink(getUserPhotoAuxFromID($_SESSION["id"])[0])) {
-                unsetUserPhoto($_SESSION["id"]);
+            if(getUserPhotoAuxFromID($_SESSION["id"])[0] != null){
+                if (unlink(getUserPhotoAuxFromID($_SESSION["id"])[0])) {
+                    unsetUserPhoto($_SESSION["id"]);
+                }
             }
             if (move_uploaded_file($_FILES["profileImgEdit"]["tmp_name"], $target_file)) {
                 $photoPath = "..\img\users_img\\" . $newname;

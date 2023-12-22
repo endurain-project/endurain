@@ -1,3 +1,30 @@
+"""
+Module: my_database_logic
+
+This module defines the SQLAlchemy data models and database logic for managing users, followers,
+access tokens, gear, and activities. It establishes the database connection, creates tables,
+and provides a context manager for handling database sessions.
+
+Classes:
+- Follower
+- User
+- AccessToken
+- Gear
+- Activity
+
+Functions:
+- create_database_tables: Creates the necessary database tables.
+- get_db_session: Context manager for obtaining a database session.
+
+Usage:
+1. Import this module: `from my_database_logic import create_database_tables, get_db_session`
+2. Create tables: `create_database_tables()`
+3. Use the context manager for database sessions: 
+    with get_db_session() as session:
+    # Perform database operations using the session
+Note: Ensure that environment variables for database configuration are properly set before using
+this module.
+"""
 import os
 import urllib.parse  # Import urllib.parse for URL encoding
 import logging
@@ -17,6 +44,7 @@ from sqlalchemy import (
 )
 #from dotenv import load_dotenv
 from sqlalchemy.dialects.mysql import JSON
+from sqlalchemy.engine.url import URL
 from contextlib import contextmanager
 
 # Load the environment variables from config/.env
@@ -25,8 +53,16 @@ from contextlib import contextmanager
 logger = logging.getLogger("myLogger")
 
 # Define the database connection URL using environment variables
-db_password = urllib.parse.quote_plus(os.environ.get("DB_PASSWORD"))
-db_url = f"mysql://{os.environ.get('DB_USER')}:{db_password}@{os.environ.get('DB_HOST')}:{os.environ.get('DB_PORT')}/{os.environ.get('DB_DATABASE')}"
+#db_password = urllib.parse.quote_plus(os.environ.get("DB_PASSWORD"))
+#db_url = f"mysql://{os.environ.get('DB_USER')}:{db_password}@{os.environ.get('DB_HOST')}:{os.environ.get('DB_PORT')}/{os.environ.get('DB_DATABASE')}"
+db_url = URL.create(
+    drivername="mysql",
+    username=os.environ.get("DB_USER"),
+    password=os.environ.get("DB_PASSWORD"),
+    host=os.environ.get("DB_HOST"),
+    port=os.environ.get("DB_PORT"),
+    database=os.environ.get("DB_DATABASE"),
+)
 
 # Create the SQLAlchemy engine
 engine = create_engine(db_url, pool_size=10, max_overflow=20, pool_timeout=180)
