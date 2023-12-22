@@ -3,19 +3,21 @@ services:
   # frontend logic
   frontend:
     container_name: frontend
-    image: ghcr.io/joaovitoriasilva/gearguardian/frontend:dev_29112023
+    image: ghcr.io/joaovitoriasilva/endurain/frontend:dev_29112023
     environment:
       - APACHE_DOCUMENT_ROOT=/var/www/html
     volumes:
-      - <local_path>/gearguardian/frontend:/var/www/html
+      - <local_path>/endurain/frontend:/var/www/html
     ports:
       - "8080:80"
+    env_file:
+      - .env
     restart: unless-stopped
     
   # API logic
   backend:
     container_name: backend
-    image: ghcr.io/joaovitoriasilva/gearguardian/backend:dev_01122023
+    image: ghcr.io/joaovitoriasilva/endurain/backend:dev_01122023
     environment:
       - DB_PASSWORD=changeme
       - SECRET_KEY=changeme
@@ -25,7 +27,7 @@ services:
     ports:
       - "98:80"
     volumes:
-      - <local_path>/gearguardian/backend:/app
+      - <local_path>/endurain/backend:/app
     env_file:
       - config/.env
     depends_on:
@@ -39,8 +41,8 @@ services:
     container_name: mariadb
     environment:
       - MYSQL_ROOT_PASSWORD=changeme
-      - MYSQL_DATABASE=gearguardian
-      - MYSQL_USER=gearguardian
+      - MYSQL_DATABASE=endurain
+      - MYSQL_USER=endurain
       - MYSQL_PASSWORD=changeme
     ports:
       - "3306:3306"
