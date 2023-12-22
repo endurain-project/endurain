@@ -48,8 +48,6 @@ Frontend dependencies:
  - https://geocode.maps.co/ for reverse Geocode logic on activity parsing
 ---
 # Backend
-For Strava integration API endpoint must be available to the Internet.
-
 Table bellow shows supported environemnt variables. Variables marked with optional "No" should be set to avoid errors.
 
 Environemnt variable  | Default value | Optional
@@ -97,3 +95,8 @@ Python backend dependencies used:
  - opentelemetry-instrumentation-fastapi
  - opentelemetry.exporter.otlp
  - https://geocode.maps.co/ for reverse Geocode logic on activity parsing
+
+ ---
+# Strava integration
+For Strava integration API endpoint must be available to the Internet.
+You will also need to create a API Application using a Strava account -> more info here https://developers.strava.com/docs/getting-started/

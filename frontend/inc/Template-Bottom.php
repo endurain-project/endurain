@@ -5,7 +5,7 @@
                         echo date("Y");
                 } else { ?>2023-
                         <?php echo date("Y");
-                } ?> Endurain <a href="https://github.com/joaovitoriasilva/gearguardian"
+                } ?> Endurain <a href="https://github.com/joaovitoriasilva/endurain"
                         role="button"><i class="fa-brands fa-github"></i></a>
         </p>
         <p class="text-center text-muted"><img src="../img/strava/api_logo_cptblWith_strava_horiz_light.png"
