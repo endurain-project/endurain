@@ -5,7 +5,7 @@
 /* Get to call a API route */
 function callAPIRoute($endpoint, $multipleReturns, $callType, $dataFields)
 {
-    $api_url = 'http://backend';
+    $api_url = getenv('BACKEND_PROTOCOL').'://'.getenv('BACKEND_HOST');
     $responseArray = [];
 
     // Initialize a new cURL session

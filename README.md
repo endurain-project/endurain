@@ -31,7 +31,12 @@ To do features (not by order):
  - Activity Pub integration?
 ---
 # Frontend
+Table bellow shows supported environemnt variables. Variables marked with optional "No" should be set to avoid errors.
 
+Environemnt variable  | Default value | Optional
+--- | --- | ---
+BACKEND_PROTOCOL | http | Yes
+BACKEND_HOST | backend | Yes
 
 Frontend dependencies:
  - php:8.3-apache
@@ -43,6 +48,7 @@ Frontend dependencies:
  - https://geocode.maps.co/ for reverse Geocode logic on activity parsing
 ---
 # Backend
+For Strava integration API endpoint must be available to the Internet.
 
 Table bellow shows supported environemnt variables. Variables marked with optional "No" should be set to avoid errors.
 
