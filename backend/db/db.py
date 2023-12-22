@@ -276,7 +276,7 @@ class Activity(Base):
         comment="Average speed seconds per meter (s/m)",
     )
     average_power = Column(Integer, nullable=False, comment="Average power (watts)")
-    visibility = Column(Integer, nullable=False, comment="0 - public, 1 - followers, 2 - private")
+    visibility = Column(Integer, nullable=False, default=0, comment="0 - public, 1 - followers, 2 - private")
     gear_id = Column(
         Integer,
         ForeignKey("gear.id", ondelete="SET NULL"),
