@@ -1,3 +1,5 @@
+name: Create backend Docker image with latest tag on manual trigger
+
 on:
   workflow_dispatch:
 
