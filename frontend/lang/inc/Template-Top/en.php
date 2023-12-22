@@ -2,6 +2,10 @@
 
 //Template-Top.php translations
 return [
+  "template_top_navbar_search" => "Search",
+  "template_top_global_searchUserModal_title" => "Search user",
+  "template_top_global_searchUserModal_usernameLabel" => "Username",
+  "template_top_global_searchUserModal_usernamePlaceholder" => "Username",
   "template_top_navbar_gear" => "Gear",
   "template_top_navbar_login" => "Login",
   "template_top_navbar_profile" => "Profile",

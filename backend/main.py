@@ -4,7 +4,8 @@ from controllers import (
     sessionController,
     userController,
     gearController,
-    activitiesController,
+    activityController,
+    followerController,
     stravaController,
 )
 from datetime import datetime, timedelta
@@ -58,14 +59,16 @@ logger.addHandler(file_handler)
 # tracer_provider.add_span_processor(SimpleSpanProcessor(jaeger_exporter))
 
 # trace.set_tracer_provider(TracerProvider(resource=Resource.create().add_attribute("service.name", "backend_api")))
-trace.set_tracer_provider(
-    TracerProvider(resource=Resource.create({"service.name": "backend_api"}))
-)
-trace.get_tracer_provider().add_span_processor(
-    BatchSpanProcessor(
-        OTLPSpanExporter(endpoint="http://" + os.environ.get("JAEGER_HOST") + ":4317")
+
+if(os.environ.get("JAEGER_ENABLED") == "true"):
+    trace.set_tracer_provider(
+        TracerProvider(resource=Resource.create({"service.name": "backend_api"}))
     )
-)
+    trace.get_tracer_provider().add_span_processor(
+        BatchSpanProcessor(
+            OTLPSpanExporter(endpoint=os.environ.get("JAEGER_PROTOCOL") + "://" + os.environ.get("JAEGER_HOST") + ":" + os.environ.get("JAGGER_PORT"))
+        )
+    )
 
 
 # Instrument FastAPI app
@@ -75,7 +78,8 @@ FastAPIInstrumentor.instrument_app(app)
 app.include_router(sessionController.router)
 app.include_router(userController.router)
 app.include_router(gearController.router)
-app.include_router(activitiesController.router)
+app.include_router(activityController.router)
+app.include_router(followerController.router)
 app.include_router(stravaController.router)
 
 # Create a background scheduler instance
@@ -96,24 +100,12 @@ scheduler.add_job(
 
 @app.on_event("startup")
 async def startup_event():
-    # Get the tracer
-    tracer = trace.get_tracer(__name__)
-
-    # Start a span for the startup event
-    with tracer.start_as_current_span("startup_event"):
-        print("Backend started!")
-
-        # Create the database and tables if they don't exist
-        with get_db_session() as session:
-            create_database_tables()
+    # Create the database and tables if they don't exist
+    with get_db_session() as session:
+        create_database_tables()
 
 
 # Add the background scheduler to the app's shutdown event
 @app.on_event("shutdown")
 async def shutdown_event():
-    # Get the tracer
-    tracer = trace.get_tracer(__name__)
-
-    # Start a span for the startup event
-    with tracer.start_as_current_span("shutdown_event"):
-        scheduler.shutdown()
+    scheduler.shutdown()

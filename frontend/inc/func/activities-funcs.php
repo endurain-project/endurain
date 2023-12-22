@@ -138,6 +138,21 @@ function getUserActivitiesPagination($pageNumber, $numRecords)
     }
 }
 
+/* Get user following activities with pagination */
+function getFollowedUserActivitiesPagination($pageNumber, $numRecords)
+{
+    $response = callAPIRoute("/activities/followeduseractivities/pagenumber/$pageNumber/numRecords/$numRecords", 1, 0, NULL);
+    if ($response[0] === false) {
+        return -1;
+    } else {
+        if ($response[1] === 200) {
+            return json_decode($response[0], true);
+        } else {
+            return -2;
+        }
+    }
+}
+
 /* Get number of activities */
 function numActivities()
 {
@@ -170,10 +185,26 @@ function numUserActivities()
     }
 }
 
+/* Get user following number of activities */
+function numFollowedUserActivities()
+{
+    $response = callAPIRoute("/activities/followeduseractivities/number", 0, 0, NULL);
+    if ($response[0] === false) {
+        return -1;
+    } else {
+        if ($response[1] === 200) {
+            $data = json_decode($response[0], true);
+            return $data[0];
+        } else {
+            return -2;
+        }
+    }
+}
+
 /* Get gear from id */
 function getActivityFromId($id)
 {
-    $response = callAPIRoute("/activities/$id/activityfromid", 1, 0, NULL);
+    $response = callAPIRoute("/activities/$id", 1, 0, NULL);
     if ($response[0] === false) {
         return -1;
     } else {

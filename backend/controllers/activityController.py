@@ -1,10 +1,12 @@
+from operator import and_, or_
 import os
 import logging
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.security import OAuth2PasswordBearer
 from typing import List, Optional
 from sqlalchemy import func, desc
-from db.db import get_db_session, Activity
+from sqlalchemy.orm import joinedload
+from db.db import get_db_session, Activity, Follower
 from jose import jwt, JWTError
 #from dotenv import load_dotenv
 from pydantic import BaseModel
@@ -82,6 +84,10 @@ async def read_activities_useractivities_thismonth_number(
 
     try:
         sessionController.validate_token(token)
+
+        payload = jwt.decode(token, os.environ.get("SECRET_KEY"), algorithms=[os.environ.get("ALGORITHM")])
+        logged_user_id = payload.get("id")
+
         with get_db_session() as db_session:
             # Calculate the start of the requested week
             today = datetime.utcnow().date()
@@ -91,14 +97,26 @@ async def read_activities_useractivities_thismonth_number(
             end_of_week = start_of_week + timedelta(days=7)
 
             # Query the count of activities records for the requested week
-            activities = (
-                db_session.query(Activity)
-                .filter(
-                    Activity.user_id == user_id,
-                    func.date(Activity.start_time) >= start_of_week,
-                    func.date(Activity.start_time) <= end_of_week,
-                )
-            ).all()
+            if(logged_user_id == user_id):
+                activities = (
+                    db_session.query(Activity)
+                    .filter(
+                        Activity.user_id == user_id,
+                        func.date(Activity.start_time) >= start_of_week,
+                        func.date(Activity.start_time) <= end_of_week,
+                    )
+                    .order_by(desc(Activity.start_time))
+                ).all()
+            else:
+                activities = (
+                    db_session.query(Activity)
+                    .filter(
+                        and_(Activity.user_id == user_id, Activity.visibility.in_([0, 1])),
+                        func.date(Activity.start_time) >= start_of_week,
+                        func.date(Activity.start_time) <= end_of_week,
+                    )
+                    .order_by(desc(Activity.start_time))
+                ).all()
 
     except JWTError:
         raise HTTPException(status_code=401, detail="Unauthorized")
@@ -325,6 +343,38 @@ async def read_activities_useractivities_number(token: str = Depends(oauth2_sche
 
     return {0: activities_count}
 
+@router.get("/activities/followeduseractivities/number")
+async def read_activities_followed_useractivities_number(token: str = Depends(oauth2_scheme)):
+    from . import sessionController
+
+    try:
+        sessionController.validate_token(token)
+        with get_db_session() as db_session:
+            payload = jwt.decode(
+                token, os.environ.get("SECRET_KEY"), algorithms=[os.environ.get("ALGORITHM")]
+            )
+            user_id = payload.get("id")
+
+            # Query the number of activities records for followed users using SQLAlchemy
+            activities_count = (
+                db_session.query(func.count(Activity.id))
+                .join(Follower, Follower.following_id == Activity.user_id)
+                .filter(
+                    and_(
+                        Follower.follower_id == user_id,
+                        Follower.is_accepted == True,
+                    ),
+                    Activity.visibility.in_([0, 1]),
+                )
+                .scalar()
+            )
+
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    except NameError as err:
+        print(err)
+
+    return {0: activities_count}
 
 @router.get(
     "/activities/all/pagenumber/{pageNumber}/numRecords/{numRecords}",
@@ -395,9 +445,64 @@ async def read_activities_useractivities_pagination(
 
     return results
 
+@router.get(
+    "/activities/followeduseractivities/pagenumber/{pageNumber}/numRecords/{numRecords}",
+    response_model=List[dict],
+)
+async def read_activities_followed_user_activities_pagination(
+    pageNumber: int, numRecords: int, token: str = Depends(oauth2_scheme)
+):
+    from . import sessionController
+
+    try:
+        sessionController.validate_token(token)
+        with get_db_session() as db_session:
+            payload = jwt.decode(
+                token, os.environ.get("SECRET_KEY"), algorithms=[os.environ.get("ALGORITHM")]
+            )
+            user_id = payload.get("id")
+
+            # Use SQLAlchemy to query the followed user IDs
+            followed_user_ids = (
+                db_session.query(Follower.following_id)
+                .filter(Follower.follower_id == user_id, Follower.is_accepted == True)
+                .all()
+            )
+
+            # Extract the followed user IDs from the result
+            followed_user_ids = [item[0] for item in followed_user_ids]
+
+            # Use SQLAlchemy to query activities of followed users with pagination
+            activity_records = (
+                db_session.query(Activity)
+                .join(Follower, Follower.following_id == Activity.user_id)
+                .filter(
+                    and_(
+                        Follower.follower_id == user_id,
+                        Follower.is_accepted == True,
+                    ),
+                    Activity.visibility.in_([0, 1]),
+                )
+                .order_by(desc(Activity.start_time))
+                .offset((pageNumber - 1) * numRecords)
+                .limit(numRecords)
+                .options(joinedload(Activity.user))  # Eager load user relationship
+                .all()
+            )
+
+            # Convert the SQLAlchemy results to a list of dictionaries
+            results = [record.__dict__ for record in activity_records]
+
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    except NameError as err:
+        print(err)
+
+    return results
+
 
 # Get gear from id
-@router.get("/activities/{id}/activityfromid", response_model=List[dict])
+@router.get("/activities/{id}", response_model=List[dict])
 async def read_activities_activityFromId(id: int, token: str = Depends(oauth2_scheme)):
     from . import sessionController
 
@@ -412,7 +517,10 @@ async def read_activities_activityFromId(id: int, token: str = Depends(oauth2_sc
             # Use SQLAlchemy to query the gear record by ID
             activity_record = (
                 db_session.query(Activity)
-                .filter(Activity.id == id, Activity.user_id == user_id)
+                .filter(
+                    or_(Activity.user_id == user_id, Activity.visibility.in_([0, 1])),
+                    Activity.id == id,
+                )
                 .first()
             )
 

@@ -13,6 +13,7 @@ from sqlalchemy import (
     ForeignKey,
     DECIMAL,
     BigInteger,
+    Boolean,
 )
 #from dotenv import load_dotenv
 from sqlalchemy.dialects.mysql import JSON
@@ -24,7 +25,6 @@ from contextlib import contextmanager
 logger = logging.getLogger("myLogger")
 
 # Define the database connection URL using environment variables
-# db_url = f"mysql+mysqlconnector://{os.getenv('DB_USER')}:{os.getenv('DB_PASSWORD')}@{os.getenv('DB_HOST')}:{os.getenv('DB_PORT')}/{os.getenv('DB_DATABASE')}"
 db_password = urllib.parse.quote_plus(os.environ.get("DB_PASSWORD"))
 db_url = f"mysql://{os.environ.get('DB_USER')}:{db_password}@{os.environ.get('DB_HOST')}:{os.environ.get('DB_PORT')}/{os.environ.get('DB_DATABASE')}"
 
@@ -37,30 +37,45 @@ Session = sessionmaker(bind=engine)
 # Create a base class for declarative models
 Base = declarative_base()
 
+# Data model for followers table using SQLAlchemy's ORM
+class Follower(Base):
+    __tablename__ = "followers"
+
+    follower_id = Column(Integer, ForeignKey('users.id'), primary_key=True, index=True, comment="ID of the follower user")
+    following_id = Column(Integer, ForeignKey('users.id'), primary_key=True, index=True, comment="ID of the following user")
+    is_accepted = Column(Boolean, nullable=False, default=False, comment="Whether the follow request is accepted or not")
+
+    # Define a relationship to the User model
+    follower = relationship('User', foreign_keys=[follower_id], back_populates="followers")
+    # Define a relationship to the User model
+    following = relationship('User', foreign_keys=[following_id], back_populates="following")
+
 # Data model for users table using SQLAlchemy's ORM
 class User(Base):
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True)
     name = Column(
-        String(length=45), nullable=False, comment="User real name (May include spaces)"
+        String(length=250), nullable=False, comment="User real name (May include spaces)"
     )
     username = Column(
-        String(length=45),
+        String(length=250),
         nullable=False,
         unique=True,
+        index=True,
         comment="User username (letters, numbers, and dots allowed)",
     )
     email = Column(
         String(length=250),
         nullable=False,
         unique=True,
-        comment="User email (max 45 characters)",
+        index=True,
+        comment="User email (max 250 characters)",
     )
     password = Column(
         String(length=100), nullable=False, comment="User password (hash)"
     )
-    city = Column(String(length=45), nullable=True, comment="User city")
+    city = Column(String(length=250), nullable=True, comment="User city")
     birthdate = Column(Date, nullable=True, comment="User birthdate (date)")
     preferred_language = Column(
         String(length=5),
@@ -92,9 +107,12 @@ class User(Base):
     # Establish a one-to-many relationship with 'activities'
     activities = relationship("Activity", back_populates="user")
     # Establish a one-to-many relationship between User and UserSettings
+    # user_settings = relationship("UserSettings", back_populates="user")
 
-
-#  user_settings = relationship("UserSettings", back_populates="user")
+    # Establish a one-to-many relationship between User and Followers
+    followers = relationship("Follower", back_populates="following", cascade="all, delete-orphan", foreign_keys=[Follower.following_id])
+    # Establish a one-to-many relationship between User and Followers
+    following = relationship("Follower", back_populates="follower", cascade="all, delete-orphan", foreign_keys=[Follower.follower_id])
 
 
 # Data model for access_tokens table using SQLAlchemy's ORM
@@ -105,8 +123,9 @@ class AccessToken(Base):
     token = Column(String(length=256), nullable=False, comment="User token")
     user_id = Column(
         Integer,
-        ForeignKey("users.id"),
+        ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
+        index=True,
         comment="User ID that the token belongs",
     )
     created_at = Column(DateTime, nullable=False, comment="Token creation date (date)")
@@ -137,7 +156,7 @@ class Gear(Base):
     )
     user_id = Column(
         Integer,
-        ForeignKey("users.id"),
+        ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
         comment="User ID that the gear belongs to",
     )
@@ -175,12 +194,13 @@ class Activity(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     user_id = Column(
         Integer,
-        ForeignKey("users.id"),
+        ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
+        index=True,
         comment="User ID that the activity belongs",
     )
     name = Column(
-        String(length=45), nullable=True, comment="Activity name (May include spaces)"
+        String(length=250), nullable=True, comment="Activity name (May include spaces)"
     )
     distance = Column(Integer, nullable=False, comment="Distance in meters")
     activity_type = Column(
@@ -193,13 +213,13 @@ class Activity(Base):
     )
     end_time = Column(DateTime, nullable=False, comment="Activity end date (datetime)")
     city = Column(
-        String(length=45), nullable=True, comment="Activity city (May include spaces)"
+        String(length=250), nullable=True, comment="Activity city (May include spaces)"
     )
     town = Column(
-        String(length=45), nullable=True, comment="Activity town (May include spaces)"
+        String(length=250), nullable=True, comment="Activity town (May include spaces)"
     )
     country = Column(
-        String(length=45),
+        String(length=250),
         nullable=True,
         comment="Activity country (May include spaces)",
     )
@@ -220,10 +240,12 @@ class Activity(Base):
         comment="Average speed seconds per meter (s/m)",
     )
     average_power = Column(Integer, nullable=False, comment="Average power (watts)")
+    visibility = Column(Integer, nullable=False, comment="0 - public, 1 - followers, 2 - private")
     gear_id = Column(
         Integer,
-        ForeignKey("gear.id"),
+        ForeignKey("gear.id", ondelete="SET NULL"),
         nullable=True,
+        index=True,
         comment="Gear ID associated with this activity",
     )
     strava_activity_id = Column(BigInteger, nullable=True, comment="Strava activity ID")

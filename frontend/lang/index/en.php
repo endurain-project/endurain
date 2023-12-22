@@ -18,8 +18,10 @@ return [
   "index_sidebar_addActivity_GPXError_-3" => "Invalid GPX file or could not load the file",
   "index_sidebar_addActivity_GPXError_-4" => "Invalid GPX file or could not load the file",
   "index_sidebar_invalidActivity" => "Invalid activity. Activity ID not valid or you might not have access to see it",
+  "index_sidebar_noUsersFound" => "No user found with that username",
   // info banner zone
   "index_sidebar_addActivity_info_searchActivity_NULL" => "Activities not found",
+  "index_sidebar_info_userNotFound" => "User not found",
   // success banner zone
   "index_sidebar_addActivity_success_activityAdded" => "Activity added.",
   "index_sidebar_addActivity_success_activityDeleted" => "Activity deleted.",

@@ -66,7 +66,7 @@ if (isset($_SESSION["preferred_language"])) {
     <nav class="navbar navbar-expand-lg bg-body-tertiary">
         <div class="container-fluid">
             <!--<img src="../img/logo/logo.png" alt="Logo" width="24" height="24" class="rounded-circle d-inline-block align-text-top m-2">-->
-            <img src="../img/logo/logo.png" alt="Logo" width="30" class="d-inline-block align-text-top m-2 rounded-1">
+            <!--<img src="../img/logo/logo.png" alt="Logo" width="30" class="d-inline-block align-text-top m-2 rounded-1">-->
             <a class="navbar-brand" href="../index.php">Endurain</a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNavAltMarkup"
                 aria-controls="navbarNavAltMarkup" aria-expanded="false" aria-label="Toggle navigation">
@@ -75,6 +75,47 @@ if (isset($_SESSION["preferred_language"])) {
             <div class="collapse navbar-collapse" id="navbarNavAltMarkup">
                 <div class="navbar-nav me-auto mb-2 mb-lg-0">
                     <?php if (isLogged()) { ?>
+                        <?php if($page == "index"){ ?>
+                            <a class="nav-link" href="#" role="button" data-bs-toggle="modal" data-bs-target="#searchUserModal"><i class="fa-solid fa-magnifying-glass"></i> <?php echo $translationsTemplateTop['template_top_navbar_search']; ?></a>
+
+                            <!-- Modal add actvity -->
+                            <div class="modal fade" id="searchUserModal" tabindex="-1" aria-labelledby="searchUserModal" aria-hidden="true">
+                                <div class="modal-dialog">
+                                    <div class="modal-content">
+                                        <div class="modal-header">
+                                        <h1 class="modal-title fs-5" id="searchUserModal">
+                                            <?php echo $translationsTemplateTop['template_top_global_searchUserModal_title']; ?>
+                                        </h1>
+                                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                        </div>
+                                        <form action="../index.php?searchUser=1" method="post" enctype="multipart/form-data">
+                                        <div class="modal-body">
+                                            <!-- username search fields -->
+                                            <label for="templateTopSeachUser"><b>* 
+                                                    <?php echo $translationsTemplateTop['template_top_global_searchUserModal_usernameLabel']; ?>
+                                                </b>
+                                            </label>
+                                            <input class="form-control" type="text" name="templateTopSeachUser"
+                                                placeholder="<?php echo $translationsTemplateTop['template_top_global_searchUserModal_usernamePlaceholder']; ?>"
+                                                maxlength="45" value="<?php echo isset($_POST["templateTopSeachUser"]) ? htmlspecialchars($_POST["templateTopSeachUser"]) : ''; ?>">
+                                            <p>*
+                                            <?php echo $translationsTemplateTop['template_top_global_requiredFields']; ?>
+                                            </p>
+                                        </div>
+                                        <div class="modal-footer">
+                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                                            <?php echo $translationsTemplateTop['template_top_global_close']; ?>
+                                            </button>
+                                            <button type="submit" class="btn btn-success" name="searchUser">
+                                            <?php echo $translationsTemplateTop['template_top_global_searchUserModal_title']; ?>
+                                            </button>
+                                        </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        <?php } ?>
+
                         <a class="nav-link <?php if (str_contains($page, "gear")) {
                             echo ("active");
                         } ?>" href="../gear/gears.php"><i class="fa-solid fa-bicycle"></i>
@@ -82,7 +123,7 @@ if (isset($_SESSION["preferred_language"])) {
                         </a>
                     <?php } ?>
                 </div>
-                <div class="navbar-nav d-flex align-baseline">
+                <div class="navbar-nav">
                     <?php if (isLogged()) { ?>
                         <span class="border-top d-sm-none d-block mb-2"></span>
                         <a class="nav-link" href="../users/user.php?userID=<?php echo ($_SESSION["id"]); ?>">
@@ -94,7 +135,7 @@ if (isset($_SESSION["preferred_language"])) {
                                 }
                             } else {
                                 echo ($_SESSION["photo_path"]);
-                            } ?>" alt="userPhoto" width="24" height="24" class="rounded-circle"><span
+                            } ?>" alt="userPhoto" width="24" height="24" class="rounded-circle align-top"><span
                                 class="ms-2">
                                 <?php echo $translationsTemplateTop['template_top_navbar_profile']; ?>
                             </span>

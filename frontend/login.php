@@ -46,7 +46,7 @@ if (isset($_POST["loginUsername"]) && isset($_POST["loginPassword"])) {
     }
 }
 
-#$random_number = mt_rand(1, 2);
+$random_number = mt_rand(1, 2);
 ?>
 
 <?php require_once $_SERVER['DOCUMENT_ROOT'] . "/inc/Template-Top.php" ?>
@@ -92,8 +92,10 @@ if (isset($_POST["loginUsername"]) && isset($_POST["loginPassword"])) {
                                                                     echo ("female1");
                                                                 } else {
                                                                     echo ("male1");
-                                                                } ?>.png" alt="avatar" width="150" height="150">-->
-        <img class="mb-4 rounded-3" src="../img/logo/logo.png" alt="app logo" width="200" height="200">
+                                                                } ?>.png" alt="avatar" width="150" height="150">
+        <img class="mb-4 rounded-3" src="../img/logo/logo.png" alt="app logo" width="200" height="200">-->
+        <h1>Endurain</h1>
+        <p><?php echo $translationsLogin['login_subtitle']; ?></p>
         <br>
 
         <div class="form-floating">
@@ -112,6 +114,11 @@ if (isset($_POST["loginUsername"]) && isset($_POST["loginPassword"])) {
         </div>
         <br>
         <button class="w-100 btn btn-lg btn-primary" type="submit"><?php echo $translationsLogin['login_login']; ?></button>
+        <!--<div>
+            <br>
+            <p><?php echo $translationsLogin['login_signup_text']; ?></p>
+            <button class="w-100 btn btn-lg btn-primary disabled" type="submit"><?php echo $translationsLogin['login_signup_button']; ?></button>
+        </div>-->
     </form>
 </main>
 

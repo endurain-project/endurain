@@ -31,15 +31,28 @@ switch ($_SESSION["preferred_language"]) {
 }
 
 // activities
-$numActivities = 0;
-$activities = [];
-$pageNumberActivities = 1;
+$numUserActivities = 0;
+$numFollowedUserActivities = 0;
+$userActivities = [];
+$pageNumberUserActivities = 1;
+$pageNumberFollowedUserActivities = 1;
 $addActivityAction = -9000;
 $editActivityAction = -9000;
 $deleteActivityAction = -9000;
+$users = [];
 
 // general
 $numRecords = 5;
+
+// search user
+if (isset($_POST["searchUser"]) && (isset($_GET["searchUser"]) && $_GET["searchUser"] == 1)) {
+  $users = getUserFromUsername(urlencode(trim($_POST["templateTopSeachUser"])));
+    if ($users != NULL) {
+      header("Location: ../users/user.php?userID=" . $users[0]["id"]);
+    }else{
+      $users = -3;
+    }
+}
 
 /* Add action */
 if (isset($_POST["addActivity"]) && $_GET["addActivity"] == 1) {
@@ -50,21 +63,20 @@ if (isset($_POST["addActivity"]) && $_GET["addActivity"] == 1) {
 }
 
 if (isset($_GET["pageNumberActivities"])) {
-  $pageNumberActivities = $_GET["pageNumberActivities"];
+  $pageNumberUserActivities = $_GET["pageNumberActivities"];
 }
 
-if (!isset($_POST["activitySearch"])) {
-  $activities = getUserActivitiesPagination($pageNumberActivities, $numRecords);
-  $numActivities = numUserActivities();
-  $total_pages = ceil($numActivities / $numRecords);
-} else {
-  #$activities = getGearFromName(urlencode(trim($_POST["gearNickname"])));
-  #if($activities == NULL){
-  #    $numActivities=0;
-  #}else{
-  #    $numActivities=1;
-  #}
+if (isset($_GET["pageNumberFollowedUserActivities"])) {
+  $pageNumberFollowedUserActivities = $_GET["pageNumberFollowedUserActivities"];
 }
+
+$userActivities = getUserActivitiesPagination($pageNumberUserActivities, $numRecords);
+$numUserActivities = numUserActivities();
+$total_pages_user = ceil($numUserActivities / $numRecords);
+
+$followedUserActivities = getFollowedUserActivitiesPagination($pageNumberFollowedUserActivities, $numRecords);
+$numFollowedUserActivities = numFollowedUserActivities();
+$total_pages_followed = ceil($numFollowedUserActivities / $numRecords);
 
 $thisWeekDistances = getUserActivitiesThisWeekDistances($_SESSION["id"]);
 $thisMonthDistances = getUserActivitiesThisMonthDistances($_SESSION["id"]);
@@ -228,15 +240,15 @@ $thisMonthDistances = getUserActivitiesThisMonthDistances($_SESSION["id"]);
     </div>
     <div class="col">
       <!-- Error banners -->
-      <?php if ($activities == -1 || $activities == -2 || $addActivityAction == -1 || $addActivityAction == -2 || $addActivityAction == -3 || $addActivityAction == -4 || (isset($_GET["invalidActivity"]) && $_GET["invalidActivity"] == 1)) { ?>
+      <?php if ($userActivities == -1 || $userActivities == -2 || $addActivityAction == -1 || $addActivityAction == -2 || $addActivityAction == -3 || $addActivityAction == -4 || (isset($_GET["invalidActivity"]) && $_GET["invalidActivity"] == 1) || $users == -1 || $users == -2 || $users == -3) { ?>
         <div class="alert alert-danger alert-dismissible d-flex align-items-center" role="alert">
           <i class="fa-solid fa-circle-exclamation me-1"></i>
           <div>
-            <?php if ($activities == -1 || $addActivityAction == -1) { ?>
+            <?php if ($userActivities == -1 || $addActivityAction == -1 || $users == -1) { ?>
               API ERROR |
               <?php echo $translationsIndex['index_sidebar_addActivity_API_error_-1']; ?> (-1).
             <?php } else { ?>
-              <?php if ($activities == -2 || $addActivityAction == -2) { ?>
+              <?php if ($userActivities == -2 || $addActivityAction == -2 || $users == -2) { ?>
                 API ERROR |
                 <?php echo $translationsIndex['index_sidebar_addActivity_API_error_-2']; ?> (-2).
               <?php } else { ?>
@@ -246,8 +258,12 @@ $thisMonthDistances = getUserActivitiesThisMonthDistances($_SESSION["id"]);
                   <?php if ($addActivityAction == -4) { ?>
                     <?php echo $translationsIndex['index_sidebar_addActivity_GPXError_-4']; ?> (-4).
                   <?php } else { ?>
-                    <?php if ($_GET["invalidActivity"] == 1) { ?>
+                    <?php if (isset($_GET["invalidActivity"]) && $_GET["invalidActivity"] == 1) { ?>
                       <?php echo $translationsIndex['index_sidebar_invalidActivity']; ?>.
+                    <?php }else{ ?>
+                      <?php if ($users == -3) { ?>
+                        <?php echo $translationsIndex['index_sidebar_noUsersFound']; ?>.
+                      <?php } ?>
                     <?php } ?>
                   <?php } ?>
                 <?php } ?>
@@ -259,12 +275,16 @@ $thisMonthDistances = getUserActivitiesThisMonthDistances($_SESSION["id"]);
       <?php } ?>
 
       <!-- Info banners -->
-      <?php if ($activities == NULL) { ?>
+      <?php if ($userActivities == NULL || (isset($_GET["userNotFound"]) && $_GET["userNotFound"] == 1)) { ?>
         <div class="alert alert-warning alert-dismissible d-flex align-items-center" role="alert">
           <i class="fa-solid fa-triangle-exclamation me-1"></i>
           <div>
-            <?php if ($activities == NULL) { ?>
+            <?php if ($userActivities == NULL) { ?>
               <?php echo $translationsIndex['index_sidebar_addActivity_info_searchActivity_NULL']; ?> (NULL).
+            <?php }else{ ?>
+              <?php if (isset($_GET["userNotFound"]) && $_GET["userNotFound"] == 1) { ?>
+                <?php echo $translationsIndex['index_sidebar_info_userNotFound']; ?>.
+              <?php } ?>
             <?php } ?>
             <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
           </div>
@@ -288,17 +308,17 @@ $thisMonthDistances = getUserActivitiesThisMonthDistances($_SESSION["id"]);
         </div>
       <?php } ?>
 
-      <!--<div class="btn-group mb-3 d-flex" role="group"  aria-label="Activities radio toggle button group">
+      <div class="btn-group mb-3 d-flex" role="group"  aria-label="Activities radio toggle button group">
         <input type="radio" class="btn-check" name="btnradio" id="btnRadioUserActivities" autocomplete="off" checked>
         <label class="btn btn-outline-primary w-100" for="btnRadioUserActivities"><?php echo $translationsIndex['activity_radio_userActivities']; ?></label>
 
         <input type="radio" class="btn-check" name="btnradio" id="btnRadioFollowersActivities" autocomplete="off">
         <label class="btn btn-outline-primary w-100" for="btnRadioFollowersActivities"><?php echo $translationsIndex['activity_radio_followersActivities']; ?></label>
-      </div>-->
+      </div>
 
       <div id="userActivitiesDiv" style="display: block;">
         <!-- user activities list -->
-        <?php foreach ($activities as $activity) { ?>
+        <?php foreach ($userActivities as $activity) { ?>
           <div class="card">
             <div class="card-body">
               <div class="d-flex align-items-center">
@@ -476,30 +496,230 @@ $thisMonthDistances = getUserActivitiesThisMonthDistances($_SESSION["id"]);
           </script>
         <?php } ?>
 
-        <?php if (!isset($_POST["activitySearch"])) { ?>
-          <br>
-          <nav>
-            <ul class="pagination justify-content-center">
-              <li class="page-item <?php if ($pageNumberActivities == 1) {
-                echo "disabled";
-              } ?>"><a class="page-link" href="?pageNumberActivities=1">«</a></li>
-              <?php for ($i = 1; $i <= $total_pages; $i++) { ?>
-                <li class="page-item <?php if ($i == $pageNumberActivities) {
-                  echo "active";
-                } ?>"><a class="page-link" href="?pageNumberActivities=<?php echo ($i); ?>">
-                    <?php echo ($i); ?>
-                  </a></li>
-              <?php } ?>
-              <li class="page-item <?php if ($pageNumberActivities == $total_pages) {
-                echo "disabled";
-              } ?>"><a class="page-link" href="?pageNumberActivities=<?php echo ($total_pages); ?>">»</a></li>
-            </ul>
-          </nav>
-        <?php } ?>
+        <br>
+        <nav>
+          <ul class="pagination justify-content-center">
+            <li class="page-item <?php if ($pageNumberUserActivities == 1) {
+              echo "disabled";
+            } ?>"><a class="page-link" href="?pageNumberActivities=1">«</a></li>
+            <?php for ($i = 1; $i <= $total_pages_user; $i++) { ?>
+              <li class="page-item <?php if ($i == $pageNumberUserActivities) {
+                echo "active";
+              } ?>"><a class="page-link" href="?pageNumberActivities=<?php echo ($i); ?>">
+                  <?php echo ($i); ?>
+                </a></li>
+            <?php } ?>
+            <li class="page-item <?php if ($pageNumberUserActivities == $total_pages_user) {
+              echo "disabled";
+            } ?>"><a class="page-link" href="?pageNumberActivities=<?php echo ($total_pages_user); ?>">»</a></li>
+          </ul>
+        </nav>
       </div>
 
-      <div class="card" id="followersActivitiesDiv" style="display: none;">
+      <div id="followersActivitiesDiv" style="display: none;">
+        <!-- user activities list -->
+        <?php foreach ($followedUserActivities as $activity) { ?>
+          <?php $userActivity = getUserFromId($activity["user_id"]); ?>
+          <div class="card">
+            <div class="card-body">
+              <div class="d-flex align-items-center">
+                <img src=<?php if (is_null($userActivity[0]["photo_path"])) {
+                  if ($userActivity[0]["gender"] == 1) {
+                    echo ("../img/avatar/male1.png");
+                  } else {
+                    echo ("../img/avatar/female1.png");
+                  }
+                } else {
+                  echo ($userActivity[0]["photo_path"]);
+                } ?> alt="userPicture" class="rounded-circle" width="55" height="55">
+                <div class="ms-3 me-3">
+                  <div class="fw-bold">
+                    <a href="users/user.php?userID=<?php echo ($userActivity[0]["id"]); ?>"
+                      class="link-underline-opacity-25 link-underline-opacity-100-hover">
+                      <?php echo ($userActivity[0]["name"]); ?>
+                    </a>
+                    <?php echo " | "; ?>
+                    <a href="activities/activity.php?activityID=<?php echo ($activity["id"]); ?>"
+                      class="link-underline-opacity-25 link-underline-opacity-100-hover">
+                      <?php echo ($activity["name"]); ?>
+                    </a>
+                  </div>
+                  <h7>
+                    <?php if ($activity["activity_type"] == 1) {
+                      echo '<i class="fa-solid fa-person-running"></i>';
+                    } else {
+                      if ($activity["activity_type"] == 4 || $activity["activity_type"] == 5 || $activity["activity_type"] == 6 || $activity["activity_type"] == 8) {
+                        echo '<i class="fa-solid fa-person-biking"></i>';
+                      } else {
+                        if ($activity["activity_type"] == 7) {
+                          echo '<i class="fa-solid fa-person-biking"></i> (Virtual)';
+                        } else {
+                          if ($activity["activity_type"] == 9) {
+                            echo '<i class="fa-solid fa-person-swimming"></i>';
+                          } else {
+                            if ($activity["activity_type"] == 10) {
+                              echo '<i class="fa-solid fa-dumbbell"></i>';
+                            }
+                          }
+                        }
+                      }
+                    } ?>
+                    <?php echo (new DateTime($activity["start_time"]))->format("d/m/y"); ?>@
+                    <?php echo (new DateTime($activity["start_time"]))->format("H:i"); ?>
+                    <?php if (isset($activity["city"]) || isset($activity["country"])) {
+                      echo " - ";
+                    } ?>
+                    <?php if (isset($activity["city"]) && !empty($activity["city"])) {
+                      echo $activity["city"] . ", ";
+                    } ?>
+                    <?php if (isset($activity["country"]) && !empty($activity["country"])) {
+                      echo $activity["country"];
+                    } ?>
+                  </h7>
+                </div>
+              </div>
+              <div class="row d-flex mt-3">
+                <div class="col">
+                  <span class="fw-lighter">
+                    <?php echo $translationsIndex['index_activities_detail_distance']; ?>
+                  </span>
+                  <br>
+                  <?php if ($activity["activity_type"] != 9) { ?>
+                    <?php echo number_format(($activity["distance"] / 1000), 2); ?> km
+                  <?php } else { ?>
+                    <?php echo ($activity["distance"]); ?> m
+                  <?php } ?>
+                </div>
+                <div class="col border-start border-opacity-50">
+                  <span class="fw-lighter">
+                    <?php echo $translationsIndex['index_activities_detail_time']; ?>
+                  </span>
+                  <br>
+                  <?php
+                  #echo $activity["start_time"];
+                  #echo $activity["end_time"];
+                  $startDateTime = DateTime::createFromFormat("Y-m-d\TH:i:s", $activity["start_time"]);
+                  $endDateTime = DateTime::createFromFormat("Y-m-d\TH:i:s", $activity["end_time"]);
+                  $interval = $startDateTime->diff($endDateTime);
 
+                  if ($interval->h < 1) {
+                    // If the difference is less than one hour
+                    echo $interval->i . "m " . $interval->s . "s";
+                  } else {
+                    // If the difference is one hour or more
+                    echo $interval->h . "h " . $interval->i . "m";
+                  }
+                  ?>
+                </div>
+                <div class="col border-start border-opacity-50">
+                  <?php if ($activity["activity_type"] != 9 && $activity["activity_type"] != 1) { ?>
+                    <span class="fw-lighter">
+                      <?php echo $translationsIndex['index_activities_detail_elevation_gain']; ?>
+                    </span>
+                    <br>
+                    <?php echo ($activity["elevation_gain"]); ?> m
+                  <?php } else { ?>
+                    <?php if ($activity["activity_type"] == 1 || $activity["activity_type"] == 2 || $activity["activity_type"] == 3) { ?>
+                      <span class="fw-lighter">
+                        <?php echo $translationsIndex['index_activities_detail_pace']; ?>
+                      </span>
+                      <br>
+                      <?php echo floor(($activity["pace"] * 1000) / 60) . ":" . number_format((((($activity["pace"] * 1000) / 60) - floor(($activity["pace"] * 1000) / 60)) * 60), 0); ?>
+                      min/km
+                    <?php } else { ?>
+                      <?php if ($activity["activity_type"] == 9) { ?>
+                        <span class="fw-lighter">
+                          <?php echo $translationsIndex['index_activities_detail_pace']; ?>
+                        </span>
+                        <br>
+                        <?php echo floor(($activity["pace"] * 100) / 60) . ":" . number_format((((($activity["pace"] * 100) / 60) - floor(($activity["pace"] * 100) / 60)) * 60), 0); ?>
+                        min/km
+                      <?php } ?>
+                    <?php } ?>
+                  <?php } ?>
+                </div>
+              </div>
+            </div>
+            <?php if (isset($activity["waypoints"][0]["lat"])) { ?>
+              <div class="ms-3 me-3 <?php if ($activity['strava_activity_id'] == null) {
+                echo "mb-3";
+              } ?>" id="map_<?php echo $activity['id']; ?>" style="height: 300px"></div>
+            <?php } ?>
+            <?php if ($activity['strava_activity_id'] != null) { ?>
+              <div class="mb-3">
+                <span class="fw-lighter ms-3 me-3">
+                  <?php echo $translationsIndex['index_activities_stravaText1']; ?><a
+                    href="https://www.strava.com/activities/<?php echo $activity['strava_activity_id']; ?>" target="_blank"
+                    rel="noopener noreferrer">
+                    <?php echo $translationsIndex['index_activities_stravaText2']; ?>
+                  </a>
+                </span>
+              </div>
+            <?php } ?>
+          </div>
+          <br>
+          <script>
+            // JavaScript code to create the map for this activity
+            var waypoints = <?php echo json_encode($activity['waypoints']); ?>;
+            var mapId = "map_<?php echo $activity['id']; ?>";
+
+            var map = L.map(mapId, {
+              dragging: false, // Disable panning
+              touchZoom: false, // Disable touch zoom
+              scrollWheelZoom: false, // Disable scroll wheel zoom
+              zoomControl: false // Remove zoom control buttons
+            });
+
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+              maxZoom: 19,
+            }).addTo(map);
+
+            var latlngs = waypoints.map(function (waypoint) {
+              return [waypoint.lat, waypoint.lon];
+            });
+
+            L.polyline(latlngs, {
+              color: 'blue'
+            }).addTo(map);
+
+            // Calculate the bounds of the polyline and fit the map to those bounds
+            var bounds = L.latLngBounds(latlngs);
+            map.fitBounds(bounds);
+
+            // Add green dot for the first waypoint
+            L.marker([waypoints[0].lat, waypoints[0].lon], {
+              icon: L.divIcon({
+                className: 'bg-success dot'
+              })
+            }).addTo(map);
+
+            // Add red dot for the last waypoint
+            L.marker([waypoints[waypoints.length - 1].lat, waypoints[waypoints.length - 1].lon], {
+              icon: L.divIcon({
+                className: 'bg-danger dot'
+              })
+            }).addTo(map);
+          </script>
+        <?php } ?>
+
+        <br>
+        <nav>
+          <ul class="pagination justify-content-center">
+            <li class="page-item <?php if ($pageNumberFollowedUserActivities == 1) {
+              echo "disabled";
+            } ?>"><a class="page-link" href="?$pageNumberFollowedUserActivities=1">«</a></li>
+            <?php for ($i = 1; $i <= $total_pages_followed; $i++) { ?>
+              <li class="page-item <?php if ($i == $pageNumberFollowedUserActivities) {
+                echo "active";
+              } ?>"><a class="page-link" href="?$pageNumberFollowedUserActivities=<?php echo ($i); ?>">
+                  <?php echo ($i); ?>
+                </a></li>
+            <?php } ?>
+            <li class="page-item <?php if ($pageNumberFollowedUserActivities == $total_pages_followed) {
+              echo "disabled";
+            } ?>"><a class="page-link" href="?$pageNumberFollowedUserActivities=<?php echo ($total_pages_followed); ?>">»</a></li>
+          </ul>
+        </nav>
       </div>
 
       <script>
