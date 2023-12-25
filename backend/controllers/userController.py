@@ -5,12 +5,12 @@ from typing import List, Optional
 from jose import JWTError
 import logging
 from datetime import date
-from . import sessionController  # Import your session controller module
+from . import sessionController 
 from db.db import (
     get_db_session,
     User,
     Gear,
-)  # Import your SQLAlchemy User modelfrom db.db import get_db_session, User, AccessToken
+)
 from urllib.parse import unquote
 
 # Create an instance of an APIRouter

@@ -26,8 +26,8 @@ Note: Ensure that environment variables for database configuration are properly 
 this module.
 """
 import os
-import urllib.parse  # Import urllib.parse for URL encoding
 import logging
+import hashlib
 from sqlalchemy.orm import sessionmaker, relationship
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy import (
@@ -42,19 +42,14 @@ from sqlalchemy import (
     BigInteger,
     Boolean,
 )
-#from dotenv import load_dotenv
 from sqlalchemy.dialects.mysql import JSON
 from sqlalchemy.engine.url import URL
 from contextlib import contextmanager
-
-# Load the environment variables from config/.env
-#load_dotenv("config/.env")
+from sqlalchemy.orm.exc import NoResultFound
 
 logger = logging.getLogger("myLogger")
 
 # Define the database connection URL using environment variables
-#db_password = urllib.parse.quote_plus(os.environ.get("DB_PASSWORD"))
-#db_url = f"mysql://{os.environ.get('DB_USER')}:{db_password}@{os.environ.get('DB_HOST')}:{os.environ.get('DB_PORT')}/{os.environ.get('DB_DATABASE')}"
 db_url = URL.create(
     drivername="mysql",
     username=os.environ.get("DB_USER"),
@@ -295,6 +290,40 @@ class Activity(Base):
 def create_database_tables():
     # Create tables
     Base.metadata.create_all(bind=engine)
+
+    # Create a user and add it to the database
+    with get_db_session() as session:
+        try:
+            # Check if the user already exists
+            existing_user = session.query(User).filter_by(username="admin").one()
+            print("Admin user already exists. Will skip user creation.")
+        except NoResultFound:
+            # Create a new SHA-256 hash object
+            sha256_hash = hashlib.sha256()
+
+            # Update the hash object with the bytes of the input string
+            sha256_hash.update("admin".encode('utf-8'))
+
+            # Get the hexadecimal representation of the hash
+            hashed_string = sha256_hash.hexdigest()
+
+            # If the user doesn't exist, create a new user
+            new_user = User(
+                name="Administrator",
+                username="admin",
+                email="admin@example.com",
+                password=hashed_string,
+                preferred_language="en",
+                gender=1,
+                access_type=2,
+                is_active=1,
+            )
+
+            # Add the new user to the session
+            session.add(new_user)
+            session.commit()
+
+            print("Admin user created successfully.")
 
 @contextmanager
 def get_db_session():

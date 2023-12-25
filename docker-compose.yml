@@ -32,7 +32,7 @@ services:
     #volumes:
     #  - <local_path>/endurain/backend:/app
     env_file:
-      - config/.env
+      - .env
     depends_on:
       - mariadb
       - jaeger

@@ -1,9 +1,14 @@
-Endurain is a Strava like service that you can selfhost.
-It uses for the frontend PHP+HTML+basic JS+Bootstrap CSS, for the backend Python FastAPI and stravalib, MariaDB for the database engine and Jaeger for observability basic usage. 
-Docker images are available to deploy the service and you can check "docker-compose.yml" file for an example. Environemnt variables detailed bellow.
+Endurain is a self-hosted fitness tracking service that operates much like Strava but allows users to have complete control over their data and the hosting environment. The application's frontend is built using a combination of PHP, HTML, basic JavaScript, and Bootstrap CSS. On the backend, it leverages Python FastAPI and stravalib for seamless integration with Strava. The MariaDB database engine is employed to efficiently store and manage user data, while Jaeger is used for basic observability.
 
-I'm not a developer by profession (my dev concepts are from university ten years ago) so this work had a lot of help from ChatGPT and the main purpose was to learn new technologies and new concepts, so please be gentle.
-If you have recommendations for any topic please let me know.
+To deploy Endurain, Docker images are readily available, and a comprehensive example can be found in the "docker-compose.yml" file provided. Configuration is facilitated through environment variables, ensuring flexibility and ease of customization.
+
+As a non-professional developer, my journey with Endurain involved learning and implementing new technologies and concepts, with invaluable assistance from ChatGPT. The primary motivation behind this project was to gain hands-on experience and expand my understanding of modern development practices.
+
+If you have any recommendations or insights on improving any aspect of Endurain, whether related to technology choices, user experience, or any other relevant area, I would greatly appreciate your input. The goal is to create a reliable and user-friendly fitness tracking solution that caters to the needs of individuals who prefer self-hosted applications. Your constructive feedback will undoubtedly contribute to the refinement of Endurain.
+
+Default credentials are:
+ - User: admin
+ - Password: admin
 
 Currently the service supports:
  - Multi-user
@@ -20,6 +25,7 @@ Currently the service supports:
  - Add/edit/delete activity gear
  - User page with user stats and user activities per week
  - Follow user basic implementation
+ - Multi-language support, but currently only English is available
 
 To do features (not by order):
  - Retrieve gear from Strava
@@ -48,6 +54,8 @@ Frontend dependencies:
  - https://geocode.maps.co/ for reverse Geocode logic on activity parsing
 ---
 # Backend
+Everytime the backend starts it will check if the user with the username "admin" is created. If not the user is created. Because of this if you want to create another admin user and not use the default one, I suggest to disable the default one. A better approach to this will be assessed in the future.
+
 Table bellow shows supported environemnt variables. Variables marked with optional "No" should be set to avoid errors.
 
 Environemnt variable  | Default value | Optional

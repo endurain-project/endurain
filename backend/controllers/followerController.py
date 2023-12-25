@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.security import OAuth2PasswordBearer
-from . import sessionController  # Import your session controller module
+from . import sessionController
 from jose import JWTError
 from fastapi.responses import JSONResponse
 from db.db import (

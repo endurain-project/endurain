@@ -6,24 +6,19 @@ from typing import List, Optional
 from sqlalchemy import func
 from db.db import get_db_session, Gear
 from jose import jwt, JWTError
-#from dotenv import load_dotenv
 from urllib.parse import unquote
 from pydantic import BaseModel
+from . import sessionController
 
 router = APIRouter()
 
 logger = logging.getLogger("myLogger")
-
-# Load the environment variables from config/.env
-#load_dotenv("config/.env")
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 
 @router.get("/gear/all", response_model=List[dict])
 async def read_gear_all(token: str = Depends(oauth2_scheme)):
-    from . import sessionController
-
     try:
         sessionController.validate_token(token)
         with get_db_session() as db_session:
@@ -53,8 +48,6 @@ async def read_gear_all(token: str = Depends(oauth2_scheme)):
 
 @router.get("/gear/all/running", response_model=List[dict])
 async def read_gear_all_running(token: str = Depends(oauth2_scheme)):
-    from . import sessionController
-
     try:
         sessionController.validate_token(token)
         with get_db_session() as db_session:
@@ -84,8 +77,6 @@ async def read_gear_all_running(token: str = Depends(oauth2_scheme)):
 
 @router.get("/gear/all/cycling", response_model=List[dict])
 async def read_gear_all_cycling(token: str = Depends(oauth2_scheme)):
-    from . import sessionController
-
     try:
         sessionController.validate_token(token)
         with get_db_session() as db_session:
@@ -115,8 +106,6 @@ async def read_gear_all_cycling(token: str = Depends(oauth2_scheme)):
 
 @router.get("/gear/all/swimming", response_model=List[dict])
 async def read_gear_all_swimming(token: str = Depends(oauth2_scheme)):
-    from . import sessionController
-
     try:
         sessionController.validate_token(token)
         with get_db_session() as db_session:
@@ -146,8 +135,6 @@ async def read_gear_all_swimming(token: str = Depends(oauth2_scheme)):
 
 @router.get("/gear/number")
 async def read_gear_number(token: str = Depends(oauth2_scheme)):
-    from . import sessionController
-
     try:
         sessionController.validate_token(token)
         with get_db_session() as db_session:
@@ -178,8 +165,6 @@ async def read_gear_number(token: str = Depends(oauth2_scheme)):
 async def read_gear_all_pagination(
     pageNumber: int, numRecords: int, token: str = Depends(oauth2_scheme)
 ):
-    from . import sessionController
-
     try:
         sessionController.validate_token(token)
         with get_db_session() as db_session:
@@ -213,8 +198,6 @@ async def read_gear_all_pagination(
 async def read_gear_gearFromNickname(
     nickname: str, token: str = Depends(oauth2_scheme)
 ):
-    from . import sessionController
-
     try:
         sessionController.validate_token(token)
         with get_db_session() as db_session:
@@ -249,8 +232,6 @@ async def read_gear_gearFromNickname(
 # Get gear from id
 @router.get("/gear/{id}/gearfromid", response_model=List[dict])
 async def read_gear_gearFromId(id: int, token: str = Depends(oauth2_scheme)):
-    from . import sessionController
-
     try:
         sessionController.validate_token(token)
         with get_db_session() as db_session:
@@ -290,8 +271,6 @@ class CreateGearRequest(BaseModel):
 
 @router.post("/gear/create")
 async def create_gear(gear: CreateGearRequest, token: str = Depends(oauth2_scheme)):
-    from . import sessionController
-
     try:
         sessionController.validate_token(token)
 
@@ -338,8 +317,6 @@ class EditGearRequest(BaseModel):
 async def edit_gear(
     gear_id: int, gear: EditGearRequest, token: str = Depends(oauth2_scheme)
 ):
-    from . import sessionController
-
     try:
         sessionController.validate_token(token)
 
@@ -376,8 +353,6 @@ async def edit_gear(
 async def delete_gear(
     gear_id: int, response: Response, token: str = Depends(oauth2_scheme)
 ):
-    from . import sessionController
-
     try:
         sessionController.validate_token(token)
 

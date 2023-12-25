@@ -1,4 +1,3 @@
-#from dotenv import load_dotenv
 from datetime import datetime, timedelta
 from db.db import get_db_session, User, Activity
 from fastapi import APIRouter, HTTPException, Depends
@@ -11,6 +10,7 @@ from concurrent.futures import ThreadPoolExecutor
 from fastapi import BackgroundTasks
 from opentelemetry import trace
 from urllib.parse import urlencode
+from . import sessionController 
 import logging
 import requests
 import os
@@ -204,8 +204,6 @@ async def strava_set_user_unique_state(state: str, token: str = Depends(oauth2_s
     dict: A dictionary containing a success message if the operation is successful.
           Raises appropriate HTTPExceptions for authentication or database errors.
     """
-    from . import sessionController
-
     try:
         # Validate the user's access token using the oauth2_scheme
         sessionController.validate_token(token)
@@ -260,8 +258,6 @@ async def strava_unset_user_unique_state(token: str = Depends(oauth2_scheme)):
     dict: A dictionary containing a success message if the operation is successful.
           Raises appropriate HTTPExceptions for authentication or database errors.
     """
-    from . import sessionController
-
     try:
         # Validate the user's access token using the oauth2_scheme
         sessionController.validate_token(token)

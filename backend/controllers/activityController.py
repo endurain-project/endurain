@@ -11,6 +11,7 @@ from jose import jwt, JWTError
 #from dotenv import load_dotenv
 from pydantic import BaseModel
 from datetime import datetime, timedelta
+from . import sessionController 
 import calendar
 
 router = APIRouter()
@@ -25,8 +26,6 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 @router.get("/activities/all", response_model=List[dict])
 async def read_activities_all(token: str = Depends(oauth2_scheme)):
-    from . import sessionController
-
     try:
         sessionController.validate_token(token)
         with get_db_session() as db_session:
@@ -48,8 +47,6 @@ async def read_activities_all(token: str = Depends(oauth2_scheme)):
 
 @router.get("/activities/useractivities", response_model=List[dict])
 async def read_activities_useractivities(token: str = Depends(oauth2_scheme)):
-    from . import sessionController
-
     try:
         sessionController.validate_token(token)
         with get_db_session() as db_session:
@@ -80,8 +77,6 @@ async def read_activities_useractivities(token: str = Depends(oauth2_scheme)):
 async def read_activities_useractivities_thismonth_number(
     user_id: int, week_number: int, token: str = Depends(oauth2_scheme)
 ):
-    from . import sessionController
-
     try:
         sessionController.validate_token(token)
 
@@ -130,8 +125,6 @@ async def read_activities_useractivities_thismonth_number(
 async def read_activities_useractivities_thisweek_distances(
     user_id=int, token: str = Depends(oauth2_scheme)
 ):
-    from . import sessionController
-
     try:
         sessionController.validate_token(token)
         with get_db_session() as db_session:
@@ -184,8 +177,6 @@ async def read_activities_useractivities_thisweek_distances(
 async def read_activities_useractivities_thismonth_distances(
     user_id: int, token: str = Depends(oauth2_scheme)
 ):
-    from . import sessionController
-
     try:
         sessionController.validate_token(token)
         with get_db_session() as db_session:
@@ -235,8 +226,6 @@ async def read_activities_useractivities_thismonth_distances(
 async def read_activities_useractivities_thismonth_number(
     user_id: int, token: str = Depends(oauth2_scheme)
 ):
-    from . import sessionController
-
     try:
         sessionController.validate_token(token)
         with get_db_session() as db_session:
@@ -270,8 +259,6 @@ async def read_activities_useractivities_thismonth_number(
 async def read_activities_gearactivities(
     gearID=int, token: str = Depends(oauth2_scheme)
 ):
-    from . import sessionController
-
     try:
         sessionController.validate_token(token)
         with get_db_session() as db_session:
@@ -301,8 +288,6 @@ async def read_activities_gearactivities(
 
 @router.get("/activities/all/number")
 async def read_activities_all_number(token: str = Depends(oauth2_scheme)):
-    from . import sessionController
-
     try:
         sessionController.validate_token(token)
         with get_db_session() as db_session:
@@ -319,8 +304,6 @@ async def read_activities_all_number(token: str = Depends(oauth2_scheme)):
 
 @router.get("/activities/useractivities/number")
 async def read_activities_useractivities_number(token: str = Depends(oauth2_scheme)):
-    from . import sessionController
-
     try:
         sessionController.validate_token(token)
         with get_db_session() as db_session:
@@ -345,8 +328,6 @@ async def read_activities_useractivities_number(token: str = Depends(oauth2_sche
 
 @router.get("/activities/followeduseractivities/number")
 async def read_activities_followed_useractivities_number(token: str = Depends(oauth2_scheme)):
-    from . import sessionController
-
     try:
         sessionController.validate_token(token)
         with get_db_session() as db_session:
@@ -383,8 +364,6 @@ async def read_activities_followed_useractivities_number(token: str = Depends(oa
 async def read_activities_all_pagination(
     pageNumber: int, numRecords: int, token: str = Depends(oauth2_scheme)
 ):
-    from . import sessionController
-
     try:
         sessionController.validate_token(token)
         with get_db_session() as db_session:
@@ -415,8 +394,6 @@ async def read_activities_all_pagination(
 async def read_activities_useractivities_pagination(
     pageNumber: int, numRecords: int, token: str = Depends(oauth2_scheme)
 ):
-    from . import sessionController
-
     try:
         sessionController.validate_token(token)
         with get_db_session() as db_session:
@@ -452,8 +429,6 @@ async def read_activities_useractivities_pagination(
 async def read_activities_followed_user_activities_pagination(
     pageNumber: int, numRecords: int, token: str = Depends(oauth2_scheme)
 ):
-    from . import sessionController
-
     try:
         sessionController.validate_token(token)
         with get_db_session() as db_session:
@@ -504,8 +479,6 @@ async def read_activities_followed_user_activities_pagination(
 # Get gear from id
 @router.get("/activities/{id}", response_model=List[dict])
 async def read_activities_activityFromId(id: int, token: str = Depends(oauth2_scheme)):
-    from . import sessionController
-
     try:
         sessionController.validate_token(token)
         with get_db_session() as db_session:
@@ -542,8 +515,6 @@ async def read_activities_activityFromId(id: int, token: str = Depends(oauth2_sc
 async def activity_add_gear(
     activity_id: int, gear_id: int, token: str = Depends(oauth2_scheme)
 ):
-    from . import sessionController
-
     try:
         sessionController.validate_token(token)
 
@@ -593,8 +564,6 @@ class CreateActivityRequest(BaseModel):
 async def create_activity(
     activity_data: CreateActivityRequest, token: str = Depends(oauth2_scheme)
 ):
-    from . import sessionController
-
     try:
         # Validate the user's token
         sessionController.validate_token(token)
@@ -682,8 +651,6 @@ def parse_timestamp(timestamp_string):
 # Define an HTTP PUT route to delete an activity gear
 @router.put("/activities/{activity_id}/deletegear")
 async def delete_activity_gear(activity_id: int, token: str = Depends(oauth2_scheme)):
-    from . import sessionController
-
     try:
         # Validate the user's access token using the oauth2_scheme
         sessionController.validate_token(token)
@@ -725,8 +692,6 @@ async def delete_activity_gear(activity_id: int, token: str = Depends(oauth2_sch
 
 @router.delete("/activities/{activity_id}/delete")
 async def delete_activity(activity_id: int, token: str = Depends(oauth2_scheme)):
-    from . import sessionController
-
     try:
         sessionController.validate_token(token)
 
