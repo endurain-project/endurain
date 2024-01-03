@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta
-from db.db import get_db_session, User, Activity
+from db.db import User, Activity
 from fastapi import APIRouter, HTTPException, Depends
 from fastapi.responses import RedirectResponse
 from fastapi.security import OAuth2PasswordBearer
@@ -10,7 +10,9 @@ from concurrent.futures import ThreadPoolExecutor
 from fastapi import BackgroundTasks
 from opentelemetry import trace
 from urllib.parse import urlencode
-from . import sessionController 
+from . import sessionController
+from dependencies import get_db_session
+from sqlalchemy.orm import Session
 import logging
 import requests
 import os
@@ -19,15 +21,17 @@ router = APIRouter()
 
 logger = logging.getLogger("myLogger")
 
-# Load the environment variables from config/.env
-#load_dotenv("config/.env")
-
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 
 # Strava route to link user Strava account
 @router.get("/strava/strava-callback")
-async def strava_callback(state: str, code: str, background_tasks: BackgroundTasks):
+async def strava_callback(
+    state: str,
+    code: str,
+    background_tasks: BackgroundTasks,
+    db_session: Session = Depends(get_db_session),
+):
     """
     Callback endpoint for Strava OAuth2 authorization.
 
@@ -63,35 +67,35 @@ async def strava_callback(state: str, code: str, background_tasks: BackgroundTas
 
         tokens = response.json()
 
-        with get_db_session() as db_session:
-            # Query the activities records using SQLAlchemy
-            db_user = db_session.query(User).filter(User.strava_state == state).first()
+        # Query the activities records using SQLAlchemy
+        db_user = db_session.query(User).filter(User.strava_state == state).first()
 
-            if db_user:
-                db_user.strava_token = tokens["access_token"]
-                db_user.strava_refresh_token = tokens["refresh_token"]
-                db_user.strava_token_expires_at = datetime.fromtimestamp(
-                    tokens["expires_at"]
-                )
-                db_session.commit()  # Commit the changes to the database
+        if db_user:
+            db_user.strava_token = tokens["access_token"]
+            db_user.strava_refresh_token = tokens["refresh_token"]
+            db_user.strava_token_expires_at = datetime.fromtimestamp(
+                tokens["expires_at"]
+            )
+            db_session.commit()  # Commit the changes to the database
 
-                # get_strava_activities((datetime.utcnow() - timedelta(days=90)).strftime("%Y-%m-%dT%H:%M:%SZ"))
-                background_tasks.add_task(
-                    get_user_strava_activities,
-                    (
-                        datetime.utcnow()
-                        - timedelta(
-                            days=int(os.environ.get("STRAVA_DAYS_ACTIVITIES_ONLINK"))
-                        )
-                    ).strftime("%Y-%m-%dT%H:%M:%SZ"),
-                    db_user.id,
-                )
+            # get_strava_activities((datetime.utcnow() - timedelta(days=90)).strftime("%Y-%m-%dT%H:%M:%SZ"))
+            background_tasks.add_task(
+                get_user_strava_activities,
+                (
+                    datetime.utcnow()
+                    - timedelta(
+                        days=int(os.environ.get("STRAVA_DAYS_ACTIVITIES_ONLINK"))
+                    )
+                ).strftime("%Y-%m-%dT%H:%M:%SZ"),
+                db_user.id,
+                db_session,
+            )
 
-                # Redirect to the main page or any other desired page after processing
-                redirect_url = "https://gearguardian.jvslab.pt/settings/settings.php?profileSettings=1&stravaLinked=1"  # Change this URL to your main page
-                return RedirectResponse(url=redirect_url)
-            else:
-                raise HTTPException(status_code=404, detail="User not found.")
+            # Redirect to the main page or any other desired page after processing
+            redirect_url = "https://gearguardian.jvslab.pt/settings/settings.php?profileSettings=1&stravaLinked=1"  # Change this URL to your main page
+            return RedirectResponse(url=redirect_url)
+        else:
+            raise HTTPException(status_code=404, detail="User not found.")
 
     except JWTError:
         raise HTTPException(status_code=401, detail="Unauthorized")
@@ -100,7 +104,7 @@ async def strava_callback(state: str, code: str, background_tasks: BackgroundTas
 
 
 # Strava logic to refresh user Strava account refresh account
-def refresh_strava_token():
+def refresh_strava_token(db_session: Session):
     """
     Refresh Strava access tokens for all users.
 
@@ -124,71 +128,70 @@ def refresh_strava_token():
         token_url = "https://www.strava.com/oauth/token"
 
         try:
-            with get_db_session() as db_session:
-                # Query all users from the database
-                users = db_session.query(User).all()
+            # Query all users from the database
+            users = db_session.query(User).all()
 
-                for user in users:
-                    # expires_at = user.strava_token_expires_at
-                    if user.strava_token_expires_at is not None:
-                        refresh_time = user.strava_token_expires_at - timedelta(
-                            minutes=60
-                        )
+            for user in users:
+                # expires_at = user.strava_token_expires_at
+                if user.strava_token_expires_at is not None:
+                    refresh_time = user.strava_token_expires_at - timedelta(minutes=60)
 
-                        if datetime.utcnow() > refresh_time:
-                            # Parameters for the token refresh request
-                            payload = {
-                                "client_id": os.environ.get("STRAVA_CLIENT_ID"),
-                                "client_secret": os.environ.get("STRAVA_CLIENT_SECRET"),
-                                "refresh_token": user.strava_refresh_token,
-                                "grant_type": "refresh_token",
-                            }
+                    if datetime.utcnow() > refresh_time:
+                        # Parameters for the token refresh request
+                        payload = {
+                            "client_id": os.environ.get("STRAVA_CLIENT_ID"),
+                            "client_secret": os.environ.get("STRAVA_CLIENT_SECRET"),
+                            "refresh_token": user.strava_refresh_token,
+                            "grant_type": "refresh_token",
+                        }
 
-                            try:
-                                # Make a POST request to refresh the Strava token
-                                response = requests.post(token_url, data=payload)
-                                response.raise_for_status()  # Raise an error for bad responses
+                        try:
+                            # Make a POST request to refresh the Strava token
+                            response = requests.post(token_url, data=payload)
+                            response.raise_for_status()  # Raise an error for bad responses
 
-                                tokens = response.json()
+                            tokens = response.json()
 
-                                # Update the user in the database
-                                db_user = (
-                                    db_session.query(User)
-                                    .filter(User.id == user.id)
-                                    .first()
+                            # Update the user in the database
+                            db_user = (
+                                db_session.query(User)
+                                .filter(User.id == user.id)
+                                .first()
+                            )
+
+                            if db_user:
+                                db_user.strava_token = tokens["access_token"]
+                                db_user.strava_refresh_token = tokens["refresh_token"]
+                                db_user.strava_token_expires_at = (
+                                    datetime.fromtimestamp(tokens["expires_at"])
                                 )
-
-                                if db_user:
-                                    db_user.strava_token = tokens["access_token"]
-                                    db_user.strava_refresh_token = tokens[
-                                        "refresh_token"
-                                    ]
-                                    db_user.strava_token_expires_at = (
-                                        datetime.fromtimestamp(tokens["expires_at"])
-                                    )
-                                    db_session.commit()  # Commit the changes to the database
-                                    logger.info(
-                                        f"Token refreshed successfully for user {user.id}."
-                                    )
-                                else:
-                                    logger.error("User not found in the database.")
-                            except requests.exceptions.RequestException as req_err:
-                                logger.error(
-                                    f"Error refreshing token for user {user.id}: {req_err}"
+                                db_session.commit()  # Commit the changes to the database
+                                logger.info(
+                                    f"Token refreshed successfully for user {user.id}."
                                 )
-                        else:
-                            logger.info(
-                                f"Token not refreshed for user {user.id}. Will not expire in less than 60min"
+                            else:
+                                logger.error("User not found in the database.")
+                        except requests.exceptions.RequestException as req_err:
+                            logger.error(
+                                f"Error refreshing token for user {user.id}: {req_err}"
                             )
                     else:
-                        logger.info(f"User {user.id} does not have strava linked")
+                        logger.info(
+                            f"Token not refreshed for user {user.id}. Will not expire in less than 60min"
+                        )
+                else:
+                    logger.info(f"User {user.id} does not have strava linked")
         except NameError as db_err:
             logger.error(f"Database error: {db_err}")
 
 
 # Define an HTTP PUT route set strava unique state for link logic
 @router.put("/strava/set-user-unique-state/{state}")
-async def strava_set_user_unique_state(state: str, token: str = Depends(oauth2_scheme)):
+async def strava_set_user_unique_state(
+    state: str,
+    token: str = Depends(oauth2_scheme),
+    db_session: Session = Depends(get_db_session),
+):
     """
     Set the Strava unique state for a user.
 
@@ -208,25 +211,21 @@ async def strava_set_user_unique_state(state: str, token: str = Depends(oauth2_s
         # Validate the user's access token using the oauth2_scheme
         sessionController.validate_token(token)
 
-        with get_db_session() as db_session:
-            # From the token retrieve the user_id
-            payload = jwt.decode(
-                token, os.environ.get("SECRET_KEY"), algorithms=[os.environ.get("ALGORITHM")]
-            )
-            user_id = payload.get("id")
+        # Get the user ID from the token
+        user_id = sessionController.get_user_id_from_token(token)
 
-            # Query the database to find the user by their ID
-            user = db_session.query(User).filter(User.id == user_id).first()
+        # Query the database to find the user by their ID
+        user = db_session.query(User).filter(User.id == user_id).first()
 
-            # Check if the user with the given ID exists
-            if not user:
-                raise HTTPException(status_code=404, detail="User not found")
+        # Check if the user with the given ID exists
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
 
-            # Set the user's photo paths to None to delete the photo
-            user.strava_state = state
+        # Set the user's photo paths to None to delete the photo
+        user.strava_state = state
 
-            # Commit the changes to the database
-            db_session.commit()
+        # Commit the changes to the database
+        db_session.commit()
     except JWTError:
         # Handle JWT (JSON Web Token) authentication error
         raise HTTPException(status_code=401, detail="Unauthorized")
@@ -243,7 +242,9 @@ async def strava_set_user_unique_state(state: str, token: str = Depends(oauth2_s
 
 # Define an HTTP PUT route set strava unique state for link logic
 @router.put("/strava/unset-user-unique-state")
-async def strava_unset_user_unique_state(token: str = Depends(oauth2_scheme)):
+async def strava_unset_user_unique_state(
+    token: str = Depends(oauth2_scheme), db_session: Session = Depends(get_db_session)
+):
     """
     Unset the Strava unique state for a user.
 
@@ -262,25 +263,21 @@ async def strava_unset_user_unique_state(token: str = Depends(oauth2_scheme)):
         # Validate the user's access token using the oauth2_scheme
         sessionController.validate_token(token)
 
-        with get_db_session() as db_session:
-            # From the token retrieve the user_id
-            payload = jwt.decode(
-                token, os.environ.get("SECRET_KEY"), algorithms=[os.environ.get("ALGORITHM")]
-            )
-            user_id = payload.get("id")
+        # Get the user ID from the token
+        user_id = sessionController.get_user_id_from_token(token)
 
-            # Query the database to find the user by their ID
-            user = db_session.query(User).filter(User.id == user_id).first()
+        # Query the database to find the user by their ID
+        user = db_session.query(User).filter(User.id == user_id).first()
 
-            # Check if the user with the given ID exists
-            if not user:
-                raise HTTPException(status_code=404, detail="User not found")
+        # Check if the user with the given ID exists
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
 
-            # Set the user's photo paths to None to delete the photo
-            user.strava_state = None
+        # Set the user's photo paths to None to delete the photo
+        user.strava_state = None
 
-            # Commit the changes to the database
-            db_session.commit()
+        # Commit the changes to the database
+        db_session.commit()
     except JWTError:
         # Handle JWT (JSON Web Token) authentication error
         raise HTTPException(status_code=401, detail="Unauthorized")
@@ -295,7 +292,7 @@ async def strava_unset_user_unique_state(token: str = Depends(oauth2_scheme)):
     return {"message": f"Strava state for user {user_id} has been updated"}
 
 
-def get_strava_activities(start_date: datetime):
+def get_strava_activities(start_date: datetime, db_session: Session):
     """
     Retrieve and process Strava activities for all users in the database.
 
@@ -314,128 +311,21 @@ def get_strava_activities(start_date: datetime):
 
     with tracer.start_as_current_span("get_strava_activities"):
         try:
-            with get_db_session() as db_session:
-                # Query all users from the database
-                users = db_session.query(User).all()
+            # Query all users from the database
+            users = db_session.query(User).all()
 
-                for user in users:
-                    if user.strava_token_expires_at is not None:
-                        # Log an informational event for tracing
-                        trace.get_current_span().add_event(
-                            "InfoEvent",
-                            {
-                                "message": f"User {user.id}: Started periodic activities processing"
-                            },
-                        )
-
-                        # Create a Strava client with the user's access token
-                        stravaClient = Client(access_token=user.strava_token)
-
-                        # Fetch Strava activities after the specified start date
-                        strava_activities = list(
-                            stravaClient.get_activities(after=start_date)
-                        )
-
-                        if strava_activities:
-                            # Initialize an empty list for results
-                            all_results = []
-
-                            # Use ThreadPoolExecutor for parallel processing of activities
-                            with ThreadPoolExecutor() as executor:
-                                results = list(
-                                    executor.map(
-                                        lambda activity: process_activity(
-                                            activity, user.id, stravaClient
-                                        ),
-                                        strava_activities,
-                                    )
-                                )
-
-                                # Append non-empty and non-None results to the overall results list
-                                all_results.extend(results)
-
-                            # Flatten the list of results
-                            activities_to_insert = [
-                                activity
-                                for sublist in all_results
-                                for activity in sublist
-                            ]
-
-                            # Bulk insert all activities into the database
-                            with get_db_session() as db_session:
-                                db_session.bulk_save_objects(activities_to_insert)
-                                db_session.commit()
-
-                            # Log an informational event for tracing
-                            trace.get_current_span().add_event(
-                                "InfoEvent",
-                                {
-                                    "message": f"User {user.id}: {len(strava_activities)} periodic activities processed"
-                                },
-                            )
-
-                        else:
-                            # Log an informational event if no activities were found
-                            trace.get_current_span().add_event(
-                                "InfoEvent",
-                                {
-                                    "message": f"User {user.id}: No new activities found after {start_date}"
-                                },
-                            )
-
-                    else:
-                        # Log an informational event if the user does not have Strava linked
-                        logger.info(f"User {user.id} does not have Strava linked")
-                        trace.get_current_span().add_event(
-                            "InfoEvent",
-                            {"message": f"User {user.id} does not have Strava linked"},
-                        )
-        except NameError as db_err:
-            # Log an error event if a NameError occurs (e.g., undefined function or variable)
-            logger.error(f"Database error: {db_err}")
-            trace.get_current_span().add_event(
-                "ErrorEvent",
-                {"message": f"Database error: {db_err}"},
-            )
-
-
-def get_user_strava_activities(start_date: datetime, user_id: int):
-    """
-    Retrieve Strava activities for a user, process them, and store in the database.
-
-    This function fetches Strava activities for a specified user after a given start date.
-    It processes the activities using parallel execution, creates corresponding database
-    records, and bulk inserts them into the database.
-
-    Parameters:
-    - start_date (datetime): The start date for retrieving Strava activities.
-    - user_id (int): The ID of the user for whom activities are to be processed.
-
-    Returns:
-    None
-    """
-
-    # Get the tracer from the main module
-    tracer = trace.get_tracer(__name__)
-
-    with tracer.start_as_current_span("get_user_strava_activities"):
-        with get_db_session() as db_session:
-            # Query user from the database
-            db_user = db_session.query(User).get(user_id)
-
-            # Check if db returned an user object and variable is set
-            if db_user:
-                if db_user.strava_token_expires_at is not None:
+            for user in users:
+                if user.strava_token_expires_at is not None:
                     # Log an informational event for tracing
                     trace.get_current_span().add_event(
                         "InfoEvent",
                         {
-                            "message": f"User {db_user.id}: Started initial activities processing"
+                            "message": f"User {user.id}: Started periodic activities processing"
                         },
                     )
 
                     # Create a Strava client with the user's access token
-                    stravaClient = Client(access_token=db_user.strava_token)
+                    stravaClient = Client(access_token=user.strava_token)
 
                     # Fetch Strava activities after the specified start date
                     strava_activities = list(
@@ -451,7 +341,7 @@ def get_user_strava_activities(start_date: datetime, user_id: int):
                             results = list(
                                 executor.map(
                                     lambda activity: process_activity(
-                                        activity, db_user.id, stravaClient
+                                        activity, user.id, stravaClient, db_session
                                     ),
                                     strava_activities,
                                 )
@@ -474,7 +364,7 @@ def get_user_strava_activities(start_date: datetime, user_id: int):
                         trace.get_current_span().add_event(
                             "InfoEvent",
                             {
-                                "message": f"User {db_user.id}: {len(strava_activities)} initial activities processed"
+                                "message": f"User {user.id}: {len(strava_activities)} periodic activities processed"
                             },
                         )
 
@@ -483,28 +373,129 @@ def get_user_strava_activities(start_date: datetime, user_id: int):
                         trace.get_current_span().add_event(
                             "InfoEvent",
                             {
-                                "message": f"User {db_user.id}: No new activities found after {start_date}"
+                                "message": f"User {user.id}: No new activities found after {start_date}"
                             },
                         )
 
                 else:
                     # Log an informational event if the user does not have Strava linked
-                    logger.info(f"User {db_user.id} does not have Strava linked")
+                    logger.info(f"User {user.id} does not have Strava linked")
                     trace.get_current_span().add_event(
                         "InfoEvent",
-                        {"message": f"User {db_user.id} does not have Strava linked"},
+                        {"message": f"User {user.id} does not have Strava linked"},
+                    )
+        except NameError as db_err:
+            # Log an error event if a NameError occurs (e.g., undefined function or variable)
+            logger.error(f"Database error: {db_err}")
+            trace.get_current_span().add_event(
+                "ErrorEvent",
+                {"message": f"Database error: {db_err}"},
+            )
+
+
+def get_user_strava_activities(start_date: datetime, user_id: int, db_session: Session):
+    """
+    Retrieve Strava activities for a user, process them, and store in the database.
+
+    This function fetches Strava activities for a specified user after a given start date.
+    It processes the activities using parallel execution, creates corresponding database
+    records, and bulk inserts them into the database.
+
+    Parameters:
+    - start_date (datetime): The start date for retrieving Strava activities.
+    - user_id (int): The ID of the user for whom activities are to be processed.
+
+    Returns:
+    None
+    """
+
+    # Get the tracer from the main module
+    tracer = trace.get_tracer(__name__)
+
+    with tracer.start_as_current_span("get_user_strava_activities"):
+        # Query user from the database
+        db_user = db_session.query(User).get(user_id)
+
+        # Check if db returned an user object and variable is set
+        if db_user:
+            if db_user.strava_token_expires_at is not None:
+                # Log an informational event for tracing
+                trace.get_current_span().add_event(
+                    "InfoEvent",
+                    {
+                        "message": f"User {db_user.id}: Started initial activities processing"
+                    },
+                )
+
+                # Create a Strava client with the user's access token
+                stravaClient = Client(access_token=db_user.strava_token)
+
+                # Fetch Strava activities after the specified start date
+                strava_activities = list(stravaClient.get_activities(after=start_date))
+
+                if strava_activities:
+                    # Initialize an empty list for results
+                    all_results = []
+
+                    # Use ThreadPoolExecutor for parallel processing of activities
+                    with ThreadPoolExecutor() as executor:
+                        results = list(
+                            executor.map(
+                                lambda activity: process_activity(
+                                    activity, db_user.id, stravaClient, db_session
+                                ),
+                                strava_activities,
+                            )
+                        )
+
+                        # Append non-empty and non-None results to the overall results list
+                        all_results.extend(results)
+
+                    # Flatten the list of results
+                    activities_to_insert = [
+                        activity for sublist in all_results for activity in sublist
+                    ]
+
+                    # Bulk insert all activities into the database
+                    with get_db_session() as db_session:
+                        db_session.bulk_save_objects(activities_to_insert)
+                        db_session.commit()
+
+                    # Log an informational event for tracing
+                    trace.get_current_span().add_event(
+                        "InfoEvent",
+                        {
+                            "message": f"User {db_user.id}: {len(strava_activities)} initial activities processed"
+                        },
+                    )
+
+                else:
+                    # Log an informational event if no activities were found
+                    trace.get_current_span().add_event(
+                        "InfoEvent",
+                        {
+                            "message": f"User {db_user.id}: No new activities found after {start_date}"
+                        },
                     )
 
             else:
-                # Log an informational event if the user is not found
-                logger.info(f"User with ID {user_id} not found.")
+                # Log an informational event if the user does not have Strava linked
+                logger.info(f"User {db_user.id} does not have Strava linked")
                 trace.get_current_span().add_event(
                     "InfoEvent",
-                    {"message": f"User with ID {user_id} not found"},
+                    {"message": f"User {db_user.id} does not have Strava linked"},
                 )
 
+        else:
+            # Log an informational event if the user is not found
+            logger.info(f"User with ID {user_id} not found.")
+            trace.get_current_span().add_event(
+                "InfoEvent",
+                {"message": f"User with ID {user_id} not found"},
+            )
 
-def process_activity(activity, user_id, stravaClient):
+
+def process_activity(activity, user_id, stravaClient, db_session: Session):
     """
     Process a Strava activity and create a corresponding database record.
 
@@ -527,17 +518,16 @@ def process_activity(activity, user_id, stravaClient):
     with tracer.start_as_current_span("process_activity"):
         activities_to_insert = []
 
-        with get_db_session() as db_session:
-            # Check if the activity already exists in the database
-            activity_record = (
-                db_session.query(Activity)
-                .filter(Activity.strava_activity_id == activity.id)
-                .first()
-            )
+        # Check if the activity already exists in the database
+        activity_record = (
+            db_session.query(Activity)
+            .filter(Activity.strava_activity_id == activity.id)
+            .first()
+        )
 
-            if activity_record:
-                # Skip existing activities
-                return activities_to_insert
+        if activity_record:
+            # Skip existing activities
+            return activities_to_insert
 
         # Parse start and end dates
         start_date_parsed = activity.start_date

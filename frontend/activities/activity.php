@@ -102,13 +102,13 @@ if ($activity[0]["gear_id"] != null) {
 }
 
 if ($activity[0]["activity_type"] == 1 || $activity[0]["activity_type"] == 2 || $activity[0]["activity_type"] == 3) {
-    $activityGearOptions = getGearForRunning();
+    $activityGearOptions = getGearFromType(2);
 } else {
     if ($activity[0]["activity_type"] == 4 || $activity[0]["activity_type"] == 5 || $activity[0]["activity_type"] == 6 || $activity[0]["activity_type"] == 7 || $activity[0]["activity_type"] == 8) {
-        $activityGearOptions = getGearForCycling();
+        $activityGearOptions = getGearFromType(1);
     } else {
         if ($activity[0]["activity_type"] == 9) {
-            $activityGearOptions = getGearForSwimming();
+            $activityGearOptions = getGearFromType(3);
         }
     }
 }

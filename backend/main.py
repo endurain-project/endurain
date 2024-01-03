@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends
 from apscheduler.schedulers.background import BackgroundScheduler
 from controllers import (
     sessionController,
@@ -23,7 +23,9 @@ from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 import os
-from db.db import create_database_tables, get_db_session
+from db.db import create_database_tables
+from dependencies import get_db_session
+
 
 # from dotenv import load_dotenv
 import logging
@@ -60,13 +62,19 @@ logger.addHandler(file_handler)
 
 # trace.set_tracer_provider(TracerProvider(resource=Resource.create().add_attribute("service.name", "backend_api")))
 
-if(os.environ.get("JAEGER_ENABLED") == "true"):
+if os.environ.get("JAEGER_ENABLED") == "true":
     trace.set_tracer_provider(
         TracerProvider(resource=Resource.create({"service.name": "backend_api"}))
     )
     trace.get_tracer_provider().add_span_processor(
         BatchSpanProcessor(
-            OTLPSpanExporter(endpoint=os.environ.get("JAEGER_PROTOCOL") + "://" + os.environ.get("JAEGER_HOST") + ":" + os.environ.get("JAGGER_PORT"))
+            OTLPSpanExporter(
+                endpoint=os.environ.get("JAEGER_PROTOCOL")
+                + "://"
+                + os.environ.get("JAEGER_HOST")
+                + ":"
+                + os.environ.get("JAGGER_PORT")
+            )
         )
     )
 
@@ -86,12 +94,25 @@ app.include_router(stravaController.router)
 scheduler = BackgroundScheduler()
 scheduler.start()
 
-# Remove the leading space
-scheduler.add_job(sessionController.remove_expired_tokens, "interval", minutes=5)
-scheduler.add_job(stravaController.refresh_strava_token, "interval", minutes=30)
+# Job to remove expired tokens every 5 minutes
+scheduler.add_job(
+    lambda: sessionController.remove_expired_tokens(db_session=get_db_session()),
+    "interval",
+    minutes=5,
+)
+
+# Job to refresh the Strava token every 30 minutes
+scheduler.add_job(
+    lambda: stravaController.refresh_strava_token(db_session=get_db_session()),
+    "interval",
+    minutes=30,
+)
+
+# Job to get Strava activities every hour
 scheduler.add_job(
     lambda: stravaController.get_strava_activities(
-        (datetime.utcnow() - timedelta(days=1)).strftime("%Y-%m-%dT%H:%M:%SZ")
+        (datetime.utcnow() - timedelta(days=1)).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        db_session=get_db_session(),
     ),
     "interval",
     minutes=60,
@@ -101,8 +122,7 @@ scheduler.add_job(
 @app.on_event("startup")
 async def startup_event():
     # Create the database and tables if they don't exist
-    with get_db_session() as session:
-        create_database_tables()
+    create_database_tables()
 
 
 # Add the background scheduler to the app's shutdown event

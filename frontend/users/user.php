@@ -185,7 +185,7 @@ $userFollowingAll = getUserFollowingAll($_GET["userID"]);
                     <?php echo $translationsUsersUser['user_stats_numberActivitiesMonth']; ?>
                 </span>
                 <h1>
-                    <?php echo $numUserActivitiesThisMonth["activity_count"]; ?>
+                    <?php echo $numUserActivitiesThisMonth; ?>
                 </h1>
                 <!--<hr class="mb-2 mt-2">-->
                 <div class="row align-items-center">
