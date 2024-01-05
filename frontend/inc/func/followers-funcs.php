@@ -10,7 +10,7 @@ function getStatusUserFollowsSpecificUser($user_id)
         return -1;
     } else {
         if ($response[1] === 200) {
-            return json_decode($response[0], true);
+            return json_decode($response[0], true)["content"];
         } else {
             return -2;
         }
@@ -25,7 +25,7 @@ function getUserFollowersCountAll($user_id)
         return -1;
     } else {
         if ($response[1] === 200) {
-            return json_decode($response[0], true);
+            return json_decode($response[0], true)["content"];
         } else {
             return -2;
         }
@@ -40,7 +40,7 @@ function getUserFollowersCount($user_id)
         return -1;
     } else {
         if ($response[1] === 200) {
-            return json_decode($response[0], true);
+            return json_decode($response[0], true)["content"];
         } else {
             return -2;
         }
@@ -55,7 +55,7 @@ function getUserFollowersAll($user_id)
         return -1;
     } else {
         if ($response[1] === 200) {
-            return json_decode($response[0], true);
+            return json_decode($response[0], true)["content"];
         } else {
             return -2;
         }
@@ -70,7 +70,7 @@ function getUserFollowingCountAll($user_id)
         return -1;
     } else {
         if ($response[1] === 200) {
-            return json_decode($response[0], true);
+            return json_decode($response[0], true)["content"];
         } else {
             return -2;
         }
@@ -85,7 +85,7 @@ function getUserFollowingCount($user_id)
         return -1;
     } else {
         if ($response[1] === 200) {
-            return json_decode($response[0], true);
+            return json_decode($response[0], true)["content"];
         } else {
             return -2;
         }
@@ -100,7 +100,7 @@ function getUserFollowingAll($user_id)
         return -1;
     } else {
         if ($response[1] === 200) {
-            return json_decode($response[0], true);
+            return json_decode($response[0], true)["content"];
         } else {
             return -2;
         }

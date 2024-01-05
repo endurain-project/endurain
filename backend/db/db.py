@@ -340,6 +340,7 @@ def create_database_tables():
             # Check if the user already exists
             session.query(User).filter_by(username="admin").one()
             print("Admin user already exists. Will skip user creation.")
+            logger.info("Admin user already exists. Will skip user creation.")
         except NoResultFound:
             # Create a new SHA-256 hash object
             sha256_hash = hashlib.sha256()

@@ -224,7 +224,7 @@ async def read_activities_all(
 
         # Return the queried values using JSONResponse
         return JSONResponse(
-            content={"metadata": metadata, "activity_records": activity_records_dict}
+            content={"metadata": metadata, "content": activity_records_dict}
         )
 
     except JWTError:
@@ -276,7 +276,7 @@ async def read_activities_useractivities(
 
         # Return the queried values using JSONResponse
         return JSONResponse(
-            content={"metadata": metadata, "activity_records": activity_records_dict}
+            content={"metadata": metadata, "content": activity_records_dict}
         )
 
     except JWTError:
@@ -351,7 +351,7 @@ async def read_activities_useractivities_thisweek_number(
 
         # Return the queried values using JSONResponse
         return JSONResponse(
-            content={"metadata": metadata, "activity_records": activity_records_dict}
+            content={"metadata": metadata, "content": activity_records_dict}
         )
 
     except JWTError:
@@ -542,7 +542,7 @@ async def read_activities_useractivities_thismonth_number(
 
         # Return the queried values using JSONResponse
         return JSONResponse(
-            content={"metadata": metadata, "activity_count": activity_count}
+            content={"metadata": metadata, "content": activity_count}
         )
 
     except JWTError:
@@ -599,7 +599,7 @@ async def read_activities_gearactivities(
 
         # Return the queried values using JSONResponse
         return JSONResponse(
-            content={"metadata": metadata, "activity_records": activity_records_dict}
+            content={"metadata": metadata, "content": activity_records_dict}
         )
 
     except JWTError:
@@ -643,7 +643,7 @@ async def read_activities_all_number(
 
         # Return the queried values using JSONResponse
         return JSONResponse(
-            content={"metadata": metadata, "activity_count": activity_count}
+            content={"metadata": metadata, "content": activity_count}
         )
 
     except JWTError:
@@ -689,7 +689,7 @@ async def read_activities_useractivities_number(
 
         # Return the queried values using JSONResponse
         return JSONResponse(
-            content={"metadata": metadata, "activity_count": activity_count}
+            content={"metadata": metadata, "content": activity_count}
         )
 
     except JWTError:
@@ -744,7 +744,7 @@ async def read_activities_followed_useractivities_number(
 
         # Return the queried values using JSONResponse
         return JSONResponse(
-            content={"metadata": metadata, "activity_count": activity_count}
+            content={"metadata": metadata, "content": activity_count}
         )
 
     except JWTError:
@@ -814,7 +814,7 @@ async def read_activities_all_pagination(
 
         # Return the queried values using JSONResponse
         return JSONResponse(
-            content={"metadata": metadata, "activity_records": activity_records_dict}
+            content={"metadata": metadata, "content": activity_records_dict}
         )
 
     except JWTError:
@@ -879,7 +879,7 @@ async def read_activities_useractivities_pagination(
 
         # Return the queried values using JSONResponse
         return JSONResponse(
-            content={"metadata": metadata, "activity_records": activity_records_dict}
+            content={"metadata": metadata, "content": activity_records_dict}
         )
 
     except JWTError:
@@ -954,7 +954,7 @@ async def read_activities_followed_user_activities_pagination(
 
         # Return the queried values using JSONResponse
         return JSONResponse(
-            content={"metadata": metadata, "activity_records": activity_records_dict}
+            content={"metadata": metadata, "content": activity_records_dict}
         )
 
     except JWTError:
@@ -1020,7 +1020,7 @@ async def read_activities_activityFromId(
 
         # Return the queried values using JSONResponse
         return JSONResponse(
-            content={"metadata": metadata, "activity_records": activity_records_dict}
+            content={"metadata": metadata, "content": activity_records_dict}
         )
 
     except JWTError:
@@ -1079,9 +1079,7 @@ async def activity_add_gear(
             )
         else:
             # Return a 404 response if the activity with the given ID does not exist
-            return JSONResponse(
-                content={"message": "Activity not found"}, status_code=404
-            )
+            return create_error_response("NOT_FOUND", "Activity not found", 404)
 
     except JWTError:
         # Return an error response if the user is not authenticated
@@ -1233,10 +1231,7 @@ async def delete_activity_gear(
         # Check if the user with the given ID exists
         if not activity:
             # Return a 404 response if the user with the given ID does not exist
-            return JSONResponse(
-                content={"message": "Activity not found"},
-                status_code=404,
-            )
+            return create_error_response("NOT_FOUND", "Activity not found", 404)
 
         # Set the user's photo paths to None to delete the photo
         activity.gear_id = None
@@ -1304,10 +1299,7 @@ async def delete_activity(
             )
         else:
             # Return a 404 response if the gear with the given ID does not exist
-            return JSONResponse(
-                content={"message": "Activity not found"},
-                status_code=404,
-            )
+            return create_error_response("NOT_FOUND", "Activity not found", 404)
 
     except JWTError:
         # Return an error response if the user is not authenticated

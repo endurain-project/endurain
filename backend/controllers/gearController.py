@@ -166,7 +166,7 @@ async def read_gear_all(
 
         # Return the queried values using JSONResponse
         return JSONResponse(
-            content={"metadata": metadata, "gear_records": gear_records_dict}
+            content={"metadata": metadata, "content": gear_records_dict}
         )
 
     except JWTError:
@@ -232,7 +232,7 @@ async def read_gear_all_by_type(
 
         # Return the queried values using JSONResponse
         return JSONResponse(
-            content={"metadata": metadata, "gear_records": gear_records_dict}
+            content={"metadata": metadata, "content": gear_records_dict}
         )
 
     except JWTError:
@@ -281,7 +281,7 @@ async def read_gear_number(
         metadata = {"total_records": 1}
 
         # Return the queried values using JSONResponse
-        return JSONResponse(content={"metadata": metadata, "gear_count": gear_count})
+        return JSONResponse(content={"metadata": metadata, "content": gear_count})
 
     except JWTError:
         # Return an error response if the user is not authenticated
@@ -348,7 +348,7 @@ async def read_gear_all_pagination(
 
         # Return the queried values using JSONResponse
         return JSONResponse(
-            content={"metadata": metadata, "gear_records": gear_records_dict}
+            content={"metadata": metadata, "content": gear_records_dict}
         )
 
     except JWTError:
@@ -362,8 +362,8 @@ async def read_gear_all_pagination(
         )
 
 
-@router.get("/gear/{nickname}/gearfromnickname", response_model=List[dict])
-async def read_gear_gearFromNickname(
+@router.get("/gear/nickname/{nickname}", response_model=List[dict])
+async def read_gear_nickname(
     nickname: str,
     user_id: int = Depends(get_current_user),
     db_session: Session = Depends(get_db_session),
@@ -411,7 +411,7 @@ async def read_gear_gearFromNickname(
 
         # Return the queried values using JSONResponse
         return JSONResponse(
-            content={"metadata": metadata, "gear_records": gear_records_dict}
+            content={"metadata": metadata, "content": gear_records_dict}
         )
 
     except JWTError:
@@ -419,15 +419,15 @@ async def read_gear_gearFromNickname(
         return create_error_response("UNAUTHORIZED", "Unauthorized", 401)
     except Exception as err:
         # Log the error and return an error response
-        logger.error(f"Error in read_gear_gearFromNickname: {err}", exc_info=True)
+        logger.error(f"Error in read_gear_nickname: {err}", exc_info=True)
         return create_error_response(
             "INTERNAL_SERVER_ERROR", "Internal Server Error", 500
         )
 
 
 # Get gear from id
-@router.get("/gear/{id}/gearfromid", response_model=List[dict])
-async def read_gear_gearFromId(
+@router.get("/gear/id/{id}", response_model=List[dict])
+async def read_gear_id(
     id: int,
     user_id: int = Depends(get_current_user),
     db_session: Session = Depends(get_db_session),
@@ -468,7 +468,7 @@ async def read_gear_gearFromId(
 
         # Return the queried values using JSONResponse
         return JSONResponse(
-            content={"metadata": metadata, "gear_records": gear_records_dict}
+            content={"metadata": metadata, "content": gear_records_dict}
         )
 
     except JWTError:
@@ -476,7 +476,7 @@ async def read_gear_gearFromId(
         return create_error_response("UNAUTHORIZED", "Unauthorized", 401)
     except Exception as err:
         # Log the error and return an error response
-        logger.error(f"Error in read_gear_gearFromId: {err}", exc_info=True)
+        logger.error(f"Error in read_gear_id: {err}", exc_info=True)
         return create_error_response(
             "INTERNAL_SERVER_ERROR", "Internal Server Error", 500
         )
@@ -594,15 +594,10 @@ async def edit_gear(
                 )
             else:
                 # Return an error response if the gear record does not belong to the user
-                return JSONResponse(
-                    content={
-                        "message": f"Gear does not belong to user {user_id}. Will not edit"
-                    },
-                    status_code=404,
-                )
+                return create_error_response("NOT_FOUND", f"Gear does not belong to user {user_id}. Will not delete", 404)
         else:
             # Return an error response if the gear record is not found
-            return JSONResponse(content={"message": "Gear not found"}, status_code=404)
+            return create_error_response("NOT_FOUND", "Gear not found", 404)
 
     except JWTError:
         # Return an error response if the user is not authenticated
@@ -662,15 +657,10 @@ async def delete_gear(
                 )
             else:
                 # Return an error response if the gear record does not belong to the user
-                return JSONResponse(
-                    content={
-                        "message": f"Gear does not belong to user {user_id}. Will not delete"
-                    },
-                    status_code=404,
-                )
+                return create_error_response("NOT_FOUND", f"Gear does not belong to user {user_id}. Will not delete", 404)
         else:
             # Return an error response if the gear record is not found
-            return JSONResponse(content={"message": "Gear not found"}, status_code=404)
+            return create_error_response("NOT_FOUND", "Gear not found", 404)
 
     except JWTError:
         # Return an error response if the user is not authenticated

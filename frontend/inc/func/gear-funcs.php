@@ -10,7 +10,7 @@ function getGear()
         return -1;
     } else {
         if ($response[1] === 200) {
-            return json_decode($response[0], true)["gear_records"];
+            return json_decode($response[0], true)["content"];
         } else {
             return -2;
         }
@@ -25,7 +25,7 @@ function getGearFromType($gear_type)
         return -1;
     } else {
         if ($response[1] === 200) {
-            return json_decode($response[0], true)["gear_records"];
+            return json_decode($response[0], true)["content"];
         } else {
             return -2;
         }
@@ -40,7 +40,7 @@ function getGearPagination($pageNumber, $numRecords)
         return -1;
     } else {
         if ($response[1] === 200) {
-            return json_decode($response[0], true)["gear_records"];
+            return json_decode($response[0], true)["content"];
         } else {
             return -2;
         }
@@ -55,7 +55,7 @@ function numGears()
         return -1;
     } else {
         if ($response[1] === 200) {
-            return json_decode($response[0], true)["gear_count"];
+            return json_decode($response[0], true)["content"];
         } else {
             return -2;
         }
@@ -65,12 +65,12 @@ function numGears()
 /* Get gear from nickname */
 function getGearFromNickname($nickname)
 {
-    $response = callAPIRoute("/gear/$nickname/gearfromnickname", 1, 0, NULL);
+    $response = callAPIRoute("/gear/nickname/$nickname", 1, 0, NULL);
     if ($response[0] === false) {
         return -1;
     } else {
         if ($response[1] === 200) {
-            return json_decode($response[0], true)["gear_records"];
+            return json_decode($response[0], true)["content"];
         } else {
             return -2;
         }
@@ -80,12 +80,12 @@ function getGearFromNickname($nickname)
 /* Get gear from id */
 function getGearFromId($id)
 {
-    $response = callAPIRoute("/gear/$id/gearfromid", 1, 0, NULL);
+    $response = callAPIRoute("/gear/id/$id", 1, 0, NULL);
     if ($response[0] === false) {
         return -1;
     } else {
         if ($response[1] === 200) {
-            return json_decode($response[0], true)["gear_records"];
+            return json_decode($response[0], true)["content"];
         } else {
             return -2;
         }
@@ -95,7 +95,7 @@ function getGearFromId($id)
 /* Creates a new gear */
 function newGear($brand, $model, $nickname, $gear_type, $date)
 {
-    if (getGearFromNickname($nickname)["gear_records"] != NULL) {
+    if (getGearFromNickname($nickname) != NULL) {
         return -3;
     }
 

@@ -10,7 +10,7 @@ function getActivities()
         return -1;
     } else {
         if ($response[1] === 200) {
-            return json_decode($response[0], true)["activity_records"];
+            return json_decode($response[0], true)["content"];
         } else {
             return -2;
         }
@@ -25,7 +25,7 @@ function getUserActivities()
         return -1;
     } else {
         if ($response[1] === 200) {
-            return json_decode($response[0], true)["activity_records"];
+            return json_decode($response[0], true)["content"];
         } else {
             return -2;
         }
@@ -40,7 +40,7 @@ function getUserActivitiesWeek($userID, $week)
         return -1;
     } else {
         if ($response[1] === 200) {
-            return json_decode($response[0], true)["activity_records"];
+            return json_decode($response[0], true)["content"];
         } else {
             return -2;
         }
@@ -85,7 +85,7 @@ function getUserActivitiesThisMonthNumber($userID)
         return -1;
     } else {
         if ($response[1] === 200) {
-            return json_decode($response[0], true)["activity_count"];
+            return json_decode($response[0], true)["content"];
         } else {
             return -2;
         }
@@ -100,7 +100,7 @@ function getGearActivities($gearID)
         return -1;
     } else {
         if ($response[1] === 200) {
-            return json_decode($response[0], true)["activity_records"];
+            return json_decode($response[0], true)["content"];
         } else {
             return -2;
         }
@@ -131,7 +131,7 @@ function getUserActivitiesPagination($pageNumber, $numRecords)
         return -1;
     } else {
         if ($response[1] === 200) {
-            return json_decode($response[0], true)["activity_records"];
+            return json_decode($response[0], true)["content"];
         } else {
             return -2;
         }
@@ -146,7 +146,7 @@ function getFollowedUserActivitiesPagination($pageNumber, $numRecords)
         return -1;
     } else {
         if ($response[1] === 200) {
-            return json_decode($response[0], true)["activity_records"];
+            return json_decode($response[0], true)["content"];
         } else {
             return -2;
         }
@@ -161,7 +161,7 @@ function numActivities()
         return -1;
     } else {
         if ($response[1] === 200) {
-            return json_decode($response[0], true)["activity_count"];
+            return json_decode($response[0], true)["content"];
         } else {
             return -2;
         }
@@ -176,7 +176,7 @@ function numUserActivities()
         return -1;
     } else {
         if ($response[1] === 200) {
-            return json_decode($response[0], true)["activity_count"];
+            return json_decode($response[0], true)["content"];
         } else {
             return -2;
         }
@@ -191,7 +191,7 @@ function numFollowedUserActivities()
         return -1;
     } else {
         if ($response[1] === 200) {
-            return json_decode($response[0], true)["activity_count"];
+            return json_decode($response[0], true)["content"];
         } else {
             return -2;
         }
@@ -206,7 +206,7 @@ function getActivityFromId($id)
         return -1;
     } else {
         if ($response[1] === 200) {
-            return json_decode($response[0], true)["activity_records"];
+            return json_decode($response[0], true)["content"];
         } else {
             return -2;
         }

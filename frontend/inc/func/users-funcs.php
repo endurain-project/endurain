@@ -10,7 +10,7 @@ function getUsers()
         return -1;
     } else {
         if ($response[1] === 200) {
-            return json_decode($response[0], true);
+            return json_decode($response[0], true)["content"];
         } else {
             return -2;
         }
@@ -25,7 +25,7 @@ function getUsersPagination($pageNumber, $numRecords)
         return -1;
     } else {
         if ($response[1] === 200) {
-            return json_decode($response[0], true);
+            return json_decode($response[0], true)["content"];
         } else {
             return -2;
         }
@@ -40,8 +40,7 @@ function numUsers()
         return -1;
     } else {
         if ($response[1] === 200) {
-            $data = json_decode($response[0], true);
-            return $data[0];
+            return json_decode($response[0], true)["content"];
         } else {
             return -2;
         }
@@ -51,12 +50,12 @@ function numUsers()
 /* Get user from username */
 function getUserFromUsername($usernameUser)
 {
-    $response = callAPIRoute("/users/$usernameUser/userfromusername", 1, 0, NULL);
+    $response = callAPIRoute("/users/username/$usernameUser", 1, 0, NULL);
     if ($response[0] === false) {
         return -1;
     } else {
         if ($response[1] === 200) {
-            return json_decode($response[0], true);
+            return json_decode($response[0], true)["content"];
         } else {
             return -2;
         }
@@ -66,12 +65,12 @@ function getUserFromUsername($usernameUser)
 /* Get user from ID */
 function getUserFromId($id)
 {
-    $response = callAPIRoute("/users/$id/userfromid", 1, 0, NULL);
+    $response = callAPIRoute("/users/id/$id", 1, 0, NULL);
     if ($response[0] === false) {
         return -1;
     } else {
         if ($response[1] === 200) {
-            return json_decode($response[0], true);
+            return json_decode($response[0], true)["content"];
         } else {
             return -2;
         }
@@ -81,12 +80,12 @@ function getUserFromId($id)
 /* Get user from ID */
 function getUserIdFromUsername($usernameUser)
 {
-    $response = callAPIRoute("/users/$usernameUser/useridfromusername", 1, 0, NULL);
+    $response = callAPIRoute("/users/$usernameUser/id", 1, 0, NULL);
     if ($response[0] === false) {
         return -1;
     } else {
         if ($response[1] === 200) {
-            return json_decode($response[0], true);
+            return json_decode($response[0], true)["content"];
         } else {
             return -2;
         }
@@ -96,7 +95,7 @@ function getUserIdFromUsername($usernameUser)
 /* Get user photo path from ID */
 function getUserPhotoFromID($id)
 {
-    $response = callAPIRoute("/users/$id/userphotofromid", 0, 0, NULL);
+    $response = callAPIRoute("/users/$id/photo_path", 0, 0, NULL);
     if ($response[0] === false) {
         return -1;
     } else {
@@ -111,12 +110,12 @@ function getUserPhotoFromID($id)
 /* Get user photo path aux from ID */
 function getUserPhotoAuxFromID($id)
 {
-    $response = callAPIRoute("/users/$id/userphotoauxfromid", 0, 0, NULL);
+    $response = callAPIRoute("/users/$id/photo_path_aux", 0, 0, NULL);
     if ($response[0] === false) {
         return -1;
     } else {
         if ($response[1] === 200) {
-            return json_decode($response[0], true);
+            return json_decode($response[0], true)["content"];
         } else {
             return -2;
         }
@@ -147,7 +146,7 @@ function newUser($name, $username, $email, $password, $gender, $preferred_langua
     if ($response[0] === false) {
         return -1;
     } else {
-        if ($response[1] === 200) {
+        if ($response[1] === 201) {
             return 0;
         } else {
             return -2;

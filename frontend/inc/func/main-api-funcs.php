@@ -10,6 +10,7 @@ function callAPIRoute($endpoint, $multipleReturns, $callType, $dataFields)
 
     // Initialize a new cURL session
     $ch = curl_init();
+
     // Set the cURL options to make an HTTP GET request to the API endpoint with an OAuth2 bearer token in the Authorization header
     curl_setopt($ch, CURLOPT_URL, $api_url . $endpoint);
 

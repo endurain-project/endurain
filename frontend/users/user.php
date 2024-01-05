@@ -44,6 +44,7 @@ if ($user == null) {
     header("Location: ../index.php?userNotFound=1");
 }
 
+
 if (isset($_GET["followUser"]) && $_GET["followUser"] == 1) {
     $followUserResult = createUserFollowsSpecificUser($_GET["userID"]);
 }
@@ -155,14 +156,14 @@ $userFollowingAll = getUserFollowingAll($_GET["userID"]);
         <div class="col">
             <div class="vstack d-flex justify-content-center">
                 <div class="d-flex justify-content-center">
-                    <img src=<?php if (is_null($_SESSION["photo_path"])) {
+                    <img src=<?php if (is_null($user[0]["photo_path"])) {
                         if ($_SESSION["gender"] == 1) {
                             echo ("../img/avatar/male1.png");
                         } else {
                             echo ("../img/avatar/female1.png");
                         }
                     } else {
-                        echo ($_SESSION["photo_path"]);
+                        echo ($user[0]["photo_path"]);
                     } ?> alt="userPicture" class="rounded-circle" width="120"
                         height="120">
                 </div>
@@ -190,8 +191,8 @@ $userFollowingAll = getUserFollowingAll($_GET["userID"]);
                 <!--<hr class="mb-2 mt-2">-->
                 <div class="row align-items-center">
                     <div class="col">
-                        <?php if($userFollowersCount["follower_count"]){ ?>
-                            <?php echo $userFollowersCount["follower_count"]; ?>
+                        <?php if($userFollowersCount){ ?>
+                            <?php echo $userFollowersCount; ?>
                         <?php }else{ ?>
                             0
                         <?php } ?>
@@ -201,8 +202,8 @@ $userFollowingAll = getUserFollowingAll($_GET["userID"]);
                         </span>
                     </div>
                     <div class="col">
-                        <?php if($userFollowingCount["following_count"]){ ?>
-                            <?php echo $userFollowingCount["following_count"]; ?>
+                        <?php if($userFollowingCount){ ?>
+                            <?php echo $userFollowingCount; ?>
                         <?php }else{ ?>
                             0
                         <?php } ?>
@@ -698,7 +699,7 @@ $userFollowingAll = getUserFollowingAll($_GET["userID"]);
             <!-- div following -->
             <div class="tab-pane fade" id="pills-following" role="tabpanel" aria-labelledby="pills-following-tab"
                 tabindex="0">
-                <?php if (!$userFollowersCountAll["follower_count"]) { ?>
+                <?php if (!$userFollowersCountAll) { ?>
                     <div class="centered-card">
                         <div class="card text-center">
                             <div class="card-body">
@@ -711,26 +712,26 @@ $userFollowingAll = getUserFollowingAll($_GET["userID"]);
                     </div>
                 <?php } else { ?>
                     <ul class="list-group list-group-flush align-items-center">
-                        <?php foreach ($userFollowingAll['followings'] as $following) { ?>
-                            <?php $user = getUserFromId($following["following_id"]); ?>
+                        <?php foreach ($userFollowingAll as $following) { ?>
+                            <?php $userFollowing = getUserFromId($following["following_id"]); ?>
                             <li class="list-group-item d-flex justify-content-between">
                                 <div class="d-flex align-items-center">
-                                    <img src=<?php if (is_null($user[0]["photo_path"])) {
-                                        if ($user[0]["gender"] == 1) {
+                                    <img src=<?php if (is_null($userFollowing[0]["photo_path"])) {
+                                        if ($userFollowing[0]["gender"] == 1) {
                                             echo ("../img/avatar/male1.png");
                                         } else {
                                             echo ("../img/avatar/female1.png");
                                         }
                                     } else {
-                                        echo ($user[0]["photo_path"]);
+                                        echo ($userFollowing[0]["photo_path"]);
                                     } ?> alt="userPicture" class="rounded-circle" width="55" height="55">
                                     <div class="ms-3">
                                         <div class="fw-bold">
-                                            <a href="../users/user.php?userID=<?php echo ($user[0]["id"]); ?>">
-                                                <?php echo ($user[0]["name"]); ?>
+                                            <a href="../users/user.php?userID=<?php echo ($userFollowing[0]["id"]); ?>">
+                                                <?php echo ($userFollowing[0]["name"]); ?>
                                             </a>
                                         </div>
-                                        <?php echo ($user[0]["username"]); ?>
+                                        <?php echo ($userFollowing[0]["username"]); ?>
                                     </div>
                                 </div>
                                 <div class="ms-3 align-middle">
@@ -742,22 +743,22 @@ $userFollowingAll = getUserFollowingAll($_GET["userID"]);
 
                                     <?php if ($_GET["userID"] == $_SESSION["id"]) { ?>
                                         <!-- delete following button -->
-                                        <a class="ms-2 btn btn-link btn-lg" href="#" role="button" data-bs-toggle="modal" data-bs-target="#deleteFollowingModal<?php echo ($user[0]["id"]); ?>"><i class="fa-solid fa-trash"></i></a>
+                                        <a class="ms-2 btn btn-link btn-lg" href="#" role="button" data-bs-toggle="modal" data-bs-target="#deleteFollowingModal<?php echo ($userFollowing[0]["id"]); ?>"><i class="fa-solid fa-trash"></i></a>
 
                                         <!-- Modal delete following -->
-                                        <div class="modal fade" id="deleteFollowingModal<?php echo ($user[0]["id"]); ?>" tabindex="-1" aria-labelledby="deleteFollowingModal<?php echo ($user[0]["id"]); ?>"
+                                        <div class="modal fade" id="deleteFollowingModal<?php echo ($userFollowing[0]["id"]); ?>" tabindex="-1" aria-labelledby="deleteFollowingModal<?php echo ($userFollowing[0]["id"]); ?>"
                                             aria-hidden="true">
                                             <div class="modal-dialog">
                                                 <div class="modal-content">
                                                     <div class="modal-header">
-                                                        <h1 class="modal-title fs-5" id="deleteFollowingModal<?php echo ($user[0]["id"]); ?>">
+                                                        <h1 class="modal-title fs-5" id="deleteFollowingModal<?php echo ($userFollowing[0]["id"]); ?>">
                                                             <?php echo $translationsUsersUser['user_deleteFollowing_modal_title']; ?>
                                                         </h1>
                                                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                                                     </div>
                                                     <div class="modal-body">
                                                         <?php echo $translationsUsersUser['user_deleteFollowing_modal_body']; ?> <b>
-                                                            <?php echo $user[0]["name"]; ?>
+                                                            <?php echo $userFollowing[0]["name"]; ?>
                                                         </b>?
                                                     </div>
                                                     <div class="modal-footer">
@@ -765,7 +766,7 @@ $userFollowingAll = getUserFollowingAll($_GET["userID"]);
                                                             <?php echo $translationsTemplateTop['template_top_global_close']; ?>
                                                         </button>
                                                         <a type="button" class="btn btn-danger"
-                                                            href="../users/user.php?userID=<?php echo ($_GET["userID"]); ?>&targetUserID=<?php echo ($user[0]["id"]); ?>&deleteFollowing=1">
+                                                            href="../users/user.php?userID=<?php echo ($_GET["userID"]); ?>&targetUserID=<?php echo ($userFollowing[0]["id"]); ?>&deleteFollowing=1">
                                                             <?php echo $translationsUsersUser['user_deleteFollowing_modal_title']; ?>
                                                         </a>
                                                     </div>
@@ -782,7 +783,7 @@ $userFollowingAll = getUserFollowingAll($_GET["userID"]);
             <!-- div followers -->
             <div class="tab-pane fade" id="pills-followers" role="tabpanel" aria-labelledby="pills-followers-tab"
                 tabindex="0">
-                <?php if (!$userFollowingCountAll["following_count"]) { ?>
+                <?php if (!$userFollowingCountAll) { ?>
                     <div class="centered-card">
                         <div class="card text-center">
                             <div class="card-body">
@@ -795,26 +796,26 @@ $userFollowingAll = getUserFollowingAll($_GET["userID"]);
                     </div>
                 <?php } else { ?>
                     <ul class="list-group list-group-flush align-items-center">
-                        <?php foreach ($userFollowersAll['followers'] as $follower) { ?>
-                            <?php $user = getUserFromId($follower["follower_id"]); ?>
+                        <?php foreach ($userFollowersAll as $follower) { ?>
+                            <?php $userFollower = getUserFromId($follower["follower_id"]); ?>
                             <li class="list-group-item d-flex justify-content-between">
                                 <div class="d-flex align-items-center">
-                                    <img src=<?php if (is_null($user[0]["photo_path"])) {
-                                        if ($user[0]["gender"] == 1) {
+                                    <img src=<?php if (is_null($userFollower[0]["photo_path"])) {
+                                        if ($userFollower[0]["gender"] == 1) {
                                             echo ("../img/avatar/male1.png");
                                         } else {
                                             echo ("../img/avatar/female1.png");
                                         }
                                     } else {
-                                        echo ($user[0]["photo_path"]);
+                                        echo ($userFollower[0]["photo_path"]);
                                     } ?> alt="userPicture" class="rounded-circle" width="55" height="55">
                                     <div class="ms-3">
                                         <div class="fw-bold">
-                                            <a href="../users/user.php?userID=<?php echo ($user[0]["id"]); ?>">
-                                                <?php echo ($user[0]["name"]); ?>
+                                            <a href="../users/user.php?userID=<?php echo ($userFollower[0]["id"]); ?>">
+                                                <?php echo ($userFollower[0]["name"]); ?>
                                             </a>
                                         </div>
-                                        <?php echo ($user[0]["username"]); ?>
+                                        <?php echo ($userFollower[0]["username"]); ?>
                                     </div>
                                 </div>
                                 <div class="ms-3 align-middle">
@@ -823,22 +824,22 @@ $userFollowingAll = getUserFollowingAll($_GET["userID"]);
 
                                         <?php if ($_GET["userID"] == $_SESSION["id"]) { ?>
                                             <!-- delete follower button -->
-                                            <a class="ms-2 btn btn-link btn-lg" href="#" role="button" data-bs-toggle="modal" data-bs-target="#deleteFollowerModal<?php echo ($user[0]["id"]); ?>"><i class="fa-solid fa-trash"></i></a>
+                                            <a class="ms-2 btn btn-link btn-lg" href="#" role="button" data-bs-toggle="modal" data-bs-target="#deleteFollowerModal<?php echo ($userFollower[0]["id"]); ?>"><i class="fa-solid fa-trash"></i></a>
 
                                             <!-- Modal delete follower -->
-                                            <div class="modal fade" id="deleteFollowerModal<?php echo ($user[0]["id"]); ?>" tabindex="-1" aria-labelledby="deleteFollowerModal<?php echo ($user[0]["id"]); ?>"
+                                            <div class="modal fade" id="deleteFollowerModal<?php echo ($userFollower[0]["id"]); ?>" tabindex="-1" aria-labelledby="deleteFollowerModal<?php echo ($userFollower[0]["id"]); ?>"
                                                 aria-hidden="true">
                                                 <div class="modal-dialog">
                                                     <div class="modal-content">
                                                         <div class="modal-header">
-                                                            <h1 class="modal-title fs-5" id="deleteFollowerModal<?php echo ($user[0]["id"]); ?>">
+                                                            <h1 class="modal-title fs-5" id="deleteFollowerModal<?php echo ($userFollower[0]["id"]); ?>">
                                                                 <?php echo $translationsUsersUser['user_deleteFollower_modal_title']; ?>
                                                             </h1>
                                                             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                                                         </div>
                                                         <div class="modal-body">
                                                             <?php echo $translationsUsersUser['user_deleteFollower_modal_body']; ?> <b>
-                                                                <?php echo $user[0]["name"]; ?>
+                                                                <?php echo $userFollower[0]["name"]; ?>
                                                             </b>?
                                                         </div>
                                                         <div class="modal-footer">
@@ -846,7 +847,7 @@ $userFollowingAll = getUserFollowingAll($_GET["userID"]);
                                                                 <?php echo $translationsTemplateTop['template_top_global_close']; ?>
                                                             </button>
                                                             <a type="button" class="btn btn-danger"
-                                                                href="../users/user.php?userID=<?php echo ($_GET["userID"]); ?>&targetUserID=<?php echo ($user[0]["id"]); ?>&deleteFollower=1">
+                                                                href="../users/user.php?userID=<?php echo ($_GET["userID"]); ?>&targetUserID=<?php echo ($userFollower[0]["id"]); ?>&deleteFollower=1">
                                                                 <?php echo $translationsUsersUser['user_deleteFollower_modal_title']; ?>
                                                             </a>
                                                         </div>
@@ -857,22 +858,22 @@ $userFollowingAll = getUserFollowingAll($_GET["userID"]);
                                     <?php } else { ?>
                                         <?php if ($_GET["userID"] == $_SESSION["id"]) { ?>
                                             <!-- accept user request button -->
-                                            <a class="btn btn-link btn-lg" href="#" role="button" data-bs-toggle="modal" data-bs-target="#acceptRequestModal<?php echo ($user[0]["id"]); ?>"><i class="fa-solid fa-check"></i></a>
+                                            <a class="btn btn-link btn-lg" href="#" role="button" data-bs-toggle="modal" data-bs-target="#acceptRequestModal<?php echo ($userFollower[0]["id"]); ?>"><i class="fa-solid fa-check"></i></a>
 
                                             <!-- Modal accept user request -->
-                                            <div class="modal fade" id="acceptRequestModal<?php echo ($user[0]["id"]); ?>" tabindex="-1" aria-labelledby="acceptRequestModal<?php echo ($user[0]["id"]); ?>"
+                                            <div class="modal fade" id="acceptRequestModal<?php echo ($userFollower[0]["id"]); ?>" tabindex="-1" aria-labelledby="acceptRequestModal<?php echo ($userFollower[0]["id"]); ?>"
                                                 aria-hidden="true">
                                                 <div class="modal-dialog">
                                                     <div class="modal-content">
                                                         <div class="modal-header">
-                                                            <h1 class="modal-title fs-5" id="acceptRequestModal<?php echo ($user[0]["id"]); ?>">
+                                                            <h1 class="modal-title fs-5" id="acceptRequestModal<?php echo ($userFollower[0]["id"]); ?>">
                                                                 <?php echo $translationsUsersUser['user_acceptUserRequest_modal_title']; ?>
                                                             </h1>
                                                             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                                                         </div>
                                                         <div class="modal-body">
                                                             <?php echo $translationsUsersUser['user_acceptUserRequest_modal_body']; ?> <b>
-                                                                <?php echo $user[0]["name"]; ?>
+                                                                <?php echo $userFollower[0]["name"]; ?>
                                                             </b>?
                                                         </div>
                                                         <div class="modal-footer">
@@ -880,7 +881,7 @@ $userFollowingAll = getUserFollowingAll($_GET["userID"]);
                                                                 <?php echo $translationsTemplateTop['template_top_global_close']; ?>
                                                             </button>
                                                             <a type="button" class="btn btn-success"
-                                                                href="../users/user.php?userID=<?php echo ($_GET["userID"]); ?>&targetUserID=<?php echo ($user[0]["id"]); ?>&acceptUserRequest=1">
+                                                                href="../users/user.php?userID=<?php echo ($_GET["userID"]); ?>&targetUserID=<?php echo ($userFollower[0]["id"]); ?>&acceptUserRequest=1">
                                                                 <?php echo $translationsUsersUser['user_acceptUserRequest_modal_title']; ?>
                                                             </a>
                                                         </div>
@@ -889,22 +890,22 @@ $userFollowingAll = getUserFollowingAll($_GET["userID"]);
                                             </div>
 
                                             <!-- decline user request button -->
-                                            <a class="ms-2 btn btn-link btn-lg" href="#" role="button" data-bs-toggle="modal" data-bs-target="#declineRequestModal<?php echo ($user[0]["id"]); ?>"><i class="fa-solid fa-x"></i></a>
+                                            <a class="ms-2 btn btn-link btn-lg" href="#" role="button" data-bs-toggle="modal" data-bs-target="#declineRequestModal<?php echo ($userFollower[0]["id"]); ?>"><i class="fa-solid fa-x"></i></a>
 
                                             <!-- Modal decline user request -->
-                                            <div class="modal fade" id="declineRequestModal<?php echo ($user[0]["id"]); ?>" tabindex="-1" aria-labelledby="declineRequestModal<?php echo ($user[0]["id"]); ?>"
+                                            <div class="modal fade" id="declineRequestModal<?php echo ($userFollower[0]["id"]); ?>" tabindex="-1" aria-labelledby="declineRequestModal<?php echo ($userFollower[0]["id"]); ?>"
                                                 aria-hidden="true">
                                                 <div class="modal-dialog">
                                                     <div class="modal-content">
                                                         <div class="modal-header">
-                                                            <h1 class="modal-title fs-5" id="declineRequestModal<?php echo ($user[0]["id"]); ?>">
+                                                            <h1 class="modal-title fs-5" id="declineRequestModal<?php echo ($userFollower[0]["id"]); ?>">
                                                                 <?php echo $translationsUsersUser['user_declineUserRequest_modal_title']; ?>
                                                             </h1>
                                                             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                                                         </div>
                                                         <div class="modal-body">
                                                             <?php echo $translationsUsersUser['user_declineUserRequest_modal_body']; ?> <b>
-                                                                <?php echo $user[0]["name"]; ?>
+                                                                <?php echo $userFollower[0]["name"]; ?>
                                                             </b>?
                                                         </div>
                                                         <div class="modal-footer">
@@ -912,7 +913,7 @@ $userFollowingAll = getUserFollowingAll($_GET["userID"]);
                                                                 <?php echo $translationsTemplateTop['template_top_global_close']; ?>
                                                             </button>
                                                             <a type="button" class="btn btn-danger"
-                                                                href="../users/user.php?userID=<?php echo ($_GET["userID"]); ?>&targetUserID=<?php echo ($user[0]["id"]); ?>&declineUserRequest=1">
+                                                                href="../users/user.php?userID=<?php echo ($_GET["userID"]); ?>&targetUserID=<?php echo ($userFollower[0]["id"]); ?>&declineUserRequest=1">
                                                                 <?php echo $translationsUsersUser['user_declineUserRequest_modal_title']; ?>
                                                             </a>
                                                         </div>

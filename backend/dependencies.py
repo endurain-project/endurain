@@ -1,3 +1,4 @@
+import logging.config
 from sqlalchemy.orm import Session
 from db.db import Session as BaseSession
 from fastapi.responses import JSONResponse
@@ -15,17 +16,18 @@ def get_db_session() -> Session:
 
     Returns:
     - Session: SQLAlchemy database session.
-
-    Yields:
-    - Session: SQLAlchemy database session to the calling function.
-
-    # Note: The session is automatically committed and closed by FastAPI at the end of the request.
     """
-    db_session = BaseSession()
-    try:
-        yield db_session
-    finally:
-        db_session.close()
+    return BaseSession()
+
+def configure_logger():
+    """
+    Configures and returns a logger based on settings specified in a logging configuration file.
+
+    Returns:
+    - logging.Logger: Configured logger instance.
+    """
+    logging.config.fileConfig('logging_config.ini')
+    return logging.getLogger('myLogger')
 
 
 def get_current_user(
