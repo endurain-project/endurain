@@ -36,7 +36,7 @@ Logger:
 
 """
 import logging
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from fastapi.security import OAuth2PasswordBearer
 from . import sessionController
 from jose import JWTError

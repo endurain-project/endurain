@@ -38,7 +38,7 @@ Logger:
 - Logger named "myLogger" for logging errors and exceptions.
 """
 import logging
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from fastapi.security import OAuth2PasswordBearer
 from pydantic import BaseModel
 from typing import List, Optional

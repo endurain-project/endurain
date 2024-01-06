@@ -55,7 +55,7 @@ function getUserActivitiesThisWeekDistances($userID)
         return -1;
     } else {
         if ($response[1] === 200) {
-            return json_decode($response[0], true);
+            return json_decode($response[0], true)["content"];
         } else {
             return -2;
         }
@@ -70,7 +70,7 @@ function getUserActivitiesThisMonthDistances($userID)
         return -1;
     } else {
         if ($response[1] === 200) {
-            return json_decode($response[0], true);
+            return json_decode($response[0], true)["content"];
         } else {
             return -2;
         }
@@ -116,7 +116,7 @@ function getActivitiesPagination($pageNumber, $numRecords)
         return -1;
     } else {
         if ($response[1] === 200) {
-            return json_decode($response[0], true);
+            return json_decode($response[0], true)["content"];
         } else {
             return -2;
         }

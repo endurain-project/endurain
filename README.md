@@ -91,6 +91,9 @@ JAEGER_PROTOCOL | http | Yes
 JAEGER_HOST | jaeger | Yes
 JAGGER_PORT | 4317 | Yes
 STRAVA_DAYS_ACTIVITIES_ONLINK | 30 | Yes
+API_ENDPOINT* | changeme | Yes
+
+*API_ENDPOINT needs to be set if you want to enable Strava integration
 
 Table bellow shows the obligatory environemnt variables for mariadb container. You should set them based on what was also set for backend container.
 

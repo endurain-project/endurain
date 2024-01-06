@@ -416,7 +416,15 @@ async def read_activities_useractivities_thisweek_distances(
         distances = calculate_activity_distances(activity_records)
 
         # Return the queried values using JSONResponse
-        return JSONResponse(content=distances)
+        #return JSONResponse(content=distances)
+    
+        #  Include metadata in the response
+        metadata = {"total_records": 1}
+
+        # Return the queried values using JSONResponse
+        return JSONResponse(
+            content={"metadata": metadata, "content": distances}
+        )
     except JWTError:
         # Return an error response if the user is not authenticated
         return create_error_response("UNAUTHORIZED", "Unauthorized", 401)
@@ -479,7 +487,15 @@ async def read_activities_useractivities_thismonth_distances(
         distances = calculate_activity_distances(activity_records)
 
         # Return the queried values using JSONResponse
-        return JSONResponse(content=distances)
+        #return JSONResponse(content=distances)
+    
+        #  Include metadata in the response
+        metadata = {"total_records": 1}
+
+        # Return the queried values using JSONResponse
+        return JSONResponse(
+            content={"metadata": metadata, "content": distances}
+        )
     except JWTError:
         # Return an error response if the user is not authenticated
         return create_error_response("UNAUTHORIZED", "Unauthorized", 401)

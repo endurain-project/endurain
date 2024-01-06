@@ -62,6 +62,8 @@ from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 # Import OS module for handling environment variables
 import os
 
+import logging
+
 # Import database-related functions and dependencies
 from db.db import create_database_tables
 from dependencies import get_db_session, configure_logger
@@ -70,10 +72,20 @@ from dependencies import get_db_session, configure_logger
 app = FastAPI()
 
 # Create loggger
-logger = configure_logger()
+#logger = configure_logger()
+logger = logging.getLogger("myLogger")
+logger.setLevel(logging.DEBUG)
+
+file_handler = logging.FileHandler("app.log")
+file_handler.setLevel(logging.DEBUG)
+
+formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+file_handler.setFormatter(formatter)
+
+logger.addHandler(file_handler)
 
 # Check for required environment variables
-required_env_vars = ["DB_HOST", "DB_PORT", "DB_USER", "DB_PASSWORD", "DB_DATABASE", "SECRET_KEY", "ALGORITHM", "ACCESS_TOKEN_EXPIRE_MINUTES", "STRAVA_CLIENT_ID", "STRAVA_CLIENT_SECRET", "STRAVA_AUTH_CODE", "JAEGER_ENABLED", "JAEGER_PROTOCOL", "JAEGER_HOST", "JAGGER_PORT", "STRAVA_DAYS_ACTIVITIES_ONLINK"]
+required_env_vars = ["DB_HOST", "DB_PORT", "DB_USER", "DB_PASSWORD", "DB_DATABASE", "SECRET_KEY", "ALGORITHM", "ACCESS_TOKEN_EXPIRE_MINUTES", "STRAVA_CLIENT_ID", "STRAVA_CLIENT_SECRET", "STRAVA_AUTH_CODE", "JAEGER_ENABLED", "JAEGER_PROTOCOL", "JAEGER_HOST", "JAGGER_PORT", "STRAVA_DAYS_ACTIVITIES_ONLINK", "API_ENDPOINT"]
 
 for var in required_env_vars:
     if var not in os.environ:
@@ -96,6 +108,8 @@ def startup_event():
     logger.info("Backend startup event")
     # Create the database and tables if they don't exist
     create_database_tables()
+    logger.info("Will check if there is expired tokens to remove")
+    sessionController.remove_expired_tokens(db_session=get_db_session())
 
 
 def shutdown_event():

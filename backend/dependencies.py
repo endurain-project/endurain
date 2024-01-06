@@ -26,7 +26,7 @@ def configure_logger():
     Returns:
     - logging.Logger: Configured logger instance.
     """
-    logging.config.fileConfig('logging_config.ini')
+    logging.config.fileConfig('logs/logging_config.ini')
     return logging.getLogger('myLogger')
 
 
