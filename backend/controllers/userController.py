@@ -53,6 +53,7 @@ from db.db import (
 )
 from urllib.parse import unquote
 from dependencies import get_db_session, create_error_response
+from constants import API_VERSION
 
 # Define the API router
 router = APIRouter()
@@ -94,18 +95,21 @@ class UserBase(BaseModel):
     photo_path_aux: Optional[str]
     is_active: int
 
+
 class UserCreateRequest(UserBase):
     """
     Pydantic model for creating user records.
 
     Inherits from UserBase, which defines the base attributes for user.
 
-    This class extends the UserBase Pydantic model and is designed for creating 
+    This class extends the UserBase Pydantic model and is designed for creating
     new user records. Includes an additional attribute 'password'
     to idefine user password.
 
     """
+
     password: str
+
 
 class UserEditRequest(UserBase):
     """
@@ -116,7 +120,9 @@ class UserEditRequest(UserBase):
     This class extends the UserBase Pydantic model and is specifically tailored for
     editing existing user records.
     """
+
     pass
+
 
 class UserResponse(UserBase):
     """
@@ -134,6 +140,7 @@ class UserResponse(UserBase):
 
     id: int
     is_strava_linked: Optional[int]
+
 
 # Define a function to convert User SQLAlchemy objects to dictionaries
 def user_record_to_dict(record: User) -> dict:
@@ -154,7 +161,9 @@ def user_record_to_dict(record: User) -> dict:
         "username": record.username,
         "email": record.email,
         "city": record.city,
-        "birthdate": record.birthdate,
+        "birthdate": record.birthdate.strftime("%Y-%m-%d")
+        if record.birthdate
+        else None,
         "preferred_language": record.preferred_language,
         "gender": record.gender,
         "access_type": record.access_type,
@@ -164,7 +173,11 @@ def user_record_to_dict(record: User) -> dict:
         "strava_state": record.strava_state,
         "strava_token": record.strava_token,
         "strava_refresh_token": record.strava_refresh_token,
-        "strava_token_expires_at": record.strava_token_expires_at,
+        "strava_token_expires_at": record.strava_token_expires_at.strftime(
+            "%Y-%m-%dT%H:%M:%S"
+        )
+        if record.strava_token_expires_at
+        else None,
     }
 
 
@@ -201,7 +214,7 @@ async def read_users_all(
         user_records_dict = [user_record_to_dict(record) for record in user_records]
 
         # Include metadata in the response
-        metadata = {"total_records": len(user_records)}
+        metadata = {"total_records": len(user_records), "api_version": API_VERSION}
 
         # Return the queried values using JSONResponse
         return JSONResponse(
@@ -249,7 +262,7 @@ async def read_users_number(
         user_count = db_session.query(User).count()
 
         # Include metadata in the response
-        metadata = {"total_records": 1}
+        metadata = {"total_records": 1, "api_version": API_VERSION}
 
         # Return the queried values using JSONResponse
         return JSONResponse(content={"metadata": metadata, "content": user_count})
@@ -312,7 +325,12 @@ async def read_users_all_pagination(
         user_records_dict = [user_record_to_dict(record) for record in user_records]
 
         # Include metadata in the response
-        metadata = {"total_records": len(user_records)}
+        metadata = {
+            "total_records": len(user_records),
+            "pageNumber": pageNumber,
+            "numRecords": numRecords,
+            "api_version": API_VERSION,
+        }
 
         # Return the queried values using JSONResponse
         return JSONResponse(
@@ -373,7 +391,11 @@ async def read_users_username(
         user_records_dict = [user_record_to_dict(record) for record in user_records]
 
         # Include metadata in the response
-        metadata = {"total_records": len(user_records)}
+        metadata = {
+            "total_records": len(user_records),
+            "username": username,
+            "api_version": API_VERSION,
+        }
 
         # Return the queried values using JSONResponse
         return JSONResponse(
@@ -424,7 +446,11 @@ async def read_users_id(
         user_records_dict = [user_record_to_dict(record) for record in user_records]
 
         # Include metadata in the response
-        metadata = {"total_records": len(user_records)}
+        metadata = {
+            "total_records": len(user_records),
+            "user_id": user_id,
+            "api_version": API_VERSION,
+        }
 
         # Return the queried values using JSONResponse
         return JSONResponse(
@@ -479,12 +505,14 @@ async def read_users_username_id(
         )
 
         # Include metadata in the response
-        metadata = {"total_records": 1}
+        metadata = {
+            "total_records": 1,
+            "username": username,
+            "api_version": API_VERSION,
+        }
 
         # Return the queried values using JSONResponse
-        return JSONResponse(
-            content={"metadata": metadata, "content": {"id": user_id}}
-        )
+        return JSONResponse(content={"metadata": metadata, "content": {"id": user_id}})
 
     except JWTError:
         # Return an error response if the user is not authenticated
@@ -531,15 +559,24 @@ async def read_users_id_photo_path(
 
         if user:
             # Include metadata in the response
-            metadata = {"total_records": 1}
+            metadata = {
+                "total_records": 1,
+                "user_id": user_id,
+                "api_version": API_VERSION,
+            }
 
             # Return the queried values using JSONResponse
             return JSONResponse(
-                content={"metadata": metadata, "content": {"photo_path": user.photo_path}}
+                content={
+                    "metadata": metadata,
+                    "content": {"photo_path": user.photo_path},
+                }
             )
         else:
             # Handle the case where the user was not found or doesn't have a photo path
-            return create_error_response("NOT_FOUND", "User not found or no photo path available", 404)
+            return create_error_response(
+                "NOT_FOUND", "User not found or no photo path available", 404
+            )
 
     except JWTError:
         # Return an error response if the user is not authenticated
@@ -586,15 +623,24 @@ async def read_users_id_photo_path_aux(
 
         if user:
             # Include metadata in the response
-            metadata = {"total_records": 1}
+            metadata = {
+                "total_records": 1,
+                "user_id": user_id,
+                "api_version": API_VERSION,
+            }
 
             # Return the queried values using JSONResponse
             return JSONResponse(
-                content={"metadata": metadata, "content": {"photo_path_aux": user.photo_path_aux}}
+                content={
+                    "metadata": metadata,
+                    "content": {"photo_path_aux": user.photo_path_aux},
+                }
             )
         else:
             # Handle the case where the user was not found or doesn't have a photo path aux
-            return create_error_response("NOT_FOUND", "User not found or no photo path aux available", 404)
+            return create_error_response(
+                "NOT_FOUND", "User not found or no photo path aux available", 404
+            )
 
     except JWTError:
         # Return an error response if the user is not authenticated
@@ -742,7 +788,7 @@ async def edit_user(
         return JSONResponse(
             content={"message": "User edited successfully"}, status_code=200
         )
-        
+
     except JWTError:
         # Return an error response if the user is not authenticated
         return create_error_response("UNAUTHORIZED", "Unauthorized", 401)
@@ -801,9 +847,10 @@ async def delete_user_photo(
 
         # Return a JSONResponse indicating the success of the user edit
         return JSONResponse(
-            content={"message": f"Photo for user {user_id} has been deleted"}, status_code=200
+            content={"message": f"Photo for user {user_id} has been deleted"},
+            status_code=200,
         )
-        
+
     except JWTError:
         # Return an error response if the user is not authenticated
         return create_error_response("UNAUTHORIZED", "Unauthorized", 401)
@@ -856,7 +903,9 @@ async def delete_user(
         count_gear = db_session.query(Gear).filter(Gear.user_id == user_id).count()
         if count_gear > 0:
             # Return an error response if the user has gear created
-            return create_error_response("CONFLIT", "Cannot delete user due to existing dependencies", 409)
+            return create_error_response(
+                "CONFLIT", "Cannot delete user due to existing dependencies", 409
+            )
         # Delete the user from the database
         db_session.delete(user)
         db_session.commit()
@@ -865,7 +914,7 @@ async def delete_user(
         return JSONResponse(
             content={"message": f"User {user_id} has been deleted"}, status_code=200
         )
-        
+
     except JWTError:
         # Return an error response if the user is not authenticated
         return create_error_response("UNAUTHORIZED", "Unauthorized", 401)

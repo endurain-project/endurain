@@ -47,6 +47,7 @@ from urllib.parse import unquote
 from pydantic import BaseModel
 from dependencies import get_db_session, create_error_response, get_current_user
 from fastapi.responses import JSONResponse
+from constants import API_VERSION
 
 # Define the API router
 router = APIRouter()
@@ -162,7 +163,7 @@ async def read_gear_all(
         gear_records_dict = [gear_record_to_dict(record) for record in gear_records]
 
         # Include metadata in the response
-        metadata = {"total_records": len(gear_records)}
+        metadata = {"total_records": len(gear_records), "api_version": API_VERSION}
 
         # Return the queried values using JSONResponse
         return JSONResponse(
@@ -211,7 +212,11 @@ async def read_gear_all_by_type(
         # Validate the gear type (example validation)
         if not (1 <= gear_type <= 3):
             # Return an error response if the gear type in invalid
-            return create_error_response("UNPROCESSABLE COMTENT", "Invalid gear type. Must be between 1 and 3", 422)
+            return create_error_response(
+                "UNPROCESSABLE COMTENT",
+                "Invalid gear type. Must be between 1 and 3",
+                422,
+            )
 
         # Query the gear records using SQLAlchemy and filter by gear type and user ID
         gear_records = (
@@ -228,6 +233,7 @@ async def read_gear_all_by_type(
         metadata = {
             "total_records": len(gear_records),
             "gear_type": gear_type,
+            "api_version": API_VERSION,
         }
 
         # Return the queried values using JSONResponse
@@ -278,7 +284,7 @@ async def read_gear_number(
         )
 
         # Include metadata in the response
-        metadata = {"total_records": 1}
+        metadata = {"total_records": 1, "api_version": API_VERSION}
 
         # Return the queried values using JSONResponse
         return JSONResponse(content={"metadata": metadata, "content": gear_count})
@@ -297,7 +303,7 @@ async def read_gear_number(
 @router.get(
     "/gear/all/pagenumber/{pageNumber}/numRecords/{numRecords}",
     response_model=List[dict],
-    #tags=["Pagination"],
+    # tags=["Pagination"],
 )
 async def read_gear_all_pagination(
     pageNumber: int,
@@ -344,6 +350,7 @@ async def read_gear_all_pagination(
             "total_records": len(gear_records),
             "page_number": pageNumber,
             "num_records": numRecords,
+            "api_version": API_VERSION,
         }
 
         # Return the queried values using JSONResponse
@@ -407,6 +414,7 @@ async def read_gear_nickname(
         metadata = {
             "total_records": len(gear_records),
             "nickname": nickname,
+            "api_version": API_VERSION,
         }
 
         # Return the queried values using JSONResponse
@@ -464,6 +472,7 @@ async def read_gear_id(
         metadata = {
             "total_records": len(gear_records),
             "id": id,
+            "api_version": API_VERSION,
         }
 
         # Return the queried values using JSONResponse
@@ -594,7 +603,11 @@ async def edit_gear(
                 )
             else:
                 # Return an error response if the gear record does not belong to the user
-                return create_error_response("NOT_FOUND", f"Gear does not belong to user {user_id}. Will not delete", 404)
+                return create_error_response(
+                    "NOT_FOUND",
+                    f"Gear does not belong to user {user_id}. Will not delete",
+                    404,
+                )
         else:
             # Return an error response if the gear record is not found
             return create_error_response("NOT_FOUND", "Gear not found", 404)
@@ -657,7 +670,11 @@ async def delete_gear(
                 )
             else:
                 # Return an error response if the gear record does not belong to the user
-                return create_error_response("NOT_FOUND", f"Gear does not belong to user {user_id}. Will not delete", 404)
+                return create_error_response(
+                    "NOT_FOUND",
+                    f"Gear does not belong to user {user_id}. Will not delete",
+                    404,
+                )
         else:
             # Return an error response if the gear record is not found
             return create_error_response("NOT_FOUND", "Gear not found", 404)

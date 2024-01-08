@@ -46,6 +46,7 @@ from db.db import (
 )
 from dependencies import get_db_session, create_error_response
 from sqlalchemy.orm import Session
+from constants import API_VERSION
 
 # Define the API router
 router = APIRouter()
@@ -97,7 +98,12 @@ async def read_followers_user_specific_user(
 
         if follower:
             # Include metadata in the response
-            metadata = {"total_records": 1}
+            metadata = {
+                "total_records": 1,
+                "user_id": user_id,
+                "target_user_id": target_user_id,
+                "api_version": API_VERSION,
+            }
 
             # User follows target_user_id or vice versa
             response_data = {
@@ -112,14 +118,18 @@ async def read_followers_user_specific_user(
             )
 
         # Users are not following each other
-        return create_error_response("NOT_FOUND", "Users are not following each other.", 404)
+        return create_error_response(
+            "NOT_FOUND", "Users are not following each other.", 404
+        )
 
     except JWTError:
         # Return an error response if the user is not authenticated
         return create_error_response("UNAUTHORIZED", "Unauthorized", 401)
     except Exception as err:
         # Log the error and return an error response
-        logger.error(f"Error in read_followers_user_specific_user: {err}", exc_info=True)
+        logger.error(
+            f"Error in read_followers_user_specific_user: {err}", exc_info=True
+        )
         return create_error_response(
             "INTERNAL_SERVER_ERROR", "Internal Server Error", 500
         )
@@ -156,12 +166,10 @@ async def get_user_follower_count_all(
         )
 
         # Include metadata in the response
-        metadata = {"total_records": 1}
+        metadata = {"total_records": 1, "user_id": user_id, "api_version": API_VERSION}
 
         # Return the queried values using JSONResponse
-        return JSONResponse(
-            content={"metadata": metadata, "content": follower_count}
-        )
+        return JSONResponse(content={"metadata": metadata, "content": follower_count})
 
     except JWTError:
         # Return an error response if the user is not authenticated
@@ -172,7 +180,6 @@ async def get_user_follower_count_all(
         return create_error_response(
             "INTERNAL_SERVER_ERROR", "Internal Server Error", 500
         )
-
 
 
 @router.get("/followers/user/{user_id}/followers/count")
@@ -208,12 +215,10 @@ async def get_user_follower_count(
         )
 
         # Include metadata in the response
-        metadata = {"total_records": 1}
+        metadata = {"total_records": 1, "user_id": user_id, "api_version": API_VERSION}
 
         # Return the queried values using JSONResponse
-        return JSONResponse(
-            content={"metadata": metadata, "content": follower_count}
-        )
+        return JSONResponse(content={"metadata": metadata, "content": follower_count})
 
     except JWTError:
         # Return an error response if the user is not authenticated
@@ -263,12 +268,14 @@ async def get_user_follower_all(
         ]
 
         # Include metadata in the response
-        metadata = {"total_records": len(followers_list)}
+        metadata = {
+            "total_records": len(followers_list),
+            "user_id": user_id,
+            "api_version": API_VERSION,
+        }
 
         # Return the queried values using JSONResponse
-        return JSONResponse(
-            content={"metadata": metadata, "content": followers_list}
-        )
+        return JSONResponse(content={"metadata": metadata, "content": followers_list})
 
     except JWTError:
         # Return an error response if the user is not authenticated
@@ -312,12 +319,10 @@ async def get_user_following_count_all(
         )
 
         # Include metadata in the response
-        metadata = {"total_records": 1}
+        metadata = {"total_records": 1, "user_id": user_id, "api_version": API_VERSION}
 
         # Return the queried values using JSONResponse
-        return JSONResponse(
-            content={"metadata": metadata, "content": following_count}
-        )
+        return JSONResponse(content={"metadata": metadata, "content": following_count})
 
     except JWTError:
         # Return an error response if the user is not authenticated
@@ -363,12 +368,10 @@ async def get_user_following_count(
         )
 
         # Include metadata in the response
-        metadata = {"total_records": 1}
+        metadata = {"total_records": 1, "user_id": user_id, "api_version": API_VERSION}
 
         # Return the queried values using JSONResponse
-        return JSONResponse(
-            content={"metadata": metadata, "content": following_count}
-        )
+        return JSONResponse(content={"metadata": metadata, "content": following_count})
 
     except JWTError:
         # Return an error response if the user is not authenticated
@@ -421,12 +424,14 @@ async def get_user_following_all(
         ]
 
         # Include metadata in the response
-        metadata = {"total_records": len(following_list)}
+        metadata = {
+            "total_records": len(following_list),
+            "user_id": user_id,
+            "api_version": API_VERSION,
+        }
 
         # Return the queried values using JSONResponse
-        return JSONResponse(
-            content={"metadata": metadata, "content": following_list}
-        )
+        return JSONResponse(content={"metadata": metadata, "content": following_list})
 
     except JWTError:
         # Return an error response if the user is not authenticated
@@ -543,7 +548,9 @@ async def create_follow(
 
         if existing_follow:
             # Follow relationship already exists
-            return create_error_response("BAD_REQUEST", "Follow relationship already exists.", 400)
+            return create_error_response(
+                "BAD_REQUEST", "Follow relationship already exists.", 400
+            )
 
         # Create a new follow relationship
         new_follow = Follower(

@@ -65,6 +65,8 @@ from pydantic import BaseModel
 # Custom dependencies for dependency injection in FastAPI
 from dependencies import get_db_session, create_error_response
 
+from constants import ADMIN_ACCESS
+
 # Define the API router
 router = APIRouter()
 
@@ -434,7 +436,7 @@ def get_user_data(db_session: Session, token: str = Depends(oauth2_scheme)):
             "username": user.username,
             "email": user.email,
             "city": user.city,
-            "birthdate": user.birthdate,
+            "birthdate": user.birthdate.strftime('%Y-%m-%d') if user.birthdate else None,
             "preferred_language": user.preferred_language,
             "gender": user.gender,
             "access_type": user.access_type,
@@ -487,6 +489,8 @@ def validate_token(db_session: Session, token: str):
         )
 
         if not access_token or datetime.utcnow() > datetime.fromtimestamp(exp):
+            logger.info("Token expired, will force remove_expired_tokens to run")
+            remove_expired_tokens(db_session=Session)
             raise JWTError("Token expired")
         else:
             return {"message": "Token is valid"}
@@ -517,7 +521,7 @@ def validate_admin_access(token: str):
     """
     try:
         user_access_type = get_access_type_from_token(token)
-        if user_access_type != 2:
+        if user_access_type != ADMIN_ACCESS:
             return create_error_response("UNAUTHORIZED", "Unauthorized", 401)
     except JWTError:
         raise JWTError("Invalid token")

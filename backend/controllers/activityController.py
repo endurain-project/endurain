@@ -59,6 +59,7 @@ import calendar
 from dependencies import get_db_session, create_error_response, get_current_user
 from sqlalchemy.orm import Session
 from fastapi.responses import JSONResponse
+from constants import API_VERSION
 
 # Define the API router
 router = APIRouter()
@@ -220,7 +221,7 @@ async def read_activities_all(
         ]
 
         # Include metadata in the response
-        metadata = {"total_records": len(activity_records)}
+        metadata = {"total_records": len(activity_records), "api_version": API_VERSION}
 
         # Return the queried values using JSONResponse
         return JSONResponse(
@@ -272,7 +273,7 @@ async def read_activities_useractivities(
         ]
 
         # Include metadata in the response
-        metadata = {"total_records": len(activity_records)}
+        metadata = {"total_records": len(activity_records), "api_version": API_VERSION}
 
         # Return the queried values using JSONResponse
         return JSONResponse(
@@ -347,7 +348,12 @@ async def read_activities_useractivities_thisweek_number(
         ]
 
         # Include metadata in the response
-        metadata = {"total_records": len(activity_records)}
+        metadata = {
+            "total_records": len(activity_records),
+            "user_id": user_id,
+            "week_number": week_number,
+            "api_version": API_VERSION,
+        }
 
         # Return the queried values using JSONResponse
         return JSONResponse(
@@ -416,15 +422,13 @@ async def read_activities_useractivities_thisweek_distances(
         distances = calculate_activity_distances(activity_records)
 
         # Return the queried values using JSONResponse
-        #return JSONResponse(content=distances)
-    
+        # return JSONResponse(content=distances)
+
         #  Include metadata in the response
-        metadata = {"total_records": 1}
+        metadata = {"total_records": 1, "user_id": user_id, "api_version": API_VERSION}
 
         # Return the queried values using JSONResponse
-        return JSONResponse(
-            content={"metadata": metadata, "content": distances}
-        )
+        return JSONResponse(content={"metadata": metadata, "content": distances})
     except JWTError:
         # Return an error response if the user is not authenticated
         return create_error_response("UNAUTHORIZED", "Unauthorized", 401)
@@ -487,15 +491,13 @@ async def read_activities_useractivities_thismonth_distances(
         distances = calculate_activity_distances(activity_records)
 
         # Return the queried values using JSONResponse
-        #return JSONResponse(content=distances)
-    
+        # return JSONResponse(content=distances)
+
         #  Include metadata in the response
-        metadata = {"total_records": 1}
+        metadata = {"total_records": 1, "user_id": user_id, "api_version": API_VERSION}
 
         # Return the queried values using JSONResponse
-        return JSONResponse(
-            content={"metadata": metadata, "content": distances}
-        )
+        return JSONResponse(content={"metadata": metadata, "content": distances})
     except JWTError:
         # Return an error response if the user is not authenticated
         return create_error_response("UNAUTHORIZED", "Unauthorized", 401)
@@ -554,12 +556,10 @@ async def read_activities_useractivities_thismonth_number(
         )
 
         # Include metadata in the response
-        metadata = {"total_records": 1}
+        metadata = {"total_records": 1, "user_id": user_id, "api_version": API_VERSION}
 
         # Return the queried values using JSONResponse
-        return JSONResponse(
-            content={"metadata": metadata, "content": activity_count}
-        )
+        return JSONResponse(content={"metadata": metadata, "content": activity_count})
 
     except JWTError:
         # Return an error response if the user is not authenticated
@@ -575,9 +575,9 @@ async def read_activities_useractivities_thismonth_number(
         )
 
 
-@router.get("/activities/gear/{gearID}", response_model=List[dict])
+@router.get("/activities/gear/{gear_id}", response_model=List[dict])
 async def read_activities_gearactivities(
-    gearID=int,
+    gear_id=int,
     user_id: int = Depends(get_current_user),
     db_session: Session = Depends(get_db_session),
 ):
@@ -600,7 +600,7 @@ async def read_activities_gearactivities(
         # Query the activities records using SQLAlchemy
         activity_records = (
             db_session.query(Activity)
-            .filter(Activity.user_id == user_id, Activity.gear_id == gearID)
+            .filter(Activity.user_id == user_id, Activity.gear_id == gear_id)
             .order_by(desc(Activity.start_time))
             .all()
         )
@@ -611,7 +611,11 @@ async def read_activities_gearactivities(
         ]
 
         # Include metadata in the response
-        metadata = {"total_records": len(activity_records)}
+        metadata = {
+            "total_records": len(activity_records),
+            "gear_id": gear_id,
+            "api_version": API_VERSION,
+        }
 
         # Return the queried values using JSONResponse
         return JSONResponse(
@@ -655,12 +659,10 @@ async def read_activities_all_number(
         activity_count = db_session.query(func.count(Activity.id)).scalar()
 
         # Include metadata in the response
-        metadata = {"total_records": 1}
+        metadata = {"total_records": 1, "api_version": API_VERSION}
 
         # Return the queried values using JSONResponse
-        return JSONResponse(
-            content={"metadata": metadata, "content": activity_count}
-        )
+        return JSONResponse(content={"metadata": metadata, "content": activity_count})
 
     except JWTError:
         # Return an error response if the user is not authenticated
@@ -701,12 +703,10 @@ async def read_activities_useractivities_number(
         )
 
         # Include metadata in the response
-        metadata = {"total_records": 1}
+        metadata = {"total_records": 1, "api_version": API_VERSION}
 
         # Return the queried values using JSONResponse
-        return JSONResponse(
-            content={"metadata": metadata, "content": activity_count}
-        )
+        return JSONResponse(content={"metadata": metadata, "content": activity_count})
 
     except JWTError:
         # Return an error response if the user is not authenticated
@@ -756,12 +756,10 @@ async def read_activities_followed_useractivities_number(
         )
 
         # Include metadata in the response
-        metadata = {"total_records": 1}
+        metadata = {"total_records": 1, "api_version": API_VERSION}
 
         # Return the queried values using JSONResponse
-        return JSONResponse(
-            content={"metadata": metadata, "content": activity_count}
-        )
+        return JSONResponse(content={"metadata": metadata, "content": activity_count})
 
     except JWTError:
         # Return an error response if the user is not authenticated
@@ -826,6 +824,7 @@ async def read_activities_all_pagination(
             "total_records": len(activity_records),
             "page_number": pageNumber,
             "num_records": numRecords,
+            "api_version": API_VERSION,
         }
 
         # Return the queried values using JSONResponse
@@ -891,6 +890,7 @@ async def read_activities_useractivities_pagination(
             "total_records": len(activity_records),
             "page_number": pageNumber,
             "num_records": numRecords,
+            "api_version": API_VERSION,
         }
 
         # Return the queried values using JSONResponse
@@ -966,6 +966,7 @@ async def read_activities_followed_user_activities_pagination(
             "total_records": len(activity_records),
             "page_number": pageNumber,
             "num_records": numRecords,
+            "api_version": API_VERSION,
         }
 
         # Return the queried values using JSONResponse
@@ -1032,7 +1033,11 @@ async def read_activities_activityFromId(
         ]
 
         # Include metadata in the response
-        metadata = {"total_records": len(activity_records)}
+        metadata = {
+            "total_records": len(activity_records),
+            "id": id,
+            "api_version": API_VERSION,
+        }
 
         # Return the queried values using JSONResponse
         return JSONResponse(
