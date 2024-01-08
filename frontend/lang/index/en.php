@@ -17,6 +17,7 @@ return [
   "index_sidebar_addActivity_API_error_-2" => "API return code was not 200",
   "index_sidebar_addActivity_GPXError_-3" => "Invalid GPX file or could not load the file",
   "index_sidebar_addActivity_GPXError_-4" => "Invalid GPX file or could not load the file",
+  "index_sidebar_addActivity_createStreams_error_-5-6-7-8-9-10-11" => "Unable to create activity stream",
   "index_sidebar_invalidActivity" => "Invalid activity. Activity ID not valid or you might not have access to see it",
   "index_sidebar_noUsersFound" => "No user found with that username",
   // info banner zone

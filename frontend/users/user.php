@@ -527,6 +527,13 @@ $userFollowingAll = getUserFollowingAll($_GET["userID"]);
                     </div>
                 <?php } else { ?>
                     <?php foreach ($weekActivities as $activity) { ?>
+                        <?php $activityStreams = getActivityActivitiesStream($activity["id"]); 
+                        foreach($activityStreams as $stream){
+                            if($stream["stream_type"] == 7){
+                                $latlonStream = $stream["stream_waypoints"];
+                            }
+                        }
+                        ?>
                         <div class="card">
                             <div class="card-body">
                                 <div class="d-flex align-items-center">
@@ -633,7 +640,7 @@ $userFollowingAll = getUserFollowingAll($_GET["userID"]);
                                     </div>
                                 </div>
                             </div>
-                            <?php if (isset($activity["waypoints"][0]["lat"])) { ?>
+                            <?php if (isset($latlonStream)) { ?>
                                 <div class="ms-3 me-3 <?php if ($activity['strava_activity_id'] == null) {
                                     echo "mb-3";
                                 } ?>" id="map_<?php echo $activity['id']; ?>" style="height: 300px"></div>
@@ -653,7 +660,7 @@ $userFollowingAll = getUserFollowingAll($_GET["userID"]);
                         <br>
                         <script>
                             // JavaScript code to create the map for this activity
-                            var waypoints = <?php echo json_encode($activity['waypoints']); ?>;
+                            var waypoints = <?php echo json_encode($latlonStream); ?>;
                             var mapId = "map_<?php echo $activity['id']; ?>";
 
                             var map = L.map(mapId, {

@@ -22,7 +22,7 @@ Environment Variables:
 - JAEGER_PROTOCOL, JAEGER_HOST, JAGGER_PORT: Jaeger exporter configuration.
 
 Routes:
-- Session, User, Gear, Activity, Follower, and Strava controllers are included as routers.
+- Session, User, Gear, Activity, ActivityStreams, Follower, and Strava controllers are included as routers.
 
 Event Handlers:
 - "startup": Triggers the creation of database tables during application startup.
@@ -42,6 +42,7 @@ from controllers import (
     userController,
     gearController,
     activityController,
+    activity_streamsController,
     followerController,
     stravaController,
 )
@@ -224,6 +225,7 @@ app.include_router(sessionController.router)
 app.include_router(userController.router)
 app.include_router(gearController.router)
 app.include_router(activityController.router)
+app.include_router(activity_streamsController.router)
 app.include_router(followerController.router)
 app.include_router(stravaController.router)
 

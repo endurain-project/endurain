@@ -65,31 +65,59 @@ if ($activity == NULL) {
     header("Location: ../index.php?invalidActivity=1");
 }
 
-// HR data for activity
-$hrData = [];
-$cadData = [];
-$powerData = [];
-$eleData = [];
-$velData = [];
-$paceData = [];
-foreach ($activity[0]['waypoints'] as $waypoint) {
-    $hrData[] = $waypoint['hr'];
-    $cadData[] = $waypoint['cad'];
-    $powerData[] = $waypoint['power'];
-    $eleData[] = $waypoint['ele'];
-    $velData[] = (float) number_format(($waypoint['vel'] * 3.6), 0);
+$activityStreams = getActivityActivitiesStream($activity[0]["id"]); 
+$hrStream = [];
+$cadStream = [];
+$powerStream = [];
+$eleStream = [];
+$velStream = [];
+$paceStream = [];
+foreach ($activityStreams as $stream) {
+    if($stream["stream_type"] == 1){
+        $hrStream = $stream["stream_waypoints"];
+    }
+    if($stream["stream_type"] == 2){
+        $powerStream = $stream["stream_waypoints"];
+    }
+    if($stream["stream_type"] == 3){
+        $cadStream = $stream["stream_waypoints"];
+    }
+    if($stream["stream_type"] == 4){
+        $eleStream = $stream["stream_waypoints"];
+    }
+    if($stream["stream_type"] == 5){
+        #$velStream = $stream["stream_waypoints"];
+        foreach($stream["stream_waypoints"] as $velData){
+            $velStream[] = (float) number_format(($velData['vel'] * 3.6), 0);
+        }
+    }
+    #if($stream["stream_type"] == 6){
+    #    $paceStream = $stream["stream_waypoints"];
+    #}
+    if($stream["stream_type"] == 7){
+        $latlonStream = $stream["stream_waypoints"];
+    }
+    #$velStream[] = (float) number_format(($waypoint['vel'] * 3.6), 0);
     if ($activity[0]["activity_type"] == 1 || $activity[0]["activity_type"] == 2 || $activity[0]["activity_type"] == 3) {
-        if ($waypoint['pace'] == 0 || $waypoint['pace'] == null) {
-            $paceData[] = 0;
-        } else {
-            $paceData[] = ($waypoint["pace"] * 1000) / 60;
+        if($stream["stream_type"] == 6){
+            foreach($stream["stream_waypoints"] as $paceData){
+                if ($paceData['pace'] == 0 || $paceData['pace'] == null) {
+                    $paceStream[] = 0;
+                } else {
+                    $paceStream[] = ($paceData["pace"] * 1000) / 60;
+                }
+            }
         }
     } else {
         if ($activity[0]["activity_type"] == 9) {
-            if ($waypoint['pace'] == 0 || $waypoint['pace'] == null) {
-                $paceData[] = 0;
-            } else {
-                $paceData[] = ($waypoint["pace"] * 100) / 60;
+            if($stream["stream_type"] == 6){
+                foreach($stream["stream_waypoints"] as $paceData){
+                    if ($paceData['pace'] == 0 || $paceData['pace'] == null) {
+                        $paceStream[] = 0;
+                    } else {
+                        $paceStream[] = ($paceData["pace"] * 100) / 60;
+                    }
+                }
             }
         }
     }
@@ -377,14 +405,14 @@ if ($activity[0]["activity_type"] == 1 || $activity[0]["activity_type"] == 2 || 
         <div>
 
             <!-- Map -->
-            <?php if (isset($activity[0]["waypoints"][0]["lat"])) { ?>
+            <?php if (isset($latlonStream)) { ?>
                 <div class="mt-3 mb-3" id="map" style="height: 500px"></div>
             <?php } ?>
 
 
             <script>
                 // JavaScript code to create the map for this activity
-                var waypoints = <?php echo json_encode($activity[0]['waypoints']); ?>;
+                var waypoints = <?php echo json_encode($latlonStream); ?>;
                 var mapId = "map";
 
                 var map = L.map(mapId, {
@@ -640,13 +668,17 @@ if ($activity[0]["activity_type"] == 1 || $activity[0]["activity_type"] == 2 || 
             <script>
                 var ctx = document.getElementById('dataChart').getContext('2d');
                 var activityType = <?php echo $activity[0]["activity_type"]; ?>;
-                const downsampledDataHr = downsampleData(<?php echo json_encode($hrData); ?>, 200);
-                const downsampledDataCad = downsampleData(<?php echo json_encode($cadData); ?>, 200);
-                const downsampledDataPower = downsampleData(<?php echo json_encode($powerData); ?>, 200);
-                const downsampledDataEle = downsampleData(<?php echo json_encode($eleData); ?>, 200);
+
+                const downsampledDataHr = downsampleData(<?php foreach($hrStream as $hrValue){ $auxhr[] = $hrValue["hr"]; } echo json_encode($auxhr); ?>, 200);
+
+                const downsampledDataCad = downsampleData(<?php foreach($cadStream as $cadValue){ $auxcad[] = $cadValue["cad"]; } echo json_encode($auxcad); ?>, 200);
+
+                const downsampledDataPower = downsampleData(<?php foreach($powerStream as $powerValue){ $auxpower[] = $powerValue["power"]; } echo json_encode($auxpower); ?>, 200);
+
+                const downsampledDataEle = downsampleData(<?php foreach($eleStream as $eleValue){ $auxele[] = $eleValue["ele"]; } echo json_encode($auxele); ?>, 200);
 
                 if (activityType === 4 || activityType === 5 || activityType === 6 || activityType === 7 || activityType === 8) {
-                    const downsampledDataVel = downsampleData(<?php echo json_encode($velData); ?>, 200);
+                    const downsampledDataVel = downsampleData(<?php echo json_encode($velStream); ?>, 200);
 
                     var selectedData = {
                         hr: true,
@@ -664,7 +696,7 @@ if ($activity[0]["activity_type"] == 1 || $activity[0]["activity_type"] == 2 || 
                         velocity: downsampledDataVel
                     };
                 } else {
-                    const downsampledDataPace = downsampleData(<?php echo json_encode($paceData); ?>, 200);
+                    const downsampledDataPace = downsampleData(<?php echo json_encode($paceStream); ?>, 200);
 
                     var selectedData = {
                         hr: true,
@@ -860,8 +892,8 @@ if ($activity[0]["activity_type"] == 1 || $activity[0]["activity_type"] == 2 || 
             <!-- <script>
         var ctx = document.getElementById('hrChart').getContext('2d');
         
-        var hrData = <?php echo json_encode($hrData); ?>;
-        var timestamps = hrData.map(function(value, index) {
+        var hrStream = <?php echo json_encode($hrStream); ?>;
+        var timestamps = hrStream.map(function(value, index) {
             return index;
         });
 
@@ -871,7 +903,7 @@ if ($activity[0]["activity_type"] == 1 || $activity[0]["activity_type"] == 2 || 
                 labels: timestamps,
                 datasets: [{
                     label: 'Heart Rate',
-                    data: hrData,
+                    data: hrStream,
                     borderColor: 'rgb(75, 192, 192)',
                     fill: false,
                 }],

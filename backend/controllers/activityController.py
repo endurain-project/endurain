@@ -84,7 +84,6 @@ class ActivityBase(BaseModel):
     - city (Optional[str]): The city where the activity took place (optional).
     - town (Optional[str]): The town where the activity took place (optional).
     - country (Optional[str]): The country where the activity took place (optional).
-    - waypoints (List[dict]): List of waypoints for the activity.
     - elevation_gain (int): The elevation gain during the activity.
     - elevation_loss (int): The elevation loss during the activity.
     - pace (float): The pace of the activity.
@@ -101,12 +100,12 @@ class ActivityBase(BaseModel):
     city: Optional[str]
     town: Optional[str]
     country: Optional[str]
-    waypoints: List[dict]
     elevation_gain: int
     elevation_loss: int
     pace: float
     average_speed: float
     average_power: int
+    strava_gear_id: Optional[int]
     strava_activity_id: Optional[int]
 
 
@@ -148,7 +147,6 @@ def activity_record_to_dict(record: Activity) -> dict:
         "town": record.town,
         "country": record.country,
         "created_at": record.created_at.strftime("%Y-%m-%dT%H:%M:%S"),
-        "waypoints": record.waypoints,
         "elevation_gain": record.elevation_gain,
         "elevation_loss": record.elevation_loss,
         "pace": str(record.pace),
@@ -1143,8 +1141,10 @@ async def create_activity(
 
         auxType = 10  # Default value
         type_mapping = {
+            "Run": 1,
             "running": 1,
             "trail running": 2,
+            "TrailRun": 2,
             "VirtualRun": 3,
             "cycling": 4,
             "Ride": 4,
@@ -1154,7 +1154,58 @@ async def create_activity(
             "virtual_ride": 7,
             "swimming": 8,
             "open_water_swimming": 8,
+            "Walk": 9,
         }
+        # "AlpineSki",
+        # "BackcountrySki",
+        # "Badminton",
+        # "Canoeing",
+        # "Crossfit",
+        # "EBikeRide",
+        # "Elliptical",
+        # "EMountainBikeRide",
+        # "Golf",
+        # "GravelRide",
+        # "Handcycle",
+        # "HighIntensityIntervalTraining",
+        # "Hike",
+        # "IceSkate",
+        # "InlineSkate",
+        # "Kayaking",
+        # "Kitesurf",
+        # "MountainBikeRide",
+        # "NordicSki",
+        # "Pickleball",
+        # "Pilates",
+        # "Racquetball",
+        # "Ride",
+        # "RockClimbing",
+        # "RollerSki",
+        # "Rowing",
+        # "Run",
+        # "Sail",
+        # "Skateboard",
+        # "Snowboard",
+        # "Snowshoe",
+        # "Soccer",
+        # "Squash",
+        # "StairStepper",
+        # "StandUpPaddling",
+        # "Surfing",
+        # "Swim",
+        # "TableTennis",
+        # "Tennis",
+        # "TrailRun",
+        # "Velomobile",
+        # "VirtualRide",
+        # "VirtualRow",
+        # "VirtualRun",
+        # "Walk",
+        # "WeightTraining",
+        # "Wheelchair",
+        # "Windsurf",
+        # "Workout",
+        # "Yoga"
         auxType = type_mapping.get(activity_data.activity_type, 10)
 
         # Create a new Activity record
@@ -1169,12 +1220,12 @@ async def create_activity(
             town=activity_data.town,
             country=activity_data.country,
             created_at=func.now(),  # Use func.now() to set 'created_at' to the current timestamp
-            waypoints=activity_data.waypoints,
             elevation_gain=activity_data.elevation_gain,
             elevation_loss=activity_data.elevation_loss,
             pace=activity_data.pace,
             average_speed=activity_data.average_speed,
             average_power=activity_data.average_power,
+            strava_gear_id=activity_data.strava_gear_id,
             strava_activity_id=activity_data.strava_activity_id,
         )
 
@@ -1185,7 +1236,7 @@ async def create_activity(
 
         # Return a JSONResponse indicating the success of the activity creation
         return JSONResponse(
-            content={"message": "Activity created successfully"},
+            content={"message": "Activity created successfully", "activity_id": activity.id},
             status_code=201,
         )
 
