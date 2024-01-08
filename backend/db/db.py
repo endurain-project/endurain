@@ -1,5 +1,5 @@
 """
-Module: my_database_logic
+Module: db.py
 
 This module defines the SQLAlchemy data models and database logic for managing users, followers,
 access tokens, gear, and activities. It establishes the database connection, creates tables,
@@ -60,7 +60,9 @@ db_url = URL.create(
 )
 
 # Create the SQLAlchemy engine
-engine = create_engine(db_url, pool_size=10, max_overflow=20, pool_timeout=180)
+engine = create_engine(
+    db_url, pool_size=10, max_overflow=20, pool_timeout=180, pool_recycle=3600
+)
 
 # Create a session factory
 Session = sessionmaker(bind=engine)
@@ -68,18 +70,41 @@ Session = sessionmaker(bind=engine)
 # Create a base class for declarative models
 Base = declarative_base()
 
+
 # Data model for followers table using SQLAlchemy's ORM
 class Follower(Base):
     __tablename__ = "followers"
 
-    follower_id = Column(Integer, ForeignKey('users.id'), primary_key=True, index=True, comment="ID of the follower user")
-    following_id = Column(Integer, ForeignKey('users.id'), primary_key=True, index=True, comment="ID of the following user")
-    is_accepted = Column(Boolean, nullable=False, default=False, comment="Whether the follow request is accepted or not")
+    follower_id = Column(
+        Integer,
+        ForeignKey("users.id"),
+        primary_key=True,
+        index=True,
+        comment="ID of the follower user",
+    )
+    following_id = Column(
+        Integer,
+        ForeignKey("users.id"),
+        primary_key=True,
+        index=True,
+        comment="ID of the following user",
+    )
+    is_accepted = Column(
+        Boolean,
+        nullable=False,
+        default=False,
+        comment="Whether the follow request is accepted or not",
+    )
 
     # Define a relationship to the User model
-    follower = relationship('User', foreign_keys=[follower_id], back_populates="followers")
+    follower = relationship(
+        "User", foreign_keys=[follower_id], back_populates="followers"
+    )
     # Define a relationship to the User model
-    following = relationship('User', foreign_keys=[following_id], back_populates="following")
+    following = relationship(
+        "User", foreign_keys=[following_id], back_populates="following"
+    )
+
 
 # Data model for users table using SQLAlchemy's ORM
 class User(Base):
@@ -87,7 +112,9 @@ class User(Base):
 
     id = Column(Integer, primary_key=True)
     name = Column(
-        String(length=250), nullable=False, comment="User real name (May include spaces)"
+        String(length=250),
+        nullable=False,
+        comment="User real name (May include spaces)",
     )
     username = Column(
         String(length=250),
@@ -141,9 +168,19 @@ class User(Base):
     # user_settings = relationship("UserSettings", back_populates="user")
 
     # Establish a one-to-many relationship between User and Followers
-    followers = relationship("Follower", back_populates="following", cascade="all, delete-orphan", foreign_keys=[Follower.following_id])
+    followers = relationship(
+        "Follower",
+        back_populates="following",
+        cascade="all, delete-orphan",
+        foreign_keys=[Follower.following_id],
+    )
     # Establish a one-to-many relationship between User and Followers
-    following = relationship("Follower", back_populates="follower", cascade="all, delete-orphan", foreign_keys=[Follower.follower_id])
+    following = relationship(
+        "Follower",
+        back_populates="follower",
+        cascade="all, delete-orphan",
+        foreign_keys=[Follower.follower_id],
+    )
 
 
 # Data model for access_tokens table using SQLAlchemy's ORM
@@ -271,7 +308,12 @@ class Activity(Base):
         comment="Average speed seconds per meter (s/m)",
     )
     average_power = Column(Integer, nullable=False, comment="Average power (watts)")
-    visibility = Column(Integer, nullable=False, default=0, comment="0 - public, 1 - followers, 2 - private")
+    visibility = Column(
+        Integer,
+        nullable=False,
+        default=0,
+        comment="0 - public, 1 - followers, 2 - private",
+    )
     gear_id = Column(
         Integer,
         ForeignKey("gear.id", ondelete="SET NULL"),
@@ -287,6 +329,7 @@ class Activity(Base):
     # Define a relationship to the Gear model
     gear = relationship("Gear", back_populates="activities")
 
+
 def create_database_tables():
     # Create tables
     Base.metadata.create_all(bind=engine)
@@ -295,8 +338,9 @@ def create_database_tables():
     with get_db_session() as session:
         try:
             # Check if the user already exists
-            existing_user = session.query(User).filter_by(username="admin").one()
+            session.query(User).filter_by(username="admin").one()
             print("Admin user already exists. Will skip user creation.")
+            logger.info("Admin user already exists. Will skip user creation.")
         except NoResultFound:
             # Create a new SHA-256 hash object
             sha256_hash = hashlib.sha256()
@@ -324,6 +368,7 @@ def create_database_tables():
             session.commit()
 
             print("Admin user created successfully.")
+
 
 @contextmanager
 def get_db_session():

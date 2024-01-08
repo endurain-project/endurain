@@ -10,7 +10,7 @@ function getActivities()
         return -1;
     } else {
         if ($response[1] === 200) {
-            return json_decode($response[0], true);
+            return json_decode($response[0], true)["content"];
         } else {
             return -2;
         }
@@ -25,7 +25,7 @@ function getUserActivities()
         return -1;
     } else {
         if ($response[1] === 200) {
-            return json_decode($response[0], true);
+            return json_decode($response[0], true)["content"];
         } else {
             return -2;
         }
@@ -40,7 +40,7 @@ function getUserActivitiesWeek($userID, $week)
         return -1;
     } else {
         if ($response[1] === 200) {
-            return json_decode($response[0], true);
+            return json_decode($response[0], true)["content"];
         } else {
             return -2;
         }
@@ -55,7 +55,7 @@ function getUserActivitiesThisWeekDistances($userID)
         return -1;
     } else {
         if ($response[1] === 200) {
-            return json_decode($response[0], true);
+            return json_decode($response[0], true)["content"];
         } else {
             return -2;
         }
@@ -70,7 +70,7 @@ function getUserActivitiesThisMonthDistances($userID)
         return -1;
     } else {
         if ($response[1] === 200) {
-            return json_decode($response[0], true);
+            return json_decode($response[0], true)["content"];
         } else {
             return -2;
         }
@@ -85,7 +85,7 @@ function getUserActivitiesThisMonthNumber($userID)
         return -1;
     } else {
         if ($response[1] === 200) {
-            return json_decode($response[0], true);
+            return json_decode($response[0], true)["content"];
         } else {
             return -2;
         }
@@ -100,7 +100,7 @@ function getGearActivities($gearID)
         return -1;
     } else {
         if ($response[1] === 200) {
-            return json_decode($response[0], true);
+            return json_decode($response[0], true)["content"];
         } else {
             return -2;
         }
@@ -116,7 +116,7 @@ function getActivitiesPagination($pageNumber, $numRecords)
         return -1;
     } else {
         if ($response[1] === 200) {
-            return json_decode($response[0], true);
+            return json_decode($response[0], true)["content"];
         } else {
             return -2;
         }
@@ -131,7 +131,7 @@ function getUserActivitiesPagination($pageNumber, $numRecords)
         return -1;
     } else {
         if ($response[1] === 200) {
-            return json_decode($response[0], true);
+            return json_decode($response[0], true)["content"];
         } else {
             return -2;
         }
@@ -146,7 +146,7 @@ function getFollowedUserActivitiesPagination($pageNumber, $numRecords)
         return -1;
     } else {
         if ($response[1] === 200) {
-            return json_decode($response[0], true);
+            return json_decode($response[0], true)["content"];
         } else {
             return -2;
         }
@@ -161,8 +161,7 @@ function numActivities()
         return -1;
     } else {
         if ($response[1] === 200) {
-            $data = json_decode($response[0], true);
-            return $data[0];
+            return json_decode($response[0], true)["content"];
         } else {
             return -2;
         }
@@ -177,8 +176,7 @@ function numUserActivities()
         return -1;
     } else {
         if ($response[1] === 200) {
-            $data = json_decode($response[0], true);
-            return $data[0];
+            return json_decode($response[0], true)["content"];
         } else {
             return -2;
         }
@@ -193,8 +191,7 @@ function numFollowedUserActivities()
         return -1;
     } else {
         if ($response[1] === 200) {
-            $data = json_decode($response[0], true);
-            return $data[0];
+            return json_decode($response[0], true)["content"];
         } else {
             return -2;
         }
@@ -209,7 +206,7 @@ function getActivityFromId($id)
         return -1;
     } else {
         if ($response[1] === 200) {
-            return json_decode($response[0], true);
+            return json_decode($response[0], true)["content"];
         } else {
             return -2;
         }
@@ -236,24 +233,24 @@ function newActivity($distance, $name, $type, $starttime, $endtime, $town, $coun
     $response = callAPIRoute("/activities/create", 0, 4, json_encode(array(
         'distance' => $distance,
         'name' => $name,
-        'type' => $type,
-        'starttime' => $starttime,
-        'endtime' => $endtime,
+        'activity_type' => $type,
+        'start_time' => $starttime,
+        'end_time' => $endtime,
         'city' => $city,
         'town' => $town,
         'country' => $country,
         'waypoints' => $waypoints,
-        'elevationGain' => $elevationGain,
-        'elevationLoss' => $elevationLoss,
+        'elevation_gain' => $elevationGain,
+        'elevation_loss' => $elevationLoss,
         'pace' => $pace,
-        'averageSpeed' => $averageSpeed,
-        'averagePower' => $averagePower,
-        'strava_id' => $strava_id,
+        'average_speed' => $averageSpeed,
+        'average_power' => $averagePower,
+        'strava_activity_id' => $strava_id,
     )));
     if ($response[0] === false) {
         return -1;
     } else {
-        if ($response[1] === 200) {
+        if ($response[1] === 201) {
             return 0;
             // $data = json_decode($response[0], true);
             // if (isset($data['id'])) {

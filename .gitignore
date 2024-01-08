@@ -4,5 +4,8 @@ backend/*/__pycache__/
 backend/*.pyc
 
 # Logs
-backend/logs/
+backend/logs/*.log
 backend/*.log
+
+# Frontend
+frontend/img/users_img/*.*

@@ -89,10 +89,10 @@ $random_number = mt_rand(1, 2);
     <?php } ?>
     <form action="../login.php" method="post">
         <!--<img class="mb-4 rounded-circle" src="../img/avatar/<?php if ($random_number == 1) {
-                                                                    echo ("female1");
-                                                                } else {
-                                                                    echo ("male1");
-                                                                } ?>.png" alt="avatar" width="150" height="150">
+                echo ("female1");
+            } else {
+                echo ("male1");
+            } ?>.png" alt="avatar" width="150" height="150">
         <img class="mb-4 rounded-3" src="../img/logo/logo.png" alt="app logo" width="200" height="200">-->
         <h1>Endurain</h1>
         <p><?php echo $translationsLogin['login_subtitle']; ?></p>

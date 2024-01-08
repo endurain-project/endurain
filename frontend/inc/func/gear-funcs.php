@@ -10,52 +10,22 @@ function getGear()
         return -1;
     } else {
         if ($response[1] === 200) {
-            return json_decode($response[0], true);
+            return json_decode($response[0], true)["content"];
         } else {
             return -2;
         }
     }
 }
 
-/* Get all gear for running*/
-function getGearForRunning()
+/* Get all gear from type*/
+function getGearFromType($gear_type)
 {
-    $response = callAPIRoute("/gear/all/running", 1, 0, NULL);
+    $response = callAPIRoute("/gear/all/$gear_type", 1, 0, NULL);
     if ($response[0] === false) {
         return -1;
     } else {
         if ($response[1] === 200) {
-            return json_decode($response[0], true);
-        } else {
-            return -2;
-        }
-    }
-}
-
-/* Get all gear for running*/
-function getGearForCycling()
-{
-    $response = callAPIRoute("/gear/all/cycling", 1, 0, NULL);
-    if ($response[0] === false) {
-        return -1;
-    } else {
-        if ($response[1] === 200) {
-            return json_decode($response[0], true);
-        } else {
-            return -2;
-        }
-    }
-}
-
-/* Get all gear for running*/
-function getGearForSwimming()
-{
-    $response = callAPIRoute("/gear/all/swimming", 1, 0, NULL);
-    if ($response[0] === false) {
-        return -1;
-    } else {
-        if ($response[1] === 200) {
-            return json_decode($response[0], true);
+            return json_decode($response[0], true)["content"];
         } else {
             return -2;
         }
@@ -70,7 +40,7 @@ function getGearPagination($pageNumber, $numRecords)
         return -1;
     } else {
         if ($response[1] === 200) {
-            return json_decode($response[0], true);
+            return json_decode($response[0], true)["content"];
         } else {
             return -2;
         }
@@ -85,8 +55,7 @@ function numGears()
         return -1;
     } else {
         if ($response[1] === 200) {
-            $data = json_decode($response[0], true);
-            return $data[0];
+            return json_decode($response[0], true)["content"];
         } else {
             return -2;
         }
@@ -96,12 +65,12 @@ function numGears()
 /* Get gear from nickname */
 function getGearFromNickname($nickname)
 {
-    $response = callAPIRoute("/gear/$nickname/gearfromnickname", 1, 0, NULL);
+    $response = callAPIRoute("/gear/nickname/$nickname", 1, 0, NULL);
     if ($response[0] === false) {
         return -1;
     } else {
         if ($response[1] === 200) {
-            return json_decode($response[0], true);
+            return json_decode($response[0], true)["content"];
         } else {
             return -2;
         }
@@ -111,12 +80,12 @@ function getGearFromNickname($nickname)
 /* Get gear from id */
 function getGearFromId($id)
 {
-    $response = callAPIRoute("/gear/$id/gearfromid", 1, 0, NULL);
+    $response = callAPIRoute("/gear/id/$id", 1, 0, NULL);
     if ($response[0] === false) {
         return -1;
     } else {
         if ($response[1] === 200) {
-            return json_decode($response[0], true);
+            return json_decode($response[0], true)["content"];
         } else {
             return -2;
         }
@@ -140,7 +109,7 @@ function newGear($brand, $model, $nickname, $gear_type, $date)
     if ($response[0] === false) {
         return -1;
     } else {
-        if ($response[1] === 200) {
+        if ($response[1] === 201) {
             return 0;
         } else {
             return -2;
