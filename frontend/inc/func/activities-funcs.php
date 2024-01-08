@@ -228,7 +228,7 @@ function addGearToActivity($activityID, $gearID)
 }
 
 /* Creates a new activity */
-function newActivity($distance, $name, $type, $starttime, $endtime, $town, $country, $city, $waypoints, $elevationGain, $elevationLoss, $pace, $averageSpeed, $averagePower, $strava_id)
+function newActivity($distance, $name, $type, $starttime, $endtime, $town, $country, $city, $elevationGain, $elevationLoss, $pace, $averageSpeed, $averagePower, $strava_id)
 {
     $response = callAPIRoute("/activities/create", 0, 4, json_encode(array(
         'distance' => $distance,
@@ -239,7 +239,6 @@ function newActivity($distance, $name, $type, $starttime, $endtime, $town, $coun
         'city' => $city,
         'town' => $town,
         'country' => $country,
-        'waypoints' => $waypoints,
         'elevation_gain' => $elevationGain,
         'elevation_loss' => $elevationLoss,
         'pace' => $pace,
@@ -251,7 +250,7 @@ function newActivity($distance, $name, $type, $starttime, $endtime, $town, $coun
         return -1;
     } else {
         if ($response[1] === 201) {
-            return 0;
+            return json_decode($response[0], true)["activity_id"];
             // $data = json_decode($response[0], true);
             // if (isset($data['id'])) {
             //     return $data['id']; // Return the activity ID.
@@ -362,17 +361,60 @@ function parseActivityGPX($gpx_file)
                 $instantPace = 0; // Avoid division by zero for points with zero speed
             }
 
-            $waypoints[] = [
-                'lat' => $latitude,
-                'lon' => $longitude,
-                'ele' => $elevation,
-                'time' => $time,
-                'hr' => $heartRate,
-                'cad' => $cadence,
-                'power' => $power,
-                'vel' => $instantSpeed,
-                'pace' => $instantPace,
-            ];
+            // $waypoints[] = [
+            //     'lat' => $latitude,
+            //     'lon' => $longitude,
+            //     'ele' => $elevation,
+            //     'time' => $time,
+            //     'hr' => $heartRate,
+            //     'cad' => $cadence,
+            //     'power' => $power,
+            //     'vel' => $instantSpeed,
+            //     'pace' => $instantPace,
+            // ];
+            if(isset($latitude) && isset($longitude)){
+                $latLonWaypoints[] = [
+                    'time' => $time,
+                    'lat' => $latitude,
+                    'lon' => $longitude,
+                ];
+            }
+            if(isset($elevation)){
+                $eleWaypoints[] = [
+                    'time' => $time,
+                    'ele' => $elevation,
+                ];
+            }
+            if(isset($heartRate)){
+                $hrWaypoints[] = [
+                    'time' => $time,
+                    'hr' => $heartRate,
+                ];
+            }
+            if(isset($cadence)){
+                $cadWaypoints[] = [
+                    'time' => $time,
+                    'cad' => $cadence,
+                ];
+            }
+            if(isset($power)){
+                $powerWaypoints[] = [
+                    'time' => $time,
+                    'power' => $power,
+                ];
+            }
+            if(isset($instantSpeed) && $instantSpeed != 0){
+                $velWaypoints[] = [
+                    'time' => $time,
+                    'vel' => $instantSpeed,
+                ];
+            }
+            if($instantPace != 0){
+                $paceWaypoints[] = [
+                    'time' => $time,
+                    'pace' => $instantPace,
+                ];
+            }
 
             // Update previous latitude and longitude for the next iteration
             $prevLatitude = $latitude;
@@ -380,16 +422,65 @@ function parseActivityGPX($gpx_file)
             $lastWaypointTime = $time;
         }
 
-        $elevationData = calculateElevationGainLoss($waypoints);
+        $elevationData = calculateElevationGainLoss($eleWaypoints);
         $elevationGain = $elevationData['elevationGain'];
         $elevationLoss = $elevationData['elevationLoss'];
         $pace = calculatePace($distance, $firstWaypointTime, $lastWaypointTime);
 
         $averageSpeed = calculateAverageSpeed($distance, $firstWaypointTime, $lastWaypointTime);
 
-        $averagePower = calculateAveragePower($waypoints);
+        $averagePower = calculateAveragePower($powerWaypoints);
 
-        return newActivity(intval(number_format($distance, 0, '', '')), $activityName, $activityType, $firstWaypointTime, $lastWaypointTime, $town, $country, $city, $waypoints, $elevationGain, $elevationLoss, number_format($pace, 10), number_format($averageSpeed, 10), $averagePower, null);
+        $newActivityresult = newActivity(intval(number_format($distance, 0, '', '')), $activityName, $activityType, $firstWaypointTime, $lastWaypointTime, $town, $country, $city, $elevationGain, $elevationLoss, number_format($pace, 10), number_format($averageSpeed, 10), $averagePower, null);
+        if($newActivityresult > 0){
+            $auxResultStreams = 0;
+            if($hrWaypoints != null){
+                $hrStreamResult = newActivityStream($newActivityresult, 1, $hrWaypoints, null);
+                if($hrStreamResult != 0){
+                    $auxResultStreams = -5;
+                }
+            }
+            if($powerWaypoints != null){
+                $powerStreamResult = newActivityStream($newActivityresult, 2, $powerWaypoints, null); 
+                if($powerStreamResult != 0){
+                    $auxResultStreams = -6;
+                }
+            }
+            if($cadWaypoints != null){
+                $cadStreamResult = newActivityStream($newActivityresult, 3, $cadWaypoints, null); 
+                if($cadStreamResult != 0){
+                    $auxResultStreams = -7;
+                }
+            }
+            if($eleWaypoints != null){
+                $eleStreamResult = newActivityStream($newActivityresult, 4, $eleWaypoints, null); 
+                if($eleStreamResult != 0){
+                    $auxResultStreams = -8;
+                }
+            }
+            if($velWaypoints != null){
+                $velStreamResult = newActivityStream($newActivityresult, 5, $velWaypoints, null); 
+                if($velStreamResult != 0){
+                    $auxResultStreams = -9;
+                }
+            }
+            if($paceWaypoints != null){
+                $paceStreamResult = newActivityStream($newActivityresult, 6, $paceWaypoints, null); 
+                if($paceStreamResult != 0){
+                    $auxResultStreams = -10;
+                }
+            }
+            if($latLonWaypoints != null){
+                $latLonStreamResult = newActivityStream($newActivityresult, 7, $latLonWaypoints, null); 
+                if($latLonStreamResult != 0){
+                    $auxResultStreams = -11;
+                }
+            }
+            return $auxResultStreams;
+        }else{
+            return $newActivityresult;
+        }
+        #return newActivity(intval(number_format($distance, 0, '', '')), $activityName, $activityType, $firstWaypointTime, $lastWaypointTime, $town, $country, $city, $waypoints, $elevationGain, $elevationLoss, number_format($pace, 10), number_format($averageSpeed, 10), $averagePower, null);
     } catch (Exception $e) {
         // Handle the exception
         #echo "Error: " . $e->getMessage();

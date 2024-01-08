@@ -294,7 +294,6 @@ class Activity(Base):
     created_at = Column(
         DateTime, nullable=False, comment="Activity creation date (datetime)"
     )
-    waypoints = Column(JSON, nullable=True, doc="Store waypoints data")
     elevation_gain = Column(Integer, nullable=False, comment="Elevation gain in meters")
     elevation_loss = Column(Integer, nullable=False, comment="Elevation loss in meters")
     pace = Column(
@@ -321,6 +320,7 @@ class Activity(Base):
         index=True,
         comment="Gear ID associated with this activity",
     )
+    strava_gear_id = Column(BigInteger, nullable=True, comment="Strava gear ID")
     strava_activity_id = Column(BigInteger, nullable=True, comment="Strava activity ID")
 
     # Define a relationship to the User model
@@ -328,6 +328,34 @@ class Activity(Base):
 
     # Define a relationship to the Gear model
     gear = relationship("Gear", back_populates="activities")
+
+    # Establish a one-to-many relationship with 'activities_streams'
+    activities_streams = relationship("ActivityStreams", back_populates="activity")
+
+
+class ActivityStreams(Base):
+    __tablename__ = "activities_streams"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    activity_id = Column(
+        Integer,
+        ForeignKey("activities.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+        comment="Activity ID that the activity stream belongs",
+    )
+    stream_type = Column(
+        Integer,
+        nullable=False,
+        comment="Stream type (1 - HR, 2 - Power, 3 - Cadence, 4 - Elevation, 5 - Velocity, 6 - Pace, 7 - lat/lon)",
+    )
+    stream_waypoints = Column(JSON, nullable=False, doc="Store waypoints data")
+    strava_activity_stream_id = Column(
+        BigInteger, nullable=True, comment="Strava activity stream ID"
+    )
+
+    # Define a relationship to the User model
+    activity = relationship("Activity", back_populates="activities_streams")
 
 
 def create_database_tables():
@@ -346,7 +374,7 @@ def create_database_tables():
             sha256_hash = hashlib.sha256()
 
             # Update the hash object with the bytes of the input string
-            sha256_hash.update("admin".encode('utf-8'))
+            sha256_hash.update("admin".encode("utf-8"))
 
             # Get the hexadecimal representation of the hash
             hashed_string = sha256_hash.hexdigest()

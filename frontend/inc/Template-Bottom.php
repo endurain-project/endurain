@@ -6,7 +6,7 @@
                 } else { ?>2023 -
                         <?php echo date("Y");
                 } ?>--> Endurain • <a href="https://github.com/joaovitoriasilva/endurain"
-                        role="button"><i class="fa-brands fa-github"></i></a> • <i class="fa-brands fa-mastodon"></i> • v0.1.2
+                        role="button"><i class="fa-brands fa-github"></i></a> • <i class="fa-brands fa-mastodon"></i> • v0.1.3
         </p>
         <p class="text-center text-muted"><img src="../img/strava/api_logo_cptblWith_strava_horiz_light.png"
                         alt="Compatible with STRAVA image" height="25" /></p>

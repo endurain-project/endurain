@@ -240,7 +240,7 @@ $thisMonthDistances = getUserActivitiesThisMonthDistances($_SESSION["id"]);
     </div>
     <div class="col">
       <!-- Error banners -->
-      <?php if ($userActivities == -1 || $userActivities == -2 || $addActivityAction == -1 || $addActivityAction == -2 || $addActivityAction == -3 || $addActivityAction == -4 || (isset($_GET["invalidActivity"]) && $_GET["invalidActivity"] == 1) || $users == -1 || $users == -2 || $users == -3) { ?>
+      <?php if ($userActivities == -1 || $userActivities == -2 || $addActivityAction == -1 || $addActivityAction == -2 || $addActivityAction == -3 || $addActivityAction == -4 || $addActivityAction == -5 || $addActivityAction == -6 || $addActivityAction == -7 || $addActivityAction == -8 || $addActivityAction == -9 || $addActivityAction == -10 || $addActivityAction == -11 || (isset($_GET["invalidActivity"]) && $_GET["invalidActivity"] == 1) || $users == -1 || $users == -2 || $users == -3) { ?>
         <div class="alert alert-danger alert-dismissible d-flex align-items-center" role="alert">
           <i class="fa-solid fa-circle-exclamation me-1"></i>
           <div>
@@ -258,11 +258,15 @@ $thisMonthDistances = getUserActivitiesThisMonthDistances($_SESSION["id"]);
                   <?php if ($addActivityAction == -4) { ?>
                     <?php echo $translationsIndex['index_sidebar_addActivity_GPXError_-4']; ?> (-4).
                   <?php } else { ?>
-                    <?php if (isset($_GET["invalidActivity"]) && $_GET["invalidActivity"] == 1) { ?>
-                      <?php echo $translationsIndex['index_sidebar_invalidActivity']; ?>.
-                    <?php }else{ ?>
-                      <?php if ($users == -3) { ?>
-                        <?php echo $translationsIndex['index_sidebar_noUsersFound']; ?>.
+                    <?php if ($addActivityAction == -5 || $addActivityAction == -6 || $addActivityAction == -7 || $addActivityAction == -8 || $addActivityAction == -9 || $addActivityAction == -10 || $addActivityAction == -11) { ?>
+                      <?php echo $translationsIndex['index_sidebar_addActivity_createStreams_error_-5-6-7-8-9-10-11']; ?> (-5/-6/-7/-8/-9/-10/-11).
+                    <?php } else { ?>
+                      <?php if (isset($_GET["invalidActivity"]) && $_GET["invalidActivity"] == 1) { ?>
+                        <?php echo $translationsIndex['index_sidebar_invalidActivity']; ?>.
+                      <?php }else{ ?>
+                        <?php if ($users == -3) { ?>
+                          <?php echo $translationsIndex['index_sidebar_noUsersFound']; ?>.
+                        <?php } ?>
                       <?php } ?>
                     <?php } ?>
                   <?php } ?>
@@ -319,6 +323,32 @@ $thisMonthDistances = getUserActivitiesThisMonthDistances($_SESSION["id"]);
       <div id="userActivitiesDiv" style="display: block;">
         <!-- user activities list -->
         <?php foreach ($userActivities as $activity) { ?>
+          <?php 
+            $activityStreams = getActivityActivitiesStream($activity["id"]); 
+            foreach($activityStreams as $stream){
+              if($stream["stream_type"] == 1){
+                $hrStream = $stream["stream_waypoints"];
+              }
+              if($stream["stream_type"] == 2){
+                $powerStream = $stream["stream_waypoints"];
+              }
+              if($stream["stream_type"] == 3){
+                $cadStream = $stream["stream_waypoints"];
+              }
+              if($stream["stream_type"] == 4){
+                $eleStream = $stream["stream_waypoints"];
+              }
+              if($stream["stream_type"] == 5){
+                $velStream = $stream["stream_waypoints"];
+              }
+              if($stream["stream_type"] == 6){
+                $paceStream = $stream["stream_waypoints"];
+              }
+              if($stream["stream_type"] == 7){
+                $latlonStream = $stream["stream_waypoints"];
+              }
+            }
+          ?>
           <div class="card">
             <div class="card-body">
               <div class="d-flex align-items-center">
@@ -434,7 +464,7 @@ $thisMonthDistances = getUserActivitiesThisMonthDistances($_SESSION["id"]);
                 </div>
               </div>
             </div>
-            <?php if (isset($activity["waypoints"][0]["lat"])) { ?>
+            <?php if (isset($latlonStream)) { ?>
               <div class="ms-3 me-3 <?php if ($activity['strava_activity_id'] == null) {
                 echo "mb-3";
               } ?>" id="map_<?php echo $activity['id']; ?>" style="height: 300px"></div>
@@ -454,7 +484,7 @@ $thisMonthDistances = getUserActivitiesThisMonthDistances($_SESSION["id"]);
           <br>
           <script>
             // JavaScript code to create the map for this activity
-            var waypoints = <?php echo json_encode($activity['waypoints']); ?>;
+            var waypoints = <?php echo json_encode($latlonStream); ?>;
             var mapId = "map_<?php echo $activity['id']; ?>";
 
             var map = L.map(mapId, {
@@ -520,6 +550,32 @@ $thisMonthDistances = getUserActivitiesThisMonthDistances($_SESSION["id"]);
         <!-- user activities list -->
         <?php foreach ($followedUserActivities as $activity) { ?>
           <?php $userActivity = getUserFromId($activity["user_id"]); ?>
+          <?php 
+            $activityStreams = getActivityActivitiesStream($activity["id"]); 
+            foreach($activityStreams as $stream){
+              if($stream["stream_type"] == 1){
+                $hrStream = $stream["stream_waypoints"];
+              }
+              if($stream["stream_type"] == 2){
+                $powerStream = $stream["stream_waypoints"];
+              }
+              if($stream["stream_type"] == 3){
+                $cadStream = $stream["stream_waypoints"];
+              }
+              if($stream["stream_type"] == 4){
+                $eleStream = $stream["stream_waypoints"];
+              }
+              if($stream["stream_type"] == 5){
+                $velStream = $stream["stream_waypoints"];
+              }
+              if($stream["stream_type"] == 6){
+                $paceStream = $stream["stream_waypoints"];
+              }
+              if($stream["stream_type"] == 7){
+                $latlonStream = $stream["stream_waypoints"];
+              }
+            }
+          ?>
           <div class="card">
             <div class="card-body">
               <div class="d-flex align-items-center">
@@ -640,7 +696,7 @@ $thisMonthDistances = getUserActivitiesThisMonthDistances($_SESSION["id"]);
                 </div>
               </div>
             </div>
-            <?php if (isset($activity["waypoints"][0]["lat"])) { ?>
+            <?php if (isset($latlonStream)) { ?>
               <div class="ms-3 me-3 <?php if ($activity['strava_activity_id'] == null) {
                 echo "mb-3";
               } ?>" id="map_<?php echo $activity['id']; ?>" style="height: 300px"></div>
@@ -660,7 +716,7 @@ $thisMonthDistances = getUserActivitiesThisMonthDistances($_SESSION["id"]);
           <br>
           <script>
             // JavaScript code to create the map for this activity
-            var waypoints = <?php echo json_encode($activity['waypoints']); ?>;
+            var waypoints = <?php echo json_encode($latlonStream); ?>;
             var mapId = "map_<?php echo $activity['id']; ?>";
 
             var map = L.map(mapId, {
