@@ -18,10 +18,8 @@ if (isset($_SESSION["preferred_language"])) {
     $translationsTemplateTop = include $_SERVER['DOCUMENT_ROOT'] . '/lang/inc/Template-Top/en.php';
 }
 ?>
-
 <!DOCTYPE html>
 <html data-bs-theme="default" lang="pt">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -42,7 +40,6 @@ if (isset($_SESSION["preferred_language"])) {
     <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
-
 <body>
     <script>
         // Used to toggle the menu on small screens when clicking on the menu button

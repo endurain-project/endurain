@@ -669,13 +669,13 @@ if ($activity[0]["activity_type"] == 1 || $activity[0]["activity_type"] == 2 || 
                 var ctx = document.getElementById('dataChart').getContext('2d');
                 var activityType = <?php echo $activity[0]["activity_type"]; ?>;
 
-                const downsampledDataHr = downsampleData(<?php foreach($hrStream as $hrValue){ $auxhr[] = $hrValue["hr"]; } echo json_encode($auxhr); ?>, 200);
+                const downsampledDataHr = downsampleData(<?php foreach($hrStream as $hrValue){ $auxhr[] = (int)$hrValue["hr"]; } echo json_encode($auxhr); ?>, 200);
 
-                const downsampledDataCad = downsampleData(<?php foreach($cadStream as $cadValue){ $auxcad[] = $cadValue["cad"]; } echo json_encode($auxcad); ?>, 200);
+                const downsampledDataCad = downsampleData(<?php foreach($cadStream as $cadValue){ $auxcad[] = (int)$cadValue["cad"]; } echo json_encode($auxcad); ?>, 200);
 
-                const downsampledDataPower = downsampleData(<?php foreach($powerStream as $powerValue){ $auxpower[] = $powerValue["power"]; } echo json_encode($auxpower); ?>, 200);
+                const downsampledDataPower = downsampleData(<?php foreach($powerStream as $powerValue){ $auxpower[] = (int)$powerValue["power"]; } echo json_encode($auxpower); ?>, 200);
 
-                const downsampledDataEle = downsampleData(<?php foreach($eleStream as $eleValue){ $auxele[] = $eleValue["ele"]; } echo json_encode($auxele); ?>, 200);
+                const downsampledDataEle = downsampleData(<?php foreach($eleStream as $eleValue){ $auxele[] = (int)$eleValue["ele"]; } echo json_encode($auxele); ?>, 200);
 
                 if (activityType === 4 || activityType === 5 || activityType === 6 || activityType === 7 || activityType === 8) {
                     const downsampledDataVel = downsampleData(<?php echo json_encode($velStream); ?>, 200);

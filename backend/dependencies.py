@@ -1,69 +1,9 @@
-import logging.config
-from sqlalchemy.orm import Session
-from db.db import Session as BaseSession
-from fastapi.responses import JSONResponse
-from controllers import sessionController
-from fastapi import Depends
-from fastapi.security import OAuth2PasswordBearer
+from database import SessionLocal
 
-# Define the OAuth2 scheme for handling bearer tokens
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
-
-
-def get_db_session() -> Session:
-    """
-    Get a SQLAlchemy database session.
-
-    Returns:
-    - Session: SQLAlchemy database session.
-    """
-    return BaseSession()
-
-def configure_logger():
-    """
-    Configures and returns a logger based on settings specified in a logging configuration file.
-
-    Returns:
-    - logging.Logger: Configured logger instance.
-    """
-    logging.config.fileConfig('logs/logging_config.ini')
-    return logging.getLogger('myLogger')
-
-
-def get_current_user(
-    token: str = Depends(oauth2_scheme), db_session: Session = Depends(get_db_session)
-):
-    """
-    Get the ID of the current authenticated user.
-
-    Parameters:
-    - token (str): The authentication token for the user.
-    - db_session (Session): SQLAlchemy database session.
-
-    Returns:
-    - int: The ID of the current authenticated user.
-
-    Raises:
-    - JWTError: If the authentication token is invalid or expired.
-    - Exception: For other unexpected errors.
-    """
-    sessionController.validate_token(db_session, token)
-    return sessionController.get_user_id_from_token(token)
-
-
-# Standardized error response function
-def create_error_response(code: str, message: str, status_code: int):
-    """
-    Create a JSON error response.
-
-    Parameters:
-    - code (str): Error code to be included in the response.
-    - message (str): Error message to be included in the response.
-    - status_code (int): HTTP status code for the response.
-
-    Returns:
-    - JSONResponse: JSON response containing the specified error information.
-    """
-    return JSONResponse(
-        content={"error": {"code": code, "message": message}}, status_code=status_code
-    )
+def get_db():
+    # get DB ssession
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()

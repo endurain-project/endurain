@@ -107,21 +107,6 @@ function getUserFollowingAll($user_id)
     }
 }
 
-/* Accept user follows specific user */
-function acceptUserFollowsSpecificUser($user_id, $taget_user_id)
-{
-    $response = callAPIRoute("/followers/accept/user/$user_id/targetUser/$taget_user_id", 0, 3, NULL);
-    if ($response[0] === false) {
-        return -1;
-    } else {
-        if ($response[1] === 200) {
-            return json_decode($response[0], true);
-        } else {
-            return -2;
-        }
-    }
-}
-
 /* Create user follows specific user */
 function createUserFollowsSpecificUser($user_id)
 {
@@ -130,7 +115,22 @@ function createUserFollowsSpecificUser($user_id)
         return -1;
     } else {
         if ($response[1] === 201) {
-            return json_decode($response[0], true);
+            return json_decode($response[0], true)["content"];
+        } else {
+            return -2;
+        }
+    }
+}
+
+/* Accept user follows specific user */
+function acceptUserFollowsSpecificUser($user_id, $taget_user_id)
+{
+    $response = callAPIRoute("/followers/accept/user/$user_id/targetUser/$taget_user_id", 0, 3, NULL);
+    if ($response[0] === false) {
+        return -1;
+    } else {
+        if ($response[1] === 200) {
+            return json_decode($response[0], true)["content"];
         } else {
             return -2;
         }
@@ -144,7 +144,7 @@ function deleteUserFollowsSpecificUser($user_id, $taget_user_id)
         return -1;
     } else {
         if ($response[1] === 200) {
-            return json_decode($response[0], true);
+            return json_decode($response[0], true)["content"];
         } else {
             return -2;
         }

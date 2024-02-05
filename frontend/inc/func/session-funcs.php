@@ -37,12 +37,12 @@ function isTokenValid($token)
 /* Do a login */
 function loginUser($username, $password, $neverExpires)
 {
-    $response = callAPIRoute("/token", 0, 5, json_encode(array(
+    $response = callAPIRoute("/token", 0, 2, array(
         'username' => $username,
         'password' => $password,
-        'neverExpires' => $neverExpires,
-    )));
-    return $response[0];
+        'do_not_expire' => $neverExpires,
+    ));
+    return $response;
 }
 
 

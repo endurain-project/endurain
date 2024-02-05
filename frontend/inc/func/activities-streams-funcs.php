@@ -18,6 +18,22 @@ function getActivityActivitiesStream($activity_id)
     }
 }
 
+/* Get activity activity streams based on stream_type */
+function getActivityActivitiesStreamByStreamType($activity_id, $stream_type)
+{
+    $response = callAPIRoute("/activities/streams/activity_id/$activity_id/stream_type/$stream_type", 1, 0, NULL);
+    if ($response[0] === false) {
+        return -1;
+    } else {
+        if ($response[1] === 200) {
+            #echo $response[0];
+            return json_decode($response[0], true)["content"];
+        } else {
+            return -2;
+        }
+    }
+}
+
 /* Creates a new activity stream */
 function newActivityStream($activity_id, $stream_type, $stream_waypoints, $strava_activity_stream_id)
 {

@@ -9,6 +9,7 @@ passlib[bcrypt]
 apscheduler
 requests
 stravalib
-opentelemetry-sdk
-opentelemetry-instrumentation-fastapi
-opentelemetry.exporter.otlp
+#opentelemetry-sdk
+#opentelemetry-instrumentation-fastapi
+#opentelemetry.exporter.otlp
+python-multipart

@@ -161,10 +161,16 @@ foreach ($gearActivities as $activity) {
                             </span>
                         <?php } ?>
                     <?php } ?>
+                    <?php if (isset($gear[0]["strava_gear_id"])) { ?>
+                        <span
+                            class="ms-2 badge bg-primary-subtle border border-primary-subtle text-primary-emphasis rounded-pill align-middle">
+                            <?php echo $translationsGearGear['gear_gear_infoZone_strava_gear']; ?>
+                        </span>
+                    <?php } ?>
                 </div>
 
                 <!-- edit gear zone -->
-                <a class="mt-2 w-100 btn btn-primary" href="#" role="button" data-bs-toggle="modal"
+                <a class="mt-2 w-100 btn btn-primary <?php if (isset($gear[0]["strava_gear_id"])) { echo "disabled"; } ?>" href="#" role="button" data-bs-toggle="modal"
                     data-bs-target="#editGearModal">
                     <?php echo $translationsGearGear['gear_gear_infoZone_editbutton']; ?>
                 </a>
@@ -262,9 +268,7 @@ foreach ($gearActivities as $activity) {
                 </div>
 
                 <!-- delete gear zone -->
-                <a class="mt-2 w-100 btn btn-danger <?php if (count($gearActivities) != 0) {
-                    echo "disabled";
-                } ?>" href="#" role="button" data-bs-toggle="modal"
+                <a class="mt-2 w-100 btn btn-danger <?php if (isset($gear[0]["strava_gear_id"])) { echo "disabled"; } ?>" href="#" role="button" data-bs-toggle="modal"
                     data-bs-target="#deleteGearModal" <?php if (count($gearActivities) != 0) {
                         echo 'aria-disabled="true"';
                     } ?>><?php echo $translationsGearGear['gear_gear_infoZone_deletebutton']; ?>

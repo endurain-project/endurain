@@ -527,7 +527,7 @@ $userFollowingAll = getUserFollowingAll($_GET["userID"]);
                     </div>
                 <?php } else { ?>
                     <?php foreach ($weekActivities as $activity) { ?>
-                        <?php $activityStreams = getActivityActivitiesStream($activity["id"]); 
+                        <?php $activityStreams = getActivityActivitiesStreamByStreamType($activity["id"],7); 
                         foreach($activityStreams as $stream){
                             if($stream["stream_type"] == 7){
                                 $latlonStream = $stream["stream_waypoints"];

@@ -11,18 +11,8 @@ if (isLogged()) {
     header("Location: ../index.php");
 }
 
-// Load the language file based on the user's preferred language
-/*switch ($_SESSION["preferred_language"]) {
-      case 'en':
-          $translationsLogin = include $_SERVER['DOCUMENT_ROOT'].'/lang/login/en.php';
-          break;
-      case 'pt':
-          $translationsLogin = include $_SERVER['DOCUMENT_ROOT'].'/lang/login/pt.php';
-          break;*/
-// ...
-//default:
+// Load the en language file 
 $translationsLogin = include $_SERVER['DOCUMENT_ROOT'] . '/lang/login/en.php';
-//}
 
 $error = 0;
 
@@ -34,24 +24,74 @@ if (isset($_POST["loginUsername"]) && isset($_POST["loginPassword"])) {
         $neverExpires = true;
     }
     $result = loginUser($_POST["loginUsername"], $hashPassword, $neverExpires);
-    $response = json_decode($result, true);
-    if (isset($response['access_token'])) {
-        $error = setUserRelatedInfoSession($response['access_token']);
-        if ($error == 0) {
-            header("Location: ../index.php");
-            die();
+
+    if ($result[1] === 200) {
+        $responseContent = json_decode($result[0], true);
+        if (isset($responseContent['access_token'])) {
+            $error = setUserRelatedInfoSession($responseContent['access_token']);
+            if ($error == 0) {
+                header("Location: ../index.php");
+                die();
+            }
+        }else{
+            $error = 1;
         }
     } else {
-        $error = 1;
+        if ($result[1] === 400) {
+            if(json_decode($result[0], true)["error"]["message"] === "User is not active"){
+                $error = 2;
+            }else{
+                if(json_decode($result[0], true)["error"]["message"] == "Incorrect username or password"){
+                    $error = 3;
+                }
+            }
+        }else{
+            $error = 4;
+        }
     }
 }
-
-$random_number = mt_rand(1, 2);
 ?>
 
 <?php require_once $_SERVER['DOCUMENT_ROOT'] . "/inc/Template-Top.php" ?>
 
 <main class="form-signin w-100 m-auto text-center p-5" style="max-width: 500px">
+    <!-- Error banners -->
+    <?php if ($error == 1 || $error == 2 || $error == 3 || $error == 4 || $error == -1 || $error == -3 || $error == -3) { ?>
+        <div class="alert alert-danger alert-dismissible d-flex align-items-center" role="alert">
+            <i class="fa-solid fa-circle-exclamation me-1"></i>
+            <div>
+                <?php if ($error == 1) { ?>
+                    <?php echo $translationsLogin['login_error_access_token_not_set']; ?> (1).
+                <?php } else { ?>
+                    <?php if ($error == 2) { ?>
+                        <?php echo $translationsLogin['login_error_user_inactive']; ?> (2).
+                    <?php } else { ?>
+                        <?php if ($error == 3) { ?>
+                            <?php echo $translationsLogin['login_error_incorrect_user_credentials']; ?> (3).
+                        <?php } else { ?>
+                            <?php if ($error == 4) { ?>
+                                <?php echo $translationsLogin['login_error_undefined']; ?> (4).
+                            <?php } else { ?>
+                                <?php if ($error == -1) { ?>
+                                    <?php echo $translationsLogin['login_API_error_-1']; ?> (-1).
+                                <?php } else { ?>
+                                    <?php if ($error == -2) { ?>
+                                        <?php echo $translationsLogin['login_API_error_-2']; ?> (-2).
+                                    <?php } else { ?>
+                                        <?php if ($error == -3) { ?>
+                                            <?php echo $translationsLogin['login_API_error_-3']; ?> (-3).
+                                        <?php } ?>
+                                    <?php } ?>
+                                <?php } ?>
+                            <?php } ?>
+                        <?php } ?>
+                    <?php } ?>
+                <?php } ?>
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        </div>
+    <?php } ?>
+
     <!-- Info banners -->
     <?php if (isset($_GET["sessionExpired"]) && $_GET["sessionExpired"] == 1) { ?>
         <div class="alert alert-warning alert-dismissible d-flex align-items-center" role="alert">
@@ -64,36 +104,8 @@ $random_number = mt_rand(1, 2);
             </div>
         </div>
     <?php } ?>
-    <?php if ($error == 1 || $error == -1 || $error == -3 || $error == -3) { ?>
-        <div class="alert alert-danger alert-dismissible d-flex align-items-center" role="alert">
-            <i class="fa-solid fa-circle-exclamation me-1"></i>
-            <div>
-                <?php if ($error == 1) { ?>
-                    <?php echo $translationsLogin['login_error']; ?> (1).
-                <?php } else { ?>
-                    <?php if ($error == -1) { ?>
-                        <?php echo $translationsLogin['login_API_error_-1']; ?> (-1).
-                    <?php } else { ?>
-                        <?php if ($error == -2) { ?>
-                            <?php echo $translationsLogin['login_API_error_-2']; ?> (-2).
-                        <?php } else { ?>
-                            <?php if ($error == -3) { ?>
-                                <?php echo $translationsLogin['login_API_error_-3']; ?> (-3).
-                            <?php } ?>
-                        <?php } ?>
-                    <?php } ?>
-                <?php } ?>
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-            </div>
-        </div>
-    <?php } ?>
+    
     <form action="../login.php" method="post">
-        <!--<img class="mb-4 rounded-circle" src="../img/avatar/<?php if ($random_number == 1) {
-                echo ("female1");
-            } else {
-                echo ("male1");
-            } ?>.png" alt="avatar" width="150" height="150">
-        <img class="mb-4 rounded-3" src="../img/logo/logo.png" alt="app logo" width="200" height="200">-->
         <h1>Endurain</h1>
         <p><?php echo $translationsLogin['login_subtitle']; ?></p>
         <br>
