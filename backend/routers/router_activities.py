@@ -188,6 +188,11 @@ async def read_activities_useractivities_thismonth_number(
             user_id, start_of_month, end_of_month, db
         )
 
+    # Check if activities is None and return 0 if it is
+    if activities is None:
+        return 0
+
+    # Return the number of activities
     return len(activities)
 
 
@@ -469,7 +474,9 @@ async def delete_activity_gear(
     # Return success message
     return {"detail": f"Gear ID {activity.gear_id} deleted from activity successfully"}
 
-@router.delete("/activities/{activity_id}/delete")
+@router.delete("/activities/{activity_id}/delete",
+    tags=["activities"],
+)
 async def delete_activity(
     activity_id: int,
     validate_activity_id: Annotated[

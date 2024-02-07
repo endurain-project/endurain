@@ -1,12 +1,22 @@
 import logging
+import os
 
 from fastapi import FastAPI
+
+from opentelemetry import trace
+from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
+from opentelemetry.sdk.resources import Resource
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
+from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+
 from routers import (
     router_session,
     router_users,
     router_activities,
     router_activity_streams,
     router_gear,
+    router_followers,
 )
 from constants import API_VERSION
 from database import engine
@@ -59,7 +69,35 @@ required_env_vars = [
     "JAGGER_PORT",
     "STRAVA_DAYS_ACTIVITIES_ONLINK",
     "API_ENDPOINT",
+    "GEOCODES_MAPS_API",
 ]
+
+for var in required_env_vars:
+    if var not in os.environ:
+        logger.error(f"Missing required environment variable: {var}", exc_info=True)
+        raise EnvironmentError(f"Missing required environment variable: {var}")
+    
+# Check if Jaeger tracing is enabled using the 'JAEGER_ENABLED' environment variable
+if os.environ.get("JAEGER_ENABLED") == "true":
+    # Configure OpenTelemetry with a specified service name
+    trace.set_tracer_provider(
+        TracerProvider(resource=Resource.create({"service.name": "backend_api"}))
+    )
+    trace.get_tracer_provider().add_span_processor(
+        BatchSpanProcessor(
+            OTLPSpanExporter(
+                endpoint=os.environ.get("JAEGER_PROTOCOL")
+                + "://"
+                + os.environ.get("JAEGER_HOST")
+                + ":"
+                + os.environ.get("JAGGER_PORT")
+            )
+        )
+    )
+
+
+# Instrument FastAPI app
+FastAPIInstrumentor.instrument_app(app)
 
 # Router files
 app.include_router(router_session.router)
@@ -67,3 +105,4 @@ app.include_router(router_users.router)
 app.include_router(router_activities.router)
 app.include_router(router_activity_streams.router)
 app.include_router(router_gear.router)
+app.include_router(router_followers.router)

@@ -174,7 +174,7 @@ def create_gear(gear: schema_gear.Gear, user_id: int, db: Session):
             created_date = gear.created_at
 
         # Create a new gear object
-        db_gear = models.Gear(
+        new_gear = models.Gear(
             brand=unquote(gear.brand).replace("+", " ") if gear.brand is not None else None,
             model=unquote(gear.model).replace("+", " ") if gear.model is not None else None,
             nickname=unquote(gear.nickname).replace("+", " "),
@@ -185,12 +185,12 @@ def create_gear(gear: schema_gear.Gear, user_id: int, db: Session):
         )
 
         # Add the gear to the database
-        db.add(db_gear)
+        db.add(new_gear)
         db.commit()
-        db.refresh(db_gear)
+        db.refresh(new_gear)
 
         # Return the gear
-        return db_gear
+        return new_gear
     except IntegrityError as integrity_error:
         # Rollback the transaction
         db.rollback()

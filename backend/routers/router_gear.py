@@ -32,7 +32,7 @@ logger = logging.getLogger("myLogger")
 )
 async def read_gear_id(
     gear_id: int,
-    validate_id: Annotated[Callable, Depends(dependencies_gear.validate_gear_id)],
+    validate_gear_id: Annotated[Callable, Depends(dependencies_gear.validate_gear_id)],
     user_id: Annotated[
         int, Depends(dependencies_session.validate_token_and_get_authenticated_user_id)
     ],
