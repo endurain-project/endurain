@@ -13,3 +13,4 @@ stravalib
 #opentelemetry-instrumentation-fastapi
 #opentelemetry.exporter.otlp
 python-multipart
+gpxpy

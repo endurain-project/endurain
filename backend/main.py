@@ -1,7 +1,13 @@
 import logging
 
 from fastapi import FastAPI
-from routers import session as session_router, users as users_router, activities as activities_router
+from routers import (
+    router_session,
+    router_users,
+    router_activities,
+    router_activity_streams,
+    router_gear,
+)
 from constants import API_VERSION
 from database import engine
 import models
@@ -11,7 +17,7 @@ models.Base.metadata.create_all(bind=engine)
 # Define the FastAPI object
 app = FastAPI(
     docs_url="/docs",
-    redoc_url=None,
+    redoc_url="/redoc",
     title="Endurain",
     summary="Endurain API for the Endurain app",
     version=API_VERSION,
@@ -35,9 +41,29 @@ file_handler.setFormatter(formatter)
 logger.addHandler(file_handler)
 
 # Check for required environment variables
-required_env_vars = ["DB_HOST", "DB_PORT", "DB_USER", "DB_PASSWORD", "DB_DATABASE", "SECRET_KEY", "ALGORITHM", "ACCESS_TOKEN_EXPIRE_MINUTES", "STRAVA_CLIENT_ID", "STRAVA_CLIENT_SECRET", "STRAVA_AUTH_CODE", "JAEGER_ENABLED", "JAEGER_PROTOCOL", "JAEGER_HOST", "JAGGER_PORT", "STRAVA_DAYS_ACTIVITIES_ONLINK", "API_ENDPOINT"]
+required_env_vars = [
+    "DB_HOST",
+    "DB_PORT",
+    "DB_USER",
+    "DB_PASSWORD",
+    "DB_DATABASE",
+    "SECRET_KEY",
+    "ALGORITHM",
+    "ACCESS_TOKEN_EXPIRE_MINUTES",
+    "STRAVA_CLIENT_ID",
+    "STRAVA_CLIENT_SECRET",
+    "STRAVA_AUTH_CODE",
+    "JAEGER_ENABLED",
+    "JAEGER_PROTOCOL",
+    "JAEGER_HOST",
+    "JAGGER_PORT",
+    "STRAVA_DAYS_ACTIVITIES_ONLINK",
+    "API_ENDPOINT",
+]
 
 # Router files
-app.include_router(session_router.router)
-app.include_router(users_router.router)
-app.include_router(activities_router.router)
+app.include_router(router_session.router)
+app.include_router(router_users.router)
+app.include_router(router_activities.router)
+app.include_router(router_activity_streams.router)
+app.include_router(router_gear.router)

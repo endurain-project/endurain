@@ -15,15 +15,18 @@ $acceptFollowRequestResult = -9000;
 
 if (!isLogged()) {
     header("Location: ../login.php");
+    die();
 }
 
 if (!isTokenValid($_SESSION["token"])) {
     header("Location: ../logout.php?sessionExpired=1");
+    die();
 }
 
 // if userID not set redirect to index.php
 if (!isset($_GET["userID"])) {
     header("Location: ../index.php");
+    die();
 }
 
 // Load the language file based on the user's preferred language
@@ -156,25 +159,25 @@ $userFollowingAll = getUserFollowingAll($_GET["userID"]);
         <div class="col">
             <div class="vstack d-flex justify-content-center">
                 <div class="d-flex justify-content-center">
-                    <img src=<?php if (is_null($user[0]["photo_path"])) {
+                    <img src=<?php if (is_null($user["photo_path"])) {
                         if ($_SESSION["gender"] == 1) {
                             echo ("../img/avatar/male1.png");
                         } else {
                             echo ("../img/avatar/female1.png");
                         }
                     } else {
-                        echo ($user[0]["photo_path"]);
+                        echo ($user["photo_path"]);
                     } ?> alt="userPicture" class="rounded-circle" width="120"
                         height="120">
                 </div>
                 <div class="text-center mt-3 mb-3">
                     <h3>
-                        <?php echo $user[0]["name"]; ?>
+                        <?php echo $user["name"]; ?>
                     </h3>
-                    <?php if (isset($user[0]["city"])) { ?>
+                    <?php if (isset($user["city"])) { ?>
                         <span class="fw-lighter">
                             <i class="fa-solid fa-location-dot"></i>
-                            <?php echo $user[0]["city"]; ?>
+                            <?php echo $user["city"]; ?>
                         </span>
                     <?php } ?>
                 </div>
@@ -227,7 +230,7 @@ $userFollowingAll = getUserFollowingAll($_GET["userID"]);
                             <?php echo $translationsUsersUser['user_distances_zone_thisWeekDistances_run']; ?>
                         </span>
                         <br>
-                        <?php if ($thisWeekDistances["run"] != null) { ?>
+                        <?php if (isset($thisWeekDistances)) { ?>
                             <?php echo number_format(($thisWeekDistances["run"] / 1000), 2); ?> km
                         <?php } else { ?>
                             0 km
@@ -238,7 +241,7 @@ $userFollowingAll = getUserFollowingAll($_GET["userID"]);
                             <?php echo $translationsUsersUser['user_distances_zone_thisWeekDistances_bike']; ?>
                         </span>
                         <br>
-                        <?php if ($thisWeekDistances["bike"] != null) { ?>
+                        <?php if (isset($thisWeekDistances)) { ?>
                             <?php echo number_format(($thisWeekDistances["bike"] / 1000), 2); ?> km
                         <?php } else { ?>
                             0 km
@@ -249,7 +252,7 @@ $userFollowingAll = getUserFollowingAll($_GET["userID"]);
                             <?php echo $translationsUsersUser['user_distances_zone_thisWeekDistances_swim']; ?>
                         </span>
                         <br>
-                        <?php if ($thisWeekDistances["swim"] != null) { ?>
+                        <?php if (isset($thisWeekDistances)) { ?>
                             <?php if ($thisWeekDistances["swim"] > 10000) { ?>
                                 <?php echo number_format(($thisWeekDistances["swim"] / 1000), 2); ?> km
                             <?php } else { ?>
@@ -270,7 +273,7 @@ $userFollowingAll = getUserFollowingAll($_GET["userID"]);
                             <?php echo $translationsUsersUser['user_distances_zone_thisWeekDistances_run']; ?>
                         </span>
                         <br>
-                        <?php if ($thisMonthDistances["run"] != null) { ?>
+                        <?php if (isset($thisMonthDistances["run"])) { ?>
                             <?php echo number_format(($thisMonthDistances["run"] / 1000), 2); ?> km
                         <?php } else { ?>
                             0 km
@@ -281,7 +284,7 @@ $userFollowingAll = getUserFollowingAll($_GET["userID"]);
                             <?php echo $translationsUsersUser['user_distances_zone_thisWeekDistances_bike']; ?>
                         </span>
                         <br>
-                        <?php if ($thisMonthDistances["bike"] != null) { ?>
+                        <?php if (isset($thisMonthDistances["run"])) { ?>
                             <?php echo number_format(($thisMonthDistances["bike"] / 1000), 2); ?> km
                         <?php } else { ?>
                             0 km
@@ -292,7 +295,7 @@ $userFollowingAll = getUserFollowingAll($_GET["userID"]);
                             <?php echo $translationsUsersUser['user_distances_zone_thisWeekDistances_swim']; ?>
                         </span>
                         <br>
-                        <?php if ($thisMonthDistances["swim"] != null) { ?>
+                        <?php if (isset($thisMonthDistances["run"])) { ?>
                             <?php if ($thisMonthDistances["swim"] > 10000) { ?>
                                 <?php echo number_format(($thisMonthDistances["swim"] / 1000), 2); ?> km
                             <?php } else { ?>
@@ -362,7 +365,7 @@ $userFollowingAll = getUserFollowingAll($_GET["userID"]);
                                 </div>
                                 <div class="modal-body">
                                     <?php echo $translationsUsersUser['user_follow_modal_body']; ?> <b>
-                                        <?php echo $user[0]["name"]; ?>
+                                        <?php echo $user["name"]; ?>
                                     </b>?
                                 </div>
                                 <div class="modal-footer">
@@ -401,7 +404,7 @@ $userFollowingAll = getUserFollowingAll($_GET["userID"]);
                                     </div>
                                     <div class="modal-body">
                                         <?php echo $translationsUsersUser['user_cancelFollow_modal_body']; ?> <b>
-                                            <?php echo $user[0]["name"]; ?>
+                                            <?php echo $user["name"]; ?>
                                         </b>?
                                     </div>
                                     <div class="modal-footer">
@@ -439,7 +442,7 @@ $userFollowingAll = getUserFollowingAll($_GET["userID"]);
                                     </div>
                                     <div class="modal-body">
                                         <?php echo $translationsUsersUser['user_unfollow_modal_body']; ?> <b>
-                                            <?php echo $user[0]["name"]; ?>
+                                            <?php echo $user["name"]; ?>
                                         </b>?
                                     </div>
                                     <div class="modal-footer">
@@ -511,7 +514,7 @@ $userFollowingAll = getUserFollowingAll($_GET["userID"]);
                     <?php echo $formattedLastDay; ?>
                 </p>
 
-                <?php if (count($weekActivities) == 0) { ?>
+                <?php if (!isset($weekActivities) || count($weekActivities) == 0) { ?>
                     <div class="centered-card">
                         <div class="card text-center">
                             <div class="card-body">
@@ -527,11 +530,9 @@ $userFollowingAll = getUserFollowingAll($_GET["userID"]);
                     </div>
                 <?php } else { ?>
                     <?php foreach ($weekActivities as $activity) { ?>
-                        <?php $activityStreams = getActivityActivitiesStreamByStreamType($activity["id"],7); 
-                        foreach($activityStreams as $stream){
-                            if($stream["stream_type"] == 7){
-                                $latlonStream = $stream["stream_waypoints"];
-                            }
+                        <?php $activityStream = getActivityActivitiesStreamByStreamType($activity["id"],7);
+                        if($activityStream["stream_type"] == 7){
+                            $latlonStream = $activityStream["stream_waypoints"];
                         }
                         ?>
                         <div class="card">
@@ -545,20 +546,24 @@ $userFollowingAll = getUserFollowingAll($_GET["userID"]);
                                             </a>
                                         </div>
                                         <h7>
-                                            <?php if ($activity["activity_type"] == 1) {
+                                            <?php if ($activity["activity_type"] == 1 || $activity["activity_type"] == 2) {
                                                 echo '<i class="fa-solid fa-person-running"></i>';
                                             } else {
-                                                if ($activity["activity_type"] == 4 || $activity["activity_type"] == 5 || $activity["activity_type"] == 6 || $activity["activity_type"] == 8) {
-                                                    echo '<i class="fa-solid fa-person-biking"></i>';
+                                                if ($activity["activity_type"] == 3) {
+                                                echo '<i class="fa-solid fa-person-running"></i> (Virtual)';
                                                 } else {
-                                                    if ($activity["activity_type"] == 7) {
-                                                        echo '<i class="fa-solid fa-person-biking"></i> (Virtual)';
+                                                    if ($activity["activity_type"] == 4 || $activity["activity_type"] == 5 || $activity["activity_type"] == 6) {
+                                                        echo '<i class="fa-solid fa-person-biking"></i>';
                                                     } else {
-                                                        if ($activity["activity_type"] == 9) {
-                                                            echo '<i class="fa-solid fa-person-swimming"></i>';
-                                                        } else {
-                                                            if ($activity["activity_type"] == 10) {
+                                                        if ($activity["activity_type"] == 7) {
+                                                        echo '<i class="fa-solid fa-person-biking"></i> (Virtual)';
+                                                            } else {
+                                                            if ($activity["activity_type"] == 8 || $activity["activity_type"] == 9) {
+                                                                echo '<i class="fa-solid fa-person-swimming"></i>';
+                                                            } else {
+                                                                if ($activity["activity_type"] == 10) {
                                                                 echo '<i class="fa-solid fa-dumbbell"></i>';
+                                                                }
                                                             }
                                                         }
                                                     }
@@ -598,8 +603,8 @@ $userFollowingAll = getUserFollowingAll($_GET["userID"]);
                                         <?php
                                         #echo $activity["start_time"];
                                         #echo $activity["end_time"];
-                                        $startDateTime = DateTime::createFromFormat("Y-m-d\TH:i:s", $activity["start_time"]);
-                                        $endDateTime = DateTime::createFromFormat("Y-m-d\TH:i:s", $activity["end_time"]);
+                                        $startDateTime = new DateTime($activity["start_time"]);
+                                        $endDateTime = new DateTime($activity["end_time"]);
                                         $interval = $startDateTime->diff($endDateTime);
 
                                         if ($interval->h < 1) {

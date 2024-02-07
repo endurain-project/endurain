@@ -1,6 +1,5 @@
 import logging
 
-from schemas import user_integrations as user_integrations_schema
 import models
 
 from fastapi import HTTPException, status

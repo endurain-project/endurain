@@ -3,6 +3,7 @@ from pydantic import BaseModel
 
 class Activity(BaseModel):
     id: int | None = None
+    user_id: int | None = None
     distance: int
     name: str
     activity_type: str
@@ -11,12 +12,15 @@ class Activity(BaseModel):
     city: str | None = None
     town: str | None = None
     country: str | None = None
+    created_at: str | None = None
     elevation_gain: int
     elevation_loss: int
     pace: float
     average_speed: float
     average_power: int
     calories: int | None = None
+    visibility: int | None = None
+    gear_id: int | None = None
     strava_gear_id: int | None = None
     strava_activity_id: int | None = None
 
@@ -39,9 +43,9 @@ def calculate_activity_distances(activities: list[Activity]):
     for activity in activities:
         if activity.activity_type in [1, 2, 3]:
             run += activity.distance
-        elif activity.activity_type in [4, 5, 6, 7, 8]:
+        elif activity.activity_type in [4, 5, 6, 7]:
             bike += activity.distance
-        elif activity.activity_type == 9:
+        elif activity.activity_type in [8, 9]:
             swim += activity.distance
 
     # Return the distances

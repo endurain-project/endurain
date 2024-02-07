@@ -9,6 +9,7 @@ $page = "login";
 
 if (isLogged()) {
     header("Location: ../index.php");
+    die();
 }
 
 // Load the en language file 

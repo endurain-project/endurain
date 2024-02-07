@@ -7,7 +7,7 @@ from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
 from sqlalchemy.orm import Session
 
-from crud import access_tokens as access_tokens_crud
+from crud import crud_access_tokens
 from constants import (
     JWT_EXPIRATION_IN_MINUTES,
     JWT_ALGORITHM,
@@ -50,12 +50,11 @@ logger = logging.getLogger("myLogger")
 
 
 def decode_token(token: str = Depends(oauth2_scheme)):
-    """Decode the token and return the payload"""
+    # Decode the token and return the payload
     return jwt.decode(token, JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM])
 
 
 def validate_token_expiration(db: Session, token: str = Depends(oauth2_scheme)):
-    """Validate the token and check if it is expired"""
     # Try to decode the token and check if it is expired
     try:
         # Decode the token
@@ -78,13 +77,27 @@ def validate_token_expiration(db: Session, token: str = Depends(oauth2_scheme)):
                 detail="Token no longer valid",
                 headers={"WWW-Authenticate": "Bearer"},
             )
-
-    except jwt.ExpiredSignatureError:
+    except Exception:
         # Log the error and raise the exception
         logger.info(
             "Token expired during validation | Will force remove_expired_tokens to run | Returning 401 response"
         )
+        # Remove expired tokens from the database
         remove_expired_tokens(db)
+        # Raise an HTTPException with a 401 Unauthorized status code
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token no longer valid",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    """ except jwt.ExpiredSignatureError:
+        # Log the error and raise the exception
+        logger.info(
+            "Token expired during validation | Will force remove_expired_tokens to run | Returning 401 response"
+        )
+        # Remove expired tokens from the database
+        remove_expired_tokens(db)
+        # Raise an HTTPException with a 401 Unauthorized status code
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Token no longer valid",
@@ -99,11 +112,10 @@ def validate_token_expiration(db: Session, token: str = Depends(oauth2_scheme)):
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal Server Error",
-        ) from err
+        ) from err """
 
 
 def get_token_user_id(token: str = Depends(oauth2_scheme)):
-    """Get the user id from the token"""
     # Decode the token
     payload = decode_token(token)
 
@@ -123,7 +135,6 @@ def get_token_user_id(token: str = Depends(oauth2_scheme)):
 
 
 def get_token_access_type(token: str = Depends(oauth2_scheme)):
-    """Get the admin access from the token"""
     # Decode the token
     payload = decode_token(token)
 
@@ -154,7 +165,6 @@ def validate_token_admin_access(token: str = Depends(oauth2_scheme)):
 def create_access_token(
     db: Session, data: dict, expires_delta: timedelta | None = None
 ):
-    """Creates a new JWT token with the provided data and expiration time"""
     # Create a copy of the data to encode
     to_encode = data.copy()
 
@@ -173,7 +183,7 @@ def create_access_token(
     encoded_jwt = jwt.encode(to_encode, JWT_SECRET_KEY, algorithm=JWT_ALGORITHM)
 
     # Save the token in the database
-    db_access_token = access_tokens_crud.create_access_token(
+    db_access_token = crud_access_tokens.create_access_token(
         CreateToken(
             token=encoded_jwt,
             user_id=data.get("id"),
@@ -190,12 +200,11 @@ def create_access_token(
 
 
 def remove_expired_tokens(db: Session):
-    """Remove expired tokens from the database"""
     # Calculate the expiration time
     expiration_time = datetime.utcnow() - timedelta(minutes=JWT_EXPIRATION_IN_MINUTES)
 
     # Delete the expired tokens from the database
-    rows_deleted = access_tokens_crud.delete_access_tokens(expiration_time, db)
+    rows_deleted = crud_access_tokens.delete_access_tokens(expiration_time, db)
 
     # Log the number of tokens deleted
     logger.info(f"{rows_deleted} access tokens deleted from the database")

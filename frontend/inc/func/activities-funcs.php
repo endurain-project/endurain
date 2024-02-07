@@ -20,7 +20,7 @@ function getActivities()
 /* Get user activities */
 function getUserActivities()
 {
-    $response = callAPIRoute("/activities/useractivities", 1, 0, NULL);
+    $response = callAPIRoute("/activities/user", 1, 0, NULL);
     if ($response[0] === false) {
         return -1;
     } else {
@@ -35,7 +35,7 @@ function getUserActivities()
 /* Get user activities for provided week */
 function getUserActivitiesWeek($userID, $week)
 {
-    $response = callAPIRoute("/activities/$userID/week/$week", 1, 0, NULL);
+    $response = callAPIRoute("/activities/user/$userID/week/$week", 1, 0, NULL);
     if ($response[0] === false) {
         return -1;
     } else {
@@ -50,7 +50,7 @@ function getUserActivitiesWeek($userID, $week)
 /* Get user activities for this week */
 function getUserActivitiesThisWeekDistances($userID)
 {
-    $response = callAPIRoute("/activities/$userID/thisweek/distances", 1, 0, NULL);
+    $response = callAPIRoute("/activities/user/$userID/thisweek/distances", 1, 0, NULL);
     if ($response[0] === false) {
         return -1;
     } else {
@@ -65,7 +65,7 @@ function getUserActivitiesThisWeekDistances($userID)
 /* Get user activities for this month */
 function getUserActivitiesThisMonthDistances($userID)
 {
-    $response = callAPIRoute("/activities/$userID/thismonth/distances", 1, 0, NULL);
+    $response = callAPIRoute("/activities/user/$userID/thismonth/distances", 1, 0, NULL);
     if ($response[0] === false) {
         return -1;
     } else {
@@ -80,7 +80,7 @@ function getUserActivitiesThisMonthDistances($userID)
 /* Get user activities count for this month */
 function getUserActivitiesThisMonthNumber($userID)
 {
-    $response = callAPIRoute("/activities/$userID/thismonth/number", 1, 0, NULL);
+    $response = callAPIRoute("/activities/user/$userID/thismonth/number", 1, 0, NULL);
     if ($response[0] === false) {
         return -1;
     } else {
@@ -93,9 +93,9 @@ function getUserActivitiesThisMonthNumber($userID)
 }
 
 /* Get all gear activities */
-function getGearActivities($gearID)
+function getGearActivities($user_id, $gearID)
 {
-    $response = callAPIRoute("/activities/gear/$gearID", 1, 0, NULL);
+    $response = callAPIRoute("/activities/user/$user_id/gear/$gearID", 1, 0, NULL);
     if ($response[0] === false) {
         return -1;
     } else {
@@ -126,7 +126,7 @@ function getActivitiesPagination($pageNumber, $numRecords)
 /* Get user activities with pagination */
 function getUserActivitiesPagination($userID, $pageNumber, $numRecords)
 {
-    $response = callAPIRoute("/activities/$userID/page_number/$pageNumber/num_records/$numRecords", 1, 0, NULL);
+    $response = callAPIRoute("/activities/user/$userID/page_number/$pageNumber/num_records/$numRecords", 1, 0, NULL);
     if ($response[0] === false) {
         return -1;
     } else {
@@ -139,9 +139,9 @@ function getUserActivitiesPagination($userID, $pageNumber, $numRecords)
 }
 
 /* Get user following activities with pagination */
-function getFollowedUserActivitiesPagination($pageNumber, $numRecords)
+function getFollowedUserActivitiesPagination($user_id, $pageNumber, $numRecords)
 {
-    $response = callAPIRoute("/activities/followeduseractivities/page_number/$pageNumber/num_records/$numRecords", 1, 0, NULL);
+    $response = callAPIRoute("/activities/user/$user_id/followed/page_number/$pageNumber/num_records/$numRecords", 1, 0, NULL);
     if ($response[0] === false) {
         return -1;
     } else {
@@ -171,7 +171,7 @@ function numActivities()
 /* Get user number of activities */
 function numUserActivities($userID)
 {
-    $response = callAPIRoute("/activities/$userID/number", 1, 0, NULL);
+    $response = callAPIRoute("/activities/user/$userID/number", 1, 0, NULL);
     if ($response[0] === false) {
         return -1;
     } else {
@@ -184,9 +184,9 @@ function numUserActivities($userID)
 }
 
 /* Get user following number of activities */
-function numFollowedUserActivities()
+function numFollowedUserActivities($user_id)
 {
-    $response = callAPIRoute("/activities/followeduseractivities/number", 0, 0, NULL);
+    $response = callAPIRoute("/activities/user/$user_id/followed/number", 1, 0, NULL);
     if ($response[0] === false) {
         return -1;
     } else {
@@ -228,9 +228,9 @@ function addGearToActivity($activityID, $gearID)
 }
 
 /* Uploads activity file */
-function uploadActivityFile($file)
+function uploadActivityFile($user_id, $file)
 {
-    $response = callAPIRoute("/activities/create/upload", 0, 6, $file);
+    $response = callAPIRoute("/activities/$user_id/create/upload", 1, 6, $file);
     if ($response[0] === false) {
         return -1;
     } else {
@@ -260,7 +260,7 @@ function unsetActivityGear($id)
 /* Deletes an activity based on its ID */
 function deleteActivity($id)
 {
-    $response = callAPIRoute("/activities/$id/delete", 0, 1, NULL);
+    $response = callAPIRoute("/activities/$id/delete", 1, 1, NULL);
     if ($response[0] === false) {
         return -1;
     } else {

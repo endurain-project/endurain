@@ -9,11 +9,13 @@ $page = "settings";
 
 if (!isLogged()) {
     header("Location: ../login.php");
+    die();
 }
 
-#if (!isTokenValid($_SESSION["token"])) {
-#    header("Location: ../logout.php?sessionExpired=1");
-#}
+if (!isTokenValid($_SESSION["token"])) {
+    header("Location: ../logout.php?sessionExpired=1");
+    die();
+}
 
 if ($_SESSION["access_type"] != 2) {
     $_GET["profileSettings"] = 1;

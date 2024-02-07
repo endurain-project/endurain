@@ -13,6 +13,7 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.mysql import JSON
 from database import Base
 
+
 # Data model for followers table using SQLAlchemy's ORM
 class Follower(Base):
     __tablename__ = "followers"
@@ -197,7 +198,11 @@ class Gear(Base):
         String(length=45), nullable=True, comment="Gear model (May include spaces)"
     )
     nickname = Column(
-        String(length=45), nullable=False, comment="Gear nickname (May include spaces)"
+        String(length=45),
+        unique=True,
+        index=True,
+        nullable=False,
+        comment="Gear nickname (May include spaces)",
     )
     gear_type = Column(
         Integer, nullable=False, comment="Gear type (1 - bike, 2 - shoes, 3 - wetsuit)"

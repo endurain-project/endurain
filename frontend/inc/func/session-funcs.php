@@ -22,12 +22,7 @@ function isTokenValid($token)
         return -1;
     } else {
         if ($response[1] === 200) {
-            $data = json_decode($response[0], true);
-            if (isset($data["message"]) && $data["message"] === "Token is valid") {
-                return true;
-            } else {
-                return false;
-            }
+            return true;
         } else {
             return false;
         }

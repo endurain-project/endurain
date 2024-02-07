@@ -14,14 +14,17 @@ $deleteActivity = -9000;
 
 if (!isLogged()) {
     header("Location: ../login.php");
+    die();
 }
 
 if (!isTokenValid($_SESSION["token"])) {
     header("Location: ../logout.php?sessionExpired=1");
+    die();
 }
 
 if (!isset($_GET["activityID"])) {
     header("Location: ../index.php?invalidActivity=1");
+    die();
 }
 
 // Load the language file based on the user's preferred language
@@ -57,15 +60,16 @@ if (isset($_GET["deleteActivity"]) && $_GET["deleteActivity"] == 1) {
     $deleteActivity = deleteActivity($_GET["activityID"]);
     if ($deleteActivity == 0) {
         header("Location: ../index.php?deleteActivity=1");
+        die();
     }
 }
 
 $activity = getActivityFromId($_GET["activityID"]);
 if ($activity == NULL) {
     header("Location: ../index.php?invalidActivity=1");
+    die();
 }
-
-$activityStreams = getActivityActivitiesStream($activity[0]["id"]); 
+$activityStreams = getActivityActivitiesStream($activity["id"]); 
 $hrStream = [];
 $cadStream = [];
 $powerStream = [];
@@ -98,7 +102,7 @@ foreach ($activityStreams as $stream) {
         $latlonStream = $stream["stream_waypoints"];
     }
     #$velStream[] = (float) number_format(($waypoint['vel'] * 3.6), 0);
-    if ($activity[0]["activity_type"] == 1 || $activity[0]["activity_type"] == 2 || $activity[0]["activity_type"] == 3) {
+    if ($activity["activity_type"] == 1 || $activity["activity_type"] == 2 || $activity["activity_type"] == 3) {
         if($stream["stream_type"] == 6){
             foreach($stream["stream_waypoints"] as $paceData){
                 if ($paceData['pace'] == 0 || $paceData['pace'] == null) {
@@ -109,7 +113,7 @@ foreach ($activityStreams as $stream) {
             }
         }
     } else {
-        if ($activity[0]["activity_type"] == 9) {
+        if ($activity["activity_type"] == 9) {
             if($stream["stream_type"] == 6){
                 foreach($stream["stream_waypoints"] as $paceData){
                     if ($paceData['pace'] == 0 || $paceData['pace'] == null) {
@@ -123,20 +127,22 @@ foreach ($activityStreams as $stream) {
     }
 }
 
-$activityUser = getUserFromId($activity[0]['user_id']);
+$activityUser = getUserFromId($activity['user_id']);
 
-if ($activity[0]["gear_id"] != null) {
-    $activityGear = getGearFromId($activity[0]["gear_id"]);
+if ($activity["gear_id"] != null) {
+    $activityGear = getGearFromId($activity["gear_id"]);
 }
 
-if ($activity[0]["activity_type"] == 1 || $activity[0]["activity_type"] == 2 || $activity[0]["activity_type"] == 3) {
-    $activityGearOptions = getGearFromType(2);
-} else {
-    if ($activity[0]["activity_type"] == 4 || $activity[0]["activity_type"] == 5 || $activity[0]["activity_type"] == 6 || $activity[0]["activity_type"] == 7 || $activity[0]["activity_type"] == 8) {
-        $activityGearOptions = getGearFromType(1);
+if($activityUser["id"] == $_SESSION["id"]){
+    if ($activity["activity_type"] == 1 || $activity["activity_type"] == 2 || $activity["activity_type"] == 3) {
+        $activityGearOptions = getGearFromType(2);
     } else {
-        if ($activity[0]["activity_type"] == 9) {
-            $activityGearOptions = getGearFromType(3);
+        if ($activity["activity_type"] == 4 || $activity["activity_type"] == 5 || $activity["activity_type"] == 6 || $activity["activity_type"] == 7) {
+            $activityGearOptions = getGearFromType(1);
+        } else {
+            if ($activity["activity_type"] == 8 || $activity["activity_type"] == 9) {
+                $activityGearOptions = getGearFromType(3);
+            }
         }
     }
 }
@@ -191,44 +197,44 @@ if ($activity[0]["activity_type"] == 1 || $activity[0]["activity_type"] == 2 || 
     <div class="d-flex justify-content-between">
         <!-- Activity user details -->
         <div class="d-flex align-items-center">
-            <img src=<?php if (is_null($activityUser[0]["photo_path"])) {
-                if ($activityUser[0]["gender"] == 1) {
+            <img src=<?php if (is_null($activityUser["photo_path"])) {
+                if ($activityUser["gender"] == 1) {
                     echo ("../img/avatar/male1.png");
                 } else {
                     echo ("../img/avatar/female1.png");
                 }
             } else {
-                echo ($activityUser[0]["photo_path"]);
+                echo ($activityUser["photo_path"]);
             } ?> alt="userPicture" class="rounded-circle" width="55" height="55">
             <div class="ms-3 me-3">
                 <div class="fw-bold">
-                    <a href="../users/user.php?userID=<?php echo ($activityUser[0]["id"]); ?>">
-                        <?php echo ($activityUser[0]["name"]); ?>
+                    <a href="../users/user.php?userID=<?php echo ($activityUser["id"]); ?>">
+                        <?php echo ($activityUser["name"]); ?>
                     </a>
                 </div>
                 <!-- Activity time and place details -->
                 <h7>
-                    <?php if ($activity[0]["activity_type"] == 1) {
+                    <?php if ($activity["activity_type"] == 1) {
                         echo '<i class="fa-solid fa-person-running"></i>';
                     } else {
-                        if ($activity[0]["activity_type"] == 4 || $activity[0]["activity_type"] == 5 || $activity[0]["activity_type"] == 6 || $activity[0]["activity_type"] == 7 || $activity[0]["activity_type"] == 8) {
+                        if ($activity["activity_type"] == 4 || $activity["activity_type"] == 5 || $activity["activity_type"] == 6 || $activity["activity_type"] == 7 || $activity["activity_type"] == 8) {
                             echo '<i class="fa-solid fa-person-biking"></i>';
                         } else {
-                            if ($activity[0]["activity_type"] == 9) {
+                            if ($activity["activity_type"] == 9) {
                                 echo '<i class="fa-solid fa-person-swimming"></i>';
                             }
                         }
                     } ?>
-                    <?php echo (new DateTime($activity[0]["start_time"]))->format("d/m/y"); ?>@
-                    <?php echo (new DateTime($activity[0]["start_time"]))->format("H:i"); ?>
-                    <?php if (isset($activity[0]["city"]) || isset($activity[0]["country"])) {
+                    <?php echo (new DateTime($activity["start_time"]))->format("d/m/y"); ?>@
+                    <?php echo (new DateTime($activity["start_time"]))->format("H:i"); ?>
+                    <?php if (isset($activity["city"]) || isset($activity["country"])) {
                         echo " - ";
                     } ?>
-                    <?php if (isset($activity[0]["city"]) && !empty($activity[0]["city"])) {
-                        echo $activity[0]["city"] . ", ";
+                    <?php if (isset($activity["city"]) && !empty($activity["city"])) {
+                        echo $activity["city"] . ", ";
                     } ?>
-                    <?php if (isset($activity[0]["country"]) && !empty($activity[0]["country"])) {
-                        echo $activity[0]["country"];
+                    <?php if (isset($activity["country"]) && !empty($activity["country"])) {
+                        echo $activity["country"];
                     } ?>
                 </h7>
             </div>
@@ -238,9 +244,9 @@ if ($activity[0]["activity_type"] == 1 || $activity[0]["activity_type"] == 2 || 
                 <i class="fa-solid fa-ellipsis-vertical"></i>
             </button>
             <ul class="dropdown-menu">
-                <?php if ($activity[0]['strava_activity_id'] != null) { ?>
+                <?php if ($activity['strava_activity_id'] != null) { ?>
                     <li><a class="dropdown-item"
-                            href="https://www.strava.com/activities/<?php echo $activity[0]['strava_activity_id']; ?>">
+                            href="https://www.strava.com/activities/<?php echo $activity['strava_activity_id']; ?>">
                             <?php echo $translationsActivitiesActivity['activity_title_dropdown_seeItOnStrava']; ?>
                         </a></li>
                 <?php } ?>
@@ -265,7 +271,7 @@ if ($activity[0]["activity_type"] == 1 || $activity[0]["activity_type"] == 2 || 
                 <div class="modal-body">
                     <?php echo $translationsActivitiesActivity['activity_title_dropdown_deleteActivity_modal_body']; ?>
                     <b>
-                        <?php echo $activity[0]['name']; ?>
+                        <?php echo $activity['name']; ?>
                     </b>?
                 </div>
                 <div class="modal-footer">
@@ -273,7 +279,7 @@ if ($activity[0]["activity_type"] == 1 || $activity[0]["activity_type"] == 2 || 
                         <?php echo $translationsTemplateTop['template_top_global_close']; ?>
                     </button>
                     <a type="button" class="btn btn-danger"
-                        href="../activities/activity.php?activityID=<?php echo $activity[0]["id"]; ?>&deleteActivity=1">
+                        href="../activities/activity.php?activityID=<?php echo $activity["id"]; ?>&deleteActivity=1">
                         <?php echo $translationsActivitiesActivity['activity_title_dropdown_deleteActivity']; ?>
                     </a>
                 </div>
@@ -283,7 +289,7 @@ if ($activity[0]["activity_type"] == 1 || $activity[0]["activity_type"] == 2 || 
 
     <!-- Activity title -->
     <h1 class="mt-3">
-        <?php echo $activity[0]["name"]; ?>
+        <?php echo $activity["name"]; ?>
     </h1>
 
     <!-- Details -->
@@ -293,10 +299,10 @@ if ($activity[0]["activity_type"] == 1 || $activity[0]["activity_type"] == 2 || 
                 <?php echo $translationsActivitiesActivity['activity_detail_distance']; ?>
             </span>
             <br>
-            <?php if ($activity[0]["activity_type"] != 9) { ?>
-                <?php echo number_format(($activity[0]["distance"] / 1000), 2); ?> km
+            <?php if ($activity["activity_type"] != 9) { ?>
+                <?php echo number_format(($activity["distance"] / 1000), 2); ?> km
             <?php } else { ?>
-                <?php echo ($activity[0]["distance"]); ?> m
+                <?php echo ($activity["distance"]); ?> m
             <?php } ?>
         </div>
         <div class="col border-start border-opacity-50">
@@ -305,8 +311,8 @@ if ($activity[0]["activity_type"] == 1 || $activity[0]["activity_type"] == 2 || 
             </span>
             <br>
             <?php
-            $startDateTime = DateTime::createFromFormat("Y-m-d\TH:i:s", $activity[0]["start_time"]);
-            $endDateTime = DateTime::createFromFormat("Y-m-d\TH:i:s", $activity[0]["end_time"]);
+            $startDateTime = new DateTime($activity["start_time"]);
+            $endDateTime = new DateTime($activity["end_time"]);
             $interval = $startDateTime->diff($endDateTime);
 
             if ($interval->h < 1) {
@@ -319,27 +325,27 @@ if ($activity[0]["activity_type"] == 1 || $activity[0]["activity_type"] == 2 || 
             ?>
         </div>
         <div class="col border-start border-opacity-50">
-            <?php if ($activity[0]["activity_type"] != 9 && $activity[0]["activity_type"] != 1) { ?>
+            <?php if ($activity["activity_type"] != 9 && $activity["activity_type"] != 1) { ?>
                 <span class="fw-lighter">
                     <?php echo $translationsActivitiesActivity['activity_detail_elevationGain']; ?>
                 </span>
                 <br>
-                <?php echo ($activity[0]["elevation_gain"]); ?> m
+                <?php echo ($activity["elevation_gain"]); ?> m
             <?php } else { ?>
-                <?php if ($activity[0]["activity_type"] == 1 || $activity[0]["activity_type"] == 2 || $activity[0]["activity_type"] == 3) { ?>
+                <?php if ($activity["activity_type"] == 1 || $activity["activity_type"] == 2 || $activity["activity_type"] == 3) { ?>
                     <span class="fw-lighter">
                         <?php echo $translationsActivitiesActivity['activity_detail_pace']; ?>
                     </span>
                     <br>
-                    <?php echo floor(($activity[0]["pace"] * 1000) / 60) . ":" . number_format((((($activity[0]["pace"] * 1000) / 60) - floor(($activity[0]["pace"] * 1000) / 60)) * 60), 0); ?>
+                    <?php echo floor(($activity["pace"] * 1000) / 60) . ":" . number_format((((($activity["pace"] * 1000) / 60) - floor(($activity["pace"] * 1000) / 60)) * 60), 0); ?>
                     min/km
                 <?php } else { ?>
-                    <?php if ($activity[0]["activity_type"] == 9) { ?>
+                    <?php if ($activity["activity_type"] == 9) { ?>
                         <span class="fw-lighter">
                             <?php echo $translationsActivitiesActivity['activity_detail_pace']; ?>
                         </span>
                         <br>
-                        <?php echo floor(($activity[0]["pace"] * 100) / 60) . ":" . number_format((((($activity[0]["pace"] * 100) / 60) - floor(($activity[0]["pace"] * 100) / 60)) * 60), 0); ?>
+                        <?php echo floor(($activity["pace"] * 100) / 60) . ":" . number_format((((($activity["pace"] * 100) / 60) - floor(($activity["pace"] * 100) / 60)) * 60), 0); ?>
                         min/100m
                     <?php } ?>
                 <?php } ?>
@@ -348,14 +354,14 @@ if ($activity[0]["activity_type"] == 1 || $activity[0]["activity_type"] == 2 || 
     </div>
     <!-- other metrics -->
     <div class="row d-flex mt-3">
-        <?php if ($activity[0]["activity_type"] == 1 || $activity[0]["activity_type"] == 2 || $activity[0]["activity_type"] == 3) { ?>
+        <?php if ($activity["activity_type"] == 1 || $activity["activity_type"] == 2 || $activity["activity_type"] == 3) { ?>
             <div class="col">
                 <span class="fw-lighter">
                     <?php echo $translationsActivitiesActivity['activity_detail_avgPower']; ?>
                 </span>
                 <br>
-                <?php if ($activity[0]["average_power"]) {
-                    echo ($activity[0]["average_power"]); ?> W
+                <?php if ($activity["average_power"]) {
+                    echo ($activity["average_power"]); ?> W
                 <?php } else {
                     echo "No data";
                 } ?>
@@ -365,31 +371,31 @@ if ($activity[0]["activity_type"] == 1 || $activity[0]["activity_type"] == 2 || 
                     <?php echo $translationsActivitiesActivity['activity_detail_elevationGain']; ?>
                 </span>
                 <br>
-                <?php echo ($activity[0]["elevation_gain"]); ?> m
+                <?php echo ($activity["elevation_gain"]); ?> m
             </div>
             <div class="col border-start border-opacity-50">
                 <span class="fw-lighter">
                     <?php echo $translationsActivitiesActivity['activity_detail_elevationLoss']; ?>
                 </span>
                 <br>
-                <?php echo ($activity[0]["elevation_loss"]); ?> m
+                <?php echo ($activity["elevation_loss"]); ?> m
             </div>
         <?php } ?>
-        <?php if ($activity[0]["activity_type"] != 9 && $activity[0]["activity_type"] != 1) { ?>
+        <?php if ($activity["activity_type"] != 9 && $activity["activity_type"] != 1) { ?>
             <div class="col">
                 <span class="fw-lighter">
                     <?php echo $translationsActivitiesActivity['activity_detail_avgSpeed']; ?>
                 </span>
                 <br>
-                <?php echo (number_format($activity[0]["average_speed"] * 3.6)); ?> km/h
+                <?php echo (number_format($activity["average_speed"] * 3.6)); ?> km/h
             </div>
             <div class="col border-start border-opacity-50">
                 <span class="fw-lighter">
                     <?php echo $translationsActivitiesActivity['activity_detail_avgPower']; ?>
                 </span>
                 <br>
-                <?php if ($activity[0]["average_power"]) {
-                    echo ($activity[0]["average_power"]); ?> W
+                <?php if ($activity["average_power"]) {
+                    echo ($activity["average_power"]); ?> W
                 <?php } else {
                     echo "No data";
                 } ?>
@@ -399,7 +405,7 @@ if ($activity[0]["activity_type"] == 1 || $activity[0]["activity_type"] == 2 || 
                     <?php echo $translationsActivitiesActivity['activity_detail_elevationLoss']; ?>
                 </span>
                 <br>
-                <?php echo $activity[0]["elevation_loss"]; ?> m
+                <?php echo $activity["elevation_loss"]; ?> m
             </div>
         <?php } ?>
         <div>
@@ -461,25 +467,25 @@ if ($activity[0]["activity_type"] == 1 || $activity[0]["activity_type"] == 2 || 
                         <?php echo $translationsActivitiesActivity['activity_gear_title']; ?>
                     </span>
                     <br>
-                    <?php if ($activity[0]["activity_type"] == 1) {
+                    <?php if ($activity["activity_type"] == 1) {
                         echo '<i class="fa-solid fa-person-running"></i>';
                     } else {
-                        if ($activity[0]["activity_type"] == 4 || $activity[0]["activity_type"] == 5 || $activity[0]["activity_type"] == 6 || $activity[0]["activity_type"] == 7 || $activity[0]["activity_type"] == 8) {
+                        if ($activity["activity_type"] == 4 || $activity["activity_type"] == 5 || $activity["activity_type"] == 6 || $activity["activity_type"] == 7 || $activity["activity_type"] == 8) {
                             echo '<i class="fa-solid fa-person-biking"></i>';
                         } else {
-                            if ($activity[0]["activity_type"] == 9) {
+                            if ($activity["activity_type"] == 9) {
                                 echo '<i class="fa-solid fa-person-swimming"></i>';
                             }
                         }
                     } ?>
-                    <?php if ($activity[0]["gear_id"] == null) { ?>
+                    <?php if ($activity["gear_id"] == null) { ?>
                         <?php echo $translationsActivitiesActivity['activity_gear_notset']; ?>
                     <?php } else { ?>
-                        <?php echo $activityGear[0]['nickname']; ?>
+                        <?php echo $activityGear['nickname']; ?>
                     <?php } ?>
                 </p>
                 <div class="justify-content-end">
-                    <?php if ($activity[0]["gear_id"] == null) { ?>
+                    <?php if ($activity["gear_id"] == null) { ?>
                         <!-- add gear zone -->
                         <a class="btn btn-link btn-lg" href="#" role="button" data-bs-toggle="modal"
                             data-bs-target="#addGearToActivityModal"><i class="fa-solid fa-plus"></i></a>
@@ -497,7 +503,7 @@ if ($activity[0]["activity_type"] == 1 || $activity[0]["activity_type"] == 2 || 
                                             aria-label="Close"></button>
                                     </div>
                                     <form
-                                        action="../activities/activity.php?activityID=<?php echo $activity[0]["id"]; ?>&addGearToActivity=1"
+                                        action="../activities/activity.php?activityID=<?php echo $activity["id"]; ?>&addGearToActivity=1"
                                         method="post" enctype="multipart/form-data">
                                         <div class="modal-body">
                                             <!-- gear type fields -->
@@ -542,7 +548,7 @@ if ($activity[0]["activity_type"] == 1 || $activity[0]["activity_type"] == 2 || 
                                             aria-label="Close"></button>
                                     </div>
                                     <form
-                                        action="../activities/activity.php?activityID=<?php echo $activity[0]["id"]; ?>&editGearActivity=1"
+                                        action="../activities/activity.php?activityID=<?php echo $activity["id"]; ?>&editGearActivity=1"
                                         method="post" enctype="multipart/form-data">
                                         <div class="modal-body">
                                             <!-- gear type fields -->
@@ -588,7 +594,7 @@ if ($activity[0]["activity_type"] == 1 || $activity[0]["activity_type"] == 2 || 
                                     </div>
                                     <div class="modal-body">
                                         <?php echo $translationsActivitiesActivity['activity_gear_deleteGear_body']; ?> <b>
-                                            <?php echo $activityGear[0]['nickname']; ?>
+                                            <?php echo $activityGear['nickname']; ?>
                                         </b>?
                                     </div>
                                     <div class="modal-footer">
@@ -596,7 +602,7 @@ if ($activity[0]["activity_type"] == 1 || $activity[0]["activity_type"] == 2 || 
                                             <?php echo $translationsTemplateTop['template_top_global_close']; ?>
                                         </button>
                                         <a type="button" class="btn btn-danger"
-                                            href="../activities/activity.php?activityID=<?php echo $activity[0]["id"]; ?>&deleteGearActivity=1">
+                                            href="../activities/activity.php?activityID=<?php echo $activity["id"]; ?>&deleteGearActivity=1">
                                             <?php echo $translationsActivitiesActivity['activity_gear_deleteGear_title']; ?>
                                         </a>
                                     </div>
@@ -641,7 +647,7 @@ if ($activity[0]["activity_type"] == 1 || $activity[0]["activity_type"] == 2 || 
                             <?php echo $translationsActivitiesActivity['activity_dataGraph_ele']; ?>
                         </label>
                     </div>
-                    <?php if ($activity[0]["activity_type"] == 4 || $activity[0]["activity_type"] == 5 || $activity[0]["activity_type"] == 6 || $activity[0]["activity_type"] == 7 || $activity[0]["activity_type"] == 8) { ?>
+                    <?php if ($activity["activity_type"] == 4 || $activity["activity_type"] == 5 || $activity["activity_type"] == 6 || $activity["activity_type"] == 7 || $activity["activity_type"] == 8) { ?>
                         <div class="form-check">
                             <input class="form-check-input" type="checkbox" id="velocityCheckbox">
                             <label class="form-check-label" for="velocityCheckbox">
@@ -667,7 +673,7 @@ if ($activity[0]["activity_type"] == 1 || $activity[0]["activity_type"] == 2 || 
 
             <script>
                 var ctx = document.getElementById('dataChart').getContext('2d');
-                var activityType = <?php echo $activity[0]["activity_type"]; ?>;
+                var activityType = <?php echo $activity["activity_type"]; ?>;
 
                 const downsampledDataHr = downsampleData(<?php foreach($hrStream as $hrValue){ $auxhr[] = (int)$hrValue["hr"]; } echo json_encode($auxhr); ?>, 200);
 

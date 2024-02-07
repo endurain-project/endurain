@@ -11,7 +11,7 @@ function getActivityActivitiesStream($activity_id)
     } else {
         if ($response[1] === 200) {
             #echo $response[0];
-            return json_decode($response[0], true)["content"];
+            return json_decode($response[0], true);
         } else {
             return -2;
         }
@@ -27,7 +27,7 @@ function getActivityActivitiesStreamByStreamType($activity_id, $stream_type)
     } else {
         if ($response[1] === 200) {
             #echo $response[0];
-            return json_decode($response[0], true)["content"];
+            return json_decode($response[0], true);
         } else {
             return -2;
         }
