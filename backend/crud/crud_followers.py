@@ -186,8 +186,51 @@ def create_follower(user_id: int, target_user_id: int, db: Session):
         ) from err
 
 
+def accept_follower(user_id: int, target_user_id: int, db: Session):
+    try:
+        # Get the follower record
+        accept_follow = (
+            db.query(models.Follower)
+            .filter(
+                (models.Follower.follower_id == target_user_id)
+                & (models.Follower.following_id == user_id)
+                & (models.Follower.is_accepted == False)
+            )
+            .first()
+        )
+
+        # check if accept_follow is None and raise an HTTPException if it is
+        if accept_follow is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Follower record not found",
+            )
+
+        # Accept the follow request by changing the "is_accepted" column to True
+        accept_follow.is_accepted = True
+
+        # Commit the transaction
+        db.commit()
+    except Exception as err:
+        # Rollback the transaction
+        db.rollback()
+
+        # Log the exception
+        logger.error(
+            f"Error in create_follower: {err}",
+            exc_info=True,
+        )
+
+        # Raise an HTTPException with a 500 Internal Server Error status code
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal Server Error",
+        ) from err
+
+
 def delete_follower(user_id: int, target_user_id: int, db: Session):
     try:
+        # Delete the follower record
         num_deleted = (
             db.query(models.Follower)
             .filter(

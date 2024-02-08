@@ -21,6 +21,18 @@
     if (isset($_POST["editProfile"])) {
         if (empty(trim($_POST["profileNameEdit"]))) {
             $_POST["profileNameEdit"] = NULL;
+        }else{
+            $_POST["profileNameEdit"] = trim($_POST["profileNameEdit"]);
+        }
+
+        if (empty(trim($_POST["profileBirthDateEdit"]))) {
+            $_POST["profileBirthDateEdit"] = NULL;
+        }
+
+        if (empty(trim($_POST["profileCityEdit"]))) {
+            $_POST["profileCityEdit"] = NULL;
+        }else{
+            $_POST["profileCityEdit"] = trim($_POST["profileCityEdit"]);
         }
 
         if (isset($_FILES["profileImgEdit"]) && $_FILES["profileImgEdit"]["error"] == 0) {
@@ -53,15 +65,15 @@
             }
             // Check if $uploadOk is set to 0 by an error
             if ($uploadOk == 1) {
-                if(getUserPhotoAuxFromID($_SESSION["id"])["photo_path_aux"] != null){
-                    if (unlink(getUserPhotoAuxFromID($_SESSION["id"])["photo_path_aux"])) {
+                if(getUserPhotoAuxFromID($_SESSION["id"]) != null){
+                    if (unlink(getUserPhotoAuxFromID($_SESSION["id"]))) {
                         unsetUserPhoto($_SESSION["id"]);
                     }
                 }
                 if (move_uploaded_file($_FILES["profileImgEdit"]["tmp_name"], $target_file)) {
                     $photoPath = "..\img\users_img\\" . $newname;
                     $photoPath_aux = $target_file;
-                    $editProfileAction = editUser(trim($_POST["profileNameEdit"]), trim($_POST["profileUsernameEdit"]), trim($_POST["profileEmailEdit"]), $_SESSION["id"], $_POST["profilePreferredLanguageEdit"], trim($_POST["profileCityEdit"]), $_POST["profileBirthDateEdit"], $_POST["profileGenderEdit"], $_SESSION["access_type"], $photoPath, $photoPath_aux, 1);
+                    $editProfileAction = editUser($_POST["profileNameEdit"], trim($_POST["profileUsernameEdit"]), trim($_POST["profileEmailEdit"]), $_SESSION["id"], $_POST["profilePreferredLanguageEdit"], $_POST["profileCityEdit"], $_POST["profileBirthDateEdit"], $_POST["profileGenderEdit"], $_SESSION["access_type"], $photoPath, $photoPath_aux, 1);
                     setUserRelatedInfoSession($_SESSION["token"]);
                 } else {
                     $editProfileAction = -5;
@@ -69,16 +81,16 @@
                 }
             }
         } else {
-            $profilePhoto = getUserPhotoFromID($_SESSION["id"])["photo_path"];
-            $profilePhotoAux = getUserPhotoAuxFromID($_SESSION["id"])["photo_path_aux"];
-            $editProfileAction = editUser(trim($_POST["profileNameEdit"]), trim($_POST["profileUsernameEdit"]), trim($_POST["profileEmailEdit"]), $_SESSION["id"], $_POST["profilePreferredLanguageEdit"], trim($_POST["profileCityEdit"]), $_POST["profileBirthDateEdit"], $_POST["profileGenderEdit"], $_SESSION["access_type"], $profilePhoto, $profilePhotoAux, 1);
+            $profilePhoto = getUserPhotoFromID($_SESSION["id"]);
+            $profilePhotoAux = getUserPhotoAuxFromID($_SESSION["id"]);
+            $editProfileAction = editUser($_POST["profileNameEdit"], trim($_POST["profileUsernameEdit"]), trim($_POST["profileEmailEdit"]), $_SESSION["id"], $_POST["profilePreferredLanguageEdit"], $_POST["profileCityEdit"], $_POST["profileBirthDateEdit"], $_POST["profileGenderEdit"], $_SESSION["access_type"], $profilePhoto, $profilePhotoAux, 1);
             setUserRelatedInfoSession($_SESSION["token"]);
         }
     }
 
     /* Delete user photo */
     if (isset($_GET["deleteProfilePhoto"]) && $_GET["deleteProfilePhoto"] == 1) {
-        if (unlink(getUserPhotoAuxFromID($_SESSION["id"])["photo_path_aux"])) {
+        if (unlink(getUserPhotoAuxFromID($_SESSION["id"]))) {
             $deletePhotoProfileAction = unsetUserPhoto($_SESSION["id"]);
             if ($deletePhotoProfileAction == 0) {
                 $_SESSION["photo_path"] = NULL;
@@ -270,7 +282,13 @@
                 echo "N/A"; // Or any default value you prefer when birthdate is not set
             }
             ?></p>
-        <p><b><?php echo $translationsSettingsProfileSettings['settings_sidebar_profile_city_subtitle']; ?></b><?php echo ($_SESSION["city"]); ?></p>
+        <p><b><?php echo $translationsSettingsProfileSettings['settings_sidebar_profile_city_subtitle']; ?></b><?php
+            if (isset($_SESSION["city"]) && !empty($_SESSION["city"])) {
+                echo $_SESSION["city"];
+            } else {
+                echo "N/A"; // Or any default value you prefer when birthdate is not set
+            }
+            ?></p>
         <p><b><?php echo $translationsSettingsProfileSettings['settings_sidebar_profile_gender_subtitle']; ?></b><?php if ($_SESSION["gender"] == 1) {
                 echo $translationsSettingsProfileSettings['settings_sidebar_profile_gender_male'];
             } else {

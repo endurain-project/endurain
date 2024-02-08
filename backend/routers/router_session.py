@@ -84,7 +84,7 @@ async def login_for_access_token(
 
     if user.is_active == USER_NOT_ACTIVE:
         raise HTTPException(
-            status_code=status.HTTP_400_UNAUTHORIZED,
+            status_code=status.HTTP_403_FORBIDDEN,
             detail="Inactive user",
             headers={"WWW-Authenticate": "Bearer"},
         )

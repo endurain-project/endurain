@@ -224,7 +224,7 @@ def get_user_following_activities(user_id, db):
     try:
         # Get the activities from the database
         activities = (
-            db.query(models.Activity.id)
+            db.query(models.Activity)
             .join(
                 models.Follower, models.Follower.following_id == models.Activity.user_id
             )
@@ -369,7 +369,6 @@ def get_activity_by_id_from_user_id(activity_id: int, user_id: int, db: Session)
 
 
 def create_activity(activity: schema_activities.Activity, db: Session):
-    """Create a new activity in the database"""
     try:
         # Create a new activity
         db_activity = models.Activity(

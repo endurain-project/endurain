@@ -160,7 +160,7 @@ $userFollowingAll = getUserFollowingAll($_GET["userID"]);
             <div class="vstack d-flex justify-content-center">
                 <div class="d-flex justify-content-center">
                     <img src=<?php if (is_null($user["photo_path"])) {
-                        if ($_SESSION["gender"] == 1) {
+                        if ($user["gender"] == 1) {
                             echo ("../img/avatar/male1.png");
                         } else {
                             echo ("../img/avatar/female1.png");

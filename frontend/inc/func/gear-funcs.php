@@ -125,7 +125,7 @@ function editGear($id, $brand, $model, $nickname, $gear_type, $date, $is_active)
         'model' => $model,
         'nickname' => $nickname,
         'gear_type' => $gear_type,
-        'date' => $date,
+        'created_at' => $date,
         'is_active' => $is_active,
     )));
     if ($response[0] === false) {

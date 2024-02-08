@@ -13,35 +13,11 @@ logger = logging.getLogger("myLogger")
 
 
 def format_user_birthdate(user):
-    """
-    Formats the birthdate of a user object.
-
-    Args:
-        user (User): The user object to format.
-
-    Returns:
-        User: The user object with the birthdate formatted as a string in the format "YYYY-MM-DD",
-              or None if the birthdate is None.
-    """
     user.birthdate = user.birthdate.strftime("%Y-%m-%d") if user.birthdate else None
     return user
 
 
 def authenticate_user(username: str, password: str, db: Session):
-    """
-    Get the user from the database and verify the password.
-
-    Args:
-        username (str): The username of the user.
-        password (str): The password of the user.
-        db (Session): The database session.
-
-    Returns:
-        User: The authenticated user if the password is correct, None otherwise.
-
-    Raises:
-        HTTPException: If there is an internal server error.
-    """
     try:
         # Get the user from the database
         user = (
@@ -69,19 +45,8 @@ def authenticate_user(username: str, password: str, db: Session):
 
 
 def get_users_number(db: Session):
-    """
-    Get the number of users in the database.
-
-    Args:
-        db (Session): The database session.
-
-    Returns:
-        int: The number of users in the database.
-
-    Raises:
-        HTTPException: If there is an error retrieving the number of users.
-    """
     try:
+        # Get the number of users from the database
         return db.query(models.User).count()
     except Exception as err:
         # Log the exception
@@ -94,20 +59,6 @@ def get_users_number(db: Session):
 
 
 def get_users_with_pagination(db: Session, page_number: int = 1, num_records: int = 5):
-    """
-    Get the users from the database with pagination.
-
-    Args:
-        db (Session): The database session.
-        page_number (int, optional): The page number for pagination. Defaults to 1.
-        num_records (int, optional): The number of records per page. Defaults to 5.
-
-    Returns:
-        List[User] or None: The list of users or None if no users found.
-
-    Raises:
-        HTTPException: If there is an internal server error.
-    """
     try:
         # Get the users from the database
         users = (
@@ -137,19 +88,7 @@ def get_users_with_pagination(db: Session, page_number: int = 1, num_records: in
         ) from err
 
 
-def get_user_by_username(username: str, db: Session):
-    """
-    Get the user from the database by username.
-
-    Args:
-        username (str): The username of the user to retrieve.
-        db (Session): The database session.
-
-    Returns:
-        List[User]: A list of User objects matching the username.
-    Raises:
-        HTTPException: If there is an internal server error.
-    """
+def get_user_if_contains_username(username: str, db: Session):
     try:
         # Define a search term
         partial_username = unquote(username).replace("+", " ")
@@ -173,6 +112,30 @@ def get_user_by_username(username: str, db: Session):
         return users
     except Exception as err:
         # Log the exception
+        logger.error(f"Error in get_user_if_contains_username: {err}", exc_info=True)
+        # Raise an HTTPException with a 500 Internal Server Error status code
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal Server Error",
+        ) from err
+
+
+def get_user_by_username(username: str, db: Session):
+    try:
+        # Get the user from the database
+        user = db.query(models.User).filter(models.User.username == username).first()
+
+        # If the user was not found, return None
+        if user is None:
+            return None
+
+        # Format the birthdate
+        user = format_user_birthdate(user)
+
+        # Return the user
+        return user
+    except Exception as err:
+        # Log the exception
         logger.error(f"Error in get_user_by_username: {err}", exc_info=True)
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
@@ -182,18 +145,6 @@ def get_user_by_username(username: str, db: Session):
 
 
 def get_user_by_id(user_id: int, db: Session):
-    """
-    Get the user from the database by id.
-
-    Args:
-        user_id (int): The id of the user.
-        db (Session): The database session.
-
-    Returns:
-        User: The user object if found, None otherwise.
-    Raises:
-        HTTPException: If there is an internal server error.
-    """
     try:
         # Get the user from the database
         user = db.query(models.User).filter(models.User.id == user_id).first()
@@ -218,19 +169,6 @@ def get_user_by_id(user_id: int, db: Session):
 
 
 def get_user_id_by_username(username: str, db: Session):
-    """
-    Get the user id from the database by username.
-
-    Args:
-        username (str): The username of the user.
-        db (Session): The database session.
-
-    Returns:
-        int or None: The user id if found, None otherwise.
-        
-    Raises:
-        HTTPException: If there is an internal server error.
-    """
     try:
         # Get the user from the database
         user_id = (
@@ -256,19 +194,6 @@ def get_user_id_by_username(username: str, db: Session):
 
 
 def get_user_photo_path_by_id(user_id: int, db: Session):
-    """
-    Retrieve the photo path of a user by their ID.
-
-    Args:
-        user_id (int): The ID of the user.
-        db (Session): The database session.
-
-    Returns:
-        str: The photo path of the user.
-
-    Raises:
-        HTTPException: If there is an internal server error.
-    """
     try:
         # Get the user from the database
         user_db = (
@@ -292,19 +217,6 @@ def get_user_photo_path_by_id(user_id: int, db: Session):
 
 
 def get_user_photo_path_aux_by_id(user_id: int, db: Session):
-    """
-    Retrieve the photo_path_aux value of a user from the database by user ID.
-
-    Args:
-        user_id (int): The ID of the user.
-        db (Session): The database session.
-
-    Returns:
-        str: The photo_path_aux value of the user.
-
-    Raises:
-        HTTPException: If there is an error retrieving the user or a 500 Internal Server Error occurs.
-    """
     try:
         # Get the user from the database
         user_db = (
@@ -330,19 +242,6 @@ def get_user_photo_path_aux_by_id(user_id: int, db: Session):
 
 
 def create_user(user: schema_users.UserCreate, db: Session):
-    """
-    Create a new user in the database.
-
-    Args:
-        user (schema_users.UserCreate): The user data to be created.
-        db (Session): The database session.
-
-    Returns:
-        models.User: The created user.
-
-    Raises:
-        HTTPException: If there is a duplicate entry error or an internal server error occurs.
-    """
     try:
         # Create a new user
         db_user = models.User(

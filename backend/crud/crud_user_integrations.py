@@ -10,7 +10,6 @@ logger = logging.getLogger("myLogger")
 
 
 def get_user_integrations_by_user_id(user_id: int, db: Session):
-    """Get a user integrations by user id from the database"""
     try:
         user_integrations = (
             db.query(models.UserIntegrations)
@@ -34,7 +33,6 @@ def get_user_integrations_by_user_id(user_id: int, db: Session):
         ) from err
 
 def create_user_integrations(user_id: int, db: Session):
-    """Create a new user integrations in the database"""
     try:
         # Create a new user integrations
         user_integrations = models.UserIntegrations(

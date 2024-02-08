@@ -90,29 +90,6 @@ def validate_token_expiration(db: Session, token: str = Depends(oauth2_scheme)):
             detail="Token no longer valid",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    """ except jwt.ExpiredSignatureError:
-        # Log the error and raise the exception
-        logger.info(
-            "Token expired during validation | Will force remove_expired_tokens to run | Returning 401 response"
-        )
-        # Remove expired tokens from the database
-        remove_expired_tokens(db)
-        # Raise an HTTPException with a 401 Unauthorized status code
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Token no longer valid",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    except JWTError as err:
-        # Log the error and raise the exception
-        logger.error(
-            f"Error in validate_token_expiration on payload validation: {err}",
-            exc_info=True,
-        )
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Internal Server Error",
-        ) from err """
 
 
 def get_token_user_id(token: str = Depends(oauth2_scheme)):

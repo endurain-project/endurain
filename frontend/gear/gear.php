@@ -252,7 +252,7 @@ if(isset($gearActivities)){
                                             <?php } ?>>
                                             <?php echo $translationsGearGear['gear_gear_infoZone_modal_editGear_gearIsActiveOption1']; ?>
                                         </option>
-                                        <option value="2" <?php if ($gear["is_active"] == 2) { ?> selected="selected"
+                                        <option value="0" <?php if ($gear["is_active"] == 0) { ?> selected="selected"
                                             <?php } ?>>
                                             <?php echo $translationsGearGear['gear_gear_infoZone_modal_editGear_gearIsActiveOption2']; ?>
                                         </option>

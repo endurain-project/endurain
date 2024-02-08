@@ -88,7 +88,6 @@ async def read_activities_useractivities_thisweek_distances(
     ],
     db: Session = Depends(dependencies_database.get_db),
 ):
-
     # Calculate the start of the current week
     today = datetime.utcnow().date()
     start_of_week = today - timedelta(
@@ -271,7 +270,7 @@ async def read_activities_useractivities_pagination(
 
 @router.get(
     "/activities/user/{user_id}/followed/page_number/{page_number}/num_records/{num_records}",
-    response_model=schema_activities.Activity | None,
+    response_model=list[schema_activities.Activity] | None,
     tags=["activities"],
 )
 async def read_activities_followed_user_activities_pagination(

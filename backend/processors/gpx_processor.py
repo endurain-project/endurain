@@ -3,7 +3,6 @@ import gpxpy.gpx
 import logging
 
 from fastapi import HTTPException, status
-from sqlalchemy import func
 
 from processors import activity_processor
 from schemas import schema_activities, schema_activity_streams
@@ -13,16 +12,6 @@ logger = logging.getLogger("myLogger")
 
 
 def parse_activity_streams_from_gpx_file(parsed_info: dict, activity_id: int):
-    """
-    Parse activity streams from parsed GPX data and return as a list of ActivityStreams objects.
-
-    Args:
-        parsed_info (dict): Parsed GPX data containing stream information.
-        activity_id (int): ID of the activity.
-
-    Returns:
-        list: List of ActivityStreams objects representing the parsed activity streams.
-    """
     # Create a list of tuples containing stream type, is_set, and waypoints
     stream_data_list = [
         (1, parsed_info["is_heart_rate_set"], parsed_info["hr_waypoints"]),
@@ -59,19 +48,6 @@ def parse_activity_streams_from_gpx_file(parsed_info: dict, activity_id: int):
 
 
 def parse_gpx_file(file: str, user_id: int) -> dict:
-    """
-    Parse a GPX file and return parsed data as a dictionary.
-
-    Args:
-        file (str): The path to the GPX file.
-        user_id (int): The ID of the user.
-
-    Returns:
-        dict: A dictionary containing the parsed data, including an Activity object and various waypoints.
-
-    Raises:
-        HTTPException: If there is an error parsing the GPX file.
-    """
     # Parse the GPX file
     try:
         gpx = gpxpy.parse(open(file, "r"))

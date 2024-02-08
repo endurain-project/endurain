@@ -185,6 +185,26 @@ async def create_follow(
     return {"detail": "Follower record created successfully"}
 
 
+@router.put("/followers/accept/user/{user_id}/targetUser/{target_user_id}",
+    tags=["followers"],
+)
+async def accept_follow(
+    user_id: int,
+    validate_user_id: Annotated[Callable, Depends(dependencies_users.validate_user_id)],
+    target_user_id: int,
+    validate_target_user_id: Annotated[
+        Callable, Depends(dependencies_users.validate_target_user_id)
+    ],
+    validate_token: Callable = Depends(dependencies_session.validate_token),
+    db: Session = Depends(dependencies_database.get_db),
+):
+    # Accept the follower
+    crud_followers.accept_follower(user_id, target_user_id, db)
+
+    # Return success message
+    return {"detail": "Follower record accepted successfully"}
+
+
 @router.delete(
     "/followers/delete/user/{user_id}/targetUser/{target_user_id}",
     tags=["followers"],

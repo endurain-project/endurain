@@ -92,8 +92,10 @@ JAEGER_HOST | jaeger | Yes
 JAGGER_PORT | 4317 | Yes
 STRAVA_DAYS_ACTIVITIES_ONLINK | 30 | Yes
 API_ENDPOINT* | changeme | Yes
+GEOCODES_MAPS_API** | changeme | `No`
 
 *API_ENDPOINT needs to be set if you want to enable Strava integration
+**<a href="https://geocode.maps.co/">Geocode maps</a> offers a free plan consisting of 1 Request/Second. Registration necessary.
 
 Table bellow shows the obligatory environemnt variables for mariadb container. You should set them based on what was also set for backend container.
 
@@ -106,20 +108,22 @@ MYSQL_PASSWORD | changeme | `No`
 
 Python backend dependencies used:
  - python:3.11
- - fastapi
- - pydantic
- - uvicorn
- - python-dotenv
- - sqlalchemy
- - mysqlclient
- - python-jose[cryptography]
- - passlib[bcrypt]
- - apscheduler
- - requests
- - stravalib
- - opentelemetry-sdk
- - opentelemetry-instrumentation-fastapi
- - opentelemetry.exporter.otlp
+ - fastapi==0.108.0
+ - pydantic==1.10.9
+ - uvicorn==0.25.0
+ - python-dotenv==1.0.0
+ - sqlalchemy==2.0.25
+ - mysqlclient==2.2.1
+ - python-jose[cryptography]==3.3.0
+ - passlib[bcrypt]==1.7.4
+ - apscheduler==3.10.4
+ - requests==2.31.0
+ - stravalib==1.5
+ - opentelemetry-sdk==1.22.0
+ - opentelemetry-instrumentation-fastapi==0.43b0
+ - opentelemetry.exporter.otlp==1.22.0
+ - python-multipart==0.0.6
+ - gpxpy==1.6.2
  - https://geocode.maps.co/ for reverse Geocode logic on activity parsing
 
  ---

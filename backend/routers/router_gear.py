@@ -137,6 +137,34 @@ async def create_gear(
     # Return the ID of the gear created
     return gear_created.id
 
+
+@router.put("/gear/{gear_id}/edit", tags=["gear"])
+async def edit_gear(
+    gear_id: int,
+    validate_id: Annotated[Callable, Depends(dependencies_gear.validate_gear_id)],
+    gear: schema_gear.Gear,
+    token_user_id: Annotated[
+        int, Depends(dependencies_session.validate_token_and_get_authenticated_user_id)
+    ],
+    db: Session = Depends(dependencies_database.get_db),
+):
+    # Get the gear by id
+    gear_db = crud_gear.get_gear_user_by_id(token_user_id, gear_id, db)
+
+    # Check if gear is None and raise an HTTPException if it is
+    if gear_db is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Gear ID {gear_id} for user {token_user_id} not found",
+        )
+
+    # Edit the gear
+    crud_gear.edit_gear(gear_id, gear, db)
+
+    # Return success message
+    return {"detail": f"Gear ID {gear_id} edited successfully"}
+
+
 @router.delete("/gear/{gear_id}/delete", tags=["gear"])
 async def delete_user(
     gear_id: int,
@@ -155,7 +183,7 @@ async def delete_user(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Gear ID {gear_id} for user {token_user_id} not found",
         )
-    
+
     # Delete the gear
     crud_gear.delete_gear(gear_id, db)
 

@@ -210,7 +210,7 @@
         $numUsers = numUsers();
         $total_pages = ceil($numUsers / $numRecords);
     } else {
-        $users = getUserFromUsername(urlencode(trim($_POST["userUsername"])));
+        $users = getUsersIfContainsUsername(urlencode(trim($_POST["userUsername"])));
         if ($users == NULL) {
             $numUsers = 0;
         } else {

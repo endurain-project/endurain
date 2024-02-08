@@ -12,15 +12,6 @@ logger = logging.getLogger("myLogger")
 
 
 def location_based_on_coordinates(latitude, longitude):
-    """Get the location based on the coordinates using the geocode API.
-
-    Args:
-        latitude (float): The latitude coordinate.
-        longitude (float): The longitude coordinate.
-
-    Returns:
-        dict: A dictionary containing the location information, including city, town, and country.
-    """
     # Create a dictionary with the parameters for the request
     url_params = {
         "lat": latitude,
@@ -55,20 +46,8 @@ def location_based_on_coordinates(latitude, longitude):
         )
 
 
-import math
-
 def calculate_distance(lat1, lon1, lat2, lon2):
-    """Calculate the distance between two points on the Earth's surface using the Haversine formula.
 
-    Args:
-        lat1 (float): Latitude of the first point in degrees.
-        lon1 (float): Longitude of the first point in degrees.
-        lat2 (float): Latitude of the second point in degrees.
-        lon2 (float): Longitude of the second point in degrees.
-
-    Returns:
-        float: The distance between the two points in meters.
-    """
     # The radius of the Earth in meters (mean value)
     EARTH_RADIUS = 6371000  # 6,371 km = 6,371,000 meters
 
@@ -94,19 +73,6 @@ def calculate_distance(lat1, lon1, lat2, lon2):
 def calculate_instant_speed(
     prev_time, time, latitude, longitude, prev_latitude, prev_longitude
 ):
-    """Calculate the instant speed based on two consecutive waypoints and their timestamps.
-
-    Args:
-        prev_time (datetime): The timestamp of the previous waypoint.
-        time (datetime): The timestamp of the current waypoint.
-        latitude (float): The latitude of the current waypoint.
-        longitude (float): The longitude of the current waypoint.
-        prev_latitude (float): The latitude of the previous waypoint.
-        prev_longitude (float): The longitude of the previous waypoint.
-
-    Returns:
-        float: The calculated instant speed in meters per second.
-    """
     # Convert the time strings to datetime objects
     time_calc = datetime.fromisoformat(time.strftime("%Y-%m-%dT%H:%M:%S"))
 
@@ -138,14 +104,6 @@ def calculate_instant_speed(
 
 
 def calculate_elevation_gain_loss(waypoints):
-    """Calculate the elevation gain and loss based on the waypoints.
-
-    Args:
-        waypoints (list): A list of dictionaries representing the waypoints. Each dictionary should have an "ele" key representing the elevation.
-
-    Returns:
-        dict: A dictionary containing the elevation gain and loss. The keys are "elevation_gain" and "elevation_loss".
-    """
     # Initialize the variables for the elevation gain and loss
     elevation_gain = 0
     elevation_loss = 0
@@ -175,16 +133,6 @@ def calculate_elevation_gain_loss(waypoints):
 
 
 def calculate_pace(distance, first_waypoint_time, last_waypoint_time):
-    """Calculate the pace based on the distance and the time between two waypoints.
-
-    Args:
-        distance (float): The distance between two waypoints in meters.
-        first_waypoint_time (datetime): The time of the first waypoint.
-        last_waypoint_time (datetime): The time of the last waypoint.
-
-    Returns:
-        float: The pace in seconds per meter.
-    """
     # If the distance is 0, return 0
     if distance == 0:
         return 0
@@ -208,16 +156,6 @@ def calculate_pace(distance, first_waypoint_time, last_waypoint_time):
 
 
 def calculate_average_speed(distance, first_waypoint_time, last_waypoint_time):
-    """Calculate the average speed based on the distance and the time between two waypoints.
-
-    Args:
-        distance (float): The distance between two waypoints in meters.
-        first_waypoint_time (datetime): The timestamp of the first waypoint.
-        last_waypoint_time (datetime): The timestamp of the last waypoint.
-
-    Returns:
-        float: The average speed in meters per second.
-    """
     # If the distance is 0, return 0
     if distance == 0:
         return 0
@@ -245,15 +183,6 @@ def calculate_average_speed(distance, first_waypoint_time, last_waypoint_time):
 
 
 def calculate_average_power(waypoints):
-    """
-    Calculate the average power based on the power values in the waypoints.
-
-    Parameters:
-    - waypoints (list): A list of dictionaries representing waypoints, each containing a "power" key.
-
-    Returns:
-    - float: The average power calculated from the power values in the waypoints.
-    """
     try:
         # Get the power values from the waypoints
         power_values = [float(waypoint["power"]) for waypoint in waypoints]
@@ -273,15 +202,6 @@ def calculate_average_power(waypoints):
 
 
 def define_activity_type(activity_type):
-    """Define the activity type based on the activity type string.
-
-    Args:
-        activity_type (str): The activity type string.
-
-    Returns:
-        int: The defined activity type.
-
-    """
     # Default value
     auxType = 10
 

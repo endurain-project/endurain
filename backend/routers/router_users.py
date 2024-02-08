@@ -58,8 +58,24 @@ async def read_users_all_pagination(
 
 
 @router.get(
-    "/users/username/{username}",
+    "/users/username/contains/{username}",
     response_model=list[schema_users.User] | None,
+    tags=["users"],
+)
+async def read_users_contain_username(
+    username: str,
+    validate_token_validate_admin_access: Annotated[
+        Callable, Depends(dependencies_session.validate_token_and_validate_admin_access)
+    ],
+    db: Session = Depends(dependencies_database.get_db),
+):
+    # Get the users from the database by username
+    return crud_users.get_user_if_contains_username(username=username, db=db)
+
+
+@router.get(
+    "/users/username/{username}",
+    response_model=schema_users.User | None,
     tags=["users"],
 )
 async def read_users_username(
@@ -69,7 +85,7 @@ async def read_users_username(
     ],
     db: Session = Depends(dependencies_database.get_db),
 ):
-    # Get the users from the database by username
+    # Get the user from the database by username
     return crud_users.get_user_by_username(username=username, db=db)
 
 

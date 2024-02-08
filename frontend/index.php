@@ -50,7 +50,8 @@ $numRecords = 5;
 if (isset($_POST["searchUser"]) && (isset($_GET["searchUser"]) && $_GET["searchUser"] == 1)) {
   $users = getUserFromUsername(urlencode(trim($_POST["templateTopSeachUser"])));
     if ($users != NULL) {
-      header("Location: ../users/user.php?userID=" . $users[0]["id"]);
+      header("Location: ../users/user.php?userID=" . $users["id"]);
+      die();
     }else{
       $users = -3;
     }
@@ -551,30 +552,28 @@ $thisMonthDistances = getUserActivitiesThisMonthDistances($_SESSION["id"]);
           foreach ($followedUserActivities as $activity) { ?>
             <?php $userActivity = getUserFromId($activity["user_id"]); ?>
             <?php 
-              $activityStreams = getActivityActivitiesStreamByStreamType($activity["id"],7); 
-              foreach($activityStreams as $stream){
-                if($stream["stream_type"] == 7){
-                  $latlonStream = $stream["stream_waypoints"];
-                }
+              $activityStream = getActivityActivitiesStreamByStreamType($activity["id"],7);
+              if($activityStream["stream_type"] == 7){
+                $latlonStream = $activityStream["stream_waypoints"];
               }
             ?>
             <div class="card">
               <div class="card-body">
                 <div class="d-flex align-items-center">
-                  <img src=<?php if (is_null($userActivity[0]["photo_path"])) {
-                    if ($userActivity[0]["gender"] == 1) {
+                  <img src=<?php if (is_null($userActivity["photo_path"])) {
+                    if ($userActivity["gender"] == 1) {
                       echo ("../img/avatar/male1.png");
                     } else {
                       echo ("../img/avatar/female1.png");
                     }
                   } else {
-                    echo ($userActivity[0]["photo_path"]);
+                    echo ($userActivity["photo_path"]);
                   } ?> alt="userPicture" class="rounded-circle" width="55" height="55">
                   <div class="ms-3 me-3">
                     <div class="fw-bold">
-                      <a href="users/user.php?userID=<?php echo ($userActivity[0]["id"]); ?>"
+                      <a href="users/user.php?userID=<?php echo ($userActivity["id"]); ?>"
                         class="link-underline-opacity-25 link-underline-opacity-100-hover">
-                        <?php echo ($userActivity[0]["name"]); ?>
+                        <?php echo ($userActivity["name"]); ?>
                       </a>
                       <?php echo " | "; ?>
                       <a href="activities/activity.php?activityID=<?php echo ($activity["id"]); ?>"
@@ -636,8 +635,8 @@ $thisMonthDistances = getUserActivitiesThisMonthDistances($_SESSION["id"]);
                     <?php
                     #echo $activity["start_time"];
                     #echo $activity["end_time"];
-                    $startDateTime = DateTime::createFromFormat("Y-m-d\TH:i:s", $activity["start_time"]);
-                    $endDateTime = DateTime::createFromFormat("Y-m-d\TH:i:s", $activity["end_time"]);
+                    $startDateTime = new DateTime($activity["start_time"]);
+                    $endDateTime = new DateTime($activity["end_time"]);
                     $interval = $startDateTime->diff($endDateTime);
 
                     if ($interval->h < 1) {

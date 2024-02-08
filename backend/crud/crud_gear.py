@@ -213,6 +213,45 @@ def create_gear(gear: schema_gear.Gear, user_id: int, db: Session):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal Server Error",
         ) from err
+    
+
+def edit_gear(gear_id:int , gear: schema_gear.Gear, db: Session):
+    try:
+        # Get the gear from the database
+        db_gear = db.query(models.Gear).filter(models.Gear.id == gear_id).first()
+
+        # Update the gear
+        if gear.brand is not None:
+            db_gear.brand = unquote(gear.brand).replace("+", " ")
+        if gear.model is not None:
+            db_gear.model = unquote(gear.model).replace("+", " ")
+        if gear.nickname is not None:
+            db_gear.nickname = unquote(gear.nickname).replace("+", " ")
+        if gear.gear_type is not None:
+            db_gear.gear_type = gear.gear_type
+        if gear.created_at is not None:
+            db_gear.created_at = gear.created_at
+        if gear.is_active is not None:
+            print(f"Gear is active value: {gear.is_active}")
+            db_gear.is_active = gear.is_active
+        if gear.strava_gear_id is not None:
+            db_gear.strava_gear_id = gear.strava_gear_id
+
+        # Commit the transaction
+        db.commit()
+    except Exception as err:
+        # Rollback the transaction
+        db.rollback()
+
+        # Log the exception
+        logger.error(f"Error in edit_gear: {err}", exc_info=True)
+
+        # Raise an HTTPException with a 500 Internal Server Error status code
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal Server Error",
+        ) from err
+
 
 def delete_gear(gear_id: int, db: Session):
     try:

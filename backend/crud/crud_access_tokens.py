@@ -34,7 +34,6 @@ def get_acess_tokens_by_user_id(user_id: int, db: Session):
 
 
 def create_access_token(token, db: Session):
-    """Creates a new access token in the database using the provided token."""
     try:
         # Create a new access token in the database
         db_access_token = models.AccessToken(
@@ -66,7 +65,6 @@ def create_access_token(token, db: Session):
 
 
 def delete_access_token(token: str, db: Session):
-    """Deletes an access token from the database using the provided token."""
     try:
         # Delete the access token from the database
         db_access_token = (
@@ -102,7 +100,6 @@ def delete_access_token(token: str, db: Session):
 
 
 def delete_access_tokens(expiration_time: str, db: Session):
-    """Deletes all access tokens from the database that have expired."""
     try:
         # Delete the access tokens from the database
         db_access_tokens = (

@@ -38,21 +38,6 @@ def get_activity_streams(activity_id: int, db: Session):
 
 
 def get_activity_stream_by_type(activity_id: int, stream_type: int, db: Session):
-    """
-    Retrieve activity streams by activity ID and stream type from the database.
-
-    Args:
-        activity_id (int): The ID of the activity.
-        stream_type (int): The type of the stream.
-        db (Session): The database session.
-
-    Returns:
-        List[ActivityStreams] or None: A list of activity streams matching the given activity ID and stream type,
-        or None if no activity streams are found.
-
-    Raises:
-        HTTPException: If there is an error retrieving the activity streams from the database.
-    """
     try:
         # Get the activity stream from the database
         activity_stream = (
@@ -83,19 +68,6 @@ def get_activity_stream_by_type(activity_id: int, stream_type: int, db: Session)
 def create_activity_streams(
     activity_streams: [schema_activity_streams.ActivityStreams], db: Session
 ):
-    """
-    Create a list of ActivityStreams objects in the database.
-
-    Args:
-        activity_streams (list): A list of ActivityStreams objects.
-        db (Session): The database session.
-
-    Raises:
-        HTTPException: If there is an internal server error.
-
-    Returns:
-        None
-    """
     try:
         # Create a list to store the ActivityStreams objects
         streams = []

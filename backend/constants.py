@@ -9,8 +9,8 @@ JWT_EXPIRATION_IN_MINUTES = int(os.environ.get("ACCESS_TOKEN_EXPIRE_MINUTES"))
 JWT_SECRET_KEY = os.environ.get("SECRET_KEY")
 
 # Constants related to user access types
-ADMIN_ACCESS = 2
 REGULAR_ACCESS = 1
+ADMIN_ACCESS = 2
 
 # Constants related to user active status
 USER_ACTIVE = 1

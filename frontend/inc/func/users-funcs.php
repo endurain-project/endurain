@@ -32,6 +32,21 @@ function numUsers()
 }
 
 /* Get user from username */
+function getUsersIfContainsUsername($usernameUser)
+{
+    $response = callAPIRoute("/users/username/contains/$usernameUser", 1, 0, NULL);
+    if ($response[0] === false) {
+        return -1;
+    } else {
+        if ($response[1] === 200) {
+            return json_decode($response[0], true);
+        } else {
+            return -2;
+        }
+    }
+}
+
+/* Get user from username */
 function getUserFromUsername($usernameUser)
 {
     $response = callAPIRoute("/users/username/$usernameUser", 1, 0, NULL);
