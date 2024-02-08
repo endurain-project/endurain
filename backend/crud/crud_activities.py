@@ -368,6 +368,41 @@ def get_activity_by_id_from_user_id(activity_id: int, user_id: int, db: Session)
         ) from err
 
 
+def get_activity_by_strava_id_from_user_id(
+    activity_strava_id: int, user_id: int, db: Session
+):
+    try:
+        # Get the activities from the database
+        activity = (
+            db.query(models.Activity)
+            .filter(
+                models.Activity.user_id == user_id,
+                models.Activity.strava_activity_id == activity_strava_id,
+            )
+            .first()
+        )
+
+        # Check if there are activities if not return None
+        if not activity:
+            return None
+
+        activity.start_time = activity.start_time.strftime("%Y-%m-%d %H:%M:%S")
+        activity.end_time = activity.end_time.strftime("%Y-%m-%d %H:%M:%S")
+        activity.created_at = activity.created_at.strftime("%Y-%m-%d %H:%M:%S")
+
+        # Return the activities
+        return activity
+
+    except Exception as err:
+        # Log the exception
+        logger.error(f"Error in get_activity_by_id_from_user_id: {err}", exc_info=True)
+        # Raise an HTTPException with a 500 Internal Server Error status code
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal Server Error",
+        ) from err
+
+
 def create_activity(activity: schema_activities.Activity, db: Session):
     try:
         # Create a new activity
@@ -440,7 +475,9 @@ def add_gear_to_activity(activity_id: int, gear_id: int, db: Session):
 def delete_activity(activity_id: int, db: Session):
     try:
         # Delete the activity
-        num_deleted = db.query(models.Activity).filter(models.Activity.id == activity_id).delete()
+        num_deleted = (
+            db.query(models.Activity).filter(models.Activity.id == activity_id).delete()
+        )
 
         # Check if the activity was found and deleted
         if num_deleted == 0:
@@ -457,6 +494,38 @@ def delete_activity(activity_id: int, db: Session):
 
         # Log the exception
         logger.error(f"Error in delete_user: {err}", exc_info=True)
+
+        # Raise an HTTPException with a 500 Internal Server Error status code
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal Server Error",
+        ) from err
+
+
+def delete_all_strava_activities_for_user(user_id: int, db: Session):
+    try:
+        # Delete the strava activities for the user
+        num_deleted = (
+            db.query(models.Activity)
+            .filter(
+                models.Activity.user_id == user_id,
+                models.Activity.strava_activity_id != None,
+            )
+            .delete()
+        )
+
+        # Check if activities were found and deleted and commit the transaction
+        if num_deleted != 0:
+            # Commit the transaction
+            db.commit()
+    except Exception as err:
+        # Rollback the transaction
+        db.rollback()
+
+        # Log the exception
+        logger.error(
+            f"Error in delete_all_strava_activities_for_user: {err}", exc_info=True
+        )
 
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(

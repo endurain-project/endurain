@@ -3,6 +3,8 @@ import os
 
 from fastapi import FastAPI
 
+from apscheduler.schedulers.background import BackgroundScheduler
+
 from opentelemetry import trace
 from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
 from opentelemetry.sdk.resources import Resource
@@ -17,26 +19,47 @@ from routers import (
     router_activity_streams,
     router_gear,
     router_followers,
+    router_strava
 )
 from constants import API_VERSION
 from database import engine
+from schemas import schema_access_tokens
+from dependencies import dependencies_database
 import models
 
 models.Base.metadata.create_all(bind=engine)
 
-# Define the FastAPI object
-app = FastAPI(
-    docs_url="/docs",
-    redoc_url="/redoc",
-    title="Endurain",
-    summary="Endurain API for the Endurain app",
-    version=API_VERSION,
-    license_info={
-        "name": "GNU General Public License v3.0",
-        "identifier": "GPL-3.0-or-later",
-        "url": "https://spdx.org/licenses/GPL-3.0-or-later.html",
-    },
-)
+
+def startup_event():
+    print("Backend startup event")
+    logger.info("Backend startup event")
+
+    # Create a scheduler to run background jobs
+    scheduler.start()
+
+    # Job to remove expired tokens every 5 minutes
+    logger.info("Added scheduler job to remove expired tokens every 5 minutes")
+    scheduler.add_job(remove_expired_tokens_job, "interval", minutes=5)
+
+
+def shutdown_event():
+    print("Backend shutdown event")
+    logger.info("Backend shutdown event")
+
+    # Shutdown the scheduler when the application is shutting down
+    scheduler.shutdown()
+
+
+def remove_expired_tokens_job():
+    # Get the first (and only) item from the generator
+    db = next(dependencies_database.get_db())
+    try:
+        # Remove expired tokens from the database
+        schema_access_tokens.remove_expired_tokens(db=db)
+    finally:
+        # Ensure the session is closed after use
+        db.close()
+
 
 # Create loggger
 logger = logging.getLogger("myLogger")
@@ -69,6 +92,7 @@ required_env_vars = [
     "JAGGER_PORT",
     "STRAVA_DAYS_ACTIVITIES_ONLINK",
     "API_ENDPOINT",
+    "FRONTEND_HOST",
     "GEOCODES_MAPS_API",
 ]
 
@@ -76,7 +100,33 @@ for var in required_env_vars:
     if var not in os.environ:
         logger.error(f"Missing required environment variable: {var}", exc_info=True)
         raise EnvironmentError(f"Missing required environment variable: {var}")
-    
+
+# Create a background scheduler instance
+scheduler = BackgroundScheduler()
+
+# Define the FastAPI object
+app = FastAPI(
+    docs_url="/docs",
+    redoc_url="/redoc",
+    title="Endurain",
+    summary="Endurain API for the Endurain app",
+    version=API_VERSION,
+    license_info={
+        "name": "GNU General Public License v3.0",
+        "identifier": "GPL-3.0-or-later",
+        "url": "https://spdx.org/licenses/GPL-3.0-or-later.html",
+    },
+)
+
+# Router files
+app.include_router(router_session.router)
+app.include_router(router_users.router)
+app.include_router(router_activities.router)
+app.include_router(router_activity_streams.router)
+app.include_router(router_gear.router)
+app.include_router(router_followers.router)
+app.include_router(router_strava.router)
+
 # Check if Jaeger tracing is enabled using the 'JAEGER_ENABLED' environment variable
 if os.environ.get("JAEGER_ENABLED") == "true":
     # Configure OpenTelemetry with a specified service name
@@ -99,10 +149,8 @@ if os.environ.get("JAEGER_ENABLED") == "true":
 # Instrument FastAPI app
 FastAPIInstrumentor.instrument_app(app)
 
-# Router files
-app.include_router(router_session.router)
-app.include_router(router_users.router)
-app.include_router(router_activities.router)
-app.include_router(router_activity_streams.router)
-app.include_router(router_gear.router)
-app.include_router(router_followers.router)
+# Register the startup event handler
+app.add_event_handler("startup", startup_event)
+
+# Register the shutdown event handler
+app.add_event_handler("shutdown", shutdown_event)

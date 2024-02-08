@@ -175,8 +175,16 @@ def create_gear(gear: schema_gear.Gear, user_id: int, db: Session):
 
         # Create a new gear object
         new_gear = models.Gear(
-            brand=unquote(gear.brand).replace("+", " ") if gear.brand is not None else None,
-            model=unquote(gear.model).replace("+", " ") if gear.model is not None else None,
+            brand=(
+                unquote(gear.brand).replace("+", " ")
+                if gear.brand is not None
+                else None
+            ),
+            model=(
+                unquote(gear.model).replace("+", " ")
+                if gear.model is not None
+                else None
+            ),
             nickname=unquote(gear.nickname).replace("+", " "),
             gear_type=gear.gear_type,
             user_id=user_id,
@@ -213,9 +221,9 @@ def create_gear(gear: schema_gear.Gear, user_id: int, db: Session):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal Server Error",
         ) from err
-    
 
-def edit_gear(gear_id:int , gear: schema_gear.Gear, db: Session):
+
+def edit_gear(gear_id: int, gear: schema_gear.Gear, db: Session):
     try:
         # Get the gear from the database
         db_gear = db.query(models.Gear).filter(models.Gear.id == gear_id).first()
@@ -255,10 +263,10 @@ def edit_gear(gear_id:int , gear: schema_gear.Gear, db: Session):
 
 def delete_gear(gear_id: int, db: Session):
     try:
-        # Delete the user
+        # Delete the gear
         num_deleted = db.query(models.Gear).filter(models.Gear.id == gear_id).delete()
 
-        # Check if the user was found and deleted
+        # Check if the gear was found and deleted
         if num_deleted == 0:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -273,6 +281,33 @@ def delete_gear(gear_id: int, db: Session):
 
         # Log the exception
         logger.error(f"Error in delete_gear: {err}", exc_info=True)
+
+        # Raise an HTTPException with a 500 Internal Server Error status code
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal Server Error",
+        ) from err
+
+
+def delete_all_strava_gear_for_user(user_id: int, db: Session):
+    try:
+        # Delete the gear records with strava_gear_id not null for the user
+        num_deleted = (
+            db.query(models.Gear)
+            .filter(models.Gear.user_id == user_id, models.Gear.strava_gear_id != None)
+            .delete()
+        )
+
+        # Check if any records were deleted and commit the transaction
+        if num_deleted != 0:
+            # Commit the transaction
+            db.commit()
+    except Exception as err:
+        # Rollback the transaction
+        db.rollback()
+
+        # Log the exception
+        logger.error(f"Error in delete_all_strava_gear_for_user: {err}", exc_info=True)
 
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(

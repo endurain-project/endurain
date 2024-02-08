@@ -3,7 +3,7 @@
 
   # Endurain
 
-  A self-hosted fitness tracking service
+  A self-hosted fitness tracking service • <a href="https://fosstodon.org/@endurain"><i class="fa-brands fa-mastodon"></i></a>
 
   <img src="screenshot_01.png">
 </div>
@@ -92,9 +92,10 @@ JAEGER_HOST | jaeger | Yes
 JAGGER_PORT | 4317 | Yes
 STRAVA_DAYS_ACTIVITIES_ONLINK | 30 | Yes
 API_ENDPOINT* | changeme | Yes
+FRONTEND_HOST* | frontend | Yes
 GEOCODES_MAPS_API** | changeme | `No`
 
-*API_ENDPOINT needs to be set if you want to enable Strava integration
+*API_ENDPOINT and FRONTEND_HOST need to be set if you want to enable Strava integration
 **<a href="https://geocode.maps.co/">Geocode maps</a> offers a free plan consisting of 1 Request/Second. Registration necessary.
 
 Table bellow shows the obligatory environemnt variables for mariadb container. You should set them based on what was also set for backend container.

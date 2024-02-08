@@ -111,11 +111,10 @@ def delete_access_tokens(expiration_time: str, db: Session):
         # Commit the transaction to the database
         if db_access_tokens:
             db.commit()
-            logger.info(f"{db_access_tokens} access tokens deleted from the database")
             return db_access_tokens
         else:
-            # If no access tokens were found, log the event and return 0
-            logger.info("0 access tokens deleted from the database")
+            # If no access tokens were found, return 0
+            return 0
     except Exception as err:
         # Handle database-related exceptions
         db.rollback()  # Rollback the transaction to maintain database consistency
