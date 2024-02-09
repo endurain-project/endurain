@@ -140,7 +140,7 @@ def fetch_and_validate_activity(
         logger.info(
             f"User {user_id}: Activity {activity_id} already exists. Will skip processing"
         )
-        
+
         # Return None
         return activity_db
     else:
@@ -168,9 +168,17 @@ def parse_activity(activity, user_id: int, strava_client: Client) -> dict:
         longitude = activity.start_latlng.lon
 
     # Initialize location variables
-    city = activity.location_city
-    town = activity.location_state
-    country = activity.location_country
+    city, town, country = None, None, None
+
+    parsed_location = activity_processor.location_based_on_coordinates(latitude, longitude)
+
+    if parsed_location is not None:
+        if "city" in parsed_location:
+            city = parsed_location["city"]
+        if "town" in parsed_location:
+            town = parsed_location["town"]
+        if "country" in parsed_location:
+            country = parsed_location["country"]
 
     # List to store constructed waypoints
     waypoints = []
@@ -302,6 +310,7 @@ def parse_activity(activity, user_id: int, strava_client: Client) -> dict:
             if isinstance(activity.distance, Quantity)
             else round(activity.distance)
         ),
+        description=activity.description,
         activity_type=activity_processor.define_activity_type(activity.sport_type),
         start_time=start_date_parsed.strftime("%Y-%m-%dT%H:%M:%S"),
         end_time=end_date_parsed.strftime("%Y-%m-%dT%H:%M:%S"),

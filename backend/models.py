@@ -240,6 +240,9 @@ class Activity(Base):
     name = Column(
         String(length=250), nullable=True, comment="Activity name (May include spaces)"
     )
+    description = Column(
+        String(length=2500), nullable=True, comment="Activity description (May include spaces)"
+    )
     distance = Column(Integer, nullable=False, comment="Distance in meters")
     activity_type = Column(
         Integer,

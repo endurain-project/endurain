@@ -4,6 +4,7 @@ from pydantic import BaseModel
 class Activity(BaseModel):
     id: int | None = None
     user_id: int | None = None
+    description: str | None = None
     distance: int
     name: str
     activity_type: str

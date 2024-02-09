@@ -11,12 +11,15 @@ from statistics import mean
 logger = logging.getLogger("myLogger")
 
 
-def location_based_on_coordinates(latitude, longitude):
+def location_based_on_coordinates(latitude, longitude) -> dict | None:
+    if  latitude is None or longitude is None:
+        return None
+
     # Create a dictionary with the parameters for the request
     url_params = {
         "lat": latitude,
         "lon": longitude,
-        "api_key=": os.environ.get("GEOCODES_MAPS_API"),
+        "api_key": os.environ.get("GEOCODES_MAPS_API"),
     }
 
     # Create the URL for the request
