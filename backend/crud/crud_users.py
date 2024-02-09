@@ -44,6 +44,20 @@ def authenticate_user(username: str, password: str, db: Session):
         ) from err
 
 
+def get_all_users(db: Session):
+    try:
+        # Get the number of users from the database
+        return db.query(models.User).all()
+    except Exception as err:
+        # Log the exception
+        logger.error(f"Error in get_all_number: {err}", exc_info=True)
+        # Raise an HTTPException with a 500 Internal Server Error status code
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal Server Error",
+        ) from err
+
+
 def get_users_number(db: Session):
     try:
         # Get the number of users from the database

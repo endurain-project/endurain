@@ -3,7 +3,7 @@ import requests
 import os
 
 from datetime import datetime, timedelta
-from typing import Annotated, Callable
+from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
 from fastapi.security import OAuth2PasswordBearer
 from fastapi.responses import RedirectResponse
@@ -80,7 +80,7 @@ async def strava_link(
         redirect_url = (
             "https://"
             + os.environ.get("FRONTEND_HOST")
-            + "/settings/settings.php?profileSettings=1&stravaLinked=1"
+            + "/settings/settings.php?integrationsSettings=1&stravaLinked=1"
         )
 
         # Return a RedirectResponse to the redirect URL
@@ -106,7 +106,7 @@ async def strava_retrieve_activities_days(
     user_id: Annotated[
         int, Depends(dependencies_session.validate_token_and_get_authenticated_user_id)
     ],
-    db: Annotated[Session, Depends(dependencies_database.get_db)],
+    #db: Annotated[Session, Depends(dependencies_database.get_db)],
     background_tasks: BackgroundTasks,
 ):
     # Process strava activities in the background
@@ -114,13 +114,12 @@ async def strava_retrieve_activities_days(
         strava_processor.get_user_strava_activities_by_days,
         (datetime.utcnow() - timedelta(days=days)).strftime("%Y-%m-%dT%H:%M:%S"),
         user_id,
-        db,
     )
 
     # Return success message and status code 202
-    logger.info(f"Strava activities will be processed in the background for {user_id}")
+    logger.info(f"Strava activities will be processed in the background for user {user_id}")
     return {
-        "detail": f"Strava activities will be processed in the background for {user_id}"
+        "detail": f"Strava activities will be processed in the background for for {user_id}"
     }
 
 

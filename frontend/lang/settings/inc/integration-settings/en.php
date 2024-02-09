@@ -5,7 +5,7 @@ return [
   // success banner zone
   "settings_integration_settings_success_stravaLinked" => "Strava linked with success",
   "settings_integration_settings_success_stravaGear" => "Strava gear retrieved",
-  "settings_integration_settings_success_stravaActivities" => "Strava activities retrieved",
+  "settings_integration_settings_success_stravaActivities" => "Strava activities retrieval background process started",
   // card zone
   "settings_integration_settings_strava_title" => "Strava",
   "settings_integration_settings_strava_body" => "Strava is an American internet service for tracking physical exercise which incorporates social network features.",

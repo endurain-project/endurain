@@ -9,7 +9,7 @@ class Gear(BaseModel):
     user_id: int | None = None
     created_at: str
     is_active: int | None = None
-    strava_gear_id: int | None = None
+    strava_gear_id: str | None = None
 
     class Config:
         orm_mode = True

@@ -36,7 +36,6 @@
         $strava_gear_result = getStravaGear();
     }
 ?>
-
 <!-- Error banners -->
 <?php if ($strava_gear_result == -1 || $strava_gear_result == -2 || $strava_activities_result == -1 || $strava_activities_result == -2) { ?>
     <div class="alert alert-danger alert-dismissible d-flex align-items-center" role="alert">
@@ -84,12 +83,12 @@
             <div class="card-body">
                 <h4 class="card-title"><?php echo $translationsSettingsIntegrationSettings['settings_integration_settings_strava_title']; ?></h4>
                 <p class="card-text"><?php echo $translationsSettingsIntegrationSettings['settings_integration_settings_strava_body']; ?></p>
-                    <a href="../settings/settings.php?integrationSettings=1&linkStrava=1" class="btn btn-primary <?php if ($_SESSION["is_strava_linked"] == 1) { echo "disabled"; } ?>"><?php echo $translationsSettingsIntegrationSettings['settings_integration_settings_connect_button']; ?></a>
+                    <a href="../settings/settings.php?integrationsSettings=1&linkStrava=1" class="btn btn-primary <?php if ($_SESSION["is_strava_linked"] == 1) { echo "disabled"; } ?>"><?php echo $translationsSettingsIntegrationSettings['settings_integration_settings_connect_button']; ?></a>
                 <?php if ($_SESSION["is_strava_linked"] == 1) { ?>
                     <hr>
-                    <a href="../settings/settings.php?integrationSettings=1&getUserStravaActivities=1" class="btn btn-primary"><?php echo $translationsSettingsIntegrationSettings['settings_integration_settings_retrieve_last_week_activities_button']; ?></a>
+                    <a href="../settings/settings.php?integrationsSettings=1&getUserStravaActivities=1" class="btn btn-primary"><?php echo $translationsSettingsIntegrationSettings['settings_integration_settings_retrieve_last_week_activities_button']; ?></a>
                     
-                    <a href="../settings/settings.php?integrationSettings=1&getUserStravaGear=1" class="btn btn-primary mt-3"><?php echo $translationsSettingsIntegrationSettings['settings_integration_settings_retrieve_gear_button']; ?></a>
+                    <a href="../settings/settings.php?integrationsSettings=1&getUserStravaGear=1" class="btn btn-primary mt-3"><?php echo $translationsSettingsIntegrationSettings['settings_integration_settings_retrieve_gear_button']; ?></a>
                 <?php } ?>
             </div>
         </div>

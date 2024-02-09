@@ -240,19 +240,28 @@ if($activityUser["id"] == $_SESSION["id"]){
             </div>
         </div>
         <div class="dropdown d-flex">
+            <?php if (isset($activity['strava_activity_id'])) { ?>
+                <a class="btn btn-link btn-lg mt-1" href="https://www.strava.com/activities/<?php echo $activity['strava_activity_id']; ?>" role="button">
+                    <i class="fa-brands fa-strava"></i>
+                </a>
+            <?php } ?>
             <button class="btn btn-link btn-lg" type="button" data-bs-toggle="dropdown" aria-expanded="false">
                 <i class="fa-solid fa-ellipsis-vertical"></i>
             </button>
             <ul class="dropdown-menu">
-                <?php if ($activity['strava_activity_id'] != null) { ?>
-                    <li><a class="dropdown-item"
+                <!--<?php if (isset($activity['strava_activity_id'])) { ?>
+                    <li>
+                        <a class="dropdown-item"
                             href="https://www.strava.com/activities/<?php echo $activity['strava_activity_id']; ?>">
                             <?php echo $translationsActivitiesActivity['activity_title_dropdown_seeItOnStrava']; ?>
-                        </a></li>
-                <?php } ?>
-                <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#deleteActivityModal">
+                        </a>
+                    </li>
+                <?php } ?>-->
+                <li>
+                    <a class="dropdown-item <?php if(isset($activity["strava_activity_id"])){ echo "disabled"; } ?>" href="#" data-bs-toggle="modal" data-bs-target="#deleteActivityModal">
                         <?php echo $translationsActivitiesActivity['activity_title_dropdown_deleteActivity']; ?>
-                    </a></li>
+                    </a>
+                </li>
             </ul>
         </div>
     </div>
@@ -414,6 +423,15 @@ if($activityUser["id"] == $_SESSION["id"]){
             <?php if (isset($latlonStream)) { ?>
                 <div class="mt-3 mb-3" id="map" style="height: 500px"></div>
             <?php } ?>
+
+            <!--<?php if (isset($activity['strava_activity_id'])) { ?>
+                <?php if (!isset($latlonStream)) { ?>
+                    <br>
+                <?php } ?>
+                <a href="https://www.strava.com/activities/<?php echo $activity['strava_activity_id']; ?>">
+                    <?php echo $translationsActivitiesActivity['activity_title_dropdown_seeItOnStrava']; ?>
+                </a>
+            <?php } ?>-->
 
 
             <script>

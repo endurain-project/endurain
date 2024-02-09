@@ -217,7 +217,7 @@ class Gear(Base):
     is_active = Column(
         Integer, nullable=False, comment="Is gear active (0 - not active, 1 - active)"
     )
-    strava_gear_id = Column(BigInteger, nullable=True, comment="Strava gear ID")
+    strava_gear_id = Column(String(length=45), nullable=True, comment="Strava gear ID")
 
     # Define a relationship to the User model
     user = relationship("User", back_populates="gear")
@@ -295,7 +295,7 @@ class Activity(Base):
         index=True,
         comment="Gear ID associated with this activity",
     )
-    strava_gear_id = Column(BigInteger, nullable=True, comment="Strava gear ID")
+    strava_gear_id = Column(String(length=45), nullable=True, comment="Strava gear ID")
     strava_activity_id = Column(BigInteger, nullable=True, comment="Strava activity ID")
 
     # Define a relationship to the User model

@@ -91,7 +91,7 @@ JAEGER_PROTOCOL | http | Yes
 JAEGER_HOST | jaeger | Yes
 JAGGER_PORT | 4317 | Yes
 STRAVA_DAYS_ACTIVITIES_ONLINK | 30 | Yes
-API_ENDPOINT* | changeme | Yes
+API_ENDPOINT* | backend | Yes
 FRONTEND_HOST* | frontend | Yes
 GEOCODES_MAPS_API** | changeme | `No`
 

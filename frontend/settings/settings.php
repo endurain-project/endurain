@@ -36,7 +36,6 @@ switch ($_SESSION["preferred_language"]) {
     default:
         $translationsSettings = include $_SERVER['DOCUMENT_ROOT'] . '/lang/settings/en.php';
 }
-
 ?>
 <?php require_once $_SERVER['DOCUMENT_ROOT'] . "/inc/Template-Top.php" ?>
 <div class="container mt-4">

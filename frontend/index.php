@@ -341,66 +341,79 @@ $thisMonthDistances = getUserActivitiesThisMonthDistances($_SESSION["id"]);
         <?php if (isset($userActivities)) { ?>
           <?php foreach ($userActivities as $activity) { ?>
             <?php 
-              $activityStream = getActivityActivitiesStreamByStreamType($activity["id"],7); 
-              if($activityStream["stream_type"] == 7){
-                $latlonStream = $activityStream["stream_waypoints"];
+              $activityStream = getActivityActivitiesStreamByStreamType($activity["id"],7);
+              if(isset($activityStream)){
+                if($activityStream["stream_type"] == 7){
+                  $latlonStream = $activityStream["stream_waypoints"];
+                }
+              }else{
+                $latlonStream = NULL;
               }
             ?>
             <div class="card">
               <div class="card-body">
-                <div class="d-flex align-items-center">
-                  <img src=<?php if (is_null($_SESSION["photo_path"])) {
-                    if ($_SESSION["gender"] == 1) {
-                      echo ("../img/avatar/male1.png");
-                    } else {
-                      echo ("../img/avatar/female1.png");
-                    }
-                  } else {
-                    echo ($_SESSION["photo_path"]);
-                  } ?> alt="userPicture" class="rounded-circle" width="55" height="55">
-                  <div class="ms-3 me-3">
-                    <div class="fw-bold">
-                      <a href="activities/activity.php?activityID=<?php echo ($activity["id"]); ?>"
-                        class="link-underline-opacity-25 link-underline-opacity-100-hover">
-                        <?php echo ($activity["name"]); ?>
-                      </a>
-                    </div>
-                    <h7>
-                      <?php if ($activity["activity_type"] == 1 || $activity["activity_type"] == 2) {
-                        echo '<i class="fa-solid fa-person-running"></i>';
+                <div class="d-flex justify-content-between">
+                  <div class="d-flex align-items-center">
+                    <img src=<?php if (is_null($_SESSION["photo_path"])) {
+                      if ($_SESSION["gender"] == 1) {
+                        echo ("../img/avatar/male1.png");
                       } else {
-                        if ($activity["activity_type"] == 3) {
-                          echo '<i class="fa-solid fa-person-running"></i> (Virtual)';
+                        echo ("../img/avatar/female1.png");
+                      }
+                    } else {
+                      echo ($_SESSION["photo_path"]);
+                    } ?> alt="userPicture" class="rounded-circle" width="55" height="55">
+                    <div class="ms-3 me-3">
+                      <div class="fw-bold">
+                        <a href="activities/activity.php?activityID=<?php echo ($activity["id"]); ?>"
+                          class="link-underline-opacity-25 link-underline-opacity-100-hover">
+                          <?php echo ($activity["name"]); ?>
+                        </a>
+                      </div>
+                      <h7>
+                        <?php if ($activity["activity_type"] == 1 || $activity["activity_type"] == 2) {
+                          echo '<i class="fa-solid fa-person-running"></i>';
                         } else {
-                          if ($activity["activity_type"] == 4 || $activity["activity_type"] == 5 || $activity["activity_type"] == 6) {
-                            echo '<i class="fa-solid fa-person-biking"></i>';
+                          if ($activity["activity_type"] == 3) {
+                            echo '<i class="fa-solid fa-person-running"></i> (Virtual)';
                           } else {
-                            if ($activity["activity_type"] == 7) {
-                              echo '<i class="fa-solid fa-person-biking"></i> (Virtual)';
+                            if ($activity["activity_type"] == 4 || $activity["activity_type"] == 5 || $activity["activity_type"] == 6) {
+                              echo '<i class="fa-solid fa-person-biking"></i>';
                             } else {
-                              if ($activity["activity_type"] == 8 || $activity["activity_type"] == 9) {
-                                echo '<i class="fa-solid fa-person-swimming"></i>';
+                              if ($activity["activity_type"] == 7) {
+                                echo '<i class="fa-solid fa-person-biking"></i> (Virtual)';
                               } else {
-                                if ($activity["activity_type"] == 10) {
-                                  echo '<i class="fa-solid fa-dumbbell"></i>';
+                                if ($activity["activity_type"] == 8 || $activity["activity_type"] == 9) {
+                                  echo '<i class="fa-solid fa-person-swimming"></i>';
+                                } else {
+                                  if ($activity["activity_type"] == 10) {
+                                    echo '<i class="fa-solid fa-dumbbell"></i>';
+                                  }
                                 }
                               }
                             }
                           }
-                        }
-                      } ?>
-                      <?php echo (new DateTime($activity["start_time"]))->format("d/m/y"); ?>@
-                      <?php echo (new DateTime($activity["start_time"]))->format("H:i"); ?>
-                      <?php if (isset($activity["city"]) || isset($activity["country"])) {
-                        echo " - ";
-                      } ?>
-                      <?php if (isset($activity["city"]) && !empty($activity["city"])) {
-                        echo $activity["city"] . ", ";
-                      } ?>
-                      <?php if (isset($activity["country"]) && !empty($activity["country"])) {
-                        echo $activity["country"];
-                      } ?>
-                    </h7>
+                        } ?>
+                        <?php echo (new DateTime($activity["start_time"]))->format("d/m/y"); ?>@
+                        <?php echo (new DateTime($activity["start_time"]))->format("H:i"); ?>
+                        <?php if (isset($activity["city"]) || isset($activity["country"])) {
+                          echo " - ";
+                        } ?>
+                        <?php if (isset($activity["city"]) && !empty($activity["city"])) {
+                          echo $activity["city"] . ", ";
+                        } ?>
+                        <?php if (isset($activity["country"]) && !empty($activity["country"])) {
+                          echo $activity["country"];
+                        } ?>
+                      </h7>
+                    </div>
+                  </div>
+                  <div class="dropdown d-flex">
+                  <?php if (isset($activity['strava_activity_id'])) { ?>
+                    <a class="btn btn-link btn-lg mt-1" href="https://www.strava.com/activities/<?php echo $activity['strava_activity_id']; ?>" role="button">
+                      <i class="fa-brands fa-strava"></i>
+                    </a>
+                  <?php } ?>
                   </div>
                 </div>
                 <div class="row d-flex mt-3">
@@ -468,7 +481,7 @@ $thisMonthDistances = getUserActivitiesThisMonthDistances($_SESSION["id"]);
                   echo "mb-3";
                 } ?>" id="map_<?php echo $activity['id']; ?>" style="height: 300px"></div>
               <?php } ?>
-              <?php if ($activity['strava_activity_id'] != null) { ?>
+              <!--<?php if ($activity['strava_activity_id'] != null) { ?>
                 <div class="mb-3">
                   <span class="fw-lighter ms-3 me-3">
                     <?php echo $translationsIndex['index_activities_stravaText1']; ?><a
@@ -478,7 +491,7 @@ $thisMonthDistances = getUserActivitiesThisMonthDistances($_SESSION["id"]);
                     </a>
                   </span>
                 </div>
-              <?php } ?>
+              <?php } ?>-->
             </div>
             <br>
             <script>

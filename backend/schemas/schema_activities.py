@@ -21,7 +21,7 @@ class Activity(BaseModel):
     calories: int | None = None
     visibility: int | None = None
     gear_id: int | None = None
-    strava_gear_id: int | None = None
+    strava_gear_id: str | None = None
     strava_activity_id: int | None = None
 
     class Config:

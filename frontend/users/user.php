@@ -531,8 +531,12 @@ $userFollowingAll = getUserFollowingAll($_GET["userID"]);
                 <?php } else { ?>
                     <?php foreach ($weekActivities as $activity) { ?>
                         <?php $activityStream = getActivityActivitiesStreamByStreamType($activity["id"],7);
-                        if($activityStream["stream_type"] == 7){
-                            $latlonStream = $activityStream["stream_waypoints"];
+                        if (isset($activityStream)){
+                            if($activityStream["stream_type"] == 7){
+                                $latlonStream = $activityStream["stream_waypoints"];
+                            }
+                        }else{
+                            $latlonStream = null;
                         }
                         ?>
                         <div class="card">
