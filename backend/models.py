@@ -192,13 +192,13 @@ class Gear(Base):
 
     id = Column(Integer, primary_key=True)
     brand = Column(
-        String(length=45), nullable=True, comment="Gear brand (May include spaces)"
+        String(length=250), nullable=True, comment="Gear brand (May include spaces)"
     )
     model = Column(
-        String(length=45), nullable=True, comment="Gear model (May include spaces)"
+        String(length=250), nullable=True, comment="Gear model (May include spaces)"
     )
     nickname = Column(
-        String(length=45),
+        String(length=250),
         unique=True,
         index=True,
         nullable=False,
@@ -217,7 +217,9 @@ class Gear(Base):
     is_active = Column(
         Integer, nullable=False, comment="Is gear active (0 - not active, 1 - active)"
     )
-    strava_gear_id = Column(String(length=45), nullable=True, comment="Strava gear ID")
+    strava_gear_id = Column(
+        String(length=45), unique=True, nullable=True, comment="Strava gear ID"
+    )
 
     # Define a relationship to the User model
     user = relationship("User", back_populates="gear")
@@ -241,7 +243,9 @@ class Activity(Base):
         String(length=250), nullable=True, comment="Activity name (May include spaces)"
     )
     description = Column(
-        String(length=2500), nullable=True, comment="Activity description (May include spaces)"
+        String(length=2500),
+        nullable=True,
+        comment="Activity description (May include spaces)",
     )
     distance = Column(Integer, nullable=False, comment="Distance in meters")
     activity_type = Column(
@@ -299,7 +303,9 @@ class Activity(Base):
         comment="Gear ID associated with this activity",
     )
     strava_gear_id = Column(String(length=45), nullable=True, comment="Strava gear ID")
-    strava_activity_id = Column(BigInteger, nullable=True, comment="Strava activity ID")
+    strava_activity_id = Column(
+        BigInteger, unique=True, nullable=True, comment="Strava activity ID"
+    )
 
     # Define a relationship to the User model
     user = relationship("User", back_populates="activities")

@@ -62,21 +62,12 @@ function getStravaActivitiesLastDays($days)
 
 function getStravaGear()
 {
-    $response = callAPIRoute("/user/user-integration/sync-strava-gear/1", 0, 3, NULL);
+    $response = callAPIRoute("/strava/gear", 1, 0, NULL);
     if ($response[0] === false) {
         return -1;
     } else {
-        if ($response[1] === 200) {
-            $response2 = callAPIRoute("/strava/gear", 0, 0, NULL);
-            if ($response2[0] === false) {
-                return -1;
-            } else {
-                if ($response2[1] === 200) {
-                    return 0;
-                } else {
-                    return -2;
-                }
-            }
+        if ($response[1] === 202) {
+            return 0;
         } else {
             return -2;
         }

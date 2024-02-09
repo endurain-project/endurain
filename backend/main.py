@@ -24,8 +24,8 @@ from routers import (
 from constants import API_VERSION
 from database import engine
 from schemas import schema_access_tokens
-from dependencies import dependencies_database
-from processors import strava_processor
+from database import SessionLocal
+from processors import strava_processor, strava_activity_processor
 import models
 
 models.Base.metadata.create_all(bind=engine)
@@ -41,8 +41,14 @@ def startup_event():
     # Job to remove expired tokens every 5 minutes
     logger.info("Added scheduler job to remove expired tokens every 5 minutes")
     scheduler.add_job(remove_expired_tokens_job, "interval", minutes=5)
-    logger.info("Added scheduler job to refresh strava user tokens every 60 minutes")
-    scheduler.add_job(remove_expired_tokens_job, "interval", minutes=60)
+    logger.info("Added scheduler job to refresh Strava user tokens every 60 minutes")
+    scheduler.add_job(refresh_strava_tokens_job, "interval", minutes=60)
+    logger.info(
+        "Added scheduler job to retrieve last day Strava users activities every 60 minutes"
+    )
+    scheduler.add_job(
+        retrieve_strava_user_activities_for_last_day, "interval", minutes=60
+    )
 
 
 def shutdown_event():
@@ -54,8 +60,8 @@ def shutdown_event():
 
 
 def remove_expired_tokens_job():
-    # Get the first (and only) item from the generator
-    db = next(dependencies_database.get_db())
+    # Create a new database session
+    db = SessionLocal()
     try:
         # Remove expired tokens from the database
         schema_access_tokens.remove_expired_tokens(db=db)
@@ -65,14 +71,19 @@ def remove_expired_tokens_job():
 
 
 def refresh_strava_tokens_job():
-    # Get the first (and only) item from the generator
-    db = next(dependencies_database.get_db())
+    # Create a new database session
+    db = SessionLocal()
     try:
         # Refresh Strava tokens
         strava_processor.refresh_strava_tokens(db=db)
     finally:
         # Ensure the session is closed after use
         db.close()
+
+
+def retrieve_strava_user_activities_for_last_day():
+    # Get last day users Strava activities
+    strava_activity_processor.retrieve_strava_users_activities_for_days(1)
 
 
 # Create loggger

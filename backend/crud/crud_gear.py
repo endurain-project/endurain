@@ -13,7 +13,7 @@ from schemas import schema_gear
 logger = logging.getLogger("myLogger")
 
 
-def get_gear_user_by_id(user_id: int, gear_id: int, db: Session):
+def get_gear_user_by_id(user_id: int, gear_id: int, db: Session) -> schema_gear.Gear | None:
     try:
         gear = (
             db.query(models.Gear)
@@ -41,7 +41,7 @@ def get_gear_user_by_id(user_id: int, gear_id: int, db: Session):
 
 def get_gear_users_with_pagination(
     user_id: int, db: Session, page_number: int = 1, num_records: int = 5
-):
+) -> list[schema_gear.Gear] | None:
     try:
         # Get the gear by user ID from the database
         gear = (
@@ -73,21 +73,21 @@ def get_gear_users_with_pagination(
         ) from err
 
 
-def get_gear_user(user_id: int, db: Session):
+def get_gear_user(user_id: int, db: Session) -> list[schema_gear.Gear] | None:
     try:
         # Get the gear by user ID from the database
-        gear = db.query(models.Gear).filter(models.Gear.user_id == user_id).all()
+        gears = db.query(models.Gear).filter(models.Gear.user_id == user_id).all()
 
         # Check if gear is None and return None if it is
-        if gear is None:
+        if gears is None:
             return None
 
         # Format the created_at date
-        for g in gear:
+        for g in gears:
             g.created_at = g.created_at.strftime("%Y-%m-%d %H:%M:%S")
 
         # Return the gear
-        return gear
+        return gears
     except Exception as err:
         # Log the exception
         logger.error(f"Error in get_gear_user: {err}", exc_info=True)
@@ -98,13 +98,13 @@ def get_gear_user(user_id: int, db: Session):
         ) from err
 
 
-def get_gear_user_by_nickname(user_id: int, nickname: str, db: Session):
+def get_gear_user_by_nickname(user_id: int, nickname: str, db: Session) -> list[schema_gear.Gear] | None:
     try:
         # Unquote the nickname and change "+" to whitespace
         parsed_nickname = unquote(nickname).replace("+", " ")
 
         # Get the gear by user ID and nickname from the database
-        gear = (
+        gears = (
             db.query(models.Gear)
             .filter(
                 models.Gear.nickname.like(f"%{parsed_nickname}%"),
@@ -114,15 +114,15 @@ def get_gear_user_by_nickname(user_id: int, nickname: str, db: Session):
         )
 
         # Check if gear is None and return None if it is
-        if gear is None:
+        if gears is None:
             return None
 
         # Format the created_at date
-        for g in gear:
+        for g in gears:
             g.created_at = g.created_at.strftime("%Y-%m-%d %H:%M:%S")
 
         # return the gear
-        return gear
+        return gears
     except Exception as err:
         # Log the exception
         logger.error(f"Error in get_gear_user_by_nickname: {err}", exc_info=True)
@@ -164,33 +164,109 @@ def get_gear_by_type_and_user(gear_type: int, user_id: int, db: Session):
         ) from err
 
 
+def get_gear_by_strava_id_from_user_id(
+    gear_strava_id: str, user_id: int, db: Session
+) -> schema_gear.Gear | None:
+    try:
+        # Get the gear from the database
+        gear = (
+            db.query(models.Gear)
+            .filter(
+                models.Gear.user_id == user_id,
+                models.Gear.strava_gear_id == gear_strava_id,
+            )
+            .first()
+        )
+
+        # Check if there is gear
+        if not gear:
+            return None
+
+        gear.created_at = gear.created_at.strftime("%Y-%m-%d %H:%M:%S")
+
+        # Return gear
+        return gear
+
+    except Exception as err:
+        # Log the exception
+        logger.error(f"Error in get_activity_by_id_from_user_id: {err}", exc_info=True)
+        # Raise an HTTPException with a 500 Internal Server Error status code
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal Server Error",
+        ) from err
+
+
+def transform_schema_gear_to_model_gear(
+    gear: schema_gear.Gear, user_id: int
+) -> models.Gear:
+    # Set the created date to now
+    created_date = func.now()
+
+    # If the created_at date is not None, set it to the created_date
+    if gear.created_at is not None:
+        created_date = gear.created_at
+
+    # Create a new gear object
+    new_gear = models.Gear(
+        brand=(
+            unquote(gear.brand).replace("+", " ") if gear.brand is not None else None
+        ),
+        model=(
+            unquote(gear.model).replace("+", " ") if gear.model is not None else None
+        ),
+        nickname=unquote(gear.nickname).replace("+", " "),
+        gear_type=gear.gear_type,
+        user_id=user_id,
+        created_at=created_date,
+        is_active=True,
+        strava_gear_id=gear.strava_gear_id,
+    )
+
+    return new_gear
+
+
+def create_multiple_gears(gears: [schema_gear.Gear], user_id: int, db: Session):
+    try:
+        # Filter out None values from the gears list
+        valid_gears = [gear for gear in gears if gear is not None]
+
+        # Create a list of gear objects
+        new_gears = [
+            transform_schema_gear_to_model_gear(gear, user_id) for gear in valid_gears
+        ]
+
+        # Add the gears to the database
+        db.add_all(new_gears)
+        db.commit()
+
+    except IntegrityError as integrity_error:
+        # Rollback the transaction
+        db.rollback()
+
+        # Raise an HTTPException with a 500 Internal Server Error status code
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Duplicate entry error. Check if nickname or strava_gear_id are unique",
+        ) from integrity_error
+
+    except Exception as err:
+        # Rollback the transaction
+        db.rollback()
+
+        # Log the exception
+        logger.error(f"Error in create_multiple_gears: {err}", exc_info=True)
+
+        # Raise an HTTPException with a 500 Internal Server Error status code
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal Server Error",
+        ) from err
+
+
 def create_gear(gear: schema_gear.Gear, user_id: int, db: Session):
     try:
-        # Set the created date to now
-        created_date = func.now()
-
-        # If the created_at date is not None, set it to the created_date
-        if gear.created_at is not None:
-            created_date = gear.created_at
-
-        # Create a new gear object
-        new_gear = models.Gear(
-            brand=(
-                unquote(gear.brand).replace("+", " ")
-                if gear.brand is not None
-                else None
-            ),
-            model=(
-                unquote(gear.model).replace("+", " ")
-                if gear.model is not None
-                else None
-            ),
-            nickname=unquote(gear.nickname).replace("+", " "),
-            gear_type=gear.gear_type,
-            user_id=user_id,
-            created_at=created_date,
-            is_active=True,
-        )
+        new_gear = transform_schema_gear_to_model_gear(gear, user_id)
 
         # Add the gear to the database
         db.add(new_gear)
@@ -206,7 +282,7 @@ def create_gear(gear: schema_gear.Gear, user_id: int, db: Session):
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="Duplicate entry error. Check if nickname is unique",
+            detail="Duplicate entry error. Check if nickname or strava_gear_id are unique",
         ) from integrity_error
 
     except Exception as err:

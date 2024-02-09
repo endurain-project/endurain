@@ -7,7 +7,7 @@ class Gear(BaseModel):
     nickname: str
     gear_type: int
     user_id: int | None = None
-    created_at: str
+    created_at: str | None = None
     is_active: int | None = None
     strava_gear_id: str | None = None
 

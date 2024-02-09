@@ -335,7 +335,7 @@ def get_activity_by_id_from_user_id_or_has_visibility(
         ) from err
 
 
-def get_activity_by_id_from_user_id(activity_id: int, user_id: int, db: Session):
+def get_activity_by_id_from_user_id(activity_id: int, user_id: int, db: Session) -> schema_activities.Activity:
     try:
         # Get the activities from the database
         activity = (
@@ -351,9 +351,10 @@ def get_activity_by_id_from_user_id(activity_id: int, user_id: int, db: Session)
         if not activity:
             return None
 
-        activity.start_time = activity.start_time.strftime("%Y-%m-%d %H:%M:%S")
-        activity.end_time = activity.end_time.strftime("%Y-%m-%d %H:%M:%S")
-        activity.created_at = activity.created_at.strftime("%Y-%m-%d %H:%M:%S")
+        if not isinstance(activity.start_time, str):
+            activity.start_time = activity.start_time.strftime("%Y-%m-%d %H:%M:%S")
+            activity.end_time = activity.end_time.strftime("%Y-%m-%d %H:%M:%S")
+            activity.created_at = activity.created_at.strftime("%Y-%m-%d %H:%M:%S")
 
         # Return the activities
         return activity
@@ -465,6 +466,32 @@ def add_gear_to_activity(activity_id: int, gear_id: int, db: Session):
 
         # Log the exception
         logger.error(f"Error in add_gear_to_activity: {err}", exc_info=True)
+        # Raise an HTTPException with a 500 Internal Server Error status code
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal Server Error",
+        ) from err
+
+
+def edit_multiple_activities_gear_id(activities: [schema_activities.Activity], user_id: int, db: Session):
+    try:
+        for activity in activities:
+            # Get the activity from the database
+            db_activity = get_activity_by_id_from_user_id(activity.id, user_id, db)
+            
+            # Update the activity
+            db_activity.gear_id = activity.gear_id
+
+        # Commit the transaction
+        db.commit()
+
+    except Exception as err:
+        # Rollback the transaction
+        db.rollback()
+
+        # Log the exception
+        logger.error(f"Error in edit_multiple_activities_gear_id: {err}", exc_info=True)
+
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

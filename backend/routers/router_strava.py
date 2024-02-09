@@ -10,7 +10,7 @@ from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 
 from crud import crud_user_integrations, crud_gear, crud_activities
-from processors import strava_processor
+from processors import strava_activity_processor, strava_gear_processor
 from dependencies import (
     dependencies_database,
     dependencies_session,
@@ -103,23 +103,25 @@ async def strava_link(
 )
 async def strava_retrieve_activities_days(
     days: int,
-    user_id: Annotated[
+    token_user_id: Annotated[
         int, Depends(dependencies_session.validate_token_and_get_authenticated_user_id)
     ],
-    #db: Annotated[Session, Depends(dependencies_database.get_db)],
+    # db: Annotated[Session, Depends(dependencies_database.get_db)],
     background_tasks: BackgroundTasks,
 ):
     # Process strava activities in the background
     background_tasks.add_task(
-        strava_processor.get_user_strava_activities_by_days,
+        strava_activity_processor.get_user_strava_activities_by_days,
         (datetime.utcnow() - timedelta(days=days)).strftime("%Y-%m-%dT%H:%M:%S"),
-        user_id,
+        token_user_id,
     )
 
     # Return success message and status code 202
-    logger.info(f"Strava activities will be processed in the background for user {user_id}")
+    logger.info(
+        f"Strava activities will be processed in the background for user {token_user_id}"
+    )
     return {
-        "detail": f"Strava activities will be processed in the background for for {user_id}"
+        "detail": f"Strava activities will be processed in the background for for {token_user_id}"
     }
 
 
@@ -176,3 +178,25 @@ async def strava_unlink(
 
     # Return success message
     return {"detail": f"Strava unlinked for user {token_user_id} successfully"}
+
+
+@router.get("/strava/gear", status_code=202, tags=["strava"])
+async def strava_retrieve_gear(
+    token_user_id: Annotated[
+        int, Depends(dependencies_session.validate_token_and_get_authenticated_user_id)
+    ],
+    background_tasks: BackgroundTasks,
+):
+    # Process strava activities in the background
+    background_tasks.add_task(
+        strava_gear_processor.get_user_gear,
+        token_user_id,
+    )
+
+    # Return success message and status code 202
+    logger.info(
+        f"Strava gear will be processed in the background for user {token_user_id}"
+    )
+    return {
+        "detail": f"Strava gear will be processed in the background for for {token_user_id}"
+    }
