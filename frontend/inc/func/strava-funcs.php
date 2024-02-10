@@ -35,7 +35,7 @@ function linkStrava($state)
 {
     $client_id = '115321';
 
-    $redirect_uri = urlencode(getenv('BACKEND_PROTOCOL').'://api-gearguardian.jvslab.pt/strava/link');
+    $redirect_uri = urlencode(getenv('BACKEND_PROTOCOL').'://'.getenv('BACKEND_HOST').'/strava/link');
     $scope = 'read,read_all,profile:read_all,activity:read,activity:read_all';
 
     $strava_auth_url = "http://www.strava.com/oauth/authorize?client_id={$client_id}&response_type=code&redirect_uri={$redirect_uri}&approval_prompt=force&scope={$scope}&state={$state}";

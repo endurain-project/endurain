@@ -14,3 +14,4 @@ opentelemetry-instrumentation-fastapi==0.43b0
 opentelemetry.exporter.otlp==1.22.0
 python-multipart==0.0.6
 gpxpy==1.6.2
+alembic==1.13.1

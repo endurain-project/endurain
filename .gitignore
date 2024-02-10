@@ -1,6 +1,7 @@
 # Python
 backend/__pycache__/
 backend/*/__pycache__/
+backend/*/*/__pycache__/
 backend/*.pyc
 
 # Logs

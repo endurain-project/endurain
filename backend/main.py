@@ -3,6 +3,9 @@ import os
 
 from fastapi import FastAPI
 
+from alembic.config import Config
+from alembic import command
+
 from apscheduler.schedulers.background import BackgroundScheduler
 
 from opentelemetry import trace
@@ -22,18 +25,18 @@ from routers import (
     router_strava,
 )
 from constants import API_VERSION
-from database import engine
 from schemas import schema_access_tokens
 from database import SessionLocal
 from processors import strava_processor, strava_activity_processor
-import models
-
-models.Base.metadata.create_all(bind=engine)
 
 
 def startup_event():
     print("Backend startup event")
     logger.info("Backend startup event")
+
+    # Run Alembic migrations to ensure the database is up to date
+    alembic_cfg = Config("alembic.ini")
+    command.upgrade(alembic_cfg, "head")
 
     # Create a scheduler to run background jobs
     scheduler.start()
@@ -42,12 +45,12 @@ def startup_event():
     logger.info("Added scheduler job to remove expired tokens every 5 minutes")
     scheduler.add_job(remove_expired_tokens_job, "interval", minutes=5)
     logger.info("Added scheduler job to refresh Strava user tokens every 60 minutes")
-    scheduler.add_job(refresh_strava_tokens_job, "interval", minutes=60)
+    scheduler.add_job(refresh_strava_tokens_job, "interval", minutes=2)
     logger.info(
         "Added scheduler job to retrieve last day Strava users activities every 60 minutes"
     )
     scheduler.add_job(
-        retrieve_strava_user_activities_for_last_day, "interval", minutes=60
+        retrieve_strava_user_activities_for_last_day, "interval", minutes=5
     )
 
 
@@ -116,7 +119,6 @@ required_env_vars = [
     "JAEGER_HOST",
     "JAGGER_PORT",
     "STRAVA_DAYS_ACTIVITIES_ONLINK",
-    "API_ENDPOINT",
     "FRONTEND_HOST",
     "GEOCODES_MAPS_API",
 ]

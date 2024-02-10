@@ -94,7 +94,7 @@ class User(Base):
         String(length=250), nullable=True, comment="Auxiliary photo path"
     )
     is_active = Column(
-        Integer, nullable=False, comment="Is user active (2 - not active, 1 - active)"
+        Integer, nullable=False, comment="Is user active (1 - active, 2 - not active)"
     )
 
     # Define a relationship to UserIntegrations model
@@ -149,10 +149,10 @@ class UserIntegrations(Base):
         index=True,
         comment="User ID that the token belongs",
     )
-    strava_state = Column(String(length=45), nullable=True)
-    strava_token = Column(String(length=250), nullable=True)
-    strava_refresh_token = Column(String(length=250), nullable=True)
-    strava_token_expires_at = Column(DateTime, nullable=True)
+    strava_state = Column(String(length=45), default=None, nullable=True)
+    strava_token = Column(String(length=250), default=None, nullable=True)
+    strava_refresh_token = Column(String(length=250), default=None, nullable=True)
+    strava_token_expires_at = Column(DateTime, default=None, nullable=True)
     strava_sync_gear = Column(
         Boolean,
         nullable=False,
