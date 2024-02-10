@@ -11,7 +11,7 @@
 > [!WARNING]
 > This project is currently in **Alpha** state. You can try it out at your own risk, but be aware that things might break and **DATA LOSS** may occur.
 
-Endurain is a self-hosted fitness tracking service that operates much like Strava but allows users to have complete control over their data and the hosting environment. The application's frontend is built using a combination of PHP, HTML, basic JavaScript, and Bootstrap CSS. On the backend, it leverages Python FastAPI, stravalib and gpxpy for seamless integration with Strava and .gpx file import. The MariaDB database engine is employed to efficiently store and manage user data, while Jaeger is used for basic observability.
+Endurain is a self-hosted fitness tracking service that operates much like Strava but allows users to have complete control over their data and the hosting environment. The application's frontend is built using a combination of PHP, HTML, basic JavaScript, and Bootstrap CSS. On the backend, it leverages Python FastAPI, Alembic, SQLAlchemy, stravalib and gpxpy for seamless integration with Strava and .gpx file import. The MariaDB database engine is employed to efficiently store and manage user data, while Jaeger is used for basic observability.
 
 To deploy Endurain, Docker images are available, and a comprehensive example can be found in the "docker-compose.yml" file provided. Configuration is facilitated through environment variables, ensuring flexibility and ease of customization.
 
@@ -42,6 +42,7 @@ Currently the service supports:
  - Basic gear tracking usage
 
 To do features (not by order):
+ - Support import of .fit files
  - Default gear for activity type
  - Gear components logic for component usage tracking
  - Comments and likes logic for activities

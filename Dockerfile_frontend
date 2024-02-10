@@ -11,7 +11,7 @@ WORKDIR /var/www/html
 COPY frontend/ /var/www/html
 
 # Copy custom php.ini
-COPY custom-php.ini /usr/local/etc/php/php.ini
+COPY custom_php.ini /usr/local/etc/php/php.ini
 
 # Install any dependencies your application needs
 RUN apt-get update
