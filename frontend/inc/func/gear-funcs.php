@@ -10,7 +10,7 @@ function getGear()
         return -1;
     } else {
         if ($response[1] === 200) {
-            return json_decode($response[0], true)["content"];
+            return json_decode($response[0], true);
         } else {
             return -2;
         }
@@ -20,12 +20,12 @@ function getGear()
 /* Get all gear from type*/
 function getGearFromType($gear_type)
 {
-    $response = callAPIRoute("/gear/all/$gear_type", 1, 0, NULL);
+    $response = callAPIRoute("/gear/type/$gear_type", 1, 0, NULL);
     if ($response[0] === false) {
         return -1;
     } else {
         if ($response[1] === 200) {
-            return json_decode($response[0], true)["content"];
+            return json_decode($response[0], true);
         } else {
             return -2;
         }
@@ -35,12 +35,12 @@ function getGearFromType($gear_type)
 /* Get all gear with pagination */
 function getGearPagination($pageNumber, $numRecords)
 {
-    $response = callAPIRoute("/gear/all/pagenumber/$pageNumber/numRecords/$numRecords", 1, 0, NULL);
+    $response = callAPIRoute("/gear/page_number/$pageNumber/num_records/$numRecords", 1, 0, NULL);
     if ($response[0] === false) {
         return -1;
     } else {
         if ($response[1] === 200) {
-            return json_decode($response[0], true)["content"];
+            return json_decode($response[0], true);
         } else {
             return -2;
         }
@@ -50,12 +50,12 @@ function getGearPagination($pageNumber, $numRecords)
 /* Get number of gear */
 function numGears()
 {
-    $response = callAPIRoute("/gear/number", 0, 0, NULL);
+    $response = callAPIRoute("/gear/number", 1, 0, NULL);
     if ($response[0] === false) {
         return -1;
     } else {
         if ($response[1] === 200) {
-            return json_decode($response[0], true)["content"];
+            return json_decode($response[0], true);
         } else {
             return -2;
         }
@@ -70,7 +70,7 @@ function getGearFromNickname($nickname)
         return -1;
     } else {
         if ($response[1] === 200) {
-            return json_decode($response[0], true)["content"];
+            return json_decode($response[0], true);
         } else {
             return -2;
         }
@@ -78,14 +78,14 @@ function getGearFromNickname($nickname)
 }
 
 /* Get gear from id */
-function getGearFromId($id)
+function getGearFromId($gear_id)
 {
-    $response = callAPIRoute("/gear/id/$id", 1, 0, NULL);
+    $response = callAPIRoute("/gear/id/$gear_id", 1, 0, NULL);
     if ($response[0] === false) {
         return -1;
     } else {
         if ($response[1] === 200) {
-            return json_decode($response[0], true)["content"];
+            return json_decode($response[0], true);
         } else {
             return -2;
         }
@@ -95,16 +95,16 @@ function getGearFromId($id)
 /* Creates a new gear */
 function newGear($brand, $model, $nickname, $gear_type, $date)
 {
-    if (getGearFromNickname($nickname) != NULL) {
-        return -3;
-    }
+    #if (getGearFromNickname($nickname) != NULL) {
+    #    return -3;
+    #}
 
     $response = callAPIRoute("/gear/create", 0, 4, json_encode(array(
         'brand' => $brand,
         'model' => $model,
         'nickname' => $nickname,
         'gear_type' => $gear_type,
-        'date' => $date,
+        'created_at' => $date,
     )));
     if ($response[0] === false) {
         return -1;
@@ -125,7 +125,7 @@ function editGear($id, $brand, $model, $nickname, $gear_type, $date, $is_active)
         'model' => $model,
         'nickname' => $nickname,
         'gear_type' => $gear_type,
-        'date' => $date,
+        'created_at' => $date,
         'is_active' => $is_active,
     )));
     if ($response[0] === false) {
@@ -142,7 +142,7 @@ function editGear($id, $brand, $model, $nickname, $gear_type, $date, $is_active)
 /* Deletes a gear based on its ID */
 function deleteGear($id)
 {
-    $response = callAPIRoute("/gear/$id/delete", 0, 1, NULL);
+    $response = callAPIRoute("/gear/$id/delete", 1, 1, NULL);
     if ($response[0] === false) {
         return -1;
     } else {

@@ -14,10 +14,12 @@ $numRecords = 5;
 
 if (!isLogged()) {
     header("Location: ../login.php");
+    die();
 }
 
 if (!isTokenValid($_SESSION["token"])) {
     header("Location: ../logout.php?sessionExpired=1");
+    die();
 }
 
 // Load the language file based on the user's preferred language
@@ -37,12 +39,18 @@ switch ($_SESSION["preferred_language"]) {
 if (isset($_POST["addGear"]) && $_GET["addGear"] == 1) {
     if (empty(trim($_POST["gearBrandAdd"]))) {
         $_POST["gearBrandAdd"] = NULL;
+        $parsedBrand = NULL;
+    }else{
+        $parsedBrand = urlencode(trim($_POST["gearBrandAdd"]));
     }
     if (empty(trim($_POST["gearModelAdd"]))) {
         $_POST["gearModelAdd"] = NULL;
+        $parsedModel = NULL;
+    }else{
+        $parsedModel = urlencode(trim($_POST["gearModelAdd"]));
     }
 
-    $addGearAction = newGear(urlencode(trim($_POST["gearBrandAdd"])), urlencode(trim($_POST["gearModelAdd"])), urlencode(trim($_POST["gearNicknameAdd"])), $_POST["gearTypeAdd"], $_POST["gearDateAdd"]);
+    $addGearAction = newGear($parsedBrand, $parsedModel, urlencode(trim($_POST["gearNicknameAdd"])), $_POST["gearTypeAdd"], $_POST["gearDateAdd"]);
 }
 
 if (isset($_GET["pageNumber"])) {
@@ -148,7 +156,7 @@ if (!isset($_POST["gearSearch"])) {
                                 <label for="gearModelAdd"><b><?php echo $translationsGearGears['gear_gear_modal_addEditGear_modelLabel']; ?></b></label>
                                 <input class="form-control" type="text" name="gearModelAdd" placeholder="<?php echo $translationsGearGears['gear_gear_modal_addEditGear_modelPlaceholder']; ?>" maxlength="45" value="<?php echo isset($_POST["gearModelAdd"]) ? htmlspecialchars($_POST["gearModelAdd"]) : ''; ?>">
                                 <!-- nickname fields -->
-                                <label for="gearNicknameAdd"><b><?php echo $translationsGearGears['gear_gear_modal_addEditGear_nicknameLabel']; ?></b></label>
+                                <label for="gearNicknameAdd"><b>* <?php echo $translationsGearGears['gear_gear_modal_addEditGear_nicknameLabel']; ?></b></label>
                                 <input class="form-control" type="text" name="gearNicknameAdd" placeholder="<?php echo htmlspecialchars($translationsGearGears['gear_gear_modal_addEditGear_nicknamePlaceholder']); ?>" maxlength="45" value="<?php echo isset($_POST["gearNicknameAdd"]) ? htmlspecialchars($_POST["gearNicknameAdd"]) : ''; ?>">
                                 <!-- gear type fields -->
                                 <label for="gearTypeAdd"><b>* <?php echo $translationsGearGears['gear_gear_modal_addEditUser_gearTypeLabel']; ?></b></label>
@@ -164,7 +172,7 @@ if (!isset($_POST["gearSearch"])) {
                                                         } ?>><?php echo htmlspecialchars($translationsGearGears['gear_gear_modal_addEditUser_gearTypeOption3']); ?></option>
                                 </select required>
                                 <!-- date fields -->
-                                <label for="gearDateAdd"><b><?php echo $translationsGearGears['gear_gear_modal_addEditGear_dateLabel']; ?></b></label>
+                                <label for="gearDateAdd"><b>* <?php echo $translationsGearGears['gear_gear_modal_addEditGear_dateLabel']; ?></b></label>
                                 <input class="form-control" type="date" name="gearDateAdd" placeholder="<?php echo htmlspecialchars($translationsGearGears['gear_gear_modal_addEditGear_datePlaceholder']); ?>" value="<?php echo isset($_POST["gearDateAdd"]) ? htmlspecialchars($_POST["gearDateAdd"]) : ''; ?>" required>
                                 <p>* <?php echo $translationsTemplateTop['template_top_global_requiredFields']; ?></p>
                             </div>

@@ -14,7 +14,7 @@ function callAPIRoute($endpoint, $multipleReturns, $callType, $dataFields)
     // Set the cURL options to make an HTTP GET request to the API endpoint with an OAuth2 bearer token in the Authorization header
     curl_setopt($ch, CURLOPT_URL, $api_url . $endpoint);
 
-    // 0 GET, 1 DELETE, 2 POST, 3 PUT
+    // 0 GET, 1 DELETE, 2 POST, 3 PUT, 4 and 5 POST with $dataFields already JSON Encoded, 6 POST that will send a file
     if ($callType == 1) {
         curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "DELETE");
     } else {
@@ -33,11 +33,17 @@ function callAPIRoute($endpoint, $multipleReturns, $callType, $dataFields)
                 if ($callType == 4 || $callType == 5) {
                     curl_setopt($ch, CURLOPT_POST, true);
                     if ($dataFields != NULL) {
-                        // Set the Content-Type header to specify JSON data      
-                        #curl_setopt($ch, CURLOPT_HTTPHEADER, array(
-                        #    'Content-Type: application/json'
-                        #));
                         curl_setopt($ch, CURLOPT_POSTFIELDS, $dataFields);
+                    }
+                }else{
+                    if ($callType == 6) {
+                        curl_setopt($ch, CURLOPT_POST, true);
+                        if ($dataFields != NULL) {
+                            $fileField = 'file';
+                            curl_setopt($ch, CURLOPT_POSTFIELDS, [
+                                $fileField => new CURLFile($dataFields),
+                            ]);
+                        }
                     }
                 }
             }
@@ -60,9 +66,9 @@ function callAPIRoute($endpoint, $multipleReturns, $callType, $dataFields)
                     "Content-Type: application/json"
                 ));
             } else {
-                curl_setopt($ch, CURLOPT_HTTPHEADER, [
-                    "Authorization: Bearer {$_SESSION["token"]}"
-                ]);
+                curl_setopt($ch, CURLOPT_HTTPHEADER, array(
+                    "Content-Type: application/x-www-form-urlencoded"
+                ));
             }
         }
     }
@@ -74,9 +80,38 @@ function callAPIRoute($endpoint, $multipleReturns, $callType, $dataFields)
     $responseArray[] = $response;
     $responseArray[] = curl_getinfo($ch, CURLINFO_HTTP_CODE);
 
-    #echo $responseArray[0]." + ".$responseArray[1];
-
     curl_close($ch);
 
     return $responseArray;
+}
+
+function parseResponse($response, $success_code)
+{
+    if ($response[0] === false) {
+        return -1;
+    } else {
+        if ($response[1] === $success_code) {
+            return json_decode($response[0], true);
+        } else {
+            if ($response[1] === 401) {
+                if (json_decode($response[0], true)["detail"] === "Token no longer valid"){
+                    #clearUserRelatedInfoSession();
+                    #header("location: ../logout.php?sessionExpired=1");
+                }
+            }else{
+                if ($response[1] === 403) {
+                    return -2;
+                }else{
+                    if ($response[1] === 409) {
+                        #return {
+                        #    "error_code" => $response[1], 
+                        #    "error_message" => json_decode($response[0], true)["detail"],
+                        #};
+                    }else{
+                        return -2;
+                    }
+                }
+            }
+        }
+    }
 }

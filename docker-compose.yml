@@ -6,7 +6,7 @@ services:
     image: ghcr.io/joaovitoriasilva/endurain/frontend:latest
     environment:
       - BACKEND_PROTOCOL=https # http or https, default is http
-      - BACKEND_HOST=<api_host> # api host, default is backend
+      - BACKEND_HOST=backend # api host, default is backend
     # Configure volume if you want to edit the code locally by clomming the repo
     #volumes:
     #  - <local_path>/endurain/frontend:/var/www/html
@@ -22,10 +22,11 @@ services:
     image: ghcr.io/joaovitoriasilva/endurain/backend:latest
     environment:
       - DB_PASSWORD=changeme
-      - SECRET_KEY=changeme
+      - SECRET_KEY=changeme # openssl rand -hex 32
       - STRAVA_CLIENT_ID=changeme
       - STRAVA_CLIENT_SECRET=changeme
       - STRAVA_AUTH_CODE=changeme
+      - FRONTEND_HOST=frontend # default is frontend
     ports:
       - "98:80" # API port, change per your needs
     # Configure volume if you want to edit the code locally by clomming the repo

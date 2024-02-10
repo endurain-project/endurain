@@ -22,12 +22,7 @@ function isTokenValid($token)
         return -1;
     } else {
         if ($response[1] === 200) {
-            $data = json_decode($response[0], true);
-            if (isset($data["message"]) && $data["message"] === "Token is valid") {
-                return true;
-            } else {
-                return false;
-            }
+            return true;
         } else {
             return false;
         }
@@ -37,12 +32,12 @@ function isTokenValid($token)
 /* Do a login */
 function loginUser($username, $password, $neverExpires)
 {
-    $response = callAPIRoute("/token", 0, 5, json_encode(array(
+    $response = callAPIRoute("/token", 0, 2, array(
         'username' => $username,
         'password' => $password,
-        'neverExpires' => $neverExpires,
-    )));
-    return $response[0];
+        'do_not_expire' => $neverExpires,
+    ));
+    return $response;
 }
 
 

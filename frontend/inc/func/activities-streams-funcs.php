@@ -11,7 +11,23 @@ function getActivityActivitiesStream($activity_id)
     } else {
         if ($response[1] === 200) {
             #echo $response[0];
-            return json_decode($response[0], true)["content"];
+            return json_decode($response[0], true);
+        } else {
+            return -2;
+        }
+    }
+}
+
+/* Get activity activity streams based on stream_type */
+function getActivityActivitiesStreamByStreamType($activity_id, $stream_type)
+{
+    $response = callAPIRoute("/activities/streams/activity_id/$activity_id/stream_type/$stream_type", 1, 0, NULL);
+    if ($response[0] === false) {
+        return -1;
+    } else {
+        if ($response[1] === 200) {
+            #echo $response[0];
+            return json_decode($response[0], true);
         } else {
             return -2;
         }

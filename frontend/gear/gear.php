@@ -12,10 +12,12 @@ $deleteGearAction = -9000;
 
 if (!isLogged()) {
     header("Location: ../login.php");
+    die();
 }
 
 if (!isTokenValid($_SESSION["token"])) {
     header("Location: ../logout.php?sessionExpired=1");
+    die();
 }
 
 // Load the language file based on the user's preferred language
@@ -47,19 +49,23 @@ if (isset($_GET["deleteGear"]) && $_GET["deleteGear"] == 1) {
     $deleteGearAction = deleteGear($_GET["gearID"]);
     if ($deleteGearAction == 0) {
         header("Location: ../gear/gears.php?deleteGear=1");
+        die();
     }
 }
 
 $gear = getGearFromId($_GET["gearID"]);
 if ($gear == NULL) {
     header("Location: ../gear/gears.php?invalidGear=1");
+    die();
 }
 
-$gearActivities = getGearActivities($_GET["gearID"]);
+$gearActivities = getGearActivities($_SESSION["id"], $_GET["gearID"]);
 
 $gearTotalDistance = 0;
-foreach ($gearActivities as $activity) {
-    $gearTotalDistance += $activity["distance"];
+if(isset($gearActivities)){
+    foreach ($gearActivities as $activity) {
+        $gearTotalDistance += $activity["distance"];
+    }
 }
 ?>
 
@@ -67,7 +73,7 @@ foreach ($gearActivities as $activity) {
 
 <div class="container mt-4">
     <h1>
-        <?php echo $gear[0]["nickname"]; ?>
+        <?php echo $gear["nickname"]; ?>
     </h1>
 </div>
 
@@ -109,19 +115,19 @@ foreach ($gearActivities as $activity) {
         <div class="col-lg-3 col-md-12">
             <!-- Gear photo -->
             <div class="justify-content-center align-items-center d-flex">
-                <img src=<?php if ($gear[0]["gear_type"] == 1) {
+                <img src=<?php if ($gear["gear_type"] == 1) {
                     echo ("../img/avatar/bicycle1.png");
                 } else {
-                    if ($gear[0]["gear_type"] == 2) {
+                    if ($gear["gear_type"] == 2) {
                         echo ("../img/avatar/running_shoe1.png");
                     } else {
                         echo ("../img/avatar/wetsuit1.png");
                     }
                 } ?> alt="gearPicture" width="180" height="180">
-                <!--<img src=<?php if ($gear[0]["gear_type"] == 1) {
+                <!--<img src=<?php if ($gear["gear_type"] == 1) {
                     echo ("../img/avatar/bicycle1.png");
                 } else {
-                    if ($gear[0]["gear_type"] == 2) {
+                    if ($gear["gear_type"] == 2) {
                         echo ("../img/avatar/running_shoe1.png");
                     } else {
                         echo ("../img/avatar/wetsuit1.png");
@@ -132,7 +138,7 @@ foreach ($gearActivities as $activity) {
             <div class="vstack justify-content-center align-items-center d-flex">
                 <!-- badges  -->
                 <div class="hstack justify-content-center">
-                    <?php if ($gear[0]["is_active"] == 1) { ?>
+                    <?php if ($gear["is_active"] == 1) { ?>
                         <span
                             class="badge bg-success-subtle border border-success-subtle text-success-emphasis rounded-pill align-middle">
                             <?php echo $translationsGearGear['gear_gear_infoZone_isactive']; ?>
@@ -143,13 +149,13 @@ foreach ($gearActivities as $activity) {
                             <?php echo $translationsGearGear['gear_gear_infoZone_isinactive']; ?>
                         </span>
                     <?php } ?>
-                    <?php if ($gear[0]["gear_type"] == 1) { ?>
+                    <?php if ($gear["gear_type"] == 1) { ?>
                         <span
                             class="ms-2 badge bg-primary-subtle border border-primary-subtle text-primary-emphasis rounded-pill align-middle">
                             <?php echo $translationsGearGear['gear_gear_infoZone_gearisbike']; ?>
                         </span>
                     <?php } else {
-                        if ($gear[0]["gear_type"] == 2) { ?>
+                        if ($gear["gear_type"] == 2) { ?>
                             <span
                                 class="ms-2 badge bg-primary-subtle border border-primary-subtle text-primary-emphasis rounded-pill align-middle">
                                 <?php echo $translationsGearGear['gear_gear_infoZone_gearisshoe']; ?>
@@ -161,10 +167,16 @@ foreach ($gearActivities as $activity) {
                             </span>
                         <?php } ?>
                     <?php } ?>
+                    <?php if (isset($gear["strava_gear_id"])) { ?>
+                        <span
+                            class="ms-2 badge bg-primary-subtle border border-primary-subtle text-primary-emphasis rounded-pill align-middle">
+                            <?php echo $translationsGearGear['gear_gear_infoZone_strava_gear']; ?>
+                        </span>
+                    <?php } ?>
                 </div>
 
                 <!-- edit gear zone -->
-                <a class="mt-2 w-100 btn btn-primary" href="#" role="button" data-bs-toggle="modal"
+                <a class="mt-2 w-100 btn btn-primary <?php if (isset($gear["strava_gear_id"])) { echo "disabled"; } ?>" href="#" role="button" data-bs-toggle="modal"
                     data-bs-target="#editGearModal">
                     <?php echo $translationsGearGear['gear_gear_infoZone_editbutton']; ?>
                 </a>
@@ -181,7 +193,7 @@ foreach ($gearActivities as $activity) {
                                 <button type="button" class="btn-close" data-bs-dismiss="modal"
                                     aria-label="Close"></button>
                             </div>
-                            <form action="../gear/gear.php?gearID=<?php echo ($gear[0]["id"]); ?>&editGear=1"
+                            <form action="../gear/gear.php?gearID=<?php echo ($gear["id"]); ?>&editGear=1"
                                 method="post" enctype="multipart/form-data">
                                 <div class="modal-body">
                                     <!-- brand fields -->
@@ -190,35 +202,35 @@ foreach ($gearActivities as $activity) {
                                         </b></label>
                                     <input class="form-control" type="text" name="gearBrandEdit"
                                         placeholder="<?php echo $translationsGearGear['gear_gear_infoZone_modal_editGear_brandPlaceholder']; ?>"
-                                        maxlength="45" value="<?php echo ($gear[0]["brand"]); ?>">
+                                        maxlength="45" value="<?php echo ($gear["brand"]); ?>">
                                     <!-- model fields -->
                                     <label for="gearModelEdit"><b>
                                             <?php echo $translationsGearGear['gear_gear_infoZone_modal_editGear_modelLabel']; ?>
                                         </b></label>
                                     <input class="form-control" type="text" name="gearModelEdit"
                                         placeholder="<?php echo $translationsGearGear['gear_gear_infoZone_modal_editGear_modelPlaceholder']; ?>"
-                                        maxlength="45" value="<?php echo ($gear[0]["model"]); ?>">
+                                        maxlength="45" value="<?php echo ($gear["model"]); ?>">
                                     <!-- nickname fields -->
                                     <label for="gearNicknameEdit"><b>
                                             <?php echo $translationsGearGear['gear_gear_infoZone_modal_editGear_nicknameLabel']; ?>
                                         </b></label>
                                     <input class="form-control" type="text" name="gearNicknameEdit"
                                         placeholder="<?php echo $translationsGearGear['gear_gear_infoZone_modal_editGear_nicknamePlaceholder']; ?>"
-                                        maxlength="45" value="<?php echo ($gear[0]["nickname"]); ?>">
+                                        maxlength="45" value="<?php echo ($gear["nickname"]); ?>">
                                     <!-- gear type fields -->
                                     <label for="gearTypeEdit"><b>*
                                             <?php echo $translationsGearGear['gear_gear_infoZone_modal_editGear_gearTypeLabel']; ?>
                                         </b></label>
                                     <select class="form-control" name="gearTypeEdit">
-                                        <option value="1" <?php if ($gear[0]["gear_type"] == 1) { ?> selected="selected"
+                                        <option value="1" <?php if ($gear["gear_type"] == 1) { ?> selected="selected"
                                             <?php } ?>>
                                             <?php echo $translationsGearGear['gear_gear_infoZone_modal_editGear_gearTypeOption1']; ?>
                                         </option>
-                                        <option value="2" <?php if ($gear[0]["gear_type"] == 2) { ?> selected="selected"
+                                        <option value="2" <?php if ($gear["gear_type"] == 2) { ?> selected="selected"
                                             <?php } ?>>
                                             <?php echo $translationsGearGear['gear_gear_infoZone_modal_editGear_gearTypeOption2']; ?>
                                         </option>
-                                        <option value="3" <?php if ($gear[0]["gear_type"] == 3) { ?> selected="selected"
+                                        <option value="3" <?php if ($gear["gear_type"] == 3) { ?> selected="selected"
                                             <?php } ?>>
                                             <?php echo $translationsGearGear['gear_gear_infoZone_modal_editGear_gearTypeOption3']; ?>
                                         </option>
@@ -229,18 +241,18 @@ foreach ($gearActivities as $activity) {
                                         </b></label>
                                     <input class="form-control" type="date" name="gearDateEdit"
                                         placeholder="<?php echo $translationsGearGear['gear_gear_infoZone_modal_editGear_datePlaceholder']; ?>"
-                                        value="<?php echo date("Y-m-d", strtotime($gear[0]["created_at"])); ?>"
+                                        value="<?php echo date("Y-m-d", strtotime($gear["created_at"])); ?>"
                                         required>
                                     <!-- gear is_active fields -->
                                     <label for="gearIsActiveEdit"><b>*
                                             <?php echo $translationsGearGear['gear_gear_infoZone_modal_editGear_gearIsActiveLabel']; ?>
                                         </b></label>
                                     <select class="form-control" name="gearIsActiveEdit">
-                                        <option value="1" <?php if ($gear[0]["is_active"] == 1) { ?> selected="selected"
+                                        <option value="1" <?php if ($gear["is_active"] == 1) { ?> selected="selected"
                                             <?php } ?>>
                                             <?php echo $translationsGearGear['gear_gear_infoZone_modal_editGear_gearIsActiveOption1']; ?>
                                         </option>
-                                        <option value="2" <?php if ($gear[0]["is_active"] == 2) { ?> selected="selected"
+                                        <option value="0" <?php if ($gear["is_active"] == 0) { ?> selected="selected"
                                             <?php } ?>>
                                             <?php echo $translationsGearGear['gear_gear_infoZone_modal_editGear_gearIsActiveOption2']; ?>
                                         </option>
@@ -262,10 +274,8 @@ foreach ($gearActivities as $activity) {
                 </div>
 
                 <!-- delete gear zone -->
-                <a class="mt-2 w-100 btn btn-danger <?php if (count($gearActivities) != 0) {
-                    echo "disabled";
-                } ?>" href="#" role="button" data-bs-toggle="modal"
-                    data-bs-target="#deleteGearModal" <?php if (count($gearActivities) != 0) {
+                <a class="mt-2 w-100 btn btn-danger <?php if (isset($gear["strava_gear_id"])) { echo "disabled"; } ?>" href="#" role="button" data-bs-toggle="modal"
+                    data-bs-target="#deleteGearModal" <?php if (isset($gearActivities) && count($gearActivities) != 0) {
                         echo 'aria-disabled="true"';
                     } ?>><?php echo $translationsGearGear['gear_gear_infoZone_deletebutton']; ?>
                 </a>
@@ -284,7 +294,7 @@ foreach ($gearActivities as $activity) {
                             </div>
                             <div class="modal-body">
                                 <?php echo $translationsGearGear['gear_gear_infoZone_modal_deleteGear_body']; ?> <b>
-                                    <?php echo ($gear[0]["nickname"]); ?>
+                                    <?php echo ($gear["nickname"]); ?>
                                 </b><span>?</span>
                             </div>
                             <div class="modal-footer">
@@ -292,7 +302,7 @@ foreach ($gearActivities as $activity) {
                                     <?php echo $translationsTemplateTop['template_top_global_close']; ?>
                                 </button>
                                 <a type="button" class="btn btn-danger"
-                                    href="../gear/gear.php?gearID=<?php echo ($gear[0]["id"]); ?>&deleteGear=1">
+                                    href="../gear/gear.php?gearID=<?php echo ($gear["id"]); ?>&deleteGear=1">
                                     <?php echo $translationsGearGear['gear_gear_infoZone_deletebutton']; ?>
                                 </a>
                             </div>
@@ -306,18 +316,18 @@ foreach ($gearActivities as $activity) {
                         </strong>
                         <?php echo number_format($gearTotalDistance / 1000, 2); ?> km
                     </span>
-                    <?php if (isset($gear[0]["brand"])) { ?>
+                    <?php if (isset($gear["brand"])) { ?>
                         <span class="mt-2"><strong>
                                 <?php echo $translationsGearGear['gear_gear_infoZone_brand']; ?>:
                             </strong>
-                            <?php echo $gear[0]["brand"]; ?>
+                            <?php echo $gear["brand"]; ?>
                         </span>
                     <?php } ?>
-                    <?php if (isset($gear[0]["model"])) { ?>
+                    <?php if (isset($gear["model"])) { ?>
                         <span class="mt-2"><strong>
                                 <?php echo $translationsGearGear['gear_gear_infoZone_model']; ?>:
                             </strong>
-                            <?php echo $gear[0]["model"]; ?>
+                            <?php echo $gear["model"]; ?>
                         </span>
                     <?php } ?>
                 </div>
@@ -338,7 +348,7 @@ foreach ($gearActivities as $activity) {
                         <?php echo $translationsGearGear['gear_gear_gearActivities_number']; ?>
                     </h7>
                 </div>
-                <?php if (count($gearActivities) == 0) { ?>
+                <?php if (!isset($gearActivities)) { ?>
                     <div class="alert alert-warning alert-dismissible d-flex align-items-center" role="alert">
                         <i class="fa-solid fa-circle-info me-1"></i>
                         <div>

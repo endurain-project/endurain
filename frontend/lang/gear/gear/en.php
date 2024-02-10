@@ -13,6 +13,7 @@ return [
   "gear_gear_infoZone_gearisbike" => "Bike",
   "gear_gear_infoZone_gearisshoe" => "Shoes",
   "gear_gear_infoZone_geariswetsuit" => "Wetsuit",
+  "gear_gear_infoZone_strava_gear" => "Synced from Strava",
   // edit zone
   "gear_gear_infoZone_editbutton" => "Edit gear",
   "gear_gear_infoZone_modal_editGear_brandLabel" => "Brand",
