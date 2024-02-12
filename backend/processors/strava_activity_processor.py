@@ -324,6 +324,12 @@ def get_user_strava_activities_by_days(start_date: datetime, user_id: int):
             user_id, db
         )
 
+        if user_integrations is None:
+            logger.info(
+                f"User {user_id}: Strava not linked"
+            )
+            return None
+
         # Log the start of the activities processing
         logger.info(f"User {user_id}: Started Strava activities processing")
 

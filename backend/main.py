@@ -45,12 +45,12 @@ def startup_event():
     logger.info("Added scheduler job to remove expired tokens every 5 minutes")
     scheduler.add_job(remove_expired_tokens_job, "interval", minutes=5)
     logger.info("Added scheduler job to refresh Strava user tokens every 60 minutes")
-    scheduler.add_job(refresh_strava_tokens_job, "interval", minutes=2)
+    scheduler.add_job(refresh_strava_tokens_job, "interval", minutes=60)
     logger.info(
         "Added scheduler job to retrieve last day Strava users activities every 60 minutes"
     )
     scheduler.add_job(
-        retrieve_strava_user_activities_for_last_day, "interval", minutes=5
+        retrieve_strava_user_activities_for_last_day, "interval", minutes=60
     )
 
 

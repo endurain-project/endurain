@@ -98,7 +98,7 @@ def fetch_and_validate_activity(
 
 def fetch_user_integrations_and_validate_token(
     user_id: int, db: Session
-) -> schema_user_integrations.UserIntegrations:
+) -> schema_user_integrations.UserIntegrations | None:
     # Get the user integrations by user ID
     user_integrations = crud_user_integrations.get_user_integrations_by_user_id(
         user_id, db
@@ -113,10 +113,7 @@ def fetch_user_integrations_and_validate_token(
 
     # Check if user_integrations.strava_token_expires_at is None
     if user_integrations.strava_token_expires_at is None:
-        raise HTTPException(
-            status_code=status.HTTP_424_FAILED_DEPENDENCY,
-            detail="Strava access token not found",
-        )
+        return None
 
     # Return the user integrations
     return user_integrations

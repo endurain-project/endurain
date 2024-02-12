@@ -50,7 +50,9 @@ def parse_activity_streams_from_gpx_file(parsed_info: dict, activity_id: int):
 def parse_gpx_file(file: str, user_id: int) -> dict:
     # Parse the GPX file
     try:
-        gpx = gpxpy.parse(open(file, "r"))
+        with open(file, "r") as gpx_file:
+            gpx = gpxpy.parse(gpx_file)
+        #gpx = gpxpy.parse(open(file, "r"))
     except Exception as err:
         # Log the exception
         logger.error(f"Error in parse_gpx_file: {err}", exc_info=True)
