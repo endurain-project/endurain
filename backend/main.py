@@ -36,6 +36,8 @@ def startup_event():
 
     # Run Alembic migrations to ensure the database is up to date
     alembic_cfg = Config("alembic.ini")
+    # Disable the logger configuration in Alembic to avoid conflicts with FastAPI
+    alembic_cfg.attributes['configure_logger'] = False
     command.upgrade(alembic_cfg, "head")
 
     # Create a scheduler to run background jobs

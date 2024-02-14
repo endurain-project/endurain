@@ -1,7 +1,7 @@
 import os
 
 # Constant related to version
-API_VERSION="v0.1.4"
+API_VERSION="v0.1.5"
 
 # JWT Token constants
 JWT_ALGORITHM = os.environ.get("ALGORITHM")

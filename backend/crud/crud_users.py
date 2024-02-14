@@ -23,7 +23,7 @@ def authenticate_user(username: str, password: str, db: Session):
         user = (
             db.query(models.User)
             .filter(
-                models.User.username == username and models.User.password == password
+                models.User.username == username, models.User.password == password
             )
             .first()
         )
