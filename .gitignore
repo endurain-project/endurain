@@ -10,3 +10,36 @@ backend/*.log
 
 # Frontend
 frontend/img/users_img/*.*
+
+# Frontend Vue.js
+# Logs
+frontend_vue/logs
+frontend_vue/*.log
+frontend_vue/npm-debug.log*
+frontend_vue/yarn-debug.log*
+frontend_vue/yarn-error.log*
+frontend_vue/pnpm-debug.log*
+frontend_vue/lerna-debug.log*
+
+frontend_vue/node_modules
+frontend_vue/.DS_Store
+frontend_vue/dist
+frontend_vue/dist-ssr
+frontend_vue/coverage
+frontend_vue/*.local
+frontend_vue/README.md
+
+frontend_vue/cypress/videos/
+frontend_vue/cypress/screenshots/
+
+# Editor directories and files
+frontend_vue/.vscode/*
+frontend_vue/!.vscode/extensions.json
+frontend_vue/.idea
+frontend_vue/*.suo
+frontend_vue/*.ntvs*
+frontend_vue/*.njsproj
+frontend_vue/*.sln
+frontend_vue/*.sw?
+
+frontend_vue/*.tsbuildinfo
