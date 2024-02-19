@@ -4,6 +4,8 @@ import { createPinia } from 'pinia'
 import "bootstrap/dist/css/bootstrap.min.css"
 import "bootstrap"
 
+import 'leaflet/dist/leaflet.css';
+
 import App from './App.vue'
 import router from './router'
 import i18n from './i18n';

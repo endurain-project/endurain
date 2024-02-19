@@ -1,25 +1,10 @@
 <template>
   <div class="form-signin w-100 m-auto text-center p-5" style="max-width: 500px">
     <!-- Error alerts -->
-    <div class="alert alert-danger alert-dismissible d-flex align-items-center" role="alert" v-if="errorCode">
-      <font-awesome-icon :icon="['fas', 'fa-circle-exclamation']" />
-      <div class="ms-1">
-        <span v-if="errorCode === '401'">{{ $t("login.error401") }} (401)</span>
-        <span v-else-if="errorCode === '403'">{{ $t("login.error403") }} (403)</span>
-        <span v-else-if="errorCode === '500'">{{ $t("login.error500") }} (500)</span>
-        <span v-else>{{ $t("login.errorUndefined") }} (Undefined)</span>
-        <!--<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>-->
-      </div>
-    </div>
+    <ErrorAlertComponent v-if="errorMessage"/>
 
     <!-- Info banners -->
-    <div class="alert alert-warning alert-dismissible d-flex align-items-center" role="alert" v-if="showSessionExpiredMessage">
-      <font-awesome-icon :icon="['fas', 'fa-triangle-exclamation']" />
-      <div class="ms-1">
-        <span>{{ $t("login.sessionExpired") }}</span>
-        <!--<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>-->
-      </div>
-    </div>
+    <InfoAlertComponent v-if="showSessionExpiredMessage"/>
 
     <form @submit.prevent="submitForm">
         <h1>Endurain</h1>
@@ -52,54 +37,102 @@
 </template>
 
 <script>
+// Importing the vue composition API
+import { ref, onMounted } from 'vue';
+// Importing the router
+import { useRoute, useRouter } from 'vue-router';
+// Importing the i18n
+import { useI18n } from 'vue-i18n';
+// Importing the stores
+import { useErrorAlertStore } from '@/stores/Alerts/errorAlert';
+import { useInfoAlertStore } from '@/stores/Alerts/infoAlert';
+// Importing the services for the login
+import { auth } from '@/services/auth';
+// Importing the components
+import ErrorAlertComponent from '@/components/Alerts/ErrorAlertComponent.vue';
+import InfoAlertComponent from '@/components/Alerts/InfoAlertComponent.vue';
+// Importing the crypto-js
 import CryptoJS from 'crypto-js';
 
-import { auth } from '@/services/auth';
 
+// Exporting the default object
 export default {
-  data() {
-    return {
-      username: '',
-      password: '',
-      neverExpires: false,
-      errorCode: '',
-      showSessionExpiredMessage: false
-    };
+  // Components
+  components: {
+    ErrorAlertComponent,
+    InfoAlertComponent,
   },
-  created() {
-    if (this.$route.query.sessionExpired === 'true') {
-      this.showSessionExpiredMessage = true;
-    }
-  },
-  methods: {
-    async submitForm() {
-      // Hash the password using SHA-256
-      const hashedPassword = CryptoJS.SHA256(this.password).toString(CryptoJS.enc.Hex);
-      
+  // Setup function
+  setup() {
+    // Variables
+    const route = useRoute();
+    const router = useRouter();
+    const { t } = useI18n();
+    const username = ref('');
+    const password = ref('');
+    const neverExpires = ref(false);
+    const errorMessage = ref('');
+    const showSessionExpiredMessage = ref(false);
+    const errorAlertStore = useErrorAlertStore();
+    const infoAlertStore = useInfoAlertStore();
+
+    // Handle the form submission
+    const submitForm = async () => {
+      // Hash the password
+      const hashedPassword = CryptoJS.SHA256(password.value).toString(CryptoJS.enc.Hex);
+      // Create the form data
       const formData = new URLSearchParams();
-      formData.append('username', this.username);
+      formData.append('username', username.value);
       formData.append('password', hashedPassword);
-      formData.append('neverExpires', this.neverExpires);
+      formData.append('neverExpires', neverExpires.value);
 
       try {
+        // Get the token
         const token = await auth.getToken(formData);
+        // Get the userMe
         const userMe = await auth.getUserMe(token.access_token);
 
+        // Store the logged user
         auth.storeLoggedUser(token, userMe);
-
-        this.$router.push('/');
+        // Redirect to the home page
+        router.push('/');
       } catch (error) {
+        // Handle the error
         if (error.toString().includes('401')) {
-          this.errorCode = '401';
+          errorMessage.value = t("login.error401") + " (401)";
+          errorAlertStore.setAlertMessage(errorMessage.value);
         } else if (error.toString().includes('403')) {
-          this.errorCode = '403';
+          errorMessage.value = t("login.error403") + " (403)";
+          errorAlertStore.setAlertMessage(errorMessage.value);
         } else if (error.toString().includes('500')) {
-          this.errorCode = '500';
+          errorMessage.value = t("login.error500") + " (500)";
+          errorAlertStore.setAlertMessage(errorMessage.value);
         } else {
-          this.errorCode = 'undefined';
+          errorMessage.value = t("login.errorUndefined") + " (Undefined)";
+          errorAlertStore.setAlertMessage(errorMessage.value);
         }
       }
-    }
-  }
+    };
+
+    onMounted(() => {
+      // Check if the session expired
+      if (route.query.sessionExpired === 'true') {
+        // Show the session expired message
+        showSessionExpiredMessage.value = true;
+        infoAlertStore.setAlertMessage(t("login.sessionExpired"));
+      }
+    });
+
+    // Return the variables
+    return {
+      username,
+      password,
+      neverExpires,
+      showSessionExpiredMessage,
+      errorMessage,
+      submitForm,
+      t,
+    };
+  },
 };
 </script>

@@ -28,6 +28,19 @@ export const activities = {
         }
         return response.json();
     },
+    async getUserNumberOfActivities(id) {
+        const response = await fetch(`${API_URL}activities/user/${id}/number`, {
+            method: 'GET',
+            headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
+            },
+        });
+        if (!response.ok) {
+            throw new Error('' + response.status);
+        }
+        return response.json();
+    },
     async getUserActivitiesWithPagination(id, pageNumber, numRecords) {
         const response = await fetch(`${API_URL}activities/user/${id}/page_number/${pageNumber}/num_records/${numRecords}`, {
             method: 'GET',

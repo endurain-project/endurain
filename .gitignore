@@ -13,6 +13,7 @@ frontend/img/users_img/*.*
 
 # Frontend Vue.js
 # Logs
+frontend_vue/.gitignore
 frontend_vue/logs
 frontend_vue/*.log
 frontend_vue/npm-debug.log*
