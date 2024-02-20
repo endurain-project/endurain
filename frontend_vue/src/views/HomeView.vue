@@ -72,7 +72,7 @@
 </template>
 
 <script>
-import { ref, onMounted, watchEffect, computed } from 'vue';
+import { ref, onMounted, onUnmounted, watchEffect, computed } from 'vue';
 import { useUserStore } from '@/stores/user';
 import UserDistanceStatsComponent from '@/components/Activities/UserDistanceStatsComponent.vue';
 import NoItemsFoundComponent from '@/components/NoItemsFoundComponents.vue';
@@ -96,44 +96,48 @@ export default {
     const userActivities = computed(() => userStore.userActivities);
     const followedUserActivities = computed(() => userStore.followedUserActivities);
     const pageNumberUserActivities = ref(1);
-    const pageSize = 5;
+    const numRecords = 5;
     const userNumberOfActivities = computed(() => userStore.userNumberOfActivities);
     const userHasMoreActivities = ref(true);
 
+    const fetchMoreActivities = async () => {
+      if (isLoading.value || !userHasMoreActivities.value) return;
+
+      pageNumberUserActivities.value++;
+      try {
+        // Assuming your store method can handle appending to the existing activities
+        await userStore.fetchUserActivitiesWithPagination(pageNumberUserActivities.value, numRecords);
+        // Implement logic to set hasMoreActivities to false if no more activities are returned
+        if ((pageNumberUserActivities.value * numRecords) >= userNumberOfActivities.value) {
+          userHasMoreActivities.value = false;
+        }
+      } catch (error) {
+        console.error("Error fetching more activities", error);
+      }
+    };
+
+    const handleScroll = () => {
+      const bottomOfWindow = document.documentElement.scrollTop + window.innerHeight === document.documentElement.offsetHeight;
+
+      if (bottomOfWindow) {
+        fetchMoreActivities();
+      }
+    };
+
     onMounted(async () => {
+      window.addEventListener('scroll', handleScroll);
+
       await userStore.fetchUserStats();
       await userStore.fetchUserActivitiesNumber();
-      await userStore.fetchUserActivitiesWithPagination(1, 5);
-      await userStore.fetchUserFollowedActivitiesWithPagination(1, 5);
-
-      if (userActivities.value.length < pageSize) {
-        userHasMoreActivities.value = false;
-      }
+      await userStore.fetchUserActivitiesWithPagination(1, numRecords);
+      await userStore.fetchUserFollowedActivitiesWithPagination(1, numRecords);
 
       isLoading.value = false;
     });
 
-    const fetchMoreActivities = async () => {
-      if (isLoading.value || !hasMoreActivities.value) return;
-
-      isLoading.value = true;
-      try {
-        // Assuming your store method can handle appending to the existing activities
-        // and also assuming it now updates `totalActivities`
-        await userStore.fetchUserActivitiesWithPagination(pageNumber.value, pageSize);
-        // Example logic to update hasMoreActivities based on totalActivities
-        const fetchedActivities = pageNumber.value * pageSize;
-        hasMoreActivities.value = fetchedActivities < totalActivities.value;
-
-        if (hasMoreActivities.value) {
-          pageNumber.value++; // Only increment if there are more activities to fetch
-        }
-      } catch (error) {
-        console.error("Error fetching more activities", error);
-      } finally {
-        isLoading.value = false;
-      }
-    };
+    onUnmounted(() => {
+      window.removeEventListener('scroll', handleScroll);
+    });
 
     watchEffect(() => {
       //console.log("Entered watchEffect");

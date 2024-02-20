@@ -6,7 +6,7 @@ export const useUserStore = defineStore('user', {
         userMe: JSON.parse(localStorage.getItem('userMe')) || {},
         thisWeekDistances: null,
         thisMonthDistances: null,
-        userNumberOfActivities: null,
+        userNumberOfActivities: 0,
         userActivities: [],
         followedUserActivities: [],
     }),
@@ -28,7 +28,9 @@ export const useUserStore = defineStore('user', {
         },
         async fetchUserActivitiesWithPagination(pageNumber, numRecords){
             try {
-                this.userActivities += await activities.getUserActivitiesWithPagination(this.userMe.id, pageNumber, numRecords);
+                const newActivities = await activities.getUserActivitiesWithPagination(this.userMe.id, pageNumber, numRecords);
+
+                Array.prototype.push.apply(this.userActivities, newActivities);
             } catch (error) {
                 console.error("Failed to fetch data:", error);
             }
