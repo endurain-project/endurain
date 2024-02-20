@@ -230,7 +230,7 @@ function addGearToActivity($activityID, $gearID)
 /* Uploads activity file */
 function uploadActivityFile($user_id, $file)
 {
-    $response = callAPIRoute("/activities/$user_id/create/upload", 1, 6, $file);
+    $response = callAPIRoute("/activities/create/upload", 1, 6, $file);
     if ($response[0] === false) {
         return -1;
     } else {

@@ -41,6 +41,14 @@ export const useUserStore = defineStore('user', {
             } catch (error) {
                 console.error("Failed to fetch data:", error);
             }
-        }
+        },
+        async fetchNewUserActivity(activityId){
+            try {
+                const newActivity = await activities.getActivityById(activityId);
+                this.userActivities.unshift(newActivity);
+            } catch (error) {
+                console.error("Failed to fetch data:", error);
+            }
+        },
     }
 });

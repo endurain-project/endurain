@@ -34,5 +34,9 @@ RUN a2enmod rewrite
 # Update the default virtual host to use the environment variable
 RUN sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/sites-available/*.conf
 
+# Define environment variable
+ENV BACKEND_PROTOCOL="http"
+ENV BACKEND_HOST="backend"
+
 # Start Apache
 CMD ["apache2-foreground"]

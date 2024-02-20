@@ -333,16 +333,17 @@ async def read_activities_activity_from_id(
 
 
 @router.post(
-    "/activities/{user_id}/create/upload",
+    "/activities/create/upload",
     status_code=201,
     response_model=int,
     tags=["activities"],
 )
 async def create_activity_with_uploaded_file(
-    user_id: int,
-    validate_user_id: Annotated[Callable, Depends(dependencies_users.validate_user_id)],
+    token_user_id: Annotated[
+        Callable,
+        Depends(dependencies_session.validate_token_and_get_authenticated_user_id),
+    ],
     file: UploadFile,
-    validate_token: Annotated[Callable, Depends(dependencies_session.validate_token)],
     db: Session = Depends(dependencies_database.get_db),
 ):
     try:
@@ -360,10 +361,10 @@ async def create_activity_with_uploaded_file(
         # Choose the appropriate parser based on file extension
         if file_extension.lower() == ".gpx":
             # Parse the GPX file
-            parsed_info = gpx_processor.parse_gpx_file(file.filename, user_id)
+            parsed_info = gpx_processor.parse_gpx_file(file.filename, token_user_id)
         elif file_extension.lower() == ".fit":
             # Parse the FIT file
-            parsed_info = fit_processor.parse_fit_file(file.filename, user_id)
+            parsed_info = fit_processor.parse_fit_file(file.filename, token_user_id)
         else:
             # file extension not supported raise an HTTPException with a 406 Not Acceptable status code
             raise HTTPException(

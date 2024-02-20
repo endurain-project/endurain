@@ -1,5 +1,4 @@
-//const API_URL = process.env.VUE_APP_API_URL || 'http://localhost:98/';
-const API_URL = 'http://localhost:98/';
+import { fetchGetRequestTokenAsParameter, fetchPostFormUrlEncoded } from '@/utils/serviceUtils';
 
 export const auth = {
     isTokenValid(token) {
@@ -22,30 +21,10 @@ export const auth = {
         localStorage.clear();
         //this.$router.push('/login');
     },
-    async getToken(formData) {
-        const response = await fetch(`${API_URL}token`, {
-            method: 'POST',
-            headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-            },
-            body: formData
-        });
-        if (!response.ok) {
-            throw new Error('' + response.status);
-        }
-        return response.json();
+    getToken(formData) {
+        return fetchPostFormUrlEncoded('token', formData);
     },
-    async getUserMe(token) {
-        const response = await fetch(`${API_URL}users/me`, {
-            method: 'GET',
-            headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-            },
-        });
-        if (!response.ok) {
-            throw new Error('' + response.status);
-        }
-        return response.json();
+    getUserMe(token) {
+        return fetchGetRequestTokenAsParameter('users/me', token);
     },
   };

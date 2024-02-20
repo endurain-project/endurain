@@ -24,9 +24,44 @@
         <a class="w-100 btn btn-primary" href="#" role="button" data-bs-toggle="modal" data-bs-target="#addActivityModal">
           {{ $t("home.buttonAddActivity") }}
         </a>
+
+        <!-- Modal add actvity -->
+        <div class="modal fade" id="addActivityModal" tabindex="-1" aria-labelledby="addActivityModalLabel" aria-hidden="true">
+          <div class="modal-dialog">
+            <div class="modal-content">
+              <div class="modal-header">
+                <h1 class="modal-title fs-5" id="addActivityModalLabel">
+                  {{ $t("home.buttonAddActivity") }}
+                </h1>
+                <!--<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>-->
+              </div>
+              <form @submit.prevent="submitUploadFileForm">
+                <div class="modal-body">
+                  <!-- date fields -->
+                  <label for="activityGpxFileAdd"><b>* {{ $t("home.fieldLabelUploadGPXFile") }}</b></label>
+                  <input class="form-control mt-1 mb-1" type="file" name="activityGpxFileAdd" accept=".gpx" required>
+                  <p>* {{ $t("generalItens.requiredField") }}</p>
+                </div>
+                <div class="modal-footer">
+                  <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    {{ $t("generalItens.buttonClose") }}
+                  </button>
+                  <button type="submit" class="btn btn-success">
+                    {{ $t("home.buttonAddActivity") }}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
       </div>
       <!-- activities zone -->
       <div class="col">
+        <!-- Error alerts -->
+        <ErrorAlertComponent v-if="errorMessage"/>
+
+        <!-- Success banners -->
+        <SuccessAlertComponent v-if="successMessage"/>
 
         <!-- radio button -->
         <div class="btn-group mb-3 d-flex" role="group"  aria-label="Activities radio toggle button group">
@@ -73,11 +108,21 @@
 
 <script>
 import { ref, onMounted, onUnmounted, watchEffect, computed } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { useUserStore } from '@/stores/user';
+import { activities } from '@/services/activities';
+// Importing the stores
+import { useSuccessAlertStore } from '@/stores/Alerts/successAlert';
+import { useErrorAlertStore } from '@/stores/Alerts/errorAlert';
+// Importing the components
 import UserDistanceStatsComponent from '@/components/Activities/UserDistanceStatsComponent.vue';
 import NoItemsFoundComponent from '@/components/NoItemsFoundComponents.vue';
 import ActivitySummaryComponent from '@/components/Activities/ActivitySummaryComponent.vue';
 import LoadingComponent from '@/components/LoadingComponent.vue';
+import ErrorAlertComponent from '@/components/Alerts/ErrorAlertComponent.vue';
+import SuccessAlertComponent from '@/components/Alerts/SuccessAlertComponent.vue';
+
+//import { Modal } from 'bootstrap';
 
 export default {
   components: {
@@ -85,9 +130,13 @@ export default {
     NoItemsFoundComponent,
     ActivitySummaryComponent,
     LoadingComponent,
+    ErrorAlertComponent,
+    SuccessAlertComponent,
   },
   setup() {
     const userStore = useUserStore();
+    const successAlertStore = useSuccessAlertStore();
+    const errorAlertStore = useErrorAlertStore();
     const selectedActivityView = ref('userActivities');
     const isLoading = ref(true);
     const userMe = computed(() => userStore.userMe);
@@ -99,6 +148,9 @@ export default {
     const numRecords = 5;
     const userNumberOfActivities = computed(() => userStore.userNumberOfActivities);
     const userHasMoreActivities = ref(true);
+    const { t } = useI18n();
+    const successMessage = ref('');
+    const errorMessage = ref('');
 
     const fetchMoreActivities = async () => {
       if (isLoading.value || !userHasMoreActivities.value) return;
@@ -124,13 +176,46 @@ export default {
       }
     };
 
+    const submitUploadFileForm = async () => {
+      const fileInput = document.querySelector('input[type="file"]');
+      
+      if (fileInput.files[0]) {
+        const formData = new FormData();
+        formData.append('file', fileInput.files[0]);
+        try {
+          const createdActivity = await activities.uploadActivityFile(formData);
+          await userStore.fetchNewUserActivity(createdActivity);
+          //successMessage.value = t('home.successActivityAdded');
+          successMessage.value = t('home.successActivityAdded');
+          successAlertStore.setAlertMessage(successMessage.value);
+          successAlertStore.setClosableState(true);
+
+          fileInput.value = '';
+
+          /* const modalElement = document.getElementById('addActivityModal');
+          const modalInstance = Modal.getInstance(modalElement);
+          if (modalInstance) {
+            modalInstance.hide();
+          } */
+        }catch (error) {
+          errorMessage.value = t('home.errorFetchingInfo') + " - " + error.toString();
+          errorAlertStore.setAlertMessage(errorMessage.value);
+        }
+      }
+    };
+
     onMounted(async () => {
       window.addEventListener('scroll', handleScroll);
 
-      await userStore.fetchUserStats();
-      await userStore.fetchUserActivitiesNumber();
-      await userStore.fetchUserActivitiesWithPagination(1, numRecords);
-      await userStore.fetchUserFollowedActivitiesWithPagination(1, numRecords);
+      try {
+        await userStore.fetchUserStats();
+        await userStore.fetchUserActivitiesNumber();
+        await userStore.fetchUserActivitiesWithPagination(1, numRecords);
+        await userStore.fetchUserFollowedActivitiesWithPagination(1, numRecords);
+      } catch (error) {
+        errorMessage.value = t('home.errorFetchingInfo') + " - " + error.toString();
+        errorAlertStore.setAlertMessage(errorMessage.value);
+      }
 
       isLoading.value = false;
     });
@@ -151,6 +236,10 @@ export default {
       thisMonthDistances,
       userActivities,
       followedUserActivities,
+      errorMessage,
+      successMessage,
+      submitUploadFileForm,
+      t,
     };
   },
 };

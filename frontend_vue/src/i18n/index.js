@@ -8,6 +8,8 @@ import enUserDistanceStatsComponent from './en/components/activities/userDistanc
 import enActivitySummaryComponent from './en/components/activities/activitySummaryComponent.json';
 // General components
 import enNoItemsFoundComponent from './en/components/noItemsFoundComponent.json';
+// General translations
+import enGeneralItens from './en/generalItens.json'
 // Views
 import enHomeView from './en/homeView.json';
 import enLoginView from './en/loginView.json';
@@ -19,6 +21,7 @@ const messages = {
     userDistanceStats: enUserDistanceStatsComponent,
     activitySummary: enActivitySummaryComponent,
     noItemsFoundComponent: enNoItemsFoundComponent,
+    generalItens: enGeneralItens,
     home: enHomeView,
     login: enLoginView,
   },

@@ -9,7 +9,7 @@
             <div class="collapse navbar-collapse" id="navbarNavAltMarkup">
                 <div class="navbar-nav me-auto mb-2 mb-lg-0">
                     <!-- if is logged in -->
-                    <a class="nav-link" href="#" v-if="isLoggedIn">
+                    <a class="nav-link" href="/gears" v-if="isLoggedIn">
                         <font-awesome-icon :icon="['fas', 'fa-bicycle']" />
                         <span class="ms-1">
                             {{ $t("navbar.gear") }}

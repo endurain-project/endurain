@@ -1,6 +1,10 @@
 {
     "title": "Endurain",
     "buttonAddActivity": "Add Activity",
+    "fieldLabelUploadGPXFile": "Upload GPX file",
     "radioUserActivities": "My activities",
-    "radioFollowerActivities": "Followers activities"
+    "radioFollowerActivities": "Followers activities",
+    "successActivityAdded": "Activity added successfully",
+    "errorActivityAdded": "Error adding activity",
+    "errorFetchingInfo": "Error fetching info"
 }
