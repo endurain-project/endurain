@@ -70,8 +70,7 @@
             <div v-else>
                 <!-- Checking if userGears is loaded and has length -->
                 <div v-if="userGears && userGears.length">
-                <!-- Iterating over userGears to display them -->
-                    <!--<ActivitySummaryComponent v-for="activity in userActivities" :key="activity.id" :activity="activity" />-->
+                    <!-- Iterating over userGears to display them -->
                     <p>{{ $t("gears.displayUserNumberOfGears1") }}{{ userGearsNumber }}{{ $t("gears.displayUserNumberOfGears2") }}</p>
                     <ul class="list-group list-group-flush" v-for="gear in userGears" :key="gear.id" :gear="gear">
                         <li class="list-group-item d-flex justify-content-between">
@@ -81,8 +80,9 @@
                                 <img src="/src/assets/avatar/wetsuit1.png" alt="Bycicle avatar" width="55" height="55" v-else>
                                 <div class="ms-3">
                                     <div class="fw-bold">
-                                        <!--<?php echo ($gear["nickname"]); ?>-->
-                                        <a href="#" class="link-underline-opacity-25 link-underline-opacity-100-hover">{{ gear.nickname }}</a>
+                                        <router-link :to="{ name: 'gear', params: { id: gear.id }}" class="link-underline-opacity-25 link-underline-opacity-100-hover">
+                                            {{ gear.nickname }}
+                                        </router-link>
                                     </div>
                                     <b>{{ $t("gears.gearTypeLabel") }}</b>
                                     <span v-if="gear.gear_type == 1">{{ $t("gears.gearTypeOption1") }}</span>
@@ -104,12 +104,17 @@
 
         </div>
     </div>
+    <div>
+        <br>
+        <button @click="goBack" type="button" class="w-100 btn btn-primary d-lg-none">{{ $t("generalItens.buttonBack") }}</button>
+    </div>
 </template>
 
 <script>
 // Importing the vue composition API
 import { ref, onMounted, onUnmounted, watchEffect, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { useRouter } from 'vue-router';
 // Importing the stores
 import { useSuccessAlertStore } from '@/stores/Alerts/successAlert';
 import { useErrorAlertStore } from '@/stores/Alerts/errorAlert';
@@ -132,6 +137,7 @@ export default {
     },
     setup() {
         const { t } = useI18n();
+        const router = useRouter();
         const errorAlertStore = useErrorAlertStore();
         const successAlertStore = useSuccessAlertStore();
         const brand = ref('');
@@ -149,6 +155,13 @@ export default {
         const numRecords = 5;
         const searchNickname = ref('');
         
+        /**
+         * Function to navigate back to the previous page.
+         */
+        function goBack() {
+            router.go(-1);
+        }
+
         /**
          * Fetches more gears from the server.
          * 
@@ -329,6 +342,7 @@ export default {
             userGears,
             userGearsNumber,
             searchNickname,
+            goBack,
             t,
             submitAddGearForm,
             submitSearchGearByNickname,

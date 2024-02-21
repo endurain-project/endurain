@@ -2,7 +2,9 @@ import { createRouter, createWebHistory } from 'vue-router'
 
 import HomeView from '../views/HomeView.vue'
 import LoginView from '../views/LoginView.vue'
-import GearsView from '../views/GearsView.vue'
+import GearsView from '../views/Gears/GearsView.vue'
+import GearView from '../views/Gears/GearView.vue'
+import NotFoundView from '../views/NotFoundView.vue';
 
 import { auth } from '@/services/auth';
 
@@ -25,7 +27,17 @@ const router = createRouter({
       path: '/gears',
       name: 'gears',
       component: GearsView
-    }
+    },
+    {
+      path: '/gear/:id',
+      name: 'gear',
+      component: GearView
+    },
+    {
+      path: '/:pathMatch(.*)*',
+      name: 'not-found',
+      component: NotFoundView,
+    },
   ]
 })
 

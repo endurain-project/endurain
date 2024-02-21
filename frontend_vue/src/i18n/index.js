@@ -13,7 +13,9 @@ import enGeneralItens from './en/generalItens.json'
 // Views
 import enHomeView from './en/homeView.json';
 import enLoginView from './en/loginView.json';
-import enGearsView from './en/gearsView.json';
+import enGearsView from './en/gears/gearsView.json';
+import enGearView from './en/gears/gearView.json';
+import enNotFoundView from './en/notFoundView.json';
 
 // Constructing the messages structure
 const messages = {
@@ -26,6 +28,8 @@ const messages = {
     home: enHomeView,
     login: enLoginView,
     gears: enGearsView,
+    gear: enGearView,
+    notFound: enNotFoundView,
   },
 };
 
