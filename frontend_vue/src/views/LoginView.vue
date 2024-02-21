@@ -12,12 +12,12 @@
         <br>
 
         <div class="form-floating">
-            <input type="text" class="form-control" id="floatingInput" placeholder="<?php echo $translationsLogin['login_insert_username']; ?>" name="loginUsername" v-model="username" required>
+            <input type="text" class="form-control" id="floatingInput" name="loginUsername" :placeholder='$t("login.username")' v-model="username" required>
             <label for="loginUsername">{{ $t("login.username") }}</label>
         </div>
         <br>
         <div class="form-floating">
-            <input type="password" class="form-control" placeholder="<?php echo $translationsLogin['login_password']; ?>" name="loginPassword" v-model="password" required>
+            <input type="password" class="form-control" name="loginPassword" :placeholder='$t("login.password")' v-model="password" required>
             <label for="loginPassword">{{ $t("login.password") }}</label>
         </div>
         <br>

@@ -1,4 +1,6 @@
 {
     "buttonClose": "Close",
-    "requiredField": "Required fields"
+    "buttonlistAll": "List all",
+    "requiredField": "Required fields",
+    "errorFetchingInfo": "Error fetching info"
 }

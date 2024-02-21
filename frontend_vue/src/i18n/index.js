@@ -13,6 +13,7 @@ import enGeneralItens from './en/generalItens.json'
 // Views
 import enHomeView from './en/homeView.json';
 import enLoginView from './en/loginView.json';
+import enGearsView from './en/gearsView.json';
 
 // Constructing the messages structure
 const messages = {
@@ -24,6 +25,7 @@ const messages = {
     generalItens: enGeneralItens,
     home: enHomeView,
     login: enLoginView,
+    gears: enGearsView,
   },
 };
 

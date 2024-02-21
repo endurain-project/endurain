@@ -152,44 +152,56 @@ export default {
     const successMessage = ref('');
     const errorMessage = ref('');
 
-    const fetchMoreActivities = async () => {
+    async function fetchMoreActivities() {
+      // If the component is already loading or there are no more activities, return
       if (isLoading.value || !userHasMoreActivities.value) return;
 
+      // Add 1 to the page number
       pageNumberUserActivities.value++;
       try {
-        // Assuming your store method can handle appending to the existing activities
+        // Fetch the activities
         await userStore.fetchUserActivitiesWithPagination(pageNumberUserActivities.value, numRecords);
-        // Implement logic to set hasMoreActivities to false if no more activities are returned
+        // If the number of activities is greater than the page number times the number of records, there are no more activities
         if ((pageNumberUserActivities.value * numRecords) >= userNumberOfActivities.value) {
           userHasMoreActivities.value = false;
         }
       } catch (error) {
-        console.error("Error fetching more activities", error);
+        // Set the error message
+        errorMessage.value = t('generalItens.errorFetchingInfo') + " - " + error.toString();
+        errorAlertStore.setAlertMessage(errorMessage.value);
       }
-    };
+    }
 
     const handleScroll = () => {
+      // If the component is already loading or there are no more activities, return
       const bottomOfWindow = document.documentElement.scrollTop + window.innerHeight === document.documentElement.offsetHeight;
 
+      // If the user has reached the bottom of the page, fetch more activities
       if (bottomOfWindow) {
         fetchMoreActivities();
       }
     };
 
     const submitUploadFileForm = async () => {
+      // Get the file input
       const fileInput = document.querySelector('input[type="file"]');
       
+      // If there is a file, create the form data and upload the file
       if (fileInput.files[0]) {
+        // Create the form data
         const formData = new FormData();
         formData.append('file', fileInput.files[0]);
         try {
+          // Upload the file
           const createdActivity = await activities.uploadActivityFile(formData);
+          // Fetch the new user activity
           await userStore.fetchNewUserActivity(createdActivity);
-          //successMessage.value = t('home.successActivityAdded');
+          // Set the success message
           successMessage.value = t('home.successActivityAdded');
           successAlertStore.setAlertMessage(successMessage.value);
           successAlertStore.setClosableState(true);
 
+          // Clear the file input
           fileInput.value = '';
 
           /* const modalElement = document.getElementById('addActivityModal');
@@ -198,22 +210,32 @@ export default {
             modalInstance.hide();
           } */
         }catch (error) {
-          errorMessage.value = t('home.errorFetchingInfo') + " - " + error.toString();
+          // Set the error message
+          errorMessage.value = t('generalItens.errorFetchingInfo') + " - " + error.toString();
           errorAlertStore.setAlertMessage(errorMessage.value);
         }
       }
     };
 
     onMounted(async () => {
+      // Add the scroll event listener
       window.addEventListener('scroll', handleScroll);
 
       try {
+        // Fetch the user stats
         await userStore.fetchUserStats();
+        // Fetch the user activities and user activities number
         await userStore.fetchUserActivitiesNumber();
         await userStore.fetchUserActivitiesWithPagination(1, numRecords);
         await userStore.fetchUserFollowedActivitiesWithPagination(1, numRecords);
+
+        // If the number of activities is greater than the page number times the number of records, there are no more activities
+        if ((pageNumberUserActivities.value * numRecords) >= userNumberOfActivities.value) {
+          userHasMoreActivities.value = false;
+        }
       } catch (error) {
-        errorMessage.value = t('home.errorFetchingInfo') + " - " + error.toString();
+        // Set the error message
+        errorMessage.value = t('generalItens.errorFetchingInfo') + " - " + error.toString();
         errorAlertStore.setAlertMessage(errorMessage.value);
       }
 
@@ -221,6 +243,7 @@ export default {
     });
 
     onUnmounted(() => {
+      // Remove the scroll event listener
       window.removeEventListener('scroll', handleScroll);
     });
 

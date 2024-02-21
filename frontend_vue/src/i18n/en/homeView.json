@@ -5,6 +5,5 @@
     "radioUserActivities": "My activities",
     "radioFollowerActivities": "Followers activities",
     "successActivityAdded": "Activity added successfully",
-    "errorActivityAdded": "Error adding activity",
-    "errorFetchingInfo": "Error fetching info"
+    "errorActivityAdded": "Error adding activity"
 }
