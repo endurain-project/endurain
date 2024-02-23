@@ -21,5 +21,8 @@
     "gearTypeOption3": "Wetsuit",
     "activeState": "Active",
     "inactiveState": "Inactive",
-    "successGearAdded": "Gear added successfully"
+    "gearFromStrava": "Strava",
+    "successGearAdded": "Gear added successfully",
+    "successGearDeleted": "Gear deleted successfully",
+    "errorGearNotFound": "Gear not found"
 }

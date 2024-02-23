@@ -21,7 +21,7 @@
           </div>
           <UserDistanceStatsComponent v-else />
         </div>
-        <a class="w-100 btn btn-primary" href="#" role="button" data-bs-toggle="modal" data-bs-target="#addActivityModal">
+        <a class="w-100 btn btn-primary mb-4" href="#" role="button" data-bs-toggle="modal" data-bs-target="#addActivityModal">
           {{ $t("home.buttonAddActivity") }}
         </a>
 
@@ -46,7 +46,7 @@
                   <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
                     {{ $t("generalItens.buttonClose") }}
                   </button>
-                  <button type="submit" class="btn btn-success">
+                  <button type="submit" class="btn btn-success" data-bs-dismiss="modal">
                     {{ $t("home.buttonAddActivity") }}
                   </button>
                 </div>
@@ -58,7 +58,7 @@
       <!-- activities zone -->
       <div class="col">
         <!-- Error alerts -->
-        <ErrorAlertComponent v-if="errorMessage"/>
+        <ErrorAlertComponent v-if="errorMessage || !activityFound"/>
 
         <!-- Success banners -->
         <SuccessAlertComponent v-if="successMessage"/>
@@ -82,7 +82,12 @@
             <!-- Checking if userActivities is loaded and has length -->
             <div v-if="userActivities && userActivities.length">
               <!-- Iterating over userActivities to display them -->
-              <ActivitySummaryComponent v-for="activity in userActivities" :key="activity.id" :activity="activity" />
+              <div class="card mb-3" v-for="activity in userActivities" :key="activity.id">
+                <div class="card-body">
+                  <ActivitySummaryComponent :activity="activity" :source="'home'"/>
+                </div>
+                <ActivityMapComponent class="mx-3 mb-3" :activity="activity" :source="'home'"/>
+              </div>
             </div>
             <!-- Displaying a message or component when there are no activities -->
             <NoItemsFoundComponent v-else />
@@ -109,6 +114,7 @@
 <script>
 import { ref, onMounted, onUnmounted, watchEffect, computed } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { useRoute, useRouter } from 'vue-router';
 import { useUserStore } from '@/stores/user';
 import { activities } from '@/services/activities';
 // Importing the stores
@@ -118,6 +124,7 @@ import { useErrorAlertStore } from '@/stores/Alerts/errorAlert';
 import UserDistanceStatsComponent from '@/components/Activities/UserDistanceStatsComponent.vue';
 import NoItemsFoundComponent from '@/components/NoItemsFoundComponents.vue';
 import ActivitySummaryComponent from '@/components/Activities/ActivitySummaryComponent.vue';
+import ActivityMapComponent from '@/components/Activities/ActivityMapComponent.vue';
 import LoadingComponent from '@/components/LoadingComponent.vue';
 import ErrorAlertComponent from '@/components/Alerts/ErrorAlertComponent.vue';
 import SuccessAlertComponent from '@/components/Alerts/SuccessAlertComponent.vue';
@@ -129,16 +136,20 @@ export default {
     UserDistanceStatsComponent,
     NoItemsFoundComponent,
     ActivitySummaryComponent,
+    ActivityMapComponent,
     LoadingComponent,
     ErrorAlertComponent,
     SuccessAlertComponent,
   },
   setup() {
+    const route = useRoute();
+    const router = useRouter();
     const userStore = useUserStore();
     const successAlertStore = useSuccessAlertStore();
     const errorAlertStore = useErrorAlertStore();
     const selectedActivityView = ref('userActivities');
     const isLoading = ref(true);
+    const activityFound = ref(true);
     const userMe = computed(() => userStore.userMe);
     const thisWeekDistances = computed(() => userStore.thisWeekDistances);
     const thisMonthDistances = computed(() => userStore.thisMonthDistances);
@@ -218,6 +229,13 @@ export default {
     };
 
     onMounted(async () => {
+      if (route.query.activityFound === 'false') {
+          // Set the activityFound value to false and show the error alert.
+          activityFound.value = false;
+          errorAlertStore.setAlertMessage(t("home.errorActivityNotFound"));
+          errorAlertStore.setClosableState(true);
+      }
+
       // Add the scroll event listener
       window.addEventListener('scroll', handleScroll);
 
@@ -263,6 +281,7 @@ export default {
       successMessage,
       submitUploadFileForm,
       t,
+      activityFound,
     };
   },
 };

@@ -140,3 +140,57 @@ export async function fetchPostRequest(url, data, headers = {}) {
     // Return the JSON response
     return response.json();
 }
+
+/**
+ * Sends a PUT request to the specified URL with the provided data.
+ * @param {string} url - The URL to send the request to.
+ * @param {Object} data - The data to be sent in the request body.
+ * @param {Object} headers - Optional headers to be included in the request.
+ * @returns {Promise<Object>} - A promise that resolves to the JSON response from the server.
+ * @throws {Error} - If the response status is not ok.
+ */
+export async function fetchPutRequest(url, data, headers = {}) {
+    // Create the full URL by combining the API URL with the provided URL
+    const fullUrl = `${API_URL}${url}`;
+    // Send the PUT request
+    const response = await fetch(fullUrl, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
+        },
+    });
+    // If the response status is not ok, throw an error
+    if (!response.ok) {
+        throw new Error('' + response.status);
+    }
+    // Return the JSON response
+    return response.json();
+}
+
+/**
+ * Sends a DELETE request to the specified URL with optional headers.
+ * @param {string} url - The URL to send the DELETE request to.
+ * @param {Object} headers - Optional headers to include in the request.
+ * @returns {Promise<Object>} - A promise that resolves to the JSON response from the server.
+ * @throws {Error} - If the response status is not ok.
+ */
+export async function fetchDeleteRequest(url, headers = {}) {
+    // Create the full URL by combining the API URL with the provided URL
+    const fullUrl = `${API_URL}${url}`;
+    // Send the DELETE request
+    const response = await fetch(fullUrl, {
+        method: 'DELETE',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
+        },
+    });
+    // If the response status is not ok, throw an error
+    if (!response.ok) {
+        throw new Error('' + response.status);
+    }
+    // Return the JSON response
+    return response.json();
+}

@@ -4,6 +4,8 @@ import HomeView from '../views/HomeView.vue'
 import LoginView from '../views/LoginView.vue'
 import GearsView from '../views/Gears/GearsView.vue'
 import GearView from '../views/Gears/GearView.vue'
+import ActivityView from '../views/ActivityView.vue'
+import UserView from '../views/UserView.vue'
 import NotFoundView from '../views/NotFoundView.vue';
 
 import { auth } from '@/services/auth';
@@ -32,6 +34,16 @@ const router = createRouter({
       path: '/gear/:id',
       name: 'gear',
       component: GearView
+    },
+    {
+      path: '/activity/:id',
+      name: 'activity',
+      component: ActivityView
+    },
+    {
+      path: '/user/:id',
+      name: 'user',
+      component: UserView
     },
     {
       path: '/:pathMatch(.*)*',

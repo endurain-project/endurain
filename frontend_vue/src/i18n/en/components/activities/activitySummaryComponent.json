@@ -1,6 +1,14 @@
 {
+    "buttonDeleteActivity": "Delete Activity",
+    "modalDeleteBody1": "Are you sure you want to delete activity ",
+    "modalDeleteBody2": "This action cannot be undone.",
     "activityDistance": "Distance",
     "activityTime": "Time",
     "activityElevationGain": "Elevation Gain",
-    "activityPace": "Pace"
+    "activityPace": "Pace",
+    "activityAvgPower": "Avg Power",
+    "activityAvgSpeed": "Avg Speed",
+    "activityEleGain": "Elevation gain",
+    "activityEleLoss": "Elevation loss",
+    "activityNoData": "No data"
 }

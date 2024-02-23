@@ -1,4 +1,4 @@
-import { fetchGetRequest, fetchPostRequest } from '@/utils/serviceUtils';
+import { fetchGetRequest, fetchPostRequest, fetchPutRequest, fetchDeleteRequest } from '@/utils/serviceUtils';
 
 export const gears = {
     getGearById(gearId) {
@@ -15,5 +15,11 @@ export const gears = {
     },
     createGear(data) {
         return fetchPostRequest('gear/create', data)
+    },
+    editGear(gearId, data) {
+        return fetchPutRequest(`gear/${gearId}/edit`, data);
+    },
+    deleteGear(gearId) {
+        return fetchDeleteRequest(`gear/${gearId}/delete`);
     }
 };

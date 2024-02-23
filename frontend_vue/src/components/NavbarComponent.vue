@@ -9,7 +9,7 @@
             <div class="collapse navbar-collapse" id="navbarNavAltMarkup">
                 <div class="navbar-nav me-auto mb-2 mb-lg-0">
                     <!-- if is logged in -->
-                    <a class="nav-link" href="/gears" v-if="isLoggedIn">
+                    <a class="nav-link" :class="{ active: path === '/gears' }" href="/gears" v-if="isLoggedIn">
                         <font-awesome-icon :icon="['fas', 'fa-bicycle']" />
                         <span class="ms-1">
                             {{ $t("navbar.gear") }}
@@ -55,22 +55,38 @@
 </template>
 
 <script>
+import { watch, ref } from 'vue';
 import { auth } from '@/services/auth';
-import { useRouter } from 'vue-router';
+import { useRouter, useRoute } from 'vue-router';
 
 export default {
     setup() {
         const router = useRouter();
+        const route = useRoute();
+        const path = ref(route.path);
+        const isLoggedIn = ref(auth.isTokenValid(localStorage.getItem('accessToken')))
 
         function handleLogout() {
             auth.removeLoggedUser();
             router.push('/login');
         }
 
+        watch(() => route.path, (newPath, oldPath) => {
+            path.value = newPath;
+            // Perform actions based on newPath if needed
+            if (newPath === '/login' && isLoggedIn.value) {
+                isLoggedIn.value = auth.isTokenValid(localStorage.getItem('accessToken'));
+            }
+            if (oldPath === '/login' && !isLoggedIn.value) {
+                isLoggedIn.value = auth.isTokenValid(localStorage.getItem('accessToken'));
+            }
+        });
+
         return {
-            isLoggedIn: auth.isTokenValid(localStorage.getItem('accessToken')),
+            isLoggedIn,
             userMe: JSON.parse(localStorage.getItem('userMe')),
             handleLogout,
+            path,
         };
     },
 };

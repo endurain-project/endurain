@@ -7,6 +7,9 @@ export const activities = {
     getUserThisMonthStats(user_id) {
         return fetchGetRequest(`activities/user/${user_id}/thismonth/distances`);
     },
+    getUserActivitiesByGearId(user_id, gear_id) {
+        return fetchGetRequest(`activities/user/${user_id}/gear/${gear_id}`);
+    },
     getUserNumberOfActivities(user_id) {
         return fetchGetRequest(`activities/user/${user_id}/number`);
     },

@@ -3,5 +3,7 @@
     "buttonClose": "Close",
     "buttonlistAll": "List all",
     "requiredField": "Required fields",
-    "errorFetchingInfo": "Error fetching info"
+    "errorFetchingInfo": "Error fetching info",
+    "errorEditingInfo": "Error editing info",
+    "errorDeletingInfo": "Error deleting info"
 }

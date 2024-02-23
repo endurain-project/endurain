@@ -41,7 +41,7 @@
                             </div>
                             <div class="modal-footer">
                                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ $t("generalItens.buttonClose") }}</button>
-                                <button type="submit" class="btn btn-success" name="addGear">{{ $t("gears.buttonAddGear") }}</button>
+                                <button type="submit" class="btn btn-success" name="addGear" data-bs-dismiss="modal">{{ $t("gears.buttonAddGear") }}</button>
                             </div>
                         </form>
                     </div>
@@ -59,10 +59,10 @@
         </div>
         <div class="col">
             <!-- Error alerts -->
-            <ErrorAlertComponent v-if="errorMessage"/>
+            <ErrorAlertComponent v-if="errorMessage || !gearFound"/>
 
             <!-- Success banners -->
-            <SuccessAlertComponent v-if="successMessage"/>
+            <SuccessAlertComponent v-if="successMessage || gearDeleted"/>
 
             <div v-if="isLoading">
                 <LoadingComponent />
@@ -94,6 +94,7 @@
                             <div>
                                 <span class="badge bg-success-subtle border border-success-subtle text-success-emphasis align-middle" v-if="gear.is_active == 1">{{ $t("gears.activeState") }}</span>
                                 <span class="badge bg-danger-subtle border border-danger-subtle text-danger-emphasis align-middle" v-else>{{ $t("gears.inactiveState") }}</span>
+                                <span class="badge bg-primary-subtle border border-primary-subtle text-primary-emphasis align-middle" v-if="gear.strava_gear_id">{{ $t("gears.gearFromStrava") }}</span>
                             </div>
                         </li>
                     </ul>
@@ -114,7 +115,7 @@
 // Importing the vue composition API
 import { ref, onMounted, onUnmounted, watchEffect, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { useRouter } from 'vue-router';
+import { useRoute } from 'vue-router';
 // Importing the stores
 import { useSuccessAlertStore } from '@/stores/Alerts/successAlert';
 import { useErrorAlertStore } from '@/stores/Alerts/errorAlert';
@@ -137,9 +138,11 @@ export default {
     },
     setup() {
         const { t } = useI18n();
-        const router = useRouter();
+        const route = useRoute();
         const errorAlertStore = useErrorAlertStore();
         const successAlertStore = useSuccessAlertStore();
+        const gearDeleted = ref(false);
+        const gearFound = ref(true);
         const brand = ref('');
         const model = ref('');
         const nickname = ref('');
@@ -159,7 +162,7 @@ export default {
          * Function to navigate back to the previous page.
          */
         function goBack() {
-            router.go(-1);
+            route.go(-1);
         }
 
         /**
@@ -256,21 +259,11 @@ export default {
                 successMessage.value = t('gears.successGearAdded');
                 successAlertStore.setAlertMessage(successMessage.value);
                 successAlertStore.setClosableState(true);
-
-                /*const modalElement = document.getElementById('addGearModal');
-                const modalInstance = Modal.getInstance(modalElement);
-                if (modalInstance) {
-                modalInstance.hide();
-                }*/
             } catch (error) {
                 // If there is an error, set the error message and show the error alert.
                 errorMessage.value = t('generalItens.errorFetchingInfo') + " - " + error.toString();
                 errorAlertStore.setAlertMessage(errorMessage.value);
             }
-        }
-
-        async function submitSearchGearByNickname() {
-            console.log('submitSearchGearByNickname');
         }
 
         /**
@@ -280,6 +273,20 @@ export default {
          * @returns {void}
          */
         onMounted(async () => {
+            if (route.query.gearDeleted === 'true') {
+                // Set the gearDeleted value to true and show the success alert.
+                gearDeleted.value = true;
+                successAlertStore.setAlertMessage(t("gears.successGearDeleted"));
+                successAlertStore.setClosableState(true);
+            }
+
+            if (route.query.gearFound === 'false') {
+                // Set the gearFound value to false and show the error alert.
+                gearFound.value = false;
+                errorAlertStore.setAlertMessage(t("gears.errorGearNotFound"));
+                errorAlertStore.setClosableState(true);
+            }
+
             // Add the event listener for scroll event.
             window.addEventListener('scroll', handleScroll);
 
@@ -345,7 +352,8 @@ export default {
             goBack,
             t,
             submitAddGearForm,
-            submitSearchGearByNickname,
+            gearDeleted,
+            gearFound,
         };
     },
 };
