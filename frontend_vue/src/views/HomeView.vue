@@ -63,6 +63,17 @@
         <!-- Success banners -->
         <SuccessAlertComponent v-if="successMessage"/>
 
+        <div v-if="isLoadingUploadActivity">
+          <div class="alert alert-primary d-flex align-items-center" role="alert">
+            <div class="spinner-border" role="status">
+              <span class="visually-hidden">Loading...</span>
+            </div>
+            <div class="ms-1">
+              <span>{{ $t("home.processingActivity") }}</span>
+            </div>
+          </div>
+        </div>
+
         <!-- radio button -->
         <div class="btn-group mb-3 d-flex" role="group"  aria-label="Activities radio toggle button group">
           <!-- user activities -->
@@ -114,7 +125,7 @@
 <script>
 import { ref, onMounted, onUnmounted, watchEffect, computed } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { useRoute, useRouter } from 'vue-router';
+import { useRoute } from 'vue-router';
 import { useUserStore } from '@/stores/user';
 import { activities } from '@/services/activities';
 // Importing the stores
@@ -143,12 +154,12 @@ export default {
   },
   setup() {
     const route = useRoute();
-    const router = useRouter();
     const userStore = useUserStore();
     const successAlertStore = useSuccessAlertStore();
     const errorAlertStore = useErrorAlertStore();
     const selectedActivityView = ref('userActivities');
     const isLoading = ref(true);
+    const isLoadingUploadActivity = ref(false);
     const activityFound = ref(true);
     const userMe = computed(() => userStore.userMe);
     const thisWeekDistances = computed(() => userStore.thisWeekDistances);
@@ -194,6 +205,8 @@ export default {
     };
 
     const submitUploadFileForm = async () => {
+      // Set the loading state
+      isLoadingUploadActivity.value = true;
       // Get the file input
       const fileInput = document.querySelector('input[type="file"]');
       
@@ -220,10 +233,17 @@ export default {
           if (modalInstance) {
             modalInstance.hide();
           } */
-        }catch (error) {
+          // Fetch the user stats
+          await userStore.fetchUserStats();
+          // Fetch the user activities and user activities number
+          await userStore.fetchUserActivitiesNumber();
+        } catch (error) {
           // Set the error message
           errorMessage.value = t('generalItens.errorFetchingInfo') + " - " + error.toString();
           errorAlertStore.setAlertMessage(errorMessage.value);
+        } finally {
+          // Set the loading state
+          isLoadingUploadActivity.value = false;
         }
       }
     };
@@ -272,6 +292,7 @@ export default {
     return {
       selectedActivityView,
       isLoading,
+      isLoadingUploadActivity,
       userMe,
       thisWeekDistances,
       thisMonthDistances,

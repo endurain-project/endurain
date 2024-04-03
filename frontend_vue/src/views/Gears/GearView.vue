@@ -177,7 +177,7 @@
 
 <script>
 // Importing the vue composition API
-import { ref, onMounted, onUnmounted, watchEffect, watch } from 'vue';
+import { ref, onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 // Importing the stores
@@ -249,7 +249,7 @@ export default {
                 successMessage.value = t('gear.successGearEdited');
                 successAlertStore.setAlertMessage(successMessage.value);
                 successAlertStore.setClosableState(true);
-            } catch {
+            } catch (error) {
                 // If there is an error, set the error message and show the error alert.
                 errorMessage.value = t('generalItens.errorEditingInfo') + " - " + error.toString();
                 errorAlertStore.setAlertMessage(errorMessage.value);

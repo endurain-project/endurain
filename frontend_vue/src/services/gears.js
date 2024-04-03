@@ -4,6 +4,9 @@ export const gears = {
     getGearById(gearId) {
         return fetchGetRequest(`gear/id/${gearId}`);
     },
+    getGearFromType(gearType) {
+        return fetchGetRequest(`gear/type/${gearType}`);
+    },
     getGearByNickname(nickname) {
         return fetchGetRequest(`gear/nickname/${nickname}`);
     },

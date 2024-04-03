@@ -8,7 +8,7 @@ const API_URL = 'http://localhost:98/';
  * @returns {Promise<Object>} - A promise that resolves to the JSON response from the server.
  * @throws {Error} - If the response status is not ok.
  */
-export async function fetchGetRequest(url, headers = {}) {
+export async function fetchGetRequest(url) {
     // Create the full URL by combining the API URL with the provided URL
     const fullUrl = `${API_URL}${url}`;
     // Send the GET request
@@ -36,7 +36,7 @@ export async function fetchGetRequest(url, headers = {}) {
  * @returns {Promise<Object>} - A promise that resolves to the JSON response.
  * @throws {Error} - If the response status is not ok.
  */
-export async function fetchGetRequestTokenAsParameter(url, token, headers = {}) {
+export async function fetchGetRequestTokenAsParameter(url, token) {
     // Check if a token is provided
     if (!token) {
         throw new Error('No token provided');
@@ -67,7 +67,7 @@ export async function fetchGetRequestTokenAsParameter(url, token, headers = {}) 
  * @returns {Promise<Object>} - A promise that resolves to the JSON response from the server.
  * @throws {Error} - If the response status is not ok.
  */
-export async function fetchPostFileRequest(url, formData, headers = {}) {
+export async function fetchPostFileRequest(url, formData) {
     // Create the full URL by combining the API URL with the provided URL
     const fullUrl = `${API_URL}${url}`;
     // Send the POST request
@@ -94,7 +94,7 @@ export async function fetchPostFileRequest(url, formData, headers = {}) {
  * @returns {Promise<Object>} - A promise that resolves to the JSON response from the server.
  * @throws {Error} - If the response status is not ok.
  */
-export async function fetchPostFormUrlEncoded(url, formData, headers = {}) {
+export async function fetchPostFormUrlEncoded(url, formData) {
     // Create the full URL by combining the API URL with the provided URL
     const fullUrl = `${API_URL}${url}`;
     // Send the POST request
@@ -121,7 +121,7 @@ export async function fetchPostFormUrlEncoded(url, formData, headers = {}) {
  * @returns {Promise<Object>} - A promise that resolves to the JSON response.
  * @throws {Error} - If the response status is not ok.
  */
-export async function fetchPostRequest(url, data, headers = {}) {
+export async function fetchPostRequest(url, data) {
     // Create the full URL by combining the API URL with the provided URL
     const fullUrl = `${API_URL}${url}`;
     // Send the POST request
@@ -149,7 +149,7 @@ export async function fetchPostRequest(url, data, headers = {}) {
  * @returns {Promise<Object>} - A promise that resolves to the JSON response from the server.
  * @throws {Error} - If the response status is not ok.
  */
-export async function fetchPutRequest(url, data, headers = {}) {
+export async function fetchPutRequest(url, data) {
     // Create the full URL by combining the API URL with the provided URL
     const fullUrl = `${API_URL}${url}`;
     // Send the PUT request
@@ -176,7 +176,7 @@ export async function fetchPutRequest(url, data, headers = {}) {
  * @returns {Promise<Object>} - A promise that resolves to the JSON response from the server.
  * @throws {Error} - If the response status is not ok.
  */
-export async function fetchDeleteRequest(url, headers = {}) {
+export async function fetchDeleteRequest(url) {
     // Create the full URL by combining the API URL with the provided URL
     const fullUrl = `${API_URL}${url}`;
     // Send the DELETE request

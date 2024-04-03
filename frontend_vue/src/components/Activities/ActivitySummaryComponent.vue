@@ -11,10 +11,10 @@
                 <img src="/src/assets/avatar/female1.png" alt="Default Female Avatar" width="55" height="55" class="rounded-circle" v-else>
                 <div class="ms-3 me-3">
                     <div class="fw-bold">
-                        <router-link :to="{ name: 'activity', params: { id: activity.id }}" class="link-underline-opacity-25 link-underline-opacity-100-hover" v-if="source === 'home'">
+                        <router-link :to="{ name: 'activity', params: { id: activity.id }}" class="link-underline-opacity-25 link-underline-opacity-100-hover" v-if="sourceProp === 'home'">
                             {{ activity.name}}
                         </router-link>
-                        <router-link :to="{ name: 'user', params: { id: userActivity.id }}" class="link-underline-opacity-25 link-underline-opacity-100-hover" v-if="source === 'activity'">
+                        <router-link :to="{ name: 'user', params: { id: userActivity.id }}" class="link-underline-opacity-25 link-underline-opacity-100-hover" v-if="sourceProp === 'activity'">
                             {{ userActivity.name}}
                         </router-link>
                     </div>
@@ -52,7 +52,7 @@
                 <a class="btn btn-link btn-lg mt-1" :href="`https://www.strava.com/activities/${activity.strava_activity_id}`" role="button" v-if="activity.strava_activity_id">
                     <font-awesome-icon :icon="['fab', 'fa-strava']" />
                 </a>
-                <div v-if="source === 'activity'">
+                <div v-if="sourceProp === 'activity'">
                     <button class="btn btn-link btn-lg" type="button" data-bs-toggle="dropdown" aria-expanded="false">
                         <font-awesome-icon :icon="['fas', 'fa-ellipsis-vertical']" />
                     </button>
@@ -96,7 +96,7 @@
         </div>
 
         <!-- Activity title -->
-        <h1 class="mt-3" v-if="source === 'activity'">
+        <h1 class="mt-3" v-if="sourceProp === 'activity'">
             {{ activity.name }}
         </h1>
         <!-- Activity summary -->
@@ -137,8 +137,7 @@
                 </div>
             </div>
         </div>        
-        <div class="row d-flex mt-3" v-if="source === 'activity'">
-            <!-- activity.activity_type == 1 || activity.activity_type == 2 || activity.activity_type == 3 -->
+        <div class="row d-flex mt-3" v-if="sourceProp === 'activity'">
             <div class="col" v-if="activity.activity_type == 1 || activity.activity_type == 2 || activity.activity_type == 3">
                 <span class="fw-lighter">
                     {{ $t("activitySummary.activityAvgPower") }}
@@ -159,13 +158,12 @@
                 <br>
                 <span>{{ activity.elevation_loss }} m</span>
             </div>
-            <!-- activity.activity_type != 9 || activity.activity_type != 1 -->
-            <div class="col">
+            <div class="col" v-if="activity.activity_type == 4 || activity.activity_type == 5 || activity.activity_type == 6">
                 <span class="fw-lighter">{{ $t("activitySummary.activityAvgSpeed") }}</span>
                 <br>
                 <span>{{ (activity.average_speed * 3.6).toFixed(0) }} km/h</span>
             </div>
-            <div class="col border-start border-opacity-50">
+            <div class="col border-start border-opacity-50" v-if="activity.activity_type == 4 || activity.activity_type == 5 || activity.activity_type == 6">
                 <span class="fw-lighter">
                     {{ $t("activitySummary.activityAvgPower") }}
                 </span>
@@ -173,7 +171,7 @@
                 <span v-if="activity.average_power">{{ activity.average_power }} W</span>
                 <span v-else>{{ $t("activitySummary.activityNoData") }}</span>
             </div>
-            <div class="col border-start border-opacity-50">
+            <div class="col border-start border-opacity-50" v-if="activity.activity_type == 4 || activity.activity_type == 5 || activity.activity_type == 6">
                 <span class="fw-lighter">{{ $t("activitySummary.activityEleLoss") }}</span>
                 <br>
                 <span>{{ activity.elevation_loss }} m</span>
@@ -183,7 +181,7 @@
 </template>
 
 <script>
-import { ref, onMounted, watchEffect, computed, nextTick } from 'vue';
+import { ref, onMounted, watchEffect, computed } from 'vue';
 import { users } from '@/services/user';
 import LoadingComponent from '@/components/LoadingComponent.vue';
 import { formatDate, formatTime, calculateTimeDifference } from '@/utils/dateTimeUtils';
@@ -207,7 +205,7 @@ export default {
         const isLoading = ref(true);
         const userActivity = ref(null);
         const formattedPace = computed(() => formatPace(props.activity.pace));
-        const source = ref(props.source);
+        const sourceProp = ref(props.source);
 
         onMounted(async () => {
             try {
@@ -230,7 +228,7 @@ export default {
             formatTime,
             calculateTimeDifference,
             formattedPace,
-            source,
+            sourceProp,
         };
     },
 };

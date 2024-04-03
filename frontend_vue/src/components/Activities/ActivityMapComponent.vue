@@ -4,8 +4,8 @@
         <LoadingComponent />
     </div>
     <div v-else>
-        <div ref="activityMap" class="map" style="height: 300px;" v-if="source === 'home'"></div>
-        <div ref="activityMap" class="map" style="height: 500px;" v-if="source === 'activity'"></div>
+        <div ref="activityMap" class="map" style="height: 300px;" v-if="sourceProp === 'home'"></div>
+        <div ref="activityMap" class="map" style="height: 500px;" v-if="sourceProp === 'activity'"></div>
     </div>
 </template>
 
@@ -33,7 +33,7 @@ export default {
         const isLoading = ref(true);
         const activityStreamLatLng = ref(null);
         const activityMap = ref(null);
-        const source = ref(props.source);
+        const sourceProp = ref(props.source);
 
         onMounted(async () => {
             try {
@@ -95,7 +95,7 @@ export default {
             isLoading,
             activityStreamLatLng,
             activityMap,
-            source,
+            sourceProp,
         };
     },
 };

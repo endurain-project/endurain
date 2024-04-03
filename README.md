@@ -1,4 +1,5 @@
 <div align="center">
+  <a title="Crowdin" target="_blank" href="https://crowdin.com/project/endurain"><img src="https://badges.crowdin.net/endurain/localized.svg"></a>
   <img src="frontend/img/logo/logo.png" width="128" height="128">
 
   # Endurain

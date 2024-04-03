@@ -1,4 +1,9 @@
 {
     "labelGear": "Gear",
-    "labelGearNotSet": "Not set"
+    "labelGearNotSet": "Not set",
+    "modalLabelAddGear": "Add gear to activity",
+    "modalLabelSelectGear": "Select gear",
+    "modalButtonAddGear": "Add gear",
+    "labelGraph": "Activity data graphs",
+    "labelDownsampling": "Data downsampled to ~200 points"
 }
