@@ -1,4 +1,7 @@
 <template>
+    <!-- Error alerts -->
+    <ErrorAlertComponent v-if="errorMessage"/>
+
     <div v-if="isLoading">
         <LoadingComponent />
     </div>
@@ -87,7 +90,7 @@
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
                             {{ $t("generalItens.buttonClose") }}
                         </button>
-                        <a type="button" class="btn btn-danger" href="#">
+                        <a @click="submitDeleteActivity" type="button" class="btn btn-danger" data-bs-dismiss="modal">
                             {{ $t("activitySummary.buttonDeleteActivity") }}
                         </a>
                     </div>
@@ -182,14 +185,22 @@
 
 <script>
 import { ref, onMounted, watchEffect, computed } from 'vue';
-import { users } from '@/services/user';
+import { useRouter } from 'vue-router';
+// Importing the components
 import LoadingComponent from '@/components/LoadingComponent.vue';
+import ErrorAlertComponent from '@/components/Alerts/ErrorAlertComponent.vue';
+// Importing the stores
+import { useErrorAlertStore } from '@/stores/Alerts/errorAlert';
+// Importing the services
+import { users } from '@/services/user';
+import { activities } from '@/services/activities';
 import { formatDate, formatTime, calculateTimeDifference } from '@/utils/dateTimeUtils';
 import { formatPace } from '@/utils/activityUtils';
 
 export default {
     components: {
         LoadingComponent,
+        ErrorAlertComponent,
     },
     props: {
         activity: {
@@ -202,10 +213,13 @@ export default {
         }
     },
     setup(props) {
+        const router = useRouter();
         const isLoading = ref(true);
+        const errorMessage = ref('');
         const userActivity = ref(null);
         const formattedPace = computed(() => formatPace(props.activity.pace));
         const sourceProp = ref(props.source);
+        const errorAlertStore = useErrorAlertStore();
 
         onMounted(async () => {
             try {
@@ -221,6 +235,16 @@ export default {
             
         });
 
+        async function submitDeleteActivity() {
+            try {
+                userActivity.value = await activities.deleteActivity(props.activity.id);
+                router.push({ path: '/', query: { activityDeleted: 'true' } });
+            } catch (error) {
+                errorMessage.value = t('generalItens.errorDeletingInfo') + " - " + error.toString();
+                errorAlertStore.setAlertMessage(errorMessage.value);
+            }
+        }
+
         return {
             isLoading,
             userActivity,
@@ -229,6 +253,7 @@ export default {
             calculateTimeDifference,
             formattedPace,
             sourceProp,
+            submitDeleteActivity,
         };
     },
 };

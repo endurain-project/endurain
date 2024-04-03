@@ -58,7 +58,7 @@
       <!-- activities zone -->
       <div class="col">
         <!-- Error alerts -->
-        <ErrorAlertComponent v-if="errorMessage || !activityFound"/>
+        <ErrorAlertComponent v-if="errorMessage"/>
 
         <!-- Success banners -->
         <SuccessAlertComponent v-if="successMessage"/>
@@ -160,7 +160,6 @@ export default {
     const selectedActivityView = ref('userActivities');
     const isLoading = ref(true);
     const isLoadingUploadActivity = ref(false);
-    const activityFound = ref(true);
     const userMe = computed(() => userStore.userMe);
     const thisWeekDistances = computed(() => userStore.thisWeekDistances);
     const thisMonthDistances = computed(() => userStore.thisMonthDistances);
@@ -251,9 +250,16 @@ export default {
     onMounted(async () => {
       if (route.query.activityFound === 'false') {
           // Set the activityFound value to false and show the error alert.
-          activityFound.value = false;
-          errorAlertStore.setAlertMessage(t("home.errorActivityNotFound"));
+          errorMessage.value = t("home.errorActivityNotFound");
+          errorAlertStore.setAlertMessage(errorMessage.value);
           errorAlertStore.setClosableState(true);
+      }
+
+      if (route.query.activityDeleted === 'true') {
+          // Set the activityDeleted value to true and show the success alert.
+          successMessage.value = t('home.successActivityDeleted');
+          successAlertStore.setAlertMessage(successMessage.value);
+          successAlertStore.setClosableState(true);
       }
 
       // Add the scroll event listener
@@ -302,7 +308,6 @@ export default {
       successMessage,
       submitUploadFileForm,
       t,
-      activityFound,
     };
   },
 };

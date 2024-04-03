@@ -194,7 +194,7 @@
                 try{
                     activity.value = await activities.getActivityById(route.params.id);
                     if (!activity.value) {
-                        router.push({ path: '/', query: { activityFound: 'false' } });
+                        router.push({ path: '/', query: { activityFound: 'false', id: route.params.id } });
                     }
                     if (activity.value.gear_id) {
                         gear.value = await gears.getGearById(activity.value.gear_id);
@@ -223,7 +223,7 @@
 
                 } catch (error) {
                     if (error.toString().includes('422')) {
-                        router.push({ path: '/', query: { activityFound: 'false' } });
+                        router.push({ path: '/', query: { activityFound: 'false', id: route.params.id } });
                     }
                     // If there is an error, set the error message and show the error alert.
                     errorMessage.value = t('generalItens.errorFetchingInfo') + " - " + error.toString();

@@ -53,7 +53,6 @@
                 </button>
 
                 <!-- Modal edit gear -->
-                <!-- Modal edit gear -->
                 <div class="modal fade" id="editGearModal" tabindex="-1" aria-labelledby="editGearModal"
                     aria-hidden="true">
                     <div class="modal-dialog">
@@ -277,7 +276,7 @@ export default {
                 // Fetch the gear by its id.
                 gear.value = await gears.getGearById(route.params.id);
                 if (!gear.value) {
-                    router.push({ path: '/gears', query: { gearFound: 'false' } });
+                    router.push({ path: '/gears', query: { gearFound: 'false', id: route.params.id } });
                 }
                 gearActivities.value = await activities.getUserActivitiesByGearId(JSON.parse(localStorage.getItem('userMe')).id, route.params.id);
                 if (gearActivities.value) {
@@ -294,7 +293,7 @@ export default {
                 isActive.value = gear.value.is_active;
             } catch (error) {
                 if (error.toString().includes('422')) {
-                    router.push({ path: '/gears', query: { gearFound: 'false' } });
+                    router.push({ path: '/gears', query: { gearFound: 'false', id: route.params.id } });
                 }
                 // If there is an error, set the error message and show the error alert.
                 errorMessage.value = t('generalItens.errorFetchingInfo') + " - " + error.toString();
