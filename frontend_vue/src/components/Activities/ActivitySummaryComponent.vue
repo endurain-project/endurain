@@ -254,6 +254,7 @@ export default {
             formattedPace,
             sourceProp,
             submitDeleteActivity,
+            errorMessage,
         };
     },
 };

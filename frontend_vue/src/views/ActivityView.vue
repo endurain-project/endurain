@@ -1,5 +1,12 @@
     <template>
+        <!-- Error alerts -->
+        <ErrorAlertComponent v-if="errorMessage"/>
+
+        <!-- Success alerts -->
+        <SuccessAlertComponent v-if="successMessage"/>
+
         <LoadingComponent v-if="isLoading"/>
+
         <div v-else>
             <ActivitySummaryComponent v-if="activity" :activity="activity" :source="'activity'" />
         </div>
@@ -56,7 +63,7 @@
                                 <div class="modal-body">
                                     <!-- gear type fields -->
                                     <label for="gearIDAdd"><b>* {{ $t("activity.modalLabelSelectGear") }}</b></label>
-                                    <select class="form-control" name="gearIDAdd" required>
+                                    <select class="form-control" name="gearIDAdd" v-model="gearId" required>
                                         <option v-for="gear in gearsByType" :key="gear.id" :value="gear.id">
                                             {{ gear.nickname }}
                                         </option>
@@ -77,7 +84,7 @@
 
 
                 <!-- edit gear button -->
-                <a class="btn btn-link btn-lg" href="#" role="button" data-bs-toggle="modal" data-bs-target="#editGearActivityModal" v-if="activity.gear_id">
+                <a class="btn btn-link btn-lg" href="#" role="button" data-bs-toggle="modal" data-bs-target="#addGearToActivityModal" v-if="activity.gear_id">
                     <font-awesome-icon :icon="['far', 'fa-pen-to-square']" />
                 </a>
 
@@ -85,6 +92,32 @@
                 <a class="btn btn-link btn-lg" href="#" role="button" data-bs-toggle="modal" data-bs-target="#deleteGearActivityModal" v-if="activity.gear_id">
                     <font-awesome-icon :icon="['fas', 'fa-trash']" />
                 </a>
+
+                <!-- Modal delete gear -->
+                <div class="modal fade" id="deleteGearActivityModal" tabindex="-1" aria-labelledby="deleteGearActivityModal"
+                    aria-hidden="true">
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h1 class="modal-title fs-5" id="deleteGearActivityModal">
+                                    {{ $t("activity.modalLabelDeleteGear") }}
+                                </h1>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body">
+                                <span>{{ $t("activity.modalLabelDeleteGearBody") }}</span>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                                    {{ $t("generalItens.buttonClose") }}
+                                </button>
+                                <a @click="submitDeleteGearFromActivity" type="button" class="btn btn-danger" data-bs-dismiss="modal">
+                                    {{ $t("activity.modalLabelDeleteGearButton") }}
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -165,6 +198,7 @@
             const activity = ref(null);
             const gear = ref(null);
             const gearsByType = ref([]);
+            const gearId = ref(null);
             const activityActivityStreams = ref([]);
             const graphSelection = ref('hr');
             const graphItems = ref([
@@ -186,8 +220,31 @@
                 route.go(-1);
             }
 
-            function submitAddGearToActivityForm() {
+            async function submitAddGearToActivityForm() {
+                try {
+                    await activities.addGearToActivity(route.params.id, gearId.value);
+                    successMessage.value = t('activity.successMessageGearAdded');
+                    successAlertStore.setAlertMessage(successMessage.value);
+                    successAlertStore.setClosableState(true);
+                    gear.value = await gears.getGearById(gearId.value);
+                    activity.value.gear_id = gearId.value;
+                } catch (error) {
+                    errorMessage.value = t('generalItens.errorEditingInfo') + " - " + error.toString();
+                    errorAlertStore.setAlertMessage(errorMessage.value);
+                }
+            }
 
+            async function submitDeleteGearFromActivity() {
+                try {
+                    await activities.deleteGearFromActivity(route.params.id);
+                    successMessage.value = t('activity.successMessageGearDeleted');
+                    successAlertStore.setAlertMessage(successMessage.value);
+                    successAlertStore.setClosableState(true);
+                    activity.value.gear_id = null;
+                } catch (error) {
+                    errorMessage.value = t('generalItens.errorDeletingInfo') + " - " + error.toString();
+                    errorAlertStore.setAlertMessage(errorMessage.value);
+                }
             }
 
             onMounted(async () => {
@@ -198,6 +255,7 @@
                     }
                     if (activity.value.gear_id) {
                         gear.value = await gears.getGearById(activity.value.gear_id);
+                        gearId.value = activity.value.gear_id;
                     }
 
                     if (activity.value.activity_type == 1 || activity.value.activity_type == 2 || activity.value.activity_type == 3) {
@@ -237,12 +295,14 @@
                 isLoading,
                 activity,
                 gear,
+                gearId,
                 activityActivityStreams,
                 errorMessage,
                 successMessage,
                 goBack,
                 gearsByType,
                 submitAddGearToActivityForm,
+                submitDeleteGearFromActivity,
                 graphSelection,
                 graphItems,
                 selectGraph

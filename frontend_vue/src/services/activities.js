@@ -1,4 +1,4 @@
-import { fetchGetRequest, fetchPostFileRequest, fetchDeleteRequest } from '@/utils/serviceUtils';
+import { fetchGetRequest, fetchPostFileRequest, fetchDeleteRequest, fetchPutRequest } from '@/utils/serviceUtils';
 
 export const activities = {
     getUserThisWeekStats(user_id) {
@@ -24,6 +24,12 @@ export const activities = {
     },
     uploadActivityFile(formData) {
         return fetchPostFileRequest('activities/create/upload', formData);
+    },
+    addGearToActivity(activityId, gearId) {
+        return fetchPutRequest(`activities/${activityId}/addgear/${gearId}`);
+    },
+    deleteGearFromActivity(activityId) {
+        return fetchPutRequest(`activities/${activityId}/deletegear`);
     },
     deleteActivity(activityId) {
         return fetchDeleteRequest(`activities/${activityId}/delete`);
