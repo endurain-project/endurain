@@ -1,9 +1,11 @@
     <template>
         <!-- Error alerts -->
         <ErrorAlertComponent v-if="errorMessage"/>
+        <!-- <ErrorToastComponent v-if="errorMessage"/> -->
 
         <!-- Success alerts -->
         <SuccessAlertComponent v-if="successMessage"/>
+        <!-- <SuccessToastComponent v-if="successMessage"/> -->
 
         <LoadingComponent v-if="isLoading"/>
 
@@ -171,6 +173,8 @@
     import ErrorAlertComponent from '@/components/Alerts/ErrorAlertComponent.vue';
     import SuccessAlertComponent from '@/components/Alerts/SuccessAlertComponent.vue';
     import LoadingComponent from '@/components/LoadingComponent.vue';
+    import SuccessToastComponent from '@/components/Toasts/SuccessToastComponent.vue';
+    import ErrorToastComponent from '@/components/Toasts/ErrorToastComponent.vue';
     // Importing the services
     import { gears } from '@/services/gears';
     import { activities } from '@/services/activities';
@@ -185,6 +189,8 @@
             LoadingComponent,
             ErrorAlertComponent,
             SuccessAlertComponent,
+            SuccessToastComponent,
+            ErrorToastComponent,
         },
         setup (){
             const { t } = useI18n();
@@ -309,4 +315,4 @@
             };
         }
     };
-    </script>
+</script>

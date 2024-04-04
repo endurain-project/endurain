@@ -18,7 +18,7 @@
                 </div>
                 <div class="navbar-nav">
                     <span class="border-top d-sm-none d-block mb-2" v-if="isLoggedIn"></span>
-                    <a class="nav-link" href="#" v-if="isLoggedIn">
+                    <a class="nav-link" :href="`/user/${userMe.id}`" v-if="isLoggedIn">
                         <img :src="userMe.photo_path" alt="User Photo" width="24" height="24" class="rounded-circle align-top" v-if="userMe.photo_path">
                         <img src="/src/assets/avatar/male1.png" alt="Default Male Avatar" width="24" height="24" class="rounded-circle align-top" v-else-if="!userMe.photo_path && userMe.gender == 1">
                         <img src="/src/assets/avatar/female1.png" alt="Default Female Avatar" width="24" height="24" class="rounded-circle align-top" v-else>
