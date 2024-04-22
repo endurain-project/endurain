@@ -7,7 +7,7 @@
     "subtitle": "Sign-in bellow",
     "username": "Username",
     "password": "Password",
-    "neverExpires": "Remember sign in",
+    "neverExpires": "Remember me (do not tick this box if you are using a shared computer)",
     "signInButton": "Sign in",
     "signUpText": "Looking for signing up?",
     "signUpButton": "Sign up"

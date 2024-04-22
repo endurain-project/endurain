@@ -17,6 +17,7 @@ import enGearsView from './en/gears/gearsView.json';
 import enGearView from './en/gears/gearView.json';
 import enActivityView from './en/activityView.json';
 import enNotFoundView from './en/notFoundView.json';
+import enUserView from './en/userView.json';
 
 // Constructing the messages structure
 const messages = {
@@ -32,6 +33,7 @@ const messages = {
     gear: enGearView,
     activity: enActivityView,
     notFound: enNotFoundView,
+    user: enUserView,
   },
 };
 

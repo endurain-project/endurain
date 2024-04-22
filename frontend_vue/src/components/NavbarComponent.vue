@@ -1,7 +1,9 @@
 <template>
-    <nav class="navbar navbar-expand-lg bg-body-tertiary">
+    <nav class="navbar navbar-expand-lg bg-body-secondary">
         <div class="container-fluid">
-            <a class="navbar-brand" href="/">Endurain</a>
+            <router-link :to="{ name: 'home' }" class="navbar-brand">
+                Endurain
+            </router-link>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNavAltMarkup"
                 aria-controls="navbarNavAltMarkup" aria-expanded="false" aria-label="Toggle navigation">
                 <span class="navbar-toggler-icon"></span>
@@ -9,36 +11,36 @@
             <div class="collapse navbar-collapse" id="navbarNavAltMarkup">
                 <div class="navbar-nav me-auto mb-2 mb-lg-0">
                     <!-- if is logged in -->
-                    <a class="nav-link" :class="{ active: path === '/gears' }" href="/gears" v-if="isLoggedIn">
+                    <router-link :to="{ name: 'gears' }" class="nav-link" v-if="isLoggedIn">
                         <font-awesome-icon :icon="['fas', 'fa-bicycle']" />
                         <span class="ms-1">
                             {{ $t("navbar.gear") }}
                         </span>
-                    </a>
+                    </router-link>
                 </div>
                 <div class="navbar-nav">
                     <span class="border-top d-sm-none d-block mb-2" v-if="isLoggedIn"></span>
-                    <a class="nav-link" :href="`/user/${userMe.id}`" v-if="isLoggedIn">
+                    <router-link :to="{ name: 'user', params: { id: userMe.id } }" class="nav-link" v-if="isLoggedIn">
                         <img :src="userMe.photo_path" alt="User Photo" width="24" height="24" class="rounded-circle align-top" v-if="userMe.photo_path">
                         <img src="/src/assets/avatar/male1.png" alt="Default Male Avatar" width="24" height="24" class="rounded-circle align-top" v-else-if="!userMe.photo_path && userMe.gender == 1">
                         <img src="/src/assets/avatar/female1.png" alt="Default Female Avatar" width="24" height="24" class="rounded-circle align-top" v-else>
                         <span class="ms-2">{{ $t("navbar.profile") }}</span>
-                    </a>
+                    </router-link>
                     <span class="border-top d-sm-none d-block" v-if="isLoggedIn"></span>
                     <a class="nav-link d-none d-sm-block" v-if="isLoggedIn">|</a>
-                    <a class="nav-link" href="/settings" v-if="isLoggedIn">
+                    <router-link :to="{ name: 'settings' }" class="nav-link" v-if="isLoggedIn">
                         <font-awesome-icon :icon="['fas', 'fa-gear']" />
                         <span class="ms-1">{{ $t("navbar.settings") }}</span>
-                    </a>
+                    </router-link>
                     <a class="nav-link" href="#" v-if="isLoggedIn" @click="handleLogout">
                         <font-awesome-icon :icon="['fas', 'fa-sign-out-alt']" />
                         <span class="ms-1">{{ $t("navbar.logout") }}</span>
                     </a>
                     <!-- if is not logged in -->
-                    <a class="nav-link" href="/login" v-if="!isLoggedIn">
+                    <router-link :to="{ name: 'login' }" class="nav-link" v-if="!isLoggedIn">
                         <font-awesome-icon :icon="['fas', 'fa-sign-in-alt']" />
                         <span class="ms-1">{{ $t("navbar.login") }}</span>
-                    </a>
+                    </router-link>
                 </div>
             </div>
         </div>
@@ -65,6 +67,7 @@ export default {
         const route = useRoute();
         const path = ref(route.path);
         const isLoggedIn = ref(auth.isTokenValid(localStorage.getItem('accessToken')))
+        const userMe = ref(JSON.parse(localStorage.getItem('userMe')))
 
         function handleLogout() {
             auth.removeLoggedUser();
@@ -84,7 +87,7 @@ export default {
 
         return {
             isLoggedIn,
-            userMe: JSON.parse(localStorage.getItem('userMe')),
+            userMe,
             handleLogout,
             path,
         };

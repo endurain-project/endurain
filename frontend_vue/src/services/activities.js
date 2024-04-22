@@ -1,11 +1,17 @@
 import { fetchGetRequest, fetchPostFileRequest, fetchDeleteRequest, fetchPutRequest } from '@/utils/serviceUtils';
 
 export const activities = {
+    getUserWeekActivities(user_id, week_number) {
+        return fetchGetRequest(`activities/user/${user_id}/week/${week_number}`);
+    },
     getUserThisWeekStats(user_id) {
         return fetchGetRequest(`activities/user/${user_id}/thisweek/distances`);
     },
     getUserThisMonthStats(user_id) {
         return fetchGetRequest(`activities/user/${user_id}/thismonth/distances`);
+    },
+    getUserThisMonthActivitiesNumber(user_id) {
+        return fetchGetRequest(`activities/user/${user_id}/thismonth/number`);
     },
     getUserActivitiesByGearId(user_id, gear_id) {
         return fetchGetRequest(`activities/user/${user_id}/gear/${gear_id}`);
