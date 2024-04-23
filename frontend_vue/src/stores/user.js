@@ -1,22 +1,34 @@
 import { defineStore } from 'pinia';
 import { activities } from '@/services/activities';
 import { followers } from '@/services/followers';
+import { users } from '@/services/user';
 
 export const useUserStore = defineStore('user', {
     state: () => ({
-        userMe: JSON.parse(localStorage.getItem('userMe')) || {},
+        userMe: null,
         thisWeekDistances: null,
         thisMonthDistances: null,
         thisMonthNumberOfActivities: 0,
         userNumberOfActivities: 0,
         userActivities: [],
         followedUserActivities: [],
-        userFollowersAll: 0,
-        userFollowersAccepted: 0,
-        userFollowingAll: 0,
-        userFollowingAccepted: 0,
+        userFollowersCountAll: 0,
+        userFollowersAll: [],
+        userFollowersCountAccepted: 0,
+        //userFollowersAccepted: [],
+        userFollowingCountAll: 0,
+        userFollowingAll: [],
+        userFollowingCountAccepted: 0,
+        //userFollowingAccepted: [],
     }),
     actions: {
+        async fetchUserMe(user_id) {
+            try {
+                this.userMe = await users.getUserById(user_id);
+            } catch (error) {
+                console.error("Failed to fetch data:", error);
+            }
+        },
         /**
          * Fetches the user's statistics for this week and this month.
          * @async
@@ -117,6 +129,21 @@ export const useUserStore = defineStore('user', {
             }
         },
         /**
+         * Fetches all followers of the user.
+         * @async
+         * @function fetchUserFollowersAll
+         * @memberof module:stores/user
+         * @instance
+         * @throws {Error} If there is an error while fetching the data.
+         */
+        async fetchUserFollowersAll(){
+            try {
+                this.userFollowersAll = await followers.getUserFollowersAll(this.userMe.id);
+            } catch (error) {
+                console.error("Failed to fetch data:", error);
+            }
+        },
+        /**
          * Fetches the count of followers for the current user.
          * @async
          * @function fetchUserFollowersCountAll
@@ -126,7 +153,7 @@ export const useUserStore = defineStore('user', {
          */
         async fetchUserFollowersCountAll(){
             try {
-                this.userFollowersAll = await followers.getUserFollowersCountAll(this.userMe.id);
+                this.userFollowersCountAll = await followers.getUserFollowersCountAll(this.userMe.id);
             } catch (error) {
                 console.error("Failed to fetch data:", error);
             }
@@ -141,7 +168,21 @@ export const useUserStore = defineStore('user', {
          */
         async fetchUserFollowersCountAccepted(){
             try {
-                this.userFollowersAccepted = await followers.getUserFollowersCountAccepted(this.userMe.id);
+                this.userFollowersCountAccepted = await followers.getUserFollowersCountAccepted(this.userMe.id);
+            } catch (error) {
+                console.error("Failed to fetch data:", error);
+            }
+        },
+        /**
+         * Fetches all the users that the current user is following.
+         * @async
+         * @function fetchUserFollowingAll
+         * @memberof module:stores/user
+         * @throws {Error} If there is an error while fetching the data.
+         */
+        async fetchUserFollowingAll(){
+            try {
+                this.userFollowingAll = await followers.getUserFollowingAll(this.userMe.id);
             } catch (error) {
                 console.error("Failed to fetch data:", error);
             }
@@ -156,7 +197,7 @@ export const useUserStore = defineStore('user', {
          */
         async fetchUserFollowingCountAll(){
             try {
-                this.userFollowingAll = await followers.getUserFollowingCountAll(this.userMe.id);
+                this.userFollowingCountAll = await followers.getUserFollowingCountAll(this.userMe.id);
             } catch (error) {
                 console.error("Failed to fetch data:", error);
             }
@@ -171,7 +212,7 @@ export const useUserStore = defineStore('user', {
          */
         async fetchUserFollowingCountAccepted(){
             try {
-                this.userFollowingAccepted = await followers.getUserFollowingCountAccepted(this.userMe.id);
+                this.userFollowingCountAccepted = await followers.getUserFollowingCountAccepted(this.userMe.id);
             } catch (error) {
                 console.error("Failed to fetch data:", error);
             }

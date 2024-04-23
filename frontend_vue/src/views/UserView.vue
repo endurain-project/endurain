@@ -36,10 +36,9 @@
                 <h1>
                     {{ userThisMonthNumberOfActivities }}
                 </h1>
-                <hr class="mb-2 mt-2">
                 <div class="row align-items-center">
                     <div class="col">
-                        {{ userFollowersCountAccepted }}
+                        {{ userFollowingCountAccepted }}
                         <br>
                         <span class="fw-lighter">
                             {{ $t("user.userFollowing") }}
@@ -64,7 +63,10 @@
     </div>
 
     <!-- navigation -->
-    <ul class="nav nav-pills mb-3 justify-content-center" id="pills-tab" role="tablist">
+    <div v-if="isLoading">
+        <LoadingComponent />
+    </div>
+    <ul class="nav nav-pills mb-3 justify-content-center" id="pills-tab" role="tablist" v-else>
         <li class="nav-item" role="presentation">
             <button class="nav-link active" id="pills-activities-tab" data-bs-toggle="pill"
                 data-bs-target="#pills-activities" type="button" role="tab" aria-controls="pills-activities"
@@ -86,23 +88,42 @@
                 {{ $t("user.navigationFollowers") }}
             </button>
         </li>
-        <li class="nav-item" role="presentation" v-if="userMe.id == idFromParam">
+        <li class="nav-item" role="presentation" v-if="userMe.id == loggedUserId">
             <router-link :to="{ name: 'settings', query: { profileSettings: 1 }}" class="btn nav-link">
                 <font-awesome-icon :icon="['fas', 'fa-gear']" />
                 {{ $t("user.navigationUserSettings") }}
             </router-link>
         </li>
+        <li class="nav-item" role="presentation" v-if="userMe.id != loggedUserId && userFollowState == null">
+            <a class="btn btn-outline-success h-100 ms-2" href="#" role="button" data-bs-toggle="modal"
+                data-bs-target="#followUserModal">
+                <font-awesome-icon :icon="['fas', 'fa-user-plus']" />
+                {{ $t("user.navigationFollow") }}
+            </a>
+        </li>
+        <li class="nav-item" role="presentation" v-if="userMe.id != loggedUserId && userFollowState != null && !userFollowState.is_accepted">
+            <a class="btn btn-outline-secondary h-100 ms-2" href="#" role="button" data-bs-toggle="modal"
+                data-bs-target="#cancelFollowUserModal">
+                <font-awesome-icon :icon="['fas', 'fa-user-plus']" />
+                {{ $t("user.navigationRequestSent") }}
+            </a>
+        </li>
+        <li class="nav-item" role="presentation" v-if="userMe.id != loggedUserId && userFollowState != null && userFollowState.is_accepted">
+            <a class="btn btn-outline-danger h-100 ms-2" href="#" role="button" data-bs-toggle="modal"
+                data-bs-target="#unfollowUserModal">
+                <font-awesome-icon :icon="['fas', 'fa-user-minus']" />
+                {{ $t("user.navigationUnfollow") }}
+            </a>
+        </li>
     </ul>
 
     <div class="tab-content" id="pills-tabContent">
+        <!-- activities tab content -->
         <div class="tab-pane fade show active" id="pills-activities" role="tabpanel" aria-labelledby="pills-activities-tab" tabindex="0">
             <!-- pagination -->
             <nav>
                 <ul class="pagination justify-content-center">
                     <li :class="['page-item', { active: week === 0 }]" >
-                        <!--<router-link :to="{ name: 'user', params: {id: idFromParam}, query: { week: 0 }}" class="page-link">
-                            This week
-                        </router-link>-->
                         <a href="#" class="page-link" @click="setWeek(0, $event)">
                             {{ $t("user.activitiesPaginationWeek0") }}
                         </a>
@@ -111,9 +132,6 @@
                         <a class="page-link">...</a>
                     </li>
                     <li v-for="i in visibleWeeks" :key="i" :class="['page-item', { active: i === week }]" >
-                        <!--<router-link :to="{ name: 'user', params: {id: idFromParam}, query: { week: i }}" class="page-link">
-                            {{ formatDateRange(i) }}
-                        </router-link>-->
                         <a href="#" class="page-link" @click="setWeek(i, $event)">
                             {{ formatDateRange(i) }}
                         </a>
@@ -148,6 +166,24 @@
                 <NoItemsFoundComponent v-else />
             </div>
         </div>
+
+        <!-- following tab content -->
+        <div class="tab-pane fade" id="pills-following" role="tabpanel" aria-labelledby="pills-following-tab" tabindex="0">
+            <div v-if="isLoading">
+                <LoadingComponent />
+            </div>
+            <div v-else>
+                <div v-if="userFollowersAll && userFollowersAll.length">
+                    <ul class="list-group list-group-flush align-items-center">
+                        <div class="card mb-3" v-for="follower in userFollowersAll" :key="follower.following_id">
+                            <FollowersListComponent :follower="follower"/>
+                        </div>
+                    </ul>
+                </div>
+                <!-- Displaying a message or component when there are no following users -->
+                <NoItemsFoundComponent v-else />
+            </div>
+        </div>
     </div>
 
     <!-- back button -->
@@ -163,6 +199,7 @@ import { useRoute } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { useUserStore } from '@/stores/user';
 import { activities } from '@/services/activities';
+import { followers } from '@/services/followers';
 // Importing the stores
 import { useErrorAlertStore } from '@/stores/Alerts/errorAlert';
 // Importing the components
@@ -172,6 +209,7 @@ import NoItemsFoundComponent from '@/components/NoItemsFoundComponents.vue';
 import ActivitySummaryComponent from '@/components/Activities/ActivitySummaryComponent.vue';
 import ActivityMapComponent from '@/components/Activities/ActivityMapComponent.vue';
 import ErrorAlertComponent from '@/components/Alerts/ErrorAlertComponent.vue';
+import FollowersListComponent from '@/components/Followers/FollowersListComponent.vue';
 
 export default {
     components: {
@@ -181,16 +219,20 @@ export default {
         ActivitySummaryComponent,
         ActivityMapComponent,
         ErrorAlertComponent,
+        FollowersListComponent,
     },
     setup () {
         const idFromParam = computed(() => route.params.id);
         const userStore = useUserStore();
         const errorAlertStore = useErrorAlertStore();
         const route = useRoute();
+        const loggedUserId = JSON.parse(localStorage.getItem('userMe')).id;
         const userMe = computed(() => userStore.userMe);
         const userThisMonthNumberOfActivities = computed(() => userStore.thisMonthNumberOfActivities);
-        const userFollowersCountAccepted = computed(() => userStore.userFollowersAccepted);
-        const userFollowingCountAccepted = computed(() => userStore.userFollowingAccepted);
+        const userFollowersCountAccepted = computed(() => userStore.userFollowingCountAccepted);
+        const userFollowingCountAccepted = computed(() => userStore.userFollowersCountAccepted);
+        const userFollowersAll = computed(() => userStore.userFollowingAll);
+        const userFollowingAll = computed(() => userStore.userFollowersAll);
         const isLoading = ref(true);
         const isActivitiesLoading = ref(true);
         const { t } = useI18n();
@@ -204,15 +246,23 @@ export default {
         });
         const userWeekActivities = ref([]);
         const errorMessage = ref('');
+        const userFollowState = ref(null);
 
         onMounted(async () => {
             try {
                 // Fetch the user stats
+                await userStore.fetchUserMe(route.params.id);
                 await userStore.fetchUserStats();
                 await userStore.fetchUserThisMonthActivitiesNumber();
                 await userStore.fetchUserFollowersCountAccepted();
                 await userStore.fetchUserFollowingCountAccepted();
+                await userStore.fetchUserFollowersAll();
+                await userStore.fetchUserFollowingAll();
                 userWeekActivities.value = activities.getUserWeekActivities(userMe.value.id, week.value);
+                if (userMe.value.id != loggedUserId) {
+                    userFollowState.value = await followers.getUserFollowState(loggedUserId, userMe.value.id);
+                }
+                console.log(userFollowersAll.value, userFollowingAll.value);
             } catch (error) {
                 // Set the error message
                 errorMessage.value = t('generalItens.errorFetchingInfo') + " - " + error.toString();
@@ -263,6 +313,7 @@ export default {
             idFromParam,
             isLoading,
             isActivitiesLoading,
+            loggedUserId,
             userMe,
             userThisMonthNumberOfActivities,
             userFollowersCountAccepted,
@@ -274,7 +325,10 @@ export default {
             setWeek,
             visibleWeeks,
             userWeekActivities,
-            errorMessage
+            errorMessage,
+            userFollowState,
+            userFollowersAll,
+            userFollowingAll
         };
     },
 };  

@@ -5,15 +5,20 @@
       <div class="col-lg-3 col-md-12">
         <div class="d-none d-lg-block mt-3 mb-3 d-flex justify-content-center">
           <!-- user name and photo zone -->
-          <div class="justify-content-center d-flex">
-            <img :src="userMe.photo_path" alt="User Photo" width="120" height="120" class="rounded-circle" v-if="userMe.photo_path">
-            <img src="/src/assets/avatar/male1.png" alt="Default Male Avatar" width="120" height="120" class="rounded-circle" v-else-if="!userMe.photo_path && userMe.gender == 1">
-            <img src="/src/assets/avatar/female1.png" alt="Default Female Avatar" width="120" height="120" class="rounded-circle" v-else>
+          <div v-if="isLoading">
+            <LoadingComponent />
           </div>
-          <div class="text-center mt-3 mb-3 fw-bold">
-            <router-link :to="{ name: 'user', params: { id: userMe.id }}" class="link-underline-opacity-25 link-underline-opacity-100-hover">
-                {{ userMe.name}}
-            </router-link>
+          <div v-else>
+            <div class="justify-content-center d-flex">
+              <img :src="userMe.photo_path" alt="User Photo" width="120" height="120" class="rounded-circle" v-if="userMe.photo_path">
+              <img src="/src/assets/avatar/male1.png" alt="Default Male Avatar" width="120" height="120" class="rounded-circle" v-else-if="!userMe.photo_path && userMe.gender == 1">
+              <img src="/src/assets/avatar/female1.png" alt="Default Female Avatar" width="120" height="120" class="rounded-circle" v-else>
+            </div>
+            <div class="text-center mt-3 mb-3 fw-bold">
+              <router-link :to="{ name: 'user', params: { id: userMe.id }}" class="link-underline-opacity-25 link-underline-opacity-100-hover">
+                  {{ userMe.name}}
+              </router-link>
+            </div>
           </div>
           <!-- user stats zone -->
           <div v-if="isLoading">
@@ -266,6 +271,7 @@ export default {
       window.addEventListener('scroll', handleScroll);
 
       try {
+        await userStore.fetchUserMe(JSON.parse(localStorage.getItem('userMe')).id);
         // Fetch the user stats
         await userStore.fetchUserStats();
         // Fetch the user activities and user activities number

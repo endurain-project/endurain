@@ -1,5 +1,5 @@
 <template>
-    <div>
+    <div class="mb-3 mt-3">
         <span class="fw-lighter">{{ $t("userDistanceStats.thisWeekDistancesTitle") }}</span>
         <div class="row mb-3">
             <div class="col">

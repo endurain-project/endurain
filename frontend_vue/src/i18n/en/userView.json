@@ -6,6 +6,9 @@
     "navigationFollowing": "Following",
     "navigationFollowers": "Followers",
     "navigationUserSettings": "User settings",
+    "navigationFollow": "Follow",
+    "navigationRequestSent": "Request sent",
+    "navigationUnfollow": "Unfollow",
     "activitiesPaginationWeek0": "This week",
     "activitiesPaginationWeek51": "One year ago"
 }
