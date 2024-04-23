@@ -144,25 +144,30 @@
         </div>
         
         <div class="col">
-            <hr class="mb-2 mt-2 d-sm-none d-block">
-            <div class="hstack align-items-baseline">
-                <h5>
-                    {{ $t("gear.title") }}
-                </h5>
-                <h6 class="ms-1">
-                    {{ $t("gear.subtitle") }}
-                </h6>
+            <div v-if="isLoading">
+                <LoadingComponent />
             </div>
-            <NoItemsFoundComponent v-if="!gearActivities || (gearActivities && gearActivities.length == 0)"/>
             <div v-else>
-                <ul class="list-group list-group-flush" v-for="activity in gearActivities" :key="activity.id" :activity="activity">
-                    <li class="vstack list-group-item d-flex justify-content-between">
-                        <router-link :to="{ name: 'activity', params: { id: activity.id }}">
-                            {{ activity.name}}
-                        </router-link>
-                        <span><strong>{{ $t("gear.labelDate") }}:</strong> {{ formatDate(activity.start_time) }} @ {{ formatTime(activity.start_time) }}</span>
-                    </li>
-                </ul>
+                <hr class="mb-2 mt-2 d-sm-none d-block">
+                <div class="hstack align-items-baseline">
+                    <h5>
+                        {{ $t("gear.title") }}
+                    </h5>
+                    <h6 class="ms-1">
+                        {{ $t("gear.subtitle") }}
+                    </h6>
+                </div>
+                <NoItemsFoundComponent v-if="!gearActivities || (gearActivities && gearActivities.length == 0)"/>
+                <div v-else>
+                    <ul class="list-group list-group-flush" v-for="activity in gearActivities" :key="activity.id" :activity="activity">
+                        <li class="vstack list-group-item d-flex justify-content-between">
+                            <router-link :to="{ name: 'activity', params: { id: activity.id }}">
+                                {{ activity.name}}
+                            </router-link>
+                            <span><strong>{{ $t("gear.labelDate") }}:</strong> {{ formatDate(activity.start_time) }} @ {{ formatTime(activity.start_time) }}</span>
+                        </li>
+                    </ul>
+                </div>
             </div>
         </div>
 
