@@ -6,6 +6,8 @@ import enNavbarComponent from './en/components/navbarComponent.json';
 // Activities component
 import enUserDistanceStatsComponent from './en/components/activities/userDistanceStatsComponent.json';
 import enActivitySummaryComponent from './en/components/activities/activitySummaryComponent.json';
+// Followers component
+import enFollowersListComponent from './en/components/followers/followersListComponent.json';
 // General components
 import enNoItemsFoundComponent from './en/components/noItemsFoundComponent.json';
 // General translations
@@ -25,6 +27,7 @@ const messages = {
     navbar: enNavbarComponent,
     userDistanceStats: enUserDistanceStatsComponent,
     activitySummary: enActivitySummaryComponent,
+    followersListComponent: enFollowersListComponent,
     noItemsFoundComponent: enNoItemsFoundComponent,
     generalItens: enGeneralItens,
     home: enHomeView,

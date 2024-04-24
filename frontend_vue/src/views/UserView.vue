@@ -172,29 +172,39 @@
             <div v-if="isLoading">
                 <LoadingComponent />
             </div>
-            <div v-else>
-                <div v-if="userFollowersAll && userFollowersAll.length">
-                    <ul class="list-group list-group-flush align-items-center">
-                        <div class="card mb-3" v-for="follower in userFollowersAll" :key="follower.following_id">
-                            <FollowersListComponent :follower="follower"/>
-                        </div>
-                    </ul>
-                </div>
-                <!-- Displaying a message or component when there are no following users -->
-                <NoItemsFoundComponent v-else />
+            <ul class="list-group list-group-flush align-items-center" v-if="!isLoading && userFollowersAll && userFollowersAll.length">
+                <li class="list-group-item d-flex justify-content-between" v-for="follower in userFollowersAll" :key="follower.following_id">
+                    <FollowersListComponent :follower="follower" :type="1"/>
+                </li>
+            </ul>
+            <!-- Displaying a message or component when there are no following users -->
+            <NoItemsFoundComponent v-else />
+        </div>
+
+        <!-- followers tab content -->
+        <div class="tab-pane fade" id="pills-followers" role="tabpanel" aria-labelledby="pills-followers-tab" tabindex="0">
+            <div v-if="isLoading">
+                <LoadingComponent />
             </div>
+            <ul class="list-group list-group-flush align-items-center" v-if="!isLoading && userFollowersAll && userFollowersAll.length">
+                <li class="list-group-item d-flex justify-content-between" v-for="follower in userFollowingAll" :key="follower.following_id">
+                    <FollowersListComponent :follower="follower" :type="2"/>
+                </li>
+            </ul>
+            <!-- Displaying a message or component when there are no following users -->
+            <NoItemsFoundComponent v-else />
         </div>
     </div>
 
     <!-- back button -->
     <div>
-        <br>
+        <br class="d-lg-none">
         <button @click="goBack" type="button" class="w-100 btn btn-primary d-lg-none">{{ $t("generalItens.buttonBack") }}</button>
     </div>
 </template>
 
 <script>
-import { ref, onMounted, computed, watchEffect, watch } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import { useRoute } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { useUserStore } from '@/stores/user';
@@ -262,7 +272,6 @@ export default {
                 if (userMe.value.id != loggedUserId) {
                     userFollowState.value = await followers.getUserFollowState(loggedUserId, userMe.value.id);
                 }
-                console.log(userFollowersAll.value, userFollowingAll.value);
             } catch (error) {
                 // Set the error message
                 errorMessage.value = t('generalItens.errorFetchingInfo') + " - " + error.toString();

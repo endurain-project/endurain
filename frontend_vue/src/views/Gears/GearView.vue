@@ -174,7 +174,7 @@
     </div>
 
     <div>
-        <br>
+        <br class="d-lg-none">
         <button @click="goBack" type="button" class="w-100 btn btn-primary d-lg-none">{{ $t("generalItens.buttonBack") }}</button>
     </div>
 </template>
