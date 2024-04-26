@@ -27,11 +27,11 @@
         <!-- delete following zone  -->
         <a class="ms-2 btn btn-link btn-lg" href="#" role="button" data-bs-toggle="modal" :data-bs-target="`#deleteFollowingModal${userFollower.id}`" v-if="typeProp == 1 && loggedUserId == idFromParam"><font-awesome-icon :icon="['fas', 'fa-trash']" /></a>
         
-        <div class="modal fade" :id="`deleteFollowingModal${userFollower.id}`" tabindex="-1" :aria-labelledby="`deleteFollowingModal${userFollower.id}`" aria-hidden="true">
+        <div class="modal fade" :id="`deleteFollowingModal${userFollower.id}`" tabindex="-1" :aria-labelledby="`deleteFollowingModal${userFollower.id}`" aria-hidden="true" v-if="typeProp == 1 && loggedUserId == idFromParam">
             <div class="modal-dialog">
                 <div class="modal-content">
                     <div class="modal-header">
-                        <h1 class="modal-title fs-5" :id="`deleteFollowingModal${userFollower.id}`">
+                        <h1 class="modal-title fs-5">
                             {{ $t("followersListComponent.followingModalTitle") }}
                         </h1>
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -57,11 +57,11 @@
         <a class="ms-2 btn btn-link btn-lg" href="#" role="button" data-bs-toggle="modal" :data-bs-target="`#deleteFollowerModal${userFollower.id}`" v-if="typeProp != 1 && loggedUserId == idFromParam && followerProp.is_accepted == 1"><font-awesome-icon :icon="['fas', 'fa-trash']" /></a>
 
         <!-- Modal delete follower -->
-        <div class="modal fade" :id="`deleteFollowerModal${userFollower.id}`" tabindex="-1" :aria-labelledby="`deleteFollowerModal${userFollower.id}`" aria-hidden="true">
+        <div class="modal fade" :id="`deleteFollowerModal${userFollower.id}`" tabindex="-1" :aria-labelledby="`deleteFollowerModal${userFollower.id}`" aria-hidden="true" v-if="typeProp != 1 && loggedUserId == idFromParam && followerProp.is_accepted == 1">
             <div class="modal-dialog">
                 <div class="modal-content">
                     <div class="modal-header">
-                        <h1 class="modal-title fs-5" :id="`deleteFollowerModal${userFollower.id}`">
+                        <h1 class="modal-title fs-5">
                             {{ $t("followersListComponent.followerModalTitle") }}
                         </h1>
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -87,11 +87,11 @@
         <a class="btn btn-link btn-lg" href="#" role="button" data-bs-toggle="modal" :data-bs-target="`#acceptRequestModal${userFollower.id}`" v-if="typeProp != 1 && loggedUserId == idFromParam && followerProp.is_accepted == 0"><font-awesome-icon :icon="['fas', 'fa-check']" /></a>
 
         <!-- Modal accept user request -->
-        <div class="modal fade" :id="`acceptRequestModal${userFollower.id}`" tabindex="-1" :aria-labelledby="`acceptRequestModal${userFollower.id}`" aria-hidden="true">
+        <div class="modal fade" :id="`acceptRequestModal${userFollower.id}`" tabindex="-1" :aria-labelledby="`acceptRequestModal${userFollower.id}`" aria-hidden="true" v-if="typeProp != 1 && loggedUserId == idFromParam && followerProp.is_accepted == 0">
             <div class="modal-dialog">
                 <div class="modal-content">
                     <div class="modal-header">
-                        <h1 class="modal-title fs-5" :id="`acceptRequestModal${userFollower.id}`">
+                        <h1 class="modal-title fs-5">
                             {{ $t("followersListComponent.followerAcceptModalTitle") }}
                         </h1>
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -113,9 +113,35 @@
             </div>
         </div>
 
-
         <!-- decline user request button -->
         <a class="ms-2 btn btn-link btn-lg" href="#" role="button" data-bs-toggle="modal" :data-bs-target="`#declineRequestModal${userFollower.id}`" v-if="typeProp != 1 && loggedUserId == idFromParam && followerProp.is_accepted == 0"><font-awesome-icon :icon="['fas', 'fa-x']" /></a>
+
+        <!-- Modal decline user request -->
+        <div class="modal fade" :id="`declineRequestModal${userFollower.id}`" tabindex="-1" :aria-labelledby="`declineRequestModal${userFollower.id}`" aria-hidden="true" v-if="typeProp != 1 && loggedUserId == idFromParam && followerProp.is_accepted == 0">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h1 class="modal-title fs-5">
+                            {{ $t("followersListComponent.followerDeclineModalTitle") }}
+                        </h1>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        {{ $t("followersListComponent.followerDeclineModalBody") }}<b>
+                            {{ userFollower.name }}
+                        </b>?
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                            {{ $t("generalItens.buttonClose") }}
+                        </button>
+                        <a @click="submitDeclineFollowerRequest" type="button" class="btn btn-danger" data-bs-dismiss="modal">
+                            {{ $t("followersListComponent.followerDeclineModalTitle") }}
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 </template>
 
