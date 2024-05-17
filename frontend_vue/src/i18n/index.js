@@ -1,8 +1,9 @@
 import { createI18n } from 'vue-i18n';
 
 // Importing translations
-// Navbar component
+// Navbar and footer components
 import enNavbarComponent from './en/components/navbarComponent.json';
+import enFooterComponent from './en/components/footerComponent.json';
 // Activities component
 import enUserDistanceStatsComponent from './en/components/activities/userDistanceStatsComponent.json';
 import enActivitySummaryComponent from './en/components/activities/activitySummaryComponent.json';
@@ -25,6 +26,7 @@ import enUserView from './en/userView.json';
 const messages = {
   en: {
     navbar: enNavbarComponent,
+    footer: enFooterComponent,
     userDistanceStats: enUserDistanceStatsComponent,
     activitySummary: enActivitySummaryComponent,
     followersListComponent: enFollowersListComponent,

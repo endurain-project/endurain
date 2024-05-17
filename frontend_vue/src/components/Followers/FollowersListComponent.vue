@@ -8,12 +8,12 @@
         <img src="/src/assets/avatar/female1.png" alt="Default Female Avatar" width="55" height="55" class="rounded-circle" v-else>
         <div class="ms-3">
             <div class="fw-bold">
-                <!--<router-link :to="{ name: 'user', params: { id: userFollower.id }}">
+                <router-link :to="{ name: 'user', params: { id: userFollower.id }}" class="link-body-emphasis link-underline-opacity-0 link-underline-opacity-100-hover">
                     {{ userFollower.name }}
-                </router-link>-->
-                <a :href="`/user/${userFollower.id}`">
+                </router-link>
+                <!--<a :href="`/user/${userFollower.id}`" class="link-body-emphasis link-underline-opacity-0 link-underline-opacity-100-hover">
                     {{ userFollower.name }}
-                </a>
+                </a>-->
             </div>
             {{ userFollower.username }}
         </div>
@@ -25,7 +25,7 @@
         <span class="badge bg-danger-subtle border border-danger-subtle text-danger-emphasis rounded-pill align-middle" v-else>{{ $t("followersListComponent.requestPending") }}</span>
             
         <!-- delete following zone  -->
-        <a class="ms-2 btn btn-link btn-lg" href="#" role="button" data-bs-toggle="modal" :data-bs-target="`#deleteFollowingModal${userFollower.id}`" v-if="typeProp == 1 && loggedUserId == idFromParam"><font-awesome-icon :icon="['fas', 'fa-trash']" /></a>
+        <a class="ms-2 btn btn-link btn-lg link-body-emphasis" href="#" role="button" data-bs-toggle="modal" :data-bs-target="`#deleteFollowingModal${userFollower.id}`" v-if="typeProp == 1 && loggedUserId == idFromParam"><font-awesome-icon :icon="['fas', 'fa-trash']" /></a>
         
         <div class="modal fade" :id="`deleteFollowingModal${userFollower.id}`" tabindex="-1" :aria-labelledby="`deleteFollowingModal${userFollower.id}`" aria-hidden="true" v-if="typeProp == 1 && loggedUserId == idFromParam">
             <div class="modal-dialog">
@@ -54,7 +54,7 @@
         </div>
 
         <!-- delete follower zone  -->
-        <a class="ms-2 btn btn-link btn-lg" href="#" role="button" data-bs-toggle="modal" :data-bs-target="`#deleteFollowerModal${userFollower.id}`" v-if="typeProp != 1 && loggedUserId == idFromParam && followerProp.is_accepted == 1"><font-awesome-icon :icon="['fas', 'fa-trash']" /></a>
+        <a class="ms-2 btn btn-link btn-lg link-body-emphasis" href="#" role="button" data-bs-toggle="modal" :data-bs-target="`#deleteFollowerModal${userFollower.id}`" v-if="typeProp != 1 && loggedUserId == idFromParam && followerProp.is_accepted == 1"><font-awesome-icon :icon="['fas', 'fa-trash']" /></a>
 
         <!-- Modal delete follower -->
         <div class="modal fade" :id="`deleteFollowerModal${userFollower.id}`" tabindex="-1" :aria-labelledby="`deleteFollowerModal${userFollower.id}`" aria-hidden="true" v-if="typeProp != 1 && loggedUserId == idFromParam && followerProp.is_accepted == 1">
@@ -84,7 +84,7 @@
         </div>
 
         <!-- accept folllower request -->
-        <a class="btn btn-link btn-lg" href="#" role="button" data-bs-toggle="modal" :data-bs-target="`#acceptRequestModal${userFollower.id}`" v-if="typeProp != 1 && loggedUserId == idFromParam && followerProp.is_accepted == 0"><font-awesome-icon :icon="['fas', 'fa-check']" /></a>
+        <a class="btn btn-link btn-lg link-body-emphasis" href="#" role="button" data-bs-toggle="modal" :data-bs-target="`#acceptRequestModal${userFollower.id}`" v-if="typeProp != 1 && loggedUserId == idFromParam && followerProp.is_accepted == 0"><font-awesome-icon :icon="['fas', 'fa-check']" /></a>
 
         <!-- Modal accept user request -->
         <div class="modal fade" :id="`acceptRequestModal${userFollower.id}`" tabindex="-1" :aria-labelledby="`acceptRequestModal${userFollower.id}`" aria-hidden="true" v-if="typeProp != 1 && loggedUserId == idFromParam && followerProp.is_accepted == 0">
@@ -114,7 +114,7 @@
         </div>
 
         <!-- decline user request button -->
-        <a class="ms-2 btn btn-link btn-lg" href="#" role="button" data-bs-toggle="modal" :data-bs-target="`#declineRequestModal${userFollower.id}`" v-if="typeProp != 1 && loggedUserId == idFromParam && followerProp.is_accepted == 0"><font-awesome-icon :icon="['fas', 'fa-x']" /></a>
+        <a class="ms-2 btn btn-link btn-lg link-body-emphasis" href="#" role="button" data-bs-toggle="modal" :data-bs-target="`#declineRequestModal${userFollower.id}`" v-if="typeProp != 1 && loggedUserId == idFromParam && followerProp.is_accepted == 0"><font-awesome-icon :icon="['fas', 'fa-x']" /></a>
 
         <!-- Modal decline user request -->
         <div class="modal fade" :id="`declineRequestModal${userFollower.id}`" tabindex="-1" :aria-labelledby="`declineRequestModal${userFollower.id}`" aria-hidden="true" v-if="typeProp != 1 && loggedUserId == idFromParam && followerProp.is_accepted == 0">

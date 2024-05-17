@@ -80,7 +80,7 @@
                                 <img src="/src/assets/avatar/wetsuit1.png" alt="Bycicle avatar" width="55" height="55" v-else>
                                 <div class="ms-3">
                                     <div class="fw-bold">
-                                        <router-link :to="{ name: 'gear', params: { id: gear.id }}" class="link-underline-opacity-25 link-underline-opacity-100-hover">
+                                        <router-link :to="{ name: 'gear', params: { id: gear.id }}" class="link-body-emphasis link-underline-opacity-0 link-underline-opacity-100-hover">
                                             {{ gear.nickname }}
                                         </router-link>
                                     </div>

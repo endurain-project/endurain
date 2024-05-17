@@ -6,7 +6,7 @@
 
 <template>
   <NavbarComponent />
-  <main class="container mt-4 mb-4">
+  <main class="container py-4 bg-body">
     <RouterView />
   </main>
   <FooterComponent />

@@ -161,7 +161,7 @@
                 <div v-else>
                     <ul class="list-group list-group-flush" v-for="activity in gearActivities" :key="activity.id" :activity="activity">
                         <li class="vstack list-group-item d-flex justify-content-between">
-                            <router-link :to="{ name: 'activity', params: { id: activity.id }}">
+                            <router-link :to="{ name: 'activity', params: { id: activity.id }}" class="link-body-emphasis link-underline-opacity-0 link-underline-opacity-100-hover">
                                 {{ activity.name}}
                             </router-link>
                             <span><strong>{{ $t("gear.labelDate") }}:</strong> {{ formatDate(activity.start_time) }} @ {{ formatTime(activity.start_time) }}</span>

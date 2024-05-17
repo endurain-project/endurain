@@ -15,7 +15,7 @@
               <img src="/src/assets/avatar/female1.png" alt="Default Female Avatar" width="120" height="120" class="rounded-circle" v-else>
             </div>
             <div class="text-center mt-3 mb-3 fw-bold">
-              <router-link :to="{ name: 'user', params: { id: userMe.id }}" class="link-underline-opacity-25 link-underline-opacity-100-hover">
+              <router-link :to="{ name: 'user', params: { id: userMe.id }}" class="link-body-emphasis link-underline-opacity-0 link-underline-opacity-100-hover">
                   {{ userMe.name}}
               </router-link>
             </div>

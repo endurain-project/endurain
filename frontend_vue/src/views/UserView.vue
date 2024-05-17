@@ -68,28 +68,28 @@
     </div>
     <ul class="nav nav-pills mb-3 justify-content-center" id="pills-tab" role="tablist" v-else>
         <li class="nav-item" role="presentation">
-            <button class="nav-link active" id="pills-activities-tab" data-bs-toggle="pill"
+            <button class="nav-link active link-body-emphasis" id="pills-activities-tab" data-bs-toggle="pill"
                 data-bs-target="#pills-activities" type="button" role="tab" aria-controls="pills-activities"
                 aria-selected="true">
                 {{ $t("user.navigationActivities") }}
             </button>
         </li>
         <li class="nav-item" role="presentation">
-            <button class="nav-link" id="pills-following-tab" data-bs-toggle="pill"
+            <button class="nav-link link-body-emphasis" id="pills-following-tab" data-bs-toggle="pill"
                 data-bs-target="#pills-following" type="button" role="tab" aria-controls="pills-following"
                 aria-selected="false">
                 {{ $t("user.navigationFollowing") }}
             </button>
         </li>
         <li class="nav-item" role="presentation">
-            <button class="nav-link" id="pills-followers-tab" data-bs-toggle="pill"
+            <button class="nav-link link-body-emphasis" id="pills-followers-tab" data-bs-toggle="pill"
                 data-bs-target="#pills-followers" type="button" role="tab" aria-controls="pills-followers"
                 aria-selected="false">
                 {{ $t("user.navigationFollowers") }}
             </button>
         </li>
         <li class="nav-item" role="presentation" v-if="userMe.id == loggedUserId">
-            <router-link :to="{ name: 'settings', query: { profileSettings: 1 }}" class="btn nav-link">
+            <router-link :to="{ name: 'settings', query: { profileSettings: 1 }}" class="btn nav-link link-body-emphasis">
                 <font-awesome-icon :icon="['fas', 'fa-gear']" />
                 {{ $t("user.navigationUserSettings") }}
             </router-link>
@@ -117,14 +117,17 @@
         </li>
     </ul>
 
-    <div class="tab-content" id="pills-tabContent">
+    <div v-if="isLoading">
+        <LoadingComponent />
+    </div>
+    <div class="tab-content" id="pills-tabContent" v-else>
         <!-- activities tab content -->
         <div class="tab-pane fade show active" id="pills-activities" role="tabpanel" aria-labelledby="pills-activities-tab" tabindex="0">
             <!-- pagination -->
             <nav>
                 <ul class="pagination justify-content-center">
                     <li :class="['page-item', { active: week === 0 }]" >
-                        <a href="#" class="page-link" @click="setWeek(0, $event)">
+                        <a href="#" class="page-link link-body-emphasis" @click="setWeek(0, $event)">
                             {{ $t("user.activitiesPaginationWeek0") }}
                         </a>
                     </li>
@@ -132,7 +135,7 @@
                         <a class="page-link">...</a>
                     </li>
                     <li v-for="i in visibleWeeks" :key="i" :class="['page-item', { active: i === week }]" >
-                        <a href="#" class="page-link" @click="setWeek(i, $event)">
+                        <a href="#" class="page-link link-body-emphasis" @click="setWeek(i, $event)">
                             {{ formatDateRange(i) }}
                         </a>
                     </li>
@@ -140,39 +143,30 @@
                         <a class="page-link">...</a>
                     </li>
                     <li :class="['page-item', { active: week === 51 }]" >
-                        <a href="#" class="page-link" @click="setWeek(51, $event)">
+                        <a href="#" class="page-link link-body-emphasis" @click="setWeek(51, $event)">
                             {{ $t("user.activitiesPaginationWeek51") }}
                         </a>
                     </li>
                 </ul>
             </nav>
 
-            <!-- activities -->
-            <div v-if="isActivitiesLoading">
-                <LoadingComponent />
-            </div>
-            <div v-else>
-                <!-- Checking if userWeekActivities is loaded and has length -->
-                <div v-if="userWeekActivities && userWeekActivities.length">
-                <!-- Iterating over userWeekActivities to display them -->
-                    <div class="card mb-3" v-for="activity in userWeekActivities" :key="activity.id">
-                        <div class="card-body">
-                            <ActivitySummaryComponent :activity="activity" :source="'home'"/>
-                        </div>
-                        <ActivityMapComponent class="mx-3 mb-3" :activity="activity" :source="'home'"/>
+            <!-- Checking if userWeekActivities is loaded and has length -->
+            <div v-if="userWeekActivities && userWeekActivities.length">
+            <!-- Iterating over userWeekActivities to display them -->
+                <div class="card mb-3" v-for="activity in userWeekActivities" :key="activity.id">
+                    <div class="card-body">
+                        <ActivitySummaryComponent :activity="activity" :source="'home'"/>
                     </div>
+                    <ActivityMapComponent class="mx-3 mb-3" :activity="activity" :source="'home'"/>
                 </div>
-                <!-- Displaying a message or component when there are no activities -->
-                <NoItemsFoundComponent v-else />
             </div>
+            <!-- Displaying a message or component when there are no activities -->
+            <NoItemsFoundComponent v-else />
         </div>
 
         <!-- following tab content -->
         <div class="tab-pane fade" id="pills-following" role="tabpanel" aria-labelledby="pills-following-tab" tabindex="0">
-            <div v-if="isLoading">
-                <LoadingComponent />
-            </div>
-            <ul class="list-group list-group-flush align-items-center" v-if="!isLoading && userFollowersAll && userFollowersAll.length">
+            <ul class="list-group list-group-flush align-items-center" v-if="userFollowersAll && userFollowersAll.length">
                 <li class="list-group-item d-flex justify-content-between" v-for="follower in userFollowersAll" :key="follower.following_id">
                     <FollowersListComponent :follower="follower" :type="1"/>
                 </li>
@@ -183,10 +177,7 @@
 
         <!-- followers tab content -->
         <div class="tab-pane fade" id="pills-followers" role="tabpanel" aria-labelledby="pills-followers-tab" tabindex="0">
-            <div v-if="isLoading">
-                <LoadingComponent />
-            </div>
-            <ul class="list-group list-group-flush align-items-center" v-if="!isLoading && userFollowersAll && userFollowersAll.length">
+            <ul class="list-group list-group-flush align-items-center" v-if="userFollowersAll && userFollowersAll.length">
                 <li class="list-group-item d-flex justify-content-between" v-for="follower in userFollowingAll" :key="follower.following_id">
                     <FollowersListComponent :follower="follower" :type="2"/>
                 </li>
@@ -204,7 +195,7 @@
 </template>
 
 <script>
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, computed, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { useUserStore } from '@/stores/user';
@@ -258,7 +249,35 @@ export default {
         const errorMessage = ref('');
         const userFollowState = ref(null);
 
-        onMounted(async () => {
+        const fetchData = async () => {
+            isLoading.value = true;
+            isActivitiesLoading.value = true;
+            week.value = 0;
+            try {
+                await userStore.fetchUserMe(route.params.id);
+                await userStore.fetchUserStats();
+                await userStore.fetchUserThisMonthActivitiesNumber();
+                await userStore.fetchUserFollowersCountAccepted();
+                await userStore.fetchUserFollowingCountAccepted();
+                await userStore.fetchUserFollowersAll();
+                await userStore.fetchUserFollowingAll();
+                userWeekActivities.value = await activities.getUserWeekActivities(userMe.value.id, week.value);
+                if (userMe.value.id != loggedUserId) {
+                    userFollowState.value = await followers.getUserFollowState(loggedUserId, userMe.value.id);
+                }
+            } catch (error) {
+                errorMessage.value = t('generalItens.errorFetchingInfo') + " - " + error.toString();
+                errorAlertStore.setAlertMessage(errorMessage.value);
+            }
+            isLoading.value = false;
+            isActivitiesLoading.value = false;
+        };
+
+        onMounted(fetchData);
+
+        watch(() => route.params.id, fetchData);
+
+        /* onMounted(async () => {
             try {
                 // Fetch the user stats
                 await userStore.fetchUserMe(route.params.id);
@@ -268,7 +287,7 @@ export default {
                 await userStore.fetchUserFollowingCountAccepted();
                 await userStore.fetchUserFollowersAll();
                 await userStore.fetchUserFollowingAll();
-                userWeekActivities.value = activities.getUserWeekActivities(userMe.value.id, week.value);
+                userWeekActivities.value = await activities.getUserWeekActivities(userMe.value.id, week.value);
                 if (userMe.value.id != loggedUserId) {
                     userFollowState.value = await followers.getUserFollowState(loggedUserId, userMe.value.id);
                 }
@@ -280,7 +299,7 @@ export default {
 
             isLoading.value = false;
             isActivitiesLoading.value = false;
-        });
+        }); */
 
         function formatDateRange(weekNumber) {
             const today = new Date();

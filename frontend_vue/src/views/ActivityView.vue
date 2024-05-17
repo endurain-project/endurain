@@ -46,7 +46,7 @@
             </p>
             <div class="justify-content-end">
                 <!-- add gear button -->
-                <a class="btn btn-link btn-lg" href="#" role="button" data-bs-toggle="modal" data-bs-target="#addGearToActivityModal" v-if="!activity.gear_id">
+                <a class="btn btn-link btn-lg link-body-emphasis" href="#" role="button" data-bs-toggle="modal" data-bs-target="#addGearToActivityModal" v-if="!activity.gear_id">
                     <font-awesome-icon :icon="['fas', 'fa-plus']" />
                 </a>
 
@@ -86,12 +86,12 @@
 
 
                 <!-- edit gear button -->
-                <a class="btn btn-link btn-lg" href="#" role="button" data-bs-toggle="modal" data-bs-target="#addGearToActivityModal" v-if="activity.gear_id">
+                <a class="btn btn-link btn-lg link-body-emphasis" href="#" role="button" data-bs-toggle="modal" data-bs-target="#addGearToActivityModal" v-if="activity.gear_id">
                     <font-awesome-icon :icon="['far', 'fa-pen-to-square']" />
                 </a>
 
                 <!-- Delete zone -->
-                <a class="btn btn-link btn-lg" href="#" role="button" data-bs-toggle="modal" data-bs-target="#deleteGearActivityModal" v-if="activity.gear_id">
+                <a class="btn btn-link btn-lg link-body-emphasis" href="#" role="button" data-bs-toggle="modal" data-bs-target="#deleteGearActivityModal" v-if="activity.gear_id">
                     <font-awesome-icon :icon="['fas', 'fa-trash']" />
                 </a>
 

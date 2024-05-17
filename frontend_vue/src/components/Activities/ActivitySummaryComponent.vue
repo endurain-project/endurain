@@ -14,10 +14,10 @@
                 <img src="/src/assets/avatar/female1.png" alt="Default Female Avatar" width="55" height="55" class="rounded-circle" v-else>
                 <div class="ms-3 me-3">
                     <div class="fw-bold">
-                        <router-link :to="{ name: 'activity', params: { id: activity.id }}" class="link-underline-opacity-25 link-underline-opacity-100-hover" v-if="sourceProp === 'home'">
+                        <router-link :to="{ name: 'activity', params: { id: activity.id }}" class="link-body-emphasis link-underline-opacity-0 link-underline-opacity-100-hover" v-if="sourceProp === 'home'">
                             {{ activity.name}}
                         </router-link>
-                        <router-link :to="{ name: 'user', params: { id: userActivity.id }}" class="link-underline-opacity-25 link-underline-opacity-100-hover" v-if="sourceProp === 'activity'">
+                        <router-link :to="{ name: 'user', params: { id: userActivity.id }}" class="link-body-emphasis link-underline-opacity-0 link-underline-opacity-100-hover" v-if="sourceProp === 'activity'">
                             {{ userActivity.name}}
                         </router-link>
                     </div>
@@ -52,11 +52,11 @@
                 </div>
             </div>
             <div class="dropdown d-flex">
-                <a class="btn btn-link btn-lg mt-1" :href="`https://www.strava.com/activities/${activity.strava_activity_id}`" role="button" v-if="activity.strava_activity_id">
+                <a class="btn btn-link btn-lg mt-1 link-body-emphasis" :href="`https://www.strava.com/activities/${activity.strava_activity_id}`" role="button" v-if="activity.strava_activity_id">
                     <font-awesome-icon :icon="['fab', 'fa-strava']" />
                 </a>
                 <div v-if="sourceProp === 'activity'">
-                    <button class="btn btn-link btn-lg" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                    <button class="btn btn-link btn-lg link-body-emphasis" type="button" data-bs-toggle="dropdown" aria-expanded="false">
                         <font-awesome-icon :icon="['fas', 'fa-ellipsis-vertical']" />
                     </button>
                     <ul class="dropdown-menu">
