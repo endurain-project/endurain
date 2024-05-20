@@ -2,6 +2,9 @@
     <!-- Error alerts -->
     <ErrorAlertComponent v-if="errorMessage"/>
 
+    <!-- Success banners -->
+    <SuccessAlertComponent v-if="successMessage"/>
+
     <div class="row align-items-center">
         <!-- picture col -->
         <div class="col">
@@ -168,7 +171,7 @@
         <div class="tab-pane fade" id="pills-following" role="tabpanel" aria-labelledby="pills-following-tab" tabindex="0">
             <ul class="list-group list-group-flush align-items-center" v-if="userFollowersAll && userFollowersAll.length">
                 <li class="list-group-item d-flex justify-content-between" v-for="follower in userFollowersAll" :key="follower.following_id">
-                    <FollowersListComponent :follower="follower" :type="1"/>
+                    <FollowersListComponent :follower="follower" :type="1" @followingDeleted="updateFollowingList"/>
                 </li>
             </ul>
             <!-- Displaying a message or component when there are no following users -->
@@ -177,9 +180,9 @@
 
         <!-- followers tab content -->
         <div class="tab-pane fade" id="pills-followers" role="tabpanel" aria-labelledby="pills-followers-tab" tabindex="0">
-            <ul class="list-group list-group-flush align-items-center" v-if="userFollowersAll && userFollowersAll.length">
-                <li class="list-group-item d-flex justify-content-between" v-for="follower in userFollowingAll" :key="follower.following_id">
-                    <FollowersListComponent :follower="follower" :type="2"/>
+            <ul class="list-group list-group-flush align-items-center" v-if="userFollowingAll && userFollowingAll.length">
+                <li class="list-group-item d-flex justify-content-between" v-for="follower in userFollowingAll" :key="follower.follower_id">
+                    <FollowersListComponent :follower="follower" :type="2" @followerDeleted="updateFollowerList"/>
                 </li>
             </ul>
             <!-- Displaying a message or component when there are no following users -->
@@ -202,6 +205,7 @@ import { useUserStore } from '@/stores/user';
 import { activities } from '@/services/activities';
 import { followers } from '@/services/followers';
 // Importing the stores
+import { useSuccessAlertStore } from '@/stores/Alerts/successAlert';
 import { useErrorAlertStore } from '@/stores/Alerts/errorAlert';
 // Importing the components
 import UserDistanceStatsComponent from '@/components/Activities/UserDistanceStatsComponent.vue';
@@ -210,6 +214,7 @@ import NoItemsFoundComponent from '@/components/NoItemsFoundComponents.vue';
 import ActivitySummaryComponent from '@/components/Activities/ActivitySummaryComponent.vue';
 import ActivityMapComponent from '@/components/Activities/ActivityMapComponent.vue';
 import ErrorAlertComponent from '@/components/Alerts/ErrorAlertComponent.vue';
+import SuccessAlertComponent from '@/components/Alerts/SuccessAlertComponent.vue';
 import FollowersListComponent from '@/components/Followers/FollowersListComponent.vue';
 
 export default {
@@ -221,10 +226,12 @@ export default {
         ActivityMapComponent,
         ErrorAlertComponent,
         FollowersListComponent,
+        SuccessAlertComponent,
     },
     setup () {
         const idFromParam = computed(() => route.params.id);
         const userStore = useUserStore();
+        const successAlertStore = useSuccessAlertStore();
         const errorAlertStore = useErrorAlertStore();
         const route = useRoute();
         const loggedUserId = JSON.parse(localStorage.getItem('userMe')).id;
@@ -246,6 +253,7 @@ export default {
             return Array.from({ length: end - start + 1 }, (_, i) => i + start);
         });
         const userWeekActivities = ref([]);
+        const successMessage = ref('');
         const errorMessage = ref('');
         const userFollowState = ref(null);
 
@@ -276,30 +284,6 @@ export default {
         onMounted(fetchData);
 
         watch(() => route.params.id, fetchData);
-
-        /* onMounted(async () => {
-            try {
-                // Fetch the user stats
-                await userStore.fetchUserMe(route.params.id);
-                await userStore.fetchUserStats();
-                await userStore.fetchUserThisMonthActivitiesNumber();
-                await userStore.fetchUserFollowersCountAccepted();
-                await userStore.fetchUserFollowingCountAccepted();
-                await userStore.fetchUserFollowersAll();
-                await userStore.fetchUserFollowingAll();
-                userWeekActivities.value = await activities.getUserWeekActivities(userMe.value.id, week.value);
-                if (userMe.value.id != loggedUserId) {
-                    userFollowState.value = await followers.getUserFollowState(loggedUserId, userMe.value.id);
-                }
-            } catch (error) {
-                // Set the error message
-                errorMessage.value = t('generalItens.errorFetchingInfo') + " - " + error.toString();
-                errorAlertStore.setAlertMessage(errorMessage.value);
-            }
-
-            isLoading.value = false;
-            isActivitiesLoading.value = false;
-        }); */
 
         function formatDateRange(weekNumber) {
             const today = new Date();
@@ -333,6 +317,25 @@ export default {
             }
         }
 
+        function updateFollowingList(deletedFollowingId) {
+            userStore.userFollowingAll = userStore.userFollowingAll.filter(follower => follower.following_id !== deletedFollowingId);
+            userStore.userFollowersCountAccepted -= 1;
+            // Set the success message
+            successMessage.value = t('user.successFollowingDeleted');
+            successAlertStore.setAlertMessage(successMessage.value);
+            successAlertStore.setClosableState(true);
+        }
+
+        function updateFollowerList(deletedFollowerId){
+            userStore.userFollowersAll = userStore.userFollowersAll.filter(follower => follower.follower_id !== deletedFollowerId);
+            console.log(userStore.userFollowersAll);
+            userStore.userFollowingCountAccepted -= 1;
+            // Set the success message
+            successMessage.value = t('user.successFollowerDeleted');
+            successAlertStore.setAlertMessage(successMessage.value);
+            successAlertStore.setClosableState(true);
+        }
+
         function goBack() {
             route.go(-1);
         }
@@ -353,10 +356,13 @@ export default {
             setWeek,
             visibleWeeks,
             userWeekActivities,
+            successMessage,
             errorMessage,
             userFollowState,
             userFollowersAll,
-            userFollowingAll
+            userFollowingAll,
+            updateFollowingList,
+            updateFollowerList,
         };
     },
 };  

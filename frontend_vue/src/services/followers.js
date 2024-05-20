@@ -21,5 +21,8 @@ export const followers = {
     },
     getUserFollowingCountAccepted(user_id) {
         return fetchGetRequest(`followers/user/${user_id}/following/count/accepted`);
+    },
+    deleteUserFollowsSpecificUser(user_id, target_user_id) {
+        return fetchDeleteRequest(`followers/delete/user/${user_id}/targetUser/${target_user_id}`);
     }
 };

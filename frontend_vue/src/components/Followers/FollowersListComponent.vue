@@ -149,12 +149,14 @@
 import { ref, onMounted, computed } from 'vue';
 import { useRoute } from 'vue-router';
 import { users } from '@/services/user';
+import { followers } from '@/services/followers';
 import LoadingComponent from '@/components/LoadingComponent.vue';
 
 export default {
     components: {
         LoadingComponent,
     },
+    emits: ['followerDeleted', 'followingDeleted'],
     props: {
         follower: {
             type: Object,
@@ -165,7 +167,7 @@ export default {
             required: true,
         }
     },
-    setup(props) {
+    setup(props, { emit }) {
         const route = useRoute();
         const userFollower = ref(null);
         const isLoading = ref(true);
@@ -173,6 +175,24 @@ export default {
         const idFromParam = computed(() => route.params.id);
         const followerProp = ref(props.follower);
         const typeProp = ref(props.type);
+
+        async function submitDeleteFollowing() {
+            try{
+                await followers.deleteUserFollowsSpecificUser(props.follower.follower_id, props.follower.following_id);
+                emit('followingDeleted', props.follower.following_id);
+            } catch (error) {
+                console.error("Failed to delete following:", error);
+            }
+        }
+
+        async function submitDeleteFollower() {
+            try{
+                await followers.deleteUserFollowsSpecificUser(props.follower.follower_id, props.follower.following_id);
+                emit('followerDeleted', props.follower.follower_id);
+            } catch (error) {
+                console.error("Failed to delete follower:", error);
+            }
+        }
 
         onMounted(async () => {
             try {
@@ -182,7 +202,7 @@ export default {
                     userFollower.value = await users.getUserById(props.follower.follower_id);
                 }
             } catch (error) {
-                console.error("Failed to fetch activity details:", error);
+                console.error("Failed to fetch follower details:", error);
             } finally {
                 isLoading.value = false;
             }
@@ -195,6 +215,8 @@ export default {
             loggedUserId,
             followerProp,
             typeProp,
+            submitDeleteFollowing,
+            submitDeleteFollower,
         };
     },
 };
