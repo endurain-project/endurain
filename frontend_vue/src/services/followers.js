@@ -24,5 +24,8 @@ export const followers = {
     },
     deleteUserFollowsSpecificUser(user_id, target_user_id) {
         return fetchDeleteRequest(`followers/delete/user/${user_id}/targetUser/${target_user_id}`);
+    },
+    acceptUserFollowsSpecificUser(user_id, target_user_id) {
+        return fetchPutRequest(`followers/accept/user/${user_id}/targetUser/${target_user_id}`);
     }
 };

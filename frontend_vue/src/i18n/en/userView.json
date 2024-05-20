@@ -12,5 +12,6 @@
     "activitiesPaginationWeek0": "This week",
     "activitiesPaginationWeek51": "One year ago",
     "successFollowingDeleted": "Following deleted",
-    "successFollowerDeleted": "Follower deleted"
+    "successFollowerDeleted": "Follower deleted",
+    "successFollowerAccepted": "Follower accepted"
 }

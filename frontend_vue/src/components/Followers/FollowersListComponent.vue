@@ -135,7 +135,7 @@
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
                             {{ $t("generalItens.buttonClose") }}
                         </button>
-                        <a @click="submitDeclineFollowerRequest" type="button" class="btn btn-danger" data-bs-dismiss="modal">
+                        <a @click="submitDeleteFollower" type="button" class="btn btn-danger" data-bs-dismiss="modal">
                             {{ $t("followersListComponent.followerDeclineModalTitle") }}
                         </a>
                     </div>
@@ -156,7 +156,7 @@ export default {
     components: {
         LoadingComponent,
     },
-    emits: ['followerDeleted', 'followingDeleted'],
+    emits: ['followerDeleted', 'followingDeleted', 'followerAccepted'],
     props: {
         follower: {
             type: Object,
@@ -177,7 +177,7 @@ export default {
         const typeProp = ref(props.type);
 
         async function submitDeleteFollowing() {
-            try{
+            try {
                 await followers.deleteUserFollowsSpecificUser(props.follower.follower_id, props.follower.following_id);
                 emit('followingDeleted', props.follower.following_id);
             } catch (error) {
@@ -186,11 +186,20 @@ export default {
         }
 
         async function submitDeleteFollower() {
-            try{
+            try {
                 await followers.deleteUserFollowsSpecificUser(props.follower.follower_id, props.follower.following_id);
                 emit('followerDeleted', props.follower.follower_id);
             } catch (error) {
                 console.error("Failed to delete follower:", error);
+            }
+        }
+
+        async function submitAcceptFollowerRequest() {
+            try {
+                await followers.acceptUserFollowsSpecificUser(props.follower.following_id, props.follower.follower_id);
+                emit('followerAccepted', props.follower.follower_id);
+            } catch (error) {
+                console.error("Failed to update follower:", error);
             }
         }
 
@@ -217,6 +226,7 @@ export default {
             typeProp,
             submitDeleteFollowing,
             submitDeleteFollower,
+            submitAcceptFollowerRequest,
         };
     },
 };

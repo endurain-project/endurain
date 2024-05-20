@@ -182,7 +182,7 @@
         <div class="tab-pane fade" id="pills-followers" role="tabpanel" aria-labelledby="pills-followers-tab" tabindex="0">
             <ul class="list-group list-group-flush align-items-center" v-if="userFollowingAll && userFollowingAll.length">
                 <li class="list-group-item d-flex justify-content-between" v-for="follower in userFollowingAll" :key="follower.follower_id">
-                    <FollowersListComponent :follower="follower" :type="2" @followerDeleted="updateFollowerList"/>
+                    <FollowersListComponent :follower="follower" :type="2" @followerDeleted="updateFollowerList" @followerAccepted="updateFollowerListWithAccepted"/>
                 </li>
             </ul>
             <!-- Displaying a message or component when there are no following users -->
@@ -328,10 +328,23 @@ export default {
 
         function updateFollowerList(deletedFollowerId){
             userStore.userFollowersAll = userStore.userFollowersAll.filter(follower => follower.follower_id !== deletedFollowerId);
-            console.log(userStore.userFollowersAll);
             userStore.userFollowingCountAccepted -= 1;
             // Set the success message
             successMessage.value = t('user.successFollowerDeleted');
+            successAlertStore.setAlertMessage(successMessage.value);
+            successAlertStore.setClosableState(true);
+        }
+
+        function updateFollowerListWithAccepted(acceptedFollowerId){
+            userStore.userFollowersAll = userStore.userFollowersAll.map(follower => {
+                if (follower.follower_id === acceptedFollowerId) {
+                    follower.is_accepted = true;
+                }
+                return follower;
+            });
+            userStore.userFollowingCountAccepted += 1;
+            // Set the success message
+            successMessage.value = t('user.successFollowerAccepted');
             successAlertStore.setAlertMessage(successMessage.value);
             successAlertStore.setClosableState(true);
         }
@@ -363,6 +376,7 @@ export default {
             userFollowingAll,
             updateFollowingList,
             updateFollowerList,
+            updateFollowerListWithAccepted,
         };
     },
 };  
