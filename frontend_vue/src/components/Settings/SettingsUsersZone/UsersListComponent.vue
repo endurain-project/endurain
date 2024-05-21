@@ -32,21 +32,7 @@
                         </div>
                         <form @submit.prevent="submitChangeUserPasswordForm">
                             <div class="modal-body">
-                                <!-- info banner to display password complexity requirements -->
-                                <div class="alert alert-info alert-dismissible d-flex align-items-center" role="alert">
-                                    <!--<i class="fa-solid fa-circle-info me-1 allign-top"></i>-->
-                                    <div>
-                                        {{ $t("usersListComponent.modalChangeUserPasswordPasswordRequirementsTitle") }}
-                                        <br>
-                                        {{ $t("usersListComponent.modalChangeUserPasswordCharacters") }}
-                                        <br>
-                                        {{ $t("usersListComponent.modalChangeUserPasswordCapitalLetters") }}
-                                        <br>
-                                        {{ $t("usersListComponent.modalChangeUserPasswordNumbers") }}
-                                        <br>
-                                        {{ $t("usersListComponent.modalChangeUserPasswordSpecialCharacters") }}
-                                    </div>
-                                </div>
+                                <SettingsPasswordRequirementsComponent />
 
                                 <p>{{ $t("usersListComponent.modalChangeUserPasswordBodyLabel") }}<b>{{ userProp.username }}</b></p>
 
@@ -97,6 +83,7 @@ import { useErrorAlertStore } from '@/stores/Alerts/errorAlert';
 // Importing the components
 import ErrorToastComponent from '@/components/Toasts/ErrorToastComponent.vue';
 import SuccessToastComponent from '@/components/Toasts/SuccessToastComponent.vue';
+import SettingsPasswordRequirementsComponent from '@/components/Settings/SettingsPasswordRequirementsComponent.vue';
 // Importing the crypto-js
 import CryptoJS from 'crypto-js';
 
@@ -104,6 +91,7 @@ export default {
     components: {
         ErrorToastComponent,
         SuccessToastComponent,
+        SettingsPasswordRequirementsComponent,
     },
     props: {
         user: {
