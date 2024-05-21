@@ -191,10 +191,7 @@
     </div>
 
     <!-- back button -->
-    <div>
-        <br class="d-lg-none">
-        <button @click="goBack" type="button" class="w-100 btn btn-primary d-lg-none">{{ $t("generalItens.buttonBack") }}</button>
-    </div>
+    <BackButtonComponent />
 </template>
 
 <script>
@@ -216,6 +213,7 @@ import ActivityMapComponent from '@/components/Activities/ActivityMapComponent.v
 import ErrorAlertComponent from '@/components/Alerts/ErrorAlertComponent.vue';
 import SuccessAlertComponent from '@/components/Alerts/SuccessAlertComponent.vue';
 import FollowersListComponent from '@/components/Followers/FollowersListComponent.vue';
+import BackButtonComponent from '@/components/BackButtonComponent.vue';
 
 export default {
     components: {
@@ -227,6 +225,7 @@ export default {
         ErrorAlertComponent,
         FollowersListComponent,
         SuccessAlertComponent,
+        BackButtonComponent,
     },
     setup () {
         const idFromParam = computed(() => route.params.id);
@@ -349,10 +348,6 @@ export default {
             successAlertStore.setClosableState(true);
         }
 
-        function goBack() {
-            route.go(-1);
-        }
-
         return {
             idFromParam,
             isLoading,
@@ -361,8 +356,7 @@ export default {
             userMe,
             userThisMonthNumberOfActivities,
             userFollowersCountAccepted,
-            userFollowingCountAccepted, 
-            goBack,
+            userFollowingCountAccepted,
             t,
             week,
             formatDateRange,

@@ -1,4 +1,5 @@
 import { fetchGetRequestTokenAsParameter, fetchPostFormUrlEncoded } from '@/utils/serviceUtils';
+import { useUserStore } from '@/stores/user';
 
 export const auth = {
     isTokenValid(token) {
@@ -19,6 +20,8 @@ export const auth = {
     },
     removeLoggedUser() {
         localStorage.clear();
+        const userStore = useUserStore();
+        userStore.resetStore();
         //this.$router.push('/login');
     },
     getToken(formData) {
@@ -27,4 +30,4 @@ export const auth = {
     getUserMe(token) {
         return fetchGetRequestTokenAsParameter('users/me', token);
     },
-  };
+};

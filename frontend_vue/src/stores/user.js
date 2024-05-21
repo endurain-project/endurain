@@ -3,24 +3,27 @@ import { activities } from '@/services/activities';
 import { followers } from '@/services/followers';
 import { users } from '@/services/user';
 
+// Function to get the default state
+const getDefaultState = () => ({
+    userMe: null,
+    thisWeekDistances: null,
+    thisMonthDistances: null,
+    thisMonthNumberOfActivities: 0,
+    userNumberOfActivities: 0,
+    userActivities: [],
+    followedUserActivities: [],
+    userFollowersCountAll: 0,
+    userFollowersAll: [],
+    userFollowersCountAccepted: 0,
+    //userFollowersAccepted: [],
+    userFollowingCountAll: 0,
+    userFollowingAll: [],
+    userFollowingCountAccepted: 0,
+    //userFollowingAccepted: [],
+});
+
 export const useUserStore = defineStore('user', {
-    state: () => ({
-        userMe: null,
-        thisWeekDistances: null,
-        thisMonthDistances: null,
-        thisMonthNumberOfActivities: 0,
-        userNumberOfActivities: 0,
-        userActivities: [],
-        followedUserActivities: [],
-        userFollowersCountAll: 0,
-        userFollowersAll: [],
-        userFollowersCountAccepted: 0,
-        //userFollowersAccepted: [],
-        userFollowingCountAll: 0,
-        userFollowingAll: [],
-        userFollowingCountAccepted: 0,
-        //userFollowingAccepted: [],
-    }),
+    state: getDefaultState,
     actions: {
         async fetchUserMe(user_id) {
             try {
@@ -216,6 +219,10 @@ export const useUserStore = defineStore('user', {
             } catch (error) {
                 console.error("Failed to fetch data:", error);
             }
+        },
+        // Action to reset the store state
+        resetStore() {
+            Object.assign(this.$state, getDefaultState());
         }
     }
 });

@@ -172,11 +172,9 @@
         </div>
 
     </div>
-
-    <div>
-        <br class="d-lg-none">
-        <button @click="goBack" type="button" class="w-100 btn btn-primary d-lg-none">{{ $t("generalItens.buttonBack") }}</button>
-    </div>
+   
+    <!-- back button -->
+    <BackButtonComponent />
 </template>
 
 <script>
@@ -192,6 +190,7 @@ import NoItemsFoundComponent from '@/components/NoItemsFoundComponents.vue';
 import ErrorAlertComponent from '@/components/Alerts/ErrorAlertComponent.vue';
 import SuccessAlertComponent from '@/components/Alerts/SuccessAlertComponent.vue';
 import LoadingComponent from '@/components/LoadingComponent.vue';
+import BackButtonComponent from '@/components/BackButtonComponent.vue';
 // Importing the services
 import { gears } from '@/services/gears';
 import { activities } from '@/services/activities';
@@ -203,6 +202,7 @@ export default {
         LoadingComponent,
         ErrorAlertComponent,
         SuccessAlertComponent,
+        BackButtonComponent,
     },
     setup() {
         const { t } = useI18n();
@@ -222,13 +222,6 @@ export default {
         const gearType = ref(1);
         const date = ref(null);
         const isActive = ref(1);
-
-        /**
-         * Function to navigate back to the previous page.
-         */
-        function goBack() {
-            route.go(-1);
-        }
 
         async function submitEditGearForm() {
             try {
@@ -321,7 +314,6 @@ export default {
             gear,
             gearActivities,
             gearDistance,
-            goBack,
             t,
             submitEditGearForm,
             submitDeleteGear,

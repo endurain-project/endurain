@@ -9,6 +9,10 @@ import enUserDistanceStatsComponent from './en/components/activities/userDistanc
 import enActivitySummaryComponent from './en/components/activities/activitySummaryComponent.json';
 // Followers component
 import enFollowersListComponent from './en/components/followers/followersListComponent.json';
+// Settings components
+import enSettingsSideBarComponent from './en/components/settings/settingsSideBarComponent.json';
+import enSettingsUsersZoneComponent from './en/components/settings/settingsUsersZoneComponent.json';
+import enUsersListComponent from './en/components/settings/settingsUsersZone/usersListComponent.json';
 // General components
 import enNoItemsFoundComponent from './en/components/noItemsFoundComponent.json';
 // General translations
@@ -30,6 +34,9 @@ const messages = {
     userDistanceStats: enUserDistanceStatsComponent,
     activitySummary: enActivitySummaryComponent,
     followersListComponent: enFollowersListComponent,
+    settingsSideBar: enSettingsSideBarComponent,
+    settingsUsersZone: enSettingsUsersZoneComponent,
+    usersListComponent: enUsersListComponent,
     noItemsFoundComponent: enNoItemsFoundComponent,
     generalItens: enGeneralItens,
     home: enHomeView,
