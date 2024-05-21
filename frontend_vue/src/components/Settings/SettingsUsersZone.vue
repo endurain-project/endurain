@@ -73,7 +73,7 @@
             <!-- form to search-->
             <div class="col">
                 <form class="d-flex">
-                    <input class="form-control me-2" type="text" name="userUsername" :placeholder='$t("settingsUsersZone.addUserModalUsernameLabel")' required>
+                    <input class="form-control me-2" type="text" name="userUsername" :placeholder='$t("settingsUsersZone.addUserModalUsernameLabel")' v-model="searchUsername" required>
                 </form>
             </div>
         </div>
@@ -92,14 +92,17 @@
                     </ul>
                 </div>
                 <!-- Displaying a message or component when there are no activities -->
-                <NoItemsFoundComponent v-else />
+                <div v-else>
+                    <br>
+                    <NoItemsFoundComponent />
+                </div>
             </div>
         </div>
     </div>
 </template>
 
 <script>
-import { ref, onMounted, onUnmounted } from 'vue';
+import { ref, onMounted, onUnmounted, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 // Importing the stores
 import { useSuccessAlertStore } from '@/stores/Alerts/successAlert';
@@ -145,6 +148,7 @@ export default {
         const hasMoreUsers = ref(true);
         const pageNumber = ref(1);
         const numRecords = 5;
+        const searchUsername = ref('');
 
         async function fetchMoreUsers() {
             // If the component is already loading or there are no more gears to fetch, return.
@@ -155,12 +159,37 @@ export default {
             try {
                 // Fetch the users with pagination.
                 const newUsers = await users.getUsersWithPagination(pageNumber.value, numRecords);
+                // Add the new users to the users array.
                 Array.prototype.push.apply(usersArray.value, newUsers);
 
                 // If there are no more gears to fetch, set userHasMoreGears to false.
                 if ((pageNumber.value * numRecords) >= usersNumber.value) {
                     hasMoreUsers.value = false;
                 }
+            } catch (error) {
+                // If there is an error, set the error message and show the error alert.
+                errorMessage.value = t('generalItens.errorFetchingInfo') + " - " + error.toString();
+                errorAlertStore.setAlertMessage(errorMessage.value);
+            }
+        }
+
+        async function performSearch() {
+            // If the search nickname is empty, reset the list to initial state.
+            if (!searchUsername.value) {
+                // Reset the list to the initial state when search text is cleared
+                pageNumber.value = 1;
+                hasMoreUsers.value = true;
+                isLoading.value = true;
+
+                await fetchInitialUsers();
+
+                isLoading.value = false;
+
+                return;
+            }
+            try {
+                // Fetch the users based on the search username.
+                usersArray.value = await users.getUserByUsername(searchUsername.value);
             } catch (error) {
                 // If there is an error, set the error message and show the error alert.
                 errorMessage.value = t('generalItens.errorFetchingInfo') + " - " + error.toString();
@@ -213,15 +242,10 @@ export default {
             }
         }
 
-        onMounted(async () => {
-            // Add the event listener for scroll event.
-            window.addEventListener('scroll', handleScroll);
-
+        async function fetchInitialUsers() {
             try {
                 // Fetch the users with pagination.
-                const newUsers = await users.getUsersWithPagination(pageNumber.value, numRecords);
-                // Add the fetched gears to the userGears array.
-                Array.prototype.push.apply(usersArray.value, newUsers);
+                usersArray.value = await users.getUsersWithPagination(pageNumber.value, numRecords);
                 // Get the total number of user gears.
                 usersNumber.value = await users.getUsersNumber();
 
@@ -234,6 +258,16 @@ export default {
                 errorMessage.value = t('generalItens.errorFetchingInfo') + " - " + error.toString();
                 errorAlertStore.setAlertMessage(errorMessage.value);
             }
+        }
+
+        onMounted(async () => {
+            // Add the event listener for scroll event.
+            window.addEventListener('scroll', handleScroll);
+
+            // Fetch the initial users.
+            await fetchInitialUsers();
+
+            // Set the isLoading to false.
             isLoading.value = false;
         });
 
@@ -241,6 +275,8 @@ export default {
             // Remove the event listener for scroll event.
             window.removeEventListener('scroll', handleScroll);
         });
+
+        watch(searchUsername, performSearch, { immediate: false });
 
         return {
             t,
@@ -260,6 +296,7 @@ export default {
             submitAddUserForm,
             usersNumber,
             usersArray,
+            searchUsername,
         };
     },
 };

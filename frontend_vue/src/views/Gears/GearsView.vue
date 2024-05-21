@@ -71,7 +71,7 @@
                 <!-- Checking if userGears is loaded and has length -->
                 <div v-if="userGears && userGears.length">
                     <!-- Iterating over userGears to display them -->
-                    <p>{{ $t("gears.displayUserNumberOfGears1") }}{{ userGearsNumber }}{{ $t("gears.displayUserNumberOfGears2") }}</p>
+                    <p>{{ $t("gears.displayUserNumberOfGears1") }}{{ userGearsNumber }}{{ $t("gears.displayUserNumberOfGears2") }}{{ userGears.length }}{{ $t("gears.displayUserNumberOfGears3") }}</p>
                     <ul class="list-group list-group-flush" v-for="gear in userGears" :key="gear.id" :gear="gear">
                         <li class="list-group-item d-flex justify-content-between">
                             <div class="d-flex align-items-center">
@@ -196,6 +196,15 @@ export default {
         async function performSearch() {
             // If the search nickname is empty, reset the list to initial state.
             if (!searchNickname.value) {
+                // Reset the list to the initial state when search text is cleared
+                pageNumber.value = 1;
+                userHasMoreGears.value = true;
+                isLoading.value = true;
+
+                await fetchInitialGears();
+
+                isLoading.value = false;
+
                 return;
             }
             try {
@@ -260,6 +269,32 @@ export default {
         }
 
         /**
+         * Fetches the initial gears for the user.
+         * 
+         * @async
+         * @function fetchInitialGears
+         * @throws {Error} If there is an error while creating the gear.
+         * @returns {Promise<void>} A promise that resolves when the initial gears are fetched.
+         */
+        async function fetchInitialGears() {
+            try {
+                // Fetch the user gears with pagination.
+                userGears.value = await gears.getUserGearsWithPagination(pageNumber.value, numRecords);
+                // Get the total number of user gears.
+                userGearsNumber.value = await gears.getUserGearsNumber();
+
+                // If there are no more gears to fetch, set userHasMoreGears to false.
+                if ((pageNumber.value * numRecords) >= userGearsNumber.value) {
+                    userHasMoreGears.value = false;
+                }
+            } catch (error) {
+                // If there is an error, set the error message and show the error alert.
+                errorMessage.value = t('generalItens.errorFetchingInfo') + " - " + error.toString();
+                errorAlertStore.setAlertMessage(errorMessage.value);
+            }
+        }
+
+        /**
          * Initializes the component and fetches user gears with pagination.
          * Attaches a scroll event listener to the window.
          * 
@@ -283,23 +318,7 @@ export default {
             // Add the event listener for scroll event.
             window.addEventListener('scroll', handleScroll);
 
-            try {
-                // Fetch the user gears with pagination.
-                const newGears = await gears.getUserGearsWithPagination(pageNumber.value, numRecords);
-                // Add the fetched gears to the userGears array.
-                Array.prototype.push.apply(userGears.value, newGears);
-                // Get the total number of user gears.
-                userGearsNumber.value = await gears.getUserGearsNumber();
-
-                // If there are no more gears to fetch, set userHasMoreGears to false.
-                if ((pageNumber.value * numRecords) >= userGearsNumber.value) {
-                    userHasMoreGears.value = false;
-                }
-            } catch (error) {
-                // If there is an error, set the error message and show the error alert.
-                errorMessage.value = t('generalItens.errorFetchingInfo') + " - " + error.toString();
-                errorAlertStore.setAlertMessage(errorMessage.value);
-            }
+            await fetchInitialGears();
 
             isLoading.value = false;
         });
@@ -312,13 +331,6 @@ export default {
         onUnmounted(() => {
             // Remove the event listener for scroll event.
             window.removeEventListener('scroll', handleScroll);
-        });
-
-        /**
-         * Watches for changes in the component's reactive dependencies and performs an action when a change occurs.
-         */
-        watchEffect(() => {
-            //console.log("Entered watchEffect");
         });
 
         /**
