@@ -135,7 +135,7 @@ export default {
         const newUserName = ref('');
         const newUserEmail = ref('');
         const newUserPassword = ref('');
-        const newUserTown = ref('');
+        const newUserTown = ref(null);
         const newUserBirthDate = ref(null);
         const newUserGender = ref(1);
         const newUserPreferredLanguage = ref('en');
@@ -198,8 +198,12 @@ export default {
                 // Create the gear and get the created gear id.
                 const createdUserId = await users.createUser(data);
 
+                // Get the created gear and add it to the userGears array.
+                const newUser = await users.getUserById(createdUserId);
+                usersArray.value.unshift(newUser);
+
                 // Set the success message and show the success alert.
-                successMessage.value = t('gears.successGearAdded');
+                successMessage.value = t('settingsUsersZone.successUserAdded');
                 successAlertStore.setAlertMessage(successMessage.value);
                 successAlertStore.setClosableState(true);
             } catch(error) {

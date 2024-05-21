@@ -22,5 +22,6 @@
     "addUserModalUserTypeOption2": "Administrator",
     "labelNumberOfUsers1": "There is a total of ",
     "labelNumberOfUsers2": " user(s) (",
-    "labelNumberOfUsers3": " loaded):"
+    "labelNumberOfUsers3": " loaded):",
+    "successUserAdded": "User added successfully"
 }
