@@ -88,7 +88,7 @@
 
                     <!-- list zone -->
                     <ul class="list-group list-group-flush"  v-for="user in usersArray" :key="user.id" :user="user">
-                        <UsersListConponent :user="user" />
+                        <UsersListConponent :user="user" @userDeleted="updateUserList" />
                     </ul>
                 </div>
                 <!-- Displaying a message or component when there are no activities -->
@@ -179,11 +179,8 @@ export default {
                 // Reset the list to the initial state when search text is cleared
                 pageNumber.value = 1;
                 hasMoreUsers.value = true;
-                isLoading.value = true;
 
                 await fetchInitialUsers();
-
-                isLoading.value = false;
 
                 return;
             }
@@ -231,6 +228,9 @@ export default {
                 const newUser = await users.getUserById(createdUserId);
                 usersArray.value.unshift(newUser);
 
+                // Increment the number of users.
+                usersNumber.value++;
+
                 // Set the success message and show the success alert.
                 successMessage.value = t('settingsUsersZone.successUserAdded');
                 successAlertStore.setAlertMessage(successMessage.value);
@@ -258,6 +258,15 @@ export default {
                 errorMessage.value = t('generalItens.errorFetchingInfo') + " - " + error.toString();
                 errorAlertStore.setAlertMessage(errorMessage.value);
             }
+        }
+
+        function updateUserList(userDeletedId) {
+            usersArray.value = usersArray.value.filter(user => user.id !== userDeletedId);
+            usersNumber.value--;
+
+            successMessage.value = t('usersListComponent.userDeleteSuccessMessage');
+            successAlertStore.setAlertMessage(successMessage.value);
+            successAlertStore.setClosableState(true);
         }
 
         onMounted(async () => {
@@ -297,6 +306,7 @@ export default {
             usersNumber,
             usersArray,
             searchUsername,
+            updateUserList,
         };
     },
 };

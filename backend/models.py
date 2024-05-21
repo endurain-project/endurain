@@ -20,14 +20,14 @@ class Follower(Base):
 
     follower_id = Column(
         Integer,
-        ForeignKey("users.id"),
+        ForeignKey("users.id", ondelete="CASCADE"),
         primary_key=True,
         index=True,
         comment="ID of the follower user",
     )
     following_id = Column(
         Integer,
-        ForeignKey("users.id"),
+        ForeignKey("users.id", ondelete="CASCADE"),
         primary_key=True,
         index=True,
         comment="ID of the following user",

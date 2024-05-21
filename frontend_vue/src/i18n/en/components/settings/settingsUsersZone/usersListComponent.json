@@ -16,5 +16,16 @@
     "modalChangeUserPasswordFeedbackLabel": "Password does not meet requirements",
     "modalChangeUserPasswordPasswordsDoNotMatchFeedbackLabel": "Passwords do not match",
     "userChangePasswordSuccessMessage": "Password changed successfully",
-    "userChangePasswordErrorMessage": "Error changing password"
+    "userChangePasswordErrorMessage": "Error changing password",
+    "modalEditUserTitle": "Edit user",
+    "modalEditUserDeleteUserPhotoButton": "Delete photo",
+    "modalEditUserIsUserActiveLabel": "Is active",
+    "modalEditUserIsUserActiveOption1": "Yes",
+    "modalEditUserIsUserActiveOption2": "No",
+    "userEditSuccessMessage": "User edited successfully",
+    "userEditErrorMessage": "Error editing user",
+    "modalDeleteUserTitle": "Delete user",
+    "modalDeleteUserBody": "Are you sure you want to delete user ",
+    "userDeleteSuccessMessage": "User deleted successfully",
+    "userDeleteErrorMessage": "Error deleting user"
 }

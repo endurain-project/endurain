@@ -199,11 +199,8 @@ export default {
                 // Reset the list to the initial state when search text is cleared
                 pageNumber.value = 1;
                 userHasMoreGears.value = true;
-                isLoading.value = true;
 
                 await fetchInitialGears();
-
-                isLoading.value = false;
 
                 return;
             }

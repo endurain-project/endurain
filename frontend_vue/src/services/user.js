@@ -1,4 +1,4 @@
-import { fetchGetRequest, fetchPostRequest, fetchPutRequest } from '@/utils/serviceUtils';
+import { fetchGetRequest, fetchPostRequest, fetchPutRequest, fetchDeleteRequest } from '@/utils/serviceUtils';
 
 export const users = {
     getUsersWithPagination(pageNumber, numRecords) {
@@ -16,7 +16,13 @@ export const users = {
     createUser(data) {
         return fetchPostRequest('users/create', data)
     },
+    editUser(data) {
+        return fetchPutRequest('users/edit', data)
+    },
     editUserPassword(data) {
         return fetchPutRequest('users/edit/password', data)
+    },
+    deleteUser(user_id) {
+        return fetchDeleteRequest(`users/${user_id}/delete`);
     }
 };
