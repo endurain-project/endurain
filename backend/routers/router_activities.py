@@ -332,6 +332,23 @@ async def read_activities_activity_from_id(
     return crud_activities.get_activity_by_id_from_user_id_or_has_visibility(activity_id, token_user_id, db)
 
 
+@router.get(
+    "/activities/name/contains/{name}",
+    response_model=list[schema_activities.Activity] | None,
+    tags=["activities"],
+)
+async def read_activities_contain_name(
+    name: str,
+    token_user_id: Annotated[
+        Callable,
+        Depends(dependencies_session.validate_token_and_get_authenticated_user_id),
+    ],
+    db: Session = Depends(dependencies_database.get_db),
+):
+    # Get the activities from the database by name
+    return crud_activities.get_activities_if_contains_name(name, token_user_id, db)
+
+
 @router.post(
     "/activities/create/upload",
     status_code=201,

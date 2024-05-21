@@ -16,7 +16,7 @@
                             <li v-for="result in searchResults" :key="result.id" class="list-group-item list-group-item-action" @click="goToResultPage(result)">
                                 <!-- user link -->
                                 <router-link :to="{ name: 'user', params: { id: result.id }}" class="link-body-emphasis link-underline-opacity-0 link-underline-opacity-100-hover" v-if="searchSelectValue == 1">
-                                    {{ result.name}}
+                                    {{ result.name}} - {{ result.username}}
                                 </router-link>
                                 <router-link :to="{ name: 'activity', params: { id: result.id }}" class="link-body-emphasis link-underline-opacity-0 link-underline-opacity-100-hover" v-else-if="searchSelectValue == 2">
                                     {{ result.name}}
@@ -45,6 +45,7 @@ import { useI18n } from 'vue-i18n';
 
 import { users } from '@/services/user';
 import { gears } from '@/services/gears';
+import { activities } from '@/services/activities';
 
 export default {
     setup() {
@@ -68,7 +69,7 @@ export default {
             }
         };
 
-        /* const fetchActivityResults = async (query) => {
+        const fetchActivityResults = async (query) => {
             if (!query) {
                 searchResults.value = [];
                 return;
@@ -79,7 +80,7 @@ export default {
             } catch (error) {
                 console.error('Error fetching activity results:', error);
             }
-        }; */
+        };
 
         const fetchGearResults = async (query) => {
             if (!query) {
@@ -118,7 +119,7 @@ export default {
             if (searchSelectValue.value == 1) {
                 await fetchUserResults(newQuery);
             } else if (searchSelectValue.value == 2) {
-                // await fetchActivityResults(newQuery);
+                await fetchActivityResults(newQuery);
             } else {
                 await fetchGearResults(newQuery);
             }

@@ -1,16 +1,4 @@
-<template>    
-    <!--<div class="toast-container position-fixed bottom-0 end-0 p-3">
-        <div ref="toastElement" class="toast align-items-center" role="alert" aria-live="assertive" aria-atomic="true">
-            <div class="toast-header text-success-emphasis">
-                <font-awesome-icon :icon="['fas', 'circle-check']" />
-                <strong class="ms-1 me-auto">Success</strong>
-                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close" v-if="closable"></button>
-            </div>
-            <div class="toast-body text-success-emphasis">
-                <span>{{ successMessage }}</span>
-            </div>
-        </div>
-    </div>-->
+<template>
     <div class="toast-container position-fixed bottom-0 end-0 p-3">
         <div ref="toastElement" class="toast align-items-center" role="alert" aria-live="assertive" aria-atomic="true">
             <div class="d-flex">

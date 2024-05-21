@@ -28,6 +28,9 @@ export const activities = {
     getActivityById(activityId) {
         return fetchGetRequest(`activities/${activityId}`);
     },
+    getActivityByName(name) {
+        return fetchGetRequest(`activities/name/contains/${name}`);
+    },
     uploadActivityFile(formData) {
         return fetchPostFileRequest('activities/create/upload', formData);
     },
