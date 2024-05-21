@@ -12,6 +12,8 @@ import enFollowersListComponent from './en/components/followers/followersListCom
 // Settings components
 import enSettingsSideBarComponent from './en/components/settings/settingsSideBarComponent.json';
 import enSettingsUsersZoneComponent from './en/components/settings/settingsUsersZoneComponent.json';
+import enSettingsUserProfileZoneComponent from './en/components/settings/settingsUserProfileZoneComponent.json';
+import enSettingsSecurityZoneComponent from './en/components/settings/settingsSecurityZoneComponent.json';
 import enUsersListComponent from './en/components/settings/settingsUsersZone/usersListComponent.json';
 // General components
 import enNoItemsFoundComponent from './en/components/noItemsFoundComponent.json';
@@ -36,6 +38,8 @@ const messages = {
     followersListComponent: enFollowersListComponent,
     settingsSideBar: enSettingsSideBarComponent,
     settingsUsersZone: enSettingsUsersZoneComponent,
+    settingsUserProfileZone: enSettingsUserProfileZoneComponent,
+    settingsSecurityZone: enSettingsSecurityZoneComponent,
     usersListComponent: enUsersListComponent,
     noItemsFoundComponent: enNoItemsFoundComponent,
     generalItens: enGeneralItens,
