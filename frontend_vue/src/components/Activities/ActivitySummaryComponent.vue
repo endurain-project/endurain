@@ -238,7 +238,7 @@ export default {
         async function submitDeleteActivity() {
             try {
                 userActivity.value = await activities.deleteActivity(props.activity.id);
-                router.push({ path: '/', query: { activityDeleted: 'true' } });
+                router.push({ path: '/', query: { activityDeleted: 'true', activityId: props.activity.id } });
             } catch (error) {
                 errorMessage.value = t('generalItens.errorDeletingInfo') + " - " + error.toString();
                 errorAlertStore.setAlertMessage(errorMessage.value);

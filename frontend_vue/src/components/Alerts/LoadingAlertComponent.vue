@@ -10,7 +10,8 @@
 </template>
 
 <script>
-import { useLoadingAlertStore } from '@/stores/Alerts/errorAlert';
+import { computed } from 'vue';
+import { useLoadingAlertStore } from '@/stores/Alerts/loadingAlert';
 
 export default {
   setup() {

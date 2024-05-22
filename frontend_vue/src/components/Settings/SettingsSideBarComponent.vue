@@ -2,7 +2,7 @@
     <div class="col-lg-4 col-md-12">
     <ul class="nav nav-pills flex-column mb-auto" id="sidebarNav">
         <li class="nav-item" v-if="userMe.access_type == 2">
-            <a href="#" class="nav-link link-body-emphasis" :class="{ active: activeSection === 'divUsers' }" @click.prevent="changeActive('divUsers')">
+            <a href="#" class="nav-link link-body-emphasis" :class="{ active: activeSection === 'users' }" @click.prevent="changeActive('users')">
                 <font-awesome-icon :icon="['fas', 'fa-users']" />
                 <span class="ms-1">{{ $t("settingsSideBar.usersSection") }}</span>
             </a>

@@ -69,7 +69,7 @@
         <SuccessAlertComponent v-if="successMessage"/>
 
         <!-- Loading banners -->
-        <LoadingAlertComponent v-if="loadingMessage"/>
+        <LoadingAlertComponent v-if="loadingMessage && isLoadingUploadActivity"/>
 
         <!-- radio button -->
         <div class="btn-group mb-3 d-flex" role="group"  aria-label="Activities radio toggle button group">
@@ -232,11 +232,6 @@ export default {
           // Clear the file input
           fileInput.value = '';
 
-          /* const modalElement = document.getElementById('addActivityModal');
-          const modalInstance = Modal.getInstance(modalElement);
-          if (modalInstance) {
-            modalInstance.hide();
-          } */
           // Fetch the user stats
           await userStore.fetchUserStats();
           // Fetch the user activities and user activities number
@@ -254,17 +249,18 @@ export default {
 
     onMounted(async () => {
       if (route.query.activityFound === 'false') {
-          // Set the activityFound value to false and show the error alert.
-          errorMessage.value = t("home.errorActivityNotFound");
-          errorAlertStore.setAlertMessage(errorMessage.value);
-          errorAlertStore.setClosableState(true);
+        // Set the activityFound value to false and show the error alert.
+        errorMessage.value = t("home.errorActivityNotFound");
+        errorAlertStore.setAlertMessage(errorMessage.value);
+        errorAlertStore.setClosableState(true);
       }
 
       if (route.query.activityDeleted === 'true') {
-          // Set the activityDeleted value to true and show the success alert.
-          successMessage.value = t('home.successActivityDeleted');
-          successAlertStore.setAlertMessage(successMessage.value);
-          successAlertStore.setClosableState(true);
+        userActivities.value = userActivities.value.filter(activity => activity.id !== Number(route.query.activityId));
+        // Set the activityDeleted value to true and show the success alert.
+        successMessage.value = t('home.successActivityDeleted');
+        successAlertStore.setAlertMessage(successMessage.value);
+        successAlertStore.setClosableState(true);
       }
 
       // Add the scroll event listener
