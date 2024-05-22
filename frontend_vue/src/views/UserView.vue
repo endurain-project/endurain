@@ -12,12 +12,12 @@
                 <LoadingComponent />
             </div>
             <div class="vstack d-flex justify-content-center" v-else>
-                <div class="d-flex justify-content-center">
+                <div class="d-flex justify-content-center" v-if="userMe">
                     <img :src="userMe.photo_path" alt="User Photo" width="120" height="120" class="rounded-circle" v-if="userMe.photo_path">
                     <img src="/src/assets/avatar/male1.png" alt="Default Male Avatar" width="120" height="120" class="rounded-circle" v-else-if="!userMe.photo_path && userMe.gender == 1">
                     <img src="/src/assets/avatar/female1.png" alt="Default Female Avatar" width="120" height="120" class="rounded-circle" v-else>
                 </div>
-                <div class="text-center mt-3 mb-3">
+                <div class="text-center mt-3 mb-3" v-if="userMe">
                     <h3>
                         <span>{{ userMe.name }}</span>
                     </h3>
@@ -69,7 +69,7 @@
     <div v-if="isLoading">
         <LoadingComponent />
     </div>
-    <ul class="nav nav-pills mb-3 justify-content-center" id="pills-tab" role="tablist" v-else>
+    <ul class="nav nav-pills mb-3 justify-content-center" id="pills-tab" role="tablist" v-else-if="userMe">
         <li class="nav-item" role="presentation">
             <button class="nav-link active link-body-emphasis" id="pills-activities-tab" data-bs-toggle="pill"
                 data-bs-target="#pills-activities" type="button" role="tab" aria-controls="pills-activities"

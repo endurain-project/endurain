@@ -9,7 +9,7 @@
         <SettingsSideBarComponent :activeSection="activeSection" @update-active-section="updateActiveSection" />
 
         <!-- Include the SettingsUserZone -->
-        <SettingsUsersZone v-if="activeSection === 'users'" />
+        <SettingsUsersZone v-if="activeSection === 'users' && userMe.access_type == 2" />
 
         <!-- Include the SettingsUserProfileZone -->
         <SettingsUserProfileZone v-if="activeSection === 'myProfile'" />
@@ -69,7 +69,7 @@ export default {
         }
 
         onMounted(async () => {
-            if (userMe.access_type === 1) {
+            if (userMe.value.access_type === 1) {
                 activeSection.value = 'myProfile';
             }
 
@@ -91,6 +91,7 @@ export default {
         });
 
         return {
+            userMe,
             activeSection,
             updateActiveSection,
             successMessage,

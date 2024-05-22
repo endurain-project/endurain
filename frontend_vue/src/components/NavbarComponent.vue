@@ -20,7 +20,7 @@
                 </div>
                 <div class="navbar-nav">
                     <span class="border-top d-sm-none d-block mb-2" v-if="isLoggedIn"></span>
-                    <router-link :to="{ name: 'user', params: { id: userMe.id } }" class="nav-link" v-if="isLoggedIn">
+                    <router-link :to="{ name: 'user', params: { id: userMe.id } }" class="nav-link" v-if="isLoggedIn && userMe">
                         <img :src="userMe.photo_path" alt="User Photo" width="24" height="24" class="rounded-circle align-top" v-if="userMe.photo_path">
                         <img src="/src/assets/avatar/male1.png" alt="Default Male Avatar" width="24" height="24" class="rounded-circle align-top" v-else-if="!userMe.photo_path && userMe.gender == 1">
                         <img src="/src/assets/avatar/female1.png" alt="Default Female Avatar" width="24" height="24" class="rounded-circle align-top" v-else>
@@ -74,14 +74,19 @@ export default {
             router.push('/login');
         }
 
+        function updateVariablesBasedOnLocalStorage() {
+            isLoggedIn.value = auth.isTokenValid(localStorage.getItem('accessToken'));
+            userMe.value = JSON.parse(localStorage.getItem('userMe'));
+        }
+
         watch(() => route.path, (newPath, oldPath) => {
             path.value = newPath;
             // Perform actions based on newPath if needed
             if (newPath === '/login' && isLoggedIn.value) {
-                isLoggedIn.value = auth.isTokenValid(localStorage.getItem('accessToken'));
+                updateVariablesBasedOnLocalStorage();
             }
             if (oldPath === '/login' && !isLoggedIn.value) {
-                isLoggedIn.value = auth.isTokenValid(localStorage.getItem('accessToken'));
+                updateVariablesBasedOnLocalStorage();
             }
         });
 
