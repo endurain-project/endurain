@@ -1,10 +1,7 @@
 <template>
     <div class="col">
-        <!-- Error alerts -->
-        <ErrorAlertComponent v-if="errorMessage"/>
-
-        <!-- Success banners -->
-        <SuccessAlertComponent v-if="successMessage"/>
+        <ErrorToastComponent v-if="errorMessage" />
+        <SuccessToastComponent v-if="successMessage" />
 
         <div class="row row-gap-3">
             <div class="col-lg-4 col-md-12">
@@ -35,7 +32,10 @@
                                     <input class="form-control" type="text" name="userEmailAdd" :placeholder='$t("settingsUsersZone.addUserModalEmailPlaceholder")' maxlength="45" v-model="newUserEmail" required>
                                     <!-- password fields -->
                                     <label for="passUserAdd"><b>* {{ $t("settingsUsersZone.addUserModalPasswordLabel") }}</b></label>
-                                    <input class="form-control" type="password" name="passUserAdd" :placeholder='$t("settingsUsersZone.addUserModalPasswordPlaceholder")' v-model="newUserPassword" required>
+                                    <input class="form-control" :class="{ 'is-invalid': !isPasswordValid }" type="password" id="validationPassword" aria-describedby="validationPasswordFeedback" name="passUserAdd" :placeholder='$t("settingsUsersZone.addUserModalPasswordPlaceholder")' v-model="newUserPassword" required>
+                                    <div id="validationPasswordFeedback" class="invalid-feedback" v-if="!isPasswordValid">
+                                        {{ $t("usersListComponent.modalChangeUserPasswordFeedbackLabel") }}
+                                    </div>
                                     <!-- city fields -->
                                     <label for="userCityAdd"><b>{{ $t("settingsUsersZone.addUserModalTownLabel") }}</b></label>
                                     <input class="form-control" type="text" name="userCityAdd" :placeholder='$t("settingsUsersZone.addUserModalTownPlaceholder")' maxlength="45" v-model="newUserTown">
@@ -63,7 +63,7 @@
                                 </div>
                                 <div class="modal-footer">
                                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ $t("generalItens.buttonClose") }}</button>
-                                    <button type="submit" class="btn btn-success" data-bs-dismiss="modal">{{ $t("settingsUsersZone.buttonAddUser") }}</button>
+                                    <button type="submit" class="btn btn-success" :disabled="!isPasswordValid" data-bs-dismiss="modal">{{ $t("settingsUsersZone.buttonAddUser") }}</button>
                                 </div>
                             </form>
                         </div>
@@ -102,14 +102,14 @@
 </template>
 
 <script>
-import { ref, onMounted, onUnmounted, watch } from 'vue';
+import { ref, onMounted, onUnmounted, watch, computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 // Importing the stores
 import { useSuccessAlertStore } from '@/stores/Alerts/successAlert';
 import { useErrorAlertStore } from '@/stores/Alerts/errorAlert';
 // Importing the components
-import ErrorAlertComponent from '@/components/Alerts/ErrorAlertComponent.vue';
-import SuccessAlertComponent from '@/components/Alerts/SuccessAlertComponent.vue';
+import ErrorToastComponent from '@/components/Toasts/ErrorToastComponent.vue';
+import SuccessToastComponent from '@/components/Toasts/SuccessToastComponent.vue';
 import LoadingComponent from '@/components/LoadingComponent.vue';
 import NoItemsFoundComponent from '@/components/NoItemsFoundComponents.vue';
 import UsersListConponent from '@/components/Settings/SettingsUsersZone/UsersListComponent.vue';
@@ -121,8 +121,8 @@ import CryptoJS from 'crypto-js';
 export default {
     components: {
         LoadingComponent,
-        ErrorAlertComponent,
-        SuccessAlertComponent,
+        ErrorToastComponent,
+        SuccessToastComponent,
         NoItemsFoundComponent,
         UsersListConponent
     },
@@ -138,6 +138,10 @@ export default {
         const newUserName = ref('');
         const newUserEmail = ref('');
         const newUserPassword = ref('');
+        const isPasswordValid = computed(() => {
+            const regex = /^(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+])[A-Za-z\d!@#$%^&*()_+]{8,}$/;
+            return regex.test(newUserPassword.value);
+        });
         const newUserTown = ref(null);
         const newUserBirthDate = ref(null);
         const newUserGender = ref(1);
@@ -205,36 +209,38 @@ export default {
 
         async function submitAddUserForm() {
             try {
-                // Create the gear data object.
-                const data = {
-                    name: newUserName.value,
-                    username: newUserUsername.value,
-                    email: newUserEmail.value,
-                    city: newUserTown.value,
-                    birthdate: newUserBirthDate.value,
-                    preferred_language: newUserPreferredLanguage.value,
-                    gender: newUserGender.value,
-                    access_type: newUserAccessType.value,
-                    photo_path: null,
-                    photo_path_aux: null,
-                    is_active: 1,
-                    password: CryptoJS.SHA256(newUserPassword.value).toString(CryptoJS.enc.Hex),
-                };
+                if (isPasswordValid.value) {
+                    // Create the gear data object.
+                    const data = {
+                        name: newUserName.value,
+                        username: newUserUsername.value,
+                        email: newUserEmail.value,
+                        city: newUserTown.value,
+                        birthdate: newUserBirthDate.value,
+                        preferred_language: newUserPreferredLanguage.value,
+                        gender: newUserGender.value,
+                        access_type: newUserAccessType.value,
+                        photo_path: null,
+                        photo_path_aux: null,
+                        is_active: 1,
+                        password: CryptoJS.SHA256(newUserPassword.value).toString(CryptoJS.enc.Hex),
+                    };
 
-                // Create the gear and get the created gear id.
-                const createdUserId = await users.createUser(data);
+                    // Create the gear and get the created gear id.
+                    const createdUserId = await users.createUser(data);
 
-                // Get the created gear and add it to the userGears array.
-                const newUser = await users.getUserById(createdUserId);
-                usersArray.value.unshift(newUser);
+                    // Get the created gear and add it to the userGears array.
+                    const newUser = await users.getUserById(createdUserId);
+                    usersArray.value.unshift(newUser);
 
-                // Increment the number of users.
-                usersNumber.value++;
+                    // Increment the number of users.
+                    usersNumber.value++;
 
-                // Set the success message and show the success alert.
-                successMessage.value = t('settingsUsersZone.successUserAdded');
-                successAlertStore.setAlertMessage(successMessage.value);
-                successAlertStore.setClosableState(true);
+                    // Set the success message and show the success alert.
+                    successMessage.value = t('settingsUsersZone.successUserAdded');
+                    successAlertStore.setAlertMessage(successMessage.value);
+                    successAlertStore.setClosableState(true);
+                }
             } catch(error) {
                 // If there is an error, set the error message and show the error alert.
                 errorMessage.value = t('generalItens.errorFetchingInfo') + " - " + error.toString();
@@ -297,6 +303,7 @@ export default {
             newUserName,
             newUserEmail,
             newUserPassword,
+            isPasswordValid,
             newUserTown,
             newUserBirthDate,
             newUserGender,

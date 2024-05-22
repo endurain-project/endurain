@@ -1,5 +1,5 @@
 <template>
-    <footer class="py-5 bg-body-secondary">
+    <footer class="py-5 bg-body-tertiary">
         <div class="container">
             <div class="row align-items-center justify-content-center">
                 <div class="col-md" v-if="isLoggedIn">
