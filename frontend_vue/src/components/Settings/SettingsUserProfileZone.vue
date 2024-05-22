@@ -2,7 +2,7 @@
     <div class="col">
         <ErrorToastComponent v-if="errorMessage" />
         <SuccessToastComponent v-if="successMessage" />
-        
+
         <div class="row row-gap-3">
             <div class="col-lg-4 col-md-12">
                 <div class="justify-content-center align-items-center d-flex">
@@ -93,7 +93,6 @@
                         </div>
                     </div>
                 </div>
-
             </div>
             <div class="col">
                 <h2>{{ userMe.name }}</h2>

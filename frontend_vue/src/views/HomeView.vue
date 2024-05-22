@@ -68,16 +68,8 @@
         <!-- Success banners -->
         <SuccessAlertComponent v-if="successMessage"/>
 
-        <div v-if="isLoadingUploadActivity">
-          <div class="alert alert-primary d-flex align-items-center" role="alert">
-            <div class="spinner-border" role="status">
-              <span class="visually-hidden">Loading...</span>
-            </div>
-            <div class="ms-1">
-              <span>{{ $t("home.processingActivity") }}</span>
-            </div>
-          </div>
-        </div>
+        <!-- Loading banners -->
+        <LoadingAlertComponent v-if="loadingMessage"/>
 
         <!-- radio button -->
         <div class="btn-group mb-3 d-flex" role="group"  aria-label="Activities radio toggle button group">
@@ -136,6 +128,7 @@ import { activities } from '@/services/activities';
 // Importing the stores
 import { useSuccessAlertStore } from '@/stores/Alerts/successAlert';
 import { useErrorAlertStore } from '@/stores/Alerts/errorAlert';
+import { useLoadingAlertStore } from '@/stores/Alerts/loadingAlert';
 // Importing the components
 import UserDistanceStatsComponent from '@/components/Activities/UserDistanceStatsComponent.vue';
 import NoItemsFoundComponent from '@/components/NoItemsFoundComponents.vue';
@@ -144,6 +137,7 @@ import ActivityMapComponent from '@/components/Activities/ActivityMapComponent.v
 import LoadingComponent from '@/components/LoadingComponent.vue';
 import ErrorAlertComponent from '@/components/Alerts/ErrorAlertComponent.vue';
 import SuccessAlertComponent from '@/components/Alerts/SuccessAlertComponent.vue';
+import LoadingAlertComponent from '@/components/Alerts/LoadingAlertComponent.vue';
 
 //import { Modal } from 'bootstrap';
 
@@ -156,12 +150,14 @@ export default {
     LoadingComponent,
     ErrorAlertComponent,
     SuccessAlertComponent,
+    LoadingAlertComponent,
   },
   setup() {
     const route = useRoute();
     const userStore = useUserStore();
     const successAlertStore = useSuccessAlertStore();
     const errorAlertStore = useErrorAlertStore();
+    const loadingAlertStore = useLoadingAlertStore();
     const selectedActivityView = ref('userActivities');
     const isLoading = ref(true);
     const isLoadingUploadActivity = ref(false);
@@ -177,6 +173,7 @@ export default {
     const { t } = useI18n();
     const successMessage = ref('');
     const errorMessage = ref('');
+    const loadingMessage = ref('');
 
     async function fetchMoreActivities() {
       // If the component is already loading or there are no more activities, return
@@ -211,6 +208,9 @@ export default {
     const submitUploadFileForm = async () => {
       // Set the loading state
       isLoadingUploadActivity.value = true;
+      loadingMessage.value = t('home.processingActivity');
+      loadingAlertStore.setAlertMessage(loadingMessage.value);
+
       // Get the file input
       const fileInput = document.querySelector('input[type="file"]');
       
@@ -312,6 +312,7 @@ export default {
       followedUserActivities,
       errorMessage,
       successMessage,
+      loadingMessage,
       submitUploadFileForm,
       t,
     };

@@ -14,6 +14,7 @@ import enSettingsSideBarComponent from './en/components/settings/settingsSideBar
 import enSettingsUsersZoneComponent from './en/components/settings/settingsUsersZoneComponent.json';
 import enSettingsUserProfileZoneComponent from './en/components/settings/settingsUserProfileZoneComponent.json';
 import enSettingsSecurityZoneComponent from './en/components/settings/settingsSecurityZoneComponent.json';
+import enSettingsIntegrationsZoneComponent from './en/components/settings/settingsIntegrationsZoneComponent.json';
 import enUsersListComponent from './en/components/settings/settingsUsersZone/usersListComponent.json';
 // General components
 import enNoItemsFoundComponent from './en/components/noItemsFoundComponent.json';
@@ -40,6 +41,7 @@ const messages = {
     settingsUsersZone: enSettingsUsersZoneComponent,
     settingsUserProfileZone: enSettingsUserProfileZoneComponent,
     settingsSecurityZone: enSettingsSecurityZoneComponent,
+    settingsIntegrationsZone: enSettingsIntegrationsZoneComponent,
     usersListComponent: enUsersListComponent,
     noItemsFoundComponent: enNoItemsFoundComponent,
     generalItens: enGeneralItens,

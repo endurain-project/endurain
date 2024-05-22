@@ -1,0 +1,14 @@
+{
+    "stravaIntegrationTitle": "Strava",
+    "stravaIntegrationBody": "Strava is an American internet service for tracking physical exercise which incorporates social network features.",
+    "buttonConnect": "Connect",
+    "buttonStravaRetrieveLastWeekActivities": "Retrieve last week activities",
+    "buttonStravaRetrieveGear": "Retrieve gear",
+    "errorMessageUnableToLinkStrava": "Unable to link Strava account",
+    "successMessageStravaAccountLinked": "Strava account linked",
+    "errorMessageUnableToUnSetStravaState": "Unable to unset Strava state",
+    "errorMessageUnableToGetStravaActivities": "Unable to get Strava activities",
+    "errorMessageUnableToGetStravaGear": "Unable to get Strava gear",
+    "loadingMessageRetrievingStravaActivities": "Retrieving Strava activities",
+    "loadingMessageRetrievingStravaGear": "Retrieving Strava gear"
+}
