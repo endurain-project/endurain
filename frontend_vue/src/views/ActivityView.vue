@@ -1,11 +1,11 @@
 <template>
-    <!-- Error alerts -->
-    <ErrorAlertComponent v-if="errorMessage"/>
-    <!-- <ErrorToastComponent v-if="errorMessage"/> -->
+    <!-- Error alerts
+    <ErrorAlertComponent v-if="errorMessage"/> -->
+    <ErrorToastComponent v-if="errorMessage" />
 
-    <!-- Success alerts -->
-    <SuccessAlertComponent v-if="successMessage"/>
-    <!-- <SuccessToastComponent v-if="successMessage"/> -->
+    <!-- Success banners
+    <SuccessAlertComponent v-if="successMessage"/> -->
+    <SuccessToastComponent v-if="successMessage" />
 
     <LoadingComponent v-if="isLoading"/>
 
@@ -17,7 +17,7 @@
     <div class="mt-3 mb-3" v-if="isLoading">
         <LoadingComponent />
     </div>
-    <div class="mt-3 mb-3" v-else>
+    <div class="mt-3 mb-3" v-else-if="activity">
         <ActivityMapComponent :activity="activity" :source="'activity'"/>
     </div>
     
@@ -26,7 +26,7 @@
     <div class="mt-3 mb-3" v-if="isLoading">
         <LoadingComponent />
     </div>
-    <div class="d-flex justify-content-between align-items-center" v-else>
+    <div class="d-flex justify-content-between align-items-center" v-else-if="activity">
         <p class="pt-2">
             <span class="fw-lighter">
                 {{ $t("activity.labelGear") }}
@@ -141,7 +141,7 @@
         </div>
         <div class="col">
             <LoadingComponent v-if="isLoading"/>
-            <div v-else>
+            <div v-else-if="activity">
                 <ActivityStreamsLineChartComponent :activity="activity" :graphSelection="graphSelection" :activityStreams="activityActivityStreams" v-if="graphSelection === 'hr'"/>
                 <ActivityStreamsLineChartComponent :activity="activity" :graphSelection="graphSelection" :activityStreams="activityActivityStreams" v-if="graphSelection === 'power'"/>
                 <ActivityStreamsLineChartComponent :activity="activity" :graphSelection="graphSelection" :activityStreams="activityActivityStreams" v-if="graphSelection === 'cad'"/>

@@ -1,9 +1,11 @@
 <template>
-    <!-- Error alerts -->
-    <ErrorAlertComponent v-if="errorMessage"/>
+    <!-- Error alerts
+    <ErrorAlertComponent v-if="errorMessage"/> -->
+    <ErrorToastComponent v-if="errorMessage" />
 
-    <!-- Success banners -->
-    <SuccessAlertComponent v-if="successMessage"/>
+    <!-- Success banners
+    <SuccessAlertComponent v-if="successMessage"/> -->
+    <SuccessToastComponent v-if="successMessage" />
 
     <div v-if="isLoading">
         <LoadingComponent />
@@ -189,6 +191,8 @@ import { useErrorAlertStore } from '@/stores/Alerts/errorAlert';
 import NoItemsFoundComponent from '@/components/NoItemsFoundComponents.vue';
 import ErrorAlertComponent from '@/components/Alerts/ErrorAlertComponent.vue';
 import SuccessAlertComponent from '@/components/Alerts/SuccessAlertComponent.vue';
+import ErrorToastComponent from '@/components/Toasts/ErrorToastComponent.vue';
+import SuccessToastComponent from '@/components/Toasts/SuccessToastComponent.vue';
 import LoadingComponent from '@/components/LoadingComponent.vue';
 import BackButtonComponent from '@/components/BackButtonComponent.vue';
 // Importing the services
@@ -202,6 +206,8 @@ export default {
         LoadingComponent,
         ErrorAlertComponent,
         SuccessAlertComponent,
+        ErrorToastComponent,
+        SuccessToastComponent,
         BackButtonComponent,
     },
     setup() {

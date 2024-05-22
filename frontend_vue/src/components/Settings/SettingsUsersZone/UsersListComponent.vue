@@ -1,6 +1,7 @@
 <template>
     <ErrorToastComponent v-if="errorMessage" />
     <SuccessToastComponent v-if="successMessage" />
+
     <li class="list-group-item d-flex justify-content-between">
         <div class="d-flex align-items-center">
             <img :src="userProp.photo_path" alt="User Photo" width="55" height="55" class="rounded-circle" v-if="userProp.photo_path">

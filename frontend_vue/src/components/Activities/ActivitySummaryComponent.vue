@@ -1,6 +1,7 @@
 <template>
-    <!-- Error alerts -->
-    <ErrorAlertComponent v-if="errorMessage"/>
+    <!-- Error alerts
+    <ErrorAlertComponent v-if="errorMessage"/> -->
+    <ErrorToastComponent v-if="errorMessage" />
 
     <div v-if="isLoading">
         <LoadingComponent />
@@ -189,6 +190,7 @@ import { useRouter } from 'vue-router';
 // Importing the components
 import LoadingComponent from '@/components/LoadingComponent.vue';
 import ErrorAlertComponent from '@/components/Alerts/ErrorAlertComponent.vue';
+import ErrorToastComponent from '@/components/Toasts/ErrorToastComponent.vue';
 // Importing the stores
 import { useErrorAlertStore } from '@/stores/Alerts/errorAlert';
 // Importing the services
@@ -201,6 +203,7 @@ export default {
     components: {
         LoadingComponent,
         ErrorAlertComponent,
+        ErrorToastComponent,
     },
     props: {
         activity: {

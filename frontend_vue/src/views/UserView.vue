@@ -1,9 +1,11 @@
 <template>
-    <!-- Error alerts -->
-    <ErrorAlertComponent v-if="errorMessage"/>
+    <!-- Error alerts
+    <ErrorAlertComponent v-if="errorMessage"/> -->
+    <ErrorToastComponent v-if="errorMessage" />
 
-    <!-- Success banners -->
-    <SuccessAlertComponent v-if="successMessage"/>
+    <!-- Success banners
+    <SuccessAlertComponent v-if="successMessage"/> -->
+    <SuccessToastComponent v-if="successMessage" />
 
     <div class="row align-items-center">
         <!-- picture col -->
@@ -98,25 +100,103 @@
             </router-link>
         </li>
         <li class="nav-item" role="presentation" v-if="userMe.id != loggedUserId && userFollowState == null">
+            <!-- Follow user button -->
             <a class="btn btn-outline-success h-100 ms-2" href="#" role="button" data-bs-toggle="modal"
                 data-bs-target="#followUserModal">
                 <font-awesome-icon :icon="['fas', 'fa-user-plus']" />
                 {{ $t("user.navigationFollow") }}
             </a>
+
+            <!-- Modal follow user -->
+            <div class="modal fade" id="followUserModal" tabindex="-1" aria-labelledby="followUserModal" aria-hidden="true">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h1 class="modal-title fs-5" id="followUserModal">
+                                {{ $t("user.modalFollowUserTitle") }}
+                            </h1>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            {{ $t("user.modalFollowUserBody") }}<b>{{ userMe.name }}</b>?
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                                {{ $t("generalItens.buttonClose") }}
+                            </button>
+                            <a type="button" class="btn btn-success" data-bs-dismiss="modal" @click="submitFollowUser">
+                                {{ $t("user.modalFollowUserTitle") }}
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </li>
         <li class="nav-item" role="presentation" v-if="userMe.id != loggedUserId && userFollowState != null && !userFollowState.is_accepted">
+            <!-- Cancel follow request button -->
             <a class="btn btn-outline-secondary h-100 ms-2" href="#" role="button" data-bs-toggle="modal"
                 data-bs-target="#cancelFollowUserModal">
                 <font-awesome-icon :icon="['fas', 'fa-user-plus']" />
                 {{ $t("user.navigationRequestSent") }}
             </a>
+
+            <!-- Modal cancel follow request -->
+            <div class="modal fade" id="cancelFollowUserModal" tabindex="-1" aria-labelledby="cancelFollowUserModal" aria-hidden="true">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h1 class="modal-title fs-5" id="cancelFollowUserModal">
+                                {{ $t("user.modalCancelFollowRequestTitle") }}
+                            </h1>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            {{ $t("user.modalCancelFollowRequestBody") }}<b>{{ userMe.name }}</b>?
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                                {{ $t("generalItens.buttonClose") }}
+                            </button>
+                            <a type="button" class="btn btn-danger" data-bs-dismiss="modal" @click="submitCancelFollowUser">
+                                {{ $t("user.modalCancelFollowRequestTitle") }}
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </li>
         <li class="nav-item" role="presentation" v-if="userMe.id != loggedUserId && userFollowState != null && userFollowState.is_accepted">
+            <!-- Unfollow user button -->
             <a class="btn btn-outline-danger h-100 ms-2" href="#" role="button" data-bs-toggle="modal"
                 data-bs-target="#unfollowUserModal">
                 <font-awesome-icon :icon="['fas', 'fa-user-minus']" />
                 {{ $t("user.navigationUnfollow") }}
             </a>
+
+            <!-- Modal unfollow user -->
+            <div class="modal fade" id="unfollowUserModal" tabindex="-1" aria-labelledby="unfollowUserModal" aria-hidden="true">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h1 class="modal-title fs-5" id="unfollowUserModal">
+                                {{ $t("user.modalUnfollowUserTitle") }}
+                            </h1>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            {{ $t("user.modalUnfollowUserBody") }}<b>{{ userMe.name }}</b>?
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                                {{ $t("generalItens.buttonClose") }}
+                            </button>
+                            <a type="button" class="btn btn-danger" data-bs-dismiss="modal" @click="submitUnfollowUser">
+                                {{ $t("user.modalUnfollowUserTitle") }}
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </li>
     </ul>
 
@@ -212,6 +292,8 @@ import ActivitySummaryComponent from '@/components/Activities/ActivitySummaryCom
 import ActivityMapComponent from '@/components/Activities/ActivityMapComponent.vue';
 import ErrorAlertComponent from '@/components/Alerts/ErrorAlertComponent.vue';
 import SuccessAlertComponent from '@/components/Alerts/SuccessAlertComponent.vue';
+import ErrorToastComponent from '@/components/Toasts/ErrorToastComponent.vue';
+import SuccessToastComponent from '@/components/Toasts/SuccessToastComponent.vue';
 import FollowersListComponent from '@/components/Followers/FollowersListComponent.vue';
 import BackButtonComponent from '@/components/BackButtonComponent.vue';
 
@@ -222,9 +304,11 @@ export default {
         LoadingComponent,
         ActivitySummaryComponent,
         ActivityMapComponent,
-        ErrorAlertComponent,
         FollowersListComponent,
+        ErrorAlertComponent,
         SuccessAlertComponent,
+        ErrorToastComponent,
+        SuccessToastComponent,
         BackButtonComponent,
     },
     setup () {
@@ -348,6 +432,57 @@ export default {
             successAlertStore.setClosableState(true);
         }
 
+        async function submitFollowUser() {
+            try{
+                await followers.createUserFollowsSpecificUser(loggedUserId, userMe.value.id);
+
+                userFollowState.value = 0;
+
+                // Set the success message
+                successMessage.value = t('user.successFollowRequestSent');
+                successAlertStore.setAlertMessage(successMessage.value);
+                successAlertStore.setClosableState(true);
+            } catch (error) {
+                // Set the error message
+                errorMessage.value = t('user.errorUnableToSendFollow') + " - " + error.toString();
+                errorAlertStore.setAlertMessage(errorMessage.value);
+            }
+        }
+
+        async function submitCancelFollowUser() {
+            try {
+                await followers.deleteUserFollowsSpecificUser(loggedUserId, userMe.value.id);
+
+                userFollowState.value = null;
+
+                // Set the success message
+                successMessage.value = t('user.successFollowRequestCancelled');
+                successAlertStore.setAlertMessage(successMessage.value);
+                successAlertStore.setClosableState(true);
+            } catch (error) {
+                // Set the error message
+                errorMessage.value = t('user.errorUnableToCancelFollowRequest') + " - " + error.toString();
+                errorAlertStore.setAlertMessage(errorMessage.value);
+            }
+        }
+
+        async function submitUnfollowUser() {
+            try {
+                await followers.deleteUserFollowsSpecificUser(loggedUserId, userMe.value.id);
+
+                userFollowState.value = null;
+
+                // Set the success message
+                successMessage.value = t('user.successUserUnfollowed');
+                successAlertStore.setAlertMessage(successMessage.value);
+                successAlertStore.setClosableState(true);
+            } catch (error) {
+                // Set the error message
+                errorMessage.value = t('user.errorUnableToUnfollow') + " - " + error.toString();
+                errorAlertStore.setAlertMessage(errorMessage.value);
+            }
+        }
+
         return {
             idFromParam,
             isLoading,
@@ -371,6 +506,9 @@ export default {
             updateFollowingList,
             updateFollowerList,
             updateFollowerListWithAccepted,
+            submitFollowUser,
+            submitCancelFollowUser,
+            submitUnfollowUser,
         };
     },
 };  

@@ -62,14 +62,17 @@
       </div>
       <!-- activities zone -->
       <div class="col">
-        <!-- Error alerts -->
-        <ErrorAlertComponent v-if="errorMessage"/>
+        <!-- Error alerts
+        <ErrorAlertComponent v-if="errorMessage"/> -->
+        <ErrorToastComponent v-if="errorMessage" />
 
-        <!-- Success banners -->
-        <SuccessAlertComponent v-if="successMessage"/>
+        <!-- Success banners
+        <SuccessAlertComponent v-if="successMessage"/> -->
+        <SuccessToastComponent v-if="successMessage" />
 
-        <!-- Loading banners -->
-        <LoadingAlertComponent v-if="loadingMessage && isLoadingUploadActivity"/>
+        <!-- Loading banners
+        <LoadingAlertComponent v-if="loadingMessage && isLoadingUploadActivity"/> -->
+        <LoadingToastComponent v-if="loadingMessage && isLoadingUploadActivity" />
 
         <!-- radio button -->
         <div class="btn-group mb-3 d-flex" role="group"  aria-label="Activities radio toggle button group">
@@ -138,6 +141,9 @@ import LoadingComponent from '@/components/LoadingComponent.vue';
 import ErrorAlertComponent from '@/components/Alerts/ErrorAlertComponent.vue';
 import SuccessAlertComponent from '@/components/Alerts/SuccessAlertComponent.vue';
 import LoadingAlertComponent from '@/components/Alerts/LoadingAlertComponent.vue';
+import ErrorToastComponent from '@/components/Toasts/ErrorToastComponent.vue';
+import SuccessToastComponent from '@/components/Toasts/SuccessToastComponent.vue';
+import LoadingToastComponent from '@/components/Toasts/LoadingToastComponent.vue';
 
 //import { Modal } from 'bootstrap';
 
@@ -150,6 +156,9 @@ export default {
     LoadingComponent,
     ErrorAlertComponent,
     SuccessAlertComponent,
+    ErrorToastComponent,
+    SuccessToastComponent,
+    LoadingToastComponent,
     LoadingAlertComponent,
   },
   setup() {

@@ -2,14 +2,10 @@
     <div class="toast-container position-fixed bottom-0 end-0 p-3">
         <div ref="toastElement" class="toast align-items-center" role="alert" aria-live="assertive" aria-atomic="true">
             <div class="d-flex">
-                <div class="toast-body text-danger-emphasis">
-                    <div class="spinner-border" role="status">
-                        <span class="visually-hidden">Loading...</span>
-                    </div>
-                    <div class="ms-1">
-                        <font-awesome-icon :icon="['fas', 'fa-circle-exclamation']" />
-                        <span class="ms-1">{{ loadingMessage }}</span>
-                    </div>
+                <div class="toast-body text-primary-emphasis">
+                    <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
+                    <font-awesome-icon :icon="['fas', 'fa-circle-exclamation']" />
+                    <span class="ms-1">{{ loadingMessage }}</span>
                 </div>
                 <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close" v-if="closable"></button>
             </div>

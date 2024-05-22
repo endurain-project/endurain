@@ -58,11 +58,13 @@
             </form>
         </div>
         <div class="col">
-            <!-- Error alerts -->
-            <ErrorAlertComponent v-if="errorMessage || !gearFound"/>
+            <!-- Error alerts
+            <ErrorAlertComponent v-if="errorMessage"/> -->
+            <ErrorToastComponent v-if="errorMessage" />
 
-            <!-- Success banners -->
-            <SuccessAlertComponent v-if="successMessage || gearDeleted"/>
+            <!-- Success banners
+            <SuccessAlertComponent v-if="successMessage"/> -->
+            <SuccessToastComponent v-if="successMessage" />
 
             <div v-if="isLoading">
                 <LoadingComponent />
@@ -121,6 +123,8 @@ import { useErrorAlertStore } from '@/stores/Alerts/errorAlert';
 import NoItemsFoundComponent from '@/components/NoItemsFoundComponents.vue';
 import ErrorAlertComponent from '@/components/Alerts/ErrorAlertComponent.vue';
 import SuccessAlertComponent from '@/components/Alerts/SuccessAlertComponent.vue';
+import ErrorToastComponent from '@/components/Toasts/ErrorToastComponent.vue';
+import SuccessToastComponent from '@/components/Toasts/SuccessToastComponent.vue';
 import LoadingComponent from '@/components/LoadingComponent.vue';
 import BackButtonComponent from '@/components/BackButtonComponent.vue';
 // Importing the services
@@ -134,6 +138,8 @@ export default {
         LoadingComponent,
         ErrorAlertComponent,
         SuccessAlertComponent,
+        ErrorToastComponent,
+        SuccessToastComponent,
         BackButtonComponent,
     },
     setup() {
@@ -141,8 +147,6 @@ export default {
         const route = useRoute();
         const errorAlertStore = useErrorAlertStore();
         const successAlertStore = useSuccessAlertStore();
-        const gearDeleted = ref(false);
-        const gearFound = ref(true);
         const brand = ref('');
         const model = ref('');
         const nickname = ref('');
@@ -300,15 +304,15 @@ export default {
         onMounted(async () => {
             if (route.query.gearDeleted === 'true') {
                 // Set the gearDeleted value to true and show the success alert.
-                gearDeleted.value = true;
-                successAlertStore.setAlertMessage(t("gears.successGearDeleted"));
+                successMessage.value = t("gears.successGearDeleted");
+                successAlertStore.setAlertMessage(successMessage.value);
                 successAlertStore.setClosableState(true);
             }
 
             if (route.query.gearFound === 'false') {
                 // Set the gearFound value to false and show the error alert.
-                gearFound.value = false;
-                errorAlertStore.setAlertMessage(t("gears.errorGearNotFound"));
+                errorMessage.value = t('gears.errorGearNotFound');
+                errorAlertStore.setAlertMessage(errorMessage.value);
                 errorAlertStore.setClosableState(true);
             }
 
@@ -353,8 +357,6 @@ export default {
             searchNickname,
             t,
             submitAddGearForm,
-            gearDeleted,
-            gearFound,
         };
     },
 };

@@ -1,4 +1,4 @@
-import { fetchGetRequest, fetchPostFileRequest, fetchDeleteRequest, fetchPutRequest } from '@/utils/serviceUtils';
+import { fetchGetRequest, fetchPostFileRequest, fetchDeleteRequest, fetchPutRequest, fetchPostRequest } from '@/utils/serviceUtils';
 
 export const followers = {
     getUserFollowState(user_id, target_user_id) {
@@ -24,6 +24,9 @@ export const followers = {
     },
     deleteUserFollowsSpecificUser(user_id, target_user_id) {
         return fetchDeleteRequest(`followers/delete/user/${user_id}/targetUser/${target_user_id}`);
+    },
+    createUserFollowsSpecificUser(user_id, target_user_id) {
+        return fetchPostRequest(`followers/create/user/${user_id}/targetUser/${target_user_id}`);
     },
     acceptUserFollowsSpecificUser(user_id, target_user_id) {
         return fetchPutRequest(`followers/accept/user/${user_id}/targetUser/${target_user_id}`);
