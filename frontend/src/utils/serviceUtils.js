@@ -1,5 +1,4 @@
-//const API_URL = process.env.VUE_APP_API_URL || 'http://localhost:98/';
-const API_URL = 'http://localhost:98/';
+const API_URL = `${import.meta.env.VITE_BACKEND_PROTOCOL}://${import.meta.env.VITE_BACKEND_HOST}/`;
 
 /**
  * Makes a GET request to the specified URL with optional headers.

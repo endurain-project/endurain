@@ -1,7 +1,7 @@
 FROM python:3.11
 
 # Links Docker image with repository
-LABEL org.opencontainers.image.source https://github.com/joaovitoriasilva/gearguardian
+LABEL org.opencontainers.image.source https://github.com/joaovitoriasilva/endurain
 
 # Set the working directory
 WORKDIR /app

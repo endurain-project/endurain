@@ -66,11 +66,17 @@ BACKEND_HOST** | backend | Yes
 **BACKEND_HOST needs to be set and be Internet faced/resolved if you want to enable Strava integration. Strava callback relies on this.
 
 Frontend dependencies:
- - php:8.3-apache
+ - vue@3.4.24
+ - vue-router@4.3.2
+ - vue-i18n@9.13.1
+ - vite@5.2.10
+ - pinia@2.1.7
+ - crypto-js@4.2.0
+ - chart.js@4.4.2
  - User avatars create using DiceBear (https://www.dicebear.com) avataaars style.
- - Bootstrap CSS v5.3.2
- - leaflet v1.7.1
- - fontawesome icons free version
+ - Bootstrap CSS v5.3.3
+ - leaflet v1.9.4
+ - fontawesome icons free version@6.5.2 and vue-fontawesome@3.0.6
  - Logo created using Canvas
 
 ---
@@ -111,22 +117,21 @@ MYSQL_USER | gearguardian | `No`
 MYSQL_PASSWORD | changeme | `No`
 
 Python backend dependencies used:
- - python:3.11
- - fastapi==0.108.0
- - pydantic==1.10.9
- - uvicorn==0.25.0
- - python-dotenv==1.0.0
- - sqlalchemy==2.0.25
- - mysqlclient==2.2.1
+ - fastapi==0.111.0
+ - pydantic==1.10.15
+ - uvicorn==0.29.0
+ - python-dotenv==1.0.1
+ - sqlalchemy==2.0.30
+ - mysqlclient==2.2.4
  - python-jose[cryptography]==3.3.0
  - passlib[bcrypt]==1.7.4
  - apscheduler==3.10.4
- - requests==2.31.0
- - stravalib==1.5
+ - requests==2.32.2
+ - stravalib==1.7
  - opentelemetry-sdk==1.22.0
  - opentelemetry-instrumentation-fastapi==0.43b0
  - opentelemetry.exporter.otlp==1.22.0
- - python-multipart==0.0.6
+ - python-multipart==0.0.9
  - gpxpy==1.6.2
  - alembic==1.13.1
 

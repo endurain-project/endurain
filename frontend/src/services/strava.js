@@ -9,8 +9,7 @@ export const strava = {
     },
     linkStrava(state) {
         const stravaClientId = '115321';
-        //const redirectUri = process.env.VUE_APP_API_URL || 'http://localhost:98';
-        let redirectUri = 'http://localhost:98';
+        let redirectUri = `${import.meta.env.VITE_BACKEND_PROTOCOL}://${import.meta.env.VITE_BACKEND_HOST}`;
         redirectUri = encodeURIComponent(redirectUri);
         const scope = 'read,read_all,profile:read_all,activity:read,activity:read_all';
 
