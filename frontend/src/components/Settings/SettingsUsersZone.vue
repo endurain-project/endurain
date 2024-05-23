@@ -20,7 +20,7 @@
                                 <div class="modal-body">
                                     <!-- img fields -->
                                     <label for="userImgAdd"><b>{{ $t("settingsUsersZone.addUserModalUserPhotoLabel") }}</b></label>
-                                    <input class="form-control" type="file" accept="image/*" name="userImgAdd" id="userImgAdd">
+                                    <input class="form-control" type="file" accept="image/*" name="userImgAdd" id="userImgAdd" @change="handleFileChange">
                                     <!-- username fields -->
                                     <label for="userUsernameAdd"><b>* {{ $t("settingsUsersZone.addUserModalUsernameLabel") }}</b></label>
                                     <input class="form-control" type="text" name="userUsernameAdd" :placeholder='$t("settingsUsersZone.addUserModalUsernamePlaceholder")' maxlength="45" v-model="newUserUsername" required>
@@ -133,7 +133,7 @@ export default {
         const isLoading = ref(true);
         const errorMessage = ref('');
         const successMessage = ref('');
-        const newUserPhoto = ref('');
+        const newUserPhotoFile = ref(null);
         const newUserUsername = ref('');
         const newUserName = ref('');
         const newUserEmail = ref('');
@@ -153,6 +153,27 @@ export default {
         const pageNumber = ref(1);
         const numRecords = 5;
         const searchUsername = ref('');
+
+        async function handleFileChange(event) {
+            if (event.target.files && event.target.files[0]) {
+                newUserPhotoFile.value = event.target.files[0];
+            } else {
+                newUserPhotoFile.value = null;
+            }
+        }
+
+        async function uploadImage(file, userId) {
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                return await users.uploadUserImage(formData, userId);
+            } catch (error) {
+                // Set the error message
+                errorMessage.value = t('generalItens.errorFetchingInfo') + " - " + error.toString();
+                errorAlertStore.setAlertMessage(errorMessage.value);
+            }
+        }
 
         async function fetchMoreUsers() {
             // If the component is already loading or there are no more gears to fetch, return.
@@ -210,6 +231,7 @@ export default {
         async function submitAddUserForm() {
             try {
                 if (isPasswordValid.value) {
+
                     // Create the gear data object.
                     const data = {
                         name: newUserName.value,
@@ -228,6 +250,11 @@ export default {
 
                     // Create the gear and get the created gear id.
                     const createdUserId = await users.createUser(data);
+
+                    // If there is a photo, upload it and get the photo url.
+                    if (newUserPhotoFile.value) {
+                        await uploadImage(newUserPhotoFile.value, createdUserId);
+                    }
 
                     // Get the created gear and add it to the userGears array.
                     const newUser = await users.getUserById(createdUserId);
@@ -298,7 +325,7 @@ export default {
             isLoading,
             errorMessage,
             successMessage,
-            newUserPhoto,
+            newUserPhotoFile,
             newUserUsername,
             newUserName,
             newUserEmail,
@@ -310,6 +337,7 @@ export default {
             newUserPreferredLanguage,
             newUserAccessType,
             submitAddUserForm,
+            handleFileChange,
             usersNumber,
             usersArray,
             searchUsername,

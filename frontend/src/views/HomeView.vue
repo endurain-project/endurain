@@ -10,9 +10,7 @@
           </div>
           <div v-else>
             <div class="justify-content-center d-flex" v-if="userMe">
-              <img :src="userMe.photo_path" alt="User Photo" width="120" height="120" class="rounded-circle" v-if="userMe.photo_path">
-              <img src="/src/assets/avatar/male1.png" alt="Default Male Avatar" width="120" height="120" class="rounded-circle" v-else-if="!userMe.photo_path && userMe.gender == 1">
-              <img src="/src/assets/avatar/female1.png" alt="Default Female Avatar" width="120" height="120" class="rounded-circle" v-else>
+              <UserAvatarComponent :userProp="userMe" :width=120 :height=120 />
             </div>
             <div class="text-center mt-3 mb-3 fw-bold" v-if="userMe">
               <router-link :to="{ name: 'user', params: { id: userMe.id }}" class="link-body-emphasis link-underline-opacity-0 link-underline-opacity-100-hover">
@@ -138,6 +136,7 @@ import LoadingComponent from '@/components/LoadingComponent.vue';
 import ErrorToastComponent from '@/components/Toasts/ErrorToastComponent.vue';
 import SuccessToastComponent from '@/components/Toasts/SuccessToastComponent.vue';
 import LoadingToastComponent from '@/components/Toasts/LoadingToastComponent.vue';
+import UserAvatarComponent from '@/components/Users/UserAvatarComponent.vue';
 
 //import { Modal } from 'bootstrap';
 
@@ -151,6 +150,7 @@ export default {
     ErrorToastComponent,
     SuccessToastComponent,
     LoadingToastComponent,
+    UserAvatarComponent,
   },
   setup() {
     const route = useRoute();

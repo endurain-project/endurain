@@ -8,6 +8,11 @@ backend/*.pyc
 backend/logs/*.log
 backend/*.log
 
+# user image folder images
+backend/user_images/*.jpeg
+backend/user_images/*.png
+backend/user_images/*.jpg
+
 # Frontend
 frontend/img/users_img/*.*
 # Logs

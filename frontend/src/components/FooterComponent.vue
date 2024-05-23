@@ -13,7 +13,7 @@
                         <br>
                         <input type="text" class="form-control" id="inputTextFieldToSearch" :placeholder='$t("footer.searchInputPlaceholder")' v-model="inputSearch">
                         <ul v-if="searchResults.length" class="list-group">
-                            <li v-for="result in searchResults" :key="result.id" class="list-group-item list-group-item-action" @click="goToResultPage(result)">
+                            <li v-for="result in searchResults" :key="result.id" class="list-group-item list-group-item-action">
                                 <!-- user link -->
                                 <router-link :to="{ name: 'user', params: { id: result.id }}" class="link-body-emphasis link-underline-opacity-0 link-underline-opacity-100-hover" v-if="searchSelectValue == 1">
                                     {{ result.name}} - {{ result.username}}

@@ -1,10 +1,13 @@
+import os
 import logging
 
 from typing import Annotated, Callable
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
+
+import shutil
 
 from schemas import schema_users
 from crud import crud_user_integrations, crud_users
@@ -156,6 +159,52 @@ async def create_user(
 
     # Return the user id
     return created_user.id
+
+
+@router.post(
+    "/users/{user_id}/upload/image",
+    status_code=201,
+    response_model=None,
+    tags=["users"],
+)
+async def upload_user_image(
+    user_id: int,
+    token_user_id: Annotated[
+        Callable,
+        Depends(dependencies_session.validate_token_and_get_authenticated_user_id),
+    ],
+    file: UploadFile,
+    db: Session = Depends(dependencies_database.get_db),
+):
+    try:
+        upload_dir = "user_images"
+        os.makedirs(upload_dir, exist_ok=True)
+        
+        # Get file extension
+        _, file_extension = os.path.splitext(file.filename)
+        filename = f"{user_id}{file_extension}"
+
+        file_path_to_save = os.path.join(upload_dir, filename)
+
+        with open(file_path_to_save, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+        
+        crud_users.edit_user_photo_path(user_id, file_path_to_save, db)
+    except Exception as err:
+        # Log the exception
+        logger.error(
+            f"Error in upload_user_image: {err}", exc_info=True
+        )
+
+        # Remove the file after processing
+        if os.path.exists(file_path_to_save):
+            os.remove(file_path_to_save)
+
+        # Raise an HTTPException with a 500 Internal Server Error status code
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal Server Error",
+        ) from err
 
 
 @router.put("/users/edit", tags=["users"])

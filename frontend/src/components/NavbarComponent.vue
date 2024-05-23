@@ -21,9 +21,7 @@
                 <div class="navbar-nav">
                     <span class="border-top d-sm-none d-block mb-2" v-if="isLoggedIn"></span>
                     <router-link :to="{ name: 'user', params: { id: userMe.id } }" class="nav-link" v-if="isLoggedIn && userMe">
-                        <img :src="userMe.photo_path" alt="User Photo" width="24" height="24" class="rounded-circle align-top" v-if="userMe.photo_path">
-                        <img src="/src/assets/avatar/male1.png" alt="Default Male Avatar" width="24" height="24" class="rounded-circle align-top" v-else-if="!userMe.photo_path && userMe.gender == 1">
-                        <img src="/src/assets/avatar/female1.png" alt="Default Female Avatar" width="24" height="24" class="rounded-circle align-top" v-else>
+                        <UserAvatarComponent :userProp="userMe" :width=24 :height=24 :alignTop=2 />
                         <span class="ms-2">{{ $t("navbar.profile") }}</span>
                     </router-link>
                     <span class="border-top d-sm-none d-block" v-if="isLoggedIn"></span>
@@ -61,7 +59,12 @@ import { watch, ref } from 'vue';
 import { auth } from '@/services/auth';
 import { useRouter, useRoute } from 'vue-router';
 
+import UserAvatarComponent from './Users/UserAvatarComponent.vue';
+
 export default {
+    components: {
+        UserAvatarComponent,
+    },
     setup() {
         const router = useRouter();
         const route = useRoute();

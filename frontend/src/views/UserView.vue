@@ -13,9 +13,7 @@
             </div>
             <div class="vstack d-flex justify-content-center" v-else>
                 <div class="d-flex justify-content-center" v-if="userMe">
-                    <img :src="userMe.photo_path" alt="User Photo" width="120" height="120" class="rounded-circle" v-if="userMe.photo_path">
-                    <img src="/src/assets/avatar/male1.png" alt="Default Male Avatar" width="120" height="120" class="rounded-circle" v-else-if="!userMe.photo_path && userMe.gender == 1">
-                    <img src="/src/assets/avatar/female1.png" alt="Default Female Avatar" width="120" height="120" class="rounded-circle" v-else>
+                    <UserAvatarComponent :userProp="userMe" :width=120 :height=120 />
                 </div>
                 <div class="text-center mt-3 mb-3" v-if="userMe">
                     <h3>
@@ -292,6 +290,7 @@ import ErrorToastComponent from '@/components/Toasts/ErrorToastComponent.vue';
 import SuccessToastComponent from '@/components/Toasts/SuccessToastComponent.vue';
 import FollowersListComponent from '@/components/Followers/FollowersListComponent.vue';
 import BackButtonComponent from '@/components/BackButtonComponent.vue';
+import UserAvatarComponent from '@/components/Users/UserAvatarComponent.vue';
 
 export default {
     components: {
@@ -304,6 +303,7 @@ export default {
         ErrorToastComponent,
         SuccessToastComponent,
         BackButtonComponent,
+        UserAvatarComponent,
     },
     setup () {
         const idFromParam = computed(() => route.params.id);

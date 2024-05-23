@@ -4,9 +4,7 @@
 
     <li class="list-group-item d-flex justify-content-between">
         <div class="d-flex align-items-center">
-            <img :src="userProp.photo_path" alt="User Photo" width="55" height="55" class="rounded-circle" v-if="userProp.photo_path">
-            <img src="/src/assets/avatar/male1.png" alt="Default Male Avatar" width="55" height="55" class="rounded-circle" v-else-if="!userProp.photo_path && userProp.gender == 1">
-            <img src="/src/assets/avatar/female1.png" alt="Default Female Avatar" width="55" height="55" class="rounded-circle" v-else>
+            <UserAvatarComponent :userProp="userProp" :width=55 :height=55 />
             <div class="ms-3">
                 <div class="fw-bold">
                     {{ userProp.username }}
@@ -178,6 +176,7 @@ import { useErrorAlertStore } from '@/stores/Alerts/errorAlert';
 import ErrorToastComponent from '@/components/Toasts/ErrorToastComponent.vue';
 import SuccessToastComponent from '@/components/Toasts/SuccessToastComponent.vue';
 import SettingsPasswordRequirementsComponent from '@/components/Settings/SettingsPasswordRequirementsComponent.vue';
+import UserAvatarComponent from '@/components/Users/UserAvatarComponent.vue';
 // Importing the crypto-js
 import CryptoJS from 'crypto-js';
 
@@ -186,6 +185,7 @@ export default {
         ErrorToastComponent,
         SuccessToastComponent,
         SettingsPasswordRequirementsComponent,
+        UserAvatarComponent,
     },
     props: {
         user: {

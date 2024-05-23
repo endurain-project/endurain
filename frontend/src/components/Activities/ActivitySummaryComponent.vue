@@ -8,10 +8,8 @@
     <div v-else>
         <div class="d-flex justify-content-between">
             <!-- user name and photo zone -->
-            <div class="d-flex align-items-center">
-                <img :src="userActivity.photo_path" alt="User Photo" width="55" height="55" class="rounded-circle" v-if="userActivity.photo_path">
-                <img src="/src/assets/avatar/male1.png" alt="Default Male Avatar" width="55" height="55" class="rounded-circle" v-else-if="!userActivity.photo_path && userActivity.gender == 1">
-                <img src="/src/assets/avatar/female1.png" alt="Default Female Avatar" width="55" height="55" class="rounded-circle" v-else>
+            <div class="d-flex align-items-center" v-if="userActivity">
+                <UserAvatarComponent :userProp="userActivity" :width=55 :height=55 />
                 <div class="ms-3 me-3">
                     <div class="fw-bold">
                         <router-link :to="{ name: 'activity', params: { id: activity.id }}" class="link-body-emphasis link-underline-opacity-0 link-underline-opacity-100-hover" v-if="sourceProp === 'home'">
@@ -190,6 +188,7 @@ import { useRouter } from 'vue-router';
 // Importing the components
 import LoadingComponent from '@/components/LoadingComponent.vue';
 import ErrorToastComponent from '@/components/Toasts/ErrorToastComponent.vue';
+import UserAvatarComponent from '@/components/Users/UserAvatarComponent.vue';
 // Importing the stores
 import { useErrorAlertStore } from '@/stores/Alerts/errorAlert';
 // Importing the services
@@ -202,6 +201,7 @@ export default {
     components: {
         LoadingComponent,
         ErrorToastComponent,
+        UserAvatarComponent,
     },
     props: {
         activity: {

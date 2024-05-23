@@ -6,9 +6,7 @@
         <div class="row row-gap-3">
             <div class="col-lg-4 col-md-12">
                 <div class="justify-content-center align-items-center d-flex">
-                    <img :src="userMe.photo_path" alt="User Photo" width="180" height="180" class="rounded-circle" v-if="userMe.photo_path">
-                    <img src="/src/assets/avatar/male1.png" alt="Default Male Avatar" width="180" height="180" class="rounded-circle" v-else-if="!userMe.photo_path && userMe.gender == 1">
-                    <img src="/src/assets/avatar/female1.png" alt="Default Female Avatar" width="180" height="180" class="rounded-circle" v-else>
+                    <UserAvatarComponent :userProp="userMe" :width=180 :height=180 />
                 </div>
 
                 <!-- Delete profile photo section -->
@@ -138,11 +136,13 @@ import { useErrorAlertStore } from '@/stores/Alerts/errorAlert';
 // Importing the components
 import ErrorToastComponent from '@/components/Toasts/ErrorToastComponent.vue';
 import SuccessToastComponent from '@/components/Toasts/SuccessToastComponent.vue';
+import UserAvatarComponent from '../Users/UserAvatarComponent.vue';
 
 export default {
     components: {
         ErrorToastComponent,
         SuccessToastComponent,
+        UserAvatarComponent,
     },
     setup() {
         const userMe = ref(JSON.parse(localStorage.getItem('userMe')));

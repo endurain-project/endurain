@@ -1,3 +1,5 @@
+import os
+import glob
 import logging
 
 from fastapi import HTTPException, status
@@ -10,6 +12,25 @@ import models
 
 # Define a loggger created on main.py
 logger = logging.getLogger("myLogger")
+
+def delete_user_photo_filesystem(user_id: int):
+    # Define the pattern to match files with the specified name regardless of the extension
+    folder = "user_images"
+    file = f"{user_id}.*"
+
+    print(os.path.join(folder, file))
+
+    # Find all files matching the pattern
+    files_to_delete = glob.glob(os.path.join(folder, file))
+
+    print(f"Files to delete: {files_to_delete}")
+
+    # Remove each file found
+    for file_path in files_to_delete:
+        print(f"Deleting: {file_path}")
+        if os.path.exists(file_path):
+            os.remove(file_path)
+            print(f"Deleted: {file_path}")
 
 
 def format_user_birthdate(user):
@@ -334,6 +355,10 @@ def edit_user(user: schema_users.User, db: Session):
 
         # Commit the transaction
         db.commit()
+
+        if db_user.photo_path is None:
+            # Delete the user photo in the filesystem
+            delete_user_photo_filesystem(db_user.id)
     except IntegrityError as integrity_error:
         # Rollback the transaction
         db.rollback()
@@ -379,6 +404,30 @@ def edit_user_password(user_id: int, password: str, db: Session):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal Server Error",
         ) from err
+    
+
+def edit_user_photo_path(user_id: int, photo_path: str, db: Session):
+    try:
+        # Get the user from the database
+        db_user = db.query(models.User).filter(models.User.id == user_id).first()
+
+        # Update the user
+        db_user.photo_path = photo_path
+
+        # Commit the transaction
+        db.commit()
+    except Exception as err:
+        # Rollback the transaction
+        db.rollback()
+
+        # Log the exception
+        logger.error(f"Error in edit_user_photo_path: {err}", exc_info=True)
+
+        # Raise an HTTPException with a 500 Internal Server Error status code
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal Server Error",
+        ) from err
 
 
 def delete_user_photo(user_id: int, db: Session):
@@ -392,6 +441,9 @@ def delete_user_photo(user_id: int, db: Session):
 
         # Commit the transaction
         db.commit()
+
+        # Delete the user photo in the filesystem
+        delete_user_photo_filesystem(user_id)
     except Exception as err:
         # Rollback the transaction
         db.rollback()
@@ -420,6 +472,9 @@ def delete_user(user_id: int, db: Session):
 
         # Commit the transaction
         db.commit()
+
+        # Delete the user photo in the filesystem
+        delete_user_photo_filesystem(user_id)
     except Exception as err:
         # Rollback the transaction
         db.rollback()
