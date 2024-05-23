@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="frontend/img/logo/logo.png" width="128" height="128">
+  <img src="frontend/public/logo/logo.png" width="128" height="128">
 
   # Endurain
 
@@ -60,10 +60,14 @@ Table bellow shows supported environemnt variables. Variables marked with option
 Environemnt variable  | Default value | Optional
 --- | --- | ---
 MY_APP_BACKEND_PROTOCOL* | http | Yes
-MY_APP_BACKEND_HOST** | backend | Yes
+MY_APP_BACKEND_HOST** | localhost:98 | Yes
 
-*BACKEND_PROTOCOL needs to be https if you want to enable Strava integration
-**BACKEND_HOST needs to be set and be Internet faced/resolved if you want to enable Strava integration. Strava callback relies on this.
+*BACKEND_PROTOCOL:
+ - Needs to be https if you want to enable Strava integration
+ - You may need to update this variable based on docker image spin up
+**BACKEND_HOST:
+ - Needs to be set and be Internet faced/resolved if you want to enable Strava integration. Strava callback relies on this
+ - You may need to update this variable based on docker image spin up
 
 Frontend dependencies:
  - vue@3.4.24
@@ -101,10 +105,14 @@ JAEGER_PROTOCOL | http | Yes
 JAEGER_HOST | jaeger | Yes
 JAGGER_PORT | 4317 | Yes
 STRAVA_DAYS_ACTIVITIES_ONLINK | 30 | Yes
+FRONTEND_PROTOCOL* | http | Yes
 FRONTEND_HOST* | frontend | Yes
+FRONTEND_PORT* | frontend | Yes
 GEOCODES_MAPS_API** | changeme | `No`
 
-*FRONTEND_HOST needs to be set if you want to enable Strava integration
+*FRONTEND_PROTOCOL, FRONTEND_HOST and FRONTEND_PORT:
+ - Needs to be set if you want to enable Strava integration
+ - You may need to update this variable based on docker image spin up
 **<a href="https://geocode.maps.co/">Geocode maps</a> offers a free plan consisting of 1 Request/Second. Registration necessary.
 
 Table bellow shows the obligatory environemnt variables for mariadb container. You should set them based on what was also set for backend container.

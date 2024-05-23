@@ -2,6 +2,7 @@ import logging
 import os
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from alembic.config import Config
 from alembic import command
@@ -37,7 +38,7 @@ def startup_event():
     # Run Alembic migrations to ensure the database is up to date
     alembic_cfg = Config("alembic.ini")
     # Disable the logger configuration in Alembic to avoid conflicts with FastAPI
-    alembic_cfg.attributes['configure_logger'] = False
+    alembic_cfg.attributes["configure_logger"] = False
     command.upgrade(alembic_cfg, "head")
 
     # Create a scheduler to run background jobs
@@ -121,7 +122,9 @@ required_env_vars = [
     "JAEGER_HOST",
     "JAGGER_PORT",
     "STRAVA_DAYS_ACTIVITIES_ONLINK",
+    "FRONTEND_PROTOCOL",
     "FRONTEND_HOST",
+    "FRONTEND_PORT",
     "GEOCODES_MAPS_API",
 ]
 
@@ -145,6 +148,24 @@ app = FastAPI(
         "identifier": "GPL-3.0-or-later",
         "url": "https://spdx.org/licenses/GPL-3.0-or-later.html",
     },
+)
+
+origins = [
+    "http://localhost",
+    "http://localhost:8080",
+    os.environ.get("FRONTEND_PROTOCOL")
+    + "://"
+    + os.environ.get("FRONTEND_HOST")
+    + ":"
+    + os.environ.get("FRONTEND_PORT"),
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # Router files
