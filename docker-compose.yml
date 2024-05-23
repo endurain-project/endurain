@@ -5,15 +5,13 @@ services:
     container_name: frontend
     image: ghcr.io/joaovitoriasilva/endurain/frontend:latest
     #environment:
-      #- VITE_BACKEND_PROTOCOL=http # http or https, default is http
-      #- VITE_BACKEND_HOST=backend # api host, default is backend
+      #- MY_APP_BACKEND_PROTOCOL=http # http or https, default is http
+      #- MY_APP_BACKEND_HOST=backend # api host, default is backend
     # Configure volume if you want to edit the code locally by clomming the repo
     #volumes:
     #  - <local_path>/endurain/frontend:/app
     ports:
       - "8080:80" # frontend port, change per your needs
-    env_file:
-      - ./frontend/.env
     restart: unless-stopped
     
   # API logic
@@ -33,8 +31,6 @@ services:
     # Configure volume if you want to edit the code locally by clomming the repo
     #volumes:
     #  - <local_path>/endurain/backend:/app
-    env_file:
-      - ./backend/.env
     depends_on:
       - mariadb
       - jaeger

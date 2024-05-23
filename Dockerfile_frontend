@@ -21,7 +21,14 @@ RUN npm run build
 FROM nginx:alpine as production-stage
 
 COPY --from=build-stage /app/dist /usr/share/nginx/html
+COPY nginx-custom.conf /etc/nginx/conf.d/default.conf
+
+COPY frontend_env.sh /docker-entrypoint.d/frontend_env.sh
+RUN chmod +x /docker-entrypoint.d/frontend_env.sh
 
 EXPOSE 80
+
+ENV MY_APP_BACKEND_PROTOCOL=http
+ENV MY_APP_BACKEND_HOST=backend
 
 CMD ["nginx", "-g", "daemon off;"]

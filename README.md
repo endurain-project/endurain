@@ -59,8 +59,8 @@ Table bellow shows supported environemnt variables. Variables marked with option
 
 Environemnt variable  | Default value | Optional
 --- | --- | ---
-BACKEND_PROTOCOL* | http | Yes
-BACKEND_HOST** | backend | Yes
+MY_APP_BACKEND_PROTOCOL* | http | Yes
+MY_APP_BACKEND_HOST** | backend | Yes
 
 *BACKEND_PROTOCOL needs to be https if you want to enable Strava integration
 **BACKEND_HOST needs to be set and be Internet faced/resolved if you want to enable Strava integration. Strava callback relies on this.

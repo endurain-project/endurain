@@ -17,13 +17,13 @@ RUN pip install --no-cache-dir --upgrade -r requirements.txt \
   && apt-get clean \
   && rm -rf /var/lib/apt/lists/*
 
-# Make port 80 available to the world outside this container
-EXPOSE 80
-
 # Copy the directory backend contents to /app
 COPY backend /app
 
-# Define environment variable
+# Make port 80 available to the world outside this container
+EXPOSE 80
+
+# Define environment variables
 ENV DB_HOST="mariadb"
 ENV DB_PORT=3306
 ENV DB_USER="endurain"
