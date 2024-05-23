@@ -25,7 +25,7 @@
                             </div>
                             <div class="modal-footer">
                                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ $t("generalItens.buttonClose") }}</button>
-                                <a type="button" class="btn btn-danger" data-bs-dismiss="modal">{{ $t("settingsUserProfileZone.buttonDeleteProfilePhoto") }}</a>
+                                <a type="button" class="btn btn-danger" data-bs-dismiss="modal" @click="submitDeleteUserPhoto">{{ $t("settingsUserProfileZone.buttonDeleteProfilePhoto") }}</a>
                             </div>
                         </div>
                     </div>
@@ -48,10 +48,10 @@
                                     <div>
                                         <div class="row">
                                             <div class="col">
-                                                <input class="form-control" type="file" accept="image/*" name="userImgEdit" id="userImgEdit">
+                                                <input class="form-control" type="file" accept="image/*" name="userImgEdit" id="userImgEdit" @change="handleFileChange">
                                             </div>
                                             <div class="col" v-if="userMe.photo_path">
-                                                <a class="w-100 btn btn-danger" >{{ $t("usersListComponent.modalEditUserDeleteUserPhotoButton") }}</a>
+                                                <a class="w-100 btn btn-danger" data-bs-dismiss="modal" @click="submitDeleteUserPhoto">{{ $t("usersListComponent.modalEditUserDeleteUserPhotoButton") }}</a>
                                             </div>
                                         </div>
                                     </div>
@@ -151,6 +151,7 @@ export default {
         const successAlertStore = useSuccessAlertStore();
         const errorMessage = ref('');
         const successMessage = ref('');
+        const editUserPhotoFile = ref(null);
         const editUserUsername = ref(userMe.value.username);
         const editUserName = ref(userMe.value.name);
         const editUserEmail = ref(userMe.value.email);
@@ -165,6 +166,14 @@ export default {
             successAlertStore.setAlertMessage(successMessage.value);
             errorMessage.value = '';
             errorAlertStore.setAlertMessage(errorMessage.value);
+        }
+
+        async function handleFileChange(event) {
+            if (event.target.files && event.target.files[0]) {
+                editUserPhotoFile.value = event.target.files[0];
+            } else {
+                editUserPhotoFile.value = null;
+            }
         }
 
         async function submitEditUserForm() {
@@ -188,6 +197,17 @@ export default {
 
                 await users.editUser(data);
 
+                // If there is a photo, upload it and get the photo url.
+                if (editUserPhotoFile.value) {
+                    try {
+                        userMe.value.photo_path = await users.uploadImage(editUserPhotoFile.value, userMe.value.id);
+                    } catch (error) {
+                        // Set the error message
+                        errorMessage.value = t('generalItens.errorFetchingInfo') + " - " + error.toString();
+                        errorAlertStore.setAlertMessage(errorMessage.value);
+                    }
+                }
+
                 userMe.value.username = editUserUsername.value;
                 userMe.value.name = editUserName.value;
                 userMe.value.email = editUserEmail.value;
@@ -198,6 +218,8 @@ export default {
                 userMe.value.gender = editUserGender.value;
                 userMe.value.preferred_language = editUserPreferredLanguage.value;
 
+                localStorage.setItem('userMe', JSON.stringify(userMe.value));
+
                 // Set the success message and show the success alert.
                 successMessage.value = t('usersListComponent.userEditSuccessMessage');
                 successAlertStore.setAlertMessage(successMessage.value);
@@ -205,6 +227,26 @@ export default {
             } catch (error) {
                 // If there is an error, set the error message and show the error alert.
                 errorMessage.value = t('usersListComponent.userEditErrorMessage') + " - " + error.toString();
+                errorAlertStore.setAlertMessage(errorMessage.value);
+            }
+        }
+
+        async function submitDeleteUserPhoto() {
+            resetMessageValues();
+
+            try {
+                await users.deleteUserPhoto(userMe.value.id);
+                userMe.value.photo_path = null;
+
+                localStorage.setItem('userMe', JSON.stringify(userMe.value));
+
+                // Set the success message and show the success alert.
+                successMessage.value = t('usersListComponent.userPhotoDeleteSuccessMessage');
+                successAlertStore.setAlertMessage(successMessage.value);
+                successAlertStore.setClosableState(true);
+            } catch (error) {
+                // Set the error message
+                errorMessage.value = t('usersListComponent.userPhotoDeleteErrorMessage') + " - " + error.toString();
                 errorAlertStore.setAlertMessage(errorMessage.value);
             }
         }
@@ -223,6 +265,8 @@ export default {
             editUserPreferredLanguage,
             editUserAccessType,
             submitEditUserForm,
+            submitDeleteUserPhoto,
+            handleFileChange,
         };
     },
 };

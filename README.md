@@ -65,6 +65,7 @@ MY_APP_BACKEND_HOST** | localhost:98 | Yes
 *BACKEND_PROTOCOL:
  - Needs to be https if you want to enable Strava integration
  - You may need to update this variable based on docker image spin up
+
 **BACKEND_HOST:
  - Needs to be set and be Internet faced/resolved if you want to enable Strava integration. Strava callback relies on this
  - You may need to update this variable based on docker image spin up
@@ -113,6 +114,7 @@ GEOCODES_MAPS_API** | changeme | `No`
 *FRONTEND_PROTOCOL, FRONTEND_HOST and FRONTEND_PORT:
  - Needs to be set if you want to enable Strava integration
  - You may need to update this variable based on docker image spin up
+
 **<a href="https://geocode.maps.co/">Geocode maps</a> offers a free plan consisting of 1 Request/Second. Registration necessary.
 
 Table bellow shows the obligatory environemnt variables for mariadb container. You should set them based on what was also set for backend container.

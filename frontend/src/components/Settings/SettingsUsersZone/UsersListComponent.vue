@@ -83,10 +83,10 @@
                                 <div>
                                     <div class="row">
                                         <div class="col">
-                                            <input class="form-control" type="file" accept="image/*" name="userImgEdit" id="userImgEdit">
+                                            <input class="form-control" type="file" accept="image/*" name="userImgEdit" id="userImgEdit" @change="handleFileChange">
                                         </div>
                                         <div class="col" v-if="userProp.photo_path">
-                                            <a class="w-100 btn btn-danger" >{{ $t("usersListComponent.modalEditUserDeleteUserPhotoButton") }}</a>
+                                            <a class="w-100 btn btn-danger" @click="submitDeleteUserPhoto" data-bs-dismiss="modal">{{ $t("usersListComponent.modalEditUserDeleteUserPhotoButton") }}</a>
                                         </div>
                                     </div>
                                 </div>
@@ -213,6 +213,7 @@ export default {
             return regex.test(newPasswordRepeat.value);
         });
         const isPasswordMatch = computed(() => newPassword.value === newPasswordRepeat.value);
+        const editUserPhotoFile = ref(null);
         const editUserUsername = ref(userProp.value.username);
         const editUserName = ref(userProp.value.name);
         const editUserEmail = ref(userProp.value.email);
@@ -228,6 +229,14 @@ export default {
             successAlertStore.setAlertMessage(successMessage.value);
             errorMessage.value = '';
             errorAlertStore.setAlertMessage(errorMessage.value);
+        }
+
+        async function handleFileChange(event) {
+            if (event.target.files && event.target.files[0]) {
+                editUserPhotoFile.value = event.target.files[0];
+            } else {
+                editUserPhotoFile.value = null;
+            }
         }
 
         async function submitChangeUserPasswordForm() {
@@ -273,6 +282,17 @@ export default {
 
                 await users.editUser(data);
 
+                // If there is a photo, upload it and get the photo url.
+                if (editUserPhotoFile.value) {
+                    try {
+                        userProp.value.photo_path = await users.uploadImage(editUserPhotoFile.value, userProp.value.id);
+                    } catch (error) {
+                        // Set the error message
+                        errorMessage.value = t('generalItens.errorFetchingInfo') + " - " + error.toString();
+                        errorAlertStore.setAlertMessage(errorMessage.value);
+                    }
+                }
+
                 userProp.value.username = editUserUsername.value;
                 userProp.value.name = editUserName.value;
                 userProp.value.email = editUserEmail.value;
@@ -315,6 +335,24 @@ export default {
             }
         }
 
+        async function submitDeleteUserPhoto() {
+            resetMessageValues();
+
+            try {
+                await users.deleteUserPhoto(userProp.value.id);
+                userProp.value.photo_path = null;
+
+                // Set the success message and show the success alert.
+                successMessage.value = t('usersListComponent.userPhotoDeleteSuccessMessage');
+                successAlertStore.setAlertMessage(successMessage.value);
+                successAlertStore.setClosableState(true);
+            } catch (error) {
+                // Set the error message
+                errorMessage.value = t('usersListComponent.userPhotoDeleteErrorMessage') + " - " + error.toString();
+                errorAlertStore.setAlertMessage(errorMessage.value);
+            }
+        }
+
         return {
             t,
             loggedUserId,
@@ -337,7 +375,9 @@ export default {
             editUserAccessType,
             editUserIsActive,
             submitEditUserForm,
+            handleFileChange,
             submitDeleteUser,
+            submitDeleteUserPhoto,
         };
     },
 };

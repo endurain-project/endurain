@@ -164,7 +164,7 @@ async def create_user(
 @router.post(
     "/users/{user_id}/upload/image",
     status_code=201,
-    response_model=None,
+    response_model=str | None,
     tags=["users"],
 )
 async def upload_user_image(
@@ -189,7 +189,7 @@ async def upload_user_image(
         with open(file_path_to_save, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
         
-        crud_users.edit_user_photo_path(user_id, file_path_to_save, db)
+        return crud_users.edit_user_photo_path(user_id, file_path_to_save, db)
     except Exception as err:
         # Log the exception
         logger.error(

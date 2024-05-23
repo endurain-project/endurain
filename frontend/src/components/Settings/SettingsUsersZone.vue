@@ -162,19 +162,6 @@ export default {
             }
         }
 
-        async function uploadImage(file, userId) {
-            const formData = new FormData();
-            formData.append('file', file);
-
-            try {
-                return await users.uploadUserImage(formData, userId);
-            } catch (error) {
-                // Set the error message
-                errorMessage.value = t('generalItens.errorFetchingInfo') + " - " + error.toString();
-                errorAlertStore.setAlertMessage(errorMessage.value);
-            }
-        }
-
         async function fetchMoreUsers() {
             // If the component is already loading or there are no more gears to fetch, return.
             if (isLoading.value || !hasMoreUsers.value) return;
@@ -253,7 +240,13 @@ export default {
 
                     // If there is a photo, upload it and get the photo url.
                     if (newUserPhotoFile.value) {
-                        await uploadImage(newUserPhotoFile.value, createdUserId);
+                        try {
+                            await users.uploadImage(newUserPhotoFile.value, createdUserId);
+                        } catch (error) {
+                            // Set the error message
+                            errorMessage.value = t('generalItens.errorFetchingInfo') + " - " + error.toString();
+                            errorAlertStore.setAlertMessage(errorMessage.value);
+                        }
                     }
 
                     // Get the created gear and add it to the userGears array.

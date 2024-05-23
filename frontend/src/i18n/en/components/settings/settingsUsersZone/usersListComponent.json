@@ -27,5 +27,7 @@
     "modalDeleteUserTitle": "Delete user",
     "modalDeleteUserBody": "Are you sure you want to delete user ",
     "userDeleteSuccessMessage": "User deleted successfully",
-    "userDeleteErrorMessage": "Error deleting user"
+    "userDeleteErrorMessage": "Error deleting user",
+    "userPhotoDeleteSuccessMessage": "Photo deleted successfully",
+    "userPhotoDeleteErrorMessage": "Error deleting photo"
 }

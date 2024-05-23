@@ -1,5 +1,5 @@
-const API_URL = `${import.meta.env.VITE_BACKEND_PROTOCOL}://${import.meta.env.VITE_BACKEND_HOST}/`;
-
+//const API_URL = `${import.meta.env.VITE_BACKEND_PROTOCOL}://${import.meta.env.VITE_BACKEND_HOST}/`;
+const API_URL = 'http://localhost:98/';
 /**
  * Makes a GET request to the specified URL with optional headers.
  * @param {string} url - The URL to send the GET request to.

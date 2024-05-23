@@ -19,11 +19,20 @@ export const users = {
     uploadUserImage(data, user_id) {
         return fetchPostFileRequest(`users/${user_id}/upload/image`, data);
     },
+    uploadImage(file, user_id) {
+        const formData = new FormData();
+        formData.append('file', file);
+
+        return users.uploadUserImage(formData, user_id);
+    },
     editUser(data) {
         return fetchPutRequest('users/edit', data)
     },
     editUserPassword(data) {
         return fetchPutRequest('users/edit/password', data)
+    },
+    deleteUserPhoto(user_id) {
+        return fetchPutRequest(`users/${user_id}/delete-photo`);
     },
     deleteUser(user_id) {
         return fetchDeleteRequest(`users/${user_id}/delete`);

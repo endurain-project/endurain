@@ -416,6 +416,9 @@ def edit_user_photo_path(user_id: int, photo_path: str, db: Session):
 
         # Commit the transaction
         db.commit()
+
+        # Return the photo path
+        return photo_path
     except Exception as err:
         # Rollback the transaction
         db.rollback()
