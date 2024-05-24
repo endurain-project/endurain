@@ -45,9 +45,7 @@ def startup_event():
     # Create a scheduler to run background jobs
     scheduler.start()
 
-    # Job to remove expired tokens every 5 minutes
-    logger.info("Added scheduler job to remove expired tokens every 5 minutes")
-    scheduler.add_job(remove_expired_tokens_job, "interval", minutes=5)
+    # Add scheduler jobs to refresh Strava tokens and retrieve last day activities
     logger.info("Added scheduler job to refresh Strava user tokens every 60 minutes")
     scheduler.add_job(refresh_strava_tokens_job, "interval", minutes=60)
     logger.info(
@@ -64,17 +62,6 @@ def shutdown_event():
 
     # Shutdown the scheduler when the application is shutting down
     scheduler.shutdown()
-
-
-def remove_expired_tokens_job():
-    # Create a new database session
-    db = SessionLocal()
-    try:
-        # Remove expired tokens from the database
-        schema_access_tokens.remove_expired_tokens(db=db)
-    finally:
-        # Ensure the session is closed after use
-        db.close()
 
 
 def refresh_strava_tokens_job():

@@ -103,12 +103,6 @@ class User(Base):
         back_populates="user",
         cascade="all, delete-orphan",
     )
-    # Define a relationship to AccessToken model
-    access_tokens = relationship(
-        "AccessToken",
-        back_populates="user",
-        cascade="all, delete-orphan",
-    )
     # Define a relationship to Gear model
     gear = relationship(
         "Gear",
@@ -147,7 +141,7 @@ class UserIntegrations(Base):
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
-        comment="User ID that the token belongs",
+        comment="User ID that the integration belongs",
     )
     strava_state = Column(String(length=45), default=None, nullable=True)
     strava_token = Column(String(length=250), default=None, nullable=True)
@@ -162,28 +156,6 @@ class UserIntegrations(Base):
 
     # Define a relationship to the User model
     user = relationship("User", back_populates="users_integrations")
-
-
-# Data model for access_tokens table using SQLAlchemy's ORM
-class AccessToken(Base):
-    __tablename__ = "access_tokens"
-
-    id = Column(Integer, primary_key=True)
-    token = Column(String(length=256), nullable=False, comment="User token")
-    user_id = Column(
-        Integer,
-        ForeignKey("users.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True,
-        comment="User ID that the token belongs",
-    )
-    created_at = Column(DateTime, nullable=False, comment="Token creation date (date)")
-    expires_at = Column(
-        DateTime, nullable=False, comment="Token expiration date (date)"
-    )
-
-    # Define a relationship to the User model
-    user = relationship("User", back_populates="access_tokens")
 
 
 # Data model for gear table using SQLAlchemy's ORM

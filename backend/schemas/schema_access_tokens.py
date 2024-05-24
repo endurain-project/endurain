@@ -7,7 +7,6 @@ from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
 from sqlalchemy.orm import Session
 
-from crud import crud_access_tokens
 from constants import (
     JWT_EXPIRATION_IN_MINUTES,
     JWT_ALGORITHM,
@@ -69,9 +68,10 @@ def validate_token_expiration(db: Session, token: str = Depends(oauth2_scheme)):
             or datetime.utcfromtimestamp(expiration_timestamp) < datetime.utcnow()
         ):
             logger.warning(
-                "Token expired | Will force remove_expired_tokens to run | Returning 401 response"
+                "Token expired | Returning 401 response"
             )
-            remove_expired_tokens(db)
+
+            # Raise an HTTPException with a 401 Unauthorized status code
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Token no longer valid",
@@ -80,10 +80,9 @@ def validate_token_expiration(db: Session, token: str = Depends(oauth2_scheme)):
     except Exception:
         # Log the error and raise the exception
         logger.info(
-            "Token expired during validation | Will force remove_expired_tokens to run | Returning 401 response"
+            "Token expired during validation | Returning 401 response"
         )
-        # Remove expired tokens from the database
-        remove_expired_tokens(db)
+
         # Raise an HTTPException with a 401 Unauthorized status code
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -159,29 +158,5 @@ def create_access_token(
     # Encode the data and return the token
     encoded_jwt = jwt.encode(to_encode, JWT_SECRET_KEY, algorithm=JWT_ALGORITHM)
 
-    # Save the token in the database
-    db_access_token = crud_access_tokens.create_access_token(
-        CreateToken(
-            token=encoded_jwt,
-            user_id=data.get("id"),
-            expires_at=expire.strftime("%Y-%m-%dT%H:%M:%S"),
-        ),
-        db,
-    )
-    if db_access_token:
-        # Return the token
-        return encoded_jwt
-    else:
-        # If the token could not be saved in the database return None
-        return None
-
-
-def remove_expired_tokens(db: Session):
-    # Calculate the expiration time
-    expiration_time = datetime.utcnow() - timedelta(minutes=JWT_EXPIRATION_IN_MINUTES)
-
-    # Delete the expired tokens from the database
-    rows_deleted = crud_access_tokens.delete_access_tokens(expiration_time, db)
-
-    # Log the number of tokens deleted
-    logger.info(f"{rows_deleted} access tokens deleted from the database")
+    # Return the token
+    return encoded_jwt
