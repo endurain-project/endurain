@@ -80,7 +80,7 @@ async def strava_link(
         redirect_url = (
             "https://"
             + os.environ.get("FRONTEND_HOST")
-            + "/settings/settings.php?integrationsSettings=1&stravaLinked=1"
+            + "/settings?stravaLinked=1"
         )
 
         # Return a RedirectResponse to the redirect URL

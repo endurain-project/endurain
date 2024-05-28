@@ -2,6 +2,8 @@ import logging
 import os
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from alembic.config import Config
 from alembic import command
@@ -37,15 +39,13 @@ def startup_event():
     # Run Alembic migrations to ensure the database is up to date
     alembic_cfg = Config("alembic.ini")
     # Disable the logger configuration in Alembic to avoid conflicts with FastAPI
-    alembic_cfg.attributes['configure_logger'] = False
+    alembic_cfg.attributes["configure_logger"] = False
     command.upgrade(alembic_cfg, "head")
 
     # Create a scheduler to run background jobs
     scheduler.start()
 
-    # Job to remove expired tokens every 5 minutes
-    logger.info("Added scheduler job to remove expired tokens every 5 minutes")
-    scheduler.add_job(remove_expired_tokens_job, "interval", minutes=5)
+    # Add scheduler jobs to refresh Strava tokens and retrieve last day activities
     logger.info("Added scheduler job to refresh Strava user tokens every 60 minutes")
     scheduler.add_job(refresh_strava_tokens_job, "interval", minutes=60)
     logger.info(
@@ -62,17 +62,6 @@ def shutdown_event():
 
     # Shutdown the scheduler when the application is shutting down
     scheduler.shutdown()
-
-
-def remove_expired_tokens_job():
-    # Create a new database session
-    db = SessionLocal()
-    try:
-        # Remove expired tokens from the database
-        schema_access_tokens.remove_expired_tokens(db=db)
-    finally:
-        # Ensure the session is closed after use
-        db.close()
 
 
 def refresh_strava_tokens_job():
@@ -121,7 +110,9 @@ required_env_vars = [
     "JAEGER_HOST",
     "JAGGER_PORT",
     "STRAVA_DAYS_ACTIVITIES_ONLINK",
+    "FRONTEND_PROTOCOL",
     "FRONTEND_HOST",
+    "FRONTEND_PORT",
     "GEOCODES_MAPS_API",
 ]
 
@@ -145,6 +136,29 @@ app = FastAPI(
         "identifier": "GPL-3.0-or-later",
         "url": "https://spdx.org/licenses/GPL-3.0-or-later.html",
     },
+)
+
+# Add a route to serve the user images
+app.mount("/user_images", StaticFiles(directory="user_images"), name="user_images")
+
+# Add CORS middleware to allow requests from the frontend
+origins = [
+    "http://localhost",
+    "http://localhost:8080",
+    "http://localhost:5173",
+    os.environ.get("FRONTEND_PROTOCOL")
+    + "://"
+    + os.environ.get("FRONTEND_HOST")
+    + ":"
+    + os.environ.get("FRONTEND_PORT"),
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # Router files

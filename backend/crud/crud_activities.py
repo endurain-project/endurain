@@ -5,6 +5,7 @@ from fastapi import HTTPException, status
 from datetime import datetime
 from sqlalchemy import func, desc
 from sqlalchemy.orm import Session, joinedload
+from urllib.parse import unquote
 
 import models
 from schemas import schema_activities
@@ -397,6 +398,46 @@ def get_activity_by_strava_id_from_user_id(
     except Exception as err:
         # Log the exception
         logger.error(f"Error in get_activity_by_id_from_user_id: {err}", exc_info=True)
+        # Raise an HTTPException with a 500 Internal Server Error status code
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal Server Error",
+        ) from err
+
+
+def get_activities_if_contains_name(
+        name: str, user_id: int, db: Session
+):
+    try:
+        # Define a search term
+        partial_name = unquote(name).replace("+", " ")
+
+        # Get the activities from the database
+        activities = (
+            db.query(models.Activity)
+            .filter(
+                models.Activity.user_id == user_id,
+                models.Activity.name.like(f"%{partial_name}%"),
+            )
+            .order_by(desc(models.Activity.start_time))
+            .all()
+        )
+
+        # Check if there are activities if not return None
+        if not activities:
+            return None
+
+        # Iterate and format the dates
+        for activity in activities:
+            activity.start_time = activity.start_time.strftime("%Y-%m-%d %H:%M:%S")
+            activity.end_time = activity.end_time.strftime("%Y-%m-%d %H:%M:%S")
+            activity.created_at = activity.created_at.strftime("%Y-%m-%d %H:%M:%S")
+
+        # Return the activities
+        return activities
+    except Exception as err:
+        # Log the exception
+        logger.error(f"Error in get_activities_if_contains_name: {err}", exc_info=True)
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

@@ -1,7 +1,7 @@
 FROM python:3.11
 
 # Links Docker image with repository
-LABEL org.opencontainers.image.source https://github.com/joaovitoriasilva/gearguardian
+LABEL org.opencontainers.image.source https://github.com/joaovitoriasilva/endurain
 
 # Set the working directory
 WORKDIR /app
@@ -17,26 +17,33 @@ RUN pip install --no-cache-dir --upgrade -r requirements.txt \
   && apt-get clean \
   && rm -rf /var/lib/apt/lists/*
 
-# Make port 80 available to the world outside this container
-EXPOSE 80
-
 # Copy the directory backend contents to /app
 COPY backend /app
 
-# Define environment variable
-ENV DB_HOST=""
+# Make port 80 available to the world outside this container
+EXPOSE 80
+
+# Define environment variables
+ENV DB_HOST="mariadb"
 ENV DB_PORT=3306
-ENV DB_USER=""
-ENV DB_PASSWORD=""
-ENV DB_DATABASE=""
-ENV SECRET_KEY=""
+ENV DB_USER="endurain"
+ENV DB_PASSWORD="changeme"
+ENV DB_DATABASE="endurain"
+ENV SECRET_KEY="changeme"
 ENV ALGORITHM="HS256"
 ENV ACCESS_TOKEN_EXPIRE_MINUTES=30
-ENV STRAVA_CLIENT_ID=""
-ENV STRAVA_CLIENT_SECRET=""
-ENV STRAVA_AUTH_CODE=""
-ENV JAEGER_HOST=""
+ENV STRAVA_CLIENT_ID="changeme"
+ENV STRAVA_CLIENT_SECRET="changeme"
+ENV STRAVA_AUTH_CODE="changeme"
+ENV JAEGER_ENABLED="true"
+ENV JAEGER_HOST="jaeger"
+ENV JAEGER_PROTOCOL="http"
+ENV JAGGER_PORT=4317
 ENV STRAVA_DAYS_ACTIVITIES_ONLINK=30
+ENV FRONTEND_PROTOCOL="http"
+ENV FRONTEND_HOST="frontend"
+ENV FRONTEND_PORT=8080
+ENV GEOCODES_MAPS_API="changeme"
 
 # Run main.py when the container launches
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "80"]
