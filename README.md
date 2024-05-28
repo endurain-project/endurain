@@ -57,18 +57,10 @@ More screenshots: https://imgur.com/a/lDR0sBf
 # Frontend
 Table bellow shows supported environemnt variables. Variables marked with optional "No" should be set to avoid errors.
 
-Environemnt variable  | Default value | Optional
---- | --- | ---
-MY_APP_BACKEND_PROTOCOL* | http | Yes
-MY_APP_BACKEND_HOST** | localhost:98 | Yes
-
-*BACKEND_PROTOCOL:
- - Needs to be https if you want to enable Strava integration
- - You may need to update this variable based on docker image spin up
-
-**BACKEND_HOST:
- - Needs to be set and be Internet faced/resolved if you want to enable Strava integration. Strava callback relies on this
- - You may need to update this variable based on docker image spin up
+Environemnt variable  | Default value | Optional | Notes
+--- | --- | --- | ---
+MY_APP_BACKEND_PROTOCOL | http | Yes | Needs to be https if you want to enable Strava integration. You may need to update this variable based on docker image spin up
+MY_APP_BACKEND_HOST | localhost:98 | Yes | Needs to be set and be Internet faced/resolved if you want to enable Strava integration. Strava callback relies on this. You may need to update this variable based on docker image spin up
 
 Frontend dependencies:
  - vue@3.4.24
@@ -88,43 +80,37 @@ Frontend dependencies:
 # Backend
 Table bellow shows supported environemnt variables. Variables marked with optional "No" should be set to avoid errors.
 
-Environemnt variable  | Default value | Optional
---- | --- | ---
-DB_HOST | mariadb | Yes
-DB_PORT | 3306 | Yes
-DB_USER | gearguardian | Yes
-DB_PASSWORD | changeme | `No`
-DB_DATABASE | gearguardian | Yes
-SECRET_KEY | changeme | `No`
-ALGORITHM | HS256 | Yes
-ACCESS_TOKEN_EXPIRE_MINUTES | 30 | Yes
-STRAVA_CLIENT_ID | changeme | `No`
-STRAVA_CLIENT_SECRET | changeme | `No`
-STRAVA_AUTH_CODE | changeme | `No`
-JAEGER_ENABLED | true | Yes
-JAEGER_PROTOCOL | http | Yes
-JAEGER_HOST | jaeger | Yes
-JAGGER_PORT | 4317 | Yes
-STRAVA_DAYS_ACTIVITIES_ONLINK | 30 | Yes
-FRONTEND_PROTOCOL* | http | Yes
-FRONTEND_HOST* | frontend | Yes
-FRONTEND_PORT* | frontend | Yes
-GEOCODES_MAPS_API** | changeme | `No`
-
-*FRONTEND_PROTOCOL, FRONTEND_HOST and FRONTEND_PORT:
- - Needs to be set if you want to enable Strava integration
- - You may need to update this variable based on docker image spin up
-
-**<a href="https://geocode.maps.co/">Geocode maps</a> offers a free plan consisting of 1 Request/Second. Registration necessary.
+Environemnt variable  | Default value | Optional | Notes
+--- | --- | --- | ---
+DB_HOST | mariadb | Yes | N/A
+DB_PORT | 3306 | Yes | N/A
+DB_USER | gearguardian | Yes | N/A
+DB_PASSWORD | changeme | `No` | N/A
+DB_DATABASE | gearguardian | Yes | N/A
+SECRET_KEY | changeme | `No` | N/A
+ALGORITHM | HS256 | Yes | N/A
+ACCESS_TOKEN_EXPIRE_MINUTES | 30 | Yes | N/A
+STRAVA_CLIENT_ID | changeme | `No` | N/A
+STRAVA_CLIENT_SECRET | changeme | `No` | N/A
+STRAVA_AUTH_CODE | changeme | `No` | N/A
+JAEGER_ENABLED | true | Yes | N/A
+JAEGER_PROTOCOL | http | Yes | N/A
+JAEGER_HOST | jaeger | Yes | N/A
+JAGGER_PORT | 4317 | Yes | N/A
+STRAVA_DAYS_ACTIVITIES_ONLINK | 30 | Yes | N/A
+FRONTEND_PROTOCOL | http | Yes | Needs to be set if you want to enable Strava integration. You may need to update this variable based on docker image spin up
+FRONTEND_HOST | frontend | Yes | Needs to be set if you want to enable Strava integration. You may need to update this variable based on docker image spin up
+FRONTEND_PORT | frontend | Yes | Needs to be set if you want to enable Strava integration. You may need to update this variable based on docker image spin up
+GEOCODES_MAPS_API | changeme | `No` | <a href="https://geocode.maps.co/">Geocode maps</a> offers a free plan consisting of 1 Request/Second. Registration necessary.
 
 Table bellow shows the obligatory environemnt variables for mariadb container. You should set them based on what was also set for backend container.
 
-Environemnt variable  | Default value | Optional
---- | --- | ---
-MYSQL_ROOT_PASSWORD | changeme | `No`
-MYSQL_DATABASE | gearguardian | `No`
-MYSQL_USER | gearguardian | `No`
-MYSQL_PASSWORD | changeme | `No`
+Environemnt variable  | Default value | Optional | Notes
+--- | --- | --- | ---
+MYSQL_ROOT_PASSWORD | changeme | `No` | N/A
+MYSQL_DATABASE | gearguardian | `No` | N/A
+MYSQL_USER | gearguardian | `No` | N/A
+MYSQL_PASSWORD | changeme | `No` | N/A
 
 Python backend dependencies used:
  - fastapi==0.111.0
