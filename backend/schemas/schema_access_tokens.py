@@ -4,7 +4,9 @@ from pydantic import BaseModel
 from datetime import datetime, timedelta, timezone
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
-from jose import JWTError, jwt
+#from jose import JWTError, jwt
+from joserfc import jwt
+from joserfc.jwk import OctKey
 from sqlalchemy.orm import Session
 
 from constants import (
@@ -50,33 +52,21 @@ logger = logging.getLogger("myLogger")
 
 def decode_token(token: str = Depends(oauth2_scheme)):
     # Decode the token and return the payload
-    return jwt.decode(token, JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM])
+    return jwt.decode(token, OctKey.import_key(JWT_SECRET_KEY))
 
 
 def validate_token_expiration(db: Session, token: str = Depends(oauth2_scheme)):
     # Try to decode the token and check if it is expired
     try:
         # Decode the token
+        # Mark exp claim as required
+        claims_requests = jwt.JWTClaimsRegistry(exp={"essential": True})
+
+        # decodes the token
         payload = decode_token(token)
 
-        # Get the expiration timestamp from the payload
-        expiration_timestamp = payload.get("exp")
-
-        # If the expiration timestamp is None or if it is less than the current time raise an exception and log it
-        if (
-            expiration_timestamp is None
-            or datetime.utcfromtimestamp(expiration_timestamp) < datetime.utcnow()
-        ):
-            logger.warning(
-                "Token expired | Returning 401 response"
-            )
-
-            # Raise an HTTPException with a 401 Unauthorized status code
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Token no longer valid",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
+        # Validate token exp
+        claims_requests.validate(payload.claims)
     except Exception:
         # Log the error and raise the exception
         logger.info(
@@ -96,7 +86,7 @@ def get_token_user_id(token: str = Depends(oauth2_scheme)):
     payload = decode_token(token)
 
     # Get the user id from the payload
-    user_id = payload.get("id")
+    user_id = payload.claims["id"]
 
     if user_id is None:
         # If the user id is None raise an HTTPException with a 401 Unauthorized status code
@@ -115,7 +105,7 @@ def get_token_access_type(token: str = Depends(oauth2_scheme)):
     payload = decode_token(token)
 
     # Get the admin access from the payload
-    access_type = payload.get("access_type")
+    access_type = payload.claims["access_type"]
 
     if access_type is None:
         # If the access type is None raise an HTTPException with a 401 Unauthorized status code
@@ -156,7 +146,8 @@ def create_access_token(
     to_encode.update({"exp": expire})
 
     # Encode the data and return the token
-    encoded_jwt = jwt.encode(to_encode, JWT_SECRET_KEY, algorithm=JWT_ALGORITHM)
+    #encoded_jwt = jwt.encode(to_encode, JWT_SECRET_KEY, algorithm=JWT_ALGORITHM)
+    encoded_jwt = jwt.encode({"alg": JWT_ALGORITHM}, to_encode, JWT_SECRET_KEY)
 
     # Return the token
     return encoded_jwt

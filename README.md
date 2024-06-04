@@ -60,7 +60,7 @@ Table bellow shows supported environemnt variables. Variables marked with option
 Environemnt variable  | Default value | Optional | Notes
 --- | --- | --- | ---
 MY_APP_BACKEND_PROTOCOL | http | Yes | Needs to be https if you want to enable Strava integration. You may need to update this variable based on docker image spin up
-MY_APP_BACKEND_HOST | localhost:98 | Yes | Needs to be set and be Internet faced/resolved if you want to enable Strava integration. Strava callback relies on this. You may need to update this variable based on docker image spin up
+MY_APP_BACKEND_HOST | localhost:98 | Yes | Needs to be set and be Internet faced/resolved if you want to enable Strava integration. Strava callback relies on this. You may need to update this variable based on docker image spin up (api host or local ip (example: 192.168.1.10:98))
 
 Frontend dependencies:
  - vue@3.4.24
@@ -84,22 +84,22 @@ Environemnt variable  | Default value | Optional | Notes
 --- | --- | --- | ---
 DB_HOST | mariadb | Yes | N/A
 DB_PORT | 3306 | Yes | N/A
-DB_USER | gearguardian | Yes | N/A
+DB_USER | endurain | Yes | N/A
 DB_PASSWORD | changeme | `No` | N/A
-DB_DATABASE | gearguardian | Yes | N/A
+DB_DATABASE | endurain | Yes | N/A
 SECRET_KEY | changeme | `No` | N/A
 ALGORITHM | HS256 | Yes | N/A
 ACCESS_TOKEN_EXPIRE_MINUTES | 30 | Yes | N/A
 STRAVA_CLIENT_ID | changeme | `No` | N/A
 STRAVA_CLIENT_SECRET | changeme | `No` | N/A
 STRAVA_AUTH_CODE | changeme | `No` | N/A
-JAEGER_ENABLED | true | Yes | N/A
+JAEGER_ENABLED | false | Yes | N/A
 JAEGER_PROTOCOL | http | Yes | N/A
 JAEGER_HOST | jaeger | Yes | N/A
 JAGGER_PORT | 4317 | Yes | N/A
 STRAVA_DAYS_ACTIVITIES_ONLINK | 30 | Yes | N/A
 FRONTEND_PROTOCOL | http | Yes | Needs to be set if you want to enable Strava integration. You may need to update this variable based on docker image spin up
-FRONTEND_HOST | frontend | Yes | Needs to be set if you want to enable Strava integration. You may need to update this variable based on docker image spin up
+FRONTEND_HOST | frontend | Yes | Needs to be set if you want to enable Strava integration. You may need to update this variable based on docker image spin up (frontend host or local ip (example: 192.168.1.10:8080))
 FRONTEND_PORT | frontend | Yes | Needs to be set if you want to enable Strava integration. You may need to update this variable based on docker image spin up
 GEOCODES_MAPS_API | changeme | `No` | <a href="https://geocode.maps.co/">Geocode maps</a> offers a free plan consisting of 1 Request/Second. Registration necessary.
 
@@ -108,8 +108,8 @@ Table bellow shows the obligatory environemnt variables for mariadb container. Y
 Environemnt variable  | Default value | Optional | Notes
 --- | --- | --- | ---
 MYSQL_ROOT_PASSWORD | changeme | `No` | N/A
-MYSQL_DATABASE | gearguardian | `No` | N/A
-MYSQL_USER | gearguardian | `No` | N/A
+MYSQL_DATABASE | endurain | `No` | N/A
+MYSQL_USER | endurain | `No` | N/A
 MYSQL_PASSWORD | changeme | `No` | N/A
 
 Python backend dependencies used:
@@ -119,8 +119,6 @@ Python backend dependencies used:
  - python-dotenv==1.0.1
  - sqlalchemy==2.0.30
  - mysqlclient==2.2.4
- - python-jose[cryptography]==3.3.0
- - passlib[bcrypt]==1.7.4
  - apscheduler==3.10.4
  - requests==2.32.2
  - stravalib==1.7
@@ -130,6 +128,7 @@ Python backend dependencies used:
  - python-multipart==0.0.9
  - gpxpy==1.6.2
  - alembic==1.13.1
+ - joserfc==0.11.1
 
  ---
 # Strava integration

@@ -35,7 +35,7 @@ services:
     #  - <local_path>/endurain/backend:/app
     depends_on:
       - mariadb
-      - jaeger
+      - jaeger # optional
     restart: unless-stopped
   
   # mysql mariadb logic
@@ -53,7 +53,8 @@ services:
       - <local_path>/mariadb:/var/lib/mysql
     restart: unless-stopped
 
-  # Jaeger for opentelemetry
+  # Jaeger for opentelemetry - optional
+  # Jaeger is not enabled by default. If you do not need it or want it, you can remove this container
   jaeger:
     container_name: jaeger
     image: jaegertracing/all-in-one:latest
@@ -75,7 +76,7 @@ services:
       - 9411:9411
     restart: unless-stopped
 
-# phpmyadmin for DB manipulation
+# phpmyadmin for DB manipulation - optional
   phpmyadmin:
     container_name: phpmyadmin
     image: phpmyadmin

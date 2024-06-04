@@ -18,12 +18,8 @@ def delete_user_photo_filesystem(user_id: int):
     folder = "user_images"
     file = f"{user_id}.*"
 
-    print(os.path.join(folder, file))
-
     # Find all files matching the pattern
     files_to_delete = glob.glob(os.path.join(folder, file))
-
-    print(f"Files to delete: {files_to_delete}")
 
     # Remove each file found
     for file_path in files_to_delete:
