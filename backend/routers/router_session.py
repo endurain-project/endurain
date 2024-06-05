@@ -3,19 +3,30 @@ import logging
 from datetime import datetime, timedelta
 from typing import Annotated, Callable
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from fastapi import APIRouter, Depends, HTTPException, status, Security
+from fastapi.security import (
+    OAuth2PasswordBearer,
+    OAuth2PasswordRequestForm,
+    SecurityScopes,
+)
 from sqlalchemy.orm import Session
 
 from crud import crud_user_integrations, crud_users
 from schemas import schema_access_tokens, schema_users
 from constants import (
     USER_NOT_ACTIVE,
+    REGULAR_ACCESS,
+    REGULAR_ACCESS_SCOPES,
+    ADMIN_ACCESS_SCOPES,
+    SCOPES_DICT,
 )
 from dependencies import dependencies_database, dependencies_session
 
 # Define the OAuth2 scheme for handling bearer tokens
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+oauth2_scheme = OAuth2PasswordBearer(
+    tokenUrl="token",
+    scopes=SCOPES_DICT,
+)
 
 # Define the API router
 router = APIRouter()
@@ -93,9 +104,19 @@ async def login_for_access_token(
     if do_not_expire:
         expire = datetime.utcnow() + timedelta(days=90)
 
+    if user.access_type == REGULAR_ACCESS:
+        scopes = REGULAR_ACCESS_SCOPES
+    else:
+        scopes = ADMIN_ACCESS_SCOPES
+
     access_token = schema_access_tokens.create_access_token(
         db,
-        data={"sub": user.username, "id": user.id, "access_type": user.access_type},
+        data={
+            "sub": user.username,
+            "scopes": scopes,
+            "id": user.id,
+            "access_type": user.access_type,
+        },
         expires_delta=expire,
     )
 
@@ -106,7 +127,13 @@ async def login_for_access_token(
 
 @router.get("/users/me", response_model=schema_users.UserMe, tags=["session"])
 async def read_users_me(
-    user_id: Annotated[int, Depends(dependencies_session.validate_token_and_get_authenticated_user_id)],
+    security_scopes: SecurityScopes,
+    user_id: Annotated[
+        int, Depends(dependencies_session.validate_token_and_get_authenticated_user_id)
+    ],
+    check_scopes: Annotated[
+        Callable, Security(schema_access_tokens.check_scopes, scopes=["users:read"])
+    ],
     db: Session = Depends(dependencies_database.get_db),
 ):
     return get_current_user(db, user_id)

@@ -2,9 +2,10 @@ import logging
 
 from pydantic import BaseModel
 from datetime import datetime, timedelta, timezone
-from fastapi import Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer
-#from jose import JWTError, jwt
+from fastapi import Depends, HTTPException, status, Security
+from fastapi.security import OAuth2PasswordBearer, SecurityScopes
+
+# from jose import JWTError, jwt
 from joserfc import jwt
 from joserfc.jwk import OctKey
 from sqlalchemy.orm import Session
@@ -69,9 +70,7 @@ def validate_token_expiration(db: Session, token: str = Depends(oauth2_scheme)):
         claims_requests.validate(payload.claims)
     except Exception:
         # Log the error and raise the exception
-        logger.info(
-            "Token expired during validation | Returning 401 response"
-        )
+        logger.info("Token expired during validation | Returning 401 response")
 
         # Raise an HTTPException with a 401 Unauthorized status code
         raise HTTPException(
@@ -128,6 +127,21 @@ def validate_token_admin_access(token: str = Depends(oauth2_scheme)):
         )
 
 
+def check_scopes(security_scopes: SecurityScopes, token: str = Security(oauth2_scheme)):
+     # Decode the token
+    payload = decode_token(token)
+
+    # Get the scopes from the payload
+    scopes = payload.claims["scopes"]
+
+    if not any(scope in scopes for scope in security_scopes.scopes):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Unauthorized Access - Not enough permissions",
+            headers={"WWW-Authenticate": f'Bearer scope="{security_scopes.scope_str}"'},
+        )
+
+
 def create_access_token(
     db: Session, data: dict, expires_delta: timedelta | None = None
 ):
@@ -146,7 +160,7 @@ def create_access_token(
     to_encode.update({"exp": expire})
 
     # Encode the data and return the token
-    #encoded_jwt = jwt.encode(to_encode, JWT_SECRET_KEY, algorithm=JWT_ALGORITHM)
+    # encoded_jwt = jwt.encode(to_encode, JWT_SECRET_KEY, algorithm=JWT_ALGORITHM)
     encoded_jwt = jwt.encode({"alg": JWT_ALGORITHM}, to_encode, JWT_SECRET_KEY)
 
     # Return the token
