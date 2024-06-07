@@ -1,26 +1,36 @@
 import logging
+import bcrypt
 
-from datetime import datetime, timedelta
-from typing import Annotated, Callable
+from datetime import datetime, timedelta, timezone
+from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status, Security
-from fastapi.security import (
-    OAuth2PasswordBearer,
-    OAuth2PasswordRequestForm,
-    SecurityScopes,
+from fastapi import (
+    APIRouter,
+    Depends,
+    HTTPException,
+    status,
+    Response,
+    Request,
 )
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
-from crud import crud_user_integrations, crud_users
-from schemas import schema_access_tokens, schema_users
+from crud import crud_users
+from schemas import schema_users
 from constants import (
     USER_NOT_ACTIVE,
     REGULAR_ACCESS,
     REGULAR_ACCESS_SCOPES,
     ADMIN_ACCESS_SCOPES,
     SCOPES_DICT,
+    JWT_ACCESS_TOKEN_EXPIRE_MINUTES,
+    JWT_REFRESH_TOKEN_EXPIRE_DAYS,
 )
-from dependencies import dependencies_database, dependencies_session
+from dependencies import (
+    dependencies_database,
+    dependencies_session,
+    dependencies_security,
+)
 
 # Define the OAuth2 scheme for handling bearer tokens
 oauth2_scheme = OAuth2PasswordBearer(
@@ -35,60 +45,108 @@ router = APIRouter()
 logger = logging.getLogger("myLogger")
 
 
+def hash_password(password: str):
+    # Hash the password and return it
+    return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt())
+
+
+def verify_password(plain_password: str, hashed_password: str):
+    # Check if the password is equal to the hashed password
+    return bcrypt.checkpw(
+        plain_password.encode("utf-8"), hashed_password.encode("utf-8")
+    )
+
+
 def authenticate_user(username: str, password: str, db: Session):
     # Get the user from the database
-    user = crud_users.authenticate_user(username, password, db)
+    user = crud_users.authenticate_user(username, db)
 
-    # Check if the user exists and if the password is correct and if not return False
+    # Check if the user exists and if the hashed_password is correct and if not return False
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password",
+            detail="Incorrect username",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    # Return the user if the password is correct
+    if not verify_password(password, user.password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    # Return the user if the hashed_password is correct
     return user
 
 
-def get_current_user(db: Session, user_id: int):
-    # Get the user from the database
-    user = crud_users.get_user_by_id(user_id, db)
+def create_response_with_tokens(response: Response, user: schema_users.User):
+    # Check user access level and set scopes accordingly
+    if user.access_type == REGULAR_ACCESS:
+        scopes = REGULAR_ACCESS_SCOPES
+    else:
+        scopes = ADMIN_ACCESS_SCOPES
 
-    # If the user does not exist raise the exception
-    if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Could not validate credentials (user not found)",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-
-    user_integrations = crud_user_integrations.get_user_integrations_by_user_id(
-        user.id, db
+    # Create the access and refresh tokens
+    access_token = dependencies_security.create_token(
+        data={
+            "sub": user.username,
+            "scopes": scopes,
+            "id": user.id,
+            "access_type": user.access_type,
+            "exp": datetime.now(timezone.utc)
+            + timedelta(minutes=JWT_ACCESS_TOKEN_EXPIRE_MINUTES),
+        },
     )
 
-    if user_integrations is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Could not validate credentials (user integrations not found)",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+    refresh_token = dependencies_security.create_token(
+        data={
+            "sub": user.username,
+            "scopes": "scopes",
+            "id": user.id,
+            "access_type": user.access_type,
+            "exp": datetime.now(timezone.utc)
+            + timedelta(days=JWT_REFRESH_TOKEN_EXPIRE_DAYS),
+        },
+    )
 
-    if user_integrations.strava_token is None:
-        user.is_strava_linked = 0
-    else:
-        user.is_strava_linked = 1
+    # Set the cookies with the tokens
+    response.set_cookie(
+        key="endurain_access_token",
+        value=access_token,
+        expires=datetime.now(timezone.utc)
+        + timedelta(minutes=JWT_ACCESS_TOKEN_EXPIRE_MINUTES),
+        httponly=True,
+        path="/",
+        secure=False,
+        samesite="None",
+    )
+    response.set_cookie(
+        key="endurain_refresh_token",
+        value=refresh_token,
+        expires=datetime.now(timezone.utc)
+        + timedelta(days=JWT_REFRESH_TOKEN_EXPIRE_DAYS),
+        httponly=True,
+        path="/",
+        secure=False,
+        samesite="None",
+    )
 
-    # Return the user
-    return user
+    # Set the user id in a cookie
+    response.set_cookie(
+        key="endurain_logged_user_id",
+        value=user.id,
+        httponly=False,
+    )
+
+    # Return the response
+    return response
 
 
-@router.post(
-    "/token", response_model=schema_access_tokens.AccessToken, tags=["session"]
-)
+@router.post("/token", tags=["session"])
 async def login_for_access_token(
+    response: Response,
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
-    do_not_expire: bool = False,
     db: Session = Depends(dependencies_database.get_db),
 ):
     user = authenticate_user(form_data.username, form_data.password, db)
@@ -100,49 +158,33 @@ async def login_for_access_token(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    expire = None
-    if do_not_expire:
-        expire = datetime.utcnow() + timedelta(days=90)
+    response = create_response_with_tokens(response, user)
 
-    if user.access_type == REGULAR_ACCESS:
-        scopes = REGULAR_ACCESS_SCOPES
-    else:
-        scopes = ADMIN_ACCESS_SCOPES
-
-    access_token = schema_access_tokens.create_access_token(
-        db,
-        data={
-            "sub": user.username,
-            "scopes": scopes,
-            "id": user.id,
-            "access_type": user.access_type,
-        },
-        expires_delta=expire,
-    )
-
-    return schema_access_tokens.AccessToken(
-        access_token=access_token, token_type="bearer"
-    )
+    return {"message": "Login successful"}
 
 
-@router.get("/users/me", response_model=schema_users.UserMe, tags=["session"])
-async def read_users_me(
-    security_scopes: SecurityScopes,
+@router.post("/refresh", tags=["session"])
+async def refresh_token(
+    response: Response,
+    request: Request,
     user_id: Annotated[
-        int, Depends(dependencies_session.validate_token_and_get_authenticated_user_id)
-    ],
-    check_scopes: Annotated[
-        Callable, Security(schema_access_tokens.check_scopes, scopes=["users:read"])
+        int,
+        Depends(
+            dependencies_session.validate_refresh_token_and_get_authenticated_user_id
+        ),
     ],
     db: Session = Depends(dependencies_database.get_db),
 ):
-    return get_current_user(db, user_id)
+    # get user
+    user = crud_users.get_user_by_id(user_id, db)
 
+    if user.is_active == USER_NOT_ACTIVE:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Inactive user",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
 
-@router.get("/validate_token", tags=["session"])
-async def validate_token(
-    validate_token: Callable = Depends(dependencies_session.validate_token),
-    db: Session = Depends(dependencies_database.get_db),
-):
-    # Return None if the token is valid
-    return None
+    response = create_response_with_tokens(response, user)
+
+    return {"message": "Token refreshed successfully"}

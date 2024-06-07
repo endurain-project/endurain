@@ -27,7 +27,6 @@ from routers import (
     router_strava,
 )
 from constants import API_VERSION
-from schemas import schema_access_tokens
 from database import SessionLocal
 from processors import strava_processor, strava_activity_processor
 
@@ -102,6 +101,7 @@ required_env_vars = [
     "SECRET_KEY",
     "ALGORITHM",
     "ACCESS_TOKEN_EXPIRE_MINUTES",
+    "REFRESH_TOKEN_EXPIRE_DAYS",
     "STRAVA_CLIENT_ID",
     "STRAVA_CLIENT_SECRET",
     "STRAVA_AUTH_CODE",

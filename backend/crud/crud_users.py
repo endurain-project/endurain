@@ -34,13 +34,13 @@ def format_user_birthdate(user):
     return user
 
 
-def authenticate_user(username: str, password: str, db: Session):
+def authenticate_user(username: str, db: Session):
     try:
         # Get the user from the database
         user = (
             db.query(models.User)
             .filter(
-                models.User.username == username, models.User.password == password
+                models.User.username == username
             )
             .first()
         )

@@ -1,6 +1,9 @@
 import { fetchGetRequest, fetchPostRequest, fetchPutRequest, fetchDeleteRequest, fetchPostFileRequest } from '@/utils/serviceUtils';
 
 export const users = {
+    getUserMe() {
+        return fetchGetRequest('users/me');
+    },
     getUsersWithPagination(pageNumber, numRecords) {
         return fetchGetRequest(`users/all/page_number/${pageNumber}/num_records/${numRecords}`);
     },

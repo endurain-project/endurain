@@ -1,4 +1,4 @@
-import { fetchGetRequestTokenAsParameter, fetchPostFormUrlEncoded } from '@/utils/serviceUtils';
+import { fetchGetRequest, fetchPostFormUrlEncoded } from '@/utils/serviceUtils';
 import { useUserStore } from '@/stores/user';
 
 export const auth = {
@@ -13,9 +13,7 @@ export const auth = {
 
         return exp > currentTime;
     },
-    storeLoggedUser(token, userMe) {
-        localStorage.setItem('accessToken', token.access_token);
-        localStorage.setItem('tokenType', token.token_type);
+    storeLoggedUser(userMe) {
         localStorage.setItem('userMe', JSON.stringify(userMe));
     },
     removeLoggedUser() {
@@ -28,6 +26,6 @@ export const auth = {
         return fetchPostFormUrlEncoded('token', formData);
     },
     getUserMe(token) {
-        return fetchGetRequestTokenAsParameter('users/me', token);
+        return fetchGetRequest('users/me', token);
     },
 };

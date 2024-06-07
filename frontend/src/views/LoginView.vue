@@ -21,11 +21,11 @@
             <label for="loginPassword">{{ $t("login.password") }}</label>
         </div>
         <br>
-        <div class="form-check">
+        <!--<div class="form-check">
             <input type="checkbox" class="form-check-input" name="loginNeverExpires" v-model="neverExpires">
             <label class="form-check-label" for="loginNeverExpires">{{ $t("login.neverExpires") }}</label>
         </div>
-        <br>
+        <br>-->
         <button class="w-100 btn btn-lg btn-primary" type="submit">{{ $t("login.signInButton") }}</button>
         <!--<div>
             <br>
@@ -46,13 +46,16 @@ import { useI18n } from 'vue-i18n';
 // Importing the stores
 import { useErrorAlertStore } from '@/stores/Alerts/errorAlert';
 import { useInfoAlertStore } from '@/stores/Alerts/infoAlert';
+import { useSessionStore } from '@/stores/session';
 // Importing the services for the login
-import { auth } from '@/services/auth';
+//import { auth } from '@/services/auth';
+import { session } from '@/services/session';
+import { users } from '@/services/user';
 // Importing the components
 import ErrorAlertComponent from '@/components/Alerts/ErrorAlertComponent.vue';
 import InfoAlertComponent from '@/components/Alerts/InfoAlertComponent.vue';
 // Importing the crypto-js
-import CryptoJS from 'crypto-js';
+//import CryptoJS from 'crypto-js';
 
 
 // Exporting the default object
@@ -70,30 +73,33 @@ export default {
     const { t } = useI18n();
     const username = ref('');
     const password = ref('');
-    const neverExpires = ref(false);
+    //const neverExpires = ref(false);
     const errorMessage = ref('');
     const showSessionExpiredMessage = ref(false);
     const errorAlertStore = useErrorAlertStore();
     const infoAlertStore = useInfoAlertStore();
+    const sessionStore = useSessionStore();
 
     // Handle the form submission
     const submitForm = async () => {
       // Hash the password
-      const hashedPassword = CryptoJS.SHA256(password.value).toString(CryptoJS.enc.Hex);
+      //const hashedPassword = CryptoJS.SHA256(password.value).toString(CryptoJS.enc.Hex);
       // Create the form data
       const formData = new URLSearchParams();
       formData.append('username', username.value);
-      formData.append('password', hashedPassword);
-      formData.append('neverExpires', neverExpires.value);
+      formData.append('password', password.value);
+      //formData.append('neverExpires', neverExpires.value);
 
       try {
         // Get the token
-        const token = await auth.getToken(formData);
-        // Get the userMe
-        const userMe = await auth.getUserMe(token.access_token);
+        await session.getToken(formData);
 
-        // Store the logged user
-        auth.storeLoggedUser(token, userMe);
+        // Get logged user information
+        const userMe = await users.getUserMe();
+
+        // Store the user in the session store
+        sessionStore.setUser(userMe);
+        
         // Redirect to the home page
         router.push('/');
       } catch (error) {
@@ -127,7 +133,7 @@ export default {
     return {
       username,
       password,
-      neverExpires,
+      //neverExpires,
       showSessionExpiredMessage,
       errorMessage,
       submitForm,

@@ -78,9 +78,7 @@ async def strava_link(
 
         # Redirect to the main page or any other desired page after processing
         redirect_url = (
-            "https://"
-            + os.environ.get("FRONTEND_HOST")
-            + "/settings?stravaLinked=1"
+            "https://" + os.environ.get("FRONTEND_HOST") + "/settings?stravaLinked=1"
         )
 
         # Return a RedirectResponse to the redirect URL
@@ -104,7 +102,10 @@ async def strava_link(
 async def strava_retrieve_activities_days(
     days: int,
     token_user_id: Annotated[
-        int, Depends(dependencies_session.validate_token_and_get_authenticated_user_id)
+        int,
+        Depends(
+            dependencies_session.validate_access_token_and_get_authenticated_user_id
+        ),
     ],
     # db: Annotated[Session, Depends(dependencies_database.get_db)],
     background_tasks: BackgroundTasks,
@@ -132,7 +133,10 @@ async def strava_retrieve_activities_days(
 async def strava_set_user_unique_state(
     state: str,
     user_id: Annotated[
-        int, Depends(dependencies_session.validate_token_and_get_authenticated_user_id)
+        int,
+        Depends(
+            dependencies_session.validate_access_token_and_get_authenticated_user_id
+        ),
     ],
     db: Annotated[Session, Depends(dependencies_database.get_db)],
 ):
@@ -149,7 +153,7 @@ async def strava_set_user_unique_state(
 )
 async def strava_unset_user_unique_state(
     user_id: Annotated[
-        int, Depends(dependencies_session.validate_token_and_get_authenticated_user_id)
+        int, Depends(dependencies_session.validate_access_token_and_get_authenticated_user_id)
     ],
     db: Annotated[Session, Depends(dependencies_database.get_db)],
 ):
@@ -163,7 +167,7 @@ async def strava_unset_user_unique_state(
 @router.delete("/strava/unlink", tags=["strava"])
 async def strava_unlink(
     token_user_id: Annotated[
-        int, Depends(dependencies_session.validate_token_and_get_authenticated_user_id)
+        int, Depends(dependencies_session.validate_access_token_and_get_authenticated_user_id)
     ],
     db: Session = Depends(dependencies_database.get_db),
 ):
@@ -183,7 +187,7 @@ async def strava_unlink(
 @router.get("/strava/gear", status_code=202, tags=["strava"])
 async def strava_retrieve_gear(
     token_user_id: Annotated[
-        int, Depends(dependencies_session.validate_token_and_get_authenticated_user_id)
+        int, Depends(dependencies_session.validate_access_token_and_get_authenticated_user_id)
     ],
     background_tasks: BackgroundTasks,
 ):

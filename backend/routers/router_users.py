@@ -3,7 +3,7 @@ import logging
 
 from typing import Annotated, Callable
 
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, Security
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 
@@ -16,6 +16,7 @@ from dependencies import (
     dependencies_session,
     dependencies_global,
     dependencies_users,
+    dependencies_security,
 )
 
 # Define the OAuth2 scheme for handling bearer tokens
@@ -28,12 +29,65 @@ router = APIRouter()
 logger = logging.getLogger("myLogger")
 
 
+@router.get("/users/me", response_model=schema_users.UserMe, tags=["users"])
+async def read_users_me(
+    token_user_id: Annotated[
+        int,
+        Depends(
+            dependencies_session.validate_access_token_and_get_authenticated_user_id
+        ),
+    ],
+    check_scopes: Annotated[
+        Callable, Security(dependencies_session.check_scopes, scopes=["users:read"])
+    ],
+    db: Annotated[
+        Session,
+        Depends(dependencies_database.get_db),
+    ],
+):
+    # Get the user from the database
+    user = crud_users.get_user_by_id(token_user_id, db)
+
+    # If the user does not exist raise the exception
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Could not validate credentials (user not found)",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    user_integrations = crud_user_integrations.get_user_integrations_by_user_id(
+        user.id, db
+    )
+
+    if user_integrations is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Could not validate credentials (user integrations not found)",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    if user_integrations.strava_token is None:
+        user.is_strava_linked = 0
+    else:
+        user.is_strava_linked = 1
+
+    # Return the user
+    return user
+
+
 @router.get("/users/number", response_model=int, tags=["users"])
 async def read_users_number(
-    validate_token_validate_admin_access: Annotated[
-        Callable, Depends(dependencies_session.validate_token_and_validate_admin_access)
+    validate_access_token_and_validate_admin_access: Annotated[
+        Callable, Depends(dependencies_session.validate_access_token_and_validate_admin_access)
     ],
-    db: Session = Depends(dependencies_database.get_db),
+    check_scopes: Annotated[
+        Callable, Security(dependencies_session.check_scopes, scopes=["users:read"])
+    ],
+    db: Annotated[
+        Session,
+        Depends(dependencies_database.get_db),
+    ],
 ):
     return crud_users.get_users_number(db)
 
@@ -49,10 +103,16 @@ async def read_users_all_pagination(
     validate_pagination_values: Annotated[
         Callable, Depends(dependencies_global.validate_pagination_values)
     ],
-    validate_token_validate_admin_access: Annotated[
-        Callable, Depends(dependencies_session.validate_token_and_validate_admin_access)
+    validate_access_token_and_validate_admin_access: Annotated[
+        Callable, Depends(dependencies_session.validate_access_token_and_validate_admin_access)
     ],
-    db: Session = Depends(dependencies_database.get_db),
+    check_scopes: Annotated[
+        Callable, Security(dependencies_session.check_scopes, scopes=["users:read"])
+    ],
+    db: Annotated[
+        Session,
+        Depends(dependencies_database.get_db),
+    ],
 ):
     # Get the users from the database with pagination
     return crud_users.get_users_with_pagination(
@@ -67,10 +127,16 @@ async def read_users_all_pagination(
 )
 async def read_users_contain_username(
     username: str,
-    validate_token_validate_admin_access: Annotated[
-        Callable, Depends(dependencies_session.validate_token_and_validate_admin_access)
+    validate_access_token_and_validate_admin_access: Annotated[
+        Callable, Depends(dependencies_session.validate_access_token_and_validate_admin_access)
     ],
-    db: Session = Depends(dependencies_database.get_db),
+    check_scopes: Annotated[
+        Callable, Security(dependencies_session.check_scopes, scopes=["users:read"])
+    ],
+    db: Annotated[
+        Session,
+        Depends(dependencies_database.get_db),
+    ],
 ):
     # Get the users from the database by username
     return crud_users.get_user_if_contains_username(username=username, db=db)
@@ -83,10 +149,16 @@ async def read_users_contain_username(
 )
 async def read_users_username(
     username: str,
-    validate_token_validate_admin_access: Annotated[
-        Callable, Depends(dependencies_session.validate_token_and_validate_admin_access)
+    validate_access_token_and_validate_admin_access: Annotated[
+        Callable, Depends(dependencies_session.validate_access_token_and_validate_admin_access)
     ],
-    db: Session = Depends(dependencies_database.get_db),
+    check_scopes: Annotated[
+        Callable, Security(dependencies_session.check_scopes, scopes=["users:read"])
+    ],
+    db: Annotated[
+        Session,
+        Depends(dependencies_database.get_db),
+    ],
 ):
     # Get the user from the database by username
     return crud_users.get_user_by_username(username=username, db=db)
@@ -96,8 +168,16 @@ async def read_users_username(
 async def read_users_id(
     user_id: int,
     validate_id: Annotated[Callable, Depends(dependencies_users.validate_user_id)],
-    validate_token: Callable = Depends(dependencies_session.validate_token),
-    db: Session = Depends(dependencies_database.get_db),
+    validate_access_token: Annotated[
+        Callable, Depends(dependencies_session.validate_access_token)
+    ],
+    check_scopes: Annotated[
+        Callable, Security(dependencies_session.check_scopes, scopes=["users:read"])
+    ],
+    db: Annotated[
+        Session,
+        Depends(dependencies_database.get_db),
+    ],
 ):
     # Get the users from the database by id
     return crud_users.get_user_by_id(user_id=user_id, db=db)
@@ -106,10 +186,16 @@ async def read_users_id(
 @router.get("/users/{username}/id", response_model=int, tags=["users"])
 async def read_users_username_id(
     username: str,
-    validate_token_validate_admin_access: Annotated[
-        Callable, Depends(dependencies_session.validate_token_and_validate_admin_access)
+    validate_access_token_and_validate_admin_access: Annotated[
+        Callable, Depends(dependencies_session.validate_access_token_and_validate_admin_access)
     ],
-    db: Session = Depends(dependencies_database.get_db),
+    check_scopes: Annotated[
+        Callable, Security(dependencies_session.check_scopes, scopes=["users:read"])
+    ],
+    db: Annotated[
+        Session,
+        Depends(dependencies_database.get_db),
+    ],
 ):
     # Get the users from the database by username
     return crud_users.get_user_id_by_username(username, db)
@@ -119,37 +205,34 @@ async def read_users_username_id(
 async def read_users_id_photo_path(
     user_id: int,
     validate_id: Annotated[Callable, Depends(dependencies_users.validate_user_id)],
-    validate_token_validate_admin_access: Annotated[
-        Callable, Depends(dependencies_session.validate_token_and_validate_admin_access)
+    validate_access_token_and_validate_admin_access: Annotated[
+        Callable, Depends(dependencies_session.validate_access_token_and_validate_admin_access)
     ],
-    db: Session = Depends(dependencies_database.get_db),
+    check_scopes: Annotated[
+        Callable, Security(dependencies_session.check_scopes, scopes=["users:read"])
+    ],
+    db: Annotated[
+        Session,
+        Depends(dependencies_database.get_db),
+    ],
 ):
     # Get the photo_path from the database by id
     return crud_users.get_user_photo_path_by_id(user_id, db)
 
 
-@router.get(
-    "/users/{user_id}/photo_path_aux", response_model=str | None, tags=["users"]
-)
-async def read_users_id_photo_path_aux(
-    user_id: int,
-    validate_id: Annotated[Callable, Depends(dependencies_users.validate_user_id)],
-    validate_token_validate_admin_access: Annotated[
-        Callable, Depends(dependencies_session.validate_token_and_validate_admin_access)
-    ],
-    db: Session = Depends(dependencies_database.get_db),
-):
-    # Get the photo_path_aux from the database by id
-    return crud_users.get_user_photo_path_aux_by_id(user_id, db)
-
-
 @router.post("/users/create", response_model=int, status_code=201, tags=["users"])
 async def create_user(
     user: schema_users.UserCreate,
-    validate_token_validate_admin_access: Annotated[
-        Callable, Depends(dependencies_session.validate_token_and_validate_admin_access)
+    validate_access_token_and_validate_admin_access: Annotated[
+        Callable, Depends(dependencies_session.validate_access_token_and_validate_admin_access)
     ],
-    db: Session = Depends(dependencies_database.get_db),
+    check_scopes: Annotated[
+        Callable, Security(dependencies_session.check_scopes, scopes=["users:write"])
+    ],
+    db: Annotated[
+        Session,
+        Depends(dependencies_database.get_db),
+    ],
 ):
     # Create the user in the database
     created_user = crud_users.create_user(user, db)
@@ -171,15 +254,23 @@ async def upload_user_image(
     user_id: int,
     token_user_id: Annotated[
         Callable,
-        Depends(dependencies_session.validate_token_and_get_authenticated_user_id),
+        Depends(
+            dependencies_session.validate_access_token_and_get_authenticated_user_id
+        ),
     ],
     file: UploadFile,
-    db: Session = Depends(dependencies_database.get_db),
+    check_scopes: Annotated[
+        Callable, Security(dependencies_session.check_scopes, scopes=["users:edit"])
+    ],
+    db: Annotated[
+        Session,
+        Depends(dependencies_database.get_db),
+    ],
 ):
     try:
         upload_dir = "user_images"
         os.makedirs(upload_dir, exist_ok=True)
-        
+
         # Get file extension
         _, file_extension = os.path.splitext(file.filename)
         filename = f"{user_id}{file_extension}"
@@ -188,13 +279,11 @@ async def upload_user_image(
 
         with open(file_path_to_save, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
-        
+
         return crud_users.edit_user_photo_path(user_id, file_path_to_save, db)
     except Exception as err:
         # Log the exception
-        logger.error(
-            f"Error in upload_user_image: {err}", exc_info=True
-        )
+        logger.error(f"Error in upload_user_image: {err}", exc_info=True)
 
         # Remove the file after processing
         if os.path.exists(file_path_to_save):
@@ -216,7 +305,13 @@ async def edit_user(
             dependencies_session.validate_token_and_if_user_id_equals_token_user_attributtes_id_if_not_validate_admin_access
         ),
     ],
-    db: Session = Depends(dependencies_database.get_db),
+    check_scopes: Annotated[
+        Callable, Security(dependencies_session.check_scopes, scopes=["users:edit"])
+    ],
+    db: Annotated[
+        Session,
+        Depends(dependencies_database.get_db),
+    ],
 ):
     # Update the user in the database
     crud_users.edit_user(user_attributtes, db)
@@ -234,7 +329,13 @@ async def edit_user_password(
             dependencies_session.validate_token_and_if_user_id_equals_token_user_attributtes_password_id_if_not_validate_admin_access
         ),
     ],
-    db: Session = Depends(dependencies_database.get_db),
+    check_scopes: Annotated[
+        Callable, Security(dependencies_session.check_scopes, scopes=["users:edit"])
+    ],
+    db: Annotated[
+        Session,
+        Depends(dependencies_database.get_db),
+    ],
 ):
     # Update the user password in the database
     crud_users.edit_user_password(user_attributtes.id, user_attributtes.password, db)
@@ -252,7 +353,13 @@ async def delete_user_photo(
             dependencies_session.validate_token_and_if_user_id_equals_token_user_id_if_not_validate_admin_access
         ),
     ],
-    db: Session = Depends(dependencies_database.get_db),
+    check_scopes: Annotated[
+        Callable, Security(dependencies_session.check_scopes, scopes=["users:edit"])
+    ],
+    db: Annotated[
+        Session,
+        Depends(dependencies_database.get_db),
+    ],
 ):
     # Update the user photo_path in the database
     crud_users.delete_user_photo(user_id, db)
@@ -268,7 +375,13 @@ async def delete_user(
     validate_token_validate_admin_access: Annotated[
         Callable, Depends(dependencies_session.validate_token_and_validate_admin_access)
     ],
-    db: Session = Depends(dependencies_database.get_db),
+    check_scopes: Annotated[
+        Callable, Security(dependencies_session.check_scopes, scopes=["users:write"])
+    ],
+    db: Annotated[
+        Session,
+        Depends(dependencies_database.get_db),
+    ],
 ):
     # Delete the user in the database
     crud_users.delete_user(user_id, db)

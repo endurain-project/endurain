@@ -18,6 +18,7 @@ from dependencies import (
     dependencies_activities,
     dependencies_gear,
     dependencies_global,
+    dependencies_security,
 )
 from processors import gpx_processor, fit_processor
 
@@ -45,7 +46,9 @@ async def read_activities_useractivities_week(
     ],
     token_user_id: Annotated[
         Callable,
-        Depends(dependencies_session.validate_token_and_get_authenticated_user_id),
+        Depends(
+            dependencies_session.validate_access_token_and_get_authenticated_user_id
+        ),
     ],
     db: Session = Depends(dependencies_database.get_db),
 ):
@@ -84,7 +87,9 @@ async def read_activities_useractivities_thisweek_distances(
     validate_user_id: Annotated[Callable, Depends(dependencies_users.validate_user_id)],
     token_user_id: Annotated[
         Callable,
-        Depends(dependencies_session.validate_token_and_get_authenticated_user_id),
+        Depends(
+            dependencies_session.validate_access_token_and_get_authenticated_user_id
+        ),
     ],
     db: Session = Depends(dependencies_database.get_db),
 ):
@@ -125,7 +130,7 @@ async def read_activities_useractivities_thismonth_distances(
     validate_user_id: Annotated[Callable, Depends(dependencies_users.validate_user_id)],
     token_user_id: Annotated[
         Callable,
-        Depends(dependencies_session.validate_token_and_get_authenticated_user_id),
+        Depends(dependencies_session.validate_access_token_and_get_authenticated_user_id),
     ],
     db: Session = Depends(dependencies_database.get_db),
 ):
@@ -165,7 +170,7 @@ async def read_activities_useractivities_thismonth_number(
     validate_user_id: Annotated[Callable, Depends(dependencies_users.validate_user_id)],
     token_user_id: Annotated[
         Callable,
-        Depends(dependencies_session.validate_token_and_get_authenticated_user_id),
+        Depends(dependencies_session.validate_access_token_and_get_authenticated_user_id),
     ],
     db: Session = Depends(dependencies_database.get_db),
 ):
@@ -214,7 +219,9 @@ async def read_activities_gearactivities(
     db: Session = Depends(dependencies_database.get_db),
 ):
     # Get the activities for the gear
-    return crud_activities.get_user_activities_by_gear_id_and_user_id(user_id, gear_id, db)
+    return crud_activities.get_user_activities_by_gear_id_and_user_id(
+        user_id, gear_id, db
+    )
 
 
 @router.get(
@@ -225,7 +232,7 @@ async def read_activities_gearactivities(
 async def read_activities_useractivities_number(
     user_id: int,
     validate_user_id: Annotated[Callable, Depends(dependencies_users.validate_user_id)],
-    validate_token: Annotated[Callable, Depends(dependencies_session.validate_token)],
+    validate_token: Annotated[Callable, Depends(dependencies_security.validate_token_expiration)],
     db: Session = Depends(dependencies_database.get_db),
 ):
     # Get the number of activities for the user
@@ -252,7 +259,7 @@ async def read_activities_useractivities_pagination(
     validate_pagination_values: Annotated[
         Callable, Depends(dependencies_global.validate_pagination_values)
     ],
-    validate_token: Annotated[Callable, Depends(dependencies_session.validate_token)],
+    validate_token: Annotated[Callable, Depends(dependencies_security.validate_token_expiration)],
     db: Session = Depends(dependencies_database.get_db),
 ):
     # Get the activities for the user with pagination
@@ -281,7 +288,7 @@ async def read_activities_followed_user_activities_pagination(
     validate_pagination_values: Annotated[
         Callable, Depends(dependencies_global.validate_pagination_values)
     ],
-    validate_token: Annotated[Callable, Depends(dependencies_session.validate_token)],
+    validate_token: Annotated[Callable, Depends(dependencies_security.validate_token_expiration)],
     db: Session = Depends(dependencies_database.get_db),
 ):
     # Get the activities for the following users with pagination
@@ -298,7 +305,7 @@ async def read_activities_followed_user_activities_pagination(
 async def read_activities_followed_useractivities_number(
     user_id: int,
     validate_user_id: Annotated[Callable, Depends(dependencies_users.validate_user_id)],
-    validate_token: Annotated[Callable, Depends(dependencies_session.validate_token)],
+    validate_token: Annotated[Callable, Depends(dependencies_security.validate_token_expiration)],
     db: Session = Depends(dependencies_database.get_db),
 ):
     # Get the number of activities for the following users
@@ -324,12 +331,14 @@ async def read_activities_activity_from_id(
     ],
     token_user_id: Annotated[
         Callable,
-        Depends(dependencies_session.validate_token_and_get_authenticated_user_id),
+        Depends(dependencies_session.validate_access_token_and_get_authenticated_user_id),
     ],
     db: Session = Depends(dependencies_database.get_db),
 ):
     # Get the activity from the database and return it
-    return crud_activities.get_activity_by_id_from_user_id_or_has_visibility(activity_id, token_user_id, db)
+    return crud_activities.get_activity_by_id_from_user_id_or_has_visibility(
+        activity_id, token_user_id, db
+    )
 
 
 @router.get(
@@ -341,7 +350,7 @@ async def read_activities_contain_name(
     name: str,
     token_user_id: Annotated[
         Callable,
-        Depends(dependencies_session.validate_token_and_get_authenticated_user_id),
+        Depends(dependencies_session.validate_access_token_and_get_authenticated_user_id),
     ],
     db: Session = Depends(dependencies_database.get_db),
 ):
@@ -358,7 +367,7 @@ async def read_activities_contain_name(
 async def create_activity_with_uploaded_file(
     token_user_id: Annotated[
         Callable,
-        Depends(dependencies_session.validate_token_and_get_authenticated_user_id),
+        Depends(dependencies_session.validate_access_token_and_get_authenticated_user_id),
     ],
     file: UploadFile,
     db: Session = Depends(dependencies_database.get_db),
@@ -425,7 +434,8 @@ async def create_activity_with_uploaded_file(
         ) from err
 
 
-@router.put("/activities/{activity_id}/addgear/{gear_id}",
+@router.put(
+    "/activities/{activity_id}/addgear/{gear_id}",
     tags=["activities"],
 )
 async def activity_add_gear(
@@ -435,7 +445,9 @@ async def activity_add_gear(
     ],
     gear_id: int,
     validate_gear_id: Annotated[Callable, Depends(dependencies_gear.validate_gear_id)],
-    token_user_id: Annotated[int, Depends(dependencies_session.validate_token_and_get_authenticated_user_id)],
+    token_user_id: Annotated[
+        int, Depends(dependencies_session.validate_access_token_and_get_authenticated_user_id)
+    ],
     db: Session = Depends(dependencies_database.get_db),
 ):
     # Get the gear by user id and gear id
@@ -447,9 +459,11 @@ async def activity_add_gear(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Gear ID {gear_id} for user {token_user_id} not found",
         )
-    
-    # Get the activity by id from user id 
-    activity = crud_activities.get_activity_by_id_from_user_id(activity_id, token_user_id, db)
+
+    # Get the activity by id from user id
+    activity = crud_activities.get_activity_by_id_from_user_id(
+        activity_id, token_user_id, db
+    )
 
     # Check if activity is None and raise an HTTPException with a 404 Not Found status code if it is
     if activity is None:
@@ -460,11 +474,13 @@ async def activity_add_gear(
 
     # Add the gear to the activity
     crud_activities.add_gear_to_activity(activity_id, gear_id, db)
-    
+
     # Return success message
     return {"detail": f"Gear ID {gear_id} added to activity successfully"}
 
-@router.put("/activities/{activity_id}/deletegear",
+
+@router.put(
+    "/activities/{activity_id}/deletegear",
     tags=["activities"],
 )
 async def delete_activity_gear(
@@ -472,11 +488,15 @@ async def delete_activity_gear(
     validate_activity_id: Annotated[
         Callable, Depends(dependencies_activities.validate_activity_id)
     ],
-    token_user_id: Annotated[int, Depends(dependencies_session.validate_token_and_get_authenticated_user_id)],
+    token_user_id: Annotated[
+        int, Depends(dependencies_session.validate_access_token_and_get_authenticated_user_id)
+    ],
     db: Session = Depends(dependencies_database.get_db),
 ):
-    # Get the activity by id from user id 
-    activity = crud_activities.get_activity_by_id_from_user_id(activity_id, token_user_id, db)
+    # Get the activity by id from user id
+    activity = crud_activities.get_activity_by_id_from_user_id(
+        activity_id, token_user_id, db
+    )
 
     # Check if activity is None and raise an HTTPException with a 404 Not Found status code if it is
     if activity is None:
@@ -487,11 +507,13 @@ async def delete_activity_gear(
 
     # Delete gear from the activity
     crud_activities.add_gear_to_activity(activity_id, None, db)
-    
+
     # Return success message
     return {"detail": f"Gear ID {activity.gear_id} deleted from activity successfully"}
 
-@router.delete("/activities/{activity_id}/delete",
+
+@router.delete(
+    "/activities/{activity_id}/delete",
     tags=["activities"],
 )
 async def delete_activity(
@@ -499,11 +521,15 @@ async def delete_activity(
     validate_activity_id: Annotated[
         Callable, Depends(dependencies_activities.validate_activity_id)
     ],
-    token_user_id: Annotated[int, Depends(dependencies_session.validate_token_and_get_authenticated_user_id)],
+    token_user_id: Annotated[
+        int, Depends(dependencies_session.validate_access_token_and_get_authenticated_user_id)
+    ],
     db: Session = Depends(dependencies_database.get_db),
 ):
-    # Get the activity by id from user id 
-    activity = crud_activities.get_activity_by_id_from_user_id(activity_id, token_user_id, db)
+    # Get the activity by id from user id
+    activity = crud_activities.get_activity_by_id_from_user_id(
+        activity_id, token_user_id, db
+    )
 
     # Check if activity is None and raise an HTTPException with a 404 Not Found status code if it is
     if activity is None:
@@ -511,10 +537,9 @@ async def delete_activity(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Activity ID {activity_id} for user {token_user_id} not found",
         )
-    
+
     # Delete the activity
     crud_activities.delete_activity(activity_id, db)
-    
+
     # Return success message
     return {"detail": f"Activity {activity_id} deleted successfully"}
-    

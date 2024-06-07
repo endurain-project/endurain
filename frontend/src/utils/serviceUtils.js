@@ -13,9 +13,9 @@ export async function fetchGetRequest(url) {
     // Send the GET request
     const response = await fetch(fullUrl, {
         method: 'GET',
+        credentials: 'include',
         headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
         },
     });
     // If the response status is not ok, throw an error
@@ -96,10 +96,13 @@ export async function fetchPostFileRequest(url, formData) {
 export async function fetchPostFormUrlEncoded(url, formData) {
     // Create the full URL by combining the API URL with the provided URL
     const fullUrl = `${API_URL}${url}`;
+    // Ensure formData is a URLSearchParams object for URL-encoded data
+    const urlEncodedData = new URLSearchParams(formData);
     // Send the POST request
     const response = await fetch(fullUrl, {
         method: 'POST',
-        body: formData,
+        body: urlEncodedData,
+        credentials: 'include',
         headers: {
             'Content-Type': 'application/x-www-form-urlencoded',
         },

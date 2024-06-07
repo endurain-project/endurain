@@ -5,7 +5,8 @@ API_VERSION = "v0.2.1"
 
 # JWT Token constants
 JWT_ALGORITHM = os.environ.get("ALGORITHM")
-JWT_EXPIRATION_IN_MINUTES = int(os.environ.get("ACCESS_TOKEN_EXPIRE_MINUTES"))
+JWT_ACCESS_TOKEN_EXPIRE_MINUTES = int(os.environ.get("ACCESS_TOKEN_EXPIRE_MINUTES"))
+JWT_REFRESH_TOKEN_EXPIRE_DAYS = int(os.environ.get("REFRESH_TOKEN_EXPIRE_DAYS"))
 JWT_SECRET_KEY = os.environ.get("SECRET_KEY")
 
 # Scopes definition

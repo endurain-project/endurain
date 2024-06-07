@@ -12,7 +12,6 @@ class User(BaseModel):
     gender: int
     access_type: int
     photo_path: str | None = None
-    photo_path_aux: str | None = None
     is_active: int
 
     class Config:

@@ -88,8 +88,9 @@ DB_USER | endurain | Yes | N/A
 DB_PASSWORD | changeme | `No` | N/A
 DB_DATABASE | endurain | Yes | N/A
 SECRET_KEY | changeme | `No` | N/A
-ALGORITHM | HS256 | Yes | N/A
-ACCESS_TOKEN_EXPIRE_MINUTES | 30 | Yes | N/A
+ALGORITHM | HS256 | Yes | Currently only HS256 is supported
+ACCESS_TOKEN_EXPIRE_MINUTES | 15 | Yes | N/A
+REFRESH_TOKEN_EXPIRE_DAYS | 7 | Yes | N/A
 STRAVA_CLIENT_ID | changeme | `No` | N/A
 STRAVA_CLIENT_SECRET | changeme | `No` | N/A
 STRAVA_AUTH_CODE | changeme | `No` | N/A

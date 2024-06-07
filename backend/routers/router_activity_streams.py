@@ -10,7 +10,7 @@ from schemas import schema_activity_streams
 from crud import crud_activity_streams
 from dependencies import (
     dependencies_database,
-    dependencies_session,
+    dependencies_security,
     dependencies_activities,
     dependencies_activity_streams,
 )
@@ -36,7 +36,7 @@ async def read_activities_streams_for_activity_all(
         Callable, Depends(dependencies_activities.validate_activity_id)
     ],
     validate_token_validate_admin_access: Annotated[
-        Callable, Depends(dependencies_session.validate_token)
+        Callable, Depends(dependencies_security.validate_token_expiration)
     ],
     db: Session = Depends(dependencies_database.get_db),
 ):
@@ -59,7 +59,7 @@ async def read_activities_streams_for_activity_stream_type(
         Callable, Depends(dependencies_activity_streams.validate_activity_stream_type)
     ],
     validate_token: Annotated[
-        Callable, Depends(dependencies_session.validate_token)
+        Callable, Depends(dependencies_security.validate_token_expiration)
     ],
     db: Session = Depends(dependencies_database.get_db),
 ):

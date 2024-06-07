@@ -9,7 +9,7 @@ import UserView from '../views/UserView.vue'
 import SettingsView from '../views/SettingsView.vue';
 import NotFoundView from '../views/NotFoundView.vue';
 
-import { auth } from '@/services/auth';
+//import { auth } from '@/services/auth';
 
 //import { useAuthStore } from '@/stores/auth';
 
@@ -59,7 +59,7 @@ const router = createRouter({
   ]
 })
 
-router.beforeEach((to, from, next) => {
+/* router.beforeEach((to, from, next) => {
   const accessToken = localStorage.getItem('accessToken');
   const tokenType = localStorage.getItem('tokenType');
 
@@ -79,6 +79,6 @@ router.beforeEach((to, from, next) => {
   } else {
     next();
   }
-});
+}); */
 
 export default router;

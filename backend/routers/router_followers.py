@@ -10,7 +10,7 @@ from schemas import schema_followers
 from crud import crud_followers
 from dependencies import (
     dependencies_database,
-    dependencies_session,
+    dependencies_security,
     dependencies_users,
 )
 
@@ -32,7 +32,7 @@ logger = logging.getLogger("myLogger")
 async def get_user_follower_all(
     user_id: int,
     validate_user_id: Annotated[Callable, Depends(dependencies_users.validate_user_id)],
-    validate_token: Callable = Depends(dependencies_session.validate_token),
+    validate_token: Callable = Depends(dependencies_security.validate_token_expiration),
     db: Session = Depends(dependencies_database.get_db),
 ):
     # Return followers
@@ -47,7 +47,7 @@ async def get_user_follower_all(
 async def get_user_follower_count_all(
     user_id: int,
     validate_user_id: Annotated[Callable, Depends(dependencies_users.validate_user_id)],
-    validate_token: Callable = Depends(dependencies_session.validate_token),
+    validate_token: Callable = Depends(dependencies_security.validate_token_expiration),
     db: Session = Depends(dependencies_database.get_db),
 ):
     # Return followers
@@ -69,7 +69,7 @@ async def get_user_follower_count_all(
 async def get_user_follower_count(
     user_id: int,
     validate_user_id: Annotated[Callable, Depends(dependencies_users.validate_user_id)],
-    validate_token: Callable = Depends(dependencies_session.validate_token),
+    validate_token: Callable = Depends(dependencies_security.validate_token_expiration),
     db: Session = Depends(dependencies_database.get_db),
 ):
     # Return followers
@@ -91,7 +91,7 @@ async def get_user_follower_count(
 async def get_user_following_all(
     user_id: int,
     validate_user_id: Annotated[Callable, Depends(dependencies_users.validate_user_id)],
-    validate_token: Callable = Depends(dependencies_session.validate_token),
+    validate_token: Callable = Depends(dependencies_security.validate_token_expiration),
     db: Session = Depends(dependencies_database.get_db),
 ):
     # Return followings
@@ -106,7 +106,7 @@ async def get_user_following_all(
 async def get_user_following_count_all(
     user_id: int,
     validate_user_id: Annotated[Callable, Depends(dependencies_users.validate_user_id)],
-    validate_token: Callable = Depends(dependencies_session.validate_token),
+    validate_token: Callable = Depends(dependencies_security.validate_token_expiration),
     db: Session = Depends(dependencies_database.get_db),
 ):
     # Return followings
@@ -128,7 +128,7 @@ async def get_user_following_count_all(
 async def get_user_following_count(
     user_id: int,
     validate_user_id: Annotated[Callable, Depends(dependencies_users.validate_user_id)],
-    validate_token: Callable = Depends(dependencies_session.validate_token),
+    validate_token: Callable = Depends(dependencies_security.validate_token_expiration),
     db: Session = Depends(dependencies_database.get_db),
 ):
     # Return followings
@@ -154,7 +154,7 @@ async def read_followers_user_specific_user(
     validate_target_user_id: Annotated[
         Callable, Depends(dependencies_users.validate_target_user_id)
     ],
-    validate_token: Callable = Depends(dependencies_session.validate_token),
+    validate_token: Callable = Depends(dependencies_security.validate_token_expiration),
     db: Session = Depends(dependencies_database.get_db),
 ):
     # Return the follower
@@ -175,7 +175,7 @@ async def create_follow(
     validate_target_user_id: Annotated[
         Callable, Depends(dependencies_users.validate_target_user_id)
     ],
-    validate_token: Callable = Depends(dependencies_session.validate_token),
+    validate_token: Callable = Depends(dependencies_security.validate_token_expiration),
     db: Session = Depends(dependencies_database.get_db),
 ):
     # Create the follower
@@ -195,7 +195,7 @@ async def accept_follow(
     validate_target_user_id: Annotated[
         Callable, Depends(dependencies_users.validate_target_user_id)
     ],
-    validate_token: Callable = Depends(dependencies_session.validate_token),
+    validate_token: Callable = Depends(dependencies_security.validate_token_expiration),
     db: Session = Depends(dependencies_database.get_db),
 ):
     # Accept the follower
@@ -216,7 +216,7 @@ async def delete_follow(
     validate_target_user_id: Annotated[
         Callable, Depends(dependencies_users.validate_target_user_id)
     ],
-    validate_token: Callable = Depends(dependencies_session.validate_token),
+    validate_token: Callable = Depends(dependencies_security.validate_token_expiration),
     db: Session = Depends(dependencies_database.get_db),
 ):
     # Delete the follower

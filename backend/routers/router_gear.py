@@ -34,7 +34,7 @@ async def read_gear_id(
     gear_id: int,
     validate_gear_id: Annotated[Callable, Depends(dependencies_gear.validate_gear_id)],
     user_id: Annotated[
-        int, Depends(dependencies_session.validate_token_and_get_authenticated_user_id)
+        int, Depends(dependencies_session.validate_access_token_and_get_authenticated_user_id)
     ],
     db: Annotated[Session, Depends(dependencies_database.get_db)],
 ):
@@ -54,7 +54,7 @@ async def read_gear_user_pagination(
         Callable, Depends(dependencies_global.validate_pagination_values)
     ],
     user_id: Annotated[
-        int, Depends(dependencies_session.validate_token_and_get_authenticated_user_id)
+        int, Depends(dependencies_session.validate_access_token_and_get_authenticated_user_id)
     ],
     db: Session = Depends(dependencies_database.get_db),
 ):
@@ -71,7 +71,7 @@ async def read_gear_user_pagination(
 )
 async def read_gear_user_number(
     user_id: Annotated[
-        int, Depends(dependencies_session.validate_token_and_get_authenticated_user_id)
+        int, Depends(dependencies_session.validate_access_token_and_get_authenticated_user_id)
     ],
     db: Session = Depends(dependencies_database.get_db),
 ):
@@ -94,7 +94,7 @@ async def read_gear_user_number(
 async def read_gear_user_by_nickname(
     nickname: str,
     user_id: Annotated[
-        int, Depends(dependencies_session.validate_token_and_get_authenticated_user_id)
+        int, Depends(dependencies_session.validate_access_token_and_get_authenticated_user_id)
     ],
     db: Session = Depends(dependencies_database.get_db),
 ):
@@ -111,7 +111,7 @@ async def read_gear_user_by_type(
     gear_type: int,
     validate_type: Annotated[Callable, Depends(dependencies_gear.validate_gear_type)],
     user_id: Annotated[
-        int, Depends(dependencies_session.validate_token_and_get_authenticated_user_id)
+        int, Depends(dependencies_session.validate_access_token_and_get_authenticated_user_id)
     ],
     db: Session = Depends(dependencies_database.get_db),
 ):
@@ -127,7 +127,7 @@ async def read_gear_user_by_type(
 async def create_gear(
     gear: schema_gear.Gear,
     user_id: Annotated[
-        int, Depends(dependencies_session.validate_token_and_get_authenticated_user_id)
+        int, Depends(dependencies_session.validate_access_token_and_get_authenticated_user_id)
     ],
     db: Session = Depends(dependencies_database.get_db),
 ):
@@ -144,7 +144,7 @@ async def edit_gear(
     validate_id: Annotated[Callable, Depends(dependencies_gear.validate_gear_id)],
     gear: schema_gear.Gear,
     token_user_id: Annotated[
-        int, Depends(dependencies_session.validate_token_and_get_authenticated_user_id)
+        int, Depends(dependencies_session.validate_access_token_and_get_authenticated_user_id)
     ],
     db: Session = Depends(dependencies_database.get_db),
 ):
@@ -170,7 +170,7 @@ async def delete_user(
     gear_id: int,
     validate_id: Annotated[Callable, Depends(dependencies_gear.validate_gear_id)],
     token_user_id: Annotated[
-        int, Depends(dependencies_session.validate_token_and_get_authenticated_user_id)
+        int, Depends(dependencies_session.validate_access_token_and_get_authenticated_user_id)
     ],
     db: Session = Depends(dependencies_database.get_db),
 ):

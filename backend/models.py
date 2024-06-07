@@ -90,9 +90,6 @@ class User(Base):
         Integer, nullable=False, comment="User type (one digit)(1 - user, 2 - admin)"
     )
     photo_path = Column(String(length=250), nullable=True, comment="User photo path")
-    photo_path_aux = Column(
-        String(length=250), nullable=True, comment="Auxiliary photo path"
-    )
     is_active = Column(
         Integer, nullable=False, comment="Is user active (1 - active, 2 - not active)"
     )
