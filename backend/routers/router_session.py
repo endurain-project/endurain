@@ -133,11 +133,11 @@ def create_response_with_tokens(response: Response, user: schema_users.User):
     )
 
     # Set the user id in a cookie
-    response.set_cookie(
-        key="endurain_logged_user_id",
-        value=user.id,
-        httponly=False,
-    )
+    #response.set_cookie(
+    #    key="endurain_logged_user_id",
+    #    value=user.id,
+    #    httponly=False,
+    #)
 
     # Return the response
     return response
@@ -147,7 +147,10 @@ def create_response_with_tokens(response: Response, user: schema_users.User):
 async def login_for_access_token(
     response: Response,
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
-    db: Session = Depends(dependencies_database.get_db),
+    db: Annotated[
+        Session,
+        Depends(dependencies_database.get_db),
+    ],
 ):
     user = authenticate_user(form_data.username, form_data.password, db)
 
@@ -166,14 +169,16 @@ async def login_for_access_token(
 @router.post("/refresh", tags=["session"])
 async def refresh_token(
     response: Response,
-    request: Request,
     user_id: Annotated[
         int,
         Depends(
             dependencies_session.validate_refresh_token_and_get_authenticated_user_id
         ),
     ],
-    db: Session = Depends(dependencies_database.get_db),
+    db: Annotated[
+        Session,
+        Depends(dependencies_database.get_db),
+    ],
 ):
     # get user
     user = crud_users.get_user_by_id(user_id, db)
