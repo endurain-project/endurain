@@ -1,0 +1,227 @@
+import logging
+
+from typing import Annotated, Callable
+
+from fastapi import APIRouter, Depends, HTTPException, status, Security
+from sqlalchemy.orm import Session
+
+import session.security as session_security
+
+import gears.schema as gears_schema
+import gears.crud as gears_crud
+import gears.dependencies as gears_dependencies
+
+import database
+
+from dependencies import (
+    dependencies_session,
+    dependencies_global,
+)
+
+# Define the API router
+router = APIRouter()
+
+# Define a loggger created on main.py
+logger = logging.getLogger("myLogger")
+
+
+@router.get(
+    "/id/{gear_id}",
+    response_model=gears_schema.Gear | None,
+)
+async def read_gear_id(
+    gear_id: int,
+    validate_gear_id: Annotated[Callable, Depends(gears_dependencies.validate_gear_id)],
+    check_scopes: Annotated[
+        Callable, Security(session_security.check_scopes, scopes=["gears:read"])
+    ],
+    token_user_id: Annotated[
+        int, Depends(session_security.get_user_id_from_access_token)
+    ],
+    db: Annotated[Session, Depends(database.get_db)],
+):
+    # Return the gear
+    return gears_crud.get_gear_user_by_id(token_user_id, gear_id, db)
+
+
+@router.get(
+    "/page_number/{page_number}/num_records/{num_records}",
+    response_model=list[gears_schema.Gear] | None,
+)
+async def read_gear_user_pagination(
+    page_number: int,
+    num_records: int,
+    check_scopes: Annotated[
+        Callable, Security(session_security.check_scopes, scopes=["gears:read"])
+    ],
+    token_user_id: Annotated[
+        int, Depends(session_security.get_user_id_from_access_token)
+    ],
+    db: Annotated[
+        Session,
+        Depends(database.get_db),
+    ],
+):
+    # Return the gear
+    return gears_crud.get_gear_users_with_pagination(
+        token_user_id, db, page_number, num_records
+    )
+
+
+@router.get(
+    "/number",
+    response_model=int,
+)
+async def read_gear_user_number(
+    check_scopes: Annotated[
+        Callable, Security(session_security.check_scopes, scopes=["gears:read"])
+    ],
+    token_user_id: Annotated[
+        int, Depends(session_security.get_user_id_from_access_token)
+    ],
+    db: Annotated[
+        Session,
+        Depends(database.get_db),
+    ],
+):
+    # Get the gear
+    gear = gears_crud.get_gear_user(token_user_id, db)
+
+    # Check if gear is None and return 0 if it is
+    if gear is None:
+        return 0
+
+    # Return the number of gears
+    return len(gear)
+
+
+@router.get(
+    "/nickname/{nickname}",
+    response_model=list[gears_schema.Gear] | None,
+)
+async def read_gear_user_by_nickname(
+    nickname: str,
+    check_scopes: Annotated[
+        Callable, Security(session_security.check_scopes, scopes=["gears:read"])
+    ],
+    token_user_id: Annotated[
+        int, Depends(session_security.get_user_id_from_access_token)
+    ],
+    db: Annotated[
+        Session,
+        Depends(database.get_db),
+    ],
+):
+    # Return the gear
+    return gears_crud.get_gear_user_by_nickname(token_user_id, nickname, db)
+
+
+@router.get(
+    "/type/{gear_type}",
+    response_model=list[gears_schema.Gear] | None,
+)
+async def read_gear_user_by_type(
+    gear_type: int,
+    validate_type: Annotated[Callable, Depends(gears_dependencies.validate_gear_type)],
+    check_scopes: Annotated[
+        Callable, Security(session_security.check_scopes, scopes=["gears:read"])
+    ],
+    token_user_id: Annotated[
+        int, Depends(session_security.get_user_id_from_access_token)
+    ],
+    db: Annotated[
+        Session,
+        Depends(database.get_db),
+    ],
+):
+    # Return the gear
+    return gears_crud.get_gear_by_type_and_user(gear_type, token_user_id, db)
+
+
+@router.post(
+    "/create",
+    status_code=201,
+)
+async def create_gear(
+    gear: gears_schema.Gear,
+    check_scopes: Annotated[
+        Callable, Security(session_security.check_scopes, scopes=["gears:write"])
+    ],
+    token_user_id: Annotated[
+        int, Depends(session_security.get_user_id_from_access_token)
+    ],
+    db: Annotated[
+        Session,
+        Depends(database.get_db),
+    ],
+):
+    # Create the gear
+    gear_created = gears_crud.create_gear(gear, token_user_id, db)
+
+    # Return the ID of the gear created
+    return gear_created.id
+
+
+@router.put("/{gear_id}/edit")
+async def edit_gear(
+    gear_id: int,
+    validate_id: Annotated[Callable, Depends(gears_dependencies.validate_gear_id)],
+    gear: gears_schema.Gear,
+    check_scopes: Annotated[
+        Callable, Security(session_security.check_scopes, scopes=["gears:write"])
+    ],
+    token_user_id: Annotated[
+        int, Depends(session_security.get_user_id_from_access_token)
+    ],
+    db: Annotated[
+        Session,
+        Depends(database.get_db),
+    ],
+):
+    # Get the gear by id
+    gear_db = gears_crud.get_gear_user_by_id(token_user_id, gear_id, db)
+
+    # Check if gear is None and raise an HTTPException if it is
+    if gear_db is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Gear ID {gear_id} for user {token_user_id} not found",
+        )
+
+    # Edit the gear
+    gears_crud.edit_gear(gear_id, gear, db)
+
+    # Return success message
+    return {"detail": f"Gear ID {gear_id} edited successfully"}
+
+
+@router.delete("/{gear_id}/delete", tags=["gear"])
+async def delete_user(
+    gear_id: int,
+    validate_id: Annotated[Callable, Depends(gears_dependencies.validate_gear_id)],
+    check_scopes: Annotated[
+        Callable, Security(session_security.check_scopes, scopes=["gears:write"])
+    ],
+    token_user_id: Annotated[
+        int, Depends(session_security.get_user_id_from_access_token)
+    ],
+    db: Annotated[
+        Session,
+        Depends(database.get_db),
+    ],
+):
+    # Get the gear by id
+    gear = gears_crud.get_gear_user_by_id(token_user_id, gear_id, db)
+
+    # Check if gear is None and raise an HTTPException if it is
+    if gear is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Gear ID {gear_id} for user {token_user_id} not found",
+        )
+
+    # Delete the gear
+    gears_crud.delete_gear(gear_id, db)
+
+    # Return success message
+    return {"detail": f"Gear ID {gear_id} deleted successfully"}
