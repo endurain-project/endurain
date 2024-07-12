@@ -17,12 +17,7 @@ import user_integrations.crud as user_integrations_crud
 import session.security as session_security
 
 import database
-
-from dependencies import (
-    dependencies_session,
-    dependencies_global,
-    # dependencies_security,
-)
+import dependencies_global
 
 # Define the API router
 router = APIRouter()
@@ -75,10 +70,6 @@ async def read_users_me(
 
 @router.get("/number", response_model=int)
 async def read_users_number(
-    validate_access_token_and_validate_admin_access: Annotated[
-        Callable,
-        Depends(dependencies_session.validate_access_token_and_validate_admin_access),
-    ],
     check_scopes: Annotated[
         Callable, Security(session_security.check_scopes, scopes=["users:read"])
     ],
@@ -101,10 +92,6 @@ async def read_users_all_pagination(
     validate_pagination_values: Annotated[
         Callable, Depends(dependencies_global.validate_pagination_values)
     ],
-    validate_access_token_and_validate_admin_access: Annotated[
-        Callable,
-        Depends(dependencies_session.validate_access_token_and_validate_admin_access),
-    ],
     check_scopes: Annotated[
         Callable, Security(session_security.check_scopes, scopes=["users:read"])
     ],
@@ -126,10 +113,6 @@ async def read_users_all_pagination(
 )
 async def read_users_contain_username(
     username: str,
-    validate_access_token_and_validate_admin_access: Annotated[
-        Callable,
-        Depends(dependencies_session.validate_access_token_and_validate_admin_access),
-    ],
     check_scopes: Annotated[
         Callable, Security(session_security.check_scopes, scopes=["users:read"])
     ],
@@ -149,10 +132,6 @@ async def read_users_contain_username(
 )
 async def read_users_username(
     username: str,
-    validate_access_token_and_validate_admin_access: Annotated[
-        Callable,
-        Depends(dependencies_session.validate_access_token_and_validate_admin_access),
-    ],
     check_scopes: Annotated[
         Callable, Security(session_security.check_scopes, scopes=["users:read"])
     ],
@@ -184,10 +163,6 @@ async def read_users_id(
 @router.get("/{username}/id", response_model=int)
 async def read_users_username_id(
     username: str,
-    validate_access_token_and_validate_admin_access: Annotated[
-        Callable,
-        Depends(dependencies_session.validate_access_token_and_validate_admin_access),
-    ],
     check_scopes: Annotated[
         Callable, Security(session_security.check_scopes, scopes=["users:read"])
     ],
@@ -204,10 +179,6 @@ async def read_users_username_id(
 async def read_users_id_photo_path(
     user_id: int,
     validate_id: Annotated[Callable, Depends(users_dependencies.validate_user_id)],
-    validate_access_token_and_validate_admin_access: Annotated[
-        Callable,
-        Depends(dependencies_session.validate_access_token_and_validate_admin_access),
-    ],
     check_scopes: Annotated[
         Callable, Security(session_security.check_scopes, scopes=["users:read"])
     ],
@@ -223,10 +194,6 @@ async def read_users_id_photo_path(
 @router.post("/create", response_model=int, status_code=201)
 async def create_user(
     user: users_schema.UserCreate,
-    validate_access_token_and_validate_admin_access: Annotated[
-        Callable,
-        Depends(dependencies_session.validate_access_token_and_validate_admin_access),
-    ],
     check_scopes: Annotated[
         Callable, Security(session_security.check_scopes, scopes=["users:write"])
     ],
@@ -256,12 +223,12 @@ async def upload_user_image(
     token_user_id: Annotated[
         Callable,
         Depends(
-            dependencies_session.validate_access_token_and_get_authenticated_user_id
+            session_security.get_token_user_id
         ),
     ],
     file: UploadFile,
     check_scopes: Annotated[
-        Callable, Security(session_security.check_scopes, scopes=["users:edit"])
+        Callable, Security(session_security.check_scopes, scopes=["users:write"])
     ],
     db: Annotated[
         Session,
@@ -300,14 +267,8 @@ async def upload_user_image(
 @router.put("/edit")
 async def edit_user(
     user_attributtes: users_schema.User,
-    validate_token_user_id: Annotated[
-        Callable,
-        Depends(
-            dependencies_session.validate_token_and_if_user_id_equals_token_user_attributtes_id_if_not_validate_admin_access
-        ),
-    ],
     check_scopes: Annotated[
-        Callable, Security(session_security.check_scopes, scopes=["users:edit"])
+        Callable, Security(session_security.check_scopes, scopes=["users:write"])
     ],
     db: Annotated[
         Session,
@@ -324,14 +285,8 @@ async def edit_user(
 @router.put("/edit/password")
 async def edit_user_password(
     user_attributtes: users_schema.UserEditPassword,
-    validate_token_user_id: Annotated[
-        Callable,
-        Depends(
-            dependencies_session.validate_token_and_if_user_id_equals_token_user_attributtes_password_id_if_not_validate_admin_access
-        ),
-    ],
     check_scopes: Annotated[
-        Callable, Security(session_security.check_scopes, scopes=["users:edit"])
+        Callable, Security(session_security.check_scopes, scopes=["users:write"])
     ],
     db: Annotated[
         Session,
@@ -348,14 +303,8 @@ async def edit_user_password(
 @router.put("/{user_id}/delete-photo")
 async def delete_user_photo(
     user_id: int,
-    validate_token_user_id: Annotated[
-        Callable,
-        Depends(
-            dependencies_session.validate_token_and_if_user_id_equals_token_user_id_if_not_validate_admin_access
-        ),
-    ],
     check_scopes: Annotated[
-        Callable, Security(session_security.check_scopes, scopes=["users:edit"])
+        Callable, Security(session_security.check_scopes, scopes=["users:write"])
     ],
     db: Annotated[
         Session,
@@ -373,9 +322,6 @@ async def delete_user_photo(
 async def delete_user(
     user_id: int,
     validate_id: Annotated[Callable, Depends(users_dependencies.validate_user_id)],
-    validate_token_validate_admin_access: Annotated[
-        Callable, Depends(dependencies_session.validate_token_and_validate_admin_access)
-    ],
     check_scopes: Annotated[
         Callable, Security(session_security.check_scopes, scopes=["users:write"])
     ],

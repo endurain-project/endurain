@@ -479,8 +479,8 @@ def create_activity(activity: activities_schema.Activity, db: Session):
 
         activity.id = db_activity.id
         activity.created_at = db_activity.created_at.strftime("%Y-%m-%d %H:%M:%S")
-        activity.end_time = activity.end_time.strftime("%Y-%m-%d %H:%M:%S")
-        activity.created_at = activity.created_at.strftime("%Y-%m-%d %H:%M:%S")
+        activity.end_time = db_activity.end_time.strftime("%Y-%m-%d %H:%M:%S")
+        activity.created_at = db_activity.created_at.strftime("%Y-%m-%d %H:%M:%S")
 
         # Return the activity
         return activity

@@ -13,8 +13,8 @@ export const activities = {
     getUserThisMonthActivitiesNumber(user_id) {
         return fetchGetRequest(`activities/user/${user_id}/thismonth/number`);
     },
-    getUserActivitiesByGearId(user_id, gear_id) {
-        return fetchGetRequest(`activities/user/${user_id}/gear/${gear_id}`);
+    getUserActivitiesByGearId(gear_id) {
+        return fetchGetRequest(`activities/user/gear/${gear_id}`);
     },
     getUserNumberOfActivities(user_id) {
         return fetchGetRequest(`activities/user/${user_id}/number`);

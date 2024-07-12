@@ -1,10 +1,4 @@
 <template>
-    <!-- Error alerts -->
-    <ErrorToastComponent v-if="errorMessage" />
-
-    <!-- Success banners -->
-    <SuccessToastComponent v-if="successMessage" />
-
     <div v-if="isLoading">
         <LoadingComponent />
     </div>
@@ -182,13 +176,12 @@
 import { ref, onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
-// Importing the stores
-import { useSuccessAlertStore } from '@/stores/Alerts/successAlert';
-import { useErrorAlertStore } from '@/stores/Alerts/errorAlert';
+// Importing the utils
+import { addToast } from '@/utils/toastUtils';
+// Import the stores
+import { useAuthStore } from '@/stores/authStore';
 // Importing the components
 import NoItemsFoundComponent from '@/components/GeneralComponents/NoItemsFoundComponents.vue';
-import ErrorToastComponent from '@/components/Toasts/ErrorToastComponent.vue';
-import SuccessToastComponent from '@/components/Toasts/SuccessToastComponent.vue';
 import LoadingComponent from '@/components/GeneralComponents/LoadingComponent.vue';
 import BackButtonComponent from '@/components/GeneralComponents/BackButtonComponent.vue';
 // Importing the services
@@ -200,19 +193,14 @@ export default {
     components: {
         NoItemsFoundComponent,
         LoadingComponent,
-        ErrorToastComponent,
-        SuccessToastComponent,
         BackButtonComponent,
     },
     setup() {
         const { t } = useI18n();
         const route = useRoute();
         const router = useRouter();
-        const errorAlertStore = useErrorAlertStore();
-        const successAlertStore = useSuccessAlertStore();
         const isLoading = ref(true);
-        const errorMessage = ref('');
-        const successMessage = ref('');
+        const userStore = useAuthStore();
         const gear = ref(null);
         const gearActivities = ref([]);
         const gearDistance = ref(0);
@@ -242,14 +230,11 @@ export default {
                 gear.value.gear_type = gearType.value;
                 gear.value.created_at = date.value;
                 gear.value.is_active = isActive.value;
-
-                successMessage.value = t('gear.successGearEdited');
-                successAlertStore.setAlertMessage(successMessage.value);
-                successAlertStore.setClosableState(true);
+                
+                addToast(t('gear.successGearEdited'), 'success', true);
             } catch (error) {
                 // If there is an error, set the error message and show the error alert.
-                errorMessage.value = t('generalItens.errorEditingInfo') + " - " + error.toString();
-                errorAlertStore.setAlertMessage(errorMessage.value);
+                addToast(t('generalItens.errorEditingInfo') + " - " + error.toString(), 'danger', true);
             }
         }
 
@@ -258,17 +243,10 @@ export default {
                 gear.value = await gears.deleteGear(route.params.id);
                 router.push({ path: '/gears', query: { gearDeleted: 'true' } });
             } catch (error) {
-                errorMessage.value = t('generalItens.errorDeletingInfo') + " - " + error.toString();
-                errorAlertStore.setAlertMessage(errorMessage.value);
+                addToast(t('generalItens.errorEditingInfo') + " - " + error.toString(), 'danger', true);
             }
         }
-
-        /**
-         * Initializes the component and fetches user gears with pagination.
-         * Attaches a scroll event listener to the window.
-         * 
-         * @returns {void}
-         */
+        
         onMounted(async () => {
             try {
                 // Fetch the gear by its id.
@@ -276,7 +254,7 @@ export default {
                 if (!gear.value) {
                     router.push({ path: '/gears', query: { gearFound: 'false', id: route.params.id } });
                 }
-                gearActivities.value = await activities.getUserActivitiesByGearId(JSON.parse(localStorage.getItem('userMe')).id, route.params.id);
+                gearActivities.value = await activities.getUserActivitiesByGearId(route.params.id);
                 if (gearActivities.value) {
                     for (const activity of gearActivities.value) {
                         gearDistance.value += activity.distance;
@@ -294,8 +272,7 @@ export default {
                     router.push({ path: '/gears', query: { gearFound: 'false', id: route.params.id } });
                 }
                 // If there is an error, set the error message and show the error alert.
-                errorMessage.value = t('generalItens.errorFetchingInfo') + " - " + error.toString();
-                errorAlertStore.setAlertMessage(errorMessage.value);
+                addToast(t('generalItens.errorEditingInfo') + " - " + error.toString(), 'danger', true);
             }
 
             isLoading.value = false;
@@ -309,8 +286,6 @@ export default {
             date,
             isActive,
             isLoading,
-            errorMessage,
-            successMessage,
             gear,
             gearActivities,
             gearDistance,

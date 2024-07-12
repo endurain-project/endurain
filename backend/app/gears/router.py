@@ -13,11 +13,6 @@ import gears.dependencies as gears_dependencies
 
 import database
 
-from dependencies import (
-    dependencies_session,
-    dependencies_global,
-)
-
 # Define the API router
 router = APIRouter()
 

@@ -2,8 +2,7 @@ import logging
 
 from typing import Annotated, Callable
 
-from fastapi import APIRouter, Depends
-from fastapi.security import OAuth2PasswordBearer
+from fastapi import APIRouter, Depends, Security
 from sqlalchemy.orm import Session
 
 import followers.schema as followers_schema
@@ -15,9 +14,6 @@ import session.security as session_security
 
 import database
 
-# Define the OAuth2 scheme for handling bearer tokens
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
-
 # Define the API router
 router = APIRouter()
 
@@ -26,14 +22,15 @@ logger = logging.getLogger("myLogger")
 
 
 @router.get(
-    "/followers/user/{user_id}/followers/all",
+    "/user/{user_id}/followers/all",
     response_model=list[followers_schema.Follower] | None,
-    tags=["followers"],
 )
 async def get_user_follower_all(
     user_id: int,
     validate_user_id: Annotated[Callable, Depends(users_dependencies.validate_user_id)],
-    validate_token: Annotated[Callable, Depends(session_security.validate_token_expiration)],
+    check_scopes: Annotated[
+        Callable, Security(session_security.check_scopes, scopes=["users:read"])
+    ],
     db: Annotated[
         Session,
         Depends(database.get_db),
@@ -44,14 +41,15 @@ async def get_user_follower_all(
 
 
 @router.get(
-    "/followers/user/{user_id}/followers/count/all",
+    "/user/{user_id}/followers/count/all",
     response_model=int,
-    tags=["followers"],
 )
 async def get_user_follower_count_all(
     user_id: int,
     validate_user_id: Annotated[Callable, Depends(users_dependencies.validate_user_id)],
-    validate_token: Annotated[Callable, Depends(session_security.validate_token_expiration)],
+    check_scopes: Annotated[
+        Callable, Security(session_security.check_scopes, scopes=["users:read"])
+    ],
     db: Annotated[
         Session,
         Depends(database.get_db),
@@ -69,14 +67,15 @@ async def get_user_follower_count_all(
 
 
 @router.get(
-    "/followers/user/{user_id}/followers/count/accepted",
+    "/user/{user_id}/followers/count/accepted",
     response_model=int,
-    tags=["followers"],
 )
 async def get_user_follower_count(
     user_id: int,
     validate_user_id: Annotated[Callable, Depends(users_dependencies.validate_user_id)],
-    validate_token: Annotated[Callable, Depends(session_security.validate_token_expiration)],
+    check_scopes: Annotated[
+        Callable, Security(session_security.check_scopes, scopes=["users:read"])
+    ],
     db: Annotated[
         Session,
         Depends(database.get_db),
@@ -94,14 +93,15 @@ async def get_user_follower_count(
 
 
 @router.get(
-    "/followers/user/{user_id}/following/all",
+    "/user/{user_id}/following/all",
     response_model=list[followers_schema.Follower] | None,
-    tags=["followers"],
 )
 async def get_user_following_all(
     user_id: int,
     validate_user_id: Annotated[Callable, Depends(users_dependencies.validate_user_id)],
-    validate_token: Annotated[Callable, Depends(session_security.validate_token_expiration)],
+    check_scopes: Annotated[
+        Callable, Security(session_security.check_scopes, scopes=["users:read"])
+    ],
     db: Annotated[
         Session,
         Depends(database.get_db),
@@ -112,14 +112,15 @@ async def get_user_following_all(
 
 
 @router.get(
-    "/followers/user/{user_id}/following/count/all",
+    "/user/{user_id}/following/count/all",
     response_model=int,
-    tags=["followers"],
 )
 async def get_user_following_count_all(
     user_id: int,
     validate_user_id: Annotated[Callable, Depends(users_dependencies.validate_user_id)],
-    validate_token: Annotated[Callable, Depends(session_security.validate_token_expiration)],
+    check_scopes: Annotated[
+        Callable, Security(session_security.check_scopes, scopes=["users:read"])
+    ],
     db: Annotated[
         Session,
         Depends(database.get_db),
@@ -137,14 +138,15 @@ async def get_user_following_count_all(
 
 
 @router.get(
-    "/followers/user/{user_id}/following/count/accepted",
+    "/user/{user_id}/following/count/accepted",
     response_model=int,
-    tags=["followers"],
 )
 async def get_user_following_count(
     user_id: int,
     validate_user_id: Annotated[Callable, Depends(users_dependencies.validate_user_id)],
-    validate_token: Annotated[Callable, Depends(session_security.validate_token_expiration)],
+    check_scopes: Annotated[
+        Callable, Security(session_security.check_scopes, scopes=["users:read"])
+    ],
     db: Annotated[
         Session,
         Depends(database.get_db),
@@ -162,9 +164,8 @@ async def get_user_following_count(
 
 
 @router.get(
-    "/followers/user/{user_id}/targetUser/{target_user_id}",
+    "/user/{user_id}/targetUser/{target_user_id}",
     response_model=followers_schema.Follower | None,
-    tags=["followers"],
 )
 async def read_followers_user_specific_user(
     user_id: int,
@@ -186,9 +187,8 @@ async def read_followers_user_specific_user(
 
 
 @router.post(
-    "/followers/create/user/{user_id}/targetUser/{target_user_id}",
+    "/create/user/{user_id}/targetUser/{target_user_id}",
     status_code=201,
-    tags=["followers"],
 )
 async def create_follow(
     user_id: int,
@@ -210,8 +210,7 @@ async def create_follow(
     return {"detail": "Follower record created successfully"}
 
 
-@router.put("/followers/accept/user/{user_id}/targetUser/{target_user_id}",
-    tags=["followers"],
+@router.put("/accept/user/{user_id}/targetUser/{target_user_id}",
 )
 async def accept_follow(
     user_id: int,
@@ -234,8 +233,7 @@ async def accept_follow(
 
 
 @router.delete(
-    "/followers/delete/user/{user_id}/targetUser/{target_user_id}",
-    tags=["followers"],
+    "/delete/user/{user_id}/targetUser/{target_user_id}",
 )
 async def delete_follow(
     user_id: int,

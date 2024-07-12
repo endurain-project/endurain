@@ -1,10 +1,4 @@
 <template>
-    <!-- Error alerts -->
-    <ErrorToastComponent v-if="errorMessage" />
-
-    <!-- Success banners -->
-    <SuccessToastComponent v-if="successMessage" />
-
     <LoadingComponent v-if="isLoading"/>
 
     <div v-else>
@@ -158,16 +152,13 @@
 import { ref, onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
-// Importing the stores
-import { useSuccessAlertStore } from '@/stores/Alerts/successAlert';
-import { useErrorAlertStore } from '@/stores/Alerts/errorAlert';
+// Importing the utils
+import { addToast } from '@/utils/toastUtils';
 // Importing the components
 import ActivitySummaryComponent from '@/components/Activities/ActivitySummaryComponent.vue';
 import ActivityMapComponent from '@/components/Activities/ActivityMapComponent.vue';
 import ActivityStreamsLineChartComponent from '@/components/Activities/ActivityStreamsLineChartComponent.vue';
 import LoadingComponent from '@/components/GeneralComponents/LoadingComponent.vue';
-import SuccessToastComponent from '@/components/Toasts/SuccessToastComponent.vue';
-import ErrorToastComponent from '@/components/Toasts/ErrorToastComponent.vue';
 import BackButtonComponent from '@/components/GeneralComponents/BackButtonComponent.vue';
 // Importing the services
 import { gears } from '@/services/gearsService';
@@ -180,19 +171,13 @@ export default {
         ActivityMapComponent,
         ActivityStreamsLineChartComponent,
         LoadingComponent,
-        SuccessToastComponent,
-        ErrorToastComponent,
         BackButtonComponent,
     },
     setup (){
         const { t } = useI18n();
         const route = useRoute();
         const router = useRouter();
-        const errorAlertStore = useErrorAlertStore();
-        const successAlertStore = useSuccessAlertStore();
         const isLoading = ref(true);
-        const errorMessage = ref('');
-        const successMessage = ref('');
         const activity = ref(null);
         const gear = ref(null);
         const gearsByType = ref([]);
@@ -213,28 +198,32 @@ export default {
 
         async function submitAddGearToActivityForm() {
             try {
+                // Add the gear to the activity
                 await activities.addGearToActivity(route.params.id, gearId.value);
-                successMessage.value = t('activity.successMessageGearAdded');
-                successAlertStore.setAlertMessage(successMessage.value);
-                successAlertStore.setClosableState(true);
+                
+                // Show the success message
+                addToast(t('activity.successMessageGearAdded'), 'success', true);
+
+                // Update the activity gear
                 gear.value = await gears.getGearById(gearId.value);
                 activity.value.gear_id = gearId.value;
             } catch (error) {
-                errorMessage.value = t('generalItens.errorEditingInfo') + " - " + error.toString();
-                errorAlertStore.setAlertMessage(errorMessage.value);
+                addToast(t('generalItens.errorEditingInfo') + " - " + error.toString(), 'danger', true);
             }
         }
 
         async function submitDeleteGearFromActivity() {
             try {
+                // Delete the gear from the activity
                 await activities.deleteGearFromActivity(route.params.id);
-                successMessage.value = t('activity.successMessageGearDeleted');
-                successAlertStore.setAlertMessage(successMessage.value);
-                successAlertStore.setClosableState(true);
+                
+                // Show the success message
+                addToast(t('activity.successMessageGearDeleted'), 'success', true);
+
+                // Update the activity gear
                 activity.value.gear_id = null;
             } catch (error) {
-                errorMessage.value = t('generalItens.errorDeletingInfo') + " - " + error.toString();
-                errorAlertStore.setAlertMessage(errorMessage.value);
+                addToast(t('generalItens.errorEditingInfo') + " - " + error.toString(), 'danger', true);
             }
         }
 
@@ -275,8 +264,7 @@ export default {
                     router.push({ path: '/', query: { activityFound: 'false', id: route.params.id } });
                 }
                 // If there is an error, set the error message and show the error alert.
-                errorMessage.value = t('generalItens.errorFetchingInfo') + " - " + error.toString();
-                errorAlertStore.setAlertMessage(errorMessage.value);
+                addToast(t('generalItens.errorEditingInfo') + " - " + error.toString(), 'danger', true);
             }
 
             isLoading.value = false;
@@ -288,8 +276,6 @@ export default {
             gear,
             gearId,
             activityActivityStreams,
-            errorMessage,
-            successMessage,
             gearsByType,
             submitAddGearToActivityForm,
             submitDeleteGearFromActivity,

@@ -22,7 +22,7 @@
           <div v-if="isLoading">
             <LoadingComponent />
           </div>
-          <UserDistanceStatsComponent v-else />
+          <UserDistanceStatsComponent :thisWeekDistances="thisWeekDistances" :thisMonthDistances="thisMonthDistances" v-else />
         </div>
         <a class="w-100 btn btn-primary mb-4" href="#" role="button" data-bs-toggle="modal" data-bs-target="#addActivityModal">
           {{ $t("homeView.buttonAddActivity") }}
@@ -159,7 +159,6 @@ export default {
         thisWeekDistances.value = await activities.getUserThisWeekStats(authStore.user.id);
         thisMonthDistances.value = await activities.getUserThisMonthStats(authStore.user.id);
       } catch (error) {
-        console.log("teste" + error)
         // Set the error message
         addToast(t('generalItens.errorFetchingInfo'), 'danger', true);
       }

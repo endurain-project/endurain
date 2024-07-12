@@ -49,20 +49,24 @@
 
 <script>
 import { computed } from 'vue';
-import { useUserStore } from '@/stores/userStore';
 
 export default {
-  setup() {
-    const userStore = useUserStore();
+    props: {
+        thisWeekDistances: {
+            type: Object,
+            required: true,
+        },
+        thisMonthDistances: {
+            type: Object,
+            required: true,
+        },
+    },
+    setup(props) {
 
-    // Access both stats directly from the store
-    const thisWeekDistances = computed(() => userStore.thisWeekDistances);
-    const thisMonthDistances = computed(() => userStore.thisMonthDistances);
-
-    return {
-      thisWeekDistances,
-      thisMonthDistances,
-    };
-  },
+        return {
+            thisWeekDistances: computed(() => props.thisWeekDistances),
+            thisMonthDistances: computed(() => props.thisMonthDistances),
+        };
+    },
 };
 </script>

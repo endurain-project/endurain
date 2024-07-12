@@ -18,14 +18,15 @@ def calculate_activity_distances(activities: list[activities_schema.Activity]):
     # Initialize the distances
     run = bike = swim = 0.0
 
-    # Calculate the distances
-    for activity in activities:
-        if activity.activity_type in [1, 2, 3]:
-            run += activity.distance
-        elif activity.activity_type in [4, 5, 6, 7]:
-            bike += activity.distance
-        elif activity.activity_type in [8, 9]:
-            swim += activity.distance
+    if activities is not None:
+        # Calculate the distances
+        for activity in activities:
+            if activity.activity_type in [1, 2, 3]:
+                run += activity.distance
+            elif activity.activity_type in [4, 5, 6, 7]:
+                bike += activity.distance
+            elif activity.activity_type in [8, 9]:
+                swim += activity.distance
 
     # Return the distances
     return activities_schema.ActivityDistances(run=run, bike=bike, swim=swim)

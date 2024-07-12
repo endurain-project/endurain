@@ -200,7 +200,12 @@ app.include_router(
     tags=["gears"],
     dependencies=[Depends(session_security.validate_access_token)],
 )
-app.include_router(followers_router.router, tags=["followers"])
+app.include_router(
+    followers_router.router,
+    prefix="/followers",
+    tags=["followers"],
+    dependencies=[Depends(session_security.validate_access_token)],
+)
 app.include_router(router_strava.router, tags=["strava"])
 
 # Check if Jaeger tracing is enabled using the 'JAEGER_ENABLED' environment variable

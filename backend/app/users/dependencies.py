@@ -1,4 +1,4 @@
-from dependencies import dependencies_global
+import dependencies_global
 
 
 def validate_user_id(user_id: int):

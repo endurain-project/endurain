@@ -1,4 +1,4 @@
-from dependencies import dependencies_global
+import dependencies_global
 
 def validate_activity_stream_type(stream_type: int):
     # Check if gear type is between 1 and 3

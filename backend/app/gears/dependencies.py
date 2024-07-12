@@ -1,4 +1,4 @@
-from dependencies import dependencies_global
+import dependencies_global
 
 def validate_gear_id(gear_id: int):
     # Check if id higher than 0

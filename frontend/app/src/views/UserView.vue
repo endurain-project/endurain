@@ -1,10 +1,4 @@
 <template>
-    <!-- Error alerts -->
-    <ErrorToastComponent v-if="errorMessage" />
-
-    <!-- Success banners -->
-    <SuccessToastComponent v-if="successMessage" />
-
     <div class="row align-items-center">
         <!-- picture col -->
         <div class="col">
@@ -12,16 +6,16 @@
                 <LoadingComponent />
             </div>
             <div class="vstack d-flex justify-content-center" v-else>
-                <div class="d-flex justify-content-center" v-if="userMe">
-                    <UserAvatarComponent :userProp="userMe" :width=120 :height=120 />
+                <div class="d-flex justify-content-center" v-if="userProfile">
+                    <UserAvatarComponent :userProp="userProfile" :width=120 :height=120 />
                 </div>
-                <div class="text-center mt-3 mb-3" v-if="userMe">
+                <div class="text-center mt-3 mb-3" v-if="userProfile">
                     <h3>
-                        <span>{{ userMe.name }}</span>
+                        <span>{{ userProfile.name }}</span>
                     </h3>
-                    <span class="fw-lighter" v-if="userMe.city">
+                    <span class="fw-lighter" v-if="userProfile.city">
                         <font-awesome-icon :icon="['fas', 'location-dot']" />
-                        {{ userMe.city }}
+                        {{ userProfile.city }}
                     </span>
                 </div>
             </div>
@@ -35,18 +29,18 @@
                     {{ $t("user.thisMonthActivitiesNumber") }}
                 </span>
                 <h1>
-                    {{ userThisMonthNumberOfActivities }}
+                    {{ thisMonthNumberOfActivities }}
                 </h1>
                 <div class="row align-items-center">
                     <div class="col">
-                        {{ userFollowingCountAccepted }}
+                        {{ followingCountAccepted }}
                         <br>
                         <span class="fw-lighter">
                             {{ $t("user.userFollowing") }}
                         </span>
                     </div>
                     <div class="col">
-                        {{ userFollowersCountAccepted }}
+                        {{ followersCountAccepted }}
                         <br>
                         <span class="fw-lighter">
                             {{ $t("user.userFollowers") }}
@@ -59,7 +53,7 @@
             <div v-if="isLoading">
                 <LoadingComponent />
             </div>
-            <UserDistanceStatsComponent v-else />
+            <UserDistanceStatsComponent :thisWeekDistances="thisWeekDistances" :thisMonthDistances="thisMonthDistances" v-else />
         </div>
     </div>
 
@@ -67,7 +61,7 @@
     <div v-if="isLoading">
         <LoadingComponent />
     </div>
-    <ul class="nav nav-pills mb-3 justify-content-center" id="pills-tab" role="tablist" v-else-if="userMe">
+    <ul class="nav nav-pills mb-3 justify-content-center" id="pills-tab" role="tablist" v-else-if="userProfile">
         <li class="nav-item" role="presentation">
             <button class="nav-link active link-body-emphasis" id="pills-activities-tab" data-bs-toggle="pill"
                 data-bs-target="#pills-activities" type="button" role="tab" aria-controls="pills-activities"
@@ -89,13 +83,13 @@
                 {{ $t("user.navigationFollowers") }}
             </button>
         </li>
-        <li class="nav-item" role="presentation" v-if="userMe.id == loggedUserId">
+        <li class="nav-item" role="presentation" v-if="userProfile.id == authStore.user.id">
             <router-link :to="{ name: 'settings', query: { profileSettings: 1 }}" class="btn nav-link link-body-emphasis">
                 <font-awesome-icon :icon="['fas', 'fa-gear']" />
                 {{ $t("user.navigationUserSettings") }}
             </router-link>
         </li>
-        <li class="nav-item" role="presentation" v-if="userMe.id != loggedUserId && userFollowState == null">
+        <li class="nav-item" role="presentation" v-if="userProfile.id != authStore.user.id && userFollowState == null">
             <!-- Follow user button -->
             <a class="btn btn-outline-success h-100 ms-2" href="#" role="button" data-bs-toggle="modal"
                 data-bs-target="#followUserModal">
@@ -114,7 +108,7 @@
                             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                         </div>
                         <div class="modal-body">
-                            {{ $t("user.modalFollowUserBody") }}<b>{{ userMe.name }}</b>?
+                            {{ $t("user.modalFollowUserBody") }}<b>{{ userProfile.name }}</b>?
                         </div>
                         <div class="modal-footer">
                             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
@@ -128,7 +122,7 @@
                 </div>
             </div>
         </li>
-        <li class="nav-item" role="presentation" v-if="userMe.id != loggedUserId && userFollowState != null && !userFollowState.is_accepted">
+        <li class="nav-item" role="presentation" v-if="userProfile.id != authStore.user.id && userFollowState != null && !userFollowState.is_accepted">
             <!-- Cancel follow request button -->
             <a class="btn btn-outline-secondary h-100 ms-2" href="#" role="button" data-bs-toggle="modal"
                 data-bs-target="#cancelFollowUserModal">
@@ -147,7 +141,7 @@
                             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                         </div>
                         <div class="modal-body">
-                            {{ $t("user.modalCancelFollowRequestBody") }}<b>{{ userMe.name }}</b>?
+                            {{ $t("user.modalCancelFollowRequestBody") }}<b>{{ userProfile.name }}</b>?
                         </div>
                         <div class="modal-footer">
                             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
@@ -161,7 +155,7 @@
                 </div>
             </div>
         </li>
-        <li class="nav-item" role="presentation" v-if="userMe.id != loggedUserId && userFollowState != null && userFollowState.is_accepted">
+        <li class="nav-item" role="presentation" v-if="userProfile.id != authStore.user.id && userFollowState != null && userFollowState.is_accepted">
             <!-- Unfollow user button -->
             <a class="btn btn-outline-danger h-100 ms-2" href="#" role="button" data-bs-toggle="modal"
                 data-bs-target="#unfollowUserModal">
@@ -180,7 +174,7 @@
                             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                         </div>
                         <div class="modal-body">
-                            {{ $t("user.modalUnfollowUserBody") }}<b>{{ userMe.name }}</b>?
+                            {{ $t("user.modalUnfollowUserBody") }}<b>{{ userProfile.name }}</b>?
                         </div>
                         <div class="modal-footer">
                             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
@@ -245,8 +239,8 @@
 
         <!-- following tab content -->
         <div class="tab-pane fade" id="pills-following" role="tabpanel" aria-labelledby="pills-following-tab" tabindex="0">
-            <ul class="list-group list-group-flush align-items-center" v-if="userFollowersAll && userFollowersAll.length">
-                <li class="list-group-item d-flex justify-content-between" v-for="follower in userFollowersAll" :key="follower.following_id">
+            <ul class="list-group list-group-flush align-items-center" v-if="followersAll && followersAll.length">
+                <li class="list-group-item d-flex justify-content-between" v-for="follower in followersAll" :key="follower.following_id">
                     <FollowersListComponent :follower="follower" :type="1" @followingDeleted="updateFollowingList"/>
                 </li>
             </ul>
@@ -256,8 +250,8 @@
 
         <!-- followers tab content -->
         <div class="tab-pane fade" id="pills-followers" role="tabpanel" aria-labelledby="pills-followers-tab" tabindex="0">
-            <ul class="list-group list-group-flush align-items-center" v-if="userFollowingAll && userFollowingAll.length">
-                <li class="list-group-item d-flex justify-content-between" v-for="follower in userFollowingAll" :key="follower.follower_id">
+            <ul class="list-group list-group-flush align-items-center" v-if="followingAll && followingAll.length">
+                <li class="list-group-item d-flex justify-content-between" v-for="follower in followingAll" :key="follower.follower_id">
                     <FollowersListComponent :follower="follower" :type="2" @followerDeleted="updateFollowerList" @followerAccepted="updateFollowerListWithAccepted"/>
                 </li>
             </ul>
@@ -274,20 +268,20 @@
 import { ref, onMounted, computed, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { useI18n } from 'vue-i18n';
-import { useUserStore } from '@/stores/userStore';
+// Importing the stores
+import { useAuthStore } from '@/stores/authStore';
+// Importing the services
+import { users } from '@/services/usersService';
 import { activities } from '@/services/activitiesService';
 import { followers } from '@/services/followersService';
-// Importing the stores
-import { useSuccessAlertStore } from '@/stores/Alerts/successAlert';
-import { useErrorAlertStore } from '@/stores/Alerts/errorAlert';
+// Importing the utils
+import { addToast } from '@/utils/toastUtils';
 // Importing the components
 import UserDistanceStatsComponent from '@/components/Activities/UserDistanceStatsComponent.vue';
 import LoadingComponent from '@/components/GeneralComponents/LoadingComponent.vue';
 import NoItemsFoundComponent from '@/components/GeneralComponents/NoItemsFoundComponents.vue';
 import ActivitySummaryComponent from '@/components/Activities/ActivitySummaryComponent.vue';
 import ActivityMapComponent from '@/components/Activities/ActivityMapComponent.vue';
-import ErrorToastComponent from '@/components/Toasts/ErrorToastComponent.vue';
-import SuccessToastComponent from '@/components/Toasts/SuccessToastComponent.vue';
 import FollowersListComponent from '@/components/Followers/FollowersListComponent.vue';
 import BackButtonComponent from '@/components/GeneralComponents/BackButtonComponent.vue';
 import UserAvatarComponent from '@/components/Users/UserAvatarComponent.vue';
@@ -300,24 +294,20 @@ export default {
         ActivitySummaryComponent,
         ActivityMapComponent,
         FollowersListComponent,
-        ErrorToastComponent,
-        SuccessToastComponent,
         BackButtonComponent,
         UserAvatarComponent,
     },
     setup () {
-        const idFromParam = computed(() => route.params.id);
-        const userStore = useUserStore();
-        const successAlertStore = useSuccessAlertStore();
-        const errorAlertStore = useErrorAlertStore();
+        const authStore = useAuthStore();
         const route = useRoute();
-        const loggedUserId = JSON.parse(localStorage.getItem('userMe')).id;
-        const userMe = computed(() => userStore.userMe);
-        const userThisMonthNumberOfActivities = computed(() => userStore.thisMonthNumberOfActivities);
-        const userFollowersCountAccepted = computed(() => userStore.userFollowingCountAccepted);
-        const userFollowingCountAccepted = computed(() => userStore.userFollowersCountAccepted);
-        const userFollowersAll = computed(() => userStore.userFollowingAll);
-        const userFollowingAll = computed(() => userStore.userFollowersAll);
+        const userProfile = ref(null);
+        const thisWeekDistances = ref([]);
+        const thisMonthDistances = ref([]);
+        const thisMonthNumberOfActivities = ref(0);
+        const followersCountAccepted = ref(0);
+        const followingCountAccepted = ref(0);
+        const followersAll = ref([]);
+        const followingAll = ref([]);
         const isLoading = ref(true);
         const isActivitiesLoading = ref(true);
         const { t } = useI18n();
@@ -330,29 +320,43 @@ export default {
             return Array.from({ length: end - start + 1 }, (_, i) => i + start);
         });
         const userWeekActivities = ref([]);
-        const successMessage = ref('');
-        const errorMessage = ref('');
         const userFollowState = ref(null);
+
+        async function fetchUserStars() {
+            try {
+                thisWeekDistances.value = await activities.getUserThisWeekStats(authStore.user.id);
+                thisMonthDistances.value = await activities.getUserThisMonthStats(authStore.user.id);
+            } catch (error) {
+                // Set the error message
+                addToast(t('generalItens.errorFetchingInfo'), 'danger', true);
+            }
+        }
 
         const fetchData = async () => {
             isLoading.value = true;
             isActivitiesLoading.value = true;
             week.value = 0;
             try {
-                await userStore.fetchUserMe(route.params.id);
-                await userStore.fetchUserStats();
-                await userStore.fetchUserThisMonthActivitiesNumber();
-                await userStore.fetchUserFollowersCountAccepted();
-                await userStore.fetchUserFollowingCountAccepted();
-                await userStore.fetchUserFollowersAll();
-                await userStore.fetchUserFollowingAll();
-                userWeekActivities.value = await activities.getUserWeekActivities(userMe.value.id, week.value);
-                if (userMe.value.id != loggedUserId) {
-                    userFollowState.value = await followers.getUserFollowState(loggedUserId, userMe.value.id);
+                userProfile.value = users.getUserById(route.params.id);
+                //await userStore.fetchUserMe(route.params.id);
+                await fetchUserStars();
+                //await userStore.fetchUserStats();
+                thisMonthNumberOfActivities.value = await activities.getUserThisMonthActivitiesNumber(route.params.id);
+                //await userStore.fetchUserThisMonthActivitiesNumber();
+                //await userStore.fetchUserFollowersCountAccepted();
+                followersCountAccepted.value = await followers.getUserFollowersCountAccepted(route.params.id);
+                //await userStore.fetchUserFollowingCountAccepted();
+                followingCountAccepted.value = await followers.getUserFollowingCountAccepted(route.params.id);
+                //await userStore.fetchUserFollowersAll();
+                followersAll.value = await followers.getUserFollowersAll(this.authStore.user.id);
+                //await userStore.fetchUserFollowingAll();
+                followingAll.value = await followers.getUserFollowingAll(this.authStore.user.id);
+                userWeekActivities.value = await activities.getUserWeekActivities(route.params.id, week.value);
+                if (route.params.id != authStore.user.id) {
+                    userFollowState.value = await followers.getUserFollowState(authStore.user.id.user.iddUserId, route.params.id);
                 }
             } catch (error) {
-                errorMessage.value = t('generalItens.errorFetchingInfo') + " - " + error.toString();
-                errorAlertStore.setAlertMessage(errorMessage.value);
+                addToast(t('generalItens.errorFetchingInfo') + " - " + error.toString(), 'danger', true);
             }
             isLoading.value = false;
             isActivitiesLoading.value = false;
@@ -384,119 +388,114 @@ export default {
             week.value = newWeek;
 
             try{
-                userWeekActivities.value = await activities.getUserWeekActivities(userMe.value.id, week.value);
+                console.log(userProfile.value);
+                userWeekActivities.value = await activities.getUserWeekActivities(userProfile.value.id, week.value);
             } catch (error) {
                 // Set the error message
-                errorMessage.value = t('generalItens.errorFetchingInfo') + " - " + error.toString();
-                errorAlertStore.setAlertMessage(errorMessage.value);
+                addToast(t('generalItens.errorEditingInfo') + " - " + error.toString(), 'danger', true);
             } finally {
                 isActivitiesLoading.value = false;
             }
         }
 
         function updateFollowingList(deletedFollowingId) {
-            userStore.userFollowingAll = userStore.userFollowingAll.filter(follower => follower.following_id !== deletedFollowingId);
-            userStore.userFollowersCountAccepted -= 1;
+            followingAll.value = followingAll.value.filter(follower => follower.following_id !== deletedFollowingId);
+            //userStore.userFollowingAll = userStore.userFollowingAll.filter(follower => follower.following_id !== deletedFollowingId);
+            followersCountAccepted.value -= 1;
+            //userStore.userFollowersCountAccepted -= 1;
             // Set the success message
-            successMessage.value = t('user.successFollowingDeleted');
-            successAlertStore.setAlertMessage(successMessage.value);
-            successAlertStore.setClosableState(true);
+            addToast(t('user.successFollowingDeleted'), 'success', true);
         }
 
         function updateFollowerList(deletedFollowerId){
-            userStore.userFollowersAll = userStore.userFollowersAll.filter(follower => follower.follower_id !== deletedFollowerId);
-            userStore.userFollowingCountAccepted -= 1;
+            followersAll.value = followersAll.value.filter(follower => follower.follower_id !== deletedFollowerId);
+            //userStore.userFollowersAll = userStore.userFollowersAll.filter(follower => follower.follower_id !== deletedFollowerId);
+            followingCountAccepted.value -= 1;
+            //userStore.userFollowingCountAccepted -= 1;
             // Set the success message
-            successMessage.value = t('user.successFollowerDeleted');
-            successAlertStore.setAlertMessage(successMessage.value);
-            successAlertStore.setClosableState(true);
+            addToast(t('user.successFollowerDeleted'), 'success', true);
         }
 
         function updateFollowerListWithAccepted(acceptedFollowerId){
-            userStore.userFollowersAll = userStore.userFollowersAll.map(follower => {
+            followersAll.value = followersAll.value.map(follower => {
                 if (follower.follower_id === acceptedFollowerId) {
                     follower.is_accepted = true;
                 }
                 return follower;
             });
-            userStore.userFollowingCountAccepted += 1;
+            /* userStore.userFollowersAll = userStore.userFollowersAll.map(follower => {
+                if (follower.follower_id === acceptedFollowerId) {
+                    follower.is_accepted = true;
+                }
+                return follower;
+            }); */
+            followingCountAccepted.value += 1;
+            //userStore.userFollowingCountAccepted += 1;
             // Set the success message
-            successMessage.value = t('user.successFollowerAccepted');
-            successAlertStore.setAlertMessage(successMessage.value);
-            successAlertStore.setClosableState(true);
+            addToast(t('user.successFollowerAccepted'), 'success', true);
         }
 
         async function submitFollowUser() {
             try{
-                await followers.createUserFollowsSpecificUser(loggedUserId, userMe.value.id);
+                await followers.createUserFollowsSpecificUser(authStore.user.id, userProfile.value.id);
 
                 userFollowState.value = 0;
 
                 // Set the success message
-                successMessage.value = t('user.successFollowRequestSent');
-                successAlertStore.setAlertMessage(successMessage.value);
-                successAlertStore.setClosableState(true);
+                addToast(t('user.successFollowRequestSent'), 'success', true);
             } catch (error) {
                 // Set the error message
-                errorMessage.value = t('user.errorUnableToSendFollow') + " - " + error.toString();
-                errorAlertStore.setAlertMessage(errorMessage.value);
+                addToast(t('user.errorUnableToSendFollow') + " - " + error.toString(), 'danger', true);
             }
         }
 
         async function submitCancelFollowUser() {
             try {
-                await followers.deleteUserFollowsSpecificUser(loggedUserId, userMe.value.id);
+                await followers.deleteUserFollowsSpecificUser(authStore.user.id, userProfile.value.id);
 
                 userFollowState.value = null;
 
                 // Set the success message
-                successMessage.value = t('user.successFollowRequestCancelled');
-                successAlertStore.setAlertMessage(successMessage.value);
-                successAlertStore.setClosableState(true);
+                addToast(t('user.successFollowRequestCancelled'), 'success', true);
             } catch (error) {
                 // Set the error message
-                errorMessage.value = t('user.errorUnableToCancelFollowRequest') + " - " + error.toString();
-                errorAlertStore.setAlertMessage(errorMessage.value);
+                addToast(t('user.errorUnableToSendFollow') + " - " + error.toString(), 'danger', true);
             }
         }
 
         async function submitUnfollowUser() {
             try {
-                await followers.deleteUserFollowsSpecificUser(loggedUserId, userMe.value.id);
+                await followers.deleteUserFollowsSpecificUser(authStore.user.id, userProfile.value.id);
 
                 userFollowState.value = null;
 
                 // Set the success message
-                successMessage.value = t('user.successUserUnfollowed');
-                successAlertStore.setAlertMessage(successMessage.value);
-                successAlertStore.setClosableState(true);
+                addToast(t('user.successUserUnfollowed'), 'success', true);
             } catch (error) {
                 // Set the error message
-                errorMessage.value = t('user.errorUnableToUnfollow') + " - " + error.toString();
-                errorAlertStore.setAlertMessage(errorMessage.value);
+                addToast(t('user.errorUnableToUnfollow') + " - " + error.toString(), 'danger', true);
             }
         }
 
         return {
-            idFromParam,
             isLoading,
             isActivitiesLoading,
-            loggedUserId,
-            userMe,
-            userThisMonthNumberOfActivities,
-            userFollowersCountAccepted,
-            userFollowingCountAccepted,
+            authStore,
+            userProfile,
+            thisMonthNumberOfActivities,
+            followersCountAccepted,
+            followingCountAccepted,
+            followersAll,
+            followingAll,
+            thisWeekDistances,
+            thisMonthDistances,
             t,
             week,
             formatDateRange,
             setWeek,
             visibleWeeks,
             userWeekActivities,
-            successMessage,
-            errorMessage,
             userFollowState,
-            userFollowersAll,
-            userFollowingAll,
             updateFollowingList,
             updateFollowerList,
             updateFollowerListWithAccepted,

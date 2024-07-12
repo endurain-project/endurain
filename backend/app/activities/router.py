@@ -6,7 +6,7 @@ from typing import Annotated, Callable
 
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, Security
 from sqlalchemy.orm import Session
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import activities.schema as activities_schema
 import activities.utils as activies_utils
@@ -14,8 +14,6 @@ import activities.crud as activities_crud
 import activities.dependencies as activities_dependencies
 
 import session.security as session_security
-
-import dependencies.dependencies_global as dependencies_global
 
 import gears.crud as gears_crud
 import gears.dependencies as gears_dependencies
@@ -27,12 +25,8 @@ import activity_streams.crud as activity_streams_crud
 import gpx.utils as gpx_utils
 
 import database
+import dependencies_global
 
-from dependencies import (
-    dependencies_session,
-    dependencies_global,
-    # dependencies_security,
-)
 from processors import fit_processor
 
 # Define the API router
@@ -66,7 +60,7 @@ async def read_activities_useractivities_week(
     ],
 ):
     # Calculate the start of the requested week
-    today = datetime.utcnow().date()
+    today = datetime.now(timezone.utc)
     start_of_week = today - timedelta(days=(today.weekday() + 7 * week_number))
     end_of_week = start_of_week + timedelta(days=7)
 
@@ -110,7 +104,7 @@ async def read_activities_useractivities_thisweek_distances(
     ],
 ):
     # Calculate the start of the current week
-    today = datetime.utcnow().date()
+    today = datetime.now(timezone.utc)
     start_of_week = today - timedelta(
         days=today.weekday()
     )  # Monday is the first day of the week, which is denoted by 0
@@ -128,9 +122,9 @@ async def read_activities_useractivities_thisweek_distances(
         )
 
     # Check if activities is None
-    if activities is None:
+    #if activities is None:
         # Return None if activities is None
-        return None
+    #    return None
 
     # Return the activities distances for this week
     return activies_utils.calculate_activity_distances(activities)
@@ -156,7 +150,7 @@ async def read_activities_useractivities_thismonth_distances(
     ],
 ):
     # Calculate the start of the current month
-    today = datetime.utcnow().date()
+    today = datetime.now(timezone.utc)
     start_of_month = today.replace(day=1)
     end_of_month = start_of_month.replace(
         day=calendar.monthrange(today.year, today.month)[1]
@@ -173,9 +167,9 @@ async def read_activities_useractivities_thismonth_distances(
             user_id, start_of_month, end_of_month, db
         )
 
-    if activities is None:
+    #if activities is None:
         # Return None if activities is None
-        return None
+    #    return None
 
     # Return the activities distances for this month
     return activies_utils.calculate_activity_distances(activities)
@@ -203,7 +197,7 @@ async def read_activities_useractivities_thismonth_number(
     ],
 ):
     # Calculate the start of the current month
-    today = datetime.utcnow().date()
+    today = datetime.now(timezone.utc)
     start_of_month = today.replace(day=1)
     end_of_month = start_of_month.replace(
         day=calendar.monthrange(today.year, today.month)[1]
@@ -229,18 +223,19 @@ async def read_activities_useractivities_thismonth_number(
 
 
 @router.get(
-    "/user/{user_id}/gear/{gear_id}",
+    "/user/gear/{gear_id}",
     response_model=list[activities_schema.Activity] | None,
 )
 async def read_activities_gearactivities(
-    user_id: int,
-    validate_user_id: Annotated[Callable, Depends(users_dependencies.validate_user_id)],
     gear_id: int,
     validate_gear_id: Annotated[Callable, Depends(gears_dependencies.validate_gear_id)],
-    validate_token_and_if_user_id_equals_token_user_id_if_not_validate_admin_access: Annotated[
+    check_scopes: Annotated[
+        Callable, Security(session_security.check_scopes, scopes=["activities:read"])
+    ],
+    token_user_id: Annotated[
         Callable,
         Depends(
-            dependencies_session.validate_token_and_if_user_id_equals_token_user_id_if_not_validate_admin_access
+            session_security.get_user_id_from_access_token
         ),
     ],
     db: Annotated[
@@ -250,7 +245,7 @@ async def read_activities_gearactivities(
 ):
     # Get the activities for the gear
     return activities_crud.get_user_activities_by_gear_id_and_user_id(
-        user_id, gear_id, db
+        token_user_id, gear_id, db
     )
 
 
@@ -325,8 +320,8 @@ async def read_activities_followed_user_activities_pagination(
     validate_pagination_values: Annotated[
         Callable, Depends(dependencies_global.validate_pagination_values)
     ],
-    validate_token: Annotated[
-        Callable, Depends(session_security.validate_access_token)
+    check_scopes: Annotated[
+        Callable, Security(session_security.check_scopes, scopes=["activities:read"])
     ],
     db: Annotated[
         Session,
@@ -346,8 +341,8 @@ async def read_activities_followed_user_activities_pagination(
 async def read_activities_followed_useractivities_number(
     user_id: int,
     validate_user_id: Annotated[Callable, Depends(users_dependencies.validate_user_id)],
-    validate_token: Annotated[
-        Callable, Depends(session_security.validate_token_expiration)
+    check_scopes: Annotated[
+        Callable, Security(session_security.check_scopes, scopes=["activities:read"])
     ],
     db: Annotated[
         Session,
@@ -374,6 +369,9 @@ async def read_activities_activity_from_id(
     validate_activity_id: Annotated[
         Callable, Depends(activities_dependencies.validate_activity_id)
     ],
+    check_scopes: Annotated[
+        Callable, Security(session_security.check_scopes, scopes=["activities:read"])
+    ],
     token_user_id: Annotated[
         Callable,
         Depends(session_security.get_user_id_from_access_token),
@@ -395,6 +393,9 @@ async def read_activities_activity_from_id(
 )
 async def read_activities_contain_name(
     name: str,
+    check_scopes: Annotated[
+        Callable, Security(session_security.check_scopes, scopes=["activities:read"])
+    ],
     token_user_id: Annotated[
         Callable,
         Depends(session_security.get_user_id_from_access_token),
@@ -419,6 +420,9 @@ async def create_activity_with_uploaded_file(
         Depends(session_security.get_user_id_from_access_token),
     ],
     file: UploadFile,
+    check_scopes: Annotated[
+        Callable, Security(session_security.check_scopes, scopes=["activities:write"])
+    ],
     db: Annotated[
         Session,
         Depends(database.get_db),
@@ -496,6 +500,9 @@ async def activity_add_gear(
     ],
     gear_id: int,
     validate_gear_id: Annotated[Callable, Depends(gears_dependencies.validate_gear_id)],
+    check_scopes: Annotated[
+        Callable, Security(session_security.check_scopes, scopes=["activities:write"])
+    ],
     token_user_id: Annotated[
         int,
         Depends(
@@ -544,6 +551,9 @@ async def delete_activity_gear(
     validate_activity_id: Annotated[
         Callable, Depends(activities_dependencies.validate_activity_id)
     ],
+    check_scopes: Annotated[
+        Callable, Security(session_security.check_scopes, scopes=["activities:write"])
+    ],
     token_user_id: Annotated[
         int,
         Depends(
@@ -581,6 +591,9 @@ async def delete_activity(
     activity_id: int,
     validate_activity_id: Annotated[
         Callable, Depends(activities_dependencies.validate_activity_id)
+    ],
+    check_scopes: Annotated[
+        Callable, Security(session_security.check_scopes, scopes=["activities:write"])
     ],
     token_user_id: Annotated[
         int,
