@@ -7,6 +7,8 @@ from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from urllib.parse import unquote
 
+import session.security as session_security
+
 import users.schema as users_schema
 import models
 
@@ -247,38 +249,13 @@ def get_user_photo_path_by_id(user_id: int, db: Session):
         ) from err
 
 
-def get_user_photo_path_aux_by_id(user_id: int, db: Session):
-    try:
-        # Get the user from the database
-        user_db = (
-            db.query(models.User.photo_path_aux)
-            .filter(models.User.id == user_id)
-            .first()
-        )
-
-        # If the user was not found, return None
-        if user_db is None:
-            return None
-
-        # Return the photo_path_aux value directly
-        return user_db.photo_path_aux
-    except Exception as err:
-        # Log the exception
-        logger.error(f"Error in get_user_photo_path_aux_by_id: {err}", exc_info=True)
-        # Raise an HTTPException with a 500 Internal Server Error status code
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Internal Server Error",
-        ) from err
-
-
 def create_user(user: users_schema.UserCreate, db: Session):
     try:
         # Create a new user
         db_user = models.User(
             name=user.name,
             username=user.username,
-            password=user.password,
+            password=session_security.hash_password(user.password),
             email=user.email,
             city=user.city,
             birthdate=user.birthdate,
@@ -286,7 +263,6 @@ def create_user(user: users_schema.UserCreate, db: Session):
             gender=user.gender,
             access_type=user.access_type,
             photo_path=user.photo_path,
-            photo_path_aux=user.photo_path_aux,
             is_active=user.is_active,
         )
 
@@ -344,8 +320,6 @@ def edit_user(user: users_schema.User, db: Session):
             db_user.access_type = user.access_type
         if user.photo_path is not None:
             db_user.photo_path = user.photo_path
-        if user.photo_path_aux is not None:
-            db_user.photo_path_aux = user.photo_path_aux
         if user.is_active is not None:
             db_user.is_active = user.is_active
 
@@ -384,7 +358,7 @@ def edit_user_password(user_id: int, password: str, db: Session):
         db_user = db.query(models.User).filter(models.User.id == user_id).first()
 
         # Update the user
-        db_user.password = password
+        db_user.password = session_security.hash_password(password)
 
         # Commit the transaction
         db.commit()
@@ -436,7 +410,6 @@ def delete_user_photo(user_id: int, db: Session):
 
         # Update the user
         db_user.photo_path = None
-        db_user.photo_path_aux = None
 
         # Commit the transaction
         db.commit()

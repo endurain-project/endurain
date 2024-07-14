@@ -174,7 +174,6 @@ async def read_followers_user_specific_user(
     validate_target_user_id: Annotated[
         Callable, Depends(users_dependencies.validate_target_user_id)
     ],
-    validate_token: Annotated[Callable, Depends(session_security.validate_token_expiration)],
     db: Annotated[
         Session,
         Depends(database.get_db),
@@ -197,14 +196,13 @@ async def create_follow(
     validate_target_user_id: Annotated[
         Callable, Depends(users_dependencies.validate_target_user_id)
     ],
-    validate_token: Annotated[Callable, Depends(session_security.validate_token_expiration)],
     db: Annotated[
         Session,
         Depends(database.get_db),
     ],
 ):
     # Create the follower
-    #new_follow = followers_crud.create_follower(user_id, target_user_id, db)
+    followers_crud.create_follower(user_id, target_user_id, db)
 
     # Return the ID of the gear created
     return {"detail": "Follower record created successfully"}
@@ -219,7 +217,6 @@ async def accept_follow(
     validate_target_user_id: Annotated[
         Callable, Depends(users_dependencies.validate_target_user_id)
     ],
-    validate_token: Annotated[Callable, Depends(session_security.validate_token_expiration)],
     db: Annotated[
         Session,
         Depends(database.get_db),
@@ -242,7 +239,6 @@ async def delete_follow(
     validate_target_user_id: Annotated[
         Callable, Depends(users_dependencies.validate_target_user_id)
     ],
-    validate_token: Annotated[Callable, Depends(session_security.validate_token_expiration)],
     db: Annotated[
         Session,
         Depends(database.get_db),

@@ -337,23 +337,40 @@ export default {
             isActivitiesLoading.value = true;
             week.value = 0;
             try {
-                userProfile.value = users.getUserById(route.params.id);
-                //await userStore.fetchUserMe(route.params.id);
+                // Fetch the user profile
+                userProfile.value = await users.getUserById(route.params.id);
+
+                // Fetch the user stats
                 await fetchUserStars();
-                //await userStore.fetchUserStats();
+
+                // Fetch the user number of activities for this month
                 thisMonthNumberOfActivities.value = await activities.getUserThisMonthActivitiesNumber(route.params.id);
-                //await userStore.fetchUserThisMonthActivitiesNumber();
-                //await userStore.fetchUserFollowersCountAccepted();
-                followersCountAccepted.value = await followers.getUserFollowersCountAccepted(route.params.id);
-                //await userStore.fetchUserFollowingCountAccepted();
-                followingCountAccepted.value = await followers.getUserFollowingCountAccepted(route.params.id);
-                //await userStore.fetchUserFollowersAll();
-                followersAll.value = await followers.getUserFollowersAll(this.authStore.user.id);
-                //await userStore.fetchUserFollowingAll();
-                followingAll.value = await followers.getUserFollowingAll(this.authStore.user.id);
+
+                // Fetch the user followers and following accepted count
+                if (route.params.id == authStore.user.id) {
+                    followersCountAccepted.value = await followers.getUserFollowingCountAccepted(route.params.id);
+                    followingCountAccepted.value = await followers.getUserFollowersCountAccepted(route.params.id);
+                } else {
+                    followersCountAccepted.value = await followers.getUserFollowersCountAccepted(route.params.id);
+                    followingCountAccepted.value = await followers.getUserFollowingCountAccepted(route.params.id);
+
+                }
+
+                // Fetch the user followers and following
+                if (route.params.id == authStore.user.id) {
+                    followersAll.value = await followers.getUserFollowingAll(authStore.user.id);
+                    followingAll.value = await followers.getUserFollowersAll(authStore.user.id);
+                } else {
+                    followersAll.value = await followers.getUserFollowersAll(authStore.user.id);
+                    followingAll.value = await followers.getUserFollowingAll(authStore.user.id);
+                }
+
+                // Fetch the user week activities
                 userWeekActivities.value = await activities.getUserWeekActivities(route.params.id, week.value);
+
+                // Fetch the user follow state
                 if (route.params.id != authStore.user.id) {
-                    userFollowState.value = await followers.getUserFollowState(authStore.user.id.user.iddUserId, route.params.id);
+                    userFollowState.value = await followers.getUserFollowState(authStore.user.id, route.params.id);
                 }
             } catch (error) {
                 addToast(t('generalItens.errorFetchingInfo') + " - " + error.toString(), 'danger', true);
@@ -388,7 +405,6 @@ export default {
             week.value = newWeek;
 
             try{
-                console.log(userProfile.value);
                 userWeekActivities.value = await activities.getUserWeekActivities(userProfile.value.id, week.value);
             } catch (error) {
                 // Set the error message
@@ -400,19 +416,13 @@ export default {
 
         function updateFollowingList(deletedFollowingId) {
             followingAll.value = followingAll.value.filter(follower => follower.following_id !== deletedFollowingId);
-            //userStore.userFollowingAll = userStore.userFollowingAll.filter(follower => follower.following_id !== deletedFollowingId);
             followersCountAccepted.value -= 1;
-            //userStore.userFollowersCountAccepted -= 1;
-            // Set the success message
             addToast(t('user.successFollowingDeleted'), 'success', true);
         }
 
         function updateFollowerList(deletedFollowerId){
             followersAll.value = followersAll.value.filter(follower => follower.follower_id !== deletedFollowerId);
-            //userStore.userFollowersAll = userStore.userFollowersAll.filter(follower => follower.follower_id !== deletedFollowerId);
             followingCountAccepted.value -= 1;
-            //userStore.userFollowingCountAccepted -= 1;
-            // Set the success message
             addToast(t('user.successFollowerDeleted'), 'success', true);
         }
 
@@ -423,15 +433,7 @@ export default {
                 }
                 return follower;
             });
-            /* userStore.userFollowersAll = userStore.userFollowersAll.map(follower => {
-                if (follower.follower_id === acceptedFollowerId) {
-                    follower.is_accepted = true;
-                }
-                return follower;
-            }); */
             followingCountAccepted.value += 1;
-            //userStore.userFollowingCountAccepted += 1;
-            // Set the success message
             addToast(t('user.successFollowerAccepted'), 'success', true);
         }
 

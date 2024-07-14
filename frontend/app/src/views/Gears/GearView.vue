@@ -200,7 +200,6 @@ export default {
         const route = useRoute();
         const router = useRouter();
         const isLoading = ref(true);
-        const userStore = useAuthStore();
         const gear = ref(null);
         const gearActivities = ref([]);
         const gearDistance = ref(0);

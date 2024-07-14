@@ -2,7 +2,7 @@
     <footer class="py-5 bg-body-tertiary">
         <div class="container">
             <div class="row align-items-center justify-content-center">
-                <div class="col-md" v-if="isLoggedIn">
+                <div class="col-md" v-if="authStore.isAuthenticated">
                     <form>
                         <label for="inputSelectTypeToSearch" class="form-label">{{ $t("footer.searchSelectLabel") }}</label>
                         <select id="inputSelectTypeToSearch" class="form-select" v-model="searchSelectValue">
@@ -39,9 +39,12 @@
 
 <script>
 import { watch, ref } from 'vue';
-import { auth } from '@/services/auth';
 import { useRoute } from 'vue-router';
 import { useI18n } from 'vue-i18n';
+// import lodash
+import { debounce } from 'lodash';
+
+import { useAuthStore } from '@/stores/authStore';
 
 import { users } from '@/services/usersService';
 import { gears } from '@/services/gearsService';
@@ -50,14 +53,14 @@ import { activities } from '@/services/activitiesService';
 export default {
     setup() {
         const route = useRoute();
+        const authStore = useAuthStore();
         const { t } = useI18n();
         const path = ref(route.path);
-        const isLoggedIn = ref(auth.isTokenValid(localStorage.getItem('accessToken')))
         const searchSelectValue = ref(1);
         const inputSearch = ref('');
         const searchResults = ref([]);
 
-        const fetchUserResults = async (query) => {
+        const fetchUserResults = debounce(async (query) => {
             if (!query) {
                 searchResults.value = [];
                 return;
@@ -67,9 +70,9 @@ export default {
             } catch (error) {
                 console.error('Error fetching user results:', error);
             }
-        };
+        }, 500);
 
-        const fetchActivityResults = async (query) => {
+        const fetchActivityResults = debounce(async (query) => {
             if (!query) {
                 searchResults.value = [];
                 return;
@@ -80,9 +83,9 @@ export default {
             } catch (error) {
                 console.error('Error fetching activity results:', error);
             }
-        };
+        }, 500);
 
-        const fetchGearResults = async (query) => {
+        const fetchGearResults = debounce(async (query) => {
             if (!query) {
                 searchResults.value = [];
                 return;
@@ -93,7 +96,7 @@ export default {
             } catch (error) {
                 console.error('Error fetching gear results:', error);
             }
-        };
+        }, 500);
 
         watch(() => route.path, (newPath, oldPath) => {
             path.value = newPath;
@@ -101,13 +104,6 @@ export default {
             searchSelectValue.value = 1;
             inputSearch.value = '';
             searchResults.value = [];
-            // Perform actions based on newPath if needed
-            if (newPath === '/login' && isLoggedIn.value) {
-                isLoggedIn.value = auth.isTokenValid(localStorage.getItem('accessToken'));
-            }
-            if (oldPath === '/login' && !isLoggedIn.value) {
-                isLoggedIn.value = auth.isTokenValid(localStorage.getItem('accessToken'));
-            }
         });
 
         watch(searchSelectValue, () => {
@@ -126,7 +122,7 @@ export default {
         });
 
         return {
-            isLoggedIn,
+            authStore,
             searchSelectValue,
             inputSearch,
             searchResults,

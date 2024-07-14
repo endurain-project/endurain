@@ -67,14 +67,15 @@
                     <!-- Iterating over userGears to display them -->
                     <p>{{ $t("gears.displayUserNumberOfGears1") }}{{ userGearsNumber }}{{ $t("gears.displayUserNumberOfGears2") }}{{ userGears.length }}{{ $t("gears.displayUserNumberOfGears3") }}</p>
 
-                    <LoadingComponent v-if="isGearsUpdatingLoading"/>
-
                     <!-- Displaying loading new gear if applicable -->
                     <ul class="list-group list-group-flush" v-if="isLoadingNewGear">
                         <li class="list-group-item rounded">
                             <LoadingComponent />
                         </li>
                     </ul>
+
+                    <!-- Displaying loading if gears are updating -->
+                    <LoadingComponent v-if="isGearsUpdatingLoading"/>
 
                     <!-- List gears -->
                     <ul class="list-group list-group-flush" v-for="gear in userGears" :key="gear.id" :gear="gear" v-else>
@@ -177,7 +178,7 @@ export default {
             } catch (error) {
                 addToast(t('adminUsersComponent.errorSeachUser') + " - " + error.toString(), 'danger', true);
             }
-        }, 300);
+        }, 500);
         
         async function submitAddGearForm() {
             // Set the isLoadingNewGear variable to true.

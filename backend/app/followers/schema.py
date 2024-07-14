@@ -7,4 +7,4 @@ class Follower(BaseModel):
     is_accepted: bool
 
     class Config:
-        from_attributes = True
+        orm_mode = True

@@ -1,7 +1,4 @@
 <template>
-    <ErrorToastComponent v-if="errorMessage" />
-    <SuccessToastComponent v-if="successMessage" />
-
     <li class="list-group-item d-flex justify-content-between">
         <div class="d-flex align-items-center">
             <UserAvatarComponent :userProp="userProp" :width=55 :height=55 />
@@ -140,7 +137,7 @@
             </div>
 
             <!-- delete user button -->
-            <a class="btn btn-link btn-lg link-body-emphasis" href="#" role="button" data-bs-toggle="modal" :data-bs-target="`#deleteUserModal${userProp.id}`" v-if="loggedUserId != userProp.id"><font-awesome-icon :icon="['fas', 'fa-trash-can']" /></a>
+            <a class="btn btn-link btn-lg link-body-emphasis" href="#" role="button" data-bs-toggle="modal" :data-bs-target="`#deleteUserModal${userProp.id}`" v-if="authStore.user.id != userProp.id"><font-awesome-icon :icon="['fas', 'fa-trash-can']" /></a>
 
             <!-- delete user modal -->
             <div class="modal fade" :id="`deleteUserModal${userProp.id}`" tabindex="-1" :aria-labelledby="`deleteUserModal${userProp.id}`" aria-hidden="true">
@@ -169,21 +166,16 @@ import { ref, computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 // Importing the services
 import { users } from '@/services/usersService';
-// Importing the stores
-import { useSuccessAlertStore } from '@/stores/Alerts/successAlert';
-import { useErrorAlertStore } from '@/stores/Alerts/errorAlert';
+// Import the stores
+import { useAuthStore } from '@/stores/authStore';
+// Importing the utils
+import { addToast } from '@/utils/toastUtils';
 // Importing the components
-import ErrorToastComponent from '@/components/Toasts/ErrorToastComponent.vue';
-import SuccessToastComponent from '@/components/Toasts/SuccessToastComponent.vue';
 import SettingsPasswordRequirementsComponent from '@/components/Settings/SettingsPasswordRequirementsComponent.vue';
 import UserAvatarComponent from '@/components/Users/UserAvatarComponent.vue';
-// Importing the crypto-js
-import CryptoJS from 'crypto-js';
 
 export default {
     components: {
-        ErrorToastComponent,
-        SuccessToastComponent,
         SettingsPasswordRequirementsComponent,
         UserAvatarComponent,
     },
@@ -196,11 +188,7 @@ export default {
     emits: ['userDeleted'],
     setup(props, { emit }) {
         const { t } = useI18n();
-        const loggedUserId = JSON.parse(localStorage.getItem('userMe')).id;
-        const errorAlertStore = useErrorAlertStore();
-        const successAlertStore = useSuccessAlertStore();
-        const errorMessage = ref('');
-        const successMessage = ref('');
+        const authStore = useAuthStore();
         const userProp = ref(props.user);
         const newPassword = ref('');
         const newPasswordRepeat = ref('');
@@ -224,13 +212,6 @@ export default {
         const editUserAccessType = ref(userProp.value.access_type);
         const editUserIsActive = ref(userProp.value.is_active);
 
-        function resetMessageValues() {
-            successMessage.value = '';
-            successAlertStore.setAlertMessage(successMessage.value);
-            errorMessage.value = '';
-            errorAlertStore.setAlertMessage(errorMessage.value);
-        }
-
         async function handleFileChange(event) {
             if (event.target.files && event.target.files[0]) {
                 editUserPhotoFile.value = event.target.files[0];
@@ -240,30 +221,23 @@ export default {
         }
 
         async function submitChangeUserPasswordForm() {
-            resetMessageValues();
-
             try{
                 if (isNewPasswordValid.value && isNewPasswordRepeatValid.value && isPasswordMatch.value) {
                     const data = {
                         id: userProp.value.id,
-                        password: CryptoJS.SHA256(newPassword.value).toString(CryptoJS.enc.Hex),
+                        password: newPassword.value
                     };
                     await users.editUserPassword(data);
                     // Set the success message and show the success alert.
-                    successMessage.value = t('usersListComponent.userChangePasswordSuccessMessage');
-                    successAlertStore.setAlertMessage(successMessage.value);
-                    successAlertStore.setClosableState(true);
+                    addToast(t('usersListComponent.userChangePasswordSuccessMessage'), 'success', true);
                 }
             } catch (error) {
                 // If there is an error, set the error message and show the error alert.
-                errorMessage.value = t('usersListComponent.userChangePasswordErrorMessage') + " - " + error.toString();
-                errorAlertStore.setAlertMessage(errorMessage.value);
+                addToast(t('usersListComponent.userChangePasswordErrorMessage') + " - " + error.toString(), 'danger', true);
             }
         }
 
         async function submitEditUserForm() {
-            resetMessageValues();
-
             try {
                 const data = {
                     id: userProp.value.id,
@@ -276,7 +250,6 @@ export default {
                     preferred_language: editUserPreferredLanguage.value,
                     access_type: editUserAccessType.value,
                     photo_path: null,
-                    photo_path_aux: null,
                     is_active: editUserIsActive.value,
                 };
 
@@ -288,8 +261,7 @@ export default {
                         userProp.value.photo_path = await users.uploadImage(editUserPhotoFile.value, userProp.value.id);
                     } catch (error) {
                         // Set the error message
-                        errorMessage.value = t('generalItens.errorFetchingInfo') + " - " + error.toString();
-                        errorAlertStore.setAlertMessage(errorMessage.value);
+                        addToast(t('generalItens.errorFetchingInfo') + " - " + error.toString(), 'danger', true);
                     }
                 }
 
@@ -309,35 +281,25 @@ export default {
                 successMessage.value = t('usersListComponent.userEditSuccessMessage');
                 successAlertStore.setAlertMessage(successMessage.value);
                 successAlertStore.setClosableState(true);
+                addToast(t('usersListComponent.userEditSuccessMessage'), 'success', true);
             } catch (error) {
                 // If there is an error, set the error message and show the error alert.
-                errorMessage.value = t('usersListComponent.userEditErrorMessage') + " - " + error.toString();
-                errorAlertStore.setAlertMessage(errorMessage.value);
+                addToast(t('usersListComponent.userEditErrorMessage') + " - " + error.toString(), 'danger', true);
             }
         }
 
         async function submitDeleteUser() {
-            resetMessageValues();
-
             try {
                 await users.deleteUser(userProp.value.id);
 
                 emit('userDeleted', userProp.value.id);
-
-                // Set the success message and show the success alert.
-                //successMessage.value = t('usersListComponent.userDeleteSuccessMessage');
-                //successAlertStore.setAlertMessage(successMessage.value);
-                //successAlertStore.setClosableState(true);
             } catch (error) {
                 // If there is an error, set the error message and show the error alert.
-                errorMessage.value = t('usersListComponent.userDeleteErrorMessage') + " - " + error.toString();
-                errorAlertStore.setAlertMessage(errorMessage.value);
+                addToast(t('usersListComponent.userDeleteErrorMessage') + " - " + error.toString(), 'danger', true);
             }
         }
 
         async function submitDeleteUserPhoto() {
-            resetMessageValues();
-
             try {
                 await users.deleteUserPhoto(userProp.value.id);
                 userProp.value.photo_path = null;
@@ -346,18 +308,16 @@ export default {
                 successMessage.value = t('usersListComponent.userPhotoDeleteSuccessMessage');
                 successAlertStore.setAlertMessage(successMessage.value);
                 successAlertStore.setClosableState(true);
+                addToast(t('usersListComponent.userPhotoDeleteSuccessMessage'), 'success', true);
             } catch (error) {
                 // Set the error message
-                errorMessage.value = t('usersListComponent.userPhotoDeleteErrorMessage') + " - " + error.toString();
-                errorAlertStore.setAlertMessage(errorMessage.value);
+                addToast(t('usersListComponent.userPhotoDeleteErrorMessage') + " - " + error.toString(), 'danger', true);
             }
         }
 
         return {
             t,
-            loggedUserId,
-            errorMessage,
-            successMessage,
+            authStore,
             userProp,
             newPassword,
             newPasswordRepeat,

@@ -1,8 +1,5 @@
 <template>
     <div class="col">
-        <ErrorToastComponent v-if="errorMessage" />
-        <SuccessToastComponent v-if="successMessage" />
-
         <div class="row row-gap-3">
             <div class="col-lg-4 col-md-12">
                 <!-- add user button -->
@@ -86,10 +83,23 @@
                     <br>
                     <p>{{ $t("settingsUsersZone.labelNumberOfUsers1") }}{{ usersNumber }}{{ $t("settingsUsersZone.labelNumberOfUsers2") }}{{ usersArray.length }}{{ $t("settingsUsersZone.labelNumberOfUsers3") }}</p>
 
+                    <!-- Displaying loading new gear if applicable -->
+                    <ul class="list-group list-group-flush" v-if="isLoadingNewUser">
+                        <li class="list-group-item rounded">
+                            <LoadingComponent />
+                        </li>
+                    </ul>
+
+                    <!-- Displaying loading if gears are updating -->
+                    <LoadingComponent v-if="isUsersUpdatingLoading"/>
+
                     <!-- list zone -->
-                    <ul class="list-group list-group-flush"  v-for="user in usersArray" :key="user.id" :user="user">
+                    <ul class="list-group list-group-flush"  v-for="user in usersArray" :key="user.id" :user="user" v-else>
                         <UsersListConponent :user="user" @userDeleted="updateUserList" />
                     </ul>
+
+                    <!-- pagination area -->
+                    <PaginationComponent :totalPages="totalPages" :pageNumber="pageNumber" @pageNumberChanged="setPageNumber" v-if="!searchUsername"/>
                 </div>
                 <!-- Displaying a message or component when there are no activities -->
                 <div v-else>
@@ -102,37 +112,32 @@
 </template>
 
 <script>
-import { ref, onMounted, onUnmounted, watch, computed } from 'vue';
+import { ref, onMounted, watch, computed } from 'vue';
 import { useI18n } from 'vue-i18n';
-// Importing the stores
-import { useSuccessAlertStore } from '@/stores/Alerts/successAlert';
-import { useErrorAlertStore } from '@/stores/Alerts/errorAlert';
+// Importing the utils
+import { addToast } from '@/utils/toastUtils';
+// import lodash
+import { debounce } from 'lodash';
 // Importing the components
-import ErrorToastComponent from '@/components/Toasts/ErrorToastComponent.vue';
-import SuccessToastComponent from '@/components/Toasts/SuccessToastComponent.vue';
 import LoadingComponent from '@/components/GeneralComponents/LoadingComponent.vue';
 import NoItemsFoundComponent from '@/components/GeneralComponents/NoItemsFoundComponents.vue';
 import UsersListConponent from '@/components/Settings/SettingsUsersZone/UsersListComponent.vue';
+import PaginationComponent from '@/components/GeneralComponents/PaginationComponent.vue';
 // Importing the services
 import { users } from '@/services/usersService';
-// Importing the crypto-js
-import CryptoJS from 'crypto-js';
 
 export default {
     components: {
         LoadingComponent,
-        ErrorToastComponent,
-        SuccessToastComponent,
         NoItemsFoundComponent,
+        PaginationComponent,
         UsersListConponent
     },
     setup() {
         const { t } = useI18n();
-        const errorAlertStore = useErrorAlertStore();
-        const successAlertStore = useSuccessAlertStore();
         const isLoading = ref(true);
-        const errorMessage = ref('');
-        const successMessage = ref('');
+        const isUsersUpdatingLoading = ref(false);
+        const isLoadingNewUser = ref(false);
         const newUserPhotoFile = ref(null);
         const newUserUsername = ref('');
         const newUserName = ref('');
@@ -149,9 +154,9 @@ export default {
         const newUserAccessType = ref(1);
         const usersArray = ref([]);
         const usersNumber = ref(0);
-        const hasMoreUsers = ref(true);
         const pageNumber = ref(1);
         const numRecords = 5;
+        const totalPages = ref(1);
         const searchUsername = ref('');
 
         async function handleFileChange(event) {
@@ -162,37 +167,13 @@ export default {
             }
         }
 
-        async function fetchMoreUsers() {
-            // If the component is already loading or there are no more gears to fetch, return.
-            if (isLoading.value || !hasMoreUsers.value) return;
-
-            // Add 1 to the page number.
-            pageNumber.value++;
-            try {
-                // Fetch the users with pagination.
-                const newUsers = await users.getUsersWithPagination(pageNumber.value, numRecords);
-                // Add the new users to the users array.
-                Array.prototype.push.apply(usersArray.value, newUsers);
-
-                // If there are no more gears to fetch, set userHasMoreGears to false.
-                if ((pageNumber.value * numRecords) >= usersNumber.value) {
-                    hasMoreUsers.value = false;
-                }
-            } catch (error) {
-                // If there is an error, set the error message and show the error alert.
-                errorMessage.value = t('generalItens.errorFetchingInfo') + " - " + error.toString();
-                errorAlertStore.setAlertMessage(errorMessage.value);
-            }
-        }
-
-        async function performSearch() {
+        const performSearch = debounce(async () => {
             // If the search nickname is empty, reset the list to initial state.
             if (!searchUsername.value) {
                 // Reset the list to the initial state when search text is cleared
                 pageNumber.value = 1;
-                hasMoreUsers.value = true;
 
-                await fetchInitialUsers();
+                await fetchUsers();
 
                 return;
             }
@@ -200,22 +181,13 @@ export default {
                 // Fetch the users based on the search username.
                 usersArray.value = await users.getUserByUsername(searchUsername.value);
             } catch (error) {
-                // If there is an error, set the error message and show the error alert.
-                errorMessage.value = t('generalItens.errorFetchingInfo') + " - " + error.toString();
-                errorAlertStore.setAlertMessage(errorMessage.value);
+                    // If there is an error, set the error message and show the error alert.
+                    addToast(t('generalItens.errorFetchingInfo') + " - " + error.toString(), 'danger', true);
             }
-        }
-
-        function handleScroll() {
-            // If the user has reached the bottom of the window, fetch more gears.
-            const bottomOfWindow = document.documentElement.scrollTop + window.innerHeight === document.documentElement.offsetHeight;
-
-            if (bottomOfWindow) {
-                fetchMoreUsers();
-            }
-        }
+        }, 500);
 
         async function submitAddUserForm() {
+            isLoadingNewUser.value = true;
             try {
                 if (isPasswordValid.value) {
 
@@ -230,9 +202,8 @@ export default {
                         gender: newUserGender.value,
                         access_type: newUserAccessType.value,
                         photo_path: null,
-                        photo_path_aux: null,
                         is_active: 1,
-                        password: CryptoJS.SHA256(newUserPassword.value).toString(CryptoJS.enc.Hex),
+                        password: newUserPassword.value
                     };
 
                     // Create the gear and get the created gear id.
@@ -244,8 +215,7 @@ export default {
                             await users.uploadImage(newUserPhotoFile.value, createdUserId);
                         } catch (error) {
                             // Set the error message
-                            errorMessage.value = t('generalItens.errorFetchingInfo') + " - " + error.toString();
-                            errorAlertStore.setAlertMessage(errorMessage.value);
+                            addToast(t('generalItens.errorFetchingInfo') + " - " + error.toString(), 'danger', true);
                         }
                     }
 
@@ -257,32 +227,51 @@ export default {
                     usersNumber.value++;
 
                     // Set the success message and show the success alert.
-                    successMessage.value = t('settingsUsersZone.successUserAdded');
-                    successAlertStore.setAlertMessage(successMessage.value);
-                    successAlertStore.setClosableState(true);
+                    addToast(t('settingsUsersZone.successUserAdded'), 'success', true);
                 }
             } catch(error) {
                 // If there is an error, set the error message and show the error alert.
-                errorMessage.value = t('generalItens.errorFetchingInfo') + " - " + error.toString();
-                errorAlertStore.setAlertMessage(errorMessage.value);
+                addToast(t('generalItens.errorFetchingInfo') + " - " + error.toString(), 'danger', true);
+            } finally {
+                // Set the loading variable to false.
+                isLoadingNewUser.value = false;
             }
         }
 
-        async function fetchInitialUsers() {
+        function setPageNumber(page) {
+            // Set the page number.
+            pageNumber.value = page;
+        }
+
+        async function updateUsers() {
+            try {
+                // Set the loading variable to true.
+                isUsersUpdatingLoading.value = true;
+
+                // Fetch the gears with pagination.
+                usersArray.value = await users.getUsersWithPagination(pageNumber.value, numRecords);
+
+                // Set the loading variable to false.
+                isUsersUpdatingLoading.value = false;
+            } catch (error) {
+                // If there is an error, set the error message and show the error alert.
+                addToast(t('generalItens.errorFetchingInfo') + " - " + error.toString(), 'danger', true);
+            }
+        }
+
+        async function fetchUsers() {
             try {
                 // Fetch the users with pagination.
-                usersArray.value = await users.getUsersWithPagination(pageNumber.value, numRecords);
+                updateUsers();
+
                 // Get the total number of user gears.
                 usersNumber.value = await users.getUsersNumber();
 
-                // If there are no more users to fetch, set hasMoreUsers to false.
-                if ((pageNumber.value * numRecords) >= usersNumber.value) {
-                    hasMoreUsers.value = false;
-                }
+                // Update total pages
+                totalPages.value = Math.ceil(usersNumber.value / numRecords);
             } catch (error) {
                 // If there is an error, set the error message and show the error alert.
-                errorMessage.value = t('generalItens.errorFetchingInfo') + " - " + error.toString();
-                errorAlertStore.setAlertMessage(errorMessage.value);
+                addToast(t('generalItens.errorFetchingInfo') + " - " + error.toString(), 'danger', true);
             }
         }
 
@@ -290,34 +279,28 @@ export default {
             usersArray.value = usersArray.value.filter(user => user.id !== userDeletedId);
             usersNumber.value--;
 
-            successMessage.value = t('usersListComponent.userDeleteSuccessMessage');
-            successAlertStore.setAlertMessage(successMessage.value);
-            successAlertStore.setClosableState(true);
+            addToast(t('usersListComponent.userDeleteSuccessMessage'), 'success', true);
         }
 
         onMounted(async () => {
-            // Add the event listener for scroll event.
-            window.addEventListener('scroll', handleScroll);
-
-            // Fetch the initial users.
-            await fetchInitialUsers();
+            // Fetch the users.
+            await fetchUsers();
 
             // Set the isLoading to false.
             isLoading.value = false;
         });
 
-        onUnmounted(() => {
-            // Remove the event listener for scroll event.
-            window.removeEventListener('scroll', handleScroll);
-        });
-
+        // Watch the search username variable.
         watch(searchUsername, performSearch, { immediate: false });
+
+        // Watch the page number variable.
+        watch(pageNumber, updateUsers, { immediate: false });
 
         return {
             t,
             isLoading,
-            errorMessage,
-            successMessage,
+            isUsersUpdatingLoading,
+            isLoadingNewUser,
             newUserPhotoFile,
             newUserUsername,
             newUserName,
@@ -330,6 +313,9 @@ export default {
             newUserPreferredLanguage,
             newUserAccessType,
             submitAddUserForm,
+            pageNumber,
+            totalPages,
+            setPageNumber,
             handleFileChange,
             usersNumber,
             usersArray,

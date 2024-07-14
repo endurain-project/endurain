@@ -88,6 +88,6 @@ async def logout(
     # Clear the cookies by setting their expiration to the past
     response.delete_cookie(key="endurain_access_token", path="/")
     response.delete_cookie(key="endurain_refresh_token", path="/")
-    # response.delete_cookie(key="ctr_csrf_token", path="/")
+    # response.delete_cookie(key="endurain_csrf_token", path="/")
 
     return {"message": "Logout successful"}

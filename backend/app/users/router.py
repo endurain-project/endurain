@@ -157,7 +157,7 @@ async def read_users_id(
     ],
 ):
     # Get the users from the database by id
-    return users_crud.get_user_by_id(user_id=user_id, db=db)
+    return users_crud.get_user_by_id(user_id, db)
 
 
 @router.get("/{username}/id", response_model=int)

@@ -1,13 +1,13 @@
 <template>
     <div class="col-lg-4 col-md-12">
     <ul class="nav nav-pills flex-column mb-auto" id="sidebarNav">
-        <li class="nav-item" v-if="userMe.access_type == 2">
+        <li class="nav-item" v-if="authStore.user.access_type == 2">
             <a href="#" class="nav-link link-body-emphasis" :class="{ active: activeSection === 'users' }" @click.prevent="changeActive('users')">
                 <font-awesome-icon :icon="['fas', 'fa-users']" />
                 <span class="ms-1">{{ $t("settingsSideBar.usersSection") }}</span>
             </a>
         </li>
-        <hr v-if="userMe.access_type == 2">
+        <hr v-if="authStore.user.access_type == 2">
         <li class="nav-item">
             <a href="#" class="nav-link link-body-emphasis" :class="{ active: activeSection === 'myProfile' }" @click.prevent="changeActive('myProfile')">
                 <font-awesome-icon :icon="['fas', 'fa-address-card']" />
@@ -33,6 +33,8 @@
 
 <script>
 import { useI18n } from 'vue-i18n';
+// Importing the store
+import { useAuthStore } from '@/stores/authStore';
 
 export default {
     props: {
@@ -43,16 +45,14 @@ export default {
     },
     emits: ['update-active-section'],
     setup(props, { emit }) {
-        const userMe = JSON.parse(localStorage.getItem('userMe'));
-        const { t } = useI18n();
+        const authStore = useAuthStore();
 
         function changeActive(section) {
             emit('update-active-section', section);
         }
 
         return {
-            userMe,
-            t,
+            authStore,
             changeActive,
         };
     },
