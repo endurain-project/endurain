@@ -297,7 +297,7 @@ async def edit_user_password(
     users_crud.edit_user_password(user_attributtes.id, user_attributtes.password, db)
 
     # Return success message
-    return {"detail": f"User ID {user_attributtes.id} password updated successfully"}
+    return {f"User ID {user_attributtes.id} password updated successfully"}
 
 
 @router.put("/{user_id}/delete-photo")

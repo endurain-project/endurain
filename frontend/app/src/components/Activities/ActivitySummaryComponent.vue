@@ -1,7 +1,4 @@
 <template>
-    <!-- Error alerts -->
-    <ErrorToastComponent v-if="errorMessage" />
-
     <div v-if="isLoading">
         <LoadingComponent />
     </div>
@@ -49,7 +46,7 @@
                     </h6>
                 </div>
             </div>
-            <div class="dropdown d-flex">
+            <div class="dropdown d-flex" v-if="activity.user_id == authStore.user.id">
                 <a class="btn btn-link btn-lg mt-1 link-body-emphasis" :href="`https://www.strava.com/activities/${activity.strava_activity_id}`" role="button" v-if="activity.strava_activity_id">
                     <font-awesome-icon :icon="['fab', 'fa-strava']" />
                 </a>
@@ -182,15 +179,16 @@
 </template>
 
 <script>
-import { ref, onMounted, watchEffect, computed } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
+// Importing the stores
+import { useAuthStore } from '@/stores/authStore';
+// Importing the utils
+import { addToast } from '@/utils/toastUtils';
 // Importing the components
 import LoadingComponent from '@/components/GeneralComponents/LoadingComponent.vue';
-import ErrorToastComponent from '@/components/Toasts/ErrorToastComponent.vue';
 import UserAvatarComponent from '@/components/Users/UserAvatarComponent.vue';
-// Importing the stores
-import { useErrorAlertStore } from '@/stores/Alerts/errorAlert';
 // Importing the services
 import { users } from '@/services/usersService';
 import { activities } from '@/services/activitiesService';
@@ -200,7 +198,6 @@ import { formatPace } from '@/utils/activityUtils';
 export default {
     components: {
         LoadingComponent,
-        ErrorToastComponent,
         UserAvatarComponent,
     },
     props: {
@@ -215,26 +212,21 @@ export default {
     },
     setup(props) {
         const router = useRouter();
+        const authStore = useAuthStore();
         const { t } = useI18n();
         const isLoading = ref(true);
-        const errorMessage = ref('');
         const userActivity = ref(null);
         const formattedPace = computed(() => formatPace(props.activity.pace));
         const sourceProp = ref(props.source);
-        const errorAlertStore = useErrorAlertStore();
 
         onMounted(async () => {
             try {
                 userActivity.value = await users.getUserById(props.activity.user_id);
             } catch (error) {
-                console.error("Failed to fetch activity details:", error);
+                addToast(t('generalItens.errorFetchingInfo') + " - " + error.toString(), 'danger', true);
             } finally {
                 isLoading.value = false;
             }
-        });
-
-        watchEffect(() => {
-            
         });
 
         async function submitDeleteActivity() {
@@ -242,12 +234,12 @@ export default {
                 userActivity.value = await activities.deleteActivity(props.activity.id);
                 router.push({ path: '/', query: { activityDeleted: 'true', activityId: props.activity.id } });
             } catch (error) {
-                errorMessage.value = t('generalItens.errorDeletingInfo') + " - " + error.toString();
-                errorAlertStore.setAlertMessage(errorMessage.value);
+                addToast(t('generalItens.errorDeletingInfo') + " - " + error.toString(), 'danger', true);
             }
         }
 
         return {
+            authStore,
             isLoading,
             t,
             userActivity,
@@ -257,7 +249,6 @@ export default {
             formattedPace,
             sourceProp,
             submitDeleteActivity,
-            errorMessage,
         };
     },
 };

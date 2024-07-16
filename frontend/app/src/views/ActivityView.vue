@@ -38,7 +38,7 @@
         </p>
         <div class="justify-content-end">
             <!-- add gear button -->
-            <a class="btn btn-link btn-lg link-body-emphasis" href="#" role="button" data-bs-toggle="modal" data-bs-target="#addGearToActivityModal" v-if="!activity.gear_id">
+            <a class="btn btn-link btn-lg link-body-emphasis" href="#" role="button" data-bs-toggle="modal" data-bs-target="#addGearToActivityModal" v-if="!activity.gear_id && activity.user_id == authStore.user.id">
                 <font-awesome-icon :icon="['fas', 'fa-plus']" />
             </a>
 
@@ -78,12 +78,12 @@
 
 
             <!-- edit gear button -->
-            <a class="btn btn-link btn-lg link-body-emphasis" href="#" role="button" data-bs-toggle="modal" data-bs-target="#addGearToActivityModal" v-if="activity.gear_id">
+            <a class="btn btn-link btn-lg link-body-emphasis" href="#" role="button" data-bs-toggle="modal" data-bs-target="#addGearToActivityModal" v-if="activity.gear_id && activity.user_id == authStore.user.id">
                 <font-awesome-icon :icon="['far', 'fa-pen-to-square']" />
             </a>
 
             <!-- Delete zone -->
-            <a class="btn btn-link btn-lg link-body-emphasis" href="#" role="button" data-bs-toggle="modal" data-bs-target="#deleteGearActivityModal" v-if="activity.gear_id">
+            <a class="btn btn-link btn-lg link-body-emphasis" href="#" role="button" data-bs-toggle="modal" data-bs-target="#deleteGearActivityModal" v-if="activity.gear_id && activity.user_id == authStore.user.id">
                 <font-awesome-icon :icon="['fas', 'fa-trash']" />
             </a>
 
@@ -152,6 +152,8 @@
 import { ref, onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
+// Importing the stores
+import { useAuthStore } from '@/stores/authStore';
 // Importing the utils
 import { addToast } from '@/utils/toastUtils';
 // Importing the components
@@ -175,6 +177,7 @@ export default {
     },
     setup (){
         const { t } = useI18n();
+        const authStore = useAuthStore();
         const route = useRoute();
         const router = useRouter();
         const isLoading = ref(true);
@@ -271,6 +274,7 @@ export default {
         });
 
         return {
+            authStore,
             isLoading,
             activity,
             gear,

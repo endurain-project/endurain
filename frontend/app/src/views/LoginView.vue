@@ -81,7 +81,6 @@ export default {
         // Redirect to the home page
         router.push('/');
       } catch (error) {
-        console.log(error);
         // Handle the error
         if (error.toString().includes('401')) {
           addToast(t('loginView.error401') + " (401)", 'danger', true);

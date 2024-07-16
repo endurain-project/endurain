@@ -15,11 +15,11 @@ import gears.utils as gears_utils
 logger = logging.getLogger("myLogger")
 
 
-def get_gear_user_by_id(user_id: int, gear_id: int, db: Session) -> gears_schema.Gear | None:
+def get_gear_user_by_id(gear_id: int, db: Session) -> gears_schema.Gear | None:
     try:
         gear = (
             db.query(models.Gear)
-            .filter(models.Gear.id == gear_id, models.Gear.user_id == user_id)
+            .filter(models.Gear.id == gear_id)
             .first()
         )
 

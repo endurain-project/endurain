@@ -12,6 +12,7 @@
             </div>
         </div>
         <div>
+            <span class="badge bg-warning-subtle border border-warning-subtle text-warning-emphasis rounded-pill align-middle me-2" v-if="user.access_type == 2">{{ $t("usersListComponent.userListUserIsAdminBadge") }}</span>
             <span class="badge bg-success-subtle border border-success-subtle text-success-emphasis rounded-pill align-middle" v-if="user.is_active == 1">{{ $t("usersListComponent.userListUserIsActiveBadge") }}</span>
             <span class="badge bg-danger-subtle border border-danger-subtle text-danger-emphasis rounded-pill align-middle" v-else>{{ $t("usersListComponent.userListUserIsInactiveBadge") }}</span>
 
@@ -278,9 +279,6 @@ export default {
                 userProp.value.is_active = editUserIsActive.value;
 
                 // Set the success message and show the success alert.
-                successMessage.value = t('usersListComponent.userEditSuccessMessage');
-                successAlertStore.setAlertMessage(successMessage.value);
-                successAlertStore.setClosableState(true);
                 addToast(t('usersListComponent.userEditSuccessMessage'), 'success', true);
             } catch (error) {
                 // If there is an error, set the error message and show the error alert.
@@ -305,9 +303,6 @@ export default {
                 userProp.value.photo_path = null;
 
                 // Set the success message and show the success alert.
-                successMessage.value = t('usersListComponent.userPhotoDeleteSuccessMessage');
-                successAlertStore.setAlertMessage(successMessage.value);
-                successAlertStore.setClosableState(true);
                 addToast(t('usersListComponent.userPhotoDeleteSuccessMessage'), 'success', true);
             } catch (error) {
                 // Set the error message
