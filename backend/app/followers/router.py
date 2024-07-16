@@ -188,6 +188,7 @@ async def read_followers_user_specific_user(
 @router.post(
     "/create/user/{user_id}/targetUser/{target_user_id}",
     status_code=201,
+    response_model=followers_schema.Follower,
 )
 async def create_follow(
     user_id: int,
@@ -201,11 +202,8 @@ async def create_follow(
         Depends(database.get_db),
     ],
 ):
-    # Create the follower
-    followers_crud.create_follower(user_id, target_user_id, db)
-
-    # Return the ID of the gear created
-    return {"detail": "Follower record created successfully"}
+    # Create the follower and return it
+    return followers_crud.create_follower(user_id, target_user_id, db)
 
 
 @router.put("/accept/user/{user_id}/targetUser/{target_user_id}",

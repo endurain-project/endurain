@@ -332,6 +332,33 @@ export default {
             }
         }
 
+        async function fetchUserFollowers() {
+            try {
+                // Fetch the user followers and following accepted count
+                if (route.params.id == authStore.user.id) {
+                    // Fetch the user followers and following count
+                    followersCountAccepted.value = await followers.getUserFollowingCountAccepted(route.params.id);
+                    followingCountAccepted.value = await followers.getUserFollowersCountAccepted(route.params.id);
+
+                    // Fetch the user followers and following
+                    followersAll.value = await followers.getUserFollowingAll(authStore.user.id);
+                    followingAll.value = await followers.getUserFollowersAll(authStore.user.id);
+                } else {
+                    // Fetch the user followers and following count
+                    followersCountAccepted.value = await followers.getUserFollowersCountAccepted(route.params.id);
+                    followingCountAccepted.value = await followers.getUserFollowingCountAccepted(route.params.id);
+
+                    // Fetch the user followers and following
+
+                    followersAll.value = await followers.getUserFollowersAll(authStore.user.id);
+                    followingAll.value = await followers.getUserFollowingAll(authStore.user.id);
+                }
+            } catch (error) {
+                // Set the error message
+                addToast(t('generalItens.errorFetchingInfo') + " - " + error.toString(), 'danger', true);
+            }
+        }
+
         const fetchData = async () => {
             isLoading.value = true;
             isActivitiesLoading.value = true;
@@ -346,24 +373,7 @@ export default {
                 // Fetch the user number of activities for this month
                 thisMonthNumberOfActivities.value = await activities.getUserThisMonthActivitiesNumber(route.params.id);
 
-                // Fetch the user followers and following accepted count
-                if (route.params.id == authStore.user.id) {
-                    followersCountAccepted.value = await followers.getUserFollowingCountAccepted(route.params.id);
-                    followingCountAccepted.value = await followers.getUserFollowersCountAccepted(route.params.id);
-                } else {
-                    followersCountAccepted.value = await followers.getUserFollowersCountAccepted(route.params.id);
-                    followingCountAccepted.value = await followers.getUserFollowingCountAccepted(route.params.id);
-
-                }
-
-                // Fetch the user followers and following
-                if (route.params.id == authStore.user.id) {
-                    followersAll.value = await followers.getUserFollowingAll(authStore.user.id);
-                    followingAll.value = await followers.getUserFollowersAll(authStore.user.id);
-                } else {
-                    followersAll.value = await followers.getUserFollowersAll(authStore.user.id);
-                    followingAll.value = await followers.getUserFollowingAll(authStore.user.id);
-                }
+                await fetchUserFollowers();
 
                 // Fetch the user week activities
                 userWeekActivities.value = await activities.getUserWeekActivities(route.params.id, week.value);
@@ -415,32 +425,73 @@ export default {
         }
 
         function updateFollowingList(deletedFollowingId) {
-            followingAll.value = followingAll.value.filter(follower => follower.following_id !== deletedFollowingId);
-            followersCountAccepted.value -= 1;
+            // will get the follower to remove
+            const auxFollower = followersAll.value.find(follower => follower.following_id === deletedFollowingId);
+
+            // if the follower is accepted, will decrease the count
+            if (auxFollower.is_accepted) {
+                followersCountAccepted.value -= 1;
+            }
+
+            // will remove the follower from the list
+            followersAll.value = followersAll.value.filter(follower => follower.following_id !== deletedFollowingId);
             addToast(t('user.successFollowingDeleted'), 'success', true);
         }
 
         function updateFollowerList(deletedFollowerId){
-            followersAll.value = followersAll.value.filter(follower => follower.follower_id !== deletedFollowerId);
-            followingCountAccepted.value -= 1;
-            addToast(t('user.successFollowerDeleted'), 'success', true);
+            if (authStore.user.id != userProfile.value.id) {
+                // will get the following to remove
+                const auxFollowing = followingAll.value.find(follower => follower.following_id === deletedFollowerId);
+                
+                // if the following is accepted, will decrease the count
+                if (auxFollowing.is_accepted) {
+                    followingCountAccepted.value -= 1;
+                }
+
+                // will remove the following from the list
+                followingAll.value = followingAll.value.filter(follower => follower.following_id !== deletedFollowerId);
+                addToast(t('user.successFollowerDeleted'), 'success', true);
+            }else{
+                // will get the following to remove
+                const auxFollowing = followingAll.value.find(follower => follower.follower_id === deletedFollowerId);
+                
+                // if the following is accepted, will decrease the count
+                if (auxFollowing.is_accepted) {
+                    followingCountAccepted.value -= 1;
+                }
+
+                // will remove the following from the list
+                followingAll.value = followingAll.value.filter(follower => follower.follower_id !== deletedFollowerId);
+                addToast(t('user.successFollowerDeleted'), 'success', true);
+
+            }
         }
 
         function updateFollowerListWithAccepted(acceptedFollowerId){
-            followersAll.value = followersAll.value.map(follower => {
+            // will get the following to change the is_accepted
+            followingAll.value = followingAll.value.map(follower => {
                 if (follower.follower_id === acceptedFollowerId) {
                     follower.is_accepted = true;
                 }
                 return follower;
             });
+
+            // will increase the count
             followingCountAccepted.value += 1;
+
+            // Set the success message
             addToast(t('user.successFollowerAccepted'), 'success', true);
         }
 
         async function submitFollowUser() {
             try{
-                await followers.createUserFollowsSpecificUser(authStore.user.id, userProfile.value.id);
+                // Create the user follow
+                const newfollower = await followers.createUserFollowsSpecificUser(authStore.user.id, userProfile.value.id);
 
+                // Add the user to the following list
+                followingAll.value.unshift(newfollower);
+
+                // Set the follower state
                 userFollowState.value = 0;
 
                 // Set the success message
@@ -451,11 +502,21 @@ export default {
             }
         }
 
+        async function unfollowUser(){ 
+            // Delete the user follow
+            await followers.deleteUserFollowsSpecificUser(authStore.user.id, userProfile.value.id);
+
+            // Remove the user from the following list
+            followingAll.value = followingAll.value.filter(follower => follower.following_id !== userProfile.value.id);
+
+            // Decrease the following count
+            userFollowState.value = null;
+        }
+
         async function submitCancelFollowUser() {
             try {
-                await followers.deleteUserFollowsSpecificUser(authStore.user.id, userProfile.value.id);
-
-                userFollowState.value = null;
+                // Call the unfollowUser function
+                await unfollowUser();
 
                 // Set the success message
                 addToast(t('user.successFollowRequestCancelled'), 'success', true);
@@ -467,9 +528,11 @@ export default {
 
         async function submitUnfollowUser() {
             try {
-                await followers.deleteUserFollowsSpecificUser(authStore.user.id, userProfile.value.id);
+                // Call the unfollowUser function
+                await unfollowUser();
 
-                userFollowState.value = null;
+                // Decrease the following count
+                followingCountAccepted.value -= 1;
 
                 // Set the success message
                 addToast(t('user.successUserUnfollowed'), 'success', true);
