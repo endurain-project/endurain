@@ -174,6 +174,9 @@ async def read_followers_user_specific_user(
     validate_target_user_id: Annotated[
         Callable, Depends(users_dependencies.validate_target_user_id)
     ],
+    check_scopes: Annotated[
+        Callable, Security(session_security.check_scopes, scopes=["users:read"])
+    ],
     db: Annotated[
         Session,
         Depends(database.get_db),
@@ -186,16 +189,23 @@ async def read_followers_user_specific_user(
 
 
 @router.post(
-    "/create/user/{user_id}/targetUser/{target_user_id}",
+    "/create/targetUser/{target_user_id}",
     status_code=201,
     response_model=followers_schema.Follower,
 )
 async def create_follow(
-    user_id: int,
-    validate_user_id: Annotated[Callable, Depends(users_dependencies.validate_user_id)],
+    # user_id: int,
+    # validate_user_id: Annotated[Callable, Depends(users_dependencies.validate_user_id)],
     target_user_id: int,
     validate_target_user_id: Annotated[
         Callable, Depends(users_dependencies.validate_target_user_id)
+    ],
+    token_user_id: Annotated[
+        int,
+        Depends(session_security.get_user_id_from_access_token),
+    ],
+    check_scopes: Annotated[
+        Callable, Security(session_security.check_scopes, scopes=["profile"])
     ],
     db: Annotated[
         Session,
@@ -203,17 +213,25 @@ async def create_follow(
     ],
 ):
     # Create the follower and return it
-    return followers_crud.create_follower(user_id, target_user_id, db)
+    return followers_crud.create_follower(token_user_id, target_user_id, db)
 
 
-@router.put("/accept/user/{user_id}/targetUser/{target_user_id}",
+@router.put(
+    "/accept/targetUser/{target_user_id}",
 )
 async def accept_follow(
-    user_id: int,
-    validate_user_id: Annotated[Callable, Depends(users_dependencies.validate_user_id)],
+    # user_id: int,
+    # validate_user_id: Annotated[Callable, Depends(users_dependencies.validate_user_id)],
     target_user_id: int,
     validate_target_user_id: Annotated[
         Callable, Depends(users_dependencies.validate_target_user_id)
+    ],
+    token_user_id: Annotated[
+        int,
+        Depends(session_security.get_user_id_from_access_token),
+    ],
+    check_scopes: Annotated[
+        Callable, Security(session_security.check_scopes, scopes=["profile"])
     ],
     db: Annotated[
         Session,
@@ -221,21 +239,28 @@ async def accept_follow(
     ],
 ):
     # Accept the follower
-    followers_crud.accept_follower(user_id, target_user_id, db)
+    followers_crud.accept_follower(token_user_id, target_user_id, db)
 
     # Return success message
     return {"detail": "Follower record accepted successfully"}
 
 
 @router.delete(
-    "/delete/user/{user_id}/targetUser/{target_user_id}",
+    "/delete/follower/targetUser/{target_user_id}",
 )
-async def delete_follow(
-    user_id: int,
-    validate_user_id: Annotated[Callable, Depends(users_dependencies.validate_user_id)],
+async def delete_follower(
+    # user_id: int,
+    # validate_user_id: Annotated[Callable, Depends(users_dependencies.validate_user_id)],
     target_user_id: int,
     validate_target_user_id: Annotated[
         Callable, Depends(users_dependencies.validate_target_user_id)
+    ],
+    token_user_id: Annotated[
+        int,
+        Depends(session_security.get_user_id_from_access_token),
+    ],
+    check_scopes: Annotated[
+        Callable, Security(session_security.check_scopes, scopes=["profile"])
     ],
     db: Annotated[
         Session,
@@ -243,7 +268,36 @@ async def delete_follow(
     ],
 ):
     # Delete the follower
-    followers_crud.delete_follower(user_id, target_user_id, db)
+    followers_crud.delete_follower(token_user_id, target_user_id, db)
+
+    # Return success message
+    return {"detail": "Follower record deleted successfully"}
+
+
+@router.delete(
+    "/delete/following/targetUser/{target_user_id}",
+)
+async def delete_following(
+    # user_id: int,
+    # validate_user_id: Annotated[Callable, Depends(users_dependencies.validate_user_id)],
+    target_user_id: int,
+    validate_target_user_id: Annotated[
+        Callable, Depends(users_dependencies.validate_target_user_id)
+    ],
+    token_user_id: Annotated[
+        int,
+        Depends(session_security.get_user_id_from_access_token),
+    ],
+    check_scopes: Annotated[
+        Callable, Security(session_security.check_scopes, scopes=["profile"])
+    ],
+    db: Annotated[
+        Session,
+        Depends(database.get_db),
+    ],
+):
+    # Delete the follower
+    followers_crud.delete_follower(target_user_id, token_user_id, db)
 
     # Return success message
     return {"detail": "Follower record deleted successfully"}

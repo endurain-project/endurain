@@ -179,7 +179,7 @@ export default {
 
         async function submitDeleteFollowing() {
             try {
-                await followers.deleteUserFollowsSpecificUser(props.follower.follower_id, props.follower.following_id);
+                await followers.deleteUserFollower(props.follower.following_id);
                 emit('followingDeleted', props.follower.following_id);
             } catch (error) {
                 console.error("Failed to delete following:", error);
@@ -188,7 +188,7 @@ export default {
 
         async function submitDeleteFollower() {
             try {
-                await followers.deleteUserFollowsSpecificUser(props.follower.follower_id, props.follower.following_id);
+                await followers.deleteUserFollowing(props.follower.follower_id);
                 emit('followerDeleted', props.follower.follower_id);
             } catch (error) {
                 console.error("Failed to delete follower:", error);
@@ -197,7 +197,7 @@ export default {
 
         async function submitAcceptFollowerRequest() {
             try {
-                await followers.acceptUserFollowsSpecificUser(props.follower.following_id, props.follower.follower_id);
+                await followers.acceptUserFollowsSpecificUser(props.follower.follower_id);
                 emit('followerAccepted', props.follower.follower_id);
             } catch (error) {
                 console.error("Failed to update follower:", error);

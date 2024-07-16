@@ -430,7 +430,7 @@ export default {
 
             // if the follower is accepted, will decrease the count
             if (auxFollower.is_accepted) {
-                followersCountAccepted.value -= 1;
+                followingCountAccepted.value -= 1;
             }
 
             // will remove the follower from the list
@@ -457,7 +457,7 @@ export default {
                 
                 // if the following is accepted, will decrease the count
                 if (auxFollowing.is_accepted) {
-                    followingCountAccepted.value -= 1;
+                    followersCountAccepted.value -= 1;
                 }
 
                 // will remove the following from the list
@@ -486,7 +486,7 @@ export default {
         async function submitFollowUser() {
             try{
                 // Create the user follow
-                const newfollower = await followers.createUserFollowsSpecificUser(authStore.user.id, userProfile.value.id);
+                const newfollower = await followers.createUserFollowsSpecificUser(userProfile.value.id);
 
                 // Add the user to the following list
                 followingAll.value.unshift(newfollower);
@@ -504,7 +504,7 @@ export default {
 
         async function unfollowUser(){ 
             // Delete the user follow
-            await followers.deleteUserFollowsSpecificUser(authStore.user.id, userProfile.value.id);
+            await followers.deleteUserFollower(userProfile.value.id);
 
             // Remove the user from the following list
             followingAll.value = followingAll.value.filter(follower => follower.following_id !== userProfile.value.id);

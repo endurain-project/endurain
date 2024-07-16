@@ -22,13 +22,16 @@ export const followers = {
     getUserFollowingCountAccepted(user_id) {
         return fetchGetRequest(`followers/user/${user_id}/following/count/accepted`);
     },
-    deleteUserFollowsSpecificUser(user_id, target_user_id) {
-        return fetchDeleteRequest(`followers/delete/user/${user_id}/targetUser/${target_user_id}`);
+    deleteUserFollower(target_user_id) {
+        return fetchDeleteRequest(`followers/delete/follower/targetUser/${target_user_id}`);
     },
-    createUserFollowsSpecificUser(user_id, target_user_id) {
-        return fetchPostRequest(`followers/create/user/${user_id}/targetUser/${target_user_id}`);
+    deleteUserFollowing(target_user_id) {
+        return fetchDeleteRequest(`followers/delete/following/targetUser/${target_user_id}`);
     },
-    acceptUserFollowsSpecificUser(user_id, target_user_id) {
-        return fetchPutRequest(`followers/accept/user/${user_id}/targetUser/${target_user_id}`);
+    createUserFollowsSpecificUser(target_user_id) {
+        return fetchPostRequest(`followers/create/targetUser/${target_user_id}`);
+    },
+    acceptUserFollowsSpecificUser(target_user_id) {
+        return fetchPutRequest(`followers/accept/targetUser/${target_user_id}`);
     }
 };
