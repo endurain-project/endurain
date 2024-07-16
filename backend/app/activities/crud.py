@@ -100,8 +100,8 @@ def get_user_activities_per_timeframe(
             db.query(models.Activity)
             .filter(
                 models.Activity.user_id == user_id,
-                func.date(models.Activity.start_time) >= start,
-                func.date(models.Activity.start_time) <= end,
+                func.date(models.Activity.start_time) >= start.date(),
+                func.date(models.Activity.start_time) <= end.date(),
             )
             .order_by(desc(models.Activity.start_time))
         ).all()

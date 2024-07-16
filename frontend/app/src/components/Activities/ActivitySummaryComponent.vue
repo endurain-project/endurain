@@ -35,7 +35,7 @@
                         <span v-else>
                             <font-awesome-icon :icon="['fas', 'fa-dumbbell']" />
                         </span>
-                        <span>{{ " " + formatDate(activity.start_time) }}</span> @
+                        <span class="ms-1">{{ formatDate(activity.start_time) }}</span> @
                         <span>{{ formatTime(activity.start_time) }}</span>
                         <!-- Conditionally display city and country -->
                         <span v-if="activity.city || activity.country">

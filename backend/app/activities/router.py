@@ -62,7 +62,7 @@ async def read_activities_useractivities_week(
     # Calculate the start of the requested week
     today = datetime.now(timezone.utc)
     start_of_week = today - timedelta(days=(today.weekday() + 7 * week_number))
-    end_of_week = start_of_week + timedelta(days=7)
+    end_of_week = start_of_week + timedelta(days=6)
 
     if user_id == token_user_id:
         # Get all user activities for the requested week if the user is the owner of the token
@@ -107,8 +107,8 @@ async def read_activities_useractivities_thisweek_distances(
     today = datetime.now(timezone.utc)
     start_of_week = today - timedelta(
         days=today.weekday()
-    )  # Monday is the first day of the week, which is denoted by 0
-    end_of_week = start_of_week + timedelta(days=7)
+    )
+    end_of_week = start_of_week + timedelta(days=6)
 
     if user_id == token_user_id:
         # Get all user activities for the requested week if the user is the owner of the token
