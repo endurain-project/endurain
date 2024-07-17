@@ -28,7 +28,7 @@ Default credentials are:
 Currently the service supports:
  - Multi-user
  - Create/edit/delete users
- - Basic admin and regular users profiles that adapt the interface
+ - Basic admin and regular user profiles that adapt the interface
  - Import activities using .gpx files
  - Connect with Strava and retrieve activities and gear from Strava
  - Feed with user activities, current user week stats and month stats
@@ -36,7 +36,7 @@ Currently the service supports:
  - Basic activity privacy
  - Activity page with more in depth info of the activity
  - Delete activities
- - Create/edit/delete gear (wetsuit, bycicle and running shoes)
+ - Create/edit/delete gear (wetsuit, bicycle and running shoes)
  - Add/edit/delete activity gear
  - User page with user stats and user activities per week
  - Follow user basic implementation
@@ -78,7 +78,7 @@ Frontend dependencies:
 
 ---
 # Backend
-Table bellow shows supported environemnt variables. Variables marked with optional "No" should be set to avoid errors.
+Table bellow shows supported environment variables. Variables marked with optional "No" should be set to avoid errors.
 
 Environemnt variable  | Default value | Optional | Notes
 --- | --- | --- | ---
