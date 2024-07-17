@@ -1,9 +1,6 @@
 import { fetchGetRequest, fetchPostRequest, fetchPutRequest, fetchDeleteRequest, fetchPostFileRequest } from '@/utils/serviceUtils';
 
 export const users = {
-    getUserMe() {
-        return fetchGetRequest('users/me');
-    },
     getUsersWithPagination(pageNumber, numRecords) {
         return fetchGetRequest(`users/all/page_number/${pageNumber}/num_records/${numRecords}`);
     },
@@ -19,20 +16,17 @@ export const users = {
     createUser(data) {
         return fetchPostRequest('users/create', data)
     },
-    uploadUserImage(data, user_id) {
-        return fetchPostFileRequest(`users/${user_id}/upload/image`, data);
-    },
     uploadImage(file, user_id) {
         const formData = new FormData();
         formData.append('file', file);
 
-        return users.uploadUserImage(formData, user_id);
+        return fetchPostFileRequest(`users/${user_id}/upload/image`, formData);
     },
-    editUser(data) {
-        return fetchPutRequest('users/edit', data)
+    editUser(user_id, data) {
+        return fetchPutRequest(`users/${user_id}/edit`, data)
     },
-    editUserPassword(data) {
-        return fetchPutRequest('users/edit/password', data)
+    editUserPassword(user_id, data) {
+        return fetchPutRequest(`users/${user_id}/edit/password`, data)
     },
     deleteUserPhoto(user_id) {
         return fetchPutRequest(`users/${user_id}/delete-photo`);

@@ -296,10 +296,10 @@ def create_user(user: users_schema.UserCreate, db: Session):
         ) from err
 
 
-def edit_user(user: users_schema.User, db: Session):
+def edit_user(user_id: int, user: users_schema.User, db: Session):
     try:
         # Get the user from the database
-        db_user = db.query(models.User).filter(models.User.id == user.id).first()
+        db_user = db.query(models.User).filter(models.User.id == user_id).first()
 
         # Update the user
         if user.name is not None:

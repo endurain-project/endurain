@@ -160,7 +160,7 @@ export default {
         thisMonthDistances.value = await activities.getUserThisMonthStats(authStore.user.id);
       } catch (error) {
         // Set the error message
-        addToast(t('generalItens.errorFetchingInfo'), 'danger', true);
+        addToast(t('generalItens.errorFetchingInfo') + " - " + error, 'danger', true);
       }
     }
 
@@ -182,7 +182,7 @@ export default {
         }
       } catch (error) {
         // Set the error message
-        addToast(t('generalItens.errorFetchingInfo'), 'danger', true);
+        addToast(t('generalItens.errorFetchingInfo') + " - " + error, 'danger', true);
       }
     }
 
@@ -227,7 +227,7 @@ export default {
           userNumberOfActivities.value ++;
         } catch (error) {
           // Set the error message
-          addToast(t('generalItens.errorFetchingInfo'), 'danger', true);
+          addToast(t('generalItens.errorFetchingInfo') + " - " + error, 'danger', true);
         }
       }
     };
@@ -235,7 +235,7 @@ export default {
     onMounted(async () => {
       if (route.query.activityFound === 'false') {
         // Set the activityFound value to false and show the error alert.
-        addToast(t('homeView.errorActivityNotFound'), 'danger', true);
+        addToast(t('homeView.errorActivityNotFound') + " - " + error, 'danger', true);
       }
 
       if (route.query.activityDeleted === 'true') {

@@ -26,5 +26,4 @@ class UserMe(User):
     is_strava_linked: int | None = None
 
 class UserEditPassword(BaseModel):
-    id: int
     password: str

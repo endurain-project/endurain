@@ -225,10 +225,9 @@ export default {
             try{
                 if (isNewPasswordValid.value && isNewPasswordRepeatValid.value && isPasswordMatch.value) {
                     const data = {
-                        id: userProp.value.id,
                         password: newPassword.value
                     };
-                    await users.editUserPassword(data);
+                    await users.editUserPassword(userProp.value.id, data);
                     // Set the success message and show the success alert.
                     addToast(t('usersListComponent.userChangePasswordSuccessMessage'), 'success', true);
                 }
@@ -254,7 +253,7 @@ export default {
                     is_active: editUserIsActive.value,
                 };
 
-                await users.editUser(data);
+                await users.editUser(userProp.value.id, data);
 
                 // If there is a photo, upload it and get the photo url.
                 if (editUserPhotoFile.value) {

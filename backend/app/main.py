@@ -1,7 +1,7 @@
 import logging
 import os
 
-from fastapi import FastAPI, Request, Depends
+from fastapi import FastAPI, Request, Depends, Security
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
@@ -27,6 +27,7 @@ from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 import session.router as session_router
 import session.security as session_security
 import users.router as users_router
+import profile.router as profile_router
 import activities.router as activities_router
 import activity_streams.router as activity_streams_router
 import gears.router as gears_router
@@ -181,6 +182,15 @@ app.include_router(
     prefix="/users",
     tags=["users"],
     dependencies=[Depends(session_security.validate_access_token)],
+)
+app.include_router(
+    profile_router.router,
+    prefix="/profile",
+    tags=["profile"],
+    dependencies=[
+        Depends(session_security.validate_access_token),
+        Security(session_security.check_scopes, scopes=["profile"]),
+    ],
 )
 app.include_router(
     activities_router.router,

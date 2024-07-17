@@ -1,8 +1,5 @@
 <template>
     <div class="col">
-        <ErrorToastComponent v-if="errorMessage" />
-        <SuccessToastComponent v-if="successMessage" />
-        
         <h4>{{ $t("settingsSecurityZone.subtitleChangePassword") }}</h4>
         <SettingsPasswordRequirementsComponent />
 
@@ -38,30 +35,18 @@
 import { ref, computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 // Importing the services
-import { users } from '@/services/usersService';
-// Importing the stores
-import { useSuccessAlertStore } from '@/stores/Alerts/successAlert';
-import { useErrorAlertStore } from '@/stores/Alerts/errorAlert';
+import { profile } from '@/services/profileService';
+// Importing the utils
+import { addToast } from '@/utils/toastUtils';
 // Importing the components
-import ErrorToastComponent from '@/components/Toasts/ErrorToastComponent.vue';
-import SuccessToastComponent from '@/components/Toasts/SuccessToastComponent.vue';
 import SettingsPasswordRequirementsComponent from '@/components/Settings/SettingsPasswordRequirementsComponent.vue';
-// Importing the crypto-js
-import CryptoJS from 'crypto-js';
 
 export default {
     components: {
-        ErrorToastComponent,
-        SuccessToastComponent,
         SettingsPasswordRequirementsComponent,
     },
     setup() {
-        const userMe = JSON.parse(localStorage.getItem('userMe'));
         const { t } = useI18n();
-        const errorAlertStore = useErrorAlertStore();
-        const successAlertStore = useSuccessAlertStore();
-        const errorMessage = ref('');
-        const successMessage = ref('');
         const newPassword = ref('');
         const newPasswordRepeat = ref('');
         const isNewPasswordValid = computed(() => {
@@ -74,39 +59,28 @@ export default {
         });
         const isPasswordMatch = computed(() => newPassword.value === newPasswordRepeat.value);
 
-        function resetMessageValues() {
-            successMessage.value = '';
-            successAlertStore.setAlertMessage(successMessage.value);
-            errorMessage.value = '';
-            errorAlertStore.setAlertMessage(errorMessage.value);
-        }
-
         async function submitChangeUserPasswordForm() {
-            resetMessageValues();
-
             try{
                 if (isNewPasswordValid.value && isNewPasswordRepeatValid.value && isPasswordMatch.value) {
+                    // Create the data object to send to the service.
                     const data = {
-                        id: userMe.id,
-                        password: CryptoJS.SHA256(newPassword.value).toString(CryptoJS.enc.Hex),
+                        password: newPassword.value,
                     };
-                    await users.editUserPassword(data);
+
+                    // Call the service to edit the user password.
+                    await profile.editProfilePassword(data);
+
                     // Set the success message and show the success alert.
-                    successMessage.value = t('usersListComponent.userChangePasswordSuccessMessage');
-                    successAlertStore.setAlertMessage(successMessage.value);
-                    successAlertStore.setClosableState(true);
+                    addToast(t('usersListComponent.userChangePasswordSuccessMessage'), 'success', true);
                 }
             } catch (error) {
                 // If there is an error, set the error message and show the error alert.
-                errorMessage.value = t('usersListComponent.userChangePasswordErrorMessage') + " - " + error.toString();
-                errorAlertStore.setAlertMessage(errorMessage.value);
+                addToast(t('usersListComponent.userChangePasswordErrorMessage') + " - " + error, 'danger', true);
             }
         }
 
         return {
             t,
-            errorMessage,
-            successMessage,
             newPassword,
             newPasswordRepeat,
             isNewPasswordValid,

@@ -43,7 +43,7 @@ import { addToast } from '@/utils/toastUtils';
 import { useAuthStore } from '@/stores/authStore';
 // Importing the services for the login
 import { session } from '@/services/sessionService';
-import { users } from '@/services/usersService';
+import { profile } from '@/services/profileService';
 
 
 // Exporting the default object
@@ -73,10 +73,10 @@ export default {
         await session.authenticateUser(formData);
 
         // Get logged user information
-        const userMe = await users.getUserMe();
+        const userProfile = await profile.getProfileInfo();
 
         // Store the user in the auth store
-        authStore.setUser(userMe, locale);
+        authStore.setUser(userProfile, locale);
         
         // Redirect to the home page
         router.push('/');
