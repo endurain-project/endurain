@@ -1,0 +1,76 @@
+<template>
+    <a class="dropdown link-body-emphasis d-none d-lg-block">
+        <!-- toggle with current theme -->
+        <a class="me-1 dropdown-toggle btn border-0" role="button" data-bs-toggle="dropdown" aria-expanded="false" v-if="themeStore.theme == 'dark'"><font-awesome-icon :icon="['fas', 'moon']" /></a>
+        <a class="dropdown-toggle btn border-0" role="button" data-bs-toggle="dropdown" aria-expanded="false" v-else-if="themeStore.theme == 'light'"><font-awesome-icon :icon="['fas', 'sun']" /></a>
+        <a class="dropdown-toggle btn border-0" role="button" data-bs-toggle="dropdown" aria-expanded="false" v-else><font-awesome-icon :icon="['fas', 'circle-half-stroke']" /></a>
+
+        <!-- dropdown menu -->
+        <ul class="dropdown-menu">
+            <li v-for="theme in themes" :key="theme.value">
+                <a
+                    class="btn dropdown-item"
+                    @click="changeTheme(theme.value)"
+                    :aria-pressed="themeStore.theme === theme.value ? 'true' : 'false'"
+                >
+                    <span v-if="theme.label == 'Dark'" class="me-1"><font-awesome-icon :icon="['fas', 'moon']" /></span>
+                    <span v-else-if="theme.label == 'Light'"><font-awesome-icon :icon="['fas', 'sun']" /></span>
+                    <span v-else><font-awesome-icon :icon="['fas', 'circle-half-stroke']" /></span>
+                    <span class="ms-2">{{ theme.label }}</span>
+                    <span v-if="themeStore.theme === theme.label.toLowerCase()" class="ms-3"><font-awesome-icon :icon="['fas', 'check']" /></span>
+                </a>
+            </li>
+        </ul>
+    </a>
+</template>
+
+<script>
+import { onMounted } from 'vue';
+
+import { useThemeStore } from '@/stores/themeStore';
+
+export default {
+    setup() {
+        const themeStore = useThemeStore();
+        const themes = [
+            { value: 'light', label: 'Light' },
+            { value: 'dark', label: 'Dark' },
+            { value: 'auto', label: 'Auto' },
+        ];
+
+        const setTheme = (theme) => {
+            if (theme === 'auto') {
+                document.documentElement.setAttribute(
+                    'data-bs-theme',
+                    window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+                );
+            } else {
+                document.documentElement.setAttribute('data-bs-theme', theme);
+            }
+        };
+
+        const changeTheme = (theme) => {
+            setTheme(theme);
+            themeStore.setTheme(theme);
+        };
+
+        onMounted(() => {
+            setTheme(themeStore.theme);
+        
+            window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+                if (themeStore.theme !== 'light' && themeStore.theme !== 'dark') {
+                    const preferredTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+
+                    document.documentElement.setAttribute('data-bs-theme', preferredTheme);
+                }
+            });
+        });
+
+        return {
+            themeStore,
+            themes,
+            changeTheme,
+        };
+    },
+};
+</script>

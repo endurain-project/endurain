@@ -2,6 +2,7 @@ import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 
 import { useAuthStore } from './stores/authStore';
+import { useThemeStore } from './stores/themeStore';
 
 import "bootstrap/dist/css/bootstrap.min.css"
 import 'bootstrap/dist/js/bootstrap.bundle.min.js';
@@ -35,5 +36,8 @@ app.use(i18n);
 // Import the store and load the user from the storage
 const authStore = useAuthStore();
 authStore.loadUserFromStorage(i18n);
+
+const themeStore = useThemeStore();
+themeStore.loadThemeFromStorage();
 
 app.mount('#app')

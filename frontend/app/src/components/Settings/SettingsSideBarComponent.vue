@@ -9,6 +9,12 @@
         </li>
         <hr v-if="authStore.user.access_type == 2">
         <li class="nav-item">
+            <a href="#" class="nav-link link-body-emphasis" :class="{ active: activeSection === 'general' }" @click.prevent="changeActive('general')">
+                <font-awesome-icon :icon="['fas', 'gears']" />
+                <span class="ms-1">{{ $t("settingsSideBar.generalSection") }}</span>
+            </a>
+        </li>
+        <li class="nav-item">
             <a href="#" class="nav-link link-body-emphasis" :class="{ active: activeSection === 'myProfile' }" @click.prevent="changeActive('myProfile')">
                 <font-awesome-icon :icon="['fas', 'fa-address-card']" />
                 <span class="ms-1">{{ $t("settingsSideBar.myProfileSection") }}</span>
@@ -32,7 +38,6 @@
 </template>
 
 <script>
-import { useI18n } from 'vue-i18n';
 // Importing the store
 import { useAuthStore } from '@/stores/authStore';
 

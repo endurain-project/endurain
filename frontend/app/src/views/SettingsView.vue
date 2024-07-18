@@ -8,6 +8,9 @@
         <!-- Include the SettingsUserZone -->
         <SettingsUsersZone v-if="activeSection === 'users' && authStore.user.access_type == 2" />
 
+        <!-- Include the SettingsGeneralZone -->
+        <SettingsGeneralZone v-if="activeSection === 'general'" />
+
         <!-- Include the SettingsUserProfileZone -->
         <SettingsUserProfileZone v-if="activeSection === 'myProfile'" />
 
@@ -34,6 +37,7 @@ import { strava } from '@/services/strava';
 // Importing the components
 import SettingsSideBarComponent from '../components/Settings/SettingsSideBarComponent.vue';
 import SettingsUsersZone from '../components/Settings/SettingsUsersZone.vue';
+import SettingsGeneralZone from '../components/Settings/SettingsGeneralZone.vue';
 import SettingsUserProfileZone from '../components/Settings/SettingsUserProfileZone.vue';
 import SettingsSecurityZone from '../components/Settings/SettingsSecurityZone.vue';
 import SettingsIntegrationsZone from '../components/Settings/SettingsIntegrationsZone.vue';
@@ -43,6 +47,7 @@ export default {
     components: {
         SettingsSideBarComponent,
         SettingsUsersZone,
+        SettingsGeneralZone,
         SettingsUserProfileZone,
         SettingsSecurityZone,
         SettingsIntegrationsZone,
@@ -60,7 +65,7 @@ export default {
 
         onMounted(async () => {
             if (authStore.user.access_type === 1) {
-                activeSection.value = 'myProfile';
+                activeSection.value = 'general';
             }
 
             if (route.query.stravaLinked === '1') {

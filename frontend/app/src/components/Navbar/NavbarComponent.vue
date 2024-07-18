@@ -11,7 +11,7 @@
             <div class="collapse navbar-collapse" id="navbarNavAltMarkup" ref="navbarCollapse">
                 <div class="navbar-nav me-auto mb-2 mb-lg-0">
                     <!-- if is logged in -->
-                    <router-link :to="{ name: 'gears' }" class="nav-link" v-if="authStore.isAuthenticated" @click="collapseNavbar">
+                    <router-link :to="{ name: 'gears' }" class="nav-link link-body-emphasis" v-if="authStore.isAuthenticated" @click="collapseNavbar">
                         <font-awesome-icon :icon="['fas', 'fa-bicycle']" />
                         <span class="ms-1">
                             {{ $t("navbar.gear") }}
@@ -20,22 +20,33 @@
                 </div>
                 <div class="navbar-nav">
                     <span class="border-top d-sm-none d-block mb-2" v-if="authStore.isAuthenticated"></span>
-                    <router-link :to="{ name: 'user', params: { id: authStore.user.id } }" class="nav-link" v-if="authStore.isAuthenticated" @click="collapseNavbar">
+                    <NavbarThemeSwitcherComponent />
+
+                    <HeaderPipeComponent />
+
+                    <!-- profile button -->
+                    <router-link :to="{ name: 'user', params: { id: authStore.user.id } }" class="nav-link link-body-emphasis" v-if="authStore.isAuthenticated" @click="collapseNavbar">
                         <UserAvatarComponent :userProp="authStore.user" :width=24 :height=24 :alignTop=2 />
                         <span class="ms-2">{{ $t("navbar.profile") }}</span>
                     </router-link>
+
+                    <!-- pipe -->
                     <span class="border-top d-sm-none d-block" v-if="authStore.isAuthenticated"></span>
-                    <a class="nav-link d-none d-sm-block" v-if="authStore.isAuthenticated">|</a>
-                    <router-link :to="{ name: 'settings' }" class="nav-link" v-if="authStore.isAuthenticated" @click="collapseNavbar">
+                    <HeaderPipeComponent class="d-none d-sm-block" v-if="authStore.isAuthenticated"/>
+
+                    <!-- Settings button -->
+                    <router-link :to="{ name: 'settings' }" class="nav-link link-body-emphasis" v-if="authStore.isAuthenticated" @click="collapseNavbar">
                         <font-awesome-icon :icon="['fas', 'fa-gear']" />
                         <span class="ms-1">{{ $t("navbar.settings") }}</span>
                     </router-link>
-                    <a class="nav-link" href="#" v-if="authStore.isAuthenticated" @click="handleLogout">
+
+                    <!-- Login/logout button -->
+                    <a class="nav-link link-body-emphasis" href="#" v-if="authStore.isAuthenticated" @click="handleLogout">
                         <font-awesome-icon :icon="['fas', 'fa-sign-out-alt']" />
                         <span class="ms-1">{{ $t("navbar.logout") }}</span>
                     </a>
                     <!-- if is not logged in -->
-                    <router-link :to="{ name: 'login' }" class="nav-link" v-if="!authStore.isAuthenticated" @click="collapseNavbar">
+                    <router-link :to="{ name: 'login' }" class="nav-link link-body-emphasis" v-if="!authStore.isAuthenticated" @click="collapseNavbar">
                         <font-awesome-icon :icon="['fas', 'fa-sign-in-alt']" />
                         <span class="ms-1">{{ $t("navbar.login") }}</span>
                     </router-link>
@@ -66,10 +77,14 @@ import { addToast } from '@/utils/toastUtils';
 import { session } from '@/services/sessionService';
 
 import UserAvatarComponent from '@/components/Users/UserAvatarComponent.vue';
+import HeaderPipeComponent from '@/components/Navbar/HeaderPipeComponent.vue';
+import NavbarThemeSwitcherComponent from '@/components/Navbar/NavbarThemeSwitcherComponent.vue';
 
 export default {
     components: {
         UserAvatarComponent,
+        HeaderPipeComponent,
+        NavbarThemeSwitcherComponent,
     },
     setup() {
         const router = useRouter()
