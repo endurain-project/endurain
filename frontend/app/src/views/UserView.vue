@@ -334,22 +334,17 @@ export default {
 
         async function fetchUserFollowers() {
             try {
+                // Fetch the user followers and following count
+                followersCountAccepted.value = await followers.getUserFollowingCountAccepted(route.params.id);
+                followingCountAccepted.value = await followers.getUserFollowersCountAccepted(route.params.id);
+
                 // Fetch the user followers and following accepted count
                 if (route.params.id == authStore.user.id) {
-                    // Fetch the user followers and following count
-                    followersCountAccepted.value = await followers.getUserFollowingCountAccepted(route.params.id);
-                    followingCountAccepted.value = await followers.getUserFollowersCountAccepted(route.params.id);
-
                     // Fetch the user followers and following
                     followersAll.value = await followers.getUserFollowingAll(authStore.user.id);
                     followingAll.value = await followers.getUserFollowersAll(authStore.user.id);
                 } else {
-                    // Fetch the user followers and following count
-                    followersCountAccepted.value = await followers.getUserFollowersCountAccepted(route.params.id);
-                    followingCountAccepted.value = await followers.getUserFollowingCountAccepted(route.params.id);
-
                     // Fetch the user followers and following
-
                     followersAll.value = await followers.getUserFollowersAll(authStore.user.id);
                     followingAll.value = await followers.getUserFollowingAll(authStore.user.id);
                 }
@@ -477,7 +472,7 @@ export default {
             });
 
             // will increase the count
-            followingCountAccepted.value += 1;
+            followersCountAccepted.value += 1;
 
             // Set the success message
             addToast(t('user.successFollowerAccepted'), 'success', true);
