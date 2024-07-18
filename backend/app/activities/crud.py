@@ -497,6 +497,49 @@ def create_activity(activity: activities_schema.Activity, db: Session):
         ) from err
 
 
+def edit_activity(user_id: int, activity: activities_schema.ActivityEdit, db: Session):
+    try:
+        # Get the activity from the database
+        db_activity = (
+            db.query(models.Activity)
+            .filter(
+                models.Activity.user_id == user_id,
+                models.Activity.id == activity.id,
+            )
+            .first()
+        )
+
+        if db_activity is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Activity not found",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
+        # Update the activity
+        if activity.description is not None:
+            db_activity.description = activity.description
+        if activity.name is not None:
+            db_activity.name = activity.name
+        if activity.visibility is not None:
+            db_activity.visibility = activity.visibility
+
+        # Commit the transaction
+        db.commit()
+    except Exception as err:
+        # Rollback the transaction
+        db.rollback()
+
+        # Log the exception
+        logger.error(f"Error in edit_activity: {err}", exc_info=True)
+
+        # Raise an HTTPException with a 500 Internal Server Error status code
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal Server Error",
+        ) from err
+
+
 def add_gear_to_activity(activity_id: int, gear_id: int, db: Session):
     try:
         # Get the activity from the database

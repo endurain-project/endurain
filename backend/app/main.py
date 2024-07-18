@@ -1,7 +1,7 @@
 import logging
 import os
 
-from fastapi import FastAPI, Request, Depends, Security
+from fastapi import FastAPI, Depends, Security
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
@@ -32,14 +32,12 @@ import activities.router as activities_router
 import activity_streams.router as activity_streams_router
 import gears.router as gears_router
 import followers.router as followers_router
-
-from routers import (
-    router_strava,
-)
+import strava.router as strava_router
+import strava.utils as strava_utils
+import strava.activity_utils as strava_activity_utils
 
 from config import API_VERSION
 from database import SessionLocal
-from processors import strava_processor, strava_activity_processor
 
 
 def startup_event():
@@ -79,7 +77,7 @@ def refresh_strava_tokens_job():
     db = SessionLocal()
     try:
         # Refresh Strava tokens
-        strava_processor.refresh_strava_tokens(db=db)
+        strava_utils.refresh_strava_tokens(db=db)
     finally:
         # Ensure the session is closed after use
         db.close()
@@ -87,7 +85,7 @@ def refresh_strava_tokens_job():
 
 def retrieve_strava_user_activities_for_last_day():
     # Get last day users Strava activities
-    strava_activity_processor.retrieve_strava_users_activities_for_days(1)
+    strava_activity_utils.retrieve_strava_users_activities_for_days(1)
 
 
 # Create loggger
@@ -216,7 +214,15 @@ app.include_router(
     tags=["followers"],
     dependencies=[Depends(session_security.validate_access_token)],
 )
-app.include_router(router_strava.router, tags=["strava"])
+app.include_router(
+    strava_router.router,
+    prefix="/strava",
+    tags=["strava"],
+    dependencies=[
+        Depends(session_security.validate_access_token),
+        Security(session_security.check_scopes, scopes=["profile"]),
+    ],
+)
 
 # Check if Jaeger tracing is enabled using the 'JAEGER_ENABLED' environment variable
 if os.environ.get("JAEGER_ENABLED") == "true":

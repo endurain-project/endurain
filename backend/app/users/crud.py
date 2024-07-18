@@ -301,6 +301,13 @@ def edit_user(user_id: int, user: users_schema.User, db: Session):
         # Get the user from the database
         db_user = db.query(models.User).filter(models.User.id == user_id).first()
 
+        if db_user is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
         # Update the user
         if user.name is not None:
             db_user.name = user.name

@@ -1,6 +1,6 @@
 import logging
 
-from typing import Annotated, Callable
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile
 from sqlalchemy.orm import Session
@@ -69,7 +69,7 @@ async def read_users_me(
 async def upload_profile_image(
     file: UploadFile,
     token_user_id: Annotated[
-        Callable,
+        int,
         Depends(session_security.get_user_id_from_access_token),
     ],
     db: Annotated[
@@ -84,7 +84,7 @@ async def upload_profile_image(
 async def edit_user(
     user_attributtes: users_schema.User,
     token_user_id: Annotated[
-        Callable,
+        int,
         Depends(session_security.get_user_id_from_access_token),
     ],
     db: Annotated[
@@ -103,7 +103,7 @@ async def edit_user(
 async def edit_profile_password(
     user_attributtes: users_schema.UserEditPassword,
     token_user_id: Annotated[
-        Callable,
+        int,
         Depends(session_security.get_user_id_from_access_token),
     ],
     db: Annotated[
@@ -121,7 +121,7 @@ async def edit_profile_password(
 @router.put("/delete-photo")
 async def delete_profile_photo(
     token_user_id: Annotated[
-        Callable,
+        int,
         Depends(session_security.get_user_id_from_access_token),
     ],
     db: Annotated[

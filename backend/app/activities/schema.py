@@ -33,3 +33,10 @@ class ActivityDistances(BaseModel):
     swim: float
     bike: float
     run: float
+
+
+class ActivityEdit(BaseModel):
+    id: int
+    description: str | None = None
+    name: str
+    visibility: int | None = None

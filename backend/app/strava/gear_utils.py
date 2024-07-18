@@ -1,8 +1,9 @@
 import logging
-
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 from stravalib.client import Client
+
+import strava.utils as strava_utils
 
 import gears.schema as gears_schema
 import gears.crud as gears_crud
@@ -12,8 +13,9 @@ import activities.crud as activities_crud
 
 import user_integrations.crud as user_integrations_crud
 
+import strava.athlete_utils as strava_athlete_utils
+
 from database import SessionLocal
-from processors import strava_processor, strava_athlete_processor
 
 # Define a loggger created on main.py
 logger = logging.getLogger("myLogger")
@@ -34,7 +36,7 @@ def get_strava_gear(gear_id: str, strava_client: Client):
 
 def fetch_and_process_gear(strava_client: Client, user_id: int, db: Session) -> int:
     # Fetch Strava athlete
-    strava_athlete = strava_athlete_processor.get_strava_athlete(strava_client)
+    strava_athlete = strava_athlete_utils.get_strava_athlete(strava_client)
 
     # Initialize an empty list for results
     strava_gear = []
@@ -88,14 +90,14 @@ def process_gear(
     return new_gear
 
 
-def save_gears(gears: [gears_schema.Gear], user_id: int, db: Session):
+def save_gears(gears: list[gears_schema.Gear], user_id: int, db: Session):
     # Save the gear to the database
     gears_crud.create_multiple_gears(gears, user_id, db)
 
 
 def iterate_over_activities_and_set_gear(
     activity: activities_schema.Activity,
-    gears: [gears_schema.Gear],
+    gears: list[gears_schema.Gear],
     counter: int,
     user_id: int,
     db: Session,
@@ -153,7 +155,7 @@ def get_user_gear(user_id: int):
 
     try:
         # Get the user integrations by user ID
-        user_integrations = strava_processor.fetch_user_integrations_and_validate_token(
+        user_integrations = strava_utils.fetch_user_integrations_and_validate_token(
             user_id, db
         )
 
@@ -161,7 +163,7 @@ def get_user_gear(user_id: int):
         logger.info(f"User {user_id}: Started Strava gear processing")
 
         # Create a Strava client with the user's access token
-        strava_client = strava_processor.create_strava_client(user_integrations)
+        strava_client = strava_utils.create_strava_client(user_integrations)
 
         # Set the user's gear to sync to True
         user_integrations_crud.set_user_strava_sync_gear(user_id, True, db)

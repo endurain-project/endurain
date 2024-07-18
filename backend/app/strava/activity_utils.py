@@ -18,8 +18,9 @@ import users.crud as users_crud
 
 import gears.crud as gears_crud
 
+import strava.utils as strava_utils
+
 from database import SessionLocal
-from processors import strava_processor
 
 # Define a loggger created on main.py
 logger = logging.getLogger("myLogger")
@@ -291,7 +292,7 @@ def process_activity(
     db: Session,
 ):
     # Get the activity by Strava ID from the user
-    activity_db = strava_processor.fetch_and_validate_activity(activity.id, user_id, db)
+    activity_db = strava_utils.fetch_and_validate_activity(activity.id, user_id, db)
 
     # Check if activity is None and return None if it is
     if activity_db is not None:
@@ -336,7 +337,7 @@ def get_user_strava_activities_by_days(start_date: datetime, user_id: int):
 
     try:
         # Get the user integrations by user ID
-        user_integrations = strava_processor.fetch_user_integrations_and_validate_token(
+        user_integrations = strava_utils.fetch_user_integrations_and_validate_token(
             user_id, db
         )
 
@@ -348,7 +349,7 @@ def get_user_strava_activities_by_days(start_date: datetime, user_id: int):
         logger.info(f"User {user_id}: Started Strava activities processing")
 
         # Create a Strava client with the user's access token
-        strava_client = strava_processor.create_strava_client(user_integrations)
+        strava_client = strava_utils.create_strava_client(user_integrations)
 
         # Fetch Strava activities after the specified start date
         num_strava_activities_processed = fetch_and_process_activities(

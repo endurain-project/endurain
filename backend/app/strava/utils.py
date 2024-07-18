@@ -2,7 +2,7 @@ import logging
 import os
 import requests
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 from stravalib.client import Client
@@ -36,7 +36,7 @@ def refresh_strava_tokens(db: Session):
                 minutes=60
             )
 
-            if datetime.utcnow() > refresh_time:
+            if datetime.now(timezone.utc) > refresh_time:
                 # Strava token refresh endpoint
                 token_url = "https://www.strava.com/oauth/token"
                 # Parameters for the token refresh request

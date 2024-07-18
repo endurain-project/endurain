@@ -24,10 +24,10 @@ import activity_streams.crud as activity_streams_crud
 
 import gpx.utils as gpx_utils
 
+import fit.utils as fit_utils
+
 import database
 import dependencies_global
-
-from processors import fit_processor
 
 # Define the API router
 router = APIRouter()
@@ -51,7 +51,7 @@ async def read_activities_useractivities_week(
         Callable, Security(session_security.check_scopes, scopes=["activities:read"])
     ],
     token_user_id: Annotated[
-        Callable,
+        int,
         Depends(session_security.get_user_id_from_access_token),
     ],
     db: Annotated[
@@ -95,7 +95,7 @@ async def read_activities_useractivities_thisweek_distances(
         Callable, Security(session_security.check_scopes, scopes=["activities:read"])
     ],
     token_user_id: Annotated[
-        Callable,
+        int,
         Depends(session_security.get_user_id_from_access_token),
     ],
     db: Annotated[
@@ -141,7 +141,7 @@ async def read_activities_useractivities_thismonth_distances(
         Callable, Security(session_security.check_scopes, scopes=["activities:read"])
     ],
     token_user_id: Annotated[
-        Callable,
+        int,
         Depends(session_security.get_user_id_from_access_token),
     ],
     db: Annotated[
@@ -373,7 +373,7 @@ async def read_activities_activity_from_id(
         Callable, Security(session_security.check_scopes, scopes=["activities:read"])
     ],
     token_user_id: Annotated[
-        Callable,
+        int,
         Depends(session_security.get_user_id_from_access_token),
     ],
     db: Annotated[
@@ -397,7 +397,7 @@ async def read_activities_contain_name(
         Callable, Security(session_security.check_scopes, scopes=["activities:read"])
     ],
     token_user_id: Annotated[
-        Callable,
+        int,
         Depends(session_security.get_user_id_from_access_token),
     ],
     db: Annotated[
@@ -416,7 +416,7 @@ async def read_activities_contain_name(
 )
 async def create_activity_with_uploaded_file(
     token_user_id: Annotated[
-        Callable,
+        int,
         Depends(session_security.get_user_id_from_access_token),
     ],
     file: UploadFile,
@@ -446,7 +446,7 @@ async def create_activity_with_uploaded_file(
             parsed_info = gpx_utils.parse_gpx_file(file.filename, token_user_id)
         elif file_extension.lower() == ".fit":
             # Parse the FIT file
-            parsed_info = fit_processor.parse_fit_file(file.filename, token_user_id)
+            parsed_info = fit_utils.parse_fit_file(file.filename, token_user_id)
         else:
             # file extension not supported raise an HTTPException with a 406 Not Acceptable status code
             raise HTTPException(
@@ -488,6 +488,30 @@ async def create_activity_with_uploaded_file(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal Server Error",
         ) from err
+
+
+@router.put(
+    "/edit", 
+)
+async def edit_activity(
+    token_user_id: Annotated[
+        int,
+        Depends(session_security.get_user_id_from_access_token),
+    ],
+    activity_attributes: activities_schema.ActivityEdit,
+    check_scopes: Annotated[
+        Callable, Security(session_security.check_scopes, scopes=["activities:write"])
+    ],
+    db: Annotated[
+        Session,
+        Depends(database.get_db),
+    ],
+):
+    # Update the activity in the database
+    activities_crud.edit_activity(token_user_id, activity_attributes, db)
+
+    # Return success message
+    return {f"Activity ID {activity_attributes.id} updated successfully"}
 
 
 @router.put(
