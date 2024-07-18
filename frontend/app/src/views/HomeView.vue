@@ -211,8 +211,13 @@ export default {
         try {
           // Upload the file
           const createdActivity = await activities.uploadActivityFile(formData);
+          console.log("tenho a actividiade");
           // Fetch the new user activity
+          if (!userActivities.value) {
+            userActivities.value = [];
+          }
           userActivities.value.unshift(createdActivity);
+          console.log("guardei actividade no array");
           
           // Set the success message
           addToast(t('homeView.successActivityAdded'), 'success', true);

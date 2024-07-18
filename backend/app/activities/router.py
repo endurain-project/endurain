@@ -539,7 +539,7 @@ async def activity_add_gear(
     ],
 ):
     # Get the gear by user id and gear id
-    gear = gears_crud.get_gear_user_by_id(token_user_id, gear_id, db)
+    gear = gears_crud.get_gear_user_by_id(gear_id, db)
 
     # Check if gear is None and raise an HTTPException with a 404 Not Found status code if it is
     if gear is None:

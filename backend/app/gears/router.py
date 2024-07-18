@@ -171,13 +171,19 @@ async def edit_gear(
     ],
 ):
     # Get the gear by id
-    gear_db = gears_crud.get_gear_user_by_id(token_user_id, gear_id, db)
+    gear_db = gears_crud.get_gear_user_by_id(gear_id, db)
 
     # Check if gear is None and raise an HTTPException if it is
     if gear_db is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Gear ID {gear_id} for user {token_user_id} not found",
+            detail=f"Gear ID {gear_id} not found",
+        )
+    
+    if gear_db.user_id != token_user_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Gear ID {gear_id} does not belong to user {token_user_id}",
         )
 
     # Edit the gear
@@ -203,13 +209,19 @@ async def delete_user(
     ],
 ):
     # Get the gear by id
-    gear = gears_crud.get_gear_user_by_id(token_user_id, gear_id, db)
+    gear = gears_crud.get_gear_user_by_id(gear_id, db)
 
     # Check if gear is None and raise an HTTPException if it is
     if gear is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Gear ID {gear_id} for user {token_user_id} not found",
+            detail=f"Gear ID {gear_id} not found",
+        )
+
+    if gear.user_id != token_user_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Gear ID {gear_id} does not belong to user {token_user_id}",
         )
 
     # Delete the gear
