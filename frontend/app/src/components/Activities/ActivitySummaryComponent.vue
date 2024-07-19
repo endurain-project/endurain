@@ -56,6 +56,11 @@
                     </button>
                     <ul class="dropdown-menu">
                         <li>
+                            <a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#editActivityModal">
+                                {{ $t("activitySummary.buttonEditActivity") }}
+                            </a>
+                        </li>
+                        <li>
                             <a class="dropdown-item" :class="{ disabled: activity.strava_activity_id }" href="#" data-bs-toggle="modal" data-bs-target="#deleteActivityModal">
                                 {{ $t("activitySummary.buttonDeleteActivity") }}
                             </a>
@@ -65,7 +70,10 @@
             </div>
         </div>
 
-        <!-- Modal delete gear -->
+        <!-- Modal edit activity -->
+        <EditActivityModalComponent :activity="activity" />
+
+        <!-- Modal delete activity -->
         <div class="modal fade" id="deleteActivityModal" tabindex="-1" aria-labelledby="deleteActivityModal"
             aria-hidden="true">
             <div class="modal-dialog">
@@ -189,6 +197,7 @@ import { addToast } from '@/utils/toastUtils';
 // Importing the components
 import LoadingComponent from '@/components/GeneralComponents/LoadingComponent.vue';
 import UserAvatarComponent from '@/components/Users/UserAvatarComponent.vue';
+import EditActivityModalComponent from '@/components/Activities/Modals/EditActivityModalComponent.vue';
 // Importing the services
 import { users } from '@/services/usersService';
 import { activities } from '@/services/activitiesService';
@@ -199,6 +208,7 @@ export default {
     components: {
         LoadingComponent,
         UserAvatarComponent,
+        EditActivityModalComponent,
     },
     props: {
         activity: {

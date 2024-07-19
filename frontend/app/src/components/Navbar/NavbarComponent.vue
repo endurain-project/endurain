@@ -9,7 +9,7 @@
                 <span class="navbar-toggler-icon"></span>
             </button>
             <div class="collapse navbar-collapse" id="navbarNavAltMarkup" ref="navbarCollapse">
-                <div class="navbar-nav me-auto mb-2 mb-lg-0">
+                <div class="navbar-nav me-auto">
                     <!-- if is logged in -->
                     <router-link :to="{ name: 'gears' }" class="nav-link link-body-emphasis" v-if="authStore.isAuthenticated" @click="collapseNavbar">
                         <font-awesome-icon :icon="['fas', 'fa-bicycle']" />
@@ -19,7 +19,12 @@
                     </router-link>
                 </div>
                 <div class="navbar-nav">
-                    <span class="border-top d-sm-none d-block mb-2" v-if="authStore.isAuthenticated"></span>
+                    <span class="border-top d-sm-none d-block" v-if="authStore.isAuthenticated"></span>
+                    
+                    <NavbarLanguageSwitcherComponent />
+
+                    <HeaderPipeComponent />
+
                     <NavbarThemeSwitcherComponent />
 
                     <HeaderPipeComponent />
@@ -32,6 +37,7 @@
 
                     <!-- pipe -->
                     <span class="border-top d-sm-none d-block" v-if="authStore.isAuthenticated"></span>
+
                     <HeaderPipeComponent class="d-none d-sm-block" v-if="authStore.isAuthenticated"/>
 
                     <!-- Settings button -->
@@ -79,12 +85,14 @@ import { session } from '@/services/sessionService';
 import UserAvatarComponent from '@/components/Users/UserAvatarComponent.vue';
 import HeaderPipeComponent from '@/components/Navbar/HeaderPipeComponent.vue';
 import NavbarThemeSwitcherComponent from '@/components/Navbar/NavbarThemeSwitcherComponent.vue';
+import NavbarLanguageSwitcherComponent from '@/components/Navbar/NavbarLanguageSwitcherComponent.vue';
 
 export default {
     components: {
         UserAvatarComponent,
         HeaderPipeComponent,
         NavbarThemeSwitcherComponent,
+        NavbarLanguageSwitcherComponent,
     },
     setup() {
         const router = useRouter()

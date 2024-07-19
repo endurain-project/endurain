@@ -26,7 +26,7 @@
             </div>
             <div class="vstack d-flex align-middle text-center" v-else>
                 <span class="fw-lighter">
-                    {{ $t("user.thisMonthActivitiesNumber") }}
+                    {{ $t("userView.thisMonthActivitiesNumber") }}
                 </span>
                 <h1>
                     {{ thisMonthNumberOfActivities }}
@@ -36,14 +36,14 @@
                         {{ followingCountAccepted }}
                         <br>
                         <span class="fw-lighter">
-                            {{ $t("user.userFollowing") }}
+                            {{ $t("userView.userFollowing") }}
                         </span>
                     </div>
                     <div class="col">
                         {{ followersCountAccepted }}
                         <br>
                         <span class="fw-lighter">
-                            {{ $t("user.userFollowers") }}
+                            {{ $t("userView.userFollowers") }}
                         </span>
                     </div>
                 </div>
@@ -66,27 +66,27 @@
             <button class="nav-link active link-body-emphasis" id="pills-activities-tab" data-bs-toggle="pill"
                 data-bs-target="#pills-activities" type="button" role="tab" aria-controls="pills-activities"
                 aria-selected="true">
-                {{ $t("user.navigationActivities") }}
+                {{ $t("userView.navigationActivities") }}
             </button>
         </li>
         <li class="nav-item" role="presentation">
             <button class="nav-link link-body-emphasis" id="pills-following-tab" data-bs-toggle="pill"
                 data-bs-target="#pills-following" type="button" role="tab" aria-controls="pills-following"
                 aria-selected="false">
-                {{ $t("user.navigationFollowing") }}
+                {{ $t("userView.navigationFollowing") }}
             </button>
         </li>
         <li class="nav-item" role="presentation">
             <button class="nav-link link-body-emphasis" id="pills-followers-tab" data-bs-toggle="pill"
                 data-bs-target="#pills-followers" type="button" role="tab" aria-controls="pills-followers"
                 aria-selected="false">
-                {{ $t("user.navigationFollowers") }}
+                {{ $t("userView.navigationFollowers") }}
             </button>
         </li>
         <li class="nav-item" role="presentation" v-if="userProfile.id == authStore.user.id">
             <router-link :to="{ name: 'settings', query: { profileSettings: 1 }}" class="btn nav-link link-body-emphasis">
                 <font-awesome-icon :icon="['fas', 'fa-gear']" />
-                {{ $t("user.navigationUserSettings") }}
+                {{ $t("userView.navigationUserSettings") }}
             </router-link>
         </li>
         <li class="nav-item" role="presentation" v-if="userProfile.id != authStore.user.id && userFollowState == null">
@@ -94,7 +94,7 @@
             <a class="btn btn-outline-success h-100 ms-2" href="#" role="button" data-bs-toggle="modal"
                 data-bs-target="#followUserModal">
                 <font-awesome-icon :icon="['fas', 'fa-user-plus']" />
-                {{ $t("user.navigationFollow") }}
+                {{ $t("userView.navigationFollow") }}
             </a>
 
             <!-- Modal follow user -->
@@ -103,19 +103,19 @@
                     <div class="modal-content">
                         <div class="modal-header">
                             <h1 class="modal-title fs-5" id="followUserModal">
-                                {{ $t("user.modalFollowUserTitle") }}
+                                {{ $t("userView.modalFollowUserTitle") }}
                             </h1>
                             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                         </div>
                         <div class="modal-body">
-                            {{ $t("user.modalFollowUserBody") }}<b>{{ userProfile.name }}</b>?
+                            {{ $t("userView.modalFollowUserBody") }}<b>{{ userProfile.name }}</b>?
                         </div>
                         <div class="modal-footer">
                             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
                                 {{ $t("generalItens.buttonClose") }}
                             </button>
                             <a type="button" class="btn btn-success" data-bs-dismiss="modal" @click="submitFollowUser">
-                                {{ $t("user.modalFollowUserTitle") }}
+                                {{ $t("userView.modalFollowUserTitle") }}
                             </a>
                         </div>
                     </div>
@@ -127,7 +127,7 @@
             <a class="btn btn-outline-secondary h-100 ms-2" href="#" role="button" data-bs-toggle="modal"
                 data-bs-target="#cancelFollowUserModal">
                 <font-awesome-icon :icon="['fas', 'fa-user-plus']" />
-                {{ $t("user.navigationRequestSent") }}
+                {{ $t("userView.navigationRequestSent") }}
             </a>
 
             <!-- Modal cancel follow request -->
@@ -136,19 +136,19 @@
                     <div class="modal-content">
                         <div class="modal-header">
                             <h1 class="modal-title fs-5" id="cancelFollowUserModal">
-                                {{ $t("user.modalCancelFollowRequestTitle") }}
+                                {{ $t("userView.modalCancelFollowRequestTitle") }}
                             </h1>
                             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                         </div>
                         <div class="modal-body">
-                            {{ $t("user.modalCancelFollowRequestBody") }}<b>{{ userProfile.name }}</b>?
+                            {{ $t("userView.modalCancelFollowRequestBody") }}<b>{{ userProfile.name }}</b>?
                         </div>
                         <div class="modal-footer">
                             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
                                 {{ $t("generalItens.buttonClose") }}
                             </button>
                             <a type="button" class="btn btn-danger" data-bs-dismiss="modal" @click="submitCancelFollowUser">
-                                {{ $t("user.modalCancelFollowRequestTitle") }}
+                                {{ $t("userView.modalCancelFollowRequestTitle") }}
                             </a>
                         </div>
                     </div>
@@ -160,7 +160,7 @@
             <a class="btn btn-outline-danger h-100 ms-2" href="#" role="button" data-bs-toggle="modal"
                 data-bs-target="#unfollowUserModal">
                 <font-awesome-icon :icon="['fas', 'fa-user-minus']" />
-                {{ $t("user.navigationUnfollow") }}
+                {{ $t("userView.navigationUnfollow") }}
             </a>
 
             <!-- Modal unfollow user -->
@@ -169,19 +169,19 @@
                     <div class="modal-content">
                         <div class="modal-header">
                             <h1 class="modal-title fs-5" id="unfollowUserModal">
-                                {{ $t("user.modalUnfollowUserTitle") }}
+                                {{ $t("userView.modalUnfollowUserTitle") }}
                             </h1>
                             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                         </div>
                         <div class="modal-body">
-                            {{ $t("user.modalUnfollowUserBody") }}<b>{{ userProfile.name }}</b>?
+                            {{ $t("userView.modalUnfollowUserBody") }}<b>{{ userProfile.name }}</b>?
                         </div>
                         <div class="modal-footer">
                             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
                                 {{ $t("generalItens.buttonClose") }}
                             </button>
                             <a type="button" class="btn btn-danger" data-bs-dismiss="modal" @click="submitUnfollowUser">
-                                {{ $t("user.modalUnfollowUserTitle") }}
+                                {{ $t("userView.modalUnfollowUserTitle") }}
                             </a>
                         </div>
                     </div>
@@ -201,7 +201,7 @@
                 <ul class="pagination justify-content-center">
                     <li :class="['page-item', { active: week === 0 }]" >
                         <a href="#" class="page-link link-body-emphasis" @click="setWeek(0, $event)">
-                            {{ $t("user.activitiesPaginationWeek0") }}
+                            {{ $t("userView.activitiesPaginationWeek0") }}
                         </a>
                     </li>
                     <li v-if="week > 2" class="page-item disabled">
@@ -217,7 +217,7 @@
                     </li>
                     <li :class="['page-item', { active: week === 51 }]" >
                         <a href="#" class="page-link link-body-emphasis" @click="setWeek(51, $event)">
-                            {{ $t("user.activitiesPaginationWeek51") }}
+                            {{ $t("userView.activitiesPaginationWeek51") }}
                         </a>
                     </li>
                 </ul>

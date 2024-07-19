@@ -1,6 +1,6 @@
 <template>
     <form>
-        <label for="themeSelect" class="form-label">Theme</label>
+        <label for="themeSelect" class="form-label">{{ $t("settingsThemeSwitcher.formLabel") }}</label>
         <select class="form-select" id="themeSelect" aria-label="Select for theme picker">
             <option v-for="theme in themes" :key="theme.value" :value="theme.value" :selected="themeStore.theme == theme.value" @click="changeTheme(theme.value)">{{ theme.label }}</option>
         </select>
@@ -9,16 +9,18 @@
 
 <script>
 import { onMounted } from 'vue';
+import { useI18n } from 'vue-i18n';
 
 import { useThemeStore } from '@/stores/themeStore';
 
 export default {
     setup() {
         const themeStore = useThemeStore();
+        const { t } = useI18n();
         const themes = [
-            { value: 'light', label: 'Light' },
-            { value: 'dark', label: 'Dark' },
-            { value: 'auto', label: 'Auto' },
+            { value: 'light', label: t('settingsThemeSwitcher.themeLight') },
+            { value: 'dark', label: t('settingsThemeSwitcher.themeDark') },
+            { value: 'auto', label: t('settingsThemeSwitcher.themeAuto') },
         ];
 
         const setTheme = (theme) => {

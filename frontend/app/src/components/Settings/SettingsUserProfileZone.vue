@@ -95,12 +95,12 @@
                 <p><b>{{ $t("settingsUsersZone.addUserModalEmailLabel") }}: </b>{{ authStore.user.email }}</p>
                 <p>
                     <b>{{ $t("settingsUsersZone.addUserModalTownLabel") }}: </b>
-                    <span v-if="authStore.user.birthdate">{{ authStore.user.birthdate }}</span>
+                    <span v-if="authStore.user.city">{{ authStore.user.city }}</span>
                     <span v-else>N/A</span>
                 </p>
                 <p>
                     <b>{{ $t("settingsUsersZone.addUserModalBirthdayLabel") }}: </b>
-                    <span v-if="authStore.user.city">{{ authStore.user.city }}</span>
+                    <span v-if="authStore.user.birthdate">{{ authStore.user.birthdate }}</span>
                     <span v-else>N/A</span>
                 </p>
                 <p>

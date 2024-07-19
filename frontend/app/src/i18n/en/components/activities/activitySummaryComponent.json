@@ -1,5 +1,6 @@
 {
-    "buttonDeleteActivity": "Delete Activity",
+    "buttonDeleteActivity": "Delete activity",
+    "buttonEditActivity": "Edit activity",
     "modalDeleteBody1": "Are you sure you want to delete activity ",
     "modalDeleteBody2": "This action cannot be undone.",
     "activityDistance": "Distance",

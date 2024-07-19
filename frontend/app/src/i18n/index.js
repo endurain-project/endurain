@@ -7,11 +7,14 @@ import enFooterComponent from './en/components/footerComponent.json';
 // Activities component
 import enUserDistanceStatsComponent from './en/components/activities/userDistanceStatsComponent.json';
 import enActivitySummaryComponent from './en/components/activities/activitySummaryComponent.json';
+import enEditActivityModalComponent from './en/components/activities/modals/editActivityModalComponent.json';
 // Followers component
 import enFollowersListComponent from './en/components/followers/followersListComponent.json';
 // Settings components
 import enSettingsSideBarComponent from './en/components/settings/settingsSideBarComponent.json';
 import enSettingsUsersZoneComponent from './en/components/settings/settingsUsersZoneComponent.json';
+import enSettingsThemeSwitcherComponent from './en/components/settings/settingsGeneralZone/settingsThemeSwitcherComponent.json';
+import enSettingsLanguageSwitcherComponent from './en/components/settings/settingsGeneralZone/settingsLanguageSwitcherComponent.json';
 import enSettingsUserProfileZoneComponent from './en/components/settings/settingsUserProfileZoneComponent.json';
 import enSettingsSecurityZoneComponent from './en/components/settings/settingsSecurityZoneComponent.json';
 import enSettingsIntegrationsZoneComponent from './en/components/settings/settingsIntegrationsZoneComponent.json';
@@ -36,9 +39,12 @@ const messages = {
     footer: enFooterComponent,
     userDistanceStats: enUserDistanceStatsComponent,
     activitySummary: enActivitySummaryComponent,
+    editActivityModal: enEditActivityModalComponent,
     followersListComponent: enFollowersListComponent,
     settingsSideBar: enSettingsSideBarComponent,
     settingsUsersZone: enSettingsUsersZoneComponent,
+    settingsThemeSwitcher: enSettingsThemeSwitcherComponent,
+    settingsLanguageSwitcher: enSettingsLanguageSwitcherComponent,
     settingsUserProfileZone: enSettingsUserProfileZoneComponent,
     settingsSecurityZone: enSettingsSecurityZoneComponent,
     settingsIntegrationsZone: enSettingsIntegrationsZoneComponent,
@@ -51,7 +57,7 @@ const messages = {
     gear: enGearView,
     activity: enActivityView,
     notFound: enNotFoundView,
-    user: enUserView,
+    userView: enUserView,
   },
 };
 

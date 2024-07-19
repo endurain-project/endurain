@@ -1,9 +1,15 @@
 <template>
     <a class="dropdown d-none d-lg-block">
         <!-- toggle with current theme -->
-        <a class="nav-link me-1 link-body-emphasis dropdown-toggle btn border-0" role="button" data-bs-toggle="dropdown" aria-expanded="false" v-if="themeStore.theme == 'dark'"><font-awesome-icon :icon="['fas', 'moon']" /></a>
-        <a class="nav-link link-body-emphasis dropdown-toggle btn border-0" role="button" data-bs-toggle="dropdown" aria-expanded="false" v-else-if="themeStore.theme == 'light'"><font-awesome-icon :icon="['fas', 'sun']" /></a>
-        <a class="nav-link link-body-emphasis dropdown-toggle btn border-0" role="button" data-bs-toggle="dropdown" aria-expanded="false" v-else><font-awesome-icon :icon="['fas', 'circle-half-stroke']" /></a>
+        <a class="nav-link me-1 link-body-emphasis dropdown-toggle btn border-0" role="button" data-bs-toggle="dropdown" aria-expanded="false" v-if="themeStore.theme == 'dark'">
+            <font-awesome-icon :icon="['fas', 'moon']" />
+        </a>
+        <a class="nav-link link-body-emphasis dropdown-toggle btn border-0" role="button" data-bs-toggle="dropdown" aria-expanded="false" v-else-if="themeStore.theme == 'light'">
+            <font-awesome-icon :icon="['fas', 'sun']" />
+        </a>
+        <a class="nav-link link-body-emphasis dropdown-toggle btn border-0" role="button" data-bs-toggle="dropdown" aria-expanded="false" v-else>
+            <font-awesome-icon :icon="['fas', 'circle-half-stroke']" />
+        </a>
 
         <!-- dropdown menu -->
         <ul class="dropdown-menu">

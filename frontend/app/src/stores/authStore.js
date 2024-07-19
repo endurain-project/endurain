@@ -51,11 +51,11 @@ export const useAuthStore = defineStore('auth', {
             if (storedUser) {
                 this.user = JSON.parse(storedUser);
                 this.isAuthenticated = true;
-                this.setLocale(this.user.locale, locale);
+                this.setLocale(this.user.preferred_language, locale);
             }
         },
         setPreferredLanguage(language, locale) {
-            this.user.locale = language;
+            this.user.preferred_language = language;
             localStorage.setItem('user', JSON.stringify(this.user));
 
             this.setLocale(language, locale);
