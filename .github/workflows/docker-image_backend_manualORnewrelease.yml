@@ -28,13 +28,6 @@ jobs:
       run: |
         docker buildx create --use
 
-    - name: Verify app directory exists
-      run: |
-        if [ ! -d "./app" ]; then
-          echo "Directory 'app' does not exist."
-          exit 1
-        fi
-
     - name: Build and push the backend Docker image
       run: |
         if [ "${{ github.event_name }}" == 'workflow_dispatch' ]; then
@@ -46,6 +39,6 @@ jobs:
 
         echo ${{ secrets.TOKEN_FOR_ACTIONS }} | docker login ghcr.io -u ${{ github.repository_owner }} --password-stdin
         
-        docker buildx build --platform linux/amd64,linux/arm64 --file backend/Dockerfile --tag $IMAGE_NAME:$IMAGE_TAG --push .
+        docker buildx build --platform linux/amd64,linux/arm64 --file backend/Dockerfile --tag $IMAGE_NAME:$IMAGE_TAG --push ./backend
         echo "IMAGE_TAG=${IMAGE_TAG}" >> $GITHUB_ENV
       if: github.event_name == 'release' || github.event_name == 'workflow_dispatch'
