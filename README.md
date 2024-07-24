@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="frontend/public/logo/logo.png" width="128" height="128">
+  <img src="frontend/app/public/logo/logo.png" width="128" height="128">
 
   # Endurain
 
@@ -15,7 +15,7 @@
 
 Endurain is a self-hosted fitness tracking service that operates much like Strava but allows users to have complete control over their data and the hosting environment. The application's frontend is built using Vue.js and Bootstrap CSS. On the backend, it leverages Python FastAPI, Alembic, SQLAlchemy, stravalib and gpxpy for seamless integration with Strava and .gpx file import. The MariaDB database engine is employed to efficiently store and manage user data, while Jaeger is used for basic observability.
 
-To deploy Endurain, Docker images are available, and a comprehensive example can be found in the "docker-compose.yml" file provided. Configuration is facilitated through environment variables, ensuring flexibility and ease of customization.
+To deploy Endurain, Docker images are available, and a comprehensive example can be found in the "docker-compose.yml.example" file provided. Configuration is facilitated through environment variables, ensuring flexibility and ease of customization.
 
 As a non-professional developer, my journey with Endurain involved learning and implementing new technologies and concepts, with invaluable assistance from ChatGPT. The primary motivation behind this project was to gain hands-on experience and expand my understanding of modern development practices. Second motivation is that I'm an amateur triathlete and I want to keep track of my gear and gear components usage.
 
@@ -63,17 +63,17 @@ To support this in your implementation you will need to:
 
 ---
 # Frontend
-Table bellow shows supported environemnt variables. Variables marked with optional "No" should be set to avoid errors.
+Table bellow shows supported environment variables. Variables marked with optional "No" should be set to avoid errors.
 
 Environemnt variable  | Default value | Optional | Notes
 --- | --- | --- | ---
-VITE_BACKEND_PROTOCOL | http | Yes | Needs to be https if you want to enable Strava integration. You may need to update this variable based on docker image spin up
-VITE_BACKEND_HOST | localhost:98 | Yes | Needs to be set and be Internet faced/resolved if you want to enable Strava integration. Strava callback relies on this. You may need to update this variable based on docker image spin up (api host or local ip (example: 192.168.1.10:98))
+VITE_BACKEND_PROTOCOL | http | Yes | Needs to be https if you want to enable Strava integration. Strava callback relies on this. You may need to update this variable based on docker image spin up (api host or local ip (example: http://192.168.1.10:98))
+VITE_BACKEND_HOST | localhost:98 | Yes | Needs to be set and be Internet faced/resolved if you want to enable Strava integration. Strava callback relies on this. You may need to update this variable based on docker image spin up (api host or local ip (example: http://192.168.1.10:98))
 
 Frontend dependencies:
  - To check npm dependencies used, use npm file (package.json)
  - User avatars create using DiceBear (https://www.dicebear.com) avataaars style.
- - Logo created using Canvas
+ - Logo created on Canva
 
 ---
 # Backend
@@ -86,21 +86,20 @@ DB_PORT | 3306 | Yes | N/A
 DB_USER | endurain | Yes | N/A
 DB_PASSWORD | changeme | `No` | N/A
 DB_DATABASE | endurain | Yes | N/A
-SECRET_KEY | changeme | `No` | N/A
+SECRET_KEY | changeme | `No` | Run "openssl rand -hex 32" on a terminal to get a secret
 ALGORITHM | HS256 | Yes | Currently only HS256 is supported
-ACCESS_TOKEN_EXPIRE_MINUTES | 15 | Yes | N/A
-REFRESH_TOKEN_EXPIRE_DAYS | 7 | Yes | N/A
-STRAVA_CLIENT_ID | changeme | `No` | N/A
-STRAVA_CLIENT_SECRET | changeme | `No` | N/A
-STRAVA_AUTH_CODE | changeme | `No` | N/A
+ACCESS_TOKEN_EXPIRE_MINUTES | 15 | Yes | Time in minutes
+REFRESH_TOKEN_EXPIRE_DAYS | 7 | Yes | Time in days
+STRAVA_CLIENT_ID | changeme | `No` | Needed if you want to enable the Strava integration
+STRAVA_CLIENT_SECRET | changeme | `No` | Needed if you want to enable the Strava integration
+STRAVA_AUTH_CODE | changeme | `No` | Needed if you want to enable the Strava integration
 JAEGER_ENABLED | false | Yes | N/A
 JAEGER_PROTOCOL | http | Yes | N/A
 JAEGER_HOST | jaeger | Yes | N/A
 JAGGER_PORT | 4317 | Yes | N/A
-STRAVA_DAYS_ACTIVITIES_ONLINK | 30 | Yes | N/A
-FRONTEND_PROTOCOL | http | Yes | Needs to be set if you want to enable Strava integration. You may need to update this variable based on docker image spin up
-FRONTEND_HOST | frontend | Yes | Needs to be set if you want to enable Strava integration. You may need to update this variable based on docker image spin up (frontend host or local ip (example: 192.168.1.10:8080))
-FRONTEND_PORT | frontend | Yes | Needs to be set if you want to enable Strava integration. You may need to update this variable based on docker image spin up
+STRAVA_DAYS_ACTIVITIES_ONLINK | 30 | Yes | On Strava integration setup the number of days (including today) to get activities. Strava free API limitations can limit number of days you can query in a given time
+FRONTEND_PROTOCOL | http | Yes | Needs to be set if you want to enable Strava integration. You may need to update this variable based on docker image spin up (frontend host or local ip (example: http://192.168.1.10:8080))
+FRONTEND_HOST | frontend:8080 | Yes | Needs to be set if you want to enable Strava integration. You may need to update this variable based on docker image spin up (frontend host or local ip (example: http://192.168.1.10:8080))
 GEOCODES_MAPS_API | changeme | `No` | <a href="https://geocode.maps.co/">Geocode maps</a> offers a free plan consisting of 1 Request/Second. Registration necessary.
 
 Table bellow shows the obligatory environemnt variables for mariadb container. You should set them based on what was also set for backend container.

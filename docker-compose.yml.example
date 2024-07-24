@@ -25,8 +25,7 @@ services:
       - STRAVA_AUTH_CODE=changeme
       - GEOCODES_MAPS_API=changeme
       - FRONTEND_PROTOCOL=http # default is http
-      - FRONTEND_HOST=frontend # frontend host or local ip (example: 192.168.1.10:8080), default is frontend
-      - FRONTEND_PORT=8080 # default is 80
+      - FRONTEND_HOST=frontend:8080 # frontend host or local ip (example: 192.168.1.10:8080), default is frontend
     ports:
       - "98:80" # API port, change per your needs
     volumes:

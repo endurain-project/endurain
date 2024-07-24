@@ -17,13 +17,6 @@ from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 
-# from session import router as session_router
-# from users import router as users_router
-# from activities import router as activities_router
-# from activity_streams import router as activity_streams_router
-# from gears import router as gears_router
-# from followers import router as followers_router
-
 import session.router as session_router
 import session.security as session_security
 import users.router as users_router
@@ -121,7 +114,6 @@ required_env_vars = [
     "STRAVA_DAYS_ACTIVITIES_ONLINK",
     "FRONTEND_PROTOCOL",
     "FRONTEND_HOST",
-    "FRONTEND_PORT",
     "GEOCODES_MAPS_API",
 ]
 
@@ -157,9 +149,7 @@ origins = [
     "http://localhost:5173",
     os.environ.get("FRONTEND_PROTOCOL")
     + "://"
-    + os.environ.get("FRONTEND_HOST")
-    + ":"
-    + os.environ.get("FRONTEND_PORT"),
+    + os.environ.get("FRONTEND_HOST"),
 ]
 
 app.add_middleware(
