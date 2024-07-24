@@ -33,6 +33,7 @@ async function refreshAccessToken() {
         credentials: 'include',
         headers: {
             'Content-Type': 'application/json',
+            'X-Client-Type': 'web',
         },
     });
     if (!response.ok) {
@@ -47,6 +48,7 @@ export async function fetchGetRequest(url) {
         credentials: 'include',
         headers: {
             'Content-Type': 'application/json',
+            'X-Client-Type': 'web',
         },
     };
     return fetchWithRetry(url, options);
@@ -58,6 +60,9 @@ export async function fetchPostFileRequest(url, formData) {
         method: 'POST',
         body: formData,
         credentials: 'include',
+        headers: {
+            'X-Client-Type': 'web',
+        },
     };
     return fetchWithRetry(url, options);
 }
@@ -71,6 +76,7 @@ export async function fetchPostFormUrlEncoded(url, formData) {
         credentials: 'include',
         headers: {
             'Content-Type': 'application/x-www-form-urlencoded',
+            'X-Client-Type': 'web',
         },
     };
     return fetchWithRetry(url, options);
@@ -84,6 +90,7 @@ export async function fetchPostRequest(url, data) {
         credentials: 'include',
         headers: {
             'Content-Type': 'application/json',
+            'X-Client-Type': 'web',
         },
     };
     return fetchWithRetry(url, options);
@@ -97,6 +104,7 @@ export async function fetchPutRequest(url, data) {
         credentials: 'include',
         headers: {
             'Content-Type': 'application/json',
+            'X-Client-Type': 'web',
         },
     };
     return fetchWithRetry(url, options);
@@ -109,6 +117,7 @@ export async function fetchDeleteRequest(url) {
         credentials: 'include',
         headers: {
             'Content-Type': 'application/json',
+            'X-Client-Type': 'web',
         },
     };
     return fetchWithRetry(url, options);

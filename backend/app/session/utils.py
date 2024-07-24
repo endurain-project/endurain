@@ -45,7 +45,7 @@ def authenticate_user(username: str, password: str, db: Session):
     return user
 
 
-def create_response_with_tokens(response: Response, user: users_schema.User):
+def create_tokens(user: users_schema.User):
     # Check user access level and set scopes accordingly
     if user.access_type == session_constants.REGULAR_ACCESS:
         scopes = session_constants.REGULAR_ACCESS_SCOPES
@@ -70,6 +70,13 @@ def create_response_with_tokens(response: Response, user: users_schema.User):
             + timedelta(days=session_constants.JWT_REFRESH_TOKEN_EXPIRE_DAYS),
         },
     )
+
+    return access_token, refresh_token
+
+
+def create_response_with_tokens(response: Response, user: users_schema.User):
+    # Create the tokens
+    access_token, refresh_token = create_tokens(user)
 
     # Set the cookies with the tokens
     response.set_cookie(

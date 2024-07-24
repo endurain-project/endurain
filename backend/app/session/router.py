@@ -20,10 +20,6 @@ import users.crud as users_crud
 
 import database
 
-# from constants import (
-#    USER_NOT_ACTIVE,
-# )
-
 # Define the API router
 router = APIRouter()
 
@@ -39,6 +35,7 @@ async def login_for_access_token(
         Session,
         Depends(database.get_db),
     ],
+    client_type: str = Depends(session_security.header_client_type_scheme),
 ):
     user = session_utils.authenticate_user(form_data.username, form_data.password, db)
 
@@ -49,9 +46,18 @@ async def login_for_access_token(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    response = session_utils.create_response_with_tokens(response, user)
-
-    return {"message": "Login successful"}
+    if client_type == "web":
+        response = session_utils.create_response_with_tokens(response, user)
+        return {"message": "Login successful"}
+    elif client_type == "mobile":
+        acces_token, refresh_token = session_utils.create_tokens(user)
+        return {"access_token": acces_token, "refresh_token": refresh_token}
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Invalid client type",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
 
 
 @router.post("/refresh")
@@ -65,6 +71,7 @@ async def refresh_token(
         Session,
         Depends(database.get_db),
     ],
+    client_type: str = Depends(session_security.header_client_type_scheme),
 ):
     # get user
     user = users_crud.get_user_by_id(user_id, db)
@@ -75,19 +82,37 @@ async def refresh_token(
             detail="Inactive user",
             headers={"WWW-Authenticate": "Bearer"},
         )
-
-    response = session_utils.create_response_with_tokens(response, user)
-
-    return {"message": "Token refreshed successfully"}
+    
+    if client_type == "web":
+        response = session_utils.create_response_with_tokens(response, user)
+        return {"message": "Token refreshed successfully"}
+    elif client_type == "mobile":
+        acces_token, refresh_token = session_utils.create_tokens(user)
+        return {"access_token": acces_token, "refresh_token": refresh_token}
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Invalid client type",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
 
 
 @router.post("/logout")
 async def logout(
     response: Response,
+    client_type: str = Depends(session_security.header_client_type_scheme),
 ):
-    # Clear the cookies by setting their expiration to the past
-    response.delete_cookie(key="endurain_access_token", path="/")
-    response.delete_cookie(key="endurain_refresh_token", path="/")
-    # response.delete_cookie(key="endurain_csrf_token", path="/")
-
-    return {"message": "Logout successful"}
+    if client_type == "web":
+        # Clear the cookies by setting their expiration to the past
+        response.delete_cookie(key="endurain_access_token", path="/")
+        response.delete_cookie(key="endurain_refresh_token", path="/")
+        # response.delete_cookie(key="endurain_csrf_token", path="/")
+        return {"message": "Logout successful"}
+    elif client_type == "mobile":
+        return {"message": "Logout successful"}
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Invalid client type",
+            headers={"WWW-Authenticate": "Bearer"},
+        )

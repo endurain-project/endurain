@@ -15,10 +15,6 @@ import session.security as session_security
 
 import database
 
-#from dependencies import (
-#    dependencies_security,
-#)
-
 # Define the API router
 router = APIRouter()
 

@@ -1,9 +1,14 @@
 import bcrypt
 import logging
 
-from typing import Annotated, Callable
+from typing import Annotated
 from fastapi import Depends, HTTPException, status, Request
-from fastapi.security import OAuth2PasswordBearer, SecurityScopes
+from fastapi.security import (
+    OAuth2PasswordBearer,
+    SecurityScopes,
+    APIKeyHeader,
+    APIKeyCookie,
+)
 
 # import the jwt module from the joserfc package
 from joserfc import jwt
@@ -21,6 +26,21 @@ import session.constants as session_constants
 oauth2_scheme = OAuth2PasswordBearer(
     tokenUrl="token",
     scopes=session_constants.SCOPES_DICT,
+    auto_error=False,
+)
+
+# Define the API key header for the client type
+header_client_type_scheme = APIKeyHeader(name="X-Client-Type")
+
+# Define the API key cookie for the access token
+cookie_access_token_scheme = APIKeyCookie(
+    name="endurain_access_token",
+    auto_error=False,
+)
+# Define the API key cookie for the refresh token
+cookie_refresh_token_scheme = APIKeyCookie(
+    name="endurain_refresh_token",
+    auto_error=False,
 )
 
 # Define a loggger created on main.py
@@ -127,72 +147,86 @@ def create_token(data: dict):
 
 
 ## ACCESS TOKEN VALIDATION
-def get_access_token_from_cookies(request: Request):
-    # Extract the access token from the cookies
-    access_token = request.cookies.get("endurain_access_token")
-
-    # Check if the token is missing
-    if not access_token:
+def get_access_token(
+    noncookie_access_token: Annotated[str, Depends(oauth2_scheme)],
+    cookie_access_token: str = Depends(cookie_access_token_scheme),
+    client_type: str = Depends(header_client_type_scheme),
+):
+    if noncookie_access_token is None and cookie_access_token is None:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Access token missing",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    # Return token
-    return access_token
+    if client_type == "web":
+        return cookie_access_token
+    elif client_type == "mobile":
+        return noncookie_access_token
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Invalid client type",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
 
 
 def validate_access_token(
-    access_token: Annotated[str, Depends(get_access_token_from_cookies)]
+    # access_token: Annotated[str, Depends(get_access_token_from_cookies)]
+    access_token: Annotated[str, Depends(get_access_token)]
 ):
     # Validate the token expiration
     validate_token_expiration(access_token)
 
 
 def get_user_id_from_access_token(
-    access_token: Annotated[str, Depends(get_access_token_from_cookies)]
+    access_token: Annotated[str, Depends(get_access_token)]
 ):
     # Return the user ID associated with the token
     return get_token_user_id(access_token)
 
 
 def get_and_return_access_token(
-    access_token: Annotated[str, Depends(get_access_token_from_cookies)],
+    access_token: Annotated[str, Depends(get_access_token)],
 ):
     # Return token
     return access_token
 
 
 ## REFRESH TOKEN VALIDATION
-def validate_token_and_return_refresh_token(request: Request):
-    # Extract the refresh token from the cookies
-    refresh_token = request.cookies.get("endurain_refresh_token")
-    if not refresh_token:
+def get_refresh_token(
+    noncookie_refresh_token: Annotated[str, Depends(oauth2_scheme)],
+    cookie_refresh_token: str = Depends(cookie_refresh_token_scheme),
+    client_type: str = Depends(header_client_type_scheme),
+):
+    if noncookie_refresh_token is None and cookie_refresh_token is None:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Refresh token missing",
+            detail="Access token missing",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    # Validate the token expiration
-    validate_token_expiration(refresh_token)
-
-    # Return token
-    return refresh_token
+    if client_type == "web":
+        return cookie_refresh_token
+    elif client_type == "mobile":
+        return noncookie_refresh_token
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Invalid client type",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
 
 
 def validate_refresh_token_and_get_authenticated_user_id(
-    refresh_token: Annotated[str, Depends(validate_token_and_return_refresh_token)]
+    refresh_token: Annotated[str, Depends(get_refresh_token)]
 ):
     # Return the user ID associated with the token
     return get_token_user_id(refresh_token)
 
 
 def check_scopes(
-    access_token: Annotated[
-        str, Depends(get_access_token_from_cookies)
-    ],
+    access_token: Annotated[str, Depends(get_access_token)],
     security_scopes: SecurityScopes,
 ):
     # Get the scopes from the token
