@@ -1,32 +1,3 @@
-# name: Create frontend Docker image with latest tag on manual trigger
-
-# on:
-#   workflow_dispatch:
-
-# jobs:
-
-#   build:
-
-#     runs-on: ubuntu-latest
-
-#     steps:
-#     - name: Checkout code
-#       uses: actions/checkout@v3
-
-#     - name: Build the frontend Docker image
-#       run: |
-#         IMAGE_TAG="latest"
-#         docker build . --file Dockerfile_frontend --tag ${{ github.repository }}/frontend:$IMAGE_TAG
-#         echo "IMAGE_TAG=${IMAGE_TAG}" >> $GITHUB_ENV
-#       if: github.event_name == 'release' || github.event_name == 'workflow_dispatch'
-
-#     - name: Push the frontend Docker image to GHCR
-#       if: success() && (github.event_name == 'release' || github.event_name == 'workflow_dispatch')
-#       run: |
-#         echo ${{ secrets.TOKEN_FOR_ACTIONS }} | docker login ghcr.io -u ${{ github.repository_owner }} --password-stdin
-#         IMAGE_NAME="ghcr.io/${{ github.repository }}/frontend"
-#         docker tag ${{ github.repository }}/frontend:$IMAGE_TAG $IMAGE_NAME:$IMAGE_TAG
-#         docker push $IMAGE_NAME:$IMAGE_TAG
 name: Create frontend Docker image with latest tag on manual trigger
 
 on:

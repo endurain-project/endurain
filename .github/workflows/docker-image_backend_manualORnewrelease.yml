@@ -1,41 +1,3 @@
-# name: Create backend Docker image on new release or using manual trigger
-
-# on:
-#   workflow_dispatch:
-#   release:
-#     types:
-#       - created
-
-# jobs:
-
-#   build:
-
-#     runs-on: ubuntu-latest
-
-#     steps:
-#     - name: Checkout code
-#       uses: actions/checkout@v3
-
-#     - name: Build the backend Docker image
-#       run: |
-#         ls -al
-#         if [ "${{ github.event_name }}" == 'workflow_dispatch' ]; then
-#           IMAGE_TAG="dev_$(date +"%d%m%Y")"
-#         else
-#           IMAGE_TAG="${{ github.event.release.tag_name }}"
-#         fi
-#         docker build . --file Dockerfile_backend --tag ${{ github.repository }}/backend:$IMAGE_TAG
-#         echo "IMAGE_TAG=${IMAGE_TAG}" >> $GITHUB_ENV
-#       if: github.event_name == 'release' || github.event_name == 'workflow_dispatch'
-
-#     - name: Push the backend Docker image to GHCR
-#       if: success() && (github.event_name == 'release' || github.event_name == 'workflow_dispatch')
-#       run: |
-#         echo ${{ secrets.TOKEN_FOR_ACTIONS }} | docker login ghcr.io -u ${{ github.repository_owner }} --password-stdin
-#         IMAGE_NAME="ghcr.io/${{ github.repository }}/backend"
-#         docker tag ${{ github.repository }}/backend:$IMAGE_TAG $IMAGE_NAME:$IMAGE_TAG
-#         docker push $IMAGE_NAME:$IMAGE_TAG
-
 name: Create backend Docker image on new release or using manual trigger
 
 on:
@@ -65,6 +27,13 @@ jobs:
     - name: Create a builder
       run: |
         docker buildx create --use
+
+    - name: Verify app directory exists
+      run: |
+        if [ ! -d "./app" ]; then
+          echo "Directory 'app' does not exist."
+          exit 1
+        fi
 
     - name: Build and push the backend Docker image
       run: |
