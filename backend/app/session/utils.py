@@ -13,14 +13,6 @@ import session.constants as session_constants
 import users.crud as users_crud
 import users.schema as users_schema
 
-# from constants import (
-#    REGULAR_ACCESS,
-#    REGULAR_ACCESS_SCOPES,
-#    ADMIN_ACCESS_SCOPES,
-#    JWT_ACCESS_TOKEN_EXPIRE_MINUTES,
-#    JWT_REFRESH_TOKEN_EXPIRE_DAYS,
-# )
-
 
 def authenticate_user(username: str, password: str, db: Session):
     # Get the user from the database

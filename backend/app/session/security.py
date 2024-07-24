@@ -2,7 +2,7 @@ import bcrypt
 import logging
 
 from typing import Annotated
-from fastapi import Depends, HTTPException, status, Request
+from fastapi import Depends, HTTPException, status
 from fastapi.security import (
     OAuth2PasswordBearer,
     SecurityScopes,
@@ -15,12 +15,6 @@ from joserfc import jwt
 from joserfc.jwk import OctKey
 
 import session.constants as session_constants
-
-# from constants import (
-#   JWT_ALGORITHM,
-#   JWT_SECRET_KEY,
-#   ADMIN_ACCESS,
-# )
 
 # Define the OAuth2 scheme for handling bearer tokens
 oauth2_scheme = OAuth2PasswordBearer(

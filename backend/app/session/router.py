@@ -82,7 +82,7 @@ async def refresh_token(
             detail="Inactive user",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    
+
     if client_type == "web":
         response = session_utils.create_response_with_tokens(response, user)
         return {"message": "Token refreshed successfully"}

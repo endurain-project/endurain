@@ -28,7 +28,7 @@ Default credentials are:
 Currently the service supports:
  - Multi-user
  - Create/edit/delete users
- - Basic admin and regular users profiles that adapt the interface
+ - Basic admin and regular user profiles that adapt the interface
  - Import activities using .gpx files
  - Connect with Strava and retrieve activities and gear from Strava
  - Feed with user activities, current user week stats and month stats
@@ -36,22 +36,30 @@ Currently the service supports:
  - Basic activity privacy
  - Activity page with more in depth info of the activity
  - Delete activities
- - Create/edit/delete gear (wetsuit, bycicle and running shoes)
+ - Create/edit/delete gear (wetsuit, bicycle and running shoes)
  - Add/edit/delete activity gear
  - User page with user stats and user activities per week
  - Follow user basic implementation
  - Multi-language support, but currently only English is available
  - Basic gear tracking usage
+ - Theme switcher (dark, light and auto)
+ - 3rd party apps
 
 To do features (not by order):
  - Support import of .fit files
+ - Bulk import for .gpx and .fit files
  - Default gear for activity type
  - Gear components logic for component usage tracking
  - Comments and likes logic for activities
  - Notifications logic
  - Activity Pub integration?
 
-More screenshots: https://imgur.com/a/lDR0sBf
+---
+# Integrate with your application
+Endurain starting on version 0.3.0 supports multiple app types. For web applications the backend will return the access and refresh tokens as http only cookies, for mobile it will return them in the response.
+To support this in your implementation you will need to:
+ - Add a "X-Client-Type" header to every request with the "web" or "mobile" value. Every other value will return a 403. This will be needed for token creation and refresh logic but also for every other endpoint token validation/expiration logic
+ - For activity upload currently only the "/activities/create/upload" endpoint is available and it expects a .gpx file
 
 ---
 # Frontend
@@ -59,26 +67,17 @@ Table bellow shows supported environemnt variables. Variables marked with option
 
 Environemnt variable  | Default value | Optional | Notes
 --- | --- | --- | ---
-MY_APP_BACKEND_PROTOCOL | http | Yes | Needs to be https if you want to enable Strava integration. You may need to update this variable based on docker image spin up
-MY_APP_BACKEND_HOST | localhost:98 | Yes | Needs to be set and be Internet faced/resolved if you want to enable Strava integration. Strava callback relies on this. You may need to update this variable based on docker image spin up (api host or local ip (example: 192.168.1.10:98))
+VITE_BACKEND_PROTOCOL | http | Yes | Needs to be https if you want to enable Strava integration. You may need to update this variable based on docker image spin up
+VITE_BACKEND_HOST | localhost:98 | Yes | Needs to be set and be Internet faced/resolved if you want to enable Strava integration. Strava callback relies on this. You may need to update this variable based on docker image spin up (api host or local ip (example: 192.168.1.10:98))
 
 Frontend dependencies:
- - vue@3.4.24
- - vue-router@4.3.2
- - vue-i18n@9.13.1
- - vite@5.2.10
- - pinia@2.1.7
- - crypto-js@4.2.0
- - chart.js@4.4.2
+ - To check npm dependencies used, use npm file (package.json)
  - User avatars create using DiceBear (https://www.dicebear.com) avataaars style.
- - Bootstrap CSS v5.3.3
- - leaflet v1.9.4
- - fontawesome icons free version@6.5.2 and vue-fontawesome@3.0.6
  - Logo created using Canvas
 
 ---
 # Backend
-Table bellow shows supported environemnt variables. Variables marked with optional "No" should be set to avoid errors.
+Table bellow shows supported environment variables. Variables marked with optional "No" should be set to avoid errors.
 
 Environemnt variable  | Default value | Optional | Notes
 --- | --- | --- | ---
@@ -113,23 +112,7 @@ MYSQL_DATABASE | endurain | `No` | N/A
 MYSQL_USER | endurain | `No` | N/A
 MYSQL_PASSWORD | changeme | `No` | N/A
 
-Python backend dependencies used:
- - fastapi==0.111.0
- - pydantic==1.10.15
- - uvicorn==0.29.0
- - python-dotenv==1.0.1
- - sqlalchemy==2.0.30
- - mysqlclient==2.2.4
- - apscheduler==3.10.4
- - requests==2.32.2
- - stravalib==1.7
- - opentelemetry-sdk==1.22.0
- - opentelemetry-instrumentation-fastapi==0.43b0
- - opentelemetry.exporter.otlp==1.22.0
- - python-multipart==0.0.9
- - gpxpy==1.6.2
- - alembic==1.13.1
- - joserfc==0.11.1
+To check Python backend dependencies used, use poetry file (pyproject.toml)
 
  ---
 # Strava integration
