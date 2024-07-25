@@ -8,7 +8,7 @@ services:
       #- VITE_BACKEND_HOST=localhost:98 # api host or local ip (example: 192.168.1.10:98), default is localhost:98
     # Configure volume if you want to edit the code locally by clomming the repo
     #volumes:
-    #  - <local_path>/endurain/frontend:/app
+    #  - <local_path>/endurain/frontend/app:/app
     ports:
       - "8080:80" # frontend port, change per your needs
     restart: unless-stopped
@@ -29,7 +29,7 @@ services:
     ports:
       - "98:80" # API port, change per your needs
     volumes:
-    #  - <local_path>/endurain/backend:/app # Configure volume if you want to edit the code locally by cloning the repo and comment next line
+    #  - <local_path>/endurain/backend/app:/app # Configure volume if you want to edit the code locally by cloning the repo and comment next line
       - <local_path>/endurain/backend/user_images:/app/user_images # necessary for user image persistence on container image updates
     depends_on:
       - mariadb

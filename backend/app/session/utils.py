@@ -1,3 +1,5 @@
+import os
+
 from datetime import datetime, timedelta, timezone
 from fastapi import (
     HTTPException,
@@ -70,6 +72,12 @@ def create_response_with_tokens(response: Response, user: users_schema.User):
     # Create the tokens
     access_token, refresh_token = create_tokens(user)
 
+    secure = False
+    if os.environ.get("FRONTEND_PROTOCOL") == "https":
+        secure = True
+
+    print("secure", secure)
+
     # Set the cookies with the tokens
     response.set_cookie(
         key="endurain_access_token",
@@ -78,8 +86,8 @@ def create_response_with_tokens(response: Response, user: users_schema.User):
         + timedelta(minutes=session_constants.JWT_ACCESS_TOKEN_EXPIRE_MINUTES),
         httponly=True,
         path="/",
-        secure=False,
-        samesite="None",
+        secure=secure,
+        samesite="Lax",
     )
     response.set_cookie(
         key="endurain_refresh_token",
@@ -88,8 +96,8 @@ def create_response_with_tokens(response: Response, user: users_schema.User):
         + timedelta(days=session_constants.JWT_REFRESH_TOKEN_EXPIRE_DAYS),
         httponly=True,
         path="/",
-        secure=False,
-        samesite="None",
+        secure=secure,
+        samesite="Lax",
     )
 
     # Set the user id in a cookie
