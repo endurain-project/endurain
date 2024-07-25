@@ -28,7 +28,7 @@ RUN chmod +x /docker-entrypoint.d/frontend_env.sh
 
 EXPOSE 80
 
-ENV MY_APP_BACKEND_PROTOCOL=http
-ENV MY_APP_BACKEND_HOST=localhost:98
+ENV VITE_BACKEND_PROTOCOL=http
+ENV VITE_BACKEND_HOST=localhost:98
 
 CMD ["nginx", "-g", "daemon off;"]
