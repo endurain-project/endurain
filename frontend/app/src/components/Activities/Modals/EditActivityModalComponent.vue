@@ -36,7 +36,11 @@
 
 <script>
 import { ref } from 'vue';
-import { useI18n } from 'vue-i18n';
+
+// Importing the utils
+import { addToast } from '@/utils/toastUtils';
+// Importing the services
+import { activities } from '@/services/activitiesService';
 
 export default {
     components: {
@@ -53,10 +57,36 @@ export default {
         const editActivityName = ref(props.activity.name);
         const editActivityVisibility = ref(props.activity.visibility);
 
+        async function submitEditActivityForm() {
+            try {
+                const data = {
+                    id: props.activity.id,
+                    name: editActivityName.value,
+                    description: editActivityDescription.value,
+                    visibility: editActivityVisibility.value,
+                };
+
+                // Call the service to edit the activity
+                await activities.editActivity(props.activity.id, data);
+
+                // Set activity new values
+                props.activity.name = editActivityName.value;
+                props.activity.description = editActivityDescription.value;
+                props.activity.visibility = editActivityVisibility.value;
+
+                // show success toast
+                addToast(t('gear.successGearEdited'), 'success', true);
+            } catch (error) {
+                // If there is an error, set the error message and show the error alert.
+                addToast(t('generalItens.errorEditingInfo') + " - " + error.toString(), 'danger', true);
+            }
+        }
+
         return {
             editActivityDescription,
             editActivityName,
             editActivityVisibility,
+            submitEditActivityForm,
         };
     },
 };

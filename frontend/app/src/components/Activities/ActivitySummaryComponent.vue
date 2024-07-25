@@ -17,6 +17,19 @@
                         </router-link>
                     </div>
                     <h6>
+                        <!-- Display the visibility of the activity -->
+                        <span v-if="activity.visibility == 0">
+                            <font-awesome-icon :icon="['fas', 'globe']"/> {{ $t("activitySummary.visibilityPublic") }}
+                        </span>
+                        <span v-if="activity.visibility == 1">
+                            <font-awesome-icon :icon="['fas', 'users']" v-if="activity.visibility == 1" /> {{ $t("activitySummary.visibilityFollowers") }}
+                        </span>
+                        <span v-if="activity.visibility == 2">
+                            <font-awesome-icon :icon="['fas', 'lock']" v-if="activity.visibility == 2" /> {{ $t("activitySummary.visibilityPrivate") }}
+                        </span>
+                        <span> - </span>
+
+                        <!-- Display the activity type -->
                         <span v-if="activity.activity_type == 1 || activity.activity_type == 2">
                             <font-awesome-icon :icon="['fas', 'person-running']" />
                         </span>
@@ -35,6 +48,8 @@
                         <span v-else>
                             <font-awesome-icon :icon="['fas', 'fa-dumbbell']" />
                         </span>
+
+                        <!-- Display the date and time -->  
                         <span class="ms-1">{{ formatDate(activity.start_time) }}</span> @
                         <span>{{ formatTime(activity.start_time) }}</span>
                         <!-- Conditionally display city and country -->
@@ -106,6 +121,10 @@
         <h1 class="mt-3" v-if="sourceProp === 'activity'">
             {{ activity.name }}
         </h1>
+
+        <!-- Activity description -->
+        <p v-if="activity.description">{{ activity.description }}</p>
+
         <!-- Activity summary -->
         <div class="row d-flex mt-3">
             <div class="col">

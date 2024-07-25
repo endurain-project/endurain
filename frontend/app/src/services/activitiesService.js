@@ -40,6 +40,9 @@ export const activities = {
     deleteGearFromActivity(activityId) {
         return fetchPutRequest(`activities/${activityId}/deletegear`);
     },
+    editActivity(activityId, data) {
+        return fetchPutRequest(`activities/edit`, data);
+    },
     deleteActivity(activityId) {
         return fetchDeleteRequest(`activities/${activityId}/delete`);
     }

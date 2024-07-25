@@ -178,8 +178,6 @@ import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 // Importing the utils
 import { addToast } from '@/utils/toastUtils';
-// Import the stores
-import { useAuthStore } from '@/stores/authStore';
 // Importing the components
 import NoItemsFoundComponent from '@/components/GeneralComponents/NoItemsFoundComponents.vue';
 import LoadingComponent from '@/components/GeneralComponents/LoadingComponent.vue';

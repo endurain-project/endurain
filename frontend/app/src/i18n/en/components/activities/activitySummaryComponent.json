@@ -1,4 +1,7 @@
 {
+    "visibilityPublic": "Public",
+    "visibilityFollowers": "Followers",
+    "visibilityPrivate": "Private",
     "buttonDeleteActivity": "Delete activity",
     "buttonEditActivity": "Edit activity",
     "modalDeleteBody1": "Are you sure you want to delete activity ",

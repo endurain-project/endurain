@@ -76,8 +76,6 @@ def create_response_with_tokens(response: Response, user: users_schema.User):
     if os.environ.get("FRONTEND_PROTOCOL") == "https":
         secure = True
 
-    print("secure", secure)
-
     # Set the cookies with the tokens
     response.set_cookie(
         key="endurain_access_token",
