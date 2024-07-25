@@ -19,7 +19,6 @@
     "@fortawesome/vue-fontawesome": "^3.0.6",
     "bootstrap": "^5.3.2",
     "chart.js": "^4.4.1",
-    "crypto-js": "^4.2.0",
     "leaflet": "^1.9.4",
     "pinia": "^2.1.7",
     "vue": "^3.4.15",

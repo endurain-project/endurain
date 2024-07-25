@@ -33,7 +33,7 @@ import { useAuthStore } from '@/stores/authStore';
 // Importing the utils
 import { addToast } from '@/utils/toastUtils';
 // Importing the services
-import { strava } from '@/services/strava';
+import { strava } from '@/services/stravaService';
 // Importing the components
 import SettingsSideBarComponent from '../components/Settings/SettingsSideBarComponent.vue';
 import SettingsUsersZone from '../components/Settings/SettingsUsersZone.vue';

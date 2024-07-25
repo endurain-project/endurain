@@ -27,9 +27,7 @@ import { addToast } from '@/utils/toastUtils';
 // Importing the stores
 import { useAuthStore } from '@/stores/authStore';
 // Importing the services
-import { strava } from '@/services/strava';
-
-import crypto from 'crypto';
+import { strava } from '@/services/stravaService';
 
 export default {
     components: {
@@ -40,7 +38,9 @@ export default {
         const { t } = useI18n();
 
         async function submitConnectStrava() {
-            const state = crypto.randomBytes(16).toString('hex');
+            const array = new Uint8Array(16);
+            window.crypto.getRandomValues(array);
+            const state = Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
 
             try{
                 await strava.setUniqueUserStateStravaLink(state);
