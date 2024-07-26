@@ -208,10 +208,6 @@ app.include_router(
     strava_router.router,
     prefix="/strava",
     tags=["strava"],
-    dependencies=[
-        Depends(session_security.validate_access_token),
-        Security(session_security.check_scopes, scopes=["profile"]),
-    ],
 )
 
 # Check if Jaeger tracing is enabled using the 'JAEGER_ENABLED' environment variable
