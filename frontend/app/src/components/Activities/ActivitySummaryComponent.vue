@@ -62,7 +62,7 @@
                 </div>
             </div>
             <div class="dropdown d-flex" v-if="activity.user_id == authStore.user.id">
-                <a class="btn btn-link btn-lg mt-1 link-body-emphasis" :href="`https://www.strava.com/activities/${activity.strava_activity_id}`" role="button" v-if="activity.strava_activity_id">
+                <a class="btn btn-link btn-lg link-body-emphasis" :href="`https://www.strava.com/activities/${activity.strava_activity_id}`" role="button" v-if="activity.strava_activity_id">
                     <font-awesome-icon :icon="['fab', 'fa-strava']" />
                 </a>
                 <div v-if="sourceProp === 'activity'">

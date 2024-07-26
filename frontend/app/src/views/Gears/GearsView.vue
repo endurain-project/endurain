@@ -100,7 +100,7 @@
                             <div>
                                 <span class="badge bg-success-subtle border border-success-subtle text-success-emphasis align-middle" v-if="gear.is_active == 1">{{ $t("gears.activeState") }}</span>
                                 <span class="badge bg-danger-subtle border border-danger-subtle text-danger-emphasis align-middle" v-else>{{ $t("gears.inactiveState") }}</span>
-                                <span class="badge bg-primary-subtle border border-primary-subtle text-primary-emphasis align-middle" v-if="gear.strava_gear_id">{{ $t("gears.gearFromStrava") }}</span>
+                                <span class="badge bg-primary-subtle border border-primary-subtle text-primary-emphasis align-middle ms-2" v-if="gear.strava_gear_id">{{ $t("gears.gearFromStrava") }}</span>
                             </div>
                         </li>
                     </ul>

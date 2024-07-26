@@ -3,7 +3,7 @@
     <div v-if="isLoading">
         <LoadingComponent />
     </div>
-    <div v-else>
+    <div v-else-if="activityStreamLatLng">
         <div ref="activityMap" class="map" style="height: 300px;" v-if="sourceProp === 'home'"></div>
         <div ref="activityMap" class="map" style="height: 500px;" v-if="sourceProp === 'activity'"></div>
     </div>

@@ -12,9 +12,9 @@
             </div>
         </div>
         <div>
-            <span class="badge bg-warning-subtle border border-warning-subtle text-warning-emphasis rounded-pill align-middle me-2" v-if="user.access_type == 2">{{ $t("usersListComponent.userListUserIsAdminBadge") }}</span>
-            <span class="badge bg-success-subtle border border-success-subtle text-success-emphasis rounded-pill align-middle" v-if="user.is_active == 1">{{ $t("usersListComponent.userListUserIsActiveBadge") }}</span>
-            <span class="badge bg-danger-subtle border border-danger-subtle text-danger-emphasis rounded-pill align-middle" v-else>{{ $t("usersListComponent.userListUserIsInactiveBadge") }}</span>
+            <span class="badge bg-warning-subtle border border-warning-subtle text-warning-emphasis align-middle me-2" v-if="user.access_type == 2">{{ $t("usersListComponent.userListUserIsAdminBadge") }}</span>
+            <span class="badge bg-success-subtle border border-success-subtle text-success-emphasis align-middle" v-if="user.is_active == 1">{{ $t("usersListComponent.userListUserIsActiveBadge") }}</span>
+            <span class="badge bg-danger-subtle border border-danger-subtle text-danger-emphasis align-middle" v-else>{{ $t("usersListComponent.userListUserIsInactiveBadge") }}</span>
 
             <!-- change user password button -->
             <a class="btn btn-link btn-lg link-body-emphasis" href="#" role="button" data-bs-toggle="modal" :data-bs-target="`#editUserPasswordModal${userProp.id}`"><font-awesome-icon :icon="['fas', 'fa-key']" /></a>
