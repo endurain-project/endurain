@@ -1,0 +1,31 @@
+[tool.poetry]
+name = "endurain"
+version = "0.3.0"
+description = "Endurain API for the Endurain app"
+authors = ["João Vitória Silva <8648976+joaovitoriasilva@users.noreply.github.com>"]
+readme = "README.md"
+package-mode = false
+
+[tool.poetry.dependencies]
+python = "^3.11"
+fastapi = "^0.111.0"
+uvicorn = "^0.30.1"
+python-dotenv = "^1.0.1"
+sqlalchemy = "^2.0.31"
+apscheduler = "^3.10.4"
+requests = "^2.32.3"
+stravalib = "^1.7"
+opentelemetry-sdk = "^1.25.0"
+opentelemetry-instrumentation-fastapi = "^0.46b0"
+opentelemetry-exporter-otlp = "^1.25.0"
+python-multipart = "^0.0.9"
+gpxpy = "^1.6.2"
+alembic = "^1.13.2"
+joserfc = "^0.12.0"
+bcrypt = "^4.1.3"
+mysqlclient = "^2.2.4"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

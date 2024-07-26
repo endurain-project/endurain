@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="frontend/public/logo/logo.png" width="128" height="128">
+  <img src="frontend/app/public/logo/logo.png" width="128" height="128">
 
   # Endurain
 
@@ -15,7 +15,7 @@
 
 Endurain is a self-hosted fitness tracking service that operates much like Strava but allows users to have complete control over their data and the hosting environment. The application's frontend is built using Vue.js and Bootstrap CSS. On the backend, it leverages Python FastAPI, Alembic, SQLAlchemy, stravalib and gpxpy for seamless integration with Strava and .gpx file import. The MariaDB database engine is employed to efficiently store and manage user data, while Jaeger is used for basic observability.
 
-To deploy Endurain, Docker images are available, and a comprehensive example can be found in the "docker-compose.yml" file provided. Configuration is facilitated through environment variables, ensuring flexibility and ease of customization.
+To deploy Endurain, Docker images are available, and a comprehensive example can be found in the "docker-compose.yml.example" file provided. Configuration is facilitated through environment variables, ensuring flexibility and ease of customization.
 
 As a non-professional developer, my journey with Endurain involved learning and implementing new technologies and concepts, with invaluable assistance from ChatGPT. The primary motivation behind this project was to gain hands-on experience and expand my understanding of modern development practices. Second motivation is that I'm an amateur triathlete and I want to keep track of my gear and gear components usage.
 
@@ -42,39 +42,38 @@ Currently the service supports:
  - Follow user basic implementation
  - Multi-language support, but currently only English is available
  - Basic gear tracking usage
+ - Theme switcher (dark, light and auto)
+ - 3rd party apps
 
 To do features (not by order):
  - Support import of .fit files
+ - Bulk import for .gpx and .fit files
  - Default gear for activity type
  - Gear components logic for component usage tracking
  - Comments and likes logic for activities
  - Notifications logic
  - Activity Pub integration?
 
-More screenshots: https://imgur.com/a/lDR0sBf
+---
+# Integrate with your application
+Endurain starting on version 0.3.0 supports multiple app types. For web applications the backend will return the access and refresh tokens as http only cookies, for mobile it will return them in the response.
+To support this in your implementation you will need to:
+ - Add a "X-Client-Type" header to every request with the "web" or "mobile" value. Every other value will return a 403. This will be needed for token creation and refresh logic but also for every other endpoint token validation/expiration logic
+ - For activity upload currently only the "/activities/create/upload" endpoint is available and it expects a .gpx file
 
 ---
 # Frontend
-Table bellow shows supported environemnt variables. Variables marked with optional "No" should be set to avoid errors.
+Table bellow shows supported environment variables. Variables marked with optional "No" should be set to avoid errors.
 
 Environemnt variable  | Default value | Optional | Notes
 --- | --- | --- | ---
-MY_APP_BACKEND_PROTOCOL | http | Yes | Needs to be https if you want to enable Strava integration. You may need to update this variable based on docker image spin up
-MY_APP_BACKEND_HOST | localhost:98 | Yes | Needs to be set and be Internet faced/resolved if you want to enable Strava integration. Strava callback relies on this. You may need to update this variable based on docker image spin up
+MY_APP_BACKEND_PROTOCOL | http | Yes | Needs to be https if you want to enable Strava integration. Strava callback relies on this. You may need to update this variable based on docker image spin up (api host or local ip (example: http://192.168.1.10:98))
+MY_APP_BACKEND_HOST | localhost:98 | Yes | Needs to be set and be Internet faced/resolved if you want to enable Strava integration. Strava callback relies on this. You may need to update this variable based on docker image spin up (api host or local ip (example: http://192.168.1.10:98))
 
 Frontend dependencies:
- - vue@3.4.24
- - vue-router@4.3.2
- - vue-i18n@9.13.1
- - vite@5.2.10
- - pinia@2.1.7
- - crypto-js@4.2.0
- - chart.js@4.4.2
+ - To check npm dependencies used, use npm file (package.json)
  - User avatars create using DiceBear (https://www.dicebear.com) avataaars style.
- - Bootstrap CSS v5.3.3
- - leaflet v1.9.4
- - fontawesome icons free version@6.5.2 and vue-fontawesome@3.0.6
- - Logo created using Canvas
+ - Logo created on Canva
 
 ---
 # Backend
@@ -84,23 +83,23 @@ Environemnt variable  | Default value | Optional | Notes
 --- | --- | --- | ---
 DB_HOST | mariadb | Yes | N/A
 DB_PORT | 3306 | Yes | N/A
-DB_USER | gearguardian | Yes | N/A
+DB_USER | endurain | Yes | N/A
 DB_PASSWORD | changeme | `No` | N/A
-DB_DATABASE | gearguardian | Yes | N/A
-SECRET_KEY | changeme | `No` | N/A
-ALGORITHM | HS256 | Yes | N/A
-ACCESS_TOKEN_EXPIRE_MINUTES | 30 | Yes | N/A
-STRAVA_CLIENT_ID | changeme | `No` | N/A
-STRAVA_CLIENT_SECRET | changeme | `No` | N/A
-STRAVA_AUTH_CODE | changeme | `No` | N/A
-JAEGER_ENABLED | true | Yes | N/A
+DB_DATABASE | endurain | Yes | N/A
+SECRET_KEY | changeme | `No` | Run "openssl rand -hex 32" on a terminal to get a secret
+ALGORITHM | HS256 | Yes | Currently only HS256 is supported
+ACCESS_TOKEN_EXPIRE_MINUTES | 15 | Yes | Time in minutes
+REFRESH_TOKEN_EXPIRE_DAYS | 7 | Yes | Time in days
+STRAVA_CLIENT_ID | changeme | `No` | Needed if you want to enable the Strava integration
+STRAVA_CLIENT_SECRET | changeme | `No` | Needed if you want to enable the Strava integration
+STRAVA_AUTH_CODE | changeme | `No` | Needed if you want to enable the Strava integration
+JAEGER_ENABLED | false | Yes | N/A
 JAEGER_PROTOCOL | http | Yes | N/A
 JAEGER_HOST | jaeger | Yes | N/A
 JAGGER_PORT | 4317 | Yes | N/A
-STRAVA_DAYS_ACTIVITIES_ONLINK | 30 | Yes | N/A
-FRONTEND_PROTOCOL | http | Yes | Needs to be set if you want to enable Strava integration. You may need to update this variable based on docker image spin up
-FRONTEND_HOST | frontend | Yes | Needs to be set if you want to enable Strava integration. You may need to update this variable based on docker image spin up
-FRONTEND_PORT | frontend | Yes | Needs to be set if you want to enable Strava integration. You may need to update this variable based on docker image spin up
+STRAVA_DAYS_ACTIVITIES_ONLINK | 30 | Yes | On Strava integration setup the number of days (including today) to get activities. Strava free API limitations can limit number of days you can query in a given time
+FRONTEND_PROTOCOL | http | Yes | Needs to be set if you want to enable Strava integration. You may need to update this variable based on docker image spin up (frontend host or local ip (example: http://192.168.1.10:8080))
+FRONTEND_HOST | frontend:8080 | Yes | Needs to be set if you want to enable Strava integration. You may need to update this variable based on docker image spin up (frontend host or local ip (example: http://192.168.1.10:8080))
 GEOCODES_MAPS_API | changeme | `No` | <a href="https://geocode.maps.co/">Geocode maps</a> offers a free plan consisting of 1 Request/Second. Registration necessary.
 
 Table bellow shows the obligatory environemnt variables for mariadb container. You should set them based on what was also set for backend container.
@@ -108,28 +107,11 @@ Table bellow shows the obligatory environemnt variables for mariadb container. Y
 Environemnt variable  | Default value | Optional | Notes
 --- | --- | --- | ---
 MYSQL_ROOT_PASSWORD | changeme | `No` | N/A
-MYSQL_DATABASE | gearguardian | `No` | N/A
-MYSQL_USER | gearguardian | `No` | N/A
+MYSQL_DATABASE | endurain | `No` | N/A
+MYSQL_USER | endurain | `No` | N/A
 MYSQL_PASSWORD | changeme | `No` | N/A
 
-Python backend dependencies used:
- - fastapi==0.111.0
- - pydantic==1.10.15
- - uvicorn==0.29.0
- - python-dotenv==1.0.1
- - sqlalchemy==2.0.30
- - mysqlclient==2.2.4
- - python-jose[cryptography]==3.3.0
- - passlib[bcrypt]==1.7.4
- - apscheduler==3.10.4
- - requests==2.32.2
- - stravalib==1.7
- - opentelemetry-sdk==1.22.0
- - opentelemetry-instrumentation-fastapi==0.43b0
- - opentelemetry.exporter.otlp==1.22.0
- - python-multipart==0.0.9
- - gpxpy==1.6.2
- - alembic==1.13.1
+To check Python backend dependencies used, use poetry file (pyproject.toml)
 
  ---
 # Strava integration

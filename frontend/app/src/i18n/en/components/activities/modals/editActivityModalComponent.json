@@ -1,0 +1,12 @@
+{
+    "modalEditActivityTitle": "Edit activity",
+    "modalEditActivityDescriptionLabel": "Description",
+    "modalEditActivityDescriptionPlaceholder": "Description (max 2500 characters)",
+    "modalEditActivityNameLabel": "Name",
+    "modalEditActivityNamePlaceholder": "Name (max 250 characters)",
+    "modalEditActivityVisibilityLabel": "Visibility",
+    "modalEditActivityVisibilityPlaceholder": "Visibility",
+    "modalEditActivityVisibilityOption0": "Public",
+    "modalEditActivityVisibilityOption1": "Followers",
+    "modalEditActivityVisibilityOption2": "Private"
+}

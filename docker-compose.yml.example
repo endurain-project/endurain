@@ -1,0 +1,93 @@
+services:
+  # frontend logic
+  frontend:
+    container_name: frontend
+    image: ghcr.io/joaovitoriasilva/endurain/frontend:latest
+    #environment:
+      #- VITE_BACKEND_PROTOCOL=http # http or https, default is http
+      #- VITE_BACKEND_HOST=localhost:98 # api host or local ip (example: 192.168.1.10:98), default is localhost:98
+    # Configure volume if you want to edit the code locally by clomming the repo
+    #volumes:
+    #  - <local_path>/endurain/frontend/app:/app
+    ports:
+      - "8080:80" # frontend port, change per your needs
+    restart: unless-stopped
+    
+  # API logic
+  backend:
+    container_name: backend
+    image: ghcr.io/joaovitoriasilva/endurain/backend:latest
+    environment:
+      - DB_PASSWORD=changeme
+      - SECRET_KEY=changeme # openssl rand -hex 32
+      - STRAVA_CLIENT_ID=changeme
+      - STRAVA_CLIENT_SECRET=changeme
+      - STRAVA_AUTH_CODE=changeme
+      - GEOCODES_MAPS_API=changeme
+      - FRONTEND_PROTOCOL=http # default is http
+      - FRONTEND_HOST=frontend:8080 # frontend host or local ip (example: 192.168.1.10:8080), default is frontend:8080
+    ports:
+      - "98:80" # API port, change per your needs
+    volumes:
+    #  - <local_path>/endurain/backend/app:/app # Configure volume if you want to edit the code locally by cloning the repo and comment next line
+      - <local_path>/endurain/backend/user_images:/app/user_images # necessary for user image persistence on container image updates
+    depends_on:
+      - mariadb
+      - jaeger # optional
+    restart: unless-stopped
+  
+  # mysql mariadb logic
+  mariadb:
+    image: mariadb:latest
+    container_name: mariadb
+    environment:
+      - MYSQL_ROOT_PASSWORD=changeme
+      - MYSQL_DATABASE=endurain
+      - MYSQL_USER=endurain
+      - MYSQL_PASSWORD=changeme
+    ports:
+      - "3306:3306"
+    volumes:
+      - <local_path>/mariadb:/var/lib/mysql
+    restart: unless-stopped
+
+  # Jaeger for opentelemetry - optional
+  # Jaeger is not enabled by default. If you do not need it or want it, you can remove this container
+  jaeger:
+    container_name: jaeger
+    image: jaegertracing/all-in-one:latest
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Europe/Lisbon
+      - COLLECTOR_ZIPKIN_HOST_PORT=:9411
+    ports:
+      - 6831:6831/udp
+      - 6832:6832/udp
+      - 5778:5778
+      - 16686:16686
+      - 4317:4317
+      - 4318:4318
+      - 14250:14250
+      - 14268:14268
+      - 14269:14269
+      - 9411:9411
+    restart: unless-stopped
+
+# phpmyadmin for DB manipulation - optional
+  phpmyadmin:
+    container_name: phpmyadmin
+    image: phpmyadmin
+    ports:
+      - 81:80
+    environment:
+      - PMA_HOST=mariadb
+      - PMA_ARBITRARY=1
+    depends_on:
+      - mariadb
+    restart: unless-stopped
+
+networks:
+  default:
+    external: true
+    name: backend_network

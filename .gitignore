@@ -1,49 +1,52 @@
+# General
+docker-compose.yml
+
 # Python
-backend/__pycache__/
-backend/*/__pycache__/
-backend/*/*/__pycache__/
-backend/*.pyc
+backend/app/__pycache__/
+backend/app/*/__pycache__/
+backend/app/*/*/__pycache__/
+backend/app/*.pyc
 
 # Logs
-backend/logs/*.log
-backend/*.log
+backend/app/logs/*.log
+backend/app/*.log
 
 # user image folder images
-backend/user_images/*.jpeg
-backend/user_images/*.png
-backend/user_images/*.jpg
+backend/app/user_images/*.jpeg
+backend/app/user_images/*.png
+backend/app/user_images/*.jpg
 
 # Frontend
-frontend/img/users_img/*.*
+frontend/app/img/users_img/*.*
 # Logs
-frontend/.gitignore
-frontend/logs
-frontend/*.log
-frontend/npm-debug.log*
-frontend/yarn-debug.log*
-frontend/yarn-error.log*
-frontend/pnpm-debug.log*
-frontend/lerna-debug.log*
+frontend/app/.gitignore
+frontend/app/logs
+frontend/app/*.log
+frontend/app/npm-debug.log*
+frontend/app/yarn-debug.log*
+frontend/app/yarn-error.log*
+frontend/app/pnpm-debug.log*
+frontend/app/lerna-debug.log*
 
-frontend/node_modules
-frontend/.DS_Store
-frontend/dist
-frontend/dist-ssr
-frontend/coverage
-frontend/*.local
-frontend/README.md
+frontend/app/node_modules
+frontend/app/.DS_Store
+frontend/app/dist
+frontend/app/dist-ssr
+frontend/app/coverage
+frontend/app/*.local
+frontend/app/README.md
 
-frontend/cypress/videos/
-frontend/cypress/screenshots/
+frontend/app/cypress/videos/
+frontend/app/cypress/screenshots/
 
 # Editor directories and files
-frontend/.vscode/*
-frontend/!.vscode/extensions.json
-frontend/.idea
-frontend/*.suo
-frontend/*.ntvs*
-frontend/*.njsproj
-frontend/*.sln
-frontend/*.sw?
+frontend/app/.vscode/*
+frontend/app/!.vscode/extensions.json
+frontend/app/.idea
+frontend/app/*.suo
+frontend/app/*.ntvs*
+frontend/app/*.njsproj
+frontend/app/*.sln
+frontend/app/*.sw?
 
-frontend/*.tsbuildinfo
+frontend/app/*.tsbuildinfo
