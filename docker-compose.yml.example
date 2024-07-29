@@ -4,8 +4,8 @@ services:
     container_name: frontend
     image: ghcr.io/joaovitoriasilva/endurain/frontend:latest
     #environment:
-      #- VITE_BACKEND_PROTOCOL=http # http or https, default is http
-      #- VITE_BACKEND_HOST=localhost:98 # api host or local ip (example: 192.168.1.10:98), default is localhost:98
+      #- MY_APP_BACKEND_PROTOCOL=http # http or https, default is http
+      #- MY_APP_BACKEND_HOST=localhost:98 # api host or local ip (example: 192.168.1.10:98), default is localhost:98
     # Configure volume if you want to edit the code locally by clomming the repo
     #volumes:
     #  - <local_path>/endurain/frontend/app:/app
