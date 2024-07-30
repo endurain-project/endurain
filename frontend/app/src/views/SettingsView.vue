@@ -76,7 +76,7 @@ export default {
 
                 // Set the user object with the strava_linked property set to 1.
                 user = authStore.user;
-                user.strava_linked = 1;
+                user.is_strava_linked = 1;
                 authStore.setUser(user);
 
                 // Set the success message and show the success alert.

@@ -1,5 +1,6 @@
 import bcrypt
 import logging
+import re
 
 from typing import Annotated
 from fastapi import Depends, HTTPException, status
@@ -39,6 +40,13 @@ cookie_refresh_token_scheme = APIKeyCookie(
 
 # Define a loggger created on main.py
 logger = logging.getLogger("myLogger")
+
+
+def is_password_complexity_valid(password):
+    regex = re.compile(
+        r'^(?=.*[A-Z])(?=.*\d)(?=.*[ !"#$%&\'()*+,\-./:;<=>?@[\\\]^_`{|}~])[A-Za-z\d !"#$%&\'()*+,\-./:;<=>?@[\\\]^_`{|}~]{8,}$'
+    )
+    return bool(regex.match(password))
 
 
 def hash_password(password: str):

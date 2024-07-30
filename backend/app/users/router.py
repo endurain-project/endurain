@@ -2,7 +2,7 @@ import logging
 
 from typing import Annotated, Callable
 
-from fastapi import APIRouter, Depends, UploadFile, Security
+from fastapi import APIRouter, Depends, UploadFile, Security, HTTPException, status
 from sqlalchemy.orm import Session
 
 import users.schema as users_schema
@@ -221,6 +221,16 @@ async def edit_user_password(
         Depends(database.get_db),
     ],
 ):
+    # Check if the password meets the complexity requirements
+    if (
+        session_security.is_password_complexity_valid(user_attributtes.password)
+        is False
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Password does not meet complexity requirements",
+        )
+
     # Update the user password in the database
     users_crud.edit_user_password(user_id, user_attributtes.password, db)
 
