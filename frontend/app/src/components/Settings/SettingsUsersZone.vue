@@ -144,7 +144,7 @@ export default {
         const newUserEmail = ref('');
         const newUserPassword = ref('');
         const isPasswordValid = computed(() => {
-            const regex = /^(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+])[A-Za-z\d!@#$%^&*()_+]{8,}$/;
+            const regex = /^(?=.*[A-Z])(?=.*\d)(?=.*[ !\"#$%&'()*+,\-./:;<=>?@[\\\]^_`{|}~])[A-Za-z\d !"#$%&'()*+,\-./:;<=>?@[\\\]^_`{|}~]{8,}$/;
             return regex.test(newUserPassword.value);
         });
         const newUserTown = ref(null);

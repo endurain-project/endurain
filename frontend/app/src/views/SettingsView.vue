@@ -60,16 +60,25 @@ export default {
         const activeSection = ref('users');
 
         function updateActiveSection(section) {
+            // Update the active section.
             activeSection.value = section;
         }
 
         onMounted(async () => {
             if (authStore.user.access_type === 1) {
+                // If the user is not an admin, set the active section to general.
                 activeSection.value = 'general';
             }
 
             if (route.query.stravaLinked === '1') {
+                // If the stravaLinked query parameter is set to 1, set the active section to integrations.
                 activeSection.value = 'integrations';
+
+                // Set the user object with the strava_linked property set to 1.
+                user = authStore.user;
+                user.strava_linked = 1;
+                authStore.setUser(user);
+
                 // Set the success message and show the success alert.
                 addToast(t('settingsIntegrationsZone.successMessageStravaAccountLinked'), 'success', true);
 

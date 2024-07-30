@@ -49,12 +49,11 @@ export default {
         const { t } = useI18n();
         const newPassword = ref('');
         const newPasswordRepeat = ref('');
+        const regex = /^(?=.*[A-Z])(?=.*\d)(?=.*[ !\"#$%&'()*+,\-./:;<=>?@[\\\]^_`{|}~])[A-Za-z\d !"#$%&'()*+,\-./:;<=>?@[\\\]^_`{|}~]{8,}$/;
         const isNewPasswordValid = computed(() => {
-            const regex = /^(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+])[A-Za-z\d!@#$%^&*()_+]{8,}$/;
             return regex.test(newPassword.value);
         });
         const isNewPasswordRepeatValid = computed(() => {
-            const regex = /^(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+])[A-Za-z\d!@#$%^&*()_+]{8,}$/;
             return regex.test(newPasswordRepeat.value);
         });
         const isPasswordMatch = computed(() => newPassword.value === newPasswordRepeat.value);

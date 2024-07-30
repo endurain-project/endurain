@@ -148,7 +148,7 @@ def get_access_token(
 ):
     if noncookie_access_token is None and cookie_access_token is None:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
+            status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Access token missing",
             headers={"WWW-Authenticate": "Bearer"},
         )
@@ -195,7 +195,7 @@ def get_refresh_token(
 ):
     if noncookie_refresh_token is None and cookie_refresh_token is None:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
+            status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Access token missing",
             headers={"WWW-Authenticate": "Bearer"},
         )
@@ -212,11 +212,26 @@ def get_refresh_token(
         )
 
 
-def validate_refresh_token_and_get_authenticated_user_id(
+def validate_refresh_token(
+    # access_token: Annotated[str, Depends(get_access_token_from_cookies)]
+    refresh_token: Annotated[str, Depends(get_refresh_token)]
+):
+    # Validate the token expiration
+    validate_token_expiration(refresh_token)
+
+
+def get_user_id_from_refresh_token(
     refresh_token: Annotated[str, Depends(get_refresh_token)]
 ):
     # Return the user ID associated with the token
     return get_token_user_id(refresh_token)
+
+
+def get_and_return_refresh_token(
+    refresh_token: Annotated[str, Depends(get_refresh_token)],
+):
+    # Return token
+    return refresh_token
 
 
 def check_scopes(

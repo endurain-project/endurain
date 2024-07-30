@@ -1,6 +1,6 @@
 import logging
 
-from typing import Annotated
+from typing import Annotated, Callable
 
 from fastapi import (
     APIRouter,
@@ -63,9 +63,12 @@ async def login_for_access_token(
 @router.post("/refresh")
 async def refresh_token(
     response: Response,
-    user_id: Annotated[
+    validate_refresh_token: Annotated[
+        Callable, Depends(session_security.validate_refresh_token)
+    ],
+    token_user_id: Annotated[
         int,
-        Depends(session_security.validate_refresh_token_and_get_authenticated_user_id),
+        Depends(session_security.get_user_id_from_refresh_token),
     ],
     db: Annotated[
         Session,
@@ -74,7 +77,7 @@ async def refresh_token(
     client_type: str = Depends(session_security.header_client_type_scheme),
 ):
     # get user
-    user = users_crud.get_user_by_id(user_id, db)
+    user = users_crud.get_user_by_id(token_user_id, db)
 
     if user.is_active == session_constants.USER_NOT_ACTIVE:
         raise HTTPException(
