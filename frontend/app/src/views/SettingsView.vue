@@ -56,7 +56,7 @@ export default {
     setup () {
         const authStore = useAuthStore();
         const route = useRoute();
-        const { t } = useI18n();
+        const { locale, t } = useI18n();
         const activeSection = ref('users');
 
         function updateActiveSection(section) {
@@ -77,7 +77,7 @@ export default {
                 // Set the user object with the strava_linked property set to 1.
                 user = authStore.user;
                 user.is_strava_linked = 1;
-                authStore.setUser(user);
+                authStore.setUser(user, locale);
 
                 // Set the success message and show the success alert.
                 addToast(t('settingsIntegrationsZone.successMessageStravaAccountLinked'), 'success', true);
