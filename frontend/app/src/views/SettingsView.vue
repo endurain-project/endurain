@@ -75,7 +75,7 @@ export default {
                 activeSection.value = 'integrations';
 
                 // Set the user object with the strava_linked property set to 1.
-                user = authStore.user;
+                const user = authStore.user;
                 user.is_strava_linked = 1;
                 authStore.setUser(user, locale);
 
