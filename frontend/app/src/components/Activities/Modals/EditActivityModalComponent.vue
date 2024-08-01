@@ -52,6 +52,7 @@
 
 <script>
 import { ref } from 'vue';
+import { useI18n } from 'vue-i18n';
 
 // Importing the utils
 import { addToast } from '@/utils/toastUtils';
@@ -69,6 +70,7 @@ export default {
         },
     },
     setup(props) {
+        const { t } = useI18n();
         const editActivityDescription = ref(props.activity.description);
         const editActivityName = ref(props.activity.name);
         const editActivityType = ref(props.activity.activity_type);

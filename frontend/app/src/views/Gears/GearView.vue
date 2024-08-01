@@ -22,22 +22,22 @@
                     <!-- badges  -->
                     <div class="hstack justify-content-center">
                         <span class="badge bg-success-subtle border border-success-subtle text-success-emphasis align-middle" v-if="gear?.is_active == 1">
-                            {{ $t("gears.activeState") }}
+                            {{ $t("gearsView.activeState") }}
                         </span>
                         <span class="badge bg-danger-subtle border border-danger-subtle text-danger-emphasis align-middle" v-else>
-                            {{ $t("gears.inactiveState") }}
+                            {{ $t("gearsView.inactiveState") }}
                         </span>
                         <span class="ms-2 badge bg-primary-subtle border border-primary-subtle text-primary-emphasis align-middle" v-if="gear?.gear_type == 1">
-                            {{ $t("gears.gearTypeOption1") }}
+                            {{ $t("gearsView.gearTypeOption1") }}
                         </span>
                         <span class="ms-2 badge bg-primary-subtle border border-primary-subtle text-primary-emphasis align-middle" v-else-if="gear?.gear_type == 2">
-                            {{ $t("gears.gearTypeOption2") }}
+                            {{ $t("gearsView.gearTypeOption2") }}
                         </span>
                         <span class="ms-2 badge bg-primary-subtle border border-primary-subtle text-primary-emphasis align-middle" v-else>
-                            {{ $t("gears.gearTypeOption3") }}
+                            {{ $t("gearsView.gearTypeOption3") }}
                         </span>
                         <span class="ms-2 badge bg-primary-subtle border border-primary-subtle text-primary-emphasis align-middle" v-if="gear?.strava_gear_id">
-                            {{ $t("gears.gearFromStrava") }}
+                            {{ $t("gearsView.gearFromStrava") }}
                         </span>
                     </div>
                 </div>
@@ -59,24 +59,24 @@
                             <form @submit.prevent="submitEditGearForm">
                                 <div class="modal-body">
                                     <!-- brand fields -->
-                                    <label for="gearBrandEdit"><b>{{ $t("gears.modalBrand") }}:</b></label>
-                                    <input class="form-control" type="text" name="gearBrandEdit" :placeholder='$t("gears.modalBrand")' v-model="brand" maxlength="250">
+                                    <label for="gearBrandEdit"><b>{{ $t("gearsView.modalBrand") }}:</b></label>
+                                    <input class="form-control" type="text" name="gearBrandEdit" :placeholder='$t("gearsView.modalBrand")' v-model="brand" maxlength="250">
                                     <!-- model fields -->
-                                    <label for="gearModelEdit"><b>{{ $t("gears.modalModel") }}:</b></label>
-                                    <input class="form-control" type="text" name="gearModelEdit" :placeholder='$t("gears.modalModel")' v-model="model" maxlength="250">
+                                    <label for="gearModelEdit"><b>{{ $t("gearsView.modalModel") }}:</b></label>
+                                    <input class="form-control" type="text" name="gearModelEdit" :placeholder='$t("gearsView.modalModel")' v-model="model" maxlength="250">
                                     <!-- nickname fields -->
-                                    <label for="gearNicknameEdit"><b>* {{ $t("gears.modalNickname") }}:</b></label>
-                                    <input class="form-control" type="text" name="gearNicknameEdit" :placeholder='$t("gears.modalNickname")' v-model="nickname" maxlength="250" required>
+                                    <label for="gearNicknameEdit"><b>* {{ $t("gearsView.modalNickname") }}:</b></label>
+                                    <input class="form-control" type="text" name="gearNicknameEdit" :placeholder='$t("gearsView.modalNickname")' v-model="nickname" maxlength="250" required>
                                     <!-- gear type fields -->
-                                    <label for="gearTypeEdit"><b>* {{ $t("gears.modalGearTypeLabel") }}:</b></label>
+                                    <label for="gearTypeEdit"><b>* {{ $t("gearsView.modalGearTypeLabel") }}:</b></label>
                                     <select class="form-control" name="gearTypeEdit" v-model="gearType" required>
-                                        <option value="1">{{ $t("gears.modalGearTypeOption1Bike") }}</option>
-                                        <option value="2">{{ $t("gears.modalGearTypeOption2Shoes") }}</option>
-                                        <option value="3">{{ $t("gears.modalGearTypeOption3Wetsuit") }}</option>
+                                        <option value="1">{{ $t("gearsView.modalGearTypeOption1Bike") }}</option>
+                                        <option value="2">{{ $t("gearsView.modalGearTypeOption2Shoes") }}</option>
+                                        <option value="3">{{ $t("gearsView.modalGearTypeOption3Wetsuit") }}</option>
                                     </select>
                                     <!-- date fields -->
-                                    <label for="gearDateEdit"><b>* {{ $t("gears.modalDateLabel") }}:</b></label>
-                                    <input class="form-control" type="date" name="gearDateEdit" :placeholder='$t("gears.modalDatePlaceholder")' v-model="date" required>
+                                    <label for="gearDateEdit"><b>* {{ $t("gearsView.modalDateLabel") }}:</b></label>
+                                    <input class="form-control" type="date" name="gearDateEdit" :placeholder='$t("gearsView.modalDatePlaceholder")' v-model="date" required>
                                     <!-- gear is_active fields -->
                                     <label for="gearIsActiveEdit"><b>* {{ $t("gearView.modalEditGearIsActiveLabel") }}:</b></label>
                                     <select class="form-control" name="gearIsActiveEdit" v-model="isActive" required>
@@ -131,8 +131,8 @@
                 <!-- details  -->
                 <div class="vstack align-items-center">
                     <span class="mt-2"><strong>{{ $t("gearView.labelDistance") }}:</strong> {{ gearDistance }} km</span>
-                    <span class="mt-2" v-if="gear?.brand"><strong>{{ $t("gears.modalBrand") }}:</strong> {{ gear?.brand }}</span>
-                    <span class="mt-2" v-if="gear?.model"><strong>{{ $t("gears.modalModel") }}:</strong> {{ gear?.model }}</span>
+                    <span class="mt-2" v-if="gear?.brand"><strong>{{ $t("gearsView.modalBrand") }}:</strong> {{ gear?.brand }}</span>
+                    <span class="mt-2" v-if="gear?.model"><strong>{{ $t("gearsView.modalModel") }}:</strong> {{ gear?.model }}</span>
                 </div>
             </div>
         </div>
