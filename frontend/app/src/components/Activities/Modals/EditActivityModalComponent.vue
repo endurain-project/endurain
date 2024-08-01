@@ -18,13 +18,6 @@
                         <!-- type fields -->
                         <label for="activityTypeEdit"><b>* {{ $t("editActivityModal.modalEditActivityTypeLabel") }}</b></label>
                         <select class="form-control" name="activityTypeEdit" v-model="editActivityType" required>
-                            <option value="0">{{ $t("editActivityModal.modalEditActivityVisibilityOption0") }}</option>
-                            <option value="1">{{ $t("editActivityModal.modalEditActivityVisibilityOption1") }}</option>
-                            <option value="2">{{ $t("editActivityModal.modalEditActivityVisibilityOption2") }}</option>
-                        </select>
-                        <!-- visibility fields -->
-                        <label for="activityVisibilityEdit"><b>* {{ $t("editActivityModal.modalEditActivityVisibilityLabel") }}</b></label>
-                        <select class="form-control" name="activityVisibilityEdit" v-model="editActivityVisibility" required>
                             <option value="1">{{ $t("editActivityModal.modalEditActivityTypeOption1") }}</option>
                             <option value="2">{{ $t("editActivityModal.modalEditActivityTypeOption2") }}</option>
                             <option value="3">{{ $t("editActivityModal.modalEditActivityTypeOption3") }}</option>
@@ -37,6 +30,13 @@
                             <option value="10">{{ $t("editActivityModal.modalEditActivityTypeOption10") }}</option>
                             <option value="11">{{ $t("editActivityModal.modalEditActivityTypeOption11") }}</option>
                             <option value="12">{{ $t("editActivityModal.modalEditActivityTypeOption12") }}</option>
+                        </select>
+                        <!-- visibility fields -->
+                        <label for="activityVisibilityEdit"><b>* {{ $t("editActivityModal.modalEditActivityVisibilityLabel") }}</b></label>
+                        <select class="form-control" name="activityVisibilityEdit" v-model="editActivityVisibility" required>
+                            <option value="0">{{ $t("editActivityModal.modalEditActivityVisibilityOption0") }}</option>
+                            <option value="1">{{ $t("editActivityModal.modalEditActivityVisibilityOption1") }}</option>
+                            <option value="2">{{ $t("editActivityModal.modalEditActivityVisibilityOption2") }}</option>
                         </select>
                         <p>* {{ $t("generalItens.requiredField") }}</p>
                     </div>
