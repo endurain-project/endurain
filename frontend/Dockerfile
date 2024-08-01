@@ -30,5 +30,6 @@ EXPOSE 80
 
 ENV VITE_BACKEND_PROTOCOL=http
 ENV VITE_BACKEND_HOST=localhost:98
+ENV VITE_STRAVA_CLIENT_ID=changeme
 
 CMD ["nginx", "-g", "daemon off;"]

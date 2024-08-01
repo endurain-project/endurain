@@ -69,6 +69,7 @@ Environemnt variable  | Default value | Optional | Notes
 --- | --- | --- | ---
 MY_APP_BACKEND_PROTOCOL | http | Yes | Needs to be https if you want to enable Strava integration. Strava callback relies on this. You may need to update this variable based on docker image spin up (api host or local ip (example: http://192.168.1.10:98))
 MY_APP_BACKEND_HOST | localhost:98 | Yes | Needs to be set and be Internet faced/resolved if you want to enable Strava integration. Strava callback relies on this. You may need to update this variable based on docker image spin up (api host or local ip (example: http://192.168.1.10:98))
+MY_APP_STRAVA_CLIENT_ID | changeme | Yes | Needs to be set with your Strava API Client ID if you want to enable Strava integration.
 
 Frontend dependencies:
  - To check npm dependencies used, use npm file (package.json)
