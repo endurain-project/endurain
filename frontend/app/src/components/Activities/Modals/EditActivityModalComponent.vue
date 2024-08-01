@@ -15,12 +15,28 @@
                         <!-- description fields -->
                         <label for="activityDescriptionEdit"><b>{{ $t("editActivityModal.modalEditActivityDescriptionLabel") }}</b></label>
                         <input class="form-control" type="text" name="activityDescriptionEdit" :placeholder='$t("editActivityModal.modalEditActivityDescriptionPlaceholder")' maxlength="2500" v-model="editActivityDescription">
-                        <!-- visibility fields -->
-                        <label for="activityVisibilityEdit"><b>* {{ $t("editActivityModal.modalEditActivityVisibilityPlaceholder") }}</b></label>
-                        <select class="form-control" name="activityVisibilityEdit" v-model="editActivityVisibility" required>
+                        <!-- type fields -->
+                        <label for="activityTypeEdit"><b>* {{ $t("editActivityModal.modalEditActivityTypeLabel") }}</b></label>
+                        <select class="form-control" name="activityTypeEdit" v-model="editActivityType" required>
                             <option value="0">{{ $t("editActivityModal.modalEditActivityVisibilityOption0") }}</option>
                             <option value="1">{{ $t("editActivityModal.modalEditActivityVisibilityOption1") }}</option>
                             <option value="2">{{ $t("editActivityModal.modalEditActivityVisibilityOption2") }}</option>
+                        </select>
+                        <!-- visibility fields -->
+                        <label for="activityVisibilityEdit"><b>* {{ $t("editActivityModal.modalEditActivityVisibilityLabel") }}</b></label>
+                        <select class="form-control" name="activityVisibilityEdit" v-model="editActivityVisibility" required>
+                            <option value="1">{{ $t("editActivityModal.modalEditActivityTypeOption1") }}</option>
+                            <option value="2">{{ $t("editActivityModal.modalEditActivityTypeOption2") }}</option>
+                            <option value="3">{{ $t("editActivityModal.modalEditActivityTypeOption3") }}</option>
+                            <option value="4">{{ $t("editActivityModal.modalEditActivityTypeOption4") }}</option>
+                            <option value="5">{{ $t("editActivityModal.modalEditActivityTypeOption5") }}</option>
+                            <option value="6">{{ $t("editActivityModal.modalEditActivityTypeOption6") }}</option>
+                            <option value="7">{{ $t("editActivityModal.modalEditActivityTypeOption7") }}</option>
+                            <option value="8">{{ $t("editActivityModal.modalEditActivityTypeOption8") }}</option>
+                            <option value="9">{{ $t("editActivityModal.modalEditActivityTypeOption9") }}</option>
+                            <option value="10">{{ $t("editActivityModal.modalEditActivityTypeOption10") }}</option>
+                            <option value="11">{{ $t("editActivityModal.modalEditActivityTypeOption11") }}</option>
+                            <option value="12">{{ $t("editActivityModal.modalEditActivityTypeOption12") }}</option>
                         </select>
                         <p>* {{ $t("generalItens.requiredField") }}</p>
                     </div>
@@ -55,6 +71,7 @@ export default {
     setup(props) {
         const editActivityDescription = ref(props.activity.description);
         const editActivityName = ref(props.activity.name);
+        const editActivityType = ref(props.activity.activity_type);
         const editActivityVisibility = ref(props.activity.visibility);
 
         async function submitEditActivityForm() {
@@ -63,6 +80,7 @@ export default {
                     id: props.activity.id,
                     name: editActivityName.value,
                     description: editActivityDescription.value,
+                    activity_type: editActivityType.value,
                     visibility: editActivityVisibility.value,
                 };
 
@@ -72,6 +90,7 @@ export default {
                 // Set activity new values
                 props.activity.name = editActivityName.value;
                 props.activity.description = editActivityDescription.value;
+                props.activity.activity_type = editActivityType.value;
                 props.activity.visibility = editActivityVisibility.value;
 
                 // show success toast
@@ -85,6 +104,7 @@ export default {
         return {
             editActivityDescription,
             editActivityName,
+            editActivityType,
             editActivityVisibility,
             submitEditActivityForm,
         };

@@ -521,6 +521,8 @@ def edit_activity(user_id: int, activity: activities_schema.ActivityEdit, db: Se
             db_activity.description = activity.description
         if activity.name is not None:
             db_activity.name = activity.name
+        if activity.activity_type is not None:
+            db_activity.activity_type = activity.activity_type
         if activity.visibility is not None:
             db_activity.visibility = activity.visibility
 
