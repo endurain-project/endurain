@@ -3,9 +3,10 @@ services:
   frontend:
     container_name: frontend
     image: ghcr.io/joaovitoriasilva/endurain/frontend:latest
-    #environment:
-      #- MY_APP_BACKEND_PROTOCOL=http # http or https, default is http
-      #- MY_APP_BACKEND_HOST=localhost:98 # api host or local ip (example: 192.168.1.10:98), default is localhost:98
+    environment:
+      - MY_APP_BACKEND_PROTOCOL=http # http or https, default is http
+      - MY_APP_BACKEND_HOST=localhost:98 # api host or local ip (example: 192.168.1.10:98), default is localhost:98
+      - MY_APP_STRAVA_CLIENT_ID=changeme
     # Configure volume if you want to edit the code locally by clomming the repo
     #volumes:
     #  - <local_path>/endurain/frontend/app:/app
@@ -25,7 +26,7 @@ services:
       - STRAVA_AUTH_CODE=changeme
       - GEOCODES_MAPS_API=changeme
       - FRONTEND_PROTOCOL=http # default is http
-      - FRONTEND_HOST=frontend:8080 # frontend host or local ip (example: 192.168.1.10:8080), default is localhost:8080
+      - FRONTEND_HOST=localhost:8080 # frontend host or local ip (example: 192.168.1.10:8080), default is localhost:8080
     ports:
       - "98:80" # API port, change per your needs
     volumes:

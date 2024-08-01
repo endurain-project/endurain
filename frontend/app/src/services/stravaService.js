@@ -8,7 +8,7 @@ export const strava = {
         return fetchPutRequest(`strava/unset-user-unique-state`)
     },
     linkStrava(state) {
-        const stravaClientId = '115321';
+        const stravaClientId = `${import.meta.env.VITE_STRAVA_CLIENT_ID}`;
         let redirectUri = `${import.meta.env.VITE_BACKEND_PROTOCOL}://${import.meta.env.VITE_BACKEND_HOST}`;
         redirectUri = encodeURIComponent(redirectUri);
         const scope = 'read,read_all,profile:read_all,activity:read,activity:read_all';

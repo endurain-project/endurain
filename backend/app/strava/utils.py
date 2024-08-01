@@ -32,9 +32,12 @@ def refresh_strava_tokens(db: Session):
 
         # Check if user_integrations strava token is not None
         if user_integrations.strava_token is not None:
-            refresh_time = user_integrations.strava_token_expires_at - timedelta(
-                minutes=60
-            )
+            # refresh_time = user_integrations.strava_token_expires_at - timedelta(
+            #    minutes=60
+            # )
+            refresh_time = user_integrations.strava_token_expires_at.replace(
+                tzinfo=timezone.utc
+            ) - timedelta(minutes=60)
 
             if datetime.now(timezone.utc) > refresh_time:
                 # Strava token refresh endpoint

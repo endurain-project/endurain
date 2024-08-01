@@ -7,7 +7,7 @@ class Activity(BaseModel):
     description: str | None = None
     distance: int
     name: str
-    activity_type: str
+    activity_type: int
     start_time: str
     end_time: str
     city: str | None = None
@@ -39,4 +39,5 @@ class ActivityEdit(BaseModel):
     id: int
     description: str | None = None
     name: str
+    activity_type: int
     visibility: int | None = None

@@ -244,8 +244,9 @@ def define_activity_type(activity_type):
         "virtual_ride": 7,
         "Swim": 8,
         "swimming": 8,
-        "open_water_swimming": 8,
-        "Walk": 9,
+        "open_water_swimming": 9,
+        "Walk": 11,
+        "Hike": 12,
     }
     # "AlpineSki",
     # "BackcountrySki",
