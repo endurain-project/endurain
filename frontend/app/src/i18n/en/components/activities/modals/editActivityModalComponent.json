@@ -20,5 +20,7 @@
     "modalEditActivityVisibilityLabel": "Visibility",
     "modalEditActivityVisibilityOption0": "Public",
     "modalEditActivityVisibilityOption1": "Followers",
-    "modalEditActivityVisibilityOption2": "Private"
+    "modalEditActivityVisibilityOption2": "Private",
+    "successActivityEdit": "Activity edited successfully",
+    "errorActivityEdit": "Error editing activity"
 }

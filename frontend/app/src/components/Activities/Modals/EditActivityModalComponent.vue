@@ -1,48 +1,48 @@
 <template>
     <!-- Modal edit activity -->
-    <div class="modal fade" id="editActivityModal" tabindex="-1" aria-labelledby="editActivityModal" aria-hidden="true">
+    <div class="modal fade" id="editActivityModal" tabindex="-1" aria-labelledby="editActivityModalComponent" aria-hidden="true">
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h1 class="modal-title fs-5" id="editActivityModal">{{ $t("editActivityModal.modalEditActivityTitle") }}</h1>
+                    <h1 class="modal-title fs-5" id="editActivityModal">{{ $t("editActivityModalComponent.modalEditActivityTitle") }}</h1>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <form  @submit.prevent="submitEditActivityForm">
                     <div class="modal-body">
                         <!-- name fields -->
-                        <label for="activityNameEdit"><b>* {{ $t("editActivityModal.modalEditActivityNameLabel") }}</b></label>
-                        <input class="form-control" type="text" name="activityNameEdit" :placeholder='$t("editActivityModal.modalEditActivityNamePlaceholder")' maxlength="45" v-model="editActivityName" required>
+                        <label for="activityNameEdit"><b>* {{ $t("editActivityModalComponent.modalEditActivityNameLabel") }}</b></label>
+                        <input class="form-control" type="text" name="activityNameEdit" :placeholder='$t("editActivityModalComponent.modalEditActivityNamePlaceholder")' maxlength="45" v-model="editActivityName" required>
                         <!-- description fields -->
-                        <label for="activityDescriptionEdit"><b>{{ $t("editActivityModal.modalEditActivityDescriptionLabel") }}</b></label>
-                        <input class="form-control" type="text" name="activityDescriptionEdit" :placeholder='$t("editActivityModal.modalEditActivityDescriptionPlaceholder")' maxlength="2500" v-model="editActivityDescription">
+                        <label for="activityDescriptionEdit"><b>{{ $t("editActivityModalComponent.modalEditActivityDescriptionLabel") }}</b></label>
+                        <input class="form-control" type="text" name="activityDescriptionEdit" :placeholder='$t("editActivityModalComponent.modalEditActivityDescriptionPlaceholder")' maxlength="2500" v-model="editActivityDescription">
                         <!-- type fields -->
-                        <label for="activityTypeEdit"><b>* {{ $t("editActivityModal.modalEditActivityTypeLabel") }}</b></label>
+                        <label for="activityTypeEdit"><b>* {{ $t("editActivityModalComponent.modalEditActivityTypeLabel") }}</b></label>
                         <select class="form-control" name="activityTypeEdit" v-model="editActivityType" required>
-                            <option value="1">{{ $t("editActivityModal.modalEditActivityTypeOption1") }}</option>
-                            <option value="2">{{ $t("editActivityModal.modalEditActivityTypeOption2") }}</option>
-                            <option value="3">{{ $t("editActivityModal.modalEditActivityTypeOption3") }}</option>
-                            <option value="4">{{ $t("editActivityModal.modalEditActivityTypeOption4") }}</option>
-                            <option value="5">{{ $t("editActivityModal.modalEditActivityTypeOption5") }}</option>
-                            <option value="6">{{ $t("editActivityModal.modalEditActivityTypeOption6") }}</option>
-                            <option value="7">{{ $t("editActivityModal.modalEditActivityTypeOption7") }}</option>
-                            <option value="8">{{ $t("editActivityModal.modalEditActivityTypeOption8") }}</option>
-                            <option value="9">{{ $t("editActivityModal.modalEditActivityTypeOption9") }}</option>
-                            <option value="10">{{ $t("editActivityModal.modalEditActivityTypeOption10") }}</option>
-                            <option value="11">{{ $t("editActivityModal.modalEditActivityTypeOption11") }}</option>
-                            <option value="12">{{ $t("editActivityModal.modalEditActivityTypeOption12") }}</option>
+                            <option value="1">{{ $t("editActivityModalComponent.modalEditActivityTypeOption1") }}</option>
+                            <option value="2">{{ $t("editActivityModalComponent.modalEditActivityTypeOption2") }}</option>
+                            <option value="3">{{ $t("editActivityModalComponent.modalEditActivityTypeOption3") }}</option>
+                            <option value="4">{{ $t("editActivityModalComponent.modalEditActivityTypeOption4") }}</option>
+                            <option value="5">{{ $t("editActivityModalComponent.modalEditActivityTypeOption5") }}</option>
+                            <option value="6">{{ $t("editActivityModalComponent.modalEditActivityTypeOption6") }}</option>
+                            <option value="7">{{ $t("editActivityModalComponent.modalEditActivityTypeOption7") }}</option>
+                            <option value="8">{{ $t("editActivityModalComponent.modalEditActivityTypeOption8") }}</option>
+                            <option value="9">{{ $t("editActivityModalComponent.modalEditActivityTypeOption9") }}</option>
+                            <option value="10">{{ $t("editActivityModalComponent.modalEditActivityTypeOption10") }}</option>
+                            <option value="11">{{ $t("editActivityModalComponent.modalEditActivityTypeOption11") }}</option>
+                            <option value="12">{{ $t("editActivityModalComponent.modalEditActivityTypeOption12") }}</option>
                         </select>
                         <!-- visibility fields -->
-                        <label for="activityVisibilityEdit"><b>* {{ $t("editActivityModal.modalEditActivityVisibilityLabel") }}</b></label>
+                        <label for="activityVisibilityEdit"><b>* {{ $t("editActivityModalComponent.modalEditActivityVisibilityLabel") }}</b></label>
                         <select class="form-control" name="activityVisibilityEdit" v-model="editActivityVisibility" required>
-                            <option value="0">{{ $t("editActivityModal.modalEditActivityVisibilityOption0") }}</option>
-                            <option value="1">{{ $t("editActivityModal.modalEditActivityVisibilityOption1") }}</option>
-                            <option value="2">{{ $t("editActivityModal.modalEditActivityVisibilityOption2") }}</option>
+                            <option value="0">{{ $t("editActivityModalComponent.modalEditActivityVisibilityOption0") }}</option>
+                            <option value="1">{{ $t("editActivityModalComponent.modalEditActivityVisibilityOption1") }}</option>
+                            <option value="2">{{ $t("editActivityModalComponent.modalEditActivityVisibilityOption2") }}</option>
                         </select>
                         <p>* {{ $t("generalItens.requiredField") }}</p>
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ $t("generalItens.buttonClose") }}</button>
-                        <button type="submit" class="btn btn-success" data-bs-dismiss="modal">{{ $t("editActivityModal.modalEditActivityTitle") }}</button>
+                        <button type="submit" class="btn btn-success" data-bs-dismiss="modal">{{ $t("editActivityModalComponent.modalEditActivityTitle") }}</button>
                     </div>
                 </form>
             </div>
@@ -94,10 +94,10 @@ export default {
                 props.activity.visibility = editActivityVisibility.value;
 
                 // show success toast
-                addToast(t('gear.successGearEdited'), 'success', true);
+                addToast(t('editActivityModalComponent.successActivityEdit'), 'success', true);
             } catch (error) {
                 // If there is an error, set the error message and show the error alert.
-                addToast(t('generalItens.errorEditingInfo') + " - " + error.toString(), 'danger', true);
+                addToast(t('editActivityModalComponent.errorActivityEdit') + " - " + error.toString(), 'danger', true);
             }
         }
 

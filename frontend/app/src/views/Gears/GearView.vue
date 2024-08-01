@@ -43,7 +43,7 @@
                 </div>
                 <!-- edit gear zone -->
                 <button type="button" class="mt-2 w-100 btn btn-primary" :disabled="gear && gear?.strava_gear_id" data-bs-toggle="modal" data-bs-target="#editGearModal">
-                    {{ $t("gear.buttonEditGear") }}
+                    {{ $t("gearView.buttonEditGear") }}
                 </button>
 
                 <!-- Modal edit gear -->
@@ -53,7 +53,7 @@
                         <div class="modal-content">
                             <div class="modal-header">
                                 <h1 class="modal-title fs-5" id="editGearModal">
-                                    {{ $t("gear.buttonEditGear") }}
+                                    {{ $t("gearView.buttonEditGear") }}
                                 </h1>
                             </div>
                             <form @submit.prevent="submitEditGearForm">
@@ -78,16 +78,16 @@
                                     <label for="gearDateEdit"><b>* {{ $t("gears.modalDateLabel") }}:</b></label>
                                     <input class="form-control" type="date" name="gearDateEdit" :placeholder='$t("gears.modalDatePlaceholder")' v-model="date" required>
                                     <!-- gear is_active fields -->
-                                    <label for="gearIsActiveEdit"><b>* {{ $t("gear.modalEditGearIsActiveLabel") }}:</b></label>
+                                    <label for="gearIsActiveEdit"><b>* {{ $t("gearView.modalEditGearIsActiveLabel") }}:</b></label>
                                     <select class="form-control" name="gearIsActiveEdit" v-model="isActive" required>
-                                        <option value="1">{{ $t("gear.modalEditGearIsActiveOption1") }}</option>
-                                        <option value="0">{{ $t("gear.modalEditGearIsActiveOption0") }}</option>
+                                        <option value="1">{{ $t("gearView.modalEditGearIsActiveOption1") }}</option>
+                                        <option value="0">{{ $t("gearView.modalEditGearIsActiveOption0") }}</option>
                                     </select>
                                     <p>* {{ $t("generalItens.requiredField") }}</p>
                                 </div>
                                 <div class="modal-footer">
                                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ $t("generalItens.buttonClose") }}</button>
-                                    <button type="submit" class="btn btn-success" name="editGear" data-bs-dismiss="modal">{{ $t("gear.buttonEditGear") }}</button>
+                                    <button type="submit" class="btn btn-success" name="editGear" data-bs-dismiss="modal">{{ $t("gearView.buttonEditGear") }}</button>
                                 </div>
                             </form>
                         </div>
@@ -95,7 +95,7 @@
                 </div>
 
                 <button type="button" class="mt-2 w-100 btn btn-danger" :disabled="(gear && gear?.strava_gear_id) || (gearActivities && gearActivities.length != 0)" data-bs-toggle="modal" data-bs-target="#deleteGearModal" >
-                    {{ $t("gear.buttonDeleteGear") }}
+                    {{ $t("gearView.buttonDeleteGear") }}
                 </button>
                 <!--<a class="mt-2 w-100 btn btn-danger" :class="{ 'disabled': gear && gear.strava_gear_id }" href="#" role="button" data-bs-toggle="modal" data-bs-target="#deleteGearModal" :aria-disabled="gearActivities && gearActivities.length != 0 ? 'true' : 'false'" @click.prevent="gear && gear.strava_gear_id || (gearActivities && gearActivities.length != 0) ? null : openDeleteModal()">
                     {{ $t("gear.buttonDeleteGear") }}
@@ -108,20 +108,20 @@
                         <div class="modal-content">
                             <div class="modal-header">
                                 <h1 class="modal-title fs-5" id="deleteGearModal">
-                                    {{ $t("gear.buttonDeleteGear") }}
+                                    {{ $t("gearView.buttonDeleteGear") }}
                                 </h1>
                             </div>
                             <div class="modal-body">
-                                <span>{{ $t("gear.modalDeleteGearBody1") }} <b>
+                                <span>{{ $t("gearView.modalDeleteGearBody1") }} <b>
                                     {{ gear?.nickname }}
                                 </b>?</span>
                                 <br>
-                                <span>{{ $t("gear.modalDeleteGearBody2") }}</span>
+                                <span>{{ $t("gearView.modalDeleteGearBody2") }}</span>
                             </div>
                             <div class="modal-footer">
                                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ $t("generalItens.buttonClose") }}</button>
                                 <button @click="submitDeleteGear" type="button" class="btn btn-danger" data-bs-dismiss="modal">
-                                    {{ $t("gear.buttonDeleteGear") }}
+                                    {{ $t("gearView.buttonDeleteGear") }}
                                 </button>
                             </div>
                         </div>
@@ -130,7 +130,7 @@
 
                 <!-- details  -->
                 <div class="vstack align-items-center">
-                    <span class="mt-2"><strong>{{ $t("gear.labelDistance") }}:</strong> {{ gearDistance }} km</span>
+                    <span class="mt-2"><strong>{{ $t("gearView.labelDistance") }}:</strong> {{ gearDistance }} km</span>
                     <span class="mt-2" v-if="gear?.brand"><strong>{{ $t("gears.modalBrand") }}:</strong> {{ gear?.brand }}</span>
                     <span class="mt-2" v-if="gear?.model"><strong>{{ $t("gears.modalModel") }}:</strong> {{ gear?.model }}</span>
                 </div>
@@ -145,10 +145,10 @@
                 <hr class="mb-2 mt-2 d-sm-none d-block">
                 <div class="hstack align-items-baseline">
                     <h5>
-                        {{ $t("gear.title") }}
+                        {{ $t("gearView.title") }}
                     </h5>
                     <h6 class="ms-1">
-                        {{ $t("gear.subtitle") }}
+                        {{ $t("gearView.subtitle") }}
                     </h6>
                 </div>
                 <NoItemsFoundComponent v-if="!gearActivities || (gearActivities && gearActivities.length == 0)"/>
@@ -158,7 +158,7 @@
                             <router-link :to="{ name: 'activity', params: { id: activity.id }}" class="link-body-emphasis link-underline-opacity-0 link-underline-opacity-100-hover">
                                 {{ activity.name}}
                             </router-link>
-                            <span><strong>{{ $t("gear.labelDate") }}:</strong> {{ formatDate(activity.start_time) }} @ {{ formatTime(activity.start_time) }}</span>
+                            <span><strong>{{ $t("gearView.labelDate") }}:</strong> {{ formatDate(activity.start_time) }} @ {{ formatTime(activity.start_time) }}</span>
                         </li>
                     </ul>
                 </div>
@@ -228,7 +228,7 @@ export default {
                 gear.value.created_at = date.value;
                 gear.value.is_active = isActive.value;
                 
-                addToast(t('gear.successGearEdited'), 'success', true);
+                addToast(t('gearView.successGearEdited'), 'success', true);
             } catch (error) {
                 // If there is an error, set the error message and show the error alert.
                 addToast(t('generalItens.errorEditingInfo') + " - " + error.toString(), 'danger', true);

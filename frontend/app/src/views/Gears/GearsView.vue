@@ -1,11 +1,11 @@
 <template>
-    <h1>{{ $t("gears.title") }}</h1>
+    <h1>{{ $t("gearsView.title") }}</h1>
     <div class="row row-gap-3">
         <div class="col-lg-4 col-md-12">
             <!-- Add gear zone -->
-            <p>{{ $t("gears.buttonAddGear") }}:</p>
+            <p>{{ $t("gearsView.buttonAddGear") }}:</p>
             <a class="w-100 btn btn-primary" href="#" role="button" data-bs-toggle="modal" data-bs-target="#addGearModal">
-                {{ $t("gears.buttonAddGear") }}
+                {{ $t("gearsView.buttonAddGear") }}
             </a>
 
             <!-- Add gear modal -->
@@ -13,35 +13,35 @@
                 <div class="modal-dialog">
                     <div class="modal-content">
                         <div class="modal-header">
-                            <h1 class="modal-title fs-5" id="addGearModal">{{ $t("gears.buttonAddGear") }}</h1>
+                            <h1 class="modal-title fs-5" id="addGearModal">{{ $t("gearsView.buttonAddGear") }}</h1>
                             <!--<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>-->
                         </div>
                         <form @submit.prevent="submitAddGearForm">
                             <div class="modal-body">
                                 <!-- brand fields -->
-                                <label for="gearBrandAdd"><b>{{ $t("gears.modalBrand") }}:</b></label>
-                                <input class="form-control" type="text" name="gearBrandAdd" :placeholder='$t("gears.modalBrand")' v-model="brand" maxlength="250">
+                                <label for="gearBrandAdd"><b>{{ $t("gearsView.modalBrand") }}:</b></label>
+                                <input class="form-control" type="text" name="gearBrandAdd" :placeholder='$t("gearsView.modalBrand")' v-model="brand" maxlength="250">
                                 <!-- model fields -->
-                                <label for="gearModelAdd"><b>{{ $t("gears.modalModel") }}:</b></label>
-                                <input class="form-control" type="text" name="gearModelAdd" :placeholder='$t("gears.modalModel")' v-model="model" maxlength="250">
+                                <label for="gearModelAdd"><b>{{ $t("gearsView.modalModel") }}:</b></label>
+                                <input class="form-control" type="text" name="gearModelAdd" :placeholder='$t("gearsView.modalModel")' v-model="model" maxlength="250">
                                 <!-- nickname fields -->
-                                <label for="gearNicknameAdd"><b>* {{ $t("gears.modalNickname") }}:</b></label>
-                                <input class="form-control" type="text" name="gearNicknameAdd" :placeholder='$t("gears.modalNickname")' v-model="nickname" maxlength="250" required>
+                                <label for="gearNicknameAdd"><b>* {{ $t("gearsView.modalNickname") }}:</b></label>
+                                <input class="form-control" type="text" name="gearNicknameAdd" :placeholder='$t("gearsView.modalNickname")' v-model="nickname" maxlength="250" required>
                                 <!-- gear type fields -->
-                                <label for="gearTypeAdd"><b>* {{ $t("gears.modalGearTypeLabel") }}:</b></label>
+                                <label for="gearTypeAdd"><b>* {{ $t("gearsView.modalGearTypeLabel") }}:</b></label>
                                 <select class="form-control" name="gearTypeAdd" v-model="gearType" required>
-                                    <option value="1">{{ $t("gears.modalGearTypeOption1Bike") }}</option>
-                                    <option value="2">{{ $t("gears.modalGearTypeOption2Shoes") }}</option>
-                                    <option value="3">{{ $t("gears.modalGearTypeOption3Wetsuit") }}</option>
+                                    <option value="1">{{ $t("gearsView.modalGearTypeOption1Bike") }}</option>
+                                    <option value="2">{{ $t("gearsView.modalGearTypeOption2Shoes") }}</option>
+                                    <option value="3">{{ $t("gearsView.modalGearTypeOption3Wetsuit") }}</option>
                                 </select>
                                 <!-- date fields -->
-                                <label for="gearDateAdd"><b>* {{ $t("gears.modalDateLabel") }}:</b></label>
-                                <input class="form-control" type="date" name="gearDateAdd" :placeholder='$t("gears.modalDatePlaceholder")' v-model="date" required>
+                                <label for="gearDateAdd"><b>* {{ $t("gearsView.modalDateLabel") }}:</b></label>
+                                <input class="form-control" type="date" name="gearDateAdd" :placeholder='$t("gearsView.modalDatePlaceholder")' v-model="date" required>
                                 <p>* {{ $t("generalItens.requiredField") }}</p>
                             </div>
                             <div class="modal-footer">
                                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ $t("generalItens.buttonClose") }}</button>
-                                <button type="submit" class="btn btn-success" name="addGear" data-bs-dismiss="modal">{{ $t("gears.buttonAddGear") }}</button>
+                                <button type="submit" class="btn btn-success" name="addGear" data-bs-dismiss="modal">{{ $t("gearsView.buttonAddGear") }}</button>
                             </div>
                         </form>
                     </div>
@@ -50,10 +50,10 @@
 
             <!-- Search gear by nickname zone -->
             <br>
-            <p class="mt-2">{{ $t("gears.subTitleSearchGearByNickname") }}:</p>
+            <p class="mt-2">{{ $t("gearsView.subTitleSearchGearByNickname") }}:</p>
             <form>
                 <div class="mb-3">
-                    <input class="form-control" type="text" name="gearNickname" :placeholder='$t("gears.placeholderSearchGearByNickname")' v-model="searchNickname" required>
+                    <input class="form-control" type="text" name="gearNickname" :placeholder='$t("gearsView.placeholderSearchGearByNickname")' v-model="searchNickname" required>
                 </div>
             </form>
         </div>
@@ -65,7 +65,7 @@
                 <!-- Checking if userGears is loaded and has length -->
                 <div v-if="userGears && userGears.length">
                     <!-- Iterating over userGears to display them -->
-                    <p>{{ $t("gears.displayUserNumberOfGears1") }}{{ userGearsNumber }}{{ $t("gears.displayUserNumberOfGears2") }}{{ userGears.length }}{{ $t("gears.displayUserNumberOfGears3") }}</p>
+                    <p>{{ $t("gearsView.displayUserNumberOfGears1") }}{{ userGearsNumber }}{{ $t("gearsView.displayUserNumberOfGears2") }}{{ userGears.length }}{{ $t("gearsView.displayUserNumberOfGears3") }}</p>
 
                     <!-- Displaying loading new gear if applicable -->
                     <ul class="list-group list-group-flush" v-if="isLoadingNewGear">
@@ -90,17 +90,17 @@
                                             {{ gear.nickname }}
                                         </router-link>
                                     </div>
-                                    <b>{{ $t("gears.gearTypeLabel") }}</b>
-                                    <span v-if="gear.gear_type == 1">{{ $t("gears.gearTypeOption1") }}</span>
-                                    <span v-else-if="gear.gear_type == 2">{{ $t("gears.gearTypeOption2") }}</span>
-                                    <span v-else>{{ $t("gears.gearTypeOption3") }}</span>
+                                    <b>{{ $t("gearsView.gearTypeLabel") }}</b>
+                                    <span v-if="gear.gear_type == 1">{{ $t("gearsView.gearTypeOption1") }}</span>
+                                    <span v-else-if="gear.gear_type == 2">{{ $t("gearsView.gearTypeOption2") }}</span>
+                                    <span v-else>{{ $t("gearsView.gearTypeOption3") }}</span>
                                     <br>
                                 </div>
                             </div>
                             <div>
-                                <span class="badge bg-success-subtle border border-success-subtle text-success-emphasis align-middle" v-if="gear.is_active == 1">{{ $t("gears.activeState") }}</span>
-                                <span class="badge bg-danger-subtle border border-danger-subtle text-danger-emphasis align-middle" v-else>{{ $t("gears.inactiveState") }}</span>
-                                <span class="badge bg-primary-subtle border border-primary-subtle text-primary-emphasis align-middle ms-2" v-if="gear.strava_gear_id">{{ $t("gears.gearFromStrava") }}</span>
+                                <span class="badge bg-success-subtle border border-success-subtle text-success-emphasis align-middle" v-if="gear.is_active == 1">{{ $t("gearsView.activeState") }}</span>
+                                <span class="badge bg-danger-subtle border border-danger-subtle text-danger-emphasis align-middle" v-else>{{ $t("gearsView.inactiveState") }}</span>
+                                <span class="badge bg-primary-subtle border border-primary-subtle text-primary-emphasis align-middle ms-2" v-if="gear.strava_gear_id">{{ $t("gearsView.gearFromStrava") }}</span>
                             </div>
                         </li>
                     </ul>
@@ -203,7 +203,7 @@ export default {
                 userGearsNumber.value++;
 
                 // Set the success message and show the success alert.
-                addToast(t('gears.successGearAdded'), 'success', true);
+                addToast(t('gearsView.successGearAdded'), 'success', true);
             } catch (error) {
                 // If there is an error, set the error message and show the error alert.
                 addToast(t('generalItens.errorFetchingInfo') + " - " + error.toString(), 'danger', true);
@@ -253,12 +253,12 @@ export default {
         onMounted(async () => {
             if (route.query.gearDeleted === 'true') {
                 // Set the gearDeleted value to true and show the success alert.
-                addToast(t('gears.successGearDeleted'), 'success', true);
+                addToast(t('gearsView.successGearDeleted'), 'success', true);
             }
 
             if (route.query.gearFound === 'false') {
                 // Set the gearFound value to false and show the error alert.
-                addToast(t('gears.errorGearNotFound'), 'danger', true);
+                addToast(t('gearsView.errorGearNotFound'), 'danger', true);
             }
 
             // Fetch gears
