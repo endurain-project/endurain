@@ -1,108 +1,108 @@
 <template>
-  <div class="container mt-4">
-    <div class="row row-gap-3">
-      <!-- sidebar zone -->
-      <div class="col-lg-3 col-md-12">
-        <div class="d-none d-lg-block mt-3 mb-3 d-flex justify-content-center">
-          <!-- user name and photo zone -->
-          <div v-if="isLoading">
-            <LoadingComponent />
-          </div>
-          <div v-else>
-            <div class="justify-content-center d-flex" v-if="authStore.user">
-              <UserAvatarComponent :userProp="authStore.user" :width=120 :height=120 />
-            </div>
-            <div class="text-center mt-3 mb-3 fw-bold" v-if="authStore.user.id">
-              <router-link :to="{ name: 'user', params: { id: authStore.user.id }}" class="link-body-emphasis link-underline-opacity-0 link-underline-opacity-100-hover">
-                  {{ authStore.user.name}}
-              </router-link>
-            </div>
-          </div>
-          <!-- user stats zone -->
-          <div v-if="isLoading">
-            <LoadingComponent />
-          </div>
-          <UserDistanceStatsComponent :thisWeekDistances="thisWeekDistances" :thisMonthDistances="thisMonthDistances" v-else />
+  <div class="row row-gap-3">
+    <!-- sidebar zone -->
+    <div class="col-lg-3 col-md-12">
+      <div class="d-none d-lg-block mt-3 mb-3 d-flex justify-content-center">
+        <!-- user name and photo zone -->
+        <div v-if="isLoading">
+          <LoadingComponent />
         </div>
-        <a class="w-100 btn btn-primary mb-4" href="#" role="button" data-bs-toggle="modal" data-bs-target="#addActivityModal">
-          {{ $t("homeView.buttonAddActivity") }}
-        </a>
+        <div v-else>
+          <div class="justify-content-center d-flex" v-if="authStore.user">
+            <UserAvatarComponent :userProp="authStore.user" :width=120 :height=120 />
+          </div>
+          <div class="text-center mt-3 mb-3 fw-bold" v-if="authStore.user.id">
+            <router-link :to="{ name: 'user', params: { id: authStore.user.id }}" class="link-body-emphasis link-underline-opacity-0 link-underline-opacity-100-hover">
+                {{ authStore.user.name}}
+            </router-link>
+          </div>
+        </div>
+        <!-- user stats zone -->
+        <div v-if="isLoading">
+          <LoadingComponent />
+        </div>
+        <UserDistanceStatsComponent :thisWeekDistances="thisWeekDistances" :thisMonthDistances="thisMonthDistances" v-else />
+      </div>
 
-        <!-- Modal add actvity -->
-        <div class="modal fade" id="addActivityModal" tabindex="-1" aria-labelledby="addActivityModalLabel" aria-hidden="true">
-          <div class="modal-dialog">
-            <div class="modal-content">
-              <div class="modal-header">
-                <h1 class="modal-title fs-5" id="addActivityModalLabel">
-                  {{ $t("homeView.buttonAddActivity") }}
-                </h1>
-                <!--<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>-->
-              </div>
-              <form @submit.prevent="submitUploadFileForm">
-                <div class="modal-body">
-                  <!-- date fields -->
-                  <label for="activityGpxFileAdd"><b>* {{ $t("homeView.fieldLabelUploadGPXFile") }}</b></label>
-                  <input class="form-control mt-1 mb-1" type="file" name="activityGpxFileAdd" accept=".gpx" required>
-                  <p>* {{ $t("generalItens.requiredField") }}</p>
-                </div>
-                <div class="modal-footer">
-                  <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                    {{ $t("generalItens.buttonClose") }}
-                  </button>
-                  <button type="submit" class="btn btn-success" data-bs-dismiss="modal">
-                    {{ $t("homeView.buttonAddActivity") }}
-                  </button>
-                </div>
-              </form>
+      <!-- add activity button -->
+      <a class="w-100 btn btn-primary" href="#" role="button" data-bs-toggle="modal" data-bs-target="#addActivityModal">
+        {{ $t("homeView.buttonAddActivity") }}
+      </a>
+
+      <!-- Modal add actvity -->
+      <div class="modal fade" id="addActivityModal" tabindex="-1" aria-labelledby="addActivityModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h1 class="modal-title fs-5" id="addActivityModalLabel">
+                {{ $t("homeView.buttonAddActivity") }}
+              </h1>
+              <!--<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>-->
             </div>
+            <form @submit.prevent="submitUploadFileForm">
+              <div class="modal-body">
+                <!-- date fields -->
+                <label for="activityGpxFileAdd"><b>* {{ $t("homeView.fieldLabelUploadGPXFile") }}</b></label>
+                <input class="form-control mt-1 mb-1" type="file" name="activityGpxFileAdd" accept=".gpx" required>
+                <p>* {{ $t("generalItens.requiredField") }}</p>
+              </div>
+              <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                  {{ $t("generalItens.buttonClose") }}
+                </button>
+                <button type="submit" class="btn btn-success" data-bs-dismiss="modal">
+                  {{ $t("homeView.buttonAddActivity") }}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       </div>
-      <!-- activities zone -->
-      <div class="col">
+    </div>
+    <!-- activities zone -->
+    <div class="col">
 
-        <!-- radio button -->
-        <!-- <div class="btn-group mb-3 d-flex" role="group"  aria-label="Activities radio toggle button group"> -->
-          <!-- user activities -->
-          <!-- <input type="radio" class="btn-check" name="btnradio" id="btnRadioUserActivities" autocomplete="off" value="userActivities" v-model="selectedActivityView">
-          <label class="btn btn-outline-primary w-100" for="btnRadioUserActivities">{{ $t("homeView.radioUserActivities") }}</label> -->
-          <!-- user followers activities -->
-          <!-- <input type="radio" class="btn-check" name="btnradio" id="btnRadioFollowersActivities" autocomplete="off" value="followersActivities" v-model="selectedActivityView">
-          <label class="btn btn-outline-primary w-100" for="btnRadioFollowersActivities">{{ $t("homeView.radioFollowerActivities") }}</label>
-        </div> -->
-
+      <!-- radio button -->
+      <!-- <div class="btn-group mb-3 d-flex" role="group"  aria-label="Activities radio toggle button group"> -->
         <!-- user activities -->
-        <div id="userActivitiesDiv" v-show="selectedActivityView === 'userActivities'">
-          <div v-if="isLoading">
-            <LoadingComponent />
-          </div>
-          <div v-else>
-            <!-- Checking if userActivities is loaded and has length -->
-            <div v-if="userActivities && userActivities.length">
-              <!-- Iterating over userActivities to display them -->
-              <div class="card mb-3" v-for="activity in userActivities" :key="activity.id">
-                <div class="card-body">
-                  <ActivitySummaryComponent :activity="activity" :source="'home'"/>
-                </div>
-                <ActivityMapComponent class="mx-3 mb-3" :activity="activity" :source="'home'"/>
-              </div>
-            </div>
-            <!-- Displaying a message or component when there are no activities -->
-            <NoItemsFoundComponent v-else />
-          </div>
-        </div>
-
+        <!-- <input type="radio" class="btn-check" name="btnradio" id="btnRadioUserActivities" autocomplete="off" value="userActivities" v-model="selectedActivityView">
+        <label class="btn btn-outline-primary w-100" for="btnRadioUserActivities">{{ $t("homeView.radioUserActivities") }}</label> -->
         <!-- user followers activities -->
-        <div id="followersActivitiesDiv" v-show="selectedActivityView === 'followersActivities'">
-          <div v-if="isLoading">
-            <LoadingComponent />
-          </div>
-          <div v-else>
-            <div v-if="followedUserActivities && followedUserActivities.length">
+        <!-- <input type="radio" class="btn-check" name="btnradio" id="btnRadioFollowersActivities" autocomplete="off" value="followersActivities" v-model="selectedActivityView">
+        <label class="btn btn-outline-primary w-100" for="btnRadioFollowersActivities">{{ $t("homeView.radioFollowerActivities") }}</label>
+      </div> -->
 
+      <!-- user activities -->
+      <div id="userActivitiesDiv" v-show="selectedActivityView === 'userActivities'">
+        <div v-if="isLoading">
+          <LoadingComponent />
+        </div>
+        <div v-else>
+          <!-- Checking if userActivities is loaded and has length -->
+          <div v-if="userActivities && userActivities.length">
+            <!-- Iterating over userActivities to display them -->
+            <div class="card mb-3" v-for="activity in userActivities" :key="activity.id">
+              <div class="card-body">
+                <ActivitySummaryComponent :activity="activity" :source="'home'"/>
+              </div>
+              <ActivityMapComponent class="mx-3 mb-3" :activity="activity" :source="'home'"/>
             </div>
-            <NoItemsFoundComponent v-else />
           </div>
+          <!-- Displaying a message or component when there are no activities -->
+          <NoItemsFoundComponent v-else />
+        </div>
+      </div>
+
+      <!-- user followers activities -->
+      <div id="followersActivitiesDiv" v-show="selectedActivityView === 'followersActivities'">
+        <div v-if="isLoading">
+          <LoadingComponent />
+        </div>
+        <div v-else>
+          <div v-if="followedUserActivities && followedUserActivities.length">
+
+          </div>
+          <NoItemsFoundComponent v-else />
         </div>
       </div>
     </div>

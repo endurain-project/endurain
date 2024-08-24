@@ -60,15 +60,6 @@
             </div>
         </div>
     </nav>
-    <div class="alert alert-warning alert-dismissible d-flex align-items-center mx-2 my-2 justify-content-center"
-        role="alert">
-        <font-awesome-icon :icon="['fas', 'triangle-exclamation']" />
-        <div class="ms-2">
-            <span>
-                {{ $t("navbar.warningZone") }}
-            </span>
-        </div>
-    </div>
 </template>
 
 <script>
