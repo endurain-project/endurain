@@ -54,14 +54,12 @@ To do features (not by order):
  - Notifications logic
  - Activity Pub integration?
 
----
 # Integrate with your application
 Endurain starting on version 0.3.0 supports multiple app types. For web applications the backend will return the access and refresh tokens as http only cookies, for mobile it will return them in the response.
 To support this in your implementation you will need to:
  - Add a "X-Client-Type" header to every request with the "web" or "mobile" value. Every other value will return a 403. This will be needed for token creation and refresh logic but also for every other endpoint token validation/expiration logic
  - For activity upload currently only the "/activities/create/upload" endpoint is available and it expects a .gpx file
 
----
 # Frontend
 Table bellow shows supported environment variables. Variables marked with optional "No" should be set to avoid errors.
 
@@ -76,7 +74,6 @@ Frontend dependencies:
  - User avatars create using DiceBear (https://www.dicebear.com) avataaars style.
  - Logo created on Canva
 
----
 # Backend
 Table bellow shows supported environment variables. Variables marked with optional "No" should be set to avoid errors.
 
@@ -114,7 +111,13 @@ MYSQL_PASSWORD | changeme | `No` | N/A
 
 To check Python backend dependencies used, use poetry file (pyproject.toml)
 
- ---
 # Strava integration
 For Strava integration API endpoint must be available to the Internet.
 You will also need to create a API Application using a Strava account -> more info here https://developers.strava.com/docs/getting-started/
+
+# Sponsors
+A huge thank you to this project sponsor(s)! Your support is greatly appreciated and helps drive the continued development and improvement of this project.
+
+If you find this project useful, please consider [sponsoring it on GitHub](https://github.com/sponsors/joaovitoriasilva). Your support will help ensure its continued development and maintenance.
+
+Thank you to all, sponsors and contributors, who make this project possible!
