@@ -3,14 +3,129 @@ import os
 import requests
 import math
 
+from fastapi import HTTPException, status, UploadFile
+
+from typing import Union
 from datetime import datetime
 from urllib.parse import urlencode
 from statistics import mean
+from sqlalchemy.orm import Session
+
 
 import activities.schema as activities_schema
+import activities.crud as activities_crud
+
+import activity_streams.crud as activity_streams_crud
+
+import gpx.utils as gpx_utils
+import fit.utils as fit_utils
 
 # Define a loggger created on main.py
 logger = logging.getLogger("myLogger")
+
+
+async def parse_and_store_activity_from_file(
+    token_user_id: int, file_path: str, db: Session
+):
+    try:
+        # Get file extension
+        _, file_extension = os.path.splitext(file_path)
+
+        # Open the file and process it
+        with open(file_path, "rb") as file:
+            # Parse the file
+            parsed_info = parse_file(token_user_id, file_extension, file_path)
+
+            # Store the activity in the database
+            created_activity = store_activity(parsed_info, db)
+
+            # Return the created activity
+            return created_activity
+    except Exception as err:
+        # Log the exception
+        logger.error(
+            f"Error in parse_and_store_activity_from_file: {err}", exc_info=True
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal Server Error",
+        ) from err
+
+
+def parse_and_store_activity_from_uploaded_file(
+    token_user_id: int, file: UploadFile, db: Session
+):
+
+    # Get file extension
+    _, file_extension = os.path.splitext(file.filename)
+
+    # Save the uploaded file in the 'uploads' directory
+    with open(file.filename, "wb") as save_file:
+        save_file.write(file.file.read())
+
+    # Parse the file
+    parsed_info = parse_file(token_user_id, file_extension, file.filename)
+
+    # Store the activity in the database
+    created_activity = store_activity(parsed_info, db)
+
+    # Return the created activity
+    return created_activity
+
+
+def parse_file(token_user_id: int, file_extension: str, filename: str) -> dict:
+    try:
+        # Choose the appropriate parser based on file extension
+        if file_extension.lower() == ".gpx":
+            # Parse the GPX file
+            parsed_info = gpx_utils.parse_gpx_file(filename, token_user_id)
+        elif file_extension.lower() == ".fit":
+            # Parse the FIT file
+            parsed_info = fit_utils.parse_fit_file(filename, token_user_id)
+        else:
+            # file extension not supported raise an HTTPException with a 406 Not Acceptable status code
+            raise HTTPException(
+                status_code=status.HTTP_406_NOT_ACCEPTABLE,
+                detail="File extension not supported. Supported file extensions are .gpx and .fit",
+            )
+
+        # Return the parsed information
+        return parsed_info
+    except Exception as err:
+        # Log the exception
+        logger.error(f"Error in parse_file: {err}", exc_info=True)
+        # Raise an HTTPException with a 500 Internal Server Error status code
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal Server Error",
+        ) from err
+    finally:
+        # Remove the file after processing
+        os.remove(filename)
+
+
+def store_activity(parsed_info: dict, db: Session):
+    # create the activity in the database
+    created_activity = activities_crud.create_activity(parsed_info["activity"], db)
+
+    # Check if created_activity is None
+    if created_activity is None:
+        # raise an HTTPException with a 500 Internal Server Error status code
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error creating activity",
+        )
+
+    # Parse the activity streams from the parsed info
+    activity_streams = gpx_utils.parse_activity_streams_from_gpx_file(
+        parsed_info, created_activity.id
+    )
+
+    # Create activity streams in the database
+    activity_streams_crud.create_activity_streams(activity_streams, db)
+
+    # Return the created activity
+    return created_activity
 
 
 def calculate_activity_distances(activities: list[activities_schema.Activity]):
