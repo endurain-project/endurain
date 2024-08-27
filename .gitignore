@@ -16,6 +16,12 @@ backend/app/user_images/*.jpeg
 backend/app/user_images/*.png
 backend/app/user_images/*.jpg
 
+# gpx and fit files
+backend/app/uploads/*.gpx
+backend/app/uploads/*.fit
+backend/app/bulk_import/*.gpx
+backend/app/bulk_import/*.fit
+
 # Frontend
 frontend/app/img/users_img/*.*
 # Logs

@@ -1,6 +1,7 @@
 <template>
     <div class="col">
         <div class="row row-gap-3 row-cols-sm-3 align-items-center">
+            <!-- strava integration zone -->
             <div class="col">
                 <div class="card text-center">
                     <img src="/src/assets/strava/api_logo_cptblWith_strava_stack_light.png" alt="Compatible with Strava image" class="card-img-top">
@@ -16,6 +17,16 @@
                     </div>
                 </div>
             </div>
+            <!-- bulk import zone -->
+            <div class="col">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h4 class="card-title">{{ $t("settingsIntegrationsZone.bulkImportIntegrationTitle") }}</h4>
+                        <p class="card-text">{{ $t("settingsIntegrationsZone.bulkImportIntegrationBody") }}</p>
+                        <a href="#" class="btn btn-primary" @click="submitBulkImport">{{ $t("settingsIntegrationsZone.buttonBulkImport") }}</a>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 </template>
@@ -28,6 +39,7 @@ import { addToast } from '@/utils/toastUtils';
 import { useAuthStore } from '@/stores/authStore';
 // Importing the services
 import { strava } from '@/services/stravaService';
+import { activities }  from '@/services/activitiesService';
 
 export default {
     components: {
@@ -76,12 +88,25 @@ export default {
             }
         }
 
+        async function submitBulkImport() {
+            try {
+                await activities.bulkImportActivities();
+
+                // Set the loading message and show the loading alert.
+                addToast(t('settingsIntegrationsZone.loadingMessageBulkImport'), 'loading', true);
+            } catch(error) {
+                // If there is an error, set the error message and show the error alert.
+                addToast(t('settingsIntegrationsZone.errorMessageUnableToImportActivities') + " - " + error, 'danger', true);
+            }
+        }
+
         return {
             authStore,
             t,
             submitConnectStrava,
             submitRetrieveStravaLastWeekActivities,
             submitRetrieveStravaGear,
+            submitBulkImport,
         };
     },
 };

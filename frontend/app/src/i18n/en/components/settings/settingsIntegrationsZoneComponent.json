@@ -10,5 +10,10 @@
     "errorMessageUnableToGetStravaActivities": "Unable to get Strava activities",
     "errorMessageUnableToGetStravaGear": "Unable to get Strava gear",
     "loadingMessageRetrievingStravaActivities": "Retrieving Strava activities",
-    "loadingMessageRetrievingStravaGear": "Retrieving Strava gear"
+    "loadingMessageRetrievingStravaGear": "Retrieving Strava gear",
+    "bulkImportIntegrationTitle": "Bulk import",
+    "bulkImportIntegrationBody": "Bulk import activities from files stored in the bulk_import folder",
+    "buttonBulkImport": "Import",
+    "errorMessageUnableToImportActivities": "An error occurred while importing activities",
+    "loadingMessageBulkImport": "Importing activities"
 }
