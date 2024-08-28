@@ -2,6 +2,7 @@
     "stravaIntegrationTitle": "Strava",
     "stravaIntegrationBody": "Strava is an American internet service for tracking physical exercise which incorporates social network features.",
     "buttonConnect": "Connect",
+    "buttonDropdownOptions": "Options",
     "buttonStravaRetrieveLastWeekActivities": "Retrieve last week activities",
     "buttonStravaRetrieveGear": "Retrieve gear",
     "errorMessageUnableToLinkStrava": "Unable to link Strava account",

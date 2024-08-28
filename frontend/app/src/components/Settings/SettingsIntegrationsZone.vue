@@ -1,33 +1,55 @@
 <template>
     <div class="col">
-        <div class="row row-gap-3 row-cols-sm-3 align-items-center">
-            <!-- strava integration zone -->
-            <div class="col">
-                <div class="card text-center">
-                    <img src="/src/assets/strava/api_logo_cptblWith_strava_stack_light.png" alt="Compatible with Strava image" class="card-img-top">
-                    <div class="card-body">
-                        <h4 class="card-title">{{ $t("settingsIntegrationsZone.stravaIntegrationTitle") }}</h4>
-                        <p class="card-text">{{ $t("settingsIntegrationsZone.stravaIntegrationBody") }}</p>
-                        <a href="#" class="btn btn-primary" :class="{ 'disabled': authStore.user.is_strava_linked == 1 }" @click="submitConnectStrava">{{ $t("settingsIntegrationsZone.buttonConnect") }}</a>
-                        <div v-if="authStore.user.is_strava_linked == 1">
-                            <hr>
-                            <a href="#" class="btn btn-primary" @click="submitRetrieveStravaLastWeekActivities">{{ $t("settingsIntegrationsZone.buttonStravaRetrieveLastWeekActivities") }}</a>
-                            <a href="#" class="btn btn-primary mt-3" @click="submitRetrieveStravaGear">{{ $t("settingsIntegrationsZone.buttonStravaRetrieveGear") }}</a>
+        <!-- list zone -->
+        <ul class="list-group list-group-flush">
+            <!-- strava zone -->
+            <li class="list-group-item d-flex justify-content-between">
+                <div class="d-flex align-items-center">
+                    <font-awesome-icon class="me-2" :icon="['fab', 'strava']" size="2x" />
+                    <div class="ms-3">
+                        <div class="fw-bold">
+                            {{ $t("settingsIntegrationsZone.stravaIntegrationTitle") }}
                         </div>
+                        {{ $t("settingsIntegrationsZone.stravaIntegrationBody") }}
                     </div>
                 </div>
-            </div>
+                <div class="d-flex align-items-center">
+                    <!-- connect button -->
+                    <a href="#" class="btn btn-primary" v-if="authStore.user.is_strava_linked == 0" @click="submitConnectStrava">{{ $t("settingsIntegrationsZone.buttonConnect") }}</a>
+
+                    <!-- retrieve activities and other buttons -->
+                    <div class="dropdown" v-else>
+                        <button class="btn btn-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            {{ $t("settingsIntegrationsZone.buttonDropdownOptions") }}
+                        </button>
+                        <ul class="dropdown-menu">
+                            <li>
+                                <a href="#" class="dropdown-item" @click="submitRetrieveStravaLastWeekActivities">{{ $t("settingsIntegrationsZone.buttonStravaRetrieveLastWeekActivities") }}</a>
+                            </li>
+                            <li>
+                                <a href="#" class="dropdown-item" @click="submitRetrieveStravaGear">{{ $t("settingsIntegrationsZone.buttonStravaRetrieveGear") }}</a>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </li>
             <!-- bulk import zone -->
-            <div class="col">
-                <div class="card text-center">
-                    <div class="card-body">
-                        <h4 class="card-title">{{ $t("settingsIntegrationsZone.bulkImportIntegrationTitle") }}</h4>
-                        <p class="card-text">{{ $t("settingsIntegrationsZone.bulkImportIntegrationBody") }}</p>
-                        <a href="#" class="btn btn-primary" @click="submitBulkImport">{{ $t("settingsIntegrationsZone.buttonBulkImport") }}</a>
+            <li class="list-group-item d-flex justify-content-between">
+                <div class="d-flex align-items-center">
+                    <font-awesome-icon :icon="['fas', 'file-import']" size="2x" />
+                    <div class="ms-3">
+                        <div class="fw-bold">
+                            {{ $t("settingsIntegrationsZone.bulkImportIntegrationTitle") }}
+                        </div>
+                        {{ $t("settingsIntegrationsZone.bulkImportIntegrationBody") }}
                     </div>
                 </div>
-            </div>
-        </div>
+                <div class="d-flex align-items-center">
+                    <!-- import button -->
+                    <a href="#" class="btn btn-primary" role="button" @click="submitBulkImport">{{ $t("settingsIntegrationsZone.buttonBulkImport") }}</a>
+                </div>
+            </li>
+        </ul>
     </div>
 </template>
 
