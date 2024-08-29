@@ -30,6 +30,7 @@ Currently the service supports:
  - Create/edit/delete users
  - Basic admin and regular user profiles that adapt the interface
  - Import activities using .gpx files
+ - Bulk import for activity files
  - Connect with Strava and retrieve activities and gear from Strava
  - Feed with user activities, current user week stats and month stats
  - Feed with followers activities
@@ -47,7 +48,6 @@ Currently the service supports:
 
 To do features (not by order):
  - Support import of .fit files
- - Bulk import for .gpx and .fit files
  - Default gear for activity type
  - Gear components logic for component usage tracking
  - Comments and likes logic for activities
@@ -108,6 +108,14 @@ MYSQL_ROOT_PASSWORD | changeme | `No` | N/A
 MYSQL_DATABASE | endurain | `No` | N/A
 MYSQL_USER | endurain | `No` | N/A
 MYSQL_PASSWORD | changeme | `No` | N/A
+
+Table bellow shows the volumes available to be configured. Not obligatory, but recommended:
+
+Volume | Path | Notes
+--- | --- | ---
+/app | <local_path>/endurain/backend/app:/app | Configure volume if you want to edit the code locally by cloning the repo and comment next line
+/app/user_images | <local_path>/endurain/backend/app/user_images:/app/user_images | Necessary for user image persistence on container image updates
+/app/bulk_import | <local_path>/endurain/backend/bulk_import | Necessary to enable bulk import of activities. Place here your activities files
 
 To check Python backend dependencies used, use poetry file (pyproject.toml)
 

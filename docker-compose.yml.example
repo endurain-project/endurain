@@ -30,8 +30,9 @@ services:
     ports:
       - "98:80" # API port, change per your needs
     volumes:
-    #  - <local_path>/endurain/backend/app:/app # Configure volume if you want to edit the code locally by cloning the repo and comment next line
+    #  - <local_path>/endurain/backend/app:/app # Configure volume if you want to edit the code locally by cloning the repo
       - <local_path>/endurain/backend/user_images:/app/user_images # necessary for user image persistence on container image updates
+      - <local_path>/endurain/backend/bulk_import:/app/bulk_import # necessary to enable bulk import of activities. Place here your activities files
     depends_on:
       - mariadb
       - jaeger # optional

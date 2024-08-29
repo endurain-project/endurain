@@ -1,16 +1,16 @@
-import { createApp } from 'vue'
-import { createPinia } from 'pinia'
+import { createApp } from 'vue';
+import { createPinia } from 'pinia';
 
 import { useAuthStore } from './stores/authStore';
 import { useThemeStore } from './stores/themeStore';
 
-import "bootstrap/dist/css/bootstrap.min.css"
+import "bootstrap/dist/css/bootstrap.min.css";
 import 'bootstrap/dist/js/bootstrap.bundle.min.js';
 
 import 'leaflet/dist/leaflet.css';
 
-import App from './App.vue'
-import router from './router'
+import App from './App.vue';
+import router from './router';
 import i18n from './i18n';
 
 /* import the fontawesome core */
@@ -26,11 +26,11 @@ import { far } from '@fortawesome/free-regular-svg-icons';
 /* add icons to the library */
 library.add(fas, fab, far);
 
-const app = createApp(App)
+const app = createApp(App);
 
-app.use(createPinia())
-app.component('font-awesome-icon', FontAwesomeIcon)
-app.use(router)
+app.use(createPinia());
+app.component('font-awesome-icon', FontAwesomeIcon);
+app.use(router);
 app.use(i18n);
 
 // Import the store and load the user from the storage
@@ -40,4 +40,4 @@ authStore.loadUserFromStorage(i18n);
 const themeStore = useThemeStore();
 themeStore.loadThemeFromStorage();
 
-app.mount('#app')
+app.mount('#app');

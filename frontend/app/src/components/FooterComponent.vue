@@ -29,7 +29,7 @@
                     </form>
                 </div>
                 <div class="mt-3 col">
-                    <p class="text-center text-muted">&copy; {{ new Date().getFullYear() === 2023 ? '2023' : '2023 - ' + new Date().getFullYear() }} Endurain • <a class="link-body-emphasis" href="https://github.com/joaovitoriasilva/endurain" role="button"><font-awesome-icon :icon="['fab', 'fa-github']" /></a> • <a class="link-body-emphasis" href="https://fosstodon.org/@endurain"><font-awesome-icon :icon="['fab', 'fa-mastodon']" /></a> • v0.3.3</p>
+                    <p class="text-center text-muted">&copy; {{ new Date().getFullYear() === 2023 ? '2023' : '2023 - ' + new Date().getFullYear() }} Endurain • <a class="link-body-emphasis" href="https://github.com/joaovitoriasilva/endurain" role="button"><font-awesome-icon :icon="['fab', 'fa-github']" /></a> • <a class="link-body-emphasis" href="https://fosstodon.org/@endurain"><font-awesome-icon :icon="['fab', 'fa-mastodon']" /></a> • v0.4.0</p>
                     <p class="text-center text-muted"><img src="/src/assets/strava/api_logo_cptblWith_strava_horiz_light.png" alt="Compatible with STRAVA image" height="25" /></p>
                 </div>
             </div>

@@ -1,2 +1,2 @@
 # Constant related to version
-API_VERSION = "v0.3.3"
+API_VERSION = "v0.4.0"

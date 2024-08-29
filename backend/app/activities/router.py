@@ -4,7 +4,15 @@ import calendar
 
 from typing import Annotated, Callable
 
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, Security
+from fastapi import (
+    APIRouter,
+    Depends,
+    HTTPException,
+    status,
+    UploadFile,
+    Security,
+    BackgroundTasks,
+)
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta, timezone
 
@@ -19,12 +27,6 @@ import gears.crud as gears_crud
 import gears.dependencies as gears_dependencies
 
 import users.dependencies as users_dependencies
-
-import activity_streams.crud as activity_streams_crud
-
-import gpx.utils as gpx_utils
-
-import fit.utils as fit_utils
 
 import database
 import dependencies_global
@@ -105,9 +107,7 @@ async def read_activities_useractivities_thisweek_distances(
 ):
     # Calculate the start of the current week
     today = datetime.now(timezone.utc)
-    start_of_week = today - timedelta(
-        days=today.weekday()
-    )
+    start_of_week = today - timedelta(days=today.weekday())
     end_of_week = start_of_week + timedelta(days=6)
 
     if user_id == token_user_id:
@@ -122,8 +122,8 @@ async def read_activities_useractivities_thisweek_distances(
         )
 
     # Check if activities is None
-    #if activities is None:
-        # Return None if activities is None
+    # if activities is None:
+    # Return None if activities is None
     #    return None
 
     # Return the activities distances for this week
@@ -167,8 +167,8 @@ async def read_activities_useractivities_thismonth_distances(
             user_id, start_of_month, end_of_month, db
         )
 
-    #if activities is None:
-        # Return None if activities is None
+    # if activities is None:
+    # Return None if activities is None
     #    return None
 
     # Return the activities distances for this month
@@ -187,9 +187,7 @@ async def read_activities_useractivities_thismonth_number(
     ],
     token_user_id: Annotated[
         Callable,
-        Depends(
-            session_security.get_user_id_from_access_token
-        ),
+        Depends(session_security.get_user_id_from_access_token),
     ],
     db: Annotated[
         Session,
@@ -234,9 +232,7 @@ async def read_activities_gearactivities(
     ],
     token_user_id: Annotated[
         Callable,
-        Depends(
-            session_security.get_user_id_from_access_token
-        ),
+        Depends(session_security.get_user_id_from_access_token),
     ],
     db: Annotated[
         Session,
@@ -433,51 +429,8 @@ async def create_activity_with_uploaded_file(
         upload_dir = "uploads"
         os.makedirs(upload_dir, exist_ok=True)
 
-        # Get file extension
-        _, file_extension = os.path.splitext(file.filename)
-
-        # Save the uploaded file in the 'uploads' directory
-        with open(file.filename, "wb") as save_file:
-            save_file.write(file.file.read())
-
-        # Choose the appropriate parser based on file extension
-        if file_extension.lower() == ".gpx":
-            # Parse the GPX file
-            parsed_info = gpx_utils.parse_gpx_file(file.filename, token_user_id)
-        elif file_extension.lower() == ".fit":
-            # Parse the FIT file
-            parsed_info = fit_utils.parse_fit_file(file.filename, token_user_id)
-        else:
-            # file extension not supported raise an HTTPException with a 406 Not Acceptable status code
-            raise HTTPException(
-                status_code=status.HTTP_406_NOT_ACCEPTABLE,
-                detail="File extension not supported. Supported file extensions are .gpx and .fit",
-            )
-
-        # create the activity in the database
-        created_activity = activities_crud.create_activity(parsed_info["activity"], db)
-
-        # Check if created_activity is None
-        if created_activity is None:
-            # raise an HTTPException with a 500 Internal Server Error status code
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Error creating activity",
-            )
-
-        # Parse the activity streams from the parsed info
-        activity_streams = gpx_utils.parse_activity_streams_from_gpx_file(
-            parsed_info, created_activity.id
-        )
-
-        # Create activity streams in the database
-        activity_streams_crud.create_activity_streams(activity_streams, db)
-
-        # Remove the file after processing
-        os.remove(file.filename)
-
-        # Return activity ID
-        return created_activity
+        # Return activity
+        return activies_utils.parse_and_store_activity_from_uploaded_file(token_user_id, file, db)
     except Exception as err:
         # Log the exception
         logger.error(
@@ -490,8 +443,55 @@ async def create_activity_with_uploaded_file(
         ) from err
 
 
+@router.post(
+    "/create/bulkimport",
+)
+async def create_activity_with_bulk_import(
+    token_user_id: Annotated[
+        int,
+        Depends(session_security.get_user_id_from_access_token),
+    ],
+    check_scopes: Annotated[
+        Callable, Security(session_security.check_scopes, scopes=["activities:write"])
+    ],
+    db: Annotated[
+        Session,
+        Depends(database.get_db),
+    ],
+    background_tasks: BackgroundTasks,
+):
+    try:
+        # Ensure the 'bulk_import' directory exists
+        bulk_import_dir = "bulk_import"
+        os.makedirs(bulk_import_dir, exist_ok=True)
+
+        # Iterate over each file in the 'bulk_import' directory
+        for filename in os.listdir(bulk_import_dir):
+            file_path = os.path.join(bulk_import_dir, filename)
+
+            if os.path.isfile(file_path):
+                # Parse and store the activity
+                background_tasks.add_task(
+                    activies_utils.parse_and_store_activity_from_file,
+                    token_user_id,
+                    file_path,
+                    db,
+                )
+
+        # Return a success message
+        return {"Bulk import initiated. Processing files in the background."}
+    except Exception as err:
+        # Log the exception
+        logger.error(f"Error in create_activity_with_bulk_import: {err}", exc_info=True)
+        # Raise an HTTPException with a 500 Internal Server Error status code
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal Server Error",
+        ) from err
+
+
 @router.put(
-    "/edit", 
+    "/edit",
 )
 async def edit_activity(
     token_user_id: Annotated[
@@ -529,9 +529,7 @@ async def activity_add_gear(
     ],
     token_user_id: Annotated[
         int,
-        Depends(
-            session_security.get_user_id_from_access_token
-        ),
+        Depends(session_security.get_user_id_from_access_token),
     ],
     db: Annotated[
         Session,
@@ -580,9 +578,7 @@ async def delete_activity_gear(
     ],
     token_user_id: Annotated[
         int,
-        Depends(
-            session_security.get_user_id_from_access_token
-        ),
+        Depends(session_security.get_user_id_from_access_token),
     ],
     db: Annotated[
         Session,
@@ -621,9 +617,7 @@ async def delete_activity(
     ],
     token_user_id: Annotated[
         int,
-        Depends(
-            session_security.get_user_id_from_access_token
-        ),
+        Depends(session_security.get_user_id_from_access_token),
     ],
     db: Annotated[
         Session,
