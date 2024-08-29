@@ -41,17 +41,17 @@
                                         <h1 class="modal-title fs-5" id="retrieveStravaActivitiesByDaysModalLabel">{{ $t("settingsIntegrationsZone.buttonStravaRetrieveActivitiesByDays") }}</h1>
                                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                                     </div>
-                                    <div class="modal-body">
-                                        <form @submit.prevent="submitRetrieveStravaActivities">
-                                            <!-- number of days fields -->
-                                            <label for="daysToRetrieve"><b>* {{ $t("settingsIntegrationsZone.modalRetrieveActivitiesByDaysLabel") }}</b></label>
-                                            <input class="form-control" type="number" name="daysToRetrieve" :placeholder='$t("settingsIntegrationsZone.modalRetrieveActivitiesByDaysPlaceholder")' v-model="daysToRetrieve" required>
-                                        </form>
-                                    </div>
-                                    <div class="modal-footer">
-                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ $t("generalItens.buttonClose") }}</button>
-                                        <a type="submit" class="btn btn-success" data-bs-dismiss="modal">{{ $t("settingsIntegrationsZone.modalRetrieveButton") }}</a>
-                                    </div>
+                                    <form @submit.prevent="submitRetrieveStravaActivities">
+                                        <div class="modal-body">
+                                                <!-- number of days fields -->
+                                                <label for="daysToRetrieve"><b>* {{ $t("settingsIntegrationsZone.modalRetrieveActivitiesByDaysLabel") }}</b></label>
+                                                <input class="form-control" type="number" name="daysToRetrieve" :placeholder='$t("settingsIntegrationsZone.modalRetrieveActivitiesByDaysPlaceholder")' v-model="daysToRetrieve" required>
+                                        </div>
+                                        <div class="modal-footer">
+                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ $t("generalItens.buttonClose") }}</button>
+                                            <a type="submit" class="btn btn-success" data-bs-dismiss="modal">{{ $t("settingsIntegrationsZone.modalRetrieveButton") }}</a>
+                                        </div>
+                                    </form>
                                 </div>
                             </div>
                         </div>
