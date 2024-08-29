@@ -232,7 +232,7 @@ export default {
                 }
             } catch (error) {
                 // If there is an error, set the error message and show the error alert.
-                addToast(t('usersListComponent.userChangePasswordErrorMessage') + " - " + error.toString(), 'danger', true);
+                addToast(`${t('usersListComponent.userChangePasswordErrorMessage')} - ${error.toString()}`, 'danger', true);
             }
         }
 
@@ -260,7 +260,7 @@ export default {
                         userProp.value.photo_path = await users.uploadImage(editUserPhotoFile.value, userProp.value.id);
                     } catch (error) {
                         // Set the error message
-                        addToast(t('generalItens.errorFetchingInfo') + " - " + error.toString(), 'danger', true);
+                        addToast(`${t('generalItens.errorFetchingInfo')} - ${error.toString()}`, 'danger', true);
                     }
                 }
 
@@ -280,7 +280,7 @@ export default {
                 addToast(t('usersListComponent.userEditSuccessMessage'), 'success', true);
             } catch (error) {
                 // If there is an error, set the error message and show the error alert.
-                addToast(t('usersListComponent.userEditErrorMessage') + " - " + error.toString(), 'danger', true);
+                addToast(`${t('usersListComponent.userEditErrorMessage')} - ${error.toString()}`, 'danger', true);
             }
         }
 
@@ -291,7 +291,7 @@ export default {
                 emit('userDeleted', userProp.value.id);
             } catch (error) {
                 // If there is an error, set the error message and show the error alert.
-                addToast(t('usersListComponent.userDeleteErrorMessage') + " - " + error.toString(), 'danger', true);
+                addToast(`${t('usersListComponent.userDeleteErrorMessage')} - ${error.toString()}`, 'danger', true);
             }
         }
 
@@ -304,7 +304,7 @@ export default {
                 addToast(t('usersListComponent.userPhotoDeleteSuccessMessage'), 'success', true);
             } catch (error) {
                 // Set the error message
-                addToast(t('usersListComponent.userPhotoDeleteErrorMessage') + " - " + error.toString(), 'danger', true);
+                addToast(`${t('usersListComponent.userPhotoDeleteErrorMessage')} - ${error.toString()}`, 'danger', true);
             }
         }
 

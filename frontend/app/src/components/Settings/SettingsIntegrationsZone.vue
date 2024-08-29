@@ -24,12 +24,37 @@
                         </button>
                         <ul class="dropdown-menu">
                             <li>
-                                <a href="#" class="dropdown-item" @click="submitRetrieveStravaLastWeekActivities">{{ $t("settingsIntegrationsZone.buttonStravaRetrieveLastWeekActivities") }}</a>
+                                <!-- retrieve strava activities by days -->
+                                <a class="dropdown-item" href="#" role="button" data-bs-toggle="modal" data-bs-target="#retrieveStravaActivitiesByDaysModal">{{ $t("settingsIntegrationsZone.buttonStravaRetrieveActivitiesByDays") }}</a>
                             </li>
                             <li>
+                                <!-- retrieve gear -->
                                 <a href="#" class="dropdown-item" @click="submitRetrieveStravaGear">{{ $t("settingsIntegrationsZone.buttonStravaRetrieveGear") }}</a>
                             </li>
                         </ul>
+
+                        <!-- modal retrieve strava activities by days -->
+                        <div class="modal fade" id="retrieveStravaActivitiesByDaysModal" tabindex="-1" aria-labelledby="retrieveStravaActivitiesByDaysModalLabel" aria-hidden="true">
+                            <div class="modal-dialog">
+                                <div class="modal-content">
+                                    <div class="modal-header">
+                                        <h1 class="modal-title fs-5" id="retrieveStravaActivitiesByDaysModalLabel">{{ $t("settingsIntegrationsZone.buttonStravaRetrieveActivitiesByDays") }}</h1>
+                                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                    </div>
+                                    <div class="modal-body">
+                                        <form @submit.prevent="submitRetrieveStravaActivities">
+                                            <!-- number of days fields -->
+                                            <label for="daysToRetrieve"><b>* {{ $t("settingsIntegrationsZone.modalRetrieveActivitiesByDaysLabel") }}</b></label>
+                                            <input class="form-control" type="number" name="daysToRetrieve" :placeholder='$t("settingsIntegrationsZone.modalRetrieveActivitiesByDaysPlaceholder")' v-model="daysToRetrieve" required>
+                                        </form>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ $t("generalItens.buttonClose") }}</button>
+                                        <a type="submit" class="btn btn-success" data-bs-dismiss="modal">{{ $t("settingsIntegrationsZone.modalRetrieveButton") }}</a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </li>
@@ -54,6 +79,7 @@
 </template>
 
 <script>
+import { ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 // Importing the utils
 import { addToast } from '@/utils/toastUtils';
@@ -70,6 +96,7 @@ export default {
     setup() {
         const authStore = useAuthStore();
         const { t } = useI18n();
+        const daysToRetrieve = ref(7);
 
         async function submitConnectStrava() {
             const array = new Uint8Array(16);
@@ -82,19 +109,19 @@ export default {
                 strava.linkStrava(state);
             } catch(error) {
                 // If there is an error, set the error message and show the error alert.
-                addToast(t('settingsIntegrationsZone.errorMessageUnableToLinkStrava') + " - " + error, 'danger', true);
+                addToast(`${t('settingsIntegrationsZone.errorMessageUnableToLinkStrava')} - ${error}`, 'danger', true);
             }
         }
 
-        async function submitRetrieveStravaLastWeekActivities() {
+        async function submitRetrieveStravaActivities() {
             try {
-                await strava.getStravaActivitiesLastDays(7);
+                await strava.getStravaActivitiesLastDays(daysToRetrieve.value);
 
                 // Set the loading message and show the loading alert.
                 addToast(t('settingsIntegrationsZone.loadingMessageRetrievingStravaActivities'), 'loading', true);
             } catch(error) {
                 // If there is an error, set the error message and show the error alert.
-                addToast(t('settingsIntegrationsZone.errorMessageUnableToGetStravaActivities') + " - " + error, 'danger', true);
+                addToast(`${t('settingsIntegrationsZone.errorMessageUnableToGetStravaActivities')} - ${error}`, 'danger', true);
             }
         }
 
@@ -106,7 +133,7 @@ export default {
                 addToast(t('settingsIntegrationsZone.loadingMessageRetrievingStravaGear'), 'loading', true);
             } catch(error) {
                 // If there is an error, set the error message and show the error alert.
-                addToast(t('settingsIntegrationsZone.errorMessageUnableToGetStravaGear') + " - " + error, 'danger', true);
+                addToast(`${t('settingsIntegrationsZone.errorMessageUnableToGetStravaGear')} - ${error}`, 'danger', true);
             }
         }
 
@@ -118,7 +145,7 @@ export default {
                 addToast(t('settingsIntegrationsZone.loadingMessageBulkImport'), 'loading', true);
             } catch(error) {
                 // If there is an error, set the error message and show the error alert.
-                addToast(t('settingsIntegrationsZone.errorMessageUnableToImportActivities') + " - " + error, 'danger', true);
+                addToast(`${t('settingsIntegrationsZone.errorMessageUnableToImportActivities')} - ${error}`, 'danger', true);
             }
         }
 
@@ -126,7 +153,8 @@ export default {
             authStore,
             t,
             submitConnectStrava,
-            submitRetrieveStravaLastWeekActivities,
+            submitRetrieveStravaActivities,
+            daysToRetrieve,
             submitRetrieveStravaGear,
             submitBulkImport,
         };
