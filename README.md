@@ -63,7 +63,7 @@ To support this in your implementation you will need to:
 # Frontend
 Table bellow shows supported environment variables. Variables marked with optional "No" should be set to avoid errors.
 
-Environemnt variable  | Default value | Optional | Notes
+Environment variable  | Default value | Optional | Notes
 --- | --- | --- | ---
 MY_APP_BACKEND_PROTOCOL | http | Yes | Needs to be https if you want to enable Strava integration. Strava callback relies on this. You may need to update this variable based on docker image spin up (api host or local ip (example: http://192.168.1.10:98))
 MY_APP_BACKEND_HOST | localhost:98 | Yes | Needs to be set and be Internet faced/resolved if you want to enable Strava integration. Strava callback relies on this. You may need to update this variable based on docker image spin up (api host or local ip (example: http://192.168.1.10:98))
@@ -77,7 +77,7 @@ Frontend dependencies:
 # Backend
 Table bellow shows supported environment variables. Variables marked with optional "No" should be set to avoid errors.
 
-Environemnt variable  | Default value | Optional | Notes
+Environment variable  | Default value | Optional | Notes
 --- | --- | --- | ---
 DB_HOST | mariadb | Yes | N/A
 DB_PORT | 3306 | Yes | N/A
@@ -100,9 +100,9 @@ FRONTEND_PROTOCOL | http | Yes | Needs to be set if you want to enable Strava in
 FRONTEND_HOST | frontend:8080 | Yes | Needs to be set if you want to enable Strava integration. You may need to update this variable based on docker image spin up (frontend host or local ip (example: http://192.168.1.10:8080))
 GEOCODES_MAPS_API | changeme | `No` | <a href="https://geocode.maps.co/">Geocode maps</a> offers a free plan consisting of 1 Request/Second. Registration necessary.
 
-Table bellow shows the obligatory environemnt variables for mariadb container. You should set them based on what was also set for backend container.
+Table bellow shows the obligatory environment variables for mariadb container. You should set them based on what was also set for backend container.
 
-Environemnt variable  | Default value | Optional | Notes
+Environment variable  | Default value | Optional | Notes
 --- | --- | --- | ---
 MYSQL_ROOT_PASSWORD | changeme | `No` | N/A
 MYSQL_DATABASE | endurain | `No` | N/A
