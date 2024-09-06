@@ -43,7 +43,7 @@
               <div class="modal-body">
                 <!-- date fields -->
                 <label for="activityGpxFileAdd"><b>* {{ $t("homeView.fieldLabelUploadGPXFile") }}</b></label>
-                <input class="form-control mt-1 mb-1" type="file" name="activityGpxFileAdd" accept=".gpx" required>
+                <input class="form-control mt-1 mb-1" type="file" name="activityGpxFileAdd" accept=".gpx,.fit" required>
                 <p>* {{ $t("generalItens.requiredField") }}</p>
               </div>
               <div class="modal-footer">

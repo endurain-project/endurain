@@ -470,6 +470,9 @@ async def create_activity_with_bulk_import(
             file_path = os.path.join(bulk_import_dir, filename)
 
             if os.path.isfile(file_path):
+                # Log the file being processed
+                print(f"Processing file: {file_path}")
+                logger.info(f"Processing file: {file_path}")
                 # Parse and store the activity
                 background_tasks.add_task(
                     activies_utils.parse_and_store_activity_from_file,

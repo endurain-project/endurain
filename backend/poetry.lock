@@ -494,6 +494,20 @@ typer = ">=0.12.3"
 standard = ["fastapi", "uvicorn[standard] (>=0.15.0)"]
 
 [[package]]
+name = "fitdecode"
+version = "0.10.0"
+description = "FIT file parser and decoder"
+optional = false
+python-versions = ">=3.6"
+files = [
+    {file = "fitdecode-0.10.0-py3-none-any.whl", hash = "sha256:527dc2e4b0fe45dbe868a2131af0a544cb686f631f608d94e392bcce57b047cf"},
+    {file = "fitdecode-0.10.0.tar.gz", hash = "sha256:1b85d1303c87650c11377a7322757eaa1caf229776bbd5b545591dd6815123e4"},
+]
+
+[package.extras]
+docs = ["sphinx", "sphinx-rtd-theme"]
+
+[[package]]
 name = "flexcache"
 version = "0.3"
 description = "Saves and loads to the cache a transformed versions of a source object."
@@ -2070,4 +2084,4 @@ test = ["big-O", "importlib-resources", "jaraco.functools", "jaraco.itertools", 
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.11"
-content-hash = "2b89f9ad99640af018e47043e103b0d05f505c5642664cccc7517cbee5381062"
+content-hash = "0af604392415c4b2a71e3ee336585cace3067ac7326d18c911da2c6f682246be"
