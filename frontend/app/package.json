@@ -30,14 +30,14 @@
     "@types/bootstrap": "^5.2.10",
     "@types/leaflet": "^1.9.8",
     "@vitejs/plugin-vue": "^5.0.3",
-    "@vue/eslint-config-prettier": "^8.0.0",
+    "@vue/eslint-config-prettier": "^9.0.0",
     "@vue/test-utils": "^2.4.4",
-    "eslint": "^8.49.0",
+    "eslint": "^9.10.0",
     "eslint-plugin-vue": "^9.17.0",
-    "jsdom": "^24.0.0",
+    "jsdom": "^25.0.0",
     "prettier": "^3.0.3",
     "vite": "^5.0.11",
     "vite-plugin-pwa": "^0.20.0",
-    "vitest": "^1.2.2"
+    "vitest": "^2.0.5"
   }
 }
