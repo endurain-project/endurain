@@ -211,7 +211,7 @@ export default {
                 gear.value = await gears.getGearById(gearId.value);
                 activity.value.gear_id = gearId.value;
             } catch (error) {
-                addToast(t('generalItens.errorEditingInfo') + " - " + error.toString(), 'danger', true);
+                addToast(`${t('generalItens.errorEditingInfo')} - ${error.toString()}`, 'danger', true);
             }
         }
 
@@ -226,7 +226,7 @@ export default {
                 // Update the activity gear
                 activity.value.gear_id = null;
             } catch (error) {
-                addToast(t('generalItens.errorEditingInfo') + " - " + error.toString(), 'danger', true);
+                addToast(`${t('generalItens.errorEditingInfo')} - ${error.toString()}`, 'danger', true);
             }
         }
 
@@ -267,7 +267,7 @@ export default {
                     router.push({ path: '/', query: { activityFound: 'false', id: route.params.id } });
                 }
                 // If there is an error, set the error message and show the error alert.
-                addToast(t('generalItens.errorEditingInfo') + " - " + error.toString(), 'danger', true);
+                addToast(`${t('generalItens.errorEditingInfo')} - ${error.toString()}`, 'danger', true);
             }
 
             isLoading.value = false;

@@ -2,6 +2,7 @@ import fitdecode
 import logging
 
 from fastapi import HTTPException, status
+from datetime import datetime
 
 import activities.utils as activities_utils
 import activities.schema as activities_schema
@@ -50,9 +51,7 @@ def parse_activity_streams_from_fit_file(parsed_info: dict, activity_id: int):
 def parse_fit_file(file: str, user_id: int) -> dict:
     # Open the FIT file
     try:
-        fit_data = fitdecode.FitReader(
-            open(file, "rb")
-        ) 
+        fit_data = fitdecode.FitReader(open(file, "rb"))
 
         # Initialize default values for various variables
         activity_name = "Workout"
@@ -86,15 +85,48 @@ def parse_fit_file(file: str, user_id: int) -> dict:
         is_velocity_set = False
 
         # Iterate over FIT messages
-        for frame in fit_data:            
+        for frame in fit_data:
             if isinstance(frame, fitdecode.FitDataMessage):
-                # Extract GPS data
+                # Extract activity type
+                if frame.name == "sport":
+                    activity_type = (
+                        frame.get_value("sport")
+                        if frame.get_value("sport")
+                        else "Workout"
+                    )
+                # Extract activity name
+                if frame.name == "workout":
+                    activity_name = (
+                        frame.get_value("wkt_name")
+                        if frame.get_value("wkt_name")
+                        else "Workout"
+                    )
+                # Extract waypoint data
                 if frame.name == "record":
-                    print(frame.get_values())
-                    latitude = frame.get_value("position_lat")
-                    longitude = frame.get_value("position_long")
-                    elevation = frame.get_value("altitude") if "altitude" in frame else 0
-                    time = frame.get_value("timestamp")
+                    # for field in frame.fields:
+                    # print(f"{field.name}: {field.value}")
+                    latitude = (
+                        frame.get_value("position_lat")
+                        if frame.get_value("position_lat")
+                        else 0
+                    )
+                    longitude = (
+                        frame.get_value("position_long")
+                        if frame.get_value("position_long")
+                        else 0
+                    )
+                    elevation = (
+                        frame.get_value("enhanced_altitude")
+                        if frame.get_value("enhanced_altitude")
+                        else 0
+                    )
+                    time = (
+                        datetime.fromisoformat(
+                            frame.get_value("timestamp").strftime("%Y-%m-%dT%H:%M:%S")
+                        )
+                        if frame.get_value("timestamp")
+                        else ""
+                    )
 
                     # Convert FIT coordinates to degrees if available
                     if latitude is not None and longitude is not None:
@@ -125,9 +157,15 @@ def parse_fit_file(file: str, user_id: int) -> dict:
                         process_one_time_fields = 1
 
                     # Extract heart rate, cadence, and power
-                    heart_rate = frame.get_value("heart_rate") if "heart_rate" in frame else 0
-                    cadence = frame.get_value("cadence") if "cadence" in frame else 0
-                    power = frame.get_value("power") if "power" in frame else 0
+                    heart_rate = (
+                        frame.get_value("heart_rate")
+                        if frame.get_value("heart_rate")
+                        else 0
+                    )
+                    cadence = (
+                        frame.get_value("cadence") if frame.get_value("cadence") else 0
+                    )
+                    power = frame.get_value("power") if frame.get_value("power") else 0
 
                     # Check if heart rate, cadence, power are set
                     if heart_rate != 0:
