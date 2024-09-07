@@ -360,6 +360,7 @@ def define_activity_type(activity_type):
         "Swim": 8,
         "swimming": 8,
         "open_water_swimming": 9,
+        "open_water": 9,
         "Walk": 11,
         "Hike": 12,
     }

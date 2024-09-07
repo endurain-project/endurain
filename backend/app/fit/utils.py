@@ -64,6 +64,8 @@ def parse_fit_file(file: str, user_id: int) -> dict:
         country = None
         process_one_time_fields = 0
         pace = 0
+        calories = 0
+        visibility = 0
 
         # Arrays to store waypoint data
         lat_lon_waypoints = []
@@ -87,13 +89,30 @@ def parse_fit_file(file: str, user_id: int) -> dict:
         # Iterate over FIT messages
         for frame in fit_data:
             if isinstance(frame, fitdecode.FitDataMessage):
+                if frame.name == "session":
+                    try:
+                        # Extract calories
+                        calories = (
+                            frame.get_value("total_calories")
+                            if frame.get_value("total_calories")
+                            else None
+                        )
+                    except KeyError:
+                        calories = 0
                 # Extract activity type
                 if frame.name == "sport":
-                    activity_type = (
-                        frame.get_value("sport")
-                        if frame.get_value("sport")
-                        else "Workout"
-                    )
+                    try:
+                        # Extract activity type from sport field
+                        activity_type = (
+                            frame.get_value("sport")
+                            if frame.get_value("sport")
+                            else "Workout"
+                        )
+                        # Extract sub-sport
+                        if frame.get_value("sub_sport") and frame.get_value("sub_sport") != "generic":
+                            activity_type = frame.get_value("sub_sport")
+                    except KeyError:
+                        activity_type = "Workout"
                 # Extract activity name
                 if frame.name == "workout":
                     activity_name = (
@@ -115,11 +134,10 @@ def parse_fit_file(file: str, user_id: int) -> dict:
                         if frame.get_value("position_long")
                         else 0
                     )
-                    elevation = (
-                        frame.get_value("enhanced_altitude")
-                        if frame.get_value("enhanced_altitude")
-                        else 0
-                    )
+                    try:
+                        elevation = frame.get_value("enhanced_altitude")
+                    except KeyError:
+                        elevation = 0
                     time = (
                         datetime.fromisoformat(
                             frame.get_value("timestamp").strftime("%Y-%m-%dT%H:%M:%S")
@@ -156,16 +174,21 @@ def parse_fit_file(file: str, user_id: int) -> dict:
 
                         process_one_time_fields = 1
 
-                    # Extract heart rate, cadence, and power
-                    heart_rate = (
-                        frame.get_value("heart_rate")
-                        if frame.get_value("heart_rate")
-                        else 0
-                    )
-                    cadence = (
-                        frame.get_value("cadence") if frame.get_value("cadence") else 0
-                    )
-                    power = frame.get_value("power") if frame.get_value("power") else 0
+                    # Extract heart rate
+                    try:
+                        heart_rate = frame.get_value("heart_rate")
+                    except KeyError:
+                        heart_rate = 0
+                    # Extract cadence
+                    try:
+                        cadence = frame.get_value("cadence")
+                    except KeyError:
+                        cadence = 0
+                    # Extract power
+                    try:
+                        power = frame.get_value("power")
+                    except KeyError:
+                        power = 0
 
                     # Check if heart rate, cadence, power are set
                     if heart_rate != 0:
@@ -282,6 +305,8 @@ def parse_fit_file(file: str, user_id: int) -> dict:
             pace=pace,
             average_speed=average_speed,
             average_power=average_power,
+            calories=calories,
+            visibility=visibility,
             strava_gear_id=None,
             strava_activity_id=None,
         )
