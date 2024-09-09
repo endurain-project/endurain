@@ -17,20 +17,13 @@ from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 
-import session.router as session_router
-import session.security as session_security
-import users.router as users_router
-import profile.router as profile_router
-import activities.router as activities_router
-import activity_streams.router as activity_streams_router
-import gears.router as gears_router
-import followers.router as followers_router
-import strava.router as strava_router
 import strava.utils as strava_utils
 import strava.activity_utils as strava_activity_utils
 
+
 from config import API_VERSION
 from database import SessionLocal
+from routes import router as api_router
 
 
 def startup_event():
@@ -161,54 +154,7 @@ app.add_middleware(
 )
 
 # Router files
-app.include_router(
-    session_router.router,
-    tags=["session"],
-)
-app.include_router(
-    users_router.router,
-    prefix="/users",
-    tags=["users"],
-    dependencies=[Depends(session_security.validate_access_token)],
-)
-app.include_router(
-    profile_router.router,
-    prefix="/profile",
-    tags=["profile"],
-    dependencies=[
-        Depends(session_security.validate_access_token),
-        Security(session_security.check_scopes, scopes=["profile"]),
-    ],
-)
-app.include_router(
-    activities_router.router,
-    prefix="/activities",
-    tags=["activities"],
-    dependencies=[Depends(session_security.validate_access_token)],
-)
-app.include_router(
-    activity_streams_router.router,
-    prefix="/activities/streams",
-    tags=["activity_streams"],
-    dependencies=[Depends(session_security.validate_access_token)],
-)
-app.include_router(
-    gears_router.router,
-    prefix="/gears",
-    tags=["gears"],
-    dependencies=[Depends(session_security.validate_access_token)],
-)
-app.include_router(
-    followers_router.router,
-    prefix="/followers",
-    tags=["followers"],
-    dependencies=[Depends(session_security.validate_access_token)],
-)
-app.include_router(
-    strava_router.router,
-    prefix="/strava",
-    tags=["strava"],
-)
+app.include_router(api_router)
 
 # Check if Jaeger tracing is enabled using the 'JAEGER_ENABLED' environment variable
 if os.environ.get("JAEGER_ENABLED") == "true":
