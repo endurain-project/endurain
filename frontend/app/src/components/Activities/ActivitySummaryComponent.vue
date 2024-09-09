@@ -228,7 +228,7 @@ import EditActivityModalComponent from '@/components/Activities/Modals/EditActiv
 import { users } from '@/services/usersService';
 import { activities } from '@/services/activitiesService';
 import { formatDate, formatTime, calculateTimeDifference } from '@/utils/dateTimeUtils';
-import { formatPace } from '@/utils/activityUtils';
+import { formatPace, formatPaceSwim } from '@/utils/activityUtils';
 
 export default {
     components: {
@@ -252,14 +252,20 @@ export default {
         const { t } = useI18n();
         const isLoading = ref(true);
         const userActivity = ref(null);
-        const formattedPace = computed(() => formatPace(props.activity.pace));
+        let formattedPace = null;
+        console.log(props.activity.activity_type);
+        if (props.activity.activity_type == 8 || props.activity.activity_type == 9) {
+            formattedPace = computed(() => formatPaceSwim(props.activity.pace));
+        }else{
+            formattedPace = computed(() => formatPace(props.activity.pace));
+        }
         const sourceProp = ref(props.source);
 
         onMounted(async () => {
             try {
                 userActivity.value = await users.getUserById(props.activity.user_id);
             } catch (error) {
-                addToast(t('generalItens.errorFetchingInfo') + " - " + error.toString(), 'danger', true);
+                addToast(`${t('generalItens.errorFetchingInfo')} - ${error.toString()}`, 'danger', true);
             } finally {
                 isLoading.value = false;
             }
@@ -270,7 +276,7 @@ export default {
                 userActivity.value = await activities.deleteActivity(props.activity.id);
                 router.push({ path: '/', query: { activityDeleted: 'true', activityId: props.activity.id } });
             } catch (error) {
-                addToast(t('generalItens.errorDeletingInfo') + " - " + error.toString(), 'danger', true);
+                addToast(`${t('generalItens.errorDeletingInfo')} - ${error.toString()}`, 'danger', true);
             }
         }
 

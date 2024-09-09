@@ -362,6 +362,7 @@ def define_activity_type(activity_type):
         "open_water_swimming": 9,
         "open_water": 9,
         "Walk": 11,
+        "walking": 11,
         "Hike": 12,
     }
     # "AlpineSki",

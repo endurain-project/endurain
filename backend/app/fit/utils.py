@@ -99,8 +99,7 @@ def parse_fit_file(file: str, user_id: int) -> dict:
                         )
                     except KeyError:
                         calories = 0
-                # Extract activity type
-                if frame.name == "sport":
+                    
                     try:
                         # Extract activity type from sport field
                         activity_type = (
@@ -109,8 +108,14 @@ def parse_fit_file(file: str, user_id: int) -> dict:
                             else "Workout"
                         )
                         # Extract sub-sport
-                        if frame.get_value("sub_sport") and frame.get_value("sub_sport") != "generic":
-                            activity_type = frame.get_value("sub_sport")
+                        if (
+                            frame.get_value("sub_sport")
+                            and frame.get_value("sub_sport") != "generic"
+                        ):
+                            if(activity_type == "cycling"):
+                                activity_type = "virtual_ride"
+                            else:
+                                activity_type = frame.get_value("sub_sport")
                     except KeyError:
                         activity_type = "Workout"
                 # Extract activity name
@@ -120,24 +125,22 @@ def parse_fit_file(file: str, user_id: int) -> dict:
                         if frame.get_value("wkt_name")
                         else "Workout"
                     )
+
                 # Extract waypoint data
                 if frame.name == "record":
                     # for field in frame.fields:
                     # print(f"{field.name}: {field.value}")
-                    latitude = (
-                        frame.get_value("position_lat")
-                        if frame.get_value("position_lat")
-                        else 0
-                    )
-                    longitude = (
-                        frame.get_value("position_long")
-                        if frame.get_value("position_long")
-                        else 0
-                    )
+                    # Extract latitude and longitude
+                    latitude = frame.get_value("position_lat") or 0
+                    longitude = frame.get_value("position_long") or 0
+
+                    # Extract elevation
                     try:
                         elevation = frame.get_value("enhanced_altitude")
                     except KeyError:
                         elevation = 0
+                    
+                    # Extract timestamp
                     time = (
                         datetime.fromisoformat(
                             frame.get_value("timestamp").strftime("%Y-%m-%dT%H:%M:%S")
@@ -146,12 +149,30 @@ def parse_fit_file(file: str, user_id: int) -> dict:
                         else ""
                     )
 
+                    # Extract heart rate
+                    try:
+                        heart_rate = frame.get_value("heart_rate")
+                    except KeyError:
+                        heart_rate = 0
+
+                    # Extract cadence
+                    try:
+                        cadence = frame.get_value("cadence")
+                    except KeyError:
+                        cadence = 0
+
+                    # Extract power
+                    try:
+                        power = frame.get_value("power")
+                    except KeyError:
+                        power = 0
+
                     # Convert FIT coordinates to degrees if available
                     if latitude is not None and longitude is not None:
                         latitude = latitude * (180 / 2**31)
                         longitude = longitude * (180 / 2**31)
 
-                    if prev_latitude is not None and prev_longitude is not None:
+                    if prev_latitude is not None and prev_longitude is not None and latitude != 0 and longitude != 0 and prev_latitude != 0 and prev_longitude != 0:
                         distance += activities_utils.calculate_distance(
                             prev_latitude, prev_longitude, latitude, longitude
                         )
@@ -173,22 +194,6 @@ def parse_fit_file(file: str, user_id: int) -> dict:
                         country = location_data["country"]
 
                         process_one_time_fields = 1
-
-                    # Extract heart rate
-                    try:
-                        heart_rate = frame.get_value("heart_rate")
-                    except KeyError:
-                        heart_rate = 0
-                    # Extract cadence
-                    try:
-                        cadence = frame.get_value("cadence")
-                    except KeyError:
-                        cadence = 0
-                    # Extract power
-                    try:
-                        power = frame.get_value("power")
-                    except KeyError:
-                        power = 0
 
                     # Check if heart rate, cadence, power are set
                     if heart_rate != 0:
