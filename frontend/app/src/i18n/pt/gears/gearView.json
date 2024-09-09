@@ -1,14 +1,14 @@
 {
-    "buttonEditGear": "Edit Gear",
-    "buttonDeleteGear": "Delete Gear",
-    "modalEditGearIsActiveLabel": "Is Active",
-    "modalEditGearIsActiveOption1": "Yes",
-    "modalEditGearIsActiveOption0": "No",
-    "modalDeleteGearBody1": "Are you sure you want to delete gear",
-    "modalDeleteGearBody2": "This action cannot be undone.",
-    "labelDistance": "Distance",
-    "title": "Gear activities",
-    "subtitle": "(last 10 activities)",
-    "labelDate": "Date",
-    "successGearEdited": "Gear edited successfully"
+    "buttonEditGear": "Editar equipamento",
+    "buttonDeleteGear": "Eliminar equipamento",
+    "modalEditGearIsActiveLabel": "Ativo",
+    "modalEditGearIsActiveOption1": "Sim",
+    "modalEditGearIsActiveOption0": "Não",
+    "modalDeleteGearBody1": "Tem certeza de que deseja remover",
+    "modalDeleteGearBody2": "Esta ação não pode ser anulada.",
+    "labelDistance": "Distância",
+    "title": "Atividades de equipamento",
+    "subtitle": "(últimas 10 atividades)",
+    "labelDate": "Data",
+    "successGearEdited": "Equipamento editado com sucesso"
 }
