@@ -1,7 +1,7 @@
 files:
-  - source: /frontend_vue/src/i18n/en/*.json
-    translation: /frontend_vue/src/i18n/%two_letters_code%/%file_name%.%file_extension%
-  - source: /frontend_vue/src/i18n/en/components/*.json
-    translation: /frontend_vue/src/i18n/%two_letters_code%/components/%file_name%.%file_extension%
-  - source: /frontend_vue/src/i18n/en/gears/*.json
-    translation: /frontend_vue/src/i18n/%two_letters_code%/gears/%file_name%.%file_extension%
+  - source: /frontend/app/src/i18n/en/*.json
+    translation: /frontend/app/src/i18n/%two_letters_code%/%file_name%.%file_extension%
+  - source: /frontend/app/src/i18n/en/components/*.json
+    translation: /frontend/app/src/i18n/%two_letters_code%/components/%file_name%.%file_extension%
+  - source: /frontend/app/src/i18n/en/gears/*.json
+    translation: /frontend/app/src/i18n/%two_letters_code%/gears/%file_name%.%file_extension%
