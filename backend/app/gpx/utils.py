@@ -76,6 +76,8 @@ def parse_gpx_file(file: str, user_id: int) -> dict:
     country = None
     process_one_time_fields = 0
     pace = 0
+    calories = 0
+    visibility = 0
 
     # Arrays to store waypoint data
     lat_lon_waypoints = []
@@ -129,11 +131,13 @@ def parse_gpx_file(file: str, user_id: int) -> dict:
                     location_data = activities_utils.location_based_on_coordinates(
                         latitude, longitude
                     )
-                    city = location_data["city"]
-                    town = location_data["town"]
-                    country = location_data["country"]
 
-                    process_one_time_fields = 1
+                    if location_data:
+                        city = location_data["city"]
+                        town = location_data["town"]
+                        country = location_data["country"]
+
+                        process_one_time_fields = 1
 
                 # Extract heart rate, cadence, and power data from point extensions
                 heart_rate, cadence, power = 0, 0, 0
@@ -265,6 +269,8 @@ def parse_gpx_file(file: str, user_id: int) -> dict:
         pace=pace,
         average_speed=average_speed,
         average_power=average_power,
+        calories=calories,
+        visibility=visibility,
         strava_gear_id=None,
         strava_activity_id=None,
     )

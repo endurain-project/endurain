@@ -168,6 +168,7 @@ It is recommended to configure the following volumes for code and data persisten
 | /app | <local_path>/endurain/backend/app:/app | Configure volume if you want to edit the code locally by cloning the repo and comment next line |
 | /app/user_images | <local_path>/endurain/backend/app/user_images:/app/user_images | Necessary for user image persistence on container image updates |
 | /app/bulk_import | <local_path>/endurain/backend/bulk_import:/app/bulk_import | Necessary to enable bulk import of activities. Place here your activities files |
+| /app/app.log | <local_path>/endurain/backend/app.log:/app/app.log | Log file for the backend |
 
 ## Strava Integration
 

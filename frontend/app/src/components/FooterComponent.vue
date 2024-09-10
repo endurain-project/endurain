@@ -78,7 +78,6 @@ export default {
                 return;
             }
             try {
-                // Replace with your actual API call for activities
                 searchResults.value = await activities.getActivityByName(query);
             } catch (error) {
                 console.error('Error fetching activity results:', error);
@@ -91,7 +90,6 @@ export default {
                 return;
             }
             try {
-                // Replace with your actual API call for gear
                 searchResults.value = await gears.getGearByNickname(query);
             } catch (error) {
                 console.error('Error fetching gear results:', error);

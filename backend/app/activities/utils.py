@@ -36,20 +36,21 @@ async def parse_and_store_activity_from_file(
             # Parse the file
             parsed_info = parse_file(token_user_id, file_extension, file_path)
 
-            # Store the activity in the database
-            created_activity = store_activity(parsed_info, db)
+            if parsed_info is not None:
+                # Store the activity in the database
+                created_activity = store_activity(parsed_info, db)
 
-            # Return the created activity
-            return created_activity
+                # Return the created activity
+                return created_activity
+            else:
+                return None
+    except HTTPException:
+        pass
     except Exception as err:
         # Log the exception
         logger.error(
             f"Error in parse_and_store_activity_from_file: {err}", exc_info=True
         )
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Internal Server Error",
-        ) from err
 
 
 def parse_and_store_activity_from_uploaded_file(
@@ -59,38 +60,71 @@ def parse_and_store_activity_from_uploaded_file(
     # Get file extension
     _, file_extension = os.path.splitext(file.filename)
 
-    # Save the uploaded file in the 'uploads' directory
-    with open(file.filename, "wb") as save_file:
-        save_file.write(file.file.read())
+    try:
+        # Ensure the 'uploads' directory exists
+        upload_dir = "uploads"
+        os.makedirs(upload_dir, exist_ok=True)
 
-    # Parse the file
-    parsed_info = parse_file(token_user_id, file_extension, file.filename)
+        # Build the full path where the file will be saved
+        file_path = os.path.join(upload_dir, file.filename)
 
-    # Store the activity in the database
-    created_activity = store_activity(parsed_info, db)
+        # Save the uploaded file in the 'uploads' directory
+        with open(file_path, "wb") as save_file:
+            save_file.write(file.file.read())
 
-    # Return the created activity
-    return created_activity
+        # Parse the file
+        parsed_info = parse_file(token_user_id, file_extension, file_path)
+
+        if parsed_info is not None:
+            # Store the activity in the database
+            created_activity = store_activity(parsed_info, db)
+
+            # Return the created activity
+            return created_activity
+        else:
+            return None
+    except HTTPException as http_err:
+        raise http_err
+    except Exception as err:
+        # Log the exception
+        logger.error(f"Error in parse_and_store_activity_from_uploaded_file: {err}", exc_info=True)
+        # Raise an HTTPException with a 500 Internal Server Error status code
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal Server Error",
+        ) from err
+    finally:
+        # Remove the file after processing
+        os.remove(file_path)
 
 
 def parse_file(token_user_id: int, file_extension: str, filename: str) -> dict:
     try:
-        # Choose the appropriate parser based on file extension
-        if file_extension.lower() == ".gpx":
-            # Parse the GPX file
-            parsed_info = gpx_utils.parse_gpx_file(filename, token_user_id)
-        elif file_extension.lower() == ".fit":
-            # Parse the FIT file
-            parsed_info = fit_utils.parse_fit_file(filename, token_user_id)
-        else:
-            # file extension not supported raise an HTTPException with a 406 Not Acceptable status code
-            raise HTTPException(
-                status_code=status.HTTP_406_NOT_ACCEPTABLE,
-                detail="File extension not supported. Supported file extensions are .gpx and .fit",
-            )
+        if filename.lower() != "bulk_import/__init__.py":
+            print("Parsing file: ", filename)
+            logger.info(f"Parsing file: {filename}")
+            # Choose the appropriate parser based on file extension
+            if file_extension.lower() == ".gpx":
+                # Parse the GPX file
+                parsed_info = gpx_utils.parse_gpx_file(filename, token_user_id)
+            elif file_extension.lower() == ".fit":
+                # Parse the FIT file
+                parsed_info = fit_utils.parse_fit_file(filename, token_user_id)
+            else:
+                # file extension not supported raise an HTTPException with a 406 Not Acceptable status code
+                raise HTTPException(
+                    status_code=status.HTTP_406_NOT_ACCEPTABLE,
+                    detail="File extension not supported. Supported file extensions are .gpx and .fit",
+                )   
+            
+            # Remove the file after processing
+            os.remove(filename)
 
-        # Return the parsed information
-        return parsed_info
+            return parsed_info
+        else:
+            return None
+    except HTTPException as http_err:
+        raise http_err
     except Exception as err:
         # Log the exception
         logger.error(f"Error in parse_file: {err}", exc_info=True)
@@ -99,9 +133,6 @@ def parse_file(token_user_id: int, file_extension: str, filename: str) -> dict:
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal Server Error",
         ) from err
-    finally:
-        # Remove the file after processing
-        os.remove(filename)
 
 
 def store_activity(parsed_info: dict, db: Session):
@@ -110,6 +141,10 @@ def store_activity(parsed_info: dict, db: Session):
 
     # Check if created_activity is None
     if created_activity is None:
+        # Log the error
+        logger.error(
+            "Error in store_activity - activity is None, error creating activity"
+        )
         # raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -150,6 +185,9 @@ def calculate_activity_distances(activities: list[activities_schema.Activity]):
 def location_based_on_coordinates(latitude, longitude) -> dict | None:
     if latitude is None or longitude is None:
         return None
+    
+    if os.environ.get("GEOCODES_MAPS_API") == "changeme1":
+        return None
 
     # Create a dictionary with the parameters for the request
     url_params = {
@@ -176,12 +214,15 @@ def location_based_on_coordinates(latitude, longitude) -> dict | None:
             "town": data.get("town"),
             "country": data.get("country"),
         }
-
     except requests.exceptions.RequestException as err:
         # Log the error
         logger.error(
-            f"Error in upload_file querying local from geocode: {err}",
-            exc_info=True,
+            "Error in location_based_on_coordinates - Invalid API key provided for the geocoding service"
+        )
+        print("Error in location_based_on_coordinates - Invalid API key provided for the geocoding service")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid API key provided for the geocoding service",
         )
 
 

@@ -9,7 +9,7 @@ async function fetchWithRetry(url, options) {
                 await refreshAccessToken();
                 return await attemptFetch(url, options);
             } catch (refreshError) {
-                throw new Error('Failed to refresh access token: ' + refreshError.message);
+                throw new Error(`Failed to refresh access token: ${refreshError.message}`);
             }
         } else {
             throw error;
@@ -21,7 +21,9 @@ async function attemptFetch(url, options) {
     const fullUrl = `${API_URL}${url}`;
     const response = await fetch(fullUrl, options);
     if (!response.ok) {
-        throw new Error('' + response.status);
+        const errorBody = await response.json(); // Parse the response as JSON
+        const errorMessage = errorBody.detail || 'Unknown error'; // Get the 'detail' field or a default message
+        throw new Error(`${response.status} - ${errorMessage}`);
     }
     return response.json();
 }
@@ -37,7 +39,9 @@ async function refreshAccessToken() {
         },
     });
     if (!response.ok) {
-        throw new Error('' + response.status);
+        const errorBody = await response.json(); // Parse the response as JSON
+        const errorMessage = errorBody.detail || 'Unknown error'; // Get the 'detail' field or a default message
+        throw new Error(`${response.status} - ${errorMessage}`);
     }
 }
 

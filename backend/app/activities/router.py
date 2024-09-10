@@ -425,10 +425,6 @@ async def create_activity_with_uploaded_file(
     ],
 ):
     try:
-        # Ensure the 'uploads' directory exists
-        upload_dir = "uploads"
-        os.makedirs(upload_dir, exist_ok=True)
-
         # Return activity
         return activies_utils.parse_and_store_activity_from_uploaded_file(token_user_id, file, db)
     except Exception as err:
@@ -437,10 +433,7 @@ async def create_activity_with_uploaded_file(
             f"Error in create_activity_with_uploaded_file: {err}", exc_info=True
         )
         # Raise an HTTPException with a 500 Internal Server Error status code
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Internal Server Error",
-        ) from err
+        raise err
 
 
 @router.post(

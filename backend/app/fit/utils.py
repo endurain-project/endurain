@@ -192,11 +192,13 @@ def parse_fit_file(file: str, user_id: int) -> dict:
                         location_data = activities_utils.location_based_on_coordinates(
                             latitude, longitude
                         )
-                        city = location_data["city"]
-                        town = location_data["town"]
-                        country = location_data["country"]
+                        
+                        if location_data:
+                            city = location_data["city"]
+                            town = location_data["town"]
+                            country = location_data["country"]
 
-                        process_one_time_fields = 1
+                            process_one_time_fields = 1
 
                     # Check if heart rate, cadence, power are set
                     if heart_rate != 0:
