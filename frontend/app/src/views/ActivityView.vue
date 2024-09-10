@@ -134,12 +134,12 @@
         <div class="col">
             <LoadingComponent v-if="isLoading"/>
             <div v-else-if="activity">
-                <ActivityStreamsLineChartComponent :activity="activity" :graphSelection="graphSelection" :activityStreams="activityActivityStreams" v-if="graphSelection === 'hr'"/>
-                <ActivityStreamsLineChartComponent :activity="activity" :graphSelection="graphSelection" :activityStreams="activityActivityStreams" v-if="graphSelection === 'power'"/>
-                <ActivityStreamsLineChartComponent :activity="activity" :graphSelection="graphSelection" :activityStreams="activityActivityStreams" v-if="graphSelection === 'cad'"/>
-                <ActivityStreamsLineChartComponent :activity="activity" :graphSelection="graphSelection" :activityStreams="activityActivityStreams" v-if="graphSelection === 'ele'"/>
-                <ActivityStreamsLineChartComponent :activity="activity" :graphSelection="graphSelection" :activityStreams="activityActivityStreams" v-if="graphSelection === 'vel'"/>
-                <ActivityStreamsLineChartComponent :activity="activity" :graphSelection="graphSelection" :activityStreams="activityActivityStreams" v-if="graphSelection === 'pace'"/>
+                <ActivityStreamsLineChartComponent :activity="activity" :graphSelection="graphSelection" :activityStreams="activityActivityStreams" v-if="graphSelection === 'hr' && hrPresent"/>
+                <ActivityStreamsLineChartComponent :activity="activity" :graphSelection="graphSelection" :activityStreams="activityActivityStreams" v-if="graphSelection === 'power' && powerPresent"/>
+                <ActivityStreamsLineChartComponent :activity="activity" :graphSelection="graphSelection" :activityStreams="activityActivityStreams" v-if="graphSelection === 'cad' && cadPresent"/>
+                <ActivityStreamsLineChartComponent :activity="activity" :graphSelection="graphSelection" :activityStreams="activityActivityStreams" v-if="graphSelection === 'ele' && elePresent"/>
+                <ActivityStreamsLineChartComponent :activity="activity" :graphSelection="graphSelection" :activityStreams="activityActivityStreams" v-if="graphSelection === 'vel' && velPresent"/>
+                <ActivityStreamsLineChartComponent :activity="activity" :graphSelection="graphSelection" :activityStreams="activityActivityStreams" v-if="graphSelection === 'pace' && pacePresent"/>
             </div>
         </div>
     </div>
@@ -187,13 +187,13 @@ export default {
         const gearId = ref(null);
         const activityActivityStreams = ref([]);
         const graphSelection = ref('hr');
-        const graphItems = ref([
-            { type: 'hr', label: 'HR' },
-            { type: 'power', label: 'Power' },
-            { type: 'ele', label: 'Elevation' },
-            { type: 'cad', label: 'Cadence' },
-            { type: 'pace', label: 'Pace' },
-        ]);
+        const graphItems = ref([]);
+        const hrPresent = ref(false);
+        const powerPresent = ref(false);
+        const elePresent = ref(false);
+        const cadPresent = ref(false);
+        const velPresent = ref(false);
+        const pacePresent = ref(false);
         
         function selectGraph(type) {
             graphSelection.value = type;
@@ -232,7 +232,44 @@ export default {
 
         onMounted(async () => {
             try{
+                // Get the activity by id
                 activity.value = await activities.getActivityById(route.params.id);
+                
+                // Get the activity streams by activity id
+                activityActivityStreams.value = await activityStreams.getActivitySteamsByActivityId(route.params.id);
+
+                // Check if the activity has the streams
+                for (let i = 0; i < activityActivityStreams.value.length; i++) {
+                    if (activityActivityStreams.value[i].stream_type == 1) {
+                        hrPresent.value = true;
+                        graphItems.value.push({ type: 'hr', label: 'HR' });
+                    }
+                    if (activityActivityStreams.value[i].stream_type == 2) {
+                        powerPresent.value = true;
+                        graphItems.value.push({ type: 'power', label: 'Power' });
+                    }
+                    if (activityActivityStreams.value[i].stream_type == 3) {
+                        cadPresent.value = true;
+                        graphItems.value.push({ type: 'cad', label: 'Cadence' });
+                    }
+                    if (activityActivityStreams.value[i].stream_type == 4) {
+                        elePresent.value = true;
+                        graphItems.value.push({ type: 'ele', label: 'Elevation' });
+                    }
+                    if (activityActivityStreams.value[i].stream_type == 5) {
+                        velPresent.value = true;
+                        if (activity.value.activity_type == 4 || activity.value.activity_type == 5 || activity.value.activity_type == 6 || activity.value.activity_type == 7) {
+                            graphItems.value.push({ type: 'vel', label: 'Velocity' });
+                        }
+                    }
+                    if (activityActivityStreams.value[i].stream_type == 6) {
+                        pacePresent.value = true;
+                        if (activity.value.activity_type != 4 && activity.value.activity_type != 5 && activity.value.activity_type != 6 && activity.value.activity_type != 7) {
+                            graphItems.value.push({ type: 'pace', label: 'Pace' });
+                        }
+                    }
+                }
+
                 if (!activity.value) {
                     router.push({ path: '/', query: { activityFound: 'false', id: route.params.id } });
                 }
@@ -246,22 +283,12 @@ export default {
                 } else {
                     if (activity.value.activity_type == 4 || activity.value.activity_type == 5 || activity.value.activity_type == 6 || activity.value.activity_type == 7) {
                         gearsByType.value = await gears.getGearFromType(1);
-                        graphItems.value = [
-                            { type: 'hr', label: 'HR' },
-                            { type: 'power', label: 'Power' },
-                            { type: 'ele', label: 'Elevation' },
-                            { type: 'cad', label: 'Cadence' },
-                            { type: 'vel', label: 'Velocity' },
-                        ]
                     } else {
                         if (activity.value.activity_type == 8 || activity.value.activity_type == 9) {
                             gearsByType.value = await gears.getGearFromType(3);
                         }
                     }
                 }
-                
-                activityActivityStreams.value = await activityStreams.getActivitySteamsByActivityId(route.params.id);
-
             } catch (error) {
                 if (error.toString().includes('422')) {
                     router.push({ path: '/', query: { activityFound: 'false', id: route.params.id } });
@@ -285,7 +312,13 @@ export default {
             submitDeleteGearFromActivity,
             graphSelection,
             graphItems,
-            selectGraph
+            selectGraph,
+            hrPresent,
+            powerPresent,
+            elePresent,
+            cadPresent,
+            velPresent,
+            pacePresent,
         };
     }
 };

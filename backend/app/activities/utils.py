@@ -354,7 +354,9 @@ def define_activity_type(activity_type):
         "cycling": 4,
         "Ride": 4,
         "GravelRide": 5,
+        "gravel_cycling": 5,
         "MountainBikeRide": 6,
+        "mountain": 6,
         "VirtualRide": 7,
         "virtual_ride": 7,
         "Swim": 8,
@@ -364,6 +366,7 @@ def define_activity_type(activity_type):
         "Walk": 11,
         "walking": 11,
         "Hike": 12,
+        "hiking": 12,
     }
     # "AlpineSki",
     # "BackcountrySki",

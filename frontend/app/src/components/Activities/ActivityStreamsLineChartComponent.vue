@@ -112,7 +112,6 @@ export default {
                 myChart.data.labels = newChartData.labels;
                 myChart.value.update();
             }
-            console.log(computedChartData.value)
         }, { deep: true });
 
         function downsampleData(data, threshold, roundValues) {

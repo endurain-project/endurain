@@ -153,14 +153,14 @@
                 <span>{{ calculateTimeDifference(activity.start_time, activity.end_time) }}</span>
             </div>
             <div class="col border-start border-opacity-50">
-                <div v-if="activity.activity_type != 9 && activity.activity_type != 1">
+                <div v-if="activity.activity_type != 1 && activity.activity_type != 2 && activity.activity_type != 3 && activity.activity_type != 8 && activity.activity_type != 9">
                     <span class="fw-lighter">
                         {{ $t("activitySummary.activityElevationGain") }}
                     </span>
                     <br>
                     <span>{{ activity.elevation_gain }} m</span>
                 </div>
-                <div v-else-if="activity.activity_type == 1 || activity.activity_type == 2 || activity.activity_type == 3 || activity.activity_type == 9">
+                <div v-else>
                     <span class="fw-lighter">
                         {{ $t("activitySummary.activityPace") }}
                     </span>
@@ -170,7 +170,8 @@
             </div>
         </div>        
         <div class="row d-flex mt-3" v-if="sourceProp === 'activity'">
-            <div class="col" v-if="activity.activity_type == 1 || activity.activity_type == 2 || activity.activity_type == 3">
+            <!-- avg_power running and cycling activities-->
+            <div class="col" v-if="activity.activity_type == 1 || activity.activity_type == 2 || activity.activity_type == 3 || activity.activity_type == 4 || activity.activity_type == 5 || activity.activity_type == 6 || activity.activity_type == 7">
                 <span class="fw-lighter">
                     {{ $t("activitySummary.activityAvgPower") }}
                 </span>
@@ -178,35 +179,46 @@
                 <span v-if="activity.average_power">{{ activity.average_power }} W</span>
                 <span v-else>{{ $t("activitySummary.activityNoData") }}</span>
             </div>
+            <!-- avg_hr not running and cycling activities-->
+            <div class="col" v-if="activity.activity_type != 1 && activity.activity_type != 2 && activity.activity_type != 3 && activity.activity_type != 4 && activity.activity_type != 5 && activity.activity_type != 6 && activity.activity_type != 7">
+                <span class="fw-lighter">
+                    {{ $t("activitySummary.activityAvgHR") }}
+                </span>
+                <br>
+                <span v-if="activity.average_hr">{{ activity.average_hr }} bpm</span>
+                <span v-else>{{ $t("activitySummary.activityNoData") }}</span>
+            </div>
+            <!-- max_hr not running and cycling activities-->
+            <div class="col border-start border-opacity-50" v-if="activity.activity_type != 1 && activity.activity_type != 2 && activity.activity_type != 3 && activity.activity_type != 4 && activity.activity_type != 5 && activity.activity_type != 6 && activity.activity_type != 7">
+                <span class="fw-lighter">
+                    {{ $t("activitySummary.activityMaxHR") }}
+                </span>
+                <br>
+                <span v-if="activity.max_hr">{{ activity.max_hr }} bpm</span>
+                <span v-else>{{ $t("activitySummary.activityNoData") }}</span>
+            </div>
+            <!-- ele gain running activities -->
             <div class="col border-start border-opacity-50" v-if="activity.activity_type == 1 || activity.activity_type == 2 || activity.activity_type == 3">
                 <span class="fw-lighter">{{ $t("activitySummary.activityEleGain") }}</span>
                 <br>
                 <span>{{ activity.elevation_gain }} m</span>
             </div>
-            <div class="col border-start border-opacity-50" v-if="activity.activity_type == 1 || activity.activity_type == 2 || activity.activity_type == 3">
+            <!-- avg_speed cycling activities -->
+            <div class="col border-start border-opacity-50" v-if="activity.activity_type == 4 || activity.activity_type == 5 || activity.activity_type == 6 || activity.activity_type == 7">
                 <span class="fw-lighter">
-                    {{ $t("activitySummary.activityEleLoss") }}
+                    {{ $t("activitySummary.activityAvgSpeed") }}
                 </span>
                 <br>
-                <span>{{ activity.elevation_loss }} m</span>
-            </div>
-            <div class="col" v-if="activity.activity_type == 4 || activity.activity_type == 5 || activity.activity_type == 6">
-                <span class="fw-lighter">{{ $t("activitySummary.activityAvgSpeed") }}</span>
-                <br>
-                <span>{{ (activity.average_speed * 3.6).toFixed(0) }} km/h</span>
-            </div>
-            <div class="col border-start border-opacity-50" v-if="activity.activity_type == 4 || activity.activity_type == 5 || activity.activity_type == 6">
-                <span class="fw-lighter">
-                    {{ $t("activitySummary.activityAvgPower") }}
-                </span>
-                <br>
-                <span v-if="activity.average_power">{{ activity.average_power }} W</span>
+                <span v-if="activity.average_speed">{{ (activity.average_speed * 3.6).toFixed(0) }} km/h</span>
                 <span v-else>{{ $t("activitySummary.activityNoData") }}</span>
             </div>
-            <div class="col border-start border-opacity-50" v-if="activity.activity_type == 4 || activity.activity_type == 5 || activity.activity_type == 6">
-                <span class="fw-lighter">{{ $t("activitySummary.activityEleLoss") }}</span>
+            <!-- calories -->
+            <div class="col border-start border-opacity-50" v-if="activity.calories">
+                <span class="fw-lighter">
+                    {{ $t("activitySummary.activityCalories") }}
+                </span>
                 <br>
-                <span>{{ activity.elevation_loss }} m</span>
+                <span>{{ activity.calories }} cal</span>
             </div>
         </div>
     </div>
@@ -253,7 +265,6 @@ export default {
         const isLoading = ref(true);
         const userActivity = ref(null);
         let formattedPace = null;
-        console.log(props.activity.activity_type);
         if (props.activity.activity_type == 8 || props.activity.activity_type == 9) {
             formattedPace = computed(() => formatPaceSwim(props.activity.pace));
         }else{

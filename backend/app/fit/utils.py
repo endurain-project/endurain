@@ -90,8 +90,8 @@ def parse_fit_file(file: str, user_id: int) -> dict:
         for frame in fit_data:
             if isinstance(frame, fitdecode.FitDataMessage):
                 if frame.name == "session":
+                    # Extract calories
                     try:
-                        # Extract calories
                         calories = (
                             frame.get_value("total_calories")
                             if frame.get_value("total_calories")
@@ -100,8 +100,8 @@ def parse_fit_file(file: str, user_id: int) -> dict:
                     except KeyError:
                         calories = 0
                     
+                    # Extract activity type from sport field
                     try:
-                        # Extract activity type from sport field
                         activity_type = (
                             frame.get_value("sport")
                             if frame.get_value("sport")
@@ -113,7 +113,10 @@ def parse_fit_file(file: str, user_id: int) -> dict:
                             and frame.get_value("sub_sport") != "generic"
                         ):
                             if(activity_type == "cycling"):
-                                activity_type = "virtual_ride"
+                                if(frame.get_value("sub_sport") == "virtual_activity"):
+                                    activity_type = "virtual_ride"
+                                else:
+                                    activity_type = frame.get_value("sub_sport")
                             else:
                                 activity_type = frame.get_value("sub_sport")
                     except KeyError:
