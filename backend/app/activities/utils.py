@@ -186,7 +186,7 @@ def location_based_on_coordinates(latitude, longitude) -> dict | None:
     if latitude is None or longitude is None:
         return None
     
-    if os.environ.get("GEOCODES_MAPS_API") == "changeme1":
+    if os.environ.get("GEOCODES_MAPS_API") == "changeme":
         return None
 
     # Create a dictionary with the parameters for the request
