@@ -12,7 +12,7 @@
                         </select>
                         <br>
                         <input type="text" class="form-control" id="inputTextFieldToSearch" :placeholder='$t("footer.searchInputPlaceholder")' v-model="inputSearch">
-                        <ul v-if="searchResults.length" class="list-group">
+                        <ul v-if="searchResults" class="list-group">
                             <li v-for="result in searchResults" :key="result.id" class="list-group-item list-group-item-action">
                                 <!-- user link -->
                                 <router-link :to="{ name: 'user', params: { id: result.id }}" class="link-body-emphasis link-underline-opacity-0 link-underline-opacity-100-hover" v-if="searchSelectValue == 1">
@@ -56,7 +56,7 @@ export default {
         const authStore = useAuthStore();
         const { t } = useI18n();
         const path = ref(route.path);
-        const searchSelectValue = ref(1);
+        const searchSelectValue = ref('1');
         const inputSearch = ref('');
         const searchResults = ref([]);
 
@@ -99,7 +99,7 @@ export default {
         watch(() => route.path, (newPath, oldPath) => {
             path.value = newPath;
             /* reset search values */
-            searchSelectValue.value = 1;
+            searchSelectValue.value = '1';
             inputSearch.value = '';
             searchResults.value = [];
         });
@@ -110,11 +110,11 @@ export default {
         });
 
         watch(inputSearch, async (newQuery) => {
-            if (searchSelectValue.value == 1) {
+            if (searchSelectValue.value === '1') {
                 await fetchUserResults(newQuery);
-            } else if (searchSelectValue.value == 2) {
+            } else if (searchSelectValue.value === '2') {
                 await fetchActivityResults(newQuery);
-            } else {
+            } else if (searchSelectValue.value === '3') {
                 await fetchGearResults(newQuery);
             }
         });
