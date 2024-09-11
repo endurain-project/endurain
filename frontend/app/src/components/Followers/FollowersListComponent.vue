@@ -18,14 +18,14 @@
     </div>
     <div class="ms-3 align-middle" v-if="!isLoading">
         <!-- badge is accepted  -->
-        <span class="badge bg-success-subtle border border-success-subtle text-success-emphasis rounded-pill align-middle" v-if="followerProp.is_accepted == 1">{{ $t("followersListComponent.requestAccepted") }}</span>
+        <span class="badge bg-success-subtle border border-success-subtle text-success-emphasis rounded-pill align-middle" v-if="follower.is_accepted == 1">{{ $t("followersListComponent.requestAccepted") }}</span>
         <!-- badge pending request  -->
         <span class="badge bg-danger-subtle border border-danger-subtle text-danger-emphasis rounded-pill align-middle" v-else>{{ $t("followersListComponent.requestPending") }}</span>
             
         <!-- delete following zone  -->
-        <a class="ms-2 btn btn-link btn-lg link-body-emphasis" href="#" role="button" data-bs-toggle="modal" :data-bs-target="`#deleteFollowingModal${userFollower.id}`" v-if="typeProp == 1 && authStore.user.id == idFromParam"><font-awesome-icon :icon="['fas', 'fa-trash']" /></a>
+        <a class="ms-2 btn btn-link btn-lg link-body-emphasis" href="#" role="button" data-bs-toggle="modal" :data-bs-target="`#deleteFollowingModal${userFollower.id}`" v-if="type == 1 && authStore.user.id == idFromParam"><font-awesome-icon :icon="['fas', 'fa-trash']" /></a>
         
-        <div class="modal fade" :id="`deleteFollowingModal${userFollower.id}`" tabindex="-1" :aria-labelledby="`deleteFollowingModal${userFollower.id}`" aria-hidden="true" v-if="typeProp == 1 && authStore.user.id == idFromParam">
+        <div class="modal fade" :id="`deleteFollowingModal${userFollower.id}`" tabindex="-1" :aria-labelledby="`deleteFollowingModal${userFollower.id}`" aria-hidden="true" v-if="type == 1 && authStore.user.id == idFromParam">
             <div class="modal-dialog">
                 <div class="modal-content">
                     <div class="modal-header">
@@ -52,10 +52,10 @@
         </div>
 
         <!-- delete follower zone  -->
-        <a class="ms-2 btn btn-link btn-lg link-body-emphasis" href="#" role="button" data-bs-toggle="modal" :data-bs-target="`#deleteFollowerModal${userFollower.id}`" v-if="typeProp != 1 && authStore.user.id == idFromParam && followerProp.is_accepted == 1"><font-awesome-icon :icon="['fas', 'fa-trash']" /></a>
+        <a class="ms-2 btn btn-link btn-lg link-body-emphasis" href="#" role="button" data-bs-toggle="modal" :data-bs-target="`#deleteFollowerModal${userFollower.id}`" v-if="type != 1 && authStore.user.id == idFromParam && follower.is_accepted == 1"><font-awesome-icon :icon="['fas', 'fa-trash']" /></a>
 
         <!-- Modal delete follower -->
-        <div class="modal fade" :id="`deleteFollowerModal${userFollower.id}`" tabindex="-1" :aria-labelledby="`deleteFollowerModal${userFollower.id}`" aria-hidden="true" v-if="typeProp != 1 && authStore.user.id == idFromParam && followerProp.is_accepted == 1">
+        <div class="modal fade" :id="`deleteFollowerModal${userFollower.id}`" tabindex="-1" :aria-labelledby="`deleteFollowerModal${userFollower.id}`" aria-hidden="true" v-if="type != 1 && authStore.user.id == idFromParam && follower.is_accepted == 1">
             <div class="modal-dialog">
                 <div class="modal-content">
                     <div class="modal-header">
@@ -82,10 +82,10 @@
         </div>
 
         <!-- accept folllower request -->
-        <a class="btn btn-link btn-lg link-body-emphasis" href="#" role="button" data-bs-toggle="modal" :data-bs-target="`#acceptRequestModal${userFollower.id}`" v-if="typeProp != 1 && authStore.user.id == idFromParam && followerProp.is_accepted == 0"><font-awesome-icon :icon="['fas', 'fa-check']" /></a>
+        <a class="btn btn-link btn-lg link-body-emphasis" href="#" role="button" data-bs-toggle="modal" :data-bs-target="`#acceptRequestModal${userFollower.id}`" v-if="type != 1 && authStore.user.id == idFromParam && follower.is_accepted == 0"><font-awesome-icon :icon="['fas', 'fa-check']" /></a>
 
         <!-- Modal accept user request -->
-        <div class="modal fade" :id="`acceptRequestModal${userFollower.id}`" tabindex="-1" :aria-labelledby="`acceptRequestModal${userFollower.id}`" aria-hidden="true" v-if="typeProp != 1 && authStore.user.id == idFromParam && followerProp.is_accepted == 0">
+        <div class="modal fade" :id="`acceptRequestModal${userFollower.id}`" tabindex="-1" :aria-labelledby="`acceptRequestModal${userFollower.id}`" aria-hidden="true" v-if="type != 1 && authStore.user.id == idFromParam && follower.is_accepted == 0">
             <div class="modal-dialog">
                 <div class="modal-content">
                     <div class="modal-header">
@@ -112,10 +112,10 @@
         </div>
 
         <!-- decline user request button -->
-        <a class="ms-2 btn btn-link btn-lg link-body-emphasis" href="#" role="button" data-bs-toggle="modal" :data-bs-target="`#declineRequestModal${userFollower.id}`" v-if="typeProp != 1 && authStore.user.id == idFromParam && followerProp.is_accepted == 0"><font-awesome-icon :icon="['fas', 'fa-x']" /></a>
+        <a class="ms-2 btn btn-link btn-lg link-body-emphasis" href="#" role="button" data-bs-toggle="modal" :data-bs-target="`#declineRequestModal${userFollower.id}`" v-if="type != 1 && authStore.user.id == idFromParam && follower.is_accepted == 0"><font-awesome-icon :icon="['fas', 'fa-x']" /></a>
 
         <!-- Modal decline user request -->
-        <div class="modal fade" :id="`declineRequestModal${userFollower.id}`" tabindex="-1" :aria-labelledby="`declineRequestModal${userFollower.id}`" aria-hidden="true" v-if="typeProp != 1 && authStore.user.id == idFromParam && followerProp.is_accepted == 0">
+        <div class="modal fade" :id="`declineRequestModal${userFollower.id}`" tabindex="-1" :aria-labelledby="`declineRequestModal${userFollower.id}`" aria-hidden="true" v-if="type != 1 && authStore.user.id == idFromParam && follower.is_accepted == 0">
             <div class="modal-dialog">
                 <div class="modal-content">
                     <div class="modal-header">
@@ -174,13 +174,11 @@ export default {
         const userFollower = ref(null);
         const isLoading = ref(true);
         const idFromParam = computed(() => route.params.id);
-        const followerProp = ref(props.follower);
-        const typeProp = ref(props.type);
 
         async function submitDeleteFollowing() {
             try {
-                await followers.deleteUserFollower(props.follower.following_id);
-                emit('followingDeleted', props.follower.following_id);
+                await followers.deleteUserFollower(userFollower.value.id);
+                emit('followingDeleted', userFollower.value.id);
             } catch (error) {
                 console.error("Failed to delete following:", error);
             }
@@ -188,8 +186,8 @@ export default {
 
         async function submitDeleteFollower() {
             try {
-                await followers.deleteUserFollowing(props.follower.follower_id);
-                emit('followerDeleted', props.follower.follower_id);
+                await followers.deleteUserFollowing(userFollower.value.id);
+                emit('followerDeleted', userFollower.value.id);
             } catch (error) {
                 console.error("Failed to delete follower:", error);
             }
@@ -197,8 +195,8 @@ export default {
 
         async function submitAcceptFollowerRequest() {
             try {
-                await followers.acceptUserFollowsSpecificUser(props.follower.follower_id);
-                emit('followerAccepted', props.follower.follower_id);
+                await followers.acceptUserFollowsSpecificUser(userFollower.value.id);
+                emit('followerAccepted', userFollower.value.id);
             } catch (error) {
                 console.error("Failed to update follower:", error);
             }
@@ -206,7 +204,7 @@ export default {
 
         onMounted(async () => {
             try {
-                if (props.type == '1') {
+                if (props.type === 1) {
                     userFollower.value = await users.getUserById(props.follower.following_id);
                 } else {
                     userFollower.value = await users.getUserById(props.follower.follower_id);
@@ -223,8 +221,6 @@ export default {
             isLoading,
             idFromParam,
             authStore,
-            followerProp,
-            typeProp,
             submitDeleteFollowing,
             submitDeleteFollower,
             submitAcceptFollowerRequest,

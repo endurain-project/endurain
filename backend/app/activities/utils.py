@@ -49,7 +49,7 @@ async def parse_and_store_activity_from_file(
     except Exception as err:
         # Log the exception
         logger.error(
-            f"Error in parse_and_store_activity_from_file: {err}", exc_info=True
+            f"Error in parse_and_store_activity_from_file - {str(err)}", exc_info=True
         )
 
 
@@ -87,11 +87,11 @@ def parse_and_store_activity_from_uploaded_file(
         raise http_err
     except Exception as err:
         # Log the exception
-        logger.error(f"Error in parse_and_store_activity_from_uploaded_file: {err}", exc_info=True)
+        logger.error(f"Error in parse_and_store_activity_from_uploaded_file - {str(err)}", exc_info=True)
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Internal Server Error",
+            detail=f"Internal Server Error: {str(err)}",
         ) from err
     finally:
         # Remove the file after processing
@@ -127,11 +127,11 @@ def parse_file(token_user_id: int, file_extension: str, filename: str) -> dict:
         raise http_err
     except Exception as err:
         # Log the exception
-        logger.error(f"Error in parse_file: {err}", exc_info=True)
+        logger.error(f"Error in parse_file - {str(err)}", exc_info=True)
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Internal Server Error",
+            detail=f"Internal Server Error: {str(err)}",
         ) from err
 
 

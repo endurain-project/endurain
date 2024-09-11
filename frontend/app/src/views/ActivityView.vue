@@ -24,13 +24,13 @@
                 {{ $t("activity.labelGear") }}
             </span>
             <br>
-            <span v-if="activity.activity_type == 1 || activity.activity_type == 2 || activity.activity_type == 3">
+            <span v-if="activity.activity_type === 1 || activity.activity_type === 2 || activity.activity_type === 3">
                 <font-awesome-icon :icon="['fas', 'person-running']" />
             </span>
-            <span v-else-if="activity.activity_type == 4 || activity.activity_type == 5 || activity.activity_type == 6 || activity.activity_type == 7">
+            <span v-else-if="activity.activity_type === 4 || activity.activity_type === 5 || activity.activity_type === 6 || activity.activity_type === 7">
                 <font-awesome-icon :icon="['fas', 'fa-person-biking']" />
             </span>
-            <span v-else-if="activity.activity_type == 8 || activity.activity_type == 9">
+            <span v-else-if="activity.activity_type === 8 || activity.activity_type === 9">
                 <font-awesome-icon :icon="['fas', 'fa-person-swimming']" />
             </span>
             <span class="ms-2" v-if="activity.gear_id">{{ gear.nickname }}</span>
@@ -38,7 +38,7 @@
         </p>
         <div class="justify-content-end">
             <!-- add gear button -->
-            <a class="btn btn-link btn-lg link-body-emphasis" href="#" role="button" data-bs-toggle="modal" data-bs-target="#addGearToActivityModal" v-if="!activity.gear_id && activity.user_id == authStore.user.id">
+            <a class="btn btn-link btn-lg link-body-emphasis" href="#" role="button" data-bs-toggle="modal" data-bs-target="#addGearToActivityModal" v-if="!activity.gear_id && activity.user_id === authStore.user.id">
                 <font-awesome-icon :icon="['fas', 'fa-plus']" />
             </a>
 
@@ -78,12 +78,12 @@
 
 
             <!-- edit gear button -->
-            <a class="btn btn-link btn-lg link-body-emphasis" href="#" role="button" data-bs-toggle="modal" data-bs-target="#addGearToActivityModal" v-if="activity.gear_id && activity.user_id == authStore.user.id">
+            <a class="btn btn-link btn-lg link-body-emphasis" href="#" role="button" data-bs-toggle="modal" data-bs-target="#addGearToActivityModal" v-if="activity.gear_id && activity.user_id === authStore.user.id">
                 <font-awesome-icon :icon="['far', 'fa-pen-to-square']" />
             </a>
 
             <!-- Delete zone -->
-            <a class="btn btn-link btn-lg link-body-emphasis" href="#" role="button" data-bs-toggle="modal" data-bs-target="#deleteGearActivityModal" v-if="activity.gear_id && activity.user_id == authStore.user.id">
+            <a class="btn btn-link btn-lg link-body-emphasis" href="#" role="button" data-bs-toggle="modal" data-bs-target="#deleteGearActivityModal" v-if="activity.gear_id && activity.user_id === authStore.user.id">
                 <font-awesome-icon :icon="['fas', 'fa-trash']" />
             </a>
 
@@ -154,8 +154,8 @@ import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 // Importing the stores
 import { useAuthStore } from '@/stores/authStore';
-// Importing the utils
-import { addToast } from '@/utils/toastUtils';
+// Import Notivue push
+import { push } from 'notivue'
 // Importing the components
 import ActivitySummaryComponent from '@/components/Activities/ActivitySummaryComponent.vue';
 import ActivityMapComponent from '@/components/Activities/ActivityMapComponent.vue';
@@ -205,13 +205,13 @@ export default {
                 await activities.addGearToActivity(route.params.id, gearId.value);
                 
                 // Show the success message
-                addToast(t('activity.successMessageGearAdded'), 'success', true);
+                push.success(t('activity.successMessageGearAdded'))
 
                 // Update the activity gear
                 gear.value = await gears.getGearById(gearId.value);
                 activity.value.gear_id = gearId.value;
             } catch (error) {
-                addToast(`${t('generalItens.errorEditingInfo')} - ${error.toString()}`, 'danger', true);
+                push.error(`${t('generalItens.errorEditingInfo')} - ${error}`)
             }
         }
 
@@ -221,12 +221,12 @@ export default {
                 await activities.deleteGearFromActivity(route.params.id);
                 
                 // Show the success message
-                addToast(t('activity.successMessageGearDeleted'), 'success', true);
+                push.success(t('activity.successMessageGearDeleted'))
 
                 // Update the activity gear
                 activity.value.gear_id = null;
             } catch (error) {
-                addToast(`${t('generalItens.errorEditingInfo')} - ${error.toString()}`, 'danger', true);
+                push.error(`${t('generalItens.errorEditingInfo')} - ${error}`)
             }
         }
 
@@ -240,31 +240,31 @@ export default {
 
                 // Check if the activity has the streams
                 for (let i = 0; i < activityActivityStreams.value.length; i++) {
-                    if (activityActivityStreams.value[i].stream_type == 1) {
+                    if (activityActivityStreams.value[i].stream_type === 1) {
                         hrPresent.value = true;
                         graphItems.value.push({ type: 'hr', label: 'HR' });
                     }
-                    if (activityActivityStreams.value[i].stream_type == 2) {
+                    if (activityActivityStreams.value[i].stream_type === 2) {
                         powerPresent.value = true;
                         graphItems.value.push({ type: 'power', label: 'Power' });
                     }
-                    if (activityActivityStreams.value[i].stream_type == 3) {
+                    if (activityActivityStreams.value[i].stream_type === 3) {
                         cadPresent.value = true;
                         graphItems.value.push({ type: 'cad', label: 'Cadence' });
                     }
-                    if (activityActivityStreams.value[i].stream_type == 4) {
+                    if (activityActivityStreams.value[i].stream_type === 4) {
                         elePresent.value = true;
                         graphItems.value.push({ type: 'ele', label: 'Elevation' });
                     }
-                    if (activityActivityStreams.value[i].stream_type == 5) {
+                    if (activityActivityStreams.value[i].stream_type === 5) {
                         velPresent.value = true;
-                        if (activity.value.activity_type == 4 || activity.value.activity_type == 5 || activity.value.activity_type == 6 || activity.value.activity_type == 7) {
+                        if (activity.value.activity_type === 4 || activity.value.activity_type === 5 || activity.value.activity_type === 6 || activity.value.activity_type === 7) {
                             graphItems.value.push({ type: 'vel', label: 'Velocity' });
                         }
                     }
-                    if (activityActivityStreams.value[i].stream_type == 6) {
+                    if (activityActivityStreams.value[i].stream_type === 6) {
                         pacePresent.value = true;
-                        if (activity.value.activity_type != 4 && activity.value.activity_type != 5 && activity.value.activity_type != 6 && activity.value.activity_type != 7) {
+                        if (activity.value.activity_type !== 4 && activity.value.activity_type !== 5 && activity.value.activity_type !== 6 && activity.value.activity_type !== 7) {
                             graphItems.value.push({ type: 'pace', label: 'Pace' });
                         }
                     }
@@ -278,13 +278,13 @@ export default {
                     gearId.value = activity.value.gear_id;
                 }
 
-                if (activity.value.activity_type == 1 || activity.value.activity_type == 2 || activity.value.activity_type == 3) {
+                if (activity.value.activity_type === 1 || activity.value.activity_type === 2 || activity.value.activity_type === 3) {
                     gearsByType.value = await gears.getGearFromType(2);
                 } else {
-                    if (activity.value.activity_type == 4 || activity.value.activity_type == 5 || activity.value.activity_type == 6 || activity.value.activity_type == 7) {
+                    if (activity.value.activity_type === 4 || activity.value.activity_type === 5 || activity.value.activity_type === 6 || activity.value.activity_type === 7) {
                         gearsByType.value = await gears.getGearFromType(1);
                     } else {
-                        if (activity.value.activity_type == 8 || activity.value.activity_type == 9) {
+                        if (activity.value.activity_type === 8 || activity.value.activity_type === 9) {
                             gearsByType.value = await gears.getGearFromType(3);
                         }
                     }
@@ -294,7 +294,7 @@ export default {
                     router.push({ path: '/', query: { activityFound: 'false', id: route.params.id } });
                 }
                 // If there is an error, set the error message and show the error alert.
-                addToast(`${t('generalItens.errorEditingInfo')} - ${error.toString()}`, 'danger', true);
+                push.error(`${t('generalItens.errorEditingInfo')} - ${error}`)
             }
 
             isLoading.value = false;

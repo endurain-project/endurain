@@ -4,7 +4,7 @@ async function fetchWithRetry(url, options) {
     try {
         return await attemptFetch(url, options);
     } catch (error) {
-        if (error.message === '401') {
+        if (error.message === '401 - Access token missing') {
             try {
                 await refreshAccessToken();
                 return await attemptFetch(url, options);

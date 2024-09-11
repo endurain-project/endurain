@@ -58,11 +58,11 @@ def parse_gpx_file(file: str, user_id: int) -> dict:
         #gpx = gpxpy.parse(open(file, "r"))
     except Exception as err:
         # Log the exception
-        logger.error(f"Error in parse_gpx_file: {err}", exc_info=True)
+        logger.error(f"Error in parse_gpx_file - {str(err)}", exc_info=True)
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Can't open GPX file",
+            detail=f"Can't open GPX file: {str(err)}",
         ) from err
 
     # Initialize default values for various variables

@@ -28,6 +28,7 @@
   - [Frontend Environment Variables](#frontend-environment-variables)
   - [Backend Environment Variables](#backend-environment-variables)
 - [Volumes](#volumes)
+- [Bulk import](#bulk-import)
 - [Strava Integration](#strava-integration)
 - [Sponsors](#sponsors)
 - [Contributing](#contributing)
@@ -146,7 +147,7 @@ Environment variable  | Default value | Optional | Notes |
 | STRAVA_DAYS_ACTIVITIES_ONLINK | 30 | Yes | On Strava integration setup the number of days (including today) to get activities. Strava free API limitations can limit number of days you can query in a given time |
 | FRONTEND_PROTOCOL | http | Yes | Needs to be set if you want to enable Strava integration. You may need to update this variable based on docker image spin up (frontend host or local ip (example: http://192.168.1.10:8080)) |
 | FRONTEND_HOST | frontend:8080 | Yes | Needs to be set if you want to enable Strava integration. You may need to update this variable based on docker image spin up (frontend host or local ip (example: http://192.168.1.10:8080)) |
-| GEOCODES_MAPS_API | changeme | `No` | <a href="https://geocode.maps.co/">Geocode maps</a> offers a free plan consisting of 1 Request/Second. Registration necessary.
+| GEOCODES_MAPS_API | changeme | `No` | <a href="https://geocode.maps.co/">Geocode maps</a> offers a free plan consisting of 1 Request/Second. Registration necessary. |
 
 Table below shows the obligatory environment variables for mariadb container. You should set them based on what was also set for backend container.
 
@@ -169,6 +170,12 @@ It is recommended to configure the following volumes for code and data persisten
 | /app/user_images | <local_path>/endurain/backend/app/user_images:/app/user_images | Necessary for user image persistence on container image updates |
 | /app/bulk_import | <local_path>/endurain/backend/bulk_import:/app/bulk_import | Necessary to enable bulk import of activities. Place here your activities files |
 | /app/app.log | <local_path>/endurain/backend/app.log:/app/app.log | Log file for the backend |
+
+## Bulk import
+
+Some notes for bulk import:
+- After the files are processed, the files are deleted from the filesystem. If needed please keep a backup of your files.
+- GEOCODES API has a limit of 1 Request/Second on the free plan, so if you have a large number of files, it might not be possible to import all in the same action.
 
 ## Strava Integration
 
