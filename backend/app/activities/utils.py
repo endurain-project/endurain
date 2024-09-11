@@ -217,12 +217,12 @@ def location_based_on_coordinates(latitude, longitude) -> dict | None:
     except requests.exceptions.RequestException as err:
         # Log the error
         logger.error(
-            "Error in location_based_on_coordinates - Invalid API key provided for the geocoding service"
+            f"Error in location_based_on_coordinates - {str(err)}"
         )
-        print("Error in location_based_on_coordinates - Invalid API key provided for the geocoding service")
+        print(f"Error in location_based_on_coordinates - {str(err)}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid API key provided for the geocoding service",
+            detail=f"Error in location_based_on_coordinates: {str(err)}",
         )
 
 

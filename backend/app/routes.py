@@ -10,7 +10,6 @@ import followers.router as followers_router
 import strava.router as strava_router
 
 
-
 router = APIRouter()
 
 
