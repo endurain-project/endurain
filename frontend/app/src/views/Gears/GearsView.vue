@@ -125,8 +125,8 @@ import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
 // import lodash
 import { debounce } from 'lodash';
-// Importing the utils
-import { addToast } from '@/utils/toastUtils';
+// Import Notivue push
+import { push } from "notivue";
 // Importing the components
 import NoItemsFoundComponent from '@/components/GeneralComponents/NoItemsFoundComponents.vue';
 import LoadingComponent from '@/components/GeneralComponents/LoadingComponent.vue';
@@ -176,7 +176,7 @@ export default {
                 // Fetch the users based on the search nickname.
                 userGears.value = await gears.getGearByNickname(searchNickname.value);
             } catch (error) {
-                addToast(t('adminUsersComponent.errorSeachUser') + " - " + error.toString(), 'danger', true);
+				push.error(`${t("gearsView.errorGearNotFound")} - ${error}`);
             }
         }, 500);
         
@@ -203,10 +203,10 @@ export default {
                 userGearsNumber.value++;
 
                 // Set the success message and show the success alert.
-                addToast(t('gearsView.successGearAdded'), 'success', true);
+                push.success(t("gearsView.successGearAdded"));
             } catch (error) {
                 // If there is an error, set the error message and show the error alert.
-                addToast(t('generalItens.errorFetchingInfo') + " - " + error.toString(), 'danger', true);
+				push.error(`${t("generalItens.errorFetchingInfo")} - ${error}`);
             } finally {
                 // Set the isLoadingNewGear variable to false.
                 isLoadingNewGear.value = false;
@@ -230,7 +230,7 @@ export default {
                 isGearsUpdatingLoading.value = false;
             } catch (error) {
                 // If there is an error, set the error message and show the error alert.
-                addToast(t('generalItens.errorFetchingInfo') + " - " + error.toString(), 'danger', true);
+				push.error(`${t("generalItens.errorFetchingInfo")} - ${error}`);
             }
         }
 
@@ -246,19 +246,19 @@ export default {
                 totalPages.value = Math.ceil(userGearsNumber.value / numRecords);
             } catch (error) {
                 // If there is an error, set the error message and show the error alert.
-                addToast(t('generalItens.errorFetchingInfo') + " - " + error.toString(), 'danger', true);
+				push.error(`${t("generalItens.errorFetchingInfo")} - ${error}`);
             }
         }
 
         onMounted(async () => {
             if (route.query.gearDeleted === 'true') {
                 // Set the gearDeleted value to true and show the success alert.
-                addToast(t('gearsView.successGearDeleted'), 'success', true);
+                push.success(t("gearsView.successGearDeleted"));
             }
 
             if (route.query.gearFound === 'false') {
                 // Set the gearFound value to false and show the error alert.
-                addToast(t('gearsView.errorGearNotFound'), 'danger', true);
+				push.error(`${t("gearsView.errorGearNotFound")} - ${error}`);
             }
 
             // Fetch gears

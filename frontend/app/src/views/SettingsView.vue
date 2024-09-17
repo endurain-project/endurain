@@ -30,8 +30,8 @@ import { useRoute } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 // Importing the store
 import { useAuthStore } from '@/stores/authStore';
-// Importing the utils
-import { addToast } from '@/utils/toastUtils';
+// Import Notivue push
+import { push } from 'notivue'
 // Importing the services
 import { strava } from '@/services/stravaService';
 // Importing the components
@@ -80,13 +80,13 @@ export default {
                 authStore.setUser(user, locale);
 
                 // Set the success message and show the success alert.
-                addToast(t('settingsIntegrationsZone.successMessageStravaAccountLinked'), 'success', true);
+                push.success(t('settingsIntegrationsZone.successMessageStravaAccountLinked'))
 
                 try {
                     await strava.unsetUniqueUserStateStravaLink();
                 } catch (error) {
                     // If there is an error, set the error message and show the error alert.
-                    addToast(t('settingsIntegrationsZone.errorMessageUnableToUnSetStravaState'), 'danger', true);
+                    push.error(`${t('settingsIntegrationsZone.errorMessageUnableToUnSetStravaState')} - ${error}`)
                 }
             }
         });

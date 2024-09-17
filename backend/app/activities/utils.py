@@ -93,15 +93,11 @@ def parse_and_store_activity_from_uploaded_file(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Internal Server Error: {str(err)}",
         ) from err
-    finally:
-        # Remove the file after processing
-        os.remove(file_path)
 
 
 def parse_file(token_user_id: int, file_extension: str, filename: str) -> dict:
     try:
         if filename.lower() != "bulk_import/__init__.py":
-            print("Parsing file: ", filename)
             logger.info(f"Parsing file: {filename}")
             # Choose the appropriate parser based on file extension
             if file_extension.lower() == ".gpx":
@@ -402,6 +398,7 @@ def define_activity_type(activity_type):
         "virtual_ride": 7,
         "Swim": 8,
         "swimming": 8,
+        "lap_swimming": 8,
         "open_water_swimming": 9,
         "open_water": 9,
         "Walk": 11,

@@ -63,57 +63,57 @@
 </template>
 
 <script>
-import { useRouter } from 'vue-router';
+import { useRouter } from "vue-router";
 // Importing the i18n
-import { useI18n } from 'vue-i18n';
+import { useI18n } from "vue-i18n";
 // import the stores
-import { useAuthStore } from '@/stores/authStore';
-// Importing the utils
-import { addToast } from '@/utils/toastUtils';
+import { useAuthStore } from "@/stores/authStore";
+// Import Notivue push
+import { push } from "notivue";
 // Importing the services
-import { session } from '@/services/sessionService';
+import { session } from "@/services/sessionService";
 
-import UserAvatarComponent from '@/components/Users/UserAvatarComponent.vue';
-import HeaderPipeComponent from '@/components/Navbar/HeaderPipeComponent.vue';
-import NavbarThemeSwitcherComponent from '@/components/Navbar/NavbarThemeSwitcherComponent.vue';
-import NavbarLanguageSwitcherComponent from '@/components/Navbar/NavbarLanguageSwitcherComponent.vue';
+import UserAvatarComponent from "@/components/Users/UserAvatarComponent.vue";
+import HeaderPipeComponent from "@/components/Navbar/HeaderPipeComponent.vue";
+import NavbarThemeSwitcherComponent from "@/components/Navbar/NavbarThemeSwitcherComponent.vue";
+import NavbarLanguageSwitcherComponent from "@/components/Navbar/NavbarLanguageSwitcherComponent.vue";
 
 export default {
-    components: {
-        UserAvatarComponent,
-        HeaderPipeComponent,
-        NavbarThemeSwitcherComponent,
-        NavbarLanguageSwitcherComponent,
-    },
-    setup() {
-        const router = useRouter()
-        const authStore = useAuthStore()
-        const { locale  } = useI18n();
+	components: {
+		UserAvatarComponent,
+		HeaderPipeComponent,
+		NavbarThemeSwitcherComponent,
+		NavbarLanguageSwitcherComponent,
+	},
+	setup() {
+		const router = useRouter();
+		const authStore = useAuthStore();
+		const { locale } = useI18n();
 
-        async function handleLogout() {
-            try {
-                await session.logoutUser();
-                authStore.clearUser(locale);
-                collapseNavbar();
-                router.push('/login');
-            } catch (error) {
-                addToast(t('generalItens.errorFetchingInfo') + " - " + error, 'danger', true);
-            }
-        }
+		async function handleLogout() {
+			try {
+				await session.logoutUser();
+				authStore.clearUser(locale);
+				collapseNavbar();
+				router.push("/login");
+			} catch (error) {
+				push.error(`${t("generalItens.errorFetchingInfo")} - ${error}`);
+			}
+		}
 
-        function collapseNavbar() {
-            const navbarToggler = document.querySelector('.navbar-toggler');
-            const navbarCollapse = document.querySelector('#navbarNavAltMarkup');
-            if (navbarToggler && navbarCollapse.classList.contains('show')) {
-                navbarToggler.click();
-            }
-        }
+		function collapseNavbar() {
+			const navbarToggler = document.querySelector(".navbar-toggler");
+			const navbarCollapse = document.querySelector("#navbarNavAltMarkup");
+			if (navbarToggler && navbarCollapse.classList.contains("show")) {
+				navbarToggler.click();
+			}
+		}
 
-        return {
-            authStore,
-            handleLogout,
-            collapseNavbar,
-        };
-    },
+		return {
+			authStore,
+			handleLogout,
+			collapseNavbar,
+		};
+	},
 };
 </script>

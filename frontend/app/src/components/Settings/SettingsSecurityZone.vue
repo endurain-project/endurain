@@ -32,61 +32,72 @@
 </template>
 
 <script>
-import { ref, computed } from 'vue';
-import { useI18n } from 'vue-i18n';
+import { ref, computed } from "vue";
+import { useI18n } from "vue-i18n";
 // Importing the services
-import { profile } from '@/services/profileService';
-// Importing the utils
-import { addToast } from '@/utils/toastUtils';
+import { profile } from "@/services/profileService";
+// Import Notivue push
+import { push } from "notivue";
 // Importing the components
-import SettingsPasswordRequirementsComponent from '@/components/Settings/SettingsPasswordRequirementsComponent.vue';
+import SettingsPasswordRequirementsComponent from "@/components/Settings/SettingsPasswordRequirementsComponent.vue";
 
 export default {
-    components: {
-        SettingsPasswordRequirementsComponent,
-    },
-    setup() {
-        const { t } = useI18n();
-        const newPassword = ref('');
-        const newPasswordRepeat = ref('');
-        const regex = /^(?=.*[A-Z])(?=.*\d)(?=.*[ !\"#$%&'()*+,\-./:;<=>?@[\\\]^_`{|}~])[A-Za-z\d !"#$%&'()*+,\-./:;<=>?@[\\\]^_`{|}~]{8,}$/;
-        const isNewPasswordValid = computed(() => {
-            return regex.test(newPassword.value);
-        });
-        const isNewPasswordRepeatValid = computed(() => {
-            return regex.test(newPasswordRepeat.value);
-        });
-        const isPasswordMatch = computed(() => newPassword.value === newPasswordRepeat.value);
+	components: {
+		SettingsPasswordRequirementsComponent,
+	},
+	setup() {
+		const { t } = useI18n();
+		const newPassword = ref("");
+		const newPasswordRepeat = ref("");
+		const regex =
+			/^(?=.*[A-Z])(?=.*\d)(?=.*[ !\"#$%&'()*+,\-./:;<=>?@[\\\]^_`{|}~])[A-Za-z\d !"#$%&'()*+,\-./:;<=>?@[\\\]^_`{|}~]{8,}$/;
+		const isNewPasswordValid = computed(() => {
+			return regex.test(newPassword.value);
+		});
+		const isNewPasswordRepeatValid = computed(() => {
+			return regex.test(newPasswordRepeat.value);
+		});
+		const isPasswordMatch = computed(
+			() => newPassword.value === newPasswordRepeat.value,
+		);
 
-        async function submitChangeUserPasswordForm() {
-            try{
-                if (isNewPasswordValid.value && isNewPasswordRepeatValid.value && isPasswordMatch.value) {
-                    // Create the data object to send to the service.
-                    const data = {
-                        password: newPassword.value,
-                    };
+		async function submitChangeUserPasswordForm() {
+			try {
+				if (
+					isNewPasswordValid.value &&
+					isNewPasswordRepeatValid.value &&
+					isPasswordMatch.value
+				) {
+					// Create the data object to send to the service.
+					const data = {
+						password: newPassword.value,
+					};
 
-                    // Call the service to edit the user password.
-                    await profile.editProfilePassword(data);
+					// Call the service to edit the user password.
+					await profile.editProfilePassword(data);
 
-                    // Set the success message and show the success alert.
-                    addToast(t('usersListComponent.userChangePasswordSuccessMessage'), 'success', true);
-                }
-            } catch (error) {
-                // If there is an error, set the error message and show the error alert.
-                addToast(t('usersListComponent.userChangePasswordErrorMessage') + " - " + error, 'danger', true);
-            }
-        }
+					// Set the success message and show the success alert.
+					push.success(
+						t("usersListComponent.userChangePasswordSuccessMessage"),
+					);
+				}
+			} catch (error) {
+				// If there is an error, set the error message and show the error alert.
+				push.error(
+					`${t("usersListComponent.userChangePasswordErrorMessage")} - ${error}`,
+				);
+			}
+		}
 
-        return {
-            t,
-            newPassword,
-            newPasswordRepeat,
-            isNewPasswordValid,
-            isNewPasswordRepeatValid,
-            isPasswordMatch,
-            submitChangeUserPasswordForm
-        };
-    },
+		return {
+			t,
+			newPassword,
+			newPasswordRepeat,
+			isNewPasswordValid,
+			isNewPasswordRepeatValid,
+			isPasswordMatch,
+			submitChangeUserPasswordForm,
+		};
+	},
 };
 </script>

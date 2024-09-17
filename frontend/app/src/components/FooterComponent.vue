@@ -41,6 +41,8 @@
 import { watch, ref } from 'vue';
 import { useRoute } from 'vue-router';
 import { useI18n } from 'vue-i18n';
+// Import Notivue push
+import { push } from 'notivue'
 // import lodash
 import { debounce } from 'lodash';
 
@@ -68,7 +70,7 @@ export default {
             try {
                 searchResults.value = await users.getUserByUsername(query);
             } catch (error) {
-                console.error('Error fetching user results:', error);
+                push.error(`${t('generalItens.errorFetchingInfo')} - ${error}`)
             }
         }, 500);
 
@@ -80,7 +82,7 @@ export default {
             try {
                 searchResults.value = await activities.getActivityByName(query);
             } catch (error) {
-                console.error('Error fetching activity results:', error);
+                push.error(`${t('generalItens.errorFetchingInfo')} - ${error}`)
             }
         }, 500);
 
@@ -92,7 +94,7 @@ export default {
             try {
                 searchResults.value = await gears.getGearByNickname(query);
             } catch (error) {
-                console.error('Error fetching gear results:', error);
+                push.error(`${t('generalItens.errorFetchingInfo')} - ${error}`)
             }
         }, 500);
 

@@ -51,65 +51,62 @@
 </template>
 
 <script>
-import { ref } from 'vue';
-import { useI18n } from 'vue-i18n';
-
-// Importing the utils
-import { addToast } from '@/utils/toastUtils';
+import { ref } from "vue";
+import { useI18n } from "vue-i18n";
+// Import Notivue push
+import { push } from "notivue";
 // Importing the services
-import { activities } from '@/services/activitiesService';
+import { activities } from "@/services/activitiesService";
 
 export default {
-    components: {
-        
-    },
-    props: {
-        activity: {
-            type: Object,
-            required: true,
-        },
-    },
-    setup(props) {
-        const { t } = useI18n();
-        const editActivityDescription = ref(props.activity.description);
-        const editActivityName = ref(props.activity.name);
-        const editActivityType = ref(props.activity.activity_type);
-        const editActivityVisibility = ref(props.activity.visibility);
+	components: {},
+	props: {
+		activity: {
+			type: Object,
+			required: true,
+		},
+	},
+	setup(props) {
+		const { t } = useI18n();
+		const editActivityDescription = ref(props.activity.description);
+		const editActivityName = ref(props.activity.name);
+		const editActivityType = ref(props.activity.activity_type);
+		const editActivityVisibility = ref(props.activity.visibility);
 
-        async function submitEditActivityForm() {
-            try {
-                const data = {
-                    id: props.activity.id,
-                    name: editActivityName.value,
-                    description: editActivityDescription.value,
-                    activity_type: editActivityType.value,
-                    visibility: editActivityVisibility.value,
-                };
+		async function submitEditActivityForm() {
+			try {
+				const data = {
+					id: props.activity.id,
+					name: editActivityName.value,
+					description: editActivityDescription.value,
+					activity_type: editActivityType.value,
+					visibility: editActivityVisibility.value,
+				};
 
-                // Call the service to edit the activity
-                await activities.editActivity(props.activity.id, data);
+				// Call the service to edit the activity
+				await activities.editActivity(props.activity.id, data);
 
-                // Set activity new values
-                props.activity.name = editActivityName.value;
-                props.activity.description = editActivityDescription.value;
-                props.activity.activity_type = editActivityType.value;
-                props.activity.visibility = editActivityVisibility.value;
+				// Set activity new values
+				props.activity.name = editActivityName.value;
+				props.activity.description = editActivityDescription.value;
+				props.activity.activity_type = editActivityType.value;
+				props.activity.visibility = editActivityVisibility.value;
 
-                // show success toast
-                addToast(t('editActivityModalComponent.successActivityEdit'), 'success', true);
-            } catch (error) {
-                // If there is an error, set the error message and show the error alert.
-                addToast(t('editActivityModalComponent.errorActivityEdit') + " - " + error.toString(), 'danger', true);
-            }
-        }
+				// show success toast
+                push.success(t("editActivityModalComponent.successActivityEdit"));
+			} catch (error) {
+				// If there is an error, set the error message and show the error alert.
+				push.error(`${t("editActivityModalComponent.errorActivityEdit")} - ${error}`);
+			}
+		}
 
-        return {
-            editActivityDescription,
-            editActivityName,
-            editActivityType,
-            editActivityVisibility,
-            submitEditActivityForm,
-        };
-    },
+		return {
+			editActivityDescription,
+			editActivityName,
+			editActivityType,
+			editActivityVisibility,
+			submitEditActivityForm,
+		};
+	},
 };
 </script>

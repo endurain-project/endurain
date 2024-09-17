@@ -225,84 +225,94 @@
 </template>
 
 <script>
-import { ref, onMounted, computed } from 'vue';
-import { useI18n } from 'vue-i18n';
-import { useRouter } from 'vue-router';
+import { ref, onMounted, computed } from "vue";
+import { useI18n } from "vue-i18n";
+import { useRouter } from "vue-router";
 // Importing the stores
-import { useAuthStore } from '@/stores/authStore';
-// Importing the utils
-import { addToast } from '@/utils/toastUtils';
+import { useAuthStore } from "@/stores/authStore";
+// Import Notivue push
+import { push } from "notivue";
 // Importing the components
-import LoadingComponent from '@/components/GeneralComponents/LoadingComponent.vue';
-import UserAvatarComponent from '@/components/Users/UserAvatarComponent.vue';
-import EditActivityModalComponent from '@/components/Activities/Modals/EditActivityModalComponent.vue';
+import LoadingComponent from "@/components/GeneralComponents/LoadingComponent.vue";
+import UserAvatarComponent from "@/components/Users/UserAvatarComponent.vue";
+import EditActivityModalComponent from "@/components/Activities/Modals/EditActivityModalComponent.vue";
 // Importing the services
-import { users } from '@/services/usersService';
-import { activities } from '@/services/activitiesService';
-import { formatDate, formatTime, calculateTimeDifference } from '@/utils/dateTimeUtils';
-import { formatPace, formatPaceSwim } from '@/utils/activityUtils';
+import { users } from "@/services/usersService";
+import { activities } from "@/services/activitiesService";
+import {
+	formatDate,
+	formatTime,
+	calculateTimeDifference,
+} from "@/utils/dateTimeUtils";
+import { formatPace, formatPaceSwim } from "@/utils/activityUtils";
 
 export default {
-    components: {
-        LoadingComponent,
-        UserAvatarComponent,
-        EditActivityModalComponent,
-    },
-    props: {
-        activity: {
-            type: Object,
-            required: true,
-        },
-        source:{
-            type: String,
-            required: true,
-        }
-    },
-    setup(props) {
-        const router = useRouter();
-        const authStore = useAuthStore();
-        const { t } = useI18n();
-        const isLoading = ref(true);
-        const userActivity = ref(null);
-        let formattedPace = null;
-        if (props.activity.activity_type == 8 || props.activity.activity_type == 9) {
-            formattedPace = computed(() => formatPaceSwim(props.activity.pace));
-        }else{
-            formattedPace = computed(() => formatPace(props.activity.pace));
-        }
-        const sourceProp = ref(props.source);
+	components: {
+		LoadingComponent,
+		UserAvatarComponent,
+		EditActivityModalComponent,
+	},
+	props: {
+		activity: {
+			type: Object,
+			required: true,
+		},
+		source: {
+			type: String,
+			required: true,
+		},
+	},
+	setup(props) {
+		const router = useRouter();
+		const authStore = useAuthStore();
+		const { t } = useI18n();
+		const isLoading = ref(true);
+		const userActivity = ref(null);
+		let formattedPace = null;
+		if (
+			props.activity.activity_type === 8 ||
+			props.activity.activity_type === 9
+		) {
+			formattedPace = computed(() => formatPaceSwim(props.activity.pace));
+		} else {
+			formattedPace = computed(() => formatPace(props.activity.pace));
+		}
+		const sourceProp = ref(props.source);
 
-        onMounted(async () => {
-            try {
-                userActivity.value = await users.getUserById(props.activity.user_id);
-            } catch (error) {
-                addToast(`${t('generalItens.errorFetchingInfo')} - ${error.toString()}`, 'danger', true);
-            } finally {
-                isLoading.value = false;
-            }
-        });
+		onMounted(async () => {
+			try {
+				userActivity.value = await users.getUserById(props.activity.user_id);
+			} catch (error) {
+				push.error(`${t("generalItens.errorFetchingInfo")} - ${error}`);
+			} finally {
+				isLoading.value = false;
+			}
+		});
 
-        async function submitDeleteActivity() {
-            try {
-                userActivity.value = await activities.deleteActivity(props.activity.id);
-                router.push({ path: '/', query: { activityDeleted: 'true', activityId: props.activity.id } });
-            } catch (error) {
-                addToast(`${t('generalItens.errorDeletingInfo')} - ${error.toString()}`, 'danger', true);
-            }
-        }
+		async function submitDeleteActivity() {
+			try {
+				userActivity.value = await activities.deleteActivity(props.activity.id);
+				router.push({
+					path: "/",
+					query: { activityDeleted: "true", activityId: props.activity.id },
+				});
+			} catch (error) {
+				push.error(`${t("generalItens.errorDeletingInfo")} - ${error}`);
+			}
+		}
 
-        return {
-            authStore,
-            isLoading,
-            t,
-            userActivity,
-            formatDate,
-            formatTime,
-            calculateTimeDifference,
-            formattedPace,
-            sourceProp,
-            submitDeleteActivity,
-        };
-    },
+		return {
+			authStore,
+			isLoading,
+			t,
+			userActivity,
+			formatDate,
+			formatTime,
+			calculateTimeDifference,
+			formattedPace,
+			sourceProp,
+			submitDeleteActivity,
+		};
+	},
 };
 </script>

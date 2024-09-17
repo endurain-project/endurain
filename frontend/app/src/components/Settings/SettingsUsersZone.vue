@@ -95,7 +95,7 @@
 
                     <!-- list zone -->
                     <ul class="list-group list-group-flush"  v-for="user in usersArray" :key="user.id" :user="user" v-else>
-                        <UsersListConponent :user="user" @userDeleted="updateUserList" />
+                        <UsersListComponent :user="user" @userDeleted="updateUserList" />
                     </ul>
 
                     <!-- pagination area -->
@@ -112,216 +112,217 @@
 </template>
 
 <script>
-import { ref, onMounted, watch, computed } from 'vue';
-import { useI18n } from 'vue-i18n';
-// Importing the utils
-import { addToast } from '@/utils/toastUtils';
+import { ref, onMounted, watch, computed } from "vue";
+import { useI18n } from "vue-i18n";
+// Import Notivue push
+import { push } from "notivue";
 // import lodash
-import { debounce } from 'lodash';
+import { debounce } from "lodash";
 // Importing the components
-import LoadingComponent from '@/components/GeneralComponents/LoadingComponent.vue';
-import NoItemsFoundComponent from '@/components/GeneralComponents/NoItemsFoundComponents.vue';
-import UsersListConponent from '@/components/Settings/SettingsUsersZone/UsersListComponent.vue';
-import PaginationComponent from '@/components/GeneralComponents/PaginationComponent.vue';
+import LoadingComponent from "@/components/GeneralComponents/LoadingComponent.vue";
+import NoItemsFoundComponent from "@/components/GeneralComponents/NoItemsFoundComponents.vue";
+import UsersListComponent from "@/components/Settings/SettingsUsersZone/UsersListComponent.vue";
+import PaginationComponent from "@/components/GeneralComponents/PaginationComponent.vue";
 // Importing the services
-import { users } from '@/services/usersService';
+import { users } from "@/services/usersService";
 
 export default {
-    components: {
-        LoadingComponent,
-        NoItemsFoundComponent,
-        PaginationComponent,
-        UsersListConponent
-    },
-    setup() {
-        const { t } = useI18n();
-        const isLoading = ref(true);
-        const isUsersUpdatingLoading = ref(false);
-        const isLoadingNewUser = ref(false);
-        const newUserPhotoFile = ref(null);
-        const newUserUsername = ref('');
-        const newUserName = ref('');
-        const newUserEmail = ref('');
-        const newUserPassword = ref('');
-        const isPasswordValid = computed(() => {
-            const regex = /^(?=.*[A-Z])(?=.*\d)(?=.*[ !\"#$%&'()*+,\-./:;<=>?@[\\\]^_`{|}~])[A-Za-z\d !"#$%&'()*+,\-./:;<=>?@[\\\]^_`{|}~]{8,}$/;
-            return regex.test(newUserPassword.value);
-        });
-        const newUserTown = ref(null);
-        const newUserBirthDate = ref(null);
-        const newUserGender = ref(1);
-        const newUserPreferredLanguage = ref('en');
-        const newUserAccessType = ref(1);
-        const usersArray = ref([]);
-        const usersNumber = ref(0);
-        const pageNumber = ref(1);
-        const numRecords = 5;
-        const totalPages = ref(1);
-        const searchUsername = ref('');
+	components: {
+		LoadingComponent,
+		NoItemsFoundComponent,
+		PaginationComponent,
+		UsersListComponent,
+	},
+	setup() {
+		const { t } = useI18n();
+		const isLoading = ref(true);
+		const isUsersUpdatingLoading = ref(false);
+		const isLoadingNewUser = ref(false);
+		const newUserPhotoFile = ref(null);
+		const newUserUsername = ref("");
+		const newUserName = ref("");
+		const newUserEmail = ref("");
+		const newUserPassword = ref("");
+		const isPasswordValid = computed(() => {
+			const regex =
+				/^(?=.*[A-Z])(?=.*\d)(?=.*[ !\"#$%&'()*+,\-./:;<=>?@[\\\]^_`{|}~])[A-Za-z\d !"#$%&'()*+,\-./:;<=>?@[\\\]^_`{|}~]{8,}$/;
+			return regex.test(newUserPassword.value);
+		});
+		const newUserTown = ref(null);
+		const newUserBirthDate = ref(null);
+		const newUserGender = ref(1);
+		const newUserPreferredLanguage = ref("en");
+		const newUserAccessType = ref(1);
+		const usersArray = ref([]);
+		const usersNumber = ref(0);
+		const pageNumber = ref(1);
+		const numRecords = 5;
+		const totalPages = ref(1);
+		const searchUsername = ref("");
 
-        async function handleFileChange(event) {
-            if (event.target.files && event.target.files[0]) {
-                newUserPhotoFile.value = event.target.files[0];
-            } else {
-                newUserPhotoFile.value = null;
-            }
-        }
+		async function handleFileChange(event) {
+			newUserPhotoFile.value = event.target.files?.[0] ?? null;
+		}
 
-        const performSearch = debounce(async () => {
-            // If the search nickname is empty, reset the list to initial state.
-            if (!searchUsername.value) {
-                // Reset the list to the initial state when search text is cleared
-                pageNumber.value = 1;
+		const performSearch = debounce(async () => {
+			// If the search nickname is empty, reset the list to initial state.
+			if (!searchUsername.value) {
+				// Reset the list to the initial state when search text is cleared
+				pageNumber.value = 1;
 
-                await fetchUsers();
+				await fetchUsers();
 
-                return;
-            }
-            try {
-                // Fetch the users based on the search username.
-                usersArray.value = await users.getUserByUsername(searchUsername.value);
-            } catch (error) {
-                    // If there is an error, set the error message and show the error alert.
-                    addToast(t('generalItens.errorFetchingInfo') + " - " + error.toString(), 'danger', true);
-            }
-        }, 500);
+				return;
+			}
+			try {
+				// Fetch the users based on the search username.
+				usersArray.value = await users.getUserByUsername(searchUsername.value);
+			} catch (error) {
+				// If there is an error, set the error message and show the error alert.
+				push.error(`${t("generalItens.errorFetchingInfo")} - ${error}`);
+			}
+		}, 500);
 
-        async function submitAddUserForm() {
-            isLoadingNewUser.value = true;
-            try {
-                if (isPasswordValid.value) {
+		async function submitAddUserForm() {
+			isLoadingNewUser.value = true;
+			try {
+				if (isPasswordValid.value) {
+					// Create the gear data object.
+					const data = {
+						name: newUserName.value,
+						username: newUserUsername.value,
+						email: newUserEmail.value,
+						city: newUserTown.value,
+						birthdate: newUserBirthDate.value,
+						preferred_language: newUserPreferredLanguage.value,
+						gender: newUserGender.value,
+						access_type: newUserAccessType.value,
+						photo_path: null,
+						is_active: 1,
+						password: newUserPassword.value,
+					};
 
-                    // Create the gear data object.
-                    const data = {
-                        name: newUserName.value,
-                        username: newUserUsername.value,
-                        email: newUserEmail.value,
-                        city: newUserTown.value,
-                        birthdate: newUserBirthDate.value,
-                        preferred_language: newUserPreferredLanguage.value,
-                        gender: newUserGender.value,
-                        access_type: newUserAccessType.value,
-                        photo_path: null,
-                        is_active: 1,
-                        password: newUserPassword.value
-                    };
+					// Create the gear and get the created gear id.
+					const createdUserId = await users.createUser(data);
 
-                    // Create the gear and get the created gear id.
-                    const createdUserId = await users.createUser(data);
+					// If there is a photo, upload it and get the photo url.
+					if (newUserPhotoFile.value) {
+						try {
+							await users.uploadImage(newUserPhotoFile.value, createdUserId);
+						} catch (error) {
+							// Set the error message
+							push.error(`${t("generalItens.errorFetchingInfo")} - ${error}`);
+						}
+					}
 
-                    // If there is a photo, upload it and get the photo url.
-                    if (newUserPhotoFile.value) {
-                        try {
-                            await users.uploadImage(newUserPhotoFile.value, createdUserId);
-                        } catch (error) {
-                            // Set the error message
-                            addToast(t('generalItens.errorFetchingInfo') + " - " + error.toString(), 'danger', true);
-                        }
-                    }
+					// Get the created gear and add it to the userGears array.
+					const newUser = await users.getUserById(createdUserId);
+					usersArray.value.unshift(newUser);
 
-                    // Get the created gear and add it to the userGears array.
-                    const newUser = await users.getUserById(createdUserId);
-                    usersArray.value.unshift(newUser);
+					// Increment the number of users.
+					usersNumber.value++;
 
-                    // Increment the number of users.
-                    usersNumber.value++;
+					// Set the success message and show the success alert.
+					push.success(t("settingsUsersZone.successUserAdded"));
+				}
+			} catch (error) {
+				// If there is an error, set the error message and show the error alert.
+				push.error(`${t("generalItens.errorFetchingInfo")} - ${error}`);
+			} finally {
+				// Set the loading variable to false.
+				isLoadingNewUser.value = false;
+			}
+		}
 
-                    // Set the success message and show the success alert.
-                    addToast(t('settingsUsersZone.successUserAdded'), 'success', true);
-                }
-            } catch(error) {
-                // If there is an error, set the error message and show the error alert.
-                addToast(t('generalItens.errorFetchingInfo') + " - " + error.toString(), 'danger', true);
-            } finally {
-                // Set the loading variable to false.
-                isLoadingNewUser.value = false;
-            }
-        }
+		function setPageNumber(page) {
+			// Set the page number.
+			pageNumber.value = page;
+		}
 
-        function setPageNumber(page) {
-            // Set the page number.
-            pageNumber.value = page;
-        }
+		async function updateUsers() {
+			try {
+				// Set the loading variable to true.
+				isUsersUpdatingLoading.value = true;
 
-        async function updateUsers() {
-            try {
-                // Set the loading variable to true.
-                isUsersUpdatingLoading.value = true;
+				// Fetch the gears with pagination.
+				usersArray.value = await users.getUsersWithPagination(
+					pageNumber.value,
+					numRecords,
+				);
 
-                // Fetch the gears with pagination.
-                usersArray.value = await users.getUsersWithPagination(pageNumber.value, numRecords);
+				// Set the loading variable to false.
+				isUsersUpdatingLoading.value = false;
+			} catch (error) {
+				// If there is an error, set the error message and show the error alert.
+				push.error(`${t("generalItens.errorFetchingInfo")} - ${error}`);
+			}
+		}
 
-                // Set the loading variable to false.
-                isUsersUpdatingLoading.value = false;
-            } catch (error) {
-                // If there is an error, set the error message and show the error alert.
-                addToast(t('generalItens.errorFetchingInfo') + " - " + error.toString(), 'danger', true);
-            }
-        }
+		async function fetchUsers() {
+			try {
+				// Fetch the users with pagination.
+				updateUsers();
 
-        async function fetchUsers() {
-            try {
-                // Fetch the users with pagination.
-                updateUsers();
+				// Get the total number of user gears.
+				usersNumber.value = await users.getUsersNumber();
 
-                // Get the total number of user gears.
-                usersNumber.value = await users.getUsersNumber();
+				// Update total pages
+				totalPages.value = Math.ceil(usersNumber.value / numRecords);
+			} catch (error) {
+				// If there is an error, set the error message and show the error alert.
+				push.error(`${t("generalItens.errorFetchingInfo")} - ${error}`);
+			}
+		}
 
-                // Update total pages
-                totalPages.value = Math.ceil(usersNumber.value / numRecords);
-            } catch (error) {
-                // If there is an error, set the error message and show the error alert.
-                addToast(t('generalItens.errorFetchingInfo') + " - " + error.toString(), 'danger', true);
-            }
-        }
+		function updateUserList(userDeletedId) {
+			usersArray.value = usersArray.value.filter(
+				(user) => user.id !== userDeletedId,
+			);
+			usersNumber.value--;
 
-        function updateUserList(userDeletedId) {
-            usersArray.value = usersArray.value.filter(user => user.id !== userDeletedId);
-            usersNumber.value--;
+			push.success(t("usersListComponent.userDeleteSuccessMessage"));
+		}
 
-            addToast(t('usersListComponent.userDeleteSuccessMessage'), 'success', true);
-        }
+		onMounted(async () => {
+			// Fetch the users.
+			await fetchUsers();
 
-        onMounted(async () => {
-            // Fetch the users.
-            await fetchUsers();
+			// Set the isLoading to false.
+			isLoading.value = false;
+		});
 
-            // Set the isLoading to false.
-            isLoading.value = false;
-        });
+		// Watch the search username variable.
+		watch(searchUsername, performSearch, { immediate: false });
 
-        // Watch the search username variable.
-        watch(searchUsername, performSearch, { immediate: false });
+		// Watch the page number variable.
+		watch(pageNumber, updateUsers, { immediate: false });
 
-        // Watch the page number variable.
-        watch(pageNumber, updateUsers, { immediate: false });
-
-        return {
-            t,
-            isLoading,
-            isUsersUpdatingLoading,
-            isLoadingNewUser,
-            newUserPhotoFile,
-            newUserUsername,
-            newUserName,
-            newUserEmail,
-            newUserPassword,
-            isPasswordValid,
-            newUserTown,
-            newUserBirthDate,
-            newUserGender,
-            newUserPreferredLanguage,
-            newUserAccessType,
-            submitAddUserForm,
-            pageNumber,
-            totalPages,
-            setPageNumber,
-            handleFileChange,
-            usersNumber,
-            usersArray,
-            searchUsername,
-            updateUserList,
-        };
-    },
+		return {
+			t,
+			isLoading,
+			isUsersUpdatingLoading,
+			isLoadingNewUser,
+			newUserPhotoFile,
+			newUserUsername,
+			newUserName,
+			newUserEmail,
+			newUserPassword,
+			isPasswordValid,
+			newUserTown,
+			newUserBirthDate,
+			newUserGender,
+			newUserPreferredLanguage,
+			newUserAccessType,
+			submitAddUserForm,
+			pageNumber,
+			totalPages,
+			setPageNumber,
+			handleFileChange,
+			usersNumber,
+			usersArray,
+			searchUsername,
+			updateUserList,
+		};
+	},
 };
 </script>

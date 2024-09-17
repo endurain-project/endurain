@@ -79,100 +79,113 @@
 </template>
 
 <script>
-import { ref } from 'vue';
-import { useI18n } from 'vue-i18n';
-// Importing the utils
-import { addToast } from '@/utils/toastUtils';
+import { ref } from "vue";
+import { useI18n } from "vue-i18n";
+// Import Notivue push
+import { push } from "notivue";
 // Importing the stores
-import { useAuthStore } from '@/stores/authStore';
+import { useAuthStore } from "@/stores/authStore";
 // Importing the services
-import { strava } from '@/services/stravaService';
-import { activities }  from '@/services/activitiesService';
+import { strava } from "@/services/stravaService";
+import { activities } from "@/services/activitiesService";
 
 //import Modal from 'bootstrap/js/dist/modal';
 
-
 export default {
-    components: {
-        
-    },
-    setup() {
-        const authStore = useAuthStore();
-        const { t } = useI18n();
-        const daysToRetrieve = ref(7);
+	components: {},
+	setup() {
+		const authStore = useAuthStore();
+		const { t } = useI18n();
+		const daysToRetrieve = ref(7);
 
-        async function submitConnectStrava() {
-            const array = new Uint8Array(16);
-            window.crypto.getRandomValues(array);
-            const state = Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
+		async function submitConnectStrava() {
+			const array = new Uint8Array(16);
+			window.crypto.getRandomValues(array);
+			const state = Array.from(array, (byte) =>
+				byte.toString(16).padStart(2, "0"),
+			).join("");
 
-            try{
-                await strava.setUniqueUserStateStravaLink(state);
-                
-                strava.linkStrava(state);
-            } catch(error) {
-                // If there is an error, set the error message and show the error alert.
-                addToast(`${t('settingsIntegrationsZone.errorMessageUnableToLinkStrava')} - ${error}`, 'danger', true);
-            }
-        }
+			try {
+				await strava.setUniqueUserStateStravaLink(state);
 
-        async function submitRetrieveStravaActivities() {
-            try {
-                await strava.getStravaActivitiesLastDays(daysToRetrieve.value);
+				strava.linkStrava(state);
+			} catch (error) {
+				// If there is an error, set the error message and show the error alert.
+				push.error(
+					`${t("settingsIntegrationsZone.errorMessageUnableToLinkStrava")} - ${error}`,
+				);
+			}
+		}
 
-                // Set the loading message and show the loading alert.
-                addToast(t('settingsIntegrationsZone.loadingMessageRetrievingStravaActivities'), 'loading', true);
+		async function submitRetrieveStravaActivities() {
+			try {
+				await strava.getStravaActivitiesLastDays(daysToRetrieve.value);
 
-                // Ensure modal element and instance are correctly referenced
-                //const myModalEl = document.getElementById('retrieveStravaActivitiesByDaysModal');
-                //const myModal = Modal.getInstance(myModalEl) || new Modal(myModalEl); // Ensure an instance exists
+				// Set the loading message and show the loading alert.
+				push.info(
+					t(
+						"settingsIntegrationsZone.loadingMessageRetrievingStravaActivities",
+					),
+				);
 
-                // Add the event listener for 'hidden.bs.modal' before hiding the modal
-                //myModalEl.addEventListener('hidden.bs.modal', () => {
-                //    myModal.dispose(); // Dispose of the modal instance when it is fully hidden
-                //});
+				// Ensure modal element and instance are correctly referenced
+				//const myModalEl = document.getElementById('retrieveStravaActivitiesByDaysModal');
+				//const myModal = Modal.getInstance(myModalEl) || new Modal(myModalEl); // Ensure an instance exists
 
-                // Hide the modal programmatically
-                //myModal.hide();
-            } catch(error) {
-                // If there is an error, set the error message and show the error alert.
-                addToast(`${t('settingsIntegrationsZone.errorMessageUnableToGetStravaActivities')} - ${error}`, 'danger', true);
-            }
-        }
+				// Add the event listener for 'hidden.bs.modal' before hiding the modal
+				//myModalEl.addEventListener('hidden.bs.modal', () => {
+				//    myModal.dispose(); // Dispose of the modal instance when it is fully hidden
+				//});
 
-        async function submitRetrieveStravaGear() {
-            try {
-                await strava.getStravaGear();
+				// Hide the modal programmatically
+				//myModal.hide();
+			} catch (error) {
+				// If there is an error, set the error message and show the error alert.
+				push.error(
+					`${t("settingsIntegrationsZone.errorMessageUnableToGetStravaActivities")} - ${error}`,
+				);
+			}
+		}
 
-                // Set the loading message and show the loading alert.
-                addToast(t('settingsIntegrationsZone.loadingMessageRetrievingStravaGear'), 'loading', true);
-            } catch(error) {
-                // If there is an error, set the error message and show the error alert.
-                addToast(`${t('settingsIntegrationsZone.errorMessageUnableToGetStravaGear')} - ${error}`, 'danger', true);
-            }
-        }
+		async function submitRetrieveStravaGear() {
+			try {
+				await strava.getStravaGear();
 
-        async function submitBulkImport() {
-            try {
-                await activities.bulkImportActivities();
+				// Set the loading message and show the loading alert.
+				push.success(
+					t("settingsIntegrationsZone.loadingMessageRetrievingStravaGear"),
+				);
+			} catch (error) {
+				// If there is an error, set the error message and show the error alert.
+				push.error(
+					`${t("settingsIntegrationsZone.errorMessageUnableToGetStravaGear")} - ${error}`,
+				);
+			}
+		}
 
-                // Set the loading message and show the loading alert.
-                addToast(t('settingsIntegrationsZone.loadingMessageBulkImport'), 'loading', true);
-            } catch(error) {
-                // If there is an error, set the error message and show the error alert.
-                addToast(`${t('settingsIntegrationsZone.errorMessageUnableToImportActivities')} - ${error}`, 'danger', true);
-            }
-        }
+		async function submitBulkImport() {
+			try {
+				await activities.bulkImportActivities();
 
-        return {
-            authStore,
-            t,
-            submitConnectStrava,
-            submitRetrieveStravaActivities,
-            daysToRetrieve,
-            submitRetrieveStravaGear,
-            submitBulkImport,
-        };
-    },
+				// Set the loading message and show the loading alert.
+				push.info(t("settingsIntegrationsZone.loadingMessageBulkImport"));
+			} catch (error) {
+				// If there is an error, set the error message and show the error alert.
+				push.error(
+					`${t("settingsIntegrationsZone.errorMessageUnableToImportActivities")} - ${error}`,
+				);
+			}
+		}
+
+		return {
+			authStore,
+			t,
+			submitConnectStrava,
+			submitRetrieveStravaActivities,
+			daysToRetrieve,
+			submitRetrieveStravaGear,
+			submitBulkImport,
+		};
+	},
 };
 </script>
