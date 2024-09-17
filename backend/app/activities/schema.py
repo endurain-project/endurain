@@ -14,11 +14,18 @@ class Activity(BaseModel):
     town: str | None = None
     country: str | None = None
     created_at: str | None = None
-    elevation_gain: int
-    elevation_loss: int
-    pace: float
-    average_speed: float
-    average_power: int
+    elevation_gain: int | None = None
+    elevation_loss: int | None = None
+    pace: float | None = None
+    average_speed: float | None = None
+    max_speed: float | None = None
+    average_power: int | None = None
+    max_power: int | None = None
+    normalized_power: int | None = None
+    average_hr: int | None = None
+    max_hr: int | None = None
+    average_cad: int | None = None
+    max_cad: int | None = None
     calories: int | None = None
     visibility: int | None = None
     gear_id: int | None = None

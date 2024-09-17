@@ -241,19 +241,30 @@ class Activity(Base):
     created_at = Column(
         DateTime, nullable=False, comment="Activity creation date (datetime)"
     )
-    elevation_gain = Column(Integer, nullable=False, comment="Elevation gain in meters")
-    elevation_loss = Column(Integer, nullable=False, comment="Elevation loss in meters")
+    elevation_gain = Column(Integer, nullable=True, comment="Elevation gain in meters")
+    elevation_loss = Column(Integer, nullable=True, comment="Elevation loss in meters")
     pace = Column(
         DECIMAL(precision=20, scale=10),
-        nullable=False,
+        nullable=True,
         comment="Pace seconds per meter (s/m)",
     )
     average_speed = Column(
         DECIMAL(precision=20, scale=10),
-        nullable=False,
+        nullable=True,
         comment="Average speed seconds per meter (s/m)",
     )
-    average_power = Column(Integer, nullable=False, comment="Average power (watts)")
+    max_speed = Column(
+        DECIMAL(precision=20, scale=10),
+        nullable=True,
+        comment="Max speed seconds per meter (s/m)",
+    )
+    average_power = Column(Integer, nullable=True, comment="Average power (watts)")
+    max_power = Column(Integer, nullable=True, comment="Max power (watts)")
+    normalized_power = Column(Integer, nullable=True, comment="Normalized power (watts)")
+    average_hr = Column(Integer, nullable=True, comment="Average heart rate (bpm)")
+    max_hr = Column(Integer, nullable=True, comment="Max heart rate (bpm)")
+    average_cad = Column(Integer, nullable=True, comment="Average cadence (rpm)")
+    max_cad = Column(Integer, nullable=True, comment="Max cadence (rpm)")
     calories = Column(
         Integer,
         nullable=True,
