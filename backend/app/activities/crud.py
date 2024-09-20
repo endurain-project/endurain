@@ -72,7 +72,7 @@ def get_user_activities_with_pagination(
             activity.start_time = activity.start_time.strftime("%Y-%m-%d %H:%M:%S")
             activity.end_time = activity.end_time.strftime("%Y-%m-%d %H:%M:%S")
             activity.created_at = activity.created_at.strftime("%Y-%m-%d %H:%M:%S")
-
+            
         # Return the activities
         return activities
 
@@ -456,6 +456,8 @@ def create_activity(activity: activities_schema.Activity, db: Session):
             activity_type=activity.activity_type,
             start_time=activity.start_time,
             end_time=activity.end_time,
+            total_elapsed_time=activity.total_elapsed_time,
+            total_timer_time=activity.total_timer_time,
             city=activity.city,
             town=activity.town,
             country=activity.country,
@@ -472,6 +474,8 @@ def create_activity(activity: activities_schema.Activity, db: Session):
             max_hr=activity.max_hr,
             average_cad=activity.average_cad,
             max_cad=activity.max_cad,
+            workout_feeling=activity.workout_feeling,
+            workout_rpe=activity.workout_rpe,
             calories=activity.calories,
             visibility=activity.visibility,
             gear_id=activity.gear_id,

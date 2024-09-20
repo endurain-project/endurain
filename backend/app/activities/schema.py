@@ -10,6 +10,8 @@ class Activity(BaseModel):
     activity_type: int
     start_time: str
     end_time: str
+    total_elapsed_time: float | None = None
+    total_timer_time: float | None = None
     city: str | None = None
     town: str | None = None
     country: str | None = None
@@ -26,6 +28,8 @@ class Activity(BaseModel):
     max_hr: int | None = None
     average_cad: int | None = None
     max_cad: int | None = None
+    workout_feeling: int | None = None
+    workout_rpe: int | None = None
     calories: int | None = None
     visibility: int | None = None
     gear_id: int | None = None

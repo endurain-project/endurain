@@ -227,6 +227,16 @@ class Activity(Base):
         DateTime, nullable=False, comment="Activity start date (datetime)"
     )
     end_time = Column(DateTime, nullable=False, comment="Activity end date (datetime)")
+    total_elapsed_time = Column(
+        DECIMAL(precision=20, scale=10),
+        nullable=False,
+        comment="Activity total elapsed time (datetime)",
+    )
+    total_timer_time = Column(
+        DECIMAL(precision=20, scale=10),
+        nullable=False,
+        comment="Activity total timer time (datetime)",
+    )
     city = Column(
         String(length=250), nullable=True, comment="Activity city (May include spaces)"
     )
@@ -260,11 +270,17 @@ class Activity(Base):
     )
     average_power = Column(Integer, nullable=True, comment="Average power (watts)")
     max_power = Column(Integer, nullable=True, comment="Max power (watts)")
-    normalized_power = Column(Integer, nullable=True, comment="Normalized power (watts)")
+    normalized_power = Column(
+        Integer, nullable=True, comment="Normalized power (watts)"
+    )
     average_hr = Column(Integer, nullable=True, comment="Average heart rate (bpm)")
     max_hr = Column(Integer, nullable=True, comment="Max heart rate (bpm)")
     average_cad = Column(Integer, nullable=True, comment="Average cadence (rpm)")
     max_cad = Column(Integer, nullable=True, comment="Max cadence (rpm)")
+    workout_feeling = Column(
+        Integer, nullable=True, comment="Workout feeling (0 to 100)"
+    )
+    workout_rpe = Column(Integer, nullable=True, comment="Workout RPE (10 to 100)")
     calories = Column(
         Integer,
         nullable=True,
