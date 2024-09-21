@@ -1,5 +1,5 @@
 <template>
-    <a class="nav-item dropdown d-none d-lg-block">
+    <div class="nav-item dropdown d-none d-lg-block">
         <!-- toggle with current lang -->
         <a class="nav-link link-body-emphasis dropdown-toggle" role="button" data-bs-toggle="dropdown" aria-expanded="false">
             {{ currentLanguage.toLowerCase() }}
@@ -18,7 +18,7 @@
                 </a>
             </li>
         </ul>
-    </a>
+    </div>
 </template>
 
 <script>
