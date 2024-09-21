@@ -12,6 +12,7 @@ import session.security as session_security
 import users.schema as users_schema
 import models
 
+
 # Define a loggger created on main.py
 logger = logging.getLogger("myLogger")
 
@@ -76,11 +77,12 @@ def get_all_users(db: Session):
             detail="Internal Server Error",
         ) from err
 
-
 def get_users_number(db: Session):
     try:
+
         # Get the number of users from the database
-        return db.query(models.User).count()
+        return db.query(models.User.username).count()
+
     except Exception as err:
         # Log the exception
         logger.error(f"Error in get_users_number: {err}", exc_info=True)
@@ -93,24 +95,22 @@ def get_users_number(db: Session):
 
 def get_users_with_pagination(db: Session, page_number: int = 1, num_records: int = 5):
     try:
-        # Get the users from the database
-        users = (
-            db.query(models.User)
-            .offset((page_number - 1) * num_records)
-            .limit(num_records)
-            .all()
-        )
+
+        # Get the users from the database abd Format the birthdate
+        users = [
+        format_user_birthdate(user)for user in db.query(models.User)
+        .offset((page_number - 1) * num_records)
+        .limit(num_records)
+        .all()
+        ] 
 
         # If the users were not found, return None
         if not users:
             return None
 
-        # Format the birthdate
-        for user in users:
-            user = format_user_birthdate(user)
-
         # Return the users
         return users
+    
     except Exception as err:
         # Log the exception
         logger.error(f"Error in get_users_with_pagination: {err}", exc_info=True)
@@ -136,10 +136,10 @@ def get_user_if_contains_username(username: str, db: Session):
         # If the user was not found, return None
         if users is None:
             return None
-
+        
         # Format the birthdate
-        for user in users:
-            user = format_user_birthdate(user)
+        users = [format_user_birthdate(user) for user in users]
+
 
         # Return the user
         return users
@@ -151,6 +151,7 @@ def get_user_if_contains_username(username: str, db: Session):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal Server Error",
         ) from err
+
 
 
 def get_user_by_username(username: str, db: Session):
@@ -309,26 +310,13 @@ def edit_user(user_id: int, user: users_schema.User, db: Session):
             )
 
         # Update the user
-        if user.name is not None:
-            db_user.name = user.name
-        if user.username is not None:
-            db_user.username = user.username
-        if user.email is not None:
-            db_user.email = user.email
-        if user.city is not None:
-            db_user.city = user.city
-        if user.birthdate is not None:
-            db_user.birthdate = user.birthdate
-        if user.preferred_language is not None:
-            db_user.preferred_language = user.preferred_language
-        if user.gender is not None:
-            db_user.gender = user.gender
-        if user.access_type is not None:
-            db_user.access_type = user.access_type
-        if user.photo_path is not None:
-            db_user.photo_path = user.photo_path
-        if user.is_active is not None:
-            db_user.is_active = user.is_active
+
+        # Dictionary of the fields to update if they are not None
+        user_data = user.dict(exclude_unset=True)
+        # Iterate over the fields and update the db_user dynamically
+        for key, value in user_data.items():
+            setattr(db_user, key, value)
+
 
         # Commit the transaction
         db.commit()
