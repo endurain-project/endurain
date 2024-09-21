@@ -27,6 +27,9 @@ import { far } from "@fortawesome/free-regular-svg-icons";
 /* add icons to the library */
 library.add(fas, fab, far);
 
+/* add flag icons */
+import "flag-icons/css/flag-icons.min.css";
+
 /* import notivue components */
 import "notivue/notification.css";
 import "notivue/animations.css";

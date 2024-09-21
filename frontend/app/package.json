@@ -20,6 +20,7 @@
     "@vueuse/core": "^11.1.0",
     "bootstrap": "^5.3.2",
     "chart.js": "^4.4.1",
+    "flag-icons": "^7.2.3",
     "leaflet": "^1.9.4",
     "notivue": "^2.4.5",
     "pinia": "^2.1.7",
