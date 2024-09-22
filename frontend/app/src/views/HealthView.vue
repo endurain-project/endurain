@@ -4,42 +4,124 @@
 
         <!-- Include the HealthSideBarComponent -->
         <HealthSideBarComponent :activeSection="activeSection" @update-active-section="updateActiveSection" />
+
+        <LoadingComponent v-if="isLoading" />
+
+        <!-- Include the HealthDashboardZone -->
+        <HealthDashboardZone :userHealthData="userHealthData[0]" :userHealthTargets="userHealthTargets" v-if="activeSection === 'dashboard' && !isLoading" />
+
+        <!-- Include the SettingsUserProfileZone -->
+        <HealthWeightZone :userHealthData="userHealthData" :userHealthTargets="userHealthTargets" :isLoading="isLoading" :totalPages="totalPages" :pageNumber="pageNumber" v-if="activeSection === 'weight' && !isLoading" />
     </div>
     <!-- back button -->
     <BackButtonComponent />
 </template>
 
 <script>
-import { ref } from 'vue';
+import { ref, onMounted, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
+// Import Notivue push
+import { push } from "notivue";
 // Importing the components
 import HealthSideBarComponent from '../components/Health/HealthSideBarComponent.vue';
-import SettingsUsersZone from '../components/Settings/SettingsUsersZone.vue';
-import SettingsGeneralZone from '../components/Settings/SettingsGeneralZone.vue';
-import SettingsUserProfileZone from '../components/Settings/SettingsUserProfileZone.vue';
-import SettingsSecurityZone from '../components/Settings/SettingsSecurityZone.vue';
-import SettingsIntegrationsZone from '../components/Settings/SettingsIntegrationsZone.vue';
+import HealthDashboardZone from '../components/Health/HealthDashboardZone.vue';
+import HealthWeightZone from '../components/Health/HealthWeightZone.vue';
 import BackButtonComponent from '@/components/GeneralComponents/BackButtonComponent.vue';
+import LoadingComponent from '@/components/GeneralComponents/LoadingComponent.vue';
+// Importing the services
+import { health_data } from '@/services/health_dataService';
+import { health_targets } from '@/services/health_targetsService';
 
 export default {
     components: {
         HealthSideBarComponent,
-        SettingsUsersZone,
-        SettingsGeneralZone,
-        SettingsUserProfileZone,
-        SettingsSecurityZone,
-        SettingsIntegrationsZone,
+        HealthDashboardZone,
+        HealthWeightZone,
         BackButtonComponent,
+        LoadingComponent,
     },
     setup () {
+        const { t } = useI18n();
         const activeSection = ref('dashboard');
+        const isLoading = ref(true);
+        const isHealthDataUpdatingLoading = ref(true);
+        const userHealthDataNumber = ref(0);
+        const userHealthData = ref([]);
+        const userHealthTargets = ref(null);
+        const pageNumber = ref(1);
+        const totalPages = ref(1);
+        const numRecords = 100;
 
         function updateActiveSection(section) {
             // Update the active section.
             activeSection.value = section;
+
+            if(pageNumber.value !== 1){
+                pageNumber.value = 1;
+                updateHealthData();
+            }
         }
+
+        async function updateHealthData() {
+            try {
+                // Set the loading variable to true.
+                isHealthDataUpdatingLoading.value = true;
+
+                // Fetch the health_data with pagination.
+                userHealthData.value = await health_data.getUserHealthDataWithPagination(pageNumber.value, numRecords);
+
+                // Set the loading variable to false.
+                isHealthDataUpdatingLoading.value = false;
+            } catch (error) {
+                // If there is an error, set the error message and show the error alert.
+                push.error(`${t("generalItems.errorFetchingInfo")} - ${error}`);
+            }
+        }
+
+        async function fetchHealthData() {
+            try {
+                // Get the total number of user health_data.
+                userHealthDataNumber.value = await health_data.getUserHealthDataNumber();
+
+                // Fetch the health_data with pagination.
+                await updateHealthData();
+
+                // Update total pages
+                totalPages.value = Math.ceil(userHealthDataNumber.value / numRecords);
+            } catch (error) {
+                // If there is an error, set the error message and show the error alert.
+                push.error(`${t("generalItems.errorFetchingInfo")} - ${error}`);
+            }
+        }
+
+        async function fetchHealthTargets() {
+            try {
+                // Fetch the health_targets
+                userHealthTargets.value = await health_targets.getUserHealthTargets();
+            } catch (error) {
+                // If there is an error, set the error message and show the error alert.
+                push.error(`${t("generalItems.errorFetchingInfo")} - ${error}`);
+            }
+        }
+
+        onMounted(async () => {
+            // Fetch health_data and health_targets
+            await fetchHealthData();
+            await fetchHealthTargets();
+
+            // Set the isLoading variables to false.
+            isHealthDataUpdatingLoading.value = false;
+            isLoading.value = false;
+        });
 
         return {
             activeSection,
+            isLoading,
+            isHealthDataUpdatingLoading,
+            userHealthData,
+            userHealthTargets,
+            pageNumber,
+            totalPages,
             updateActiveSection,
         };
     },

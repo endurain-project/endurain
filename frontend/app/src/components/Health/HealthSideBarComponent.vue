@@ -1,5 +1,5 @@
 <template>
-    <div class="col-lg-4 col-md-12">
+    <div class="col-lg-3 col-md-12">
     <ul class="nav nav-pills flex-column mb-auto" id="sidebarNav">
         <li class="nav-item">
             <a href="#" class="nav-link link-body-emphasis" :class="{ active: activeSection === 'dashboard' }" @click.prevent="changeActive('dashboard')">
@@ -11,7 +11,7 @@
         <li class="nav-item">
             <a href="#" class="nav-link link-body-emphasis" :class="{ active: activeSection === 'weight' }" @click.prevent="changeActive('weight')">
                 <font-awesome-icon :icon="['fas', 'weight']" />
-                <span class="ms-1">{{ $t("settingsSideBar.weightSection") }}</span>
+                <span class="ms-1">{{ $t("healthSideBar.weightSection") }}</span>
             </a>
         </li>
     </ul>

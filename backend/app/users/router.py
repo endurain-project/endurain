@@ -12,6 +12,8 @@ import users.utils as users_utils
 
 import user_integrations.crud as user_integrations_crud
 
+import health_targets.crud as health_targets_crud
+
 import session.security as session_security
 
 import database
@@ -40,7 +42,6 @@ async def read_users_number(
 @router.get(
     "/all/page_number/{page_number}/num_records/{num_records}",
     response_model=list[users_schema.User] | None,
-    tags=["users"],
 )
 async def read_users_all_pagination(
     page_number: int,
@@ -65,7 +66,6 @@ async def read_users_all_pagination(
 @router.get(
     "/username/contains/{username}",
     response_model=list[users_schema.User] | None,
-    tags=["users"],
 )
 async def read_users_contain_username(
     username: str,
@@ -84,7 +84,6 @@ async def read_users_contain_username(
 @router.get(
     "/username/{username}",
     response_model=users_schema.User | None,
-    tags=["users"],
 )
 async def read_users_username(
     username: str,
@@ -163,6 +162,9 @@ async def create_user(
 
     # Create the user integrations in the database
     user_integrations_crud.create_user_integrations(created_user.id, db)
+
+    # Create the user health targets
+    health_targets_crud.create_health_targets(created_user.id, db)
 
     # Return the user id
     return created_user.id

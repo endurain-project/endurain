@@ -1,5 +1,5 @@
 <template>
-    <div class="col-lg-4 col-md-12">
+    <div class="col-lg-3 col-md-12">
     <ul class="nav nav-pills flex-column mb-auto" id="sidebarNav">
         <li class="nav-item" v-if="authStore.user.access_type == 2">
             <a href="#" class="nav-link link-body-emphasis" :class="{ active: activeSection === 'users' }" @click.prevent="changeActive('users')">

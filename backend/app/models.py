@@ -86,9 +86,7 @@ class User(Base):
     gender = Column(
         Integer, nullable=False, comment="User gender (one digit)(1 - male, 2 - female)"
     )
-    height = Column(
-        Integer, nullable=True, comment="User height in centimeters"
-    )
+    height = Column(Integer, nullable=True, comment="User height in centimeters")
     access_type = Column(
         Integer, nullable=False, comment="User type (one digit)(1 - user, 2 - admin)"
     )
@@ -130,6 +128,20 @@ class User(Base):
         back_populates="follower",
         cascade="all, delete-orphan",
         foreign_keys=[Follower.follower_id],
+    )
+
+    # Establish a one-to-many relationship with 'health_data'
+    health_data = relationship(
+        "HealthData",
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
+
+    # Establish a one-to-many relationship with 'health_targets'
+    health_targets = relationship(
+        "HealthTargets",
+        back_populates="user",
+        cascade="all, delete-orphan",
     )
 
 
@@ -344,3 +356,52 @@ class ActivityStreams(Base):
 
     # Define a relationship to the User model
     activity = relationship("Activity", back_populates="activities_streams")
+
+
+class HealthData(Base):
+    __tablename__ = "health_data"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(
+        Integer,
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+        comment="User ID that the health_data belongs",
+    )
+    created_at = Column(
+        DateTime,
+        nullable=False,
+        unique=True,
+        comment="Health data creation date (datetime)",
+    )
+    weight = Column(
+        DECIMAL(precision=10, scale=2),
+        nullable=True,
+        comment="Weight in kg",
+    )
+
+    # Define a relationship to the User model
+    user = relationship("User", back_populates="health_data")
+
+
+class HealthTargets(Base):
+    __tablename__ = "health_targets"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(
+        Integer,
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        unique=True,
+        index=True,
+        comment="User ID that the health_target belongs",
+    )
+    weight = Column(
+        DECIMAL(precision=10, scale=2),
+        nullable=True,
+        comment="Weight in kg",
+    )
+
+    # Define a relationship to the User model
+    user = relationship("User", back_populates="health_targets")
