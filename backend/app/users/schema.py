@@ -10,6 +10,7 @@ class User(BaseModel):
     birthdate: str | None = None
     preferred_language: str
     gender: int
+    height: int | None = None
     access_type: int
     photo_path: str | None = None
     is_active: int

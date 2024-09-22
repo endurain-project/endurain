@@ -1,6 +1,6 @@
 <template>
     <div class="row row-gap-3">
-        <h1>Settings</h1>
+        <h1>{{ $t("settingsView.title") }}</h1>
 
         <!-- Include the SettingsSideBarComponent -->
         <SettingsSideBarComponent :activeSection="activeSection" @update-active-section="updateActiveSection" />

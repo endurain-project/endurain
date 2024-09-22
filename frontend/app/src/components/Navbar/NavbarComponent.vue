@@ -10,11 +10,18 @@
             </button>
             <div class="collapse navbar-collapse" id="navbarNavAltMarkup" ref="navbarCollapse">
                 <div class="navbar-nav me-auto">
-                    <!-- if is logged in -->
+                    <!-- if is logged in show gears button -->
                     <router-link :to="{ name: 'gears' }" class="nav-link link-body-emphasis" v-if="authStore.isAuthenticated" @click="collapseNavbar">
                         <font-awesome-icon :icon="['fas', 'fa-bicycle']" />
                         <span class="ms-1">
                             {{ $t("navbar.gear") }}
+                        </span>
+                    </router-link>
+                    <!-- if is logged in show health button -->
+                    <router-link :to="{ name: 'health' }" class="nav-link link-body-emphasis" v-if="authStore.isAuthenticated" @click="collapseNavbar">
+                        <font-awesome-icon :icon="['fas', 'fa-heart']" />
+                        <span class="ms-1">
+                            {{ $t("navbar.health") }}
                         </span>
                     </router-link>
                 </div>

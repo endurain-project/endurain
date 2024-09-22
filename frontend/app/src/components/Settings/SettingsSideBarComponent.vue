@@ -29,7 +29,7 @@
         <li class="nav-item">
             <a href="#" class="nav-link link-body-emphasis" :class="{ active: activeSection === 'integrations' }" @click.prevent="changeActive('integrations')">
                 <font-awesome-icon :icon="['fas', 'fa-puzzle-piece']" />
-                <span class="ms-1">{{ $t("settingsSideBar.integratuionsSection") }}</span>
+                <span class="ms-1">{{ $t("settingsSideBar.integrationsSection") }}</span>
             </a>
         </li>
     </ul>

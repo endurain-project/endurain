@@ -8,6 +8,7 @@ import activity_streams.router as activity_streams_router
 import gears.router as gears_router
 import followers.router as followers_router
 import strava.router as strava_router
+import health.router as health_router
 
 
 router = APIRouter()
@@ -61,4 +62,9 @@ router.include_router(
     strava_router.router,
     prefix="/strava",
     tags=["strava"],
+)
+router.include_router(
+    health_router.router,
+    prefix="/health",
+    tags=["health"],
 )

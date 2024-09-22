@@ -86,6 +86,9 @@ class User(Base):
     gender = Column(
         Integer, nullable=False, comment="User gender (one digit)(1 - male, 2 - female)"
     )
+    height = Column(
+        Integer, nullable=True, comment="User height in centimeters"
+    )
     access_type = Column(
         Integer, nullable=False, comment="User type (one digit)(1 - user, 2 - admin)"
     )

@@ -10,6 +10,8 @@ import usActivitySummaryComponent from './us/components/activities/activitySumma
 import usEditActivityModalComponent from './us/components/activities/modals/editActivityModalComponent.json';
 // Followers component
 import usFollowersListComponent from './us/components/followers/followersListComponent.json';
+// Health components
+import usHealthSideBarComponent from './us/components/health/healthSideBarComponent.json';
 // Settings components
 import usSettingsSideBarComponent from './us/components/settings/settingsSideBarComponent.json';
 import usSettingsUsersZoneComponent from './us/components/settings/settingsUsersZoneComponent.json';
@@ -29,18 +31,26 @@ import usLoginView from './us/loginView.json';
 import usGearsView from './us/gears/gearsView.json';
 import usGearView from './us/gears/gearView.json';
 import usActivityView from './us/activityView.json';
+import usHealthView from './us/healthView.json';
 import usNotFoundView from './us/notFoundView.json';
 import usUserView from './us/userView.json';
+import usSettingsView from './us/settingsView.json';
 
 // Constructing the messages structure
 const messages = {
   us: {
+    // Navbar and footer components
     navbar: usNavbarComponent,
     footer: usFooterComponent,
+    // Activities component
     userDistanceStats: usUserDistanceStatsComponent,
     activitySummary: usActivitySummaryComponent,
     editActivityModalComponent: usEditActivityModalComponent,
+    // Followers component
     followersListComponent: usFollowersListComponent,
+    // Health components
+    healthSideBar: usHealthSideBarComponent,
+    // Settings components
     settingsSideBar: usSettingsSideBarComponent,
     settingsUsersZone: usSettingsUsersZoneComponent,
     settingsThemeSwitcher: usSettingsThemeSwitcherComponent,
@@ -49,14 +59,19 @@ const messages = {
     settingsSecurityZone: usSettingsSecurityZoneComponent,
     settingsIntegrationsZone: usSettingsIntegrationsZoneComponent,
     usersListComponent: usUsersListComponent,
+    // General components
     noItemsFoundComponent: usNoItemsFoundComponent,
+    // General translations
     generalItems: usGeneralItems,
+    // Views
     homeView: usHomeView,
     loginView: usLoginView,
     gearsView: usGearsView,
     gearView: usGearView,
     activity: usActivityView,
+    healthView: usHealthView,
     notFound: usNotFoundView,
+    settingsView: usSettingsView,
     userView: usUserView,
   },
 };

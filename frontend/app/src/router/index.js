@@ -33,6 +33,11 @@ const router = createRouter({
       component: () => import('../views/ActivityView.vue')
     },
     {
+      path: '/health',
+      name: 'health',
+      component: () => import('../views/HealthView.vue')
+    },
+    {
       path: '/user/:id',
       name: 'user',
       component: () => import('../views/UserView.vue')
