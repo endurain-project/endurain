@@ -113,7 +113,7 @@
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                            {{ $t("generalItens.buttonClose") }}
+                            {{ $t("generalItems.buttonClose") }}
                         </button>
                         <a @click="submitDeleteActivity" type="button" class="btn btn-danger" data-bs-dismiss="modal">
                             {{ $t("activitySummary.buttonDeleteActivity") }}
@@ -283,7 +283,7 @@ export default {
 			try {
 				userActivity.value = await users.getUserById(props.activity.user_id);
 			} catch (error) {
-				push.error(`${t("generalItens.errorFetchingInfo")} - ${error}`);
+				push.error(`${t("generalItems.errorFetchingInfo")} - ${error}`);
 			} finally {
 				isLoading.value = false;
 			}
@@ -297,7 +297,7 @@ export default {
 					query: { activityDeleted: "true", activityId: props.activity.id },
 				});
 			} catch (error) {
-				push.error(`${t("generalItens.errorDeletingInfo")} - ${error}`);
+				push.error(`${t("generalItems.errorDeletingInfo")} - ${error}`);
 			}
 		}
 

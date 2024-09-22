@@ -15,7 +15,7 @@ export default {
     setup() {
         const { locale } = useI18n();
         const languages = [
-            { value: 'en', label: 'English' },
+            { value: 'us', label: 'English' },
             //{ value: 'pt', label: 'Portuguese' },
         ];
         const currentLanguage = ref(locale.value);
@@ -25,7 +25,7 @@ export default {
 
         const getPreferredLanguage = () => {
             const storedLanguage = getStoredLanguage();
-            return storedLanguage ? storedLanguage : 'en';
+            return storedLanguage ? storedLanguage : 'us';
         };
 
         const setLanguage = (lang) => {

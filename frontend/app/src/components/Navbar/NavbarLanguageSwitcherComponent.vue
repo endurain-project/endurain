@@ -3,7 +3,7 @@
         <!-- toggle with current lang -->
         <a class="nav-link link-body-emphasis dropdown-toggle" role="button" data-bs-toggle="dropdown" aria-expanded="false">
             <span class="me-2">{{ currentLanguage.toLowerCase() }}</span>
-            <span :class="'fi fi-' + (currentLanguage === 'en' ? 'us' : currentLanguage)"></span>
+            <span :class="'fi fi-' + currentLanguage"></span>
         </a>
 
         <!-- dropdown menu -->
@@ -15,7 +15,7 @@
                     :aria-pressed="currentLanguage === language.value ? 'true' : 'false'"
                 >
                     <span class="me-2">{{ language.label }}</span>
-                    <span :class="'fi fi-' + (currentLanguage === 'en' ? 'us' : currentLanguage)"></span>
+                    <span :class="'fi fi-' + currentLanguage"></span>
                     <span v-if="currentLanguage === language.value" class="ms-3"><font-awesome-icon :icon="['fas', 'check']" /></span>
                 </a>
             </li>
@@ -31,7 +31,7 @@ export default {
     setup() {
         const { locale } = useI18n();
         const languages = [
-            { value: 'en', label: 'English (US)' },
+            { value: 'us', label: 'English (US)' },
             //{ value: 'pt', label: 'Portuguese' },
         ];
         const currentLanguage = ref(locale.value);
@@ -41,7 +41,7 @@ export default {
 
         const getPreferredLanguage = () => {
             const storedLanguage = getStoredLanguage();
-            return storedLanguage ? storedLanguage : 'en';
+            return storedLanguage ? storedLanguage : 'us';
         };
 
         const setLanguage = (lang) => {

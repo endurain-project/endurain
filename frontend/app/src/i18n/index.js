@@ -2,70 +2,70 @@ import { createI18n } from 'vue-i18n';
 
 // Importing translations
 // Navbar and footer components
-import enNavbarComponent from './en/components/navbarComponent.json';
-import enFooterComponent from './en/components/footerComponent.json';
+import usNavbarComponent from './us/components/navbarComponent.json';
+import usFooterComponent from './us/components/footerComponent.json';
 // Activities component
-import enUserDistanceStatsComponent from './en/components/activities/userDistanceStatsComponent.json';
-import enActivitySummaryComponent from './en/components/activities/activitySummaryComponent.json';
-import enEditActivityModalComponent from './en/components/activities/modals/editActivityModalComponent.json';
+import usUserDistanceStatsComponent from './us/components/activities/userDistanceStatsComponent.json';
+import usActivitySummaryComponent from './us/components/activities/activitySummaryComponent.json';
+import usEditActivityModalComponent from './us/components/activities/modals/editActivityModalComponent.json';
 // Followers component
-import enFollowersListComponent from './en/components/followers/followersListComponent.json';
+import usFollowersListComponent from './us/components/followers/followersListComponent.json';
 // Settings components
-import enSettingsSideBarComponent from './en/components/settings/settingsSideBarComponent.json';
-import enSettingsUsersZoneComponent from './en/components/settings/settingsUsersZoneComponent.json';
-import enSettingsThemeSwitcherComponent from './en/components/settings/settingsGeneralZone/settingsThemeSwitcherComponent.json';
-import enSettingsLanguageSwitcherComponent from './en/components/settings/settingsGeneralZone/settingsLanguageSwitcherComponent.json';
-import enSettingsUserProfileZoneComponent from './en/components/settings/settingsUserProfileZoneComponent.json';
-import enSettingsSecurityZoneComponent from './en/components/settings/settingsSecurityZoneComponent.json';
-import enSettingsIntegrationsZoneComponent from './en/components/settings/settingsIntegrationsZoneComponent.json';
-import enUsersListComponent from './en/components/settings/settingsUsersZone/usersListComponent.json';
+import usSettingsSideBarComponent from './us/components/settings/settingsSideBarComponent.json';
+import usSettingsUsersZoneComponent from './us/components/settings/settingsUsersZoneComponent.json';
+import usSettingsThemeSwitcherComponent from './us/components/settings/settingsGeneralZone/settingsThemeSwitcherComponent.json';
+import usSettingsLanguageSwitcherComponent from './us/components/settings/settingsGeneralZone/settingsLanguageSwitcherComponent.json';
+import usSettingsUserProfileZoneComponent from './us/components/settings/settingsUserProfileZoneComponent.json';
+import usSettingsSecurityZoneComponent from './us/components/settings/settingsSecurityZoneComponent.json';
+import usSettingsIntegrationsZoneComponent from './us/components/settings/settingsIntegrationsZoneComponent.json';
+import usUsersListComponent from './us/components/settings/settingsUsersZone/usersListComponent.json';
 // General components
-import enNoItemsFoundComponent from './en/components/noItemsFoundComponent.json';
+import usNoItemsFoundComponent from './us/components/noItemsFoundComponent.json';
 // General translations
-import enGeneralItens from './en/generalItens.json'
+import usGeneralItems from './us/generalItems.json'
 // Views
-import enHomeView from './en/homeView.json';
-import enLoginView from './en/loginView.json';
-import enGearsView from './en/gears/gearsView.json';
-import enGearView from './en/gears/gearView.json';
-import enActivityView from './en/activityView.json';
-import enNotFoundView from './en/notFoundView.json';
-import enUserView from './en/userView.json';
+import usHomeView from './us/homeView.json';
+import usLoginView from './us/loginView.json';
+import usGearsView from './us/gears/gearsView.json';
+import usGearView from './us/gears/gearView.json';
+import usActivityView from './us/activityView.json';
+import usNotFoundView from './us/notFoundView.json';
+import usUserView from './us/userView.json';
 
 // Constructing the messages structure
 const messages = {
-  en: {
-    navbar: enNavbarComponent,
-    footer: enFooterComponent,
-    userDistanceStats: enUserDistanceStatsComponent,
-    activitySummary: enActivitySummaryComponent,
-    editActivityModalComponent: enEditActivityModalComponent,
-    followersListComponent: enFollowersListComponent,
-    settingsSideBar: enSettingsSideBarComponent,
-    settingsUsersZone: enSettingsUsersZoneComponent,
-    settingsThemeSwitcher: enSettingsThemeSwitcherComponent,
-    settingsLanguageSwitcher: enSettingsLanguageSwitcherComponent,
-    settingsUserProfileZone: enSettingsUserProfileZoneComponent,
-    settingsSecurityZone: enSettingsSecurityZoneComponent,
-    settingsIntegrationsZone: enSettingsIntegrationsZoneComponent,
-    usersListComponent: enUsersListComponent,
-    noItemsFoundComponent: enNoItemsFoundComponent,
-    generalItens: enGeneralItens,
-    homeView: enHomeView,
-    loginView: enLoginView,
-    gearsView: enGearsView,
-    gearView: enGearView,
-    activity: enActivityView,
-    notFound: enNotFoundView,
-    userView: enUserView,
+  us: {
+    navbar: usNavbarComponent,
+    footer: usFooterComponent,
+    userDistanceStats: usUserDistanceStatsComponent,
+    activitySummary: usActivitySummaryComponent,
+    editActivityModalComponent: usEditActivityModalComponent,
+    followersListComponent: usFollowersListComponent,
+    settingsSideBar: usSettingsSideBarComponent,
+    settingsUsersZone: usSettingsUsersZoneComponent,
+    settingsThemeSwitcher: usSettingsThemeSwitcherComponent,
+    settingsLanguageSwitcher: usSettingsLanguageSwitcherComponent,
+    settingsUserProfileZone: usSettingsUserProfileZoneComponent,
+    settingsSecurityZone: usSettingsSecurityZoneComponent,
+    settingsIntegrationsZone: usSettingsIntegrationsZoneComponent,
+    usersListComponent: usUsersListComponent,
+    noItemsFoundComponent: usNoItemsFoundComponent,
+    generalItems: usGeneralItems,
+    homeView: usHomeView,
+    loginView: usLoginView,
+    gearsView: usGearsView,
+    gearView: usGearView,
+    activity: usActivityView,
+    notFound: usNotFoundView,
+    userView: usUserView,
   },
 };
 
 // Creating the Vue I18n instance
 const i18n = createI18n({
   legacy: false, // you must set `false`, to use Composition API
-  locale: 'en', // Default locale
-  fallbackLocale: 'en', // Fallback locale
+  locale: 'us', // Default locale
+  fallbackLocale: 'us', // Fallback locale
   messages,
 });
 

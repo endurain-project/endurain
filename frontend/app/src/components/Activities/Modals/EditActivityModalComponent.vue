@@ -38,10 +38,10 @@
                             <option value="1">{{ $t("editActivityModalComponent.modalEditActivityVisibilityOption1") }}</option>
                             <option value="2">{{ $t("editActivityModalComponent.modalEditActivityVisibilityOption2") }}</option>
                         </select>
-                        <p>* {{ $t("generalItens.requiredField") }}</p>
+                        <p>* {{ $t("generalItems.requiredField") }}</p>
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ $t("generalItens.buttonClose") }}</button>
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ $t("generalItems.buttonClose") }}</button>
                         <button type="submit" class="btn btn-success" data-bs-dismiss="modal">{{ $t("editActivityModalComponent.modalEditActivityTitle") }}</button>
                     </div>
                 </form>

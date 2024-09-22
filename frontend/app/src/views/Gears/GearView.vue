@@ -83,10 +83,10 @@
                                         <option value="1">{{ $t("gearView.modalEditGearIsActiveOption1") }}</option>
                                         <option value="0">{{ $t("gearView.modalEditGearIsActiveOption0") }}</option>
                                     </select>
-                                    <p>* {{ $t("generalItens.requiredField") }}</p>
+                                    <p>* {{ $t("generalItems.requiredField") }}</p>
                                 </div>
                                 <div class="modal-footer">
-                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ $t("generalItens.buttonClose") }}</button>
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ $t("generalItems.buttonClose") }}</button>
                                     <button type="submit" class="btn btn-success" name="editGear" data-bs-dismiss="modal">{{ $t("gearView.buttonEditGear") }}</button>
                                 </div>
                             </form>
@@ -119,7 +119,7 @@
                                 <span>{{ $t("gearView.modalDeleteGearBody2") }}</span>
                             </div>
                             <div class="modal-footer">
-                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ $t("generalItens.buttonClose") }}</button>
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ $t("generalItems.buttonClose") }}</button>
                                 <button @click="submitDeleteGear" type="button" class="btn btn-danger" data-bs-dismiss="modal">
                                     {{ $t("gearView.buttonDeleteGear") }}
                                 </button>
@@ -231,7 +231,7 @@ export default {
 				push.success(t("gearView.successGearEdited"));
 			} catch (error) {
 				// If there is an error, set the error message and show the error alert.
-				push.error(`${t("generalItens.errorEditingInfo")} - ${error}`);
+				push.error(`${t("generalItems.errorEditingInfo")} - ${error}`);
 			}
 		}
 
@@ -240,7 +240,7 @@ export default {
 				gear.value = await gears.deleteGear(route.params.id);
 				router.push({ path: "/gears", query: { gearDeleted: "true" } });
 			} catch (error) {
-				push.error(`${t("generalItens.errorEditingInfo")} - ${error}`);
+				push.error(`${t("generalItems.errorEditingInfo")} - ${error}`);
 			}
 		}
 
@@ -277,7 +277,7 @@ export default {
 					});
 				}
 				// If there is an error, set the error message and show the error alert.
-				push.error(`${t("generalItens.errorEditingInfo")} - ${error}`);
+				push.error(`${t("generalItems.errorEditingInfo")} - ${error}`);
 			}
 
 			isLoading.value = false;

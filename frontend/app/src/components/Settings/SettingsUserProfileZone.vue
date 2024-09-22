@@ -21,7 +21,7 @@
                                 {{ $t("settingsUserProfileZone.modalDeleteProfilePhotoBody") }}
                             </div>
                             <div class="modal-footer">
-                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ $t("generalItens.buttonClose") }}</button>
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ $t("generalItems.buttonClose") }}</button>
                                 <a type="button" class="btn btn-danger" data-bs-dismiss="modal" @click="submitDeleteUserPhoto">{{ $t("settingsUserProfileZone.buttonDeleteProfilePhoto") }}</a>
                             </div>
                         </div>
@@ -76,12 +76,12 @@
                                     <!-- preferred language fields -->
                                     <label for="userPreferredLanguageEdit"><b>* {{ $t("settingsUsersZone.addUserModalUserPreferedLanguageLabel") }}</b></label>
                                     <select class="form-control" name="userPreferredLanguageEdit" v-model="editUserPreferredLanguage" required>
-                                        <option value="en">{{ $t("settingsUsersZone.addUserModalPreferredLanguageOption1") }}</option>
+                                        <option value="us">{{ $t("settingsUsersZone.addUserModalPreferredLanguageOption1") }}</option>
                                     </select>
-                                    <p>* {{ $t("generalItens.requiredField") }}</p>
+                                    <p>* {{ $t("generalItems.requiredField") }}</p>
                                 </div>
                                 <div class="modal-footer">
-                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ $t("generalItens.buttonClose") }}</button>
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ $t("generalItems.buttonClose") }}</button>
                                     <button type="submit" class="btn btn-success" name="userEdit" data-bs-dismiss="modal">{{ $t("usersListComponent.modalEditUserTitle") }}</button>
                                 </div>
                             </form>
@@ -181,7 +181,7 @@ export default {
 						);
 					} catch (error) {
 						// Set the error message
-						push.error(`${t("generalItens.errorFetchingInfo")} - ${error}`);
+						push.error(`${t("generalItems.errorFetchingInfo")} - ${error}`);
 					}
 				}
 

@@ -65,7 +65,7 @@
                             </div>
                             <div class="modal-footer">
                                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                                    {{ $t("generalItens.buttonClose") }}
+                                    {{ $t("generalItems.buttonClose") }}
                                 </button>
                                 <button type="submit" class="btn btn-success" data-bs-dismiss="modal" name="addGearToActivity">
                                     {{ $t("activity.modalButtonAddGear") }}
@@ -103,7 +103,7 @@
                         </div>
                         <div class="modal-footer">
                             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                                {{ $t("generalItens.buttonClose") }}
+                                {{ $t("generalItems.buttonClose") }}
                             </button>
                             <a @click="submitDeleteGearFromActivity" type="button" class="btn btn-danger" data-bs-dismiss="modal">
                                 {{ $t("activity.modalLabelDeleteGearButton") }}
@@ -211,7 +211,7 @@ export default {
                 gear.value = await gears.getGearById(gearId.value);
                 activity.value.gear_id = gearId.value;
             } catch (error) {
-                push.error(`${t('generalItens.errorEditingInfo')} - ${error}`)
+                push.error(`${t('generalItems.errorEditingInfo')} - ${error}`)
             }
         }
 
@@ -226,7 +226,7 @@ export default {
                 // Update the activity gear
                 activity.value.gear_id = null;
             } catch (error) {
-                push.error(`${t('generalItens.errorEditingInfo')} - ${error}`)
+                push.error(`${t('generalItems.errorEditingInfo')} - ${error}`)
             }
         }
 
@@ -294,7 +294,7 @@ export default {
                     router.push({ path: '/', query: { activityFound: 'false', id: route.params.id } });
                 }
                 // If there is an error, set the error message and show the error alert.
-                push.error(`${t('generalItens.errorEditingInfo')} - ${error}`)
+                push.error(`${t('generalItems.errorEditingInfo')} - ${error}`)
             }
 
             isLoading.value = false;

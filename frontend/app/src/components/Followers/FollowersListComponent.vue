@@ -41,7 +41,7 @@
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                            {{ $t("generalItens.buttonClose") }}
+                            {{ $t("generalItems.buttonClose") }}
                         </button>
                         <a @click="submitDeleteFollowing" type="button" class="btn btn-danger" data-bs-dismiss="modal">
                             {{ $t("followersListComponent.followingModalTitle") }}
@@ -71,7 +71,7 @@
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                            {{ $t("generalItens.buttonClose") }}
+                            {{ $t("generalItems.buttonClose") }}
                         </button>
                         <a @click="submitDeleteFollower" type="button" class="btn btn-danger" data-bs-dismiss="modal">
                             {{ $t("followersListComponent.followerModalTitle") }}
@@ -101,7 +101,7 @@
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                            {{ $t("generalItens.buttonClose") }}
+                            {{ $t("generalItems.buttonClose") }}
                         </button>
                         <a @click="submitAcceptFollowerRequest" type="button" class="btn btn-success" data-bs-dismiss="modal">
                             {{ $t("followersListComponent.followerAcceptModalTitle") }}
@@ -131,7 +131,7 @@
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                            {{ $t("generalItens.buttonClose") }}
+                            {{ $t("generalItems.buttonClose") }}
                         </button>
                         <a @click="submitDeleteFollower" type="button" class="btn btn-danger" data-bs-dismiss="modal">
                             {{ $t("followersListComponent.followerDeclineModalTitle") }}

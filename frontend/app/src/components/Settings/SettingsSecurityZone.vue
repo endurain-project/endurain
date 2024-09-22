@@ -24,7 +24,7 @@
                 {{ $t("usersListComponent.modalChangeUserPasswordPasswordsDoNotMatchFeedbackLabel") }}
             </div>
 
-            <p>* {{ $t("generalItens.requiredField") }}</p>
+            <p>* {{ $t("generalItems.requiredField") }}</p>
 
             <button type="submit" class="btn btn-success" name="editUserPassword">{{ $t("settingsSecurityZone.subtitleChangePassword") }}</button>
         </form>

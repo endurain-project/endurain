@@ -44,7 +44,7 @@ export const useAuthStore = defineStore('auth', {
             this.isAuthenticated = false;
             localStorage.removeItem('user');
 
-            this.setLocale('en', locale);
+            this.setLocale('us', locale);
         },
         loadUserFromStorage(locale) {
             const storedUser = localStorage.getItem('user');

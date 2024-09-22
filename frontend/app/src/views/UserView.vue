@@ -112,7 +112,7 @@
                         </div>
                         <div class="modal-footer">
                             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                                {{ $t("generalItens.buttonClose") }}
+                                {{ $t("generalItems.buttonClose") }}
                             </button>
                             <a type="button" class="btn btn-success" data-bs-dismiss="modal" @click="submitFollowUser">
                                 {{ $t("userView.modalFollowUserTitle") }}
@@ -145,7 +145,7 @@
                         </div>
                         <div class="modal-footer">
                             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                                {{ $t("generalItens.buttonClose") }}
+                                {{ $t("generalItems.buttonClose") }}
                             </button>
                             <a type="button" class="btn btn-danger" data-bs-dismiss="modal" @click="submitCancelFollowUser">
                                 {{ $t("userView.modalCancelFollowRequestTitle") }}
@@ -178,7 +178,7 @@
                         </div>
                         <div class="modal-footer">
                             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                                {{ $t("generalItens.buttonClose") }}
+                                {{ $t("generalItems.buttonClose") }}
                             </button>
                             <a type="button" class="btn btn-danger" data-bs-dismiss="modal" @click="submitUnfollowUser">
                                 {{ $t("userView.modalUnfollowUserTitle") }}
@@ -328,7 +328,7 @@ export default {
                 thisMonthDistances.value = await activities.getUserThisMonthStats(authStore.user.id);
             } catch (error) {
                 // Set the error message
-                push.error(`${t('generalItens.errorFetchingInfo')} - ${error}`)
+                push.error(`${t('generalItems.errorFetchingInfo')} - ${error}`)
             }
         }
 
@@ -350,7 +350,7 @@ export default {
                 }
             } catch (error) {
                 // Set the error message
-                push.error(`${t('generalItens.errorFetchingInfo')} - ${error}`)
+                push.error(`${t('generalItems.errorFetchingInfo')} - ${error}`)
             }
         }
 
@@ -378,7 +378,7 @@ export default {
                     userFollowState.value = await followers.getUserFollowState(authStore.user.id, route.params.id);
                 }
             } catch (error) {
-                push.error(`${t('generalItens.errorFetchingInfo')} - ${error}`)
+                push.error(`${t('generalItems.errorFetchingInfo')} - ${error}`)
             }
             isLoading.value = false;
             isActivitiesLoading.value = false;
@@ -413,7 +413,7 @@ export default {
                 userWeekActivities.value = await activities.getUserWeekActivities(userProfile.value.id, week.value);
             } catch (error) {
                 // Set the error message
-                push.error(`${t('generalItens.errorEditingInfo')} - ${error}`)
+                push.error(`${t('generalItems.errorEditingInfo')} - ${error}`)
             } finally {
                 isActivitiesLoading.value = false;
             }

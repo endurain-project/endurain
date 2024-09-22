@@ -70,7 +70,7 @@ export default {
             try {
                 searchResults.value = await users.getUserByUsername(query);
             } catch (error) {
-                push.error(`${t('generalItens.errorFetchingInfo')} - ${error}`)
+                push.error(`${t('generalItems.errorFetchingInfo')} - ${error}`)
             }
         }, 500);
 
@@ -82,7 +82,7 @@ export default {
             try {
                 searchResults.value = await activities.getActivityByName(query);
             } catch (error) {
-                push.error(`${t('generalItens.errorFetchingInfo')} - ${error}`)
+                push.error(`${t('generalItems.errorFetchingInfo')} - ${error}`)
             }
         }, 500);
 
@@ -94,7 +94,7 @@ export default {
             try {
                 searchResults.value = await gears.getGearByNickname(query);
             } catch (error) {
-                push.error(`${t('generalItens.errorFetchingInfo')} - ${error}`)
+                push.error(`${t('generalItems.errorFetchingInfo')} - ${error}`)
             }
         }, 500);
 

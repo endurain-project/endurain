@@ -97,7 +97,7 @@ export default {
 				collapseNavbar();
 				router.push("/login");
 			} catch (error) {
-				push.error(`${t("generalItens.errorFetchingInfo")} - ${error}`);
+				push.error(`${t("generalItems.errorFetchingInfo")} - ${error}`);
 			}
 		}
 

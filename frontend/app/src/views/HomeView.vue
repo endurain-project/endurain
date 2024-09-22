@@ -44,11 +44,11 @@
                 <!-- date fields -->
                 <label for="activityGpxFileAdd"><b>* {{ $t("homeView.fieldLabelUploadGPXFile") }}</b></label>
                 <input class="form-control mt-1 mb-1" type="file" name="activityGpxFileAdd" accept=".gpx,.fit" required>
-                <p>* {{ $t("generalItens.requiredField") }}</p>
+                <p>* {{ $t("generalItems.requiredField") }}</p>
               </div>
               <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                  {{ $t("generalItens.buttonClose") }}
+                  {{ $t("generalItems.buttonClose") }}
                 </button>
                 <button type="submit" class="btn btn-success" data-bs-dismiss="modal">
                   {{ $t("homeView.buttonAddActivity") }}
@@ -160,7 +160,7 @@ export default {
         thisMonthDistances.value = await activities.getUserThisMonthStats(authStore.user.id);
       } catch (error) {
         // Set the error message
-        push.error(`${t('generalItens.errorFetchingInfo')} - ${error}`)
+        push.error(`${t('generalItems.errorFetchingInfo')} - ${error}`)
       }
     }
 
@@ -182,7 +182,7 @@ export default {
         }
       } catch (error) {
         // Set the error message
-        push.error(`${t('generalItens.errorFetchingInfo')} - ${error}`)
+        push.error(`${t('generalItems.errorFetchingInfo')} - ${error}`)
       }
     }
 
@@ -230,7 +230,7 @@ export default {
           userNumberOfActivities.value ++;
         } catch (error) {
           // Set the error message
-          notification.reject(`${t('generalItens.errorFetchingInfo')} - ${error}`)
+          notification.reject(`${t('generalItems.errorFetchingInfo')} - ${error}`)
         }
       }
     };
@@ -265,7 +265,7 @@ export default {
         }
       } catch (error) {
         // Set the error message
-        push.error(`${t('generalItens.errorFetchingInfo')} - ${error}`)
+        push.error(`${t('generalItems.errorFetchingInfo')} - ${error}`)
       }
 
       isLoading.value = false;

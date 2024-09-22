@@ -53,10 +53,10 @@
                                     {{ $t("usersListComponent.modalChangeUserPasswordPasswordsDoNotMatchFeedbackLabel") }}
                                 </div>
 
-                                <p>* {{ $t("generalItens.requiredField") }}</p>
+                                <p>* {{ $t("generalItems.requiredField") }}</p>
                             </div>
                             <div class="modal-footer">
-                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ $t("generalItens.buttonClose") }}</button>
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ $t("generalItems.buttonClose") }}</button>
                                 <button type="submit" class="btn btn-success" :disabled="!isNewPasswordValid || !isNewPasswordRepeatValid || !isPasswordMatch" name="editUserPasswordAdmin" data-bs-dismiss="modal">{{ $t("usersListComponent.modalChangeUserPasswordTitle") }}</button>
                             </div>
                         </form>
@@ -112,7 +112,7 @@
                                 <!-- preferred language fields -->
                                 <label for="userPreferredLanguageEdit"><b>* {{ $t("settingsUsersZone.addUserModalUserPreferedLanguageLabel") }}</b></label>
                                 <select class="form-control" name="userPreferredLanguageEdit" v-model="editUserPreferredLanguage" required>
-                                    <option value="en">{{ $t("settingsUsersZone.addUserModalPreferredLanguageOption1") }}</option>
+                                    <option value="us">{{ $t("settingsUsersZone.addUserModalPreferredLanguageOption1") }}</option>
                                 </select>
                                 <!-- access type fields -->
                                 <label for="userTypeEdit"><b>* {{ $t("settingsUsersZone.addUserModalUserTypeLabel") }}</b></label>
@@ -126,10 +126,10 @@
                                     <option value="1">{{ $t("usersListComponent.modalEditUserIsUserActiveOption1") }}</option>
                                     <option value="2">{{ $t("usersListComponent.modalEditUserIsUserActiveOption2") }}</option>
                                 </select>
-                                <p>* {{ $t("generalItens.requiredField") }}</p>
+                                <p>* {{ $t("generalItems.requiredField") }}</p>
                             </div>
                             <div class="modal-footer">
-                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ $t("generalItens.buttonClose") }}</button>
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ $t("generalItems.buttonClose") }}</button>
                                 <button type="submit" class="btn btn-success" name="userEdit" data-bs-dismiss="modal">{{ $t("usersListComponent.modalEditUserTitle") }}</button>
                             </div>
                         </form>
@@ -152,7 +152,7 @@
                             <span>{{ $t("usersListComponent.modalDeleteUserBody") }}<b>{{ userProp.username }}</b>?</span>
                         </div>
                         <div class="modal-footer">
-                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ $t("generalItens.buttonClose") }}</button>
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ $t("generalItems.buttonClose") }}</button>
                             <a type="button" @click="submitDeleteUser" class="btn btn-danger" data-bs-dismiss="modal">{{ $t("usersListComponent.modalDeleteUserTitle") }}</a>
                         </div>
                     </div>
@@ -270,7 +270,7 @@ export default {
 						);
 					} catch (error) {
 						// Set the error message
-						push.error(`${t("generalItens.errorFetchingInfo")} - ${error}`);
+						push.error(`${t("generalItems.errorFetchingInfo")} - ${error}`);
 					}
 				}
 

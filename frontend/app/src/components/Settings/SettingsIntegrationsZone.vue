@@ -68,7 +68,7 @@
                                 <input class="form-control" type="number" name="daysToRetrieve" :placeholder='$t("settingsIntegrationsZone.modalRetrieveActivitiesByDaysPlaceholder")' v-model="daysToRetrieve" required>
                         </div>
                         <div class="modal-footer">
-                            <button type="button" class="btn btn-secondary" name="retrieveStravaActivities" data-bs-dismiss="modal">{{ $t("generalItens.buttonClose") }}</button>
+                            <button type="button" class="btn btn-secondary" name="retrieveStravaActivities" data-bs-dismiss="modal">{{ $t("generalItems.buttonClose") }}</button>
                             <button type="submit" class="btn btn-success" data-bs-dismiss="modal">{{ $t("settingsIntegrationsZone.modalRetrieveButton") }}</button>
                         </div>
                     </form>

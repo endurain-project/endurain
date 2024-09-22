@@ -37,10 +37,10 @@
                                 <!-- date fields -->
                                 <label for="gearDateAdd"><b>* {{ $t("gearsView.modalDateLabel") }}:</b></label>
                                 <input class="form-control" type="date" name="gearDateAdd" :placeholder='$t("gearsView.modalDatePlaceholder")' v-model="date" required>
-                                <p>* {{ $t("generalItens.requiredField") }}</p>
+                                <p>* {{ $t("generalItems.requiredField") }}</p>
                             </div>
                             <div class="modal-footer">
-                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ $t("generalItens.buttonClose") }}</button>
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ $t("generalItems.buttonClose") }}</button>
                                 <button type="submit" class="btn btn-success" name="addGear" data-bs-dismiss="modal">{{ $t("gearsView.buttonAddGear") }}</button>
                             </div>
                         </form>
@@ -206,7 +206,7 @@ export default {
                 push.success(t("gearsView.successGearAdded"));
             } catch (error) {
                 // If there is an error, set the error message and show the error alert.
-				push.error(`${t("generalItens.errorFetchingInfo")} - ${error}`);
+				push.error(`${t("generalItems.errorFetchingInfo")} - ${error}`);
             } finally {
                 // Set the isLoadingNewGear variable to false.
                 isLoadingNewGear.value = false;
@@ -230,7 +230,7 @@ export default {
                 isGearsUpdatingLoading.value = false;
             } catch (error) {
                 // If there is an error, set the error message and show the error alert.
-				push.error(`${t("generalItens.errorFetchingInfo")} - ${error}`);
+				push.error(`${t("generalItems.errorFetchingInfo")} - ${error}`);
             }
         }
 
@@ -246,7 +246,7 @@ export default {
                 totalPages.value = Math.ceil(userGearsNumber.value / numRecords);
             } catch (error) {
                 // If there is an error, set the error message and show the error alert.
-				push.error(`${t("generalItens.errorFetchingInfo")} - ${error}`);
+				push.error(`${t("generalItems.errorFetchingInfo")} - ${error}`);
             }
         }
 

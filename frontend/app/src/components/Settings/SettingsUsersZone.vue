@@ -48,7 +48,7 @@
                                     <!-- preferred language fields -->
                                     <label for="userPreferredLanguageAdd"><b>* {{ $t("settingsUsersZone.addUserModalUserPreferedLanguageLabel") }}</b></label>
                                     <select class="form-control" name="userPreferredLanguageAdd" v-model="newUserPreferredLanguage" required>
-                                        <option value="en">{{ $t("settingsUsersZone.addUserModalPreferredLanguageOption1") }}</option>
+                                        <option value="us">{{ $t("settingsUsersZone.addUserModalPreferredLanguageOption1") }}</option>
                                     </select>
                                     <!-- access type fields -->
                                     <label for="userAccessTypeAdd"><b>* {{ $t("settingsUsersZone.addUserModalUserTypeLabel") }}</b></label>
@@ -56,10 +56,10 @@
                                         <option value="1">{{ $t("settingsUsersZone.addUserModalUserTypeOption1") }}</option>
                                         <option value="2">{{ $t("settingsUsersZone.addUserModalUserTypeOption2") }}</option>
                                     </select>
-                                    <p>* {{ $t("generalItens.requiredField") }}</p>
+                                    <p>* {{ $t("generalItems.requiredField") }}</p>
                                 </div>
                                 <div class="modal-footer">
-                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ $t("generalItens.buttonClose") }}</button>
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ $t("generalItems.buttonClose") }}</button>
                                     <button type="submit" class="btn btn-success" :disabled="!isPasswordValid" data-bs-dismiss="modal">{{ $t("settingsUsersZone.buttonAddUser") }}</button>
                                 </div>
                             </form>
@@ -151,7 +151,7 @@ export default {
 		const newUserTown = ref(null);
 		const newUserBirthDate = ref(null);
 		const newUserGender = ref(1);
-		const newUserPreferredLanguage = ref("en");
+		const newUserPreferredLanguage = ref("us");
 		const newUserAccessType = ref(1);
 		const usersArray = ref([]);
 		const usersNumber = ref(0);
@@ -179,7 +179,7 @@ export default {
 				usersArray.value = await users.getUserByUsername(searchUsername.value);
 			} catch (error) {
 				// If there is an error, set the error message and show the error alert.
-				push.error(`${t("generalItens.errorFetchingInfo")} - ${error}`);
+				push.error(`${t("generalItems.errorFetchingInfo")} - ${error}`);
 			}
 		}, 500);
 
@@ -211,7 +211,7 @@ export default {
 							await users.uploadImage(newUserPhotoFile.value, createdUserId);
 						} catch (error) {
 							// Set the error message
-							push.error(`${t("generalItens.errorFetchingInfo")} - ${error}`);
+							push.error(`${t("generalItems.errorFetchingInfo")} - ${error}`);
 						}
 					}
 
@@ -227,7 +227,7 @@ export default {
 				}
 			} catch (error) {
 				// If there is an error, set the error message and show the error alert.
-				push.error(`${t("generalItens.errorFetchingInfo")} - ${error}`);
+				push.error(`${t("generalItems.errorFetchingInfo")} - ${error}`);
 			} finally {
 				// Set the loading variable to false.
 				isLoadingNewUser.value = false;
@@ -254,7 +254,7 @@ export default {
 				isUsersUpdatingLoading.value = false;
 			} catch (error) {
 				// If there is an error, set the error message and show the error alert.
-				push.error(`${t("generalItens.errorFetchingInfo")} - ${error}`);
+				push.error(`${t("generalItems.errorFetchingInfo")} - ${error}`);
 			}
 		}
 
@@ -270,7 +270,7 @@ export default {
 				totalPages.value = Math.ceil(usersNumber.value / numRecords);
 			} catch (error) {
 				// If there is an error, set the error message and show the error alert.
-				push.error(`${t("generalItens.errorFetchingInfo")} - ${error}`);
+				push.error(`${t("generalItems.errorFetchingInfo")} - ${error}`);
 			}
 		}
 
