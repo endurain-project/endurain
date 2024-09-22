@@ -15,7 +15,7 @@ export default {
     setup() {
         const { locale } = useI18n();
         const languages = [
-            { value: 'us', label: 'English' },
+            { value: 'us', label: 'English (US)' },
             //{ value: 'pt', label: 'Portuguese' },
         ];
         const currentLanguage = ref(locale.value);
