@@ -4,14 +4,14 @@
         <li class="nav-item">
             <a href="#" class="nav-link link-body-emphasis" :class="{ active: activeSection === 'dashboard' }" @click.prevent="changeActive('dashboard')">
                 <font-awesome-icon :icon="['fas', 'dashboard']" />
-                <span class="ms-1">{{ $t("healthSideBar.dashboardSection") }}</span>
+                <span class="ms-1">{{ $t("healthSideBarComponent.dashboardSection") }}</span>
             </a>
         </li>
         <hr>
         <li class="nav-item">
             <a href="#" class="nav-link link-body-emphasis" :class="{ active: activeSection === 'weight' }" @click.prevent="changeActive('weight')">
                 <font-awesome-icon :icon="['fas', 'weight']" />
-                <span class="ms-1">{{ $t("healthSideBar.weightSection") }}</span>
+                <span class="ms-1">{{ $t("healthSideBarComponent.weightSection") }}</span>
             </a>
         </li>
     </ul>

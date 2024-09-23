@@ -11,7 +11,9 @@ import usEditActivityModalComponent from './us/components/activities/modals/edit
 // Followers component
 import usFollowersListComponent from './us/components/followers/followersListComponent.json';
 // Health components
+import usHealthWeightAddEditModalComponent from './us/components/health/healthWeightZone/healthWeightAddEditModalComponent.json'
 import usHealthSideBarComponent from './us/components/health/healthSideBarComponent.json';
+import usHealthWeightZoneComponent from './us/components/health/healthWeightZoneComponent.json'
 // Settings components
 import usSettingsSideBarComponent from './us/components/settings/settingsSideBarComponent.json';
 import usSettingsUsersZoneComponent from './us/components/settings/settingsUsersZoneComponent.json';
@@ -49,7 +51,9 @@ const messages = {
     // Followers component
     followersListComponent: usFollowersListComponent,
     // Health components
-    healthSideBar: usHealthSideBarComponent,
+    healthWeightAddEditModalComponent: usHealthWeightAddEditModalComponent,
+    healthSideBarComponent: usHealthSideBarComponent,
+    healthWeightZoneComponent: usHealthWeightZoneComponent,
     // Settings components
     settingsSideBar: usSettingsSideBarComponent,
     settingsUsersZone: usSettingsUsersZoneComponent,

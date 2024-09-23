@@ -11,7 +11,7 @@
         <HealthDashboardZone :userHealthData="userHealthData[0]" :userHealthTargets="userHealthTargets" v-if="activeSection === 'dashboard' && !isLoading" />
 
         <!-- Include the SettingsUserProfileZone -->
-        <HealthWeightZone :userHealthData="userHealthData" :userHealthTargets="userHealthTargets" :isLoading="isLoading" :totalPages="totalPages" :pageNumber="pageNumber" v-if="activeSection === 'weight' && !isLoading" />
+        <HealthWeightZone :userHealthData="userHealthData" :userHealthTargets="userHealthTargets" :isLoading="isLoading" :totalPages="totalPages" :pageNumber="pageNumber" @createdWeight="updateWeightListAdded" v-if="activeSection === 'weight' && !isLoading" />
     </div>
     <!-- back button -->
     <BackButtonComponent />
@@ -50,7 +50,7 @@ export default {
         const userHealthTargets = ref(null);
         const pageNumber = ref(1);
         const totalPages = ref(1);
-        const numRecords = 100;
+        const numRecords = 5;
 
         function updateActiveSection(section) {
             // Update the active section.
@@ -104,6 +104,15 @@ export default {
             }
         }
 
+        function updateWeightListAdded(createdWeight) {
+			if (userHealthData?.value.length){
+                userHealthData.value.unshift(createdWeight);
+            } else {
+                userHealthData.value = [createdWeight];
+            }
+            userHealthDataNumber++;
+		}
+
         onMounted(async () => {
             // Fetch health_data and health_targets
             await fetchHealthData();
@@ -123,6 +132,7 @@ export default {
             pageNumber,
             totalPages,
             updateActiveSection,
+            updateWeightListAdded,
         };
     },
 };

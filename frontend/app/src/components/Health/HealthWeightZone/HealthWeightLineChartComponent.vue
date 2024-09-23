@@ -26,12 +26,19 @@ export default {
         }
     },
     setup(props) {
+        // Create a copy of the array and sort it
+        const sortedHealthDataArray = props.userHealthData;
+        sortedHealthDataArray.sort((a, b) => {
+            return new Date(a.created_at) - new Date(b.created_at);
+        });
+
         const chartCanvas = ref(null);
         let myChart = null;
+
         const computedChartData = computed(() => {
             const data = [];
             const labels = [];
-            for (let healthData of props.userHealthData){
+            for (let healthData of sortedHealthDataArray){
                 data.push(healthData.weight)
                 const createdAt = new Date(healthData.created_at);
                 labels.push(`${createdAt.getDate()}/${createdAt.getMonth()+1}/${createdAt.getFullYear()}`)
