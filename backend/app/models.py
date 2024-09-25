@@ -370,7 +370,7 @@ class HealthData(Base):
         comment="User ID that the health_data belongs",
     )
     created_at = Column(
-        DateTime,
+        Date,
         nullable=False,
         unique=True,
         comment="Health data creation date (datetime)",

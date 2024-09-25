@@ -10,4 +10,7 @@ export const health_data = {
     createHealthData(data) {
         return fetchPostRequest('health', data)
     },
+    createWeight(data) {
+        return fetchPostRequest('health/weight', data)
+    }
 };

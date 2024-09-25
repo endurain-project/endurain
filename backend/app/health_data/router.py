@@ -69,7 +69,7 @@ async def read_health_data_all_pagination(
     )
 
 
-@router.post("/", response_model=int, status_code=201)
+@router.post("/", response_model=health_data_schema.HealthData, status_code=201)
 async def create_health_data(
     health_data: health_data_schema.HealthData,
     check_scopes: Annotated[
@@ -86,3 +86,27 @@ async def create_health_data(
 ):
     # Creates the health_data in the database and returns it
     return health_data_crud.create_health_data(health_data, token_user_id, db)
+
+
+@router.post("/weight", response_model=health_data_schema.HealthData, status_code=201)
+async def create_health_weight_data(
+    health_data: health_data_schema.HealthData,
+    check_scopes: Annotated[
+        Callable, Security(session_security.check_scopes, scopes=["health:write"])
+    ],
+    token_user_id: Annotated[
+        int,
+        Depends(session_security.get_user_id_from_access_token),
+    ],
+    db: Annotated[
+        Session,
+        Depends(database.get_db),
+    ],
+):
+    health_for_date = health_data_crud.get_health_data_by_created_at(token_user_id, health_data.created_at, db)
+    if health_for_date:
+        # Edits the health_data in the database and returns it
+        return health_data_crud.edit_health_weight_data(health_data, db)
+    else:
+        # Creates the health_data in the database and returns it
+        return health_data_crud.create_health_weight_data(health_data, token_user_id, db)

@@ -56,3 +56,4 @@ frontend/app/*.sln
 frontend/app/*.sw?
 
 frontend/app/*.tsbuildinfo
+.DS_Store

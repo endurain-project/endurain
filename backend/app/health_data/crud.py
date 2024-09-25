@@ -51,15 +51,40 @@ def get_health_data_with_pagination(
         if not health_data:
             return None
 
-        for data in health_data:
-            data.created_at = data.created_at.strftime("%Y-%m-%d %H:%M:%S")
-
         # Return the health_data
         return health_data
-
     except Exception as err:
         # Log the exception
         logger.error(f"Error in get_health_data_with_pagination: {err}", exc_info=True)
+        # Raise an HTTPException with a 500 Internal Server Error status code
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal Server Error",
+        ) from err
+
+
+def get_health_data_by_created_at(user_id: int, created_at: str, db: Session):
+    try:
+        # Get the health_data from the database
+        health_data = (
+            db.query(models.HealthData)
+            .filter(models.HealthData.created_at == created_at)
+            .filter(
+                models.HealthData.created_at == created_at,
+                models.HealthData.user_id == user_id,
+            )
+            .first()
+        )
+
+        # Check if there are health_data if not return None
+        if not health_data:
+            return None
+
+        # Return the health_data
+        return health_data
+    except Exception as err:
+        # Log the exception
+        logger.error(f"Error in get_health_data_by_created_at: {err}", exc_info=True)
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -84,7 +109,6 @@ def create_health_data(
         db.refresh(db_health_data)
 
         health_data.id = db_health_data.id
-        health_data.created_at = db_health_data.created_at.strftime("%Y-%m-%d %H:%M:%S")
 
         # Return the health_data
         return health_data
@@ -103,6 +127,93 @@ def create_health_data(
 
         # Log the exception
         logger.error(f"Error in create_health_data: {err}", exc_info=True)
+        # Raise an HTTPException with a 500 Internal Server Error status code
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal Server Error",
+        ) from err
+
+
+def create_health_weight_data(
+    health_data: health_data_schema.HealthData, user_id: int, db: Session
+):
+    try:
+        # Create a new health_data
+        db_health_data = models.HealthData(
+            user_id=user_id,
+            created_at=func.now(),
+            weight=health_data.weight,
+        )
+
+        # Add the health_data to the database
+        db.add(db_health_data)
+        db.commit()
+        db.refresh(db_health_data)
+
+        health_data.id = db_health_data.id
+
+        # Return the health_data
+        return health_data
+    except IntegrityError as integrity_error:
+        # Rollback the transaction
+        db.rollback()
+
+        # Raise an HTTPException with a 409 Internal Server Error status code
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Duplicate entry error. Check if there is already a entry created for today",
+        ) from integrity_error
+    except Exception as err:
+        # Rollback the transaction
+        db.rollback()
+
+        # Log the exception
+        logger.error(f"Error in create_health_weight_data: {err}", exc_info=True)
+        # Raise an HTTPException with a 500 Internal Server Error status code
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal Server Error",
+        ) from err
+    
+
+def edit_health_weight_data(
+    health_data: health_data_schema.HealthData, db: Session
+):
+    try:
+        # Get the health_data from the database
+        db_health_data = db.query(models.HealthData).filter(models.HealthData.id == health_data.id).first()
+
+        if db_health_data is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Health data not found",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
+        # Update the user
+        if health_data.created_at is not None:
+            db_health_data.created_at = health_data.created_at 
+        if health_data.weight  is not None:
+            db_health_data.weight = health_data.weight 
+
+        # Commit the transaction
+        db.commit()
+    except IntegrityError as integrity_error:
+        # Rollback the transaction
+        db.rollback()
+
+        # Raise an HTTPException with a 500 Internal Server Error status code
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Duplicate entry error. Check if date selected is not already added",
+        ) from integrity_error
+    except Exception as err:
+        # Rollback the transaction
+        db.rollback()
+
+        # Log the exception
+        logger.error(f"Error in edit_health_weight_data: {err}", exc_info=True)
+
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
