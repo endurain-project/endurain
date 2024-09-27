@@ -105,8 +105,14 @@ async def create_health_weight_data(
 ):
     health_for_date = health_data_crud.get_health_data_by_created_at(token_user_id, health_data.created_at, db)
     if health_for_date:
-        # Edits the health_data in the database and returns it
-        return health_data_crud.edit_health_weight_data(health_data, db)
+        if health_for_date.weight is None:
+            # Edits the health_data in the database and returns it
+            return health_data_crud.edit_health_weight_data(health_data, db)
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Weight already added to this day",
+            )
     else:
         # Creates the health_data in the database and returns it
         return health_data_crud.create_health_weight_data(health_data, token_user_id, db)

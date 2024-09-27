@@ -37,7 +37,7 @@
 </template>
 
 <script>
-import { ref } from "vue";
+import { ref, watchEffect, onMounted } from "vue";
 import HealthWeightAddEditModalComponent from './HealthWeightZone/HealthWeightAddEditModalComponent.vue';
 import HealthWeightLineChartComponent from './HealthWeightZone/HealthWeightLineChartComponent.vue';
 import HealthWeightListComponent from './HealthWeightZone/HealthWeightListComponent.vue';
@@ -56,7 +56,7 @@ export default {
 	},
     props: {
         userHealthData: {
-            type: Object,
+            type: [Object, null],
             required: true,
         },
         userHealthTargets: {
@@ -78,13 +78,20 @@ export default {
     },
     emits: ["createdWeight"],
 	setup(props, { emit }) {
-        const dataWithWeight = [];
-        for(let data of props.userHealthData){
-            if(data.weight){
-                dataWithWeight.push(data)
+        const dataWithWeight = ref([]);
+        
+        const isLoadingNewWeight = ref(false);
+
+        function updatedDataWithWeightArray(){
+            dataWithWeight.value = [];
+            if(props.userHealthData){
+                for(let data of props.userHealthData){
+                    if(data.weight){
+                        dataWithWeight.value.push(data)
+                    }
+                }
             }
         }
-        const isLoadingNewWeight = ref(false);
 
         function updateIsLoadingNewWeight(isLoadingNewWeightNewValue) {
             isLoadingNewWeight.value = isLoadingNewWeightNewValue;
@@ -93,6 +100,16 @@ export default {
         function updateWeightListAdded(createdWeight) {
 			emit("createdWeight", createdWeight);
 		}
+
+        watchEffect(() => {
+            if (props.userHealthData) {
+                updatedDataWithWeightArray();
+            }
+        });
+
+        onMounted(() => {
+            updatedDataWithWeightArray();
+        });
 
 		return {
             dataWithWeight,

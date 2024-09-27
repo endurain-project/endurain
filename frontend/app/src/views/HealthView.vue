@@ -8,7 +8,7 @@
         <LoadingComponent v-if="isLoading" />
 
         <!-- Include the HealthDashboardZone -->
-        <HealthDashboardZone :userHealthData="userHealthData[0]" :userHealthTargets="userHealthTargets" v-if="activeSection === 'dashboard' && !isLoading" />
+        <HealthDashboardZone :userHealthData="userHealthData[0]" :userHealthTargets="userHealthTargets" v-if="activeSection === 'dashboard' && !isLoading && userHealthData"/>
 
         <!-- Include the SettingsUserProfileZone -->
         <HealthWeightZone :userHealthData="userHealthData" :userHealthTargets="userHealthTargets" :isLoading="isLoading" :totalPages="totalPages" :pageNumber="pageNumber" @createdWeight="updateWeightListAdded" v-if="activeSection === 'weight' && !isLoading" />
@@ -105,12 +105,12 @@ export default {
         }
 
         function updateWeightListAdded(createdWeight) {
-			if (userHealthData?.value.length){
+			if (userHealthData.value){
                 userHealthData.value.unshift(createdWeight);
             } else {
                 userHealthData.value = [createdWeight];
             }
-            userHealthDataNumber++;
+            userHealthDataNumber.value++;
 		}
 
         onMounted(async () => {

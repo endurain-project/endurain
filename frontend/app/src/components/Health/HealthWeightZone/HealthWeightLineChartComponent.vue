@@ -4,7 +4,7 @@
   </template>
   
 <script>
-import { ref, onMounted, onUnmounted, computed, watch } from 'vue';
+import { ref, onMounted, onUnmounted, computed, watch, watchEffect } from 'vue';
 
 import LoadingComponent from '@/components/GeneralComponents/LoadingComponent.vue';
 
@@ -26,38 +26,49 @@ export default {
         }
     },
     setup(props) {
-        // Create a copy of the array and sort it
-        const sortedHealthDataArray = props.userHealthData;
-        sortedHealthDataArray.sort((a, b) => {
-            return new Date(a.created_at) - new Date(b.created_at);
-        });
-
+        const sortedHealthDataArray = ref([]);
         const chartCanvas = ref(null);
         let myChart = null;
+        const computedChartData = ref(null);
 
-        const computedChartData = computed(() => {
-            const data = [];
-            const labels = [];
-            for (let healthData of sortedHealthDataArray){
-                data.push(healthData.weight)
-                const createdAt = new Date(healthData.created_at);
-                labels.push(`${createdAt.getDate()}/${createdAt.getMonth()+1}/${createdAt.getFullYear()}`)
+        function updatedSortedArray(){
+            sortedHealthDataArray.value = props.userHealthData;
+            sortedHealthDataArray.value.sort((a, b) => {
+                return new Date(a.created_at) - new Date(b.created_at);
+            });
+
+            if (sortedHealthDataArray.value){
+                computedChartData.value = computed(() => {
+                    const data = [];
+                    const labels = [];
+                    for (let healthData of sortedHealthDataArray.value){
+                        data.push(healthData.weight)
+                        const createdAt = new Date(healthData.created_at);
+                        labels.push(`${createdAt.getDate()}/${createdAt.getMonth()+1}/${createdAt.getFullYear()}`)
+                    }
+                    let label = "Weight in kgs";
+
+                    return {
+                        datasets: [{
+                            label: label,
+                            data: data,
+                        }],
+                        labels: labels,
+                    };
+                });
             }
-            let label = "Weight in kgs";
+        }
 
-            return {
-                datasets: [{
-                    label: label,
-                    data: data,
-                }],
-                labels: labels,
-            };
+        watchEffect(() => {
+            if (props.userHealthData) {
+                updatedSortedArray();
+            }
         });
 
-        watch(computedChartData, (newChartData) => {
-            if (myChart.value) {
-                myChart.value.data.datasets = newChartData.datasets;
-                myChart.value.update();
+        watch(computedChartData.value, (newChartData) => {
+            if (myChart) {
+                myChart.config.data = newChartData;
+                myChart.update();
             }
         }, { deep: true });
 
@@ -70,8 +81,6 @@ export default {
                     scales: {
                         y: { 
                             beginAtZero: false,
-                            //min: Math.min(...props.userHealthData.map(health => health.weight)) - 5,
-                            //max: Math.max(...props.userHealthData.map(health => health.weight)) + 5
                         },
                         x: { 
                             autoSkip: true 
@@ -79,6 +88,7 @@ export default {
                     } 
                 },
             });
+            updatedSortedArray();
         });
 
         onUnmounted(() => {

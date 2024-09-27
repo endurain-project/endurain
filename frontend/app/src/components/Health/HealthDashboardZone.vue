@@ -2,7 +2,8 @@
     <div class="col">
         <div class="card mb-3">
             <div class="card-body">
-                Current weight is {{ userHealthData.weight }} and target is {{ userHealthTargets.weight }}
+                <span v-if="userHealthData">Current weight is {{ userHealthData.weight }} and target is {{ userHealthTargets.weight }}</span>
+                <span v-else>No weight data for user</span>
             </div>
         </div>
     </div>
@@ -16,8 +17,9 @@ export default {
 	},
     props: {
         userHealthData: {
-            type: Object,
+            type: [Object, null],
             required: true,
+            default: null,
         },
         userHealthTargets: {
             type: Object,
@@ -25,7 +27,6 @@ export default {
         },
     },
 	setup(props) {
-
 		return {
 
 		};

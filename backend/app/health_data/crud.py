@@ -141,7 +141,7 @@ def create_health_weight_data(
         # Create a new health_data
         db_health_data = models.HealthData(
             user_id=user_id,
-            created_at=func.now(),
+            created_at=health_data.created_at,
             weight=health_data.weight,
         )
 
