@@ -12,7 +12,7 @@
                     <div class="modal-body">
                         <!-- weight fields -->
                         <label for="weightWeightAdd"><b>* {{ $t("healthWeightAddEditModalComponent.addWeightWeightLabel") }}</b></label>
-                        <input class="form-control" type="number" name="weightWeightAdd" v-model="newEditWeightWeight" required>
+                        <input class="form-control" type="number" step="0.1" name="weightWeightAdd" v-model="newEditWeightWeight" required>
                         <!-- date fields -->
                         <label for="weightDateAdd"><b>* {{ $t("healthWeightAddEditModalComponent.addWeightDateLabel") }}</b></label>
                         <input class="form-control" type="date" name="weightDateAdd" v-model="newEditWeightDate" required>
@@ -37,7 +37,7 @@
 </template>
 
 <script>
-import { ref, onMounted, watch, computed } from "vue";
+import { ref } from "vue";
 import { useI18n } from "vue-i18n";
 // Import Notivue push
 import { push } from "notivue";

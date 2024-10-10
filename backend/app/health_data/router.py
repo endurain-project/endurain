@@ -116,3 +116,22 @@ async def create_health_weight_data(
     else:
         # Creates the health_data in the database and returns it
         return health_data_crud.create_health_weight_data(health_data, token_user_id, db)
+    
+
+@router.post("/weight/{health_data_id}")
+async def delete_health_weight_data(
+    health_data_id: int,
+    check_scopes: Annotated[
+        Callable, Security(session_security.check_scopes, scopes=["health:write"])
+    ],
+    token_user_id: Annotated[
+        int,
+        Depends(session_security.get_user_id_from_access_token),
+    ],
+    db: Annotated[
+        Session,
+        Depends(database.get_db),
+    ],
+):
+    # Deletes entry from database
+    return health_data_crud.delete_health_weight_data(health_data_id, token_user_id, db)

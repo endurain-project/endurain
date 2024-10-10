@@ -21,7 +21,7 @@
 
                 <!-- list zone -->
                 <ul class="mt-3 list-group list-group-flush"  v-for="data in dataWithWeight" :key="data.id" :data="data">
-                    <HealthWeightListComponent :data="data" />
+                    <HealthWeightListComponent :data="data" @deletedWeight="updateWeightListDeleted" />
                 </ul>
 
                 <!-- pagination area -->
@@ -76,7 +76,7 @@ export default {
             required: true,
         },
     },
-    emits: ["createdWeight"],
+    emits: ["createdWeight", "deletedWeight"],
 	setup(props, { emit }) {
         const dataWithWeight = ref([]);
         
@@ -85,7 +85,7 @@ export default {
         function updatedDataWithWeightArray(){
             dataWithWeight.value = [];
             if(props.userHealthData){
-                for(let data of props.userHealthData){
+                for(const data of props.userHealthData){
                     if(data.weight){
                         dataWithWeight.value.push(data)
                     }
@@ -100,6 +100,10 @@ export default {
         function updateWeightListAdded(createdWeight) {
 			emit("createdWeight", createdWeight);
 		}
+
+        function updateWeightListDeleted(deletedWeight){
+			emit("deletedWeight", deletedWeight);
+        }
 
         watchEffect(() => {
             if (props.userHealthData) {
@@ -116,6 +120,7 @@ export default {
             isLoadingNewWeight,
             updateIsLoadingNewWeight,
             updateWeightListAdded,
+            updateWeightListDeleted,
 		};
 	},
 };

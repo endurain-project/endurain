@@ -68,7 +68,6 @@ def get_health_data_by_created_at(user_id: int, created_at: str, db: Session):
         # Get the health_data from the database
         health_data = (
             db.query(models.HealthData)
-            .filter(models.HealthData.created_at == created_at)
             .filter(
                 models.HealthData.created_at == created_at,
                 models.HealthData.user_id == user_id,
@@ -213,6 +212,38 @@ def edit_health_weight_data(
 
         # Log the exception
         logger.error(f"Error in edit_health_weight_data: {err}", exc_info=True)
+
+        # Raise an HTTPException with a 500 Internal Server Error status code
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal Server Error",
+        ) from err
+    
+def delete_health_weight_data(
+    health_data_id: int, user_id: int, db: Session
+):
+    try:
+        # Delete the gear
+        num_deleted = db.query(models.HealthData).filter(
+                models.HealthData.id == health_data_id,
+                models.HealthData.user_id == user_id,
+            ).delete()
+
+        # Check if the gear was found and deleted
+        if num_deleted == 0:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Health data with id {health_data_id} for user {user_id} not found",
+            )
+
+        # Commit the transaction
+        db.commit()
+    except Exception as err:
+        # Rollback the transaction
+        db.rollback()
+
+        # Log the exception
+        logger.error(f"Error in delete_health_weight_data: {err}", exc_info=True)
 
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
