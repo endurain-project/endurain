@@ -304,6 +304,8 @@ def parse_fit_file(file: str, user_id: int) -> dict:
             "prev_latitude": prev_latitude,
             "prev_longitude": prev_longitude,
         }
+    except HTTPException as http_err:
+        raise http_err
     except Exception as err:
         # Log the exception
         logger.error(f"Error in parse_fit_file: {err}", exc_info=True)

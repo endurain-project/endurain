@@ -28,7 +28,7 @@
   - [Frontend Environment Variables](#frontend-environment-variables)
   - [Backend Environment Variables](#backend-environment-variables)
 - [Volumes](#volumes)
-- [Bulk import](#bulk-import)
+- [Bulk import and file upload](#bulk-import-and-file-upload)
 - [Strava Integration](#strava-integration)
 - [Sponsors](#sponsors)
 - [Contributing](#contributing)
@@ -69,11 +69,15 @@ Endurain currently supports:
 - Multi-language support (currently English only)
 - Dark/light theme switcher
 - Third-party app support
+- Weight logging
 
 ## Planned Features
 
 Upcoming features (in no particular order):
 
+- Garmin Connect integration
+- Simplified Docker images
+- Live tracking
 - Default gear for activity types
 - Gear component tracking (e.g., track when components like bike chains need replacing)
 - Activity comments and likes
@@ -162,19 +166,19 @@ To check Python backend dependencies used, use poetry file (pyproject.toml)
 
 ## Volumes
 
-It is recommended to configure the following volumes for code and data persistence:
+It is recommended to configure the following volumes for data persistence:
 
 | Volume | Path | Notes |
 | --- | --- | --- |
-| /app | <local_path>/endurain/backend/app:/app | Configure volume if you want to edit the code locally by cloning the repo and comment next line |
+| /app/files/bulk_import | <local_path>/endurain/backend/app/files/bulk_import:/app/files/bulk_import | Necessary to enable bulk import of activities. Place here your activities files |
+| /app/files/processed | <local_path>/endurain/backend/app/files/processed:/app/files/processed | Necessary for processed original files persistence on container image updates |
 | /app/user_images | <local_path>/endurain/backend/app/user_images:/app/user_images | Necessary for user image persistence on container image updates |
-| /app/bulk_import | <local_path>/endurain/backend/bulk_import:/app/bulk_import | Necessary to enable bulk import of activities. Place here your activities files |
 | /app/logs | <local_path>/endurain/backend/app.log:/app/logs | Log files for the backend |
 
-## Bulk import
+## Bulk import and file upload
 
-Some notes for bulk import:
-- After the files are processed, the files are deleted from the filesystem. If needed please keep a backup of your files.
+Some notes:
+- After the files are processed, the files are moved to the processed folder.
 - GEOCODES API has a limit of 1 Request/Second on the free plan, so if you have a large number of files, it might not be possible to import all in the same action.
 
 ## Strava Integration

@@ -1,5 +1,6 @@
 import logging
 import os
+import shutil
 import requests
 import math
 
@@ -40,6 +41,15 @@ async def parse_and_store_activity_from_file(
                 # Store the activity in the database
                 created_activity = store_activity(parsed_info, db)
 
+                # Define the directory where the processed files will be stored
+                processed_dir = "files/processed"
+
+                # Define new file path with activity ID as filename
+                new_file_name = f"{created_activity.id}{file_extension}"
+
+                # Move the file to the processed directory
+                move_file(processed_dir, new_file_name, file_path)
+
                 # Return the created activity
                 return created_activity
             else:
@@ -61,14 +71,14 @@ def parse_and_store_activity_from_uploaded_file(
     _, file_extension = os.path.splitext(file.filename)
 
     try:
-        # Ensure the 'uploads' directory exists
-        upload_dir = "uploads"
+        # Ensure the 'files' directory exists
+        upload_dir = "files"
         os.makedirs(upload_dir, exist_ok=True)
 
         # Build the full path where the file will be saved
         file_path = os.path.join(upload_dir, file.filename)
 
-        # Save the uploaded file in the 'uploads' directory
+        # Save the uploaded file in the 'files' directory
         with open(file_path, "wb") as save_file:
             save_file.write(file.file.read())
 
@@ -79,6 +89,15 @@ def parse_and_store_activity_from_uploaded_file(
             # Store the activity in the database
             created_activity = store_activity(parsed_info, db)
 
+            # Define the directory where the processed files will be stored
+            processed_dir = "files/processed"
+
+            # Define new file path with activity ID as filename
+            new_file_name = f"{created_activity.id}{file_extension}"
+
+            # Move the file to the processed directory
+            move_file(processed_dir, new_file_name, file_path)
+
             # Return the created activity
             return created_activity
         else:
@@ -88,6 +107,26 @@ def parse_and_store_activity_from_uploaded_file(
     except Exception as err:
         # Log the exception
         logger.error(f"Error in parse_and_store_activity_from_uploaded_file - {str(err)}", exc_info=True)
+        # Raise an HTTPException with a 500 Internal Server Error status code
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Internal Server Error: {str(err)}",
+        ) from err
+    
+
+def move_file(new_dir: str, new_filename: str, file_path: str):
+    try:
+        # Ensure the new directory exists
+        os.makedirs(new_dir, exist_ok=True)
+
+        # Define the new file path
+        new_file_path = os.path.join(new_dir, new_filename)
+
+        # Move the file
+        shutil.move(file_path, new_file_path)
+    except Exception as err:
+        # Log the exception
+        logger.error(f"Error in move_file - {str(err)}", exc_info=True)
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -114,7 +153,7 @@ def parse_file(token_user_id: int, file_extension: str, filename: str) -> dict:
                 )   
             
             # Remove the file after processing
-            os.remove(filename)
+            #os.remove(filename)
 
             return parsed_info
         else:

@@ -455,7 +455,7 @@ async def create_activity_with_bulk_import(
 ):
     try:
         # Ensure the 'bulk_import' directory exists
-        bulk_import_dir = "bulk_import"
+        bulk_import_dir = "files/bulk_import"
         os.makedirs(bulk_import_dir, exist_ok=True)
 
         # Iterate over each file in the 'bulk_import' directory
