@@ -103,7 +103,9 @@ async def create_health_weight_data(
         Depends(database.get_db),
     ],
 ):
-    health_for_date = health_data_crud.get_health_data_by_created_at(token_user_id, health_data.created_at, db)
+    health_for_date = health_data_crud.get_health_data_by_created_at(
+        token_user_id, health_data.created_at, db
+    )
     if health_for_date:
         if health_for_date.weight is None:
             # Edits the health_data in the database and returns it
@@ -115,8 +117,37 @@ async def create_health_weight_data(
             )
     else:
         # Creates the health_data in the database and returns it
-        return health_data_crud.create_health_weight_data(health_data, token_user_id, db)
-    
+        return health_data_crud.create_health_weight_data(
+            health_data, token_user_id, db
+        )
+
+
+@router.put("/weight/{health_data_id}")
+async def edit_health_weight_data(
+    health_data_id: int,
+    health_data: health_data_schema.HealthData,
+    check_scopes: Annotated[
+        Callable, Security(session_security.check_scopes, scopes=["health:write"])
+    ],
+    token_user_id: Annotated[
+        int,
+        Depends(session_security.get_user_id_from_access_token),
+    ],
+    db: Annotated[
+        Session,
+        Depends(database.get_db),
+    ],
+):
+    # Check if the user_id in the token is the same as the user_id in the health_data
+    if token_user_id != health_data.user_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Forbidden, user_id in token is different from user_id in health_data",
+        )
+
+    # Edits the health_data in the database and returns it
+    return health_data_crud.edit_health_weight_data(health_data, db)
+
 
 @router.post("/weight/{health_data_id}")
 async def delete_health_weight_data(

@@ -13,6 +13,9 @@ export const health_data = {
     createWeight(data) {
         return fetchPostRequest('health/weight', data)
     },
+    editWeight(data) {
+        return fetchPutRequest(`health/weight/${data.id}`, data)
+    },
     deleteWeight(id) {
         return fetchPostRequest(`health/weight/${id}`)
     }

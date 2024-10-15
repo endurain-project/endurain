@@ -11,7 +11,7 @@
         <HealthDashboardZone :userHealthData="userHealthData[0]" :userHealthTargets="userHealthTargets" v-if="activeSection === 'dashboard' && !isLoading && userHealthData"/>
 
         <!-- Include the SettingsUserProfileZone -->
-        <HealthWeightZone :userHealthData="userHealthData" :userHealthTargets="userHealthTargets" :isLoading="isLoading" :totalPages="totalPages" :pageNumber="pageNumber" @createdWeight="updateWeightListAdded" @deletedWeight="updateWeightListDeleted" v-if="activeSection === 'weight' && !isLoading" />
+        <HealthWeightZone :userHealthData="userHealthData" :userHealthTargets="userHealthTargets" :isLoading="isLoading" :totalPages="totalPages" :pageNumber="pageNumber" @createdWeight="updateWeightListAdded" @deletedWeight="updateWeightListDeleted" @editedWeight="updateWeightListEdited" v-if="activeSection === 'weight' && !isLoading" />
     </div>
     <!-- back button -->
     <BackButtonComponent />
@@ -121,6 +121,15 @@ export default {
             }
         }
 
+        function updateWeightListEdited(editedWeight) {
+            for(const data of userHealthData.value){
+                if(data.id === editedWeight.id){
+                    data.weight = editedWeight.weight;
+                    data.created_at = editedWeight.created_at;
+                }
+            }
+        }
+
         onMounted(async () => {
             // Fetch health_data and health_targets
             await fetchHealthData();
@@ -142,6 +151,7 @@ export default {
             updateActiveSection,
             updateWeightListAdded,
             updateWeightListDeleted,
+            updateWeightListEdited,
         };
     },
 };

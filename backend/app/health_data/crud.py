@@ -173,14 +173,16 @@ def create_health_weight_data(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal Server Error",
         ) from err
-    
 
-def edit_health_weight_data(
-    health_data: health_data_schema.HealthData, db: Session
-):
+
+def edit_health_weight_data(health_data: health_data_schema.HealthData, db: Session):
     try:
         # Get the health_data from the database
-        db_health_data = db.query(models.HealthData).filter(models.HealthData.id == health_data.id).first()
+        db_health_data = (
+            db.query(models.HealthData)
+            .filter(models.HealthData.id == health_data.id)
+            .first()
+        )
 
         if db_health_data is None:
             raise HTTPException(
@@ -191,9 +193,9 @@ def edit_health_weight_data(
 
         # Update the user
         if health_data.created_at is not None:
-            db_health_data.created_at = health_data.created_at 
-        if health_data.weight  is not None:
-            db_health_data.weight = health_data.weight 
+            db_health_data.created_at = health_data.created_at
+        if health_data.weight is not None:
+            db_health_data.weight = health_data.weight
 
         # Commit the transaction
         db.commit()
@@ -218,16 +220,19 @@ def edit_health_weight_data(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal Server Error",
         ) from err
-    
-def delete_health_weight_data(
-    health_data_id: int, user_id: int, db: Session
-):
+
+
+def delete_health_weight_data(health_data_id: int, user_id: int, db: Session):
     try:
         # Delete the gear
-        num_deleted = db.query(models.HealthData).filter(
+        num_deleted = (
+            db.query(models.HealthData)
+            .filter(
                 models.HealthData.id == health_data_id,
                 models.HealthData.user_id == user_id,
-            ).delete()
+            )
+            .delete()
+        )
 
         # Check if the gear was found and deleted
         if num_deleted == 0:

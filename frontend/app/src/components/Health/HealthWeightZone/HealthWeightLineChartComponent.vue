@@ -1,6 +1,6 @@
 <template>
     <LoadingComponent v-if="isLoading" />
-    <canvas ref="chartCanvas" v-else></canvas>
+    <canvas ref="chartCanvas" class="chart-canvas" v-else></canvas>
   </template>
   
 <script>
@@ -41,12 +41,12 @@ export default {
                 computedChartData.value = computed(() => {
                     const data = [];
                     const labels = [];
-                    for (let healthData of sortedHealthDataArray.value){
+                    for (const healthData of sortedHealthDataArray.value){
                         data.push(healthData.weight)
                         const createdAt = new Date(healthData.created_at);
                         labels.push(`${createdAt.getDate()}/${createdAt.getMonth()+1}/${createdAt.getFullYear()}`)
                     }
-                    let label = "Weight in kgs";
+                    const label = "Weight in kgs";
 
                     return {
                         datasets: [{
@@ -103,3 +103,10 @@ export default {
     }
 }
 </script>
+
+<style scoped>
+.chart-canvas {
+  max-height: 300px;
+  width: 100%; /* Ensures the canvas stretches across the available width */
+}
+</style>

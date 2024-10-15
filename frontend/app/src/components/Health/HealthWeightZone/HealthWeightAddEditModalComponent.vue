@@ -98,7 +98,8 @@ export default {
         function submitEditWeight(){
             emit("editedWeight", {
 				id: props.data.id,
-				weight: newEditWeightDate.value,
+                user_id: props.data.user_id,
+				weight: newEditWeightWeight.value,
                 created_at: newEditWeightDate.value,
 			});
         }

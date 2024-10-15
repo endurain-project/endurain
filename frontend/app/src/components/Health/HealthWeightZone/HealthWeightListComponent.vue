@@ -52,8 +52,16 @@ export default {
             return `${date.getDate().toString().padStart(2, '0')}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getFullYear()}`;
         };
 
-        function updateWeightListEdited(editedWeight){
-            emit("editedWeight", editedWeight);
+        async function updateWeightListEdited(editedWeight){
+            try {
+                await health_data.editWeight(editedWeight);
+
+                emit("editedWeight", editedWeight);
+
+                push.success(t("healthWeightListComponent.successEditWeight"));
+            } catch (error) {
+                push.error(`${t("healthWeightListComponent.errorEditWeight")} - ${error.toString()}`);
+            }
         }
 
         async function submitDeleteWeight(){
