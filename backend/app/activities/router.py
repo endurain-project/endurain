@@ -1,4 +1,5 @@
 import os
+import glob
 import logging
 import calendar
 
@@ -634,6 +635,27 @@ async def delete_activity(
 
     # Delete the activity
     activities_crud.delete_activity(activity_id, db)
+
+    # Define the search pattern using the file ID (e.g., '1.*')
+    pattern = f"files/processed/{activity_id}.*"
+
+    # Use glob to find files that match the pattern
+    files_to_delete = glob.glob(pattern)
+
+    # Delete each matching file
+    for file in files_to_delete:
+        try:
+            os.remove(file)
+        except FileNotFoundError as err:
+            # Log the exception
+            logger.error(
+                f"File not found {file}: {err}", exc_info=True
+            )
+        except Exception as err:
+            # Log the exception
+            logger.error(
+                f"Error deleting file {file}: {err}", exc_info=True
+            )
 
     # Return success message
     return {"detail": f"Activity {activity_id} deleted successfully"}
