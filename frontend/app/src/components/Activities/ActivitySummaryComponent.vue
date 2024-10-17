@@ -139,8 +139,8 @@
                 </span>
                 <br>
                 <span>
-                    <!-- Check if activity_type is not 9 -->
-                    {{ activity.activity_type != 9 
+                    <!-- Check if activity_type is not 9 and 8 -->
+                    {{ activity.activity_type != 9 && activity.activity_type != 8
                         ? (activity.distance / 1000).toFixed(2) + ' km' : activity.distance + ' m'
                     }}
                 </span>
@@ -213,12 +213,13 @@
                 <span v-else>{{ $t("activitySummary.activityNoData") }}</span>
             </div>
             <!-- calories -->
-            <div class="col border-start border-opacity-50" v-if="activity.calories">
+            <div class="col border-start border-opacity-50">
                 <span class="fw-lighter">
                     {{ $t("activitySummary.activityCalories") }}
                 </span>
                 <br>
-                <span>{{ activity.calories }} cal</span>
+                <span v-if="activity.calories">{{ activity.calories }} cal</span>
+                <span v-else>{{ $t("activitySummary.activityNoData") }}</span>
             </div>
         </div>
     </div>

@@ -6,44 +6,12 @@ from datetime import datetime
 
 import activities.utils as activities_utils
 import activities.schema as activities_schema
-import activity_streams.schema as activity_streams_schema
 
 # Define a logger created on main.py
 logger = logging.getLogger("myLogger")
 
 
-def parse_activity_streams_from_fit_file(parsed_info: dict, activity_id: int):
-    # Create a list of tuples containing stream type, is_set, and waypoints
-    stream_mapping = {
-        1: ("is_heart_rate_set", "hr_waypoints"),
-        2: ("is_power_set", "power_waypoints"),
-        3: ("is_cadence_set", "cad_waypoints"),
-        4: ("is_elevation_set", "ele_waypoints"),
-        5: ("is_velocity_set", "vel_waypoints"),
-        6: ("is_velocity_set", "pace_waypoints"),
-        7: ("lat_lon_waypoints", "lat_lon_waypoints"),
-    }
-
-    stream_data_list = [
-        (stream_type, parsed_info[is_set_key], parsed_info[waypoints_key])
-        for stream_type, (is_set_key, waypoints_key) in stream_mapping.items()
-        if parsed_info[is_set_key]
-    ]
-
-    # Return activity streams as a list of ActivityStreams objects
-    return [
-        activity_streams_schema.ActivityStreams(
-            activity_id=activity_id,
-            stream_type=stream_type,
-            stream_waypoints=waypoints,
-            strava_activity_stream_id=None,
-        )
-        for stream_type, is_set, waypoints in stream_data_list
-    ]
-
-
 def parse_fit_file(file: str, user_id: int) -> dict:
-    # Open the FIT file
     try:
         # Initialize default values for various variables
         initial_latitude = None
@@ -98,6 +66,7 @@ def parse_fit_file(file: str, user_id: int) -> dict:
         is_cadence_set = False
         is_velocity_set = False
 
+        # Open the FIT file
         with open(file, "rb") as fit_file:
             fit_data = fitdecode.FitReader(fit_file)
 
@@ -153,9 +122,16 @@ def parse_fit_file(file: str, user_id: int) -> dict:
                         activity_name = parse_frame_workout(frame)
 
                     if frame.name == "split_summary" or frame.name == "unknown_313":
-                        split_summary_split_type, split_summary_total_timer_time = parse_frame_split_summary(frame)
+                        split_summary_split_type, split_summary_total_timer_time = (
+                            parse_frame_split_summary(frame)
+                        )
 
-                        split_summary.append({"split_type": split_summary_split_type, "total_timer_time": split_summary_total_timer_time})
+                        split_summary.append(
+                            {
+                                "split_type": split_summary_split_type,
+                                "total_timer_time": split_summary_total_timer_time,
+                            }
+                        )
 
                     # Extract waypoint data
                     if frame.name == "record":
@@ -186,7 +162,12 @@ def parse_fit_file(file: str, user_id: int) -> dict:
 
                         instant_speed = None
                         # Calculate instant speed, pace, and update waypoint arrays
-                        if latitude is not None and longitude is not None:
+                        if (
+                            latitude is not None
+                            and prev_latitude is not None
+                            and longitude is not None
+                            and prev_longitude is not None
+                        ):
                             instant_speed = activities_utils.calculate_instant_speed(
                                 last_waypoint_time,
                                 time,
@@ -214,14 +195,22 @@ def parse_fit_file(file: str, user_id: int) -> dict:
                                 }
                             )
 
-                        append_if_not_none(ele_waypoints, timestamp, elevation, "ele")
-                        append_if_not_none(hr_waypoints, timestamp, heart_rate, "hr")
-                        append_if_not_none(cad_waypoints, timestamp, cadence, "cad")
-                        append_if_not_none(power_waypoints, timestamp, power, "power")
-                        append_if_not_none(
+                        activities_utils.append_if_not_none(
+                            ele_waypoints, timestamp, elevation, "ele"
+                        )
+                        activities_utils.append_if_not_none(
+                            hr_waypoints, timestamp, heart_rate, "hr"
+                        )
+                        activities_utils.append_if_not_none(
+                            cad_waypoints, timestamp, cadence, "cad"
+                        )
+                        activities_utils.append_if_not_none(
+                            power_waypoints, timestamp, power, "power"
+                        )
+                        activities_utils.append_if_not_none(
                             vel_waypoints, timestamp, instant_speed, "vel"
                         )
-                        append_if_not_none(
+                        activities_utils.append_if_not_none(
                             pace_waypoints, timestamp, instant_pace, "pace"
                         )
 
@@ -233,25 +222,9 @@ def parse_fit_file(file: str, user_id: int) -> dict:
                         )
 
         # Calculate elevation gain/loss, pace, average speed, and average power
-        if ele_gain is None and ele_loss is None:
-            elevation_data = activities_utils.calculate_elevation_gain_loss(
-                ele_waypoints
-            )
-            ele_gain = elevation_data["elevation_gain"]
-            ele_loss = elevation_data["elevation_loss"]
-
-        #pace = activities_utils.calculate_pace(
-        #    distance, first_waypoint_time, last_waypoint_time
-        #)
-        total_timer_time, pace = calculate_pace(distance, total_timer_time, activity_type, split_summary)
-
-        if avg_speed is None:
-            avg_speed = activities_utils.calculate_average_speed(
-                distance, first_waypoint_time, last_waypoint_time
-            )
-
-        if avg_power is None:
-            avg_power = activities_utils.calculate_average_power(power_waypoints)
+        total_timer_time, pace = calculate_pace(
+            distance, total_timer_time, activity_type, split_summary
+        )
 
         # Create an Activity object with parsed data
         activity = activities_schema.Activity(
