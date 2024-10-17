@@ -177,6 +177,7 @@ It is recommended to configure the following volumes for data persistence:
 
 ## Bulk import and file upload
 
+.fit files are preferred. I noticed that Strava/Garmin Connect process of converting .fit to .gpx introduces additional data to the activity file leading to minor variances in the data, like for example additional meters in distance and elevation gain.
 Some notes:
 - After the files are processed, the files are moved to the processed folder.
 - GEOCODES API has a limit of 1 Request/Second on the free plan, so if you have a large number of files, it might not be possible to import all in the same action.
