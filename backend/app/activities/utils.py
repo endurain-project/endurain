@@ -410,7 +410,7 @@ def calculate_np(data):
     try:
         # Get the power values from the data
         values = [float(waypoint["power"]) for waypoint in data]
-    except (ValueError, KeyError):
+    except:
         # If there are no valid values, return 0
         return 0
 
