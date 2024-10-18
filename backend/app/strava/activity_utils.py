@@ -177,6 +177,7 @@ def parse_activity(
         pace_waypoints.append({"time": time[i], "pace": pace_calculation})
         is_velocity_set = True
 
+    ele_gain, ele_loss = None, None
     # Calculate elevation gain and loss
     if ele_waypoints:
         ele_gain, ele_loss = activities_utils.calculate_elevation_gain_loss(
@@ -201,12 +202,14 @@ def parse_activity(
         )
 
     # Calculate average pace
-    average_pace = 1 / avg_speed if avg_speed != 0 else 0
+    average_pace = 1 / avg_speed if avg_speed != 0 else None
 
+    avg_hr, max_hr = None, None
     # Calculate average and maximum heart rate
     if hr_waypoints:
         avg_hr, max_hr = activities_utils.calculate_avg_and_max(hr_waypoints, "hr")
 
+    avg_cadence, max_cadence = None, None
     # Calculate average and maximum cadence
     if cad_waypoints:
         avg_cadence, max_cadence = activities_utils.calculate_avg_and_max(
