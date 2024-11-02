@@ -37,6 +37,7 @@ def parse_fit_file(file: str, user_id: int) -> dict:
         activity_name = "Workout"
         workout_feeling = None
         workout_rpe = None
+        process_one_time_fields = 0
 
         city = None
         town = None
@@ -146,6 +147,25 @@ def parse_fit_file(file: str, user_id: int) -> dict:
                             power,
                         ) = parse_frame_record(frame)
 
+                        if process_one_time_fields == 0:
+                            if initial_latitude is None and initial_longitude is None:
+                                # Use geocoding API to get city, town, and country based on coordinates
+                                location_data = (
+                                    activities_utils.location_based_on_coordinates(
+                                        latitude, longitude
+                                    )
+                                )
+
+                                # Extract city, town, and country from location data
+                                if location_data:
+                                    city = location_data["city"]
+                                    town = location_data["town"]
+                                    country = location_data["country"]
+
+                                    process_one_time_fields = 1
+                            else:
+                                process_one_time_fields = 1
+
                         # Check elevation
                         if elevation is not None:
                             is_elevation_set = True
@@ -230,7 +250,7 @@ def parse_fit_file(file: str, user_id: int) -> dict:
         activity = activities_schema.Activity(
             user_id=user_id,
             name=activity_name,
-            distance=distance,
+            distance=round(distance),
             activity_type=activities_utils.define_activity_type(activity_type),
             start_time=first_waypoint_time.strftime("%Y-%m-%dT%H:%M:%S"),
             end_time=last_waypoint_time.strftime("%Y-%m-%dT%H:%M:%S"),

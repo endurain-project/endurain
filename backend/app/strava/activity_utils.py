@@ -170,7 +170,7 @@ def parse_activity(
         )
 
         if detailedActivity.total_elevation_gain is not None:
-            ele_gain = detailedActivity.total_elevation_gain
+            ele_gain = round(detailedActivity.total_elevation_gain)
 
     # Get average and max speed
     avg_speed = None
@@ -243,7 +243,7 @@ def parse_activity(
     activity_to_store = activities_schema.Activity(
         user_id=user_id,
         name=detailedActivity.name,
-        distance=detailedActivity.distance,
+        distance=round(detailedActivity.distance),
         description=detailedActivity.description,
         activity_type=activities_utils.define_activity_type(detailedActivity.sport_type),
         start_time=start_date_parsed.strftime("%Y-%m-%dT%H:%M:%S"),
@@ -265,7 +265,7 @@ def parse_activity(
         max_hr=max_hr,
         average_cad=avg_cadence,
         max_cad=max_cadence,
-        calories=detailedActivity.calories,
+        calories=round(detailedActivity.calories),
         gear_id=gear_id,
         strava_gear_id=detailedActivity.gear_id,
         strava_activity_id=int(activity.id),
