@@ -6,6 +6,7 @@ from datetime import datetime
 from sqlalchemy import func, desc
 from sqlalchemy.orm import Session, joinedload
 from urllib.parse import unquote
+from pydantic import BaseModel
 
 import models
 
@@ -13,6 +14,36 @@ import activities.schema as activities_schema
 
 # Define a loggger created on main.py
 logger = logging.getLogger("myLogger")
+
+
+def get_all_activities(db: Session):
+    try:
+        # Get the activities from the database
+        activities = (
+            db.query(models.Activity)
+            .all()
+        )
+
+        # Check if there are activities if not return None
+        if not activities:
+            return None
+
+        for activity in activities:
+            activity.start_time = activity.start_time.strftime("%Y-%m-%d %H:%M:%S")
+            activity.end_time = activity.end_time.strftime("%Y-%m-%d %H:%M:%S")
+            activity.created_at = activity.created_at.strftime("%Y-%m-%d %H:%M:%S")
+
+        # Return the activities
+        return activities
+
+    except Exception as err:
+        # Log the exception
+        logger.error(f"Error in get_all_activities: {err}", exc_info=True)
+        # Raise an HTTPException with a 500 Internal Server Error status code
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal Server Error",
+        ) from err
 
 
 def get_user_activities(
@@ -508,7 +539,7 @@ def create_activity(activity: activities_schema.Activity, db: Session):
         ) from err
 
 
-def edit_activity(user_id: int, activity: activities_schema.ActivityEdit, db: Session):
+def edit_activity(user_id: int, activity: activities_schema.Activity, db: Session):
     try:
         # Get the activity from the database
         db_activity = (
@@ -526,16 +557,16 @@ def edit_activity(user_id: int, activity: activities_schema.ActivityEdit, db: Se
                 detail="Activity not found",
                 headers={"WWW-Authenticate": "Bearer"},
             )
+        
+        # Check if 'activity' is a Pydantic model instance and convert it to a dictionary
+        if isinstance(activity, BaseModel):
+            activity_data = activity.dict(exclude_unset=True)
+        else:
+            activity_data = {key: value for key, value in vars(activity).items() if value is not None}
 
-        # Update the activity
-        if activity.description is not None:
-            db_activity.description = activity.description
-        if activity.name is not None:
-            db_activity.name = activity.name
-        if activity.activity_type is not None:
-            db_activity.activity_type = activity.activity_type
-        if activity.visibility is not None:
-            db_activity.visibility = activity.visibility
+        # Iterate over the fields and update the db_activity dynamically
+        for key, value in activity_data.items():
+            setattr(db_activity, key, value)
 
         # Commit the transaction
         db.commit()

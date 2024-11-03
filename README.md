@@ -30,6 +30,7 @@
 - [Volumes](#volumes)
 - [Bulk import and file upload](#bulk-import-and-file-upload)
 - [Strava Integration](#strava-integration)
+- [Log files](#log-files)
 - [Sponsors](#sponsors)
 - [Contributing](#contributing)
 - [License](#license)
@@ -185,6 +186,15 @@ Some notes:
 ## Strava Integration
 
 To enable Strava integration, ensure your API endpoint is accessible from the internet and follow Strava's [API setup guide](https://developers.strava.com/docs/getting-started/).
+
+## Log files
+
+The table bellow details the log files available. These logs are available in the /app/logs folder:
+
+| Log | Description |
+| --- | --- |
+| app.log | General log |
+| migrations.log | File detailing migrations operations |
 
 ## Sponsors
 

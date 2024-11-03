@@ -70,6 +70,17 @@ def upgrade() -> None:
                nullable=True,
                existing_comment='Average power (watts)')
     op.add_column('users', sa.Column('height', sa.Integer(), nullable=True, comment='User height in centimeters'))
+    op.create_table('migrations',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('name', sa.String(length=250), nullable=False, comment='Migration name'),
+    sa.Column('description', sa.String(length=2500), nullable=False, comment='Migration description'),
+    sa.Column('executed', sa.Boolean(), nullable=False, comment='Whether the migration was executed or not'),
+    sa.PrimaryKeyConstraint('id')
+    )
+    op.execute("""
+    INSERT INTO migrations (id, name, description, executed) VALUES
+    (1, 'v0.5.0', 'Process additional activity fields for existing activities', false);
+    """)
     # ### end Alembic commands ###
 
 
@@ -111,4 +122,5 @@ def downgrade() -> None:
     op.drop_table('health_targets')
     op.drop_index(op.f('ix_health_data_user_id'), table_name='health_data')
     op.drop_table('health_data')
+    op.drop_table('migrations')
     # ### end Alembic commands ###

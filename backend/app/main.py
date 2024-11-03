@@ -20,6 +20,7 @@ from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 import strava.utils as strava_utils
 import strava.activity_utils as strava_activity_utils
 
+import migrations.utils as migrations_utils
 
 from config import API_VERSION
 from database import SessionLocal
@@ -35,6 +36,9 @@ def startup_event():
     # Disable the logger configuration in Alembic to avoid conflicts with FastAPI
     alembic_cfg.attributes["configure_logger"] = False
     command.upgrade(alembic_cfg, "head")
+
+    # Migration check
+    check_migrations()
 
     # Create a scheduler to run background jobs
     scheduler.start()
@@ -58,12 +62,25 @@ def shutdown_event():
     scheduler.shutdown()
 
 
+def check_migrations():
+    logger.info("Checking for migrations not executed")
+    # Create a new database session
+    db = SessionLocal()
+    try:
+        # Check migrations not executed
+        migrations_utils.check_migrations_not_executed(db)
+    finally:
+        # Ensure the session is closed after use
+        db.close()
+        logger.info("Migration check completed")
+
+
 def refresh_strava_tokens_job():
     # Create a new database session
     db = SessionLocal()
     try:
         # Refresh Strava tokens
-        strava_utils.refresh_strava_tokens(db=db)
+        strava_utils.refresh_strava_tokens(db)
     finally:
         # Ensure the session is closed after use
         db.close()
@@ -140,9 +157,7 @@ origins = [
     "http://localhost",
     "http://localhost:8080",
     "http://localhost:5173",
-    os.environ.get("FRONTEND_PROTOCOL")
-    + "://"
-    + os.environ.get("FRONTEND_HOST"),
+    os.environ.get("FRONTEND_PROTOCOL") + "://" + os.environ.get("FRONTEND_HOST"),
 ]
 
 app.add_middleware(
