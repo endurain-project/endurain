@@ -38,15 +38,16 @@ class StreamType(Enum):
 def check_migrations_not_executed(db: Session):
     migrations_not_executed = migrations_crud.get_migrations_not_executed(db)
 
-    for migration in migrations_not_executed:
-        # Log the migration not executed
-        logger.info(
-            f"Migration not executed: {migration.name} - Migration will be executed"
-        )
+    if migrations_not_executed:
+        for migration in migrations_not_executed:
+            # Log the migration not executed
+            logger.info(
+                f"Migration not executed: {migration.name} - Migration will be executed"
+            )
 
-        if migration.id == 1:
-            # Execute the migration
-            process_migration_1(db)
+            if migration.id == 1:
+                # Execute the migration
+                process_migration_1(db)
 
 
 def process_migration_1(db: Session):

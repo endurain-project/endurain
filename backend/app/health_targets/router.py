@@ -22,7 +22,7 @@ logger = logging.getLogger("myLogger")
 
 @router.get(
     "/",
-    response_model=health_targets_schema.HealthTargets,
+    response_model=health_targets_schema.HealthTargets | None,
 )
 async def read_health_data_all_pagination(
     check_scopes: Annotated[
