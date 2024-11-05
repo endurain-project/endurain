@@ -2,7 +2,7 @@
     <div class="col">
         <div class="card mb-3">
             <div class="card-body">
-                <span v-if="userHealthData">Current weight is {{ userHealthData.weight }} and target is {{ userHealthTargets.weight }}</span>
+                <span v-if="userHealthDataPagination">Current weight is {{ userHealthDataPagination.weight }} and target is {{ userHealthTargets.weight }}</span>
                 <span v-else>No weight data for user</span>
             </div>
         </div>
@@ -16,7 +16,7 @@ export default {
         
 	},
     props: {
-        userHealthData: {
+        userHealthDataPagination: {
             type: [Object, null],
             required: true,
             default: null,

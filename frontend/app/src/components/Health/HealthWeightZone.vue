@@ -12,6 +12,9 @@
                 <!-- show graph -->
                 <HealthWeightLineChartComponent :userHealthData="dataWithWeight" :isLoading="isLoading" />
 
+                <br>
+                <p>{{ $t("healthWeightZoneComponent.labelNumberOfHealthDataWeight1") }}{{ userHealthData.length }}{{ $t("healthWeightZoneComponent.labelNumberOfHealthDataWeight2") }}{{ userHealthDataPagination.length }}{{ $t("healthWeightZoneComponent.labelNumberOfHealthDataWeight3") }}</p>
+
                 <!-- Displaying loading new gear if applicable -->
                 <ul class="mt-3 list-group list-group-flush" v-if="isLoadingNewWeight">
                         <li class="list-group-item rounded">
@@ -20,12 +23,12 @@
                     </ul>
 
                 <!-- list zone -->
-                <ul class="mt-3 list-group list-group-flush"  v-for="data in dataWithWeight" :key="data.id" :data="data">
+                <ul class="mt-3 list-group list-group-flush"  v-for="data in dataWithWeightPagination" :key="data.id" :data="data">
                     <HealthWeightListComponent :data="data" @deletedWeight="updateWeightListDeleted" @editedWeight="updateWeightListEdited" />
                 </ul>
 
                 <!-- pagination area -->
-                <PaginationComponent :totalPages="totalPages" :pageNumber="pageNumber" />
+                <PaginationComponent :totalPages="totalPages" :pageNumber="pageNumber" @pageNumberChanged="setPageNumber" />
             </div>
             <!-- Displaying a message or component when there are no weight measurements -->
             <div v-else class="mt-3">
@@ -59,6 +62,10 @@ export default {
             type: [Object, null],
             required: true,
         },
+        userHealthDataPagination: {
+            type: [Object, null],
+            required: true,
+        },
         userHealthTargets: {
             type: Object,
             required: true,
@@ -76,14 +83,23 @@ export default {
             required: true,
         },
     },
-    emits: ["createdWeight", "deletedWeight", "editedWeight"],
+    emits: ["createdWeight", "deletedWeight", "editedWeight", "pageNumberChanged"],
 	setup(props, { emit }) {
         const dataWithWeight = ref([]);
+        const dataWithWeightPagination = ref([]);
         
         const isLoadingNewWeight = ref(false);
 
         function updatedDataWithWeightArray(){
+            dataWithWeightPagination.value = [];
             dataWithWeight.value = [];
+            if(props.userHealthDataPagination){
+                for(const data of props.userHealthDataPagination){
+                    if(data.weight){
+                        dataWithWeightPagination.value.push(data)
+                    }
+                }
+            }
             if(props.userHealthData){
                 for(const data of props.userHealthData){
                     if(data.weight){
@@ -109,8 +125,13 @@ export default {
             emit("editedWeight", editedWeight);
         }
 
+        function setPageNumber(page) {
+            // Set the page number.
+            emit("pageNumberChanged", page);
+        }
+
         watchEffect(() => {
-            if (props.userHealthData) {
+            if (props.userHealthDataPagination) {
                 updatedDataWithWeightArray();
             }
         });
@@ -121,11 +142,13 @@ export default {
 
 		return {
             dataWithWeight,
+            dataWithWeightPagination,
             isLoadingNewWeight,
             updateIsLoadingNewWeight,
             updateWeightListAdded,
             updateWeightListDeleted,
             updateWeightListEdited,
+			setPageNumber,
 		};
 	},
 };

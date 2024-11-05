@@ -42,6 +42,27 @@ async def read_health_data_number(
 
 
 @router.get(
+    "/",
+    response_model=list[health_data_schema.HealthData] | None,
+)
+async def read_health_data_all(
+    check_scopes: Annotated[
+        Callable, Security(session_security.check_scopes, scopes=["health:read"])
+    ],
+    token_user_id: Annotated[
+        int,
+        Depends(session_security.get_user_id_from_access_token),
+    ],
+    db: Annotated[
+        Session,
+        Depends(database.get_db),
+    ],
+):
+    # Get the health_data from the database
+    return health_data_crud.get_health_data(token_user_id, db)
+
+
+@router.get(
     "/page_number/{page_number}/num_records/{num_records}",
     response_model=list[health_data_schema.HealthData] | None,
 )

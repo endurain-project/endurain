@@ -185,6 +185,31 @@ def split_records_by_activity(parsed_data: dict) -> dict:
                     "lat_lon_waypoints"
                 ]
                 parsed_session["is_lat_lon_set"] = True
+
+                # If initial latitude and longitude are not set, set them to the first waypoint's coordinates
+                if (
+                    parsed_session["session"]["initial_latitude"] is None
+                    or parsed_session["session"]["initial_longitude"] is None
+                ):
+                    # Set initial latitude and longitude to the first waypoint's coordinates
+                    parsed_session["session"]["initial_latitude"] = activity_waypoints[
+                        i
+                    ]["lat_lon_waypoints"][0]["lat"]
+                    parsed_session["session"]["initial_longitude"] = activity_waypoints[
+                        i
+                    ]["lat_lon_waypoints"][0]["lon"]
+
+                    # Use geocoding API to get city, town, and country based on coordinates
+                    location_data = activities_utils.location_based_on_coordinates(
+                        session["initial_latitude"], session["initial_longitude"]
+                    )
+
+                    # Extract city, town, and country from location data
+                    if location_data:
+                        parsed_session["session"]["city"] = location_data["city"]
+                        parsed_session["session"]["town"] = location_data["town"]
+                        parsed_session["session"]["country"] = location_data["country"]
+
         if is_elevation_set:
             activity_waypoints[i]["ele_waypoints"] = [
                 wp
@@ -364,7 +389,8 @@ def parse_fit_file(file: str) -> dict:
                             "country": country,
                             "activity_type": activity_type,
                             "first_waypoint_time": first_waypoint_time,
-                            "last_waypoint_time": first_waypoint_time + timedelta(seconds=total_elapsed_time),
+                            "last_waypoint_time": first_waypoint_time
+                            + timedelta(seconds=total_elapsed_time),
                             "total_elapsed_time": total_elapsed_time,
                             "total_timer_time": total_timer_time,
                             "calories": calories,

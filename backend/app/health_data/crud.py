@@ -33,6 +33,34 @@ def get_health_data_number(user_id: int, db: Session):
         ) from err
 
 
+def get_health_data(
+    user_id: int, db: Session
+):
+    try:
+        # Get the health_data from the database
+        health_data = (
+            db.query(models.HealthData)
+            .filter(models.HealthData.user_id == user_id)
+            .order_by(desc(models.HealthData.created_at))
+            .all()
+        )
+
+        # Check if there are health_data if not return None
+        if not health_data:
+            return None
+
+        # Return the health_data
+        return health_data
+    except Exception as err:
+        # Log the exception
+        logger.error(f"Error in get_health_data: {err}", exc_info=True)
+        # Raise an HTTPException with a 500 Internal Server Error status code
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal Server Error",
+        ) from err
+
+
 def get_health_data_with_pagination(
     user_id: int, db: Session, page_number: int = 1, num_records: int = 5
 ):
