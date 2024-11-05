@@ -110,7 +110,7 @@
                 </p>
                 <p>
                     <b>{{ $t("settingsUsersZone.addUserModalUserPreferedLanguageLabel") }}: </b>
-                    <span v-if="authStore.user.preferred_language == 'en'">{{ $t("settingsUsersZone.addUserModalPreferredLanguageOption1") }}</span>
+                    <span v-if="authStore.user.preferred_language == 'us'">{{ $t("settingsUsersZone.addUserModalPreferredLanguageOption1") }}</span>
                 </p>
                 <p>
                     <b>{{ $t("settingsUsersZone.addUserModalUserTypeLabel") }}: </b>

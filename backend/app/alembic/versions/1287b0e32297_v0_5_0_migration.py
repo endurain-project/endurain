@@ -81,6 +81,15 @@ def upgrade() -> None:
     INSERT INTO migrations (id, name, description, executed) VALUES
     (1, 'v0.5.0', 'Process additional activity fields for existing activities', false);
     """)
+    # Update users preferred_language to 'us'
+    op.execute(
+        sa.text(
+            """
+            UPDATE users
+            SET preferred_language = 'us'
+            """
+        )
+    )
     # ### end Alembic commands ###
 
 
