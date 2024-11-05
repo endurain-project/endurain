@@ -67,7 +67,7 @@ export default {
             required: true,
         },
         userHealthTargets: {
-            type: Object,
+            type: [Object, null],
             required: true,
         },
         isLoading: {
