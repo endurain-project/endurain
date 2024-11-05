@@ -210,12 +210,14 @@ export default {
         formData.append('file', fileInput.files[0]);
         try {
           // Upload the file
-          const createdActivity = await activities.uploadActivityFile(formData);
+          const createdActivities = await activities.uploadActivityFile(formData);
           // Fetch the new user activity
           if (!userActivities.value) {
             userActivities.value = [];
           }
-          userActivities.value.unshift(createdActivity);
+          for (const createdActivity of createdActivities) {
+            userActivities.value.unshift(createdActivity);
+          }
           
           // Set the success message
           notification.resolve(t('homeView.successActivityAdded'))

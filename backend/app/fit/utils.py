@@ -2,7 +2,8 @@ import fitdecode
 import logging
 
 from fastapi import HTTPException, status
-from datetime import datetime
+from datetime import datetime, timedelta
+import time as timelib
 
 import activities.utils as activities_utils
 import activities.schema as activities_schema
@@ -11,39 +12,268 @@ import activities.schema as activities_schema
 logger = logging.getLogger("myLogger")
 
 
-def parse_fit_file(file: str, user_id: int) -> dict:
+def create_activity_objects(sessions_records: dict, user_id: int) -> list:
+    try:
+        activity_name = "Workout"
+        visibility = 0
+
+        activities = []
+
+        for session_record in sessions_records:
+            pace = 0
+
+            if session_record["activity_name"]:
+                activity_name = session_record["activity_name"]
+
+            # Calculate elevation gain/loss, pace, average speed, and average power
+            total_timer_time, pace = calculate_pace(
+                session_record["session"]["distance"],
+                session_record["session"]["total_timer_time"],
+                session_record["session"]["activity_type"],
+                session_record["split_summary"],
+            )
+            parsed_activity = {
+                # Create an Activity object with parsed data
+                "activity": activities_schema.Activity(
+                    user_id=user_id,
+                    name=activity_name,
+                    distance=round(session_record["session"]["distance"]),
+                    activity_type=activities_utils.define_activity_type(
+                        session_record["session"]["activity_type"]
+                    ),
+                    start_time=session_record["session"][
+                        "first_waypoint_time"
+                    ].strftime("%Y-%m-%dT%H:%M:%S"),
+                    end_time=session_record["session"]["last_waypoint_time"].strftime(
+                        "%Y-%m-%dT%H:%M:%S"
+                    ),
+                    total_elapsed_time=session_record["session"]["total_elapsed_time"],
+                    total_timer_time=total_timer_time,
+                    city=session_record["session"]["city"],
+                    town=session_record["session"]["town"],
+                    country=session_record["session"]["country"],
+                    elevation_gain=session_record["session"]["ele_gain"],
+                    elevation_loss=session_record["session"]["ele_loss"],
+                    pace=pace,
+                    average_speed=session_record["session"]["avg_speed"],
+                    max_speed=session_record["session"]["max_speed"],
+                    average_power=session_record["session"]["avg_power"],
+                    max_power=session_record["session"]["max_power"],
+                    normalized_power=session_record["session"]["np"],
+                    average_hr=session_record["session"]["avg_hr"],
+                    max_hr=session_record["session"]["max_hr"],
+                    average_cad=session_record["session"]["avg_cadence"],
+                    max_cad=session_record["session"]["max_cadence"],
+                    workout_feeling=session_record["session"]["workout_feeling"],
+                    workout_rpe=session_record["session"]["workout_rpe"],
+                    calories=session_record["session"]["calories"],
+                    visibility=visibility,
+                    strava_gear_id=None,
+                    strava_activity_id=None,
+                ),
+                "is_elevation_set": session_record["is_elevation_set"],
+                "ele_waypoints": session_record["ele_waypoints"],
+                "is_power_set": session_record["is_power_set"],
+                "power_waypoints": session_record["power_waypoints"],
+                "is_heart_rate_set": session_record["is_heart_rate_set"],
+                "hr_waypoints": session_record["hr_waypoints"],
+                "is_velocity_set": session_record["is_velocity_set"],
+                "vel_waypoints": session_record["vel_waypoints"],
+                "pace_waypoints": session_record["pace_waypoints"],
+                "is_cadence_set": session_record["is_cadence_set"],
+                "cad_waypoints": session_record["cad_waypoints"],
+                "is_lat_lon_set": session_record["is_lat_lon_set"],
+                "lat_lon_waypoints": session_record["lat_lon_waypoints"],
+            }
+
+            activities.append(parsed_activity)
+
+        return activities
+    except HTTPException as http_err:
+        raise http_err
+    except Exception as err:
+        # Log the exception
+        logger.error(f"Error in parse_sessions_from_fit_file: {err}", exc_info=True)
+        # Raise an HTTPException with a 500 Internal Server Error status code
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Can't parse FIT file sessions",
+        ) from err
+
+
+def split_records_by_activity(parsed_data: dict) -> dict:
+    sessions = parsed_data["sessions"]
+    lat_lon_waypoints = parsed_data["lat_lon_waypoints"]
+    ele_waypoints = parsed_data.get("ele_waypoints", [])
+    hr_waypoints = parsed_data.get("hr_waypoints", [])
+    cad_waypoints = parsed_data.get("cad_waypoints", [])
+    power_waypoints = parsed_data.get("power_waypoints", [])
+    vel_waypoints = parsed_data.get("vel_waypoints", [])
+    pace_waypoints = parsed_data.get("pace_waypoints", [])
+
+    # Check for each auxiliary flag
+    is_lat_lon_set = parsed_data.get("is_lat_lon_set", False)
+    is_elevation_set = parsed_data.get("is_elevation_set", False)
+    is_heart_rate_set = parsed_data.get("is_heart_rate_set", False)
+    is_cadence_set = parsed_data.get("is_cadence_set", False)
+    is_power_set = parsed_data.get("is_power_set", False)
+    is_velocity_set = parsed_data.get("is_velocity_set", False)
+
+    # Dictionary to hold split waypoints per activity
+    activity_waypoints = {
+        i: {
+            "lat_lon_waypoints": [] if is_lat_lon_set else None,
+            "ele_waypoints": [] if is_elevation_set else None,
+            "hr_waypoints": [] if is_heart_rate_set else None,
+            "cad_waypoints": [] if is_cadence_set else None,
+            "power_waypoints": [] if is_power_set else None,
+            "vel_waypoints": [] if is_velocity_set else None,
+            "pace_waypoints": [] if is_velocity_set else None,
+        }
+        for i in range(len(sessions))
+    }
+
+    sessions_records = []
+
+    # Convert session times to datetime objects for easier comparison
+    for i, session in enumerate(sessions):
+        # Use the time as is if it’s already a datetime object; otherwise, parse it
+        start_time = session["first_waypoint_time"]
+        if not isinstance(start_time, datetime):
+            start_time = datetime.strptime(start_time, "%Y-%m-%dT%H:%M:%S")
+
+        end_time = session.get("last_waypoint_time", start_time)
+        if not isinstance(end_time, datetime):
+            end_time = datetime.strptime(end_time, "%Y-%m-%dT%H:%M:%S")
+
+        # Make both timezone-naive (removes timezone info).
+        start_time = start_time.replace(tzinfo=None)
+        end_time = end_time.replace(tzinfo=None)
+
+        # Initialize a parsed session dictionary
+        parsed_session = {
+            "session": session,
+            "activity_name": parsed_data["activity_name"],
+            "lat_lon_waypoints": [],
+            "is_lat_lon_set": False,
+            "ele_waypoints": [],
+            "is_elevation_set": False,
+            "hr_waypoints": [],
+            "is_heart_rate_set": False,
+            "cad_waypoints": [],
+            "is_cadence_set": False,
+            "power_waypoints": [],
+            "is_power_set": False,
+            "vel_waypoints": [],
+            "pace_waypoints": [],
+            "is_velocity_set": False,
+            "split_summary": parsed_data["split_summary"],
+        }
+
+        # Only parse arrays if the respective flag is set
+        if is_lat_lon_set:
+            activity_waypoints[i]["lat_lon_waypoints"] = [
+                wp
+                for wp in lat_lon_waypoints
+                if start_time
+                <= datetime.strptime(wp["time"], "%Y-%m-%dT%H:%M:%S")
+                <= end_time
+            ]
+            # If there are waypoints, set the parsed session's waypoints and flag
+            if activity_waypoints[i]["lat_lon_waypoints"]:
+                parsed_session["lat_lon_waypoints"] = activity_waypoints[i][
+                    "lat_lon_waypoints"
+                ]
+                parsed_session["is_lat_lon_set"] = True
+        if is_elevation_set:
+            activity_waypoints[i]["ele_waypoints"] = [
+                wp
+                for wp in ele_waypoints
+                if start_time
+                <= datetime.strptime(wp["time"], "%Y-%m-%dT%H:%M:%S")
+                <= end_time
+            ]
+            # If there are waypoints, set the parsed session's waypoints and flag
+            if activity_waypoints[i]["ele_waypoints"]:
+                parsed_session["ele_waypoints"] = activity_waypoints[i]["ele_waypoints"]
+                parsed_session["is_elevation_set"] = True
+        if is_heart_rate_set:
+            activity_waypoints[i]["hr_waypoints"] = [
+                wp
+                for wp in hr_waypoints
+                if start_time
+                <= datetime.strptime(wp["time"], "%Y-%m-%dT%H:%M:%S")
+                <= end_time
+            ]
+            # If there are waypoints, set the parsed session's waypoints and flag
+            if activity_waypoints[i]["hr_waypoints"]:
+                parsed_session["hr_waypoints"] = activity_waypoints[i]["hr_waypoints"]
+                parsed_session["is_heart_rate_set"] = True
+        if is_cadence_set:
+            activity_waypoints[i]["cad_waypoints"] = [
+                wp
+                for wp in cad_waypoints
+                if start_time
+                <= datetime.strptime(wp["time"], "%Y-%m-%dT%H:%M:%S")
+                <= end_time
+            ]
+            # If there are waypoints, set the parsed session's waypoints and flag
+            if activity_waypoints[i]["cad_waypoints"]:
+                parsed_session["cad_waypoints"] = activity_waypoints[i]["cad_waypoints"]
+                parsed_session["is_cadence_set"] = True
+        if is_power_set:
+            activity_waypoints[i]["power_waypoints"] = [
+                wp
+                for wp in power_waypoints
+                if start_time
+                <= datetime.strptime(wp["time"], "%Y-%m-%dT%H:%M:%S")
+                <= end_time
+            ]
+            # If there are waypoints, set the parsed session's waypoints and flag
+            if activity_waypoints[i]["power_waypoints"]:
+                parsed_session["power_waypoints"] = activity_waypoints[i][
+                    "power_waypoints"
+                ]
+                parsed_session["is_power_set"] = True
+        if is_velocity_set:
+            activity_waypoints[i]["vel_waypoints"] = [
+                wp
+                for wp in vel_waypoints
+                if start_time
+                <= datetime.strptime(wp["time"], "%Y-%m-%dT%H:%M:%S")
+                <= end_time
+            ]
+            # If there are waypoints, set the parsed session's waypoints and flag
+            if activity_waypoints[i]["vel_waypoints"]:
+                parsed_session["vel_waypoints"] = activity_waypoints[i]["vel_waypoints"]
+                parsed_session["is_velocity_set"] = True
+            activity_waypoints[i]["pace_waypoints"] = [
+                wp
+                for wp in pace_waypoints
+                if start_time
+                <= datetime.strptime(wp["time"], "%Y-%m-%dT%H:%M:%S")
+                <= end_time
+            ]
+            # If there are waypoints, set the parsed session's waypoints and flag
+            if activity_waypoints[i]["pace_waypoints"]:
+                parsed_session["pace_waypoints"] = activity_waypoints[i][
+                    "pace_waypoints"
+                ]
+                parsed_session["is_velocity_set"] = True
+
+        # Append the parsed session to the sessions list
+        sessions_records.append(parsed_session)
+
+    # Return dictionary with each activity's waypoints
+    return sessions_records
+
+
+def parse_fit_file(file: str) -> dict:
     try:
         # Initialize default values for various variables
-        initial_latitude = None
-        initial_longitude = None
-        activity_type = "Workout"
-        calories = None
-        distance = None
-        avg_hr = None
-        max_hr = None
-        avg_cadence = None
-        max_cadence = None
-        first_waypoint_time = None
+        sessions = []
         last_waypoint_time = None
-        total_elapsed_time = None
-        total_timer_time = None
-        avg_power = None
-        max_power = None
-        ele_gain = None
-        ele_loss = None
-        np = None
-        avg_speed = None
-        max_speed = None
         activity_name = "Workout"
-        workout_feeling = None
-        workout_rpe = None
-        process_one_time_fields = 0
-
-        city = None
-        town = None
-        country = None
-        pace = 0
-        visibility = 0
 
         # Arrays to store waypoint data
         lat_lon_waypoints = []
@@ -61,6 +291,7 @@ def parse_fit_file(file: str, user_id: int) -> dict:
         prev_latitude, prev_longitude = None, None
 
         # Initialize variables to store whether elevation, power, heart rate, cadence, and velocity are set
+        is_lat_lon_set = False
         is_elevation_set = False
         is_power_set = False
         is_heart_rate_set = False
@@ -75,6 +306,9 @@ def parse_fit_file(file: str, user_id: int) -> dict:
             for frame in fit_data:
                 if isinstance(frame, fitdecode.FitDataMessage):
                     if frame.name == "session":
+                        # Initialize session data
+                        city, town, country = None, None, None
+
                         # Extract session data
                         (
                             initial_latitude,
@@ -118,6 +352,41 @@ def parse_fit_file(file: str, user_id: int) -> dict:
                                 town = location_data["town"]
                                 country = location_data["country"]
 
+                            # Wait for 1 second (for geocoding API rate limiting)
+                            timelib.sleep(1)
+
+                        # Initialize the session dictionary with parsed data
+                        session_data = {
+                            "initial_latitude": initial_latitude,
+                            "initial_longitude": initial_longitude,
+                            "city": city,
+                            "town": town,
+                            "country": country,
+                            "activity_type": activity_type,
+                            "first_waypoint_time": first_waypoint_time,
+                            "last_waypoint_time": first_waypoint_time + timedelta(seconds=total_elapsed_time),
+                            "total_elapsed_time": total_elapsed_time,
+                            "total_timer_time": total_timer_time,
+                            "calories": calories,
+                            "distance": distance,
+                            "avg_hr": avg_hr,
+                            "max_hr": max_hr,
+                            "avg_cadence": avg_cadence,
+                            "max_cadence": max_cadence,
+                            "avg_power": avg_power,
+                            "max_power": max_power,
+                            "ele_gain": ele_gain,
+                            "ele_loss": ele_loss,
+                            "np": np,
+                            "avg_speed": avg_speed,
+                            "max_speed": max_speed,
+                            "workout_feeling": workout_feeling,
+                            "workout_rpe": workout_rpe,
+                        }
+
+                        # Append the session data to the sessions list
+                        sessions.append(session_data)
+
                     # Extract activity name
                     if frame.name == "workout":
                         activity_name = parse_frame_workout(frame)
@@ -146,25 +415,6 @@ def parse_fit_file(file: str, user_id: int) -> dict:
                             cadence,
                             power,
                         ) = parse_frame_record(frame)
-
-                        if process_one_time_fields == 0:
-                            if initial_latitude is None and initial_longitude is None:
-                                # Use geocoding API to get city, town, and country based on coordinates
-                                location_data = (
-                                    activities_utils.location_based_on_coordinates(
-                                        latitude, longitude
-                                    )
-                                )
-
-                                # Extract city, town, and country from location data
-                                if location_data:
-                                    city = location_data["city"]
-                                    town = location_data["town"]
-                                    country = location_data["country"]
-
-                                    process_one_time_fields = 1
-                            else:
-                                process_one_time_fields = 1
 
                         # Check elevation
                         if elevation is not None:
@@ -214,6 +464,7 @@ def parse_fit_file(file: str, user_id: int) -> dict:
                                     "lon": longitude,
                                 }
                             )
+                            is_lat_lon_set = True
 
                         activities_utils.append_if_not_none(
                             ele_waypoints, timestamp, elevation, "ele"
@@ -241,47 +492,10 @@ def parse_fit_file(file: str, user_id: int) -> dict:
                             time,
                         )
 
-        # Calculate elevation gain/loss, pace, average speed, and average power
-        total_timer_time, pace = calculate_pace(
-            distance, total_timer_time, activity_type, split_summary
-        )
-
-        # Create an Activity object with parsed data
-        activity = activities_schema.Activity(
-            user_id=user_id,
-            name=activity_name,
-            distance=round(distance),
-            activity_type=activities_utils.define_activity_type(activity_type),
-            start_time=first_waypoint_time.strftime("%Y-%m-%dT%H:%M:%S"),
-            end_time=last_waypoint_time.strftime("%Y-%m-%dT%H:%M:%S"),
-            total_elapsed_time=total_elapsed_time,
-            total_timer_time=total_timer_time,
-            city=city,
-            town=town,
-            country=country,
-            elevation_gain=ele_gain,
-            elevation_loss=ele_loss,
-            pace=pace,
-            average_speed=avg_speed,
-            max_speed=max_speed,
-            average_power=avg_power,
-            max_power=max_power,
-            normalized_power=np,
-            average_hr=avg_hr,
-            max_hr=max_hr,
-            average_cad=avg_cadence,
-            max_cad=max_cadence,
-            workout_feeling=workout_feeling,
-            workout_rpe=workout_rpe,
-            calories=calories,
-            visibility=visibility,
-            strava_gear_id=None,
-            strava_activity_id=None,
-        )
-
         # Return parsed data as a dictionary
         return {
-            "activity": activity,
+            "sessions": sessions,
+            "activity_name": activity_name,
             "is_elevation_set": is_elevation_set,
             "ele_waypoints": ele_waypoints,
             "is_power_set": is_power_set,
@@ -293,9 +507,9 @@ def parse_fit_file(file: str, user_id: int) -> dict:
             "pace_waypoints": pace_waypoints,
             "is_cadence_set": is_cadence_set,
             "cad_waypoints": cad_waypoints,
+            "is_lat_lon_set": is_lat_lon_set,
             "lat_lon_waypoints": lat_lon_waypoints,
-            "prev_latitude": prev_latitude,
-            "prev_longitude": prev_longitude,
+            "split_summary": split_summary,
         }
     except HTTPException as http_err:
         raise http_err

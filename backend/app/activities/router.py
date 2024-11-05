@@ -409,7 +409,7 @@ async def read_activities_contain_name(
 @router.post(
     "/create/upload",
     status_code=201,
-    response_model=activities_schema.Activity,
+    response_model=list[activities_schema.Activity],
 )
 async def create_activity_with_uploaded_file(
     token_user_id: Annotated[
@@ -426,7 +426,7 @@ async def create_activity_with_uploaded_file(
     ],
 ):
     try:
-        # Return activity
+        # Return activity/activities
         return activities_utils.parse_and_store_activity_from_uploaded_file(token_user_id, file, db)
     except Exception as err:
         # Log the exception

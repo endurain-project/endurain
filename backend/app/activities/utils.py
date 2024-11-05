@@ -87,20 +87,42 @@ def parse_and_store_activity_from_uploaded_file(
         parsed_info = parse_file(token_user_id, file_extension, file_path)
 
         if parsed_info is not None:
-            # Store the activity in the database
-            created_activity = store_activity(parsed_info, db)
+            created_activities = []
+            idsToFileName = ""
+            if file_extension.lower() == ".gpx":
+                # Store the activity in the database
+                created_activity = store_activity(parsed_info, db)
+                created_activities.append(created_activity)
+                idsToFileName = idsToFileName + str(created_activity.id)
+            elif file_extension.lower() == ".fit":
+                # Split the records by activity (check for multiple activities in the file)
+                split_records_by_activity = fit_utils.split_records_by_activity(parsed_info)
+
+                # Create activity objects for each activity in the file
+                created_activities_objects = fit_utils.create_activity_objects(split_records_by_activity, token_user_id)
+
+                for activity in created_activities_objects:
+                    # Store the activity in the database
+                    created_activity = store_activity(activity, db)
+                    created_activities.append(created_activity)
+
+                for index, activity in enumerate(created_activities):
+                    idsToFileName += str(activity.id)  # Add the id to the string
+                    # Add an underscore if it's not the last item
+                    if index < len(created_activities) - 1:
+                        idsToFileName += "_"  # Add an underscore if it's not the last item
 
             # Define the directory where the processed files will be stored
             processed_dir = "files/processed"
 
             # Define new file path with activity ID as filename
-            new_file_name = f"{created_activity.id}{file_extension}"
+            new_file_name = f"{idsToFileName}{file_extension}"
 
             # Move the file to the processed directory
             move_file(processed_dir, new_file_name, file_path)
 
             # Return the created activity
-            return created_activity
+            return created_activities
         else:
             return None
     except HTTPException as http_err:
@@ -148,16 +170,13 @@ def parse_file(token_user_id: int, file_extension: str, filename: str) -> dict:
                 parsed_info = gpx_utils.parse_gpx_file(filename, token_user_id)
             elif file_extension.lower() == ".fit":
                 # Parse the FIT file
-                parsed_info = fit_utils.parse_fit_file(filename, token_user_id)
+                parsed_info = fit_utils.parse_fit_file(filename)
             else:
                 # file extension not supported raise an HTTPException with a 406 Not Acceptable status code
                 raise HTTPException(
                     status_code=status.HTTP_406_NOT_ACCEPTABLE,
                     detail="File extension not supported. Supported file extensions are .gpx and .fit",
                 )
-
-            # Remove the file after processing
-            # os.remove(filename)
 
             return parsed_info
         else:
@@ -211,11 +230,7 @@ def parse_activity_streams_from_file(parsed_info: dict, activity_id: int):
         4: ("is_elevation_set", "ele_waypoints"),
         5: ("is_velocity_set", "vel_waypoints"),
         6: ("is_velocity_set", "pace_waypoints"),
-        7: (
-            lambda info: info["prev_latitude"] is not None
-            and info["prev_longitude"] is not None,
-            "lat_lon_waypoints",
-        ),
+        7: ("is_lat_lon_set", "lat_lon_waypoints"),
     }
 
     # Create a list of tuples containing stream type, is_set, and waypoints

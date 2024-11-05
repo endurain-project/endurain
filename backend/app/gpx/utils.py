@@ -54,6 +54,7 @@ def parse_gpx_file(file: str, user_id: int) -> dict:
         prev_latitude, prev_longitude = None, None
 
         # Initialize variables to store whether elevation, power, heart rate, cadence, and velocity are set
+        is_lat_lon_set = False
         is_elevation_set = False
         is_power_set = False
         is_heart_rate_set = False
@@ -168,6 +169,7 @@ def parse_gpx_file(file: str, user_id: int) -> dict:
                                     "lon": longitude,
                                 }
                             )
+                            is_lat_lon_set = True
 
                         activities_utils.append_if_not_none(
                             ele_waypoints, timestamp, elevation, "ele"
@@ -240,7 +242,7 @@ def parse_gpx_file(file: str, user_id: int) -> dict:
         activity = activities_schema.Activity(
             user_id=user_id,
             name=activity_name,
-            distance=round(distance),
+            distance=round(distance) if distance else None,
             activity_type=activity_type,
             start_time=first_waypoint_time.strftime("%Y-%m-%dT%H:%M:%S"),
             end_time=last_waypoint_time.strftime("%Y-%m-%dT%H:%M:%S"),
@@ -249,17 +251,17 @@ def parse_gpx_file(file: str, user_id: int) -> dict:
             city=city,
             town=town,
             country=country,
-            elevation_gain=round(ele_gain),
-            elevation_loss=round(ele_loss),
+            elevation_gain=round(ele_gain) if ele_gain else None,
+            elevation_loss=round(ele_loss) if ele_loss else None,
             pace=pace,
             average_speed=avg_speed,
             max_speed=max_speed,
-            average_power=round(avg_power),
+            average_power=round(avg_power) if avg_power else None,
             max_power=max_power,
-            normalized_power=round(np),
-            average_hr=round(avg_hr),
+            normalized_power=round(np) if np else None,
+            average_hr=round(avg_hr) if avg_hr else None,
             max_hr=max_hr,
-            average_cad=round(avg_cadence),
+            average_cad=round(avg_cadence) if avg_cadence else None,
             max_cad=max_cadence,
             calories=calories,
             visibility=visibility,
@@ -281,9 +283,8 @@ def parse_gpx_file(file: str, user_id: int) -> dict:
             "pace_waypoints": pace_waypoints,
             "is_cadence_set": is_cadence_set,
             "cad_waypoints": cad_waypoints,
+            "is_lat_lon_set": is_lat_lon_set,
             "lat_lon_waypoints": lat_lon_waypoints,
-            "prev_latitude": prev_latitude,
-            "prev_longitude": prev_longitude,
         }
 
     except HTTPException as http_err:
