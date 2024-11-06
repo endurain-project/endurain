@@ -463,7 +463,7 @@ def calculate_np(data):
         values = [
             float(waypoint["power"])
             for waypoint in data
-            if waypoint.get(type) is not None
+            if waypoint["power"] is not None
         ]
     except:
         # If there are no valid values, return 0
