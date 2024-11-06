@@ -12,6 +12,9 @@ import activity_streams.crud as activity_streams_crud
 
 import migrations.crud as migrations_crud
 
+# Define a loggger created on main.py
+mainLogger = logging.getLogger("myLogger")
+
 # Create loggger
 logger = logging.getLogger("migration_logger")
 logger.setLevel(logging.DEBUG)
@@ -65,10 +68,14 @@ def process_migration_1(db: Session):
         try:
             # Ensure start_time and end_time are datetime objects
             if isinstance(activity.start_time, str):
-                activity.start_time = datetime.strptime(activity.start_time, "%Y-%m-%d %H:%M:%S")
+                activity.start_time = datetime.strptime(
+                    activity.start_time, "%Y-%m-%d %H:%M:%S"
+                )
             if isinstance(activity.end_time, str):
-                activity.end_time = datetime.strptime(activity.end_time, "%Y-%m-%d %H:%M:%S")
-            
+                activity.end_time = datetime.strptime(
+                    activity.end_time, "%Y-%m-%d %H:%M:%S"
+                )
+
             # Initialize additional fields
             metrics = {
                 "avg_hr": None,
@@ -87,9 +94,10 @@ def process_migration_1(db: Session):
                 activity_streams = activity_streams_crud.get_activity_streams(
                     activity.id, db
                 )
-            except Exception as e:
+            except Exception as err:
                 logger.warning(
-                    f"Failed to fetch streams for activity {activity.id}: {e}"
+                    f"Failed to fetch streams for activity {activity.id}: {err}",
+                    exc_info=True,
                 )
                 activities_processed_with_no_errors = False
                 continue
@@ -143,19 +151,24 @@ def process_migration_1(db: Session):
             activities_crud.edit_activity(activity.user_id, activity, db)
             logger.info(f"Processed activity: {activity.id} - {activity.name}")
 
-        except Exception as e:
+        except Exception as err:
+            activities_processed_with_no_errors = False
             print(
                 f"Failed to process activity {activity.id}. Please check migrations log for more details."
             )
-            activities_processed_with_no_errors = False
-            logger.error(f"Failed to process activity {activity.id}: {e}")
+            mainLogger.error(
+                f"Failed to process activity {activity.id}. Please check migrations log for more details."
+            )
+            logger.error(
+                f"Failed to process activity {activity.id}: {err}", exc_info=True
+            )
 
     # Mark migration as executed
     if activities_processed_with_no_errors:
         try:
             migrations_crud.set_migration_as_executed(1, db)
-        except Exception as e:
-            logger.error(f"Failed to set migration as executed: {e}")
+        except Exception as err:
+            logger.error(f"Failed to set migration as executed: {err}", exc_info=True)
             return
     else:
         logger.error(
