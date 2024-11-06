@@ -460,7 +460,11 @@ def calculate_avg_and_max(data, type):
 def calculate_np(data):
     try:
         # Get the power values from the data
-        values = [float(waypoint["power"]) for waypoint in data]
+        values = [
+            float(waypoint["power"])
+            for waypoint in data
+            if waypoint.get(type) is not None
+        ]
     except:
         # If there are no valid values, return 0
         return 0
