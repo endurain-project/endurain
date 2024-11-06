@@ -37,7 +37,7 @@ async def parse_and_store_activity_from_file(
         with open(file_path, "rb") as file:
             # Parse the file
             parsed_info = parse_file(token_user_id, file_extension, file_path)
-            
+
             if parsed_info is not None:
                 created_activities = []
                 idsToFileName = ""
@@ -48,10 +48,14 @@ async def parse_and_store_activity_from_file(
                     idsToFileName = idsToFileName + str(created_activity.id)
                 elif file_extension.lower() == ".fit":
                     # Split the records by activity (check for multiple activities in the file)
-                    split_records_by_activity = fit_utils.split_records_by_activity(parsed_info)
+                    split_records_by_activity = fit_utils.split_records_by_activity(
+                        parsed_info
+                    )
 
                     # Create activity objects for each activity in the file
-                    created_activities_objects = fit_utils.create_activity_objects(split_records_by_activity, token_user_id)
+                    created_activities_objects = fit_utils.create_activity_objects(
+                        split_records_by_activity, token_user_id
+                    )
 
                     for activity in created_activities_objects:
                         # Store the activity in the database
@@ -62,7 +66,9 @@ async def parse_and_store_activity_from_file(
                         idsToFileName += str(activity.id)  # Add the id to the string
                         # Add an underscore if it's not the last item
                         if index < len(created_activities) - 1:
-                            idsToFileName += "_"  # Add an underscore if it's not the last item
+                            idsToFileName += (
+                                "_"  # Add an underscore if it's not the last item
+                            )
 
                 # Define the directory where the processed files will be stored
                 processed_dir = "files/processed"
@@ -118,10 +124,14 @@ def parse_and_store_activity_from_uploaded_file(
                 idsToFileName = idsToFileName + str(created_activity.id)
             elif file_extension.lower() == ".fit":
                 # Split the records by activity (check for multiple activities in the file)
-                split_records_by_activity = fit_utils.split_records_by_activity(parsed_info)
+                split_records_by_activity = fit_utils.split_records_by_activity(
+                    parsed_info
+                )
 
                 # Create activity objects for each activity in the file
-                created_activities_objects = fit_utils.create_activity_objects(split_records_by_activity, token_user_id)
+                created_activities_objects = fit_utils.create_activity_objects(
+                    split_records_by_activity, token_user_id
+                )
 
                 for activity in created_activities_objects:
                     # Store the activity in the database
@@ -132,7 +142,9 @@ def parse_and_store_activity_from_uploaded_file(
                     idsToFileName += str(activity.id)  # Add the id to the string
                     # Add an underscore if it's not the last item
                     if index < len(created_activities) - 1:
-                        idsToFileName += "_"  # Add an underscore if it's not the last item
+                        idsToFileName += (
+                            "_"  # Add an underscore if it's not the last item
+                        )
 
             # Define the directory where the processed files will be stored
             processed_dir = "files/processed"
@@ -431,7 +443,9 @@ def calculate_pace(distance, first_waypoint_time, last_waypoint_time):
 def calculate_avg_and_max(data, type):
     try:
         # Get the values from the data
-        values = [float(waypoint[type]) for waypoint in data]
+        values = [
+            float(waypoint[type]) for waypoint in data if waypoint.get(type) is not None
+        ]
     except (ValueError, KeyError):
         # If there are no valid values, return 0
         return 0, 0
