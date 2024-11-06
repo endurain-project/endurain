@@ -28,16 +28,18 @@
 
 <script>
 import { onMounted } from "vue";
+import { useI18n } from "vue-i18n";
 
 import { useThemeStore } from "@/stores/themeStore";
 
 export default {
 	setup() {
 		const themeStore = useThemeStore();
+		const { t } = useI18n();
 		const themes = [
-			{ value: "light", label: "Light" },
-			{ value: "dark", label: "Dark" },
-			{ value: "auto", label: "Auto" },
+			{ value: "light", label: t("settingsThemeSwitcher.themeLight") },
+			{ value: "dark", label: t("settingsThemeSwitcher.themeDark") },
+			{ value: "auto", label: t("settingsThemeSwitcher.themeAuto") },
 		];
 
 		const setTheme = (theme) => {
