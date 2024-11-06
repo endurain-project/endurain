@@ -37,22 +37,44 @@ async def parse_and_store_activity_from_file(
         with open(file_path, "rb") as file:
             # Parse the file
             parsed_info = parse_file(token_user_id, file_extension, file_path)
-
+            
             if parsed_info is not None:
-                # Store the activity in the database
-                created_activity = store_activity(parsed_info, db)
+                created_activities = []
+                idsToFileName = ""
+                if file_extension.lower() == ".gpx":
+                    # Store the activity in the database
+                    created_activity = store_activity(parsed_info, db)
+                    created_activities.append(created_activity)
+                    idsToFileName = idsToFileName + str(created_activity.id)
+                elif file_extension.lower() == ".fit":
+                    # Split the records by activity (check for multiple activities in the file)
+                    split_records_by_activity = fit_utils.split_records_by_activity(parsed_info)
+
+                    # Create activity objects for each activity in the file
+                    created_activities_objects = fit_utils.create_activity_objects(split_records_by_activity, token_user_id)
+
+                    for activity in created_activities_objects:
+                        # Store the activity in the database
+                        created_activity = store_activity(activity, db)
+                        created_activities.append(created_activity)
+
+                    for index, activity in enumerate(created_activities):
+                        idsToFileName += str(activity.id)  # Add the id to the string
+                        # Add an underscore if it's not the last item
+                        if index < len(created_activities) - 1:
+                            idsToFileName += "_"  # Add an underscore if it's not the last item
 
                 # Define the directory where the processed files will be stored
                 processed_dir = "files/processed"
 
                 # Define new file path with activity ID as filename
-                new_file_name = f"{created_activity.id}{file_extension}"
+                new_file_name = f"{idsToFileName}{file_extension}"
 
                 # Move the file to the processed directory
                 move_file(processed_dir, new_file_name, file_path)
 
                 # Return the created activity
-                return created_activity
+                return created_activities
             else:
                 return None
     except HTTPException:
