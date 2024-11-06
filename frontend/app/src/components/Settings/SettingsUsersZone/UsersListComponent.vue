@@ -121,7 +121,7 @@
                                     <option value="2">{{ $t("settingsUsersZone.addUserModalUserTypeOption2") }}</option>
                                 </select>
                                 <!-- user is_active fields -->
-                                <label for="userIsActiveEdit"><b>* {{ $t("usersListComponent.modalEditUserTitle") }}</b></label>
+                                <label for="userIsActiveEdit"><b>* {{ $t("usersListComponent.modalEditUserIsUserActiveLabel") }}</b></label>
                                 <select class="form-control" name="userIsActiveEdit" v-model="editUserIsActive" required>
                                     <option value="1">{{ $t("usersListComponent.modalEditUserIsUserActiveOption1") }}</option>
                                     <option value="2">{{ $t("usersListComponent.modalEditUserIsUserActiveOption2") }}</option>
