@@ -21,7 +21,7 @@
                                 {{ $t("settingsUserProfileZone.modalDeleteProfilePhotoBody") }}
                             </div>
                             <div class="modal-footer">
-                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ $t("generalItens.buttonClose") }}</button>
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ $t("generalItems.buttonClose") }}</button>
                                 <a type="button" class="btn btn-danger" data-bs-dismiss="modal" @click="submitDeleteUserPhoto">{{ $t("settingsUserProfileZone.buttonDeleteProfilePhoto") }}</a>
                             </div>
                         </div>
@@ -76,12 +76,12 @@
                                     <!-- preferred language fields -->
                                     <label for="userPreferredLanguageEdit"><b>* {{ $t("settingsUsersZone.addUserModalUserPreferedLanguageLabel") }}</b></label>
                                     <select class="form-control" name="userPreferredLanguageEdit" v-model="editUserPreferredLanguage" required>
-                                        <option value="en">{{ $t("settingsUsersZone.addUserModalPreferredLanguageOption1") }}</option>
+                                        <option value="us">{{ $t("settingsUsersZone.addUserModalPreferredLanguageOption1") }}</option>
                                     </select>
-                                    <p>* {{ $t("generalItens.requiredField") }}</p>
+                                    <p>* {{ $t("generalItems.requiredField") }}</p>
                                 </div>
                                 <div class="modal-footer">
-                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ $t("generalItens.buttonClose") }}</button>
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ $t("generalItems.buttonClose") }}</button>
                                     <button type="submit" class="btn btn-success" name="userEdit" data-bs-dismiss="modal">{{ $t("usersListComponent.modalEditUserTitle") }}</button>
                                 </div>
                             </form>
@@ -110,7 +110,7 @@
                 </p>
                 <p>
                     <b>{{ $t("settingsUsersZone.addUserModalUserPreferedLanguageLabel") }}: </b>
-                    <span v-if="authStore.user.preferred_language == 'en'">{{ $t("settingsUsersZone.addUserModalPreferredLanguageOption1") }}</span>
+                    <span v-if="authStore.user.preferred_language == 'us'">{{ $t("settingsUsersZone.addUserModalPreferredLanguageOption1") }}</span>
                 </p>
                 <p>
                     <b>{{ $t("settingsUsersZone.addUserModalUserTypeLabel") }}: </b>
@@ -123,116 +123,118 @@
 </template>
 
 <script>
-import { ref } from 'vue';
-import { useI18n } from 'vue-i18n';
+import { ref } from "vue";
+import { useI18n } from "vue-i18n";
 // Importing the services
-import { profile } from '@/services/profileService';
+import { profile } from "@/services/profileService";
 // Import the stores
-import { useAuthStore } from '@/stores/authStore';
-// Importing the utils
-import { addToast } from '@/utils/toastUtils';
+import { useAuthStore } from "@/stores/authStore";
+// Import Notivue push
+import { push } from "notivue";
 // Importing the components
-import UserAvatarComponent from '../Users/UserAvatarComponent.vue';
+import UserAvatarComponent from "../Users/UserAvatarComponent.vue";
 
 export default {
-    components: {
-        UserAvatarComponent,
-    },
-    setup() {
-        const authStore = useAuthStore();
-        const { t, locale } = useI18n();
-        const editUserPhotoFile = ref(null);
-        const editUserUsername = ref(authStore.user.username);
-        const editUserName = ref(authStore.user.name);
-        const editUserEmail = ref(authStore.user.email);
-        const editUserTown = ref(authStore.user.city);
-        const editUserBirthdate = ref(authStore.user.birthdate);
-        const editUserGender = ref(authStore.user.gender);
-        const editUserPreferredLanguage = ref(authStore.user.preferred_language);
-        const editUserAccessType = ref(authStore.user.access_type);
+	components: {
+		UserAvatarComponent,
+	},
+	setup() {
+		const authStore = useAuthStore();
+		const { t, locale } = useI18n();
+		const editUserPhotoFile = ref(null);
+		const editUserUsername = ref(authStore.user.username);
+		const editUserName = ref(authStore.user.name);
+		const editUserEmail = ref(authStore.user.email);
+		const editUserTown = ref(authStore.user.city);
+		const editUserBirthdate = ref(authStore.user.birthdate);
+		const editUserGender = ref(authStore.user.gender);
+		const editUserPreferredLanguage = ref(authStore.user.preferred_language);
+		const editUserAccessType = ref(authStore.user.access_type);
 
-        async function handleFileChange(event) {
-            if (event.target.files && event.target.files[0]) {
-                editUserPhotoFile.value = event.target.files[0];
-            } else {
-                editUserPhotoFile.value = null;
-            }
-        }
+		async function handleFileChange(event) {
+			editUserPhotoFile.value = event.target.files?.[0] ?? null;
+		}
 
-        async function submitEditUserForm() {
-            try {
-                const data = {
-                    id: authStore.user.id,
-                    username: editUserUsername.value,
-                    name: editUserName.value,
-                    email: editUserEmail.value,
-                    city: editUserTown.value,
-                    birthdate: editUserBirthdate.value,
-                    gender: editUserGender.value,
-                    preferred_language: editUserPreferredLanguage.value,
-                    access_type: editUserAccessType.value,
-                    photo_path: null,
-                    is_active: 1,
-                };
+		async function submitEditUserForm() {
+			try {
+				const data = {
+					id: authStore.user.id,
+					username: editUserUsername.value,
+					name: editUserName.value,
+					email: editUserEmail.value,
+					city: editUserTown.value,
+					birthdate: editUserBirthdate.value,
+					gender: editUserGender.value,
+					preferred_language: editUserPreferredLanguage.value,
+					access_type: editUserAccessType.value,
+					photo_path: null,
+					is_active: 1,
+				};
 
-                await profile.editProfile(data);
+				await profile.editProfile(data);
 
-                // If there is a photo, upload it and get the photo url.
-                if (editUserPhotoFile.value) {
-                    try {
-                        data.photo_path = await profile.uploadProfileImage(editUserPhotoFile.value);
-                    } catch (error) {
-                        // Set the error message
-                        addToast(t('generalItens.errorFetchingInfo') + " - " + error, 'danger', true);
-                    }
-                }
-                
-                // Save the user data in the local storage and in the store.
-                authStore.setUser(data, locale);
+				// If there is a photo, upload it and get the photo url.
+				if (editUserPhotoFile.value) {
+					try {
+						data.photo_path = await profile.uploadProfileImage(
+							editUserPhotoFile.value,
+						);
+					} catch (error) {
+						// Set the error message
+						push.error(`${t("generalItems.errorFetchingInfo")} - ${error}`);
+					}
+				}
 
-                // Set the success message and show the success alert.
-                addToast(t('usersListComponent.userEditSuccessMessage'), 'success', true);
-            } catch (error) {
-                // If there is an error, set the error message and show the error alert.
-                addToast(t('usersListComponent.userEditErrorMessage') + " - " + error, 'danger', true);
-            }
-        }
+				// Save the user data in the local storage and in the store.
+				authStore.setUser(data, locale);
 
-        async function submitDeleteUserPhoto() {
-            try {
-                // Delete the user photo from the server
-                await profile.deleteProfilePhoto();
+				// Set the success message and show the success alert.
+				push.success(t("usersListComponent.userEditSuccessMessage"));
+			} catch (error) {
+				// If there is an error, set the error message and show the error alert.
+				push.error(
+					`${t("usersListComponent.userEditErrorMessage")} - ${error}`,
+				);
+			}
+		}
 
-                // Update the user photo
-                const user = authStore.user;
-                user.photo_path = null;
+		async function submitDeleteUserPhoto() {
+			try {
+				// Delete the user photo from the server
+				await profile.deleteProfilePhoto();
 
-                // Save the user data in the local storage and in the store.
-                authStore.setUser(user, locale);
+				// Update the user photo
+				const user = authStore.user;
+				user.photo_path = null;
 
-                // Set the success message and show the success alert.
-                addToast(t('usersListComponent.userPhotoDeleteSuccessMessage'), 'success', true);
-            } catch (error) {
-                // Set the error message
-                addToast(t('usersListComponent.userPhotoDeleteErrorMessage') + " - " + error, 'danger', true);
-            }
-        }
+				// Save the user data in the local storage and in the store.
+				authStore.setUser(user, locale);
 
-        return {
-            authStore,
-            t,
-            editUserUsername,
-            editUserName,
-            editUserEmail,
-            editUserTown,
-            editUserBirthdate,
-            editUserGender,
-            editUserPreferredLanguage,
-            editUserAccessType,
-            submitEditUserForm,
-            submitDeleteUserPhoto,
-            handleFileChange,
-        };
-    },
+				// Set the success message and show the success alert.
+				push.success(t("usersListComponent.userPhotoDeleteSuccessMessage"));
+			} catch (error) {
+				// Show the error message
+				push.error(
+					`${t("usersListComponent.userPhotoDeleteErrorMessage")} - ${error}`,
+				);
+			}
+		}
+
+		return {
+			authStore,
+			t,
+			editUserUsername,
+			editUserName,
+			editUserEmail,
+			editUserTown,
+			editUserBirthdate,
+			editUserGender,
+			editUserPreferredLanguage,
+			editUserAccessType,
+			submitEditUserForm,
+			submitDeleteUserPhoto,
+			handleFileChange,
+		};
+	},
 };
 </script>

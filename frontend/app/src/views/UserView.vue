@@ -53,7 +53,7 @@
             <div v-if="isLoading">
                 <LoadingComponent />
             </div>
-            <UserDistanceStatsComponent :thisWeekDistances="thisWeekDistances" :thisMonthDistances="thisMonthDistances" v-else />
+            <UserDistanceStatsComponent :thisWeekDistances="thisWeekDistances" :thisMonthDistances="thisMonthDistances" v-else/>
         </div>
     </div>
 
@@ -112,7 +112,7 @@
                         </div>
                         <div class="modal-footer">
                             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                                {{ $t("generalItens.buttonClose") }}
+                                {{ $t("generalItems.buttonClose") }}
                             </button>
                             <a type="button" class="btn btn-success" data-bs-dismiss="modal" @click="submitFollowUser">
                                 {{ $t("userView.modalFollowUserTitle") }}
@@ -145,7 +145,7 @@
                         </div>
                         <div class="modal-footer">
                             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                                {{ $t("generalItens.buttonClose") }}
+                                {{ $t("generalItems.buttonClose") }}
                             </button>
                             <a type="button" class="btn btn-danger" data-bs-dismiss="modal" @click="submitCancelFollowUser">
                                 {{ $t("userView.modalCancelFollowRequestTitle") }}
@@ -178,7 +178,7 @@
                         </div>
                         <div class="modal-footer">
                             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                                {{ $t("generalItens.buttonClose") }}
+                                {{ $t("generalItems.buttonClose") }}
                             </button>
                             <a type="button" class="btn btn-danger" data-bs-dismiss="modal" @click="submitUnfollowUser">
                                 {{ $t("userView.modalUnfollowUserTitle") }}
@@ -241,7 +241,7 @@
         <div class="tab-pane fade" id="pills-following" role="tabpanel" aria-labelledby="pills-following-tab" tabindex="0">
             <ul class="list-group list-group-flush align-items-center" v-if="followersAll && followersAll.length">
                 <li class="list-group-item d-flex justify-content-between" v-for="follower in followersAll" :key="follower.following_id">
-                    <FollowersListComponent :follower="follower" :type="1" @followingDeleted="updateFollowingList"/>
+                    <FollowersListComponent :follower="follower" :type=1 @followingDeleted="updateFollowingList"/>
                 </li>
             </ul>
             <!-- Displaying a message or component when there are no following users -->
@@ -252,7 +252,7 @@
         <div class="tab-pane fade" id="pills-followers" role="tabpanel" aria-labelledby="pills-followers-tab" tabindex="0">
             <ul class="list-group list-group-flush align-items-center" v-if="followingAll && followingAll.length">
                 <li class="list-group-item d-flex justify-content-between" v-for="follower in followingAll" :key="follower.follower_id">
-                    <FollowersListComponent :follower="follower" :type="2" @followerDeleted="updateFollowerList" @followerAccepted="updateFollowerListWithAccepted"/>
+                    <FollowersListComponent :follower="follower" :type=2 @followerDeleted="updateFollowerList" @followerAccepted="updateFollowerListWithAccepted"/>
                 </li>
             </ul>
             <!-- Displaying a message or component when there are no following users -->
@@ -274,8 +274,8 @@ import { useAuthStore } from '@/stores/authStore';
 import { users } from '@/services/usersService';
 import { activities } from '@/services/activitiesService';
 import { followers } from '@/services/followersService';
-// Importing the utils
-import { addToast } from '@/utils/toastUtils';
+// Import Notivue push
+import { push } from 'notivue'
 // Importing the components
 import UserDistanceStatsComponent from '@/components/Activities/UserDistanceStatsComponent.vue';
 import LoadingComponent from '@/components/GeneralComponents/LoadingComponent.vue';
@@ -298,6 +298,7 @@ export default {
         UserAvatarComponent,
     },
     setup () {
+        const { t } = useI18n();
         const authStore = useAuthStore();
         const route = useRoute();
         const userProfile = ref(null);
@@ -310,13 +311,12 @@ export default {
         const followingAll = ref([]);
         const isLoading = ref(true);
         const isActivitiesLoading = ref(true);
-        const { t } = useI18n();
         const week = ref(0);
         const totalWeeks = 50;
         const weekRange = 1;
         const visibleWeeks = computed(() => {
-            let start = Math.max(1, week.value - weekRange);
-            let end = Math.min(totalWeeks, week.value + weekRange);
+            const start = Math.max(1, week.value - weekRange);
+            const end = Math.min(totalWeeks, week.value + weekRange);
             return Array.from({ length: end - start + 1 }, (_, i) => i + start);
         });
         const userWeekActivities = ref([]);
@@ -328,7 +328,7 @@ export default {
                 thisMonthDistances.value = await activities.getUserThisMonthStats(authStore.user.id);
             } catch (error) {
                 // Set the error message
-                addToast(t('generalItens.errorFetchingInfo'), 'danger', true);
+                push.error(`${t('generalItems.errorFetchingInfo')} - ${error}`)
             }
         }
 
@@ -339,7 +339,7 @@ export default {
                 followingCountAccepted.value = await followers.getUserFollowersCountAccepted(route.params.id);
 
                 // Fetch the user followers and following accepted count
-                if (route.params.id == authStore.user.id) {
+                if (Number(route.params.id) === authStore.user.id) {
                     // Fetch the user followers and following
                     followersAll.value = await followers.getUserFollowingAll(authStore.user.id);
                     followingAll.value = await followers.getUserFollowersAll(authStore.user.id);
@@ -350,7 +350,7 @@ export default {
                 }
             } catch (error) {
                 // Set the error message
-                addToast(t('generalItens.errorFetchingInfo') + " - " + error.toString(), 'danger', true);
+                push.error(`${t('generalItems.errorFetchingInfo')} - ${error}`)
             }
         }
 
@@ -374,11 +374,11 @@ export default {
                 userWeekActivities.value = await activities.getUserWeekActivities(route.params.id, week.value);
 
                 // Fetch the user follow state
-                if (route.params.id != authStore.user.id) {
+                if (Number(route.params.id) !== authStore.user.id) {
                     userFollowState.value = await followers.getUserFollowState(authStore.user.id, route.params.id);
                 }
             } catch (error) {
-                addToast(t('generalItens.errorFetchingInfo') + " - " + error.toString(), 'danger', true);
+                push.error(`${t('generalItems.errorFetchingInfo')} - ${error}`)
             }
             isLoading.value = false;
             isActivitiesLoading.value = false;
@@ -413,7 +413,7 @@ export default {
                 userWeekActivities.value = await activities.getUserWeekActivities(userProfile.value.id, week.value);
             } catch (error) {
                 // Set the error message
-                addToast(t('generalItens.errorEditingInfo') + " - " + error.toString(), 'danger', true);
+                push.error(`${t('generalItems.errorEditingInfo')} - ${error}`)
             } finally {
                 isActivitiesLoading.value = false;
             }
@@ -430,11 +430,11 @@ export default {
 
             // will remove the follower from the list
             followersAll.value = followersAll.value.filter(follower => follower.following_id !== deletedFollowingId);
-            addToast(t('user.successFollowingDeleted'), 'success', true);
+            push.success(t('userView.successFollowingDeleted'))
         }
 
         function updateFollowerList(deletedFollowerId){
-            if (authStore.user.id != userProfile.value.id) {
+            if (authStore.user.id !== userProfile.value.id) {
                 // will get the following to remove
                 const auxFollowing = followingAll.value.find(follower => follower.following_id === deletedFollowerId);
                 
@@ -445,7 +445,7 @@ export default {
 
                 // will remove the following from the list
                 followingAll.value = followingAll.value.filter(follower => follower.following_id !== deletedFollowerId);
-                addToast(t('user.successFollowerDeleted'), 'success', true);
+                push.success(t('userView.successFollowerDeleted'))
             }else{
                 // will get the following to remove
                 const auxFollowing = followingAll.value.find(follower => follower.follower_id === deletedFollowerId);
@@ -457,7 +457,7 @@ export default {
 
                 // will remove the following from the list
                 followingAll.value = followingAll.value.filter(follower => follower.follower_id !== deletedFollowerId);
-                addToast(t('user.successFollowerDeleted'), 'success', true);
+                push.success(t('userView.successFollowerDeleted'))
 
             }
         }
@@ -475,7 +475,7 @@ export default {
             followersCountAccepted.value += 1;
 
             // Set the success message
-            addToast(t('user.successFollowerAccepted'), 'success', true);
+            push.success(t('userView.successFollowerAccepted'))
         }
 
         async function submitFollowUser() {
@@ -490,10 +490,10 @@ export default {
                 userFollowState.value = 0;
 
                 // Set the success message
-                addToast(t('user.successFollowRequestSent'), 'success', true);
+                push.success(t('userView.successFollowRequestSent'))
             } catch (error) {
                 // Set the error message
-                addToast(t('user.errorUnableToSendFollow') + " - " + error.toString(), 'danger', true);
+                push.error(`${t('user.errorUnableToSendFollow')} - ${error}`)
             }
         }
 
@@ -514,10 +514,10 @@ export default {
                 await unfollowUser();
 
                 // Set the success message
-                addToast(t('user.successFollowRequestCancelled'), 'success', true);
+                push.success(t('userView.successFollowRequestCancelled'))
             } catch (error) {
                 // Set the error message
-                addToast(t('user.errorUnableToSendFollow') + " - " + error.toString(), 'danger', true);
+                push.error(`${t('user.errorUnableToSendFollow')} - ${error}`)
             }
         }
 
@@ -530,10 +530,10 @@ export default {
                 followingCountAccepted.value -= 1;
 
                 // Set the success message
-                addToast(t('user.successUserUnfollowed'), 'success', true);
+                push.success(t('userView.successUserUnfollowed'))
             } catch (error) {
                 // Set the error message
-                addToast(t('user.errorUnableToUnfollow') + " - " + error.toString(), 'danger', true);
+                push.error(`${t('user.errorUnableToUnfollow')} - ${error}`)
             }
         }
 

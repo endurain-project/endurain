@@ -1,11 +1,12 @@
 import logging
 import os
+import shutil
 import requests
-import math
+from geopy.distance import geodesic
+import numpy as np
 
 from fastapi import HTTPException, status, UploadFile
 
-from typing import Union
 from datetime import datetime
 from urllib.parse import urlencode
 from statistics import mean
@@ -16,6 +17,7 @@ import activities.schema as activities_schema
 import activities.crud as activities_crud
 
 import activity_streams.crud as activity_streams_crud
+import activity_streams.schema as activity_streams_schema
 
 import gpx.utils as gpx_utils
 import fit.utils as fit_utils
@@ -36,20 +38,58 @@ async def parse_and_store_activity_from_file(
             # Parse the file
             parsed_info = parse_file(token_user_id, file_extension, file_path)
 
-            # Store the activity in the database
-            created_activity = store_activity(parsed_info, db)
+            if parsed_info is not None:
+                created_activities = []
+                idsToFileName = ""
+                if file_extension.lower() == ".gpx":
+                    # Store the activity in the database
+                    created_activity = store_activity(parsed_info, db)
+                    created_activities.append(created_activity)
+                    idsToFileName = idsToFileName + str(created_activity.id)
+                elif file_extension.lower() == ".fit":
+                    # Split the records by activity (check for multiple activities in the file)
+                    split_records_by_activity = fit_utils.split_records_by_activity(
+                        parsed_info
+                    )
 
-            # Return the created activity
-            return created_activity
+                    # Create activity objects for each activity in the file
+                    created_activities_objects = fit_utils.create_activity_objects(
+                        split_records_by_activity, token_user_id
+                    )
+
+                    for activity in created_activities_objects:
+                        # Store the activity in the database
+                        created_activity = store_activity(activity, db)
+                        created_activities.append(created_activity)
+
+                    for index, activity in enumerate(created_activities):
+                        idsToFileName += str(activity.id)  # Add the id to the string
+                        # Add an underscore if it's not the last item
+                        if index < len(created_activities) - 1:
+                            idsToFileName += (
+                                "_"  # Add an underscore if it's not the last item
+                            )
+
+                # Define the directory where the processed files will be stored
+                processed_dir = "files/processed"
+
+                # Define new file path with activity ID as filename
+                new_file_name = f"{idsToFileName}{file_extension}"
+
+                # Move the file to the processed directory
+                move_file(processed_dir, new_file_name, file_path)
+
+                # Return the created activity
+                return created_activities
+            else:
+                return None
+    except HTTPException:
+        pass
     except Exception as err:
         # Log the exception
         logger.error(
-            f"Error in parse_and_store_activity_from_file: {err}", exc_info=True
+            f"Error in parse_and_store_activity_from_file - {str(err)}", exc_info=True
         )
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Internal Server Error",
-        ) from err
 
 
 def parse_and_store_activity_from_uploaded_file(
@@ -59,49 +99,132 @@ def parse_and_store_activity_from_uploaded_file(
     # Get file extension
     _, file_extension = os.path.splitext(file.filename)
 
-    # Save the uploaded file in the 'uploads' directory
-    with open(file.filename, "wb") as save_file:
-        save_file.write(file.file.read())
+    try:
+        # Ensure the 'files' directory exists
+        upload_dir = "files"
+        os.makedirs(upload_dir, exist_ok=True)
 
-    # Parse the file
-    parsed_info = parse_file(token_user_id, file_extension, file.filename)
+        # Build the full path where the file will be saved
+        file_path = os.path.join(upload_dir, file.filename)
 
-    # Store the activity in the database
-    created_activity = store_activity(parsed_info, db)
+        # Save the uploaded file in the 'files' directory
+        with open(file_path, "wb") as save_file:
+            save_file.write(file.file.read())
 
-    # Return the created activity
-    return created_activity
+        # Parse the file
+        parsed_info = parse_file(token_user_id, file_extension, file_path)
+
+        if parsed_info is not None:
+            created_activities = []
+            idsToFileName = ""
+            if file_extension.lower() == ".gpx":
+                # Store the activity in the database
+                created_activity = store_activity(parsed_info, db)
+                created_activities.append(created_activity)
+                idsToFileName = idsToFileName + str(created_activity.id)
+            elif file_extension.lower() == ".fit":
+                # Split the records by activity (check for multiple activities in the file)
+                split_records_by_activity = fit_utils.split_records_by_activity(
+                    parsed_info
+                )
+
+                # Create activity objects for each activity in the file
+                created_activities_objects = fit_utils.create_activity_objects(
+                    split_records_by_activity, token_user_id
+                )
+
+                for activity in created_activities_objects:
+                    # Store the activity in the database
+                    created_activity = store_activity(activity, db)
+                    created_activities.append(created_activity)
+
+                for index, activity in enumerate(created_activities):
+                    idsToFileName += str(activity.id)  # Add the id to the string
+                    # Add an underscore if it's not the last item
+                    if index < len(created_activities) - 1:
+                        idsToFileName += (
+                            "_"  # Add an underscore if it's not the last item
+                        )
+
+            # Define the directory where the processed files will be stored
+            processed_dir = "files/processed"
+
+            # Define new file path with activity ID as filename
+            new_file_name = f"{idsToFileName}{file_extension}"
+
+            # Move the file to the processed directory
+            move_file(processed_dir, new_file_name, file_path)
+
+            # Return the created activity
+            return created_activities
+        else:
+            return None
+    except HTTPException as http_err:
+        raise http_err
+    except Exception as err:
+        # Log the exception
+        logger.error(
+            f"Error in parse_and_store_activity_from_uploaded_file - {str(err)}",
+            exc_info=True,
+        )
+        # Raise an HTTPException with a 500 Internal Server Error status code
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Internal Server Error: {str(err)}",
+        ) from err
+
+
+def move_file(new_dir: str, new_filename: str, file_path: str):
+    try:
+        # Ensure the new directory exists
+        os.makedirs(new_dir, exist_ok=True)
+
+        # Define the new file path
+        new_file_path = os.path.join(new_dir, new_filename)
+
+        # Move the file
+        shutil.move(file_path, new_file_path)
+    except Exception as err:
+        # Log the exception
+        logger.error(f"Error in move_file - {str(err)}", exc_info=True)
+        # Raise an HTTPException with a 500 Internal Server Error status code
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Internal Server Error: {str(err)}",
+        ) from err
 
 
 def parse_file(token_user_id: int, file_extension: str, filename: str) -> dict:
     try:
-        # Choose the appropriate parser based on file extension
-        if file_extension.lower() == ".gpx":
-            # Parse the GPX file
-            parsed_info = gpx_utils.parse_gpx_file(filename, token_user_id)
-        elif file_extension.lower() == ".fit":
-            # Parse the FIT file
-            parsed_info = fit_utils.parse_fit_file(filename, token_user_id)
-        else:
-            # file extension not supported raise an HTTPException with a 406 Not Acceptable status code
-            raise HTTPException(
-                status_code=status.HTTP_406_NOT_ACCEPTABLE,
-                detail="File extension not supported. Supported file extensions are .gpx and .fit",
-            )
+        if filename.lower() != "bulk_import/__init__.py":
+            logger.info(f"Parsing file: {filename}")
+            # Choose the appropriate parser based on file extension
+            if file_extension.lower() == ".gpx":
+                # Parse the GPX file
+                parsed_info = gpx_utils.parse_gpx_file(filename, token_user_id)
+            elif file_extension.lower() == ".fit":
+                # Parse the FIT file
+                parsed_info = fit_utils.parse_fit_file(filename)
+            else:
+                # file extension not supported raise an HTTPException with a 406 Not Acceptable status code
+                raise HTTPException(
+                    status_code=status.HTTP_406_NOT_ACCEPTABLE,
+                    detail="File extension not supported. Supported file extensions are .gpx and .fit",
+                )
 
-        # Return the parsed information
-        return parsed_info
+            return parsed_info
+        else:
+            return None
+    except HTTPException as http_err:
+        raise http_err
     except Exception as err:
         # Log the exception
-        logger.error(f"Error in parse_file: {err}", exc_info=True)
+        logger.error(f"Error in parse_file - {str(err)}", exc_info=True)
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Internal Server Error",
+            detail=f"Internal Server Error: {str(err)}",
         ) from err
-    finally:
-        # Remove the file after processing
-        os.remove(filename)
 
 
 def store_activity(parsed_info: dict, db: Session):
@@ -110,6 +233,10 @@ def store_activity(parsed_info: dict, db: Session):
 
     # Check if created_activity is None
     if created_activity is None:
+        # Log the error
+        logger.error(
+            "Error in store_activity - activity is None, error creating activity"
+        )
         # raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -117,7 +244,7 @@ def store_activity(parsed_info: dict, db: Session):
         )
 
     # Parse the activity streams from the parsed info
-    activity_streams = gpx_utils.parse_activity_streams_from_gpx_file(
+    activity_streams = parse_activity_streams_from_file(
         parsed_info, created_activity.id
     )
 
@@ -128,8 +255,48 @@ def store_activity(parsed_info: dict, db: Session):
     return created_activity
 
 
+def parse_activity_streams_from_file(parsed_info: dict, activity_id: int):
+    # Create a dictionary mapping stream types to is_set keys and waypoints keys
+    stream_mapping = {
+        1: ("is_heart_rate_set", "hr_waypoints"),
+        2: ("is_power_set", "power_waypoints"),
+        3: ("is_cadence_set", "cad_waypoints"),
+        4: ("is_elevation_set", "ele_waypoints"),
+        5: ("is_velocity_set", "vel_waypoints"),
+        6: ("is_velocity_set", "pace_waypoints"),
+        7: ("is_lat_lon_set", "lat_lon_waypoints"),
+    }
+
+    # Create a list of tuples containing stream type, is_set, and waypoints
+    stream_data_list = [
+        (
+            stream_type,
+            (
+                is_set_key(parsed_info)
+                if callable(is_set_key)
+                else parsed_info[is_set_key]
+            ),
+            parsed_info[waypoints_key],
+        )
+        for stream_type, (is_set_key, waypoints_key) in stream_mapping.items()
+        if (
+            is_set_key(parsed_info) if callable(is_set_key) else parsed_info[is_set_key]
+        )
+    ]
+
+    # Return activity streams as a list of ActivityStreams objects
+    return [
+        activity_streams_schema.ActivityStreams(
+            activity_id=activity_id,
+            stream_type=stream_type,
+            stream_waypoints=waypoints,
+            strava_activity_stream_id=None,
+        )
+        for stream_type, is_set, waypoints in stream_data_list
+    ]
+
+
 def calculate_activity_distances(activities: list[activities_schema.Activity]):
-    """Calculate the distances of the activities for each type of activity (run, bike, swim)"""
     # Initialize the distances
     run = bike = swim = 0.0
 
@@ -149,6 +316,9 @@ def calculate_activity_distances(activities: list[activities_schema.Activity]):
 
 def location_based_on_coordinates(latitude, longitude) -> dict | None:
     if latitude is None or longitude is None:
+        return None
+
+    if os.environ.get("GEOCODES_MAPS_API") == "changeme":
         return None
 
     # Create a dictionary with the parameters for the request
@@ -176,37 +346,19 @@ def location_based_on_coordinates(latitude, longitude) -> dict | None:
             "town": data.get("town"),
             "country": data.get("country"),
         }
-
     except requests.exceptions.RequestException as err:
         # Log the error
-        logger.error(
-            f"Error in upload_file querying local from geocode: {err}",
-            exc_info=True,
+        logger.error(f"Error in location_based_on_coordinates - {str(err)}")
+        print(f"Error in location_based_on_coordinates - {str(err)}")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=f"Error in location_based_on_coordinates: {str(err)}",
         )
 
 
-def calculate_distance(lat1, lon1, lat2, lon2):
-
-    # The radius of the Earth in meters (mean value)
-    EARTH_RADIUS = 6371000  # 6,371 km = 6,371,000 meters
-
-    # Convert latitude and longitude from degrees to radians
-    lat1_rad, lon1_rad, lat2_rad, lon2_rad = map(math.radians, [lat1, lon1, lat2, lon2])
-
-    # Haversine formula
-    lat_diff = lat2_rad - lat1_rad
-    lon_diff = lon2_rad - lon1_rad
-    a = (
-        math.sin(lat_diff / 2) ** 2
-        + math.cos(lat1_rad) * math.cos(lat2_rad) * math.sin(lon_diff / 2) ** 2
-    )
-    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
-
-    # Calculate the distance
-    distance = EARTH_RADIUS * c
-
-    # Return the distance
-    return distance
+def append_if_not_none(waypoint_list, time, value, key):
+    if value is not None:
+        waypoint_list.append({"time": time, key: value})
 
 
 def calculate_instant_speed(
@@ -228,9 +380,9 @@ def calculate_instant_speed(
     # If the time difference is positive, calculate the instant speed
     if time_difference > 0:
         # Calculate the distance in meters
-        distance = calculate_distance(
-            prev_latitude, prev_longitude, latitude, longitude
-        )
+        distance = geodesic(
+            (prev_latitude, prev_longitude), (latitude, longitude)
+        ).meters
 
         # Calculate the instant speed in m/s
         instant_speed = distance / time_difference
@@ -243,32 +395,26 @@ def calculate_instant_speed(
 
 
 def calculate_elevation_gain_loss(waypoints):
-    # Initialize the variables for the elevation gain and loss
+    try:
+        # Get the values from the waypoints
+        values = [float(waypoint["ele"]) for waypoint in waypoints]
+    except (ValueError, KeyError):
+        # If there are no valid values, return 0
+        return 0, 0
+
     elevation_gain = 0
     elevation_loss = 0
-    prev_elevation = None
 
-    # Iterate over the waypoints and calculate the elevation gain and loss
-    for waypoint in waypoints:
-        # Get the elevation from the waypoint
-        elevation = waypoint["ele"]
+    # Iterate over the elevation data, comparing consecutive points
+    for i in range(1, len(values)):
+        diff = values[i] - values[i - 1]
 
-        # If prev_elevation is not None, calculate the elevation change
-        if prev_elevation is not None:
-            # Calculate the elevation change
-            elevation_change = elevation - prev_elevation
-            if elevation_change > 0:
-                # If the elevation change is positive, add it to the elevation gain
-                elevation_gain += elevation_change
-            else:
-                # If the elevation change is negative, add its absolute value to the elevation loss
-                elevation_loss -= elevation_change
+        if diff > 0:
+            elevation_gain += diff  # If elevation increases, add to gain
+        elif diff < 0:
+            elevation_loss += abs(diff)  # If elevation decreases, add to loss
 
-        # Update the prev_elevation variable
-        prev_elevation = elevation
-
-    # Return the elevation gain and loss
-    return {"elevation_gain": elevation_gain, "elevation_loss": elevation_loss}
+    return elevation_gain, elevation_loss
 
 
 def calculate_pace(distance, first_waypoint_time, last_waypoint_time):
@@ -294,50 +440,45 @@ def calculate_pace(distance, first_waypoint_time, last_waypoint_time):
     return pace_seconds_per_meter
 
 
-def calculate_average_speed(distance, first_waypoint_time, last_waypoint_time):
-    # If the distance is 0, return 0
-    if distance == 0:
-        return 0
-
-    # Convert the time strings to datetime objects
-    start_datetime = datetime.fromisoformat(
-        first_waypoint_time.strftime("%Y-%m-%dT%H:%M:%S")
-    )
-    end_datetime = datetime.fromisoformat(
-        last_waypoint_time.strftime("%Y-%m-%dT%H:%M:%S")
-    )
-
-    # Calculate the time difference in seconds
-    total_time_in_seconds = (end_datetime - start_datetime).total_seconds()
-
-    if total_time_in_seconds == 0:
-        # If the time difference is 0, return 0
-        return 0
-
-    # Calculate average speed in meters per second
-    average_speed = distance / total_time_in_seconds
-
-    # Return the average speed
-    return average_speed
-
-
-def calculate_average_power(waypoints):
+def calculate_avg_and_max(data, type):
     try:
-        # Get the power values from the waypoints
-        power_values = [float(waypoint["power"]) for waypoint in waypoints]
+        # Get the values from the data
+        values = [
+            float(waypoint[type]) for waypoint in data if waypoint.get(type) is not None
+        ]
     except (ValueError, KeyError):
-        # If there are no valid power values, return 0
+        # If there are no valid values, return 0
+        return 0, 0
+
+    # Calculate the average and max values
+    avg_value = mean(values)
+    max_value = max(values)
+
+    return avg_value, max_value
+
+
+def calculate_np(data):
+    try:
+        # Get the power values from the data
+        values = [
+            float(waypoint["power"])
+            for waypoint in data
+            if waypoint["power"] is not None
+        ]
+    except:
+        # If there are no valid values, return 0
         return 0
 
-    if power_values:
-        # Calculate the average power
-        average_power = mean(power_values)
+    # Calculate the fourth power of each power value
+    fourth_powers = [p**4 for p in values]
 
-        # Return the average power
-        return average_power
-    else:
-        # If there are no power values, return 0
-        return 0
+    # Calculate the average of the fourth powers
+    avg_fourth_power = sum(fourth_powers) / len(fourth_powers)
+
+    # Take the fourth root of the average of the fourth powers to get Normalized Power
+    normalized_power = avg_fourth_power ** (1 / 4)
+
+    return normalized_power
 
 
 def define_activity_type(activity_type):
@@ -354,14 +495,20 @@ def define_activity_type(activity_type):
         "cycling": 4,
         "Ride": 4,
         "GravelRide": 5,
+        "gravel_cycling": 5,
         "MountainBikeRide": 6,
+        "mountain": 6,
         "VirtualRide": 7,
         "virtual_ride": 7,
         "Swim": 8,
         "swimming": 8,
+        "lap_swimming": 8,
         "open_water_swimming": 9,
+        "open_water": 9,
         "Walk": 11,
+        "walking": 11,
         "Hike": 12,
+        "hiking": 12,
     }
     # "AlpineSki",
     # "BackcountrySki",

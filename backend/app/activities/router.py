@@ -1,4 +1,5 @@
 import os
+import glob
 import logging
 import calendar
 
@@ -17,7 +18,7 @@ from sqlalchemy.orm import Session
 from datetime import datetime, timedelta, timezone
 
 import activities.schema as activities_schema
-import activities.utils as activies_utils
+import activities.utils as activities_utils
 import activities.crud as activities_crud
 import activities.dependencies as activities_dependencies
 
@@ -42,7 +43,7 @@ logger = logging.getLogger("myLogger")
     "/user/{user_id}/week/{week_number}",
     response_model=list[activities_schema.Activity] | None,
 )
-async def read_activities_useractivities_week(
+async def read_activities_user_activities_week(
     user_id: int,
     validate_user_id: Annotated[Callable, Depends(users_dependencies.validate_user_id)],
     week_number: int,
@@ -90,7 +91,7 @@ async def read_activities_useractivities_week(
     "/user/{user_id}/thisweek/distances",
     response_model=activities_schema.ActivityDistances | None,
 )
-async def read_activities_useractivities_thisweek_distances(
+async def read_activities_user_activities_this_week_distances(
     user_id: int,
     validate_user_id: Annotated[Callable, Depends(users_dependencies.validate_user_id)],
     check_scopes: Annotated[
@@ -127,14 +128,14 @@ async def read_activities_useractivities_thisweek_distances(
     #    return None
 
     # Return the activities distances for this week
-    return activies_utils.calculate_activity_distances(activities)
+    return activities_utils.calculate_activity_distances(activities)
 
 
 @router.get(
     "/user/{user_id}/thismonth/distances",
     response_model=activities_schema.ActivityDistances | None,
 )
-async def read_activities_useractivities_thismonth_distances(
+async def read_activities_user_activities_this_month_distances(
     user_id: int,
     validate_user_id: Annotated[Callable, Depends(users_dependencies.validate_user_id)],
     check_scopes: Annotated[
@@ -172,14 +173,14 @@ async def read_activities_useractivities_thismonth_distances(
     #    return None
 
     # Return the activities distances for this month
-    return activies_utils.calculate_activity_distances(activities)
+    return activities_utils.calculate_activity_distances(activities)
 
 
 @router.get(
     "/user/{user_id}/thismonth/number",
     response_model=int,
 )
-async def read_activities_useractivities_thismonth_number(
+async def read_activities_user_activities_this_month_number(
     user_id: int,
     validate_user_id: Annotated[Callable, Depends(users_dependencies.validate_user_id)],
     check_scopes: Annotated[
@@ -224,7 +225,7 @@ async def read_activities_useractivities_thismonth_number(
     "/user/gear/{gear_id}",
     response_model=list[activities_schema.Activity] | None,
 )
-async def read_activities_gearactivities(
+async def read_activities_gear_activities(
     gear_id: int,
     validate_gear_id: Annotated[Callable, Depends(gears_dependencies.validate_gear_id)],
     check_scopes: Annotated[
@@ -249,7 +250,7 @@ async def read_activities_gearactivities(
     "/user/{user_id}/number",
     response_model=int,
 )
-async def read_activities_useractivities_number(
+async def read_activities_user_activities_number(
     user_id: int,
     validate_user_id: Annotated[Callable, Depends(users_dependencies.validate_user_id)],
     check_scopes: Annotated[
@@ -275,7 +276,7 @@ async def read_activities_useractivities_number(
     "/user/{user_id}/page_number/{page_number}/num_records/{num_records}",
     response_model=list[activities_schema.Activity] | None,
 )
-async def read_activities_useractivities_pagination(
+async def read_activities_user_activities_pagination(
     user_id: int,
     validate_user_id: Annotated[Callable, Depends(users_dependencies.validate_user_id)],
     page_number: int,
@@ -334,7 +335,7 @@ async def read_activities_followed_user_activities_pagination(
     "/user/{user_id}/followed/number",
     response_model=int,
 )
-async def read_activities_followed_useractivities_number(
+async def read_activities_followed_user_activities_number(
     user_id: int,
     validate_user_id: Annotated[Callable, Depends(users_dependencies.validate_user_id)],
     check_scopes: Annotated[
@@ -408,7 +409,7 @@ async def read_activities_contain_name(
 @router.post(
     "/create/upload",
     status_code=201,
-    response_model=activities_schema.Activity,
+    response_model=list[activities_schema.Activity],
 )
 async def create_activity_with_uploaded_file(
     token_user_id: Annotated[
@@ -425,22 +426,15 @@ async def create_activity_with_uploaded_file(
     ],
 ):
     try:
-        # Ensure the 'uploads' directory exists
-        upload_dir = "uploads"
-        os.makedirs(upload_dir, exist_ok=True)
-
-        # Return activity
-        return activies_utils.parse_and_store_activity_from_uploaded_file(token_user_id, file, db)
+        # Return activity/activities
+        return activities_utils.parse_and_store_activity_from_uploaded_file(token_user_id, file, db)
     except Exception as err:
         # Log the exception
         logger.error(
             f"Error in create_activity_with_uploaded_file: {err}", exc_info=True
         )
         # Raise an HTTPException with a 500 Internal Server Error status code
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Internal Server Error",
-        ) from err
+        raise err
 
 
 @router.post(
@@ -462,7 +456,7 @@ async def create_activity_with_bulk_import(
 ):
     try:
         # Ensure the 'bulk_import' directory exists
-        bulk_import_dir = "bulk_import"
+        bulk_import_dir = "files/bulk_import"
         os.makedirs(bulk_import_dir, exist_ok=True)
 
         # Iterate over each file in the 'bulk_import' directory
@@ -470,9 +464,12 @@ async def create_activity_with_bulk_import(
             file_path = os.path.join(bulk_import_dir, filename)
 
             if os.path.isfile(file_path):
+                # Log the file being processed
+                print(f"Processing file: {file_path}")
+                logger.info(f"Processing file: {file_path}")
                 # Parse and store the activity
                 background_tasks.add_task(
-                    activies_utils.parse_and_store_activity_from_file,
+                    activities_utils.parse_and_store_activity_from_file,
                     token_user_id,
                     file_path,
                     db,
@@ -638,6 +635,27 @@ async def delete_activity(
 
     # Delete the activity
     activities_crud.delete_activity(activity_id, db)
+
+    # Define the search pattern using the file ID (e.g., '1.*')
+    pattern = f"files/processed/{activity_id}.*"
+
+    # Use glob to find files that match the pattern
+    files_to_delete = glob.glob(pattern)
+
+    # Delete each matching file
+    for file in files_to_delete:
+        try:
+            os.remove(file)
+        except FileNotFoundError as err:
+            # Log the exception
+            logger.error(
+                f"File not found {file}: {err}", exc_info=True
+            )
+        except Exception as err:
+            # Log the exception
+            logger.error(
+                f"Error deleting file {file}: {err}", exc_info=True
+            )
 
     # Return success message
     return {"detail": f"Activity {activity_id} deleted successfully"}

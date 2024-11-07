@@ -113,7 +113,7 @@
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                            {{ $t("generalItens.buttonClose") }}
+                            {{ $t("generalItems.buttonClose") }}
                         </button>
                         <a @click="submitDeleteActivity" type="button" class="btn btn-danger" data-bs-dismiss="modal">
                             {{ $t("activitySummary.buttonDeleteActivity") }}
@@ -139,8 +139,8 @@
                 </span>
                 <br>
                 <span>
-                    <!-- Check if activity_type is not 9 -->
-                    {{ activity.activity_type != 9 
+                    <!-- Check if activity_type is not 9 and 8 -->
+                    {{ activity.activity_type != 9 && activity.activity_type != 8
                         ? (activity.distance / 1000).toFixed(2) + ' km' : activity.distance + ' m'
                     }}
                 </span>
@@ -153,14 +153,14 @@
                 <span>{{ calculateTimeDifference(activity.start_time, activity.end_time) }}</span>
             </div>
             <div class="col border-start border-opacity-50">
-                <div v-if="activity.activity_type != 9 && activity.activity_type != 1">
+                <div v-if="activity.activity_type != 1 && activity.activity_type != 2 && activity.activity_type != 3 && activity.activity_type != 8 && activity.activity_type != 9">
                     <span class="fw-lighter">
                         {{ $t("activitySummary.activityElevationGain") }}
                     </span>
                     <br>
                     <span>{{ activity.elevation_gain }} m</span>
                 </div>
-                <div v-else-if="activity.activity_type == 1 || activity.activity_type == 2 || activity.activity_type == 3 || activity.activity_type == 9">
+                <div v-else>
                     <span class="fw-lighter">
                         {{ $t("activitySummary.activityPace") }}
                     </span>
@@ -170,7 +170,8 @@
             </div>
         </div>        
         <div class="row d-flex mt-3" v-if="sourceProp === 'activity'">
-            <div class="col" v-if="activity.activity_type == 1 || activity.activity_type == 2 || activity.activity_type == 3">
+            <!-- avg_power running and cycling activities-->
+            <div class="col" v-if="activity.activity_type == 1 || activity.activity_type == 2 || activity.activity_type == 3 || activity.activity_type == 4 || activity.activity_type == 5 || activity.activity_type == 6 || activity.activity_type == 7">
                 <span class="fw-lighter">
                     {{ $t("activitySummary.activityAvgPower") }}
                 </span>
@@ -178,114 +179,141 @@
                 <span v-if="activity.average_power">{{ activity.average_power }} W</span>
                 <span v-else>{{ $t("activitySummary.activityNoData") }}</span>
             </div>
+            <!-- avg_hr not running and cycling activities-->
+            <div class="col" v-if="activity.activity_type != 1 && activity.activity_type != 2 && activity.activity_type != 3 && activity.activity_type != 4 && activity.activity_type != 5 && activity.activity_type != 6 && activity.activity_type != 7">
+                <span class="fw-lighter">
+                    {{ $t("activitySummary.activityAvgHR") }}
+                </span>
+                <br>
+                <span v-if="activity.average_hr">{{ activity.average_hr }} bpm</span>
+                <span v-else>{{ $t("activitySummary.activityNoData") }}</span>
+            </div>
+            <!-- max_hr not running and cycling activities-->
+            <div class="col border-start border-opacity-50" v-if="activity.activity_type != 1 && activity.activity_type != 2 && activity.activity_type != 3 && activity.activity_type != 4 && activity.activity_type != 5 && activity.activity_type != 6 && activity.activity_type != 7">
+                <span class="fw-lighter">
+                    {{ $t("activitySummary.activityMaxHR") }}
+                </span>
+                <br>
+                <span v-if="activity.max_hr">{{ activity.max_hr }} bpm</span>
+                <span v-else>{{ $t("activitySummary.activityNoData") }}</span>
+            </div>
+            <!-- ele gain running activities -->
             <div class="col border-start border-opacity-50" v-if="activity.activity_type == 1 || activity.activity_type == 2 || activity.activity_type == 3">
                 <span class="fw-lighter">{{ $t("activitySummary.activityEleGain") }}</span>
                 <br>
                 <span>{{ activity.elevation_gain }} m</span>
             </div>
-            <div class="col border-start border-opacity-50" v-if="activity.activity_type == 1 || activity.activity_type == 2 || activity.activity_type == 3">
+            <!-- avg_speed cycling activities -->
+            <div class="col border-start border-opacity-50" v-if="activity.activity_type == 4 || activity.activity_type == 5 || activity.activity_type == 6 || activity.activity_type == 7">
                 <span class="fw-lighter">
-                    {{ $t("activitySummary.activityEleLoss") }}
+                    {{ $t("activitySummary.activityAvgSpeed") }}
                 </span>
                 <br>
-                <span>{{ activity.elevation_loss }} m</span>
-            </div>
-            <div class="col" v-if="activity.activity_type == 4 || activity.activity_type == 5 || activity.activity_type == 6">
-                <span class="fw-lighter">{{ $t("activitySummary.activityAvgSpeed") }}</span>
-                <br>
-                <span>{{ (activity.average_speed * 3.6).toFixed(0) }} km/h</span>
-            </div>
-            <div class="col border-start border-opacity-50" v-if="activity.activity_type == 4 || activity.activity_type == 5 || activity.activity_type == 6">
-                <span class="fw-lighter">
-                    {{ $t("activitySummary.activityAvgPower") }}
-                </span>
-                <br>
-                <span v-if="activity.average_power">{{ activity.average_power }} W</span>
+                <span v-if="activity.average_speed">{{ (activity.average_speed * 3.6).toFixed(0) }} km/h</span>
                 <span v-else>{{ $t("activitySummary.activityNoData") }}</span>
             </div>
-            <div class="col border-start border-opacity-50" v-if="activity.activity_type == 4 || activity.activity_type == 5 || activity.activity_type == 6">
-                <span class="fw-lighter">{{ $t("activitySummary.activityEleLoss") }}</span>
+            <!-- calories -->
+            <div class="col border-start border-opacity-50">
+                <span class="fw-lighter">
+                    {{ $t("activitySummary.activityCalories") }}
+                </span>
                 <br>
-                <span>{{ activity.elevation_loss }} m</span>
+                <span v-if="activity.calories">{{ activity.calories }} cal</span>
+                <span v-else>{{ $t("activitySummary.activityNoData") }}</span>
             </div>
         </div>
     </div>
 </template>
 
 <script>
-import { ref, onMounted, computed } from 'vue';
-import { useI18n } from 'vue-i18n';
-import { useRouter } from 'vue-router';
+import { ref, onMounted, computed } from "vue";
+import { useI18n } from "vue-i18n";
+import { useRouter } from "vue-router";
 // Importing the stores
-import { useAuthStore } from '@/stores/authStore';
-// Importing the utils
-import { addToast } from '@/utils/toastUtils';
+import { useAuthStore } from "@/stores/authStore";
+// Import Notivue push
+import { push } from "notivue";
 // Importing the components
-import LoadingComponent from '@/components/GeneralComponents/LoadingComponent.vue';
-import UserAvatarComponent from '@/components/Users/UserAvatarComponent.vue';
-import EditActivityModalComponent from '@/components/Activities/Modals/EditActivityModalComponent.vue';
+import LoadingComponent from "@/components/GeneralComponents/LoadingComponent.vue";
+import UserAvatarComponent from "@/components/Users/UserAvatarComponent.vue";
+import EditActivityModalComponent from "@/components/Activities/Modals/EditActivityModalComponent.vue";
 // Importing the services
-import { users } from '@/services/usersService';
-import { activities } from '@/services/activitiesService';
-import { formatDate, formatTime, calculateTimeDifference } from '@/utils/dateTimeUtils';
-import { formatPace } from '@/utils/activityUtils';
+import { users } from "@/services/usersService";
+import { activities } from "@/services/activitiesService";
+import {
+	formatDate,
+	formatTime,
+	calculateTimeDifference,
+} from "@/utils/dateTimeUtils";
+import { formatPace, formatPaceSwim } from "@/utils/activityUtils";
 
 export default {
-    components: {
-        LoadingComponent,
-        UserAvatarComponent,
-        EditActivityModalComponent,
-    },
-    props: {
-        activity: {
-            type: Object,
-            required: true,
-        },
-        source:{
-            type: String,
-            required: true,
-        }
-    },
-    setup(props) {
-        const router = useRouter();
-        const authStore = useAuthStore();
-        const { t } = useI18n();
-        const isLoading = ref(true);
-        const userActivity = ref(null);
-        const formattedPace = computed(() => formatPace(props.activity.pace));
-        const sourceProp = ref(props.source);
+	components: {
+		LoadingComponent,
+		UserAvatarComponent,
+		EditActivityModalComponent,
+	},
+	props: {
+		activity: {
+			type: Object,
+			required: true,
+		},
+		source: {
+			type: String,
+			required: true,
+		},
+	},
+	setup(props) {
+		const router = useRouter();
+		const authStore = useAuthStore();
+		const { t } = useI18n();
+		const isLoading = ref(true);
+		const userActivity = ref(null);
+		let formattedPace = null;
+		if (
+			props.activity.activity_type === 8 ||
+			props.activity.activity_type === 9
+		) {
+			formattedPace = computed(() => formatPaceSwim(props.activity.pace));
+		} else {
+			formattedPace = computed(() => formatPace(props.activity.pace));
+		}
+		const sourceProp = ref(props.source);
 
-        onMounted(async () => {
-            try {
-                userActivity.value = await users.getUserById(props.activity.user_id);
-            } catch (error) {
-                addToast(t('generalItens.errorFetchingInfo') + " - " + error.toString(), 'danger', true);
-            } finally {
-                isLoading.value = false;
-            }
-        });
+		onMounted(async () => {
+			try {
+				userActivity.value = await users.getUserById(props.activity.user_id);
+			} catch (error) {
+				push.error(`${t("generalItems.errorFetchingInfo")} - ${error}`);
+			} finally {
+				isLoading.value = false;
+			}
+		});
 
-        async function submitDeleteActivity() {
-            try {
-                userActivity.value = await activities.deleteActivity(props.activity.id);
-                router.push({ path: '/', query: { activityDeleted: 'true', activityId: props.activity.id } });
-            } catch (error) {
-                addToast(t('generalItens.errorDeletingInfo') + " - " + error.toString(), 'danger', true);
-            }
-        }
+		async function submitDeleteActivity() {
+			try {
+				userActivity.value = await activities.deleteActivity(props.activity.id);
+				router.push({
+					path: "/",
+					query: { activityDeleted: "true", activityId: props.activity.id },
+				});
+			} catch (error) {
+				push.error(`${t("generalItems.errorDeletingInfo")} - ${error}`);
+			}
+		}
 
-        return {
-            authStore,
-            isLoading,
-            t,
-            userActivity,
-            formatDate,
-            formatTime,
-            calculateTimeDifference,
-            formattedPace,
-            sourceProp,
-            submitDeleteActivity,
-        };
-    },
+		return {
+			authStore,
+			isLoading,
+			t,
+			userActivity,
+			formatDate,
+			formatTime,
+			calculateTimeDifference,
+			formattedPace,
+			sourceProp,
+			submitDeleteActivity,
+		};
+	},
 };
 </script>

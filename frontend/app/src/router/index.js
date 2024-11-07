@@ -1,14 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
 
-import HomeView from '../views/HomeView.vue'
-import LoginView from '../views/LoginView.vue'
-import GearsView from '../views/Gears/GearsView.vue'
-import GearView from '../views/Gears/GearView.vue'
-import ActivityView from '../views/ActivityView.vue'
-import UserView from '../views/UserView.vue'
-import SettingsView from '../views/SettingsView.vue';
-import NotFoundView from '../views/NotFoundView.vue';
-
 //import { auth } from '@/services/auth';
 
 import { useAuthStore } from '@/stores/authStore';
@@ -19,42 +10,47 @@ const router = createRouter({
     {
       path: '/',
       name: 'home',
-      component: HomeView
+      component: () => import('../views/HomeView.vue')
     },
     {
       path: '/login',
       name: 'login',
-      component: LoginView
+      component: () => import('../views/LoginView.vue')
     },
     {
       path: '/gears',
       name: 'gears',
-      component: GearsView
+      component: () => import('../views/Gears/GearsView.vue')
     },
     {
       path: '/gear/:id',
       name: 'gear',
-      component: GearView
+      component: () => import('../views/Gears/GearView.vue')
     },
     {
       path: '/activity/:id',
       name: 'activity',
-      component: ActivityView
+      component: () => import('../views/ActivityView.vue')
+    },
+    {
+      path: '/health',
+      name: 'health',
+      component: () => import('../views/HealthView.vue')
     },
     {
       path: '/user/:id',
       name: 'user',
-      component: UserView
+      component: () => import('../views/UserView.vue')
     },
     {
       path: '/settings',
       name: 'settings',
-      component: SettingsView
+      component: () => import('../views/SettingsView.vue')
     },
     {
       path: '/:pathMatch(.*)*',
       name: 'not-found',
-      component: NotFoundView,
+      component: () => import('../views/NotFoundView.vue'),
     },
   ]
 })

@@ -17,10 +17,12 @@ backend/app/user_images/*.png
 backend/app/user_images/*.jpg
 
 # gpx and fit files
-backend/app/uploads/*.gpx
-backend/app/uploads/*.fit
-backend/app/bulk_import/*.gpx
-backend/app/bulk_import/*.fit
+backend/app/files/*.gpx
+backend/app/files/*.fit
+backend/app/files/bulk_import/*.gpx
+backend/app/files/bulk_import/*.fit
+backend/app/files/processed/*.gpx
+backend/app/files/processed/*.fit
 
 # Frontend
 frontend/app/img/users_img/*.*
@@ -56,3 +58,4 @@ frontend/app/*.sln
 frontend/app/*.sw?
 
 frontend/app/*.tsbuildinfo
+.DS_Store

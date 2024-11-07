@@ -11,21 +11,26 @@ USERS_REGULAR_SCOPES = ["profile", "users:read"]
 USERS_ADMIN_SCOPES = ["users:write"]
 GEARS_SCOPES = ["gears:read", "gears:write"]
 ACTIVITIES_SCOPES = ["activities:read", "activities:write"]
+HEALTH_SCOPES = ["health:read", "health:write", "health_targets:read", "health_targets:write"]
 SCOPES_DICT = {
     "profile": "Privileges over user's own profile",
     "users:read": "Read privileges over users",
-    "users:write": "Create privileges over users",
+    "users:write": "Write privileges over users",
     "gears:read": "Read privileges over gears",
-    "gears:write": "Create privileges over gears",
+    "gears:write": "Write privileges over gears",
     "activities:read": "Read privileges over activities",
-    "activities:write": "Create privileges over activities",
+    "activities:write": "Write privileges over activities",
+    "health:read": "Read privileges over health data",
+    "health:write": "Write privileges over health data",
+    "health_targets:read": "Read privileges over health targets data",
+    "health_targets:write": "Write privileges over health targets data",
 }
 
 # Constants related to user access types
 REGULAR_ACCESS = 1
-REGULAR_ACCESS_SCOPES = USERS_REGULAR_SCOPES + GEARS_SCOPES + ACTIVITIES_SCOPES
+REGULAR_ACCESS_SCOPES = USERS_REGULAR_SCOPES + GEARS_SCOPES + ACTIVITIES_SCOPES + HEALTH_SCOPES
 ADMIN_ACCESS = 2
-ADMIN_ACCESS_SCOPES = USERS_REGULAR_SCOPES + USERS_ADMIN_SCOPES + GEARS_SCOPES + ACTIVITIES_SCOPES
+ADMIN_ACCESS_SCOPES = REGULAR_ACCESS_SCOPES + USERS_ADMIN_SCOPES
 
 # Constants related to user active status
 USER_ACTIVE = 1

@@ -53,10 +53,10 @@
                                     {{ $t("usersListComponent.modalChangeUserPasswordPasswordsDoNotMatchFeedbackLabel") }}
                                 </div>
 
-                                <p>* {{ $t("generalItens.requiredField") }}</p>
+                                <p>* {{ $t("generalItems.requiredField") }}</p>
                             </div>
                             <div class="modal-footer">
-                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ $t("generalItens.buttonClose") }}</button>
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ $t("generalItems.buttonClose") }}</button>
                                 <button type="submit" class="btn btn-success" :disabled="!isNewPasswordValid || !isNewPasswordRepeatValid || !isPasswordMatch" name="editUserPasswordAdmin" data-bs-dismiss="modal">{{ $t("usersListComponent.modalChangeUserPasswordTitle") }}</button>
                             </div>
                         </form>
@@ -112,7 +112,7 @@
                                 <!-- preferred language fields -->
                                 <label for="userPreferredLanguageEdit"><b>* {{ $t("settingsUsersZone.addUserModalUserPreferedLanguageLabel") }}</b></label>
                                 <select class="form-control" name="userPreferredLanguageEdit" v-model="editUserPreferredLanguage" required>
-                                    <option value="en">{{ $t("settingsUsersZone.addUserModalPreferredLanguageOption1") }}</option>
+                                    <option value="us">{{ $t("settingsUsersZone.addUserModalPreferredLanguageOption1") }}</option>
                                 </select>
                                 <!-- access type fields -->
                                 <label for="userTypeEdit"><b>* {{ $t("settingsUsersZone.addUserModalUserTypeLabel") }}</b></label>
@@ -121,15 +121,15 @@
                                     <option value="2">{{ $t("settingsUsersZone.addUserModalUserTypeOption2") }}</option>
                                 </select>
                                 <!-- user is_active fields -->
-                                <label for="userIsActiveEdit"><b>* {{ $t("usersListComponent.modalEditUserTitle") }}</b></label>
+                                <label for="userIsActiveEdit"><b>* {{ $t("usersListComponent.modalEditUserIsUserActiveLabel") }}</b></label>
                                 <select class="form-control" name="userIsActiveEdit" v-model="editUserIsActive" required>
                                     <option value="1">{{ $t("usersListComponent.modalEditUserIsUserActiveOption1") }}</option>
                                     <option value="2">{{ $t("usersListComponent.modalEditUserIsUserActiveOption2") }}</option>
                                 </select>
-                                <p>* {{ $t("generalItens.requiredField") }}</p>
+                                <p>* {{ $t("generalItems.requiredField") }}</p>
                             </div>
                             <div class="modal-footer">
-                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ $t("generalItens.buttonClose") }}</button>
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ $t("generalItems.buttonClose") }}</button>
                                 <button type="submit" class="btn btn-success" name="userEdit" data-bs-dismiss="modal">{{ $t("usersListComponent.modalEditUserTitle") }}</button>
                             </div>
                         </form>
@@ -152,7 +152,7 @@
                             <span>{{ $t("usersListComponent.modalDeleteUserBody") }}<b>{{ userProp.username }}</b>?</span>
                         </div>
                         <div class="modal-footer">
-                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ $t("generalItens.buttonClose") }}</button>
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ $t("generalItems.buttonClose") }}</button>
                             <a type="button" @click="submitDeleteUser" class="btn btn-danger" data-bs-dismiss="modal">{{ $t("usersListComponent.modalDeleteUserTitle") }}</a>
                         </div>
                     </div>
@@ -163,175 +163,191 @@
 </template>
 
 <script>
-import { ref, computed } from 'vue';
-import { useI18n } from 'vue-i18n';
+import { ref, computed } from "vue";
+import { useI18n } from "vue-i18n";
 // Importing the services
-import { users } from '@/services/usersService';
+import { users } from "@/services/usersService";
 // Import the stores
-import { useAuthStore } from '@/stores/authStore';
-// Importing the utils
-import { addToast } from '@/utils/toastUtils';
+import { useAuthStore } from "@/stores/authStore";
+// Import Notivue push
+import { push } from "notivue";
 // Importing the components
-import SettingsPasswordRequirementsComponent from '@/components/Settings/SettingsPasswordRequirementsComponent.vue';
-import UserAvatarComponent from '@/components/Users/UserAvatarComponent.vue';
+import SettingsPasswordRequirementsComponent from "@/components/Settings/SettingsPasswordRequirementsComponent.vue";
+import UserAvatarComponent from "@/components/Users/UserAvatarComponent.vue";
 
 export default {
-    components: {
-        SettingsPasswordRequirementsComponent,
-        UserAvatarComponent,
-    },
-    props: {
-        user: {
-            type: Object,
-            required: true,
-        }
-    },
-    emits: ['userDeleted'],
-    setup(props, { emit }) {
-        const { t } = useI18n();
-        const authStore = useAuthStore();
-        const userProp = ref(props.user);
-        const newPassword = ref('');
-        const newPasswordRepeat = ref('');
-        const regex = /^(?=.*[A-Z])(?=.*\d)(?=.*[ !\"#$%&'()*+,\-./:;<=>?@[\\\]^_`{|}~])[A-Za-z\d !"#$%&'()*+,\-./:;<=>?@[\\\]^_`{|}~]{8,}$/;
-        const isNewPasswordValid = computed(() => {
-            return regex.test(newPassword.value);
-        });
-        const isNewPasswordRepeatValid = computed(() => {
-            return regex.test(newPasswordRepeat.value);
-        });
-        const isPasswordMatch = computed(() => newPassword.value === newPasswordRepeat.value);
-        const editUserPhotoFile = ref(null);
-        const editUserUsername = ref(userProp.value.username);
-        const editUserName = ref(userProp.value.name);
-        const editUserEmail = ref(userProp.value.email);
-        const editUserTown = ref(userProp.value.city);
-        const editUserBirthdate = ref(userProp.value.birthdate);
-        const editUserGender = ref(userProp.value.gender);
-        const editUserPreferredLanguage = ref(userProp.value.preferred_language);
-        const editUserAccessType = ref(userProp.value.access_type);
-        const editUserIsActive = ref(userProp.value.is_active);
+	components: {
+		SettingsPasswordRequirementsComponent,
+		UserAvatarComponent,
+	},
+	props: {
+		user: {
+			type: Object,
+			required: true,
+		},
+	},
+	emits: ["userDeleted"],
+	setup(props, { emit }) {
+		const { t } = useI18n();
+		const authStore = useAuthStore();
+		const userProp = ref(props.user);
+		const newPassword = ref("");
+		const newPasswordRepeat = ref("");
+		const regex =
+			/^(?=.*[A-Z])(?=.*\d)(?=.*[ !\"#$%&'()*+,\-./:;<=>?@[\\\]^_`{|}~])[A-Za-z\d !"#$%&'()*+,\-./:;<=>?@[\\\]^_`{|}~]{8,}$/;
+		const isNewPasswordValid = computed(() => {
+			return regex.test(newPassword.value);
+		});
+		const isNewPasswordRepeatValid = computed(() => {
+			return regex.test(newPasswordRepeat.value);
+		});
+		const isPasswordMatch = computed(
+			() => newPassword.value === newPasswordRepeat.value,
+		);
+		const editUserPhotoFile = ref(null);
+		const editUserUsername = ref(userProp.value.username);
+		const editUserName = ref(userProp.value.name);
+		const editUserEmail = ref(userProp.value.email);
+		const editUserTown = ref(userProp.value.city);
+		const editUserBirthdate = ref(userProp.value.birthdate);
+		const editUserGender = ref(userProp.value.gender);
+		const editUserPreferredLanguage = ref(userProp.value.preferred_language);
+		const editUserAccessType = ref(userProp.value.access_type);
+		const editUserIsActive = ref(userProp.value.is_active);
 
-        async function handleFileChange(event) {
-            if (event.target.files && event.target.files[0]) {
-                editUserPhotoFile.value = event.target.files[0];
-            } else {
-                editUserPhotoFile.value = null;
-            }
-        }
+		async function handleFileChange(event) {
+			editUserPhotoFile.value = event.target.files?.[0] ?? null;
+		}
 
-        async function submitChangeUserPasswordForm() {
-            try{
-                if (isNewPasswordValid.value && isNewPasswordRepeatValid.value && isPasswordMatch.value) {
-                    const data = {
-                        password: newPassword.value
-                    };
-                    await users.editUserPassword(userProp.value.id, data);
-                    // Set the success message and show the success alert.
-                    addToast(t('usersListComponent.userChangePasswordSuccessMessage'), 'success', true);
-                }
-            } catch (error) {
-                // If there is an error, set the error message and show the error alert.
-                addToast(`${t('usersListComponent.userChangePasswordErrorMessage')} - ${error.toString()}`, 'danger', true);
-            }
-        }
+		async function submitChangeUserPasswordForm() {
+			try {
+				if (
+					isNewPasswordValid.value &&
+					isNewPasswordRepeatValid.value &&
+					isPasswordMatch.value
+				) {
+					const data = {
+						password: newPassword.value,
+					};
+					await users.editUserPassword(userProp.value.id, data);
+					// Set the success message and show the success alert.
+					push.success(
+						t("usersListComponent.userChangePasswordSuccessMessage"),
+					);
+				}
+			} catch (error) {
+				// If there is an error, set the error message and show the error alert.
+				push.error(
+					`${t("usersListComponent.userChangePasswordErrorMessage")} - ${error}`,
+				);
+			}
+		}
 
-        async function submitEditUserForm() {
-            try {
-                const data = {
-                    id: userProp.value.id,
-                    username: editUserUsername.value,
-                    name: editUserName.value,
-                    email: editUserEmail.value,
-                    city: editUserTown.value,
-                    birthdate: editUserBirthdate.value,
-                    gender: editUserGender.value,
-                    preferred_language: editUserPreferredLanguage.value,
-                    access_type: editUserAccessType.value,
-                    photo_path: null,
-                    is_active: editUserIsActive.value,
-                };
+		async function submitEditUserForm() {
+			try {
+				const data = {
+					id: userProp.value.id,
+					username: editUserUsername.value,
+					name: editUserName.value,
+					email: editUserEmail.value,
+					city: editUserTown.value,
+					birthdate: editUserBirthdate.value,
+					gender: editUserGender.value,
+					preferred_language: editUserPreferredLanguage.value,
+					access_type: editUserAccessType.value,
+					photo_path: null,
+					is_active: editUserIsActive.value,
+				};
 
-                await users.editUser(userProp.value.id, data);
+				await users.editUser(userProp.value.id, data);
 
-                // If there is a photo, upload it and get the photo url.
-                if (editUserPhotoFile.value) {
-                    try {
-                        userProp.value.photo_path = await users.uploadImage(editUserPhotoFile.value, userProp.value.id);
-                    } catch (error) {
-                        // Set the error message
-                        addToast(`${t('generalItens.errorFetchingInfo')} - ${error.toString()}`, 'danger', true);
-                    }
-                }
+				// If there is a photo, upload it and get the photo url.
+				if (editUserPhotoFile.value) {
+					try {
+						userProp.value.photo_path = await users.uploadImage(
+							editUserPhotoFile.value,
+							userProp.value.id,
+						);
+					} catch (error) {
+						// Set the error message
+						push.error(`${t("generalItems.errorFetchingInfo")} - ${error}`);
+					}
+				}
 
-                userProp.value.username = editUserUsername.value;
-                userProp.value.name = editUserName.value;
-                userProp.value.email = editUserEmail.value;
-                userProp.value.city = editUserTown.value;
-                userProp.value.birthdate = editUserBirthdate.value;
-                userProp.value.city = editUserTown.value;
-                userProp.value.birthdate = editUserBirthdate.value;
-                userProp.value.gender = editUserGender.value;
-                userProp.value.preferred_language = editUserPreferredLanguage.value;
-                userProp.value.access_type = editUserAccessType.value;
-                userProp.value.is_active = editUserIsActive.value;
+				userProp.value.username = editUserUsername.value;
+				userProp.value.name = editUserName.value;
+				userProp.value.email = editUserEmail.value;
+				userProp.value.city = editUserTown.value;
+				userProp.value.birthdate = editUserBirthdate.value;
+				userProp.value.city = editUserTown.value;
+				userProp.value.birthdate = editUserBirthdate.value;
+				userProp.value.gender = editUserGender.value;
+				userProp.value.preferred_language = editUserPreferredLanguage.value;
+				userProp.value.access_type = editUserAccessType.value;
+				userProp.value.is_active = editUserIsActive.value;
 
-                // Set the success message and show the success alert.
-                addToast(t('usersListComponent.userEditSuccessMessage'), 'success', true);
-            } catch (error) {
-                // If there is an error, set the error message and show the error alert.
-                addToast(`${t('usersListComponent.userEditErrorMessage')} - ${error.toString()}`, 'danger', true);
-            }
-        }
+				// Set the success message and show the success alert.
+				push.success(t("usersListComponent.userEditSuccessMessage"));
+			} catch (error) {
+				// If there is an error, set the error message and show the error alert.
+				push.error(
+					`${t("usersListComponent.userEditErrorMessage")} - ${error}`,
+				);
+			}
+		}
 
-        async function submitDeleteUser() {
-            try {
-                await users.deleteUser(userProp.value.id);
+		async function submitDeleteUser() {
+			try {
+				await users.deleteUser(userProp.value.id);
 
-                emit('userDeleted', userProp.value.id);
-            } catch (error) {
-                // If there is an error, set the error message and show the error alert.
-                addToast(`${t('usersListComponent.userDeleteErrorMessage')} - ${error.toString()}`, 'danger', true);
-            }
-        }
+				emit("userDeleted", userProp.value.id);
+			} catch (error) {
+				// If there is an error, set the error message and show the error alert.
+				push.error(
+					`${t("usersListComponent.userDeleteErrorMessage")} - ${error}`,
+				);
+			}
+		}
 
-        async function submitDeleteUserPhoto() {
-            try {
-                await users.deleteUserPhoto(userProp.value.id);
-                userProp.value.photo_path = null;
+		async function submitDeleteUserPhoto() {
+			try {
+				await users.deleteUserPhoto(userProp.value.id);
+				userProp.value.photo_path = null;
 
-                // Set the success message and show the success alert.
-                addToast(t('usersListComponent.userPhotoDeleteSuccessMessage'), 'success', true);
-            } catch (error) {
-                // Set the error message
-                addToast(`${t('usersListComponent.userPhotoDeleteErrorMessage')} - ${error.toString()}`, 'danger', true);
-            }
-        }
+				// Set the success message and show the success alert.
+				push.success(t("usersListComponent.userPhotoDeleteSuccessMessage"));
+			} catch (error) {
+				// Set the error message
+				push.error(
+					`${t("usersListComponent.userPhotoDeleteErrorMessage")} - ${error}`,
+				);
+			}
+		}
 
-        return {
-            t,
-            authStore,
-            userProp,
-            newPassword,
-            newPasswordRepeat,
-            isNewPasswordValid,
-            isNewPasswordRepeatValid,
-            isPasswordMatch,
-            submitChangeUserPasswordForm,
-            editUserUsername,
-            editUserName,
-            editUserEmail,
-            editUserTown,
-            editUserBirthdate,
-            editUserGender,
-            editUserPreferredLanguage,
-            editUserAccessType,
-            editUserIsActive,
-            submitEditUserForm,
-            handleFileChange,
-            submitDeleteUser,
-            submitDeleteUserPhoto,
-        };
-    },
+		return {
+			t,
+			authStore,
+			userProp,
+			newPassword,
+			newPasswordRepeat,
+			isNewPasswordValid,
+			isNewPasswordRepeatValid,
+			isPasswordMatch,
+			submitChangeUserPasswordForm,
+			editUserUsername,
+			editUserName,
+			editUserEmail,
+			editUserTown,
+			editUserBirthdate,
+			editUserGender,
+			editUserPreferredLanguage,
+			editUserAccessType,
+			editUserIsActive,
+			submitEditUserForm,
+			handleFileChange,
+			submitDeleteUser,
+			submitDeleteUserPhoto,
+		};
+	},
 };
 </script>

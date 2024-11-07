@@ -3,7 +3,6 @@ import logging
 from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
 from stravalib.client import Client
-from pint import Quantity
 
 import activities.schema as activities_schema
 import activities.crud as activities_crud
@@ -60,47 +59,35 @@ def parse_activity(
     user_integrations: user_integrations_schema.UserIntegrations,
     db: Session,
 ) -> dict:
+    # Get the detailed activity
+    detailedActivity = strava_client.get_activity(activity.id)
+
     # Parse start and end dates
-    start_date_parsed = activity.start_date
+    start_date_parsed = detailedActivity.start_date
 
     # Ensure activity.elapsed_time is a numerical value
-    elapsed_time_seconds = (
-        activity.elapsed_time.total_seconds()
-        if isinstance(activity.elapsed_time, timedelta)
-        else activity.elapsed_time
+    total_elapsed_time = (
+        detailedActivity.elapsed_time.total_seconds()
+        if isinstance(detailedActivity.elapsed_time, timedelta)
+        else detailedActivity.elapsed_time
     )
 
-    end_date_parsed = start_date_parsed + timedelta(seconds=elapsed_time_seconds)
+    total_timer_time = (
+        detailedActivity.moving_time.total_seconds()
+        if isinstance(detailedActivity.moving_time, timedelta)
+        else detailedActivity.moving_time
+    )
 
-    # Initialize location variables
-    latitude, longitude = None, None
-
-    if hasattr(activity, "start_latlng") and activity.start_latlng is not None:
-        latitude = activity.start_latlng.lat
-        longitude = activity.start_latlng.lon
+    end_date_parsed = start_date_parsed + timedelta(seconds=total_elapsed_time)
 
     # Initialize location variables
     city, town, country = None, None, None
-
-    parsed_location = activities_utils.location_based_on_coordinates(
-        latitude, longitude
-    )
-
-    if parsed_location is not None:
-        if "city" in parsed_location:
-            city = parsed_location["city"]
-        if "town" in parsed_location:
-            town = parsed_location["town"]
-        if "country" in parsed_location:
-            country = parsed_location["country"]
-
-    # List to store constructed waypoints
-    waypoints = []
-
-    # Initialize variables for elevation gain and loss
-    elevation_gain = 0
-    elevation_loss = 0
-    previous_elevation = None
+    if detailedActivity.location_city is not None:
+        city = detailedActivity.location_city
+    if detailedActivity.location_state is not None:
+        town = detailedActivity.location_state
+    if detailedActivity.location_country is not None:
+        country = detailedActivity.location_country
 
     # Get streams for the activity
     streams = strava_client.get_activity_streams(
@@ -147,20 +134,6 @@ def parse_activity(
         )
 
     for i in range(len(ele)):
-        # Calculate elevation gain and loss on-the-fly
-        current_elevation = ele[i] if i < len(ele) else None
-
-        if current_elevation is not None:
-            if previous_elevation is not None:
-                elevation_change = current_elevation - previous_elevation
-
-                if elevation_change > 0:
-                    elevation_gain += elevation_change
-                else:
-                    elevation_loss += abs(elevation_change)
-
-            previous_elevation = current_elevation
-
         ele_waypoints.append({"time": time[i], "ele": ele[i]})
         is_elevation_set = True
 
@@ -189,20 +162,59 @@ def parse_activity(
         pace_waypoints.append({"time": time[i], "pace": pace_calculation})
         is_velocity_set = True
 
-    # Calculate average speed, pace, and watts
-    average_speed = 0
-    if activity.average_speed is not None:
-        average_speed = (
-            float(activity.average_speed.magnitude)
-            if isinstance(activity.average_speed, Quantity)
-            else activity.average_speed
+    ele_gain, ele_loss = None, None
+    # Calculate elevation gain and loss
+    if ele_waypoints:
+        ele_gain, ele_loss = activities_utils.calculate_elevation_gain_loss(
+            ele_waypoints
         )
 
-    average_pace = 1 / average_speed if average_speed != 0 else 0
+        if detailedActivity.total_elevation_gain is not None:
+            ele_gain = round(detailedActivity.total_elevation_gain)
 
-    average_watts = 0
-    if activity.average_watts is not None:
-        average_watts = activity.average_watts
+    # Get average and max speed
+    avg_speed = None
+    if detailedActivity.average_speed is not None:
+        avg_speed = detailedActivity.average_speed
+
+    max_speed = None
+    if detailedActivity.max_speed is not None:
+        max_speed = detailedActivity.max_speed
+
+    # Calculate average pace
+    average_pace = 1 / avg_speed if avg_speed != 0 else None
+
+    avg_hr, max_hr = None, None
+    # Get average and max heart rate
+    if detailedActivity.average_heartrate is not None:
+        avg_hr = detailedActivity.average_heartrate
+
+    if detailedActivity.max_heartrate is not None:
+        max_hr = detailedActivity.max_heartrate
+
+    avg_cadence, max_cadence = None, None
+    # Calculate average and maximum cadence
+    if cad_waypoints:
+        avg_cadence, max_cadence = activities_utils.calculate_avg_and_max(
+            cad_waypoints, "cad"
+        )
+
+        if detailedActivity.average_cadence is not None:
+            avg_cadence = detailedActivity.average_cadence
+
+    # Get average and max power
+    avg_power = None
+    if detailedActivity.average_watts is not None:
+        avg_power = detailedActivity.average_watts
+
+    max_power = None
+    if detailedActivity.max_watts is not None:
+        max_power = detailedActivity.max_watts
+
+    # Calculate normalized power
+    np = None
+    if power_waypoints:
+        np = activities_utils.calculate_np(power_waypoints)
 
     # List of conditions, stream types, and corresponding waypoints
     stream_data = [
@@ -212,7 +224,7 @@ def parse_activity(
         (is_elevation_set, 4, ele_waypoints),
         (is_velocity_set, 5, vel_waypoints),
         (is_velocity_set, 6, pace_waypoints),
-        (latitude is not None and longitude is not None, 7, lat_lon_waypoints),
+        (detailedActivity.start_latlng is not None, 7, lat_lon_waypoints),
     ]
 
     gear_id = None
@@ -220,7 +232,7 @@ def parse_activity(
     if user_integrations.strava_sync_gear:
         # set the gear id for the activity
         gear = gears_crud.get_gear_by_strava_id_from_user_id(
-            activity.gear_id, user_id, db
+            detailedActivity.gear_id, user_id, db
         )
 
         # set the gear id for the activity
@@ -230,28 +242,32 @@ def parse_activity(
     # Create the activity object
     activity_to_store = activities_schema.Activity(
         user_id=user_id,
-        name=activity.name,
-        distance=(
-            round(float(activity.distance))
-            if isinstance(activity.distance, Quantity)
-            else round(activity.distance)
-        ),
-        description=activity.description,
-        activity_type=activities_utils.define_activity_type(activity.sport_type),
+        name=detailedActivity.name,
+        distance=round(detailedActivity.distance),
+        description=detailedActivity.description,
+        activity_type=activities_utils.define_activity_type(detailedActivity.sport_type),
         start_time=start_date_parsed.strftime("%Y-%m-%dT%H:%M:%S"),
         end_time=end_date_parsed.strftime("%Y-%m-%dT%H:%M:%S"),
+        total_elapsed_time=total_elapsed_time,
+        total_timer_time=total_timer_time,
         city=city,
         town=town,
         country=country,
-        waypoints=waypoints,
-        elevation_gain=elevation_gain,
-        elevation_loss=elevation_loss,
+        elevation_gain=ele_gain,
+        elevation_loss=ele_loss,
         pace=average_pace,
-        average_speed=average_speed,
-        average_power=average_watts,
-        calories=activity.calories,
+        average_speed=avg_speed,
+        max_speed=max_speed,
+        average_power=avg_power,
+        max_power=max_power,
+        normalized_power=np,
+        average_hr=avg_hr,
+        max_hr=max_hr,
+        average_cad=avg_cadence,
+        max_cad=max_cadence,
+        calories=round(detailedActivity.calories),
         gear_id=gear_id,
-        strava_gear_id=activity.gear_id,
+        strava_gear_id=detailedActivity.gear_id,
         strava_activity_id=int(activity.id),
     )
 

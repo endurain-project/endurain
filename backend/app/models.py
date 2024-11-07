@@ -14,6 +14,20 @@ from sqlalchemy.dialects.mysql import JSON
 from database import Base
 
 
+class Migration(Base):
+    __tablename__ = "migrations"
+
+    id = Column(Integer, primary_key=True)
+    name = Column(String(length=250), nullable=False, comment="Migration name")
+    description = Column(String(length=2500), nullable=False, comment="Migration description")
+    executed = Column(
+        Boolean,
+        nullable=False,
+        default=False,
+        comment="Whether the migration was executed or not",
+    )
+
+
 # Data model for followers table using SQLAlchemy's ORM
 class Follower(Base):
     __tablename__ = "followers"
@@ -86,6 +100,7 @@ class User(Base):
     gender = Column(
         Integer, nullable=False, comment="User gender (one digit)(1 - male, 2 - female)"
     )
+    height = Column(Integer, nullable=True, comment="User height in centimeters")
     access_type = Column(
         Integer, nullable=False, comment="User type (one digit)(1 - user, 2 - admin)"
     )
@@ -127,6 +142,20 @@ class User(Base):
         back_populates="follower",
         cascade="all, delete-orphan",
         foreign_keys=[Follower.follower_id],
+    )
+
+    # Establish a one-to-many relationship with 'health_data'
+    health_data = relationship(
+        "HealthData",
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
+
+    # Establish a one-to-many relationship with 'health_targets'
+    health_targets = relationship(
+        "HealthTargets",
+        back_populates="user",
+        cascade="all, delete-orphan",
     )
 
 
@@ -227,6 +256,16 @@ class Activity(Base):
         DateTime, nullable=False, comment="Activity start date (datetime)"
     )
     end_time = Column(DateTime, nullable=False, comment="Activity end date (datetime)")
+    total_elapsed_time = Column(
+        DECIMAL(precision=20, scale=10),
+        nullable=False,
+        comment="Activity total elapsed time (datetime)",
+    )
+    total_timer_time = Column(
+        DECIMAL(precision=20, scale=10),
+        nullable=False,
+        comment="Activity total timer time (datetime)",
+    )
     city = Column(
         String(length=250), nullable=True, comment="Activity city (May include spaces)"
     )
@@ -241,19 +280,36 @@ class Activity(Base):
     created_at = Column(
         DateTime, nullable=False, comment="Activity creation date (datetime)"
     )
-    elevation_gain = Column(Integer, nullable=False, comment="Elevation gain in meters")
-    elevation_loss = Column(Integer, nullable=False, comment="Elevation loss in meters")
+    elevation_gain = Column(Integer, nullable=True, comment="Elevation gain in meters")
+    elevation_loss = Column(Integer, nullable=True, comment="Elevation loss in meters")
     pace = Column(
         DECIMAL(precision=20, scale=10),
-        nullable=False,
+        nullable=True,
         comment="Pace seconds per meter (s/m)",
     )
     average_speed = Column(
         DECIMAL(precision=20, scale=10),
-        nullable=False,
+        nullable=True,
         comment="Average speed seconds per meter (s/m)",
     )
-    average_power = Column(Integer, nullable=False, comment="Average power (watts)")
+    max_speed = Column(
+        DECIMAL(precision=20, scale=10),
+        nullable=True,
+        comment="Max speed seconds per meter (s/m)",
+    )
+    average_power = Column(Integer, nullable=True, comment="Average power (watts)")
+    max_power = Column(Integer, nullable=True, comment="Max power (watts)")
+    normalized_power = Column(
+        Integer, nullable=True, comment="Normalized power (watts)"
+    )
+    average_hr = Column(Integer, nullable=True, comment="Average heart rate (bpm)")
+    max_hr = Column(Integer, nullable=True, comment="Max heart rate (bpm)")
+    average_cad = Column(Integer, nullable=True, comment="Average cadence (rpm)")
+    max_cad = Column(Integer, nullable=True, comment="Max cadence (rpm)")
+    workout_feeling = Column(
+        Integer, nullable=True, comment="Workout feeling (0 to 100)"
+    )
+    workout_rpe = Column(Integer, nullable=True, comment="Workout RPE (10 to 100)")
     calories = Column(
         Integer,
         nullable=True,
@@ -314,3 +370,52 @@ class ActivityStreams(Base):
 
     # Define a relationship to the User model
     activity = relationship("Activity", back_populates="activities_streams")
+
+
+class HealthData(Base):
+    __tablename__ = "health_data"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(
+        Integer,
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+        comment="User ID that the health_data belongs",
+    )
+    created_at = Column(
+        Date,
+        nullable=False,
+        unique=True,
+        comment="Health data creation date (datetime)",
+    )
+    weight = Column(
+        DECIMAL(precision=10, scale=2),
+        nullable=True,
+        comment="Weight in kg",
+    )
+
+    # Define a relationship to the User model
+    user = relationship("User", back_populates="health_data")
+
+
+class HealthTargets(Base):
+    __tablename__ = "health_targets"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(
+        Integer,
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        unique=True,
+        index=True,
+        comment="User ID that the health_target belongs",
+    )
+    weight = Column(
+        DECIMAL(precision=10, scale=2),
+        nullable=True,
+        comment="Weight in kg",
+    )
+
+    # Define a relationship to the User model
+    user = relationship("User", back_populates="health_targets")

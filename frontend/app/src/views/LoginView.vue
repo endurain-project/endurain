@@ -37,8 +37,8 @@ import { ref, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 // Importing the i18n
 import { useI18n } from 'vue-i18n';
-// Importing the utils
-import { addToast } from '@/utils/toastUtils';
+// Import Notivue push
+import { push } from 'notivue'
 // Importing the stores
 import { useAuthStore } from '@/stores/authStore';
 // Importing the services for the login
@@ -83,13 +83,13 @@ export default {
       } catch (error) {
         // Handle the error
         if (error.toString().includes('401')) {
-          addToast(t('loginView.error401') + " (401)", 'danger', true);
+          push.error(`${t('loginView.error401')} - ${error}`)
         } else if (error.toString().includes('403')) {
-          addToast(t('loginView.error403') + " (403)", 'danger', true);
+          push.error(`${t('loginView.error403')} - ${error}`)
         } else if (error.toString().includes('500')) {
-          addToast(t('loginView.error500') + " (500)", 'danger', true);
+          push.error(`${t('loginView.error500')} - ${error}`)
         } else {
-          addToast(t('loginView.errorUndefined') + " (Undefined)", 'danger', true);
+          push.error(`${t('loginView.errorUndefined')} - ${error}`)
         }
       }
     };
@@ -97,7 +97,7 @@ export default {
     onMounted(() => {
       // Check if the session expired
       if (route.query.sessionExpired === 'true') {
-        addToast(t('loginView.sessionExpired'), 'warning', true);
+        push.warning(t('loginView.sessionExpired'));
       }
     });
 

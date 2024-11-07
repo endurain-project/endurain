@@ -1,8 +1,9 @@
 <template>
-    <a class="nav-item dropdown d-none d-lg-block">
+    <div class="nav-item dropdown d-none d-lg-block">
         <!-- toggle with current lang -->
         <a class="nav-link link-body-emphasis dropdown-toggle" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-            {{ currentLanguage.toLowerCase() }}
+            <span class="me-2">{{ currentLanguage.toLowerCase() }}</span>
+            <span :class="'fi fi-' + currentLanguage"></span>
         </a>
 
         <!-- dropdown menu -->
@@ -13,12 +14,13 @@
                     @click="changeLanguage(language.value)"
                     :aria-pressed="currentLanguage === language.value ? 'true' : 'false'"
                 >
-                    <span>{{ language.label }}</span>
+                    <span class="me-2">{{ language.label }}</span>
+                    <span :class="'fi fi-' + currentLanguage"></span>
                     <span v-if="currentLanguage === language.value" class="ms-3"><font-awesome-icon :icon="['fas', 'check']" /></span>
                 </a>
             </li>
         </ul>
-    </a>
+    </div>
 </template>
 
 <script>
@@ -29,7 +31,7 @@ export default {
     setup() {
         const { locale } = useI18n();
         const languages = [
-            { value: 'en', label: 'English' },
+            { value: 'us', label: 'English (US)' },
             //{ value: 'pt', label: 'Portuguese' },
         ];
         const currentLanguage = ref(locale.value);
@@ -39,7 +41,7 @@ export default {
 
         const getPreferredLanguage = () => {
             const storedLanguage = getStoredLanguage();
-            return storedLanguage ? storedLanguage : 'en';
+            return storedLanguage ? storedLanguage : 'us';
         };
 
         const setLanguage = (lang) => {

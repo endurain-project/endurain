@@ -83,10 +83,10 @@
                                         <option value="1">{{ $t("gearView.modalEditGearIsActiveOption1") }}</option>
                                         <option value="0">{{ $t("gearView.modalEditGearIsActiveOption0") }}</option>
                                     </select>
-                                    <p>* {{ $t("generalItens.requiredField") }}</p>
+                                    <p>* {{ $t("generalItems.requiredField") }}</p>
                                 </div>
                                 <div class="modal-footer">
-                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ $t("generalItens.buttonClose") }}</button>
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ $t("generalItems.buttonClose") }}</button>
                                     <button type="submit" class="btn btn-success" name="editGear" data-bs-dismiss="modal">{{ $t("gearView.buttonEditGear") }}</button>
                                 </div>
                             </form>
@@ -119,7 +119,7 @@
                                 <span>{{ $t("gearView.modalDeleteGearBody2") }}</span>
                             </div>
                             <div class="modal-footer">
-                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ $t("generalItens.buttonClose") }}</button>
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ $t("generalItems.buttonClose") }}</button>
                                 <button @click="submitDeleteGear" type="button" class="btn btn-danger" data-bs-dismiss="modal">
                                     {{ $t("gearView.buttonDeleteGear") }}
                                 </button>
@@ -173,126 +173,133 @@
 
 <script>
 // Importing the vue composition API
-import { ref, onMounted } from 'vue';
-import { useI18n } from 'vue-i18n';
-import { useRoute, useRouter } from 'vue-router';
-// Importing the utils
-import { addToast } from '@/utils/toastUtils';
+import { ref, onMounted } from "vue";
+import { useI18n } from "vue-i18n";
+import { useRoute, useRouter } from "vue-router";
+// Import Notivue push
+import { push } from "notivue";
 // Importing the components
-import NoItemsFoundComponent from '@/components/GeneralComponents/NoItemsFoundComponents.vue';
-import LoadingComponent from '@/components/GeneralComponents/LoadingComponent.vue';
-import BackButtonComponent from '@/components/GeneralComponents/BackButtonComponent.vue';
+import NoItemsFoundComponent from "@/components/GeneralComponents/NoItemsFoundComponents.vue";
+import LoadingComponent from "@/components/GeneralComponents/LoadingComponent.vue";
+import BackButtonComponent from "@/components/GeneralComponents/BackButtonComponent.vue";
 // Importing the services
-import { gears } from '@/services/gearsService';
-import { activities } from '@/services/activitiesService';
-import { formatDate, formatTime } from '@/utils/dateTimeUtils';
+import { gears } from "@/services/gearsService";
+import { activities } from "@/services/activitiesService";
+import { formatDate, formatTime } from "@/utils/dateTimeUtils";
 
 export default {
-    components: {
-        NoItemsFoundComponent,
-        LoadingComponent,
-        BackButtonComponent,
-    },
-    setup() {
-        const { t } = useI18n();
-        const route = useRoute();
-        const router = useRouter();
-        const isLoading = ref(true);
-        const gear = ref(null);
-        const gearActivities = ref([]);
-        const gearDistance = ref(0);
-        const brand = ref('');
-        const model = ref('');
-        const nickname = ref('');
-        const gearType = ref(1);
-        const date = ref(null);
-        const isActive = ref(1);
+	components: {
+		NoItemsFoundComponent,
+		LoadingComponent,
+		BackButtonComponent,
+	},
+	setup() {
+		const { t } = useI18n();
+		const route = useRoute();
+		const router = useRouter();
+		const isLoading = ref(true);
+		const gear = ref(null);
+		const gearActivities = ref([]);
+		const gearDistance = ref(0);
+		const brand = ref("");
+		const model = ref("");
+		const nickname = ref("");
+		const gearType = ref(1);
+		const date = ref(null);
+		const isActive = ref(1);
 
-        async function submitEditGearForm() {
-            try {
-                const data = {
-                    brand: brand.value,
-                    model: model.value,
-                    nickname: nickname.value,
-                    gear_type: gearType.value,
-                    created_at: date.value,
-                    is_active: isActive.value,
-                };
+		async function submitEditGearForm() {
+			try {
+				const data = {
+					brand: brand.value,
+					model: model.value,
+					nickname: nickname.value,
+					gear_type: gearType.value,
+					created_at: date.value,
+					is_active: isActive.value,
+				};
 
-                await gears.editGear(route.params.id, data);
+				await gears.editGear(route.params.id, data);
 
-                gear.value.brand = brand.value;
-                gear.value.model = model.value;
-                gear.value.nickname = nickname.value;
-                gear.value.gear_type = gearType.value;
-                gear.value.created_at = date.value;
-                gear.value.is_active = isActive.value;
-                
-                addToast(t('gearView.successGearEdited'), 'success', true);
-            } catch (error) {
-                // If there is an error, set the error message and show the error alert.
-                addToast(t('generalItens.errorEditingInfo') + " - " + error.toString(), 'danger', true);
-            }
-        }
+				gear.value.brand = brand.value;
+				gear.value.model = model.value;
+				gear.value.nickname = nickname.value;
+				gear.value.gear_type = gearType.value;
+				gear.value.created_at = date.value;
+				gear.value.is_active = isActive.value;
 
-        async function submitDeleteGear() {
-            try {
-                gear.value = await gears.deleteGear(route.params.id);
-                router.push({ path: '/gears', query: { gearDeleted: 'true' } });
-            } catch (error) {
-                addToast(t('generalItens.errorEditingInfo') + " - " + error.toString(), 'danger', true);
-            }
-        }
-        
-        onMounted(async () => {
-            try {
-                // Fetch the gear by its id.
-                gear.value = await gears.getGearById(route.params.id);
-                if (!gear.value) {
-                    router.push({ path: '/gears', query: { gearFound: 'false', id: route.params.id } });
-                }
-                gearActivities.value = await activities.getUserActivitiesByGearId(route.params.id);
-                if (gearActivities.value) {
-                    for (const activity of gearActivities.value) {
-                        gearDistance.value += activity.distance;
-                    }
-                    gearDistance.value = (gearDistance.value / 1000).toFixed(2)
-                }
-                brand.value = gear.value.brand;
-                model.value = gear.value.model;
-                nickname.value = gear.value.nickname;
-                gearType.value = gear.value.gear_type;
-                date.value = gear.value.created_at.split(' ')[0];;
-                isActive.value = gear.value.is_active;
-            } catch (error) {
-                if (error.toString().includes('422')) {
-                    router.push({ path: '/gears', query: { gearFound: 'false', id: route.params.id } });
-                }
-                // If there is an error, set the error message and show the error alert.
-                addToast(t('generalItens.errorEditingInfo') + " - " + error.toString(), 'danger', true);
-            }
+				push.success(t("gearView.successGearEdited"));
+			} catch (error) {
+				// If there is an error, set the error message and show the error alert.
+				push.error(`${t("generalItems.errorEditingInfo")} - ${error}`);
+			}
+		}
 
-            isLoading.value = false;
-        });
+		async function submitDeleteGear() {
+			try {
+				gear.value = await gears.deleteGear(route.params.id);
+				router.push({ path: "/gears", query: { gearDeleted: "true" } });
+			} catch (error) {
+				push.error(`${t("generalItems.errorEditingInfo")} - ${error}`);
+			}
+		}
 
-        return{
-            brand,
-            model,
-            nickname,
-            gearType,
-            date,
-            isActive,
-            isLoading,
-            gear,
-            gearActivities,
-            gearDistance,
-            t,
-            submitEditGearForm,
-            submitDeleteGear,
-            formatDate,
-            formatTime,
-        }
-    },
+		onMounted(async () => {
+			try {
+				// Fetch the gear by its id.
+				gear.value = await gears.getGearById(route.params.id);
+				if (!gear.value) {
+					router.push({
+						path: "/gears",
+						query: { gearFound: "false", id: route.params.id },
+					});
+				}
+				gearActivities.value = await activities.getUserActivitiesByGearId(
+					route.params.id,
+				);
+				if (gearActivities.value) {
+					for (const activity of gearActivities.value) {
+						gearDistance.value += activity.distance;
+					}
+					gearDistance.value = (gearDistance.value / 1000).toFixed(2);
+				}
+				brand.value = gear.value.brand;
+				model.value = gear.value.model;
+				nickname.value = gear.value.nickname;
+				gearType.value = gear.value.gear_type;
+				date.value = gear.value.created_at.split(" ")[0];
+				isActive.value = gear.value.is_active;
+			} catch (error) {
+				if (error.toString().includes("422")) {
+					router.push({
+						path: "/gears",
+						query: { gearFound: "false", id: route.params.id },
+					});
+				}
+				// If there is an error, set the error message and show the error alert.
+				push.error(`${t("generalItems.errorEditingInfo")} - ${error}`);
+			}
+
+			isLoading.value = false;
+		});
+
+		return {
+			brand,
+			model,
+			nickname,
+			gearType,
+			date,
+			isActive,
+			isLoading,
+			gear,
+			gearActivities,
+			gearDistance,
+			t,
+			submitEditGearForm,
+			submitDeleteGear,
+			formatDate,
+			formatTime,
+		};
+	},
 };
-
 </script>

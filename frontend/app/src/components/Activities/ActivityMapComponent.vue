@@ -60,7 +60,10 @@ export default {
             if (!activityMap.value) return;
 
             const waypoints = activityStreamLatLng.value.stream_waypoints;
-            
+
+            const validWaypoints = waypoints.filter(waypoint => waypoint.lat && waypoint.lon);
+
+            const latlngs = validWaypoints.map(waypoint => [waypoint.lat, waypoint.lon]);
             
             const map = L.map(activityMap.value, {
                 dragging: false, // Disable panning
@@ -73,7 +76,6 @@ export default {
                 attribution: '© OpenStreetMap contributors'
             }).addTo(map);
 
-            const latlngs = waypoints.map(waypoint => [waypoint.lat, waypoint.lon]);
             L.polyline(latlngs, { color: 'blue' }).addTo(map);
 
             // Fit map to polyline bounds

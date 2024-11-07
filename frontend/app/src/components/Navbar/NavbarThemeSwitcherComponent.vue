@@ -1,14 +1,10 @@
 <template>
-    <a class="dropdown d-none d-lg-block">
+    <div class="dropdown d-none d-lg-block">
         <!-- toggle with current theme -->
-        <a class="nav-link me-1 link-body-emphasis dropdown-toggle btn border-0" role="button" data-bs-toggle="dropdown" aria-expanded="false" v-if="themeStore.theme == 'dark'">
-            <font-awesome-icon :icon="['fas', 'moon']" />
-        </a>
-        <a class="nav-link link-body-emphasis dropdown-toggle btn border-0" role="button" data-bs-toggle="dropdown" aria-expanded="false" v-else-if="themeStore.theme == 'light'">
-            <font-awesome-icon :icon="['fas', 'sun']" />
-        </a>
-        <a class="nav-link link-body-emphasis dropdown-toggle btn border-0" role="button" data-bs-toggle="dropdown" aria-expanded="false" v-else>
-            <font-awesome-icon :icon="['fas', 'circle-half-stroke']" />
+		<a class="nav-link link-body-emphasis dropdown-toggle" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+            <font-awesome-icon :icon="['fas', 'moon']" v-if="themeStore.theme == 'dark'" />
+            <font-awesome-icon :icon="['fas', 'sun']" v-else-if="themeStore.theme == 'light'" />
+			<font-awesome-icon :icon="['fas', 'circle-half-stroke']" v-else />
         </a>
 
         <!-- dropdown menu -->
@@ -27,56 +23,69 @@
                 </a>
             </li>
         </ul>
-    </a>
+    </div>
 </template>
 
 <script>
-import { onMounted } from 'vue';
+import { onMounted } from "vue";
+import { useI18n } from "vue-i18n";
 
-import { useThemeStore } from '@/stores/themeStore';
+import { useThemeStore } from "@/stores/themeStore";
 
 export default {
-    setup() {
-        const themeStore = useThemeStore();
-        const themes = [
-            { value: 'light', label: 'Light' },
-            { value: 'dark', label: 'Dark' },
-            { value: 'auto', label: 'Auto' },
-        ];
+	setup() {
+		const themeStore = useThemeStore();
+		const { t } = useI18n();
+		const themes = [
+			{ value: "light", label: t("settingsThemeSwitcher.themeLight") },
+			{ value: "dark", label: t("settingsThemeSwitcher.themeDark") },
+			{ value: "auto", label: t("settingsThemeSwitcher.themeAuto") },
+		];
 
-        const setTheme = (theme) => {
-            if (theme === 'auto') {
-                document.documentElement.setAttribute(
-                    'data-bs-theme',
-                    window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
-                );
-            } else {
-                document.documentElement.setAttribute('data-bs-theme', theme);
-            }
-        };
+		const setTheme = (theme) => {
+			if (theme === "auto") {
+				document.documentElement.setAttribute(
+					"data-bs-theme",
+					window.matchMedia("(prefers-color-scheme: dark)").matches
+						? "dark"
+						: "light",
+				);
+			} else {
+				document.documentElement.setAttribute("data-bs-theme", theme);
+			}
+		};
 
-        const changeTheme = (theme) => {
-            setTheme(theme);
-            themeStore.setTheme(theme);
-        };
+		const changeTheme = (theme) => {
+			setTheme(theme);
+			themeStore.setTheme(theme);
+		};
 
-        onMounted(() => {
-            setTheme(themeStore.theme);
-        
-            window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
-                if (themeStore.theme !== 'light' && themeStore.theme !== 'dark') {
-                    const preferredTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+		onMounted(() => {
+			setTheme(themeStore.theme);
 
-                    document.documentElement.setAttribute('data-bs-theme', preferredTheme);
-                }
-            });
-        });
+			window
+				.matchMedia("(prefers-color-scheme: dark)")
+				.addEventListener("change", () => {
+					if (themeStore.theme !== "light" && themeStore.theme !== "dark") {
+						const preferredTheme = window.matchMedia(
+							"(prefers-color-scheme: dark)",
+						).matches
+							? "dark"
+							: "light";
 
-        return {
-            themeStore,
-            themes,
-            changeTheme,
-        };
-    },
+						document.documentElement.setAttribute(
+							"data-bs-theme",
+							preferredTheme,
+						);
+					}
+				});
+		});
+
+		return {
+			themeStore,
+			themes,
+			changeTheme,
+		};
+	},
 };
 </script>

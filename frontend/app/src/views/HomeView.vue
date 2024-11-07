@@ -43,12 +43,12 @@
               <div class="modal-body">
                 <!-- date fields -->
                 <label for="activityGpxFileAdd"><b>* {{ $t("homeView.fieldLabelUploadGPXFile") }}</b></label>
-                <input class="form-control mt-1 mb-1" type="file" name="activityGpxFileAdd" accept=".gpx" required>
-                <p>* {{ $t("generalItens.requiredField") }}</p>
+                <input class="form-control mt-1 mb-1" type="file" name="activityGpxFileAdd" accept=".gpx,.fit" required>
+                <p>* {{ $t("generalItems.requiredField") }}</p>
               </div>
               <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                  {{ $t("generalItens.buttonClose") }}
+                  {{ $t("generalItems.buttonClose") }}
                 </button>
                 <button type="submit" class="btn btn-success" data-bs-dismiss="modal">
                   {{ $t("homeView.buttonAddActivity") }}
@@ -118,8 +118,8 @@ import { useAuthStore } from '@/stores/authStore';
 // Import the services
 import { activities } from '@/services/activitiesService';
 import { followers } from '@/services/followersService';
-// Importing the utils
-import { addToast } from '@/utils/toastUtils';
+// Import Notivue push
+import { push } from 'notivue'
 // Importing the components
 import UserDistanceStatsComponent from '@/components/Activities/UserDistanceStatsComponent.vue';
 import NoItemsFoundComponent from '@/components/GeneralComponents/NoItemsFoundComponents.vue';
@@ -160,7 +160,7 @@ export default {
         thisMonthDistances.value = await activities.getUserThisMonthStats(authStore.user.id);
       } catch (error) {
         // Set the error message
-        addToast(`${t('generalItens.errorFetchingInfo')} - ${error}`, 'danger', true);
+        push.error(`${t('generalItems.errorFetchingInfo')} - ${error}`)
       }
     }
 
@@ -182,7 +182,7 @@ export default {
         }
       } catch (error) {
         // Set the error message
-        addToast(`${t('generalItens.errorFetchingInfo')} - ${error}`, 'danger', true);
+        push.error(`${t('generalItems.errorFetchingInfo')} - ${error}`)
       }
     }
 
@@ -198,7 +198,7 @@ export default {
 
     const submitUploadFileForm = async () => {
       // Set the loading message
-      addToast(t('homeView.processingActivity'), 'loading', true);
+      const notification = push.promise(t('homeView.processingActivity'))
 
       // Get the file input
       const fileInput = document.querySelector('input[type="file"]');
@@ -210,17 +210,17 @@ export default {
         formData.append('file', fileInput.files[0]);
         try {
           // Upload the file
-          const createdActivity = await activities.uploadActivityFile(formData);
-          console.log("tenho a actividiade");
+          const createdActivities = await activities.uploadActivityFile(formData);
           // Fetch the new user activity
           if (!userActivities.value) {
             userActivities.value = [];
           }
-          userActivities.value.unshift(createdActivity);
-          console.log("guardei actividade no array");
+          for (const createdActivity of createdActivities) {
+            userActivities.value.unshift(createdActivity);
+          }
           
           // Set the success message
-          addToast(t('homeView.successActivityAdded'), 'success', true);
+          notification.resolve(t('homeView.successActivityAdded'))
 
           // Clear the file input
           fileInput.value = '';
@@ -232,7 +232,7 @@ export default {
           userNumberOfActivities.value ++;
         } catch (error) {
           // Set the error message
-          addToast(`${t('generalItens.errorFetchingInfo')} - ${error}`, 'danger', true);
+          notification.reject(`${t('generalItems.errorFetchingInfo')} - ${error}`)
         }
       }
     };
@@ -240,13 +240,13 @@ export default {
     onMounted(async () => {
       if (route.query.activityFound === 'false') {
         // Set the activityFound value to false and show the error alert.
-        addToast(`${t('homeView.errorActivityNotFound')} - ${error}`, 'danger', true);
+        push.error(`${t('homeView.errorActivityNotFound')} - ${error}`)
       }
 
       if (route.query.activityDeleted === 'true') {
         userActivities.value = userActivities.value.filter(activity => activity.id !== Number(route.query.activityId));
         // Set the activityDeleted value to true and show the success alert.
-        addToast(t('homeView.successActivityDeleted'), 'success', true);
+        push.success(t('homeView.successActivityDeleted'))
       }
 
       // Add the scroll event listener
@@ -267,7 +267,7 @@ export default {
         }
       } catch (error) {
         // Set the error message
-        addToast(`${t('generalItens.errorFetchingInfo')} - ${error}`, 'danger', true);
+        push.error(`${t('generalItems.errorFetchingInfo')} - ${error}`)
       }
 
       isLoading.value = false;

@@ -25,7 +25,7 @@ export function formatPace(pace) {
  */
 export function formatPaceSwim(pace) {
     // Convert pace to seconds per 100 meters
-    const pacePerKm = pace * 1000 / 60;
+    const pacePerKm = pace * 100 / 60;
     // Calculate minutes and seconds
     const minutes = Math.floor(pacePerKm);
     const seconds = Math.round((pacePerKm - minutes) * 60);
@@ -34,5 +34,5 @@ export function formatPaceSwim(pace) {
     const formattedSeconds = seconds < 10 ? `0${seconds}` : seconds;
 
     // Return the formatted pace
-    return `${minutes}:${formattedSeconds} min/km`;
+    return `${minutes}:${formattedSeconds} min/100m`;
 }

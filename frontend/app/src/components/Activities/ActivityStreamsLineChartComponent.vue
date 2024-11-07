@@ -31,50 +31,50 @@ export default {
             const labels = [];
             let roundValues = true;
 
-            props.activityStreams.forEach((stream) => {
-                if (stream.stream_type == 1 && props.graphSelection == 'hr') {
+            for (const stream of props.activityStreams) {
+                if (stream.stream_type === 1 && props.graphSelection === 'hr') {
                     for (const streamPoint of stream.stream_waypoints) {
-                        data.push(parseInt(streamPoint.hr));
+                        data.push(Number.parseInt(streamPoint.hr));
                         label = "Heart Rate (bpm)";
                     }
-                } else if (stream.stream_type == 2 && props.graphSelection == 'power') {
+                } else if (stream.stream_type === 2 && props.graphSelection === 'power') {
                     for (const streamPoint of stream.stream_waypoints) {
-                        data.push(parseInt(streamPoint.power));
+                        data.push(Number.parseInt(streamPoint.power));
                         label = "Power (Watts)";
                     }
-                } else if (stream.stream_type == 3 && props.graphSelection == 'cad') {
+                } else if (stream.stream_type === 3 && props.graphSelection === 'cad') {
                     for (const streamPoint of stream.stream_waypoints) {
-                        data.push(parseInt(streamPoint.cad));
+                        data.push(Number.parseInt(streamPoint.cad));
                         label = "Cadence (rpm)";
                     }
-                } else if (stream.stream_type == 4 && props.graphSelection == 'ele') {
+                } else if (stream.stream_type === 4 && props.graphSelection === 'ele') {
                     for (const streamPoint of stream.stream_waypoints) {
-                        data.push(parseFloat(streamPoint.ele));
+                        data.push(Number.parseFloat(streamPoint.ele));
                         label = "Elevation (m)";
                     }
-                } else if (stream.stream_type == 5 && props.graphSelection == 'vel') {
-                    data.push(...stream.stream_waypoints.map(velData => parseFloat((velData.vel * 3.6).toFixed(0))));
+                } else if (stream.stream_type === 5 && props.graphSelection === 'vel') {
+                    data.push(...stream.stream_waypoints.map(velData => Number.parseFloat((velData.vel * 3.6).toFixed(0))));
                     label = "Velocity (km/h)";
-                } else if (stream.stream_type == 6 && props.graphSelection == 'pace') {
+                } else if (stream.stream_type === 6 && props.graphSelection === 'pace') {
                     roundValues = false;
-                    stream.stream_waypoints.forEach(paceData => {
-                        if (paceData.pace == 0 || paceData.pace === null) {
+                    for (const paceData of stream.stream_waypoints) {
+                        if (paceData.pace === 0 || paceData.pace === null) {
                             data.push(0);
                         } else {
-                            if (props.activity.activity_type == 1 || props.activity.activity_type == 2 || props.activity.activity_type == 3) {
+                            if (props.activity.activity_type === 1 || props.activity.activity_type === 2 || props.activity.activity_type === 3) {
                                 data.push((paceData.pace * 1000) / 60);
-                            } else if (props.activity.activity_type == 8 || props.activity.activity_type == 9) {
+                            } else if (props.activity.activity_type === 8 || props.activity.activity_type === 9) {
                                 data.push((paceData.pace * 100) / 60);
                             }
                         }
-                    });
-                    if (props.activity.activity_type == 1 || props.activity.activity_type == 2 || props.activity.activity_type == 3) {
+                    }
+                    if (props.activity.activity_type === 1 || props.activity.activity_type === 2 || props.activity.activity_type === 3) {
                         label = "Pace (min/km)";
-                    } else if (props.activity.activity_type == 8 || props.activity.activity_type == 9) {
+                    } else if (props.activity.activity_type === 8 || props.activity.activity_type === 9) {
                         label = "Pace (min/100m)";
                     }
                 }
-            });
+            }
 
             const dataDS = downsampleData(data, 200, roundValues);
             
@@ -83,7 +83,7 @@ export default {
             const distanceInterval = totalDistance / numberOfDataPoints;
 
             for (let i = 0; i < numberOfDataPoints; i++) {
-                labels.push((i * distanceInterval).toFixed(0) + "km");
+                labels.push(`${(i * distanceInterval).toFixed(0)}km`);
                 /* if (props.graphSelection == 'pace') {
                     let paceCalculated = 0;
                     if (props.activity.activity_type == 1 || props.activity.activity_type == 2 || props.activity.activity_type == 3) {
@@ -112,7 +112,6 @@ export default {
                 myChart.data.labels = newChartData.labels;
                 myChart.value.update();
             }
-            console.log(computedChartData.value)
         }, { deep: true });
 
         function downsampleData(data, threshold, roundValues) {
@@ -127,7 +126,7 @@ export default {
                 const chunk = data.slice(i, i + factor);
                 const average = chunk.reduce((a, b) => a + b) / chunk.length;
                 if (roundValues) {
-                    downsampledData.push(parseInt(average));
+                    downsampledData.push(Number.parseInt(average));
                 }else{
                     downsampledData.push(average);
                 }

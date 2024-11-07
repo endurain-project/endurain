@@ -1,5 +1,3 @@
-import os
-import glob
 import logging
 
 from fastapi import HTTPException, status
@@ -10,42 +8,17 @@ from urllib.parse import unquote
 import session.security as session_security
 
 import users.schema as users_schema
+import users.utils as users_utils
 import models
 
 # Define a loggger created on main.py
 logger = logging.getLogger("myLogger")
 
-def delete_user_photo_filesystem(user_id: int):
-    # Define the pattern to match files with the specified name regardless of the extension
-    folder = "user_images"
-    file = f"{user_id}.*"
-
-    # Find all files matching the pattern
-    files_to_delete = glob.glob(os.path.join(folder, file))
-
-    # Remove each file found
-    for file_path in files_to_delete:
-        print(f"Deleting: {file_path}")
-        if os.path.exists(file_path):
-            os.remove(file_path)
-            print(f"Deleted: {file_path}")
-
-
-def format_user_birthdate(user):
-    user.birthdate = user.birthdate.strftime("%Y-%m-%d") if user.birthdate else None
-    return user
-
 
 def authenticate_user(username: str, db: Session):
     try:
         # Get the user from the database
-        user = (
-            db.query(models.User)
-            .filter(
-                models.User.username == username
-            )
-            .first()
-        )
+        user = db.query(models.User).filter(models.User.username == username).first()
 
         # Check if the user exists and if the password is correct and if not return None
         if not user:
@@ -107,7 +80,7 @@ def get_users_with_pagination(db: Session, page_number: int = 1, num_records: in
 
         # Format the birthdate
         for user in users:
-            user = format_user_birthdate(user)
+            user = users_utils.format_user_birthdate(user)
 
         # Return the users
         return users
@@ -139,7 +112,7 @@ def get_user_if_contains_username(username: str, db: Session):
 
         # Format the birthdate
         for user in users:
-            user = format_user_birthdate(user)
+            user = users_utils.format_user_birthdate(user)
 
         # Return the user
         return users
@@ -163,7 +136,7 @@ def get_user_by_username(username: str, db: Session):
             return None
 
         # Format the birthdate
-        user = format_user_birthdate(user)
+        user = users_utils.format_user_birthdate(user)
 
         # Return the user
         return user
@@ -187,7 +160,7 @@ def get_user_by_id(user_id: int, db: Session):
             return None
 
         # Format the birthdate
-        user = format_user_birthdate(user)
+        user = users_utils.format_user_birthdate(user)
 
         # Return the user
         return user
@@ -323,6 +296,8 @@ def edit_user(user_id: int, user: users_schema.User, db: Session):
             db_user.preferred_language = user.preferred_language
         if user.gender is not None:
             db_user.gender = user.gender
+        if user.height is not None:
+            db_user.height = user.height
         if user.access_type is not None:
             db_user.access_type = user.access_type
         if user.photo_path is not None:
@@ -335,7 +310,7 @@ def edit_user(user_id: int, user: users_schema.User, db: Session):
 
         if db_user.photo_path is None:
             # Delete the user photo in the filesystem
-            delete_user_photo_filesystem(db_user.id)
+            users_utils.delete_user_photo_filesystem(db_user.id)
     except IntegrityError as integrity_error:
         # Rollback the transaction
         db.rollback()
@@ -381,7 +356,7 @@ def edit_user_password(user_id: int, password: str, db: Session):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal Server Error",
         ) from err
-    
+
 
 def edit_user_photo_path(user_id: int, photo_path: str, db: Session):
     try:
@@ -422,7 +397,7 @@ def delete_user_photo(user_id: int, db: Session):
         db.commit()
 
         # Delete the user photo in the filesystem
-        delete_user_photo_filesystem(user_id)
+        users_utils.delete_user_photo_filesystem(user_id)
     except Exception as err:
         # Rollback the transaction
         db.rollback()
@@ -453,7 +428,7 @@ def delete_user(user_id: int, db: Session):
         db.commit()
 
         # Delete the user photo in the filesystem
-        delete_user_photo_filesystem(user_id)
+        users_utils.delete_user_photo_filesystem(user_id)
     except Exception as err:
         # Rollback the transaction
         db.rollback()

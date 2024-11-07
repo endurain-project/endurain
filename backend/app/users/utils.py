@@ -1,4 +1,5 @@
 import os
+import glob
 import logging
 
 from fastapi import HTTPException, status, UploadFile
@@ -10,6 +11,28 @@ import users.crud as users_crud
 
 # Define a loggger created on main.py
 logger = logging.getLogger("myLogger")
+
+
+def delete_user_photo_filesystem(user_id: int):
+    # Define the pattern to match files with the specified name regardless of the extension
+    folder = "user_images"
+    file = f"{user_id}.*"
+
+    # Find all files matching the pattern
+    files_to_delete = glob.glob(os.path.join(folder, file))
+
+    # Remove each file found
+    for file_path in files_to_delete:
+        print(f"Deleting: {file_path}")
+        if os.path.exists(file_path):
+            os.remove(file_path)
+            print(f"Deleted: {file_path}")
+
+
+def format_user_birthdate(user):
+    user.birthdate = user.birthdate.strftime("%Y-%m-%d") if user.birthdate else None
+    return user
+
 
 async def save_user_image(user_id: int, file: UploadFile, db: Session):
     try:

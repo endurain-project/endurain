@@ -12,7 +12,7 @@
                         </select>
                         <br>
                         <input type="text" class="form-control" id="inputTextFieldToSearch" :placeholder='$t("footer.searchInputPlaceholder")' v-model="inputSearch">
-                        <ul v-if="searchResults.length" class="list-group">
+                        <ul v-if="searchResults" class="list-group">
                             <li v-for="result in searchResults" :key="result.id" class="list-group-item list-group-item-action">
                                 <!-- user link -->
                                 <router-link :to="{ name: 'user', params: { id: result.id }}" class="link-body-emphasis link-underline-opacity-0 link-underline-opacity-100-hover" v-if="searchSelectValue == 1">
@@ -29,7 +29,7 @@
                     </form>
                 </div>
                 <div class="mt-3 col">
-                    <p class="text-center text-muted">&copy; {{ new Date().getFullYear() === 2023 ? '2023' : '2023 - ' + new Date().getFullYear() }} Endurain • <a class="link-body-emphasis" href="https://github.com/joaovitoriasilva/endurain" role="button"><font-awesome-icon :icon="['fab', 'fa-github']" /></a> • <a class="link-body-emphasis" href="https://fosstodon.org/@endurain"><font-awesome-icon :icon="['fab', 'fa-mastodon']" /></a> • v0.4.0</p>
+                    <p class="text-center text-muted">&copy; {{ new Date().getFullYear() === 2023 ? '2023' : '2023 - ' + new Date().getFullYear() }} Endurain • <a class="link-body-emphasis" href="https://github.com/joaovitoriasilva/endurain" role="button"><font-awesome-icon :icon="['fab', 'fa-github']" /></a> • <a class="link-body-emphasis" href="https://fosstodon.org/@endurain"><font-awesome-icon :icon="['fab', 'fa-mastodon']" /></a> • v0.5.0</p>
                     <p class="text-center text-muted"><img src="/src/assets/strava/api_logo_cptblWith_strava_horiz_light.png" alt="Compatible with STRAVA image" height="25" /></p>
                 </div>
             </div>
@@ -41,6 +41,8 @@
 import { watch, ref } from 'vue';
 import { useRoute } from 'vue-router';
 import { useI18n } from 'vue-i18n';
+// Import Notivue push
+import { push } from 'notivue'
 // import lodash
 import { debounce } from 'lodash';
 
@@ -56,7 +58,7 @@ export default {
         const authStore = useAuthStore();
         const { t } = useI18n();
         const path = ref(route.path);
-        const searchSelectValue = ref(1);
+        const searchSelectValue = ref('1');
         const inputSearch = ref('');
         const searchResults = ref([]);
 
@@ -68,7 +70,7 @@ export default {
             try {
                 searchResults.value = await users.getUserByUsername(query);
             } catch (error) {
-                console.error('Error fetching user results:', error);
+                push.error(`${t('generalItems.errorFetchingInfo')} - ${error}`)
             }
         }, 500);
 
@@ -78,10 +80,9 @@ export default {
                 return;
             }
             try {
-                // Replace with your actual API call for activities
                 searchResults.value = await activities.getActivityByName(query);
             } catch (error) {
-                console.error('Error fetching activity results:', error);
+                push.error(`${t('generalItems.errorFetchingInfo')} - ${error}`)
             }
         }, 500);
 
@@ -91,17 +92,16 @@ export default {
                 return;
             }
             try {
-                // Replace with your actual API call for gear
                 searchResults.value = await gears.getGearByNickname(query);
             } catch (error) {
-                console.error('Error fetching gear results:', error);
+                push.error(`${t('generalItems.errorFetchingInfo')} - ${error}`)
             }
         }, 500);
 
         watch(() => route.path, (newPath, oldPath) => {
             path.value = newPath;
             /* reset search values */
-            searchSelectValue.value = 1;
+            searchSelectValue.value = '1';
             inputSearch.value = '';
             searchResults.value = [];
         });
@@ -112,11 +112,11 @@ export default {
         });
 
         watch(inputSearch, async (newQuery) => {
-            if (searchSelectValue.value == 1) {
+            if (searchSelectValue.value === '1') {
                 await fetchUserResults(newQuery);
-            } else if (searchSelectValue.value == 2) {
+            } else if (searchSelectValue.value === '2') {
                 await fetchActivityResults(newQuery);
-            } else {
+            } else if (searchSelectValue.value === '3') {
                 await fetchGearResults(newQuery);
             }
         });
