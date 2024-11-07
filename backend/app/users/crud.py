@@ -50,6 +50,7 @@ def get_all_users(db: Session):
             detail="Internal Server Error",
         ) from err
 
+
 def get_users_number(db: Session):
     try:
 
@@ -71,11 +72,12 @@ def get_users_with_pagination(db: Session, page_number: int = 1, num_records: in
 
         # Get the users from the database abd Format the birthdate
         users = [
-        format_user_birthdate(user)for user in db.query(models.User)
-        .offset((page_number - 1) * num_records)
-        .limit(num_records)
-        .all()
-        ] 
+            users_utils.format_user_birthdate(user)
+            for user in db.query(models.User)
+            .offset((page_number - 1) * num_records)
+            .limit(num_records)
+            .all()
+        ]
 
         # If the users were not found, return None
         if not users:
@@ -83,7 +85,7 @@ def get_users_with_pagination(db: Session, page_number: int = 1, num_records: in
 
         # Return the users
         return users
-    
+
     except Exception as err:
         # Log the exception
         logger.error(f"Error in get_users_with_pagination: {err}", exc_info=True)
@@ -109,10 +111,9 @@ def get_user_if_contains_username(username: str, db: Session):
         # If the user was not found, return None
         if users is None:
             return None
-        
-        # Format the birthdate
-        users = [format_user_birthdate(user) for user in users]
 
+        # Format the birthdate
+        users = [users_utils.format_user_birthdate(user) for user in users]
 
         # Return the user
         return users
@@ -124,7 +125,6 @@ def get_user_if_contains_username(username: str, db: Session):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal Server Error",
         ) from err
-
 
 
 def get_user_by_username(username: str, db: Session):
@@ -289,7 +289,6 @@ def edit_user(user_id: int, user: users_schema.User, db: Session):
         # Iterate over the fields and update the db_user dynamically
         for key, value in user_data.items():
             setattr(db_user, key, value)
-
 
         # Commit the transaction
         db.commit()
