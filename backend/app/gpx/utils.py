@@ -242,7 +242,7 @@ def parse_gpx_file(file: str, user_id: int) -> dict:
         activity = activities_schema.Activity(
             user_id=user_id,
             name=activity_name,
-            distance=round(distance) if distance else None,
+            distance=round(distance) if distance else 0,
             activity_type=activity_type,
             start_time=first_waypoint_time.strftime("%Y-%m-%dT%H:%M:%S"),
             end_time=last_waypoint_time.strftime("%Y-%m-%dT%H:%M:%S"),
