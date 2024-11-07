@@ -562,7 +562,7 @@ def define_activity_type(activity_type):
     # "Yoga"
 
     # Get the activity type from the mapping
-    auxType = type_mapping.get(activity_type, 10)
+    auxType = type_mapping.get(str(activity_type), 10)
 
     # Return the activity type
     return auxType
