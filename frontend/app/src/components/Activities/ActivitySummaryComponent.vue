@@ -51,6 +51,9 @@
                         <span v-else-if="activity.activity_type == 12">
                             <font-awesome-icon :icon="['fas', 'person-hiking']" />
                         </span>
+                        <span v-else-if="activity.activity_type == 13">
+                            <font-awesome-icon :icon="['fas', 'sailboat']" />
+                        </span>
                         <span v-else>
                             <font-awesome-icon :icon="['fas', 'fa-dumbbell']" />
                         </span>
@@ -153,7 +156,7 @@
                 <span>{{ calculateTimeDifference(activity.start_time, activity.end_time) }}</span>
             </div>
             <div class="col border-start border-opacity-50">
-                <div v-if="activity.activity_type != 1 && activity.activity_type != 2 && activity.activity_type != 3 && activity.activity_type != 8 && activity.activity_type != 9">
+                <div v-if="activity.activity_type != 1 && activity.activity_type != 2 && activity.activity_type != 3 && activity.activity_type != 8 && activity.activity_type != 9 && activity.activity_type != 13">
                     <span class="fw-lighter">
                         {{ $t("activitySummary.activityElevationGain") }}
                     </span>
@@ -272,7 +275,7 @@ export default {
 		let formattedPace = null;
 		if (
 			props.activity.activity_type === 8 ||
-			props.activity.activity_type === 9
+			props.activity.activity_type === 9 || props.activity.activity_type === 13
 		) {
 			formattedPace = computed(() => formatPaceSwim(props.activity.pace));
 		} else {

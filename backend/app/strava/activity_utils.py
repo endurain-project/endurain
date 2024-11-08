@@ -246,7 +246,7 @@ def parse_activity(
         distance=round(detailedActivity.distance) if avg_hr else 0,
         description=detailedActivity.description,
         activity_type=activities_utils.define_activity_type(
-            str(detailedActivity.sport_type)
+            detailedActivity.sport_type.root
         ),
         start_time=start_date_parsed.strftime("%Y-%m-%dT%H:%M:%S"),
         end_time=end_date_parsed.strftime("%Y-%m-%dT%H:%M:%S"),

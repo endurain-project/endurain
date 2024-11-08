@@ -509,6 +509,8 @@ def define_activity_type(activity_type):
         "walking": 11,
         "Hike": 12,
         "hiking": 12,
+        "Rowing": 13,
+        "indoor_rowing": 13,
     }
     # "AlpineSki",
     # "BackcountrySki",
