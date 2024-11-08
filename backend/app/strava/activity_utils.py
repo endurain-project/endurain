@@ -243,7 +243,7 @@ def parse_activity(
     activity_to_store = activities_schema.Activity(
         user_id=user_id,
         name=detailedActivity.name,
-        distance=round(detailedActivity.distance) if avg_hr else 0,
+        distance=round(detailedActivity.distance) if detailedActivity.distance else 0,
         description=detailedActivity.description,
         activity_type=activities_utils.define_activity_type(
             detailedActivity.sport_type.root
