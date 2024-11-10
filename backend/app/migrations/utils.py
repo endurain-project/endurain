@@ -64,104 +64,105 @@ def process_migration_1(db: Session):
         logger.error(f"Error fetching activities: {e}")
         return
 
-    for activity in activities:
-        try:
-            # Ensure start_time and end_time are datetime objects
-            if isinstance(activity.start_time, str):
-                activity.start_time = datetime.strptime(
-                    activity.start_time, "%Y-%m-%d %H:%M:%S"
-                )
-            if isinstance(activity.end_time, str):
-                activity.end_time = datetime.strptime(
-                    activity.end_time, "%Y-%m-%d %H:%M:%S"
-                )
-
-            # Initialize additional fields
-            metrics = {
-                "avg_hr": None,
-                "max_hr": None,
-                "avg_power": None,
-                "max_power": None,
-                "np": None,
-                "avg_cadence": None,
-                "max_cadence": None,
-                "avg_speed": None,
-                "max_speed": None,
-            }
-
-            # Get activity streams
+    if activities:
+        for activity in activities:
             try:
-                activity_streams = activity_streams_crud.get_activity_streams(
-                    activity.id, db
-                )
-            except Exception as err:
-                logger.warning(
-                    f"Failed to fetch streams for activity {activity.id}: {err}",
-                    exc_info=True,
-                )
-                activities_processed_with_no_errors = False
-                continue
-
-            # Map stream processing functions
-            stream_processing = {
-                StreamType.HEART_RATE: ("avg_hr", "max_hr", "hr"),
-                StreamType.POWER: ("avg_power", "max_power", "power", "np"),
-                StreamType.CADENCE: ("avg_cadence", "max_cadence", "cad"),
-                StreamType.ELEVATION: None,
-                StreamType.SPEED: ("avg_speed", "max_speed", "vel"),
-                StreamType.PACE: None,
-                StreamType.LATLONG: None,
-            }
-
-            for stream in activity_streams:
-                stream_type = StreamType(stream.stream_type)
-                if (
-                    stream_type in stream_processing
-                    and stream_processing[stream_type] is not None
-                ):
-                    attr_avg, attr_max, stream_key = stream_processing[stream_type][:3]
-                    metrics[attr_avg], metrics[attr_max] = (
-                        activities_utils.calculate_avg_and_max(
-                            stream.stream_waypoints, stream_key
-                        )
+                # Ensure start_time and end_time are datetime objects
+                if isinstance(activity.start_time, str):
+                    activity.start_time = datetime.strptime(
+                        activity.start_time, "%Y-%m-%d %H:%M:%S"
                     )
-                    # Special handling for normalized power
-                    if stream_type == StreamType.POWER:
-                        metrics["np"] = activities_utils.calculate_np(
-                            stream.stream_waypoints
+                if isinstance(activity.end_time, str):
+                    activity.end_time = datetime.strptime(
+                        activity.end_time, "%Y-%m-%d %H:%M:%S"
+                    )
+
+                # Initialize additional fields
+                metrics = {
+                    "avg_hr": None,
+                    "max_hr": None,
+                    "avg_power": None,
+                    "max_power": None,
+                    "np": None,
+                    "avg_cadence": None,
+                    "max_cadence": None,
+                    "avg_speed": None,
+                    "max_speed": None,
+                }
+
+                # Get activity streams
+                try:
+                    activity_streams = activity_streams_crud.get_activity_streams(
+                        activity.id, db
+                    )
+                except Exception as err:
+                    logger.warning(
+                        f"Failed to fetch streams for activity {activity.id}: {err}",
+                        exc_info=True,
+                    )
+                    activities_processed_with_no_errors = False
+                    continue
+
+                # Map stream processing functions
+                stream_processing = {
+                    StreamType.HEART_RATE: ("avg_hr", "max_hr", "hr"),
+                    StreamType.POWER: ("avg_power", "max_power", "power", "np"),
+                    StreamType.CADENCE: ("avg_cadence", "max_cadence", "cad"),
+                    StreamType.ELEVATION: None,
+                    StreamType.SPEED: ("avg_speed", "max_speed", "vel"),
+                    StreamType.PACE: None,
+                    StreamType.LATLONG: None,
+                }
+
+                for stream in activity_streams:
+                    stream_type = StreamType(stream.stream_type)
+                    if (
+                        stream_type in stream_processing
+                        and stream_processing[stream_type] is not None
+                    ):
+                        attr_avg, attr_max, stream_key = stream_processing[stream_type][:3]
+                        metrics[attr_avg], metrics[attr_max] = (
+                            activities_utils.calculate_avg_and_max(
+                                stream.stream_waypoints, stream_key
+                            )
                         )
+                        # Special handling for normalized power
+                        if stream_type == StreamType.POWER:
+                            metrics["np"] = activities_utils.calculate_np(
+                                stream.stream_waypoints
+                            )
 
-            # Calculate elapsed time once
-            elapsed_time_seconds = (
-                activity.end_time - activity.start_time
-            ).total_seconds()
+                # Calculate elapsed time once
+                elapsed_time_seconds = (
+                    activity.end_time - activity.start_time
+                ).total_seconds()
 
-            # Set fields on the activity object
-            activity.total_elapsed_time = elapsed_time_seconds
-            activity.total_timer_time = elapsed_time_seconds
-            activity.max_speed = metrics["max_speed"]
-            activity.max_power = metrics["max_power"]
-            activity.normalized_power = metrics["np"]
-            activity.average_hr = metrics["avg_hr"]
-            activity.max_hr = metrics["max_hr"]
-            activity.average_cad = metrics["avg_cadence"]
-            activity.max_cad = metrics["max_cadence"]
+                # Set fields on the activity object
+                activity.total_elapsed_time = elapsed_time_seconds
+                activity.total_timer_time = elapsed_time_seconds
+                activity.max_speed = metrics["max_speed"]
+                activity.max_power = metrics["max_power"]
+                activity.normalized_power = metrics["np"]
+                activity.average_hr = metrics["avg_hr"]
+                activity.max_hr = metrics["max_hr"]
+                activity.average_cad = metrics["avg_cadence"]
+                activity.max_cad = metrics["max_cadence"]
 
-            # Update the activity in the database
-            activities_crud.edit_activity(activity.user_id, activity, db)
-            logger.info(f"Processed activity: {activity.id} - {activity.name}")
+                # Update the activity in the database
+                activities_crud.edit_activity(activity.user_id, activity, db)
+                logger.info(f"Processed activity: {activity.id} - {activity.name}")
 
-        except Exception as err:
-            activities_processed_with_no_errors = False
-            print(
-                f"Failed to process activity {activity.id}. Please check migrations log for more details."
-            )
-            mainLogger.error(
-                f"Failed to process activity {activity.id}. Please check migrations log for more details."
-            )
-            logger.error(
-                f"Failed to process activity {activity.id}: {err}", exc_info=True
-            )
+            except Exception as err:
+                activities_processed_with_no_errors = False
+                print(
+                    f"Failed to process activity {activity.id}. Please check migrations log for more details."
+                )
+                mainLogger.error(
+                    f"Failed to process activity {activity.id}. Please check migrations log for more details."
+                )
+                logger.error(
+                    f"Failed to process activity {activity.id}: {err}", exc_info=True
+                )
 
     # Mark migration as executed
     if activities_processed_with_no_errors:
