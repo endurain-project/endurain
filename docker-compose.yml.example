@@ -32,7 +32,10 @@ services:
     volumes:
     #  - <local_path>/endurain/backend/app:/app # Configure volume if you want to edit the code locally by cloning the repo
       - <local_path>/endurain/backend/user_images:/app/user_images # necessary for user image persistence on container image updates
-      - <local_path>/endurain/backend/bulk_import:/app/bulk_import # necessary to enable bulk import of activities. Place here your activities files
+      - <local_path>/endurain/backend/files/bulk_import:/app/files/bulk_import # necessary to enable bulk import of activities. Place here your activities files
+      - <local_path>/endurain/backend/files/processed:/app/files/processed # necessary for processed original files persistence on container image updates
+      - <local_path>/endurain/backend/logs:/app/logs # log files for the backend
+
     depends_on:
       - mariadb
       - jaeger # optional
