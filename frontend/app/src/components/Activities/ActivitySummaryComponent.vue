@@ -136,7 +136,7 @@
 
         <!-- Activity summary -->
         <div class="row d-flex mt-3">
-            <div class="col">
+            <div class="col" v-if="activity.activity_type != 10">
                 <span class="fw-lighter">
                     {{ $t("activitySummary.activityDistance") }}
                 </span>
@@ -148,6 +148,14 @@
                     }}
                 </span>
             </div>
+            <div class="col" v-else>
+                <span class="fw-lighter">
+                    {{ $t("activitySummary.activityCalories") }}
+                </span>
+                <br>
+                <span v-if="activity.calories">{{ activity.calories }} cal</span>
+                <span v-else>{{ $t("activitySummary.activityNoData") }}</span>
+            </div>
             <div class="col border-start border-opacity-50">
                 <span class="fw-lighter">
                     {{ $t("activitySummary.activityTime") }}
@@ -156,23 +164,31 @@
                 <span>{{ calculateTimeDifference(activity.start_time, activity.end_time) }}</span>
             </div>
             <div class="col border-start border-opacity-50">
-                <div v-if="activity.activity_type != 1 && activity.activity_type != 2 && activity.activity_type != 3 && activity.activity_type != 8 && activity.activity_type != 9 && activity.activity_type != 13">
+                <div v-if="activity.activity_type != 1 && activity.activity_type != 2 && activity.activity_type != 3 && activity.activity_type != 8 && activity.activity_type != 9 && activity.activity_type != 10 && activity.activity_type != 13">
                     <span class="fw-lighter">
                         {{ $t("activitySummary.activityElevationGain") }}
                     </span>
                     <br>
                     <span>{{ activity.elevation_gain }} m</span>
                 </div>
-                <div v-else>
+                <div v-else-if="activity.activity_type != 10">
                     <span class="fw-lighter">
                         {{ $t("activitySummary.activityPace") }}
                     </span>
                     <br>
                     {{ formattedPace }}
                 </div>
+                <div v-else>
+                    <span class="fw-lighter">
+                    {{ $t("activitySummary.activityAvgHR") }}
+                    </span>
+                    <br>
+                    <span v-if="activity.average_hr">{{ activity.average_hr }} bpm</span>
+                    <span v-else>{{ $t("activitySummary.activityNoData") }}</span>
+                </div>
             </div>
         </div>        
-        <div class="row d-flex mt-3" v-if="sourceProp === 'activity'">
+        <div class="row d-flex mt-3" v-if="sourceProp === 'activity' && activity.activity_type != 10">
             <!-- avg_power running and cycling activities-->
             <div class="col" v-if="activity.activity_type == 1 || activity.activity_type == 2 || activity.activity_type == 3 || activity.activity_type == 4 || activity.activity_type == 5 || activity.activity_type == 6 || activity.activity_type == 7">
                 <span class="fw-lighter">
