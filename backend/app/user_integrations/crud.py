@@ -130,6 +130,14 @@ def unlink_strava_account(user_id: int, db: Session):
         # Get the user integrations by the user id
         user_integrations = get_user_integrations_by_user_id(user_id, db)
 
+        # Check if user_integrations is None and return None if it is
+        if user_integrations is None:
+            # If the user was not found, return a 404 Not Found error
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User integrations not found",
+            )
+
         # Set the user integrations Strava tokens to None
         user_integrations.strava_token = None
         user_integrations.strava_refresh_token = None
@@ -156,6 +164,14 @@ def set_user_strava_state(user_id: int, state: str, db: Session):
     try:
         # Get the user integrations by the user id
         user_integrations = get_user_integrations_by_user_id(user_id, db)
+
+        # Check if user_integrations is None and return None if it is
+        if user_integrations is None:
+            # If the user was not found, return a 404 Not Found error
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User integrations not found",
+            )
 
         # Set the user Strava state
         user_integrations.strava_state = state
@@ -192,6 +208,77 @@ def set_user_strava_sync_gear(user_id: int, strava_sync_gear: bool, db: Session)
 
         # Log the exception
         logger.error(f"Error in set_user_strava_state: {err}", exc_info=True)
+
+        # Raise an HTTPException with a 500 Internal Server Error status code
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal Server Error",
+        ) from err
+    
+
+def link_garminconnect_account(
+    user_id: int,
+    oauth1_token: dict,
+    oauth2_token: dict,
+    db: Session,
+):
+    try:
+        # Get the user integrations by the user id
+        user_integrations = get_user_integrations_by_user_id(user_id, db)
+
+        # Check if user_integrations is None and return None if it is
+        if user_integrations is None:
+            # If the user was not found, return a 404 Not Found error
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User integrations not found",
+            )
+
+        # Update the user integrations with the tokens
+        user_integrations.garminconnect_oauth1 = oauth1_token
+        user_integrations.garminconnect_oauth2 = oauth2_token
+
+        # Commit the changes to the database
+        db.commit()
+    except Exception as err:
+        # Rollback the transaction
+        db.rollback()
+
+        # Log the exception
+        logger.error(f"Error in link_garminconnect_account: {err}", exc_info=True)
+
+        # Raise an HTTPException with a 500 Internal Server Error status code
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal Server Error",
+        ) from err
+
+
+def unlink_garminconnect_account(user_id: int, db: Session):
+    try:
+        # Get the user integrations by the user id
+        user_integrations = get_user_integrations_by_user_id(user_id, db)
+
+        # Check if user_integrations is None and return None if it is
+        if user_integrations is None:
+            # If the user was not found, return a 404 Not Found error
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User integrations not found",
+            )
+
+        # Set the user integrations Garmin Connect tokens to None
+        user_integrations.garminconnect_oauth1 = None
+        user_integrations.garminconnect_oauth2 = None
+
+        # Commit the changes to the database
+        db.commit()
+    except Exception as err:
+        # Rollback the transaction
+        db.rollback()
+
+        # Log the exception
+        logger.error(f"Error in unlink_garminconnect_account: {err}", exc_info=True)
 
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(

@@ -19,5 +19,7 @@
     "bulkImportIntegrationBody": "Bulk import activities from files stored in the bulk_import folder",
     "buttonBulkImport": "Import",
     "errorMessageUnableToImportActivities": "An error occurred while importing activities",
-    "loadingMessageBulkImport": "Importing activities"
+    "loadingMessageBulkImport": "Importing activities",
+    "garminConnectIntegrationTitle": "Garmin Connect",
+    "garminConnectIntegrationBody": "Garmin Connect is a health and fitness activity platform for users of Garmin devices"
 }

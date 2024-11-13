@@ -30,6 +30,7 @@ geopy = "^2.4.1"
 flexparser = "0.3"
 pydantic-core = "^2.26.0"
 importlib-metadata = "^8.5.0"
+garminconnect = "^0.2.19"
 
 
 [build-system]

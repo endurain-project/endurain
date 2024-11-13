@@ -23,6 +23,7 @@ import usSettingsLanguageSwitcherComponent from './us/components/settings/settin
 import usSettingsUserProfileZoneComponent from './us/components/settings/settingsUserProfileZoneComponent.json';
 import usSettingsSecurityZoneComponent from './us/components/settings/settingsSecurityZoneComponent.json';
 import usSettingsIntegrationsZoneComponent from './us/components/settings/settingsIntegrationsZoneComponent.json';
+import usGarminConnectLoginModalComponent from './us/components/settings/settingsIntegrationsZone/garminConnectLoginModalComponent.json';
 import usUsersListComponent from './us/components/settings/settingsUsersZone/usersListComponent.json';
 // General components
 import usNoItemsFoundComponent from './us/components/noItemsFoundComponent.json';
@@ -64,6 +65,7 @@ const messages = {
     settingsUserProfileZone: usSettingsUserProfileZoneComponent,
     settingsSecurityZone: usSettingsSecurityZoneComponent,
     settingsIntegrationsZone: usSettingsIntegrationsZoneComponent,
+    garminConnectLoginModalComponent: usGarminConnectLoginModalComponent,
     usersListComponent: usUsersListComponent,
     // General components
     noItemsFoundComponent: usNoItemsFoundComponent,

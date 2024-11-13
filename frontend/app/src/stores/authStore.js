@@ -15,6 +15,7 @@ export const useAuthStore = defineStore('auth', {
             photo_path: '',
             is_active: null,
             is_strava_linked: null,
+            is_garminconnect_linked: null,
         },
         isAuthenticated: false,
     }),
@@ -40,6 +41,7 @@ export const useAuthStore = defineStore('auth', {
                 photo_path: '',
                 is_active: null,
                 is_strava_linked: null,
+                is_garminconnect_linked: null,
             };
             this.isAuthenticated = false;
             localStorage.removeItem('user');

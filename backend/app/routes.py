@@ -8,6 +8,7 @@ import activity_streams.router as activity_streams_router
 import gears.router as gears_router
 import followers.router as followers_router
 import strava.router as strava_router
+import garmin.router as garmin_router
 import health_data.router as health_data_router
 import health_targets.router as health_targets_router
 
@@ -63,6 +64,11 @@ router.include_router(
     strava_router.router,
     prefix="/strava",
     tags=["strava"],
+)
+router.include_router(
+    garmin_router.router,
+    prefix="/garminconnect",
+    tags=["garminconnect"],
 )
 router.include_router(
     health_data_router.router,

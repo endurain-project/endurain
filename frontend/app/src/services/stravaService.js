@@ -5,7 +5,7 @@ export const strava = {
         return fetchPutRequest(`strava/set-user-unique-state/${state}`)
     },
     unsetUniqueUserStateStravaLink() {
-        return fetchPutRequest(`strava/unset-user-unique-state`)
+        return fetchPutRequest("strava/unset-user-unique-state")
     },
     linkStrava(state) {
         const stravaClientId = `${import.meta.env.VITE_STRAVA_CLIENT_ID}`;

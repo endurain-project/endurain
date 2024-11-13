@@ -60,8 +60,8 @@ def process_migration_1(db: Session):
 
     try:
         activities = activities_crud.get_all_activities(db)
-    except Exception as e:
-        logger.error(f"Error fetching activities: {e}")
+    except Exception as err:
+        logger.error(f"Error fetching activities: {err}")
         return
 
     for activity in activities:
