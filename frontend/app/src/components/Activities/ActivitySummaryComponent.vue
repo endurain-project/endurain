@@ -74,6 +74,9 @@
                 <a class="btn btn-link btn-lg link-body-emphasis" :href="`https://www.strava.com/activities/${activity.strava_activity_id}`" role="button" v-if="activity.strava_activity_id">
                     <font-awesome-icon :icon="['fab', 'fa-strava']" />
                 </a>
+                <a class="btn btn-link btn-lg link-body-emphasis" :href="`https://connect.garmin.com/modern/activity/${activity.garminconnect_activity_id}`" role="button" v-if="activity.garminconnect_activity_id">
+                    <img src="/src/assets/garminconnect/Garmin_Connect_app_1024x1024-02.png" alt="Garmin Connect logo" height="22" />
+                </a>
                 <div v-if="sourceProp === 'activity'">
                     <button class="btn btn-link btn-lg link-body-emphasis" type="button" data-bs-toggle="dropdown" aria-expanded="false">
                         <font-awesome-icon :icon="['fas', 'fa-ellipsis-vertical']" />
@@ -86,7 +89,7 @@
                         </li>
                         <li><hr class="dropdown-divider"></li>
                         <li>
-                            <a class="dropdown-item" :class="{ disabled: activity.strava_activity_id }" href="#" data-bs-toggle="modal" data-bs-target="#deleteActivityModal">
+                            <a class="dropdown-item" :class="{ disabled: activity.strava_activity_id || activity.garminconnect_activity_id }" href="#" data-bs-toggle="modal" data-bs-target="#deleteActivityModal">
                                 {{ $t("activitySummary.buttonDeleteActivity") }}
                             </a>
                         </li>

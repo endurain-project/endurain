@@ -431,7 +431,42 @@ def get_activity_by_strava_id_from_user_id(
 
     except Exception as err:
         # Log the exception
-        logger.error(f"Error in get_activity_by_id_from_user_id: {err}", exc_info=True)
+        logger.error(f"Error in get_activity_by_strava_id_from_user_id: {err}", exc_info=True)
+        # Raise an HTTPException with a 500 Internal Server Error status code
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal Server Error",
+        ) from err
+    
+
+def get_activity_by_garminconnect_id_from_user_id(
+    activity_garminconnect_id: int, user_id: int, db: Session
+):
+    try:
+        # Get the activities from the database
+        activity = (
+            db.query(models.Activity)
+            .filter(
+                models.Activity.user_id == user_id,
+                models.Activity.garminconnect_activity_id == activity_garminconnect_id,
+            )
+            .first()
+        )
+
+        # Check if there are activities if not return None
+        if not activity:
+            return None
+
+        activity.start_time = activity.start_time.strftime("%Y-%m-%d %H:%M:%S")
+        activity.end_time = activity.end_time.strftime("%Y-%m-%d %H:%M:%S")
+        activity.created_at = activity.created_at.strftime("%Y-%m-%d %H:%M:%S")
+
+        # Return the activities
+        return activity
+
+    except Exception as err:
+        # Log the exception
+        logger.error(f"Error in get_activity_by_garminconnect_id_from_user_id: {err}", exc_info=True)
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -512,6 +547,7 @@ def create_activity(activity: activities_schema.Activity, db: Session):
             gear_id=activity.gear_id,
             strava_gear_id=activity.strava_gear_id,
             strava_activity_id=activity.strava_activity_id,
+            garminconnect_activity_id=activity.garminconnect_activity_id,
         )
 
         # Add the activity to the database

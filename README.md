@@ -30,6 +30,7 @@
 - [Volumes](#volumes)
 - [Bulk import and file upload](#bulk-import-and-file-upload)
 - [Strava Integration](#strava-integration)
+- [Garmin Connect Integration](#garmin-connect-integration)
 - [Log files](#log-files)
 - [Sponsors](#sponsors)
 - [Contributing](#contributing)
@@ -62,6 +63,7 @@ Endurain currently supports:
 - Admin and user profiles with adaptable interfaces
 - Activity import via manual or bulk upload (.gpx and .fit files)
 - Strava integration for syncing activities and gear
+- Garmin Connect integration for syncing activities
 - Personalized activity feeds and statistics (week/month)
 - Basic activity privacy settings
 - Gear tracking (wetsuits, bicycles, shoes)
@@ -76,7 +78,6 @@ Endurain currently supports:
 
 Upcoming features (in no particular order):
 
-- Garmin Connect integration
 - Simplified Docker images
 - Live tracking
 - Default gear for activity types
@@ -185,7 +186,11 @@ Some notes:
 
 ## Strava Integration
 
-To enable Strava integration, ensure your API endpoint is accessible from the internet and follow Strava's [API setup guide](https://developers.strava.com/docs/getting-started/).
+To enable Strava integration, ensure your API endpoint is accessible from the internet and follow Strava's [API setup guide](https://developers.strava.com/docs/getting-started/). After the integration is successful the access and refresh tokens are stored in the DB. Each user will have his/hers own pair.
+
+## Garmin Connect Integration
+
+To enable Garmin Connect integration, Endurain will ask for your Garmin Connect credentials. These credentials are not stored, but the authentication tokens (access and refresh tokens) are stored in the DB, similar to the Strava integration. The credentials are sent from the frontend to the backend in plain text, so the use of HTTPS is highly recommended.
 
 ## Log files
 

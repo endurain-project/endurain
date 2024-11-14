@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 import garmin.utils as garmin_utils
 
 import activities.utils as activities_utils
+import activities.crud as activities_crud
 
 from database import SessionLocal
 
@@ -39,6 +40,19 @@ def fetch_and_process_activities(
     for activity in garmin_activities:
         # Get the activity ID
         activity_id = activity["activityId"]
+
+        # Check if the activity is already stored in the database
+        activity_db = activities_crud.get_activity_by_garminconnect_id_from_user_id(
+            activity_id, user_id, db
+        )
+
+        if activity_db:
+            # Log an informational event if the activity is already stored
+            mainLogger.info(
+                f"User {user_id}: Activity {activity_id} already stored in the database"
+            )
+            continue
+
         # Download the activity in original format (.zip file)
         zip_data = garminconnect_client.download_activity(
             activity_id, dl_fmt=garminconnect_client.ActivityDownloadFormat.ORIGINAL

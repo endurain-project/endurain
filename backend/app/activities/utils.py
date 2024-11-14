@@ -32,6 +32,7 @@ def parse_and_store_activity_from_file(
     try:
         # Get file extension
         _, file_extension = os.path.splitext(file_path)
+        garmin_connect_activity_id = None
 
         if from_garmin:
             garmin_connect_activity_id = os.path.basename(file_path).split('_')[0]
@@ -502,6 +503,7 @@ def define_activity_type(activity_type):
         "VirtualRun": 3,
         "cycling": 4,
         "Ride": 4,
+        "road": 4,
         "GravelRide": 5,
         "gravel_cycling": 5,
         "MountainBikeRide": 6,
