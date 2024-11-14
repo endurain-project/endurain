@@ -37,7 +37,11 @@ def create_activity_objects(sessions_records: dict, user_id: int, garmin_activit
                 "activity": activities_schema.Activity(
                     user_id=user_id,
                     name=activity_name,
-                    distance=round(session_record["session"]["distance"]),
+                    distance=(
+                        round(session_record["session"]["distance"])
+                        if session_record["session"]["distance"]
+                        else 0
+                    ),
                     activity_type=activities_utils.define_activity_type(
                         session_record["session"]["activity_type"]
                     ),
@@ -722,12 +726,15 @@ def append_if_not_none(waypoint_list, time, value, key):
 
 
 def calculate_pace(distance, total_timer_time, activity_type, split_summary):
-    if activity_type != "lap_swimming":
-        return total_timer_time, total_timer_time / distance
-    else:
-        time_active = 0
-        for split in split_summary:
-            if split["split_type"] != 4:
-                time_active += split["total_timer_time"]
+    if distance:
+        if activity_type != "lap_swimming":
+            return total_timer_time, total_timer_time / distance
+        else:
+            time_active = 0
+            for split in split_summary:
+                if split["split_type"] != 4:
+                    time_active += split["total_timer_time"]
 
-        return time_active, time_active / distance
+            return time_active, time_active / distance
+    else:
+        return total_timer_time, 0
