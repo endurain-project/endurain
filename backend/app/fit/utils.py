@@ -12,7 +12,7 @@ import activities.schema as activities_schema
 logger = logging.getLogger("myLogger")
 
 
-def create_activity_objects(sessions_records: dict, user_id: int) -> list:
+def create_activity_objects(sessions_records: dict, user_id: int, garmin_activity_id: int = None) -> list:
     try:
         activity_name = "Workout"
         visibility = 0
@@ -70,6 +70,7 @@ def create_activity_objects(sessions_records: dict, user_id: int) -> list:
                     visibility=visibility,
                     strava_gear_id=None,
                     strava_activity_id=None,
+                    garminconnect_activity_id=garmin_activity_id,
                 ),
                 "is_elevation_set": session_record["is_elevation_set"],
                 "ele_waypoints": session_record["ele_waypoints"],

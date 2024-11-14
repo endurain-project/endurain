@@ -3,7 +3,7 @@
     "stravaIntegrationBody": "Strava is an American internet service for tracking physical exercise which incorporates social network features.",
     "buttonConnect": "Connect",
     "buttonDropdownOptions": "Options",
-    "buttonStravaRetrieveActivitiesByDays": "Retrieve activities by days",
+    "modalRetrieveActivitiesByDaysTitle": "Retrieve activities by days",
     "modalRetrieveActivitiesByDaysLabel": "Days",
     "modalRetrieveActivitiesByDaysPlaceholder": "Days",
     "modalRetrieveButton": "Retrieve",
@@ -21,5 +21,7 @@
     "errorMessageUnableToImportActivities": "An error occurred while importing activities",
     "loadingMessageBulkImport": "Importing activities",
     "garminConnectIntegrationTitle": "Garmin Connect",
-    "garminConnectIntegrationBody": "Garmin Connect is a health and fitness activity platform for users of Garmin devices"
+    "garminConnectIntegrationBody": "Garmin Connect is a health and fitness activity platform for users of Garmin devices",
+    "loadingMessageRetrievingGarminConnectActivities": "Retrieving Garmin Connect activities",
+    "errorMessageUnableToGetGarminConnectActivities": "Unable to get Garmin Connect activities"
 }

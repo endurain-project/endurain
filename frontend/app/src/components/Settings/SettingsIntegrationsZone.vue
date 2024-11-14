@@ -25,7 +25,7 @@
                         <ul class="dropdown-menu">
                             <li>
                                 <!-- retrieve strava activities by days -->
-                                <a class="dropdown-item" href="#" role="button" data-bs-toggle="modal" data-bs-target="#retrieveStravaActivitiesByDaysModal">{{ $t("settingsIntegrationsZone.buttonStravaRetrieveActivitiesByDays") }}</a>
+                                <a class="dropdown-item" href="#" role="button" data-bs-toggle="modal" data-bs-target="#retrieveStravaActivitiesByDaysModal">{{ $t("settingsIntegrationsZone.modalRetrieveActivitiesByDaysTitle") }}</a>
                             </li>
                             <li>
                                 <!-- retrieve gear -->
@@ -69,7 +69,15 @@
 
                     <!-- retrieve activities and other buttons -->
                     <div class="dropdown" v-else>
-
+                        <button class="btn btn-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            {{ $t("settingsIntegrationsZone.buttonDropdownOptions") }}
+                        </button>
+                        <ul class="dropdown-menu">
+							<li>
+								<!-- retrieve garmin connect activities by days -->
+								<a class="dropdown-item" href="#" role="button" data-bs-toggle="modal" data-bs-target="#retrieveGarminConnectActivitiesByDaysModal">{{ $t("settingsIntegrationsZone.modalRetrieveActivitiesByDaysTitle") }}</a>
+							</li>
+						</ul>
 					</div>
                 </div>
             </li>
@@ -83,14 +91,37 @@
             <div class="modal-dialog">
                 <div class="modal-content">
                     <div class="modal-header">
-                        <h1 class="modal-title fs-5" id="retrieveStravaActivitiesByDaysModalLabel">{{ $t("settingsIntegrationsZone.buttonStravaRetrieveActivitiesByDays") }}</h1>
+                        <h1 class="modal-title fs-5" id="retrieveStravaActivitiesByDaysModalLabel">{{ $t("settingsIntegrationsZone.modalRetrieveActivitiesByDaysTitle") }}</h1>
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
                     <form @submit.prevent="submitRetrieveStravaActivities">
                         <div class="modal-body">
                                 <!-- number of days fields -->
                                 <label for="daysToRetrieve"><b>* {{ $t("settingsIntegrationsZone.modalRetrieveActivitiesByDaysLabel") }}</b></label>
-                                <input class="form-control" type="number" name="daysToRetrieve" :placeholder='$t("settingsIntegrationsZone.modalRetrieveActivitiesByDaysPlaceholder")' v-model="daysToRetrieve" required>
+                                <input class="form-control" type="number" name="daysToRetrieve" :placeholder='$t("settingsIntegrationsZone.modalRetrieveActivitiesByDaysPlaceholder")' v-model="daysToRetrieveStrava" required>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" name="retrieveStravaActivities" data-bs-dismiss="modal">{{ $t("generalItems.buttonClose") }}</button>
+                            <button type="submit" class="btn btn-success" data-bs-dismiss="modal">{{ $t("settingsIntegrationsZone.modalRetrieveButton") }}</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+		<!-- modal retrieve garmin connect activities by days -->
+        <div class="modal fade" id="retrieveGarminConnectActivitiesByDaysModal" tabindex="-1" aria-labelledby="retrieveGarminConnectActivitiesByDaysModal" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h1 class="modal-title fs-5" id="retrieveGarminConnectActivitiesByDaysModal">{{ $t("settingsIntegrationsZone.modalRetrieveActivitiesByDaysTitle") }}</h1>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <form @submit.prevent="submitRetrieveGarminConnectActivities">
+                        <div class="modal-body">
+                                <!-- number of days fields -->
+                                <label for="daysToRetrieve"><b>* {{ $t("settingsIntegrationsZone.modalRetrieveActivitiesByDaysLabel") }}</b></label>
+                                <input class="form-control" type="number" name="daysToRetrieve" :placeholder='$t("settingsIntegrationsZone.modalRetrieveActivitiesByDaysPlaceholder")' v-model="daysToRetrieveGarmin" required>
                         </div>
                         <div class="modal-footer">
                             <button type="button" class="btn btn-secondary" name="retrieveStravaActivities" data-bs-dismiss="modal">{{ $t("generalItems.buttonClose") }}</button>
@@ -126,7 +157,8 @@ export default {
 	setup() {
 		const authStore = useAuthStore();
 		const { t } = useI18n();
-		const daysToRetrieve = ref(7);
+		const daysToRetrieveStrava = ref(7);
+		const daysToRetrieveGarmin = ref(7);
 		const garminConnectUsername = ref("");
 		const garminConnectPassword = ref("");
 
@@ -151,7 +183,7 @@ export default {
 
 		async function submitRetrieveStravaActivities() {
 			try {
-				await strava.getStravaActivitiesLastDays(daysToRetrieve.value);
+				await strava.getStravaActivitiesLastDays(daysToRetrieveStrava.value);
 
 				// Show the loading alert.
 				push.info(
@@ -215,17 +247,37 @@ export default {
 			}
 		}
 
+		async function submitRetrieveGarminConnectActivities() {
+			try {
+				await garminConnect.getGarminConnectActivitiesLastDays(daysToRetrieveGarmin.value);
+
+				// Show the loading alert.
+				push.info(
+					t(
+						"settingsIntegrationsZone.loadingMessageRetrievingGarminConnectActivities",
+					),
+				);
+			} catch (error) {
+				// If there is an error, show the error alert.
+				push.error(
+					`${t("settingsIntegrationsZone.errorMessageUnableToGetGarminConnectActivities")} - ${error}`,
+				);
+			}
+		}
+
 		return {
 			authStore,
 			t,
 			submitConnectStrava,
 			submitRetrieveStravaActivities,
-			daysToRetrieve,
+			daysToRetrieveStrava,
 			submitRetrieveStravaGear,
 			submitBulkImport,
 			garminConnectUsername,
 			garminConnectPassword,
 			submitConnectGarminConnect,
+			submitRetrieveGarminConnectActivities,
+			daysToRetrieveGarmin,
 		};
 	},
 };

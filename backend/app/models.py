@@ -340,6 +340,9 @@ class Activity(Base):
     strava_activity_id = Column(
         BigInteger, unique=True, nullable=True, comment="Strava activity ID"
     )
+    garminconnect_activity_id = Column(
+        BigInteger, unique=True, nullable=True, comment="Garmin Connect activity ID"
+    )
 
     # Define a relationship to the User model
     user = relationship("User", back_populates="activities")
