@@ -20,6 +20,8 @@ from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 import strava.utils as strava_utils
 import strava.activity_utils as strava_activity_utils
 
+import garmin.activity_utils as garmin_activity_utils
+
 import migrations.utils as migrations_utils
 
 from config import API_VERSION
@@ -51,6 +53,14 @@ def startup_event():
     )
     scheduler.add_job(
         retrieve_strava_user_activities_for_last_day, "interval", minutes=60
+    )
+
+    # Add scheduler jobs to retrieve last day activities from Garmin Connect
+    logger.info(
+        "Added scheduler job to retrieve last day Garmin Connect users activities every 60 minutes"
+    )
+    scheduler.add_job(
+        retrieve_garminconnect_user_activities_for_last_day, "interval", minutes=60
     )
 
 
@@ -89,6 +99,11 @@ def refresh_strava_tokens_job():
 def retrieve_strava_user_activities_for_last_day():
     # Get last day users Strava activities
     strava_activity_utils.retrieve_strava_users_activities_for_days(1)
+
+
+def retrieve_garminconnect_user_activities_for_last_day():
+    # Get last day users Garmin Connect activities
+    garmin_activity_utils.retrieve_garminconnect_users_activities_for_days(1)
 
 
 # Create loggger

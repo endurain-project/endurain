@@ -23,5 +23,8 @@ export const strava = {
     },
     getStravaGear() {
         return fetchGetRequest('strava/gear');
+    },
+    unlinkStrava() {
+        return fetchPutRequest('strava/unlink');
     }
 };

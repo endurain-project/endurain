@@ -1,7 +1,7 @@
 import logging, os
 import zipfile
 
-import datetime
+from datetime import datetime, timedelta, date
 import garminconnect
 from sqlalchemy.orm import Session
 
@@ -9,6 +9,8 @@ import garmin.utils as garmin_utils
 
 import activities.utils as activities_utils
 import activities.crud as activities_crud
+
+import users.crud as users_crud
 
 from database import SessionLocal
 
@@ -24,7 +26,7 @@ def fetch_and_process_activities(
 ) -> int:
     # Fetch Garmin Connect activities after the specified start date
     garmin_activities = garminconnect_client.get_activities_by_date(
-        start_date, datetime.date.today()
+        start_date, date.today()
     )
 
     if garmin_activities is None:
@@ -83,6 +85,27 @@ def fetch_and_process_activities(
 
     # Return the number of activities processed
     return len(garmin_activities)
+
+
+def retrieve_garminconnect_users_activities_for_days(days: int):
+    # Create a new database session
+    db = SessionLocal()
+
+    try:
+        # Get all users
+        users = users_crud.get_all_users(db)
+    finally:
+        # Ensure the session is closed after use
+        db.close()
+
+    # Process the activities for each user
+    for user in users:
+        get_user_garminconnect_activities_by_days(
+            (datetime.utcnow() - timedelta(days=days)).strftime(
+                "%Y-%m-%dT%H:%M:%S"
+            ),
+            user.id,
+        )
 
 
 def get_user_garminconnect_activities_by_days(start_date: datetime, user_id: int):

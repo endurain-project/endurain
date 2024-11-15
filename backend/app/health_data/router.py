@@ -170,7 +170,7 @@ async def edit_health_weight_data(
     return health_data_crud.edit_health_weight_data(health_data, db)
 
 
-@router.post("/weight/{health_data_id}")
+@router.delete("/weight/{health_data_id}")
 async def delete_health_weight_data(
     health_data_id: int,
     check_scopes: Annotated[

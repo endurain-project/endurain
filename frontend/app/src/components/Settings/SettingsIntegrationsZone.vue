@@ -31,6 +31,10 @@
                                 <!-- retrieve gear -->
                                 <a href="#" class="dropdown-item" @click="submitRetrieveStravaGear">{{ $t("settingsIntegrationsZone.buttonStravaRetrieveGear") }}</a>
                             </li>
+                            <li>
+                                <!-- unlink Strava -->
+                                <a href="#" class="dropdown-item" role="button" data-bs-toggle="modal" data-bs-target="#unlinkStravaModal">{{ $t("settingsIntegrationsZone.buttonStravaUnlink") }}</a>
+                            </li>
                         </ul>
                     </div>
                 </div>
@@ -131,6 +135,8 @@
                 </div>
             </div>
         </div>
+
+		<ModalComponent modalId="unlinkStravaModal" :title="t('settingsIntegrationsZone.modalUnlinkStravaTitle')" :body="`${t('settingsIntegrationsZone.modalUnlinkStravaBody')}`" :actionButtonType="`danger`" :actionButtonText="t('settingsIntegrationsZone.modalUnlinkStravaTitle')" @submitAction="buttonStravaUnlink"/>
     </div>
 </template>
 
@@ -146,12 +152,14 @@ import { strava } from "@/services/stravaService";
 import { activities } from "@/services/activitiesService";
 import { garminConnect } from "@/services/garminConnectService";
 // Import the components
+import ModalComponent from "@/components/Modals/ModalComponent.vue";
 import GarminConnectLoginModalComponent from "./SettingsIntegrations/GarminConnectLoginModalComponent.vue";
 
 //import Modal from 'bootstrap/js/dist/modal';
 
 export default {
 	components: {
+		ModalComponent,
 		GarminConnectLoginModalComponent,
 	},
 	setup() {
@@ -215,6 +223,20 @@ export default {
 			}
 		}
 
+		async function buttonStravaUnlink() {
+			try {
+				await strava.unlinkStrava();
+
+				// Show the success alert.
+				push.success(t("settingsIntegrationsZone.loadingMessageUnlinkingStrava"));
+			} catch (error) {
+				// If there is an error, show the error alert.
+				push.error(
+					`${t("settingsIntegrationsZone.errorMessageUnableToUnlinkStrava")} - ${error}`,
+				);
+			}
+		}
+
 		async function submitBulkImport() {
 			try {
 				await activities.bulkImportActivities();
@@ -272,6 +294,7 @@ export default {
 			submitRetrieveStravaActivities,
 			daysToRetrieveStrava,
 			submitRetrieveStravaGear,
+			buttonStravaUnlink,
 			submitBulkImport,
 			garminConnectUsername,
 			garminConnectPassword,
