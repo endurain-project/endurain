@@ -1,0 +1,5 @@
+site_name: Endurain documentation
+nav:
+  - Home: index.md
+  - About:
+    - License: about/license.md

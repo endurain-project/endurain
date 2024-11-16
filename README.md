@@ -111,7 +111,7 @@ Endurain supports integration with other apps:
 ### API Requirements
 
 - **Add a header:** Every request must include an `X-Client-Type` header with either `web` or `mobile` as the value. Requests with other values will receive a `403` error.
-- **Activity Upload:** Use the `/activities/create/upload` endpoint (expects a .gpx or .fit file).
+- **Activity Upload:** Use the `/api/v1/activities/create/upload` endpoint (expects a .gpx or .fit file).
 
 ## Configuration
 

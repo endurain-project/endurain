@@ -1,4 +1,4 @@
-const API_URL = `${import.meta.env.VITE_BACKEND_PROTOCOL}://${import.meta.env.VITE_BACKEND_HOST}/`;
+const API_URL = `${import.meta.env.VITE_BACKEND_PROTOCOL}://${import.meta.env.VITE_BACKEND_HOST}/api/v1/`;
 
 async function fetchWithRetry(url, options) {
     try {

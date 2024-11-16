@@ -156,6 +156,7 @@ app = FastAPI(
     redoc_url="/redoc",
     title="Endurain",
     summary="Endurain API for the Endurain app",
+    root_path="/api/v1",
     version=API_VERSION,
     license_info={
         "name": "GNU General Public License v3.0",
@@ -213,3 +214,19 @@ app.add_event_handler("startup", startup_event)
 
 # Register the shutdown event handler
 app.add_event_handler("shutdown", shutdown_event)
+
+@app.get(
+    "/about",
+)
+async def about(
+):
+    # Return the gear
+    return {
+        "name": "Endurain API",
+        "version": API_VERSION,
+        "license": {
+            "name": "GNU General Public License v3.0",
+            "identifier": "GPL-3.0-or-later",
+            "url": "https://spdx.org/licenses/GPL-3.0-or-later.html",
+        },
+    }

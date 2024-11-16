@@ -12,6 +12,8 @@
     "addUserModalTownLabel": "Town/city",
     "addUserModalTownPlaceholder": "Town/city (max 45 characters)",
     "addUserModalBirthdayLabel": "Birthday",
+    "addUserModalHeightLabel": "Height (cm)",
+    "addUserModalHeightPlaceholder": "Height (cm)",
     "addUserModalGenderLabel": "Gender",
     "addUserModalGenderOption1": "Male",
     "addUserModalGenderOption2": "Female",

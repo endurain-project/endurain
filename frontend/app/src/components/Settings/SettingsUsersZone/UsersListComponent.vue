@@ -108,7 +108,10 @@
                                 <select class="form-control" name="userGenderEdit" v-model="editUserGender" required>
                                     <option value="1">{{ $t("settingsUsersZone.addUserModalGenderOption1") }}</option>
                                     <option value="2">{{ $t("settingsUsersZone.addUserModalGenderOption2") }}</option>
-                                </select>
+								</select>
+								<!-- height fields -->
+								<label for="userHeightEdit"><b>{{ $t("settingsUsersZone.addUserModalHeightLabel") }}</b></label>
+								<input class="form-control" type="number" name="userHeightEdit" :placeholder='$t("settingsUsersZone.addUserModalHeightPlaceholder")' v-model="editUserHeight">
                                 <!-- preferred language fields -->
                                 <label for="userPreferredLanguageEdit"><b>* {{ $t("settingsUsersZone.addUserModalUserPreferedLanguageLabel") }}</b></label>
                                 <select class="form-control" name="userPreferredLanguageEdit" v-model="editUserPreferredLanguage" required>
@@ -211,6 +214,7 @@ export default {
 		const editUserTown = ref(userProp.value.city);
 		const editUserBirthdate = ref(userProp.value.birthdate);
 		const editUserGender = ref(userProp.value.gender);
+		const editUserHeight = ref(userProp.value.height);
 		const editUserPreferredLanguage = ref(userProp.value.preferred_language);
 		const editUserAccessType = ref(userProp.value.access_type);
 		const editUserIsActive = ref(userProp.value.is_active);
@@ -253,6 +257,7 @@ export default {
 					city: editUserTown.value,
 					birthdate: editUserBirthdate.value,
 					gender: editUserGender.value,
+					height: editUserHeight.value,
 					preferred_language: editUserPreferredLanguage.value,
 					access_type: editUserAccessType.value,
 					photo_path: null,
@@ -282,6 +287,7 @@ export default {
 				userProp.value.city = editUserTown.value;
 				userProp.value.birthdate = editUserBirthdate.value;
 				userProp.value.gender = editUserGender.value;
+				userProp.value.height = editUserHeight.value;
 				userProp.value.preferred_language = editUserPreferredLanguage.value;
 				userProp.value.access_type = editUserAccessType.value;
 				userProp.value.is_active = editUserIsActive.value;
@@ -340,6 +346,7 @@ export default {
 			editUserTown,
 			editUserBirthdate,
 			editUserGender,
+			editUserHeight,
 			editUserPreferredLanguage,
 			editUserAccessType,
 			editUserIsActive,

@@ -45,6 +45,9 @@
                                         <option value="1">{{ $t("settingsUsersZone.addUserModalGenderOption1") }}</option>
                                         <option value="2">{{ $t("settingsUsersZone.addUserModalGenderOption2") }}</option>
                                     </select>
+                                    <!-- height fields -->
+                                    <label for="userHeightAdd"><b>{{ $t("settingsUsersZone.addUserModalHeightLabel") }}</b></label>
+                                    <input class="form-control" type="number" name="userHeightAdd" :placeholder='$t("settingsUsersZone.addUserModalHeightPlaceholder")' v-model="newUserHeight">
                                     <!-- preferred language fields -->
                                     <label for="userPreferredLanguageAdd"><b>* {{ $t("settingsUsersZone.addUserModalUserPreferedLanguageLabel") }}</b></label>
                                     <select class="form-control" name="userPreferredLanguageAdd" v-model="newUserPreferredLanguage" required>
@@ -151,6 +154,7 @@ export default {
 		const newUserTown = ref(null);
 		const newUserBirthDate = ref(null);
 		const newUserGender = ref(1);
+		const newUserHeight = ref(null);
 		const newUserPreferredLanguage = ref("us");
 		const newUserAccessType = ref(1);
 		const usersArray = ref([]);
@@ -196,6 +200,7 @@ export default {
 						birthdate: newUserBirthDate.value,
 						preferred_language: newUserPreferredLanguage.value,
 						gender: newUserGender.value,
+						height: newUserHeight.value,
 						access_type: newUserAccessType.value,
 						photo_path: null,
 						is_active: 1,
@@ -311,6 +316,7 @@ export default {
 			newUserTown,
 			newUserBirthDate,
 			newUserGender,
+			newUserHeight,
 			newUserPreferredLanguage,
 			newUserAccessType,
 			submitAddUserForm,
