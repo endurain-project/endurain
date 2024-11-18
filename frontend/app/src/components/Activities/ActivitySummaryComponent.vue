@@ -31,43 +31,44 @@
 
                         <!-- Display the activity type -->
                         <span v-if="activity.activity_type == 1 || activity.activity_type == 2">
-                            <font-awesome-icon :icon="['fas', 'person-running']" />
+                            <font-awesome-icon class="me-1" :icon="['fas', 'person-running']" />
                         </span>
                         <span v-else-if="activity.activity_type == 3">
-                            <font-awesome-icon :icon="['fas', 'person-running']" /> (Virtual)
+                            <font-awesome-icon class="me-1" :icon="['fas', 'person-running']" />(Virtual)
                         </span>
                         <span v-else-if="activity.activity_type == 4 || activity.activity_type == 5 || activity.activity_type == 6">
-                            <font-awesome-icon :icon="['fas', 'fa-person-biking']" />
+                            <font-awesome-icon class="me-1" :icon="['fas', 'fa-person-biking']" />
                         </span>
                         <span v-else-if="activity.activity_type == 7">
-                            <font-awesome-icon :icon="['fas', 'fa-person-biking']" /> (Virtual)
+                            <font-awesome-icon class="me-1" :icon="['fas', 'fa-person-biking']" />(Virtual)
                         </span>
                         <span v-else-if="activity.activity_type == 8 || activity.activity_type == 9">
-                            <font-awesome-icon :icon="['fas', 'fa-person-swimming']" />
+                            <font-awesome-icon class="me-1" :icon="['fas', 'fa-person-swimming']" />
                         </span>
                         <span v-else-if="activity.activity_type == 11">
-                            <font-awesome-icon :icon="['fas', 'person-walking']" />
+                            <font-awesome-icon class="me-1" :icon="['fas', 'person-walking']" />
                         </span>
                         <span v-else-if="activity.activity_type == 12">
-                            <font-awesome-icon :icon="['fas', 'person-hiking']" />
+                            <font-awesome-icon class="me-1" :icon="['fas', 'person-hiking']" />
                         </span>
                         <span v-else-if="activity.activity_type == 13">
-                            <font-awesome-icon :icon="['fas', 'sailboat']" />
+                            <font-awesome-icon class="me-1" :icon="['fas', 'sailboat']" />
                         </span>
                         <span v-else-if="activity.activity_type == 14">
-                            <font-awesome-icon :icon="['fas', 'hands-praying']" />
+                            <font-awesome-icon class="me-1" :icon="['fas', 'hands-praying']" />
                         </span>
                         <span v-else>
-                            <font-awesome-icon :icon="['fas', 'fa-dumbbell']" />
+                            <font-awesome-icon class="me-1" :icon="['fas', 'fa-dumbbell']" />
                         </span>
 
                         <!-- Display the date and time -->  
-                        <span class="ms-1">{{ formatDate(activity.start_time) }}</span> @
+                        <span>{{ formatDate(activity.start_time) }}</span> @
                         <span>{{ formatTime(activity.start_time) }}</span>
                         <!-- Conditionally display city and country -->
-                        <span v-if="activity.city || activity.country">
+                        <span v-if="activity.town || activity.city || activity.country">
                             - 
                             <span v-if="activity.town">{{ activity.town }},</span>
+                            <span v-else-if="activity.city">{{ activity.city }},</span>
                             <span v-if="activity.country">{{ " " + activity.country }}</span>
                         </span>
                     </h6>

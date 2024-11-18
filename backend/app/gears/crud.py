@@ -288,7 +288,6 @@ def edit_gear(gear_id: int, gear: gears_schema.Gear, db: Session):
         if gear.created_at is not None:
             db_gear.created_at = gear.created_at
         if gear.is_active is not None:
-            print(f"Gear is active value: {gear.is_active}")
             db_gear.is_active = gear.is_active
         if gear.strava_gear_id is not None:
             db_gear.strava_gear_id = gear.strava_gear_id
