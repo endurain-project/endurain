@@ -164,7 +164,7 @@ export default {
 	},
 	setup() {
 		const authStore = useAuthStore();
-		const { t } = useI18n();
+		const { locale, t } = useI18n();
 		const daysToRetrieveStrava = ref(7);
 		const daysToRetrieveGarmin = ref(7);
 		const garminConnectUsername = ref("");
@@ -224,14 +224,21 @@ export default {
 		}
 
 		async function buttonStravaUnlink() {
+            // Set the loading message
+            const notification = push.promise(t('settingsIntegrationsZone.processingMessageUnlinkStrava'));
 			try {
 				await strava.unlinkStrava();
 
+				// Set the user object with the is_strava_linked property set to 0.
+                const user = authStore.user;
+                user.is_strava_linked = 0;
+                authStore.setUser(user, locale);
+
 				// Show the success alert.
-				push.success(t("settingsIntegrationsZone.loadingMessageUnlinkingStrava"));
+				notification.resolve(t("settingsIntegrationsZone.successMessageStravaUnlinked"));
 			} catch (error) {
 				// If there is an error, show the error alert.
-				push.error(
+				notification.reject(
 					`${t("settingsIntegrationsZone.errorMessageUnableToUnlinkStrava")} - ${error}`,
 				);
 			}
@@ -247,24 +254,6 @@ export default {
 				// If there is an error, show the error alert.
 				push.error(
 					`${t("settingsIntegrationsZone.errorMessageUnableToImportActivities")} - ${error}`,
-				);
-			}
-		}
-
-		async function submitConnectGarminConnect() {
-			try {
-				const data = {
-                    username: garminConnectUsername.value,
-                    password: garminConnectPassword.value,
-                }; 
-				await garminConnect.linkGarminConnect(data);
-
-				// Show success message
-				push.success(t("settingsIntegrationsZone.successMessageLinkGarminConnect"));
-			} catch (error) {
-				// If there is an error, show the error alert.
-				push.error(
-					`${t("settingsIntegrationsZone.errorMessageUnableToLinkGarminConnect")} - ${error}`,
 				);
 			}
 		}
@@ -298,7 +287,6 @@ export default {
 			submitBulkImport,
 			garminConnectUsername,
 			garminConnectPassword,
-			submitConnectGarminConnect,
 			submitRetrieveGarminConnectActivities,
 			daysToRetrieveGarmin,
 		};
