@@ -8,11 +8,8 @@ nav:
   - Home: index.md
   - Getting started: getting-started.md
   - Integrations:
-    - 3rd party apps:
-      - RunnerUp: integrations/runnerup.md
-      - Apple automations: integrations/apple-automations.md
-    - 3rd party services:
-      - Garmin Connect: integrations/garmin-connect.md
-      - Strava: integrations/strava.md
+    - 3rd party apps: integrations/3rd-party-apps.md
+    - 3rd party services: integrations/3rd-party-services.md
+  - Developer guide: developer-guide.md
   - About:
     - License: about/license.md
