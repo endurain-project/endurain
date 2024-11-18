@@ -1,4 +1,4 @@
-import { fetchGetRequest, fetchPutRequest } from '@/utils/serviceUtils';
+import { fetchGetRequest, fetchPutRequest, fetchDeleteRequest } from '@/utils/serviceUtils';
 
 export const strava = {
     setUniqueUserStateStravaLink(state) {
@@ -25,6 +25,6 @@ export const strava = {
         return fetchGetRequest('strava/gear');
     },
     unlinkStrava() {
-        return fetchPutRequest('strava/unlink');
+        return fetchDeleteRequest('strava/unlink');
     }
 };
