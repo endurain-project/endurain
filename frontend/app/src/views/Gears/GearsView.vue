@@ -98,9 +98,9 @@
                                 </div>
                             </div>
                             <div>
-                                <span class="badge bg-success-subtle border border-success-subtle text-success-emphasis align-middle" v-if="gear.is_active == 1">{{ $t("gearsView.activeState") }}</span>
-                                <span class="badge bg-danger-subtle border border-danger-subtle text-danger-emphasis align-middle" v-else>{{ $t("gearsView.inactiveState") }}</span>
-                                <span class="badge bg-primary-subtle border border-primary-subtle text-primary-emphasis align-middle ms-2" v-if="gear.strava_gear_id">{{ $t("gearsView.gearFromStrava") }}</span>
+                                <!--<span class="badge bg-success-subtle border border-success-subtle text-success-emphasis align-middle" v-if="gear.is_active == 1">{{ $t("gearsView.activeState") }}</span>-->
+                                <span class="badge bg-danger-subtle border border-danger-subtle text-danger-emphasis align-middle" v-if="gear.is_active == 0">{{ $t("gearsView.inactiveState") }}</span>
+                                <span class="badge bg-primary-subtle border border-primary-subtle text-primary-emphasis align-middle ms-2" v-if="gear.strava_gear_id"><font-awesome-icon :icon="['fab', 'fa-strava']" /> {{ $t("gearsView.gearFromStrava") }}</span>
                             </div>
                         </li>
                     </ul>

@@ -12,6 +12,7 @@
             </div>
         </div>
         <div>
+            <span class="badge bg-secondary-subtle border border-secondary-subtle text-secondary-emphasis align-middle me-2" v-if="user.id == authStore.user.id">{{ $t("usersListComponent.userListUserIsMeBadge") }}</span>
             <span class="badge bg-warning-subtle border border-warning-subtle text-warning-emphasis align-middle me-2" v-if="user.access_type == 2">{{ $t("usersListComponent.userListUserIsAdminBadge") }}</span>
             <span class="badge bg-success-subtle border border-success-subtle text-success-emphasis align-middle" v-if="user.is_active == 1">{{ $t("usersListComponent.userListUserIsActiveBadge") }}</span>
             <span class="badge bg-danger-subtle border border-danger-subtle text-danger-emphasis align-middle" v-else>{{ $t("usersListComponent.userListUserIsInactiveBadge") }}</span>
