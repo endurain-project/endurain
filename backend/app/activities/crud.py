@@ -19,10 +19,7 @@ logger = logging.getLogger("myLogger")
 def get_all_activities(db: Session):
     try:
         # Get the activities from the database
-        activities = (
-            db.query(models.Activity)
-            .all()
-        )
+        activities = db.query(models.Activity).all()
 
         # Check if there are activities if not return None
         if not activities:
@@ -103,7 +100,7 @@ def get_user_activities_with_pagination(
             activity.start_time = activity.start_time.strftime("%Y-%m-%d %H:%M:%S")
             activity.end_time = activity.end_time.strftime("%Y-%m-%d %H:%M:%S")
             activity.created_at = activity.created_at.strftime("%Y-%m-%d %H:%M:%S")
-            
+
         # Return the activities
         return activities
 
@@ -431,13 +428,15 @@ def get_activity_by_strava_id_from_user_id(
 
     except Exception as err:
         # Log the exception
-        logger.error(f"Error in get_activity_by_strava_id_from_user_id: {err}", exc_info=True)
+        logger.error(
+            f"Error in get_activity_by_strava_id_from_user_id: {err}", exc_info=True
+        )
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal Server Error",
         ) from err
-    
+
 
 def get_activity_by_garminconnect_id_from_user_id(
     activity_garminconnect_id: int, user_id: int, db: Session
@@ -466,7 +465,10 @@ def get_activity_by_garminconnect_id_from_user_id(
 
     except Exception as err:
         # Log the exception
-        logger.error(f"Error in get_activity_by_garminconnect_id_from_user_id: {err}", exc_info=True)
+        logger.error(
+            f"Error in get_activity_by_garminconnect_id_from_user_id: {err}",
+            exc_info=True,
+        )
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -593,12 +595,14 @@ def edit_activity(user_id: int, activity: activities_schema.Activity, db: Sessio
                 detail="Activity not found",
                 headers={"WWW-Authenticate": "Bearer"},
             )
-        
+
         # Check if 'activity' is a Pydantic model instance and convert it to a dictionary
         if isinstance(activity, BaseModel):
             activity_data = activity.dict(exclude_unset=True)
         else:
-            activity_data = {key: value for key, value in vars(activity).items() if value is not None}
+            activity_data = {
+                key: value for key, value in vars(activity).items() if value is not None
+            }
 
         # Iterate over the fields and update the db_activity dynamically
         for key, value in activity_data.items():
@@ -708,7 +712,7 @@ def delete_all_strava_activities_for_user(user_id: int, db: Session):
             db.query(models.Activity)
             .filter(
                 models.Activity.user_id == user_id,
-                models.Activity.strava_activity_id is not None,
+                models.Activity.strava_activity_id.isnot(None),
             )
             .delete()
         )
