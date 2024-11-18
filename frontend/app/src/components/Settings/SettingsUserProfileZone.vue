@@ -73,6 +73,9 @@
                                         <option value="1">{{ $t("settingsUsersZone.addUserModalGenderOption1") }}</option>
                                         <option value="2">{{ $t("settingsUsersZone.addUserModalGenderOption2") }}</option>
                                     </select>
+                                    <!-- height fields -->
+                                    <label for="userHeightEdit"><b>{{ $t("settingsUsersZone.addUserModalHeightLabel") }}</b></label>
+                                    <input class="form-control" type="number" name="userHeightEdit" :placeholder='$t("settingsUsersZone.addUserModalHeightPlaceholder")' v-model="editUserHeight">
                                     <!-- preferred language fields -->
                                     <label for="userPreferredLanguageEdit"><b>* {{ $t("settingsUsersZone.addUserModalUserPreferedLanguageLabel") }}</b></label>
                                     <select class="form-control" name="userPreferredLanguageEdit" v-model="editUserPreferredLanguage" required>
@@ -90,28 +93,42 @@
                 </div>
             </div>
             <div class="col">
+                <!-- user name -->
                 <h2>{{ authStore.user.name }}</h2>
+                <!-- user username -->
                 <p><b>{{ $t("settingsUsersZone.addUserModalUsernameLabel") }}: </b>{{ authStore.user.username }}</p>
+                <!-- user email -->
                 <p><b>{{ $t("settingsUsersZone.addUserModalEmailLabel") }}: </b>{{ authStore.user.email }}</p>
+                <!-- user city -->
                 <p>
                     <b>{{ $t("settingsUsersZone.addUserModalTownLabel") }}: </b>
                     <span v-if="authStore.user.city">{{ authStore.user.city }}</span>
                     <span v-else>N/A</span>
                 </p>
+                <!-- user birthdate -->
                 <p>
                     <b>{{ $t("settingsUsersZone.addUserModalBirthdayLabel") }}: </b>
                     <span v-if="authStore.user.birthdate">{{ authStore.user.birthdate }}</span>
                     <span v-else>N/A</span>
                 </p>
+                <!-- user gender -->
                 <p>
                     <b>{{ $t("settingsUsersZone.addUserModalGenderLabel") }}: </b>
                     <span v-if="authStore.user.gender == 1">{{ $t("settingsUsersZone.addUserModalGenderOption1") }}</span>
                     <span v-else>{{ $t("settingsUsersZone.addUserModalGenderOption2") }}</span>
                 </p>
+                <!-- user height -->
+                <p>
+                    <b>{{ $t("settingsUsersZone.addUserModalHeightLabel") }}: </b>
+                    <span v-if="authStore.user.height">{{ authStore.user.height }}cm</span>
+                    <span v-else>N/A</span>
+                </p>
+                <!-- user preferred language -->
                 <p>
                     <b>{{ $t("settingsUsersZone.addUserModalUserPreferedLanguageLabel") }}: </b>
                     <span v-if="authStore.user.preferred_language == 'us'">{{ $t("settingsUsersZone.addUserModalPreferredLanguageOption1") }}</span>
                 </p>
+                <!-- user type -->
                 <p>
                     <b>{{ $t("settingsUsersZone.addUserModalUserTypeLabel") }}: </b>
                     <span v-if="authStore.user.access_type == 1">{{ $t("settingsUsersZone.addUserModalUserTypeOption1") }}</span>
@@ -148,6 +165,7 @@ export default {
 		const editUserTown = ref(authStore.user.city);
 		const editUserBirthdate = ref(authStore.user.birthdate);
 		const editUserGender = ref(authStore.user.gender);
+        const editUserHeight = ref(authStore.user.height);
 		const editUserPreferredLanguage = ref(authStore.user.preferred_language);
 		const editUserAccessType = ref(authStore.user.access_type);
 
@@ -165,6 +183,7 @@ export default {
 					city: editUserTown.value,
 					birthdate: editUserBirthdate.value,
 					gender: editUserGender.value,
+                    height: editUserHeight.value,
 					preferred_language: editUserPreferredLanguage.value,
 					access_type: editUserAccessType.value,
 					photo_path: null,
@@ -229,6 +248,7 @@ export default {
 			editUserTown,
 			editUserBirthdate,
 			editUserGender,
+            editUserHeight,
 			editUserPreferredLanguage,
 			editUserAccessType,
 			submitEditUserForm,

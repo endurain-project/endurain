@@ -12,6 +12,7 @@
             </div>
         </div>
         <div>
+            <span class="badge bg-secondary-subtle border border-secondary-subtle text-secondary-emphasis align-middle me-2" v-if="user.id == authStore.user.id">{{ $t("usersListComponent.userListUserIsMeBadge") }}</span>
             <span class="badge bg-warning-subtle border border-warning-subtle text-warning-emphasis align-middle me-2" v-if="user.access_type == 2">{{ $t("usersListComponent.userListUserIsAdminBadge") }}</span>
             <span class="badge bg-success-subtle border border-success-subtle text-success-emphasis align-middle" v-if="user.is_active == 1">{{ $t("usersListComponent.userListUserIsActiveBadge") }}</span>
             <span class="badge bg-danger-subtle border border-danger-subtle text-danger-emphasis align-middle" v-else>{{ $t("usersListComponent.userListUserIsInactiveBadge") }}</span>
@@ -108,7 +109,10 @@
                                 <select class="form-control" name="userGenderEdit" v-model="editUserGender" required>
                                     <option value="1">{{ $t("settingsUsersZone.addUserModalGenderOption1") }}</option>
                                     <option value="2">{{ $t("settingsUsersZone.addUserModalGenderOption2") }}</option>
-                                </select>
+								</select>
+								<!-- height fields -->
+								<label for="userHeightEdit"><b>{{ $t("settingsUsersZone.addUserModalHeightLabel") }}</b></label>
+								<input class="form-control" type="number" name="userHeightEdit" :placeholder='$t("settingsUsersZone.addUserModalHeightPlaceholder")' v-model="editUserHeight">
                                 <!-- preferred language fields -->
                                 <label for="userPreferredLanguageEdit"><b>* {{ $t("settingsUsersZone.addUserModalUserPreferedLanguageLabel") }}</b></label>
                                 <select class="form-control" name="userPreferredLanguageEdit" v-model="editUserPreferredLanguage" required>
@@ -211,6 +215,7 @@ export default {
 		const editUserTown = ref(userProp.value.city);
 		const editUserBirthdate = ref(userProp.value.birthdate);
 		const editUserGender = ref(userProp.value.gender);
+		const editUserHeight = ref(userProp.value.height);
 		const editUserPreferredLanguage = ref(userProp.value.preferred_language);
 		const editUserAccessType = ref(userProp.value.access_type);
 		const editUserIsActive = ref(userProp.value.is_active);
@@ -253,6 +258,7 @@ export default {
 					city: editUserTown.value,
 					birthdate: editUserBirthdate.value,
 					gender: editUserGender.value,
+					height: editUserHeight.value,
 					preferred_language: editUserPreferredLanguage.value,
 					access_type: editUserAccessType.value,
 					photo_path: null,
@@ -282,6 +288,7 @@ export default {
 				userProp.value.city = editUserTown.value;
 				userProp.value.birthdate = editUserBirthdate.value;
 				userProp.value.gender = editUserGender.value;
+				userProp.value.height = editUserHeight.value;
 				userProp.value.preferred_language = editUserPreferredLanguage.value;
 				userProp.value.access_type = editUserAccessType.value;
 				userProp.value.is_active = editUserIsActive.value;
@@ -340,6 +347,7 @@ export default {
 			editUserTown,
 			editUserBirthdate,
 			editUserGender,
+			editUserHeight,
 			editUserPreferredLanguage,
 			editUserAccessType,
 			editUserIsActive,

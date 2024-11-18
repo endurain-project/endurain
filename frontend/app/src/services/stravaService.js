@@ -1,11 +1,11 @@
-import { fetchGetRequest, fetchPutRequest } from '@/utils/serviceUtils';
+import { fetchGetRequest, fetchPutRequest, fetchDeleteRequest } from '@/utils/serviceUtils';
 
 export const strava = {
     setUniqueUserStateStravaLink(state) {
         return fetchPutRequest(`strava/set-user-unique-state/${state}`)
     },
     unsetUniqueUserStateStravaLink() {
-        return fetchPutRequest(`strava/unset-user-unique-state`)
+        return fetchPutRequest("strava/unset-user-unique-state")
     },
     linkStrava(state) {
         const stravaClientId = `${import.meta.env.VITE_STRAVA_CLIENT_ID}`;
@@ -23,5 +23,8 @@ export const strava = {
     },
     getStravaGear() {
         return fetchGetRequest('strava/gear');
+    },
+    unlinkStrava() {
+        return fetchDeleteRequest('strava/unlink');
     }
 };

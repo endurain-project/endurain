@@ -56,6 +56,7 @@ async def read_users_me(
         )
 
     user.is_strava_linked = 1 if user_integrations.strava_token else 0
+    user.is_garminconnect_linked = 1 if user_integrations.garminconnect_oauth1 else 0
 
     # Return the user
     return user

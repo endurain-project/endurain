@@ -179,7 +179,7 @@ async def edit_gear(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Gear ID {gear_id} not found",
         )
-    
+
     if gear_db.user_id != token_user_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -193,8 +193,8 @@ async def edit_gear(
     return {"detail": f"Gear ID {gear_id} edited successfully"}
 
 
-@router.delete("/{gear_id}/delete", tags=["gear"])
-async def delete_user(
+@router.delete("/{gear_id}/delete")
+async def delete_gear(
     gear_id: int,
     validate_id: Annotated[Callable, Depends(gears_dependencies.validate_gear_id)],
     check_scopes: Annotated[

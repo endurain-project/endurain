@@ -26,12 +26,16 @@ import fit.utils as fit_utils
 logger = logging.getLogger("myLogger")
 
 
-async def parse_and_store_activity_from_file(
-    token_user_id: int, file_path: str, db: Session
+def parse_and_store_activity_from_file(
+    token_user_id: int, file_path: str, db: Session, from_garmin: bool = False
 ):
     try:
         # Get file extension
         _, file_extension = os.path.splitext(file_path)
+        garmin_connect_activity_id = None
+
+        if from_garmin:
+            garmin_connect_activity_id = os.path.basename(file_path).split('_')[0]
 
         # Open the file and process it
         with open(file_path, "rb") as file:
@@ -53,9 +57,14 @@ async def parse_and_store_activity_from_file(
                     )
 
                     # Create activity objects for each activity in the file
-                    created_activities_objects = fit_utils.create_activity_objects(
-                        split_records_by_activity, token_user_id
-                    )
+                    if from_garmin:
+                        created_activities_objects = fit_utils.create_activity_objects(
+                            split_records_by_activity, token_user_id, int(garmin_connect_activity_id)
+                        )
+                    else:
+                        created_activities_objects = fit_utils.create_activity_objects(
+                            split_records_by_activity, token_user_id
+                        )
 
                     for activity in created_activities_objects:
                         # Store the activity in the database
@@ -494,6 +503,7 @@ def define_activity_type(activity_type):
         "VirtualRun": 3,
         "cycling": 4,
         "Ride": 4,
+        "road": 4,
         "GravelRide": 5,
         "gravel_cycling": 5,
         "MountainBikeRide": 6,
@@ -511,6 +521,8 @@ def define_activity_type(activity_type):
         "hiking": 12,
         "Rowing": 13,
         "indoor_rowing": 13,
+        "yoga": 14,
+        "Yoga": 14,
     }
     # "AlpineSki",
     # "BackcountrySki",

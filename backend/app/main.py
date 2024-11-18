@@ -20,6 +20,8 @@ from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 import strava.utils as strava_utils
 import strava.activity_utils as strava_activity_utils
 
+import garmin.activity_utils as garmin_activity_utils
+
 import migrations.utils as migrations_utils
 
 from config import API_VERSION
@@ -51,6 +53,14 @@ def startup_event():
     )
     scheduler.add_job(
         retrieve_strava_user_activities_for_last_day, "interval", minutes=60
+    )
+
+    # Add scheduler jobs to retrieve last day activities from Garmin Connect
+    logger.info(
+        "Added scheduler job to retrieve last day Garmin Connect users activities every 60 minutes"
+    )
+    scheduler.add_job(
+        retrieve_garminconnect_user_activities_for_last_day, "interval", minutes=60
     )
 
 
@@ -91,6 +101,11 @@ def retrieve_strava_user_activities_for_last_day():
     strava_activity_utils.retrieve_strava_users_activities_for_days(1)
 
 
+def retrieve_garminconnect_user_activities_for_last_day():
+    # Get last day users Garmin Connect activities
+    garmin_activity_utils.retrieve_garminconnect_users_activities_for_days(1)
+
+
 # Create loggger
 logger = logging.getLogger("myLogger")
 logger.setLevel(logging.DEBUG)
@@ -121,7 +136,6 @@ required_env_vars = [
     "JAEGER_PROTOCOL",
     "JAEGER_HOST",
     "JAGGER_PORT",
-    "STRAVA_DAYS_ACTIVITIES_ONLINK",
     "FRONTEND_PROTOCOL",
     "FRONTEND_HOST",
     "GEOCODES_MAPS_API",
@@ -141,6 +155,7 @@ app = FastAPI(
     redoc_url="/redoc",
     title="Endurain",
     summary="Endurain API for the Endurain app",
+    root_path="/api/v1",
     version=API_VERSION,
     license_info={
         "name": "GNU General Public License v3.0",
@@ -198,3 +213,19 @@ app.add_event_handler("startup", startup_event)
 
 # Register the shutdown event handler
 app.add_event_handler("shutdown", shutdown_event)
+
+@app.get(
+    "/about",
+)
+async def about(
+):
+    # Return the gear
+    return {
+        "name": "Endurain API",
+        "version": API_VERSION,
+        "license": {
+            "name": "GNU General Public License v3.0",
+            "identifier": "GPL-3.0-or-later",
+            "url": "https://spdx.org/licenses/GPL-3.0-or-later.html",
+        },
+    }

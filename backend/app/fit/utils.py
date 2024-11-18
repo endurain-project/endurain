@@ -12,7 +12,7 @@ import activities.schema as activities_schema
 logger = logging.getLogger("myLogger")
 
 
-def create_activity_objects(sessions_records: dict, user_id: int) -> list:
+def create_activity_objects(sessions_records: dict, user_id: int, garmin_activity_id: int = None) -> list:
     try:
         activity_name = "Workout"
         visibility = 0
@@ -74,6 +74,7 @@ def create_activity_objects(sessions_records: dict, user_id: int) -> list:
                     visibility=visibility,
                     strava_gear_id=None,
                     strava_activity_id=None,
+                    garminconnect_activity_id=garmin_activity_id,
                 ),
                 "is_elevation_set": session_record["is_elevation_set"],
                 "ele_waypoints": session_record["ele_waypoints"],
@@ -203,16 +204,16 @@ def split_records_by_activity(parsed_data: dict) -> dict:
                         i
                     ]["lat_lon_waypoints"][0]["lon"]
 
-                    # Use geocoding API to get city, town, and country based on coordinates
-                    location_data = activities_utils.location_based_on_coordinates(
-                        session["initial_latitude"], session["initial_longitude"]
-                    )
+                # Use geocoding API to get city, town, and country based on coordinates
+                location_data = activities_utils.location_based_on_coordinates(
+                    session["initial_latitude"], session["initial_longitude"]
+                )
 
-                    # Extract city, town, and country from location data
-                    if location_data:
-                        parsed_session["session"]["city"] = location_data["city"]
-                        parsed_session["session"]["town"] = location_data["town"]
-                        parsed_session["session"]["country"] = location_data["country"]
+                # Extract city, town, and country from location data
+                if location_data:
+                    parsed_session["session"]["city"] = location_data["city"]
+                    parsed_session["session"]["town"] = location_data["town"]
+                    parsed_session["session"]["country"] = location_data["country"]
 
         if is_elevation_set:
             activity_waypoints[i]["ele_waypoints"] = [

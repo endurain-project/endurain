@@ -19,7 +19,9 @@ class Migration(Base):
 
     id = Column(Integer, primary_key=True)
     name = Column(String(length=250), nullable=False, comment="Migration name")
-    description = Column(String(length=2500), nullable=False, comment="Migration description")
+    description = Column(
+        String(length=2500), nullable=False, comment="Migration description"
+    )
     executed = Column(
         Boolean,
         nullable=False,
@@ -180,6 +182,12 @@ class UserIntegrations(Base):
         default=False,
         comment="Whether Strava gear is to be synced",
     )
+    garminconnect_oauth1 = Column(
+        JSON, default=None, nullable=True, doc="Garmin OAuth1 token"
+    )
+    garminconnect_oauth2 = Column(
+        JSON, default=None, nullable=True, doc="Garmin OAuth2 token"
+    )
 
     # Define a relationship to the User model
     user = relationship("User", back_populates="users_integrations")
@@ -331,6 +339,9 @@ class Activity(Base):
     strava_gear_id = Column(String(length=45), nullable=True, comment="Strava gear ID")
     strava_activity_id = Column(
         BigInteger, unique=True, nullable=True, comment="Strava activity ID"
+    )
+    garminconnect_activity_id = Column(
+        BigInteger, unique=True, nullable=True, comment="Garmin Connect activity ID"
     )
 
     # Define a relationship to the User model

@@ -31,40 +31,44 @@
 
                         <!-- Display the activity type -->
                         <span v-if="activity.activity_type == 1 || activity.activity_type == 2">
-                            <font-awesome-icon :icon="['fas', 'person-running']" />
+                            <font-awesome-icon class="me-1" :icon="['fas', 'person-running']" />
                         </span>
                         <span v-else-if="activity.activity_type == 3">
-                            <font-awesome-icon :icon="['fas', 'person-running']" /> (Virtual)
+                            <font-awesome-icon class="me-1" :icon="['fas', 'person-running']" />(Virtual)
                         </span>
                         <span v-else-if="activity.activity_type == 4 || activity.activity_type == 5 || activity.activity_type == 6">
-                            <font-awesome-icon :icon="['fas', 'fa-person-biking']" />
+                            <font-awesome-icon class="me-1" :icon="['fas', 'fa-person-biking']" />
                         </span>
                         <span v-else-if="activity.activity_type == 7">
-                            <font-awesome-icon :icon="['fas', 'fa-person-biking']" /> (Virtual)
+                            <font-awesome-icon class="me-1" :icon="['fas', 'fa-person-biking']" />(Virtual)
                         </span>
                         <span v-else-if="activity.activity_type == 8 || activity.activity_type == 9">
-                            <font-awesome-icon :icon="['fas', 'fa-person-swimming']" />
+                            <font-awesome-icon class="me-1" :icon="['fas', 'fa-person-swimming']" />
                         </span>
                         <span v-else-if="activity.activity_type == 11">
-                            <font-awesome-icon :icon="['fas', 'person-walking']" />
+                            <font-awesome-icon class="me-1" :icon="['fas', 'person-walking']" />
                         </span>
                         <span v-else-if="activity.activity_type == 12">
-                            <font-awesome-icon :icon="['fas', 'person-hiking']" />
+                            <font-awesome-icon class="me-1" :icon="['fas', 'person-hiking']" />
                         </span>
                         <span v-else-if="activity.activity_type == 13">
-                            <font-awesome-icon :icon="['fas', 'sailboat']" />
+                            <font-awesome-icon class="me-1" :icon="['fas', 'sailboat']" />
+                        </span>
+                        <span v-else-if="activity.activity_type == 14">
+                            <font-awesome-icon class="me-1" :icon="['fas', 'hands-praying']" />
                         </span>
                         <span v-else>
-                            <font-awesome-icon :icon="['fas', 'fa-dumbbell']" />
+                            <font-awesome-icon class="me-1" :icon="['fas', 'fa-dumbbell']" />
                         </span>
 
                         <!-- Display the date and time -->  
-                        <span class="ms-1">{{ formatDate(activity.start_time) }}</span> @
+                        <span>{{ formatDate(activity.start_time) }}</span> @
                         <span>{{ formatTime(activity.start_time) }}</span>
                         <!-- Conditionally display city and country -->
-                        <span v-if="activity.city || activity.country">
+                        <span v-if="activity.town || activity.city || activity.country">
                             - 
                             <span v-if="activity.town">{{ activity.town }},</span>
+                            <span v-else-if="activity.city">{{ activity.city }},</span>
                             <span v-if="activity.country">{{ " " + activity.country }}</span>
                         </span>
                     </h6>
@@ -73,6 +77,9 @@
             <div class="dropdown d-flex" v-if="activity.user_id == authStore.user.id">
                 <a class="btn btn-link btn-lg link-body-emphasis" :href="`https://www.strava.com/activities/${activity.strava_activity_id}`" role="button" v-if="activity.strava_activity_id">
                     <font-awesome-icon :icon="['fab', 'fa-strava']" />
+                </a>
+                <a class="btn btn-link btn-lg link-body-emphasis" :href="`https://connect.garmin.com/modern/activity/${activity.garminconnect_activity_id}`" role="button" v-if="activity.garminconnect_activity_id">
+                    <img src="/src/assets/garminconnect/Garmin_Connect_app_1024x1024-02.png" alt="Garmin Connect logo" height="22" />
                 </a>
                 <div v-if="sourceProp === 'activity'">
                     <button class="btn btn-link btn-lg link-body-emphasis" type="button" data-bs-toggle="dropdown" aria-expanded="false">
@@ -86,7 +93,7 @@
                         </li>
                         <li><hr class="dropdown-divider"></li>
                         <li>
-                            <a class="dropdown-item" :class="{ disabled: activity.strava_activity_id }" href="#" data-bs-toggle="modal" data-bs-target="#deleteActivityModal">
+                            <a class="dropdown-item" :class="{ disabled: activity.strava_activity_id || activity.garminconnect_activity_id }" href="#" data-bs-toggle="modal" data-bs-target="#deleteActivityModal">
                                 {{ $t("activitySummary.buttonDeleteActivity") }}
                             </a>
                         </li>
@@ -136,7 +143,7 @@
 
         <!-- Activity summary -->
         <div class="row d-flex mt-3">
-            <div class="col" v-if="activity.activity_type != 10">
+            <div class="col" v-if="activity.activity_type != 10 && activity.activity_type != 14">
                 <span class="fw-lighter">
                     {{ $t("activitySummary.activityDistance") }}
                 </span>
@@ -164,14 +171,14 @@
                 <span>{{ calculateTimeDifference(activity.start_time, activity.end_time) }}</span>
             </div>
             <div class="col border-start border-opacity-50">
-                <div v-if="activity.activity_type != 1 && activity.activity_type != 2 && activity.activity_type != 3 && activity.activity_type != 8 && activity.activity_type != 9 && activity.activity_type != 10 && activity.activity_type != 13">
+                <div v-if="activity.activity_type != 1 && activity.activity_type != 2 && activity.activity_type != 3 && activity.activity_type != 8 && activity.activity_type != 9 && activity.activity_type != 10 && activity.activity_type != 13 && activity.activity_type != 14">
                     <span class="fw-lighter">
                         {{ $t("activitySummary.activityElevationGain") }}
                     </span>
                     <br>
                     <span>{{ activity.elevation_gain }} m</span>
                 </div>
-                <div v-else-if="activity.activity_type != 10">
+                <div v-else-if="activity.activity_type != 10 && activity.activity_type != 14">
                     <span class="fw-lighter">
                         {{ $t("activitySummary.activityPace") }}
                     </span>
@@ -188,7 +195,7 @@
                 </div>
             </div>
         </div>        
-        <div class="row d-flex mt-3" v-if="sourceProp === 'activity' && activity.activity_type != 10">
+        <div class="row d-flex mt-3" v-if="sourceProp === 'activity' && activity.activity_type != 10 && activity.activity_type != 14">
             <!-- avg_power running and cycling activities-->
             <div class="col" v-if="activity.activity_type == 1 || activity.activity_type == 2 || activity.activity_type == 3 || activity.activity_type == 4 || activity.activity_type == 5 || activity.activity_type == 6 || activity.activity_type == 7">
                 <span class="fw-lighter">

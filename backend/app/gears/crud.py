@@ -17,11 +17,7 @@ logger = logging.getLogger("myLogger")
 
 def get_gear_user_by_id(gear_id: int, db: Session) -> gears_schema.Gear | None:
     try:
-        gear = (
-            db.query(models.Gear)
-            .filter(models.Gear.id == gear_id)
-            .first()
-        )
+        gear = db.query(models.Gear).filter(models.Gear.id == gear_id).first()
 
         # Check if gear is None and return None if it is
         if gear is None:
@@ -100,7 +96,9 @@ def get_gear_user(user_id: int, db: Session) -> list[gears_schema.Gear] | None:
         ) from err
 
 
-def get_gear_user_by_nickname(user_id: int, nickname: str, db: Session) -> list[gears_schema.Gear] | None:
+def get_gear_user_by_nickname(
+    user_id: int, nickname: str, db: Session
+) -> list[gears_schema.Gear] | None:
     try:
         # Unquote the nickname and change "+" to whitespace
         parsed_nickname = unquote(nickname).replace("+", " ")
@@ -206,7 +204,8 @@ def create_multiple_gears(gears: list[gears_schema.Gear], user_id: int, db: Sess
 
         # Create a list of gear objects
         new_gears = [
-            gears_utils.transform_schema_gear_to_model_gear(gear, user_id) for gear in valid_gears
+            gears_utils.transform_schema_gear_to_model_gear(gear, user_id)
+            for gear in valid_gears
         ]
 
         # Add the gears to the database
@@ -289,7 +288,6 @@ def edit_gear(gear_id: int, gear: gears_schema.Gear, db: Session):
         if gear.created_at is not None:
             db_gear.created_at = gear.created_at
         if gear.is_active is not None:
-            print(f"Gear is active value: {gear.is_active}")
             db_gear.is_active = gear.is_active
         if gear.strava_gear_id is not None:
             db_gear.strava_gear_id = gear.strava_gear_id
@@ -343,7 +341,9 @@ def delete_all_strava_gear_for_user(user_id: int, db: Session):
         # Delete the gear records with strava_gear_id not null for the user
         num_deleted = (
             db.query(models.Gear)
-            .filter(models.Gear.user_id == user_id, models.Gear.strava_gear_id is not None)
+            .filter(
+                models.Gear.user_id == user_id, models.Gear.strava_gear_id.isnot(None)
+            )
             .delete()
         )
 

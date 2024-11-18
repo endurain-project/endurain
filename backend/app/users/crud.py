@@ -281,9 +281,7 @@ def edit_user(user_id: int, user: users_schema.User, db: Session):
                 detail="User not found",
                 headers={"WWW-Authenticate": "Bearer"},
             )
-
-        # Update the user
-
+        
         # Dictionary of the fields to update if they are not None
         user_data = user.dict(exclude_unset=True)
         # Iterate over the fields and update the db_user dynamically
