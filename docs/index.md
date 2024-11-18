@@ -74,7 +74,7 @@ Upcoming features (in no particular order):
 
 ## Sponsors
 
-A huge thank you to our sponsors! Your support helps keep this project going.
+A huge thank you to the project sponsors! Your support helps keep this project going.
 
 Consider [sponsoring Endurain on GitHub](https://github.com/sponsors/joaovitoriasilva) to ensure continuous development.
 
