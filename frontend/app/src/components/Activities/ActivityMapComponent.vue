@@ -4,8 +4,8 @@
         <LoadingComponent />
     </div>
     <div v-else-if="activityStreamLatLng">
-        <div ref="activityMap" class="map" style="height: 300px;" v-if="sourceProp === 'home'"></div>
-        <div ref="activityMap" class="map" style="height: 500px;" v-if="sourceProp === 'activity'"></div>
+        <div ref="activityMap" class="map" style="height: 300px;" v-if="source === 'home'"></div>
+        <div ref="activityMap" class="map" style="height: 500px;" v-if="source === 'activity'"></div>
     </div>
 </template>
 
@@ -33,7 +33,6 @@ export default {
         const isLoading = ref(true);
         const activityStreamLatLng = ref(null);
         const activityMap = ref(null);
-        const sourceProp = ref(props.source);
 
         onMounted(async () => {
             try {
@@ -66,10 +65,10 @@ export default {
             const latlngs = validWaypoints.map(waypoint => [waypoint.lat, waypoint.lon]);
             
             const map = L.map(activityMap.value, {
-                dragging: false, // Disable panning
-                touchZoom: false, // Disable touch zoom
-                scrollWheelZoom: false, // Disable scroll wheel zoom
-                zoomControl: false // Remove zoom control buttons
+                dragging: props.source === 'activity', // Enable if 'activity', disable if 'home'
+                touchZoom: props.source === 'activity', // Enable if 'activity', disable if 'home'
+                scrollWheelZoom: props.source === 'activity', // Enable if 'activity', disable if 'home'
+                zoomControl: props.source === 'activity' // Enable if 'activity', disable if 'home'
             }).fitWorld();
 
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -97,7 +96,6 @@ export default {
             isLoading,
             activityStreamLatLng,
             activityMap,
-            sourceProp,
         };
     },
 };

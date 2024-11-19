@@ -89,3 +89,7 @@ This project is licensed under the GPL-3.0 License - see the [LICENSE](https://g
 ## Help Translate
 
 Endurain has multi-language support, and you can help translate it into more languages via [Crowdin](https://crowdin.com/project/endurain). Currently, only English is available.
+
+## Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=joaovitoriasilva/endurain&type=Date)](https://star-history.com/#joaovitoriasilva/endurain&Date)

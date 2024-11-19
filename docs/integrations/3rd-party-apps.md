@@ -1,4 +1,4 @@
-# 3rd party services
+# 3rd party apps
 
 ---
 
