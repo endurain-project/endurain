@@ -1,14 +1,14 @@
 {
-    "sessionExpired": "Sessão expirou",
-    "error401": "Nome de utilizador ou palavra-passe inválidos",
-    "error403": "Não tem permissões para aceder a este recurso",
-    "error500": "Não foi possível conectar ao servidor. Tente novamente mais tarde",
-    "errorUndefined": "Não foi possível conectar ao servidor. Tente novamente mais tarde",
-    "subtitle": "Iniciar sessão abaixo",
-    "username": "Nome de utilizador",
-    "password": "Palavra-passe",
+    "sessionExpired": "User session expired",
+    "error401": "Invalid username or password",
+    "error403": "You do not have permission to access this resource",
+    "error500": "It was not possible to connect to the server. Please try again later",
+    "errorUndefined": "It was not possible to connect to the server. Please try again later",
+    "subtitle": "Sign-in bellow",
+    "username": "Username",
+    "password": "Password",
     "neverExpires": "Remember me (do not tick this box if you are using a shared computer)",
-    "signInButton": "Iniciar sessão",
-    "signUpText": "À procura de um novo registo?",
-    "signUpButton": "Registar"
+    "signInButton": "Sign in",
+    "signUpText": "Looking for signing up?",
+    "signUpButton": "Sign up"
 }
