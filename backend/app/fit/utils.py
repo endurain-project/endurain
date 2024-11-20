@@ -4,18 +4,45 @@ import logging
 from fastapi import HTTPException, status
 from datetime import datetime, timedelta
 import time as timelib
+from sqlalchemy.orm import Session
 
 import activities.utils as activities_utils
 import activities.schema as activities_schema
+
+import garmin.utils as garmin_utils
+
+import gears.crud as gears_crud
 
 # Define a logger created on main.py
 logger = logging.getLogger("myLogger")
 
 
-def create_activity_objects(sessions_records: dict, user_id: int, garmin_activity_id: int = None) -> list:
+def create_activity_objects(
+    sessions_records: dict,
+    user_id: int,
+    garmin_activity_id: int = None,
+    garminconnect_gear: dict = None,
+    db: Session = None,
+) -> list:
     try:
         activity_name = "Workout"
         visibility = 0
+        gear_id = None
+
+        if garminconnect_gear:
+            user_integrations = garmin_utils.fetch_user_integrations_and_validate_token(
+                user_id, db
+            )
+
+            if user_integrations.garminconnect_sync_gear:
+                # set the gear id for the activity
+                gear = gears_crud.get_gear_by_garminconnect_id_from_user_id(
+                    garminconnect_gear[0]["uuid"], user_id, db
+                )
+
+                # set the gear id for the activity
+                if gear is not None:
+                    gear_id = gear.id
 
         activities = []
 
@@ -72,9 +99,11 @@ def create_activity_objects(sessions_records: dict, user_id: int, garmin_activit
                     workout_rpe=session_record["session"]["workout_rpe"],
                     calories=session_record["session"]["calories"],
                     visibility=visibility,
+                    gear_id=gear_id,
                     strava_gear_id=None,
                     strava_activity_id=None,
                     garminconnect_activity_id=garmin_activity_id,
+                    garminconnect_gear_id=garminconnect_gear[0]["uuid"] if garminconnect_gear else None,
                 ),
                 "is_elevation_set": session_record["is_elevation_set"],
                 "ele_waypoints": session_record["ele_waypoints"],

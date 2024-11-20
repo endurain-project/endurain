@@ -26,7 +26,7 @@
 
 ## What is Endurain?
 
-Endurain is a self-hosted fitness tracking service designed to give users full control over their data and hosting environment. It's similar to Strava but focused on privacy and customization. Built with:
+Endurain is a self-hosted fitness tracking service designed to give users full control over their data and hosting environment. Built with:
 
 - **Frontend:** Vue.js, Notivue and Bootstrap CSS
 - **Backend:** Python FastAPI, Alembic, SQLAlchemy, stravalib and python-garminconnect for Strava and Garmin Connect integration, gpxpy and fitdecode for .gpx and .fit file import respectively 

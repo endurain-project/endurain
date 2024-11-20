@@ -195,6 +195,39 @@ def get_gear_by_strava_id_from_user_id(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal Server Error",
         ) from err
+    
+
+def get_gear_by_garminconnect_id_from_user_id(
+    gear_garminconnect_id: str, user_id: int, db: Session
+) -> gears_schema.Gear | None:
+    try:
+        # Get the gear from the database
+        gear = (
+            db.query(models.Gear)
+            .filter(
+                models.Gear.user_id == user_id,
+                models.Gear.garminconnect_gear_id == gear_garminconnect_id,
+            )
+            .first()
+        )
+
+        # Check if there is gear
+        if not gear:
+            return None
+
+        gear.created_at = gear.created_at.strftime("%Y-%m-%d %H:%M:%S")
+
+        # Return gear
+        return gear
+
+    except Exception as err:
+        # Log the exception
+        logger.error(f"Error in get_gear_by_garminconnect_id_from_user_id: {err}", exc_info=True)
+        # Raise an HTTPException with a 500 Internal Server Error status code
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal Server Error",
+        ) from err
 
 
 def create_multiple_gears(gears: list[gears_schema.Gear], user_id: int, db: Session):
@@ -219,7 +252,7 @@ def create_multiple_gears(gears: list[gears_schema.Gear], user_id: int, db: Sess
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="Duplicate entry error. Check if nickname or strava_gear_id are unique",
+            detail="Duplicate entry error. Check if nickname, strava_gear_id or garminconnect_gear_id are unique",
         ) from integrity_error
 
     except Exception as err:
@@ -254,7 +287,7 @@ def create_gear(gear: gears_schema.Gear, user_id: int, db: Session):
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="Duplicate entry error. Check if nickname or strava_gear_id are unique",
+            detail="Duplicate entry error. Check if nickname, strava_gear_id or garminconnect_gear_id are unique",
         ) from integrity_error
 
     except Exception as err:
@@ -291,6 +324,8 @@ def edit_gear(gear_id: int, gear: gears_schema.Gear, db: Session):
             db_gear.is_active = gear.is_active
         if gear.strava_gear_id is not None:
             db_gear.strava_gear_id = gear.strava_gear_id
+        if gear.garminconnect_gear_id is not None:
+            db_gear.garminconnect_gear_id = gear.garminconnect_gear_id
 
         # Commit the transaction
         db.commit()
@@ -357,6 +392,35 @@ def delete_all_strava_gear_for_user(user_id: int, db: Session):
 
         # Log the exception
         logger.error(f"Error in delete_all_strava_gear_for_user: {err}", exc_info=True)
+
+        # Raise an HTTPException with a 500 Internal Server Error status code
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal Server Error",
+        ) from err
+    
+
+def delete_all_garminconnect_gear_for_user(user_id: int, db: Session):
+    try:
+        # Delete the gear records with garminconnect_gear_id not null for the user
+        num_deleted = (
+            db.query(models.Gear)
+            .filter(
+                models.Gear.user_id == user_id, models.Gear.garminconnect_gear_id.isnot(None)
+            )
+            .delete()
+        )
+
+        # Check if any records were deleted and commit the transaction
+        if num_deleted != 0:
+            # Commit the transaction
+            db.commit()
+    except Exception as err:
+        # Rollback the transaction
+        db.rollback()
+
+        # Log the exception
+        logger.error(f"Error in delete_all_garminconnect_gear_for_user: {err}", exc_info=True)
 
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(

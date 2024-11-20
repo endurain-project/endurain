@@ -30,6 +30,7 @@ def transform_schema_gear_to_model_gear(
         created_at=created_date,
         is_active=True,
         strava_gear_id=gear.strava_gear_id,
+        garminconnect_gear_id=gear.garminconnect_gear_id,
     )
 
     return new_gear

@@ -188,6 +188,12 @@ class UserIntegrations(Base):
     garminconnect_oauth2 = Column(
         JSON, default=None, nullable=True, doc="Garmin OAuth2 token"
     )
+    garminconnect_sync_gear = Column(
+        Boolean,
+        nullable=False,
+        default=False,
+        comment="Whether Garmin Connect gear is to be synced",
+    )
 
     # Define a relationship to the User model
     user = relationship("User", back_populates="users_integrations")
@@ -226,6 +232,9 @@ class Gear(Base):
     )
     strava_gear_id = Column(
         String(length=45), unique=True, nullable=True, comment="Strava gear ID"
+    )
+    garminconnect_gear_id = Column(
+        String(length=45), unique=True, nullable=True, comment="Garmin Connect gear ID"
     )
 
     # Define a relationship to the User model
@@ -342,6 +351,9 @@ class Activity(Base):
     )
     garminconnect_activity_id = Column(
         BigInteger, unique=True, nullable=True, comment="Garmin Connect activity ID"
+    )
+    garminconnect_gear_id = Column(
+        String(length=45), nullable=True, comment="Garmin Connect gear ID"
     )
 
     # Define a relationship to the User model

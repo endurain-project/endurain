@@ -58,7 +58,8 @@ def fetch_and_process_gear(strava_client: Client, user_id: int, db: Session) -> 
         # Return 0 to indicate no gear were processed
         return 0
 
-    save_gears(strava_gear, user_id, db)
+    # Save the gear to the database
+    gears_crud.create_multiple_gears(strava_gear, user_id, db)
 
     # Return the number of activities processed
     return len(strava_gear)
@@ -88,11 +89,6 @@ def process_gear(
     )
 
     return new_gear
-
-
-def save_gears(gears: list[gears_schema.Gear], user_id: int, db: Session):
-    # Save the gear to the database
-    gears_crud.create_multiple_gears(gears, user_id, db)
 
 
 def iterate_over_activities_and_set_gear(
@@ -168,7 +164,7 @@ def get_user_gear(user_id: int):
         # Set the user's gear to sync to True
         user_integrations_crud.set_user_strava_sync_gear(user_id, True, db)
 
-        # Fetch Strava activities after the specified start date
+        # Fetch Strava gear
         num_strava_gear_processed = fetch_and_process_gear(strava_client, user_id, db)
 
         # Log an informational event for tracing

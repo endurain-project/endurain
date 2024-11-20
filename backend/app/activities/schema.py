@@ -36,6 +36,7 @@ class Activity(BaseModel):
     strava_gear_id: str | None = None
     strava_activity_id: int | None = None
     garminconnect_activity_id: int | None = None
+    garminconnect_gear_id: str | None = None
 
     class Config:
         orm_mode = True

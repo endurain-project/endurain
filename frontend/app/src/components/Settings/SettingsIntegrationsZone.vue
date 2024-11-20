@@ -29,11 +29,11 @@
                             </li>
                             <li>
                                 <!-- retrieve gear -->
-                                <a href="#" class="dropdown-item" @click="submitRetrieveStravaGear">{{ $t("settingsIntegrationsZone.buttonStravaRetrieveGear") }}</a>
+                                <a href="#" class="dropdown-item" @click="submitRetrieveStravaGear">{{ $t("settingsIntegrationsZone.buttonRetrieveGear") }}</a>
                             </li>
                             <li>
                                 <!-- unlink Strava -->
-                                <a href="#" class="dropdown-item" role="button" data-bs-toggle="modal" data-bs-target="#unlinkStravaModal">{{ $t("settingsIntegrationsZone.buttonStravaUnlink") }}</a>
+                                <a href="#" class="dropdown-item" role="button" data-bs-toggle="modal" data-bs-target="#unlinkStravaModal">{{ $t("settingsIntegrationsZone.buttonUnlink") }}</a>
                             </li>
                         </ul>
                     </div>
@@ -81,6 +81,14 @@
 								<!-- retrieve garmin connect activities by days -->
 								<a class="dropdown-item" href="#" role="button" data-bs-toggle="modal" data-bs-target="#retrieveGarminConnectActivitiesByDaysModal">{{ $t("settingsIntegrationsZone.modalRetrieveActivitiesByDaysTitle") }}</a>
 							</li>
+                            <li>
+                                <!-- retrieve gear -->
+                                <a href="#" class="dropdown-item" @click="submitRetrieveGarminConnectGear">{{ $t("settingsIntegrationsZone.buttonRetrieveGear") }}</a>
+                            </li>
+							<li>
+                                <!-- unlink Garmin Connect -->
+                                <a href="#" class="dropdown-item" role="button" data-bs-toggle="modal" data-bs-target="#unlinkGarminConnectModal">{{ $t("settingsIntegrationsZone.buttonUnlink") }}</a>
+                            </li>
 						</ul>
 					</div>
                 </div>
@@ -137,6 +145,8 @@
         </div>
 
 		<ModalComponent modalId="unlinkStravaModal" :title="t('settingsIntegrationsZone.modalUnlinkStravaTitle')" :body="`${t('settingsIntegrationsZone.modalUnlinkStravaBody')}`" :actionButtonType="`danger`" :actionButtonText="t('settingsIntegrationsZone.modalUnlinkStravaTitle')" @submitAction="buttonStravaUnlink"/>
+
+		<ModalComponent modalId="unlinkGarminConnectModal" :title="t('settingsIntegrationsZone.modalUnlinkGarminConnectTitle')" :body="`${t('settingsIntegrationsZone.modalUnlinkGarminConnectBody')}`" :actionButtonType="`danger`" :actionButtonText="t('settingsIntegrationsZone.modalUnlinkGarminConnectTitle')" @submitAction="buttonGarminConnectUnlink"/>
     </div>
 </template>
 
@@ -276,6 +286,43 @@ export default {
 			}
 		}
 
+		async function submitRetrieveGarminConnectGear() {
+			try {
+				await garminConnect.getGarminConnectGear();
+
+				// Show the loading alert.
+				push.success(
+					t("settingsIntegrationsZone.loadingMessageRetrievingGarminConnectGear"),
+				);
+			} catch (error) {
+				// If there is an error, show the error alert.
+				push.error(
+					`${t("settingsIntegrationsZone.errorMessageUnableToGetGarminConnectGear")} - ${error}`,
+				);
+			}
+		}
+
+		async function buttonGarminConnectUnlink() {
+			// Set the loading message
+			const notification = push.promise(t('settingsIntegrationsZone.processingMessageUnlinkGarminConnect'));
+			try {
+				await garminConnect.unlinkGarminConnect();
+
+				// Set the user object with the is_garminconnect_linked property set to 0.
+				const user = authStore.user;
+				user.is_garminconnect_linked = 0;
+				authStore.setUser(user, locale);
+
+				// Show the success alert.
+				notification.resolve(t("settingsIntegrationsZone.successMessageGarminConnectUnlinked"));
+			} catch (error) {
+				// If there is an error, show the error alert.
+				notification.reject(
+					`${t("settingsIntegrationsZone.errorMessageUnableToUnlinkGarminConnect")} - ${error}`,
+				);
+			}
+		}
+
 		return {
 			authStore,
 			t,
@@ -289,6 +336,8 @@ export default {
 			garminConnectPassword,
 			submitRetrieveGarminConnectActivities,
 			daysToRetrieveGarmin,
+			submitRetrieveGarminConnectGear,
+			buttonGarminConnectUnlink,
 		};
 	},
 };

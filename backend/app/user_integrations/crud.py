@@ -27,7 +27,7 @@ def get_user_integrations_by_user_id(user_id: int, db: Session):
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="User integrations not found",
             )
-        
+
         # Return the user integrations
         return user_integrations
     except Exception as err:
@@ -70,6 +70,7 @@ def create_user_integrations(user_id: int, db: Session):
         user_integrations = models.UserIntegrations(
             user_id=user_id,
             strava_sync_gear=False,
+            garminconnect_sync_gear=False,
         )
 
         # Add the user integrations to the database
@@ -214,7 +215,7 @@ def set_user_strava_sync_gear(user_id: int, strava_sync_gear: bool, db: Session)
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal Server Error",
         ) from err
-    
+
 
 def link_garminconnect_account(
     user_id: int,
@@ -254,6 +255,32 @@ def link_garminconnect_account(
         ) from err
 
 
+def set_user_garminconnect_sync_gear(
+    user_id: int, garminconnect_sync_gear: bool, db: Session
+):
+    try:
+        # Get the user integrations by the user id
+        user_integrations = get_user_integrations_by_user_id(user_id, db)
+
+        # Set the user Garmin Connect state
+        user_integrations.garminconnect_sync_gear = garminconnect_sync_gear
+
+        # Commit the changes to the database
+        db.commit()
+    except Exception as err:
+        # Rollback the transaction
+        db.rollback()
+
+        # Log the exception
+        logger.error(f"Error in set_user_garminconnect_sync_gear: {err}", exc_info=True)
+
+        # Raise an HTTPException with a 500 Internal Server Error status code
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal Server Error",
+        ) from err
+
+
 def unlink_garminconnect_account(user_id: int, db: Session):
     try:
         # Get the user integrations by the user id
@@ -270,6 +297,7 @@ def unlink_garminconnect_account(user_id: int, db: Session):
         # Set the user integrations Garmin Connect tokens to None
         user_integrations.garminconnect_oauth1 = None
         user_integrations.garminconnect_oauth2 = None
+        user_integrations.garminconnect_sync_gear = False
 
         # Commit the changes to the database
         db.commit()

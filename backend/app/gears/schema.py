@@ -10,6 +10,7 @@ class Gear(BaseModel):
     created_at: str | None = None
     is_active: int | None = None
     strava_gear_id: str | None = None
+    garminconnect_gear_id: str | None = None
 
     class Config:
         orm_mode = True

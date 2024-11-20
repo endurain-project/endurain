@@ -137,6 +137,37 @@ async def strava_retrieve_activities_days(
     }
 
 
+@router.get("/gear", status_code=202)
+async def strava_retrieve_gear(
+    validate_access_token: Annotated[
+        Callable,
+        Depends(session_security.validate_access_token),
+    ],
+    check_scopes: Annotated[
+        Callable,
+        Security(session_security.check_scopes, scopes=["profile"]),
+    ],
+    token_user_id: Annotated[
+        int,
+        Depends(session_security.get_user_id_from_access_token),
+    ],
+    background_tasks: BackgroundTasks,
+):
+    # Process strava activities in the background
+    background_tasks.add_task(
+        strava_gear_utils.get_user_gear,
+        token_user_id,
+    )
+
+    # Return success message and status code 202
+    logger.info(
+        f"Strava gear will be processed in the background for user {token_user_id}"
+    )
+    return {
+        "detail": f"Strava gear will be processed in the background for for {token_user_id}"
+    }
+
+
 @router.put(
     "/set-user-unique-state/{state}",
 )
@@ -218,34 +249,3 @@ async def strava_unlink(
 
     # Return success message
     return {"detail": f"Strava unlinked for user {token_user_id} successfully"}
-
-
-@router.get("/gear", status_code=202)
-async def strava_retrieve_gear(
-    validate_access_token: Annotated[
-        Callable,
-        Depends(session_security.validate_access_token),
-    ],
-    check_scopes: Annotated[
-        Callable,
-        Security(session_security.check_scopes, scopes=["profile"]),
-    ],
-    token_user_id: Annotated[
-        int,
-        Depends(session_security.get_user_id_from_access_token),
-    ],
-    background_tasks: BackgroundTasks,
-):
-    # Process strava activities in the background
-    background_tasks.add_task(
-        strava_gear_utils.get_user_gear,
-        token_user_id,
-    )
-
-    # Return success message and status code 202
-    logger.info(
-        f"Strava gear will be processed in the background for user {token_user_id}"
-    )
-    return {
-        "detail": f"Strava gear will be processed in the background for for {token_user_id}"
-    }

@@ -7,8 +7,8 @@
     "modalRetrieveActivitiesByDaysLabel": "Days",
     "modalRetrieveActivitiesByDaysPlaceholder": "Days",
     "modalRetrieveButton": "Retrieve",
-    "buttonStravaRetrieveGear": "Retrieve gear",
-    "buttonStravaUnlink": "Unlink",
+    "buttonRetrieveGear": "Retrieve gear",
+    "buttonUnlink": "Unlink",
     "errorMessageUnableToLinkStrava": "Unable to link Strava account",
     "successMessageStravaAccountLinked": "Strava account linked",
     "errorMessageUnableToUnSetStravaState": "Unable to unset Strava state",
@@ -29,5 +29,12 @@
     "garminConnectIntegrationTitle": "Garmin Connect",
     "garminConnectIntegrationBody": "Garmin Connect is a health and fitness activity platform for users of Garmin devices",
     "loadingMessageRetrievingGarminConnectActivities": "Retrieving Garmin Connect activities",
-    "errorMessageUnableToGetGarminConnectActivities": "Unable to get Garmin Connect activities"
+    "errorMessageUnableToGetGarminConnectActivities": "Unable to get Garmin Connect activities",
+    "modalUnlinkGarminConnectTitle": "Unlink Garmin Connect",
+    "modalUnlinkGarminConnectBody": "Are you sure you want to unlink your Garmin Connect account?",
+    "processingMessageUnlinkGarminConnect": "Unlinking Garmin Connect account...",
+    "successMessageGarminConnectUnlinked": "Garmin Connect account unlinked",
+    "errorMessageUnableToUnlinkGarminConnect": "Unable to unlink Garmin Connect account",
+    "errorMessageUnableToGetGarminConnectGear": "Unable to get Garmin Connect gear",
+    "loadingMessageRetrievingGarminConnectGear": "Retrieving Garmin Connect gear"
 }

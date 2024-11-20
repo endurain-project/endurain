@@ -55,6 +55,9 @@ def fetch_and_process_activities(
             )
             continue
 
+        # Get activity gear
+        activity_gear = garminconnect_client.get_activity_gear(activity_id)
+
         # Download the activity in original format (.zip file)
         zip_data = garminconnect_client.download_activity(
             activity_id, dl_fmt=garminconnect_client.ActivityDownloadFormat.ORIGINAL
@@ -80,7 +83,7 @@ def fetch_and_process_activities(
 
         for file in extracted_files:
             activities_utils.parse_and_store_activity_from_file(
-                user_id, f"files/{file}", db, True
+                user_id, f"files/{file}", db, True, activity_gear
             )
 
     # Return the number of activities processed

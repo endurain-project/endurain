@@ -78,6 +78,46 @@ def get_user_activities(
         ) from err
 
 
+def get_user_activities_by_user_id_and_garminconnect_gear_set(
+    user_id: int, db: Session
+):
+    try:
+        # Get the activities from the database
+        activities = (
+            db.query(models.Activity)
+            .filter(
+                models.Activity.user_id == user_id,
+                models.Activity.garminconnect_activity_id.isnot(None),
+            )
+            .order_by(desc(models.Activity.start_time))
+            .all()
+        )
+
+        # Check if there are activities if not return None
+        if not activities:
+            return None
+
+        # Iterate and format the dates
+        for activity in activities:
+            activity.start_time = activity.start_time.strftime("%Y-%m-%d %H:%M:%S")
+            activity.end_time = activity.end_time.strftime("%Y-%m-%d %H:%M:%S")
+            activity.created_at = activity.created_at.strftime("%Y-%m-%d %H:%M:%S")
+
+        # Return the activities
+        return activities
+    except Exception as err:
+        # Log the exception
+        logger.error(
+            f"Error in get_user_activities_by_user_id_and_garminconnect_gear_set: {err}",
+            exc_info=True,
+        )
+        # Raise an HTTPException with a 500 Internal Server Error status code
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal Server Error",
+        ) from err
+
+
 def get_user_activities_with_pagination(
     user_id: int, db: Session, page_number: int = 1, num_records: int = 5
 ):
@@ -242,7 +282,10 @@ def get_user_following_activities_with_pagination(
         return activities
     except Exception as err:
         # Log the exception
-        logger.error(f"Error in get_activity_by_id: {err}", exc_info=True)
+        logger.error(
+            f"Error in get_user_following_activities_with_pagination: {err}",
+            exc_info=True,
+        )
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -282,7 +325,7 @@ def get_user_following_activities(user_id, db):
         return activities
     except Exception as err:
         # Log the exception
-        logger.error(f"Error in get_activity_by_id: {err}", exc_info=True)
+        logger.error(f"Error in get_user_following_activities: {err}", exc_info=True)
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -316,7 +359,9 @@ def get_user_activities_by_gear_id_and_user_id(user_id: int, gear_id: int, db: S
         return activities
     except Exception as err:
         # Log the exception
-        logger.error(f"Error in get_activity_by_id: {err}", exc_info=True)
+        logger.error(
+            f"Error in get_user_activities_by_gear_id_and_user_id: {err}", exc_info=True
+        )
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -550,6 +595,7 @@ def create_activity(activity: activities_schema.Activity, db: Session):
             strava_gear_id=activity.strava_gear_id,
             strava_activity_id=activity.strava_activity_id,
             garminconnect_activity_id=activity.garminconnect_activity_id,
+            garminconnect_gear_id=activity.garminconnect_gear_id,
         )
 
         # Add the activity to the database

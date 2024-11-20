@@ -27,7 +27,11 @@ logger = logging.getLogger("myLogger")
 
 
 def parse_and_store_activity_from_file(
-    token_user_id: int, file_path: str, db: Session, from_garmin: bool = False
+    token_user_id: int,
+    file_path: str,
+    db: Session,
+    from_garmin: bool = False,
+    garminconnect_gear: dict = None,
 ):
     try:
         # Get file extension
@@ -35,7 +39,7 @@ def parse_and_store_activity_from_file(
         garmin_connect_activity_id = None
 
         if from_garmin:
-            garmin_connect_activity_id = os.path.basename(file_path).split('_')[0]
+            garmin_connect_activity_id = os.path.basename(file_path).split("_")[0]
 
         # Open the file and process it
         with open(file_path, "rb") as file:
@@ -59,7 +63,11 @@ def parse_and_store_activity_from_file(
                     # Create activity objects for each activity in the file
                     if from_garmin:
                         created_activities_objects = fit_utils.create_activity_objects(
-                            split_records_by_activity, token_user_id, int(garmin_connect_activity_id)
+                            split_records_by_activity,
+                            token_user_id,
+                            int(garmin_connect_activity_id),
+                            garminconnect_gear,
+                            db,
                         )
                     else:
                         created_activities_objects = fit_utils.create_activity_objects(

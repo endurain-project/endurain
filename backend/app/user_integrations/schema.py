@@ -11,6 +11,7 @@ class UserIntegrations(BaseModel):
     strava_sync_gear: bool
     garminconnect_oauth1: dict | None = None
     garminconnect_oauth2: dict | None = None
+    garminconnect_sync_gear: bool
 
     class Config:
         from_attributes = True
