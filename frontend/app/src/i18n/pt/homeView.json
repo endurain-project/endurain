@@ -1,12 +1,12 @@
 {
     "title": "Endurain",
-    "buttonAddActivity": "Add Activity",
-    "fieldLabelUploadGPXFile": "Upload .gpx or .fit file",
-    "radioUserActivities": "My activities",
-    "radioFollowerActivities": "Followers activities",
-    "successActivityAdded": "Activity added successfully",
-    "errorActivityAdded": "Error adding activity",
-    "errorActivityNotFound": "Activity not found",
-    "processingActivity": "Processing activity",
-    "successActivityDeleted": "Activity deleted successfully"
+    "buttonAddActivity": "Adicionar atividade",
+    "fieldLabelUploadGPXFile": "Carregar ficheiro .gpx ou .fit",
+    "radioUserActivities": "Minhas atividades",
+    "radioFollowerActivities": "Atividades de seguidores",
+    "successActivityAdded": "Atividade adicionada com sucesso",
+    "errorActivityAdded": "Erro ao adicionar atividade",
+    "errorActivityNotFound": "Atividade não encontrada",
+    "processingActivity": "A processar atividade",
+    "successActivityDeleted": "Atividade eliminada com sucesso"
 }
