@@ -4,7 +4,7 @@
     "error403": "You do not have permission to access this resource",
     "error500": "It was not possible to connect to the server. Please try again later",
     "errorUndefined": "It was not possible to connect to the server. Please try again later",
-    "subtitle": "Sign-in bellow",
+    "subtitle": "Sign-in below",
     "username": "Username",
     "password": "Password",
     "neverExpires": "Remember me (do not tick this box if you are using a shared computer)",
