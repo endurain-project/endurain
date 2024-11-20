@@ -1,0 +1,21 @@
+{
+    "visibilityPublic": "Public",
+    "visibilityFollowers": "Followers",
+    "visibilityPrivate": "Private",
+    "buttonDeleteActivity": "Delete activity",
+    "buttonEditActivity": "Edit activity",
+    "modalDeleteBody1": "Are you sure you want to delete activity ",
+    "modalDeleteBody2": "This action cannot be undone.",
+    "activityDistance": "Distance",
+    "activityTime": "Time",
+    "activityElevationGain": "Elevation Gain",
+    "activityPace": "Pace",
+    "activityAvgPower": "Avg Power",
+    "activityAvgSpeed": "Avg Speed",
+    "activityAvgHR": "Avg HR",
+    "activityMaxHR": "Max HR",
+    "activityEleGain": "Elevation gain",
+    "activityEleLoss": "Elevation loss",
+    "activityCalories": "Calories",
+    "activityNoData": "No data"
+}
