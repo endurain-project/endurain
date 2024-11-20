@@ -23,6 +23,7 @@
     "activeState": "Ativo",
     "inactiveState": "Inativo",
     "gearFromStrava": "Strava",
+    "gearFromGarminConnect": "Garmin Connect",
     "successGearAdded": "Equipamento adicionado com sucesso",
     "successGearDeleted": "Equipamento eliminado com sucesso",
     "errorGearNotFound": "Equipamento não encontrado"
