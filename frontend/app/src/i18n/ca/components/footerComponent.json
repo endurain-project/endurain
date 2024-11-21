@@ -1,7 +1,7 @@
 {
-    "searchSelectLabel": "Search",
-    "searchSelectOptionActivity": "Activity",
-    "searchSelectOptionUser": "User",
-    "searchSelectOptionGear": "Gear",
-    "searchInputPlaceholder": "Search text"
+    "searchSelectLabel": "Cerca",
+    "searchSelectOptionActivity": "Activitat",
+    "searchSelectOptionUser": "Usuari",
+    "searchSelectOptionGear": "Equip",
+    "searchInputPlaceholder": "Cerca Text"
 }
