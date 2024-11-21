@@ -1,8 +1,8 @@
 {
     "modalDeleteWeightTitle": "Delete weight",
-    "modalDeleteWeightBody": "Are you sure you want to delete weight entry for ",
-    "successDeleteWeight": "Weight deleted",
-    "errorDeleteWeight": "It was not possible to delete weight entry",
-    "successEditWeight": "Weight edited",
-    "errorEditWeight": "It was not possible to edit weight entry"
+    "modalDeleteWeightBody": "Segur que vols suprimir l'entrada de pes per ",
+    "successDeleteWeight": "Pes esborrat",
+    "errorDeleteWeight": "No s'ha pogut suprimir l'entrada de pes",
+    "successEditWeight": "Pes editat",
+    "errorEditWeight": "No s'ha pogut editar l'entrada de pes"
 }
