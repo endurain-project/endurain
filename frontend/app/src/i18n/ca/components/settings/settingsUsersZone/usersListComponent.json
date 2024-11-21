@@ -1,8 +1,8 @@
 {
     "userListAccessTypeLabel": "Access type: ",
     "userListAccessTypeOption1": "Regular user",
-    "userListAccessTypeOption2": "Administrator",
-    "userListUserIsMeBadge": "Me",
+    "userListAccessTypeOption2": "Administrador",
+    "userListUserIsMeBadge": "Jo",
     "userListUserIsAdminBadge": "Admin",
     "userListUserIsActiveBadge": "Actiu",
     "userListUserIsInactiveBadge": "Inactiu",
