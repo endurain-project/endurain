@@ -1,6 +1,6 @@
 {
-    "requestAccepted": "Accepted",
-    "requestPending": "Request pending",
+    "requestAccepted": "Acceptat",
+    "requestPending": "Sol·licitud pendent",
     "followingModalTitle": "Delete following",
     "followingModalBody": "Are you sure you want to delete following user ",
     "followerModalTitle": "Delete follower",
