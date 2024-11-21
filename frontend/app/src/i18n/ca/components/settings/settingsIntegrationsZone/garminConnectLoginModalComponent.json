@@ -1,9 +1,9 @@
 {
     "garminConnectAuthModalTitle": "Eenllaçar el compte de Garmin Connect",
     "garminConnectAuthModalUsernameLabel": "Correu de Garmin Connect",
-    "garminConnectAuthModalUsernamePlaceholder": "Garmin Connect email",
-    "garminConnectAuthModalPasswordLabel": "Garmin Connect password",
-    "garminConnectAuthModalPasswordPlaceholder": "Garmin Connect password",
+    "garminConnectAuthModalUsernamePlaceholder": "Correu de Garmin Connect",
+    "garminConnectAuthModalPasswordLabel": "Contrasenya de Garmin Connect",
+    "garminConnectAuthModalPasswordPlaceholder": "Contrasenya de Garmin Connect",
     "garminConnectAuthModalLoginButton": "Login",
     "processingMessageLinkGarminConnect": "Enllaçant el compte de Garmin Connect...",
     "successMessageLinkGarminConnect": "Compte de Garmin Connect enllaçat",
