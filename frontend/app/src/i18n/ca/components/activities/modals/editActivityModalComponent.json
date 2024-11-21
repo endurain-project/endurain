@@ -1,9 +1,9 @@
 {
     "modalEditActivityTitle": "Edita activitat",
     "modalEditActivityDescriptionLabel": "Descripció",
-    "modalEditActivityDescriptionPlaceholder": "Description (max 2500 characters)",
+    "modalEditActivityDescriptionPlaceholder": "Descripció (màx 2500 caràcters)",
     "modalEditActivityNameLabel": "Nom",
-    "modalEditActivityNamePlaceholder": "Name (max 250 characters)",
+    "modalEditActivityNamePlaceholder": "Nom (màx 250 caràcters)",
     "modalEditActivityTypeLabel": "Tipus",
     "modalEditActivityTypeOption1": "Correr",
     "modalEditActivityTypeOption2": "Trail Run",
