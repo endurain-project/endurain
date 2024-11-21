@@ -5,7 +5,7 @@
     "garminConnectAuthModalPasswordLabel": "Garmin Connect password",
     "garminConnectAuthModalPasswordPlaceholder": "Garmin Connect password",
     "garminConnectAuthModalLoginButton": "Login",
-    "processingMessageLinkGarminConnect": "Linking Garmin Connect account...",
-    "successMessageLinkGarminConnect": "Garmin Connect account linked",
-    "errorMessageUnableToLinkGarminConnect": "Unable to link Garmin Connect account"
+    "processingMessageLinkGarminConnect": "Enllaçant el compte de Garmin Connect...",
+    "successMessageLinkGarminConnect": "Compte de Garmin Connect enllaçat",
+    "errorMessageUnableToLinkGarminConnect": "No es pot enllaçar el compte de Garmin Connect"
 }
