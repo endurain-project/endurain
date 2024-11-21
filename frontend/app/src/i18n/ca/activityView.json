@@ -1,14 +1,14 @@
 {
-    "labelGear": "Gear",
-    "labelGearNotSet": "Not set",
-    "modalLabelAddGear": "Add gear to activity",
-    "modalLabelSelectGear": "Select gear",
-    "modalButtonAddGear": "Add gear",
-    "modalLabelDeleteGear": "Delete gear from activity",
-    "modalLabelDeleteGearBody": "Are you sure you want to remove the gear from the activity?",
-    "modalLabelDeleteGearButton": "Delete gear",
-    "labelGraph": "Activity data graphs",
-    "labelDownsampling": "Data downsampled to ~200 points",
-    "successMessageGearAdded": "Gear added to activity",
-    "successMessageGearDeleted": "Gear deleted from activity"
+    "labelGear": "Equip",
+    "labelGearNotSet": "No establert",
+    "modalLabelAddGear": "Afegir equip a activitat",
+    "modalLabelSelectGear": "Selecciona equip",
+    "modalButtonAddGear": "Afegir Equip",
+    "modalLabelDeleteGear": "Esborra equip de l'activitat",
+    "modalLabelDeleteGearBody": "Segur que vols esborrar l'equip de l'activitat?",
+    "modalLabelDeleteGearButton": "Esborra equip",
+    "labelGraph": "Gràfics d'Activitat",
+    "labelDownsampling": "Dades reduïdes a ~200 punts",
+    "successMessageGearAdded": "Equip afegit a activitat",
+    "successMessageGearDeleted": "Equip esborat de l'activitat"
 }
