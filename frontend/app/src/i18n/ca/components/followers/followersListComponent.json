@@ -5,8 +5,8 @@
     "followingModalBody": "Segur que vols eliminar el seguiment de l'usuari ",
     "followerModalTitle": "Esborrar seguidor",
     "followerModalBody": "Segur que vols elimnar l'usuari seguidor ",
-    "followerAcceptModalTitle": "Accept user request",
-    "followerAcceptModalBody": "Are you sure you want to accept follow request from user ",
-    "followerDeclineModalTitle": "Decline user request ",
-    "followerDeclineModalBody": "Are you sure you want to decline follow request from user "
+    "followerAcceptModalTitle": "Accepta petició de l'usuari",
+    "followerAcceptModalBody": "Segur que vols acceptar la petició de seguiment de l'usuari ",
+    "followerDeclineModalTitle": "Rebutja la petició de l'usuari ",
+    "followerDeclineModalBody": "Segur que vols rebutjar la petició de seguiment de kl'usauri "
 }
