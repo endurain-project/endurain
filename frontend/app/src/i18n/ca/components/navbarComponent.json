@@ -1,9 +1,9 @@
 {
-    "gear": "Gear",
-    "health": "Health",
-    "profile": "Profile",
-    "settings": "Settings",
+    "gear": "Equip",
+    "health": "Salut",
+    "profile": "Perfil",
+    "settings": "Opcions",
     "login": "Login",
-    "logout": "Logout",
+    "logout": "Tanca sessió",
     "warningZone": "Alpha software, some features might not work has expected"
 }
