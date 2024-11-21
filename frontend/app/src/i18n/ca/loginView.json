@@ -1,14 +1,14 @@
 {
-    "sessionExpired": "User session expired",
-    "error401": "Invalid username or password",
-    "error403": "You do not have permission to access this resource",
-    "error500": "It was not possible to connect to the server. Please try again later",
-    "errorUndefined": "It was not possible to connect to the server. Please try again later",
-    "subtitle": "Sign-in below",
-    "username": "Username",
-    "password": "Password",
-    "neverExpires": "Remember me (do not tick this box if you are using a shared computer)",
-    "signInButton": "Sign in",
-    "signUpText": "Looking for signing up?",
-    "signUpButton": "Sign up"
+    "sessionExpired": "Sessió d'usuari expirada",
+    "error401": "Nom d'usuari o contrasenya incorrectes",
+    "error403": "No teniu permís per accedir a aquest recurs",
+    "error500": "No s'ha pogut contactar amb el servidor. Intenta-ho de nou més tard",
+    "errorUndefined": "No s'ha pogut contactar amb el servidor. Intenta-ho de nou més tard",
+    "subtitle": "Inici de sessió",
+    "username": "Nom d’usuari",
+    "password": "Contrasenya",
+    "neverExpires": "Recordar (no marcar si estàs utilitzant un ordinador compartit)",
+    "signInButton": "Inicia la sessió",
+    "signUpText": "Cercant el registre?",
+    "signUpButton": "Registra't"
 }
