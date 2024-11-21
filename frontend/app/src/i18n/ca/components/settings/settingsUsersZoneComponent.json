@@ -1,6 +1,6 @@
 {
-    "buttonAddUser": "Add user",
-    "addUserModalUserPhotoLabel": "User photo",
+    "buttonAddUser": "Afegir usuari",
+    "addUserModalUserPhotoLabel": "Foto d'usuari",
     "addUserModalUsernameLabel": "Username",
     "addUserModalUsernamePlaceholder": "Username (max 45 characters)",
     "addUserModalNameLabel": "Nom",
