@@ -4,7 +4,7 @@
     "error403": "Não tem permissões para aceder a este recurso",
     "error500": "Não foi possível comunicar com o servidor. Tente novamente mais tarde",
     "errorUndefined": "Não foi possível comunicar com o servidor. Tente novamente mais tarde",
-    "subtitle": "Sign-in below",
+    "subtitle": "Iniciar sessão abaixo",
     "username": "Nome de utilizador",
     "password": "Palavra-passe",
     "neverExpires": "Lembrar-me (não marque esta caixa se estiver a usar um computador partilhado)",
