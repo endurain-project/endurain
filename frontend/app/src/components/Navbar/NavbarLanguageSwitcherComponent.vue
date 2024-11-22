@@ -2,7 +2,7 @@
     <div class="nav-item dropdown d-none d-lg-block">
         <!-- toggle with current lang -->
         <a class="nav-link link-body-emphasis dropdown-toggle" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-            <span class="me-2">{{ currentLanguage.toLowerCase() }}</span>
+            <span class="me-2">{{ currentLanguage.toUpperCase() }}</span>
             <span :class="'fi fi-' + currentLanguage" v-if="currentLanguage !== 'ca'"></span>
             <span class="fi fi-es-ct" v-else></span>
         </a>
