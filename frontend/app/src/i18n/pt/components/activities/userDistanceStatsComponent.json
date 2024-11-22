@@ -1,7 +1,7 @@
 {
-    "thisMonthDistancesTitle": "This month distances",
-    "thisWeekDistancesTitle": "This week distances",
-    "distancesRun": "Run",
-    "distancesBike": "Bike",
-    "distancesSwim": "Swim"
+    "thisMonthDistancesTitle": "Distâncias deste mês",
+    "thisWeekDistancesTitle": "Distâncias desta semana",
+    "distancesRun": "Corrida",
+    "distancesBike": "Ciclismo",
+    "distancesSwim": "Natação"
 }
