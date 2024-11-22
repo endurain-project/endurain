@@ -1,0 +1,14 @@
+{
+    "buttonEditGear": "Edit Gear",
+    "buttonDeleteGear": "Delete Gear",
+    "modalEditGearIsActiveLabel": "Is Active",
+    "modalEditGearIsActiveOption1": "Yes",
+    "modalEditGearIsActiveOption0": "No",
+    "modalDeleteGearBody1": "Are you sure you want to delete gear",
+    "modalDeleteGearBody2": "This action cannot be undone.",
+    "labelDistance": "Distance",
+    "title": "Gear activities",
+    "subtitle": "(last 10 activities)",
+    "labelDate": "Date",
+    "successGearEdited": "Gear edited successfully"
+}
