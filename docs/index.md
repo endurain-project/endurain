@@ -88,7 +88,10 @@ This project is licensed under the GPL-3.0 License - see the [LICENSE](https://g
 
 ## Help Translate
 
-Endurain has multi-language support, and you can help translate it into more languages via [Crowdin](https://crowdin.com/project/endurain). Currently supported in:
+Endurain has multi-language support, and you can help translate it into more languages via [Crowdin](https://crowdin.com/project/endurain). 
+
+Currently supported in:
+
  - Catalan by [@rubenixnagios](https://github.com/rubenixnagios)
  - Portuguese (PT)
  - English (US)
