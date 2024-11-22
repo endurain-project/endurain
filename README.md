@@ -49,7 +49,3 @@ Contributions are welcomed! Please open an issue to discuss any changes or impro
 ## License
 
 This project is licensed under the GPL-3.0 License - see the [LICENSE](LICENSE) file for details.
-
-## Help Translate
-
-Endurain has multi-language support, and you can help translate it into more languages via [Crowdin](https://crowdin.com/project/endurain). Currently, only English is available.

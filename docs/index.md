@@ -49,7 +49,7 @@ Endurain currently supports:
 - Admin and user profiles with adaptable interfaces
 - Activity import via manual or bulk upload (.gpx and .fit files)
 - Strava integration for syncing activities and gear
-- Garmin Connect integration for syncing activities
+- Garmin Connect integration for syncing activities and gear
 - Personalized activity feeds and statistics (week/month)
 - Basic activity privacy settings
 - Gear tracking (wetsuits, bicycles, shoes)
@@ -88,7 +88,10 @@ This project is licensed under the GPL-3.0 License - see the [LICENSE](https://g
 
 ## Help Translate
 
-Endurain has multi-language support, and you can help translate it into more languages via [Crowdin](https://crowdin.com/project/endurain). Currently, only English is available.
+Endurain has multi-language support, and you can help translate it into more languages via [Crowdin](https://crowdin.com/project/endurain). Currently supported in:
+ - Catalan by [@rubenixnagios](https://github.com/rubenixnagios)
+ - Portuguese (PT)
+ - English (US)
 
 ## Star History
 
