@@ -23,7 +23,10 @@
                                 <input class="form-control" type="text" name="garminConnectMfaCode" :placeholder='$t("garminConnectLoginModalComponent.garminConnectAuthModalMfaCodePlaceholder")' v-model="mfaCode">
                             </div>
                             <div class="col">
-                                <a href="#" class="btn btn-success w-100" @click="submitMfaCode">{{ $t("garminConnectLoginModalComponent.buttonSubmitMfaCode") }}</a>
+                                <a href="#" class="btn btn-success w-100" :class="{ disabled: loadingLoginWithMfa }" @click="submitMfaCode">
+                                    <span class="spinner-border spinner-border-sm me-1" aria-hidden="true" v-if="loadingLoginWithMfa"></span>
+                                    <span role="status">{{ $t("garminConnectLoginModalComponent.buttonSubmitMfaCode") }}</span>
+                                </a>
                             </div>
                         </div>
 
@@ -31,7 +34,10 @@
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ $t("generalItems.buttonClose") }}</button>
-                        <button type="submit" class="btn btn-success">{{ $t("garminConnectLoginModalComponent.garminConnectAuthModalLoginButton") }}</button>
+                        <button type="submit" class="btn btn-success" :disabled="loadingLogin">
+                            <span class="spinner-border spinner-border-sm me-1" aria-hidden="true" v-if="loadingLogin"></span>
+                            <span role="status">{{ $t("garminConnectLoginModalComponent.garminConnectAuthModalLoginButton") }}</span>
+                        </button>
                     </div>
                 </form>
             </div>
@@ -48,13 +54,17 @@ import { useAuthStore } from "@/stores/authStore";
 import { push } from "notivue";
 // Importing the services
 import { garminConnect } from "@/services/garminConnectService";
-
+// Importing the utils
 import { removeActiveModal, resetBodyStylesIfNoActiveModals } from "@/utils/modalUtils";
-
+// Importing the bootstrap modal
 import Modal from 'bootstrap/js/src/modal';
+// Importing the components
+import LoadingComponent from '@/components/GeneralComponents/LoadingComponent.vue';
 
 export default {
-	components: {},
+	components: {
+        LoadingComponent,
+    },
 	setup() {
 		const authStore = useAuthStore();
 		const { locale, t } = useI18n();
@@ -63,6 +73,8 @@ export default {
         const mfaRequired = ref(false);
         const mfaCode = ref("");
         const garminConnectAuthModal = ref(null); // Ref for the modal element
+        const loadingLogin = ref(false);
+        const loadingLoginWithMfa = ref(false);
 
         let modalInstance = null; // Holds the modal instance
 
@@ -74,6 +86,7 @@ export default {
         });
 
 		async function submitConnectGarminConnect() {
+            loadingLogin.value = true;
             // Set the loading message
             const notification = push.promise(t('garminConnectLoginModalComponent.processingMessageLinkGarminConnect'));
 			try {
@@ -106,6 +119,8 @@ export default {
                 // reset variables
                 mfaRequired.value = false;
                 mfaCode.value = "";
+                loadingLogin.value = false;
+                loadingLoginWithMfa.value = false;
             }
 		}
 
@@ -114,6 +129,7 @@ export default {
                 mfa_code: mfaCode.value,
             };
             await garminConnect.mfaGarminConnect(data);
+            loadingLoginWithMfa.value = true;
         }
 
         authStore.user_websocket.onmessage = (event) => {
@@ -132,6 +148,8 @@ export default {
             mfaCode,
             submitMfaCode,
             garminConnectAuthModal,
+            loadingLogin,
+            loadingLoginWithMfa,
 		};
 	},
 };
