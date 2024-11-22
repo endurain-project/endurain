@@ -1,5 +1,7 @@
 import { defineStore } from 'pinia';
 
+import { BACKEND_URL } from "@/utils/serviceUtils";
+
 export const useAuthStore = defineStore('auth', {
     state: () => ({
         user: {
@@ -19,12 +21,14 @@ export const useAuthStore = defineStore('auth', {
             is_garminconnect_linked: null,
         },
         isAuthenticated: false,
+        user_websocket: null,
     }),
     actions: {
         setUser(userData, locale) {
             this.user = userData;
             localStorage.setItem('user', JSON.stringify(this.user));
             this.isAuthenticated = true;
+            this.setUserWebsocket();
 
             this.setLocale(this.user.preferred_language, locale);
         },
@@ -46,6 +50,8 @@ export const useAuthStore = defineStore('auth', {
                 is_garminconnect_linked: null,
             };
             this.isAuthenticated = false;
+            this.user_websocket.close();
+            this.user_websocket = null;
             localStorage.removeItem('user');
 
             this.setLocale('us', locale);
@@ -56,6 +62,7 @@ export const useAuthStore = defineStore('auth', {
                 this.user = JSON.parse(storedUser);
                 this.isAuthenticated = true;
                 this.setLocale(this.user.preferred_language, locale);
+                this.setUserWebsocket();
             }
         },
         setPreferredLanguage(language, locale) {
@@ -67,6 +74,9 @@ export const useAuthStore = defineStore('auth', {
         setLocale(language, locale) {
             locale.value = language;
             localStorage.setItem('lang', language);
-        }
+        },
+        setUserWebsocket() {
+            this.user_websocket = new WebSocket(`ws://${BACKEND_URL}ws/${this.user.id}`);
+        },
     }
 });

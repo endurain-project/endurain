@@ -11,6 +11,7 @@ import strava.router as strava_router
 import garmin.router as garmin_router
 import health_data.router as health_data_router
 import health_targets.router as health_targets_router
+import websocket.router as websocket_router
 
 
 router = APIRouter()
@@ -69,6 +70,10 @@ router.include_router(
     garmin_router.router,
     prefix="/garminconnect",
     tags=["garminconnect"],
+    dependencies=[
+        Depends(session_security.validate_access_token),
+        Security(session_security.check_scopes, scopes=["profile"]),
+    ],
 )
 router.include_router(
     health_data_router.router,
@@ -81,4 +86,13 @@ router.include_router(
     prefix="/health_targets",
     tags=["health_targets"],
     dependencies=[Depends(session_security.validate_access_token)],
+)
+router.include_router(
+    websocket_router.router,
+    prefix="/ws",
+    tags=["websocket"],
+    #dependencies=[
+    #    Depends(session_security.validate_access_token),
+    #    Security(session_security.check_scopes, scopes=["profile"]),
+    #],
 )

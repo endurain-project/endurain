@@ -1,6 +1,6 @@
 import logging
-from typing import Annotated, Callable
-from fastapi import APIRouter, Depends, Security, BackgroundTasks
+from typing import Annotated
+from fastapi import APIRouter, Depends, BackgroundTasks
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta, timezone
 
@@ -13,6 +13,8 @@ import garmin.schema as garmin_schema
 import garmin.activity_utils as garmin_activity_utils
 import garmin.gear_utils as garmin_gear_utils
 
+import websocket.schema as websocket_schema
+
 import database
 
 # Define the API router
@@ -22,32 +24,52 @@ router = APIRouter()
 logger = logging.getLogger("myLogger")
 
 
-@router.put(
+@router.post(
     "/link",
 )
 async def garminconnect_link(
     garmin_user: garmin_schema.GarminLogin,
-    validate_access_token: Annotated[
-        Callable,
-        Depends(session_security.validate_access_token),
-    ],
-    check_scopes: Annotated[
-        Callable,
-        Security(session_security.check_scopes, scopes=["profile"]),
-    ],
     token_user_id: Annotated[
         int,
         Depends(session_security.get_user_id_from_access_token),
     ],
     db: Annotated[Session, Depends(database.get_db)],
+    mfa_codes: Annotated[
+        garmin_schema.MFACodeStore, Depends(garmin_schema.get_mfa_store)
+    ],
+    websocket_manager: Annotated[
+        websocket_schema.WebSocketManager,
+        Depends(websocket_schema.get_websocket_manager),
+    ],
 ):
     # Link Garmin Connect account
-    garmin_utils.link_garminconnect(
-        token_user_id, garmin_user.username, garmin_user.password, db
+    await garmin_utils.link_garminconnect(
+        token_user_id,
+        garmin_user.username,
+        garmin_user.password,
+        db,
+        mfa_codes,
+        websocket_manager,
     )
 
     # Return success message
     return {f"Garmin Connect linked for user {token_user_id} successfully"}
+
+
+@router.post("/mfa")
+async def garminconnect_mfa_code(
+    mfa_request: garmin_schema.MFARequest,
+    token_user_id: Annotated[
+        int,
+        Depends(session_security.get_user_id_from_access_token),
+    ],
+    mfa_codes: Annotated[
+        garmin_schema.MFACodeStore, Depends(garmin_schema.get_mfa_store)
+    ],
+):
+    # Store the MFA code
+    mfa_codes.add_code(token_user_id, mfa_request.mfa_code)
+    return {"message": "MFA code received successfully"}
 
 
 @router.get(
@@ -56,14 +78,6 @@ async def garminconnect_link(
 )
 async def garminconnect_retrieve_activities_days(
     days: int,
-    validate_access_token: Annotated[
-        Callable,
-        Depends(session_security.validate_access_token),
-    ],
-    check_scopes: Annotated[
-        Callable,
-        Security(session_security.check_scopes, scopes=["profile"]),
-    ],
     token_user_id: Annotated[
         int,
         Depends(session_security.get_user_id_from_access_token),
@@ -91,14 +105,6 @@ async def garminconnect_retrieve_activities_days(
 
 @router.get("/gear", status_code=202)
 async def garminconnect_retrieve_gear(
-    validate_access_token: Annotated[
-        Callable,
-        Depends(session_security.validate_access_token),
-    ],
-    check_scopes: Annotated[
-        Callable,
-        Security(session_security.check_scopes, scopes=["profile"]),
-    ],
     token_user_id: Annotated[
         int,
         Depends(session_security.get_user_id_from_access_token),
@@ -122,14 +128,6 @@ async def garminconnect_retrieve_gear(
 
 @router.delete("/unlink")
 async def garminconnect_unlink(
-    validate_access_token: Annotated[
-        Callable,
-        Depends(session_security.validate_access_token),
-    ],
-    check_scopes: Annotated[
-        Callable,
-        Security(session_security.check_scopes, scopes=["profile"]),
-    ],
     token_user_id: Annotated[
         int,
         Depends(session_security.get_user_id_from_access_token),

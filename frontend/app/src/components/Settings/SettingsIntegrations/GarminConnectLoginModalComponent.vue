@@ -1,6 +1,6 @@
 <template>
     <!-- Modal Garmin Connect authentication -->
-    <div class="modal fade" id="garminConnectAuthModal" tabindex="-1" aria-labelledby="garminConnectAuthModal" aria-hidden="true">
+    <div class="modal fade" id="garminConnectAuthModal" ref="garminConnectAuthModal" tabindex="-1" aria-labelledby="garminConnectAuthModal" aria-hidden="true">
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
@@ -9,16 +9,29 @@
                 </div>
                 <form  @submit.prevent="submitConnectGarminConnect">
                     <div class="modal-body">
-                        <label for="userUsernameAdd"><b>* {{ $t("garminConnectLoginModalComponent.garminConnectAuthModalUsernameLabel") }}</b></label>
-                        <input class="form-control" type="text" name="userUsernameAdd" :placeholder='$t("garminConnectLoginModalComponent.garminConnectAuthModalUsernamePlaceholder")' v-model="garminConnectUsername" required>
+                        <!-- username fields -->
+                        <label for="garminConnectUsername"><b>* {{ $t("garminConnectLoginModalComponent.garminConnectAuthModalUsernameLabel") }}</b></label>
+                        <input class="form-control" type="text" name="garminConnectUsername" :placeholder='$t("garminConnectLoginModalComponent.garminConnectAuthModalUsernamePlaceholder")' v-model="garminConnectUsername" required>
                         <!-- password fields -->
-                        <label for="passUserAdd"><b>* {{ $t("garminConnectLoginModalComponent.garminConnectAuthModalPasswordLabel") }}</b></label>
-                        <input class="form-control" type="password" name="passUserAdd" :placeholder='$t("garminConnectLoginModalComponent.garminConnectAuthModalPasswordPlaceholder")' v-model="garminConnectPassword" required>
+                        <label for="garminConnectPassword"><b>* {{ $t("garminConnectLoginModalComponent.garminConnectAuthModalPasswordLabel") }}</b></label>
+                        <input class="form-control" type="password" name="garminConnectPassword" :placeholder='$t("garminConnectLoginModalComponent.garminConnectAuthModalPasswordPlaceholder")' v-model="garminConnectPassword" required>
+                        
+                        <!-- MFA code field -->
+                        <div class="row g-3 align-items-end" v-if="mfaRequired">
+                            <div class="col">
+                                <label for="garminConnectMfaCode"><b>* {{ $t("garminConnectLoginModalComponent.garminConnectAuthModalMfaCodeLabel") }}</b></label>
+                                <input class="form-control" type="text" name="garminConnectMfaCode" :placeholder='$t("garminConnectLoginModalComponent.garminConnectAuthModalMfaCodePlaceholder")' v-model="mfaCode">
+                            </div>
+                            <div class="col">
+                                <a href="#" class="btn btn-success w-100" @click="submitMfaCode">{{ $t("garminConnectLoginModalComponent.buttonSubmitMfaCode") }}</a>
+                            </div>
+                        </div>
+
                         <p>* {{ $t("generalItems.requiredField") }}</p>
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ $t("generalItems.buttonClose") }}</button>
-                        <button type="submit" class="btn btn-success" data-bs-dismiss="modal">{{ $t("garminConnectLoginModalComponent.garminConnectAuthModalLoginButton") }}</button>
+                        <button type="submit" class="btn btn-success">{{ $t("garminConnectLoginModalComponent.garminConnectAuthModalLoginButton") }}</button>
                     </div>
                 </form>
             </div>
@@ -27,7 +40,7 @@
 </template>
 
 <script>
-import { ref } from "vue";
+import { ref, onMounted } from "vue";
 import { useI18n } from "vue-i18n";
 // Importing the stores
 import { useAuthStore } from "@/stores/authStore";
@@ -36,7 +49,9 @@ import { push } from "notivue";
 // Importing the services
 import { garminConnect } from "@/services/garminConnectService";
 
-//import Modal from 'bootstrap/js/dist/modal';
+import { removeActiveModal, resetBodyStylesIfNoActiveModals } from "@/utils/modalUtils";
+
+import Modal from 'bootstrap/js/src/modal';
 
 export default {
 	components: {},
@@ -45,6 +60,18 @@ export default {
 		const { locale, t } = useI18n();
 		const garminConnectUsername = ref("");
 		const garminConnectPassword = ref("");
+        const mfaRequired = ref(false);
+        const mfaCode = ref("");
+        const garminConnectAuthModal = ref(null); // Ref for the modal element
+
+        let modalInstance = null; // Holds the modal instance
+
+        // Initialize the modal instance on mount
+        onMounted(() => {
+            if (garminConnectAuthModal.value) {
+                modalInstance = new Modal(garminConnectAuthModal.value);
+            }
+        });
 
 		async function submitConnectGarminConnect() {
             // Set the loading message
@@ -69,13 +96,42 @@ export default {
 					`${t("garminConnectLoginModalComponent.errorMessageUnableToLinkGarminConnect")} - ${error}`,
 				);
 			}
+            finally {
+                // Remove any remaining modal backdrops
+                removeActiveModal(modalInstance);
+
+                // Reset body overflow to restore scrolling
+                resetBodyStylesIfNoActiveModals();
+
+                // reset variables
+                mfaRequired.value = false;
+                mfaCode.value = "";
+            }
 		}
+
+        async function submitMfaCode() {
+            const data = {
+                mfa_code: mfaCode.value,
+            };
+            await garminConnect.mfaGarminConnect(data);
+        }
+
+        authStore.user_websocket.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            if (data.message === "MFA_REQUIRED") {
+                mfaRequired.value = true;
+            }
+        };
 
 		return {
 			t,
 			garminConnectUsername,
 			garminConnectPassword,
 			submitConnectGarminConnect,
+            mfaRequired,
+            mfaCode,
+            submitMfaCode,
+            garminConnectAuthModal,
 		};
 	},
 };

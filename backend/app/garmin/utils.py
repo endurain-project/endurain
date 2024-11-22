@@ -1,6 +1,8 @@
 import logging
 import requests
+import asyncio
 
+from datetime import datetime
 from fastapi import (
     HTTPException,
     status,
@@ -11,6 +13,10 @@ from sqlalchemy.orm import Session
 
 import user_integrations.schema as user_integrations_schema
 import user_integrations.crud as user_integrations_crud
+
+import websocket.schema as websocket_schema
+
+import garmin.schema as garmin_schema
 
 # Define a loggger created on main.py
 mainLogger = logging.getLogger("myLogger")
@@ -28,13 +34,76 @@ file_handler.setFormatter(formatter)
 logger.addHandler(file_handler)
 
 
-def link_garminconnect(user_id: int, email: str, password: str, db: Session):
-    try:
+async def get_mfa(
+    user_id: int,
+    mfa_codes: garmin_schema.MFACodeStore,
+    websocket_manager: websocket_schema.WebSocketManager,
+) -> str:
+    # Notify frontend that MFA is required
+    await notify_frontend_mfa_required(user_id, websocket_manager)
+
+    # Wait for the MFA code
+    for _ in range(60):  # Timeout after 60 seconds
+        if mfa_codes.has_code(user_id):
+            return mfa_codes.get_code(user_id)
+        await asyncio.sleep(1)
+
+    return None
+
+
+async def notify_frontend_mfa_required(
+    user_id: int, websocket_manager: websocket_schema.WebSocketManager
+):
+    # Check if the user has an active WebSocket connection
+    websocket = websocket_manager.get_connection(user_id)
+    if websocket:
+        await websocket.send_json({"message": "MFA_REQUIRED", "user_id": user_id})
+    else:
+        raise HTTPException(
+            status_code=400,
+            detail=f"No active WebSocket connection for user {user_id}",
+        )
+
+
+async def link_garminconnect(
+    user_id: int,
+    email: str,
+    password: str,
+    db: Session,
+    mfa_codes: garmin_schema.MFACodeStore,
+    websocket_manager: websocket_schema.WebSocketManager,
+):
+    # Define MFA callback as a coroutine
+    async def async_mfa_callback():
+        return await get_mfa(user_id, mfa_codes, websocket_manager)
+
+    def blocking_login():
         # Create a new Garmin object
-        garmin = garminconnect.Garmin(email=email, password=password)
+        garmin = garminconnect.Garmin(
+            email=email,
+            password=password,
+            prompt_mfa=async_mfa_callback,
+        )
+        garmin.login()
+
+        return garmin
+
+    try:
+        # Define MFA callback
+        # mfa_callback = lambda: asyncio.run(
+        #    get_mfa(user_id, mfa_codes, websocket_manager)
+        # )
+
+        # Run the blocking `login()` call in a thread
+        garmin = await asyncio.to_thread(blocking_login)
+
+        # Create a new Garmin object
+        # garmin = garminconnect.Garmin(
+        #    email=email, password=password, prompt_mfa=mfa_callback
+        # )
 
         # Login to Garmin Connect portal
-        garmin.login()
+        # garmin.login()
 
         if not garmin.garth.oauth1_token:
             raise HTTPException(
@@ -42,6 +111,9 @@ def link_garminconnect(user_id: int, email: str, password: str, db: Session):
                 detail="Incorrect Garmin Connect credentials",
                 headers={"WWW-Authenticate": "Bearer"},
             )
+
+        print(garmin.garth.oauth1_token)
+        print(garmin.garth.oauth2_token)
 
         user_integrations_crud.link_garminconnect_account(
             user_id,
@@ -64,6 +136,19 @@ def link_garminconnect(user_id: int, email: str, password: str, db: Session):
         # Print error info to check dedicated log in garmin connect log
         logger.error(f"Error authenticating: {err}")
         return None
+    except garminconnect.GarminConnectTooManyRequestsError as err:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Too many requests to Garmin Connect",
+        )
+    except TypeError as err:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect MFA code",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    finally:
+        mfa_codes.delete_code(user_id)
 
 
 def login_garminconnect_using_tokens(oauth1_token, oauth2_token):
@@ -98,7 +183,11 @@ def serialize_oauth1_token(token):
         "oauth_token": token.oauth_token,
         "oauth_token_secret": token.oauth_token_secret,
         "mfa_token": token.mfa_token,
-        "mfa_expiration_timestamp": token.mfa_expiration_timestamp,
+        "mfa_expiration_timestamp": (
+            token.mfa_expiration_timestamp.isoformat()
+            if token.mfa_expiration_timestamp
+            else None
+        ),
         "domain": token.domain,
     }
 
@@ -122,7 +211,11 @@ def deserialize_oauth1_token(data):
         oauth_token=data["oauth_token"],
         oauth_token_secret=data["oauth_token_secret"],
         mfa_token=data.get("mfa_token"),
-        mfa_expiration_timestamp=data.get("mfa_expiration_timestamp"),
+        mfa_expiration_timestamp=(
+            datetime.fromisoformat(data["mfa_expiration_timestamp"])
+            if data.get("mfa_expiration_timestamp")
+            else None
+        ),
         domain=data.get("domain"),
     )
 

@@ -48,8 +48,7 @@ export function calculateTimeDifference(startTime, endTime) {
   if (hours < 1) {
     // If the difference is less than an hour, return the minutes and seconds
     return `${minutes}m ${seconds}s`;
-  } else {
-    // If the difference is greater than an hour, return the hours and minutes
-    return `${hours}h ${minutes}m`;
   }
+  // If the difference is greater than an hour, return the hours and minutes
+  return `${hours}h ${minutes}m`;
 }
