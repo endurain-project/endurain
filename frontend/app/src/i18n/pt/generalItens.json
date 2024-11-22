@@ -1,0 +1,9 @@
+{
+    "buttonBack": "Voltar",
+    "buttonClose": "Fechar",
+    "buttonlistAll": "Listar todos",
+    "requiredField": "Campos obrigatórios",
+    "errorFetchingInfo": "Erro ao obter informação",
+    "errorEditingInfo": "Erro ao editar informação",
+    "errorDeletingInfo": "Erro ao excluir informação"
+}

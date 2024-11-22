@@ -1,0 +1,21 @@
+{
+    "visibilityPublic": "Públic",
+    "visibilityFollowers": "Seguidors",
+    "visibilityPrivate": "Privat",
+    "buttonDeleteActivity": "Esborra activitat",
+    "buttonEditActivity": "Edita activitat",
+    "modalDeleteBody1": "Segur que vols esborrar l'activitat ",
+    "modalDeleteBody2": "Aquesta acció no es pot desfer.",
+    "activityDistance": "Distància",
+    "activityTime": "Temps",
+    "activityElevationGain": "Desnivell",
+    "activityPace": "Ritme",
+    "activityAvgPower": "Força Mitja",
+    "activityAvgSpeed": "Velocitat Mitja",
+    "activityAvgHR": "FC Mitja",
+    "activityMaxHR": "FC Mitja",
+    "activityEleGain": "Desnivell",
+    "activityEleLoss": "Pèrdua d'elevació",
+    "activityCalories": "Calories",
+    "activityNoData": "Sense dades"
+}

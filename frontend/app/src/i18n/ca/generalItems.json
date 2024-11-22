@@ -1,0 +1,9 @@
+{
+    "buttonBack": "Torna",
+    "buttonClose": "Tanca",
+    "buttonlistAll": "Llista tot",
+    "requiredField": "Camp obligatori",
+    "errorFetchingInfo": "Error obtenint info",
+    "errorEditingInfo": "Error editant info",
+    "errorDeletingInfo": "Error esborrant info"
+}

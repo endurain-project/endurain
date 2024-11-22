@@ -1,0 +1,14 @@
+{
+    "buttonEditGear": "Editar Equip",
+    "buttonDeleteGear": "Esborra Equip",
+    "modalEditGearIsActiveLabel": "És actiu",
+    "modalEditGearIsActiveOption1": "Si",
+    "modalEditGearIsActiveOption0": "No",
+    "modalDeleteGearBody1": "Segur que vols esborrar l'equip",
+    "modalDeleteGearBody2": "Aquesta acció no es pot desfer.",
+    "labelDistance": "Distància",
+    "title": "Activitats d'equip",
+    "subtitle": "(últimes 10 activitats)",
+    "labelDate": "Data",
+    "successGearEdited": "Equip editat correctament"
+}

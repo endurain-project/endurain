@@ -1,0 +1,12 @@
+{
+    "title": "Endurain",
+    "buttonAddActivity": "Afegir Activitat",
+    "fieldLabelUploadGPXFile": "Puja arxiu .gpx o .fit",
+    "radioUserActivities": "Les meves Activitats",
+    "radioFollowerActivities": "Activitats de seguidors",
+    "successActivityAdded": "Activitat afegida correctament",
+    "errorActivityAdded": "Error afegint activitat",
+    "errorActivityNotFound": "Activitat no trobada",
+    "processingActivity": "Processant activitat",
+    "successActivityDeleted": "Activitat esborrada correctament"
+}
