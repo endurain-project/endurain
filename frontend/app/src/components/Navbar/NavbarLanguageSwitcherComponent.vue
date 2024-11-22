@@ -15,7 +15,7 @@
                     :aria-pressed="currentLanguage === language.value ? 'true' : 'false'"
                 >
                     <span class="me-2">{{ language.label }}</span>
-                    <span :class="'fi fi-' + currentLanguage"></span>
+                    <span :class="'fi fi-' + language.value"></span>
                     <span v-if="currentLanguage === language.value" class="ms-3"><font-awesome-icon :icon="['fas', 'check']" /></span>
                 </a>
             </li>
@@ -32,7 +32,8 @@ export default {
         const { locale } = useI18n();
         const languages = [
             { value: 'us', label: 'English (US)' },
-            //{ value: 'pt', label: 'Portuguese' },
+            { value: 'es-ct', label: 'Catalan' },
+            { value: 'pt', label: 'Portuguese (PT)' },
         ];
         const currentLanguage = ref(locale.value);
 

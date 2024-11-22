@@ -80,6 +80,8 @@
                                     <label for="userPreferredLanguageEdit"><b>* {{ $t("settingsUsersZone.addUserModalUserPreferedLanguageLabel") }}</b></label>
                                     <select class="form-control" name="userPreferredLanguageEdit" v-model="editUserPreferredLanguage" required>
                                         <option value="us">{{ $t("settingsUsersZone.addUserModalPreferredLanguageOption1") }}</option>
+                                        <option value="es-ct">{{ $t("settingsUsersZone.addUserModalPreferredLanguageOption2") }}</option>
+                                        <option value="pt">{{ $t("settingsUsersZone.addUserModalPreferredLanguageOption3") }}</option>
                                     </select>
                                     <p>* {{ $t("generalItems.requiredField") }}</p>
                                 </div>

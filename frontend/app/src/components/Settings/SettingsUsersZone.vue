@@ -52,6 +52,8 @@
                                     <label for="userPreferredLanguageAdd"><b>* {{ $t("settingsUsersZone.addUserModalUserPreferedLanguageLabel") }}</b></label>
                                     <select class="form-control" name="userPreferredLanguageAdd" v-model="newUserPreferredLanguage" required>
                                         <option value="us">{{ $t("settingsUsersZone.addUserModalPreferredLanguageOption1") }}</option>
+                                        <option value="es-ct">{{ $t("settingsUsersZone.addUserModalPreferredLanguageOption2") }}</option>
+                                        <option value="pt">{{ $t("settingsUsersZone.addUserModalPreferredLanguageOption3") }}</option>
                                     </select>
                                     <!-- access type fields -->
                                     <label for="userAccessTypeAdd"><b>* {{ $t("settingsUsersZone.addUserModalUserTypeLabel") }}</b></label>
