@@ -3,7 +3,8 @@
         <!-- toggle with current lang -->
         <a class="nav-link link-body-emphasis dropdown-toggle" role="button" data-bs-toggle="dropdown" aria-expanded="false">
             <span class="me-2">{{ currentLanguage.toLowerCase() }}</span>
-            <span :class="'fi fi-' + currentLanguage"></span>
+            <span :class="'fi fi-' + currentLanguage" v-if="currentLanguage !== 'ca'"></span>
+            <span class="fi fi-es-ct" v-else></span>
         </a>
 
         <!-- dropdown menu -->
@@ -15,7 +16,8 @@
                     :aria-pressed="currentLanguage === language.value ? 'true' : 'false'"
                 >
                     <span class="me-2">{{ language.label }}</span>
-                    <span :class="'fi fi-' + language.value"></span>
+                    <span :class="'fi fi-' + language.value" v-if="language.value !== 'ca'"></span>
+                    <span class="fi fi-es-ct" v-else></span>
                     <span v-if="currentLanguage === language.value" class="ms-3"><font-awesome-icon :icon="['fas', 'check']" /></span>
                 </a>
             </li>
@@ -32,7 +34,7 @@ export default {
         const { locale } = useI18n();
         const languages = [
             { value: 'us', label: 'English (US)' },
-            { value: 'es-ct', label: 'Catalan' },
+            { value: 'ca', label: 'Catalan' },
             { value: 'pt', label: 'Portuguese (PT)' },
         ];
         const currentLanguage = ref(locale.value);

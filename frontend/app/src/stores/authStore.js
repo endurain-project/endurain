@@ -29,12 +29,8 @@ export const useAuthStore = defineStore('auth', {
             localStorage.setItem('user', JSON.stringify(this.user));
             this.isAuthenticated = true;
             this.setUserWebsocket();
-
-            if (this.user.preferred_language === "es-ct") {
-                this.setLocale("ca", locale);
-            }else {
-                this.setLocale(this.user.preferred_language, locale);
-            }
+            
+            this.setLocale(this.user.preferred_language, locale);
         },
         clearUser(locale) {
             this.user = {
@@ -65,11 +61,7 @@ export const useAuthStore = defineStore('auth', {
             if (storedUser) {
                 this.user = JSON.parse(storedUser);
                 this.isAuthenticated = true;
-                if (this.user.preferred_language === "es-ct") {
-                    this.setLocale("ca", locale);
-                }else {
-                    this.setLocale(this.user.preferred_language, locale);
-                }
+                this.setLocale(this.user.preferred_language, locale);
                 this.setUserWebsocket();
             }
         },
