@@ -19,13 +19,13 @@
     "addUserModalGenderOption2": "Weiblich",
     "addUserModalUserPreferedLanguageLabel": "Bevorzugte Sprache",
     "addUserModalPreferredLanguageOption1": "Englisch (US)",
-    "addUserModalPreferredLanguageOption2": "Catalan",
-    "addUserModalPreferredLanguageOption3": "Portuguese (PT)",
-    "addUserModalUserTypeLabel": "Access type",
-    "addUserModalUserTypeOption1": "Regular user",
+    "addUserModalPreferredLanguageOption2": "Katalanisch",
+    "addUserModalPreferredLanguageOption3": "Portugiesisch (PT)",
+    "addUserModalUserTypeLabel": "Zugangsart",
+    "addUserModalUserTypeOption1": "Regulärer Benutzer",
     "addUserModalUserTypeOption2": "Administrator",
-    "labelNumberOfUsers1": "There is a total of ",
-    "labelNumberOfUsers2": " user(s) (",
-    "labelNumberOfUsers3": " loaded):",
-    "successUserAdded": "User added successfully"
+    "labelNumberOfUsers1": "Es gibt insgesamt ",
+    "labelNumberOfUsers2": " Benutzer (",
+    "labelNumberOfUsers3": " geladen):",
+    "successUserAdded": "Benutzer erfolgreich hinzugefügt"
 }
