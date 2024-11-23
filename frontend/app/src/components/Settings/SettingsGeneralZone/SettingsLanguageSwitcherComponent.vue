@@ -17,6 +17,7 @@ export default {
         const languages = [
             { value: 'us', label: 'English (US)' },
             { value: 'ca', label: 'Catalan' },
+            { value: 'de', label: 'German' },
             { value: 'pt', label: 'Portuguese (PT)' },
         ];
         const currentLanguage = ref(locale.value);

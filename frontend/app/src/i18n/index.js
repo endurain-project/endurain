@@ -41,6 +41,7 @@ import usNotFoundView from './us/notFoundView.json';
 import usUserView from './us/userView.json';
 import usSettingsView from './us/settingsView.json';
 
+
 // Catalan translations
 // Navbar and footer components
 import caNavbarComponent from './ca/components/navbarComponent.json';
@@ -80,6 +81,7 @@ import caHealthView from './ca/healthView.json';
 import caNotFoundView from './ca/notFoundView.json';
 import caUserView from './ca/userView.json';
 import caSettingsView from './ca/settingsView.json';
+
 
 // Portuguese Portugal translations
 // Navbar and footer components
@@ -121,6 +123,46 @@ import ptNotFoundView from './pt/notFoundView.json';
 import ptUserView from './pt/userView.json';
 import ptSettingsView from './pt/settingsView.json';
 
+
+// German translations
+// Navbar and footer components
+import deNavbarComponent from './de/components/navbarComponent.json';
+import deFooterComponent from './de/components/footerComponent.json';
+// Activities component
+import deUserDistanceStatsComponent from './de/components/activities/userDistanceStatsComponent.json';
+import deActivitySummaryComponent from './de/components/activities/activitySummaryComponent.json';
+import deEditActivityModalComponent from './de/components/activities/modals/editActivityModalComponent.json';
+// Followers component
+import deFollowersListComponent from './de/components/followers/followersListComponent.json';
+// Health components
+import deHealthWeightAddEditModalComponent from './de/components/health/healthWeightZone/healthWeightAddEditModalComponent.json'
+import deHealthWeightListComponent from './de/components/health/healthWeightZone/healthWeightListComponent.json'
+import deHealthSideBarComponent from './de/components/health/healthSideBarComponent.json';
+import deHealthWeightZoneComponent from './de/components/health/healthWeightZoneComponent.json'
+// Settings components
+import deSettingsSideBarComponent from './de/components/settings/settingsSideBarComponent.json';
+import deSettingsUsersZoneComponent from './de/components/settings/settingsUsersZoneComponent.json';
+import deSettingsThemeSwitcherComponent from './de/components/settings/settingsGeneralZone/settingsThemeSwitcherComponent.json';
+import deSettingsLanguageSwitcherComponent from './de/components/settings/settingsGeneralZone/settingsLanguageSwitcherComponent.json';
+import deSettingsUserProfileZoneComponent from './de/components/settings/settingsUserProfileZoneComponent.json';
+import deSettingsSecurityZoneComponent from './de/components/settings/settingsSecurityZoneComponent.json';
+import deSettingsIntegrationsZoneComponent from './de/components/settings/settingsIntegrationsZoneComponent.json';
+import deGarminConnectLoginModalComponent from './de/components/settings/settingsIntegrationsZone/garminConnectLoginModalComponent.json';
+import deUsersListComponent from './de/components/settings/settingsUsersZone/usersListComponent.json';
+// General components
+import deNoItemsFoundComponent from './de/components/noItemsFoundComponent.json';
+// General translations
+import deGeneralItems from './de/generalItems.json'
+// Views
+import deHomeView from './de/homeView.json';
+import deLoginView from './de/loginView.json';
+import deGearsView from './de/gears/gearsView.json';
+import deGearView from './de/gears/gearView.json';
+import deActivityView from './de/activityView.json';
+import deHealthView from './de/healthView.json';
+import deNotFoundView from './de/notFoundView.json';
+import deUserView from './de/userView.json';
+import deSettingsView from './de/settingsView.json';
 
 // Constructing the messages structure
 const messages = {
@@ -243,6 +285,46 @@ const messages = {
     notFound: ptNotFoundView,
     settingsView: ptSettingsView,
     userView: ptUserView,
+  },
+  de: {
+    // Navbar and footer components
+    navbar: deNavbarComponent,
+    footer: deFooterComponent,
+    // Activities component
+    userDistanceStats: deUserDistanceStatsComponent,
+    activitySummary: deActivitySummaryComponent,
+    editActivityModalComponent: deEditActivityModalComponent,
+    // Followers component
+    followersListComponent: deFollowersListComponent,
+    // Health components
+    healthWeightAddEditModalComponent: deHealthWeightAddEditModalComponent,
+    healthSideBarComponent: deHealthSideBarComponent,
+    healthWeightZoneComponent: deHealthWeightZoneComponent,
+    healthWeightListComponent: deHealthWeightListComponent,
+    // Settings components
+    settingsSideBar: deSettingsSideBarComponent,
+    settingsUsersZone: deSettingsUsersZoneComponent,
+    settingsThemeSwitcher: deSettingsThemeSwitcherComponent,
+    settingsLanguageSwitcher: deSettingsLanguageSwitcherComponent,
+    settingsUserProfileZone: deSettingsUserProfileZoneComponent,
+    settingsSecurityZone: deSettingsSecurityZoneComponent,
+    settingsIntegrationsZone: deSettingsIntegrationsZoneComponent,
+    garminConnectLoginModalComponent: deGarminConnectLoginModalComponent,
+    usersListComponent: deUsersListComponent,
+    // General components
+    noItemsFoundComponent: deNoItemsFoundComponent,
+    // General translations
+    generalItems: deGeneralItems,
+    // Views
+    homeView: deHomeView,
+    loginView: deLoginView,
+    gearsView: deGearsView,
+    gearView: deGearView,
+    activity: deActivityView,
+    healthView: deHealthView,
+    notFound: deNotFoundView,
+    settingsView: deSettingsView,
+    userView: deUserView,
   },
 };
 
