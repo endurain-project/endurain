@@ -12,7 +12,7 @@
     "modalEditActivityTypeOption5": "Schotterfahrt",
     "modalEditActivityTypeOption6": "Mountainbike-Fahrt",
     "modalEditActivityTypeOption7": "Virtuelle Fahrt",
-    "modalEditActivityTypeOption8": "Swim",
+    "modalEditActivityTypeOption8": "Schwimmen",
     "modalEditActivityTypeOption9": "Schwimmen im offenen Wasser",
     "modalEditActivityTypeOption10": "Training",
     "modalEditActivityTypeOption11": "Gehen",
@@ -22,7 +22,7 @@
     "modalEditActivityVisibilityLabel": "Sichtbarkeit",
     "modalEditActivityVisibilityOption0": "Öffentlich",
     "modalEditActivityVisibilityOption1": "Follower",
-    "modalEditActivityVisibilityOption2": "Private",
-    "successActivityEdit": "Activity edited successfully",
-    "errorActivityEdit": "Error editing activity"
+    "modalEditActivityVisibilityOption2": "Privat",
+    "successActivityEdit": "Aktivität erfolgreich bearbeitet",
+    "errorActivityEdit": "Fehler beim Bearbeiten der Aktivität"
 }
