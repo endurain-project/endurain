@@ -1,8 +1,8 @@
 <template>
     <form>
         <label for="langSelect" class="form-label">{{ $t("settingsLanguageSwitcher.formLabel") }}</label>
-        <select class="form-select" id="langSelect" aria-label="Select for language picker">
-            <option v-for="language in languages" :key="language.value" :value="language.value" :selected="currentLanguage == language.value" @click="changeLanguage(language.value)">{{ language.label }}</option>
+        <select class="form-select" id="langSelect" aria-label="Select for language picker" v-model="currentLanguage" @change="changeLanguage">
+            <option v-for="language in languages" :key="language.value" :value="language.value">{{ language.label }}</option>
         </select>
     </form>
 </template>
@@ -35,14 +35,13 @@ export default {
             setStoredLanguage(lang);
         };
 
-        const changeLanguage = (lang) => {
-            setLanguage(lang);
-            currentLanguage.value = lang;
+        const changeLanguage = () => {
+            setLanguage(currentLanguage.value);
         };
 
         onMounted(() => {
-            currentLanguage.value = getPreferredLanguage();
-            setLanguage(currentLanguage.value);
+            const preferredLanguage = getPreferredLanguage();
+            setLanguage(preferredLanguage);
         });
 
         watch(locale, (newLocale) => {
