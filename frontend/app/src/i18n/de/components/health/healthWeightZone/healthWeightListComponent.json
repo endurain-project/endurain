@@ -1,8 +1,8 @@
 {
-    "modalDeleteWeightTitle": "Delete weight",
-    "modalDeleteWeightBody": "Are you sure you want to delete weight entry for ",
-    "successDeleteWeight": "Weight deleted",
-    "errorDeleteWeight": "It was not possible to delete weight entry",
-    "successEditWeight": "Weight edited",
-    "errorEditWeight": "It was not possible to edit weight entry"
+    "modalDeleteWeightTitle": "Gewicht löschen",
+    "modalDeleteWeightBody": "Bist du sicher, dass du den Gewichtseintrag für löschen möchtest ",
+    "successDeleteWeight": "Gewicht gelöscht",
+    "errorDeleteWeight": "Gewichtseintrag konnte nicht gelöscht werden",
+    "successEditWeight": "Gewicht bearbeitet",
+    "errorEditWeight": "Gewichtseintrag konnte nicht bearbeitet werden"
 }

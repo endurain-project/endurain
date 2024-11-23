@@ -1,7 +1,7 @@
 {
-    "usersSection": "Users",
-    "generalSection": "General",
-    "myProfileSection": "My Profile",
-    "securitySection": "Security",
-    "integrationsSection": "Integrations"
+    "usersSection": "Benutzer",
+    "generalSection": "Allgemein",
+    "myProfileSection": "Mein Profil",
+    "securitySection": "Sicherheit",
+    "integrationsSection": "Integrationen"
 }

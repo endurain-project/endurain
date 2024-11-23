@@ -1,12 +1,12 @@
 {
-    "requestAccepted": "Accepted",
-    "requestPending": "Request pending",
-    "followingModalTitle": "Delete following",
-    "followingModalBody": "Are you sure you want to delete following user ",
-    "followerModalTitle": "Delete follower",
-    "followerModalBody": "Are you sure you want to delete follower user ",
-    "followerAcceptModalTitle": "Accept user request",
-    "followerAcceptModalBody": "Are you sure you want to accept follow request from user ",
-    "followerDeclineModalTitle": "Decline user request ",
-    "followerDeclineModalBody": "Are you sure you want to decline follow request from user "
+    "requestAccepted": "Angenommen",
+    "requestPending": "Anfrage ausstehend",
+    "followingModalTitle": "Follower entfernen",
+    "followingModalBody": "Bist du sicher, dass du den dir folgenden Benutzter löschen möchtest ",
+    "followerModalTitle": "Follower entfernen",
+    "followerModalBody": "Bist du sicher, dass du den dir folgenden Benutzter löschen möchtest ",
+    "followerAcceptModalTitle": "Benutzeranfrage akzeptieren",
+    "followerAcceptModalBody": "Bist du sicher, dass du die Anfrage akzeptieren möchtest? ",
+    "followerDeclineModalTitle": "Benutzeranfrage ablehnen ",
+    "followerDeclineModalBody": "Bist du sicher, dass du die Anfrage ablehnen möchtest? "
 }

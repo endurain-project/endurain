@@ -1,9 +1,9 @@
 {
-    "buttonBack": "Back",
-    "buttonClose": "Close",
-    "buttonlistAll": "List all",
-    "requiredField": "Required fields",
-    "errorFetchingInfo": "Error fetching info",
-    "errorEditingInfo": "Error editing info",
-    "errorDeletingInfo": "Error deleting info"
+    "buttonBack": "Zurück",
+    "buttonClose": "Schließen",
+    "buttonlistAll": "Alle auflisten",
+    "requiredField": "Pflichtfelder",
+    "errorFetchingInfo": "Fehler beim Abrufen der Info",
+    "errorEditingInfo": "Fehler beim Bearbeiten der Info",
+    "errorDeletingInfo": "Fehler beim Löschen der Info"
 }
