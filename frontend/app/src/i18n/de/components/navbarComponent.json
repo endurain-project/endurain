@@ -1,9 +1,9 @@
 {
-    "gear": "Gear",
-    "health": "Health",
-    "profile": "Profile",
-    "settings": "Settings",
-    "login": "Login",
-    "logout": "Logout",
-    "warningZone": "Alpha software, some features might not work has expected"
+    "gear": "Ausrüstung",
+    "health": "Gesundheit",
+    "profile": "Profil",
+    "settings": "Einstellungen",
+    "login": "Anmelden",
+    "logout": "Abmelden",
+    "warningZone": "Alpha-Software, einige Funktionen funktionierten möglicherweise nicht"
 }
