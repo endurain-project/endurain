@@ -7,8 +7,8 @@
     "modalLabelDeleteGear": "Ausrüstung von Aktivität löschen",
     "modalLabelDeleteGearBody": "Bist du sicher, dass du die Ausrüstung von der Aktivität entfernen möchtest?",
     "modalLabelDeleteGearButton": "Ausrüstung löschen",
-    "labelGraph": "Activity data graphs",
-    "labelDownsampling": "Data downsampled to ~200 points",
+    "labelGraph": "Aktivitätsdiagramme",
+    "labelDownsampling": "Daten heruntergespannt auf ~200 Punkte",
     "successMessageGearAdded": "Ausrüstung zur Aktivität hinzugefügt",
     "successMessageGearDeleted": "Ausrüstung von Aktivität gelöscht"
 }
