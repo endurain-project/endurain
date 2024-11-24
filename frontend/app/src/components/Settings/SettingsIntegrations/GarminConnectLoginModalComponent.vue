@@ -134,7 +134,7 @@ export default {
 
         authStore.user_websocket.onmessage = (event) => {
             const data = JSON.parse(event.data);
-            if (data.message === "MFA_REQUIRED") {
+            if (data && data.message === "MFA_REQUIRED") {
                 mfaRequired.value = true;
             }
         };
