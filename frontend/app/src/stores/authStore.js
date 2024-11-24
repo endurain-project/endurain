@@ -76,6 +76,7 @@ export const useAuthStore = defineStore('auth', {
             localStorage.setItem('lang', language);
         },
         setUserWebsocket() {
+            console.log("Protocol is:", import.meta.env.VITE_BACKEND_PROTOCOL);
             const protocol = import.meta.env.VITE_BACKEND_PROTOCOL === 'https' ? 'wss' : 'ws';
             const websocketURL = `${protocol}://${BACKEND_URL}ws/${this.user.id}`;
             console.log("WebSocket URL:", websocketURL);
