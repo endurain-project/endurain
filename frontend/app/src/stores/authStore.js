@@ -76,11 +76,10 @@ export const useAuthStore = defineStore('auth', {
             localStorage.setItem('lang', language);
         },
         setUserWebsocket() {
-            if(import.meta.env.VITE_BACKEND_PROTOCOL === 'http'){
-                this.user_websocket = new WebSocket(`ws://${BACKEND_URL}ws/${this.user.id}`);
-            }else if(import.meta.env.VITE_BACKEND_PROTOCOL === 'https'){
-                this.user_websocket = new WebSocket(`wss://${BACKEND_URL}ws/${this.user.id}`);
-            }
+            const protocol = import.meta.env.VITE_BACKEND_PROTOCOL === 'https' ? 'wss' : 'ws';
+            const websocketURL = `${protocol}://${BACKEND_URL}ws/${this.user.id}`;
+            console.log("WebSocket URL:", websocketURL);
+            this.user_websocket = new WebSocket(websocketURL);
         },
     }
 });

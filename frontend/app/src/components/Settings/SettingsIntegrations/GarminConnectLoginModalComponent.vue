@@ -67,6 +67,12 @@ export default {
     },
 	setup() {
 		const authStore = useAuthStore();
+        authStore.user_websocket.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            if (data && data.message === "MFA_REQUIRED") {
+                mfaRequired.value = true;
+            }
+        };
 		const { locale, t } = useI18n();
 		const garminConnectUsername = ref("");
 		const garminConnectPassword = ref("");
@@ -131,13 +137,6 @@ export default {
             await garminConnect.mfaGarminConnect(data);
             loadingLoginWithMfa.value = true;
         }
-
-        authStore.user_websocket.onmessage = (event) => {
-            const data = JSON.parse(event.data);
-            if (data && data.message === "MFA_REQUIRED") {
-                mfaRequired.value = true;
-            }
-        };
 
 		return {
 			t,
