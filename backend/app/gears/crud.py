@@ -22,8 +22,8 @@ def get_gear_user_by_id(gear_id: int, db: Session) -> gears_schema.Gear | None:
         # Check if gear is None and return None if it is
         if gear is None:
             return None
-
-        gear.created_at = gear.created_at.strftime("%Y-%m-%d %H:%M:%S")
+        
+        gear = gears_utils.serialize_gear(gear)
 
         # Return the gear
         return gear
@@ -57,7 +57,7 @@ def get_gear_users_with_pagination(
 
         # Format the created_at date
         for g in gear:
-            g.created_at = g.created_at.strftime("%Y-%m-%d %H:%M:%S")
+            g = gears_utils.serialize_gear(g)
 
         # Return the gear
         return gear
@@ -82,7 +82,7 @@ def get_gear_user(user_id: int, db: Session) -> list[gears_schema.Gear] | None:
 
         # Format the created_at date
         for g in gears:
-            g.created_at = g.created_at.strftime("%Y-%m-%d %H:%M:%S")
+            g = gears_utils.serialize_gear(g)
 
         # Return the gear
         return gears
@@ -119,7 +119,7 @@ def get_gear_user_by_nickname(
 
         # Format the created_at date
         for g in gears:
-            g.created_at = g.created_at.strftime("%Y-%m-%d %H:%M:%S")
+            g = gears_utils.serialize_gear(g)
 
         # return the gear
         return gears
@@ -150,7 +150,7 @@ def get_gear_by_type_and_user(gear_type: int, user_id: int, db: Session):
 
         # Format the created_at date
         for g in gear:
-            g.created_at = g.created_at.strftime("%Y-%m-%d %H:%M:%S")
+            g = gears_utils.serialize_gear(g)
 
         # Return the gear
         return gear
@@ -182,7 +182,7 @@ def get_gear_by_strava_id_from_user_id(
         if not gear:
             return None
 
-        gear.created_at = gear.created_at.strftime("%Y-%m-%d %H:%M:%S")
+        gear = gears_utils.serialize_gear(gear)
 
         # Return gear
         return gear
@@ -215,7 +215,7 @@ def get_gear_by_garminconnect_id_from_user_id(
         if not gear:
             return None
 
-        gear.created_at = gear.created_at.strftime("%Y-%m-%d %H:%M:%S")
+        gear = gears_utils.serialize_gear(gear)
 
         # Return gear
         return gear

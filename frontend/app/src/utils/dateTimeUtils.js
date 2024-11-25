@@ -23,7 +23,7 @@ export function formatTime(dateString) {
   const date = new Date(dateString);
 
   // Return the formatted time string
-  return date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+  return date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: false });
 }
   
 /**

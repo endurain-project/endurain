@@ -11,6 +11,7 @@ from pydantic import BaseModel
 import models
 
 import activities.schema as activities_schema
+import activities.utils as activities_utils
 
 # Define a loggger created on main.py
 logger = logging.getLogger("myLogger")
@@ -26,9 +27,7 @@ def get_all_activities(db: Session):
             return None
 
         for activity in activities:
-            activity.start_time = activity.start_time.strftime("%Y-%m-%d %H:%M:%S")
-            activity.end_time = activity.end_time.strftime("%Y-%m-%d %H:%M:%S")
-            activity.created_at = activity.created_at.strftime("%Y-%m-%d %H:%M:%S")
+            activity = activities_utils.serialize_activity(activity)
 
         # Return the activities
         return activities
@@ -61,9 +60,7 @@ def get_user_activities(
             return None
 
         for activity in activities:
-            activity.start_time = activity.start_time.strftime("%Y-%m-%d %H:%M:%S")
-            activity.end_time = activity.end_time.strftime("%Y-%m-%d %H:%M:%S")
-            activity.created_at = activity.created_at.strftime("%Y-%m-%d %H:%M:%S")
+            activity = activities_utils.serialize_activity(activity)
 
         # Return the activities
         return activities
@@ -99,9 +96,7 @@ def get_user_activities_by_user_id_and_garminconnect_gear_set(
 
         # Iterate and format the dates
         for activity in activities:
-            activity.start_time = activity.start_time.strftime("%Y-%m-%d %H:%M:%S")
-            activity.end_time = activity.end_time.strftime("%Y-%m-%d %H:%M:%S")
-            activity.created_at = activity.created_at.strftime("%Y-%m-%d %H:%M:%S")
+            activity = activities_utils.serialize_activity(activity)
 
         # Return the activities
         return activities
@@ -137,9 +132,7 @@ def get_user_activities_with_pagination(
             return None
 
         for activity in activities:
-            activity.start_time = activity.start_time.strftime("%Y-%m-%d %H:%M:%S")
-            activity.end_time = activity.end_time.strftime("%Y-%m-%d %H:%M:%S")
-            activity.created_at = activity.created_at.strftime("%Y-%m-%d %H:%M:%S")
+            activity = activities_utils.serialize_activity(activity)
 
         # Return the activities
         return activities
@@ -179,9 +172,7 @@ def get_user_activities_per_timeframe(
             return None
 
         for activity in activities:
-            activity.start_time = activity.start_time.strftime("%Y-%m-%d %H:%M:%S")
-            activity.end_time = activity.end_time.strftime("%Y-%m-%d %H:%M:%S")
-            activity.created_at = activity.created_at.strftime("%Y-%m-%d %H:%M:%S")
+            activity = activities_utils.serialize_activity(activity)
 
         # Return the activities
         return activities
@@ -224,9 +215,7 @@ def get_user_following_activities_per_timeframe(
             return None
 
         for activity in activities:
-            activity.start_time = activity.start_time.strftime("%Y-%m-%d %H:%M:%S")
-            activity.end_time = activity.end_time.strftime("%Y-%m-%d %H:%M:%S")
-            activity.created_at = activity.created_at.strftime("%Y-%m-%d %H:%M:%S")
+            activity = activities_utils.serialize_activity(activity)
 
         # Return the activities
         return activities
@@ -274,9 +263,7 @@ def get_user_following_activities_with_pagination(
 
         # Iterate and format the dates
         for activity in activities:
-            activity.start_time = activity.start_time.strftime("%Y-%m-%d %H:%M:%S")
-            activity.end_time = activity.end_time.strftime("%Y-%m-%d %H:%M:%S")
-            activity.created_at = activity.created_at.strftime("%Y-%m-%d %H:%M:%S")
+            activity = activities_utils.serialize_activity(activity)
 
         # Return the activities
         return activities
@@ -317,9 +304,7 @@ def get_user_following_activities(user_id, db):
 
         # Iterate and format the dates
         for activity in activities:
-            activity.start_time = activity.start_time.strftime("%Y-%m-%d %H:%M:%S")
-            activity.end_time = activity.end_time.strftime("%Y-%m-%d %H:%M:%S")
-            activity.created_at = activity.created_at.strftime("%Y-%m-%d %H:%M:%S")
+            activity = activities_utils.serialize_activity(activity)
 
         # Return the activities
         return activities
@@ -351,9 +336,7 @@ def get_user_activities_by_gear_id_and_user_id(user_id: int, gear_id: int, db: S
 
         # Iterate and format the dates
         for activity in activities:
-            activity.start_time = activity.start_time.strftime("%Y-%m-%d %H:%M:%S")
-            activity.end_time = activity.end_time.strftime("%Y-%m-%d %H:%M:%S")
-            activity.created_at = activity.created_at.strftime("%Y-%m-%d %H:%M:%S")
+            activity = activities_utils.serialize_activity(activity)
 
         # Return the activities
         return activities
@@ -390,9 +373,7 @@ def get_activity_by_id_from_user_id_or_has_visibility(
         if not activity:
             return None
 
-        activity.start_time = activity.start_time.strftime("%Y-%m-%d %H:%M:%S")
-        activity.end_time = activity.end_time.strftime("%Y-%m-%d %H:%M:%S")
-        activity.created_at = activity.created_at.strftime("%Y-%m-%d %H:%M:%S")
+        activity = activities_utils.serialize_activity(activity)
 
         # Return the activities
         return activity
@@ -429,9 +410,7 @@ def get_activity_by_id_from_user_id(
             return None
 
         if not isinstance(activity.start_time, str):
-            activity.start_time = activity.start_time.strftime("%Y-%m-%d %H:%M:%S")
-            activity.end_time = activity.end_time.strftime("%Y-%m-%d %H:%M:%S")
-            activity.created_at = activity.created_at.strftime("%Y-%m-%d %H:%M:%S")
+            activity = activities_utils.serialize_activity(activity)
 
         # Return the activities
         return activity
@@ -464,9 +443,7 @@ def get_activity_by_strava_id_from_user_id(
         if not activity:
             return None
 
-        activity.start_time = activity.start_time.strftime("%Y-%m-%d %H:%M:%S")
-        activity.end_time = activity.end_time.strftime("%Y-%m-%d %H:%M:%S")
-        activity.created_at = activity.created_at.strftime("%Y-%m-%d %H:%M:%S")
+        activity = activities_utils.serialize_activity(activity)
 
         # Return the activities
         return activity
@@ -501,9 +478,7 @@ def get_activity_by_garminconnect_id_from_user_id(
         if not activity:
             return None
 
-        activity.start_time = activity.start_time.strftime("%Y-%m-%d %H:%M:%S")
-        activity.end_time = activity.end_time.strftime("%Y-%m-%d %H:%M:%S")
-        activity.created_at = activity.created_at.strftime("%Y-%m-%d %H:%M:%S")
+        activity = activities_utils.serialize_activity(activity)
 
         # Return the activities
         return activity
@@ -543,9 +518,7 @@ def get_activities_if_contains_name(name: str, user_id: int, db: Session):
 
         # Iterate and format the dates
         for activity in activities:
-            activity.start_time = activity.start_time.strftime("%Y-%m-%d %H:%M:%S")
-            activity.end_time = activity.end_time.strftime("%Y-%m-%d %H:%M:%S")
-            activity.created_at = activity.created_at.strftime("%Y-%m-%d %H:%M:%S")
+            activity = activities_utils.serialize_activity(activity)
 
         # Return the activities
         return activities
@@ -604,9 +577,7 @@ def create_activity(activity: activities_schema.Activity, db: Session):
         db.refresh(db_activity)
 
         activity.id = db_activity.id
-        activity.created_at = db_activity.created_at.strftime("%Y-%m-%d %H:%M:%S")
-        activity.end_time = db_activity.end_time.strftime("%Y-%m-%d %H:%M:%S")
-        activity.created_at = db_activity.created_at.strftime("%Y-%m-%d %H:%M:%S")
+        activity = activities_utils.serialize_activity(activity)
 
         # Return the activity
         return activity

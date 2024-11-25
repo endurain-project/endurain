@@ -26,6 +26,16 @@ import fit.utils as fit_utils
 logger = logging.getLogger("myLogger")
 
 
+def serialize_activity(activity: activities_schema.Activity):
+    # Serialize the activity object
+    activity.start_time = activity.start_time.strftime("%Y-%m-%dT%H:%M:%S")
+    activity.end_time = activity.end_time.strftime("%Y-%m-%dT%H:%M:%S")
+    activity.created_at = activity.created_at.strftime("%Y-%m-%dT%H:%M:%S")
+
+    # Return the serialized activity object
+    return activity
+
+
 def parse_and_store_activity_from_file(
     token_user_id: int,
     file_path: str,

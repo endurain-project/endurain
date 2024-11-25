@@ -28,9 +28,17 @@ def transform_schema_gear_to_model_gear(
         gear_type=gear.gear_type,
         user_id=user_id,
         created_at=created_date,
-        is_active=True,
+        is_active=gear.is_active,
         strava_gear_id=gear.strava_gear_id,
         garminconnect_gear_id=gear.garminconnect_gear_id,
     )
 
     return new_gear
+
+
+def serialize_gear(gear: gear_schema.Gear):
+    # Serialize the gear object
+    gear.created_at = gear.created_at.strftime("%Y-%m-%dT%H:%M:%S")
+
+    # Return the serialized gear object
+    return gear
