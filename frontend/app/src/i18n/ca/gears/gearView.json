@@ -4,6 +4,7 @@
     "modalEditGearIsActiveLabel": "És actiu",
     "modalEditGearIsActiveOption1": "Si",
     "modalEditGearIsActiveOption0": "No",
+    "modalEditGearInitialKmsLabel": "Initial kms",
     "modalDeleteGearBody1": "Segur que vols esborrar l'equip",
     "modalDeleteGearBody2": "Aquesta acció no es pot desfer.",
     "labelDistance": "Distància",
