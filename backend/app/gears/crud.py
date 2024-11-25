@@ -322,6 +322,8 @@ def edit_gear(gear_id: int, gear: gears_schema.Gear, db: Session):
             db_gear.created_at = gear.created_at
         if gear.is_active is not None:
             db_gear.is_active = gear.is_active
+        if gear.initial_kms is not None:
+            db_gear.initial_kms = gear.initial_kms
         if gear.strava_gear_id is not None:
             db_gear.strava_gear_id = gear.strava_gear_id
         if gear.garminconnect_gear_id is not None:

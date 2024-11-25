@@ -3,7 +3,7 @@
     <div class="row row-gap-3">
         <div class="col-lg-4 col-md-12">
             <!-- Add gear zone -->
-            <p>{{ $t("gearsView.buttonAddGear") }}:</p>
+            <p>{{ $t("gearsView.buttonAddGear") }}</p>
             <a class="w-100 btn btn-primary" href="#" role="button" data-bs-toggle="modal" data-bs-target="#addGearModal">
                 {{ $t("gearsView.buttonAddGear") }}
             </a>
@@ -19,24 +19,34 @@
                         <form @submit.prevent="submitAddGearForm">
                             <div class="modal-body">
                                 <!-- brand fields -->
-                                <label for="gearBrandAdd"><b>{{ $t("gearsView.modalBrand") }}:</b></label>
+                                <label for="gearBrandAdd"><b>{{ $t("gearsView.modalBrand") }}</b></label>
                                 <input class="form-control" type="text" name="gearBrandAdd" :placeholder='$t("gearsView.modalBrand")' v-model="brand" maxlength="250">
                                 <!-- model fields -->
-                                <label for="gearModelAdd"><b>{{ $t("gearsView.modalModel") }}:</b></label>
+                                <label for="gearModelAdd"><b>{{ $t("gearsView.modalModel") }}</b></label>
                                 <input class="form-control" type="text" name="gearModelAdd" :placeholder='$t("gearsView.modalModel")' v-model="model" maxlength="250">
                                 <!-- nickname fields -->
-                                <label for="gearNicknameAdd"><b>* {{ $t("gearsView.modalNickname") }}:</b></label>
+                                <label for="gearNicknameAdd"><b>* {{ $t("gearsView.modalNickname") }}</b></label>
                                 <input class="form-control" type="text" name="gearNicknameAdd" :placeholder='$t("gearsView.modalNickname")' v-model="nickname" maxlength="250" required>
                                 <!-- gear type fields -->
-                                <label for="gearTypeAdd"><b>* {{ $t("gearsView.modalGearTypeLabel") }}:</b></label>
+                                <label for="gearTypeAdd"><b>* {{ $t("gearsView.modalGearTypeLabel") }}</b></label>
                                 <select class="form-control" name="gearTypeAdd" v-model="gearType" required>
                                     <option value="1">{{ $t("gearsView.modalGearTypeOption1Bike") }}</option>
                                     <option value="2">{{ $t("gearsView.modalGearTypeOption2Shoes") }}</option>
                                     <option value="3">{{ $t("gearsView.modalGearTypeOption3Wetsuit") }}</option>
                                 </select>
                                 <!-- date fields -->
-                                <label for="gearDateAdd"><b>* {{ $t("gearsView.modalDateLabel") }}:</b></label>
+                                <label for="gearDateAdd"><b>* {{ $t("gearsView.modalDateLabel") }}</b></label>
                                 <input class="form-control" type="date" name="gearDateAdd" :placeholder='$t("gearsView.modalDatePlaceholder")' v-model="date" required>
+                                <!-- gear is_active fields -->
+                                <label for="gearIsActiveAdd"><b>* {{ $t("gearsView.gearIsActiveLabel") }}</b></label>
+                                <select class="form-control" name="gearIsActiveAdd" v-model="isActive" required>
+                                    <option value="1">{{ $t("gearsView.activeState") }}</option>
+                                    <option value="0">{{ $t("gearsView.inactiveState") }}</option>
+                                </select>
+                                <!-- initial kilometers fields -->
+                                <label for="gearInitialKmsAdd"><b>* {{ $t("gearsView.initialKmsLabel") }}</b></label>
+                                <input class="form-control" type="number" step="0.2" name="gearInitialKmsAdd" v-model="initialKms" required>
+                                
                                 <p>* {{ $t("generalItems.requiredField") }}</p>
                             </div>
                             <div class="modal-footer">
@@ -50,7 +60,7 @@
 
             <!-- Search gear by nickname zone -->
             <br>
-            <p class="mt-2">{{ $t("gearsView.subTitleSearchGearByNickname") }}:</p>
+            <p class="mt-2">{{ $t("gearsView.subTitleSearchGearByNickname") }}</p>
             <form>
                 <div class="mb-3">
                     <input class="form-control" type="text" name="gearNickname" :placeholder='$t("gearsView.placeholderSearchGearByNickname")' v-model="searchNickname" required>
@@ -153,6 +163,8 @@ export default {
         const nickname = ref('');
         const gearType = ref(1);
         const date = ref(null);
+		const isActive = ref(1);
+        const initialKms = ref(0);
         const isLoading = ref(true);
         const isGearsUpdatingLoading = ref(true);
         const isLoadingNewGear = ref(false)
@@ -192,6 +204,8 @@ export default {
                     nickname: nickname.value,
                     gear_type: gearType.value,
                     created_at: date.value,
+					is_active: isActive.value,
+                    initial_kms: initialKms.value,
                 };
 
                 // Create the gear and get the created gear id.
@@ -285,6 +299,8 @@ export default {
             numRecords,
             gearType,
             date,
+			isActive,
+            initialKms,
             isLoading,
             isGearsUpdatingLoading,
             isLoadingNewGear,

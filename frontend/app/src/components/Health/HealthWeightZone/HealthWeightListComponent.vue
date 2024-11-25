@@ -29,7 +29,7 @@ import { useI18n } from "vue-i18n";
 import { push } from "notivue";
 // Importing the services
 import { health_data } from "@/services/health_dataService";
-
+// Import the components
 import HealthWeightAddEditModalComponent from './HealthWeightAddEditModalComponent.vue';
 import ModalComponent from '@/components/Modals/ModalComponent.vue';
 

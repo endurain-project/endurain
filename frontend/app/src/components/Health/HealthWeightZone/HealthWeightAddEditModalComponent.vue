@@ -59,7 +59,7 @@ export default {
 	setup(props, { emit }) {
 		const { t } = useI18n();
 		const newEditWeightWeight = ref(50);
-		const newEditWeightDate = ref("");
+		const newEditWeightDate = ref(new Date().toISOString().split('T')[0]);
         const editWeightId = ref("");
 
         if(props.data){

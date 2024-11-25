@@ -4,6 +4,7 @@
     "modalEditGearIsActiveLabel": "Is Active",
     "modalEditGearIsActiveOption1": "Yes",
     "modalEditGearIsActiveOption0": "No",
+    "modalEditGearInitialKmsLabel": "Initial kms",
     "modalDeleteGearBody1": "Are you sure you want to delete gear",
     "modalDeleteGearBody2": "This action cannot be undone.",
     "labelDistance": "Distance",

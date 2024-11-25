@@ -13,9 +13,9 @@
             </div>
             <div v-else>
                 <div class="justify-content-center align-items-center d-flex">
-                    <img src="/src/assets/avatar/bicycle1.png" alt="Bycicle avatar" width="180" height="180" v-if="gear?.gear_type == 1">
-                    <img src="/src/assets/avatar/running_shoe1.png" alt="Bycicle avatar" width="180" height="180" v-else-if="gear?.gear_type == 2">
-                    <img src="/src/assets/avatar/wetsuit1.png" alt="Bycicle avatar" width="180" height="180" v-else>
+                    <img src="/src/assets/avatar/bicycle1.png" alt="Bicycle avatar" width="180" height="180" v-if="gear?.gear_type == 1">
+                    <img src="/src/assets/avatar/running_shoe1.png" alt="Bicycle avatar" width="180" height="180" v-else-if="gear?.gear_type == 2">
+                    <img src="/src/assets/avatar/wetsuit1.png" alt="Bicycle avatar" width="180" height="180" v-else>
                 </div>
                 <br>
                 <div class="vstack justify-content-center align-items-center d-flex">
@@ -39,10 +39,13 @@
                         <span class="ms-2 badge bg-primary-subtle border border-primary-subtle text-primary-emphasis align-middle" v-if="gear?.strava_gear_id">
                             {{ $t("gearsView.gearFromStrava") }}
                         </span>
+                        <span class="ms-2 badge bg-primary-subtle border border-primary-subtle text-primary-emphasis align-middle" v-if="gear?.garminconnect_gear_id">
+                            {{ $t("gearsView.gearFromGarminConnect") }}
+                        </span>
                     </div>
                 </div>
                 <!-- edit gear zone -->
-                <button type="button" class="mt-2 w-100 btn btn-primary" :disabled="gear && gear?.strava_gear_id" data-bs-toggle="modal" data-bs-target="#editGearModal">
+                <button type="button" class="mt-2 w-100 btn btn-primary" data-bs-toggle="modal" data-bs-target="#editGearModal">
                     {{ $t("gearView.buttonEditGear") }}
                 </button>
 
@@ -59,16 +62,16 @@
                             <form @submit.prevent="submitEditGearForm">
                                 <div class="modal-body">
                                     <!-- brand fields -->
-                                    <label for="gearBrandEdit"><b>{{ $t("gearsView.modalBrand") }}:</b></label>
+                                    <label for="gearBrandEdit"><b>{{ $t("gearsView.modalBrand") }}</b></label>
                                     <input class="form-control" type="text" name="gearBrandEdit" :placeholder='$t("gearsView.modalBrand")' v-model="brand" maxlength="250">
                                     <!-- model fields -->
-                                    <label for="gearModelEdit"><b>{{ $t("gearsView.modalModel") }}:</b></label>
+                                    <label for="gearModelEdit"><b>{{ $t("gearsView.modalModel") }}</b></label>
                                     <input class="form-control" type="text" name="gearModelEdit" :placeholder='$t("gearsView.modalModel")' v-model="model" maxlength="250">
                                     <!-- nickname fields -->
-                                    <label for="gearNicknameEdit"><b>* {{ $t("gearsView.modalNickname") }}:</b></label>
+                                    <label for="gearNicknameEdit"><b>* {{ $t("gearsView.modalNickname") }}</b></label>
                                     <input class="form-control" type="text" name="gearNicknameEdit" :placeholder='$t("gearsView.modalNickname")' v-model="nickname" maxlength="250" required>
                                     <!-- gear type fields -->
-                                    <label for="gearTypeEdit"><b>* {{ $t("gearsView.modalGearTypeLabel") }}:</b></label>
+                                    <label for="gearTypeEdit"><b>* {{ $t("gearsView.modalGearTypeLabel") }}</b></label>
                                     <select class="form-control" name="gearTypeEdit" v-model="gearType" required>
                                         <option value="1">{{ $t("gearsView.modalGearTypeOption1Bike") }}</option>
                                         <option value="2">{{ $t("gearsView.modalGearTypeOption2Shoes") }}</option>
@@ -78,11 +81,14 @@
                                     <label for="gearDateEdit"><b>* {{ $t("gearsView.modalDateLabel") }}:</b></label>
                                     <input class="form-control" type="date" name="gearDateEdit" :placeholder='$t("gearsView.modalDatePlaceholder")' v-model="date" required>
                                     <!-- gear is_active fields -->
-                                    <label for="gearIsActiveEdit"><b>* {{ $t("gearView.modalEditGearIsActiveLabel") }}:</b></label>
+                                    <label for="gearIsActiveEdit"><b>* {{ $t("gearView.modalEditGearIsActiveLabel") }}</b></label>
                                     <select class="form-control" name="gearIsActiveEdit" v-model="isActive" required>
                                         <option value="1">{{ $t("gearView.modalEditGearIsActiveOption1") }}</option>
                                         <option value="0">{{ $t("gearView.modalEditGearIsActiveOption0") }}</option>
                                     </select>
+                                    <!-- initial kilometers fields -->
+                                    <label for="gearInitialKmsEdit"><b>* {{ $t("gearView.modalEditGearInitialKmsLabel") }}</b></label>
+                                    <input class="form-control" type="number" step="0.2" name="gearInitialKmsEdit" v-model="initialKms" required>
                                     <p>* {{ $t("generalItems.requiredField") }}</p>
                                 </div>
                                 <div class="modal-footer">
@@ -94,39 +100,12 @@
                     </div>
                 </div>
 
-                <button type="button" class="mt-2 w-100 btn btn-danger" :disabled="(gear && gear?.strava_gear_id) || (gearActivities && gearActivities.length != 0)" data-bs-toggle="modal" data-bs-target="#deleteGearModal" >
+                <button type="button" class="mt-2 w-100 btn btn-danger" data-bs-toggle="modal" data-bs-target="#deleteGearModal" >
                     {{ $t("gearView.buttonDeleteGear") }}
                 </button>
-                <!--<a class="mt-2 w-100 btn btn-danger" :class="{ 'disabled': gear && gear.strava_gear_id }" href="#" role="button" data-bs-toggle="modal" data-bs-target="#deleteGearModal" :aria-disabled="gearActivities && gearActivities.length != 0 ? 'true' : 'false'" @click.prevent="gear && gear.strava_gear_id || (gearActivities && gearActivities.length != 0) ? null : openDeleteModal()">
-                    {{ $t("gear.buttonDeleteGear") }}
-                </a>-->
 
                 <!-- Modal delete gear -->
-                <div class="modal fade" id="deleteGearModal" tabindex="-1" aria-labelledby="deleteGearModal"
-                    aria-hidden="true">
-                    <div class="modal-dialog">
-                        <div class="modal-content">
-                            <div class="modal-header">
-                                <h1 class="modal-title fs-5" id="deleteGearModal">
-                                    {{ $t("gearView.buttonDeleteGear") }}
-                                </h1>
-                            </div>
-                            <div class="modal-body">
-                                <span>{{ $t("gearView.modalDeleteGearBody1") }} <b>
-                                    {{ gear?.nickname }}
-                                </b>?</span>
-                                <br>
-                                <span>{{ $t("gearView.modalDeleteGearBody2") }}</span>
-                            </div>
-                            <div class="modal-footer">
-                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ $t("generalItems.buttonClose") }}</button>
-                                <button @click="submitDeleteGear" type="button" class="btn btn-danger" data-bs-dismiss="modal">
-                                    {{ $t("gearView.buttonDeleteGear") }}
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                <ModalComponent modalId="deleteGearModal" :title="t('gearView.buttonDeleteGear')" :body="`${t('gearView.modalDeleteGearBody1')} <b>${gear?.nickname}</b>?<br>${t('gearView.modalDeleteGearBody2')}`" :actionButtonType="`danger`" :actionButtonText="t('gearView.buttonDeleteGear')" @submitAction="submitDeleteGear"/>
 
                 <!-- details  -->
                 <div class="vstack align-items-center">
@@ -182,6 +161,7 @@ import { push } from "notivue";
 import NoItemsFoundComponent from "@/components/GeneralComponents/NoItemsFoundComponents.vue";
 import LoadingComponent from "@/components/GeneralComponents/LoadingComponent.vue";
 import BackButtonComponent from "@/components/GeneralComponents/BackButtonComponent.vue";
+import ModalComponent from '@/components/Modals/ModalComponent.vue';
 // Importing the services
 import { gears } from "@/services/gearsService";
 import { activities } from "@/services/activitiesService";
@@ -192,6 +172,7 @@ export default {
 		NoItemsFoundComponent,
 		LoadingComponent,
 		BackButtonComponent,
+        ModalComponent,
 	},
 	setup() {
 		const { t } = useI18n();
@@ -207,6 +188,7 @@ export default {
 		const gearType = ref(1);
 		const date = ref(null);
 		const isActive = ref(1);
+        const initialKms = ref(0);
 
 		async function submitEditGearForm() {
 			try {
@@ -217,6 +199,7 @@ export default {
 					gear_type: gearType.value,
 					created_at: date.value,
 					is_active: isActive.value,
+                    initial_kms: initialKms.value,
 				};
 
 				await gears.editGear(route.params.id, data);
@@ -227,6 +210,7 @@ export default {
 				gear.value.gear_type = gearType.value;
 				gear.value.created_at = date.value;
 				gear.value.is_active = isActive.value;
+				gear.value.initial_kms = initialKms.value;
 
 				push.success(t("gearView.successGearEdited"));
 			} catch (error) {
@@ -263,12 +247,14 @@ export default {
 					}
 					gearDistance.value = (gearDistance.value / 1000).toFixed(2);
 				}
+                gearDistance.value += gear.value.initial_kms;
 				brand.value = gear.value.brand;
 				model.value = gear.value.model;
 				nickname.value = gear.value.nickname;
 				gearType.value = gear.value.gear_type;
 				date.value = gear.value.created_at.split(" ")[0];
 				isActive.value = gear.value.is_active;
+                initialKms.value = gear.value.initial_kms;
 			} catch (error) {
 				if (error.toString().includes("422")) {
 					router.push({
@@ -290,6 +276,7 @@ export default {
 			gearType,
 			date,
 			isActive,
+            initialKms,
 			isLoading,
 			gear,
 			gearActivities,

@@ -230,6 +230,12 @@ class Gear(Base):
     is_active = Column(
         Integer, nullable=False, comment="Is gear active (0 - not active, 1 - active)"
     )
+    initial_kms = Column(
+        DECIMAL(precision=11, scale=3),
+        nullable=False,
+        default=0,
+        comment="Initial kilometers of the gear",
+    )
     strava_gear_id = Column(
         String(length=45), unique=True, nullable=True, comment="Strava gear ID"
     )

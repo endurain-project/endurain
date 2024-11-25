@@ -20,6 +20,6 @@ export const health_data = {
         return fetchPutRequest(`health/weight/${data.id}`, data)
     },
     deleteWeight(id) {
-        return fetchPostRequest(`health/weight/${id}`)
+        return fetchDeleteRequest(`health/weight/${id}`)
     }
 };
