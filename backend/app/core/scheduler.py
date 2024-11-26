@@ -1,4 +1,5 @@
-from apscheduler.schedulers.background import BackgroundScheduler
+#from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 import strava.utils as strava_utils
 import strava.activity_utils as strava_activity_utils
@@ -7,12 +8,14 @@ import garmin.activity_utils as garmin_activity_utils
 
 import core.logger as core_logger
 
-scheduler = BackgroundScheduler()
+#scheduler = BackgroundScheduler()
+scheduler = AsyncIOScheduler()
 
 
 def start_scheduler():
-    # Start the scheduler
-    scheduler.start()
+    if not scheduler.running:
+        # Start the scheduler
+        scheduler.start()
 
     # Log the addition of the job to refresh Strava user tokens
     core_logger.print_to_log(
