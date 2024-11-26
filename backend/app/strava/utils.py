@@ -16,7 +16,7 @@ import users.crud as users_crud
 
 import strava.logger as strava_logger
 
-from database import SessionLocal
+from core.database import SessionLocal
 
 
 def refresh_strava_tokens_job():

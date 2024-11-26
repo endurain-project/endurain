@@ -16,7 +16,7 @@ import user_integrations.models
 import users.models
 
 # import Base and engine from database file
-from database import Base, engine
+from core.database import Base, engine
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

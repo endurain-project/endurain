@@ -14,6 +14,12 @@ def setup_main_logger():
     file_handler.setFormatter(formatter)
 
     main_logger.addHandler(file_handler)
+
+    # Attach the same handler to Alembic's logger
+    alembic_logger = logging.getLogger("alembic")
+    alembic_logger.setLevel(logging.INFO)
+    alembic_logger.addHandler(file_handler)
+
     return main_logger
 
 

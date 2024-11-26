@@ -13,7 +13,7 @@ import activities.crud as activities_crud
 
 import users.crud as users_crud
 
-from database import SessionLocal
+from core.database import SessionLocal
 
 
 def fetch_and_process_activities(

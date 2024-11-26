@@ -8,7 +8,7 @@ from sqlalchemy import (
     BigInteger,
 )
 from sqlalchemy.orm import relationship
-from database import Base
+from core.database import Base
 
 
 # Data model for activities table using SQLAlchemy's ORM

@@ -18,7 +18,7 @@ import gears.crud as gears_crud
 import strava.utils as strava_utils
 import strava.logger as strava_logger
 
-from database import SessionLocal
+from core.database import SessionLocal
 
 
 def fetch_and_process_activities(

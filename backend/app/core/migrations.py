@@ -3,7 +3,7 @@ import migrations.logger as migration_logger
 
 import core.logger as core_logger
 
-from database import SessionLocal
+from core.database import SessionLocal
 
 
 def check_migrations():

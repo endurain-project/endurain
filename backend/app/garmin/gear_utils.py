@@ -12,7 +12,7 @@ import activities.crud as activities_crud
 
 import user_integrations.crud as user_integrations_crud
 
-from database import SessionLocal
+from core.database import SessionLocal
 
 
 def fetch_and_process_gear(

@@ -16,7 +16,7 @@ import user_integrations.crud as user_integrations_crud
 import strava.athlete_utils as strava_athlete_utils
 import strava.logger as strava_logger
 
-from database import SessionLocal
+from core.database import SessionLocal
 
 
 def get_strava_gear(gear_id: str, strava_client: Client):

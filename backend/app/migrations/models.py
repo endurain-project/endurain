@@ -4,7 +4,7 @@ from sqlalchemy import (
     String,
     Boolean,
 )
-from database import Base
+from core.database import Base
 
 
 class Migration(Base):

@@ -6,7 +6,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.mysql import JSON
-from database import Base
+from core.database import Base
 
 class ActivityStreams(Base):
     __tablename__ = "activities_streams"

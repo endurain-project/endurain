@@ -7,7 +7,7 @@ from sqlalchemy import (
     DECIMAL,
 )
 from sqlalchemy.orm import relationship
-from database import Base
+from core.database import Base
 
 
 class HealthData(Base):

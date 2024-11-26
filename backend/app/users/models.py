@@ -5,7 +5,7 @@ from sqlalchemy import (
     Date,
 )
 from sqlalchemy.orm import relationship
-from database import Base
+from core.database import Base
 
 import followers.models as followers_models
 
