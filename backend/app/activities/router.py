@@ -29,14 +29,13 @@ import gears.dependencies as gears_dependencies
 
 import users.dependencies as users_dependencies
 
-import database
-import dependencies_global
+import core.logger as core_logger
+
+import core.database as core_database
+import core.dependencies as core_dependencies
 
 # Define the API router
 router = APIRouter()
-
-# Define a loggger created on main.py
-logger = logging.getLogger("myLogger")
 
 
 @router.get(
@@ -59,7 +58,7 @@ async def read_activities_user_activities_week(
     ],
     db: Annotated[
         Session,
-        Depends(database.get_db),
+        Depends(core_database.get_db),
     ],
 ):
     # Calculate the start of the requested week
@@ -103,7 +102,7 @@ async def read_activities_user_activities_this_week_distances(
     ],
     db: Annotated[
         Session,
-        Depends(database.get_db),
+        Depends(core_database.get_db),
     ],
 ):
     # Calculate the start of the current week
@@ -121,11 +120,6 @@ async def read_activities_user_activities_this_week_distances(
         activities = activities_crud.get_user_following_activities_per_timeframe(
             user_id, start_of_week, end_of_week, db
         )
-
-    # Check if activities is None
-    # if activities is None:
-    # Return None if activities is None
-    #    return None
 
     # Return the activities distances for this week
     return activities_utils.calculate_activity_distances(activities)
@@ -147,7 +141,7 @@ async def read_activities_user_activities_this_month_distances(
     ],
     db: Annotated[
         Session,
-        Depends(database.get_db),
+        Depends(core_database.get_db),
     ],
 ):
     # Calculate the start of the current month
@@ -192,7 +186,7 @@ async def read_activities_user_activities_this_month_number(
     ],
     db: Annotated[
         Session,
-        Depends(database.get_db),
+        Depends(core_database.get_db),
     ],
 ):
     # Calculate the start of the current month
@@ -237,7 +231,7 @@ async def read_activities_gear_activities(
     ],
     db: Annotated[
         Session,
-        Depends(database.get_db),
+        Depends(core_database.get_db),
     ],
 ):
     # Get the activities for the gear
@@ -258,7 +252,7 @@ async def read_activities_user_activities_number(
     ],
     db: Annotated[
         Session,
-        Depends(database.get_db),
+        Depends(core_database.get_db),
     ],
 ):
     # Get the number of activities for the user
@@ -282,14 +276,14 @@ async def read_activities_user_activities_pagination(
     page_number: int,
     num_records: int,
     validate_pagination_values: Annotated[
-        Callable, Depends(dependencies_global.validate_pagination_values)
+        Callable, Depends(core_dependencies.validate_pagination_values)
     ],
     check_scopes: Annotated[
         Callable, Security(session_security.check_scopes, scopes=["activities:read"])
     ],
     db: Annotated[
         Session,
-        Depends(database.get_db),
+        Depends(core_database.get_db),
     ],
 ):
     # Get the activities for the user with pagination
@@ -315,14 +309,14 @@ async def read_activities_followed_user_activities_pagination(
     page_number: int,
     num_records: int,
     validate_pagination_values: Annotated[
-        Callable, Depends(dependencies_global.validate_pagination_values)
+        Callable, Depends(core_dependencies.validate_pagination_values)
     ],
     check_scopes: Annotated[
         Callable, Security(session_security.check_scopes, scopes=["activities:read"])
     ],
     db: Annotated[
         Session,
-        Depends(database.get_db),
+        Depends(core_database.get_db),
     ],
 ):
     # Get the activities for the following users with pagination
@@ -343,7 +337,7 @@ async def read_activities_followed_user_activities_number(
     ],
     db: Annotated[
         Session,
-        Depends(database.get_db),
+        Depends(core_database.get_db),
     ],
 ):
     # Get the number of activities for the following users
@@ -375,7 +369,7 @@ async def read_activities_activity_from_id(
     ],
     db: Annotated[
         Session,
-        Depends(database.get_db),
+        Depends(core_database.get_db),
     ],
 ):
     # Get the activity from the database and return it
@@ -399,7 +393,7 @@ async def read_activities_contain_name(
     ],
     db: Annotated[
         Session,
-        Depends(database.get_db),
+        Depends(core_database.get_db),
     ],
 ):
     # Get the activities from the database by name
@@ -422,17 +416,20 @@ async def create_activity_with_uploaded_file(
     ],
     db: Annotated[
         Session,
-        Depends(database.get_db),
+        Depends(core_database.get_db),
     ],
 ):
     try:
         # Return activity/activities
-        return activities_utils.parse_and_store_activity_from_uploaded_file(token_user_id, file, db)
+        return activities_utils.parse_and_store_activity_from_uploaded_file(
+            token_user_id, file, db
+        )
     except Exception as err:
         # Log the exception
-        logger.error(
-            f"Error in create_activity_with_uploaded_file: {err}", exc_info=True
+        core_logger.print_to_log(
+            f"Error in create_activity_with_uploaded_file: {err}", "error"
         )
+
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise err
 
@@ -450,7 +447,7 @@ async def create_activity_with_bulk_import(
     ],
     db: Annotated[
         Session,
-        Depends(database.get_db),
+        Depends(core_database.get_db),
     ],
     background_tasks: BackgroundTasks,
 ):
@@ -465,8 +462,7 @@ async def create_activity_with_bulk_import(
 
             if os.path.isfile(file_path):
                 # Log the file being processed
-                print(f"Processing file: {file_path}")
-                logger.info(f"Processing file: {file_path}")
+                core_logger.print_to_log_and_console(f"Processing file: {file_path}")
                 # Parse and store the activity
                 background_tasks.add_task(
                     activities_utils.parse_and_store_activity_from_file,
@@ -479,7 +475,9 @@ async def create_activity_with_bulk_import(
         return {"Bulk import initiated. Processing files in the background."}
     except Exception as err:
         # Log the exception
-        logger.error(f"Error in create_activity_with_bulk_import: {err}", exc_info=True)
+        core_logger.print_to_log(
+            f"Error in create_activity_with_bulk_import: {err}", "error"
+        )
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -501,7 +499,7 @@ async def edit_activity(
     ],
     db: Annotated[
         Session,
-        Depends(database.get_db),
+        Depends(core_database.get_db),
     ],
 ):
     # Update the activity in the database
@@ -530,7 +528,7 @@ async def activity_add_gear(
     ],
     db: Annotated[
         Session,
-        Depends(database.get_db),
+        Depends(core_database.get_db),
     ],
 ):
     # Get the gear by user id and gear id
@@ -579,7 +577,7 @@ async def delete_activity_gear(
     ],
     db: Annotated[
         Session,
-        Depends(database.get_db),
+        Depends(core_database.get_db),
     ],
 ):
     # Get the activity by id from user id
@@ -618,7 +616,7 @@ async def delete_activity(
     ],
     db: Annotated[
         Session,
-        Depends(database.get_db),
+        Depends(core_database.get_db),
     ],
 ):
     # Get the activity by id from user id
@@ -648,14 +646,10 @@ async def delete_activity(
             os.remove(file)
         except FileNotFoundError as err:
             # Log the exception
-            logger.error(
-                f"File not found {file}: {err}", exc_info=True
-            )
+            core_logger.print_to_log(f"File not found {file}: {err}", "error")
         except Exception as err:
             # Log the exception
-            logger.error(
-                f"Error deleting file {file}: {err}", exc_info=True
-            )
+            core_logger.print_to_log(f"Error deleting file {file}: {err}", "error")
 
     # Return success message
     return {"detail": f"Activity {activity_id} deleted successfully"}

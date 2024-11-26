@@ -22,8 +22,7 @@ import activity_streams.schema as activity_streams_schema
 import gpx.utils as gpx_utils
 import fit.utils as fit_utils
 
-# Define a loggger created on main.py
-logger = logging.getLogger("myLogger")
+import core.logger as core_logger
 
 
 def serialize_activity(activity: activities_schema.Activity):
@@ -114,8 +113,8 @@ def parse_and_store_activity_from_file(
         pass
     except Exception as err:
         # Log the exception
-        logger.error(
-            f"Error in parse_and_store_activity_from_file - {str(err)}", exc_info=True
+        core_logger.print_to_log(
+            f"Error in parse_and_store_activity_from_file - {str(err)}", "error"
         )
 
 
@@ -190,9 +189,9 @@ def parse_and_store_activity_from_uploaded_file(
         raise http_err
     except Exception as err:
         # Log the exception
-        logger.error(
+        core_logger.print_to_log(
             f"Error in parse_and_store_activity_from_uploaded_file - {str(err)}",
-            exc_info=True,
+            "error",
         )
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
@@ -213,7 +212,7 @@ def move_file(new_dir: str, new_filename: str, file_path: str):
         shutil.move(file_path, new_file_path)
     except Exception as err:
         # Log the exception
-        logger.error(f"Error in move_file - {str(err)}", exc_info=True)
+        core_logger.print_to_log(f"Error in move_file - {str(err)}", "error")
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -224,7 +223,7 @@ def move_file(new_dir: str, new_filename: str, file_path: str):
 def parse_file(token_user_id: int, file_extension: str, filename: str) -> dict:
     try:
         if filename.lower() != "bulk_import/__init__.py":
-            logger.info(f"Parsing file: {filename}")
+            core_logger.print_to_log(f"Parsing file: {filename}")
             # Choose the appropriate parser based on file extension
             if file_extension.lower() == ".gpx":
                 # Parse the GPX file
@@ -246,7 +245,7 @@ def parse_file(token_user_id: int, file_extension: str, filename: str) -> dict:
         raise http_err
     except Exception as err:
         # Log the exception
-        logger.error(f"Error in parse_file - {str(err)}", exc_info=True)
+        core_logger.print_to_log(f"Error in parse_file - {str(err)}", "error")
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -261,8 +260,9 @@ def store_activity(parsed_info: dict, db: Session):
     # Check if created_activity is None
     if created_activity is None:
         # Log the error
-        logger.error(
-            "Error in store_activity - activity is None, error creating activity"
+        core_logger.print_to_log(
+            "Error in store_activity - activity is None, error creating activity",
+            "error",
         )
         # raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
@@ -375,8 +375,9 @@ def location_based_on_coordinates(latitude, longitude) -> dict | None:
         }
     except requests.exceptions.RequestException as err:
         # Log the error
-        logger.error(f"Error in location_based_on_coordinates - {str(err)}")
-        print(f"Error in location_based_on_coordinates - {str(err)}")
+        core_logger.print_to_log_and_console(
+            f"Error in location_based_on_coordinates - {str(err)}", "error"
+        )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=f"Error in location_based_on_coordinates: {str(err)}",

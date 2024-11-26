@@ -1,31 +1,27 @@
-import logging
-
-from operator import and_, or_
 from fastapi import HTTPException, status
-from datetime import datetime
 from sqlalchemy import func, desc
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 
-import models
+import users.crud as users_crud
 
 import health_data.schema as health_data_schema
+import health_data.models as health_data_models
 
-# Define a loggger created on main.py
-logger = logging.getLogger("myLogger")
+import core.logger as core_logger
 
 
 def get_health_data_number(user_id: int, db: Session):
     try:
         # Get the number of health_data from the database
         return (
-            db.query(models.HealthData)
-            .filter(models.HealthData.user_id == user_id)
+            db.query(health_data_models.HealthData)
+            .filter(health_data_models.HealthData.user_id == user_id)
             .count()
         )
     except Exception as err:
         # Log the exception
-        logger.error(f"Error in get_health_data_number: {err}", exc_info=True)
+        core_logger.print_to_log(f"Error in get_health_data_number: {err}", "error")
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -33,15 +29,13 @@ def get_health_data_number(user_id: int, db: Session):
         ) from err
 
 
-def get_health_data(
-    user_id: int, db: Session
-):
+def get_health_data(user_id: int, db: Session):
     try:
         # Get the health_data from the database
         health_data = (
-            db.query(models.HealthData)
-            .filter(models.HealthData.user_id == user_id)
-            .order_by(desc(models.HealthData.created_at))
+            db.query(health_data_models.HealthData)
+            .filter(health_data_models.HealthData.user_id == user_id)
+            .order_by(desc(health_data_models.HealthData.created_at))
             .all()
         )
 
@@ -53,7 +47,7 @@ def get_health_data(
         return health_data
     except Exception as err:
         # Log the exception
-        logger.error(f"Error in get_health_data: {err}", exc_info=True)
+        core_logger.print_to_log(f"Error in get_health_data: {err}", "error")
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -67,9 +61,9 @@ def get_health_data_with_pagination(
     try:
         # Get the health_data from the database
         health_data = (
-            db.query(models.HealthData)
-            .filter(models.HealthData.user_id == user_id)
-            .order_by(desc(models.HealthData.created_at))
+            db.query(health_data_models.HealthData)
+            .filter(health_data_models.HealthData.user_id == user_id)
+            .order_by(desc(health_data_models.HealthData.created_at))
             .offset((page_number - 1) * num_records)
             .limit(num_records)
             .all()
@@ -83,7 +77,9 @@ def get_health_data_with_pagination(
         return health_data
     except Exception as err:
         # Log the exception
-        logger.error(f"Error in get_health_data_with_pagination: {err}", exc_info=True)
+        core_logger.print_to_log(
+            f"Error in get_health_data_with_pagination: {err}", "error"
+        )
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -95,10 +91,10 @@ def get_health_data_by_created_at(user_id: int, created_at: str, db: Session):
     try:
         # Get the health_data from the database
         health_data = (
-            db.query(models.HealthData)
+            db.query(health_data_models.HealthData)
             .filter(
-                models.HealthData.created_at == created_at,
-                models.HealthData.user_id == user_id,
+                health_data_models.HealthData.created_at == created_at,
+                health_data_models.HealthData.user_id == user_id,
             )
             .first()
         )
@@ -111,7 +107,9 @@ def get_health_data_by_created_at(user_id: int, created_at: str, db: Session):
         return health_data
     except Exception as err:
         # Log the exception
-        logger.error(f"Error in get_health_data_by_created_at: {err}", exc_info=True)
+        core_logger.print_to_log(
+            f"Error in get_health_data_by_created_at: {err}", "error"
+        )
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -123,11 +121,29 @@ def create_health_data(
     health_data: health_data_schema.HealthData, user_id: int, db: Session
 ):
     try:
+        # Check if bmi is None
+        if health_data.bmi is None:
+            # Get the user from the database
+            user = users_crud.get_user_by_id(user_id, db)
+
+            # Check if user is not None
+            if user is not None:
+                # Calculate the bmi
+                health_data.bmi = health_data.weight / ((user.height / 100) ** 2)
+
         # Create a new health_data
-        db_health_data = models.HealthData(
+        db_health_data = health_data_models.HealthData(
             user_id=user_id,
             created_at=func.now(),
             weight=health_data.weight,
+            bmi=health_data.bmi,
+            body_fat=health_data.body_fat,
+            body_water=health_data.body_water,
+            bone_mass=health_data.bone_mass,
+            muscle_mass=health_data.muscle_mass,
+            physique_rating=health_data.physique_rating,
+            visceral_fat=health_data.visceral_fat,
+            metabolic_age=health_data.metabolic_age,
         )
 
         # Add the health_data to the database
@@ -135,6 +151,7 @@ def create_health_data(
         db.commit()
         db.refresh(db_health_data)
 
+        # Set the id of the health_data
         health_data.id = db_health_data.id
 
         # Return the health_data
@@ -153,7 +170,7 @@ def create_health_data(
         db.rollback()
 
         # Log the exception
-        logger.error(f"Error in create_health_data: {err}", exc_info=True)
+        core_logger.print_to_log(f"Error in create_health_data: {err}", "error")
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -166,7 +183,7 @@ def create_health_weight_data(
 ):
     try:
         # Create a new health_data
-        db_health_data = models.HealthData(
+        db_health_data = health_data_models.HealthData(
             user_id=user_id,
             created_at=health_data.created_at,
             weight=health_data.weight,
@@ -195,7 +212,7 @@ def create_health_weight_data(
         db.rollback()
 
         # Log the exception
-        logger.error(f"Error in create_health_weight_data: {err}", exc_info=True)
+        core_logger.print_to_log(f"Error in create_health_weight_data: {err}", "error")
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -207,8 +224,8 @@ def edit_health_weight_data(health_data: health_data_schema.HealthData, db: Sess
     try:
         # Get the health_data from the database
         db_health_data = (
-            db.query(models.HealthData)
-            .filter(models.HealthData.id == health_data.id)
+            db.query(health_data_models.HealthData)
+            .filter(health_data_models.HealthData.id == health_data.id)
             .first()
         )
 
@@ -241,7 +258,7 @@ def edit_health_weight_data(health_data: health_data_schema.HealthData, db: Sess
         db.rollback()
 
         # Log the exception
-        logger.error(f"Error in edit_health_weight_data: {err}", exc_info=True)
+        core_logger.print_to_log(f"Error in edit_health_weight_data: {err}", "error")
 
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
@@ -254,10 +271,10 @@ def delete_health_weight_data(health_data_id: int, user_id: int, db: Session):
     try:
         # Delete the gear
         num_deleted = (
-            db.query(models.HealthData)
+            db.query(health_data_models.HealthData)
             .filter(
-                models.HealthData.id == health_data_id,
-                models.HealthData.user_id == user_id,
+                health_data_models.HealthData.id == health_data_id,
+                health_data_models.HealthData.user_id == user_id,
             )
             .delete()
         )
@@ -276,7 +293,7 @@ def delete_health_weight_data(health_data_id: int, user_id: int, db: Session):
         db.rollback()
 
         # Log the exception
-        logger.error(f"Error in delete_health_weight_data: {err}", exc_info=True)
+        core_logger.print_to_log(f"Error in delete_health_weight_data: {err}", "error")
 
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(

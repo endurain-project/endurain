@@ -17,6 +17,8 @@ from joserfc.jwk import OctKey
 
 import session.constants as session_constants
 
+import core.logger as core_logger
+
 # Define the OAuth2 scheme for handling bearer tokens
 oauth2_scheme = OAuth2PasswordBearer(
     tokenUrl="token",
@@ -37,9 +39,6 @@ cookie_refresh_token_scheme = APIKeyCookie(
     name="endurain_refresh_token",
     auto_error=False,
 )
-
-# Define a loggger created on main.py
-logger = logging.getLogger("myLogger")
 
 
 def is_password_complexity_valid(password):
@@ -67,7 +66,7 @@ def decode_token(token: Annotated[str, Depends(oauth2_scheme)]):
         return jwt.decode(token, OctKey.import_key(session_constants.JWT_SECRET_KEY))
     except Exception:
         # Log the error and raise the exception
-        logger.info("Unable to decode token | Returning 401 response")
+        core_logger.print_to_log("Unable to decode token | Returning 401 response")
 
         # Raise an HTTPException with a 401 Unauthorized status code
         raise HTTPException(
@@ -91,7 +90,9 @@ def validate_token_expiration(token: Annotated[str, Depends(oauth2_scheme)]):
         claims_requests.validate(payload.claims)
     except Exception:
         # Log the error and raise the exception
-        logger.info("Token expired during validation | Returning 401 response")
+        core_logger.print_to_log(
+            "Token expired during validation | Returning 401 response"
+        )
 
         # Raise an HTTPException with a 401 Unauthorized status code
         raise HTTPException(
@@ -110,7 +111,9 @@ def get_token_user_id(token: Annotated[str, Depends(oauth2_scheme)]):
         return payload.claims["sub"]
     except Exception:
         # Log the error and raise the exception
-        logger.info("Claim with user ID not present in token | Returning 401 response")
+        core_logger.print_to_log(
+            "Claim with user ID not present in token | Returning 401 response"
+        )
 
         # Raise an HTTPException with a 401 Unauthorized status code
         raise HTTPException(
@@ -129,7 +132,7 @@ def get_token_scopes(token: Annotated[str, Depends(oauth2_scheme)]):
         return payload.claims["scopes"]
     except Exception:
         # Log the error and raise the exception
-        logger.info("Scopes not present in token | Returning 401 response")
+        core_logger.print_to_log("Scopes not present in token | Returning 401 response")
 
         # Raise an HTTPException with a 401 Unauthorized status code
         raise HTTPException(

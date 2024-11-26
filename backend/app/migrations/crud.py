@@ -1,23 +1,17 @@
-import logging
-
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
-import models
+import core.logger as core_logger
 
-# Define a loggger created on main.py
-logger = logging.getLogger("myLogger")
+import migrations.models as migrations_models
+import migrations.logger as migrations_logger
 
 
-def get_migrations_not_executed(
-    db: Session
-):
+def get_migrations_not_executed(db: Session):
     try:
         # Get the migrations from the database
         db_migrations = (
-            db.query(models.Migration)
-            .filter(models.Migration.executed == False)
-            .all()
+            db.query(migrations_models.Migration).filter(migrations_models.Migration.executed == False).all()
         )
 
         # Check if there are not migrations if not return None
@@ -28,20 +22,21 @@ def get_migrations_not_executed(
         return db_migrations
     except Exception as err:
         # Log the exception
-        logger.error(f"Error in get_migrations_not_executed: {err}", exc_info=True)
+        core_logger.print_to_log_and_console(f"Error in get_migrations_not_executed. See migrations log for more information", "error")
+        migrations_logger.print_to_log(f"Error in get_migrations_not_executed: {err}", "error")
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal Server Error",
         ) from err
-    
+
 
 def set_migration_as_executed(migration_id: int, db: Session):
     try:
         # Get the migration from the database
         db_migration = (
-            db.query(models.Migration)
-            .filter(models.Migration.id == migration_id)
+            db.query(migrations_models.Migration)
+            .filter(migrations_models.Migration.id == migration_id)
             .first()
         )
 
@@ -62,7 +57,8 @@ def set_migration_as_executed(migration_id: int, db: Session):
         db.rollback()
 
         # Log the exception
-        logger.error(f"Error in set_migration_as_executed: {err}", exc_info=True)
+        core_logger.print_to_log_and_console(f"Error in set_migration_as_executed. See migrations log for more information", "error")
+        migrations_logger.print_to_log(f"Error in set_migration_as_executed: {err}", "error")
 
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(

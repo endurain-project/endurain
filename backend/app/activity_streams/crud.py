@@ -4,20 +4,18 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 import activity_streams.schema as activity_streams_schema
+import activity_streams.models as activity_streams_models
 
-import models
-
-# Define a loggger created on main.py
-logger = logging.getLogger("myLogger")
+import core.logger as core_logger
 
 
 def get_activity_streams(activity_id: int, db: Session):
     try:
         # Get the activity streams from the database
         activity_streams = (
-            db.query(models.ActivityStreams)
+            db.query(activity_streams_models.ActivityStreams)
             .filter(
-                models.ActivityStreams.activity_id == activity_id,
+                activity_streams_models.ActivityStreams.activity_id == activity_id,
             )
             .all()
         )
@@ -30,7 +28,7 @@ def get_activity_streams(activity_id: int, db: Session):
         return activity_streams
     except Exception as err:
         # Log the exception
-        logger.error(f"Error in get_activity_streams: {err}", exc_info=True)
+        core_logger.print_to_log(f"Error in get_activity_streams: {err}", "error")
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -42,10 +40,10 @@ def get_activity_stream_by_type(activity_id: int, stream_type: int, db: Session)
     try:
         # Get the activity stream from the database
         activity_stream = (
-            db.query(models.ActivityStreams)
+            db.query(activity_streams_models.ActivityStreams)
             .filter(
-                models.ActivityStreams.activity_id == activity_id,
-                models.ActivityStreams.stream_type == stream_type,
+                activity_streams_models.ActivityStreams.activity_id == activity_id,
+                activity_streams_models.ActivityStreams.stream_type == stream_type,
             )
             .first()
         )
@@ -58,7 +56,7 @@ def get_activity_stream_by_type(activity_id: int, stream_type: int, db: Session)
         return activity_stream
     except Exception as err:
         # Log the exception
-        logger.error(f"Error in get_activity_stream_by_type: {err}", exc_info=True)
+        core_logger.print_to_log(f"Error in get_activity_stream_by_type: {err}", "error")
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -76,7 +74,7 @@ def create_activity_streams(
         # Iterate over the list of ActivityStreams objects
         for stream in activity_streams:
             # Create an ActivityStreams object
-            db_stream = models.ActivityStreams(
+            db_stream = activity_streams_models.ActivityStreams(
                 activity_id=stream.activity_id,
                 stream_type=stream.stream_type,
                 stream_waypoints=stream.stream_waypoints,
@@ -94,7 +92,7 @@ def create_activity_streams(
         db.rollback()
 
         # Log the exception
-        logger.error(f"Error in create_activity_streams: {err}", exc_info=True)
+        core_logger.error(f"Error in create_activity_streams: {err}", "error")
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

@@ -1,22 +1,19 @@
-import logging
-
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 from datetime import datetime
 
 import user_integrations.schema as user_integrations_schema
-import models
+import user_integrations.models as user_integrations_models
 
-# Define a loggger created on main.py
-logger = logging.getLogger("myLogger")
+import core.logger as core_logger
 
 
 def get_user_integrations_by_user_id(user_id: int, db: Session):
     try:
         # Get the user integrations by the user id
         user_integrations = (
-            db.query(models.UserIntegrations)
-            .filter(models.UserIntegrations.user_id == user_id)
+            db.query(user_integrations_models.UserIntegrations)
+            .filter(user_integrations_models.UserIntegrations.user_id == user_id)
             .first()
         )
 
@@ -32,7 +29,9 @@ def get_user_integrations_by_user_id(user_id: int, db: Session):
         return user_integrations
     except Exception as err:
         # Log the exception
-        logger.error(f"Error in get_user_integrations_by_user_id: {err}", exc_info=True)
+        core_logger.print_to_log(
+            f"Error in get_user_integrations_by_user_id: {err}", "error"
+        )
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -43,8 +42,8 @@ def get_user_integrations_by_user_id(user_id: int, db: Session):
 def get_user_integrations_by_strava_state(strava_state: str, db: Session):
     try:
         user_integrations = (
-            db.query(models.UserIntegrations)
-            .filter(models.UserIntegrations.strava_state == strava_state)
+            db.query(user_integrations_models.UserIntegrations)
+            .filter(user_integrations_models.UserIntegrations.strava_state == strava_state)
             .first()
         )
 
@@ -56,7 +55,9 @@ def get_user_integrations_by_strava_state(strava_state: str, db: Session):
         return user_integrations
     except Exception as err:
         # Log the exception
-        logger.error(f"Error in get_user_integrations_by_user_id: {err}", exc_info=True)
+        core_logger.print_to_log(
+            f"Error in get_user_integrations_by_user_id: {err}", "error"
+        )
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -67,7 +68,7 @@ def get_user_integrations_by_strava_state(strava_state: str, db: Session):
 def create_user_integrations(user_id: int, db: Session):
     try:
         # Create a new user integrations
-        user_integrations = models.UserIntegrations(
+        user_integrations = user_integrations_models.UserIntegrations(
             user_id=user_id,
             strava_sync_gear=False,
             garminconnect_sync_gear=False,
@@ -85,7 +86,7 @@ def create_user_integrations(user_id: int, db: Session):
         db.rollback()
 
         # Log the exception
-        logger.error(f"Error in create_user_integrations: {err}", exc_info=True)
+        core_logger.print_to_log(f"Error in create_user_integrations: {err}", "error")
 
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
@@ -117,7 +118,7 @@ def link_strava_account(
         db.rollback()
 
         # Log the exception
-        logger.error(f"Error in link_strava_account: {err}", exc_info=True)
+        core_logger.print_to_log(f"Error in link_strava_account: {err}", "error")
 
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
@@ -152,7 +153,7 @@ def unlink_strava_account(user_id: int, db: Session):
         db.rollback()
 
         # Log the exception
-        logger.error(f"Error in link_strava_account: {err}", exc_info=True)
+        core_logger.print_to_log(f"Error in unlink_strava_account: {err}", "error")
 
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
@@ -184,7 +185,7 @@ def set_user_strava_state(user_id: int, state: str, db: Session):
         db.rollback()
 
         # Log the exception
-        logger.error(f"Error in set_user_strava_state: {err}", exc_info=True)
+        core_logger.print_to_log(f"Error in set_user_strava_state: {err}", "error")
 
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
@@ -208,7 +209,7 @@ def set_user_strava_sync_gear(user_id: int, strava_sync_gear: bool, db: Session)
         db.rollback()
 
         # Log the exception
-        logger.error(f"Error in set_user_strava_state: {err}", exc_info=True)
+        core_logger.print_to_log(f"Error in set_user_strava_state: {err}", "error")
 
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
@@ -246,7 +247,7 @@ def link_garminconnect_account(
         db.rollback()
 
         # Log the exception
-        logger.error(f"Error in link_garminconnect_account: {err}", exc_info=True)
+        core_logger.print_to_log(f"Error in link_garminconnect_account: {err}", "error")
 
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
@@ -272,7 +273,9 @@ def set_user_garminconnect_sync_gear(
         db.rollback()
 
         # Log the exception
-        logger.error(f"Error in set_user_garminconnect_sync_gear: {err}", exc_info=True)
+        core_logger.print_to_log(
+            f"Error in set_user_garminconnect_sync_gear: {err}", "error"
+        )
 
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
@@ -306,7 +309,9 @@ def unlink_garminconnect_account(user_id: int, db: Session):
         db.rollback()
 
         # Log the exception
-        logger.error(f"Error in unlink_garminconnect_account: {err}", exc_info=True)
+        core_logger.print_to_log(
+            f"Error in unlink_garminconnect_account: {err}", "error"
+        )
 
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(

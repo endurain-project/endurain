@@ -5,7 +5,15 @@ from sqlalchemy import pool
 
 from alembic import context
 
-import models
+import activities.models
+import activity_streams.models
+import followers.models
+import gears.models
+import health_data.models
+import health_targets.models
+import migrations.models
+import user_integrations.models
+import users.models
 
 # import Base and engine from database file
 from database import Base, engine

@@ -1,14 +1,13 @@
 from sqlalchemy import func
 from urllib.parse import unquote
 
-import models
-
-import gears.schema as gear_schema
+import gears.models as gears_models
+import gears.schema as gears_schema
 
 
 def transform_schema_gear_to_model_gear(
-    gear: gear_schema.Gear, user_id: int
-) -> models.Gear:
+    gear: gears_schema.Gear, user_id: int
+) -> gears_models.Gear:
     # Set the created date to now
     created_date = func.now()
 
@@ -17,7 +16,7 @@ def transform_schema_gear_to_model_gear(
         created_date = gear.created_at
 
     # Create a new gear object
-    new_gear = models.Gear(
+    new_gear = gears_models.Gear(
         brand=(
             unquote(gear.brand).replace("+", " ") if gear.brand is not None else None
         ),
@@ -37,7 +36,7 @@ def transform_schema_gear_to_model_gear(
     return new_gear
 
 
-def serialize_gear(gear: gear_schema.Gear):
+def serialize_gear(gear: gears_schema.Gear):
     # Serialize the gear object
     gear.created_at = gear.created_at.strftime("%Y-%m-%dT%H:%M:%S")
 

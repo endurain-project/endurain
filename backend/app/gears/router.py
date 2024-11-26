@@ -11,13 +11,10 @@ import gears.schema as gears_schema
 import gears.crud as gears_crud
 import gears.dependencies as gears_dependencies
 
-import database
+import core.database as core_database
 
 # Define the API router
 router = APIRouter()
-
-# Define a loggger created on main.py
-logger = logging.getLogger("myLogger")
 
 
 @router.get(
@@ -30,7 +27,7 @@ async def read_gear_id(
     check_scopes: Annotated[
         Callable, Security(session_security.check_scopes, scopes=["gears:read"])
     ],
-    db: Annotated[Session, Depends(database.get_db)],
+    db: Annotated[Session, Depends(core_database.get_db)],
 ):
     # Return the gear
     return gears_crud.get_gear_user_by_id(gear_id, db)
@@ -51,7 +48,7 @@ async def read_gear_user_pagination(
     ],
     db: Annotated[
         Session,
-        Depends(database.get_db),
+        Depends(core_database.get_db),
     ],
 ):
     # Return the gear
@@ -73,7 +70,7 @@ async def read_gear_user_number(
     ],
     db: Annotated[
         Session,
-        Depends(database.get_db),
+        Depends(core_database.get_db),
     ],
 ):
     # Get the gear
@@ -101,7 +98,7 @@ async def read_gear_user_by_nickname(
     ],
     db: Annotated[
         Session,
-        Depends(database.get_db),
+        Depends(core_database.get_db),
     ],
 ):
     # Return the gear
@@ -123,7 +120,7 @@ async def read_gear_user_by_type(
     ],
     db: Annotated[
         Session,
-        Depends(database.get_db),
+        Depends(core_database.get_db),
     ],
 ):
     # Return the gear
@@ -144,7 +141,7 @@ async def create_gear(
     ],
     db: Annotated[
         Session,
-        Depends(database.get_db),
+        Depends(core_database.get_db),
     ],
 ):
     # Create the gear
@@ -167,7 +164,7 @@ async def edit_gear(
     ],
     db: Annotated[
         Session,
-        Depends(database.get_db),
+        Depends(core_database.get_db),
     ],
 ):
     # Get the gear by id
@@ -205,7 +202,7 @@ async def delete_gear(
     ],
     db: Annotated[
         Session,
-        Depends(database.get_db),
+        Depends(core_database.get_db),
     ],
 ):
     # Get the gear by id

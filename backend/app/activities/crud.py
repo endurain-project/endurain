@@ -1,5 +1,3 @@
-import logging
-
 from operator import and_, or_
 from fastapi import HTTPException, status
 from datetime import datetime
@@ -8,19 +6,17 @@ from sqlalchemy.orm import Session, joinedload
 from urllib.parse import unquote
 from pydantic import BaseModel
 
-import models
-
+import activities.models as activities_models
 import activities.schema as activities_schema
 import activities.utils as activities_utils
 
-# Define a loggger created on main.py
-logger = logging.getLogger("myLogger")
+import core.logger as core_logger
 
 
 def get_all_activities(db: Session):
     try:
         # Get the activities from the database
-        activities = db.query(models.Activity).all()
+        activities = db.query(activities_models.Activity).all()
 
         # Check if there are activities if not return None
         if not activities:
@@ -34,7 +30,7 @@ def get_all_activities(db: Session):
 
     except Exception as err:
         # Log the exception
-        logger.error(f"Error in get_all_activities: {err}", exc_info=True)
+        core_logger.print_to_log(f"Error in get_all_activities: {err}", "error")
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -49,9 +45,9 @@ def get_user_activities(
     try:
         # Get the activities from the database
         activities = (
-            db.query(models.Activity)
-            .filter(models.Activity.user_id == user_id)
-            .order_by(desc(models.Activity.start_time))
+            db.query(activities_models.Activity)
+            .filter(activities_models.Activity.user_id == user_id)
+            .order_by(desc(activities_models.Activity.start_time))
             .all()
         )
 
@@ -67,7 +63,7 @@ def get_user_activities(
 
     except Exception as err:
         # Log the exception
-        logger.error(f"Error in get_user_activities: {err}", exc_info=True)
+        core_logger.print_to_log(f"Error in get_user_activities: {err}", "error")
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -81,12 +77,12 @@ def get_user_activities_by_user_id_and_garminconnect_gear_set(
     try:
         # Get the activities from the database
         activities = (
-            db.query(models.Activity)
+            db.query(activities_models.Activity)
             .filter(
-                models.Activity.user_id == user_id,
-                models.Activity.garminconnect_activity_id.isnot(None),
+                activities_models.Activity.user_id == user_id,
+                activities_models.Activity.garminconnect_activity_id.isnot(None),
             )
-            .order_by(desc(models.Activity.start_time))
+            .order_by(desc(activities_models.Activity.start_time))
             .all()
         )
 
@@ -102,9 +98,9 @@ def get_user_activities_by_user_id_and_garminconnect_gear_set(
         return activities
     except Exception as err:
         # Log the exception
-        logger.error(
+        core_logger.print_to_log(
             f"Error in get_user_activities_by_user_id_and_garminconnect_gear_set: {err}",
-            exc_info=True,
+            "error",
         )
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
@@ -119,9 +115,9 @@ def get_user_activities_with_pagination(
     try:
         # Get the activities from the database
         activities = (
-            db.query(models.Activity)
-            .filter(models.Activity.user_id == user_id)
-            .order_by(desc(models.Activity.start_time))
+            db.query(activities_models.Activity)
+            .filter(activities_models.Activity.user_id == user_id)
+            .order_by(desc(activities_models.Activity.start_time))
             .offset((page_number - 1) * num_records)
             .limit(num_records)
             .all()
@@ -139,8 +135,8 @@ def get_user_activities_with_pagination(
 
     except Exception as err:
         # Log the exception
-        logger.error(
-            f"Error in get_user_activities_with_pagination: {err}", exc_info=True
+        core_logger.print_to_log(
+            f"Error in get_user_activities_with_pagination: {err}", "error"
         )
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
@@ -158,13 +154,13 @@ def get_user_activities_per_timeframe(
     try:
         # Get the activities from the database
         activities = (
-            db.query(models.Activity)
+            db.query(activities_models.Activity)
             .filter(
-                models.Activity.user_id == user_id,
-                func.date(models.Activity.start_time) >= start.date(),
-                func.date(models.Activity.start_time) <= end.date(),
+                activities_models.Activity.user_id == user_id,
+                func.date(activities_models.Activity.start_time) >= start.date(),
+                func.date(activities_models.Activity.start_time) <= end.date(),
             )
-            .order_by(desc(models.Activity.start_time))
+            .order_by(desc(activities_models.Activity.start_time))
         ).all()
 
         # Check if there are activities if not return None
@@ -179,8 +175,8 @@ def get_user_activities_per_timeframe(
 
     except Exception as err:
         # Log the exception
-        logger.error(
-            f"Error in get_user_activities_per_timeframe: {err}", exc_info=True
+        core_logger.print_to_log(
+            f"Error in get_user_activities_per_timeframe: {err}", "error"
         )
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
@@ -198,16 +194,16 @@ def get_user_following_activities_per_timeframe(
     try:
         # Get the activities from the database
         activities = (
-            db.query(models.Activity)
+            db.query(activities_models.Activity)
             .filter(
                 and_(
-                    models.Activity.user_id == user_id,
-                    models.Activity.visibility.in_([0, 1]),
+                    activities_models.Activity.user_id == user_id,
+                    activities_models.Activity.visibility.in_([0, 1]),
                 ),
-                func.date(models.Activity.start_time) >= start,
-                func.date(models.Activity.start_time) <= end,
+                func.date(activities_models.Activity.start_time) >= start,
+                func.date(activities_models.Activity.start_time) <= end,
             )
-            .order_by(desc(models.Activity.start_time))
+            .order_by(desc(activities_models.Activity.start_time))
         ).all()
 
         # Check if there are activities if not return None
@@ -222,9 +218,8 @@ def get_user_following_activities_per_timeframe(
 
     except Exception as err:
         # Log the exception
-        logger.error(
-            f"Error in get_user_following_activities_per_timeframe: {err}",
-            exc_info=True,
+        core_logger.print_to_log(
+            f"Error in get_user_following_activities_per_timeframe: {err}", "error"
         )
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
@@ -239,21 +234,21 @@ def get_user_following_activities_with_pagination(
     try:
         # Get the activities from the database
         activities = (
-            db.query(models.Activity)
+            db.query(activities_models.Activity)
             .join(
-                models.Follower, models.Follower.following_id == models.Activity.user_id
+                activities_models.Follower, activities_models.Follower.following_id == activities_models.Activity.user_id
             )
             .filter(
                 and_(
-                    models.Follower.follower_id == user_id,
-                    models.Follower.is_accepted,
+                    activities_models.Follower.follower_id == user_id,
+                    activities_models.Follower.is_accepted,
                 ),
-                models.Activity.visibility.in_([0, 1]),
+                activities_models.Activity.visibility.in_([0, 1]),
             )
-            .order_by(desc(models.Activity.start_time))
+            .order_by(desc(activities_models.Activity.start_time))
             .offset((page_number - 1) * num_records)
             .limit(num_records)
-            .options(joinedload(models.Activity.user))
+            .options(joinedload(activities_models.Activity.user))
             .all()
         )
 
@@ -269,9 +264,8 @@ def get_user_following_activities_with_pagination(
         return activities
     except Exception as err:
         # Log the exception
-        logger.error(
-            f"Error in get_user_following_activities_with_pagination: {err}",
-            exc_info=True,
+        core_logger.print_to_log(
+            f"Error in get_user_following_activities_with_pagination: {err}", "error"
         )
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
@@ -284,16 +278,16 @@ def get_user_following_activities(user_id, db):
     try:
         # Get the activities from the database
         activities = (
-            db.query(models.Activity)
+            db.query(activities_models.Activity)
             .join(
-                models.Follower, models.Follower.following_id == models.Activity.user_id
+                activities_models.Follower, activities_models.Follower.following_id == activities_models.Activity.user_id
             )
             .filter(
                 and_(
-                    models.Follower.follower_id == user_id,
-                    models.Follower.is_accepted,
+                    activities_models.Follower.follower_id == user_id,
+                    activities_models.Follower.is_accepted,
                 ),
-                models.Activity.visibility.in_([0, 1]),
+                activities_models.Activity.visibility.in_([0, 1]),
             )
             .all()
         )
@@ -310,7 +304,9 @@ def get_user_following_activities(user_id, db):
         return activities
     except Exception as err:
         # Log the exception
-        logger.error(f"Error in get_user_following_activities: {err}", exc_info=True)
+        core_logger.print_to_log(
+            f"Error in get_user_following_activities: {err}", "error"
+        )
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -322,11 +318,11 @@ def get_user_activities_by_gear_id_and_user_id(user_id: int, gear_id: int, db: S
     try:
         # Get the activities from the database
         activities = (
-            db.query(models.Activity)
+            db.query(activities_models.Activity)
             .filter(
-                models.Activity.user_id == user_id, models.Activity.gear_id == gear_id
+                activities_models.Activity.user_id == user_id, activities_models.Activity.gear_id == gear_id
             )
-            .order_by(desc(models.Activity.start_time))
+            .order_by(desc(activities_models.Activity.start_time))
             .all()
         )
 
@@ -342,8 +338,8 @@ def get_user_activities_by_gear_id_and_user_id(user_id: int, gear_id: int, db: S
         return activities
     except Exception as err:
         # Log the exception
-        logger.error(
-            f"Error in get_user_activities_by_gear_id_and_user_id: {err}", exc_info=True
+        core_logger.print_to_log(
+            f"Error in get_user_activities_by_gear_id_and_user_id: {err}", "error"
         )
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
@@ -358,13 +354,13 @@ def get_activity_by_id_from_user_id_or_has_visibility(
     try:
         # Get the activities from the database
         activity = (
-            db.query(models.Activity)
+            db.query(activities_models.Activity)
             .filter(
                 or_(
-                    models.Activity.user_id == user_id,
-                    models.Activity.visibility.in_([0, 1]),
+                    activities_models.Activity.user_id == user_id,
+                    activities_models.Activity.visibility.in_([0, 1]),
                 ),
-                models.Activity.id == activity_id,
+                activities_models.Activity.id == activity_id,
             )
             .first()
         )
@@ -380,9 +376,9 @@ def get_activity_by_id_from_user_id_or_has_visibility(
 
     except Exception as err:
         # Log the exception
-        logger.error(
+        core_logger.print_to_log(
             f"Error in get_activity_by_id_from_user_id_or_has_visibility: {err}",
-            exc_info=True,
+            "error",
         )
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
@@ -397,10 +393,10 @@ def get_activity_by_id_from_user_id(
     try:
         # Get the activities from the database
         activity = (
-            db.query(models.Activity)
+            db.query(activities_models.Activity)
             .filter(
-                models.Activity.user_id == user_id,
-                models.Activity.id == activity_id,
+                activities_models.Activity.user_id == user_id,
+                activities_models.Activity.id == activity_id,
             )
             .first()
         )
@@ -417,7 +413,9 @@ def get_activity_by_id_from_user_id(
 
     except Exception as err:
         # Log the exception
-        logger.error(f"Error in get_activity_by_id_from_user_id: {err}", exc_info=True)
+        core_logger.print_to_log(
+            f"Error in get_activity_by_id_from_user_id: {err}", "error"
+        )
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -431,10 +429,10 @@ def get_activity_by_strava_id_from_user_id(
     try:
         # Get the activities from the database
         activity = (
-            db.query(models.Activity)
+            db.query(activities_models.Activity)
             .filter(
-                models.Activity.user_id == user_id,
-                models.Activity.strava_activity_id == activity_strava_id,
+                activities_models.Activity.user_id == user_id,
+                activities_models.Activity.strava_activity_id == activity_strava_id,
             )
             .first()
         )
@@ -450,8 +448,8 @@ def get_activity_by_strava_id_from_user_id(
 
     except Exception as err:
         # Log the exception
-        logger.error(
-            f"Error in get_activity_by_strava_id_from_user_id: {err}", exc_info=True
+        core_logger.print_to_log(
+            f"Error in get_activity_by_strava_id_from_user_id: {err}", "error"
         )
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
@@ -466,10 +464,10 @@ def get_activity_by_garminconnect_id_from_user_id(
     try:
         # Get the activities from the database
         activity = (
-            db.query(models.Activity)
+            db.query(activities_models.Activity)
             .filter(
-                models.Activity.user_id == user_id,
-                models.Activity.garminconnect_activity_id == activity_garminconnect_id,
+                activities_models.Activity.user_id == user_id,
+                activities_models.Activity.garminconnect_activity_id == activity_garminconnect_id,
             )
             .first()
         )
@@ -485,9 +483,8 @@ def get_activity_by_garminconnect_id_from_user_id(
 
     except Exception as err:
         # Log the exception
-        logger.error(
-            f"Error in get_activity_by_garminconnect_id_from_user_id: {err}",
-            exc_info=True,
+        core_logger.print_to_log(
+            f"Error in get_activity_by_garminconnect_id_from_user_id: {err}", "error"
         )
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
@@ -503,12 +500,12 @@ def get_activities_if_contains_name(name: str, user_id: int, db: Session):
 
         # Get the activities from the database
         activities = (
-            db.query(models.Activity)
+            db.query(activities_models.Activity)
             .filter(
-                models.Activity.user_id == user_id,
-                models.Activity.name.like(f"%{partial_name}%"),
+                activities_models.Activity.user_id == user_id,
+                activities_models.Activity.name.like(f"%{partial_name}%"),
             )
-            .order_by(desc(models.Activity.start_time))
+            .order_by(desc(activities_models.Activity.start_time))
             .all()
         )
 
@@ -524,7 +521,9 @@ def get_activities_if_contains_name(name: str, user_id: int, db: Session):
         return activities
     except Exception as err:
         # Log the exception
-        logger.error(f"Error in get_activities_if_contains_name: {err}", exc_info=True)
+        core_logger.print_to_log(
+            f"Error in get_activities_if_contains_name: {err}", "error"
+        )
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -535,7 +534,7 @@ def get_activities_if_contains_name(name: str, user_id: int, db: Session):
 def create_activity(activity: activities_schema.Activity, db: Session):
     try:
         # Create a new activity
-        db_activity = models.Activity(
+        db_activity = activities_models.Activity(
             user_id=activity.user_id,
             distance=activity.distance,
             name=activity.name,
@@ -577,7 +576,6 @@ def create_activity(activity: activities_schema.Activity, db: Session):
         db.refresh(db_activity)
 
         activity.id = db_activity.id
-        activity = activities_utils.serialize_activity(activity)
 
         # Return the activity
         return activity
@@ -586,7 +584,7 @@ def create_activity(activity: activities_schema.Activity, db: Session):
         db.rollback()
 
         # Log the exception
-        logger.error(f"Error in create_activity: {err}", exc_info=True)
+        core_logger.print_to_log(f"Error in create_activity: {err}", "error")
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -598,10 +596,10 @@ def edit_activity(user_id: int, activity: activities_schema.Activity, db: Sessio
     try:
         # Get the activity from the database
         db_activity = (
-            db.query(models.Activity)
+            db.query(activities_models.Activity)
             .filter(
-                models.Activity.user_id == user_id,
-                models.Activity.id == activity.id,
+                activities_models.Activity.user_id == user_id,
+                activities_models.Activity.id == activity.id,
             )
             .first()
         )
@@ -632,7 +630,7 @@ def edit_activity(user_id: int, activity: activities_schema.Activity, db: Sessio
         db.rollback()
 
         # Log the exception
-        logger.error(f"Error in edit_activity: {err}", exc_info=True)
+        core_logger.print_to_log(f"Error in edit_activity: {err}", "error")
 
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
@@ -645,7 +643,7 @@ def add_gear_to_activity(activity_id: int, gear_id: int, db: Session):
     try:
         # Get the activity from the database
         activity = (
-            db.query(models.Activity).filter(models.Activity.id == activity_id).first()
+            db.query(activities_models.Activity).filter(activities_models.Activity.id == activity_id).first()
         )
 
         # Update the activity
@@ -656,7 +654,7 @@ def add_gear_to_activity(activity_id: int, gear_id: int, db: Session):
         db.rollback()
 
         # Log the exception
-        logger.error(f"Error in add_gear_to_activity: {err}", exc_info=True)
+        core_logger.print_to_log(f"Error in add_gear_to_activity: {err}", "error")
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -683,7 +681,9 @@ def edit_multiple_activities_gear_id(
         db.rollback()
 
         # Log the exception
-        logger.error(f"Error in edit_multiple_activities_gear_id: {err}", exc_info=True)
+        core_logger.print_to_log(
+            f"Error in edit_multiple_activities_gear_id: {err}", "error"
+        )
 
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
@@ -696,7 +696,7 @@ def delete_activity(activity_id: int, db: Session):
     try:
         # Delete the activity
         num_deleted = (
-            db.query(models.Activity).filter(models.Activity.id == activity_id).delete()
+            db.query(activities_models.Activity).filter(activities_models.Activity.id == activity_id).delete()
         )
 
         # Check if the activity was found and deleted
@@ -713,7 +713,7 @@ def delete_activity(activity_id: int, db: Session):
         db.rollback()
 
         # Log the exception
-        logger.error(f"Error in delete_user: {err}", exc_info=True)
+        core_logger.print_to_log(f"Error in delete_activity: {err}", "error")
 
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
@@ -726,10 +726,10 @@ def delete_all_strava_activities_for_user(user_id: int, db: Session):
     try:
         # Delete the strava activities for the user
         num_deleted = (
-            db.query(models.Activity)
+            db.query(activities_models.Activity)
             .filter(
-                models.Activity.user_id == user_id,
-                models.Activity.strava_activity_id.isnot(None),
+                activities_models.Activity.user_id == user_id,
+                activities_models.Activity.strava_activity_id.isnot(None),
             )
             .delete()
         )
@@ -743,8 +743,8 @@ def delete_all_strava_activities_for_user(user_id: int, db: Session):
         db.rollback()
 
         # Log the exception
-        logger.error(
-            f"Error in delete_all_strava_activities_for_user: {err}", exc_info=True
+        core_logger.print_to_log(
+            f"Error in delete_all_strava_activities_for_user: {err}", "error"
         )
 
         # Raise an HTTPException with a 500 Internal Server Error status code

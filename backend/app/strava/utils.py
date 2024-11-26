@@ -1,4 +1,3 @@
-import logging
 import os
 import requests
 
@@ -15,8 +14,20 @@ import user_integrations.crud as user_integrations_crud
 
 import users.crud as users_crud
 
-# Define a loggger created on main.py
-logger = logging.getLogger("myLogger")
+import strava.logger as strava_logger
+
+from database import SessionLocal
+
+
+def refresh_strava_tokens_job():
+    # Create a new database session
+    db = SessionLocal()
+    try:
+        # Refresh Strava tokens
+        refresh_strava_tokens(db)
+    finally:
+        # Ensure the session is closed after use
+        db.close()
 
 
 def refresh_strava_tokens(db: Session):
@@ -57,14 +68,16 @@ def refresh_strava_tokens(db: Session):
                     # Check if the response status code is not 200
                     if response.status_code != 200:
                         # Raise an HTTPException with a 424 Failed Dependency status code
-                        logger.error(
-                            "Unable to retrieve tokens for refresh process from Strava"
+                        strava_logger.print_to_log(
+                            "Unable to retrieve tokens for refresh process from Strava", "error"
                         )
 
                     tokens = response.json()
                 except Exception as err:
                     # Log the exception
-                    logger.error(f"Error in refresh_strava_token: {err}", exc_info=True)
+                    strava_logger.print_to_log(
+                        f"Error in refresh_strava_token: {err}", "error"
+                    )
 
                     # Raise an HTTPException with a 500 Internal Server Error status code
                     raise HTTPException(
@@ -77,10 +90,9 @@ def refresh_strava_tokens(db: Session):
                         user_integrations, tokens, db
                     )
 
-                    logger.info(f"User {user.id}: Strava tokens refreshed")
-        # else:
-        # Log an informational event if the Strava access token is not found
-        # logger.info(f"User {user.id}: Strava access token not found")
+                    strava_logger.print_to_log(
+                        f"User {user.id}: Strava tokens refreshed"
+                    )
 
 
 def fetch_and_validate_activity(
@@ -94,7 +106,7 @@ def fetch_and_validate_activity(
     # Check if activity is None
     if activity_db:
         # Log an informational event if the activity already exists
-        logger.info(
+        strava_logger.print_to_log(
             f"User {user_id}: Activity {activity_id} already exists. Will skip processing"
         )
 

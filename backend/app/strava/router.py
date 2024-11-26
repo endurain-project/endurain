@@ -18,14 +18,13 @@ import activities.crud as activities_crud
 
 import strava.gear_utils as strava_gear_utils
 import strava.activity_utils as strava_activity_utils
+import strava.logger as strava_logger
 
-import database
+import core.logger as core_logger
+import core.database as core_database
 
 # Define the API router
 router = APIRouter()
-
-# Define a loggger created on main.py
-logger = logging.getLogger("myLogger")
 
 
 @router.get(
@@ -36,7 +35,7 @@ async def strava_link(
     code: str,
     db: Annotated[
         Session,
-        Depends(database.get_db),
+        Depends(core_database.get_db),
     ],
 ):
     # Define the token URL
@@ -89,7 +88,10 @@ async def strava_link(
         return RedirectResponse(url=redirect_url)
     except Exception as err:
         # Log the exception
-        logger.error(f"Error in strava_link: {err}", exc_info=True)
+        core_logger.print_to_log(
+            f"Error in strava_link. For more information check Strava log.", "error"
+        )
+        strava_logger.print_to_log(f"Error in strava_link: {err}", "error")
 
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
@@ -116,7 +118,7 @@ async def strava_retrieve_activities_days(
         int,
         Depends(session_security.get_user_id_from_access_token),
     ],
-    # db: Annotated[Session, Depends(database.get_db)],
+    # db: Annotated[Session, Depends(core_database.get_db)],
     background_tasks: BackgroundTasks,
 ):
     # Process strava activities in the background
@@ -129,7 +131,10 @@ async def strava_retrieve_activities_days(
     )
 
     # Return success message and status code 202
-    logger.info(
+    core_logger.print_to_log(
+        f"Strava activities will be processed in the background for user {token_user_id}. For more information check Strava log."
+    )
+    strava_logger.print_to_log(
         f"Strava activities will be processed in the background for user {token_user_id}"
     )
     return {
@@ -160,9 +165,8 @@ async def strava_retrieve_gear(
     )
 
     # Return success message and status code 202
-    logger.info(
-        f"Strava gear will be processed in the background for user {token_user_id}"
-    )
+    core_logger.print_to_log(f"Strava gear will be processed in the background for user {token_user_id}. For more information check Strava log.")
+    strava_logger.print_to_log(f"Strava gear will be processed in the background for user {token_user_id}")
     return {
         "detail": f"Strava gear will be processed in the background for for {token_user_id}"
     }
@@ -185,7 +189,7 @@ async def strava_set_user_unique_state(
         int,
         Depends(session_security.get_user_id_from_access_token),
     ],
-    db: Annotated[Session, Depends(database.get_db)],
+    db: Annotated[Session, Depends(core_database.get_db)],
 ):
     # Set the user Strava state
     user_integrations_crud.set_user_strava_state(token_user_id, state, db)
@@ -210,7 +214,7 @@ async def strava_unset_user_unique_state(
         int,
         Depends(session_security.get_user_id_from_access_token),
     ],
-    db: Annotated[Session, Depends(database.get_db)],
+    db: Annotated[Session, Depends(core_database.get_db)],
 ):
     # Set the user Strava state
     user_integrations_crud.set_user_strava_state(token_user_id, None, db)
@@ -235,7 +239,7 @@ async def strava_unlink(
     ],
     db: Annotated[
         Session,
-        Depends(database.get_db),
+        Depends(core_database.get_db),
     ],
 ):
     # delete all strava gear for user

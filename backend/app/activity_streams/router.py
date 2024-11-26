@@ -13,13 +13,10 @@ import activities.dependencies as activities_dependencies
 
 import session.security as session_security
 
-import database
+import core.database as core_database
 
 # Define the API router
 router = APIRouter()
-
-# Define a loggger created on main.py
-logger = logging.getLogger("myLogger")
 
 
 @router.get(
@@ -36,7 +33,7 @@ async def read_activities_streams_for_activity_all(
     ],
     db: Annotated[
         Session,
-        Depends(database.get_db),
+        Depends(core_database.get_db),
     ],
 ):
     # Get the activity streams from the database and return them
@@ -61,7 +58,7 @@ async def read_activities_streams_for_activity_stream_type(
     ],
     db: Annotated[
         Session,
-        Depends(database.get_db),
+        Depends(core_database.get_db),
     ],
 ):
     # Get the activity stream from the database and return them

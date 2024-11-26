@@ -12,16 +12,16 @@ import garmin.utils as garmin_utils
 import garmin.schema as garmin_schema
 import garmin.activity_utils as garmin_activity_utils
 import garmin.gear_utils as garmin_gear_utils
+import garmin.logger as garmin_logger
 
 import websocket.schema as websocket_schema
 
-import database
+import core.logger as core_logger
+
+import core.database as core_database
 
 # Define the API router
 router = APIRouter()
-
-# Define a loggger created on main.py
-logger = logging.getLogger("myLogger")
 
 
 @router.post(
@@ -33,7 +33,7 @@ async def garminconnect_link(
         int,
         Depends(session_security.get_user_id_from_access_token),
     ],
-    db: Annotated[Session, Depends(database.get_db)],
+    db: Annotated[Session, Depends(core_database.get_db)],
     mfa_codes: Annotated[
         garmin_schema.MFACodeStore, Depends(garmin_schema.get_mfa_store)
     ],
@@ -82,7 +82,7 @@ async def garminconnect_retrieve_activities_days(
         int,
         Depends(session_security.get_user_id_from_access_token),
     ],
-    # db: Annotated[Session, Depends(database.get_db)],
+    # db: Annotated[Session, Depends(core_database.get_db)],
     background_tasks: BackgroundTasks,
 ):
     # Process Garmin Connect activities in the background
@@ -95,7 +95,10 @@ async def garminconnect_retrieve_activities_days(
     )
 
     # Return success message and status code 202
-    logger.info(
+    core_logger.print_to_log(
+        f"Garmin Connect activities will be processed in the background for user {token_user_id}. For more information check garminconnect log."
+    )
+    garmin_logger.print_to_log(
         f"Garmin Connect activities will be processed in the background for user {token_user_id}"
     )
     return {
@@ -118,7 +121,10 @@ async def garminconnect_retrieve_gear(
     )
 
     # Return success message and status code 202
-    logger.info(
+    core_logger.print_to_log(
+        f"Garmin Connect gear will be processed in the background for user {token_user_id}. For more information check garminconnect log."
+    )
+    garmin_logger.print_to_log(
         f"Garmin Connect gear will be processed in the background for user {token_user_id}"
     )
     return {
@@ -134,7 +140,7 @@ async def garminconnect_unlink(
     ],
     db: Annotated[
         Session,
-        Depends(database.get_db),
+        Depends(core_database.get_db),
     ],
 ):
     # unlink garmin connect account

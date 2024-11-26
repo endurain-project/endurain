@@ -1,5 +1,3 @@
-import logging
-
 from typing import Annotated, Callable
 
 from fastapi import APIRouter, Depends, UploadFile, Security, HTTPException, status
@@ -16,14 +14,11 @@ import health_targets.crud as health_targets_crud
 
 import session.security as session_security
 
-import database
-import dependencies_global
+import core.database as core_database
+import core.dependencies as core_dependencies
 
 # Define the API router
 router = APIRouter()
-
-# Define a loggger created on main.py
-logger = logging.getLogger("myLogger")
 
 
 @router.get("/number", response_model=int)
@@ -33,7 +28,7 @@ async def read_users_number(
     ],
     db: Annotated[
         Session,
-        Depends(database.get_db),
+        Depends(core_database.get_db),
     ],
 ):
     return users_crud.get_users_number(db)
@@ -47,14 +42,14 @@ async def read_users_all_pagination(
     page_number: int,
     num_records: int,
     validate_pagination_values: Annotated[
-        Callable, Depends(dependencies_global.validate_pagination_values)
+        Callable, Depends(core_dependencies.validate_pagination_values)
     ],
     check_scopes: Annotated[
         Callable, Security(session_security.check_scopes, scopes=["users:read"])
     ],
     db: Annotated[
         Session,
-        Depends(database.get_db),
+        Depends(core_database.get_db),
     ],
 ):
     # Get the users from the database with pagination
@@ -74,7 +69,7 @@ async def read_users_contain_username(
     ],
     db: Annotated[
         Session,
-        Depends(database.get_db),
+        Depends(core_database.get_db),
     ],
 ):
     # Get the users from the database by username
@@ -92,7 +87,7 @@ async def read_users_username(
     ],
     db: Annotated[
         Session,
-        Depends(database.get_db),
+        Depends(core_database.get_db),
     ],
 ):
     # Get the user from the database by username
@@ -108,7 +103,7 @@ async def read_users_id(
     ],
     db: Annotated[
         Session,
-        Depends(database.get_db),
+        Depends(core_database.get_db),
     ],
 ):
     # Get the users from the database by id
@@ -123,7 +118,7 @@ async def read_users_username_id(
     ],
     db: Annotated[
         Session,
-        Depends(database.get_db),
+        Depends(core_database.get_db),
     ],
 ):
     # Get the users from the database by username
@@ -139,7 +134,7 @@ async def read_users_id_photo_path(
     ],
     db: Annotated[
         Session,
-        Depends(database.get_db),
+        Depends(core_database.get_db),
     ],
 ):
     # Get the photo_path from the database by id
@@ -154,7 +149,7 @@ async def create_user(
     ],
     db: Annotated[
         Session,
-        Depends(database.get_db),
+        Depends(core_database.get_db),
     ],
 ):
     # Create the user in the database
@@ -184,7 +179,7 @@ async def upload_user_image(
     ],
     db: Annotated[
         Session,
-        Depends(database.get_db),
+        Depends(core_database.get_db),
     ],
 ):
     return await users_utils.save_user_image(user_id, file, db)
@@ -200,7 +195,7 @@ async def edit_user(
     ],
     db: Annotated[
         Session,
-        Depends(database.get_db),
+        Depends(core_database.get_db),
     ],
 ):
     # Update the user in the database
@@ -220,7 +215,7 @@ async def edit_user_password(
     ],
     db: Annotated[
         Session,
-        Depends(database.get_db),
+        Depends(core_database.get_db),
     ],
 ):
     # Check if the password meets the complexity requirements
@@ -249,7 +244,7 @@ async def delete_user_photo(
     ],
     db: Annotated[
         Session,
-        Depends(database.get_db),
+        Depends(core_database.get_db),
     ],
 ):
     # Update the user photo_path in the database
@@ -268,7 +263,7 @@ async def delete_user(
     ],
     db: Annotated[
         Session,
-        Depends(database.get_db),
+        Depends(core_database.get_db),
     ],
 ):
     # Delete the user in the database

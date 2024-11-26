@@ -1,28 +1,19 @@
-import logging
-
-from operator import and_, or_
 from fastapi import HTTPException, status
-from datetime import datetime
-from sqlalchemy import func, desc
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 
-import models
-
+import health_targets.models as health_targets_models
 import health_targets.schema as health_targets_schema
 
-# Define a loggger created on main.py
-logger = logging.getLogger("myLogger")
+import core.logger as core_logger
 
 
-def get_user_health_targets(
-    user_id: int, db: Session
-):
+def get_user_health_targets(user_id: int, db: Session):
     try:
         # Get the health_targets from the database
         health_targets = (
-            db.query(models.HealthTargets)
-            .filter(models.HealthTargets.user_id == user_id)
+            db.query(health_targets_models.HealthTargets)
+            .filter(health_targets_models.HealthTargets.user_id == user_id)
             .first()
         )
 
@@ -35,7 +26,7 @@ def get_user_health_targets(
 
     except Exception as err:
         # Log the exception
-        logger.error(f"Error in get_user_health_targets: {err}", exc_info=True)
+        core_logger.print_to_log(f"Error in get_user_health_targets: {err}", "error")
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -43,12 +34,10 @@ def get_user_health_targets(
         ) from err
 
 
-def create_health_targets(
-    user_id: int, db: Session
-):
+def create_health_targets(user_id: int, db: Session):
     try:
         # Create a new health_target
-        db_health_targets = models.HealthTargets(
+        db_health_targets = health_targets_models.HealthTargets(
             user_id=user_id,
             weight=None,
         )
@@ -59,8 +48,8 @@ def create_health_targets(
         db.refresh(db_health_targets)
 
         health_targets = health_targets_schema.HealthTargets(
-            id = db_health_targets.id,
-            user_id = user_id,
+            id=db_health_targets.id,
+            user_id=user_id,
         )
 
         # Return the health_targets
@@ -79,7 +68,7 @@ def create_health_targets(
         db.rollback()
 
         # Log the exception
-        logger.error(f"Error in create_health_targets: {err}", exc_info=True)
+        core_logger.print_to_log(f"Error in create_health_targets: {err}", "error")
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

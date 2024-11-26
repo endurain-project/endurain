@@ -3,18 +3,17 @@ import logging
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
-import models
+import followers.models as followers_models
 
-# Define a loggger created on main.py
-logger = logging.getLogger("myLogger")
+import core.logger as core_logger
 
 
 def get_all_followers_by_user_id(user_id: int, db: Session):
     try:
         # Get the followers by user ID from the database
         followers = (
-            db.query(models.Follower)
-            .filter(models.Follower.follower_id == user_id)
+            db.query(followers_models.Follower)
+            .filter(followers_models.Follower.follower_id == user_id)
             .all()
         )
 
@@ -26,7 +25,7 @@ def get_all_followers_by_user_id(user_id: int, db: Session):
         return followers
     except Exception as err:
         # Log the exception
-        logger.error(f"Error in get_all_followers_by_user_id: {err}", exc_info=True)
+        core_logger.print_to_log(f"Error in get_all_followers_by_user_id: {err}", "error")
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -38,10 +37,10 @@ def get_accepted_followers_by_user_id(user_id: int, db: Session):
     try:
         # Get the followers by user ID from the database
         followers = (
-            db.query(models.Follower)
+            db.query(followers_models.Follower)
             .filter(
-                (models.Follower.follower_id == user_id)
-                & (models.Follower.is_accepted)
+                (followers_models.Follower.follower_id == user_id)
+                & (followers_models.Follower.is_accepted)
             )
             .all()
         )
@@ -54,9 +53,7 @@ def get_accepted_followers_by_user_id(user_id: int, db: Session):
         return followers
     except Exception as err:
         # Log the exception
-        logger.error(
-            f"Error in get_accepted_followers_by_user_id: {err}", exc_info=True
-        )
+        core_logger.print_to_log(f"Error in get_accepted_followers_by_user_id: {err}", "error")
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -68,8 +65,8 @@ def get_all_following_by_user_id(user_id: int, db: Session):
     try:
         # Get the followers by user ID from the database
         followings = (
-            db.query(models.Follower)
-            .filter(models.Follower.following_id == user_id)
+            db.query(followers_models.Follower)
+            .filter(followers_models.Follower.following_id == user_id)
             .all()
         )
 
@@ -81,7 +78,7 @@ def get_all_following_by_user_id(user_id: int, db: Session):
         return followings
     except Exception as err:
         # Log the exception
-        logger.error(f"Error in get_all_following_by_user_id: {err}", exc_info=True)
+        core_logger.print_to_log(f"Error in get_all_following_by_user_id: {err}", "error")
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -93,10 +90,10 @@ def get_accepted_following_by_user_id(user_id: int, db: Session):
     try:
         # Get the followers by user ID from the database
         followings = (
-            db.query(models.Follower)
+            db.query(followers_models.Follower)
             .filter(
-                (models.Follower.following_id == user_id)
-                & (models.Follower.is_accepted)
+                (followers_models.Follower.following_id == user_id)
+                & (followers_models.Follower.is_accepted)
             )
             .all()
         )
@@ -109,9 +106,7 @@ def get_accepted_following_by_user_id(user_id: int, db: Session):
         return followings
     except Exception as err:
         # Log the exception
-        logger.error(
-            f"Error in get_accepted_following_by_user_id: {err}", exc_info=True
-        )
+        core_logger.print_to_log(f"Error in get_accepted_following_by_user_id: {err}", "error")
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -125,10 +120,10 @@ def get_follower_for_user_id_and_target_user_id(
     try:
         # Get the follower by user ID and target user ID from the database
         follower = (
-            db.query(models.Follower)
+            db.query(followers_models.Follower)
             .filter(
-                (models.Follower.follower_id == user_id)
-                & (models.Follower.following_id == target_user_id)
+                (followers_models.Follower.follower_id == user_id)
+                & (followers_models.Follower.following_id == target_user_id)
             )
             .first()
         )
@@ -141,10 +136,7 @@ def get_follower_for_user_id_and_target_user_id(
         return follower
     except Exception as err:
         # Log the exception
-        logger.error(
-            f"Error in get_follower_for_user_id_and_target_user_id: {err}",
-            exc_info=True,
-        )
+        core_logger.print_to_log(f"Error in get_follower_for_user_id_and_target_user_id: {err}", "error")
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -155,7 +147,7 @@ def get_follower_for_user_id_and_target_user_id(
 def create_follower(user_id: int, target_user_id: int, db: Session):
     try:
         # Create a new follow relationship
-        new_follow = models.Follower(
+        new_follow = followers_models.Follower(
             follower_id=user_id, following_id=target_user_id, is_accepted=False
         )
 
@@ -170,10 +162,7 @@ def create_follower(user_id: int, target_user_id: int, db: Session):
         db.rollback()
 
         # Log the exception
-        logger.error(
-            f"Error in create_follower: {err}",
-            exc_info=True,
-        )
+        core_logger.print_to_log(f"Error in create_follower: {err}", "error")
 
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
@@ -186,11 +175,11 @@ def accept_follower(user_id: int, target_user_id: int, db: Session):
     try:
         # Get the follower record
         accept_follow = (
-            db.query(models.Follower)
+            db.query(followers_models.Follower)
             .filter(
-                (models.Follower.follower_id == target_user_id)
-                & (models.Follower.following_id == user_id)
-                & (models.Follower.is_accepted == False)
+                (followers_models.Follower.follower_id == target_user_id)
+                & (followers_models.Follower.following_id == user_id)
+                & (followers_models.Follower.is_accepted == False)
             )
             .first()
         )
@@ -212,10 +201,7 @@ def accept_follower(user_id: int, target_user_id: int, db: Session):
         db.rollback()
 
         # Log the exception
-        logger.error(
-            f"Error in create_follower: {err}",
-            exc_info=True,
-        )
+        core_logger.print_to_log(f"Error in accept_follower: {err}", "error")
 
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
@@ -228,10 +214,10 @@ def delete_follower(user_id: int, target_user_id: int, db: Session):
     try:
         # Delete the follower record
         num_deleted = (
-            db.query(models.Follower)
+            db.query(followers_models.Follower)
             .filter(
-                (models.Follower.follower_id == user_id)
-                & (models.Follower.following_id == target_user_id)
+                (followers_models.Follower.follower_id == user_id)
+                & (followers_models.Follower.following_id == target_user_id)
             )
             .delete()
         )
@@ -250,10 +236,7 @@ def delete_follower(user_id: int, target_user_id: int, db: Session):
         db.rollback()
 
         # Log the exception
-        logger.error(
-            f"Error in get_follower_for_user_id_and_target_user_id: {err}",
-            exc_info=True,
-        )
+        core_logger.print_to_log(f"Error in delete_follower: {err}", "error")
 
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(

@@ -1,5 +1,3 @@
-import logging
-
 from typing import Annotated, Callable
 
 from fastapi import (
@@ -18,13 +16,10 @@ import session.constants as session_constants
 
 import users.crud as users_crud
 
-import database
+import core.database as core_database
 
 # Define the API router
 router = APIRouter()
-
-# Define a loggger created on main.py
-logger = logging.getLogger("myLogger")
 
 
 @router.post("/token")
@@ -33,7 +28,7 @@ async def login_for_access_token(
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
     db: Annotated[
         Session,
-        Depends(database.get_db),
+        Depends(core_database.get_db),
     ],
     client_type: str = Depends(session_security.header_client_type_scheme),
 ):
@@ -72,7 +67,7 @@ async def refresh_token(
     ],
     db: Annotated[
         Session,
-        Depends(database.get_db),
+        Depends(core_database.get_db),
     ],
     client_type: str = Depends(session_security.header_client_type_scheme),
 ):

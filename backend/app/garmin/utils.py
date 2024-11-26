@@ -17,21 +17,10 @@ import user_integrations.crud as user_integrations_crud
 import websocket.schema as websocket_schema
 
 import garmin.schema as garmin_schema
+import garmin.logger as garmin_logger
 
-# Define a loggger created on main.py
-mainLogger = logging.getLogger("myLogger")
+import core.logger as core_logger
 
-# Create loggger
-logger = logging.getLogger("migration_logger")
-logger.setLevel(logging.DEBUG)
-
-file_handler = logging.FileHandler("logs/garminconnect.log")
-file_handler.setLevel(logging.DEBUG)
-
-formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-file_handler.setFormatter(formatter)
-
-logger.addHandler(file_handler)
 
 
 async def get_mfa(
@@ -89,21 +78,8 @@ async def link_garminconnect(
         return garmin
 
     try:
-        # Define MFA callback
-        # mfa_callback = lambda: asyncio.run(
-        #    get_mfa(user_id, mfa_codes, websocket_manager)
-        # )
-
         # Run the blocking `login()` call in a thread
         garmin = await asyncio.to_thread(blocking_login)
-
-        # Create a new Garmin object
-        # garmin = garminconnect.Garmin(
-        #    email=email, password=password, prompt_mfa=mfa_callback
-        # )
-
-        # Login to Garmin Connect portal
-        # garmin.login()
 
         if not garmin.garth.oauth1_token:
             raise HTTPException(
@@ -111,9 +87,6 @@ async def link_garminconnect(
                 detail="Incorrect Garmin Connect credentials",
                 headers={"WWW-Authenticate": "Bearer"},
             )
-
-        print(garmin.garth.oauth1_token)
-        print(garmin.garth.oauth2_token)
 
         user_integrations_crud.link_garminconnect_account(
             user_id,
@@ -125,16 +98,13 @@ async def link_garminconnect(
         garminconnect.GarminConnectAuthenticationError,
         requests.exceptions.HTTPError,
     ) as err:
-        # Print error info to check dedicated log in console
-        print(
-            "There was an authentication error using Garmin Connect. Please check Garmin Connect logs."
-        )
         # Print error info to check dedicated log in main log
-        mainLogger.error(
+        core_logger.print_to_log_and_console(
             "There was an authentication error using Garmin Connect. Please check Garmin Connect logs."
         )
         # Print error info to check dedicated log in garmin connect log
-        logger.error(f"Error authenticating: {err}")
+        garmin_logger.print_to_log(f"Error authenticating: {err}")
+        
         return None
     except garminconnect.GarminConnectTooManyRequestsError as err:
         raise HTTPException(
@@ -165,16 +135,12 @@ def login_garminconnect_using_tokens(oauth1_token, oauth2_token):
         garminconnect.GarminConnectAuthenticationError,
         requests.exceptions.HTTPError,
     ) as err:
-        # Print error info to check dedicated log in console
-        print(
-            "There was an authentication error using Garmin Connect. Please check Garmin Connect logs."
-        )
         # Print error info to check dedicated log in main log
-        mainLogger.error(
+        core_logger.print_to_log_and_console(
             "There was an authentication error using Garmin Connect. Please check Garmin Connect logs."
         )
         # Print error info to check dedicated log in garmin connect log
-        logger.error(f"Error authenticating: {err}")
+        garmin_logger.print_to_log(f"Error authenticating: {err}")
         return None
 
 

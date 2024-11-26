@@ -11,21 +11,9 @@ import activities.utils as activities_utils
 import activity_streams.crud as activity_streams_crud
 
 import migrations.crud as migrations_crud
+import migrations.logger as migrations_logger
 
-# Define a loggger created on main.py
-mainLogger = logging.getLogger("myLogger")
-
-# Create loggger
-logger = logging.getLogger("migration_logger")
-logger.setLevel(logging.DEBUG)
-
-file_handler = logging.FileHandler("logs/migrations.log")
-file_handler.setLevel(logging.DEBUG)
-
-formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-file_handler.setFormatter(formatter)
-
-logger.addHandler(file_handler)
+import core.logger as core_logger
 
 
 class StreamType(Enum):
@@ -44,7 +32,7 @@ def check_migrations_not_executed(db: Session):
     if migrations_not_executed:
         for migration in migrations_not_executed:
             # Log the migration not executed
-            logger.info(
+            migrations_logger.print_to_log(
                 f"Migration not executed: {migration.name} - Migration will be executed"
             )
 
@@ -54,14 +42,16 @@ def check_migrations_not_executed(db: Session):
 
 
 def process_migration_1(db: Session):
-    logger.info("Started migration 1")
+    migrations_logger.print_to_log("Started migration 1")
 
     activities_processed_with_no_errors = True
 
     try:
         activities = activities_crud.get_all_activities(db)
     except Exception as err:
-        logger.error(f"Error fetching activities: {err}")
+        migrations_logger.print_to_log(
+            f"Migration 1 - Error fetching activities: {err}", "error"
+        )
         return
 
     if activities:
@@ -96,9 +86,9 @@ def process_migration_1(db: Session):
                         activity.id, db
                     )
                 except Exception as err:
-                    logger.warning(
-                        f"Failed to fetch streams for activity {activity.id}: {err}",
-                        exc_info=True,
+                    migrations_logger.print_to_log(
+                        f"Migration 1 - Failed to fetch streams for activity {activity.id}: {err}",
+                        "warning",
                     )
                     activities_processed_with_no_errors = False
                     continue
@@ -120,7 +110,9 @@ def process_migration_1(db: Session):
                         stream_type in stream_processing
                         and stream_processing[stream_type] is not None
                     ):
-                        attr_avg, attr_max, stream_key = stream_processing[stream_type][:3]
+                        attr_avg, attr_max, stream_key = stream_processing[stream_type][
+                            :3
+                        ]
                         metrics[attr_avg], metrics[attr_max] = (
                             activities_utils.calculate_avg_and_max(
                                 stream.stream_waypoints, stream_key
@@ -150,18 +142,19 @@ def process_migration_1(db: Session):
 
                 # Update the activity in the database
                 activities_crud.edit_activity(activity.user_id, activity, db)
-                logger.info(f"Processed activity: {activity.id} - {activity.name}")
+                migrations_logger.print_to_log(
+                    f"Processed activity: {activity.id} - {activity.name}"
+                )
 
             except Exception as err:
                 activities_processed_with_no_errors = False
-                print(
-                    f"Failed to process activity {activity.id}. Please check migrations log for more details."
+                core_logger.print_to_log_and_console(
+                    f"Failed to process activity {activity.id}. Please check migrations log for more details.",
+                    "error",
                 )
-                mainLogger.error(
-                    f"Failed to process activity {activity.id}. Please check migrations log for more details."
-                )
-                logger.error(
-                    f"Failed to process activity {activity.id}: {err}", exc_info=True
+
+                migrations_logger.print_to_log(
+                    f"Failed to process activity {activity.id}: {err}", "error"
                 )
 
     # Mark migration as executed
@@ -169,11 +162,19 @@ def process_migration_1(db: Session):
         try:
             migrations_crud.set_migration_as_executed(1, db)
         except Exception as err:
-            logger.error(f"Failed to set migration as executed: {err}", exc_info=True)
+            core_logger.print_to_log_and_console(
+                f"Failed to set migration as executed. Please check migrations log for more details.",
+                "error",
+            )
+
+            migrations_logger.print_to_log(
+                f"Failed to set migration as executed: {err}", "error"
+            )
             return
     else:
-        logger.error(
-            "Migration 1 failed to process all activities. Will try again later."
+        migrations_logger.print_to_log(
+            "Migration 1 failed to process all activities. Will try again later.",
+            "error",
         )
 
-    logger.info("Finished migration 1")
+    migrations_logger.print_to_log("Finished migration 1")

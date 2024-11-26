@@ -1,9 +1,8 @@
-import logging
-
 import garminconnect
 from sqlalchemy.orm import Session
 
 import garmin.utils as garmin_utils
+import garmin.logger as garmin_logger
 
 import gears.schema as gears_schema
 import gears.crud as gears_crud
@@ -14,9 +13,6 @@ import activities.crud as activities_crud
 import user_integrations.crud as user_integrations_crud
 
 from database import SessionLocal
-
-# Define a loggger created on main.py
-mainLogger = logging.getLogger("myLogger")
 
 
 def fetch_and_process_gear(
@@ -36,7 +32,7 @@ def fetch_and_process_gear(
 
     if processed_gears is None:
         # Log an informational event if no gear were found
-        mainLogger.info(
+        garmin_logger.print_to_log(
             f"User {user_id}: No new Garmin Connect gear found: garminconnect_gear is None"
         )
 
@@ -83,7 +79,7 @@ def iterate_over_activities_and_set_gear(
     if activity.garminconnect_gear_id is not None:
         for gear in gears:
             if activity.garminconnect_gear_id == gear.garminconnect_gear_id:
-                mainLogger.info(f"Gear found: {gear.nickname}")
+                garmin_logger.print_to_log(f"Gear found: {gear.nickname}")
                 activity.gear_id = gear.id
                 counter += 1
                 break
@@ -94,9 +90,13 @@ def iterate_over_activities_and_set_gear(
 
 def set_activities_gear(user_id: int, db: Session) -> int:
     # Get user activities
-    activities = activities_crud.get_user_activities_by_user_id_and_garminconnect_gear_set(user_id, db)
+    activities = (
+        activities_crud.get_user_activities_by_user_id_and_garminconnect_gear_set(
+            user_id, db
+        )
+    )
 
-    mainLogger.info(f"User {user_id}: {len(activities)} activities found")
+    garmin_logger.print_to_log(f"User {user_id}: {len(activities)} activities found")
 
     # Skip if no activities
     if activities is None:
@@ -117,9 +117,7 @@ def set_activities_gear(user_id: int, db: Session) -> int:
 
     # iterate over activities and set gear if applicable
     for activity in activities:
-        parsed_activity = iterate_over_activities_and_set_gear(
-            activity, gears, counter
-        )
+        parsed_activity = iterate_over_activities_and_set_gear(activity, gears, counter)
         counter = parsed_activity["counter"]
         activities_parsed.append(parsed_activity["activity"])
 
@@ -133,17 +131,19 @@ def get_user_gear(user_id: int):
     db = SessionLocal()
 
     try:
+        # Log the start of the activities processing
+        garmin_logger.print_to_log(
+            f"User {user_id}: Started Garmin Connect gear processing"
+        )
+
         # Get the user integrations by user ID
         user_integrations = garmin_utils.fetch_user_integrations_and_validate_token(
             user_id, db
         )
 
         if user_integrations is None:
-            mainLogger.info(f"User {user_id}: Garmin Connect not linked")
+            garmin_logger.print_to_log(f"User {user_id}: Garmin Connect not linked")
             return None
-
-        # Log the start of the activities processing
-        mainLogger.info(f"User {user_id}: Started Garmin Connect gear processing")
 
         # Create a Garmin Connect client with the user's access token
         garminconnect_client = garmin_utils.login_garminconnect_using_tokens(
@@ -160,19 +160,19 @@ def get_user_gear(user_id: int):
         )
 
         # Log an informational event for tracing
-        mainLogger.info(
+        garmin_logger.print_to_log(
             f"User {user_id}: {num_garmiconnect_gear_processed} Garmin Connect gear processed"
         )
 
         # Log an informational event for tracing
-        mainLogger.info(
+        garmin_logger.print_to_log(
             f"User {user_id}: Will parse current activities and set gear if applicable"
         )
 
         num_gear_activities_set = set_activities_gear(user_id, db)
 
         # Log an informational event for tracing
-        mainLogger.info(
+        garmin_logger.print_to_log(
             f"User {user_id}: {num_gear_activities_set} activities where gear was set"
         )
     finally:

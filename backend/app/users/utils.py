@@ -1,6 +1,5 @@
 import os
 import glob
-import logging
 
 from fastapi import HTTPException, status, UploadFile
 from sqlalchemy.orm import Session
@@ -9,8 +8,7 @@ import shutil
 
 import users.crud as users_crud
 
-# Define a loggger created on main.py
-logger = logging.getLogger("myLogger")
+import core.logger as core_logger
 
 
 def delete_user_photo_filesystem(user_id: int):
@@ -51,7 +49,7 @@ async def save_user_image(user_id: int, file: UploadFile, db: Session):
         return users_crud.edit_user_photo_path(user_id, file_path_to_save, db)
     except Exception as err:
         # Log the exception
-        logger.error(f"Error in save_user_image: {err}", exc_info=True)
+        core_logger.print_to_log(f"Error in save_user_image: {err}", "error")
 
         # Remove the file after processing
         if os.path.exists(file_path_to_save):

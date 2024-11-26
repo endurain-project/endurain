@@ -1,4 +1,4 @@
-import logging, os
+import os
 import zipfile
 
 from datetime import datetime, timedelta, date
@@ -6,6 +6,7 @@ import garminconnect
 from sqlalchemy.orm import Session
 
 import garmin.utils as garmin_utils
+import garmin.logger as garmin_logger
 
 import activities.utils as activities_utils
 import activities.crud as activities_crud
@@ -13,9 +14,6 @@ import activities.crud as activities_crud
 import users.crud as users_crud
 
 from database import SessionLocal
-
-# Define a loggger created on main.py
-mainLogger = logging.getLogger("myLogger")
 
 
 def fetch_and_process_activities(
@@ -31,7 +29,7 @@ def fetch_and_process_activities(
 
     if garmin_activities is None:
         # Log an informational event if no activities were found
-        mainLogger.info(
+        garmin_logger.print_to_log_and_console(
             f"User {user_id}: No new Garmin Connect activities found after {start_date}: garmin_activities is None"
         )
 
@@ -50,7 +48,7 @@ def fetch_and_process_activities(
 
         if activity_db:
             # Log an informational event if the activity is already stored
-            mainLogger.info(
+            garmin_logger.print_to_log(
                 f"User {user_id}: Activity {activity_id} already stored in the database"
             )
             continue
@@ -104,9 +102,7 @@ def retrieve_garminconnect_users_activities_for_days(days: int):
     # Process the activities for each user
     for user in users:
         get_user_garminconnect_activities_by_days(
-            (datetime.utcnow() - timedelta(days=days)).strftime(
-                "%Y-%m-%dT%H:%M:%S"
-            ),
+            (datetime.utcnow() - timedelta(days=days)).strftime("%Y-%m-%dT%H:%M:%S"),
             user.id,
         )
 
@@ -122,11 +118,13 @@ def get_user_garminconnect_activities_by_days(start_date: datetime, user_id: int
         )
 
         if user_integrations is None:
-            mainLogger.info(f"User {user_id}: Garmin Connect not linked")
+            garmin_logger.print_to_log(f"User {user_id}: Garmin Connect not linked")
             return None
 
         # Log the start of the activities processing
-        mainLogger.info(f"User {user_id}: Started Garmin Connect activities processing")
+        garmin_logger.print_to_log(
+            f"User {user_id}: Started Garmin Connect activities processing"
+        )
 
         # Create a Garmin Connect client with the user's access token
         garminconnect_client = garmin_utils.login_garminconnect_using_tokens(
@@ -140,7 +138,7 @@ def get_user_garminconnect_activities_by_days(start_date: datetime, user_id: int
         )
 
         # Log an informational event for tracing
-        mainLogger.info(
+        garmin_logger.print_to_log(
             f"User {user_id}: {num_garminconnect_activities_processed} Garmin Connect activities processed"
         )
     finally:

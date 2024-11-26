@@ -1,5 +1,3 @@
-import logging
-
 from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
 from stravalib.client import Client
@@ -18,11 +16,9 @@ import users.crud as users_crud
 import gears.crud as gears_crud
 
 import strava.utils as strava_utils
+import strava.logger as strava_logger
 
 from database import SessionLocal
-
-# Define a loggger created on main.py
-logger = logging.getLogger("myLogger")
 
 
 def fetch_and_process_activities(
@@ -37,7 +33,7 @@ def fetch_and_process_activities(
 
     if strava_activities is None:
         # Log an informational event if no activities were found
-        logger.info(
+        strava_logger.print_to_log(
             f"User {user_id}: No new Strava activities found after {start_date}: strava_activities is None"
         )
 
@@ -317,7 +313,9 @@ def process_activity(
         return None
 
     # Log an informational event for activity processing
-    logger.info(f"User {user_id}: Strava activity {activity.id} will be processed")
+    strava_logger.print_to_log(
+        f"User {user_id}: Strava activity {activity.id} will be processed"
+    )
 
     # Parse the activity and streams
     parsed_activity = parse_activity(
@@ -360,11 +358,13 @@ def get_user_strava_activities_by_days(start_date: datetime, user_id: int):
         )
 
         if user_integrations is None:
-            logger.info(f"User {user_id}: Strava not linked")
+            strava_logger.print_to_log(f"User {user_id}: Strava not linked")
             return None
 
         # Log the start of the activities processing
-        logger.info(f"User {user_id}: Started Strava activities processing")
+        strava_logger.print_to_log(
+            f"User {user_id}: Started Strava activities processing"
+        )
 
         # Create a Strava client with the user's access token
         strava_client = strava_utils.create_strava_client(user_integrations)
@@ -375,7 +375,7 @@ def get_user_strava_activities_by_days(start_date: datetime, user_id: int):
         )
 
         # Log an informational event for tracing
-        logger.info(
+        strava_logger.print_to_log(
             f"User {user_id}: {num_strava_activities_processed} Strava activities processed"
         )
     finally:

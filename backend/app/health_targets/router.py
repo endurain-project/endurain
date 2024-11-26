@@ -1,8 +1,6 @@
-import logging
-
 from typing import Annotated, Callable
 
-from fastapi import APIRouter, Depends, UploadFile, Security, HTTPException, status
+from fastapi import APIRouter, Depends, Security
 from sqlalchemy.orm import Session
 
 import health_targets.schema as health_targets_schema
@@ -10,14 +8,10 @@ import health_targets.crud as health_targets_crud
 
 import session.security as session_security
 
-import database
-import dependencies_global
+import core.database as core_database
 
 # Define the API router
 router = APIRouter()
-
-# Define a loggger created on main.py
-logger = logging.getLogger("myLogger")
 
 
 @router.get(
@@ -34,10 +28,8 @@ async def read_health_data_all_pagination(
     ],
     db: Annotated[
         Session,
-        Depends(database.get_db),
+        Depends(core_database.get_db),
     ],
 ):
     # Get the health_targets from the database
-    return health_targets_crud.get_user_health_targets(
-        token_user_id, db
-    )
+    return health_targets_crud.get_user_health_targets(token_user_id, db)

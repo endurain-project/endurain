@@ -12,13 +12,10 @@ import users.dependencies as users_dependencies
 
 import session.security as session_security
 
-import database
+import core.database as core_database
 
 # Define the API router
 router = APIRouter()
-
-# Define a loggger created on main.py
-logger = logging.getLogger("myLogger")
 
 
 @router.get(
@@ -33,7 +30,7 @@ async def get_user_follower_all(
     ],
     db: Annotated[
         Session,
-        Depends(database.get_db),
+        Depends(core_database.get_db),
     ],
 ):
     # Return followers
@@ -52,7 +49,7 @@ async def get_user_follower_count_all(
     ],
     db: Annotated[
         Session,
-        Depends(database.get_db),
+        Depends(core_database.get_db),
     ],
 ):
     # Return followers
@@ -78,7 +75,7 @@ async def get_user_follower_count(
     ],
     db: Annotated[
         Session,
-        Depends(database.get_db),
+        Depends(core_database.get_db),
     ],
 ):
     # Return followers
@@ -104,7 +101,7 @@ async def get_user_following_all(
     ],
     db: Annotated[
         Session,
-        Depends(database.get_db),
+        Depends(core_database.get_db),
     ],
 ):
     # Return followings
@@ -123,7 +120,7 @@ async def get_user_following_count_all(
     ],
     db: Annotated[
         Session,
-        Depends(database.get_db),
+        Depends(core_database.get_db),
     ],
 ):
     # Return followings
@@ -149,7 +146,7 @@ async def get_user_following_count(
     ],
     db: Annotated[
         Session,
-        Depends(database.get_db),
+        Depends(core_database.get_db),
     ],
 ):
     # Return followings
@@ -179,7 +176,7 @@ async def read_followers_user_specific_user(
     ],
     db: Annotated[
         Session,
-        Depends(database.get_db),
+        Depends(core_database.get_db),
     ],
 ):
     # Return the follower
@@ -209,7 +206,7 @@ async def create_follow(
     ],
     db: Annotated[
         Session,
-        Depends(database.get_db),
+        Depends(core_database.get_db),
     ],
 ):
     # Create the follower and return it
@@ -235,7 +232,7 @@ async def accept_follow(
     ],
     db: Annotated[
         Session,
-        Depends(database.get_db),
+        Depends(core_database.get_db),
     ],
 ):
     # Accept the follower
@@ -264,7 +261,7 @@ async def delete_follower(
     ],
     db: Annotated[
         Session,
-        Depends(database.get_db),
+        Depends(core_database.get_db),
     ],
 ):
     # Delete the follower
@@ -293,7 +290,7 @@ async def delete_following(
     ],
     db: Annotated[
         Session,
-        Depends(database.get_db),
+        Depends(core_database.get_db),
     ],
 ):
     # Delete the follower

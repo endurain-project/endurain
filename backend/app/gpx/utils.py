@@ -8,9 +8,7 @@ from fastapi import HTTPException, status
 import activities.utils as activities_utils
 import activities.schema as activities_schema
 
-
-# Define a loggger created on main.py
-logger = logging.getLogger("myLogger")
+import core.logger as core_logger
 
 
 def parse_gpx_file(file: str, user_id: int) -> dict:
@@ -291,7 +289,7 @@ def parse_gpx_file(file: str, user_id: int) -> dict:
         raise http_err
     except Exception as err:
         # Log the exception
-        logger.error(f"Error in parse_gpx_file - {str(err)}", exc_info=True)
+        core_logger.print_to_log(f"Error in parse_gpx_file - {str(err)}", "error")
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

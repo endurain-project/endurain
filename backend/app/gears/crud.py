@@ -5,31 +5,28 @@ from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from urllib.parse import unquote
 
-import models
-
 import gears.schema as gears_schema
 import gears.utils as gears_utils
+import gears.models as gears_models
 
-
-# Define a loggger created on main.py
-logger = logging.getLogger("myLogger")
+import core.logger as core_logger
 
 
 def get_gear_user_by_id(gear_id: int, db: Session) -> gears_schema.Gear | None:
     try:
-        gear = db.query(models.Gear).filter(models.Gear.id == gear_id).first()
+        gear = db.query(gears_models.Gear).filter(gears_models.Gear.id == gear_id).first()
 
         # Check if gear is None and return None if it is
         if gear is None:
             return None
-        
+
         gear = gears_utils.serialize_gear(gear)
 
         # Return the gear
         return gear
     except Exception as err:
         # Log the exception
-        logger.error(f"Error in get_gear_user_by_id: {err}", exc_info=True)
+        core_logger.print_to_log(f"Error in get_gear_user_by_id: {err}", "error")
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -43,9 +40,9 @@ def get_gear_users_with_pagination(
     try:
         # Get the gear by user ID from the database
         gear = (
-            db.query(models.Gear)
-            .filter(models.Gear.user_id == user_id)
-            .order_by(models.Gear.nickname.asc())
+            db.query(gears_models.Gear)
+            .filter(gears_models.Gear.user_id == user_id)
+            .order_by(gears_models.Gear.nickname.asc())
             .offset((page_number - 1) * num_records)
             .limit(num_records)
             .all()
@@ -63,7 +60,9 @@ def get_gear_users_with_pagination(
         return gear
     except Exception as err:
         # Log the exception
-        logger.error(f"Error in get_gear_users_with_pagination: {err}", exc_info=True)
+        core_logger.print_to_log(
+            f"Error in get_gear_users_with_pagination: {err}", "error"
+        )
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -74,7 +73,7 @@ def get_gear_users_with_pagination(
 def get_gear_user(user_id: int, db: Session) -> list[gears_schema.Gear] | None:
     try:
         # Get the gear by user ID from the database
-        gears = db.query(models.Gear).filter(models.Gear.user_id == user_id).all()
+        gears = db.query(gears_models.Gear).filter(gears_models.Gear.user_id == user_id).all()
 
         # Check if gear is None and return None if it is
         if gears is None:
@@ -88,7 +87,7 @@ def get_gear_user(user_id: int, db: Session) -> list[gears_schema.Gear] | None:
         return gears
     except Exception as err:
         # Log the exception
-        logger.error(f"Error in get_gear_user: {err}", exc_info=True)
+        core_logger.print_to_log(f"Error in get_gear_user: {err}", "error")
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -105,10 +104,10 @@ def get_gear_user_by_nickname(
 
         # Get the gear by user ID and nickname from the database
         gears = (
-            db.query(models.Gear)
+            db.query(gears_models.Gear)
             .filter(
-                models.Gear.nickname.like(f"%{parsed_nickname}%"),
-                models.Gear.user_id == user_id,
+                gears_models.Gear.nickname.like(f"%{parsed_nickname}%"),
+                gears_models.Gear.user_id == user_id,
             )
             .all()
         )
@@ -125,7 +124,7 @@ def get_gear_user_by_nickname(
         return gears
     except Exception as err:
         # Log the exception
-        logger.error(f"Error in get_gear_user_by_nickname: {err}", exc_info=True)
+        core_logger.print_to_log(f"Error in get_gear_user_by_nickname: {err}", "error")
 
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
@@ -138,9 +137,9 @@ def get_gear_by_type_and_user(gear_type: int, user_id: int, db: Session):
     try:
         # Get the gear by type from the database
         gear = (
-            db.query(models.Gear)
-            .filter(models.Gear.gear_type == gear_type, models.Gear.user_id == user_id)
-            .order_by(models.Gear.nickname)
+            db.query(gears_models.Gear)
+            .filter(gears_models.Gear.gear_type == gear_type, gears_models.Gear.user_id == user_id)
+            .order_by(gears_models.Gear.nickname)
             .all()
         )
 
@@ -156,7 +155,7 @@ def get_gear_by_type_and_user(gear_type: int, user_id: int, db: Session):
         return gear
     except Exception as err:
         # Log the exception
-        logger.error(f"Error in get_gear_by_type_and_user: {err}", exc_info=True)
+        core_logger.print_to_log(f"Error in get_gear_by_type_and_user: {err}", "error")
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -170,10 +169,10 @@ def get_gear_by_strava_id_from_user_id(
     try:
         # Get the gear from the database
         gear = (
-            db.query(models.Gear)
+            db.query(gears_models.Gear)
             .filter(
-                models.Gear.user_id == user_id,
-                models.Gear.strava_gear_id == gear_strava_id,
+                gears_models.Gear.user_id == user_id,
+                gears_models.Gear.strava_gear_id == gear_strava_id,
             )
             .first()
         )
@@ -189,13 +188,15 @@ def get_gear_by_strava_id_from_user_id(
 
     except Exception as err:
         # Log the exception
-        logger.error(f"Error in get_activity_by_id_from_user_id: {err}", exc_info=True)
+        core_logger.print_to_log(
+            f"Error in get_gear_by_strava_id_from_user_id: {err}", "error"
+        )
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal Server Error",
         ) from err
-    
+
 
 def get_gear_by_garminconnect_id_from_user_id(
     gear_garminconnect_id: str, user_id: int, db: Session
@@ -203,10 +204,10 @@ def get_gear_by_garminconnect_id_from_user_id(
     try:
         # Get the gear from the database
         gear = (
-            db.query(models.Gear)
+            db.query(gears_models.Gear)
             .filter(
-                models.Gear.user_id == user_id,
-                models.Gear.garminconnect_gear_id == gear_garminconnect_id,
+                gears_models.Gear.user_id == user_id,
+                gears_models.Gear.garminconnect_gear_id == gear_garminconnect_id,
             )
             .first()
         )
@@ -222,7 +223,9 @@ def get_gear_by_garminconnect_id_from_user_id(
 
     except Exception as err:
         # Log the exception
-        logger.error(f"Error in get_gear_by_garminconnect_id_from_user_id: {err}", exc_info=True)
+        core_logger.print_to_log(
+            f"Error in get_gear_by_garminconnect_id_from_user_id: {err}", "error"
+        )
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -260,7 +263,7 @@ def create_multiple_gears(gears: list[gears_schema.Gear], user_id: int, db: Sess
         db.rollback()
 
         # Log the exception
-        logger.error(f"Error in create_multiple_gears: {err}", exc_info=True)
+        core_logger.print_to_log(f"Error in create_multiple_gears: {err}", "error")
 
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
@@ -295,7 +298,7 @@ def create_gear(gear: gears_schema.Gear, user_id: int, db: Session):
         db.rollback()
 
         # Log the exception
-        logger.error(f"Error in create_gear: {err}", exc_info=True)
+        core_logger.print_to_log(f"Error in create_gear: {err}", "error")
 
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
@@ -307,7 +310,7 @@ def create_gear(gear: gears_schema.Gear, user_id: int, db: Session):
 def edit_gear(gear_id: int, gear: gears_schema.Gear, db: Session):
     try:
         # Get the gear from the database
-        db_gear = db.query(models.Gear).filter(models.Gear.id == gear_id).first()
+        db_gear = db.query(gears_models.Gear).filter(gears_models.Gear.id == gear_id).first()
 
         # Update the gear
         if gear.brand is not None:
@@ -336,7 +339,7 @@ def edit_gear(gear_id: int, gear: gears_schema.Gear, db: Session):
         db.rollback()
 
         # Log the exception
-        logger.error(f"Error in edit_gear: {err}", exc_info=True)
+        core_logger.print_to_log(f"Error in edit_gear: {err}", "error")
 
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
@@ -348,7 +351,7 @@ def edit_gear(gear_id: int, gear: gears_schema.Gear, db: Session):
 def delete_gear(gear_id: int, db: Session):
     try:
         # Delete the gear
-        num_deleted = db.query(models.Gear).filter(models.Gear.id == gear_id).delete()
+        num_deleted = db.query(gears_models.Gear).filter(gears_models.Gear.id == gear_id).delete()
 
         # Check if the gear was found and deleted
         if num_deleted == 0:
@@ -364,7 +367,7 @@ def delete_gear(gear_id: int, db: Session):
         db.rollback()
 
         # Log the exception
-        logger.error(f"Error in delete_gear: {err}", exc_info=True)
+        core_logger.print_to_log(f"Error in delete_gear: {err}", "error")
 
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
@@ -377,9 +380,9 @@ def delete_all_strava_gear_for_user(user_id: int, db: Session):
     try:
         # Delete the gear records with strava_gear_id not null for the user
         num_deleted = (
-            db.query(models.Gear)
+            db.query(gears_models.Gear)
             .filter(
-                models.Gear.user_id == user_id, models.Gear.strava_gear_id.isnot(None)
+                gears_models.Gear.user_id == user_id, gears_models.Gear.strava_gear_id.isnot(None)
             )
             .delete()
         )
@@ -393,22 +396,25 @@ def delete_all_strava_gear_for_user(user_id: int, db: Session):
         db.rollback()
 
         # Log the exception
-        logger.error(f"Error in delete_all_strava_gear_for_user: {err}", exc_info=True)
+        core_logger.print_to_log(
+            f"Error in delete_all_strava_gear_for_user: {err}", "error"
+        )
 
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal Server Error",
         ) from err
-    
+
 
 def delete_all_garminconnect_gear_for_user(user_id: int, db: Session):
     try:
         # Delete the gear records with garminconnect_gear_id not null for the user
         num_deleted = (
-            db.query(models.Gear)
+            db.query(gears_models.Gear)
             .filter(
-                models.Gear.user_id == user_id, models.Gear.garminconnect_gear_id.isnot(None)
+                gears_models.Gear.user_id == user_id,
+                gears_models.Gear.garminconnect_gear_id.isnot(None),
             )
             .delete()
         )
@@ -422,7 +428,9 @@ def delete_all_garminconnect_gear_for_user(user_id: int, db: Session):
         db.rollback()
 
         # Log the exception
-        logger.error(f"Error in delete_all_garminconnect_gear_for_user: {err}", exc_info=True)
+        core_logger.print_to_log(
+            f"Error in delete_all_garminconnect_gear_for_user: {err}", "error"
+        )
 
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(

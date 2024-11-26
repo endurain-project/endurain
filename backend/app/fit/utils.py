@@ -13,8 +13,7 @@ import garmin.utils as garmin_utils
 
 import gears.crud as gears_crud
 
-# Define a logger created on main.py
-logger = logging.getLogger("myLogger")
+import core.logger as core_logger
 
 
 def create_activity_objects(
@@ -127,7 +126,7 @@ def create_activity_objects(
         raise http_err
     except Exception as err:
         # Log the exception
-        logger.error(f"Error in parse_sessions_from_fit_file: {err}", exc_info=True)
+        core_logger.print_to_log(f"Error in parse_sessions_from_fit_file: {err}", "error")
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -575,7 +574,7 @@ def parse_fit_file(file: str) -> dict:
         raise http_err
     except Exception as err:
         # Log the exception
-        logger.error(f"Error in parse_fit_file: {err}", exc_info=True)
+        core_logger.print_to_log(f"Error in parse_fit_file: {err}", "error")
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

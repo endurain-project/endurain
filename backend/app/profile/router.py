@@ -1,5 +1,3 @@
-import logging
-
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile
@@ -13,13 +11,10 @@ import user_integrations.crud as user_integrations_crud
 
 import session.security as session_security
 
-import database
+import core.database as core_database
 
 # Define the API router
 router = APIRouter()
-
-# Define a loggger created on main.py
-logger = logging.getLogger("myLogger")
 
 
 @router.get("/", response_model=users_schema.UserMe)
@@ -30,7 +25,7 @@ async def read_users_me(
     ],
     db: Annotated[
         Session,
-        Depends(database.get_db),
+        Depends(core_database.get_db),
     ],
 ):
     # Get the user from the database
@@ -75,7 +70,7 @@ async def upload_profile_image(
     ],
     db: Annotated[
         Session,
-        Depends(database.get_db),
+        Depends(core_database.get_db),
     ],
 ):
     return await users_utils.save_user_image(token_user_id, file, db)
@@ -90,7 +85,7 @@ async def edit_user(
     ],
     db: Annotated[
         Session,
-        Depends(database.get_db),
+        Depends(core_database.get_db),
     ],
 ):
     # Update the user in the database
@@ -109,7 +104,7 @@ async def edit_profile_password(
     ],
     db: Annotated[
         Session,
-        Depends(database.get_db),
+        Depends(core_database.get_db),
     ],
 ):
     # Check if the password meets the complexity requirements
@@ -137,7 +132,7 @@ async def delete_profile_photo(
     ],
     db: Annotated[
         Session,
-        Depends(database.get_db),
+        Depends(core_database.get_db),
     ],
 ):
     # Update the user photo_path in the database

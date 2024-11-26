@@ -1,4 +1,6 @@
 from fastapi import APIRouter, Depends, Security
+
+import core.router as core_router
 import session.router as session_router
 import session.security as session_security
 import users.router as users_router
@@ -18,6 +20,10 @@ router = APIRouter()
 
 
 # Router files
+router.include_router(
+    core_router.router,
+    tags=["core"],
+)
 router.include_router(
     session_router.router,
     tags=["session"],
