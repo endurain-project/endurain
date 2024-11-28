@@ -236,7 +236,9 @@ def get_user_following_activities_with_pagination(
         activities = (
             db.query(activities_models.Activity)
             .join(
-                activities_models.Follower, activities_models.Follower.following_id == activities_models.Activity.user_id
+                activities_models.Follower,
+                activities_models.Follower.following_id
+                == activities_models.Activity.user_id,
             )
             .filter(
                 and_(
@@ -280,7 +282,9 @@ def get_user_following_activities(user_id, db):
         activities = (
             db.query(activities_models.Activity)
             .join(
-                activities_models.Follower, activities_models.Follower.following_id == activities_models.Activity.user_id
+                activities_models.Follower,
+                activities_models.Follower.following_id
+                == activities_models.Activity.user_id,
             )
             .filter(
                 and_(
@@ -320,7 +324,8 @@ def get_user_activities_by_gear_id_and_user_id(user_id: int, gear_id: int, db: S
         activities = (
             db.query(activities_models.Activity)
             .filter(
-                activities_models.Activity.user_id == user_id, activities_models.Activity.gear_id == gear_id
+                activities_models.Activity.user_id == user_id,
+                activities_models.Activity.gear_id == gear_id,
             )
             .order_by(desc(activities_models.Activity.start_time))
             .all()
@@ -467,7 +472,8 @@ def get_activity_by_garminconnect_id_from_user_id(
             db.query(activities_models.Activity)
             .filter(
                 activities_models.Activity.user_id == user_id,
-                activities_models.Activity.garminconnect_activity_id == activity_garminconnect_id,
+                activities_models.Activity.garminconnect_activity_id
+                == activity_garminconnect_id,
             )
             .first()
         )
@@ -541,6 +547,7 @@ def create_activity(activity: activities_schema.Activity, db: Session):
             activity_type=activity.activity_type,
             start_time=activity.start_time,
             end_time=activity.end_time,
+            timezone=activity.timezone,
             total_elapsed_time=activity.total_elapsed_time,
             total_timer_time=activity.total_timer_time,
             city=activity.city,
@@ -576,6 +583,7 @@ def create_activity(activity: activities_schema.Activity, db: Session):
         db.refresh(db_activity)
 
         activity.id = db_activity.id
+        activity.created_at = db_activity.created_at
 
         # Return the activity
         return activity
@@ -643,7 +651,9 @@ def add_gear_to_activity(activity_id: int, gear_id: int, db: Session):
     try:
         # Get the activity from the database
         activity = (
-            db.query(activities_models.Activity).filter(activities_models.Activity.id == activity_id).first()
+            db.query(activities_models.Activity)
+            .filter(activities_models.Activity.id == activity_id)
+            .first()
         )
 
         # Update the activity
@@ -696,7 +706,9 @@ def delete_activity(activity_id: int, db: Session):
     try:
         # Delete the activity
         num_deleted = (
-            db.query(activities_models.Activity).filter(activities_models.Activity.id == activity_id).delete()
+            db.query(activities_models.Activity)
+            .filter(activities_models.Activity.id == activity_id)
+            .delete()
         )
 
         # Check if the activity was found and deleted

@@ -1,10 +1,12 @@
 import fitdecode
-import logging
+import os
 
 from fastapi import HTTPException, status
 from datetime import datetime, timedelta
 import time as timelib
 from sqlalchemy.orm import Session
+from timezonefinder import TimezoneFinder
+from zoneinfo import ZoneInfo, available_timezones
 
 import activities.utils as activities_utils
 import activities.schema as activities_schema
@@ -24,6 +26,11 @@ def create_activity_objects(
     db: Session = None,
 ) -> list:
     try:
+        # Create an instance of TimezoneFinder
+        tf = TimezoneFinder()
+        timezone = os.environ.get("TZ")
+
+        # Define variables
         activity_name = "Workout"
         visibility = 0
         gear_id = None
@@ -58,6 +65,20 @@ def create_activity_objects(
                 session_record["session"]["activity_type"],
                 session_record["split_summary"],
             )
+
+            if session_record["is_lat_lon_set"]:
+                timezone = tf.timezone_at(
+                    lat=session_record["lat_lon_waypoints"][0]["lat"],
+                    lng=session_record["lat_lon_waypoints"][0]["lon"],
+                )
+            else:
+                if session_record["time_offset"]:
+                    timezone = find_timezone_name(
+                        session_record["time_offset"], session_record["session"]["first_waypoint_time"]
+                    )
+
+            print(timezone)
+
             parsed_activity = {
                 # Create an Activity object with parsed data
                 "activity": activities_schema.Activity(
@@ -77,6 +98,7 @@ def create_activity_objects(
                     end_time=session_record["session"]["last_waypoint_time"].strftime(
                         "%Y-%m-%dT%H:%M:%S"
                     ),
+                    timezone=timezone,
                     total_elapsed_time=session_record["session"]["total_elapsed_time"],
                     total_timer_time=total_timer_time,
                     city=session_record["session"]["city"],
@@ -102,7 +124,9 @@ def create_activity_objects(
                     strava_gear_id=None,
                     strava_activity_id=None,
                     garminconnect_activity_id=garmin_activity_id,
-                    garminconnect_gear_id=garminconnect_gear[0]["uuid"] if garminconnect_gear else None,
+                    garminconnect_gear_id=(
+                        garminconnect_gear[0]["uuid"] if garminconnect_gear else None
+                    ),
                 ),
                 "is_elevation_set": session_record["is_elevation_set"],
                 "ele_waypoints": session_record["ele_waypoints"],
@@ -126,7 +150,9 @@ def create_activity_objects(
         raise http_err
     except Exception as err:
         # Log the exception
-        core_logger.print_to_log(f"Error in parse_sessions_from_fit_file: {err}", "error")
+        core_logger.print_to_log(
+            f"Error in parse_sessions_from_fit_file: {err}", "error"
+        )
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -186,6 +212,7 @@ def split_records_by_activity(parsed_data: dict) -> dict:
         # Initialize a parsed session dictionary
         parsed_session = {
             "session": session,
+            "time_offset": parsed_data["time_offset"],
             "activity_name": parsed_data["activity_name"],
             "lat_lon_waypoints": [],
             "is_lat_lon_set": False,
@@ -330,6 +357,7 @@ def parse_fit_file(file: str) -> dict:
     try:
         # Initialize default values for various variables
         sessions = []
+        time_offset = 0
         last_waypoint_time = None
         activity_name = "Workout"
 
@@ -551,9 +579,20 @@ def parse_fit_file(file: str) -> dict:
                             time,
                         )
 
+                    if frame.name == "device_settings":
+                        time_offset = parse_frame_device_settings(frame)
+                        print("antes")
+                        print(time_offset)
+                        time_offset = interpret_time_offset(time_offset)
+                        print("depois")
+                        print(time_offset)
+
+        print(time_offset)
+
         # Return parsed data as a dictionary
         return {
             "sessions": sessions,
+            "time_offset": time_offset,
             "activity_name": activity_name,
             "is_elevation_set": is_elevation_set,
             "ele_waypoints": ele_waypoints,
@@ -731,6 +770,18 @@ def parse_frame_split_summary(frame):
     return split_type, total_timer_time
 
 
+def parse_frame_device_settings(frame):
+    return get_value_from_frame(frame, "time_offset")
+
+
+def interpret_time_offset(raw_offset):
+    # Check for two's complement representation (values > 2^31)
+    if raw_offset != 0 and raw_offset is not None:
+        if raw_offset > 2**31 - 1:
+            return raw_offset - 2**32
+    return raw_offset
+
+
 def get_value_from_frame(frame, key, default=None):
     try:
         value = frame.get_value(key)
@@ -766,3 +817,16 @@ def calculate_pace(distance, total_timer_time, activity_type, split_summary):
             return time_active, time_active / distance
     else:
         return total_timer_time, 0
+
+
+def find_timezone_name(offset_seconds, reference_date):
+    for tz_name in available_timezones():
+        tz = ZoneInfo(tz_name)
+        if reference_date.utcoffset() is None:  # Skip invalid timezones
+            continue
+        
+        # Get the UTC offset for the reference date
+        utc_offset = reference_date.astimezone(tz).utcoffset()
+        
+        if utc_offset.total_seconds() == offset_seconds:
+            return tz_name

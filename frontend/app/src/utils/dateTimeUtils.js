@@ -1,3 +1,5 @@
+import { DateTime } from 'luxon';
+
 /**
  * Formats a date string into a localized date format.
  *
@@ -5,11 +7,11 @@
  * @returns {string} The formatted date string.
  */
 export function formatDate(dateString) {
-  // Create a new Date object from the date string
-  const date = new Date(dateString);
+  // Create a DateTime object from the date string
+  const date = DateTime.fromISO(dateString, { setZone: true });
 
-  // Return the formatted date string
-  return date.toLocaleDateString(undefined, { day: '2-digit', month: '2-digit', year: '2-digit' });
+  // Return the formatted date string respecting browser's locale
+  return date.toLocaleString(DateTime.DATE_MED);
 }
   
 
@@ -19,11 +21,11 @@ export function formatDate(dateString) {
  * @returns {string} The formatted time string.
  */
 export function formatTime(dateString) {
-  // Create a new Date object from the date string
-  const date = new Date(dateString);
+  // Create a DateTime object from the date string and preserve its time zone offset
+  const date = DateTime.fromISO(dateString, { setZone: true });
 
-  // Return the formatted time string
-  return date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: false });
+  // Return the formatted time string, respecting the browser's locale
+  return date.toLocaleString(DateTime.TIME_SIMPLE);
 }
   
 /**

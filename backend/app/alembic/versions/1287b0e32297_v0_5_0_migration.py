@@ -132,4 +132,17 @@ def downgrade() -> None:
     op.drop_index(op.f('ix_health_data_user_id'), table_name='health_data')
     op.drop_table('health_data')
     op.drop_table('migrations')
+    op.execute("""
+    DELETE FROM migrations 
+    WHERE id = 1;
+    """)
+    # Update users preferred_language to original 'en' value
+    op.execute(
+        sa.text(
+            """
+            UPDATE users
+            SET preferred_language = 'en'
+            """
+        )
+    )
     # ### end Alembic commands ###

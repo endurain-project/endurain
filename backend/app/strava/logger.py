@@ -19,7 +19,7 @@ def setup_strava_logger():
 
 
 def get_strava_logger():
-    return logging.getLogger("garminconnect_logger")
+    return logging.getLogger("strava_logger")
 
 
 def print_to_log(message: str, type: str = "info"):

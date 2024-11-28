@@ -41,6 +41,9 @@ class Activity(Base):
         TIMESTAMP, nullable=False, comment="Activity start date (TIMESTAMP)"
     )
     end_time = Column(TIMESTAMP, nullable=False, comment="Activity end date (TIMESTAMP)")
+    timezone = Column(
+        String(length=250), nullable=True, comment="Activity timezone (May include spaces)"
+    )
     total_elapsed_time = Column(
         DECIMAL(precision=20, scale=10),
         nullable=False,

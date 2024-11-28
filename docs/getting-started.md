@@ -36,6 +36,7 @@ Table below shows supported environment variables. Variables marked with optiona
 
 Environment variable  | Default value | Optional | Notes |
 | --- | --- | --- | --- |
+| TZ | UTC | Yes | Timezone definition. Useful for TZ calculation for activities that do not have coordinates associated, like indoor swim or weight training. If not specified UTC will be used. List of available time zones [here](https://en.wikipedia.org/wiki/List_of_tz_database_time_zones). Format `Europe/Lisbon` expected |
 | DB_HOST | mariadb | Yes | N/A |
 | DB_PORT | 3306 | Yes | N/A |
 | DB_USER | endurain | Yes | N/A |

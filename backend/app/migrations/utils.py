@@ -1,7 +1,9 @@
-import logging
+import os
 
 from enum import Enum
 from datetime import datetime
+from timezonefinder import TimezoneFinder
+from zoneinfo import ZoneInfo
 
 from sqlalchemy.orm import Session
 
@@ -39,6 +41,10 @@ def check_migrations_not_executed(db: Session):
             if migration.id == 1:
                 # Execute the migration
                 process_migration_1(db)
+
+            if migration.id == 2:
+                # Execute the migration
+                process_migration_2(db)
 
 
 def process_migration_1(db: Session):
@@ -143,18 +149,18 @@ def process_migration_1(db: Session):
                 # Update the activity in the database
                 activities_crud.edit_activity(activity.user_id, activity, db)
                 migrations_logger.print_to_log(
-                    f"Processed activity: {activity.id} - {activity.name}"
+                    f"Migration 1 - Processed activity: {activity.id} - {activity.name}"
                 )
 
             except Exception as err:
                 activities_processed_with_no_errors = False
                 core_logger.print_to_log_and_console(
-                    f"Failed to process activity {activity.id}. Please check migrations log for more details.",
+                    f"Migration 1 - Failed to process activity {activity.id}. Please check migrations log for more details.",
                     "error",
                 )
 
                 migrations_logger.print_to_log(
-                    f"Failed to process activity {activity.id}: {err}", "error"
+                    f"Migration 1 - Failed to process activity {activity.id}: {err}", "error"
                 )
 
     # Mark migration as executed
@@ -163,12 +169,12 @@ def process_migration_1(db: Session):
             migrations_crud.set_migration_as_executed(1, db)
         except Exception as err:
             core_logger.print_to_log_and_console(
-                f"Failed to set migration as executed. Please check migrations log for more details.",
+                f"Migration 1 - Failed to set migration as executed. Please check migrations log for more details.",
                 "error",
             )
 
             migrations_logger.print_to_log(
-                f"Failed to set migration as executed: {err}", "error"
+                f"Migration 1 - Failed to set migration as executed: {err}", "error"
             )
             return
     else:
@@ -178,3 +184,95 @@ def process_migration_1(db: Session):
         )
 
     migrations_logger.print_to_log("Finished migration 1")
+
+
+def process_migration_2(db: Session):
+    migrations_logger.print_to_log("Started migration 2")
+
+    # Create an instance of TimezoneFinder
+    tf = TimezoneFinder()
+
+    activities_processed_with_no_errors = True
+
+    try:
+        activities = activities_crud.get_all_activities(db)
+    except Exception as err:
+        migrations_logger.print_to_log(
+            f"Migration 2 - Error fetching activities: {err}", "error"
+        )
+        return
+
+    if activities:
+        for activity in activities:
+            try:
+                if activity.timezone:
+                    migrations_logger.print_to_log(
+                        f"Migration 2 - {activity.id} already has timezone defined. Skipping.",
+                        "info",
+                    )
+                    continue
+
+                timezone = os.environ.get("TZ")
+
+                # Get activity stream
+                try:
+                    activity_stream_coord = (
+                        activity_streams_crud.get_activity_stream_by_type(
+                            activity.id, 7, db
+                        )
+                    )
+                except Exception as err:
+                    migrations_logger.print_to_log(
+                        f"Migration 2 - Failed to fetch streams for activity {activity.id}: {err}",
+                        "warning",
+                    )
+                    activities_processed_with_no_errors = False
+                    continue
+
+                if activity_stream_coord:
+                    timezone = tf.timezone_at(
+                        lat=activity_stream_coord.stream_waypoints[0]["lat"],
+                        lng=activity_stream_coord.stream_waypoints[0]["lon"],
+                    )
+
+                activity.timezone = timezone
+
+                # Update the activity in the database
+                activities_crud.edit_activity(activity.user_id, activity, db)
+                
+                migrations_logger.print_to_log(
+                    f"Migration 2 - Processed activity: {activity.id} - {activity.name}"
+                )
+
+            except Exception as err:
+                activities_processed_with_no_errors = False
+                core_logger.print_to_log_and_console(
+                    f"Migration 2 - Failed to process activity {activity.id}. Please check migrations log for more details.",
+                    "error",
+                )
+
+                migrations_logger.print_to_log(
+                    f"Migration 2 - Failed to process activity {activity.id}: {err}", "error"
+                )
+
+    # Mark migration as executed
+    if activities_processed_with_no_errors:
+        try:
+            migrations_crud.set_migration_as_executed(2, db)
+        except Exception as err:
+            core_logger.print_to_log_and_console(
+                f"Migration 2 - Failed to set migration as executed. Please check migrations log for more details.",
+                "error",
+            )
+
+            migrations_logger.print_to_log(
+                f"Migration 2 - Failed to set migration as executed: {err}", "error"
+            )
+            return
+    else:
+        migrations_logger.print_to_log(
+            "Migration 2 failed to process all activities. Will try again later.",
+            "error",
+        )
+
+    migrations_logger.print_to_log("Finished migration 2")

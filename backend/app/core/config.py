@@ -8,6 +8,7 @@ API_VERSION = "v0.6.5"
 
 def check_required_env_vars():
     required_env_vars = [
+        "TZ",
         "DB_HOST",
         "DB_PORT",
         "DB_USER",

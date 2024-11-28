@@ -1,7 +1,8 @@
 import gpxpy
 import gpxpy.gpx
-import logging
+import os
 from geopy.distance import geodesic
+from timezonefinder import TimezoneFinder
 
 from fastapi import HTTPException, status
 
@@ -13,6 +14,10 @@ import core.logger as core_logger
 
 def parse_gpx_file(file: str, user_id: int) -> dict:
     try:
+        # Create an instance of TimezoneFinder
+        tf = TimezoneFinder()
+        timezone = os.environ.get("TZ")
+
         # Initialize default values for various variables
         activity_type = "Workout"
         calories = None
@@ -236,6 +241,12 @@ def parse_gpx_file(file: str, user_id: int) -> dict:
         # Calculate the elapsed time
         elapsed_time = last_waypoint_time - first_waypoint_time
 
+        if is_lat_lon_set:
+            timezone = tf.timezone_at(
+                    lat=lat_lon_waypoints[0]["lat"],
+                    lng=lat_lon_waypoints[0]["lon"],
+                )
+
         # Create an Activity object with parsed data
         activity = activities_schema.Activity(
             user_id=user_id,
@@ -244,6 +255,7 @@ def parse_gpx_file(file: str, user_id: int) -> dict:
             activity_type=activity_type,
             start_time=first_waypoint_time.strftime("%Y-%m-%dT%H:%M:%S"),
             end_time=last_waypoint_time.strftime("%Y-%m-%dT%H:%M:%S"),
+            timezone=timezone,
             total_elapsed_time=elapsed_time.total_seconds(),
             total_timer_time=elapsed_time.total_seconds(),
             city=city,

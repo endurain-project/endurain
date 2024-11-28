@@ -1,6 +1,6 @@
 {
   "name": "frontend_vue",
-  "version": "0.0.0",
+  "version": "0.6.5",
   "private": true,
   "type": "module",
   "scripts": {
@@ -12,35 +12,36 @@
     "format": "prettier --write src/"
   },
   "dependencies": {
-    "@fortawesome/fontawesome-svg-core": "^6.6.0",
-    "@fortawesome/free-brands-svg-icons": "^6.6.0",
-    "@fortawesome/free-regular-svg-icons": "^6.6.0",
-    "@fortawesome/free-solid-svg-icons": "^6.6.0",
+    "@fortawesome/fontawesome-svg-core": "^6.7.1",
+    "@fortawesome/free-brands-svg-icons": "^6.7.1",
+    "@fortawesome/free-regular-svg-icons": "^6.7.1",
+    "@fortawesome/free-solid-svg-icons": "^6.7.1",
     "@fortawesome/vue-fontawesome": "^3.0.8",
-    "@vueuse/core": "^11.2.0",
+    "@vueuse/core": "^12.0.0",
     "bootstrap": "^5.3.3",
     "chart.js": "^4.4.6",
     "flag-icons": "^7.2.3",
     "leaflet": "^1.9.4",
+    "luxon": "^3.5.0",
     "notivue": "^2.4.5",
-    "pinia": "^2.2.6",
-    "vue": "^3.5.12",
-    "vue-i18n": "^10.0.4",
-    "vue-router": "^4.4.5"
+    "pinia": "^2.2.7",
+    "vue": "^3.5.13",
+    "vue-i18n": "^10.0.5",
+    "vue-router": "^4.5.0"
   },
   "devDependencies": {
     "@rushstack/eslint-patch": "^1.10.4",
     "@types/bootstrap": "^5.2.10",
     "@types/leaflet": "^1.9.14",
-    "@vitejs/plugin-vue": "^5.1.4",
+    "@vitejs/plugin-vue": "^5.2.1",
     "@vue/eslint-config-prettier": "^10.1.0",
     "@vue/test-utils": "^2.4.6",
-    "eslint": "^9.14.0",
-    "eslint-plugin-vue": "^9.30.0",
+    "eslint": "^9.15.0",
+    "eslint-plugin-vue": "^9.31.0",
     "jsdom": "^25.0.1",
-    "prettier": "^3.3.3",
+    "prettier": "^3.4.1",
     "vite": "^5.4.10",
-    "vite-plugin-pwa": "^0.20.5",
-    "vitest": "^2.1.4"
+    "vite-plugin-pwa": "^0.21.0",
+    "vitest": "^2.1.6"
   }
 }

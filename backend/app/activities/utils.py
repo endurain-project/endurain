@@ -4,6 +4,7 @@ import shutil
 import requests
 from geopy.distance import geodesic
 import numpy as np
+from zoneinfo import ZoneInfo
 
 from fastapi import HTTPException, status, UploadFile
 
@@ -26,10 +27,27 @@ import core.logger as core_logger
 
 
 def serialize_activity(activity: activities_schema.Activity):
+    if activity.timezone:
+        timezone = ZoneInfo(activity.timezone)
+    else:
+        timezone = ZoneInfo(os.environ.get("TZ"))
+
     # Serialize the activity object
-    activity.start_time = activity.start_time.strftime("%Y-%m-%dT%H:%M:%S")
-    activity.end_time = activity.end_time.strftime("%Y-%m-%dT%H:%M:%S")
-    activity.created_at = activity.created_at.strftime("%Y-%m-%dT%H:%M:%S")
+    if isinstance(activity.start_time, str):
+        activity.start_time = datetime.fromisoformat(activity.start_time)
+    activity.start_time = activity.start_time.astimezone(timezone).strftime(
+        "%Y-%m-%dT%H:%M:%S%z"
+    )
+
+    if isinstance(activity.end_time, str):
+        activity.end_time = datetime.fromisoformat(activity.end_time)
+    activity.end_time = activity.end_time.astimezone(timezone).strftime(
+        "%Y-%m-%dT%H:%M:%S%z"
+    )
+
+    if isinstance(activity.created_at, str):
+        activity.created_at = datetime.fromisoformat(activity.created_at)
+    activity.created_at = activity.created_at.strftime("%Y-%m-%dT%H:%M:%S%z")
 
     # Return the serialized activity object
     return activity
@@ -180,6 +198,10 @@ def parse_and_store_activity_from_uploaded_file(
 
             # Move the file to the processed directory
             move_file(processed_dir, new_file_name, file_path)
+
+            for activity in created_activities:
+                # Serialize the activity
+                activity = serialize_activity(activity)
 
             # Return the created activity
             return created_activities
