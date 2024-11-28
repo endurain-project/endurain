@@ -1,14 +1,14 @@
 {
-    "labelGear": "Equip",
+    "labelGear": "Equipament",
     "labelGearNotSet": "No establert",
-    "modalLabelAddGear": "Afegir equip a activitat",
-    "modalLabelSelectGear": "Selecciona equip",
-    "modalButtonAddGear": "Afegir Equip",
-    "modalLabelDeleteGear": "Esborra equip de l'activitat",
-    "modalLabelDeleteGearBody": "Segur que vols esborrar l'equip de l'activitat?",
-    "modalLabelDeleteGearButton": "Esborra equip",
+    "modalLabelAddGear": "Afegir equipament a activitat",
+    "modalLabelSelectGear": "Selecciona equipament",
+    "modalButtonAddGear": "Afegir Equipament",
+    "modalLabelDeleteGear": "Esborra equipament de l'activitat",
+    "modalLabelDeleteGearBody": "Segur que vols esborrar l'equipament de l'activitat?",
+    "modalLabelDeleteGearButton": "Esborra equipament",
     "labelGraph": "Gràfics d'Activitat",
     "labelDownsampling": "Dades reduïdes a ~200 punts",
-    "successMessageGearAdded": "Equip afegit a activitat",
-    "successMessageGearDeleted": "Equip esborat de l'activitat"
+    "successMessageGearAdded": "Equipament afegit a activitat",
+    "successMessageGearDeleted": "Equipament esborat de l'activitat"
 }
