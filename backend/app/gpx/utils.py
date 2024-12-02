@@ -241,11 +241,12 @@ def parse_gpx_file(file: str, user_id: int) -> dict:
         # Calculate the elapsed time
         elapsed_time = last_waypoint_time - first_waypoint_time
 
-        if is_lat_lon_set:
-            timezone = tf.timezone_at(
-                    lat=lat_lon_waypoints[0]["lat"],
-                    lng=lat_lon_waypoints[0]["lon"],
-                )
+        if activity_type != 3 and activity_type != 7:
+            if is_lat_lon_set:
+                timezone = tf.timezone_at(
+                        lat=lat_lon_waypoints[0]["lat"],
+                        lng=lat_lon_waypoints[0]["lon"],
+                    )
 
         # Create an Activity object with parsed data
         activity = activities_schema.Activity(

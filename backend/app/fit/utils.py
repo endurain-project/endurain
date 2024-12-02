@@ -31,7 +31,6 @@ def create_activity_objects(
         timezone = os.environ.get("TZ")
 
         # Define variables
-        activity_name = "Workout"
         visibility = 0
         gear_id = None
 
@@ -53,7 +52,15 @@ def create_activity_objects(
         activities = []
 
         for session_record in sessions_records:
+            # Define default values
+            activity_type = 10
+            activity_name = "Workout"
             pace = 0
+
+            if session_record["session"]["activity_type"]:
+                activity_type=activities_utils.define_activity_type(
+                    session_record["session"]["activity_type"]
+                )
 
             if session_record["activity_name"]:
                 activity_name = session_record["activity_name"]
@@ -66,18 +73,17 @@ def create_activity_objects(
                 session_record["split_summary"],
             )
 
-            if session_record["is_lat_lon_set"]:
-                timezone = tf.timezone_at(
-                    lat=session_record["lat_lon_waypoints"][0]["lat"],
-                    lng=session_record["lat_lon_waypoints"][0]["lon"],
-                )
-            else:
-                if session_record["time_offset"]:
-                    timezone = find_timezone_name(
-                        session_record["time_offset"], session_record["session"]["first_waypoint_time"]
+            if activity_type != 3 and activity_type != 7:
+                if session_record["is_lat_lon_set"]:
+                    timezone = tf.timezone_at(
+                        lat=session_record["lat_lon_waypoints"][0]["lat"],
+                        lng=session_record["lat_lon_waypoints"][0]["lon"],
                     )
-
-            print(timezone)
+                else:
+                    if session_record["time_offset"]:
+                        timezone = find_timezone_name(
+                            session_record["time_offset"], session_record["session"]["first_waypoint_time"]
+                        )
 
             parsed_activity = {
                 # Create an Activity object with parsed data
@@ -89,9 +95,7 @@ def create_activity_objects(
                         if session_record["session"]["distance"]
                         else 0
                     ),
-                    activity_type=activities_utils.define_activity_type(
-                        session_record["session"]["activity_type"]
-                    ),
+                    activity_type=activity_type,
                     start_time=session_record["session"][
                         "first_waypoint_time"
                     ].strftime("%Y-%m-%dT%H:%M:%S"),
@@ -581,13 +585,7 @@ def parse_fit_file(file: str) -> dict:
 
                     if frame.name == "device_settings":
                         time_offset = parse_frame_device_settings(frame)
-                        print("antes")
-                        print(time_offset)
                         time_offset = interpret_time_offset(time_offset)
-                        print("depois")
-                        print(time_offset)
-
-        print(time_offset)
 
         # Return parsed data as a dictionary
         return {

@@ -20,9 +20,6 @@ import garmin.logger as garmin_logger
 
 import core.logger as core_logger
 
-import garth.http
-garth.http.USER_AGENT = {"User-Agent": "GCM-iOS-5.7.2.1",}
-
 async def get_mfa(
     user_id: int,
     mfa_codes: garmin_schema.MFACodeStore,
