@@ -1,6 +1,9 @@
+import os
+
 from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
 from stravalib.client import Client
+from timezonefinder import TimezoneFinder
 
 import activities.schema as activities_schema
 import activities.crud as activities_crud
@@ -55,6 +58,10 @@ def parse_activity(
     user_integrations: user_integrations_schema.UserIntegrations,
     db: Session,
 ) -> dict:
+    # Create an instance of TimezoneFinder
+    tf = TimezoneFinder()
+    timezone = os.environ.get("TZ")
+
     # Get the detailed activity
     detailedActivity = strava_client.get_activity(activity.id)
 
@@ -102,6 +109,7 @@ def parse_activity(
     # Extract data from streams
     lat_lon = streams["latlng"].data if "latlng" in streams else []
     lat_lon_waypoints = []
+    is_lat_lon_set = False
     ele = streams["altitude"].data if "altitude" in streams else []
     ele_waypoints = []
     is_elevation_set = False
@@ -128,6 +136,7 @@ def parse_activity(
                 "lon": lat_lon[i][1],
             }
         )
+        is_lat_lon_set = True
 
     for i in range(len(ele)):
         ele_waypoints.append({"time": time[i], "ele": ele[i]})
@@ -235,17 +244,26 @@ def parse_activity(
         if gear is not None:
             gear_id = gear.id
 
+    # Activity type
+    activity_type = activities_utils.define_activity_type(detailedActivity.sport_type.root)
+
+    if activity_type != 3 and activity_type != 7:
+        if is_lat_lon_set:
+            timezone = tf.timezone_at(
+                lat=lat_lon_waypoints[0]["lat"],
+                lng=lat_lon_waypoints[0]["lon"],
+            )
+
     # Create the activity object
     activity_to_store = activities_schema.Activity(
         user_id=user_id,
         name=detailedActivity.name,
         distance=round(detailedActivity.distance) if detailedActivity.distance else 0,
         description=detailedActivity.description,
-        activity_type=activities_utils.define_activity_type(
-            detailedActivity.sport_type.root
-        ),
+        activity_type=activity_type,
         start_time=start_date_parsed.strftime("%Y-%m-%dT%H:%M:%S"),
         end_time=end_date_parsed.strftime("%Y-%m-%dT%H:%M:%S"),
+        timezone=timezone,
         total_elapsed_time=total_elapsed_time,
         total_timer_time=total_timer_time,
         city=city,

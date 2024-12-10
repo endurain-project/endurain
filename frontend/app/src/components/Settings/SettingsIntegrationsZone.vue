@@ -95,57 +95,19 @@
             </li>
         </ul>
 
+		<!-- modal retrieve Strava activities by days -->
+		<ModalComponentNumberInput modalId="retrieveStravaActivitiesByDaysModal" :title="t('settingsIntegrationsZone.modalRetrieveActivitiesByDaysTitle')" :numberFieldLabel="`${t('settingsIntegrationsZone.modalRetrieveActivitiesByDaysLabel')}`" :actionButtonType="`success`" :actionButtonText="t('settingsIntegrationsZone.modalRetrieveButton')" @numberToEmitAction="submitRetrieveStravaActivities"/>
+
+		<!-- modal unlink Strava -->
+		<ModalComponent modalId="unlinkStravaModal" :title="t('settingsIntegrationsZone.modalUnlinkStravaTitle')" :body="`${t('settingsIntegrationsZone.modalUnlinkStravaBody')}`" :actionButtonType="`danger`" :actionButtonText="t('settingsIntegrationsZone.modalUnlinkStravaTitle')" @submitAction="buttonStravaUnlink"/>
+
 		<!-- modal garmin connect auth -->
 		<GarminConnectLoginModalComponent />
 
-        <!-- modal retrieve strava activities by days -->
-        <div class="modal fade" id="retrieveStravaActivitiesByDaysModal" tabindex="-1" aria-labelledby="retrieveStravaActivitiesByDaysModalLabel" aria-hidden="true">
-            <div class="modal-dialog">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h1 class="modal-title fs-5" id="retrieveStravaActivitiesByDaysModalLabel">{{ $t("settingsIntegrationsZone.modalRetrieveActivitiesByDaysTitle") }}</h1>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                    </div>
-                    <form @submit.prevent="submitRetrieveStravaActivities">
-                        <div class="modal-body">
-                                <!-- number of days fields -->
-                                <label for="daysToRetrieve"><b>* {{ $t("settingsIntegrationsZone.modalRetrieveActivitiesByDaysLabel") }}</b></label>
-                                <input class="form-control" type="number" name="daysToRetrieve" :placeholder='$t("settingsIntegrationsZone.modalRetrieveActivitiesByDaysPlaceholder")' v-model="daysToRetrieveStrava" required>
-                        </div>
-                        <div class="modal-footer">
-                            <button type="button" class="btn btn-secondary" name="retrieveStravaActivities" data-bs-dismiss="modal">{{ $t("generalItems.buttonClose") }}</button>
-                            <button type="submit" class="btn btn-success" data-bs-dismiss="modal">{{ $t("settingsIntegrationsZone.modalRetrieveButton") }}</button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
+		<!-- modal retrieve Garmin Connect activities by days -->
+		<ModalComponentNumberInput modalId="retrieveGarminConnectActivitiesByDaysModal" :title="t('settingsIntegrationsZone.modalRetrieveActivitiesByDaysTitle')" :numberFieldLabel="`${t('settingsIntegrationsZone.modalRetrieveActivitiesByDaysLabel')}`" :actionButtonType="`success`" :actionButtonText="t('settingsIntegrationsZone.modalRetrieveButton')" @numberToEmitAction="submitRetrieveGarminConnectActivities"/>
 
-		<!-- modal retrieve garmin connect activities by days -->
-        <div class="modal fade" id="retrieveGarminConnectActivitiesByDaysModal" tabindex="-1" aria-labelledby="retrieveGarminConnectActivitiesByDaysModal" aria-hidden="true">
-            <div class="modal-dialog">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h1 class="modal-title fs-5" id="retrieveGarminConnectActivitiesByDaysModal">{{ $t("settingsIntegrationsZone.modalRetrieveActivitiesByDaysTitle") }}</h1>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                    </div>
-                    <form @submit.prevent="submitRetrieveGarminConnectActivities">
-                        <div class="modal-body">
-                                <!-- number of days fields -->
-                                <label for="daysToRetrieve"><b>* {{ $t("settingsIntegrationsZone.modalRetrieveActivitiesByDaysLabel") }}</b></label>
-                                <input class="form-control" type="number" name="daysToRetrieve" :placeholder='$t("settingsIntegrationsZone.modalRetrieveActivitiesByDaysPlaceholder")' v-model="daysToRetrieveGarmin" required>
-                        </div>
-                        <div class="modal-footer">
-                            <button type="button" class="btn btn-secondary" name="retrieveStravaActivities" data-bs-dismiss="modal">{{ $t("generalItems.buttonClose") }}</button>
-                            <button type="submit" class="btn btn-success" data-bs-dismiss="modal">{{ $t("settingsIntegrationsZone.modalRetrieveButton") }}</button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
-
-		<ModalComponent modalId="unlinkStravaModal" :title="t('settingsIntegrationsZone.modalUnlinkStravaTitle')" :body="`${t('settingsIntegrationsZone.modalUnlinkStravaBody')}`" :actionButtonType="`danger`" :actionButtonText="t('settingsIntegrationsZone.modalUnlinkStravaTitle')" @submitAction="buttonStravaUnlink"/>
-
+		<!-- modal unlink Garmin Connect -->
 		<ModalComponent modalId="unlinkGarminConnectModal" :title="t('settingsIntegrationsZone.modalUnlinkGarminConnectTitle')" :body="`${t('settingsIntegrationsZone.modalUnlinkGarminConnectBody')}`" :actionButtonType="`danger`" :actionButtonText="t('settingsIntegrationsZone.modalUnlinkGarminConnectTitle')" @submitAction="buttonGarminConnectUnlink"/>
     </div>
 </template>
@@ -163,6 +125,7 @@ import { activities } from "@/services/activitiesService";
 import { garminConnect } from "@/services/garminConnectService";
 // Import the components
 import ModalComponent from "@/components/Modals/ModalComponent.vue";
+import ModalComponentNumberInput from "@/components/Modals/ModalComponentNumberInput.vue";
 import GarminConnectLoginModalComponent from "./SettingsIntegrations/GarminConnectLoginModalComponent.vue";
 
 //import Modal from 'bootstrap/js/dist/modal';
@@ -170,15 +133,12 @@ import GarminConnectLoginModalComponent from "./SettingsIntegrations/GarminConne
 export default {
 	components: {
 		ModalComponent,
+		ModalComponentNumberInput,
 		GarminConnectLoginModalComponent,
 	},
 	setup() {
 		const authStore = useAuthStore();
 		const { locale, t } = useI18n();
-		const daysToRetrieveStrava = ref(7);
-		const daysToRetrieveGarmin = ref(7);
-		const garminConnectUsername = ref("");
-		const garminConnectPassword = ref("");
 
 		async function submitConnectStrava() {
 			const array = new Uint8Array(16);
@@ -199,9 +159,9 @@ export default {
 			}
 		}
 
-		async function submitRetrieveStravaActivities() {
+		async function submitRetrieveStravaActivities(daysToRetrieveStrava) {
 			try {
-				await strava.getStravaActivitiesLastDays(daysToRetrieveStrava.value);
+				await strava.getStravaActivitiesLastDays(daysToRetrieveStrava);
 
 				// Show the loading alert.
 				push.info(
@@ -268,9 +228,9 @@ export default {
 			}
 		}
 
-		async function submitRetrieveGarminConnectActivities() {
+		async function submitRetrieveGarminConnectActivities(daysToRetrieveGarmin) {
 			try {
-				await garminConnect.getGarminConnectActivitiesLastDays(daysToRetrieveGarmin.value);
+				await garminConnect.getGarminConnectActivitiesLastDays(daysToRetrieveGarmin);
 
 				// Show the loading alert.
 				push.info(
@@ -328,14 +288,10 @@ export default {
 			t,
 			submitConnectStrava,
 			submitRetrieveStravaActivities,
-			daysToRetrieveStrava,
 			submitRetrieveStravaGear,
 			buttonStravaUnlink,
 			submitBulkImport,
-			garminConnectUsername,
-			garminConnectPassword,
 			submitRetrieveGarminConnectActivities,
-			daysToRetrieveGarmin,
 			submitRetrieveGarminConnectGear,
 			buttonGarminConnectUnlink,
 		};

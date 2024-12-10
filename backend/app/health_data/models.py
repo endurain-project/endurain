@@ -21,7 +21,7 @@ class HealthData(Base):
         index=True,
         comment="User ID that the health_data belongs",
     )
-    created_at = Column(
+    date = Column(
         Date,
         nullable=False,
         unique=True,
@@ -37,41 +37,41 @@ class HealthData(Base):
         nullable=True,
         comment="Body mass index (BMI)",
     )
-    body_fat = Column(
-        DECIMAL(precision=10, scale=2),
-        nullable=True,
-        comment="Body fat percentage",
-    )
-    body_water = Column(
-        DECIMAL(precision=10, scale=2),
-        nullable=True,
-        comment="Body hydration percentage",
-    )
-    bone_mass = Column(
-        DECIMAL(precision=10, scale=2),
-        nullable=True,
-        comment="Bone mass percentage",
-    )
-    muscle_mass = Column(
-        DECIMAL(precision=10, scale=2),
-        nullable=True,
-        comment="Muscle mass percentage",
-    )
-    physique_rating = Column(
-        DECIMAL(precision=10, scale=2),
-        nullable=True,
-        comment="Physique rating",
-    )
-    visceral_fat = Column(
-        DECIMAL(precision=10, scale=2),
-        nullable=True,
-        comment="Visceral fat rating",
-    )
-    metabolic_age = Column(
-        DECIMAL(precision=10, scale=2),
-        nullable=True,
-        comment="Metabolic age",
-    )
+    # body_fat = Column(
+    #     DECIMAL(precision=10, scale=2),
+    #     nullable=True,
+    #     comment="Body fat percentage",
+    # )
+    # body_water = Column(
+    #     DECIMAL(precision=10, scale=2),
+    #     nullable=True,
+    #     comment="Body hydration percentage",
+    # )
+    # bone_mass = Column(
+    #     DECIMAL(precision=10, scale=2),
+    #     nullable=True,
+    #     comment="Bone mass percentage",
+    # )
+    # muscle_mass = Column(
+    #     DECIMAL(precision=10, scale=2),
+    #     nullable=True,
+    #     comment="Muscle mass percentage",
+    # )
+    # physique_rating = Column(
+    #     DECIMAL(precision=10, scale=2),
+    #     nullable=True,
+    #     comment="Physique rating",
+    # )
+    # visceral_fat = Column(
+    #     DECIMAL(precision=10, scale=2),
+    #     nullable=True,
+    #     comment="Visceral fat rating",
+    # )
+    # metabolic_age = Column(
+    #     DECIMAL(precision=10, scale=2),
+    #     nullable=True,
+    #     comment="Metabolic age",
+    # )
     garminconnect_body_composition_id = Column(
         String(length=45), nullable=True, comment="Garmin Connect body composition ID"
     )

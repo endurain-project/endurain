@@ -2,7 +2,7 @@ from sqlalchemy import (
     Column,
     Integer,
     String,
-    TIMESTAMP,
+    DATETIME,
     ForeignKey,
     DECIMAL,
 )
@@ -37,7 +37,7 @@ class Gear(Base):
         nullable=False,
         comment="User ID that the gear belongs to",
     )
-    created_at = Column(TIMESTAMP, nullable=False, comment="Gear creation date (TIMESTAMP)")
+    created_at = Column(DATETIME, nullable=False, comment="Gear creation date (DATETIME)")
     is_active = Column(
         Integer, nullable=False, comment="Is gear active (0 - not active, 1 - active)"
     )

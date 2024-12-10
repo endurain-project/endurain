@@ -25,7 +25,7 @@ def get_all_followers_by_user_id(user_id: int, db: Session):
         return followers
     except Exception as err:
         # Log the exception
-        core_logger.print_to_log(f"Error in get_all_followers_by_user_id: {err}", "error")
+        core_logger.print_to_log(f"Error in get_all_followers_by_user_id: {err}", "error", exc=err)
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -53,7 +53,7 @@ def get_accepted_followers_by_user_id(user_id: int, db: Session):
         return followers
     except Exception as err:
         # Log the exception
-        core_logger.print_to_log(f"Error in get_accepted_followers_by_user_id: {err}", "error")
+        core_logger.print_to_log(f"Error in get_accepted_followers_by_user_id: {err}", "error", exc=err)
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -78,7 +78,7 @@ def get_all_following_by_user_id(user_id: int, db: Session):
         return followings
     except Exception as err:
         # Log the exception
-        core_logger.print_to_log(f"Error in get_all_following_by_user_id: {err}", "error")
+        core_logger.print_to_log(f"Error in get_all_following_by_user_id: {err}", "error", exc=err)
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -106,7 +106,7 @@ def get_accepted_following_by_user_id(user_id: int, db: Session):
         return followings
     except Exception as err:
         # Log the exception
-        core_logger.print_to_log(f"Error in get_accepted_following_by_user_id: {err}", "error")
+        core_logger.print_to_log(f"Error in get_accepted_following_by_user_id: {err}", "error", exc=err)
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -136,7 +136,7 @@ def get_follower_for_user_id_and_target_user_id(
         return follower
     except Exception as err:
         # Log the exception
-        core_logger.print_to_log(f"Error in get_follower_for_user_id_and_target_user_id: {err}", "error")
+        core_logger.print_to_log(f"Error in get_follower_for_user_id_and_target_user_id: {err}", "error", exc=err)
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -162,7 +162,7 @@ def create_follower(user_id: int, target_user_id: int, db: Session):
         db.rollback()
 
         # Log the exception
-        core_logger.print_to_log(f"Error in create_follower: {err}", "error")
+        core_logger.print_to_log(f"Error in create_follower: {err}", "error", exc=err)
 
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
@@ -201,7 +201,7 @@ def accept_follower(user_id: int, target_user_id: int, db: Session):
         db.rollback()
 
         # Log the exception
-        core_logger.print_to_log(f"Error in accept_follower: {err}", "error")
+        core_logger.print_to_log(f"Error in accept_follower: {err}", "error", exc=err)
 
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
@@ -236,7 +236,7 @@ def delete_follower(user_id: int, target_user_id: int, db: Session):
         db.rollback()
 
         # Log the exception
-        core_logger.print_to_log(f"Error in delete_follower: {err}", "error")
+        core_logger.print_to_log(f"Error in delete_follower: {err}", "error", exc=err)
 
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(

@@ -28,7 +28,7 @@ def get_activity_streams(activity_id: int, db: Session):
         return activity_streams
     except Exception as err:
         # Log the exception
-        core_logger.print_to_log(f"Error in get_activity_streams: {err}", "error")
+        core_logger.print_to_log(f"Error in get_activity_streams: {err}", "error", exc=err)
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -56,7 +56,7 @@ def get_activity_stream_by_type(activity_id: int, stream_type: int, db: Session)
         return activity_stream
     except Exception as err:
         # Log the exception
-        core_logger.print_to_log(f"Error in get_activity_stream_by_type: {err}", "error")
+        core_logger.print_to_log(f"Error in get_activity_stream_by_type: {err}", "error", exc=err)
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -92,7 +92,7 @@ def create_activity_streams(
         db.rollback()
 
         # Log the exception
-        core_logger(f"Error in create_activity_streams: {err}", "error")
+        core_logger(f"Error in create_activity_streams: {err}", "error", exc=err)
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

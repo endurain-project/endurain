@@ -1,6 +1,9 @@
 # General
 docker-compose.yml
 
+# aux folder
+aux_scripts/.garminconnect
+
 # Python
 backend/app/__pycache__/
 backend/app/*/__pycache__/

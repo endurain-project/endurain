@@ -53,9 +53,7 @@ def fetch_and_process_activities(
             )
             continue
 
-        garmin_logger.print_to_log(
-            f"User {user_id}: Processing activity {activity_id}"
-        )
+        garmin_logger.print_to_log(f"User {user_id}: Processing activity {activity_id}")
 
         # Get activity gear
         activity_gear = garminconnect_client.get_activity_gear(activity_id)

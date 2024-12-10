@@ -32,12 +32,12 @@ def get_main_logger():
     return logging.getLogger("main_logger")
 
 
-def print_to_log(message: str, type: str = "info"):
+def print_to_log(message: str, type: str = "info", exc: Exception = None):
     main_logger = get_main_logger()
     if type == "info":
         main_logger.info(message)
     elif type == "error":
-        main_logger.error(message)
+        main_logger.error(message, exc_info=exc is not None)
     elif type == "warning":
         main_logger.warning(message)
     elif type == "debug":

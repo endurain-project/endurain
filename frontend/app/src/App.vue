@@ -1,8 +1,13 @@
 <script setup>
-  import { RouterView } from 'vue-router'
-  import NavbarComponent from './components/Navbar/NavbarComponent.vue'
-  import FooterComponent from './components/FooterComponent.vue'
-  import { Notivue, Notification, NotificationProgress, pastelTheme } from 'notivue'
+import { RouterView } from "vue-router";
+import NavbarComponent from "./components/Navbar/NavbarComponent.vue";
+import FooterComponent from "./components/FooterComponent.vue";
+import {
+	Notivue,
+	Notification,
+	NotificationProgress,
+	pastelTheme,
+} from "notivue";
 </script>
 
 <template>

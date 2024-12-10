@@ -278,7 +278,7 @@ export default {
                     gearId.value = activity.value.gear_id;
                 }
 
-                if (activity.value.activity_type === 1 || activity.value.activity_type === 2 || activity.value.activity_type === 3) {
+                if (activity.value.activity_type === 1 || activity.value.activity_type === 2 || activity.value.activity_type === 3 || activity.value.activity_type === 11 || activity.value.activity_type === 12) {
                     gearsByType.value = await gears.getGearFromType(2);
                 } else {
                     if (activity.value.activity_type === 4 || activity.value.activity_type === 5 || activity.value.activity_type === 6 || activity.value.activity_type === 7) {

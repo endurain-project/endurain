@@ -93,7 +93,7 @@
                         </li>
                         <li><hr class="dropdown-divider"></li>
                         <li>
-                            <a class="dropdown-item" :class="{ disabled: activity.strava_activity_id || activity.garminconnect_activity_id }" href="#" data-bs-toggle="modal" data-bs-target="#deleteActivityModal">
+                            <a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#deleteActivityModal">
                                 {{ $t("activitySummary.buttonDeleteActivity") }}
                             </a>
                         </li>

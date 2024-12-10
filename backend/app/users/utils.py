@@ -49,7 +49,7 @@ async def save_user_image(user_id: int, file: UploadFile, db: Session):
         return users_crud.edit_user_photo_path(user_id, file_path_to_save, db)
     except Exception as err:
         # Log the exception
-        core_logger.print_to_log(f"Error in save_user_image: {err}", "error")
+        core_logger.print_to_log(f"Error in save_user_image: {err}", "error", exc=err)
 
         # Remove the file after processing
         if os.path.exists(file_path_to_save):

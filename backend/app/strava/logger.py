@@ -22,12 +22,12 @@ def get_strava_logger():
     return logging.getLogger("strava_logger")
 
 
-def print_to_log(message: str, type: str = "info"):
+def print_to_log(message: str, type: str = "info", exc: Exception = None):
     garminconnect_logger = get_strava_logger()
     if type == "info":
         garminconnect_logger.info(message)
     elif type == "error":
-        garminconnect_logger.error(message)
+        garminconnect_logger.error(message, exc_info=exc is not None)
     elif type == "warning":
         garminconnect_logger.warning(message)
     elif type == "debug":

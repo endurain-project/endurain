@@ -58,7 +58,7 @@ def create_activity_objects(
             pace = 0
 
             if session_record["session"]["activity_type"]:
-                activity_type=activities_utils.define_activity_type(
+                activity_type = activities_utils.define_activity_type(
                     session_record["session"]["activity_type"]
                 )
 
@@ -82,7 +82,8 @@ def create_activity_objects(
                 else:
                     if session_record["time_offset"]:
                         timezone = find_timezone_name(
-                            session_record["time_offset"], session_record["session"]["first_waypoint_time"]
+                            session_record["time_offset"],
+                            session_record["session"]["first_waypoint_time"],
                         )
 
             parsed_activity = {
@@ -611,7 +612,7 @@ def parse_fit_file(file: str) -> dict:
         raise http_err
     except Exception as err:
         # Log the exception
-        core_logger.print_to_log(f"Error in parse_fit_file: {err}", "error")
+        core_logger.print_to_log(f"Error in parse_fit_file: {err}", "error", exc=err)
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -822,9 +823,9 @@ def find_timezone_name(offset_seconds, reference_date):
         tz = ZoneInfo(tz_name)
         if reference_date.utcoffset() is None:  # Skip invalid timezones
             continue
-        
+
         # Get the UTC offset for the reference date
         utc_offset = reference_date.astimezone(tz).utcoffset()
-        
+
         if utc_offset.total_seconds() == offset_seconds:
             return tz_name

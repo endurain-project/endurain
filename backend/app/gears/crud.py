@@ -26,7 +26,7 @@ def get_gear_user_by_id(gear_id: int, db: Session) -> gears_schema.Gear | None:
         return gear
     except Exception as err:
         # Log the exception
-        core_logger.print_to_log(f"Error in get_gear_user_by_id: {err}", "error")
+        core_logger.print_to_log(f"Error in get_gear_user_by_id: {err}", "error", exc=err)
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -61,7 +61,7 @@ def get_gear_users_with_pagination(
     except Exception as err:
         # Log the exception
         core_logger.print_to_log(
-            f"Error in get_gear_users_with_pagination: {err}", "error"
+            f"Error in get_gear_users_with_pagination: {err}", "error", exc=err
         )
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
@@ -87,7 +87,7 @@ def get_gear_user(user_id: int, db: Session) -> list[gears_schema.Gear] | None:
         return gears
     except Exception as err:
         # Log the exception
-        core_logger.print_to_log(f"Error in get_gear_user: {err}", "error")
+        core_logger.print_to_log(f"Error in get_gear_user: {err}", "error", exc=err)
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -124,7 +124,7 @@ def get_gear_user_by_nickname(
         return gears
     except Exception as err:
         # Log the exception
-        core_logger.print_to_log(f"Error in get_gear_user_by_nickname: {err}", "error")
+        core_logger.print_to_log(f"Error in get_gear_user_by_nickname: {err}", "error", exc=err)
 
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
@@ -155,7 +155,7 @@ def get_gear_by_type_and_user(gear_type: int, user_id: int, db: Session):
         return gear
     except Exception as err:
         # Log the exception
-        core_logger.print_to_log(f"Error in get_gear_by_type_and_user: {err}", "error")
+        core_logger.print_to_log(f"Error in get_gear_by_type_and_user: {err}", "error", exc=err)
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -189,7 +189,7 @@ def get_gear_by_strava_id_from_user_id(
     except Exception as err:
         # Log the exception
         core_logger.print_to_log(
-            f"Error in get_gear_by_strava_id_from_user_id: {err}", "error"
+            f"Error in get_gear_by_strava_id_from_user_id: {err}", "error", exc=err
         )
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
@@ -224,7 +224,7 @@ def get_gear_by_garminconnect_id_from_user_id(
     except Exception as err:
         # Log the exception
         core_logger.print_to_log(
-            f"Error in get_gear_by_garminconnect_id_from_user_id: {err}", "error"
+            f"Error in get_gear_by_garminconnect_id_from_user_id: {err}", "error", exc=err
         )
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
@@ -263,7 +263,7 @@ def create_multiple_gears(gears: list[gears_schema.Gear], user_id: int, db: Sess
         db.rollback()
 
         # Log the exception
-        core_logger.print_to_log(f"Error in create_multiple_gears: {err}", "error")
+        core_logger.print_to_log(f"Error in create_multiple_gears: {err}", "error", exc=err)
 
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
@@ -298,7 +298,7 @@ def create_gear(gear: gears_schema.Gear, user_id: int, db: Session):
         db.rollback()
 
         # Log the exception
-        core_logger.print_to_log(f"Error in create_gear: {err}", "error")
+        core_logger.print_to_log(f"Error in create_gear: {err}", "error", exc=err)
 
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
@@ -339,7 +339,7 @@ def edit_gear(gear_id: int, gear: gears_schema.Gear, db: Session):
         db.rollback()
 
         # Log the exception
-        core_logger.print_to_log(f"Error in edit_gear: {err}", "error")
+        core_logger.print_to_log(f"Error in edit_gear: {err}", "error", exc=err)
 
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
@@ -367,7 +367,7 @@ def delete_gear(gear_id: int, db: Session):
         db.rollback()
 
         # Log the exception
-        core_logger.print_to_log(f"Error in delete_gear: {err}", "error")
+        core_logger.print_to_log(f"Error in delete_gear: {err}", "error", exc=err)
 
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
@@ -397,7 +397,7 @@ def delete_all_strava_gear_for_user(user_id: int, db: Session):
 
         # Log the exception
         core_logger.print_to_log(
-            f"Error in delete_all_strava_gear_for_user: {err}", "error"
+            f"Error in delete_all_strava_gear_for_user: {err}", "error", exc=err
         )
 
         # Raise an HTTPException with a 500 Internal Server Error status code
@@ -429,7 +429,7 @@ def delete_all_garminconnect_gear_for_user(user_id: int, db: Session):
 
         # Log the exception
         core_logger.print_to_log(
-            f"Error in delete_all_garminconnect_gear_for_user: {err}", "error"
+            f"Error in delete_all_garminconnect_gear_for_user: {err}", "error", exc=err
         )
 
         # Raise an HTTPException with a 500 Internal Server Error status code

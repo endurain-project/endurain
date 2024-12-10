@@ -30,7 +30,9 @@ def get_all_activities(db: Session):
 
     except Exception as err:
         # Log the exception
-        core_logger.print_to_log(f"Error in get_all_activities: {err}", "error")
+        core_logger.print_to_log(
+            f"Error in get_all_activities: {err}", "error", exc=err
+        )
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -63,7 +65,9 @@ def get_user_activities(
 
     except Exception as err:
         # Log the exception
-        core_logger.print_to_log(f"Error in get_user_activities: {err}", "error")
+        core_logger.print_to_log(
+            f"Error in get_user_activities: {err}", "error", exc=err
+        )
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -537,7 +541,9 @@ def get_activities_if_contains_name(name: str, user_id: int, db: Session):
         ) from err
 
 
-def create_activity(activity: activities_schema.Activity, db: Session):
+def create_activity(
+    activity: activities_schema.Activity, db: Session
+) -> activities_schema.Activity:
     try:
         # Create a new activity
         db_activity = activities_models.Activity(
@@ -592,7 +598,7 @@ def create_activity(activity: activities_schema.Activity, db: Session):
         db.rollback()
 
         # Log the exception
-        core_logger.print_to_log(f"Error in create_activity: {err}", "error")
+        core_logger.print_to_log(f"Error in create_activity: {err}", "error", exc=err)
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -638,7 +644,7 @@ def edit_activity(user_id: int, activity: activities_schema.Activity, db: Sessio
         db.rollback()
 
         # Log the exception
-        core_logger.print_to_log(f"Error in edit_activity: {err}", "error")
+        core_logger.print_to_log(f"Error in edit_activity: {err}", "error", exc=err)
 
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
@@ -664,7 +670,9 @@ def add_gear_to_activity(activity_id: int, gear_id: int, db: Session):
         db.rollback()
 
         # Log the exception
-        core_logger.print_to_log(f"Error in add_gear_to_activity: {err}", "error")
+        core_logger.print_to_log(
+            f"Error in add_gear_to_activity: {err}", "error", exc=err
+        )
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -725,7 +733,7 @@ def delete_activity(activity_id: int, db: Session):
         db.rollback()
 
         # Log the exception
-        core_logger.print_to_log(f"Error in delete_activity: {err}", "error")
+        core_logger.print_to_log(f"Error in delete_activity: {err}", "error", exc=err)
 
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(

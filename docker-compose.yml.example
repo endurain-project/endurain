@@ -19,6 +19,7 @@ services:
     container_name: backend
     image: ghcr.io/joaovitoriasilva/endurain/backend:latest
     environment:
+      - TZ=Europe/Lisbon
       - DB_PASSWORD=changeme
       - SECRET_KEY=changeme # openssl rand -hex 32
       - STRAVA_CLIENT_ID=changeme

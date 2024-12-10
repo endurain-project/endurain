@@ -2,7 +2,7 @@ from sqlalchemy import (
     Column,
     Integer,
     String,
-    TIMESTAMP,
+    DATETIME,
     ForeignKey,
     DECIMAL,
     BigInteger,
@@ -38,11 +38,13 @@ class Activity(Base):
         comment="Gear type (1 - mountain bike, 2 - gravel bike, ...)",
     )
     start_time = Column(
-        TIMESTAMP, nullable=False, comment="Activity start date (TIMESTAMP)"
+        DATETIME, nullable=False, comment="Activity start date (DATETIME)"
     )
-    end_time = Column(TIMESTAMP, nullable=False, comment="Activity end date (TIMESTAMP)")
+    end_time = Column(DATETIME, nullable=False, comment="Activity end date (DATETIME)")
     timezone = Column(
-        String(length=250), nullable=True, comment="Activity timezone (May include spaces)"
+        String(length=250),
+        nullable=True,
+        comment="Activity timezone (May include spaces)",
     )
     total_elapsed_time = Column(
         DECIMAL(precision=20, scale=10),
@@ -66,7 +68,7 @@ class Activity(Base):
         comment="Activity country (May include spaces)",
     )
     created_at = Column(
-        TIMESTAMP, nullable=False, comment="Activity creation date (TIMESTAMP)"
+        DATETIME, nullable=False, comment="Activity creation date (DATETIME)"
     )
     elevation_gain = Column(Integer, nullable=True, comment="Elevation gain in meters")
     elevation_loss = Column(Integer, nullable=True, comment="Elevation loss in meters")

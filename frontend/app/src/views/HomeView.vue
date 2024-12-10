@@ -232,7 +232,7 @@ export default {
           userNumberOfActivities.value ++;
         } catch (error) {
           // Set the error message
-          notification.reject(`${t('generalItems.errorFetchingInfo')} - ${error}`)
+          notification.reject(`${error}`)
         }
       }
     };

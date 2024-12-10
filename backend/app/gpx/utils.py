@@ -68,137 +68,150 @@ def parse_gpx_file(file: str, user_id: int) -> dict:
         with open(file, "r") as gpx_file:
             gpx = gpxpy.parse(gpx_file)
 
-            # Iterate over tracks in the GPX file
-            for track in gpx.tracks:
-                # Set activity name and type if available
-                activity_name = track.name if track.name else "Workout"
-                activity_type = track.type if track.type else "Workout"
+            if gpx.tracks:
+                # Iterate over tracks in the GPX file
+                for track in gpx.tracks:
+                    # Set activity name and type if available
+                    activity_name = track.name if track.name else "Workout"
+                    activity_type = track.type if track.type else "Workout"
 
-                # Iterate over segments in each track
-                for segment in track.segments:
-                    # Iterate over points in each segment
-                    for point in segment.points:
-                        # Extract latitude and longitude from the point
-                        latitude, longitude = point.latitude, point.longitude
+                    if track.segments:
+                        # Iterate over segments in each track
+                        for segment in track.segments:
+                            # Iterate over points in each segment
+                            for point in segment.points:
+                                # Extract latitude and longitude from the point
+                                latitude, longitude = point.latitude, point.longitude
 
-                        # Calculate distance between waypoints
-                        if prev_latitude is not None and prev_longitude is not None:
-                            distance += geodesic(
-                                (prev_latitude, prev_longitude), (latitude, longitude)
-                            ).meters
+                                # Calculate distance between waypoints
+                                if prev_latitude is not None and prev_longitude is not None:
+                                    distance += geodesic(
+                                        (prev_latitude, prev_longitude),
+                                        (latitude, longitude),
+                                    ).meters
 
-                        # Extract elevation, time, and location details
-                        elevation, time = point.elevation, point.time
+                                # Extract elevation, time, and location details
+                                elevation, time = point.elevation, point.time
 
-                        if elevation != 0:
-                            is_elevation_set = True
+                                if elevation != 0:
+                                    is_elevation_set = True
 
-                        if first_waypoint_time is None:
-                            first_waypoint_time = point.time
+                                if first_waypoint_time is None:
+                                    first_waypoint_time = point.time
 
-                        if process_one_time_fields == 0:
-                            # Use geocoding API to get city, town, and country based on coordinates
-                            location_data = (
-                                activities_utils.location_based_on_coordinates(
-                                    latitude, longitude
+                                if process_one_time_fields == 0:
+                                    # Use geocoding API to get city, town, and country based on coordinates
+                                    location_data = (
+                                        activities_utils.location_based_on_coordinates(
+                                            latitude, longitude
+                                        )
+                                    )
+
+                                    # Extract city, town, and country from location data
+                                    if location_data:
+                                        city = location_data["city"]
+                                        town = location_data["town"]
+                                        country = location_data["country"]
+
+                                        process_one_time_fields = 1
+
+                                # Extract heart rate, cadence, and power data from point extensions
+                                heart_rate, cadence, power = 0, 0, 0
+
+                                if point.extensions:
+                                    # Iterate through each extension element
+                                    for extension in point.extensions:
+                                        if extension.tag.endswith("TrackPointExtension"):
+                                            hr_element = extension.find(
+                                                ".//{http://www.garmin.com/xmlschemas/TrackPointExtension/v1}hr"
+                                            )
+                                            if hr_element is not None:
+                                                heart_rate = hr_element.text
+                                            cad_element = extension.find(
+                                                ".//{http://www.garmin.com/xmlschemas/TrackPointExtension/v1}cad"
+                                            )
+                                            if cad_element is not None:
+                                                cadence = cad_element.text
+                                        elif extension.tag.endswith("power"):
+                                            # Extract 'power' value
+                                            power = extension.text
+
+                                # Check if heart rate, cadence, power are set
+                                if heart_rate != 0:
+                                    is_heart_rate_set = True
+
+                                if cadence != 0:
+                                    is_cadence_set = True
+
+                                if power != 0:
+                                    is_power_set = True
+                                else:
+                                    power = None
+
+                                # Calculate instant speed, pace, and update waypoint arrays
+                                instant_speed = activities_utils.calculate_instant_speed(
+                                    last_waypoint_time,
+                                    time,
+                                    latitude,
+                                    longitude,
+                                    prev_latitude,
+                                    prev_longitude,
                                 )
-                            )
 
-                            # Extract city, town, and country from location data
-                            if location_data:
-                                city = location_data["city"]
-                                town = location_data["town"]
-                                country = location_data["country"]
+                                # Calculate instance pace
+                                instant_pace = 0
+                                if instant_speed > 0:
+                                    instant_pace = 1 / instant_speed
+                                    is_velocity_set = True
 
-                                process_one_time_fields = 1
+                                timestamp = time.strftime("%Y-%m-%dT%H:%M:%S")
 
-                        # Extract heart rate, cadence, and power data from point extensions
-                        heart_rate, cadence, power = 0, 0, 0
-
-                        if point.extensions:
-                            # Iterate through each extension element
-                            for extension in point.extensions:
-                                if extension.tag.endswith("TrackPointExtension"):
-                                    hr_element = extension.find(
-                                        ".//{http://www.garmin.com/xmlschemas/TrackPointExtension/v1}hr"
+                                # Append waypoint data to respective arrays
+                                if latitude is not None and longitude is not None:
+                                    lat_lon_waypoints.append(
+                                        {
+                                            "time": timestamp,
+                                            "lat": latitude,
+                                            "lon": longitude,
+                                        }
                                     )
-                                    if hr_element is not None:
-                                        heart_rate = hr_element.text
-                                    cad_element = extension.find(
-                                        ".//{http://www.garmin.com/xmlschemas/TrackPointExtension/v1}cad"
-                                    )
-                                    if cad_element is not None:
-                                        cadence = cad_element.text
-                                elif extension.tag.endswith("power"):
-                                    # Extract 'power' value
-                                    power = extension.text
+                                    is_lat_lon_set = True
 
-                        # Check if heart rate, cadence, power are set
-                        if heart_rate != 0:
-                            is_heart_rate_set = True
+                                activities_utils.append_if_not_none(
+                                    ele_waypoints, timestamp, elevation, "ele"
+                                )
+                                activities_utils.append_if_not_none(
+                                    hr_waypoints, timestamp, heart_rate, "hr"
+                                )
+                                activities_utils.append_if_not_none(
+                                    cad_waypoints, timestamp, cadence, "cad"
+                                )
+                                activities_utils.append_if_not_none(
+                                    power_waypoints, timestamp, power, "power"
+                                )
+                                activities_utils.append_if_not_none(
+                                    vel_waypoints, timestamp, instant_speed, "vel"
+                                )
+                                activities_utils.append_if_not_none(
+                                    pace_waypoints, timestamp, instant_pace, "pace"
+                                )
 
-                        if cadence != 0:
-                            is_cadence_set = True
-
-                        if power != 0:
-                            is_power_set = True
-                        else:
-                            power = None
-
-                        # Calculate instant speed, pace, and update waypoint arrays
-                        instant_speed = activities_utils.calculate_instant_speed(
-                            last_waypoint_time,
-                            time,
-                            latitude,
-                            longitude,
-                            prev_latitude,
-                            prev_longitude,
+                                # Update previous latitude, longitude, and last waypoint time
+                                prev_latitude, prev_longitude, last_waypoint_time = (
+                                    latitude,
+                                    longitude,
+                                    time,
+                                )
+                    else:
+                        raise HTTPException(
+                            status_code=status.HTTP_400_BAD_REQUEST,
+                            detail="Invalid GPX file - no segments found in the GPX file",
                         )
-
-                        # Calculate instance pace
-                        instant_pace = 0
-                        if instant_speed > 0:
-                            instant_pace = 1 / instant_speed
-                            is_velocity_set = True
-
-                        timestamp = time.strftime("%Y-%m-%dT%H:%M:%S")
-
-                        # Append waypoint data to respective arrays
-                        if latitude is not None and longitude is not None:
-                            lat_lon_waypoints.append(
-                                {
-                                    "time": timestamp,
-                                    "lat": latitude,
-                                    "lon": longitude,
-                                }
-                            )
-                            is_lat_lon_set = True
-
-                        activities_utils.append_if_not_none(
-                            ele_waypoints, timestamp, elevation, "ele"
-                        )
-                        activities_utils.append_if_not_none(
-                            hr_waypoints, timestamp, heart_rate, "hr"
-                        )
-                        activities_utils.append_if_not_none(
-                            cad_waypoints, timestamp, cadence, "cad"
-                        )
-                        activities_utils.append_if_not_none(
-                            power_waypoints, timestamp, power, "power"
-                        )
-                        activities_utils.append_if_not_none(
-                            vel_waypoints, timestamp, instant_speed, "vel"
-                        )
-                        activities_utils.append_if_not_none(
-                            pace_waypoints, timestamp, instant_pace, "pace"
-                        )
-
-                        # Update previous latitude, longitude, and last waypoint time
-                        prev_latitude, prev_longitude, last_waypoint_time = (
-                            latitude,
-                            longitude,
-                            time,
-                        )
+            else:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Invalid GPX file - no tracks found in the GPX file",
+                )
 
         # Calculate elevation gain/loss, pace, average speed, and average power
         if ele_waypoints:
@@ -244,9 +257,9 @@ def parse_gpx_file(file: str, user_id: int) -> dict:
         if activity_type != 3 and activity_type != 7:
             if is_lat_lon_set:
                 timezone = tf.timezone_at(
-                        lat=lat_lon_waypoints[0]["lat"],
-                        lng=lat_lon_waypoints[0]["lon"],
-                    )
+                    lat=lat_lon_waypoints[0]["lat"],
+                    lng=lat_lon_waypoints[0]["lon"],
+                )
 
         # Create an Activity object with parsed data
         activity = activities_schema.Activity(
@@ -268,12 +281,12 @@ def parse_gpx_file(file: str, user_id: int) -> dict:
             average_speed=avg_speed,
             max_speed=max_speed,
             average_power=round(avg_power) if avg_power else None,
-            max_power=max_power,
+            max_power=round(max_power) if max_power else None,
             normalized_power=round(np) if np else None,
             average_hr=round(avg_hr) if avg_hr else None,
-            max_hr=max_hr,
+            max_hr=round(max_hr) if max_hr else None,
             average_cad=round(avg_cadence) if avg_cadence else None,
-            max_cad=max_cadence,
+            max_cad=round(max_cadence) if max_cadence else None,
             calories=calories,
             visibility=visibility,
             strava_gear_id=None,
@@ -302,7 +315,9 @@ def parse_gpx_file(file: str, user_id: int) -> dict:
         raise http_err
     except Exception as err:
         # Log the exception
-        core_logger.print_to_log(f"Error in parse_gpx_file - {str(err)}", "error")
+        core_logger.print_to_log(
+            f"Error in parse_gpx_file - {str(err)}", "error", exc=err
+        )
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

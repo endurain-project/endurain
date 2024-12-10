@@ -23,7 +23,7 @@ def get_migrations_not_executed(db: Session):
     except Exception as err:
         # Log the exception
         core_logger.print_to_log_and_console(f"Error in get_migrations_not_executed. See migrations log for more information", "error")
-        migrations_logger.print_to_log(f"Error in get_migrations_not_executed: {err}", "error")
+        migrations_logger.print_to_log(f"Error in get_migrations_not_executed: {err}", "error", exc=err)
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -58,7 +58,7 @@ def set_migration_as_executed(migration_id: int, db: Session):
 
         # Log the exception
         core_logger.print_to_log_and_console(f"Error in set_migration_as_executed. See migrations log for more information", "error")
-        migrations_logger.print_to_log(f"Error in set_migration_as_executed: {err}", "error")
+        migrations_logger.print_to_log(f"Error in set_migration_as_executed: {err}", "error", exc=err)
 
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(

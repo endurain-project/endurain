@@ -121,8 +121,8 @@ async def create_health_weight_data(
         Depends(core_database.get_db),
     ],
 ):
-    health_for_date = health_data_crud.get_health_data_by_created_at(
-        token_user_id, health_data.created_at, db
+    health_for_date = health_data_crud.get_health_data_by_date(
+        token_user_id, health_data.date, db
     )
     if health_for_date:
         if health_for_date.weight is None:

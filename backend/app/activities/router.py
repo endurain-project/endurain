@@ -646,10 +646,10 @@ async def delete_activity(
             os.remove(file)
         except FileNotFoundError as err:
             # Log the exception
-            core_logger.print_to_log(f"File not found {file}: {err}", "error")
+            core_logger.print_to_log(f"File not found {file}: {err}", "error", exc=err)
         except Exception as err:
             # Log the exception
-            core_logger.print_to_log(f"Error deleting file {file}: {err}", "error")
+            core_logger.print_to_log(f"Error deleting file {file}: {err}", "error", exc=err)
 
     # Return success message
     return {"detail": f"Activity {activity_id} deleted successfully"}

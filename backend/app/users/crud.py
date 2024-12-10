@@ -25,7 +25,7 @@ def authenticate_user(username: str, db: Session):
         return user
     except Exception as err:
         # Log the exception
-        core_logger.print_to_log(f"Error in authenticate_user: {err}", "error")
+        core_logger.print_to_log(f"Error in authenticate_user: {err}", "error", exc=err)
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -39,7 +39,7 @@ def get_all_users(db: Session):
         return db.query(users_models.User).all()
     except Exception as err:
         # Log the exception
-        core_logger.print_to_log(f"Error in get_all_number: {err}", "error")
+        core_logger.print_to_log(f"Error in get_all_number: {err}", "error", exc=err)
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -55,7 +55,7 @@ def get_users_number(db: Session):
 
     except Exception as err:
         # Log the exception
-        core_logger.print_to_log(f"Error in get_users_number: {err}", "error")
+        core_logger.print_to_log(f"Error in get_users_number: {err}", "error", exc=err)
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -84,7 +84,7 @@ def get_users_with_pagination(db: Session, page_number: int = 1, num_records: in
 
     except Exception as err:
         # Log the exception
-        core_logger.print_to_log(f"Error in get_users_with_pagination: {err}", "error")
+        core_logger.print_to_log(f"Error in get_users_with_pagination: {err}", "error", exc=err)
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -115,7 +115,7 @@ def get_user_if_contains_username(username: str, db: Session):
         return users
     except Exception as err:
         # Log the exception
-        core_logger.print_to_log(f"Error in get_user_if_contains_username: {err}", "error")
+        core_logger.print_to_log(f"Error in get_user_if_contains_username: {err}", "error", exc=err)
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -139,7 +139,7 @@ def get_user_by_username(username: str, db: Session):
         return user
     except Exception as err:
         # Log the exception
-        core_logger.print_to_log(f"Error in get_user_by_username: {err}", "error")
+        core_logger.print_to_log(f"Error in get_user_by_username: {err}", "error", exc=err)
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -163,7 +163,7 @@ def get_user_by_id(user_id: int, db: Session):
         return user
     except Exception as err:
         # Log the exception
-        core_logger.print_to_log(f"Error in get_user_by_id: {err}", "error")
+        core_logger.print_to_log(f"Error in get_user_by_id: {err}", "error", exc=err)
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -188,7 +188,7 @@ def get_user_id_by_username(username: str, db: Session):
         return user_id
     except Exception as err:
         # Log the exception
-        core_logger.print_to_log(f"Error in get_user_id_by_username: {err}", "error")
+        core_logger.print_to_log(f"Error in get_user_id_by_username: {err}", "error", exc=err)
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -211,7 +211,7 @@ def get_user_photo_path_by_id(user_id: int, db: Session):
         return user_db.photo_path
     except Exception as err:
         # Log the exception
-        core_logger.print_to_log(f"Error in get_user_photo_path_by_id: {err}", "error")
+        core_logger.print_to_log(f"Error in get_user_photo_path_by_id: {err}", "error", exc=err)
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -257,7 +257,7 @@ def create_user(user: users_schema.UserCreate, db: Session):
         db.rollback()
 
         # Log the exception
-        core_logger.print_to_log(f"Error in create_user: {err}", "error")
+        core_logger.print_to_log(f"Error in create_user: {err}", "error", exc=err)
 
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
@@ -304,7 +304,7 @@ def edit_user(user_id: int, user: users_schema.User, db: Session):
         db.rollback()
 
         # Log the exception
-        core_logger.print_to_log(f"Error in edit_user: {err}", "error")
+        core_logger.print_to_log(f"Error in edit_user: {err}", "error", exc=err)
 
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
@@ -328,7 +328,7 @@ def edit_user_password(user_id: int, password: str, db: Session):
         db.rollback()
 
         # Log the exception
-        core_logger.print_to_log(f"Error in edit_user_password: {err}", "error")
+        core_logger.print_to_log(f"Error in edit_user_password: {err}", "error", exc=err)
 
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
@@ -355,7 +355,7 @@ def edit_user_photo_path(user_id: int, photo_path: str, db: Session):
         db.rollback()
 
         # Log the exception
-        core_logger.print_to_log(f"Error in edit_user_photo_path: {err}", "error")
+        core_logger.print_to_log(f"Error in edit_user_photo_path: {err}", "error", exc=err)
 
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
@@ -382,7 +382,7 @@ def delete_user_photo(user_id: int, db: Session):
         db.rollback()
 
         # Log the exception
-        core_logger.print_to_log(f"Error in delete_user_photo: {err}", "error")
+        core_logger.print_to_log(f"Error in delete_user_photo: {err}", "error", exc=err)
 
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
@@ -413,7 +413,7 @@ def delete_user(user_id: int, db: Session):
         db.rollback()
 
         # Log the exception
-        core_logger.print_to_log(f"Error in delete_user: {err}", "error")
+        core_logger.print_to_log(f"Error in delete_user: {err}", "error", exc=err)
 
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(

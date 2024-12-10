@@ -30,7 +30,7 @@ def get_user_integrations_by_user_id(user_id: int, db: Session):
     except Exception as err:
         # Log the exception
         core_logger.print_to_log(
-            f"Error in get_user_integrations_by_user_id: {err}", "error"
+            f"Error in get_user_integrations_by_user_id: {err}", "error", exc=err
         )
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
@@ -43,7 +43,9 @@ def get_user_integrations_by_strava_state(strava_state: str, db: Session):
     try:
         user_integrations = (
             db.query(user_integrations_models.UserIntegrations)
-            .filter(user_integrations_models.UserIntegrations.strava_state == strava_state)
+            .filter(
+                user_integrations_models.UserIntegrations.strava_state == strava_state
+            )
             .first()
         )
 
@@ -56,7 +58,7 @@ def get_user_integrations_by_strava_state(strava_state: str, db: Session):
     except Exception as err:
         # Log the exception
         core_logger.print_to_log(
-            f"Error in get_user_integrations_by_user_id: {err}", "error"
+            f"Error in get_user_integrations_by_user_id: {err}", "error", exc=err
         )
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
@@ -86,7 +88,9 @@ def create_user_integrations(user_id: int, db: Session):
         db.rollback()
 
         # Log the exception
-        core_logger.print_to_log(f"Error in create_user_integrations: {err}", "error")
+        core_logger.print_to_log(
+            f"Error in create_user_integrations: {err}", "error", exc=err
+        )
 
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
@@ -118,7 +122,9 @@ def link_strava_account(
         db.rollback()
 
         # Log the exception
-        core_logger.print_to_log(f"Error in link_strava_account: {err}", "error")
+        core_logger.print_to_log(
+            f"Error in link_strava_account: {err}", "error", exc=err
+        )
 
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
@@ -153,7 +159,9 @@ def unlink_strava_account(user_id: int, db: Session):
         db.rollback()
 
         # Log the exception
-        core_logger.print_to_log(f"Error in unlink_strava_account: {err}", "error")
+        core_logger.print_to_log(
+            f"Error in unlink_strava_account: {err}", "error", exc=err
+        )
 
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
@@ -185,7 +193,9 @@ def set_user_strava_state(user_id: int, state: str, db: Session):
         db.rollback()
 
         # Log the exception
-        core_logger.print_to_log(f"Error in set_user_strava_state: {err}", "error")
+        core_logger.print_to_log(
+            f"Error in set_user_strava_state: {err}", "error", exc=err
+        )
 
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
@@ -209,7 +219,9 @@ def set_user_strava_sync_gear(user_id: int, strava_sync_gear: bool, db: Session)
         db.rollback()
 
         # Log the exception
-        core_logger.print_to_log(f"Error in set_user_strava_state: {err}", "error")
+        core_logger.print_to_log(
+            f"Error in set_user_strava_state: {err}", "error", exc=err
+        )
 
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
@@ -247,7 +259,9 @@ def link_garminconnect_account(
         db.rollback()
 
         # Log the exception
-        core_logger.print_to_log(f"Error in link_garminconnect_account: {err}", "error")
+        core_logger.print_to_log(
+            f"Error in link_garminconnect_account: {err}", "error", exc=err
+        )
 
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
@@ -274,7 +288,7 @@ def set_user_garminconnect_sync_gear(
 
         # Log the exception
         core_logger.print_to_log(
-            f"Error in set_user_garminconnect_sync_gear: {err}", "error"
+            f"Error in set_user_garminconnect_sync_gear: {err}", "error", exc=err
         )
 
         # Raise an HTTPException with a 500 Internal Server Error status code
@@ -310,7 +324,7 @@ def unlink_garminconnect_account(user_id: int, db: Session):
 
         # Log the exception
         core_logger.print_to_log(
-            f"Error in unlink_garminconnect_account: {err}", "error"
+            f"Error in unlink_garminconnect_account: {err}", "error", exc=err
         )
 
         # Raise an HTTPException with a 500 Internal Server Error status code

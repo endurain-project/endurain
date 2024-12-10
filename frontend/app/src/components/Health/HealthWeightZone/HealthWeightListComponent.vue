@@ -6,7 +6,8 @@
                 <div class="fw-bold">
                     {{ data.weight }}
                 </div>
-                {{ formatDate(data.created_at) }}
+                {{ data.date }}
+                {{ formatDate(data.date) }}
             </div>
         </div>
         <div>

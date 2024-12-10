@@ -91,7 +91,7 @@ async def strava_link(
         core_logger.print_to_log(
             f"Error in strava_link. For more information check Strava log.", "error"
         )
-        strava_logger.print_to_log(f"Error in strava_link: {err}", "error")
+        strava_logger.print_to_log(f"Error in strava_link: {err}", "error", exc=err)
 
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(

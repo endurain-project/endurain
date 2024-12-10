@@ -15,11 +15,12 @@ import core.migrations as core_migrations
 
 import garmin.logger as garmin_logger
 import garmin.activity_utils as garmin_activity_utils
+import garmin.health_utils as garmin_health_utils
+
 import strava.activity_utils as strava_activity_utils
+import strava.logger as strava_logger
 
 import migrations.logger as migrations_logger
-
-import strava.logger as strava_logger
 
 from core.routes import router as api_router
 
@@ -41,12 +42,18 @@ def startup_event():
     # Create a scheduler to run background jobs
     core_scheduler.start_scheduler()
 
-    # Retrieve last day activities from Garmin Connect
+    # Retrieve last day activities from Garmin Connect and Strava
     core_logger.print_to_log_and_console(
         "Retrieving last day activities from Garmin Connect and Strava on startup"
     )
     garmin_activity_utils.retrieve_garminconnect_users_activities_for_days(1)
     strava_activity_utils.retrieve_strava_users_activities_for_days(1)
+
+    # Retrieve last day body composition from Garmin Connect
+    core_logger.print_to_log_and_console(
+        "Retrieving last day body composition from Garmin Connect on startup"
+    )
+    garmin_health_utils.retrieve_garminconnect_users_bc_for_days(1)
 
 
 def shutdown_event():
