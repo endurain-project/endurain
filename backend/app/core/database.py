@@ -5,26 +5,22 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.engine.url import URL
 
 
-def get_db():
-    # Create a new database session and return it
-    db = SessionLocal()
-
-    try:
-        # Yield the database session
-        yield db
-    finally:
-        # Close the database session
-        db.close()
+# Helper to fetch environment variables
+def get_env_variable(var_name: str) -> str:
+    value = os.environ.get(var_name)
+    if value is None:
+        raise EnvironmentError(f"Environment variable {var_name} is not set")
+    return value
 
 
 # Define the database connection URL using environment variables
 db_url = URL.create(
     drivername="mysql",
-    username=os.environ.get("DB_USER"),
-    password=os.environ.get("DB_PASSWORD"),
-    host=os.environ.get("DB_HOST"),
-    port=os.environ.get("DB_PORT"),
-    database=os.environ.get("DB_DATABASE"),
+    username=get_env_variable("DB_USER"),
+    password=get_env_variable("DB_PASSWORD"),
+    host=get_env_variable("DB_HOST"),
+    port=get_env_variable("DB_PORT"),
+    database=get_env_variable("DB_DATABASE"),
 )
 
 # Create the SQLAlchemy engine
@@ -37,3 +33,15 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 # Create a base class for declarative models
 Base = declarative_base()
+
+
+def get_db():
+    # Create a new database session and return it
+    db = SessionLocal()
+
+    try:
+        # Yield the database session
+        yield db
+    finally:
+        # Close the database session
+        db.close()

@@ -8,7 +8,7 @@ package-mode = false
 
 [tool.poetry.dependencies]
 python = "^3.12"
-fastapi = "^0.115.5"
+fastapi = "^0.115.6"
 uvicorn = "^0.32.1"
 python-dotenv = "^1.0.1"
 sqlalchemy = "^2.0.36"
@@ -30,7 +30,7 @@ geopy = "^2.4.1"
 flexparser = "^0.4"
 pydantic-core = "^2.27.1"
 importlib-metadata = "^8.5.0"
-garminconnect = "^0.2.23"
+garminconnect = "^0.2.24"
 websockets = "^14.1"
 timezonefinder = "^6.5.5"
 

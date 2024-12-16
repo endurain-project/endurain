@@ -9,7 +9,6 @@ from typing import Sequence, Union
 
 from alembic import op
 import sqlalchemy as sa
-from sqlalchemy.dialects import mysql
 
 # revision identifiers, used by Alembic.
 revision: str = '1bce2bd27873'
@@ -119,7 +118,7 @@ def upgrade() -> None:
     sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
     sa.Column('activity_id', sa.Integer(), nullable=False, comment='Activity ID that the activity stream belongs'),
     sa.Column('stream_type', sa.Integer(), nullable=False, comment='Stream type (1 - HR, 2 - Power, 3 - Cadence, 4 - Elevation, 5 - Velocity, 6 - Pace, 7 - lat/lon)'),
-    sa.Column('stream_waypoints', mysql.JSON(), nullable=False),
+    sa.Column('stream_waypoints', sa.JSON(), nullable=False),
     sa.Column('strava_activity_stream_id', sa.BigInteger(), nullable=True, comment='Strava activity stream ID'),
     sa.ForeignKeyConstraint(['activity_id'], ['activities.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id')

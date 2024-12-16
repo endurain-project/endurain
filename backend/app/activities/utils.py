@@ -564,6 +564,11 @@ def define_activity_type(activity_type):
         "indoor_rowing": 13,
         "yoga": 14,
         "Yoga": 14,
+        "AlpineSki": 15,
+        "resort_skiing": 15,
+        "alpine_skiing": 15,
+        "NordicSki": 16,
+        "Snowboard": 17,
     }
     # "AlpineSki",
     # "BackcountrySki",

@@ -554,7 +554,7 @@ async def activity_add_gear(
         )
 
     # Add the gear to the activity
-    activities_crud.add_gear_to_activity(activity_id, gear_id, db)
+    activities_crud.add_gear_to_activity(token_user_id, activity_id, gear_id, db)
 
     # Return success message
     return {"detail": f"Gear ID {gear_id} added to activity successfully"}
@@ -593,7 +593,7 @@ async def delete_activity_gear(
         )
 
     # Delete gear from the activity
-    activities_crud.add_gear_to_activity(activity_id, None, db)
+    activities_crud.add_gear_to_activity(token_user_id, activity_id, None, db)
 
     # Return success message
     return {"detail": f"Gear ID {activity.gear_id} deleted from activity successfully"}

@@ -447,13 +447,13 @@ dev = ["PyTest", "PyTest-Cov", "bump2version (<1)", "jinja2 (>=3.0.3,<3.1.0)", "
 
 [[package]]
 name = "fastapi"
-version = "0.115.5"
+version = "0.115.6"
 description = "FastAPI framework, high performance, easy to learn, fast to code, ready for production"
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "fastapi-0.115.5-py3-none-any.whl", hash = "sha256:596b95adbe1474da47049e802f9a65ab2ffa9c2b07e7efee70eb8a66c9f2f796"},
-    {file = "fastapi-0.115.5.tar.gz", hash = "sha256:0e7a4d0dc0d01c68df21887cce0945e72d3c48b9f4f79dfe7a7d53aa08fbb289"},
+    {file = "fastapi-0.115.6-py3-none-any.whl", hash = "sha256:e9240b29e36fa8f4bb7290316988e90c381e5092e0cbe84e7818cc3713bcf305"},
+    {file = "fastapi-0.115.6.tar.gz", hash = "sha256:9ec46f7addc14ea472958a96aae5b5de65f39721a46aaf5705c480d9a8b76654"},
 ]
 
 [package.dependencies]
@@ -515,28 +515,28 @@ test = ["pytest", "pytest-cov", "pytest-mpl", "pytest-subtests"]
 
 [[package]]
 name = "garminconnect"
-version = "0.2.23"
+version = "0.2.24"
 description = "Python 3 API wrapper for Garmin Connect"
 optional = false
 python-versions = ">=3.10"
 files = [
-    {file = "garminconnect-0.2.23-py3-none-any.whl", hash = "sha256:96951df51463e7b0c5d46bd97229476d95a870c5a1fa2dd6941ead377b6d8509"},
-    {file = "garminconnect-0.2.23.tar.gz", hash = "sha256:21012b57095af06754b53f307f3d6f3280a8698168477d1540cc90e2df39627d"},
+    {file = "garminconnect-0.2.24-py3-none-any.whl", hash = "sha256:4ab0c989331b228efa8193d372338df670c2b0b58cabe87b0d841dea2a592068"},
+    {file = "garminconnect-0.2.24.tar.gz", hash = "sha256:303ecc9043d36a78e9a7e2e89f89e5f243987458633dfd23182c8cc991762f28"},
 ]
 
 [package.dependencies]
-garth = ">=0.4.46"
+garth = "0.4.47"
 withings-sync = "4.2.5"
 
 [[package]]
 name = "garth"
-version = "0.4.46"
+version = "0.4.47"
 description = "Garmin SSO auth + Connect client"
 optional = false
-python-versions = ">=3.8"
+python-versions = ">=3.9"
 files = [
-    {file = "garth-0.4.46-py3-none-any.whl", hash = "sha256:c209192bac793f42764f0f06131dc503f74783d41af326f29187a1f6394dc5ff"},
-    {file = "garth-0.4.46.tar.gz", hash = "sha256:5ae19e67612083285b10321b8e0e1f7c815a8f60f21e2f13be8c21a22e64d8eb"},
+    {file = "garth-0.4.47-py3-none-any.whl", hash = "sha256:037c61e94134cdc653b1f1841766ed1a3e113689478c330185031adb7a8c45a5"},
+    {file = "garth-0.4.47.tar.gz", hash = "sha256:d4386614e20df8aae921ec899ec6af7823891b6a3b71ba6d2a093a8c5176404a"},
 ]
 
 [package.dependencies]
@@ -2180,4 +2180,4 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.12"
-content-hash = "4d51b4e683de71f0237bab7bf6344b6362c83d655d321493b4164a5221efe348"
+content-hash = "08f5739a347ec99ed4e8b098e9e3d8281e12570124a91ae89cdd44198c702ce8"

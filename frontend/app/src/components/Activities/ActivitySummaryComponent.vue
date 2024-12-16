@@ -57,6 +57,15 @@
                         <span v-else-if="activity.activity_type == 14">
                             <font-awesome-icon class="me-1" :icon="['fas', 'hands-praying']" />
                         </span>
+                        <span v-else-if="activity.activity_type == 15">
+                            <font-awesome-icon class="me-1" :icon="['fas', 'person-skiing']" />
+                        </span>
+                        <span v-else-if="activity.activity_type == 16">
+                            <font-awesome-icon class="me-1" :icon="['fas', 'person-skiing-nordic']" />
+                        </span>
+                        <span v-else-if="activity.activity_type == 17">
+                            <font-awesome-icon class="me-1" :icon="['fas', 'person-snowboarding']" />
+                        </span>
                         <span v-else>
                             <font-awesome-icon class="me-1" :icon="['fas', 'fa-dumbbell']" />
                         </span>

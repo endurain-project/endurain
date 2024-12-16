@@ -1,6 +1,6 @@
 from operator import and_, or_
 from fastapi import HTTPException, status
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy import func, desc
 from sqlalchemy.orm import Session, joinedload
 from urllib.parse import unquote
@@ -105,6 +105,7 @@ def get_user_activities_by_user_id_and_garminconnect_gear_set(
         core_logger.print_to_log(
             f"Error in get_user_activities_by_user_id_and_garminconnect_gear_set: {err}",
             "error",
+            exc=err,
         )
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
@@ -140,7 +141,7 @@ def get_user_activities_with_pagination(
     except Exception as err:
         # Log the exception
         core_logger.print_to_log(
-            f"Error in get_user_activities_with_pagination: {err}", "error"
+            f"Error in get_user_activities_with_pagination: {err}", "error", exc=err
         )
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
@@ -180,7 +181,7 @@ def get_user_activities_per_timeframe(
     except Exception as err:
         # Log the exception
         core_logger.print_to_log(
-            f"Error in get_user_activities_per_timeframe: {err}", "error"
+            f"Error in get_user_activities_per_timeframe: {err}", "error", exc=err
         )
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
@@ -223,7 +224,9 @@ def get_user_following_activities_per_timeframe(
     except Exception as err:
         # Log the exception
         core_logger.print_to_log(
-            f"Error in get_user_following_activities_per_timeframe: {err}", "error"
+            f"Error in get_user_following_activities_per_timeframe: {err}",
+            "error",
+            exc=err,
         )
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
@@ -271,7 +274,9 @@ def get_user_following_activities_with_pagination(
     except Exception as err:
         # Log the exception
         core_logger.print_to_log(
-            f"Error in get_user_following_activities_with_pagination: {err}", "error"
+            f"Error in get_user_following_activities_with_pagination: {err}",
+            "error",
+            exc=err,
         )
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
@@ -313,7 +318,7 @@ def get_user_following_activities(user_id, db):
     except Exception as err:
         # Log the exception
         core_logger.print_to_log(
-            f"Error in get_user_following_activities: {err}", "error"
+            f"Error in get_user_following_activities: {err}", "error", exc=err
         )
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
@@ -348,7 +353,9 @@ def get_user_activities_by_gear_id_and_user_id(user_id: int, gear_id: int, db: S
     except Exception as err:
         # Log the exception
         core_logger.print_to_log(
-            f"Error in get_user_activities_by_gear_id_and_user_id: {err}", "error"
+            f"Error in get_user_activities_by_gear_id_and_user_id: {err}",
+            "error",
+            exc=err,
         )
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
@@ -388,6 +395,7 @@ def get_activity_by_id_from_user_id_or_has_visibility(
         core_logger.print_to_log(
             f"Error in get_activity_by_id_from_user_id_or_has_visibility: {err}",
             "error",
+            exc=err,
         )
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
@@ -423,7 +431,7 @@ def get_activity_by_id_from_user_id(
     except Exception as err:
         # Log the exception
         core_logger.print_to_log(
-            f"Error in get_activity_by_id_from_user_id: {err}", "error"
+            f"Error in get_activity_by_id_from_user_id: {err}", "error", exc=err
         )
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
@@ -458,7 +466,7 @@ def get_activity_by_strava_id_from_user_id(
     except Exception as err:
         # Log the exception
         core_logger.print_to_log(
-            f"Error in get_activity_by_strava_id_from_user_id: {err}", "error"
+            f"Error in get_activity_by_strava_id_from_user_id: {err}", "error", exc=err
         )
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
@@ -494,7 +502,9 @@ def get_activity_by_garminconnect_id_from_user_id(
     except Exception as err:
         # Log the exception
         core_logger.print_to_log(
-            f"Error in get_activity_by_garminconnect_id_from_user_id: {err}", "error"
+            f"Error in get_activity_by_garminconnect_id_from_user_id: {err}",
+            "error",
+            exc=err,
         )
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
@@ -532,7 +542,7 @@ def get_activities_if_contains_name(name: str, user_id: int, db: Session):
     except Exception as err:
         # Log the exception
         core_logger.print_to_log(
-            f"Error in get_activities_if_contains_name: {err}", "error"
+            f"Error in get_activities_if_contains_name: {err}", "error", exc=err
         )
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
@@ -653,17 +663,39 @@ def edit_activity(user_id: int, activity: activities_schema.Activity, db: Sessio
         ) from err
 
 
-def add_gear_to_activity(activity_id: int, gear_id: int, db: Session):
+def add_gear_to_activity(user_id: int, activity_id: int, gear_id: int, db: Session):
     try:
         # Get the activity from the database
-        activity = (
+        activity_db = (
             db.query(activities_models.Activity)
-            .filter(activities_models.Activity.id == activity_id)
+            .filter(
+                activities_models.Activity.user_id == user_id,
+                activities_models.Activity.id == activity_id,
+            )
             .first()
         )
 
+        # Force datetime to be naive before committing
+        if isinstance(activity_db.created_at, str):
+            activity_db.created_at = datetime.fromisoformat(activity_db.created_at)
+        activity_db.created_at = activity_db.created_at.astimezone(timezone.utc).replace(
+            tzinfo=None
+        )
+
+        if isinstance(activity_db.start_time, str):
+            activity_db.start_time = datetime.fromisoformat(activity_db.start_time)
+        activity_db.start_time = activity_db.start_time.astimezone(timezone.utc).replace(
+            tzinfo=None
+        )
+
+        if isinstance(activity_db.end_time, str):
+            activity_db.end_time = datetime.fromisoformat(activity_db.end_time)
+        activity_db.end_time = activity_db.end_time.astimezone(timezone.utc).replace(
+            tzinfo=None
+        )
+
         # Update the activity
-        activity.gear_id = gear_id
+        activity_db.gear_id = gear_id
         db.commit()
     except Exception as err:
         # Rollback the transaction
@@ -700,7 +732,7 @@ def edit_multiple_activities_gear_id(
 
         # Log the exception
         core_logger.print_to_log(
-            f"Error in edit_multiple_activities_gear_id: {err}", "error"
+            f"Error in edit_multiple_activities_gear_id: {err}", "error", exc=err
         )
 
         # Raise an HTTPException with a 500 Internal Server Error status code
@@ -764,7 +796,7 @@ def delete_all_strava_activities_for_user(user_id: int, db: Session):
 
         # Log the exception
         core_logger.print_to_log(
-            f"Error in delete_all_strava_activities_for_user: {err}", "error"
+            f"Error in delete_all_strava_activities_for_user: {err}", "error", exc=err
         )
 
         # Raise an HTTPException with a 500 Internal Server Error status code

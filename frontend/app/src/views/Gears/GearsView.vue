@@ -100,7 +100,7 @@
                                             {{ gear.nickname }}
                                         </router-link>
                                     </div>
-                                    <b>{{ $t("gearsView.gearTypeLabel") }}</b>
+                                    <b>{{ $t("gearsView.gearTypeLabel") }}: </b>
                                     <span v-if="gear.gear_type == 1">{{ $t("gearsView.gearTypeOption1") }}</span>
                                     <span v-else-if="gear.gear_type == 2">{{ $t("gearsView.gearTypeOption2") }}</span>
                                     <span v-else>{{ $t("gearsView.gearTypeOption3") }}</span>
