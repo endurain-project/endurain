@@ -663,55 +663,6 @@ def edit_activity(user_id: int, activity: activities_schema.Activity, db: Sessio
         ) from err
 
 
-def add_gear_to_activity(user_id: int, activity_id: int, gear_id: int, db: Session):
-    try:
-        # Get the activity from the database
-        activity_db = (
-            db.query(activities_models.Activity)
-            .filter(
-                activities_models.Activity.user_id == user_id,
-                activities_models.Activity.id == activity_id,
-            )
-            .first()
-        )
-
-        # Force datetime to be naive before committing
-        if isinstance(activity_db.created_at, str):
-            activity_db.created_at = datetime.fromisoformat(activity_db.created_at)
-        activity_db.created_at = activity_db.created_at.astimezone(timezone.utc).replace(
-            tzinfo=None
-        )
-
-        if isinstance(activity_db.start_time, str):
-            activity_db.start_time = datetime.fromisoformat(activity_db.start_time)
-        activity_db.start_time = activity_db.start_time.astimezone(timezone.utc).replace(
-            tzinfo=None
-        )
-
-        if isinstance(activity_db.end_time, str):
-            activity_db.end_time = datetime.fromisoformat(activity_db.end_time)
-        activity_db.end_time = activity_db.end_time.astimezone(timezone.utc).replace(
-            tzinfo=None
-        )
-
-        # Update the activity
-        activity_db.gear_id = gear_id
-        db.commit()
-    except Exception as err:
-        # Rollback the transaction
-        db.rollback()
-
-        # Log the exception
-        core_logger.print_to_log(
-            f"Error in add_gear_to_activity: {err}", "error", exc=err
-        )
-        # Raise an HTTPException with a 500 Internal Server Error status code
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Internal Server Error",
-        ) from err
-
-
 def edit_multiple_activities_gear_id(
     activities: list[activities_schema.Activity], user_id: int, db: Session
 ):

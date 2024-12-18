@@ -509,96 +509,6 @@ async def edit_activity(
     return {f"Activity ID {activity_attributes.id} updated successfully"}
 
 
-@router.put(
-    "/{activity_id}/addgear/{gear_id}",
-)
-async def activity_add_gear(
-    activity_id: int,
-    validate_activity_id: Annotated[
-        Callable, Depends(activities_dependencies.validate_activity_id)
-    ],
-    gear_id: int,
-    validate_gear_id: Annotated[Callable, Depends(gears_dependencies.validate_gear_id)],
-    check_scopes: Annotated[
-        Callable, Security(session_security.check_scopes, scopes=["activities:write"])
-    ],
-    token_user_id: Annotated[
-        int,
-        Depends(session_security.get_user_id_from_access_token),
-    ],
-    db: Annotated[
-        Session,
-        Depends(core_database.get_db),
-    ],
-):
-    # Get the gear by user id and gear id
-    gear = gears_crud.get_gear_user_by_id(gear_id, db)
-
-    # Check if gear is None and raise an HTTPException with a 404 Not Found status code if it is
-    if gear is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Gear ID {gear_id} for user {token_user_id} not found",
-        )
-
-    # Get the activity by id from user id
-    activity = activities_crud.get_activity_by_id_from_user_id(
-        activity_id, token_user_id, db
-    )
-
-    # Check if activity is None and raise an HTTPException with a 404 Not Found status code if it is
-    if activity is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Activity ID {activity_id} for user {token_user_id} not found",
-        )
-
-    # Add the gear to the activity
-    activities_crud.add_gear_to_activity(token_user_id, activity_id, gear_id, db)
-
-    # Return success message
-    return {"detail": f"Gear ID {gear_id} added to activity successfully"}
-
-
-@router.put(
-    "/{activity_id}/deletegear",
-)
-async def delete_activity_gear(
-    activity_id: int,
-    validate_activity_id: Annotated[
-        Callable, Depends(activities_dependencies.validate_activity_id)
-    ],
-    check_scopes: Annotated[
-        Callable, Security(session_security.check_scopes, scopes=["activities:write"])
-    ],
-    token_user_id: Annotated[
-        int,
-        Depends(session_security.get_user_id_from_access_token),
-    ],
-    db: Annotated[
-        Session,
-        Depends(core_database.get_db),
-    ],
-):
-    # Get the activity by id from user id
-    activity = activities_crud.get_activity_by_id_from_user_id(
-        activity_id, token_user_id, db
-    )
-
-    # Check if activity is None and raise an HTTPException with a 404 Not Found status code if it is
-    if activity is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Activity ID {activity_id} for user {token_user_id} not found",
-        )
-
-    # Delete gear from the activity
-    activities_crud.add_gear_to_activity(token_user_id, activity_id, None, db)
-
-    # Return success message
-    return {"detail": f"Gear ID {activity.gear_id} deleted from activity successfully"}
-
-
 @router.delete(
     "/{activity_id}/delete",
 )
@@ -649,7 +559,9 @@ async def delete_activity(
             core_logger.print_to_log(f"File not found {file}: {err}", "error", exc=err)
         except Exception as err:
             # Log the exception
-            core_logger.print_to_log(f"Error deleting file {file}: {err}", "error", exc=err)
+            core_logger.print_to_log(
+                f"Error deleting file {file}: {err}", "error", exc=err
+            )
 
     # Return success message
     return {"detail": f"Activity {activity_id} deleted successfully"}

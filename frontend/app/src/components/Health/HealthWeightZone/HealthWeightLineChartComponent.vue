@@ -34,7 +34,7 @@ export default {
         function updatedSortedArray(){
             sortedHealthDataArray.value = props.userHealthData;
             sortedHealthDataArray.value.sort((a, b) => {
-                return new Date(a.created_at) - new Date(b.created_at);
+                return new Date(a.date) - new Date(b.date);
             });
 
             if (sortedHealthDataArray.value){
@@ -43,7 +43,7 @@ export default {
                     const labels = [];
                     for (const healthData of sortedHealthDataArray.value){
                         data.push(healthData.weight)
-                        const createdAt = new Date(healthData.created_at);
+                        const createdAt = new Date(healthData.date);
                         labels.push(`${createdAt.getDate()}/${createdAt.getMonth()+1}/${createdAt.getFullYear()}`)
                     }
                     const label = "Weight in kgs";

@@ -108,7 +108,7 @@ export default {
             }
         }
 
-        function updateWeightListAdded(createdWeight) {
+        /* function updateWeightListAdded(createdWeight) {
             // Update the weight in the userHealthDataPagination and userHealthData arrays.
 			if (userHealthDataPagination.value){
                 userHealthDataPagination.value.unshift(createdWeight);
@@ -118,7 +118,36 @@ export default {
                 userHealthData.value = [createdWeight];
             }
             userHealthDataNumber.value++;
-		}
+		} */
+
+        function updateWeightListAdded(createdWeight) {
+            // Function to update or add an entry in the array
+            const updateOrAdd = (array, newEntry) => {
+                const index = array.findIndex(item => item.id === newEntry.id);
+                if (index !== -1) {
+                    // Update existing entry
+                    array[index] = newEntry;
+                } else {
+                    // Add new entry
+                    array.unshift(newEntry);
+                }
+            };
+
+            // Check and update both arrays
+            if (userHealthDataPagination.value) {
+                updateOrAdd(userHealthDataPagination.value, createdWeight);
+            } else {
+                userHealthDataPagination.value = [createdWeight];
+            }
+
+            if (userHealthData.value) {
+                updateOrAdd(userHealthData.value, createdWeight);
+            } else {
+                userHealthData.value = [createdWeight];
+            }
+
+            userHealthDataNumber.value = userHealthData.value.length; // Update the count
+        }
 
         function updateWeightListDeleted(deletedWeight) {
             // Update the weight in the userHealthDataPagination and userHealthData arrays.

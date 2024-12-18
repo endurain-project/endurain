@@ -66,7 +66,7 @@ def fetch_and_process_bc(
                 f"User {user_id}: Body composition edited for date {health_data.date}"
             )
         else:
-            health_data_crud.create_health_data(health_data, user_id, db)
+            health_data_crud.create_health_data(user_id, health_data, db)
             garmin_logger.print_to_log(
                 f"User {user_id}: Body composition created for date {health_data.date}"
             )

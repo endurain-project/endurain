@@ -6,8 +6,7 @@
                 <div class="fw-bold">
                     {{ data.weight }}
                 </div>
-                {{ data.date }}
-                {{ formatDate(data.date) }}
+                Date: {{ formatDate(data.date) }}<span v-if="data.bmi"> | BMI: {{ data.bmi }}</span>
             </div>
         </div>
         <div>
@@ -19,7 +18,7 @@
             <!-- delete weight button -->
             <a class="btn btn-link btn-lg link-body-emphasis" href="#" role="button" data-bs-toggle="modal" :data-bs-target="`#deleteWeightModal${data.id}`"><font-awesome-icon :icon="['fas', 'fa-trash-can']" /></a>
 
-            <ModalComponent :modalId="`deleteWeightModal${data.id}`" :title="t('healthWeightListComponent.modalDeleteWeightTitle')" :body="`${t('healthWeightListComponent.modalDeleteWeightBody')}<b>${data.created_at}</b>?`" :actionButtonType="`danger`" :actionButtonText="t('healthWeightListComponent.modalDeleteWeightTitle')" @submitAction="submitDeleteWeight"/>
+            <ModalComponent :modalId="`deleteWeightModal${data.id}`" :title="t('healthWeightListComponent.modalDeleteWeightTitle')" :body="`${t('healthWeightListComponent.modalDeleteWeightBody')}<b>${data.date}</b>?`" :actionButtonType="`danger`" :actionButtonText="t('healthWeightListComponent.modalDeleteWeightTitle')" @submitAction="submitDeleteWeight"/>
         </div>
     </li>
 </template>
@@ -55,7 +54,7 @@ export default {
 
         async function updateWeightListEdited(editedWeight){
             try {
-                await health_data.editWeight(editedWeight);
+                await health_data.editHealthData(editedWeight);
 
                 emit("editedWeight", editedWeight);
 
@@ -67,9 +66,15 @@ export default {
 
         async function submitDeleteWeight(){
             try {
-                await health_data.deleteWeight(props.data.id);
+                const data = {
+                    id: props.data.id,
+                    user_id: props.data.user_id,
+                    weight: null,
+                    bmi: null,
+                };
+                await health_data.editHealthData(data);
 
-                emit("deletedWeight", props.data.id);
+                emit("deletedWeight", data.id);
 
                 push.success(t("healthWeightListComponent.successDeleteWeight"));
             } catch (error) {

@@ -112,7 +112,7 @@
         </div>
 
         <!-- Modal edit activity -->
-        <EditActivityModalComponent :activity="activity" />
+        <EditActivityModalComponent :activity="activity" @activityEditedFields="updateActivityFieldsOnEdit"/>
 
         <!-- Modal delete activity -->
         <div class="modal fade" id="deleteActivityModal" tabindex="-1" aria-labelledby="deleteActivityModal"
@@ -298,7 +298,8 @@ export default {
 			required: true,
 		},
 	},
-	setup(props) {
+	emits: ["activityEditedFields"],
+	setup(props, { emit }) {
 		const router = useRouter();
 		const authStore = useAuthStore();
 		const { t } = useI18n();
@@ -307,7 +308,8 @@ export default {
 		let formattedPace = null;
 		if (
 			props.activity.activity_type === 8 ||
-			props.activity.activity_type === 9 || props.activity.activity_type === 13
+			props.activity.activity_type === 9 ||
+			props.activity.activity_type === 13
 		) {
 			formattedPace = computed(() => formatPaceSwim(props.activity.pace));
 		} else {
@@ -337,6 +339,11 @@ export default {
 			}
 		}
 
+		function updateActivityFieldsOnEdit(data) {
+			// Emit the activityEditedFields event to the parent component
+			emit("activityEditedFields", data);
+		}
+
 		return {
 			authStore,
 			isLoading,
@@ -348,6 +355,7 @@ export default {
 			formattedPace,
 			sourceProp,
 			submitDeleteActivity,
+			updateActivityFieldsOnEdit,
 		};
 	},
 };

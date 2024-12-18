@@ -37,13 +37,7 @@ export const activities = {
     bulkImportActivities() {
         return fetchPostRequest('activities/create/bulkimport');
     },
-    addGearToActivity(activityId, gearId) {
-        return fetchPutRequest(`activities/${activityId}/addgear/${gearId}`);
-    },
-    deleteGearFromActivity(activityId) {
-        return fetchPutRequest(`activities/${activityId}/deletegear`);
-    },
-    editActivity(activityId, data) {
+    editActivity(data) {
         return fetchPutRequest('activities/edit', data);
     },
     deleteActivity(activityId) {

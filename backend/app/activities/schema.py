@@ -55,3 +55,4 @@ class ActivityEdit(BaseModel):
     name: str
     activity_type: int
     visibility: int | None = None
+    gear_id: int | None = None

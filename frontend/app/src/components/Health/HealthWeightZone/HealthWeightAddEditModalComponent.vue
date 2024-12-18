@@ -64,7 +64,7 @@ export default {
 
         if(props.data){
             newEditWeightWeight.value = props.data.weight;
-            newEditWeightDate.value = props.data.created_at;
+            newEditWeightDate.value = props.data.date;
             editWeightId.value = `editWeightId${props.data.id}`;
         }
 
@@ -75,10 +75,10 @@ export default {
                 // Create the weight data object.
                 const data = {
                     weight: newEditWeightWeight.value,
-                    created_at: newEditWeightDate.value,
+                    date: newEditWeightDate.value,
                 };
 
-                const createdWeight = await health_data.createWeight(data);
+                const createdWeight = await health_data.createHealthData(data);
 
                 // Set the loading variable to false.
                 emit("isLoadingNewWeight", false);
@@ -100,7 +100,7 @@ export default {
 				id: props.data.id,
                 user_id: props.data.user_id,
 				weight: newEditWeightWeight.value,
-                created_at: newEditWeightDate.value,
+                date: newEditWeightDate.value,
 			});
         }
 

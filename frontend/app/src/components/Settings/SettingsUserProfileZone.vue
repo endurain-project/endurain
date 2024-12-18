@@ -167,7 +167,7 @@ export default {
 		const editUserTown = ref(authStore.user.city);
 		const editUserBirthdate = ref(authStore.user.birthdate);
 		const editUserGender = ref(authStore.user.gender);
-        const editUserHeight = ref(authStore.user.height);
+		const editUserHeight = ref(authStore.user.height);
 		const editUserPreferredLanguage = ref(authStore.user.preferred_language);
 		const editUserAccessType = ref(authStore.user.access_type);
 
@@ -177,6 +177,9 @@ export default {
 
 		async function submitEditUserForm() {
 			try {
+                if (editUserHeight.value === "" || editUserHeight.value === 0) {
+                    editUserHeight.value = null;
+                }
 				const data = {
 					id: authStore.user.id,
 					username: editUserUsername.value,
@@ -185,7 +188,7 @@ export default {
 					city: editUserTown.value,
 					birthdate: editUserBirthdate.value,
 					gender: editUserGender.value,
-                    height: editUserHeight.value,
+					height: editUserHeight.value,
 					preferred_language: editUserPreferredLanguage.value,
 					access_type: editUserAccessType.value,
 					photo_path: null,
@@ -250,7 +253,7 @@ export default {
 			editUserTown,
 			editUserBirthdate,
 			editUserGender,
-            editUserHeight,
+			editUserHeight,
 			editUserPreferredLanguage,
 			editUserAccessType,
 			submitEditUserForm,

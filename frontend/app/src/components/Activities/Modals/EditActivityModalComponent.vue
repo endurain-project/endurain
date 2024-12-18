@@ -71,7 +71,8 @@ export default {
 			required: true,
 		},
 	},
-	setup(props) {
+	emits: ["activityEditedFields"],
+	setup(props, { emit }) {
 		const { t } = useI18n();
 		const editActivityDescription = ref(props.activity.description);
 		const editActivityName = ref(props.activity.name);
@@ -82,26 +83,25 @@ export default {
 			try {
 				const data = {
 					id: props.activity.id,
-					name: editActivityName.value,
 					description: editActivityDescription.value,
+					name: editActivityName.value,
 					activity_type: editActivityType.value,
 					visibility: editActivityVisibility.value,
 				};
 
 				// Call the service to edit the activity
-				await activities.editActivity(props.activity.id, data);
-
-				// Set activity new values
-				props.activity.name = editActivityName.value;
-				props.activity.description = editActivityDescription.value;
-				props.activity.activity_type = editActivityType.value;
-				props.activity.visibility = editActivityVisibility.value;
+				await activities.editActivity(data);
 
 				// show success toast
-                push.success(t("editActivityModalComponent.successActivityEdit"));
+				push.success(t("editActivityModalComponent.successActivityEdit"));
+
+				// Emit the activityEditedFields event to the parent component
+				emit("activityEditedFields", data);
 			} catch (error) {
 				// If there is an error, set the error message and show the error alert.
-				push.error(`${t("editActivityModalComponent.errorActivityEdit")} - ${error}`);
+				push.error(
+					`${t("editActivityModalComponent.errorActivityEdit")} - ${error}`,
+				);
 			}
 		}
 

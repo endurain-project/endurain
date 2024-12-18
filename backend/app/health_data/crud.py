@@ -59,7 +59,7 @@ def get_health_data_number(user_id: int, db: Session):
         ) from err
 
 
-def get_health_data(user_id: int, db: Session):
+def get_all_health_data_by_user_id(user_id: int, db: Session):
     try:
         # Get the health_data from the database
         health_data = (
@@ -77,7 +77,9 @@ def get_health_data(user_id: int, db: Session):
         return health_data
     except Exception as err:
         # Log the exception
-        core_logger.print_to_log(f"Error in get_health_data: {err}", "error", exc=err)
+        core_logger.print_to_log(
+            f"Error in get_all_health_data_by_user_id: {err}", "error", exc=err
+        )
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -148,7 +150,7 @@ def get_health_data_by_date(user_id: int, date: str, db: Session):
 
 
 def create_health_data(
-    health_data: health_data_schema.HealthData, user_id: int, db: Session
+    user_id: int, health_data: health_data_schema.HealthData, db: Session
 ):
     try:
         # Check if date is None
@@ -230,7 +232,7 @@ def edit_health_data(user_id, health_data: health_data_schema.HealthData, db: Se
             )
 
         # Check if bmi is None
-        if health_data.bmi is None:
+        if health_data.bmi is None and health_data.weight is not None:
             health_data = health_data_utils.calculate_bmi(health_data, user_id, db)
 
         # Dictionary of the fields to update if they are not None
@@ -241,15 +243,8 @@ def edit_health_data(user_id, health_data: health_data_schema.HealthData, db: Se
 
         # Commit the transaction
         db.commit()
-    except IntegrityError as integrity_error:
-        # Rollback the transaction
-        db.rollback()
 
-        # Raise an HTTPException with a 500 Internal Server Error status code
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Duplicate entry error. Check if date selected is not already added",
-        ) from integrity_error
+        return health_data
     except Exception as err:
         # Rollback the transaction
         db.rollback()
@@ -264,100 +259,7 @@ def edit_health_data(user_id, health_data: health_data_schema.HealthData, db: Se
         ) from err
 
 
-def create_health_weight_data(
-    health_data: health_data_schema.HealthData, user_id: int, db: Session
-):
-    try:
-        # Create a new health_data
-        db_health_data = health_data_models.HealthData(
-            user_id=user_id,
-            date=health_data.date,
-            weight=health_data.weight,
-        )
-
-        # Add the health_data to the database
-        db.add(db_health_data)
-        db.commit()
-        db.refresh(db_health_data)
-
-        health_data.id = db_health_data.id
-
-        # Return the health_data
-        return health_data
-    except IntegrityError as integrity_error:
-        # Rollback the transaction
-        db.rollback()
-
-        # Raise an HTTPException with a 409 Internal Server Error status code
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Duplicate entry error. Check if there is already a entry created for today",
-        ) from integrity_error
-    except Exception as err:
-        # Rollback the transaction
-        db.rollback()
-
-        # Log the exception
-        core_logger.print_to_log(
-            f"Error in create_health_weight_data: {err}", "error", exc=err
-        )
-        # Raise an HTTPException with a 500 Internal Server Error status code
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Internal Server Error",
-        ) from err
-
-
-def edit_health_weight_data(health_data: health_data_schema.HealthData, db: Session):
-    try:
-        # Get the health_data from the database
-        db_health_data = (
-            db.query(health_data_models.HealthData)
-            .filter(health_data_models.HealthData.id == health_data.id)
-            .first()
-        )
-
-        if db_health_data is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Health data not found",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
-
-        # Update the health_data
-        if health_data.date is not None:
-            db_health_data.date = health_data.date
-        if health_data.weight is not None:
-            db_health_data.weight = health_data.weight
-
-        # Commit the transaction
-        db.commit()
-    except IntegrityError as integrity_error:
-        # Rollback the transaction
-        db.rollback()
-
-        # Raise an HTTPException with a 500 Internal Server Error status code
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Duplicate entry error. Check if date selected is not already added",
-        ) from integrity_error
-    except Exception as err:
-        # Rollback the transaction
-        db.rollback()
-
-        # Log the exception
-        core_logger.print_to_log(
-            f"Error in edit_health_weight_data: {err}", "error", exc=err
-        )
-
-        # Raise an HTTPException with a 500 Internal Server Error status code
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Internal Server Error",
-        ) from err
-
-
-def delete_health_weight_data(health_data_id: int, user_id: int, db: Session):
+def delete_health_data(user_id: int, health_data_id: int, db: Session):
     try:
         # Delete the gear
         num_deleted = (

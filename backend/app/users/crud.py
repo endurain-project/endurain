@@ -9,13 +9,19 @@ import users.schema as users_schema
 import users.utils as users_utils
 import users.models as users_models
 
+import health_data.utils as health_data_utils
+
 import core.logger as core_logger
 
 
 def authenticate_user(username: str, db: Session):
     try:
         # Get the user from the database
-        user = db.query(users_models.User).filter(users_models.User.username == username).first()
+        user = (
+            db.query(users_models.User)
+            .filter(users_models.User.username == username)
+            .first()
+        )
 
         # Check if the user exists and if the password is correct and if not return None
         if not user:
@@ -84,7 +90,9 @@ def get_users_with_pagination(db: Session, page_number: int = 1, num_records: in
 
     except Exception as err:
         # Log the exception
-        core_logger.print_to_log(f"Error in get_users_with_pagination: {err}", "error", exc=err)
+        core_logger.print_to_log(
+            f"Error in get_users_with_pagination: {err}", "error", exc=err
+        )
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -115,7 +123,9 @@ def get_user_if_contains_username(username: str, db: Session):
         return users
     except Exception as err:
         # Log the exception
-        core_logger.print_to_log(f"Error in get_user_if_contains_username: {err}", "error", exc=err)
+        core_logger.print_to_log(
+            f"Error in get_user_if_contains_username: {err}", "error", exc=err
+        )
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -126,7 +136,11 @@ def get_user_if_contains_username(username: str, db: Session):
 def get_user_by_username(username: str, db: Session):
     try:
         # Get the user from the database
-        user = db.query(users_models.User).filter(users_models.User.username == username).first()
+        user = (
+            db.query(users_models.User)
+            .filter(users_models.User.username == username)
+            .first()
+        )
 
         # If the user was not found, return None
         if user is None:
@@ -139,7 +153,9 @@ def get_user_by_username(username: str, db: Session):
         return user
     except Exception as err:
         # Log the exception
-        core_logger.print_to_log(f"Error in get_user_by_username: {err}", "error", exc=err)
+        core_logger.print_to_log(
+            f"Error in get_user_by_username: {err}", "error", exc=err
+        )
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -150,7 +166,9 @@ def get_user_by_username(username: str, db: Session):
 def get_user_by_id(user_id: int, db: Session):
     try:
         # Get the user from the database
-        user = db.query(users_models.User).filter(users_models.User.id == user_id).first()
+        user = (
+            db.query(users_models.User).filter(users_models.User.id == user_id).first()
+        )
 
         # If the user was not found, return None
         if user is None:
@@ -188,7 +206,9 @@ def get_user_id_by_username(username: str, db: Session):
         return user_id
     except Exception as err:
         # Log the exception
-        core_logger.print_to_log(f"Error in get_user_id_by_username: {err}", "error", exc=err)
+        core_logger.print_to_log(
+            f"Error in get_user_id_by_username: {err}", "error", exc=err
+        )
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -200,7 +220,9 @@ def get_user_photo_path_by_id(user_id: int, db: Session):
     try:
         # Get the user from the database
         user_db = (
-            db.query(users_models.User.photo_path).filter(users_models.User.id == user_id).first()
+            db.query(users_models.User.photo_path)
+            .filter(users_models.User.id == user_id)
+            .first()
         )
 
         # If the user was not found, return None
@@ -211,7 +233,9 @@ def get_user_photo_path_by_id(user_id: int, db: Session):
         return user_db.photo_path
     except Exception as err:
         # Log the exception
-        core_logger.print_to_log(f"Error in get_user_photo_path_by_id: {err}", "error", exc=err)
+        core_logger.print_to_log(
+            f"Error in get_user_photo_path_by_id: {err}", "error", exc=err
+        )
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -269,7 +293,9 @@ def create_user(user: users_schema.UserCreate, db: Session):
 def edit_user(user_id: int, user: users_schema.User, db: Session):
     try:
         # Get the user from the database
-        db_user = db.query(users_models.User).filter(users_models.User.id == user_id).first()
+        db_user = (
+            db.query(users_models.User).filter(users_models.User.id == user_id).first()
+        )
 
         if db_user is None:
             raise HTTPException(
@@ -277,7 +303,9 @@ def edit_user(user_id: int, user: users_schema.User, db: Session):
                 detail="User not found",
                 headers={"WWW-Authenticate": "Bearer"},
             )
-        
+
+        height_before = db_user.height
+
         # Dictionary of the fields to update if they are not None
         user_data = user.dict(exclude_unset=True)
         # Iterate over the fields and update the db_user dynamically
@@ -286,6 +314,10 @@ def edit_user(user_id: int, user: users_schema.User, db: Session):
 
         # Commit the transaction
         db.commit()
+
+        if height_before != db_user.height:
+            # Update the user's health data
+            health_data_utils.calculate_bmi_all_user_entries(user_id, db)
 
         if db_user.photo_path is None:
             # Delete the user photo in the filesystem
@@ -316,7 +348,9 @@ def edit_user(user_id: int, user: users_schema.User, db: Session):
 def edit_user_password(user_id: int, password: str, db: Session):
     try:
         # Get the user from the database
-        db_user = db.query(users_models.User).filter(users_models.User.id == user_id).first()
+        db_user = (
+            db.query(users_models.User).filter(users_models.User.id == user_id).first()
+        )
 
         # Update the user
         db_user.password = session_security.hash_password(password)
@@ -328,7 +362,9 @@ def edit_user_password(user_id: int, password: str, db: Session):
         db.rollback()
 
         # Log the exception
-        core_logger.print_to_log(f"Error in edit_user_password: {err}", "error", exc=err)
+        core_logger.print_to_log(
+            f"Error in edit_user_password: {err}", "error", exc=err
+        )
 
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
@@ -340,7 +376,9 @@ def edit_user_password(user_id: int, password: str, db: Session):
 def edit_user_photo_path(user_id: int, photo_path: str, db: Session):
     try:
         # Get the user from the database
-        db_user = db.query(users_models.User).filter(users_models.User.id == user_id).first()
+        db_user = (
+            db.query(users_models.User).filter(users_models.User.id == user_id).first()
+        )
 
         # Update the user
         db_user.photo_path = photo_path
@@ -355,7 +393,9 @@ def edit_user_photo_path(user_id: int, photo_path: str, db: Session):
         db.rollback()
 
         # Log the exception
-        core_logger.print_to_log(f"Error in edit_user_photo_path: {err}", "error", exc=err)
+        core_logger.print_to_log(
+            f"Error in edit_user_photo_path: {err}", "error", exc=err
+        )
 
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
@@ -367,7 +407,9 @@ def edit_user_photo_path(user_id: int, photo_path: str, db: Session):
 def delete_user_photo(user_id: int, db: Session):
     try:
         # Get the user from the database
-        db_user = db.query(users_models.User).filter(users_models.User.id == user_id).first()
+        db_user = (
+            db.query(users_models.User).filter(users_models.User.id == user_id).first()
+        )
 
         # Update the user
         db_user.photo_path = None
@@ -394,7 +436,9 @@ def delete_user_photo(user_id: int, db: Session):
 def delete_user(user_id: int, db: Session):
     try:
         # Delete the user
-        num_deleted = db.query(users_models.User).filter(users_models.User.id == user_id).delete()
+        num_deleted = (
+            db.query(users_models.User).filter(users_models.User.id == user_id).delete()
+        )
 
         # Check if the user was found and deleted
         if num_deleted == 0:
