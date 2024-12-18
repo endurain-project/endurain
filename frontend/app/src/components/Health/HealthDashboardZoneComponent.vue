@@ -6,7 +6,7 @@
             </div>
             <div class="card-body">
                 <h1 v-if="currentWeight">{{ currentWeight }}</h1>
-                <span v-else>{{ $t("healthDashboardZoneComponent.noWeightData") }}</span>
+                <h1 v-else>N/A</h1>
             </div>
             <div class="card-footer text-body-secondary">
                 <span v-if="userHealthTargets">{{ userHealthTargets.weight }}</span>
@@ -57,27 +57,31 @@ export default {
         const bmiDescription = ref(null);
 
         onMounted(async () => {
-            for(const data of props.userHealthData){
-                if(data.weight){
-                    currentWeight.value = data.weight;
-                    currentBMI.value = data.bmi;
-                    break;
+            if(props.userHealthData){
+                for(const data of props.userHealthData){
+                    if(data.weight){
+                        currentWeight.value = data.weight;
+                        currentBMI.value = data.bmi;
+                        break;
+                    }
                 }
-            }
 
-            if(currentBMI.value){
-                if(currentBMI.value < 18.5){
-                    bmiDescription.value = t("healthDashboardZoneComponent.bmiUnderweight");
-                } else if(currentBMI.value >= 18.5 && currentBMI.value < 24.9){
-                    bmiDescription.value = t("healthDashboardZoneComponent.bmiNormalWeight");
-                } else if(currentBMI.value >= 25 && currentBMI.value < 29.9){
-                    bmiDescription.value = t("healthDashboardZoneComponent.bmiOverweight");
                 } else if(currentBMI.value >= 30 && currentBMI.value < 34.9){
                     bmiDescription.value = t("healthDashboardZoneComponent.bmiObesityClass1");
-                } else if(currentBMI.value >= 35 && currentBMI.value < 39.9){
-                    bmiDescription.value = t("healthDashboardZoneComponent.bmiObesityClass2");
-                } else if(currentBMI.value >= 40){
-                    bmiDescription.value = t("healthDashboardZoneComponent.bmiObesityClass3");
+                if(currentBMI.value){
+                    if(currentBMI.value < 18.5){
+                        bmiDescription.value = t("healthDashboardZoneComponent.bmiUnderweight");
+                    } else if(currentBMI.value >= 18.5 && currentBMI.value < 24.9){
+                        bmiDescription.value = t("healthDashboardZoneComponent.bmiNormalWeight");
+                    } else if(currentBMI.value >= 25 && currentBMI.value < 29.9){
+                        bmiDescription.value = t("healthDashboardZoneComponent.bmiOverweight");
+                    } else if(currentBMI.value >= 30 && currentBMI.value < 34.9){
+                        bmiDescription.value = t("healthDashboardZoneComponent.bmiObesityClass1");
+                    } else if(currentBMI.value >= 35 && currentBMI.value < 39.9){
+                        bmiDescription.value = t("healthDashboardZoneComponent.bmiObesityClass2");
+                    } else if(currentBMI.value >= 40){
+                        bmiDescription.value = t("healthDashboardZoneComponent.bmiObesityClass3");
+                    }
                 }
             }
         });

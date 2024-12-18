@@ -8,7 +8,7 @@
         <LoadingComponent v-if="isLoading" />
 
         <!-- Include the HealthDashboardZone -->
-        <HealthDashboardZone :userHealthData="userHealthData" :userHealthTargets="userHealthTargets" v-if="activeSection === 'dashboard' && !isLoading && userHealthDataPagination"/>
+        <HealthDashboardZone :userHealthData="userHealthData" :userHealthTargets="userHealthTargets" v-if="activeSection === 'dashboard' && !isLoading"/>
 
         <!-- Include the SettingsUserProfileZone -->
         <HealthWeightZone :userHealthData="userHealthData" :userHealthDataPagination="userHealthDataPagination" :userHealthTargets="userHealthTargets" :isLoading="isLoading" :totalPages="totalPages" :pageNumber="pageNumber" @createdWeight="updateWeightListAdded" @deletedWeight="updateWeightListDeleted" @editedWeight="updateWeightListEdited" @pageNumberChanged="setPageNumber" v-if="activeSection === 'weight' && !isLoading" />

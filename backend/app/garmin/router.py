@@ -11,6 +11,7 @@ import user_integrations.crud as user_integrations_crud
 import garmin.utils as garmin_utils
 import garmin.schema as garmin_schema
 import garmin.activity_utils as garmin_activity_utils
+import garmin.health_utils as garmin_health_utils
 import garmin.gear_utils as garmin_gear_utils
 import garmin.logger as garmin_logger
 
@@ -129,6 +130,40 @@ async def garminconnect_retrieve_gear(
     )
     return {
         "detail": f"Garmin Connect gear will be processed in the background for for {token_user_id}"
+    }
+
+
+@router.get(
+    "/health/days/{days}",
+    status_code=202,
+)
+async def garminconnect_retrieve_health_days(
+    days: int,
+    token_user_id: Annotated[
+        int,
+        Depends(session_security.get_user_id_from_access_token),
+    ],
+    # db: Annotated[Session, Depends(core_database.get_db)],
+    background_tasks: BackgroundTasks,
+):
+    # Process Garmin Connect activities in the background
+    background_tasks.add_task(
+        garmin_health_utils.get_user_garminconnect_bc_by_days,
+        (datetime.now(timezone.utc) - timedelta(days=days)).strftime(
+            "%Y-%m-%dT%H:%M:%S"
+        ),
+        token_user_id,
+    )
+
+    # Return success message and status code 202
+    core_logger.print_to_log(
+        f"Garmin Connect health data will be processed in the background for user {token_user_id}. For more information check garminconnect log."
+    )
+    garmin_logger.print_to_log(
+        f"Garmin Connect health data will be processed in the background for user {token_user_id}"
+    )
+    return {
+        "detail": f"Garmin Connect health data will be processed in the background for for {token_user_id}"
     }
 
 

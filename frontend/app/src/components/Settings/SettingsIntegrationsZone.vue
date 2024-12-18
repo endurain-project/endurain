@@ -86,6 +86,10 @@
                                 <a href="#" class="dropdown-item" @click="submitRetrieveGarminConnectGear">{{ $t("settingsIntegrationsZone.buttonRetrieveGear") }}</a>
                             </li>
 							<li>
+								<!-- retrieve garmin connect health data by days -->
+								<a class="dropdown-item" href="#" role="button" data-bs-toggle="modal" data-bs-target="#retrieveGarminConnectHealthDataByDaysModal">{{ $t("settingsIntegrationsZone.modalRetrieveHealthDataByDaysTitle") }}</a>
+							</li>
+							<li>
                                 <!-- unlink Garmin Connect -->
                                 <a href="#" class="dropdown-item" role="button" data-bs-toggle="modal" data-bs-target="#unlinkGarminConnectModal">{{ $t("settingsIntegrationsZone.buttonUnlink") }}</a>
                             </li>
@@ -106,6 +110,9 @@
 
 		<!-- modal retrieve Garmin Connect activities by days -->
 		<ModalComponentNumberInput modalId="retrieveGarminConnectActivitiesByDaysModal" :title="t('settingsIntegrationsZone.modalRetrieveActivitiesByDaysTitle')" :numberFieldLabel="`${t('settingsIntegrationsZone.modalRetrieveActivitiesByDaysLabel')}`" :actionButtonType="`success`" :actionButtonText="t('settingsIntegrationsZone.modalRetrieveButton')" @numberToEmitAction="submitRetrieveGarminConnectActivities"/>
+
+		<!-- modal retrieve Garmin Connect health data by days -->
+		<ModalComponentNumberInput modalId="retrieveGarminConnectHealthDataByDaysModal" :title="t('settingsIntegrationsZone.modalRetrieveHealthDataByDaysTitle')" :numberFieldLabel="`${t('settingsIntegrationsZone.modalRetrieveActivitiesByDaysLabel')}`" :actionButtonType="`success`" :actionButtonText="t('settingsIntegrationsZone.modalRetrieveButton')" @numberToEmitAction="submitRetrieveGarminConnectHealthData"/>
 
 		<!-- modal unlink Garmin Connect -->
 		<ModalComponent modalId="unlinkGarminConnectModal" :title="t('settingsIntegrationsZone.modalUnlinkGarminConnectTitle')" :body="`${t('settingsIntegrationsZone.modalUnlinkGarminConnectBody')}`" :actionButtonType="`danger`" :actionButtonText="t('settingsIntegrationsZone.modalUnlinkGarminConnectTitle')" @submitAction="buttonGarminConnectUnlink"/>
@@ -182,7 +189,7 @@ export default {
 				await strava.getStravaGear();
 
 				// Show the loading alert.
-				push.success(
+				push.info(
 					t("settingsIntegrationsZone.loadingMessageRetrievingStravaGear"),
 				);
 			} catch (error) {
@@ -251,13 +258,29 @@ export default {
 				await garminConnect.getGarminConnectGear();
 
 				// Show the loading alert.
-				push.success(
+				push.info(
 					t("settingsIntegrationsZone.loadingMessageRetrievingGarminConnectGear"),
 				);
 			} catch (error) {
 				// If there is an error, show the error alert.
 				push.error(
 					`${t("settingsIntegrationsZone.errorMessageUnableToGetGarminConnectGear")} - ${error}`,
+				);
+			}
+		}
+
+		async function submitRetrieveGarminConnectHealthData(daysToRetrieveGarmin) {
+			try {
+				await garminConnect.getGarminConnectHealthDataLastDays(daysToRetrieveGarmin);
+
+				// Show the loading alert.
+				push.info(
+					t("settingsIntegrationsZone.loadingMessageRetrievingGarminConnectHealthData"),
+				);
+			} catch (error) {
+				// If there is an error, show the error alert.
+				push.error(
+					`${t("settingsIntegrationsZone.errorMessageUnableToGetGarminConnectHealthData")} - ${error}`,
 				);
 			}
 		}
@@ -293,6 +316,7 @@ export default {
 			submitBulkImport,
 			submitRetrieveGarminConnectActivities,
 			submitRetrieveGarminConnectGear,
+			submitRetrieveGarminConnectHealthData,
 			buttonGarminConnectUnlink,
 		};
 	},

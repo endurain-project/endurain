@@ -17,6 +17,9 @@ export const garminConnect = {
 	getGarminConnectGear() {
 		return fetchGetRequest("garminconnect/gear");
 	},
+	getGarminConnectHealthDataLastDays(days) {
+		return fetchGetRequest(`garminconnect/health/days/${days}`);
+	},
 	unlinkGarminConnect() {
 		return fetchDeleteRequest("garminconnect/unlink");
 	},

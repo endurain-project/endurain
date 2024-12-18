@@ -36,5 +36,8 @@
     "successMessageGarminConnectUnlinked": "Garmin Connect account unlinked",
     "errorMessageUnableToUnlinkGarminConnect": "Unable to unlink Garmin Connect account",
     "errorMessageUnableToGetGarminConnectGear": "Unable to get Garmin Connect gear",
-    "loadingMessageRetrievingGarminConnectGear": "Retrieving Garmin Connect gear"
+    "loadingMessageRetrievingGarminConnectGear": "Retrieving Garmin Connect gear",
+    "modalRetrieveHealthDataByDaysTitle": "Retrieve health data by days",
+    "errorMessageUnableToGetGarminConnectHealthData": "Unable to get Garmin Connect health data",
+    "loadingMessageRetrievingGarminConnectHealthData": "Retrieving Garmin Connect health data"
 }

@@ -72,7 +72,7 @@ def fetch_and_process_bc(
             )
 
     # Return the number of body compositions processed
-    return len(garmin_bc)
+    return len(garmin_bc["dateWeightList"])
 
 
 def retrieve_garminconnect_users_bc_for_days(days: int):
