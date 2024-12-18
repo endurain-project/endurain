@@ -14,6 +14,7 @@ import usFollowersListComponent from './us/components/followers/followersListCom
 // Health components
 import usHealthWeightAddEditModalComponent from './us/components/health/healthWeightZone/healthWeightAddEditModalComponent.json'
 import usHealthWeightListComponent from './us/components/health/healthWeightZone/healthWeightListComponent.json'
+import usHealthDashboardZoneComponent from './us/components/health/healthDashboardZoneComponent.json'
 import usHealthSideBarComponent from './us/components/health/healthSideBarComponent.json';
 import usHealthWeightZoneComponent from './us/components/health/healthWeightZoneComponent.json'
 // Settings components
@@ -55,6 +56,7 @@ import caFollowersListComponent from './ca/components/followers/followersListCom
 // Health components
 import caHealthWeightAddEditModalComponent from './ca/components/health/healthWeightZone/healthWeightAddEditModalComponent.json'
 import caHealthWeightListComponent from './ca/components/health/healthWeightZone/healthWeightListComponent.json'
+import caHealthDashboardZoneComponent from './ca/components/health/healthDashboardZoneComponent.json'
 import caHealthSideBarComponent from './ca/components/health/healthSideBarComponent.json';
 import caHealthWeightZoneComponent from './ca/components/health/healthWeightZoneComponent.json'
 // Settings components
@@ -96,6 +98,7 @@ import ptFollowersListComponent from './pt/components/followers/followersListCom
 // Health components
 import ptHealthWeightAddEditModalComponent from './pt/components/health/healthWeightZone/healthWeightAddEditModalComponent.json'
 import ptHealthWeightListComponent from './pt/components/health/healthWeightZone/healthWeightListComponent.json'
+import ptHealthDashboardZoneComponent from './pt/components/health/healthDashboardZoneComponent.json'
 import ptHealthSideBarComponent from './pt/components/health/healthSideBarComponent.json';
 import ptHealthWeightZoneComponent from './pt/components/health/healthWeightZoneComponent.json'
 // Settings components
@@ -137,6 +140,7 @@ import deFollowersListComponent from './de/components/followers/followersListCom
 // Health components
 import deHealthWeightAddEditModalComponent from './de/components/health/healthWeightZone/healthWeightAddEditModalComponent.json'
 import deHealthWeightListComponent from './de/components/health/healthWeightZone/healthWeightListComponent.json'
+import deHealthDashboardZoneComponent from './de/components/health/healthDashboardZoneComponent.json'
 import deHealthSideBarComponent from './de/components/health/healthSideBarComponent.json';
 import deHealthWeightZoneComponent from './de/components/health/healthWeightZoneComponent.json'
 // Settings components
@@ -179,6 +183,7 @@ const messages = {
     // Health components
     healthWeightAddEditModalComponent: usHealthWeightAddEditModalComponent,
     healthSideBarComponent: usHealthSideBarComponent,
+    healthDashboardZoneComponent: usHealthDashboardZoneComponent,
     healthWeightZoneComponent: usHealthWeightZoneComponent,
     healthWeightListComponent: usHealthWeightListComponent,
     // Settings components
@@ -219,6 +224,7 @@ const messages = {
     // Health components
     healthWeightAddEditModalComponent: caHealthWeightAddEditModalComponent,
     healthSideBarComponent: caHealthSideBarComponent,
+    healthDashboardZoneComponent: caHealthDashboardZoneComponent,
     healthWeightZoneComponent: caHealthWeightZoneComponent,
     healthWeightListComponent: caHealthWeightListComponent,
     // Settings components
@@ -259,6 +265,7 @@ const messages = {
     // Health components
     healthWeightAddEditModalComponent: ptHealthWeightAddEditModalComponent,
     healthSideBarComponent: ptHealthSideBarComponent,
+    healthDashboardZoneComponent: ptHealthDashboardZoneComponent,
     healthWeightZoneComponent: ptHealthWeightZoneComponent,
     healthWeightListComponent: ptHealthWeightListComponent,
     // Settings components
@@ -299,6 +306,7 @@ const messages = {
     // Health components
     healthWeightAddEditModalComponent: deHealthWeightAddEditModalComponent,
     healthSideBarComponent: deHealthSideBarComponent,
+    healthDashboardZoneComponent: deHealthDashboardZoneComponent,
     healthWeightZoneComponent: deHealthWeightZoneComponent,
     healthWeightListComponent: deHealthWeightListComponent,
     // Settings components
