@@ -38,9 +38,9 @@ class Activity(Base):
         comment="Gear type (1 - mountain bike, 2 - gravel bike, ...)",
     )
     start_time = Column(
-        DateTime, nullable=False, comment="Activity start date (DateTime)"
+        DateTime, nullable=False, comment="Activity start date (DATETIME)"
     )
-    end_time = Column(DateTime, nullable=False, comment="Activity end date (DateTime)")
+    end_time = Column(DateTime, nullable=False, comment="Activity end date (DATETIME)")
     timezone = Column(
         String(length=250),
         nullable=True,
@@ -68,7 +68,7 @@ class Activity(Base):
         comment="Activity country (May include spaces)",
     )
     created_at = Column(
-        DateTime, nullable=False, comment="Activity creation date (DateTime)"
+        DateTime, nullable=False, comment="Activity creation date (DATETIME)"
     )
     elevation_gain = Column(Integer, nullable=True, comment="Elevation gain in meters")
     elevation_loss = Column(Integer, nullable=True, comment="Elevation loss in meters")
@@ -123,7 +123,7 @@ class Activity(Base):
         BigInteger, unique=True, nullable=True, comment="Strava activity ID"
     )
     garminconnect_activity_id = Column(
-        BigInteger, unique=True, nullable=True, comment="Garmin Connect activity ID"
+        BigInteger, nullable=True, comment="Garmin Connect activity ID"
     )
     garminconnect_gear_id = Column(
         String(length=45), nullable=True, comment="Garmin Connect gear ID"

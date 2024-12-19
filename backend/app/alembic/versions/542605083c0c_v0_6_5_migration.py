@@ -45,6 +45,7 @@ def upgrade() -> None:
                comment='Activity creation date (DATETIME)',
                existing_comment='Activity creation date (datetime)',
                existing_nullable=False)
+    op.drop_index('garminconnect_activity_id', table_name='activities')
     op.add_column('gear', sa.Column('initial_kms', sa.DECIMAL(precision=11, scale=3), nullable=False, comment='Initial kilometers of the gear'))
     op.alter_column('gear', 'created_at',
                existing_type=sa.DATETIME(),
@@ -58,7 +59,7 @@ def upgrade() -> None:
         SET date = DATE(created_at)
     """)
     # Make `date` column non-nullable
-    op.alter_column('health_data', 'date', nullable=False, existing_type=sa.Date())
+    op.alter_column('health_data', 'date', nullable=False, comment='Health data creation date (date)', existing_type=sa.Date())
     op.add_column('health_data', sa.Column('bmi', sa.DECIMAL(precision=10, scale=2), nullable=True, comment='Body mass index (BMI)'))
     op.add_column('health_data', sa.Column('garminconnect_body_composition_id', sa.String(length=45), nullable=True, comment='Garmin Connect body composition ID'))
     op.drop_index('created_at', table_name='health_data')
@@ -93,6 +94,7 @@ def downgrade() -> None:
                existing_comment='Gear creation date (DATETIME)',
                existing_nullable=False)
     op.drop_column('gear', 'initial_kms')
+    op.create_index('garminconnect_activity_id', 'activities', ['garminconnect_activity_id'], unique=True)
     op.alter_column('activities', 'created_at',
                existing_type=sa.DATETIME(),
                comment='Activity creation date (datetime)',
