@@ -1,9 +1,11 @@
 import os
 import zipfile
 
-from datetime import datetime, timedelta, date
+from datetime import datetime, timedelta, date, timezone
 import garminconnect
 from sqlalchemy.orm import Session
+
+import core.logger as core_logger
 
 import garmin.utils as garmin_utils
 import garmin.logger as garmin_logger
@@ -23,9 +25,17 @@ def fetch_and_process_activities(
     db: Session,
 ) -> int:
     # Fetch Garmin Connect activities after the specified start date
-    garmin_activities = garminconnect_client.get_activities_by_date(
-        start_date, date.today()
-    )
+    try:
+        garmin_activities = garminconnect_client.get_activities_by_date(
+            start_date, date.today()
+        )
+    except Exception as err:
+        garmin_logger.print_to_log(
+            f"Error fetching activities for user {user_id} after {start_date}: {err}",
+            "error",
+            exc=err,
+        )
+        return 0
 
     if garmin_activities is None:
         # Log an informational event if no activities were found
@@ -79,9 +89,17 @@ def fetch_and_process_activities(
             # Populate the array with file names
             extracted_files = zip_ref.namelist()
 
-        os.remove(output_file)
+        try:
+            os.remove(output_file)
+        except OSError as err:
+            garmin_logger.print_to_log(
+                f"Error removing file {output_file}: {err}",
+                "error",
+                exc=err,
+            )
 
         for file in extracted_files:
+            # Parse and store the activity from the extracted file
             activities_utils.parse_and_store_activity_from_file(
                 user_id, f"files/{file}", db, True, activity_gear
             )
@@ -91,28 +109,44 @@ def fetch_and_process_activities(
 
 
 def retrieve_garminconnect_users_activities_for_days(days: int):
-    # Create a new database session
     db = SessionLocal()
-
     try:
         # Get all users
         users = users_crud.get_all_users(db)
+
+        # Calculate the start date for the activities
+        start_date = datetime.now(timezone.utc) - timedelta(days=days)
+
+        # Process the activities for each user
+        for user in users:
+            try:
+                get_user_garminconnect_activities_by_days(
+                    start_date,
+                    user.id,
+                    db,
+                )
+            except Exception as err:
+                # Log specific errors for each user
+                garmin_logger.print_to_log(
+                    f"Error processing activities for user {user.id} in retrieve_garminconnect_users_activities_for_days: {err}",
+                    "error",
+                    exc=err,
+                )
+    except Exception as err:
+        # Log errors that occur during the overall process
+        garmin_logger.print_to_log(
+            f"Error in retrieve_garminconnect_users_activities_for_days: {err}",
+            "error",
+            exc=err,
+        )
     finally:
         # Ensure the session is closed after use
         db.close()
 
-    # Process the activities for each user
-    for user in users:
-        get_user_garminconnect_activities_by_days(
-            (datetime.utcnow() - timedelta(days=days)).strftime("%Y-%m-%dT%H:%M:%S"),
-            user.id,
-        )
 
-
-def get_user_garminconnect_activities_by_days(start_date: datetime, user_id: int):
-    # Create a new database session
-    db = SessionLocal()
-
+def get_user_garminconnect_activities_by_days(
+    start_date: datetime, user_id: int, db: Session
+):
     try:
         # Get the user integrations by user ID
         user_integrations = garmin_utils.fetch_user_integrations_and_validate_token(
@@ -143,6 +177,10 @@ def get_user_garminconnect_activities_by_days(start_date: datetime, user_id: int
         garmin_logger.print_to_log(
             f"User {user_id}: {num_garminconnect_activities_processed} Garmin Connect activities processed"
         )
-    finally:
-        # Ensure the session is closed after use
-        db.close()
+    except Exception as err:
+        # Log specific errors during Garmin Connect processing
+        garmin_logger.print_to_log(
+            f"Error in get_user_garminconnect_activities_by_days: {err}",
+            "error",
+            exc=err,
+        )

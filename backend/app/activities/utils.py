@@ -1,4 +1,3 @@
-import logging
 import os
 import shutil
 import requests
@@ -12,10 +11,12 @@ from datetime import datetime
 from urllib.parse import urlencode
 from statistics import mean
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 
 
 import activities.schema as activities_schema
 import activities.crud as activities_crud
+import activities.models as activities_models
 
 import activity_streams.crud as activity_streams_crud
 import activity_streams.schema as activity_streams_schema
@@ -24,6 +25,57 @@ import gpx.utils as gpx_utils
 import fit.utils as fit_utils
 
 import core.logger as core_logger
+
+
+def transform_schema_activity_to_model_activity(
+    activity: activities_schema.Activity
+) -> activities_models.Activity:
+    # Set the created date to now
+    created_date = func.now()
+
+    # If the created_at date is not None, set it to the created_date
+    if activity.created_at is not None:
+        created_date = activity.created_at
+
+    # Create a new activity object
+    new_activity = activities_models.Activity(
+        user_id=activity.user_id,
+        distance=activity.distance,
+        name=activity.name,
+        activity_type=activity.activity_type,
+        start_time=activity.start_time,
+        end_time=activity.end_time,
+        timezone=activity.timezone,
+        total_elapsed_time=activity.total_elapsed_time,
+        total_timer_time=activity.total_timer_time,
+        city=activity.city,
+        town=activity.town,
+        country=activity.country,
+        created_at=created_date,
+        elevation_gain=activity.elevation_gain,
+        elevation_loss=activity.elevation_loss,
+        pace=activity.pace,
+        average_speed=activity.average_speed,
+        max_speed=activity.max_speed,
+        average_power=activity.average_power,
+        max_power=activity.max_power,
+        normalized_power=activity.normalized_power,
+        average_hr=activity.average_hr,
+        max_hr=activity.max_hr,
+        average_cad=activity.average_cad,
+        max_cad=activity.max_cad,
+        workout_feeling=activity.workout_feeling,
+        workout_rpe=activity.workout_rpe,
+        calories=activity.calories,
+        visibility=activity.visibility,
+        gear_id=activity.gear_id,
+        strava_gear_id=activity.strava_gear_id,
+        strava_activity_id=activity.strava_activity_id,
+        garminconnect_activity_id=activity.garminconnect_activity_id,
+        garminconnect_gear_id=activity.garminconnect_gear_id,
+    )
+
+    return new_activity
 
 
 def serialize_activity(activity: activities_schema.Activity):
@@ -36,18 +88,18 @@ def serialize_activity(activity: activities_schema.Activity):
     if isinstance(activity.start_time, str):
         activity.start_time = datetime.fromisoformat(activity.start_time)
     activity.start_time = activity.start_time.astimezone(timezone).strftime(
-        "%Y-%m-%dT%H:%M:%S%z"
+        "%Y-%m-%dT%H:%M:%S"
     )
 
     if isinstance(activity.end_time, str):
         activity.end_time = datetime.fromisoformat(activity.end_time)
     activity.end_time = activity.end_time.astimezone(timezone).strftime(
-        "%Y-%m-%dT%H:%M:%S%z"
+        "%Y-%m-%dT%H:%M:%S"
     )
 
     if isinstance(activity.created_at, str):
         activity.created_at = datetime.fromisoformat(activity.created_at)
-    activity.created_at = activity.created_at.strftime("%Y-%m-%dT%H:%M:%S%z")
+    activity.created_at = activity.created_at.strftime("%Y-%m-%dT%H:%M:%S")
 
     # Return the serialized activity object
     return activity
@@ -69,7 +121,7 @@ def parse_and_store_activity_from_file(
             garmin_connect_activity_id = os.path.basename(file_path).split("_")[0]
 
         # Open the file and process it
-        with open(file_path, "rb") as file:
+        with open(file_path, "rb"):
             # Parse the file
             parsed_info = parse_file(token_user_id, file_extension, file_path)
 

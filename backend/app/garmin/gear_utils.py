@@ -96,11 +96,12 @@ def set_activities_gear(user_id: int, db: Session) -> int:
         )
     )
 
-    garmin_logger.print_to_log(f"User {user_id}: {len(activities)} activities found")
-
     # Skip if no activities
     if activities is None:
+        garmin_logger.print_to_log(f"User {user_id}: 0 activities found")
         return 0
+
+    garmin_logger.print_to_log(f"User {user_id}: {len(activities)} activities found")
 
     # Get user gears
     gears = gears_crud.get_gear_user(user_id, db)
@@ -121,7 +122,8 @@ def set_activities_gear(user_id: int, db: Session) -> int:
         counter = parsed_activity["counter"]
         activities_parsed.append(parsed_activity["activity"])
 
-    activities_crud.edit_multiple_activities_gear_id(activities_parsed, user_id, db)
+    if len(activities_parsed) > 0:
+        activities_crud.edit_multiple_activities_gear_id(activities_parsed, user_id, db)
 
     return counter
 

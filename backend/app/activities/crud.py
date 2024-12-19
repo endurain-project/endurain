@@ -84,7 +84,7 @@ def get_user_activities_by_user_id_and_garminconnect_gear_set(
             db.query(activities_models.Activity)
             .filter(
                 activities_models.Activity.user_id == user_id,
-                activities_models.Activity.garminconnect_activity_id.isnot(None),
+                activities_models.Activity.garminconnect_gear_id.isnot(None),
             )
             .order_by(desc(activities_models.Activity.start_time))
             .all()
@@ -556,50 +556,15 @@ def create_activity(
 ) -> activities_schema.Activity:
     try:
         # Create a new activity
-        db_activity = activities_models.Activity(
-            user_id=activity.user_id,
-            distance=activity.distance,
-            name=activity.name,
-            activity_type=activity.activity_type,
-            start_time=activity.start_time,
-            end_time=activity.end_time,
-            timezone=activity.timezone,
-            total_elapsed_time=activity.total_elapsed_time,
-            total_timer_time=activity.total_timer_time,
-            city=activity.city,
-            town=activity.town,
-            country=activity.country,
-            created_at=func.now(),
-            elevation_gain=activity.elevation_gain,
-            elevation_loss=activity.elevation_loss,
-            pace=activity.pace,
-            average_speed=activity.average_speed,
-            max_speed=activity.max_speed,
-            average_power=activity.average_power,
-            max_power=activity.max_power,
-            normalized_power=activity.normalized_power,
-            average_hr=activity.average_hr,
-            max_hr=activity.max_hr,
-            average_cad=activity.average_cad,
-            max_cad=activity.max_cad,
-            workout_feeling=activity.workout_feeling,
-            workout_rpe=activity.workout_rpe,
-            calories=activity.calories,
-            visibility=activity.visibility,
-            gear_id=activity.gear_id,
-            strava_gear_id=activity.strava_gear_id,
-            strava_activity_id=activity.strava_activity_id,
-            garminconnect_activity_id=activity.garminconnect_activity_id,
-            garminconnect_gear_id=activity.garminconnect_gear_id,
-        )
+        new_activity = activities_utils.transform_schema_activity_to_model_activity(activity)
 
         # Add the activity to the database
-        db.add(db_activity)
+        db.add(new_activity)
         db.commit()
-        db.refresh(db_activity)
+        db.refresh(new_activity)
 
-        activity.id = db_activity.id
-        activity.created_at = db_activity.created_at
+        activity.id = new_activity.id
+        activity.created_at = new_activity.created_at
 
         # Return the activity
         return activity
@@ -667,16 +632,16 @@ def edit_multiple_activities_gear_id(
     activities: list[activities_schema.Activity], user_id: int, db: Session
 ):
     try:
-        for activity in activities:
-            # Get the activity from the database
-            db_activity = get_activity_by_id_from_user_id(activity.id, user_id, db)
+        if activities:
+            for activity in activities:
+                # Get the activity from the database
+                db_activity = get_activity_by_id_from_user_id(activity.id, user_id, db)
 
-            # Update the activity
-            db_activity.gear_id = activity.gear_id
+                # Update the activity
+                db_activity.gear_id = activity.gear_id
 
-        # Commit the transaction
-        db.commit()
-
+            # Commit the transaction
+            db.commit()
     except Exception as err:
         # Rollback the transaction
         db.rollback()

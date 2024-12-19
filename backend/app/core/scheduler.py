@@ -24,40 +24,41 @@ def start_scheduler():
     )
     scheduler.add_job(strava_utils.refresh_strava_tokens_job, "interval", minutes=60)
 
-    # Log the addition of the job to retrieve last day Strava users activities
-    core_logger.print_to_log(
-        "Added scheduler job to retrieve last day Strava users activities every 60 minutes"
-    )
-    scheduler.add_job(
+    add_scheduler_job(
         strava_activity_utils.retrieve_strava_users_activities_for_days,
         "interval",
-        minutes=60,
-        args=[1],
+        60,
+        [1],
+        "retrieve last day Strava users activities",
     )
 
-    # Log the addition of the job to retrieve last day Garmin Connect users activities
-    core_logger.print_to_log(
-        "Added scheduler job to retrieve last day Garmin Connect users activities every 60 minutes"
-    )
-    # Add scheduler job to retrieve last day activities from Garmin Connect
-    scheduler.add_job(
+    add_scheduler_job(
         garmin_activity_utils.retrieve_garminconnect_users_activities_for_days,
         "interval",
-        minutes=60,
-        args=[1],
+        60,
+        [1],
+        "retrieve last day Garmin Connect users activities",
     )
 
-    # Log the addition of the job to retrieve last day Garmin Connect users body composition
-    core_logger.print_to_log(
-        "Added scheduler job to retrieve last day Garmin Connect users body composition every 4 hours (240 minutes)"
-    )
-    # Add scheduler job to retrieve last day body composition from Garmin Connect
-    scheduler.add_job(
+    add_scheduler_job(
         garmin_health_utils.retrieve_garminconnect_users_bc_for_days,
         "interval",
-        minutes=240,
-        args=[1],
+        240,
+        [1],
+        "retrieve last day Garmin Connect users body composition",
     )
+
+
+def add_scheduler_job(func, interval, minutes, args, description):
+    try:
+        core_logger.print_to_log(
+            f"Added scheduler job to {description} every {minutes} minutes"
+        )
+        scheduler.add_job(func, interval, minutes=minutes, args=args)
+    except Exception as e:
+        core_logger.print_to_log(
+            f"Failed to add scheduler job to {description}: {str(e)}", "error"
+        )
 
 
 def stop_scheduler():

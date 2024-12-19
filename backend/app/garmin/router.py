@@ -83,7 +83,7 @@ async def garminconnect_retrieve_activities_days(
         int,
         Depends(session_security.get_user_id_from_access_token),
     ],
-    # db: Annotated[Session, Depends(core_database.get_db)],
+    db: Annotated[Session, Depends(core_database.get_db)],
     background_tasks: BackgroundTasks,
 ):
     # Process Garmin Connect activities in the background
@@ -93,6 +93,7 @@ async def garminconnect_retrieve_activities_days(
             "%Y-%m-%dT%H:%M:%S"
         ),
         token_user_id,
+        db,
     )
 
     # Return success message and status code 202

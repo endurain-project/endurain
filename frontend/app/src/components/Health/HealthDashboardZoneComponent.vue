@@ -66,8 +66,6 @@ export default {
                     }
                 }
 
-                } else if(currentBMI.value >= 30 && currentBMI.value < 34.9){
-                    bmiDescription.value = t("healthDashboardZoneComponent.bmiObesityClass1");
                 if(currentBMI.value){
                     if(currentBMI.value < 18.5){
                         bmiDescription.value = t("healthDashboardZoneComponent.bmiUnderweight");
