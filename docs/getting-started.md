@@ -37,8 +37,9 @@ Table below shows supported environment variables. Variables marked with optiona
 Environment variable  | Default value | Optional | Notes |
 | --- | --- | --- | --- |
 | TZ | UTC | Yes | Timezone definition. Useful for TZ calculation for activities that do not have coordinates associated, like indoor swim or weight training. If not specified UTC will be used. List of available time zones [here](https://en.wikipedia.org/wiki/List_of_tz_database_time_zones). Format `Europe/Lisbon` expected |
-| DB_HOST | mariadb | Yes | N/A |
-| DB_PORT | 3306 | Yes | N/A |
+| DB_TYPE | mariadb | Yes | mariadb or postgres |
+| DB_HOST | mariadb | Yes | mariadb or postgres |
+| DB_PORT | 3306 | Yes | 3306 or 5432 |
 | DB_USER | endurain | Yes | N/A |
 | DB_PASSWORD | changeme | `No` | N/A |
 | DB_DATABASE | endurain | Yes | N/A |
@@ -65,6 +66,15 @@ Table below shows the obligatory environment variables for mariadb container. Yo
 | MYSQL_DATABASE | endurain | `No` | N/A |
 | MYSQL_USER | endurain | `No` | N/A |
 | MYSQL_PASSWORD | changeme | `No` | N/A |
+
+Table below shows the obligatory environment variables for postgres container. You should set them based on what was also set for backend container.
+
+| Environemnt variable  | Default value | Optional | Notes |
+| --- | --- | --- | --- |
+| POSTGRES_PASSWORD | changeme | `No` | N/A |
+| POSTGRES_DB | endurain | `No` | N/A |
+| POSTGRES_USER | endurain | `No` | N/A |
+| PGDATA | /var/lib/postgresql/data/pgdata | `No` | N/A |
 
 To check Python backend dependencies used, use poetry file (pyproject.toml)
 

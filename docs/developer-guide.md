@@ -26,3 +26,26 @@ The API is reachable under `/api/v1`. Below are some example endpoints. All endp
 | **Refresh Token** | `/refresh` | header `Authorization Bearer: <Refresh Token>`  |
 | **Activity Upload** | `/activities/create/upload` | .gpx or .fit file |
 | **Set Weight** | `/health/weight` | JSON {'weight': <number>, 'created_at': `yyyy-MM-dd`} |
+
+
+### Supported activity types
+The table bellow details the activity types supported by Endurain:
+
+| Name | Value |
+| Run | 1 |
+| Trail run | 2 |
+| Virtual run | 3 |
+| Road cycling | 4 |
+| Gravel cycling | 5 |
+| MTB cycling | 6 |
+| Virtual cycling | 7 |
+| Indoor swimming | 8 |
+| Open water swimming | 9 |
+| General workout | 10 |
+| Walk | 11 |
+| Hike | 12 |
+| Rowing | 13 |
+| Yoga | 14 |
+| Alpine ski | 15 |
+| Nordic Ski | 16 |
+| Snowboard | 17 |
