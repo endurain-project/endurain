@@ -21,7 +21,7 @@ Endurain supports integration with other apps:
 The API is reachable under `/api/v1`. Below are some example endpoints. All endpoints information can be checked on the backend docs (`http://localhost:98/docs` or `http://ip_address:98/docs` or `https://domain/docs`):
 
 | What | Url | Expected Information |
-| ---- | --- | ---------------------|
+| ---- | --- | -------------------- |
 | **Authorize** | `/token` |  `FORM` with the fields `username` and `password`. This will be sent in clear text, use of HTTPS is highly recommended |
 | **Refresh Token** | `/refresh` | header `Authorization Bearer: <Refresh Token>`  |
 | **Activity Upload** | `/activities/create/upload` | .gpx or .fit file |
@@ -32,6 +32,7 @@ The API is reachable under `/api/v1`. Below are some example endpoints. All endp
 The table bellow details the activity types supported by Endurain:
 
 | Name | Value |
+| ---- | --- |
 | Run | 1 |
 | Trail run | 2 |
 | Virtual run | 3 |
