@@ -1,4 +1,4 @@
-"""Initial migration - v0.1.4
+"""v0.1.4 migration
 
 Revision ID: 1bce2bd27873
 Revises: 
@@ -131,7 +131,7 @@ def upgrade() -> None:
     """)
     op.execute("""
     INSERT INTO users_integrations (user_id, strava_sync_gear) VALUES
-    (1, 0);
+    (1, false);
     """)
     # ### end Alembic commands ###
 

@@ -1,4 +1,4 @@
-"""Add additional Garmin Connect gear fields
+"""v0.6.2 migration
 
 Revision ID: 65a0f1d72997
 Revises: 241bdc784fef
@@ -23,7 +23,7 @@ def upgrade() -> None:
     op.add_column('activities', sa.Column('garminconnect_gear_id', sa.String(length=45), nullable=True, comment='Garmin Connect gear ID'))
     op.add_column('gear', sa.Column('garminconnect_gear_id', sa.String(length=45), nullable=True, comment='Garmin Connect gear ID'))
     op.create_unique_constraint(None, 'gear', ['garminconnect_gear_id'])
-    op.add_column('users_integrations', sa.Column('garminconnect_sync_gear', sa.Boolean(), nullable=False, comment='Whether Garmin Connect gear is to be synced'))
+    op.add_column('users_integrations', sa.Column('garminconnect_sync_gear', sa.Boolean(), nullable=False, server_default=sa.text('false'), comment='Whether Garmin Connect gear is to be synced'))
     # ### end Alembic commands ###
 
 

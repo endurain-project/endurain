@@ -1,4 +1,4 @@
-"""Garmin Connect integration columns
+"""v0.6.0 migration
 
 Revision ID: 241bdc784fef
 Revises: 1287b0e32297

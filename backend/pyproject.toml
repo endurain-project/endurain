@@ -33,6 +33,7 @@ importlib-metadata = "^8.5.0"
 garminconnect = "^0.2.24"
 websockets = "^14.1"
 timezonefinder = "^6.5.5"
+psycopg = {extras = ["binary", "pool"], version = "^3.2.3"}
 
 
 [build-system]

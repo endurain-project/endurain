@@ -1,4 +1,4 @@
-"""Remove photo_path_aux column from users table
+"""v0.3.0 migration
 
 Revision ID: ab815ee3beae
 Revises: 0ab200a7f196

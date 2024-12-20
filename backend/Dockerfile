@@ -35,6 +35,8 @@ COPY app /app
 EXPOSE 80
 
 # Define environment variables
+ENV TZ="UTC"
+ENV DB_TYPE="mariadb"
 ENV DB_HOST="mariadb"
 ENV DB_PORT=3306
 ENV DB_USER="endurain"
