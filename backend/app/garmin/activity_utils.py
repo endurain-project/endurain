@@ -8,7 +8,6 @@ from sqlalchemy.orm import Session
 import core.logger as core_logger
 
 import garmin.utils as garmin_utils
-import garmin.logger as garmin_logger
 
 import activities.utils as activities_utils
 import activities.crud as activities_crud
@@ -30,7 +29,7 @@ def fetch_and_process_activities(
             start_date, date.today()
         )
     except Exception as err:
-        garmin_logger.print_to_log(
+        core_logger.print_to_log(
             f"Error fetching activities for user {user_id} after {start_date}: {err}",
             "error",
             exc=err,
@@ -39,7 +38,7 @@ def fetch_and_process_activities(
 
     if garmin_activities is None:
         # Log an informational event if no activities were found
-        garmin_logger.print_to_log_and_console(
+        core_logger.print_to_log_and_console(
             f"User {user_id}: No new Garmin Connect activities found after {start_date}: garmin_activities is None"
         )
 
@@ -58,12 +57,12 @@ def fetch_and_process_activities(
 
         if activity_db:
             # Log an informational event if the activity is already stored
-            garmin_logger.print_to_log(
+            core_logger.print_to_log(
                 f"User {user_id}: Activity {activity_id} already stored in the database"
             )
             continue
 
-        garmin_logger.print_to_log(f"User {user_id}: Processing activity {activity_id}")
+        core_logger.print_to_log(f"User {user_id}: Processing activity {activity_id}")
 
         # Get activity gear
         activity_gear = garminconnect_client.get_activity_gear(activity_id)
@@ -92,7 +91,7 @@ def fetch_and_process_activities(
         try:
             os.remove(output_file)
         except OSError as err:
-            garmin_logger.print_to_log(
+            core_logger.print_to_log(
                 f"Error removing file {output_file}: {err}",
                 "error",
                 exc=err,
@@ -127,14 +126,14 @@ def retrieve_garminconnect_users_activities_for_days(days: int):
                 )
             except Exception as err:
                 # Log specific errors for each user
-                garmin_logger.print_to_log(
+                core_logger.print_to_log(
                     f"Error processing activities for user {user.id} in retrieve_garminconnect_users_activities_for_days: {err}",
                     "error",
                     exc=err,
                 )
     except Exception as err:
         # Log errors that occur during the overall process
-        garmin_logger.print_to_log(
+        core_logger.print_to_log(
             f"Error in retrieve_garminconnect_users_activities_for_days: {err}",
             "error",
             exc=err,
@@ -154,11 +153,11 @@ def get_user_garminconnect_activities_by_days(
         )
 
         if user_integrations is None:
-            garmin_logger.print_to_log(f"User {user_id}: Garmin Connect not linked")
+            core_logger.print_to_log(f"User {user_id}: Garmin Connect not linked")
             return None
 
         # Log the start of the activities processing
-        garmin_logger.print_to_log(
+        core_logger.print_to_log(
             f"User {user_id}: Started Garmin Connect activities processing"
         )
 
@@ -174,12 +173,12 @@ def get_user_garminconnect_activities_by_days(
         )
 
         # Log an informational event for tracing
-        garmin_logger.print_to_log(
+        core_logger.print_to_log(
             f"User {user_id}: {num_garminconnect_activities_processed} Garmin Connect activities processed"
         )
     except Exception as err:
         # Log specific errors during Garmin Connect processing
-        garmin_logger.print_to_log(
+        core_logger.print_to_log(
             f"Error in get_user_garminconnect_activities_by_days: {err}",
             "error",
             exc=err,

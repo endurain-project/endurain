@@ -1,4 +1,3 @@
-import logging
 import requests
 import os
 
@@ -18,7 +17,6 @@ import activities.crud as activities_crud
 
 import strava.gear_utils as strava_gear_utils
 import strava.activity_utils as strava_activity_utils
-import strava.logger as strava_logger
 
 import core.logger as core_logger
 import core.database as core_database
@@ -88,10 +86,7 @@ async def strava_link(
         return RedirectResponse(url=redirect_url)
     except Exception as err:
         # Log the exception
-        core_logger.print_to_log(
-            f"Error in strava_link. For more information check Strava log.", "error"
-        )
-        strava_logger.print_to_log(f"Error in strava_link: {err}", "error", exc=err)
+        core_logger.print_to_log(f"Error in strava_link: {err}", "error", exc=err)
 
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
@@ -132,9 +127,6 @@ async def strava_retrieve_activities_days(
 
     # Return success message and status code 202
     core_logger.print_to_log(
-        f"Strava activities will be processed in the background for user {token_user_id}. For more information check Strava log."
-    )
-    strava_logger.print_to_log(
         f"Strava activities will be processed in the background for user {token_user_id}"
     )
     return {
@@ -165,8 +157,9 @@ async def strava_retrieve_gear(
     )
 
     # Return success message and status code 202
-    core_logger.print_to_log(f"Strava gear will be processed in the background for user {token_user_id}. For more information check Strava log.")
-    strava_logger.print_to_log(f"Strava gear will be processed in the background for user {token_user_id}")
+    core_logger.print_to_log(
+        f"Strava gear will be processed in the background for user {token_user_id}"
+    )
     return {
         "detail": f"Strava gear will be processed in the background for for {token_user_id}"
     }

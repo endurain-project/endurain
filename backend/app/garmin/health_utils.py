@@ -5,11 +5,9 @@ from datetime import datetime, timedelta, date
 import garminconnect
 from sqlalchemy.orm import Session
 
-import garmin.utils as garmin_utils
-import garmin.logger as garmin_logger
+import core.logger as core_logger
 
-import activities.utils as activities_utils
-import activities.crud as activities_crud
+import garmin.utils as garmin_utils
 
 import health_data.crud as health_data_crud
 import health_data.schema as health_data_schema
@@ -30,7 +28,7 @@ def fetch_and_process_bc(
 
     if garmin_bc is None:
         # Log an informational event if no body composition were found
-        garmin_logger.print_to_log_and_console(
+        core_logger.print_to_log_and_console(
             f"User {user_id}: No new Garmin Connect body composition found after {start_date}: garmin_bc is None"
         )
 
@@ -62,12 +60,12 @@ def fetch_and_process_bc(
         if health_data_db:
             health_data.id = health_data_db.id
             health_data_crud.edit_health_data(user_id, health_data, db)
-            garmin_logger.print_to_log(
+            core_logger.print_to_log(
                 f"User {user_id}: Body composition edited for date {health_data.date}"
             )
         else:
             health_data_crud.create_health_data(user_id, health_data, db)
-            garmin_logger.print_to_log(
+            core_logger.print_to_log(
                 f"User {user_id}: Body composition created for date {health_data.date}"
             )
 
@@ -105,11 +103,11 @@ def get_user_garminconnect_bc_by_days(start_date: datetime, user_id: int):
         )
 
         if user_integrations is None:
-            garmin_logger.print_to_log(f"User {user_id}: Garmin Connect not linked")
+            core_logger.print_to_log(f"User {user_id}: Garmin Connect not linked")
             return None
 
         # Log the start of the body composition processing
-        garmin_logger.print_to_log(
+        core_logger.print_to_log(
             f"User {user_id}: Started Garmin Connect body composition processing"
         )
 
@@ -125,7 +123,7 @@ def get_user_garminconnect_bc_by_days(start_date: datetime, user_id: int):
         )
 
         # Log an informational event for tracing
-        garmin_logger.print_to_log(
+        core_logger.print_to_log(
             f"User {user_id}: {num_garminconnect_bc_processed} Garmin Connect body composition processed"
         )
     finally:

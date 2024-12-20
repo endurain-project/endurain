@@ -16,7 +16,6 @@ import user_integrations.crud as user_integrations_crud
 import websocket.schema as websocket_schema
 
 import garmin.schema as garmin_schema
-import garmin.logger as garmin_logger
 
 import core.logger as core_logger
 
@@ -97,10 +96,8 @@ async def link_garminconnect(
     ) as err:
         # Print error info to check dedicated log in main log
         core_logger.print_to_log_and_console(
-            "There was an authentication error using Garmin Connect. Please check Garmin Connect logs."
+            "There was an authentication error using Garmin Connect: {err}", "error", err
         )
-        # Print error info to check dedicated log in garmin connect log
-        garmin_logger.print_to_log(f"Error authenticating: {err}")
         
         return None
     except garminconnect.GarminConnectTooManyRequestsError as err:
@@ -134,10 +131,8 @@ def login_garminconnect_using_tokens(oauth1_token, oauth2_token):
     ) as err:
         # Print error info to check dedicated log in main log
         core_logger.print_to_log_and_console(
-            "There was an authentication error using Garmin Connect. Please check Garmin Connect logs."
+            "There was an authentication error using Garmin Connect: {err}", "error", err
         )
-        # Print error info to check dedicated log in garmin connect log
-        garmin_logger.print_to_log(f"Error authenticating: {err}")
         return None
 
 

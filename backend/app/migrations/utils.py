@@ -13,10 +13,8 @@ import activities.utils as activities_utils
 import activity_streams.crud as activity_streams_crud
 
 import migrations.crud as migrations_crud
-import migrations.logger as migrations_logger
 
 import health_data.crud as health_data_crud
-import health_data.utils as health_data_utils
 
 import core.logger as core_logger
 
@@ -37,7 +35,7 @@ def check_migrations_not_executed(db: Session):
     if migrations_not_executed:
         for migration in migrations_not_executed:
             # Log the migration not executed
-            migrations_logger.print_to_log(
+            core_logger.print_to_log(
                 f"Migration not executed: {migration.name} - Migration will be executed"
             )
 
@@ -51,14 +49,14 @@ def check_migrations_not_executed(db: Session):
 
 
 def process_migration_1(db: Session):
-    migrations_logger.print_to_log("Started migration 1")
+    core_logger.print_to_log("Started migration 1")
 
     activities_processed_with_no_errors = True
 
     try:
         activities = activities_crud.get_all_activities(db)
     except Exception as err:
-        migrations_logger.print_to_log(
+        core_logger.print_to_log(
             f"Migration 1 - Error fetching activities: {err}", "error", exc=err
         )
         return
@@ -95,7 +93,7 @@ def process_migration_1(db: Session):
                         activity.id, db
                     )
                 except Exception as err:
-                    migrations_logger.print_to_log(
+                    core_logger.print_to_log(
                         f"Migration 1 - Failed to fetch streams for activity {activity.id}: {err}",
                         "warning",
                         exc=err,
@@ -152,18 +150,13 @@ def process_migration_1(db: Session):
 
                 # Update the activity in the database
                 activities_crud.edit_activity(activity.user_id, activity, db)
-                migrations_logger.print_to_log(
+                core_logger.print_to_log(
                     f"Migration 1 - Processed activity: {activity.id} - {activity.name}"
                 )
 
             except Exception as err:
                 activities_processed_with_no_errors = False
-                core_logger.print_to_log_and_console(
-                    f"Migration 1 - Failed to process activity {activity.id}. Please check migrations log for more details.",
-                    "error",
-                )
-
-                migrations_logger.print_to_log(
+                core_logger.print_to_log(
                     f"Migration 1 - Failed to process activity {activity.id}: {err}",
                     "error",
                     exc=err,
@@ -174,28 +167,23 @@ def process_migration_1(db: Session):
         try:
             migrations_crud.set_migration_as_executed(1, db)
         except Exception as err:
-            core_logger.print_to_log_and_console(
-                f"Migration 1 - Failed to set migration as executed. Please check migrations log for more details.",
-                "error",
-            )
-
-            migrations_logger.print_to_log(
+            core_logger.print_to_log(
                 f"Migration 1 - Failed to set migration as executed: {err}",
                 "error",
                 exc=err,
             )
             return
     else:
-        migrations_logger.print_to_log(
+        core_logger.print_to_log(
             "Migration 1 failed to process all activities. Will try again later.",
             "error",
         )
 
-    migrations_logger.print_to_log("Finished migration 1")
+    core_logger.print_to_log("Finished migration 1")
 
 
 def process_migration_2(db: Session):
-    migrations_logger.print_to_log("Started migration 2")
+    core_logger.print_to_log("Started migration 2")
 
     # Create an instance of TimezoneFinder
     tf = TimezoneFinder()
@@ -209,7 +197,7 @@ def process_migration_2(db: Session):
         activities = activities_crud.get_all_activities(db)
         health_data = health_data_crud.get_all_health_data(db)
     except Exception as err:
-        migrations_logger.print_to_log(
+        core_logger.print_to_log(
             f"Migration 2 - Error fetching activities and/or health_data: {err}",
             "error",
             exc=err,
@@ -222,7 +210,7 @@ def process_migration_2(db: Session):
             try:
                 # Skip if activity already has timezone
                 if activity.timezone:
-                    migrations_logger.print_to_log(
+                    core_logger.print_to_log(
                         f"Migration 2 - {activity.id} already has timezone defined. Skipping.",
                         "info",
                     )
@@ -238,7 +226,7 @@ def process_migration_2(db: Session):
                         )
                     )
                 except Exception as err:
-                    migrations_logger.print_to_log(
+                    core_logger.print_to_log(
                         f"Migration 2 - Failed to fetch streams for activity {activity.id}: {err}",
                         "warning",
                         exc=err,
@@ -257,18 +245,13 @@ def process_migration_2(db: Session):
                 # Update the activity in the database
                 activities_crud.edit_activity(activity.user_id, activity, db)
 
-                migrations_logger.print_to_log(
+                core_logger.print_to_log(
                     f"Migration 2 - Processed activity: {activity.id} - {activity.name}"
                 )
 
             except Exception as err:
                 activities_processed_with_no_errors = False
-                core_logger.print_to_log_and_console(
-                    f"Migration 2 - Failed to process activity {activity.id}. Please check migrations log for more details.",
-                    "error",
-                )
-
-                migrations_logger.print_to_log(
+                core_logger.print_to_log(
                     f"Migration 2 - Failed to process activity {activity.id}: {err}",
                     "error",
                     exc=err,
@@ -280,7 +263,7 @@ def process_migration_2(db: Session):
             try:
                 # Skip if weight already has timezone
                 if data.bmi:
-                    migrations_logger.print_to_log(
+                    core_logger.print_to_log(
                         f"Migration 2 - {data.id} already has BMI defined. Skipping.",
                         "info",
                     )
@@ -289,18 +272,13 @@ def process_migration_2(db: Session):
                 # Update the weight in the database
                 health_data_crud.edit_health_data(data.user_id, data, db)
 
-                migrations_logger.print_to_log(
+                core_logger.print_to_log(
                     f"Migration 2 - Processed BMI: {data.id}"
                 )
 
             except Exception as err:
                 health_data_processed_with_no_errors = False
-                core_logger.print_to_log_and_console(
-                    f"Migration 2 - Failed to process BMI {data.id}. Please check migrations log for more details.",
-                    "error",
-                )
-
-                migrations_logger.print_to_log(
+                core_logger.print_to_log(
                     f"Migration 2 - Failed to process BMI {data.id}: {err}",
                     "error",
                     exc=err,
@@ -311,21 +289,16 @@ def process_migration_2(db: Session):
         try:
             migrations_crud.set_migration_as_executed(2, db)
         except Exception as err:
-            core_logger.print_to_log_and_console(
-                f"Migration 2 - Failed to set migration as executed. Please check migrations log for more details.",
-                "error",
-            )
-
-            migrations_logger.print_to_log(
+            core_logger.print_to_log(
                 f"Migration 2 - Failed to set migration as executed: {err}",
                 "error",
                 exc=err,
             )
             return
     else:
-        migrations_logger.print_to_log(
+        core_logger.print_to_log(
             "Migration 2 failed to process all activities. Will try again later.",
             "error",
         )
 
-    migrations_logger.print_to_log("Finished migration 2")
+    core_logger.print_to_log("Finished migration 2")

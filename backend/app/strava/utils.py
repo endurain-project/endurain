@@ -6,6 +6,8 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 from stravalib.client import Client
 
+import core.logger as core_logger
+
 import activities.schema as activities_schema
 import activities.crud as activities_crud
 
@@ -13,8 +15,6 @@ import user_integrations.schema as user_integrations_schema
 import user_integrations.crud as user_integrations_crud
 
 import users.crud as users_crud
-
-import strava.logger as strava_logger
 
 from core.database import SessionLocal
 
@@ -68,14 +68,14 @@ def refresh_strava_tokens(db: Session):
                     # Check if the response status code is not 200
                     if response.status_code != 200:
                         # Raise an HTTPException with a 424 Failed Dependency status code
-                        strava_logger.print_to_log(
+                        core_logger.print_to_log(
                             "Unable to retrieve tokens for refresh process from Strava", "error"
                         )
 
                     tokens = response.json()
                 except Exception as err:
                     # Log the exception
-                    strava_logger.print_to_log(
+                    core_logger.print_to_log(
                         f"Error in refresh_strava_token: {err}", "error"
                     )
 
@@ -90,7 +90,7 @@ def refresh_strava_tokens(db: Session):
                         user_integrations, tokens, db
                     )
 
-                    strava_logger.print_to_log(
+                    core_logger.print_to_log(
                         f"User {user.id}: Strava tokens refreshed"
                     )
 
@@ -106,7 +106,7 @@ def fetch_and_validate_activity(
     # Check if activity is None
     if activity_db:
         # Log an informational event if the activity already exists
-        strava_logger.print_to_log(
+        core_logger.print_to_log(
             f"User {user_id}: Activity {activity_id} already exists. Will skip processing"
         )
 

@@ -4,7 +4,6 @@ from sqlalchemy.orm import Session
 import core.logger as core_logger
 
 import migrations.models as migrations_models
-import migrations.logger as migrations_logger
 
 
 def get_migrations_not_executed(db: Session):
@@ -22,8 +21,7 @@ def get_migrations_not_executed(db: Session):
         return db_migrations
     except Exception as err:
         # Log the exception
-        core_logger.print_to_log_and_console(f"Error in get_migrations_not_executed. See migrations log for more information", "error")
-        migrations_logger.print_to_log(f"Error in get_migrations_not_executed: {err}", "error", exc=err)
+        core_logger.print_to_log_and_console(f"Error in get_migrations_not_executed: {err}", "error", exc=err)
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -57,8 +55,7 @@ def set_migration_as_executed(migration_id: int, db: Session):
         db.rollback()
 
         # Log the exception
-        core_logger.print_to_log_and_console(f"Error in set_migration_as_executed. See migrations log for more information", "error")
-        migrations_logger.print_to_log(f"Error in set_migration_as_executed: {err}", "error", exc=err)
+        core_logger.print_to_log_and_console(f"Error in set_migration_as_executed: {err}", "error", exc=err)
 
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(

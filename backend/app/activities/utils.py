@@ -28,7 +28,7 @@ import core.logger as core_logger
 
 
 def transform_schema_activity_to_model_activity(
-    activity: activities_schema.Activity
+    activity: activities_schema.Activity,
 ) -> activities_models.Activity:
     # Set the created date to now
     created_date = func.now()
@@ -79,29 +79,23 @@ def transform_schema_activity_to_model_activity(
 
 
 def serialize_activity(activity: activities_schema.Activity):
-    if activity.timezone:
-        timezone = ZoneInfo(activity.timezone)
-    else:
-        timezone = ZoneInfo(os.environ.get("TZ"))
+    def make_aware_and_format(dt, timezone):
+        if isinstance(dt, str):
+            dt = datetime.fromisoformat(dt)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=ZoneInfo("UTC"))
+        return dt.astimezone(timezone).strftime("%Y-%m-%dT%H:%M:%S")
 
-    # Serialize the activity object
-    if isinstance(activity.start_time, str):
-        activity.start_time = datetime.fromisoformat(activity.start_time)
-    activity.start_time = activity.start_time.astimezone(timezone).strftime(
-        "%Y-%m-%dT%H:%M:%S"
+    timezone = (
+        ZoneInfo(activity.timezone)
+        if activity.timezone
+        else ZoneInfo(os.environ.get("TZ"))
     )
 
-    if isinstance(activity.end_time, str):
-        activity.end_time = datetime.fromisoformat(activity.end_time)
-    activity.end_time = activity.end_time.astimezone(timezone).strftime(
-        "%Y-%m-%dT%H:%M:%S"
-    )
+    activity.start_time = make_aware_and_format(activity.start_time, timezone)
+    activity.end_time = make_aware_and_format(activity.end_time, timezone)
+    activity.created_at = make_aware_and_format(activity.created_at, timezone)
 
-    if isinstance(activity.created_at, str):
-        activity.created_at = datetime.fromisoformat(activity.created_at)
-    activity.created_at = activity.created_at.strftime("%Y-%m-%dT%H:%M:%S")
-
-    # Return the serialized activity object
     return activity
 
 

@@ -5,6 +5,8 @@ from sqlalchemy.orm import Session
 from stravalib.client import Client
 from timezonefinder import TimezoneFinder
 
+import core.logger as core_logger
+
 import activities.schema as activities_schema
 import activities.crud as activities_crud
 import activities.utils as activities_utils
@@ -19,7 +21,6 @@ import users.crud as users_crud
 import gears.crud as gears_crud
 
 import strava.utils as strava_utils
-import strava.logger as strava_logger
 
 from core.database import SessionLocal
 
@@ -36,7 +37,7 @@ def fetch_and_process_activities(
 
     if strava_activities is None:
         # Log an informational event if no activities were found
-        strava_logger.print_to_log(
+        core_logger.print_to_log(
             f"User {user_id}: No new Strava activities found after {start_date}: strava_activities is None"
         )
 
@@ -331,7 +332,7 @@ def process_activity(
         return None
 
     # Log an informational event for activity processing
-    strava_logger.print_to_log(
+    core_logger.print_to_log(
         f"User {user_id}: Strava activity {activity.id} will be processed"
     )
 
@@ -376,11 +377,11 @@ def get_user_strava_activities_by_days(start_date: datetime, user_id: int):
         )
 
         if user_integrations is None:
-            strava_logger.print_to_log(f"User {user_id}: Strava not linked")
+            core_logger.print_to_log(f"User {user_id}: Strava not linked")
             return None
 
         # Log the start of the activities processing
-        strava_logger.print_to_log(
+        core_logger.print_to_log(
             f"User {user_id}: Started Strava activities processing"
         )
 
@@ -393,7 +394,7 @@ def get_user_strava_activities_by_days(start_date: datetime, user_id: int):
         )
 
         # Log an informational event for tracing
-        strava_logger.print_to_log(
+        core_logger.print_to_log(
             f"User {user_id}: {num_strava_activities_processed} Strava activities processed"
         )
     finally:

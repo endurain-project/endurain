@@ -13,14 +13,10 @@ import core.scheduler as core_scheduler
 import core.tracing as core_tracing
 import core.migrations as core_migrations
 
-import garmin.logger as garmin_logger
 import garmin.activity_utils as garmin_activity_utils
 import garmin.health_utils as garmin_health_utils
 
 import strava.activity_utils as strava_activity_utils
-import strava.logger as strava_logger
-
-import migrations.logger as migrations_logger
 
 from core.routes import router as api_router
 
@@ -113,9 +109,6 @@ core_config.check_required_env_vars()
 
 # Create logggers
 core_logger.setup_main_logger()
-garmin_logger.setup_garminconnect_logger()
-migrations_logger.setup_migration_logger()
-strava_logger.setup_strava_logger()
 
 # Setup tracing
 core_tracing.setup_tracing(app)

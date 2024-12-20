@@ -13,7 +13,6 @@ import garmin.schema as garmin_schema
 import garmin.activity_utils as garmin_activity_utils
 import garmin.health_utils as garmin_health_utils
 import garmin.gear_utils as garmin_gear_utils
-import garmin.logger as garmin_logger
 
 import websocket.schema as websocket_schema
 
@@ -98,9 +97,6 @@ async def garminconnect_retrieve_activities_days(
 
     # Return success message and status code 202
     core_logger.print_to_log(
-        f"Garmin Connect activities will be processed in the background for user {token_user_id}. For more information check garminconnect log."
-    )
-    garmin_logger.print_to_log(
         f"Garmin Connect activities will be processed in the background for user {token_user_id}"
     )
     return {
@@ -124,9 +120,6 @@ async def garminconnect_retrieve_gear(
 
     # Return success message and status code 202
     core_logger.print_to_log(
-        f"Garmin Connect gear will be processed in the background for user {token_user_id}. For more information check garminconnect log."
-    )
-    garmin_logger.print_to_log(
         f"Garmin Connect gear will be processed in the background for user {token_user_id}"
     )
     return {
@@ -158,9 +151,6 @@ async def garminconnect_retrieve_health_days(
 
     # Return success message and status code 202
     core_logger.print_to_log(
-        f"Garmin Connect health data will be processed in the background for user {token_user_id}. For more information check garminconnect log."
-    )
-    garmin_logger.print_to_log(
         f"Garmin Connect health data will be processed in the background for user {token_user_id}"
     )
     return {

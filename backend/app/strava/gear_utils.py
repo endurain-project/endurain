@@ -3,7 +3,10 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 from stravalib.client import Client
 
+import core.logger as core_logger
+
 import strava.utils as strava_utils
+import strava.athlete_utils as strava_athlete_utils
 
 import gears.schema as gears_schema
 import gears.crud as gears_crud
@@ -12,9 +15,6 @@ import activities.schema as activities_schema
 import activities.crud as activities_crud
 
 import user_integrations.crud as user_integrations_crud
-
-import strava.athlete_utils as strava_athlete_utils
-import strava.logger as strava_logger
 
 from core.database import SessionLocal
 
@@ -51,7 +51,7 @@ def fetch_and_process_gear(strava_client: Client, user_id: int, db: Session) -> 
 
     if strava_gear is None:
         # Log an informational event if no gear were found
-        strava_logger.print_to_log(
+        core_logger.print_to_log(
             f"User {user_id}: No new Strava gear found: strava_gear is None"
         )
 
@@ -156,7 +156,7 @@ def get_user_gear(user_id: int):
         )
 
         # Log the start of the activities processing
-        strava_logger.print_to_log(f"User {user_id}: Started Strava gear processing")
+        core_logger.print_to_log(f"User {user_id}: Started Strava gear processing")
 
         # Create a Strava client with the user's access token
         strava_client = strava_utils.create_strava_client(user_integrations)
@@ -168,19 +168,19 @@ def get_user_gear(user_id: int):
         num_strava_gear_processed = fetch_and_process_gear(strava_client, user_id, db)
 
         # Log an informational event for tracing
-        strava_logger.print_to_log(
+        core_logger.print_to_log(
             f"User {user_id}: {num_strava_gear_processed} Strava gear processed"
         )
 
         # Log an informational event for tracing
-        strava_logger.print_to_log(
+        core_logger.print_to_log(
             f"User {user_id}: Will parse current activities and set gear if applicable"
         )
 
         num_gear_activities_set = set_activities_gear(user_id, db)
 
         # Log an informational event for tracing
-        strava_logger.print_to_log(
+        core_logger.print_to_log(
             f"User {user_id}: {num_gear_activities_set} activities where gear was set"
         )
     finally:
