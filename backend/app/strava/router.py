@@ -79,7 +79,7 @@ async def strava_link(
 
         # Redirect to the main page or any other desired page after processing
         redirect_url = (
-            "https://" + os.environ.get("FRONTEND_HOST") + "/settings?stravaLinked=1"
+            os.environ.get("ENDURAIN_HOST") + "/settings?stravaLinked=1"
         )
 
         # Return a RedirectResponse to the redirect URL

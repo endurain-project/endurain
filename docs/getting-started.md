@@ -55,7 +55,7 @@ Environment variable  | Default value | Optional | Notes |
 | JAEGER_HOST | jaeger | Yes | N/A |
 | JAGGER_PORT | 4317 | Yes | N/A |
 | FRONTEND_PROTOCOL | http | Yes | Needs to be set if you want to enable Strava integration. You may need to update this variable based on docker image spin up (frontend host or local ip (example: http://192.168.1.10:8080)) |
-| FRONTEND_HOST | frontend:8080 | Yes | Needs to be set if you want to enable Strava integration. You may need to update this variable based on docker image spin up (frontend host or local ip (example: http://192.168.1.10:8080)) |
+| ENDURAIN_HOST | http://frontend:8080 | Yes | Required for internal communication and Strava. For Strava https must be used |
 | GEOCODES_MAPS_API | changeme | `No` | <a href="https://geocode.maps.co/">Geocode maps</a> offers a free plan consisting of 1 Request/Second. Registration necessary. |
 
 Table below shows the obligatory environment variables for mariadb container. You should set them based on what was also set for backend container.

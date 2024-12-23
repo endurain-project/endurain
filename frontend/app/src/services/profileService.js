@@ -2,21 +2,21 @@ import { fetchGetRequest, fetchPostRequest, fetchPutRequest, fetchDeleteRequest,
 
 export const profile = {
     getProfileInfo() {
-        return fetchGetRequest('profile/');
+        return fetchGetRequest('profile');
     },
     uploadProfileImage(file) {
         const formData = new FormData();
         formData.append('file', file);
 
-        return fetchPostFileRequest(`profile/upload/image`, formData);
+        return fetchPostFileRequest('profile/upload/image', formData);
     },
     editProfile(data) {
         return fetchPutRequest('profile/edit', data)
     },
     editProfilePassword(data) {
-        return fetchPutRequest(`profile/edit/password`, data)
+        return fetchPutRequest('profile/edit/password', data)
     },
     deleteProfilePhoto() {
-        return fetchPutRequest(`profile/delete-photo`);
+        return fetchPutRequest('profile/delete-photo');
     },
 };

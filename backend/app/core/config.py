@@ -3,7 +3,7 @@ import os
 import core.logger as core_logger
 
 # Constant related to version
-API_VERSION = "v0.6.5"
+API_VERSION = "v0.7.0"
 
 
 def check_required_env_vars():
@@ -26,8 +26,7 @@ def check_required_env_vars():
         "JAEGER_PROTOCOL",
         "JAEGER_HOST",
         "JAGGER_PORT",
-        "FRONTEND_PROTOCOL",
-        "FRONTEND_HOST",
+        "ENDURAIN_HOST",
         "GEOCODES_MAPS_API",
     ]
 

@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia';
 
-import { BACKEND_URL } from "@/utils/serviceUtils";
+import { API_URL } from "@/utils/serviceUtils";
 
 export const useAuthStore = defineStore('auth', {
     state: () => ({
@@ -76,8 +76,8 @@ export const useAuthStore = defineStore('auth', {
             localStorage.setItem('lang', language);
         },
         setUserWebsocket() {
-            const protocol = import.meta.env.VITE_BACKEND_PROTOCOL === 'http' ? 'ws' : 'wss';
-            const websocketURL = `${protocol}://${BACKEND_URL}ws/${this.user.id}`;
+            const protocol = API_URL.startsWith('http://') ? 'ws' : 'wss';
+            const websocketURL = `${API_URL}ws/${this.user.id}`;
             this.user_websocket = new WebSocket(websocketURL);
         },
     }

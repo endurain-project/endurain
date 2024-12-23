@@ -3,6 +3,7 @@ import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 
 from alembic.config import Config
 from alembic import command
@@ -76,15 +77,12 @@ def create_app() -> FastAPI:
         },
     )
 
-    # Add a route to serve the user images
-    app.mount("/user_images", StaticFiles(directory="user_images"), name="user_images")
-
     # Add CORS middleware to allow requests from the frontend
     origins = [
         "http://localhost",
         "http://localhost:8080",
         "http://localhost:5173",
-        os.environ.get("FRONTEND_PROTOCOL") + "://" + os.environ.get("FRONTEND_HOST"),
+        os.environ.get("ENDURAIN_HOST"),
     ]
 
     app.add_middleware(
@@ -97,6 +95,10 @@ def create_app() -> FastAPI:
 
     # Router files
     app.include_router(api_router)
+
+    # Add a route to serve the user images
+    app.mount("/user_images", StaticFiles(directory="user_images"), name="user_images")
+    app.mount("/", StaticFiles(directory="frontend/dist", html=True), name="static")
 
     return app
 

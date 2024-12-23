@@ -1,46 +1,29 @@
 services:
-  # frontend logic
-  frontend:
-    container_name: frontend
-    image: ghcr.io/joaovitoriasilva/endurain/frontend:latest
-    environment:
-      - MY_APP_BACKEND_PROTOCOL=http # http or https, default is http
-      - MY_APP_BACKEND_HOST=localhost:98 # api host or local ip (example: 192.168.1.10:98), default is localhost:98
-      - MY_APP_STRAVA_CLIENT_ID=changeme
-    # Configure volume if you want to edit the code locally by clomming the repo
-    #volumes:
-    #  - <local_path>/endurain/frontend/app:/app
-    ports:
-      - "8080:80" # frontend port, change per your needs
-    restart: unless-stopped
-    
-  # API logic
-  backend:
-    container_name: backend
-    image: ghcr.io/joaovitoriasilva/endurain/backend:latest
+  endurain:
+    container_name: endurain
+    image: ghcr.io/joaovitoriasilva/endurain/endurain:latest
     environment:
       - TZ=Europe/Lisbon
-      - DB_TYPE=mariadb # mariadb or postgres
-      - DB_HOST=mariadb # mariadb or postgres
-      - DB_PORT=3306 # 3306 or 5432
-      - DB_PASSWORD=changeme
-      - SECRET_KEY=changeme # openssl rand -hex 32
-      - STRAVA_CLIENT_ID=changeme
-      - STRAVA_CLIENT_SECRET=changeme
-      - STRAVA_AUTH_CODE=changeme
-      - GEOCODES_MAPS_API=changeme
-      - FRONTEND_PROTOCOL=http # default is http
-      - FRONTEND_HOST=localhost:8080 # frontend host or local ip (example: 192.168.1.10:8080), default is localhost:8080
-    ports:
-      - "98:80" # API port, change per your needs
+      - DB_TYPE=postgres # mariadb or postgres
+      - DB_HOST=postgres # mariadb or postgres
+      - DB_PORT=5432 # 3306 or 5432
+      - DB_PASSWORD=123Testes@
+      - SECRET_KEY=179bc27a49f9ec0775cd768e423a1dccf6ed1877765e238e80012770981604c0 # openssl rand -hex 32
+      #- STRAVA_CLIENT_ID=changeme
+      #- STRAVA_CLIENT_SECRET=changeme
+      #- STRAVA_AUTH_CODE=changeme
+      - GEOCODES_MAPS_API=65a54b5900160666737054pmy223029
+      - ENDURAIN_HOST=http://localhost:8080 # host or local ip (example: 192.168.1.10:8080), default is http://localhost:8080
     volumes:
     #  - <local_path>/endurain/backend/app:/app # Configure volume if you want to edit the code locally by cloning the repo
       - <local_path>/endurain/backend/user_images:/app/user_images # necessary for user image persistence on container image updates
       - <local_path>/endurain/backend/files/bulk_import:/app/files/bulk_import # necessary to enable bulk import of activities. Place here your activities files
       - <local_path>/endurain/backend/files/processed:/app/files/processed # necessary for processed original files persistence on container image updates
       - <local_path>/endurain/backend/logs:/app/logs # log files for the backend
+    ports:
+      - "8080:80" # Endurain port, change per your needs
     depends_on:
-      - mariadb # mariadb or postgres
+      - postgres # mariadb or postgres
       - jaeger # optional
     restart: unless-stopped
   
@@ -121,4 +104,4 @@ services:
 networks:
   default:
     external: true
-    name: backend_network
+    name: endurain_network

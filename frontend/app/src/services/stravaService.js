@@ -9,7 +9,7 @@ export const strava = {
     },
     linkStrava(state) {
         const stravaClientId = `${import.meta.env.VITE_STRAVA_CLIENT_ID}`;
-        let redirectUri = `${import.meta.env.VITE_BACKEND_PROTOCOL}://${import.meta.env.VITE_BACKEND_HOST}`;
+        let redirectUri = `${import.meta.env.VITE_ENDURAIN_HOST}`;
         redirectUri = encodeURIComponent(redirectUri);
         const scope = 'read,read_all,profile:read_all,activity:read,activity:read_all';
 

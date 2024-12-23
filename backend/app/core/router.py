@@ -5,12 +5,11 @@ import core.config as core_config
 # Define the API router
 router = APIRouter()
 
+
 @router.get(
     "/about",
 )
-async def about(
-):
-    # Return the gear
+async def about():
     return {
         "name": "Endurain API",
         "version": core_config.API_VERSION,

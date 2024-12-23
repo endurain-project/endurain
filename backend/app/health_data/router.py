@@ -39,7 +39,7 @@ async def read_health_data_number(
 
 
 @router.get(
-    "/",
+    "",
     response_model=list[health_data_schema.HealthData] | None,
 )
 async def read_health_data_all(
@@ -87,7 +87,7 @@ async def read_health_data_all_pagination(
     )
 
 
-@router.post("/", status_code=201)
+@router.post("", status_code=201)
 async def create_health_data(
     health_data: health_data_schema.HealthData,
     check_scopes: Annotated[
@@ -116,7 +116,7 @@ async def create_health_data(
         return health_data_crud.create_health_data(token_user_id, health_data, db)
 
 
-@router.put("/")
+@router.put("")
 async def edit_health_data(
     health_data: health_data_schema.HealthData,
     check_scopes: Annotated[

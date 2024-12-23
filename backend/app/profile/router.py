@@ -17,7 +17,7 @@ import core.database as core_database
 router = APIRouter()
 
 
-@router.get("/", response_model=users_schema.UserMe)
+@router.get("", response_model=users_schema.UserMe)
 async def read_users_me(
     token_user_id: Annotated[
         int,
