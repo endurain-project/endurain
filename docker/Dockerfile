@@ -52,7 +52,8 @@ ENV TZ="UTC" \
     JAEGER_PROTOCOL="http" \
     JAGGER_PORT=4317 \
     ENDURAIN_HOST="http://localhost:8080" \
-    GEOCODES_MAPS_API="changeme"
+    GEOCODES_MAPS_API="changeme" \
+    BEHIND_PROXY=false
 
 # Set the working directory to /app/backend
 WORKDIR /app/backend
@@ -71,13 +72,12 @@ COPY backend/app ./
 
 # Copy the directory app contents to /app
 COPY --from=frontend-build /tmp/frontend/dist ./frontend/dist
-COPY frontend/app/.env ./frontend/.env
 
-# Copy the entrypoint script
-COPY frontend_env.sh /docker-entrypoint.d/frontend_env.sh
+# Copy the entrypoint script for starting the FastAPI app
+COPY docker/start.sh /docker-entrypoint.d/start.sh
 
-# Make the entrypoint script executable
-RUN chmod +x /docker-entrypoint.d/frontend_env.sh
+# Make the script executable
+RUN chmod +x /docker-entrypoint.d/start.sh
 
 # Change ownership to non-root user
 RUN chown -R endurain:endurain ./
@@ -88,5 +88,5 @@ USER endurain
 # Make port 80 available to the world outside this container
 EXPOSE 80
 
-# Run FastAPI
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "80"]
+# Run the FastAPI app
+ENTRYPOINT ["/docker-entrypoint.d/start.sh"]
