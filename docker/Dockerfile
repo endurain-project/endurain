@@ -34,15 +34,15 @@ FROM python:3.12
 
 # Define environment variables
 ENV TZ="UTC" \
-    DB_TYPE="mariadb" \
-    DB_HOST="mariadb" \
-    DB_PORT=3306 \
+    DB_TYPE="postgres" \
+    DB_HOST="postgres" \
+    DB_PORT=5432 \
     DB_USER="endurain" \
     DB_PASSWORD="changeme" \
     DB_DATABASE="endurain" \
     SECRET_KEY="changeme" \
     ALGORITHM="HS256" \
-    ACCESS_TOKEN_EXPIRE_MINUTES=30 \
+    ACCESS_TOKEN_EXPIRE_MINUTES=15 \
     REFRESH_TOKEN_EXPIRE_DAYS=7 \
     STRAVA_CLIENT_ID="changeme" \
     STRAVA_CLIENT_SECRET="changeme" \

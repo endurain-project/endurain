@@ -4,7 +4,7 @@
 
 ## Strava Integration
 
-> [!WARNING]  
+> ⚠️ **Warning**  
 > Due to recent Strava API changes, expect changes in the Strava integration in a following release.
 
 To enable Strava integration, ensure your API endpoint is accessible from the internet and follow Strava's [API setup guide](https://developers.strava.com/docs/getting-started/). After the integration is successful the access and refresh tokens are stored in the DB. Each user will have his/hers own pair.

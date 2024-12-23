@@ -33,7 +33,7 @@ Endurain is a self-hosted fitness tracking service designed to give users full c
 - **Database:** MariaDB or PostgreSQL for efficient user data management
 - **Observability:** Jaeger for basic tracing and monitoring
 
-To deploy Endurain, Docker images are available, and a comprehensive example can be found in the "docker-compose.yml.example" file provided in the project repository. Configuration is facilitated through environment variables, ensuring flexibility and ease of customization. More details bellow.
+To deploy Endurain, a Docker image is available, and a comprehensive example can be found in the "docker-compose.yml.example" file provided in the project repository. Configuration is facilitated through environment variables, ensuring flexibility and ease of customization. More details bellow.
 
 ## Developer's Note
 
@@ -64,7 +64,6 @@ Endurain currently supports:
 
 Upcoming features (in no particular order):
 
-- Simplified Docker images
 - Live tracking
 - Default gear for activity types
 - Gear component tracking (e.g., track when components like bike chains need replacing)

@@ -7,13 +7,14 @@ services:
       - DB_TYPE=postgres # mariadb or postgres
       - DB_HOST=postgres # mariadb or postgres
       - DB_PORT=5432 # 3306 or 5432
-      - DB_PASSWORD=123Testes@
-      - SECRET_KEY=179bc27a49f9ec0775cd768e423a1dccf6ed1877765e238e80012770981604c0 # openssl rand -hex 32
+      - DB_PASSWORD=changeme
+      - SECRET_KEY=chnageme # openssl rand -hex 32
       #- STRAVA_CLIENT_ID=changeme
       #- STRAVA_CLIENT_SECRET=changeme
       #- STRAVA_AUTH_CODE=changeme
-      - GEOCODES_MAPS_API=65a54b5900160666737054pmy223029
-      - ENDURAIN_HOST=http://localhost:8080 # host or local ip (example: 192.168.1.10:8080), default is http://localhost:8080
+      - GEOCODES_MAPS_API=changeme
+      - ENDURAIN_HOST=http://localhost:8080 # host or local ip (example: http://192.168.1.10:8080 or https://endurain.com), default is http://localhost:8080
+      - BEHIND_PROXY=false # default value is false. Change to true if behind reverse proxy
     volumes:
     #  - <local_path>/endurain/backend/app:/app # Configure volume if you want to edit the code locally by cloning the repo
       - <local_path>/endurain/backend/user_images:/app/user_images # necessary for user image persistence on container image updates
