@@ -1,4 +1,4 @@
-name: Create frontend Docker image with latest tag on manual trigger
+name: Create Docker image with latest tag on manual trigger
 
 on:
   workflow_dispatch:
@@ -25,13 +25,13 @@ jobs:
       run: |
         docker buildx create --use
 
-    - name: Build and push the frontend Docker image
+    - name: Build and push the Docker image
       run: |
         IMAGE_TAG="latest"
-        IMAGE_NAME="ghcr.io/${{ github.repository }}/frontend"
+        IMAGE_NAME="ghcr.io/${{ github.repository }}"
 
         echo ${{ secrets.TOKEN_FOR_ACTIONS }} | docker login ghcr.io -u ${{ github.repository_owner }} --password-stdin
         
-        docker buildx build --platform linux/amd64,linux/arm64 --file frontend/Dockerfile --tag $IMAGE_NAME:$IMAGE_TAG --push ./frontend
+        docker buildx build --platform linux/amd64,linux/arm64 --file docker/Dockerfile --tag $IMAGE_NAME:$IMAGE_TAG --push ./docker
         echo "IMAGE_TAG=${IMAGE_TAG}" >> $GITHUB_ENV
       if: github.event_name == 'release' || github.event_name == 'workflow_dispatch'

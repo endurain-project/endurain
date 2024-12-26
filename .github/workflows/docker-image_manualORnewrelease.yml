@@ -1,4 +1,4 @@
-name: Create backend Docker image on new release or using manual trigger
+name: Create Docker image on new release or using manual trigger
 
 on:
   workflow_dispatch:
@@ -28,17 +28,17 @@ jobs:
       run: |
         docker buildx create --use
 
-    - name: Build and push the backend Docker image
+    - name: Build and push the Docker image
       run: |
         if [ "${{ github.event_name }}" == 'workflow_dispatch' ]; then
           IMAGE_TAG="dev_$(date +"%d%m%Y")"
         else
           IMAGE_TAG="${{ github.event.release.tag_name }}"
         fi
-        IMAGE_NAME="ghcr.io/${{ github.repository }}/backend"
+        IMAGE_NAME="ghcr.io/${{ github.repository }}"
 
         echo ${{ secrets.TOKEN_FOR_ACTIONS }} | docker login ghcr.io -u ${{ github.repository_owner }} --password-stdin
         
-        docker buildx build --platform linux/amd64,linux/arm64 --file backend/Dockerfile --tag $IMAGE_NAME:$IMAGE_TAG --push ./backend
+        docker buildx build --platform linux/amd64,linux/arm64 --file docker/Dockerfile --tag $IMAGE_NAME:$IMAGE_TAG --push ./docker
         echo "IMAGE_TAG=${IMAGE_TAG}" >> $GITHUB_ENV
       if: github.event_name == 'release' || github.event_name == 'workflow_dispatch'
