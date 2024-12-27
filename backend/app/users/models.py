@@ -35,7 +35,7 @@ class User(Base):
         comment="User email (max 250 characters)",
     )
     password = Column(
-        String(length=100), nullable=False, comment="User password (hash)"
+        String(length=250), nullable=False, comment="User password (hash)"
     )
     city = Column(String(length=250), nullable=True, comment="User city")
     birthdate = Column(Date, nullable=True, comment="User birthdate (date)")

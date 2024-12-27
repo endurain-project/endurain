@@ -55,11 +55,20 @@ ENV TZ="UTC" \
     GEOCODES_MAPS_API="changeme" \
     BEHIND_PROXY=false
 
+# Set a non-root user
+RUN adduser --disabled-password --gecos '' endurain
+
+# Set the working directory to /app/frontend
+WORKDIR /app/frontend
+
+# Copy the directory app contents to /app
+COPY --from=frontend-build /tmp/frontend/dist ./dist
+
 # Set the working directory to /app/backend
 WORKDIR /app/backend
 
 # Add a non-root user
-RUN useradd -m endurain
+#RUN useradd -m endurain
 
 # Copy requirements.txt from requirements-stage to /app/backend
 COPY --from=requirements-stage /tmp/backend/requirements.txt ./requirements.txt
@@ -70,9 +79,6 @@ RUN pip install --no-cache-dir --upgrade -r ./requirements.txt
 # Copy the directory app contents to /app
 COPY backend/app ./
 
-# Copy the directory app contents to /app
-COPY --from=frontend-build /tmp/frontend/dist ./frontend/dist
-
 # Copy the entrypoint script for starting the FastAPI app
 COPY docker/start.sh /docker-entrypoint.d/start.sh
 
@@ -80,13 +86,17 @@ COPY docker/start.sh /docker-entrypoint.d/start.sh
 RUN chmod +x /docker-entrypoint.d/start.sh
 
 # Change ownership to non-root user
-RUN chown -R endurain:endurain ./
+#RUN chown -R endurain:endurain ./
+RUN chown -R endurain /app
 
 # Switch to non-root user
 USER endurain
 
 # Make port 80 available to the world outside this container
 EXPOSE 80
+
+# Add a healthcheck
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s CMD curl -f http://localhost/api/v1/about || exit 1
 
 # Run the FastAPI app
 ENTRYPOINT ["/docker-entrypoint.d/start.sh"]

@@ -75,10 +75,10 @@ It is recommended to configure the following volumes for data persistence:
 
 | Volume | Path | Notes |
 | --- | --- | --- |
-| /app/files/bulk_import | <local_path>/endurain/backend/files/bulk_import:/app/files/bulk_import | Necessary to enable bulk import of activities. Place here your activities files |
-| /app/files/processed | <local_path>/endurain/backend/files/processed:/app/files/processed | Necessary for processed original files persistence on container image updates |
-| /app/user_images | <local_path>/endurain/backend/user_images:/app/user_images | Necessary for user image persistence on container image updates |
-| /app/logs | <local_path>/endurain/backend/logs:/app/logs | Log files for the backend |
+| /app/backend/files/bulk_import | <local_path>/endurain/backend/files/bulk_import:/app/files/bulk_import | Necessary to enable bulk import of activities. Place here your activities files |
+| /app/backend/files/processed | <local_path>/endurain/backend/files/processed:/app/files/processed | Necessary for processed original files persistence on container image updates |
+| /app/backend/user_images | <local_path>/endurain/backend/user_images:/app/user_images | Necessary for user image persistence on container image updates |
+| /app/backend/logs | <local_path>/endurain/backend/logs:/app/logs | Log files for the backend |
 
 ## Bulk import and file upload
 

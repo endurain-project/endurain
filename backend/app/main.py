@@ -4,6 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
+from fastapi import Request
 
 from alembic.config import Config
 from alembic import command
@@ -98,7 +99,14 @@ def create_app() -> FastAPI:
 
     # Add a route to serve the user images
     app.mount("/user_images", StaticFiles(directory="user_images"), name="user_images")
-    app.mount("/", StaticFiles(directory="frontend/dist", html=True), name="static")
+    app.mount(
+        "/", StaticFiles(directory="/app/frontend/dist", html=True), name="frontend"
+    )
+
+    @app.get("/{full_path:path}")
+    async def catch_all(full_path: str, request: Request):
+        # Serve the frontend's index.html for any unmatched routes
+        return FileResponse("/app/frontend/dist/index.html")
 
     return app
 

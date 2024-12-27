@@ -50,14 +50,18 @@ def is_password_complexity_valid(password):
 
 def hash_password(password: str):
     # Hash the password and return it
-    return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt())
+    return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
 
 
 def verify_password(plain_password: str, hashed_password: str):
     # Check if the password is equal to the hashed password
-    return bcrypt.checkpw(
-        plain_password.encode("utf-8"), hashed_password.encode("utf-8")
-    )
+    try:
+        return bcrypt.checkpw(
+            plain_password.encode("utf-8"), hashed_password.encode("utf-8")
+        )
+    except Exception as e:
+        logging.error(f"Error verifying password: {e}")
+        return False
 
 
 def decode_token(token: Annotated[str, Depends(oauth2_scheme)]):
