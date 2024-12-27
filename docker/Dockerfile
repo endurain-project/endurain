@@ -67,9 +67,6 @@ COPY --from=frontend-build /tmp/frontend/dist ./dist
 # Set the working directory to /app/backend
 WORKDIR /app/backend
 
-# Add a non-root user
-#RUN useradd -m endurain
-
 # Copy requirements.txt from requirements-stage to /app/backend
 COPY --from=requirements-stage /tmp/backend/requirements.txt ./requirements.txt
 
@@ -86,7 +83,6 @@ COPY docker/start.sh /docker-entrypoint.d/start.sh
 RUN chmod +x /docker-entrypoint.d/start.sh
 
 # Change ownership to non-root user
-#RUN chown -R endurain:endurain ./
 RUN chown -R endurain /app
 
 # Switch to non-root user
@@ -96,7 +92,7 @@ USER endurain
 EXPOSE 80
 
 # Add a healthcheck
-HEALTHCHECK --interval=30s --timeout=5s --start-period=10s CMD curl -f http://localhost/api/v1/about || exit 1
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s CMD curl -f http://localhost/api/v1/about || exit 1
 
 # Run the FastAPI app
 ENTRYPOINT ["/docker-entrypoint.d/start.sh"]

@@ -9,8 +9,7 @@
 
 ## Docker Deployment
 
-Endurain provides a Docker image for simplified deployment. To get started, check out the `docker-compose.yml.example` file in the project repository and adjust it according to your setup.
-Supported tags are:
+Endurain provides a Docker image for simplified deployment. To get started, check out the `docker-compose.yml.example` file in the project repository and adjust it according to your setup. Supported tags are:
 
 - **latest:** contains the latest released version;
 - **version, example "v0.3.0":** contains the app state available at the time of the version specified;
@@ -71,7 +70,7 @@ Frontend dependencies:
 
 ## Volumes
 
-It is recommended to configure the following volumes for data persistence:
+Docker image uses a non-root user, so ensure target folders are not owned by root. Non-root user should use UID and GID 1000. It is recommended to configure the following volumes for data persistence:
 
 | Volume | Path | Notes |
 | --- | --- | --- |
