@@ -103,9 +103,12 @@ def create_app() -> FastAPI:
         "/", StaticFiles(directory="/app/frontend/dist", html=True), name="frontend"
     )
 
+    # Ensure that the FastAPI docs route is not caught by the catch-all route
     @app.get("/{full_path:path}")
     async def catch_all(full_path: str, request: Request):
-        # Serve the frontend's index.html for any unmatched routes
+        # Serve the frontend's index.html for any unmatched routes, excluding API routes
+        if full_path.startswith("api/v1"):
+            raise Exception("API route accessed, but missed by static file handler")
         return FileResponse("/app/frontend/dist/index.html")
 
     return app
