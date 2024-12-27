@@ -4,6 +4,9 @@ import core.logger as core_logger
 
 # Constant related to version
 API_VERSION = "v0.7.0"
+LICENSE_NAME = "GNU Affero General Public License v3.0 or later"
+LICENSE_IDENTIFIER = "AGPL-3.0-or-later"
+LICENSE_URL = "https://spdx.org/licenses/AGPL-3.0-or-later.html"
 
 
 def check_required_env_vars():

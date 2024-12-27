@@ -1,6 +1,6 @@
 import os
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
@@ -72,9 +72,9 @@ def create_app() -> FastAPI:
         root_path="/api/v1",
         version=core_config.API_VERSION,
         license_info={
-            "name": "GNU General Public License v3.0",
-            "identifier": "GPL-3.0-or-later",
-            "url": "https://spdx.org/licenses/GPL-3.0-or-later.html",
+            "name": core_config.LICENSE_NAME,
+            "identifier": core_config.LICENSE_IDENTIFIER,
+            "url": core_config.LICENSE_URL,
         },
     )
 
@@ -102,14 +102,6 @@ def create_app() -> FastAPI:
     app.mount(
         "/", StaticFiles(directory="/app/frontend/dist", html=True), name="frontend"
     )
-
-    # Ensure that the FastAPI docs route is not caught by the catch-all route
-    @app.get("/{full_path:path}")
-    async def catch_all(full_path: str, request: Request):
-        # Serve the frontend's index.html for any unmatched routes, excluding API routes
-        if full_path.startswith("api/v1"):
-            raise Exception("API route accessed, but missed by static file handler")
-        return FileResponse("/app/frontend/dist/index.html")
 
     return app
 

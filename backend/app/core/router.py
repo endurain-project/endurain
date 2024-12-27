@@ -14,8 +14,8 @@ async def about():
         "name": "Endurain API",
         "version": core_config.API_VERSION,
         "license": {
-            "name": "GNU General Public License v3.0",
-            "identifier": "GPL-3.0-or-later",
-            "url": "https://spdx.org/licenses/GPL-3.0-or-later.html",
+            "name": core_config.LICENSE_NAME,
+            "identifier": core_config.LICENSE_IDENTIFIER,
+            "url": core_config.LICENSE_URL,
         },
     }
