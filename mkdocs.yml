@@ -11,5 +11,3 @@ nav:
     - 3rd party apps: integrations/3rd-party-apps.md
     - 3rd party services: integrations/3rd-party-services.md
   - Developer guide: developer-guide.md
-  - About:
-    - License: about/license.md

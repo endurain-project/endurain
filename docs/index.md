@@ -30,10 +30,10 @@ Endurain is a self-hosted fitness tracking service designed to give users full c
 
 - **Frontend:** Vue.js, Notivue and Bootstrap CSS
 - **Backend:** Python FastAPI, Alembic, SQLAlchemy, stravalib and python-garminconnect for Strava and Garmin Connect integration, gpxpy and fitdecode for .gpx and .fit file import respectively 
-- **Database:** MariaDB or PostgreSQL for efficient user data management
+- **Database:** MariaDB or PostgreSQL for efficient data management
 - **Observability:** Jaeger for basic tracing and monitoring
 
-To deploy Endurain, a Docker image is available, and a comprehensive example can be found in the "docker-compose.yml.example" file provided in the project repository. Configuration is facilitated through environment variables, ensuring flexibility and ease of customization. More details bellow.
+To deploy Endurain, a Docker image is available, and a comprehensive example can be found in the "docker-compose.yml.example" file provided in the project repository. Configuration is facilitated through environment variables, ensuring flexibility and ease of customization.
 
 ## Developer's Note
 
@@ -47,15 +47,15 @@ Endurain currently supports:
 
 - Multi-user functionality
 - Admin and user profiles with adaptable interfaces
-- Activity import via manual or bulk upload (.gpx and .fit files)
+- Activity import via manual or bulk upload (.gpx and .fit files. .fit files are preferred)
 - Strava integration for syncing activities and gear
 - Garmin Connect integration for syncing activities, gear and body composition
-- Personalized activity feeds and statistics (week/month)
+- Activity feeds and statistics (week/month)
 - Basic activity privacy settings
 - Gear tracking (wetsuits, bicycles, shoes)
 - User pages with stats and activity histories
 - Follower features (view activities)
-- Multi-language support (currently English only)
+- Multi-language support
 - Dark/light theme switcher
 - Third-party app support
 - Weight logging
@@ -83,7 +83,7 @@ Contributions are welcomed! Please open an issue to discuss any changes or impro
 
 ## License
 
-This project is licensed under the GPL-3.0 License - see the [LICENSE](https://github.com/joaovitoriasilva/endurain/tree/master?tab=GPL-3.0-1-ov-file) file for details.
+This project is licensed under the AGPL-3.0 or later License.
 
 ## Help Translate
 
