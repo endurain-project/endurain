@@ -37,7 +37,7 @@
     "errorMessageUnableToUnlinkGarminConnect": "Não foi possível desassociar a conta do Garmin Connect",
     "errorMessageUnableToGetGarminConnectGear": "Não foi possível obter equipamento do Garmin Connect",
     "loadingMessageRetrievingGarminConnectGear": "A obter equipamento do Garmin Connect",
-    "modalRetrieveHealthDataByDaysTitle": "Retrieve health data by days",
-    "errorMessageUnableToGetGarminConnectHealthData": "Unable to get Garmin Connect health data",
-    "loadingMessageRetrievingGarminConnectHealthData": "Retrieving Garmin Connect health data"
+    "modalRetrieveHealthDataByDaysTitle": "Recuperar dados de saúde por dias",
+    "errorMessageUnableToGetGarminConnectHealthData": "Não foi possível obter dados de saúde do Garmin Connect",
+    "loadingMessageRetrievingGarminConnectHealthData": "A obter dados de saúde do Garmin Connect"
 }
