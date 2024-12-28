@@ -4,6 +4,7 @@
     "modalEditGearIsActiveLabel": "Ist aktiv",
     "modalEditGearIsActiveOption1": "Ja",
     "modalEditGearIsActiveOption0": "Nein",
+    "modalEditGearInitialKmsLabel": "Initial kms",
     "modalDeleteGearBody1": "Bist du sicher, dass du die Ausrüstung löschen möchtest?",
     "modalDeleteGearBody2": "Dieser Vorgang kann nicht rückgängig gemacht werden.",
     "labelDistance": "Distanz",

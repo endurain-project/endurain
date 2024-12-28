@@ -1,14 +1,15 @@
 {
-    "buttonEditGear": "Editar Equip",
-    "buttonDeleteGear": "Esborra Equip",
+    "buttonEditGear": "Editar Equipament",
+    "buttonDeleteGear": "Esborra Equipament",
     "modalEditGearIsActiveLabel": "És actiu",
     "modalEditGearIsActiveOption1": "Si",
     "modalEditGearIsActiveOption0": "No",
-    "modalDeleteGearBody1": "Segur que vols esborrar l'equip",
+    "modalEditGearInitialKmsLabel": "Kms inicials",
+    "modalDeleteGearBody1": "Segur que vols esborrar equipament",
     "modalDeleteGearBody2": "Aquesta acció no es pot desfer.",
     "labelDistance": "Distància",
-    "title": "Activitats d'equip",
+    "title": "Activitats d'equipament",
     "subtitle": "(últimes 10 activitats)",
     "labelDate": "Data",
-    "successGearEdited": "Equip editat correctament"
+    "successGearEdited": "Equipament editat correctament"
 }
