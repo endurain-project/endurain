@@ -29,10 +29,10 @@ Endurain is a self-hosted fitness tracking service designed to give users full c
 
 - **Frontend:** Vue.js, Notivue and Bootstrap CSS
 - **Backend:** Python FastAPI, Alembic, SQLAlchemy, stravalib and python-garminconnect for Strava and Garmin Connect integration, gpxpy and fitdecode for .gpx and .fit file import respectively
-- **Database:** MariaDB or PostgreSQL for efficient user data management
+- **Database:** MariaDB or PostgreSQL for efficient data management
 - **Observability:** Jaeger for basic tracing and monitoring
 
-To deploy Endurain, Docker images are available, and a comprehensive example can be found in the "docker-compose.yml.example" file provided. Configuration is facilitated through environment variables, ensuring flexibility and ease of customization. More details bellow.
+To deploy Endurain, Docker images are available, and a comprehensive example can be found in the "docker-compose.yml.example" file provided. Configuration is facilitated through environment variables, ensuring flexibility and ease of customization.
 
 For more information please see the Endurain's [documentation](https://docs.endurain.com).
 
