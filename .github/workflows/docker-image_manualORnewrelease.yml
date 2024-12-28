@@ -39,6 +39,6 @@ jobs:
 
         echo ${{ secrets.TOKEN_FOR_ACTIONS }} | docker login ghcr.io -u ${{ github.repository_owner }} --password-stdin
         
-        docker buildx build --platform linux/amd64,linux/arm64 --file docker/Dockerfile --tag $IMAGE_NAME:$IMAGE_TAG --push ./docker
+        docker buildx build --platform linux/amd64,linux/arm64 --file docker/Dockerfile --tag $IMAGE_NAME:$IMAGE_TAG --push .
         echo "IMAGE_TAG=${IMAGE_TAG}" >> $GITHUB_ENV
       if: github.event_name == 'release' || github.event_name == 'workflow_dispatch'
