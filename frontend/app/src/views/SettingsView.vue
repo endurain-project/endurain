@@ -89,6 +89,18 @@ export default {
                     push.error(`${t('settingsIntegrationsZone.errorMessageUnableToUnSetStravaState')} - ${error}`)
                 }
             }
+
+            if (route.query.stravaLinked === '0') {
+                // If the stravaLinked query parameter is set to 0, set the active section to integrations.
+                activeSection.value = 'integrations';
+
+                try {
+                    await strava.unsetUniqueUserStateStravaLink();
+                } catch (error) {
+                    // If there is an error, set the error message and show the error alert.
+                    push.error(`${t('settingsIntegrationsZone.errorMessageUnableToUnSetStravaState')} - ${error}`)
+                }
+            }
         });
 
         return {

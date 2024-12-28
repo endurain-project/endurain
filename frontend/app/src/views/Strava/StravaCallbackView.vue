@@ -10,7 +10,7 @@ import { useI18n } from "vue-i18n";
 // Import Notivue push
 import { push } from "notivue";
 // Import router
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from "vue-router";
 // Import the components
 import LoadingComponent from "@/components/GeneralComponents/LoadingComponent.vue";
 // Importing the services
@@ -21,29 +21,34 @@ export default {
 		LoadingComponent,
 	},
 	setup() {
-        const route = useRoute();
+		const route = useRoute();
+		const router = useRouter();
 		const { t } = useI18n();
-        //https://enduraindev.jvslab.pt/api/v1/strava/link?state=1ea095ec842dd64da1f9b4ca534737ff&code=91576d035c07ca216c654ceb9784da988326422c&scope=read,activity:read,activity:read_all,profile:read_all,read_all
 
-        onMounted(async () => {
-            console.log(route.query.state);
-            console.log(route.query.code);
-            console.log(route.query.scope);
-            if (route.query.state && route.query.code && route.query.scope) {
-                try {
-                    await strava.linkStravaCallback(route.query.state, route.query.code, route.query.scope);
+		onMounted(async () => {
+			if (route.query.state && route.query.code && route.query.scope) {
+				try {
+					await strava.linkStravaCallback(
+						route.query.state,
+						route.query.code,
+						route.query.scope,
+					);
 
-                    router.push({
+					router.push({
 						path: "/settings",
 						query: { stravaLinked: "1" },
 					});
-                } catch (error) {
-                    // If there is an error, show the error alert.
-                    push.error(
-                        `${t("settingsIntegrationsZone.errorMessageUnableToLinkStrava")} - ${error}`,
-                    );
-                }
-            }
+				} catch (error) {
+					// If there is an error, show the error alert.
+					push.error(
+						`${t("settingsIntegrationsZone.errorMessageUnableToLinkStrava")} - ${error}`,
+					);
+					router.push({
+						path: "/settings",
+						query: { stravaLinked: "0" },
+					});
+				}
+			}
 		});
 	},
 };
