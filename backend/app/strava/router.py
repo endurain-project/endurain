@@ -25,7 +25,7 @@ import core.database as core_database
 router = APIRouter()
 
 
-@router.get(
+@router.put(
     "/link",
 )
 async def strava_link(
@@ -76,14 +76,6 @@ async def strava_link(
 
         # Update the user integrations with the tokens
         user_integrations_crud.link_strava_account(user_integrations, tokens, db)
-
-        # Redirect to the main page or any other desired page after processing
-        redirect_url = (
-            os.environ.get("ENDURAIN_HOST") + "/settings?stravaLinked=1"
-        )
-
-        # Return a RedirectResponse to the redirect URL
-        return RedirectResponse(url=redirect_url)
     except Exception as err:
         # Log the exception
         core_logger.print_to_log(f"Error in strava_link: {err}", "error", exc=err)

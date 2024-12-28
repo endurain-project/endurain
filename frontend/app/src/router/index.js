@@ -48,6 +48,11 @@ const router = createRouter({
       component: () => import('../views/SettingsView.vue')
     },
     {
+      path: '/strava/callback',
+      name: 'strava-callback',
+      component: () => import('../views/Strava/StravaCallbackView.vue')
+    },
+    {
       path: '/:pathMatch(.*)*',
       name: 'not-found',
       component: () => import('../views/NotFoundView.vue'),
