@@ -1,7 +1,7 @@
 services:
   endurain:
     container_name: endurain
-    image: ghcr.io/joaovitoriasilva/endurain/endurain:latest
+    image: ghcr.io/joaovitoriasilva/endurain:latest
     environment:
       - TZ=Europe/Lisbon
       - DB_TYPE=postgres # mariadb or postgres
