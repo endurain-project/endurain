@@ -23,6 +23,9 @@ WORKDIR /tmp/backend
 # Install Poetry
 RUN pip install --no-cache-dir poetry
 
+# Add poetry-plugin-export
+RUN poetry self add poetry-plugin-export
+
 # Copy pyproject.toml and poetry.lock* files
 COPY backend/pyproject.toml backend/poetry.lock* ./
 
