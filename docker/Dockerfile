@@ -27,7 +27,7 @@ RUN pip install --no-cache-dir poetry
 COPY backend/pyproject.toml backend/poetry.lock* ./
 
 # Install dependencies using poetry and export them to requirements.txt
-RUN poetry export -f requirements.txt --without-hashes > requirements.txt
+RUN poetry export -f requirements.txt --output requirements.txt --without-hashes
 
 # Stage 3: Build FastAPI app
 FROM python:3.12
