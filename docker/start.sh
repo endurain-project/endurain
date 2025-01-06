@@ -11,34 +11,23 @@ if [ -d "/app/backend/logs" ]; then
     HOST_UID=$(stat -c '%u' /app/backend/logs)  # Get UID if directory exists
     HOST_GID=$(stat -c '%g' /app/backend/logs)  # Get GID if directory exists
 else
-    echo "/app/backend/logs directory does not exist. Using default UID 1000."
-    HOST_UID=1000  # Default to 1000 if directory does not exist
-    HOST_GID=1000  # Default to 1000 if directory does not exist
+    echo "/app/backend/logs directory does not exist. Using default provided UID and GID. Default is 1000."
+    HOST_UID=${UID:-1000}
+    HOST_GID=${GID:-1000}
 fi
 
-# Get the current UID and GID of the 'endurain' user
-USER_UID=$(id -u endurain)
-USER_GID=$(id -g endurain)
-
-# Only adjust if the user UID/GID doesn't match the host directory UID/GID
-if [ "$USER_UID" -ne "$HOST_UID" ] || [ "$USER_GID" -ne "$HOST_GID" ]; then
+# Avoid setting ownership to root (UID/GID = 0)
+if [ "$HOST_UID" -ne 0 ] && [ "$HOST_GID" -ne 0 ]; then
     echo "Adjusting ownership to match host UID ($HOST_UID) and GID ($HOST_GID)..."
-
-    # Avoid setting the UID/GID to 0 (root user UID/GID)
-    if [ "$HOST_UID" -ne 0 ]; then
-        usermod -u "$HOST_UID" endurain
-    else
-        echo "Skipping UID change to 0 (root UID)."
-    fi
-
-    if [ "$HOST_GID" -ne 0 ]; then
-        groupmod -g "$HOST_GID" endurain
-    else
-        echo "Skipping GID change to 0 (root GID)."
-    fi
-
-    # Update the ownership of the mounted directories
-    chown -R endurain:endurain /app/backend/logs /app/backend/user_images /app/backend/files
+    for dir in /app/backend/logs /app/backend/user_images /app/backend/files; do
+        if [ -d "$dir" ]; then
+            chown -R "$HOST_UID:$HOST_GID" "$dir"
+        else
+            echo "Directory $dir does not exist, skipping chown."
+        fi
+    done
+else
+    echo "Directory is owned by root UID/GID (0). Adjusting will fail, change ownership manually to non-root, example 1000:1000."
 fi
 
 # Substitute MY_APP_ENDURAIN_HOST with the value of ENDURAIN_HOST
@@ -56,7 +45,7 @@ fi
 echo "Starting FastAPI with BEHIND_PROXY=$BEHIND_PROXY"
 
 # Define the base command for starting the FastAPI server as an array
-CMD=("uvicorn" "main:app" "--host" "0.0.0.0" "--port" "80")
+CMD=("uvicorn" "main:app" "--host" "0.0.0.0" "--port" "8080")
 
 # Add --proxy-headers if BEHIND_PROXY is true
 if [ "$BEHIND_PROXY" = "true" ]; then

@@ -22,7 +22,7 @@ services:
       - <local_path>/endurain/backend/files/processed:/app/backend/files/processed # necessary for processed original files persistence on container image updates
       - <local_path>/endurain/backend/logs:/app/backend/logs # log files for the backend
     ports:
-      - "8080:80" # Endurain port, change per your needs
+      - "8080:8080" # Endurain port, change per your needs
     depends_on:
       - postgres # mariadb or postgres
       - jaeger # optional

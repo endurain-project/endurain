@@ -20,6 +20,8 @@ Table below shows supported environment variables. Variables marked with optiona
 
 Environment variable  | Default value | Optional | Notes |
 | --- | --- | --- | --- |
+| UID | 1000 | Yes | User ID for mounted volumes. Default is 1000 |
+| GID | 1000 | Yes | Group ID for mounted volumes. Default is 1000 |
 | TZ | UTC | Yes | Timezone definition. Useful for TZ calculation for activities that do not have coordinates associated, like indoor swim or weight training. If not specified UTC will be used. List of available time zones [here](https://en.wikipedia.org/wiki/List_of_tz_database_time_zones). Format `Europe/Lisbon` expected |
 | ENDURAIN_HOST | http://localhost:8080 | `No` | Required for internal communication and Strava. For Strava https must be used. Host or local ip (example: http://192.168.1.10:8080 or https://endurain.com) |
 | GEOCODES_MAPS_API | changeme | `No` | <a href="https://geocode.maps.co/">Geocode maps</a> offers a free plan consisting of 1 Request/Second. Registration necessary. |

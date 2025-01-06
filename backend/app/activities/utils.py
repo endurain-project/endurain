@@ -159,7 +159,10 @@ def parse_and_store_activity_from_file(
                             idsToFileName += (
                                 "_"  # Add an underscore if it's not the last item
                             )
-
+                else:
+                    core_logger.print_to_log_and_console(
+                        f"File extension not supported: {file_extension}", "error"
+                    )
                 # Define the directory where the processed files will be stored
                 processed_dir = "files/processed"
 
@@ -235,6 +238,10 @@ def parse_and_store_activity_from_uploaded_file(
                         idsToFileName += (
                             "_"  # Add an underscore if it's not the last item
                         )
+            else:
+                core_logger.print_to_log_and_console(
+                    f"File extension not supported: {file_extension}", "error"
+                )
 
             # Define the directory where the processed files will be stored
             processed_dir = "files/processed"

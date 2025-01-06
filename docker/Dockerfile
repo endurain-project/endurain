@@ -33,7 +33,9 @@ RUN poetry export -f requirements.txt --output requirements.txt --without-hashes
 FROM python:3.12
 
 # Define environment variables
-ENV TZ="UTC" \
+ENV UID=1000 \
+    GID=1000 \
+    TZ="UTC" \
     DB_TYPE="postgres" \
     DB_HOST="postgres" \
     DB_PORT=5432 \
@@ -54,9 +56,6 @@ ENV TZ="UTC" \
     ENDURAIN_HOST="http://localhost:8080" \
     GEOCODES_MAPS_API="changeme" \
     BEHIND_PROXY=false
-
-# Set a non-root user
-RUN adduser --disabled-password --gecos '' endurain
 
 # Set the working directory to /app/frontend
 WORKDIR /app/frontend
@@ -82,17 +81,17 @@ COPY docker/start.sh /docker-entrypoint.d/start.sh
 # Make the script executable
 RUN chmod +x /docker-entrypoint.d/start.sh
 
-# Change ownership to non-root user
-RUN chown -R endurain /app
+# Change ownership to UID and GID
+RUN chown -R $UID:$GID /app
 
-# Switch to non-root user
-USER endurain
+# Switch to the non-root user by UID and GID
+USER $UID:$GID
 
-# Make port 80 available to the world outside this container
-EXPOSE 80
+# Make port 8080 available to the world outside this container
+EXPOSE 8080
 
 # Add a healthcheck
-HEALTHCHECK --interval=30s --timeout=10s --start-period=30s CMD curl -f http://localhost/api/v1/about || exit 1
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s CMD curl -f http://localhost:8080/api/v1/about || exit 1
 
 # Run the FastAPI app
 ENTRYPOINT ["/docker-entrypoint.d/start.sh"]
