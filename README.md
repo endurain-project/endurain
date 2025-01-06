@@ -33,7 +33,7 @@ Endurain is a self-hosted fitness tracking service designed to give users full c
 - **Observability:** Jaeger for basic tracing and monitoring
 - **Integrations:** Supports Strava and Garmin Connect. Manual upload of activities using .gpx and .fit files are also supported
 
-To deploy Endurain, Docker images are available, and a comprehensive example can be found in the "docker-compose.yml.example" file provided. Configuration is facilitated through environment variables, ensuring flexibility and ease of customization.
+To deploy Endurain, a Docker image is available, and a comprehensive example can be found in the "docker-compose.yml.example" file provided. Configuration is facilitated through environment variables, ensuring flexibility and ease of customization.
 
 For more information please see the Endurain's [documentation](https://docs.endurain.com).
 
