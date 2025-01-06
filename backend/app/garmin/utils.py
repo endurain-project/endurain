@@ -194,7 +194,7 @@ def deserialize_oauth2_token(data):
 
 def fetch_user_integrations_and_validate_token(
     user_id: int, db: Session
-) -> user_integrations_schema.UserIntegrations | None:
+) -> user_integrations_schema.UsersIntegrations | None:
     # Get the user integrations by user ID
     user_integrations = user_integrations_crud.get_user_integrations_by_user_id(
         user_id, db

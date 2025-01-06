@@ -14,6 +14,7 @@ import health_targets.models
 import migrations.models
 import user_integrations.models
 import users.models
+import session.models
 
 # import Base and engine from database file
 from core.database import Base, engine

@@ -118,7 +118,7 @@ def fetch_and_validate_activity(
 
 def fetch_user_integrations_and_validate_token(
     user_id: int, db: Session
-) -> user_integrations_schema.UserIntegrations | None:
+) -> user_integrations_schema.UsersIntegrations | None:
     # Get the user integrations by user ID
     user_integrations = user_integrations_crud.get_user_integrations_by_user_id(
         user_id, db
@@ -140,7 +140,7 @@ def fetch_user_integrations_and_validate_token(
 
 
 def create_strava_client(
-    user_integrations: user_integrations_schema.UserIntegrations,
+    user_integrations: user_integrations_schema.UsersIntegrations,
 ) -> Client:
     # Create a Strava client with the user's access token and return it
     return Client(access_token=user_integrations.strava_token)

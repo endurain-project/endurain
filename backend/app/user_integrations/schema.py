@@ -1,7 +1,7 @@
 from pydantic import BaseModel
 
 
-class UserIntegrations(BaseModel):
+class UsersIntegrations(BaseModel):
     id: int
     user_id: int
     strava_state: str | None = None

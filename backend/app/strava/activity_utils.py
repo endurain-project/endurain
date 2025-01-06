@@ -29,7 +29,7 @@ def fetch_and_process_activities(
     strava_client: Client,
     start_date: datetime,
     user_id: int,
-    user_integrations: user_integrations_schema.UserIntegrations,
+    user_integrations: user_integrations_schema.UsersIntegrations,
     db: Session,
 ) -> int:
     # Fetch Strava activities after the specified start date
@@ -56,7 +56,7 @@ def parse_activity(
     activity,
     user_id: int,
     strava_client: Client,
-    user_integrations: user_integrations_schema.UserIntegrations,
+    user_integrations: user_integrations_schema.UsersIntegrations,
     db: Session,
 ) -> dict:
     # Create an instance of TimezoneFinder
@@ -321,7 +321,7 @@ def process_activity(
     activity,
     user_id: int,
     strava_client: Client,
-    user_integrations: user_integrations_schema.UserIntegrations,
+    user_integrations: user_integrations_schema.UsersIntegrations,
     db: Session,
 ):
     # Get the activity by Strava ID from the user

@@ -26,7 +26,7 @@ router.include_router(
 )
 router.include_router(
     session_router.router,
-    tags=["session"],
+    tags=["sessions"],
 )
 router.include_router(
     users_router.router,

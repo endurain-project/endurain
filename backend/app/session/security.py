@@ -1,5 +1,5 @@
 import bcrypt
-import logging
+import secrets
 import re
 
 from typing import Annotated
@@ -59,8 +59,8 @@ def verify_password(plain_password: str, hashed_password: str):
         return bcrypt.checkpw(
             plain_password.encode("utf-8"), hashed_password.encode("utf-8")
         )
-    except Exception as e:
-        logging.error(f"Error verifying password: {e}")
+    except Exception as err:
+        core_logger.print_to_log(f"Error verifying password: {err}", "error", exc=err)
         return False
 
 
@@ -144,6 +144,11 @@ def get_token_scopes(token: Annotated[str, Depends(oauth2_scheme)]):
             detail="Scopes not present in token",
             headers={"WWW-Authenticate": "Bearer"},
         )
+
+
+# Helper function to create a CSRF token
+def create_csrf_token():
+    return secrets.token_urlsafe(32)
 
 
 def create_token(data: dict):

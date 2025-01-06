@@ -10,6 +10,7 @@ import users.utils as users_utils
 import user_integrations.crud as user_integrations_crud
 
 import session.security as session_security
+import session.crud as session_crud
 
 import core.database as core_database
 
@@ -55,6 +56,21 @@ async def read_users_me(
 
     # Return the user
     return user
+
+
+@router.get("/sessions")
+async def read_sessions_me(
+    token_user_id: Annotated[
+        int,
+        Depends(session_security.get_user_id_from_access_token),
+    ],
+    db: Annotated[
+        Session,
+        Depends(core_database.get_db),
+    ],
+):
+    # Get the sessions from the database
+    return session_crud.get_user_sessions(token_user_id, db)
 
 
 @router.post(

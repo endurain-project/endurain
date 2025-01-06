@@ -8,7 +8,7 @@ JWT_SECRET_KEY = os.environ.get("SECRET_KEY")
 
 # Scopes definition
 USERS_REGULAR_SCOPES = ["profile", "users:read"]
-USERS_ADMIN_SCOPES = ["users:write"]
+USERS_ADMIN_SCOPES = ["users:write", "sessions:read", "sessions:write"]
 GEARS_SCOPES = ["gears:read", "gears:write"]
 ACTIVITIES_SCOPES = ["activities:read", "activities:write"]
 HEALTH_SCOPES = ["health:read", "health:write", "health_targets:read", "health_targets:write"]
@@ -16,6 +16,8 @@ SCOPES_DICT = {
     "profile": "Privileges over user's own profile",
     "users:read": "Read privileges over users",
     "users:write": "Write privileges over users",
+    "sessions:read": "Read privileges over sessions",
+    "sessions:write": "Create/edit/delete privileges over sessions",
     "gears:read": "Read privileges over gears",
     "gears:write": "Write privileges over gears",
     "activities:read": "Read privileges over activities",

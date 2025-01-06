@@ -56,9 +56,16 @@ class User(Base):
         Integer, nullable=False, comment="Is user active (1 - active, 2 - not active)"
     )
 
-    # Define a relationship to UserIntegrations model
+    # Define a relationship to UsersSessions model
+    users_sessions = relationship(
+        "UsersSessions",
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
+
+    # Define a relationship to UsersIntegrations model
     users_integrations = relationship(
-        "UserIntegrations",
+        "UsersIntegrations",
         back_populates="user",
         cascade="all, delete-orphan",
     )

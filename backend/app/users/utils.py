@@ -6,9 +6,21 @@ from sqlalchemy.orm import Session
 
 import shutil
 
+import session.constants as session_constants
+
 import users.crud as users_crud
+import users.schema as users_schema
 
 import core.logger as core_logger
+
+
+def check_user_is_active(user: users_schema.User) -> None:
+    if user.is_active == session_constants.USER_NOT_ACTIVE:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Inactive user",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
 
 
 def delete_user_photo_filesystem(user_id: int):

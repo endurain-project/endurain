@@ -35,6 +35,7 @@ websockets = "^14.1"
 timezonefinder = "^6.5.7"
 psycopg = {extras = ["binary", "pool"], version = "^3.2.3"}
 poetry = "^2.0.0"
+user-agents = "^2.2.0"
 
 
 [build-system]

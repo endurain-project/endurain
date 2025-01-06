@@ -12,8 +12,8 @@ def get_user_integrations_by_user_id(user_id: int, db: Session):
     try:
         # Get the user integrations by the user id
         user_integrations = (
-            db.query(user_integrations_models.UserIntegrations)
-            .filter(user_integrations_models.UserIntegrations.user_id == user_id)
+            db.query(user_integrations_models.UsersIntegrations)
+            .filter(user_integrations_models.UsersIntegrations.user_id == user_id)
             .first()
         )
 
@@ -42,9 +42,9 @@ def get_user_integrations_by_user_id(user_id: int, db: Session):
 def get_user_integrations_by_strava_state(strava_state: str, db: Session):
     try:
         user_integrations = (
-            db.query(user_integrations_models.UserIntegrations)
+            db.query(user_integrations_models.UsersIntegrations)
             .filter(
-                user_integrations_models.UserIntegrations.strava_state == strava_state
+                user_integrations_models.UsersIntegrations.strava_state == strava_state
             )
             .first()
         )
@@ -70,7 +70,7 @@ def get_user_integrations_by_strava_state(strava_state: str, db: Session):
 def create_user_integrations(user_id: int, db: Session):
     try:
         # Create a new user integrations
-        user_integrations = user_integrations_models.UserIntegrations(
+        user_integrations = user_integrations_models.UsersIntegrations(
             user_id=user_id,
             strava_sync_gear=False,
             garminconnect_sync_gear=False,
@@ -100,7 +100,7 @@ def create_user_integrations(user_id: int, db: Session):
 
 
 def link_strava_account(
-    user_integrations: user_integrations_schema.UserIntegrations,
+    user_integrations: user_integrations_schema.UsersIntegrations,
     tokens: dict,
     db: Session,
 ):

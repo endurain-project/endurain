@@ -11,7 +11,7 @@ from sqlalchemy.dialects.mysql import JSON
 from core.database import Base
 
 
-class UserIntegrations(Base):
+class UsersIntegrations(Base):
     __tablename__ = "users_integrations"
 
     id = Column(Integer, primary_key=True)
