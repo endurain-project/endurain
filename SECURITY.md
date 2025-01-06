@@ -21,4 +21,4 @@ If you discover a security vulnerability, please follow these steps:
 
 Please include as much information as possible to help me resolve the issue promptly.
 
-Thank you for helping to keep this project secure!
+Thank you for helping keep this project secure!
