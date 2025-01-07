@@ -156,3 +156,19 @@ async def delete_profile_photo(
 
     # Return success message
     return f"User ID {token_user_id} photo deleted successfully"
+
+
+@router.delete("/sessions/{session_id}")
+async def delete_profile_session(
+    session_id: str,
+    token_user_id: Annotated[
+        int,
+        Depends(session_security.get_user_id_from_access_token),
+    ],
+    db: Annotated[
+        Session,
+        Depends(core_database.get_db),
+    ],
+):
+    # Delete the session from the database
+    return session_crud.delete_session(session_id, token_user_id, db)

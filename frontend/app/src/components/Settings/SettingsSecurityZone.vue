@@ -28,11 +28,24 @@
 
             <button type="submit" class="btn btn-success" name="editUserPassword">{{ $t("settingsSecurityZone.subtitleChangePassword") }}</button>
         </form>
+
+		<hr>
+		<!-- user sessions list -->
+        <h4>{{ $t("settingsSecurityZone.subtitleMySessions") }}</h4>
+		<div v-if="isLoading">
+			<LoadingComponent />
+		</div>
+		<div v-else-if="userSessions">
+			<UserSessionsListComponent v-for="session in userSessions" :key="session.id" :session="session" @sessionDeleted="updateSessionListDeleted"/>
+		</div>
+		<div v-else>
+			<NoItemsFoundComponents />
+		</div>
     </div>
 </template>
 
 <script>
-import { ref, computed } from "vue";
+import { ref, computed, onMounted } from "vue";
 import { useI18n } from "vue-i18n";
 // Importing the services
 import { profile } from "@/services/profileService";
@@ -40,10 +53,16 @@ import { profile } from "@/services/profileService";
 import { push } from "notivue";
 // Importing the components
 import SettingsPasswordRequirementsComponent from "@/components/Settings/SettingsPasswordRequirementsComponent.vue";
+import LoadingComponent from "@/components/GeneralComponents/LoadingComponent.vue";
+import NoItemsFoundComponents from "@/components/GeneralComponents/NoItemsFoundComponents.vue";
+import UserSessionsListComponent from "@/components/Settings/SettingsUserSessionsZone/UserSessionsListComponent.vue";
 
 export default {
 	components: {
 		SettingsPasswordRequirementsComponent,
+		LoadingComponent,
+		NoItemsFoundComponents,
+		UserSessionsListComponent,
 	},
 	setup() {
 		const { t } = useI18n();
@@ -60,6 +79,8 @@ export default {
 		const isPasswordMatch = computed(
 			() => newPassword.value === newPasswordRepeat.value,
 		);
+		const userSessions = ref([]);
+		const isLoading = ref(true);
 
 		async function submitChangeUserPasswordForm() {
 			try {
@@ -76,18 +97,48 @@ export default {
 					// Call the service to edit the user password.
 					await profile.editProfilePassword(data);
 
-					// Set the success message and show the success alert.
+					// Show the success alert.
 					push.success(
 						t("usersListComponent.userChangePasswordSuccessMessage"),
 					);
 				}
 			} catch (error) {
-				// If there is an error, set the error message and show the error alert.
+				// If there is an error, show the error alert.
 				push.error(
 					`${t("usersListComponent.userChangePasswordErrorMessage")} - ${error}`,
 				);
 			}
 		}
+
+		async function updateSessionListDeleted(sessionDeletedId) {
+			try {
+				// Delete session in the DB
+				await profile.deleteProfileSession(sessionDeletedId);
+
+				// Remove the session from the userSessions
+				userSessions.value = userSessions.value.filter(
+					(session) => session.id !== sessionDeletedId,
+				);
+
+				// Show the success alert.
+				push.success(
+					t("settingsSecurityZone.successDeleteSession"),
+				);
+			} catch (error) {
+				// If there is an error, show the error alert.
+				push.error(
+					`${t("settingsSecurityZone.errorDeleteSession")} - ${error}`,
+				);
+			}
+		}
+
+		onMounted(async () => {
+			// Fetch the user sessions
+			userSessions.value = await profile.getProfileSessions();
+
+			// Set the isLoading to false
+			isLoading.value = false;
+		});
 
 		return {
 			t,
@@ -97,6 +148,9 @@ export default {
 			isNewPasswordRepeatValid,
 			isPasswordMatch,
 			submitChangeUserPasswordForm,
+			userSessions,
+			isLoading,
+			updateSessionListDeleted,
 		};
 	},
 };

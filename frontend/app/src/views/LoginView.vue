@@ -15,11 +15,6 @@
             <label for="loginPassword">{{ $t("loginView.password") }}</label>
         </div>
         <br>
-        <!--<div class="form-check">
-            <input type="checkbox" class="form-check-input" name="loginNeverExpires" v-model="neverExpires">
-            <label class="form-check-label" for="loginNeverExpires">{{ $t("loginView.neverExpires") }}</label>
-        </div>
-        <br>-->
         <button class="w-100 btn btn-lg btn-primary" type="submit">{{ $t("loginView.signInButton") }}</button>
         <!--<div>
             <br>
@@ -56,7 +51,6 @@ export default {
     const { locale, t } = useI18n();
     const username = ref('');
     const password = ref('');
-    //const neverExpires = ref(false);
     const authStore = useAuthStore();
 
     // Handle the form submission
@@ -66,17 +60,16 @@ export default {
       formData.append('grant_type', 'password');
       formData.append('username', username.value);
       formData.append('password', password.value);
-      //formData.append('neverExpires', neverExpires.value);
 
       try {
         // Get the token
-        await session.authenticateUser(formData);
+        const session_id = await session.authenticateUser(formData);
 
         // Get logged user information
         const userProfile = await profile.getProfileInfo();
 
         // Store the user in the auth store
-        authStore.setUser(userProfile, locale);
+        authStore.setUser(userProfile, session_id, locale);
         
         // Redirect to the home page
         router.push('/');
@@ -105,7 +98,6 @@ export default {
     return {
       username,
       password,
-      //neverExpires,
       submitForm,
       t,
     };

@@ -1,3 +1,6 @@
 {
-    "subtitleChangePassword": "Alterar palavra-passe"
+    "subtitleChangePassword": "Alterar palavra-passe",
+    "subtitleMySessions": "Minhas sessões",
+    "successDeleteSession": "Sessão eliminada com sucesso",
+    "errorDeleteSession": "Erro ao eliminar sessão"
 }

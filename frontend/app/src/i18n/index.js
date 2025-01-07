@@ -27,6 +27,7 @@ import usSettingsSecurityZoneComponent from './us/components/settings/settingsSe
 import usSettingsIntegrationsZoneComponent from './us/components/settings/settingsIntegrationsZoneComponent.json';
 import usGarminConnectLoginModalComponent from './us/components/settings/settingsIntegrationsZone/garminConnectLoginModalComponent.json';
 import usUsersListComponent from './us/components/settings/settingsUsersZone/usersListComponent.json';
+import usUserSessionsListComponent from './us/components/settings/settingsUserSessionsZone/userSessionsListComponent.json';
 // General components
 import usNoItemsFoundComponent from './us/components/noItemsFoundComponent.json';
 // General translations
@@ -69,6 +70,7 @@ import caSettingsSecurityZoneComponent from './ca/components/settings/settingsSe
 import caSettingsIntegrationsZoneComponent from './ca/components/settings/settingsIntegrationsZoneComponent.json';
 import caGarminConnectLoginModalComponent from './ca/components/settings/settingsIntegrationsZone/garminConnectLoginModalComponent.json';
 import caUsersListComponent from './ca/components/settings/settingsUsersZone/usersListComponent.json';
+import caUserSessionsListComponent from './ca/components/settings/settingsUserSessionsZone/userSessionsListComponent.json';
 // General components
 import caNoItemsFoundComponent from './ca/components/noItemsFoundComponent.json';
 // General translations
@@ -111,6 +113,7 @@ import ptSettingsSecurityZoneComponent from './pt/components/settings/settingsSe
 import ptSettingsIntegrationsZoneComponent from './pt/components/settings/settingsIntegrationsZoneComponent.json';
 import ptGarminConnectLoginModalComponent from './pt/components/settings/settingsIntegrationsZone/garminConnectLoginModalComponent.json';
 import ptUsersListComponent from './pt/components/settings/settingsUsersZone/usersListComponent.json';
+import ptUserSessionsListComponent from './pt/components/settings/settingsUserSessionsZone/userSessionsListComponent.json';
 // General components
 import ptNoItemsFoundComponent from './pt/components/noItemsFoundComponent.json';
 // General translations
@@ -153,6 +156,7 @@ import deSettingsSecurityZoneComponent from './de/components/settings/settingsSe
 import deSettingsIntegrationsZoneComponent from './de/components/settings/settingsIntegrationsZoneComponent.json';
 import deGarminConnectLoginModalComponent from './de/components/settings/settingsIntegrationsZone/garminConnectLoginModalComponent.json';
 import deUsersListComponent from './de/components/settings/settingsUsersZone/usersListComponent.json';
+import deUserSessionsListComponent from './de/components/settings/settingsUserSessionsZone/userSessionsListComponent.json';
 // General components
 import deNoItemsFoundComponent from './de/components/noItemsFoundComponent.json';
 // General translations
@@ -196,6 +200,7 @@ const messages = {
     settingsIntegrationsZone: usSettingsIntegrationsZoneComponent,
     garminConnectLoginModalComponent: usGarminConnectLoginModalComponent,
     usersListComponent: usUsersListComponent,
+    userSessionsListComponent: usUserSessionsListComponent,
     // General components
     noItemsFoundComponent: usNoItemsFoundComponent,
     // General translations
@@ -237,6 +242,7 @@ const messages = {
     settingsIntegrationsZone: caSettingsIntegrationsZoneComponent,
     garminConnectLoginModalComponent: caGarminConnectLoginModalComponent,
     usersListComponent: caUsersListComponent,
+    userSessionsListComponent: caUserSessionsListComponent,
     // General components
     noItemsFoundComponent: caNoItemsFoundComponent,
     // General translations
@@ -278,6 +284,7 @@ const messages = {
     settingsIntegrationsZone: ptSettingsIntegrationsZoneComponent,
     garminConnectLoginModalComponent: ptGarminConnectLoginModalComponent,
     usersListComponent: ptUsersListComponent,
+    userSessionsListComponent: ptUserSessionsListComponent,
     // General components
     noItemsFoundComponent: ptNoItemsFoundComponent,
     // General translations
@@ -319,6 +326,7 @@ const messages = {
     settingsIntegrationsZone: deSettingsIntegrationsZoneComponent,
     garminConnectLoginModalComponent: deGarminConnectLoginModalComponent,
     usersListComponent: deUsersListComponent,
+    userSessionsListComponent: deUserSessionsListComponent,
     // General components
     noItemsFoundComponent: deNoItemsFoundComponent,
     // General translations

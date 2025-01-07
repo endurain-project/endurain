@@ -193,9 +193,10 @@ async def read_sessions_user(
     return session_crud.get_user_sessions(user_id, db)
 
 
-@router.delete("/sessions/{session_id}")
+@router.delete("/sessions/{session_id}/user/{user_id}")
 async def delete_session_user(
     session_id: str,
+    user_id: int,
     check_scopes: Annotated[
         Callable, Security(session_security.check_scopes, scopes=["sessions:write"])
     ],
@@ -205,4 +206,4 @@ async def delete_session_user(
     ],
 ):
     # Delete the session from the database
-    return session_crud.delete_session(session_id, db)
+    return session_crud.delete_session(session_id, user_id, db)

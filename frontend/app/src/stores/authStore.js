@@ -22,13 +22,16 @@ export const useAuthStore = defineStore('auth', {
         },
         isAuthenticated: false,
         user_websocket: null,
+        session_id: '',
     }),
     actions: {
-        setUser(userData, locale) {
+        setUser(userData, session_id, locale) {
             this.user = userData;
             localStorage.setItem('user', JSON.stringify(this.user));
+            localStorage.setItem('session_id', session_id);
             this.isAuthenticated = true;
             this.setUserWebsocket();
+            this.session_id = session_id;
             
             this.setLocale(this.user.preferred_language, locale);
         },
@@ -52,7 +55,9 @@ export const useAuthStore = defineStore('auth', {
             this.isAuthenticated = false;
             this.user_websocket.close();
             this.user_websocket = null;
+            this.session_id = '';
             localStorage.removeItem('user');
+            localStorage.removeItem('session_id');
 
             this.setLocale('us', locale);
         },
@@ -63,6 +68,7 @@ export const useAuthStore = defineStore('auth', {
                 this.isAuthenticated = true;
                 this.setLocale(this.user.preferred_language, locale);
                 this.setUserWebsocket();
+                this.session_id = localStorage.getItem('session_id');
             }
         },
         setPreferredLanguage(language, locale) {

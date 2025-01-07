@@ -23,3 +23,5 @@ files:
     translation: /frontend/app/src/i18n/%two_letters_code%/components/settings/settingsIntegrationsZone/%original_file_name%
   - source: /frontend/app/src/i18n/us/components/settings/settingsUsersZone/*.json
     translation: /frontend/app/src/i18n/%two_letters_code%/components/settings/settingsUsersZone/%original_file_name%
+  - source: /frontend/app/src/i18n/us/components/settings/settingsUserSessionsZone/*.json
+    translation: /frontend/app/src/i18n/%two_letters_code%/components/settings/settingsUserSessionsZone/%original_file_name%

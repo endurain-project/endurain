@@ -4,6 +4,9 @@ export const profile = {
     getProfileInfo() {
         return fetchGetRequest('profile');
     },
+    getProfileSessions() {
+        return fetchGetRequest('profile/sessions');
+    },
     uploadProfileImage(file) {
         const formData = new FormData();
         formData.append('file', file);
@@ -19,4 +22,7 @@ export const profile = {
     deleteProfilePhoto() {
         return fetchPutRequest('profile/delete-photo');
     },
+    deleteProfileSession(session_id) {
+        return fetchDeleteRequest(`profile/sessions/${session_id}`);
+    }
 };

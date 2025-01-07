@@ -129,12 +129,15 @@ def edit_session(session: session_schema.UsersSessions, db: Session):
         ) from err
 
 
-def delete_session(session_id: str, db: Session):
+def delete_session(session_id: str, user_id: int, db: Session):
     try:
         # Delete the session
         num_deleted = (
             db.query(session_models.UsersSessions)
-            .filter(session_models.UsersSessions.id == session_id)
+            .filter(
+                session_models.UsersSessions.id == session_id,
+                session_models.UsersSessions.user_id == user_id,
+            )
             .delete()
         )
 
