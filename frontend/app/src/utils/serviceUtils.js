@@ -1,13 +1,9 @@
-// Importing the router
-import { useRouter } from 'vue-router';
+
 // Importing the auth store
 import { useAuthStore } from '@/stores/authStore';
-// Importing the i18n
-import { useI18n } from 'vue-i18n';
-// Importing the services for the login
-import { session } from '@/services/sessionService';
 
 export const API_URL = `${import.meta.env.VITE_ENDURAIN_HOST}/api/v1/`;
+export const FRONTEND_URL = `${import.meta.env.VITE_ENDURAIN_HOST}/`;
 
 async function fetchWithRetry(url, options) {
     try {
@@ -18,17 +14,10 @@ async function fetchWithRetry(url, options) {
                 await refreshAccessToken();
                 return await attemptFetch(url, options);
             } catch {
-                const router = useRouter();
                 const authStore = useAuthStore();
-                const { locale } = useI18n();
-                
-                await session.logoutUser();
-                authStore.clearUser(locale);
-                try {
-                    await router.push('/login');
-                } catch (navigationError) {
-                    console.error('Navigation error:', navigationError);
-                }
+                authStore.logoutUser();
+
+                window.location.replace(`${FRONTEND_URL}login?sessionExpired=true`);
             }
         } else {
             throw error;

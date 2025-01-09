@@ -1,6 +1,8 @@
 import { defineStore } from 'pinia';
 
 import { API_URL } from "@/utils/serviceUtils";
+// Importing the services for the login
+import { session } from '@/services/sessionService';
 
 export const useAuthStore = defineStore('auth', {
     state: () => ({
@@ -25,6 +27,23 @@ export const useAuthStore = defineStore('auth', {
         session_id: '',
     }),
     actions: {
+        async logoutUser(router, locale = 'us') {
+            try {
+                await session.logoutUser();
+                this.clearUser(locale);
+
+                // Check if router is not null before trying to navigate
+                if (router) {
+                    try {
+                        await router.push('/login');
+                    } catch (navigationError) {
+                        console.error('Navigation error:', navigationError);
+                    }
+                }
+            } catch (error) {
+                console.error('Error during logout:', error);
+            }
+        },
         setUser(userData, session_id, locale) {
             this.user = userData;
             localStorage.setItem('user', JSON.stringify(this.user));
@@ -53,7 +72,9 @@ export const useAuthStore = defineStore('auth', {
                 is_garminconnect_linked: null,
             };
             this.isAuthenticated = false;
-            this.user_websocket.close();
+            if (this.user_websocket && this.user_websocket.readyState === WebSocket.OPEN) {
+                this.user_websocket.close();
+            }
             this.user_websocket = null;
             this.session_id = '';
             localStorage.removeItem('user');
@@ -82,9 +103,23 @@ export const useAuthStore = defineStore('auth', {
             localStorage.setItem('lang', language);
         },
         setUserWebsocket() {
-            const protocol = API_URL.startsWith('http://') ? 'ws' : 'wss';
-            const websocketURL = `${API_URL}ws/${this.user.id}`;
-            this.user_websocket = new WebSocket(websocketURL);
+            const urlSplit = API_URL.split("://");
+            const protocol = urlSplit[0] === ('http') ? 'ws' : 'wss';
+            const websocketURL = `${protocol}://${urlSplit[1]}ws/${this.user.id}`;
+            try {
+                this.user_websocket = new WebSocket(websocketURL);
+                this.user_websocket.onopen = () => {
+                    console.log(`WebSocket connection established using ${websocketURL}.`);
+                };
+                this.user_websocket.onerror = (error) => {
+                    console.error('WebSocket error:', error);
+                };
+                this.user_websocket.onclose = (event) => {
+                    console.log('WebSocket connection closed:', event.reason);
+                };
+            } catch (error) {
+                console.error('Failed to initialize WebSocket:', error);
+            }
         },
     }
 });

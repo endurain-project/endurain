@@ -99,10 +99,8 @@ export default {
 
 		async function handleLogout() {
 			try {
-				await session.logoutUser();
-				authStore.clearUser(locale);
 				collapseNavbar();
-				router.push("/login");
+                await authStore.logoutUser(router, locale);
 			} catch (error) {
 				push.error(`${t("generalItems.errorFetchingInfo")} - ${error}`);
 			}
