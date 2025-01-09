@@ -9,7 +9,7 @@
         </div>
         <div v-else>
           <div class="justify-content-center d-flex" v-if="authStore.user">
-            <UserAvatarComponent :userProp="authStore.user" :width=120 :height=120 />
+            <UserAvatarComponent :user="authStore.user" :width=120 :height=120 />
           </div>
           <div class="text-center mt-3 mb-3 fw-bold" v-if="authStore.user.id">
             <router-link :to="{ name: 'user', params: { id: authStore.user.id }}" class="link-body-emphasis link-underline-opacity-0 link-underline-opacity-100-hover">

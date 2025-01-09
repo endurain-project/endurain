@@ -13,19 +13,22 @@ async function fetchWithRetry(url, options) {
     try {
         return await attemptFetch(url, options);
     } catch (error) {
-        if (error.message === '401 - Access token missing') {
+        if (error.message.startsWith('401')) {
             try {
                 await refreshAccessToken();
                 return await attemptFetch(url, options);
-            } catch (refreshError) {
+            } catch {
                 const router = useRouter();
                 const authStore = useAuthStore();
                 const { locale } = useI18n();
                 
-                await session.logout();
+                await session.logoutUser();
                 authStore.clearUser(locale);
-                router.push('/')
-                //throw new Error(`Failed to refresh access token: ${refreshError.message}`);
+                try {
+                    await router.push('/login');
+                } catch (navigationError) {
+                    console.error('Navigation error:', navigationError);
+                }
             }
         } else {
             throw error;
@@ -100,7 +103,6 @@ export async function fetchPostFormUrlEncoded(url, formData) {
         },
     };
     return attemptFetch(url, options);
-    //return fetchWithRetry(url, options);
 }
 
 

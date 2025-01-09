@@ -1,6 +1,6 @@
 <template>
-    <img :src="userPhotoUrl" :alt="altText" :width="width" :height="height" class="rounded-circle" :class="{ 'align-top': alignTopValue == 2 }" v-if="userProp.photo_path">
-    <img src="/src/assets/avatar/male1.png" alt="Default Male Avatar" :width="width" :height="height" class="rounded-circle" :class="{ 'align-top': alignTopValue == 2 }" v-else-if="!userProp.photo_path && userProp.gender == 1">
+    <img :src="userPhotoUrl" :alt="altText" :width="width" :height="height" class="rounded-circle" :class="{ 'align-top': alignTopValue == 2 }" v-if="user.photo_path">
+    <img src="/src/assets/avatar/male1.png" alt="Default Male Avatar" :width="width" :height="height" class="rounded-circle" :class="{ 'align-top': alignTopValue == 2 }" v-else-if="!user.photo_path && user.gender == 1">
     <img src="/src/assets/avatar/female1.png" alt="Default Female Avatar" :width="width" :height="height" class="rounded-circle" :class="{ 'align-top': alignTopValue == 2 }" v-else>
 </template>
   
@@ -9,7 +9,7 @@ import { ref } from 'vue';
   
 export default {
     props: {
-        userProp: {
+        user: {
             type: Object,
             required: true
         },
@@ -30,7 +30,7 @@ export default {
     emits: ['userDeleted'],
     setup(props) {
         const altText = ref('User Avatar');
-        const userPhotoUrl = ref(`${import.meta.env.VITE_ENDURAIN_HOST}/api/v1/${props.userProp.photo_path}`);
+        const userPhotoUrl = ref(`${import.meta.env.VITE_ENDURAIN_HOST}/api/v1/${props.user.photo_path}`);
         const alignTopValue = ref(props.alignTop);
 
         return {

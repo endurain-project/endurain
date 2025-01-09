@@ -3,7 +3,7 @@
         <LoadingComponent />
     </div>
     <div class="d-flex align-items-center" v-if="!isLoading">
-        <UserAvatarComponent :userProp="userFollower" :width=55 :height=55 />
+        <UserAvatarComponent :user="userFollower" :width=55 :height=55 />
         <div class="ms-3">
             <div class="fw-bold">
                 <router-link :to="{ name: 'user', params: { id: userFollower.id }}" class="link-body-emphasis link-underline-opacity-0 link-underline-opacity-100-hover">

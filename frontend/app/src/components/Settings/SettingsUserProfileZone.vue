@@ -3,7 +3,7 @@
         <div class="row row-gap-3">
             <div class="col-lg-4 col-md-12">
                 <div class="justify-content-center align-items-center d-flex">
-                    <UserAvatarComponent :userProp="authStore.user" :width=180 :height=180 />
+                    <UserAvatarComponent :user="authStore.user" :width=180 :height=180 />
                 </div>
 
                 <!-- Delete profile photo section -->

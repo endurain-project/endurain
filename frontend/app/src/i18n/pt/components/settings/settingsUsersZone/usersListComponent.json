@@ -31,5 +31,6 @@
     "userDeleteSuccessMessage": "Utilizador eliminado com sucesso",
     "userDeleteErrorMessage": "Erro ao eliminar utilizador",
     "userPhotoDeleteSuccessMessage": "Fotografia eliminada com sucesso",
-    "userPhotoDeleteErrorMessage": "Erro ao eliminar fotografia"
+    "userPhotoDeleteErrorMessage": "Erro ao eliminar fotografia",
+    "userListUserSessionsTitle": "Sessões do utilizador"
 }

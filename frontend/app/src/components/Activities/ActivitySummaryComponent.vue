@@ -6,7 +6,7 @@
         <div class="d-flex justify-content-between">
             <!-- user name and photo zone -->
             <div class="d-flex align-items-center" v-if="userActivity">
-                <UserAvatarComponent :userProp="userActivity" :width=55 :height=55 />
+                <UserAvatarComponent :user="userActivity" :width=55 :height=55 />
                 <div class="ms-3 me-3">
                     <div class="fw-bold">
                         <router-link :to="{ name: 'activity', params: { id: activity.id }}" class="link-body-emphasis link-underline-opacity-0 link-underline-opacity-100-hover" v-if="sourceProp === 'home'">

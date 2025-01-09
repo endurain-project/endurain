@@ -35,7 +35,7 @@
 		<div v-if="isLoading">
 			<LoadingComponent />
 		</div>
-		<div v-else-if="userSessions">
+		<div v-else-if="userSessions && userSessions.length > 0">
 			<UserSessionsListComponent v-for="session in userSessions" :key="session.id" :session="session" @sessionDeleted="updateSessionListDeleted"/>
 		</div>
 		<div v-else>

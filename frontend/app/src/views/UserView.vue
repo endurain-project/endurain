@@ -7,7 +7,7 @@
             </div>
             <div class="vstack d-flex justify-content-center" v-else>
                 <div class="d-flex justify-content-center" v-if="userProfile">
-                    <UserAvatarComponent :userProp="userProfile" :width=120 :height=120 />
+                    <UserAvatarComponent :user="userProfile" :width=120 :height=120 />
                 </div>
                 <div class="text-center mt-3 mb-3" v-if="userProfile">
                     <h3>

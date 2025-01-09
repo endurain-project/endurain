@@ -38,7 +38,7 @@
 
                     <!-- profile button -->
                     <router-link :to="{ name: 'user', params: { id: authStore.user.id } }" class="nav-link link-body-emphasis" v-if="authStore.isAuthenticated" @click="collapseNavbar">
-                        <UserAvatarComponent :userProp="authStore.user" :width=24 :height=24 :alignTop=2 />
+                        <UserAvatarComponent :user="authStore.user" :width=24 :height=24 :alignTop=2 />
                         <span class="ms-2">{{ $t("navbar.profile") }}</span>
                     </router-link>
 
