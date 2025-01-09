@@ -9,7 +9,12 @@ import { VitePWA } from 'vite-plugin-pwa'
 export default defineConfig({
   plugins: [
     vue(),
-    VitePWA({ registerType: 'autoUpdate' }),
+    VitePWA({
+      workbox: {
+        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
+      },
+      registerType: 'autoUpdate' ,
+    }),
   ],
   resolve: {
     alias: {

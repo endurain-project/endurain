@@ -27,7 +27,7 @@ export const useAuthStore = defineStore('auth', {
         session_id: '',
     }),
     actions: {
-        async logoutUser(router, locale = 'us') {
+        async logoutUser(router = null, locale = null) {
             try {
                 await session.logoutUser();
                 this.clearUser(locale);
@@ -99,7 +99,9 @@ export const useAuthStore = defineStore('auth', {
             this.setLocale(language, locale);
         },
         setLocale(language, locale) {
-            locale.value = language;
+            if (locale) {
+                locale.value = language;
+            }
             localStorage.setItem('lang', language);
         },
         setUserWebsocket() {
