@@ -149,6 +149,10 @@ async def logout(
         Depends(session_security.get_and_return_refresh_token),
     ],
     client_type: Annotated[str, Depends(session_security.header_client_type_scheme)],
+    token_user_id: Annotated[
+        int,
+        Depends(session_security.get_user_id_from_refresh_token),
+    ],
     db: Annotated[
         Session,
         Depends(core_database.get_db),
@@ -160,7 +164,7 @@ async def logout(
     # Check if the session was found
     if session is not None:
         # Delete the session from the database
-        session_crud.delete_session(session.id, db)
+        session_crud.delete_session(session.id, token_user_id, db)
 
     if client_type == "web":
         # Clear the cookies by setting their expiration to the past

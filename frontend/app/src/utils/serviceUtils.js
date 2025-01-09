@@ -1,3 +1,12 @@
+// Importing the router
+import { useRouter } from 'vue-router';
+// Importing the auth store
+import { useAuthStore } from '@/stores/authStore';
+// Importing the i18n
+import { useI18n } from 'vue-i18n';
+// Importing the services for the login
+import { session } from '@/services/sessionService';
+
 export const API_URL = `${import.meta.env.VITE_ENDURAIN_HOST}/api/v1/`;
 
 async function fetchWithRetry(url, options) {
@@ -9,7 +18,14 @@ async function fetchWithRetry(url, options) {
                 await refreshAccessToken();
                 return await attemptFetch(url, options);
             } catch (refreshError) {
-                throw new Error(`Failed to refresh access token: ${refreshError.message}`);
+                const router = useRouter();
+                const authStore = useAuthStore();
+                const { locale } = useI18n();
+                
+                await session.logout();
+                authStore.clearUser(locale);
+                router.push('/')
+                //throw new Error(`Failed to refresh access token: ${refreshError.message}`);
             }
         } else {
             throw error;
@@ -83,7 +99,8 @@ export async function fetchPostFormUrlEncoded(url, formData) {
             'X-Client-Type': 'web',
         },
     };
-    return fetchWithRetry(url, options);
+    return attemptFetch(url, options);
+    //return fetchWithRetry(url, options);
 }
 
 

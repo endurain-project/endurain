@@ -95,7 +95,7 @@ export default {
 	setup() {
 		const router = useRouter();
 		const authStore = useAuthStore();
-		const { locale } = useI18n();
+		const { locale, t } = useI18n();
 
 		async function handleLogout() {
 			try {

@@ -154,10 +154,10 @@ def create_response_with_tokens(
     response.set_cookie(
         key="endurain_csrf_token",
         value=csrf_token,
-        httponly=False,
+        httponly=True,
         path="/",
         secure=secure,
-        samesite="None",
+        samesite="Lax",
     )
 
     # Return the response
