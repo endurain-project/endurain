@@ -92,9 +92,10 @@ Endurain has multi-language support, and you can help translate it into more lan
 Currently supported in:
 
  - Catalan by [@rubenixnagios](https://github.com/rubenixnagios)
- - English (US)
  - German by [@ThreeCO](https://github.com/ThreeCO)
+ - French (FR)
  - Portuguese (PT)
+ - English (US)
 
 ## Star History
 
