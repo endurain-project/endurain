@@ -16,12 +16,13 @@
 
 ## Table of Contents
 
-- <a href="https://docs.endurain.com">Endurain documentation</a>
+- [Endurain documentation](https://docs.endurain.com)
 - [What is Endurain?](#what-is-endurain)
+- [Endurain screenshots](https://docs.endurain.com/gallery/)
 - [Sponsors](#sponsors)
 - [Contributing](#contributing)
-- [License](#license)
 - [Help Translate](#help-translate)
+- [License](#license)
 
 ## What is Endurain?
 
@@ -46,6 +47,10 @@ Consider [sponsoring Endurain on GitHub](https://github.com/sponsors/joaovitoria
 ## Contributing
 
 Contributions are welcomed! Please open an issue to discuss any changes or improvements before submitting a PR. Check out the [Contributing Guidelines](CONTRIBUTING.md) for more details.
+
+## Help Translate
+
+Endurain has multi-language support, and you can help translate it into more languages via [Crowdin](https://crowdin.com/project/endurain). 
 
 ## License
 
