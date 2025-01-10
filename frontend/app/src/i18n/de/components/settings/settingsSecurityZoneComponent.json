@@ -1,3 +1,6 @@
 {
-    "subtitleChangePassword": "Passwort ändern"
+    "subtitleChangePassword": "Passwort ändern",
+    "subtitleMySessions": "My sessions",
+    "successDeleteSession": "Session deleted successfully",
+    "errorDeleteSession": "Error deleting session"
 }
