@@ -1,3 +1,6 @@
 {
-    "subtitleChangePassword": "Canviar Contrasenya"
+    "subtitleChangePassword": "Canviar Contrasenya",
+    "subtitleMySessions": "My sessions",
+    "successDeleteSession": "Session deleted successfully",
+    "errorDeleteSession": "Error deleting session"
 }
