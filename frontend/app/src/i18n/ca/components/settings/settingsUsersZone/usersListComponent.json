@@ -31,5 +31,6 @@
     "userDeleteSuccessMessage": "Usuari esborrat correctament",
     "userDeleteErrorMessage": "Error esborrant usuari",
     "userPhotoDeleteSuccessMessage": "Foto esborrada correctament",
-    "userPhotoDeleteErrorMessage": "Error esborrant foto"
+    "userPhotoDeleteErrorMessage": "Error esborrant foto",
+    "userListUserSessionsTitle": "User sessions"
 }
