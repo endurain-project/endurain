@@ -1,6 +1,6 @@
 {
     "subtitleChangePassword": "Canviar Contrasenya",
-    "subtitleMySessions": "My sessions",
-    "successDeleteSession": "Session deleted successfully",
-    "errorDeleteSession": "Error deleting session"
+    "subtitleMySessions": "Sessions",
+    "successDeleteSession": "Sessió eliminada correctament",
+    "errorDeleteSession": "Error esborrant sessió"
 }
