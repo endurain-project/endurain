@@ -5,5 +5,10 @@
     "requiredField": "Campos obrigatórios",
     "errorFetchingInfo": "Erro ao obter informação",
     "errorEditingInfo": "Erro ao editar informação",
-    "errorDeletingInfo": "Erro ao eliminar informação"
+    "errorDeletingInfo": "Erro ao eliminar informação",
+    "unitsCm": "cm",
+    "unitsCms": "cms",
+    "unitsInches": "polegadas",
+    "unitsFeet": "pés",
+    "unitsFeetInches": "pés, polegadas"
 }

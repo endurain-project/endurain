@@ -45,11 +45,17 @@
                                         <option value="1">{{ $t("settingsUsersZone.addUserModalGenderOption1") }}</option>
                                         <option value="2">{{ $t("settingsUsersZone.addUserModalGenderOption2") }}</option>
                                     </select>
+									<!-- units fields -->
+                                    <label for="userUnitsAdd"><b>* {{ $t("settingsUsersZone.addUserModalUnitsLabel") }}</b></label>
+                                    <select class="form-control" name="userUnitsAdd" v-model="newUserUnits" required>
+                                        <option value="1">{{ $t("settingsUsersZone.addUserModalUnitsOption1") }}</option>
+                                        <option value="2">{{ $t("settingsUsersZone.addUserModalUnitsOption2") }}</option>
+                                    </select>
                                     <!-- height fields -->
-                                    <label for="userHeightAdd"><b>{{ $t("settingsUsersZone.addUserModalHeightLabel") }}</b></label>
-                                    <input class="form-control" type="number" name="userHeightAdd" :placeholder='$t("settingsUsersZone.addUserModalHeightPlaceholder")' v-model="newUserHeight">
+                                    <label for="userHeightAdd"><b>{{ $t("settingsUsersZone.addUserModalHeightLabel") }} (cm)</b></label>
+                                    <input class="form-control" type="number" name="userHeightAdd" :placeholder='$t("settingsUsersZone.addUserModalHeightPlaceholder") + " (cm)"' v-model="newUserHeight">
                                     <!-- preferred language fields -->
-                                    <label for="userPreferredLanguageAdd"><b>* {{ $t("settingsUsersZone.addUserModalUserPreferedLanguageLabel") }}</b></label>
+                                    <label for="userPreferredLanguageAdd"><b>* {{ $t("settingsUsersZone.addUserModalUserPreferredLanguageLabel") }}</b></label>
                                     <select class="form-control" name="userPreferredLanguageAdd" v-model="newUserPreferredLanguage" required>
                                         <option value="us">{{ $t("settingsUsersZone.addUserModalPreferredLanguageOption1") }}</option>
                                         <option value="ca">{{ $t("settingsUsersZone.addUserModalPreferredLanguageOption2") }}</option>
@@ -156,6 +162,7 @@ export default {
 		const newUserTown = ref(null);
 		const newUserBirthDate = ref(null);
 		const newUserGender = ref(1);
+		const newUserUnits = ref(1);
 		const newUserHeight = ref(null);
 		const newUserPreferredLanguage = ref("us");
 		const newUserAccessType = ref(1);
@@ -202,6 +209,7 @@ export default {
 						birthdate: newUserBirthDate.value,
 						preferred_language: newUserPreferredLanguage.value,
 						gender: newUserGender.value,
+						units: newUserUnits.value,
 						height: newUserHeight.value,
 						access_type: newUserAccessType.value,
 						photo_path: null,
@@ -318,6 +326,7 @@ export default {
 			newUserTown,
 			newUserBirthDate,
 			newUserGender,
+			newUserUnits,
 			newUserHeight,
 			newUserPreferredLanguage,
 			newUserAccessType,

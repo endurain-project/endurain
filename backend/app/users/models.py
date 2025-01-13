@@ -45,7 +45,16 @@ class User(Base):
         comment="User preferred language (en, pt, others)",
     )
     gender = Column(
-        Integer, nullable=False, comment="User gender (one digit)(1 - male, 2 - female)"
+        Integer,
+        nullable=False,
+        default=1,
+        comment="User gender (one digit)(1 - male, 2 - female)",
+    )
+    units = Column(
+        Integer,
+        nullable=False,
+        default=1,
+        comment="User units (one digit)(1 - metric, 2 - imperial)",
     )
     height = Column(Integer, nullable=True, comment="User height in centimeters")
     access_type = Column(

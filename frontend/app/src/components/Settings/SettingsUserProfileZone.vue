@@ -73,11 +73,17 @@
                                         <option value="1">{{ $t("settingsUsersZone.addUserModalGenderOption1") }}</option>
                                         <option value="2">{{ $t("settingsUsersZone.addUserModalGenderOption2") }}</option>
                                     </select>
+                                    <!-- units fields -->
+                                    <label for="userUnitsEdit"><b>* {{ $t("settingsUsersZone.addUserModalUnitsLabel") }}</b></label>
+                                    <select class="form-control" name="userUnitsEdit" v-model="editUserUnits" required>
+                                        <option value="1">{{ $t("settingsUsersZone.addUserModalUnitsOption1") }}</option>
+                                        <option value="2">{{ $t("settingsUsersZone.addUserModalUnitsOption2") }}</option>
+                                    </select>
                                     <!-- height fields -->
-                                    <label for="userHeightEdit"><b>{{ $t("settingsUsersZone.addUserModalHeightLabel") }}</b></label>
-                                    <input class="form-control" type="number" name="userHeightEdit" :placeholder='$t("settingsUsersZone.addUserModalHeightPlaceholder")' v-model="editUserHeight">
+                                    <label for="userHeightEdit"><b>{{ $t("settingsUsersZone.addUserModalHeightLabel") }} (cm)</b></label>
+                                    <input class="form-control" type="number" name="userHeightEdit" :placeholder='$t("settingsUsersZone.addUserModalHeightPlaceholder") + " (cm)"' v-model="editUserHeight">
                                     <!-- preferred language fields -->
-                                    <label for="userPreferredLanguageEdit"><b>* {{ $t("settingsUsersZone.addUserModalUserPreferedLanguageLabel") }}</b></label>
+                                    <label for="userPreferredLanguageEdit"><b>* {{ $t("settingsUsersZone.addUserModalUserPreferredLanguageLabel") }}</b></label>
                                     <select class="form-control" name="userPreferredLanguageEdit" v-model="editUserPreferredLanguage" required>
                                         <option value="us">{{ $t("settingsUsersZone.addUserModalPreferredLanguageOption1") }}</option>
                                         <option value="ca">{{ $t("settingsUsersZone.addUserModalPreferredLanguageOption2") }}</option>
@@ -119,16 +125,32 @@
                     <span v-if="authStore.user.gender == 1">{{ $t("settingsUsersZone.addUserModalGenderOption1") }}</span>
                     <span v-else>{{ $t("settingsUsersZone.addUserModalGenderOption2") }}</span>
                 </p>
+                <!-- user units -->
+                <p>
+                    <b>{{ $t("settingsUsersZone.addUserModalUnitsLabel") }}: </b>
+                    <span v-if="authStore.user.units == 1">{{ $t("settingsUsersZone.addUserModalUnitsOption1") }}</span>
+                    <span v-else>{{ $t("settingsUsersZone.addUserModalUnitsOption2") }}</span>
+                </p>
                 <!-- user height -->
                 <p>
-                    <b>{{ $t("settingsUsersZone.addUserModalHeightLabel") }}: </b>
-                    <span v-if="authStore.user.height">{{ authStore.user.height }}cm</span>
+                    <b>{{ $t("settingsUsersZone.addUserModalHeightLabel") }} 
+                        <span v-if="authStore.user.units == 1">({{ $t("generalItems.unitsCm") }}): </span>
+                        <span v-else>({{ $t("generalItems.unitsFeetInches") }}): </span>
+                    </b>
+                    <span v-if="authStore.user.height">
+                        <span v-if="authStore.user.units == 1">{{ authStore.user.height }}{{ $t("generalItems.unitsCm") }}</span>
+                        <span v-else>{{ cmToFeetInches(authStore.user.height) }} </span>
+                    </span>
                     <span v-else>N/A</span>
                 </p>
                 <!-- user preferred language -->
                 <p>
-                    <b>{{ $t("settingsUsersZone.addUserModalUserPreferedLanguageLabel") }}: </b>
+                    <b>{{ $t("settingsUsersZone.addUserModalUserPreferredLanguageLabel") }}: </b>
                     <span v-if="authStore.user.preferred_language == 'us'">{{ $t("settingsUsersZone.addUserModalPreferredLanguageOption1") }}</span>
+                    <span v-if="authStore.user.preferred_language == 'ca'">{{ $t("settingsUsersZone.addUserModalPreferredLanguageOption2") }}</span>
+                    <span v-if="authStore.user.preferred_language == 'pt'">{{ $t("settingsUsersZone.addUserModalPreferredLanguageOption3") }}</span>
+                    <span v-if="authStore.user.preferred_language == 'de'">{{ $t("settingsUsersZone.addUserModalPreferredLanguageOption4") }}</span>
+                    <span v-if="authStore.user.preferred_language == 'fr'">{{ $t("settingsUsersZone.addUserModalPreferredLanguageOption5") }}</span>
                 </p>
                 <!-- user type -->
                 <p>
@@ -150,6 +172,8 @@ import { profile } from "@/services/profileService";
 import { useAuthStore } from "@/stores/authStore";
 // Import Notivue push
 import { push } from "notivue";
+// Import units utils
+import { cmToFeetInches } from "@/utils/unitsUtils";
 // Importing the components
 import UserAvatarComponent from "../Users/UserAvatarComponent.vue";
 
@@ -167,9 +191,11 @@ export default {
 		const editUserTown = ref(authStore.user.city);
 		const editUserBirthdate = ref(authStore.user.birthdate);
 		const editUserGender = ref(authStore.user.gender);
+		const editUserUnits = ref(authStore.user.units);
 		const editUserHeight = ref(authStore.user.height);
 		const editUserPreferredLanguage = ref(authStore.user.preferred_language);
 		const editUserAccessType = ref(authStore.user.access_type);
+        const editUserPhotoPath = ref(authStore.user.photo_path);
 
 		async function handleFileChange(event) {
 			editUserPhotoFile.value = event.target.files?.[0] ?? null;
@@ -188,14 +214,13 @@ export default {
 					city: editUserTown.value,
 					birthdate: editUserBirthdate.value,
 					gender: editUserGender.value,
+                    units: editUserUnits.value,
 					height: editUserHeight.value,
 					preferred_language: editUserPreferredLanguage.value,
 					access_type: editUserAccessType.value,
-					photo_path: null,
+					photo_path: editUserPhotoPath.value,
 					is_active: 1,
 				};
-
-				await profile.editProfile(data);
 
 				// If there is a photo, upload it and get the photo url.
 				if (editUserPhotoFile.value) {
@@ -208,6 +233,8 @@ export default {
 						push.error(`${t("generalItems.errorFetchingInfo")} - ${error}`);
 					}
 				}
+
+                await profile.editProfile(data);
 
 				// Save the user data in the local storage and in the store.
 				authStore.setUser(data, locale);
@@ -253,12 +280,14 @@ export default {
 			editUserTown,
 			editUserBirthdate,
 			editUserGender,
+            editUserUnits,
 			editUserHeight,
 			editUserPreferredLanguage,
 			editUserAccessType,
 			submitEditUserForm,
 			submitDeleteUserPhoto,
 			handleFileChange,
+            cmToFeetInches,
 		};
 	},
 };

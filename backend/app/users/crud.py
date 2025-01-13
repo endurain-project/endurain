@@ -255,6 +255,7 @@ def create_user(user: users_schema.UserCreate, db: Session):
             birthdate=user.birthdate,
             preferred_language=user.preferred_language,
             gender=user.gender,
+            units=user.units,
             access_type=user.access_type,
             photo_path=user.photo_path,
             is_active=user.is_active,

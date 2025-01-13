@@ -5,5 +5,10 @@
     "requiredField": "Required fields",
     "errorFetchingInfo": "Error fetching info",
     "errorEditingInfo": "Error editing info",
-    "errorDeletingInfo": "Error deleting info"
+    "errorDeletingInfo": "Error deleting info",
+    "unitsCm": "cm",
+    "unitsCms": "cms",
+    "unitsInches": "inches",
+    "unitsFeet": "feet",
+    "unitsFeetInches": "feet, inches"
 }

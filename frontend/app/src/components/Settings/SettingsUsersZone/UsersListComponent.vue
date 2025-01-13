@@ -111,11 +111,17 @@
 										<option value="1">{{ $t("settingsUsersZone.addUserModalGenderOption1") }}</option>
 										<option value="2">{{ $t("settingsUsersZone.addUserModalGenderOption2") }}</option>
 									</select>
+									<!-- units fields -->
+									<label for="userUnitsEdit"><b>* {{ $t("settingsUsersZone.addUserModalUnitsLabel") }}</b></label>
+									<select class="form-control" name="userUnitsEdit" v-model="editUserUnits" required>
+										<option value="1">{{ $t("settingsUsersZone.addUserModalUnitsOption1") }}</option>
+										<option value="2">{{ $t("settingsUsersZone.addUserModalUnitsOption2") }}</option>
+									</select>
 									<!-- height fields -->
-									<label for="userHeightEdit"><b>{{ $t("settingsUsersZone.addUserModalHeightLabel") }}</b></label>
-									<input class="form-control" type="number" name="userHeightEdit" :placeholder='$t("settingsUsersZone.addUserModalHeightPlaceholder")' v-model="editUserHeight">
+									<label for="userHeightEdit"><b>{{ $t("settingsUsersZone.addUserModalHeightLabel") }} (cm)</b></label>
+									<input class="form-control" type="number" name="userHeightEdit" :placeholder='$t("settingsUsersZone.addUserModalHeightPlaceholder") + " (cm)"' v-model="editUserHeight">
 									<!-- preferred language fields -->
-									<label for="userPreferredLanguageEdit"><b>* {{ $t("settingsUsersZone.addUserModalUserPreferedLanguageLabel") }}</b></label>
+									<label for="userPreferredLanguageEdit"><b>* {{ $t("settingsUsersZone.addUserModalUserPreferredLanguageLabel") }}</b></label>
 									<select class="form-control" name="userPreferredLanguageEdit" v-model="editUserPreferredLanguage" required>
 										<option value="us">{{ $t("settingsUsersZone.addUserModalPreferredLanguageOption1") }}</option>
 										<option value="ca">{{ $t("settingsUsersZone.addUserModalPreferredLanguageOption2") }}</option>
@@ -232,6 +238,7 @@ export default {
 		const editUserTown = ref(userProp.value.city);
 		const editUserBirthdate = ref(userProp.value.birthdate);
 		const editUserGender = ref(userProp.value.gender);
+		const editUserUnits = ref(userProp.value.units);
 		const editUserHeight = ref(userProp.value.height);
 		const editUserPreferredLanguage = ref(userProp.value.preferred_language);
 		const editUserAccessType = ref(userProp.value.access_type);
@@ -278,6 +285,7 @@ export default {
 					city: editUserTown.value,
 					birthdate: editUserBirthdate.value,
 					gender: editUserGender.value,
+					units: editUserUnits.value,
 					height: editUserHeight.value,
 					preferred_language: editUserPreferredLanguage.value,
 					access_type: editUserAccessType.value,
@@ -308,6 +316,7 @@ export default {
 				userProp.value.city = editUserTown.value;
 				userProp.value.birthdate = editUserBirthdate.value;
 				userProp.value.gender = editUserGender.value;
+				userProp.value.units = editUserUnits.value;
 				userProp.value.height = editUserHeight.value;
 				userProp.value.preferred_language = editUserPreferredLanguage.value;
 				userProp.value.access_type = editUserAccessType.value;
@@ -400,6 +409,7 @@ export default {
 			editUserTown,
 			editUserBirthdate,
 			editUserGender,
+			editUserUnits,
 			editUserHeight,
 			editUserPreferredLanguage,
 			editUserAccessType,
