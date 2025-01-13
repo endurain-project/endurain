@@ -1,10 +1,8 @@
 import os
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
-from fastapi import Request
 
 from alembic.config import Config
 from alembic import command
@@ -99,7 +97,7 @@ def create_app() -> FastAPI:
     # Add a route to serve the user images
     app.mount("/user_images", StaticFiles(directory="user_images"), name="user_images")
     app.mount(
-        "/", StaticFiles(directory="/app/frontend/dist", html=True), name="frontend"
+        "/", StaticFiles(directory=core_config.FRONTEND_DIR, html=True), name="frontend"
     )
 
     return app

@@ -30,7 +30,7 @@ export default {
     emits: ['userDeleted'],
     setup(props) {
         const altText = ref('User Avatar');
-        const userPhotoUrl = ref(`${import.meta.env.VITE_ENDURAIN_HOST}/api/v1/${props.user.photo_path}`);
+        const userPhotoUrl = ref(`${import.meta.env.VITE_ENDURAIN_HOST}/${props.user.photo_path}`);
         const alignTopValue = ref(props.alignTop);
 
         return {
