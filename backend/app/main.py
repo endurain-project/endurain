@@ -65,11 +65,10 @@ def shutdown_event():
 def create_app() -> FastAPI:
     # Define the FastAPI object
     app = FastAPI(
-        docs_url="/docs",
-        redoc_url="/redoc",
+        docs_url=core_config.ROOT_PATH + "/docs",
+        redoc_url=core_config.ROOT_PATH + "/redoc",
         title="Endurain",
         summary="Endurain API for the Endurain app",
-        root_path="/api/v1",
         version=core_config.API_VERSION,
         license_info={
             "name": core_config.LICENSE_NAME,

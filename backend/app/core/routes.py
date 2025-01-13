@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, Security
 
 import core.router as core_router
+import core.config as core_config
 import session.router as session_router
 import session.security as session_security
 import users.router as users_router
@@ -21,22 +22,19 @@ router = APIRouter()
 
 # Router files
 router.include_router(
-    core_router.router,
-    tags=["core"],
-)
-router.include_router(
     session_router.router,
+    prefix=core_config.ROOT_PATH,
     tags=["sessions"],
 )
 router.include_router(
     users_router.router,
-    prefix="/users",
+    prefix=core_config.ROOT_PATH + "/users",
     tags=["users"],
     dependencies=[Depends(session_security.validate_access_token)],
 )
 router.include_router(
     profile_router.router,
-    prefix="/profile",
+    prefix=core_config.ROOT_PATH + "/profile",
     tags=["profile"],
     dependencies=[
         Depends(session_security.validate_access_token),
@@ -45,36 +43,36 @@ router.include_router(
 )
 router.include_router(
     activities_router.router,
-    prefix="/activities",
+    prefix=core_config.ROOT_PATH + "/activities",
     tags=["activities"],
     dependencies=[Depends(session_security.validate_access_token)],
 )
 router.include_router(
     activity_streams_router.router,
-    prefix="/activities/streams",
+    prefix=core_config.ROOT_PATH + "/activities/streams",
     tags=["activity_streams"],
     dependencies=[Depends(session_security.validate_access_token)],
 )
 router.include_router(
     gears_router.router,
-    prefix="/gears",
+    prefix=core_config.ROOT_PATH + "/gears",
     tags=["gears"],
     dependencies=[Depends(session_security.validate_access_token)],
 )
 router.include_router(
     followers_router.router,
-    prefix="/followers",
+    prefix=core_config.ROOT_PATH + "/followers",
     tags=["followers"],
     dependencies=[Depends(session_security.validate_access_token)],
 )
 router.include_router(
     strava_router.router,
-    prefix="/strava",
+    prefix=core_config.ROOT_PATH + "/strava",
     tags=["strava"],
 )
 router.include_router(
     garmin_router.router,
-    prefix="/garminconnect",
+    prefix=core_config.ROOT_PATH + "/garminconnect",
     tags=["garminconnect"],
     dependencies=[
         Depends(session_security.validate_access_token),
@@ -83,22 +81,26 @@ router.include_router(
 )
 router.include_router(
     health_data_router.router,
-    prefix="/health",
+    prefix=core_config.ROOT_PATH + "/health",
     tags=["health"],
     dependencies=[Depends(session_security.validate_access_token)],
 )
 router.include_router(
     health_targets_router.router,
-    prefix="/health_targets",
+    prefix=core_config.ROOT_PATH + "/health_targets",
     tags=["health_targets"],
     dependencies=[Depends(session_security.validate_access_token)],
 )
 router.include_router(
     websocket_router.router,
-    prefix="/ws",
+    prefix=core_config.ROOT_PATH + "/ws",
     tags=["websocket"],
-    #dependencies=[
+    # dependencies=[
     #    Depends(session_security.validate_access_token),
     #    Security(session_security.check_scopes, scopes=["profile"]),
-    #],
+    # ],
+)
+router.include_router(
+    core_router.router,
+    tags=["core"],
 )

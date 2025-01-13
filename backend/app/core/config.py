@@ -7,6 +7,7 @@ API_VERSION = "v0.7.2"
 LICENSE_NAME = "GNU Affero General Public License v3.0 or later"
 LICENSE_IDENTIFIER = "AGPL-3.0-or-later"
 LICENSE_URL = "https://spdx.org/licenses/AGPL-3.0-or-later.html"
+ROOT_PATH = "/api/v1"
 
 
 def check_required_env_vars():
