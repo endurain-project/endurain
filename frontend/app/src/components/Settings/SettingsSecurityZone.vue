@@ -1,7 +1,7 @@
 <template>
     <div class="col">
         <h4>{{ $t("settingsSecurityZone.subtitleChangePassword") }}</h4>
-        <SettingsPasswordRequirementsComponent />
+        <UsersPasswordRequirementsComponent />
 
         <form @submit.prevent="submitChangeUserPasswordForm">
             <!-- password fields -->
@@ -52,14 +52,14 @@ import { profile } from "@/services/profileService";
 // Import Notivue push
 import { push } from "notivue";
 // Importing the components
-import SettingsPasswordRequirementsComponent from "@/components/Settings/SettingsPasswordRequirementsComponent.vue";
+import UsersPasswordRequirementsComponent from "@/components/Settings/SettingsUsersZone/UsersPasswordRequirementsComponent.vue";
 import LoadingComponent from "@/components/GeneralComponents/LoadingComponent.vue";
 import NoItemsFoundComponents from "@/components/GeneralComponents/NoItemsFoundComponents.vue";
 import UserSessionsListComponent from "@/components/Settings/SettingsUserSessionsZone/UserSessionsListComponent.vue";
 
 export default {
 	components: {
-		SettingsPasswordRequirementsComponent,
+		UsersPasswordRequirementsComponent,
 		LoadingComponent,
 		NoItemsFoundComponents,
 		UserSessionsListComponent,

@@ -5,3 +5,7 @@ export function cmToFeetInches(cm) {
 
     return `${feet}’${remainingInches}’’`;
 }
+
+export function metersToMiles(meters) {
+    return (meters / 1609.344).toFixed(2);
+}
