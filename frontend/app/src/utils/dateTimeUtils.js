@@ -6,7 +6,16 @@ import { DateTime } from 'luxon';
  * @param {string} dateString - The date string to be formatted.
  * @returns {string} The formatted date string.
  */
-export function formatDate(dateString) {
+export function formatDateShort(dateString) {
+  // Create a DateTime object from the date string
+  const date = DateTime.fromISO(dateString, { setZone: true });
+
+  // Return the formatted date string respecting browser's locale
+  return date.toLocaleString(DateTime.DATE_SHORT);
+}
+
+
+export function formatDateMed(dateString) {
   // Create a DateTime object from the date string
   const date = DateTime.fromISO(dateString, { setZone: true });
 

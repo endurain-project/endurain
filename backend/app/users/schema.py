@@ -28,5 +28,6 @@ class UserMe(User):
     is_strava_linked: int | None = None
     is_garminconnect_linked: int | None = None
 
+
 class UserEditPassword(BaseModel):
     password: str

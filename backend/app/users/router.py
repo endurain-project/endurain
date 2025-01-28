@@ -54,7 +54,7 @@ async def read_users_all_pagination(
 ):
     # Get the users from the database with pagination
     return users_crud.get_users_with_pagination(
-        db=db, page_number=page_number, num_records=num_records
+        db, page_number, num_records
     )
 
 
@@ -141,7 +141,7 @@ async def read_users_id_photo_path(
     return users_crud.get_user_photo_path_by_id(user_id, db)
 
 
-@router.post("/create", response_model=int, status_code=201)
+@router.post("/create", response_model=users_schema.User, status_code=201)
 async def create_user(
     user: users_schema.UserCreate,
     check_scopes: Annotated[
@@ -161,8 +161,8 @@ async def create_user(
     # Create the user health targets
     health_targets_crud.create_health_targets(created_user.id, db)
 
-    # Return the user id
-    return created_user.id
+    # Return the user with formatted birthdate
+    return users_utils.format_user_birthdate(created_user)
 
 
 @router.post(

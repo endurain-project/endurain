@@ -40,7 +40,8 @@ def delete_user_photo_filesystem(user_id: int):
 
 
 def format_user_birthdate(user):
-    user.birthdate = user.birthdate.strftime("%d-%m-%Y") if user.birthdate else None
+    #user.birthdate = user.birthdate.strftime("%d-%m-%Y") if user.birthdate else None
+    user.birthdate = user.birthdate.isoformat() if user.birthdate else None
     return user
 
 

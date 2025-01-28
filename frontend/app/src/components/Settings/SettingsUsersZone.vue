@@ -6,82 +6,12 @@
                 <a class="w-100 btn btn-primary" href="#" role="button" data-bs-toggle="modal" data-bs-target="#addUserModal">{{ $t("settingsUsersZone.buttonAddUser") }}</a>
 
                 <!-- Modal add user -->
-                <div class="modal fade" id="addUserModal" tabindex="-1" aria-labelledby="addUserModal" aria-hidden="true">
-                    <div class="modal-dialog">
-                        <div class="modal-content">
-                            <div class="modal-header">
-                                <h1 class="modal-title fs-5" id="addUserModal">{{ $t("settingsUsersZone.buttonAddUser") }}</h1>
-                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                            </div>
-                            <form  @submit.prevent="submitAddUserForm">
-                                <div class="modal-body">
-                                    <!-- img fields -->
-                                    <label for="userImgAdd"><b>{{ $t("settingsUsersZone.addUserModalUserPhotoLabel") }}</b></label>
-                                    <input class="form-control" type="file" accept="image/*" name="userImgAdd" id="userImgAdd" @change="handleFileChange">
-                                    <!-- username fields -->
-                                    <label for="userUsernameAdd"><b>* {{ $t("settingsUsersZone.addUserModalUsernameLabel") }}</b></label>
-                                    <input class="form-control" type="text" name="userUsernameAdd" :placeholder='$t("settingsUsersZone.addUserModalUsernamePlaceholder")' maxlength="45" v-model="newUserUsername" required>
-                                    <!-- name fields -->
-                                    <label for="userNameAdd"><b>* {{ $t("settingsUsersZone.addUserModalNameLabel") }}</b></label>
-                                    <input class="form-control" type="text" name="userNameAdd" :placeholder='$t("settingsUsersZone.addUserModalNamePlaceholder")' maxlength="45" v-model="newUserName" required>
-                                    <!-- email fields -->
-                                    <label for="userEmailAdd"><b>* {{ $t("settingsUsersZone.addUserModalEmailLabel") }}</b></label>
-                                    <input class="form-control" type="text" name="userEmailAdd" :placeholder='$t("settingsUsersZone.addUserModalEmailPlaceholder")' maxlength="45" v-model="newUserEmail" required>
-                                    <!-- password fields -->
-                                    <label for="passUserAdd"><b>* {{ $t("settingsUsersZone.addUserModalPasswordLabel") }}</b></label>
-                                    <input class="form-control" :class="{ 'is-invalid': !isPasswordValid }" type="password" id="validationPassword" aria-describedby="validationPasswordFeedback" name="passUserAdd" :placeholder='$t("settingsUsersZone.addUserModalPasswordPlaceholder")' v-model="newUserPassword" required>
-                                    <div id="validationPasswordFeedback" class="invalid-feedback" v-if="!isPasswordValid">
-                                        {{ $t("usersListComponent.modalChangeUserPasswordFeedbackLabel") }}
-                                    </div>
-                                    <!-- city fields -->
-                                    <label for="userCityAdd"><b>{{ $t("settingsUsersZone.addUserModalTownLabel") }}</b></label>
-                                    <input class="form-control" type="text" name="userCityAdd" :placeholder='$t("settingsUsersZone.addUserModalTownPlaceholder")' maxlength="45" v-model="newUserTown">
-                                    <!-- birth date fields -->
-                                    <label for="userBirthDateAdd"><b>{{ $t("settingsUsersZone.addUserModalBirthdayLabel") }}</b></label>
-                                    <input class="form-control" type="date" name="userBirthDateAdd" v-model="newUserBirthDate">
-                                    <!-- gender fields -->
-                                    <label for="userGenderAdd"><b>* {{ $t("settingsUsersZone.addUserModalGenderLabel") }}</b></label>
-                                    <select class="form-control" name="userGenderAdd" v-model="newUserGender" required>
-                                        <option value="1">{{ $t("settingsUsersZone.addUserModalGenderOption1") }}</option>
-                                        <option value="2">{{ $t("settingsUsersZone.addUserModalGenderOption2") }}</option>
-                                    </select>
-									<!-- units fields -->
-                                    <label for="userUnitsAdd"><b>* {{ $t("settingsUsersZone.addUserModalUnitsLabel") }}</b></label>
-                                    <select class="form-control" name="userUnitsAdd" v-model="newUserUnits" required>
-                                        <option value="1">{{ $t("settingsUsersZone.addUserModalUnitsOption1") }}</option>
-                                        <option value="2">{{ $t("settingsUsersZone.addUserModalUnitsOption2") }}</option>
-                                    </select>
-                                    <!-- height fields -->
-                                    <label for="userHeightAdd"><b>{{ $t("settingsUsersZone.addUserModalHeightLabel") }} (cm)</b></label>
-                                    <input class="form-control" type="number" name="userHeightAdd" :placeholder='$t("settingsUsersZone.addUserModalHeightPlaceholder") + " (cm)"' v-model="newUserHeight">
-                                    <!-- preferred language fields -->
-                                    <label for="userPreferredLanguageAdd"><b>* {{ $t("settingsUsersZone.addUserModalUserPreferredLanguageLabel") }}</b></label>
-                                    <select class="form-control" name="userPreferredLanguageAdd" v-model="newUserPreferredLanguage" required>
-                                        <option value="us">{{ $t("settingsUsersZone.addUserModalPreferredLanguageOption1") }}</option>
-                                        <option value="ca">{{ $t("settingsUsersZone.addUserModalPreferredLanguageOption2") }}</option>
-                                        <option value="pt">{{ $t("settingsUsersZone.addUserModalPreferredLanguageOption3") }}</option>
-                                    </select>
-                                    <!-- access type fields -->
-                                    <label for="userAccessTypeAdd"><b>* {{ $t("settingsUsersZone.addUserModalUserTypeLabel") }}</b></label>
-                                    <select class="form-control" name="userAccessTypeAdd" v-model="newUserAccessType" required>
-                                        <option value="1">{{ $t("settingsUsersZone.addUserModalUserTypeOption1") }}</option>
-                                        <option value="2">{{ $t("settingsUsersZone.addUserModalUserTypeOption2") }}</option>
-                                    </select>
-                                    <p>* {{ $t("generalItems.requiredField") }}</p>
-                                </div>
-                                <div class="modal-footer">
-                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ $t("generalItems.buttonClose") }}</button>
-                                    <button type="submit" class="btn btn-success" :disabled="!isPasswordValid" data-bs-dismiss="modal">{{ $t("settingsUsersZone.buttonAddUser") }}</button>
-                                </div>
-                            </form>
-                        </div>
-                    </div>
-                </div>
+                <UsersAddEditUserModalComponent :action="'add'" @createdUser="addUserList" @isLoadingNewUser="setIsLoadingNewUser"/>
             </div>
             <!-- form to search-->
             <div class="col">
                 <form class="d-flex">
-                    <input class="form-control me-2" type="text" name="userUsername" :placeholder='$t("settingsUsersZone.addUserModalUsernameLabel")' v-model="searchUsername" required>
+                    <input class="form-control me-2" type="text" name="userUsername" :placeholder='$t("settingsUsersZone.labelSearchUsersByUsername")' v-model="searchUsername" required>
                 </form>
             </div>
         </div>
@@ -134,6 +64,7 @@ import LoadingComponent from "@/components/GeneralComponents/LoadingComponent.vu
 import NoItemsFoundComponent from "@/components/GeneralComponents/NoItemsFoundComponents.vue";
 import UsersListComponent from "@/components/Settings/SettingsUsersZone/UsersListComponent.vue";
 import PaginationComponent from "@/components/GeneralComponents/PaginationComponent.vue";
+import UsersAddEditUserModalComponent from "@/components/Settings/SettingsUsersZone/UsersAddEditUserModalComponent.vue";
 // Importing the services
 import { users } from "@/services/usersService";
 
@@ -143,39 +74,19 @@ export default {
 		NoItemsFoundComponent,
 		PaginationComponent,
 		UsersListComponent,
+		UsersAddEditUserModalComponent,
 	},
 	setup() {
 		const { t } = useI18n();
 		const isLoading = ref(true);
 		const isUsersUpdatingLoading = ref(false);
 		const isLoadingNewUser = ref(false);
-		const newUserPhotoFile = ref(null);
-		const newUserUsername = ref("");
-		const newUserName = ref("");
-		const newUserEmail = ref("");
-		const newUserPassword = ref("");
-		const isPasswordValid = computed(() => {
-			const regex =
-				/^(?=.*[A-Z])(?=.*\d)(?=.*[ !\"#$%&'()*+,\-./:;<=>?@[\\\]^_`{|}~])[A-Za-z\d !"#$%&'()*+,\-./:;<=>?@[\\\]^_`{|}~]{8,}$/;
-			return regex.test(newUserPassword.value);
-		});
-		const newUserTown = ref(null);
-		const newUserBirthDate = ref(null);
-		const newUserGender = ref(1);
-		const newUserUnits = ref(1);
-		const newUserHeight = ref(null);
-		const newUserPreferredLanguage = ref("us");
-		const newUserAccessType = ref(1);
 		const usersArray = ref([]);
 		const usersNumber = ref(0);
 		const pageNumber = ref(1);
 		const numRecords = 5;
 		const totalPages = ref(1);
 		const searchUsername = ref("");
-
-		async function handleFileChange(event) {
-			newUserPhotoFile.value = event.target.files?.[0] ?? null;
-		}
 
 		const performSearch = debounce(async () => {
 			// If the search nickname is empty, reset the list to initial state.
@@ -195,59 +106,6 @@ export default {
 				push.error(`${t("generalItems.errorFetchingInfo")} - ${error}`);
 			}
 		}, 500);
-
-		async function submitAddUserForm() {
-			isLoadingNewUser.value = true;
-			try {
-				if (isPasswordValid.value) {
-					// Create the gear data object.
-					const data = {
-						name: newUserName.value,
-						username: newUserUsername.value,
-						email: newUserEmail.value,
-						city: newUserTown.value,
-						birthdate: newUserBirthDate.value,
-						preferred_language: newUserPreferredLanguage.value,
-						gender: newUserGender.value,
-						units: newUserUnits.value,
-						height: newUserHeight.value,
-						access_type: newUserAccessType.value,
-						photo_path: null,
-						is_active: 1,
-						password: newUserPassword.value,
-					};
-
-					// Create the gear and get the created gear id.
-					const createdUserId = await users.createUser(data);
-
-					// If there is a photo, upload it and get the photo url.
-					if (newUserPhotoFile.value) {
-						try {
-							await users.uploadImage(newUserPhotoFile.value, createdUserId);
-						} catch (error) {
-							// Set the error message
-							push.error(`${t("generalItems.errorFetchingInfo")} - ${error}`);
-						}
-					}
-
-					// Get the created gear and add it to the userGears array.
-					const newUser = await users.getUserById(createdUserId);
-					usersArray.value.unshift(newUser);
-
-					// Increment the number of users.
-					usersNumber.value++;
-
-					// Set the success message and show the success alert.
-					push.success(t("settingsUsersZone.successUserAdded"));
-				}
-			} catch (error) {
-				// If there is an error, set the error message and show the error alert.
-				push.error(`${t("generalItems.errorFetchingInfo")} - ${error}`);
-			} finally {
-				// Set the loading variable to false.
-				isLoadingNewUser.value = false;
-			}
-		}
 
 		function setPageNumber(page) {
 			// Set the page number.
@@ -298,6 +156,16 @@ export default {
 			push.success(t("usersListComponent.userDeleteSuccessMessage"));
 		}
 
+		function addUserList(createdUser) {
+			console.log(createdUser);
+			usersArray.value.unshift(createdUser);
+			usersNumber.value++;
+		}
+
+		function setIsLoadingNewUser(state) {
+			isLoadingNewUser.value = state;
+		}
+
 		onMounted(async () => {
 			// Fetch the users.
 			await fetchUsers();
@@ -317,28 +185,15 @@ export default {
 			isLoading,
 			isUsersUpdatingLoading,
 			isLoadingNewUser,
-			newUserPhotoFile,
-			newUserUsername,
-			newUserName,
-			newUserEmail,
-			newUserPassword,
-			isPasswordValid,
-			newUserTown,
-			newUserBirthDate,
-			newUserGender,
-			newUserUnits,
-			newUserHeight,
-			newUserPreferredLanguage,
-			newUserAccessType,
-			submitAddUserForm,
 			pageNumber,
 			totalPages,
 			setPageNumber,
-			handleFileChange,
 			usersNumber,
 			usersArray,
 			searchUsername,
 			updateUserList,
+			addUserList,
+			setIsLoadingNewUser,
 		};
 	},
 };

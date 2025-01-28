@@ -6,7 +6,18 @@ import core.logger as core_logger
 
 def get_strava_athlete(strava_client: Client):
     # Fetch Strava athlete
-    strava_athlete = strava_client.get_athlete()
+    try:
+        strava_athlete = strava_client.get_athlete()
+    except Exception as err:
+        core_logger.print_to_log(
+            f"Error fetching Strava athlete: {err}. Returning 424 Failed Dependency",
+            "error",
+            exc=err,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_424_FAILED_DEPENDENCY,
+            detail="Error fetching Strava athlete",
+        )
 
     if strava_athlete is None:
         core_logger.print_to_log(

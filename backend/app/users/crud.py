@@ -55,7 +55,6 @@ def get_all_users(db: Session):
 
 def get_users_number(db: Session):
     try:
-
         # Get the number of users from the database
         return db.query(users_models.User.username).count()
 
@@ -71,11 +70,11 @@ def get_users_number(db: Session):
 
 def get_users_with_pagination(db: Session, page_number: int = 1, num_records: int = 5):
     try:
-
-        # Get the users from the database abd Format the birthdate
+        # Get the users from the database and format the birthdate
         users = [
             users_utils.format_user_birthdate(user)
             for user in db.query(users_models.User)
+            .order_by(users_models.User.username)
             .offset((page_number - 1) * num_records)
             .limit(num_records)
             .all()
@@ -247,18 +246,8 @@ def create_user(user: users_schema.UserCreate, db: Session):
     try:
         # Create a new user
         db_user = users_models.User(
-            name=user.name,
-            username=user.username,
-            password=session_security.hash_password(user.password),
-            email=user.email,
-            city=user.city,
-            birthdate=user.birthdate,
-            preferred_language=user.preferred_language,
-            gender=user.gender,
-            units=user.units,
-            access_type=user.access_type,
-            photo_path=user.photo_path,
-            is_active=user.is_active,
+            **user.model_dump(exclude={"password"}),
+            password=session_security.hash_password(user.password)
         )
 
         # Add the user to the database
@@ -266,13 +255,13 @@ def create_user(user: users_schema.UserCreate, db: Session):
         db.commit()
         db.refresh(db_user)
 
-        # Return the user
+        # Return user
         return db_user
     except IntegrityError as integrity_error:
         # Rollback the transaction
         db.rollback()
 
-        # Raise an HTTPException with a 500 Internal Server Error status code
+        # Raise an HTTPException with a 409 Conflict status code
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Duplicate entry error. Check if email and username are unique",

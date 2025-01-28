@@ -137,7 +137,7 @@
                             <router-link :to="{ name: 'activity', params: { id: activity.id }}" class="link-body-emphasis link-underline-opacity-0 link-underline-opacity-100-hover">
                                 {{ activity.name}}
                             </router-link>
-                            <span><strong>{{ $t("gearView.labelDate") }}:</strong> {{ formatDate(activity.start_time) }} @ {{ formatTime(activity.start_time) }}</span>
+                            <span><strong>{{ $t("gearView.labelDate") }}:</strong> {{ formatDateMed(activity.start_time) }} @ {{ formatTime(activity.start_time) }}</span>
                         </li>
                     </ul>
                 </div>
@@ -165,7 +165,7 @@ import ModalComponent from '@/components/Modals/ModalComponent.vue';
 // Importing the services
 import { gears } from "@/services/gearsService";
 import { activities } from "@/services/activitiesService";
-import { formatDate, formatTime } from "@/utils/dateTimeUtils";
+import { formatDateMed, formatTime } from "@/utils/dateTimeUtils";
 
 export default {
 	components: {
@@ -284,7 +284,7 @@ export default {
 			t,
 			submitEditGearForm,
 			submitDeleteGear,
-			formatDate,
+			formatDateMed,
 			formatTime,
 		};
 	},

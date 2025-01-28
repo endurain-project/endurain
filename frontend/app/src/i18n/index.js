@@ -26,6 +26,7 @@ import caSettingsUserProfileZoneComponent from './ca/components/settings/setting
 import caSettingsSecurityZoneComponent from './ca/components/settings/settingsSecurityZoneComponent.json';
 import caSettingsIntegrationsZoneComponent from './ca/components/settings/settingsIntegrationsZoneComponent.json';
 import caGarminConnectLoginModalComponent from './ca/components/settings/settingsIntegrationsZone/garminConnectLoginModalComponent.json';
+import caUsersAddEditUserModalComponent from './ca/components/settings/settingsUsersZone/usersAddEditUserModalComponent.json';
 import caUsersListComponent from './ca/components/settings/settingsUsersZone/usersListComponent.json';
 import caUserSessionsListComponent from './ca/components/settings/settingsUserSessionsZone/userSessionsListComponent.json';
 // General components
@@ -68,6 +69,7 @@ import deSettingsUserProfileZoneComponent from './de/components/settings/setting
 import deSettingsSecurityZoneComponent from './de/components/settings/settingsSecurityZoneComponent.json';
 import deSettingsIntegrationsZoneComponent from './de/components/settings/settingsIntegrationsZoneComponent.json';
 import deGarminConnectLoginModalComponent from './de/components/settings/settingsIntegrationsZone/garminConnectLoginModalComponent.json';
+import deUsersAddEditUserModalComponent from './de/components/settings/settingsUsersZone/usersAddEditUserModalComponent.json';
 import deUsersListComponent from './de/components/settings/settingsUsersZone/usersListComponent.json';
 import deUserSessionsListComponent from './de/components/settings/settingsUserSessionsZone/userSessionsListComponent.json';
 // General components
@@ -111,6 +113,7 @@ import frSettingsUserProfileZoneComponent from './fr/components/settings/setting
 import frSettingsSecurityZoneComponent from './fr/components/settings/settingsSecurityZoneComponent.json';
 import frSettingsIntegrationsZoneComponent from './fr/components/settings/settingsIntegrationsZoneComponent.json';
 import frGarminConnectLoginModalComponent from './fr/components/settings/settingsIntegrationsZone/garminConnectLoginModalComponent.json';
+import frUsersAddEditUserModalComponent from './fr/components/settings/settingsUsersZone/usersAddEditUserModalComponent.json';
 import frUsersListComponent from './fr/components/settings/settingsUsersZone/usersListComponent.json';
 import frUserSessionsListComponent from './fr/components/settings/settingsUserSessionsZone/userSessionsListComponent.json';
 // General components
@@ -154,6 +157,7 @@ import ptSettingsUserProfileZoneComponent from './pt/components/settings/setting
 import ptSettingsSecurityZoneComponent from './pt/components/settings/settingsSecurityZoneComponent.json';
 import ptSettingsIntegrationsZoneComponent from './pt/components/settings/settingsIntegrationsZoneComponent.json';
 import ptGarminConnectLoginModalComponent from './pt/components/settings/settingsIntegrationsZone/garminConnectLoginModalComponent.json';
+import ptUsersAddEditUserModalComponent from './pt/components/settings/settingsUsersZone/usersAddEditUserModalComponent.json';
 import ptUsersListComponent from './pt/components/settings/settingsUsersZone/usersListComponent.json';
 import ptUserSessionsListComponent from './pt/components/settings/settingsUserSessionsZone/userSessionsListComponent.json';
 // General components
@@ -196,6 +200,7 @@ import usSettingsUserProfileZoneComponent from './us/components/settings/setting
 import usSettingsSecurityZoneComponent from './us/components/settings/settingsSecurityZoneComponent.json';
 import usSettingsIntegrationsZoneComponent from './us/components/settings/settingsIntegrationsZoneComponent.json';
 import usGarminConnectLoginModalComponent from './us/components/settings/settingsIntegrationsZone/garminConnectLoginModalComponent.json';
+import usUsersAddEditUserModalComponent from './us/components/settings/settingsUsersZone/usersAddEditUserModalComponent.json';
 import usUsersListComponent from './us/components/settings/settingsUsersZone/usersListComponent.json';
 import usUserSessionsListComponent from './us/components/settings/settingsUserSessionsZone/userSessionsListComponent.json';
 // General components
@@ -240,6 +245,7 @@ const messages = {
     settingsSecurityZone: caSettingsSecurityZoneComponent,
     settingsIntegrationsZone: caSettingsIntegrationsZoneComponent,
     garminConnectLoginModalComponent: caGarminConnectLoginModalComponent,
+    usersAddEditUserModalComponent: caUsersAddEditUserModalComponent,
     usersListComponent: caUsersListComponent,
     userSessionsListComponent: caUserSessionsListComponent,
     // General components
@@ -282,6 +288,7 @@ const messages = {
     settingsSecurityZone: deSettingsSecurityZoneComponent,
     settingsIntegrationsZone: deSettingsIntegrationsZoneComponent,
     garminConnectLoginModalComponent: deGarminConnectLoginModalComponent,
+    usersAddEditUserModalComponent: deUsersAddEditUserModalComponent,
     usersListComponent: deUsersListComponent,
     userSessionsListComponent: deUserSessionsListComponent,
     // General components
@@ -324,6 +331,7 @@ const messages = {
     settingsSecurityZone: frSettingsSecurityZoneComponent,
     settingsIntegrationsZone: frSettingsIntegrationsZoneComponent,
     garminConnectLoginModalComponent: frGarminConnectLoginModalComponent,
+    usersAddEditUserModalComponent: frUsersAddEditUserModalComponent,
     usersListComponent: frUsersListComponent,
     userSessionsListComponent: frUserSessionsListComponent,
     // General components
@@ -366,6 +374,7 @@ const messages = {
     settingsSecurityZone: ptSettingsSecurityZoneComponent,
     settingsIntegrationsZone: ptSettingsIntegrationsZoneComponent,
     garminConnectLoginModalComponent: ptGarminConnectLoginModalComponent,
+    usersAddEditUserModalComponent: ptUsersAddEditUserModalComponent,
     usersListComponent: ptUsersListComponent,
     userSessionsListComponent: ptUserSessionsListComponent,
     // General components
@@ -408,6 +417,7 @@ const messages = {
     settingsSecurityZone: usSettingsSecurityZoneComponent,
     settingsIntegrationsZone: usSettingsIntegrationsZoneComponent,
     garminConnectLoginModalComponent: usGarminConnectLoginModalComponent,
+    usersAddEditUserModalComponent: usUsersAddEditUserModalComponent,
     usersListComponent: usUsersListComponent,
     userSessionsListComponent: usUserSessionsListComponent,
     // General components

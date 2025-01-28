@@ -6,7 +6,7 @@
                 <div class="fw-bold">
                     {{ data.weight }}
                 </div>
-                Date: {{ formatDate(data.date) }}<span v-if="data.bmi"> | BMI: {{ data.bmi }}</span>
+                Date: {{ formatDateShort(data.date) }}<span v-if="data.bmi"> | BMI: {{ data.bmi }}</span>
             </div>
         </div>
         <div>
@@ -33,6 +33,8 @@ import { health_data } from "@/services/health_dataService";
 import HealthWeightAddEditModalComponent from './HealthWeightAddEditModalComponent.vue';
 import ModalComponent from '@/components/Modals/ModalComponent.vue';
 
+import { formatDateShort } from "@/utils/dateTimeUtils";
+
 export default {
 	components: {
         HealthWeightAddEditModalComponent,
@@ -47,10 +49,6 @@ export default {
     emits: ["editedWeight", "deletedWeight"],
 	setup(props, { emit } ) {
 		const { t } = useI18n();
-        const formatDate = (dateString) => {
-            const date = new Date(dateString);
-            return `${date.getDate().toString().padStart(2, '0')}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getFullYear()}`;
-        };
 
         async function updateWeightListEdited(editedWeight){
             try {
@@ -84,9 +82,9 @@ export default {
 
 		return {
             t,
-            formatDate,
             updateWeightListEdited,
             submitDeleteWeight,
+            formatDateShort,
 		};
 	},
 };

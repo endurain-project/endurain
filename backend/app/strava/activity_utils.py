@@ -1,5 +1,6 @@
 import os
 
+from fastapi import HTTPException, status
 from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
 from stravalib.client import Client
@@ -33,7 +34,21 @@ def fetch_and_process_activities(
     db: Session,
 ) -> int:
     # Fetch Strava activities after the specified start date
-    strava_activities = list(strava_client.get_activities(after=start_date))
+    try:
+        strava_activities = list(strava_client.get_activities(after=start_date))
+    except Exception as err:
+        # Log an error event if an exception occurred
+        core_logger.print_to_log(
+            f"User {user_id}: Error fetching Strava activities: {str(err)}",
+            "error",
+            exc=err,
+        )
+        # Return 0 to indicate no activities were processed
+        #return 0
+        raise HTTPException(
+            status_code=status.HTTP_424_FAILED_DEPENDENCY,
+            detail="Not able to fetch Strava activities",
+        )
 
     if strava_activities is None:
         # Log an informational event if no activities were found
@@ -64,7 +79,21 @@ def parse_activity(
     timezone = os.environ.get("TZ")
 
     # Get the detailed activity
-    detailedActivity = strava_client.get_activity(activity.id)
+    try:
+        detailedActivity = strava_client.get_activity(activity.id)
+    except Exception as err:
+        # Log an error event if an exception occurred
+        core_logger.print_to_log(
+            f"User {user_id}: Error fetching detailed Strava activity {activity.id}: {str(err)}",
+            "error",
+            exc=err,
+        )
+        # Return None to indicate the activity was not processed
+        #return None
+        raise HTTPException(
+            status_code=status.HTTP_424_FAILED_DEPENDENCY,
+            detail="Not able to fetch Strava activity",
+        )
 
     # Parse start and end dates
     start_date_parsed = detailedActivity.start_date
@@ -94,18 +123,32 @@ def parse_activity(
         country = detailedActivity.location_country
 
     # Get streams for the activity
-    streams = strava_client.get_activity_streams(
-        activity.id,
-        types=[
-            "latlng",
-            "altitude",
-            "time",
-            "heartrate",
-            "cadence",
-            "watts",
-            "velocity_smooth",
-        ],
-    )
+    try:
+        streams = strava_client.get_activity_streams(
+            activity.id,
+            types=[
+                "latlng",
+                "altitude",
+                "time",
+                "heartrate",
+                "cadence",
+                "watts",
+                "velocity_smooth",
+            ],
+        )
+    except Exception as err:
+        # Log an error event if an exception occurred
+        core_logger.print_to_log(
+            f"User {user_id}: Error fetching Strava activity streams {activity.id}: {str(err)}",
+            "error",
+            exc=err,
+        )
+        # Return None to indicate the activity was not processed
+        #eturn None
+        raise HTTPException(
+            status_code=status.HTTP_424_FAILED_DEPENDENCY,
+            detail="Not able to fetch Strava activity streams",
+        )
 
     # Extract data from streams
     lat_lon = streams["latlng"].data if "latlng" in streams else []
@@ -246,7 +289,9 @@ def parse_activity(
             gear_id = gear.id
 
     # Activity type
-    activity_type = activities_utils.define_activity_type(detailedActivity.sport_type.root)
+    activity_type = activities_utils.define_activity_type(
+        detailedActivity.sport_type.root
+    )
 
     if activity_type != 3 and activity_type != 7:
         if is_lat_lon_set:

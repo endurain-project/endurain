@@ -1,4 +1,3 @@
-import logging
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 from stravalib.client import Client
@@ -21,7 +20,19 @@ from core.database import SessionLocal
 
 def get_strava_gear(gear_id: str, strava_client: Client):
     # Fetch Strava athlete
-    strava_gear = strava_client.get_gear(gear_id)
+    try:
+        strava_gear = strava_client.get_gear(gear_id)
+    except Exception as err:
+        # Log an error event if the gear could not be fetched
+        core_logger.print_to_log(
+            f"Error fetching Strava gear with ID: {err}. Returning 424 Failed Dependency",
+            "error",
+            exc=err,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_424_FAILED_DEPENDENCY,
+            detail="Not able to fetch Strava gear",
+        )
 
     if strava_gear is None:
         raise HTTPException(

@@ -27,86 +27,7 @@
 				<!-- edit user button -->
 				<a class="btn btn-link btn-lg link-body-emphasis" href="#" role="button" data-bs-toggle="modal" :data-bs-target="`#editUserModal${user.id}`"><font-awesome-icon :icon="['fas', 'fa-pen-to-square']" /></a>
 
-				<!-- Modal edit user -->
-				<div class="modal fade" :id="`editUserModal${user.id}`" tabindex="-1" :aria-labelledby="`editUserModal${user.id}`" aria-hidden="true">
-					<div class="modal-dialog">
-						<div class="modal-content">
-							<div class="modal-header">
-								<h1 class="modal-title fs-5" :id="`editUserModal${user.id}`">{{ $t("usersListComponent.modalEditUserTitle") }}</h1>
-								<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-							</div>
-							<form @submit.prevent="submitEditUserForm">
-								<div class="modal-body">
-									<label for="userImgEdit"><b>{{ $t("settingsUsersZone.addUserModalUserPhotoLabel") }}</b></label>
-									<div>
-										<div class="row">
-											<div class="col">
-												<input class="form-control" type="file" accept="image/*" name="userImgEdit" id="userImgEdit" @change="handleFileChange">
-											</div>
-											<div class="col" v-if="user.photo_path">
-												<a class="w-100 btn btn-danger" @click="submitDeleteUserPhoto" data-bs-dismiss="modal">{{ $t("usersListComponent.modalEditUserDeleteUserPhotoButton") }}</a>
-											</div>
-										</div>
-									</div>
-									<!-- username fields -->
-									<label for="userUsernameEdit"><b>* {{ $t("settingsUsersZone.addUserModalUsernameLabel") }}</b></label>
-									<input class="form-control" type="text" name="userUsernameEdit" :placeholder='$t("settingsUsersZone.addUserModalUsernamePlaceholder")' maxlength="250" v-model="editUserUsername" required>
-									<!-- name fields -->
-									<label for="userNameEdit"><b>* {{ $t("settingsUsersZone.addUserModalNameLabel") }}</b></label>
-									<input class="form-control" type="text" name="userNameEdit" :placeholder='$t("settingsUsersZone.addUserModalNamePlaceholder")' maxlength="250" v-model="editUserName" required>
-									<!-- email fields -->
-									<label for="userEmailEdit"><b>* {{ $t("settingsUsersZone.addUserModalEmailLabel") }}</b></label>
-									<input class="form-control" type="text" name="userEmailEdit" :placeholder='$t("settingsUsersZone.addUserModalEmailPlaceholder")' maxlength="45" v-model="editUserEmail" required>
-									<!-- city fields -->
-									<label for="userCityEdit"><b>{{ $t("settingsUsersZone.addUserModalTownLabel") }}</b></label>
-									<input class="form-control" type="text" name="userCityEdit" :placeholder='$t("settingsUsersZone.addUserModalTownPlaceholder")' maxlength="45" v-model="editUserTown">
-									<!-- birth date fields -->
-									<label for="userBirthDateEdit"><b>{{ $t("settingsUsersZone.addUserModalBirthdayLabel") }}</b></label>
-									<input class="form-control" type="date" name="userBirthDateEdit" v-model="editUserBirthdate">
-									<!-- gender fields -->
-									<label for="userGenderEdit"><b>* {{ $t("settingsUsersZone.addUserModalGenderLabel") }}</b></label>
-									<select class="form-control" name="userGenderEdit" v-model="editUserGender" required>
-										<option value="1">{{ $t("settingsUsersZone.addUserModalGenderOption1") }}</option>
-										<option value="2">{{ $t("settingsUsersZone.addUserModalGenderOption2") }}</option>
-									</select>
-									<!-- units fields -->
-									<label for="userUnitsEdit"><b>* {{ $t("settingsUsersZone.addUserModalUnitsLabel") }}</b></label>
-									<select class="form-control" name="userUnitsEdit" v-model="editUserUnits" required>
-										<option value="1">{{ $t("settingsUsersZone.addUserModalUnitsOption1") }}</option>
-										<option value="2">{{ $t("settingsUsersZone.addUserModalUnitsOption2") }}</option>
-									</select>
-									<!-- height fields -->
-									<label for="userHeightEdit"><b>{{ $t("settingsUsersZone.addUserModalHeightLabel") }} (cm)</b></label>
-									<input class="form-control" type="number" name="userHeightEdit" :placeholder='$t("settingsUsersZone.addUserModalHeightPlaceholder") + " (cm)"' v-model="editUserHeight">
-									<!-- preferred language fields -->
-									<label for="userPreferredLanguageEdit"><b>* {{ $t("settingsUsersZone.addUserModalUserPreferredLanguageLabel") }}</b></label>
-									<select class="form-control" name="userPreferredLanguageEdit" v-model="editUserPreferredLanguage" required>
-										<option value="us">{{ $t("settingsUsersZone.addUserModalPreferredLanguageOption1") }}</option>
-										<option value="ca">{{ $t("settingsUsersZone.addUserModalPreferredLanguageOption2") }}</option>
-										<option value="pt">{{ $t("settingsUsersZone.addUserModalPreferredLanguageOption3") }}</option>
-									</select>
-									<!-- access type fields -->
-									<label for="userTypeEdit"><b>* {{ $t("settingsUsersZone.addUserModalUserTypeLabel") }}</b></label>
-									<select class="form-control" name="userTypeEdit" v-model="editUserAccessType" required>
-										<option value="1">{{ $t("settingsUsersZone.addUserModalUserTypeOption1") }}</option>
-										<option value="2">{{ $t("settingsUsersZone.addUserModalUserTypeOption2") }}</option>
-									</select>
-									<!-- user is_active fields -->
-									<label for="userIsActiveEdit"><b>* {{ $t("usersListComponent.modalEditUserIsUserActiveLabel") }}</b></label>
-									<select class="form-control" name="userIsActiveEdit" v-model="editUserIsActive" required>
-										<option value="1">{{ $t("usersListComponent.modalEditUserIsUserActiveOption1") }}</option>
-										<option value="2">{{ $t("usersListComponent.modalEditUserIsUserActiveOption2") }}</option>
-									</select>
-									<p>* {{ $t("generalItems.requiredField") }}</p>
-								</div>
-								<div class="modal-footer">
-									<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ $t("generalItems.buttonClose") }}</button>
-									<button type="submit" class="btn btn-success" name="userEdit" data-bs-dismiss="modal">{{ $t("usersListComponent.modalEditUserTitle") }}</button>
-								</div>
-							</form>
-						</div>
-					</div>
-				</div>
+				<UsersAddEditUserModalComponent :action="'edit'" :user="user" />
 
 				<!-- delete user button -->
 				<a class="btn btn-link btn-lg link-body-emphasis" href="#" role="button" data-bs-toggle="modal" :data-bs-target="`#deleteUserModal${user.id}`" v-if="authStore.user.id != user.id"><font-awesome-icon :icon="['fas', 'fa-trash-can']" /></a>
@@ -155,6 +76,7 @@ import NoItemsFoundComponents from "@/components/GeneralComponents/NoItemsFoundC
 import LoadingComponent from "@/components/GeneralComponents/LoadingComponent.vue";
 import ModalComponent from "@/components/Modals/ModalComponent.vue";
 import UsersChangeUserPasswordModalComponent from "@/components/Settings/SettingsUsersZone/UsersChangeUserPasswordModalComponent.vue";
+import UsersAddEditUserModalComponent from "@/components/Settings/SettingsUsersZone/UsersAddEditUserModalComponent.vue";
 
 export default {
 	components: {
@@ -164,6 +86,7 @@ export default {
 		UserSessionsListComponent,
 		ModalComponent,
 		UsersChangeUserPasswordModalComponent,
+		UsersAddEditUserModalComponent,
 	},
 	props: {
 		user: {

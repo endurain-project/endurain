@@ -71,7 +71,7 @@
                         </span>
 
                         <!-- Display the date and time -->  
-                        <span>{{ formatDate(activity.start_time) }}</span> @
+                        <span>{{ formatDateMed(activity.start_time) }}</span> @
                         <span>{{ formatTime(activity.start_time) }}</span>
                         <!-- Conditionally display city and country -->
                         <span v-if="activity.town || activity.city || activity.country">
@@ -276,7 +276,7 @@ import EditActivityModalComponent from "@/components/Activities/Modals/EditActiv
 import { users } from "@/services/usersService";
 import { activities } from "@/services/activitiesService";
 import {
-	formatDate,
+	formatDateMed,
 	formatTime,
 	calculateTimeDifference,
 } from "@/utils/dateTimeUtils";
@@ -349,7 +349,7 @@ export default {
 			isLoading,
 			t,
 			userActivity,
-			formatDate,
+			formatDateMed,
 			formatTime,
 			calculateTimeDifference,
 			formattedPace,

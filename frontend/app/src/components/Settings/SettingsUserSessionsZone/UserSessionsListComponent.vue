@@ -8,7 +8,7 @@
                 <font-awesome-icon :icon="['fab', 'android']" v-else-if="session.operating_system == 'Android'" size="2x"/>
                 <div class="ms-3">
                     <div class="fw-bold">
-                        {{ session.operating_system }} - {{ session.browser }} @ {{ session.ip_address }} @ {{ hour }} - {{ date }}
+                        {{ session.operating_system }} - {{ session.browser }} @ {{ session.ip_address }} @ {{ formatTime(session.created_at) }} - {{ formatDateMed(session.created_at) }}
                     </div>
                     <div>
                         {{ session.id }}
@@ -35,7 +35,7 @@
 import { ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useAuthStore } from '@/stores/authStore';
-import { formatDate, formatTime } from '@/utils/dateTimeUtils';
+import { formatDateMed, formatTime } from '@/utils/dateTimeUtils';
 
 import ModalComponent from '@/components/Modals/ModalComponent.vue';
 
@@ -53,8 +53,6 @@ export default {
     setup(props, { emit }) {
         const { t } = useI18n();
         const authStore = useAuthStore();
-        const date = ref(formatDate(props.session.created_at));
-        const hour = ref(formatTime(props.session.created_at));
 
         async function submitDeleteSession() {
             // Emit event to parent component
@@ -64,8 +62,8 @@ export default {
         return {
             t,
             authStore,
-            date,
-            hour,
+            formatDateMed,
+            formatTime,
             submitDeleteSession,
         };
     },
