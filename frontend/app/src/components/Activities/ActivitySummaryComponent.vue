@@ -157,10 +157,16 @@
                     {{ $t("activitySummary.activityDistance") }}
                 </span>
                 <br>
-                <span>
+                <span v-if="authStore.user.units == 1">
                     <!-- Check if activity_type is not 9 and 8 -->
                     {{ activity.activity_type != 9 && activity.activity_type != 8
-                        ? (activity.distance / 1000).toFixed(2) + ' km' : activity.distance + ' m'
+                        ? metersToKm(activity.distance) + ' km' : activity.distance + ' m'
+                    }}
+                </span>
+                <span v-else>
+                    <!-- Check if activity_type is not 9 and 8 -->
+                    {{ activity.activity_type != 9 && activity.activity_type != 8
+                        ? metersToMiles(activity.distance) + ' mi' : metersToYards(activity.distance) + ' yd'
                     }}
                 </span>
             </div>
@@ -185,7 +191,8 @@
                         {{ $t("activitySummary.activityElevationGain") }}
                     </span>
                     <br>
-                    <span>{{ activity.elevation_gain }} m</span>
+                    <span v-if="authStore.user.units == 1">{{ activity.elevation_gain }} m</span>
+                    <span v-else>{{ metersToFeet(activity.elevation_gain) }} ft</span>
                 </div>
                 <div v-else-if="activity.activity_type != 10 && activity.activity_type != 14">
                     <span class="fw-lighter">
@@ -281,6 +288,7 @@ import {
 	calculateTimeDifference,
 } from "@/utils/dateTimeUtils";
 import { formatPace, formatPaceSwim } from "@/utils/activityUtils";
+import { metersToKm, metersToMiles, metersToYards, metersToFeet } from "@/utils/unitsUtils";
 
 export default {
 	components: {
@@ -356,6 +364,10 @@ export default {
 			sourceProp,
 			submitDeleteActivity,
 			updateActivityFieldsOnEdit,
+            metersToKm,
+            metersToMiles,
+            metersToYards,
+            metersToFeet,
 		};
 	},
 };
