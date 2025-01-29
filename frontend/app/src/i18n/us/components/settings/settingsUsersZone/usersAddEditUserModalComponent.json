@@ -22,6 +22,8 @@
     "addEditUserModalUnitsOption2": "Imperial",
     "addEditUserModalHeightLabel": "Height",
     "addEditUserModalHeightPlaceholder": "Height",
+    "addEditUserModalFeetValidationLabel": "Invalid height. Please enter a valid height in feet.",
+    "addEditUserModalInchesValidationLabel": "Invalid height. Please enter a valid height in inches.",
     "addEditUserModalUserPreferredLanguageLabel": "Preferred language",
     "addEditUserModalPreferredLanguageOption1": "English (US)",
     "addEditUserModalPreferredLanguageOption2": "Catalan",

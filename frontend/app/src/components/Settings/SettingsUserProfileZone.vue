@@ -139,7 +139,7 @@
                     </b>
                     <span v-if="authStore.user.height">
                         <span v-if="authStore.user.units == 1">{{ authStore.user.height }}{{ $t("generalItems.unitsCm") }}</span>
-                        <span v-else>{{ cmToFeetInches(authStore.user.height) }} </span>
+                        <span v-else>{{ feet }}’{{ inches }}’’</span>
                     </span>
                     <span v-else>N/A</span>
                 </p>
@@ -196,6 +196,7 @@ export default {
 		const editUserPreferredLanguage = ref(authStore.user.preferred_language);
 		const editUserAccessType = ref(authStore.user.access_type);
         const editUserPhotoPath = ref(authStore.user.photo_path);
+        const { feet, inches } = cmToFeetInches(authStore.user.height);
 
 		async function handleFileChange(event) {
 			editUserPhotoFile.value = event.target.files?.[0] ?? null;
@@ -287,7 +288,8 @@ export default {
 			submitEditUserForm,
 			submitDeleteUserPhoto,
 			handleFileChange,
-            cmToFeetInches,
+            feet,
+            inches,
 		};
 	},
 };

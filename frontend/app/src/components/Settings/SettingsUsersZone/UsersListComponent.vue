@@ -27,7 +27,7 @@
 				<!-- edit user button -->
 				<a class="btn btn-link btn-lg link-body-emphasis" href="#" role="button" data-bs-toggle="modal" :data-bs-target="`#editUserModal${user.id}`"><font-awesome-icon :icon="['fas', 'fa-pen-to-square']" /></a>
 
-				<UsersAddEditUserModalComponent :action="'edit'" :user="user" />
+				<UsersAddEditUserModalComponent :action="'edit'" :user="user" @editedUser="editUserList"/>
 
 				<!-- delete user button -->
 				<a class="btn btn-link btn-lg link-body-emphasis" href="#" role="button" data-bs-toggle="modal" :data-bs-target="`#deleteUserModal${user.id}`" v-if="authStore.user.id != user.id"><font-awesome-icon :icon="['fas', 'fa-trash-can']" /></a>
@@ -94,7 +94,7 @@ export default {
 			required: true,
 		},
 	},
-	emits: ["userDeleted"],
+	emits: ["userDeleted", "editedUser"],
 	setup(props, { emit }) {
 		const { t } = useI18n();
 		const authStore = useAuthStore();
@@ -189,6 +189,10 @@ export default {
 			}
 		}
 
+		function editUserList(editedUser) {
+			emit("editedUser", editedUser);
+		}
+
 		async function submitDeleteUserPhoto() {
 			try {
 				await users.deleteUserPhoto(userProp.value.id);
@@ -261,6 +265,7 @@ export default {
 			userSessions,
 			isLoading,
 			updateSessionListDeleted,
+			editUserList,
 		};
 	},
 };

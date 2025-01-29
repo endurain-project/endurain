@@ -57,8 +57,25 @@
                             <option value="2">{{ $t("usersAddEditUserModalComponent.addEditUserModalUnitsOption2") }}</option>
                         </select>
                         <!-- height fields -->
-                        <label for="userHeightAddEdit"><b>{{ $t("usersAddEditUserModalComponent.addEditUserModalHeightLabel") }} (cm)</b></label>
-                        <input class="form-control" type="number" name="userHeightAddEdit" :placeholder='$t("usersAddEditUserModalComponent.addEditUserModalHeightPlaceholder") + " (cm)"' v-model="newEditUserHeight">
+                        <div v-if="authStore.user.units == 1">
+                            <label for="userHeightAddEditCms"><b>{{ $t("usersAddEditUserModalComponent.addEditUserModalHeightLabel") }} ({{ $t("generalItems.unitsCm") }})</b></label>
+                            <input class="form-control" type="number" name="userHeightAddEditCms" :placeholder='$t("usersAddEditUserModalComponent.addEditUserModalHeightPlaceholder") + " (" + $t("generalItems.unitsCm") + ")"' v-model="newEditUserHeightCms">
+                        </div>
+                        <div v-else>
+                            <label for="userHeightAddEditFeetInches"><b>{{ $t("usersAddEditUserModalComponent.addEditUserModalHeightLabel") }} ({{ $t("generalItems.unitsFeetInches") }})</b></label>
+                            <div class="input-group">
+                                <input class="form-control" :class="{ 'is-invalid': !isFeetValid }" type="number" aria-describedby="validationFeetFeedback" name="userHeightAddEditFeet" :placeholder='$t("usersAddEditUserModalComponent.addEditUserModalHeightPlaceholder") + " (" + $t("generalItems.unitsFeet") + ")"' v-model="newEditUserHeightFeet" min="0" max="10" step="1">
+                                <span class="input-group-text">’</span>
+                                <input class="form-control" :class="{ 'is-invalid': !isInchesValid }" type="number" aria-describedby="validationInchesFeedback" name="userHeightAddEditInches" :placeholder='$t("usersAddEditUserModalComponent.addEditUserModalHeightPlaceholder") + " (" + $t("generalItems.unitsInches") + ")"' v-model="newEditUserHeightInches" min="0" max="11" step="1">
+                                <span class="input-group-text">’’</span>
+                                <div id="validationFeetFeedback" class="invalid-feedback" v-if="!isFeetValid">
+                                    {{ $t("usersAddEditUserModalComponent.addEditUserModalFeetValidationLabel") }}
+                                </div>
+                                <div id="validationInchesFeedback" class="invalid-feedback" v-if="!isInchesValid">
+                                    {{ $t("usersAddEditUserModalComponent.addEditUserModalInchesValidationLabel") }}
+                                </div>
+                            </div>
+                        </div>
                         <!-- preferred language fields -->
                         <label for="userPreferredLanguageAddEdit"><b>* {{ $t("usersAddEditUserModalComponent.addEditUserModalUserPreferredLanguageLabel") }}</b></label>
                         <select class="form-control" name="userPreferredLanguageAddEdit" v-model="newEditUserPreferredLanguage" required>
@@ -85,8 +102,8 @@
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ $t("generalItems.buttonClose") }}</button>
-                        <button type="submit" class="btn btn-success" name="userAdd" data-bs-dismiss="modal" v-if="action == 'add'">{{ $t("usersAddEditUserModalComponent.addEditUserModalAddTitle") }}</button>
-                        <button type="submit" class="btn btn-success" name="userEdit" data-bs-dismiss="modal" v-else>{{ $t("usersAddEditUserModalComponent.addEditUserModalEditTitle") }}</button>
+                        <button type="submit" class="btn btn-success" name="userAdd" data-bs-dismiss="modal" v-if="action == 'add'" :disabled="!isPasswordValid">{{ $t("usersAddEditUserModalComponent.addEditUserModalAddTitle") }}</button>
+                        <button type="submit" class="btn btn-success" name="userEdit" data-bs-dismiss="modal" v-else :disabled="!isFeetValid || !isInchesValid">{{ $t("usersAddEditUserModalComponent.addEditUserModalEditTitle") }}</button>
                     </div>
                 </form>
             </div>
@@ -103,8 +120,8 @@ import { useAuthStore } from "@/stores/authStore";
 import { push } from "notivue";
 // Importing the services
 import { users } from "@/services/usersService";
-
-import { formatDateShort } from "@/utils/dateTimeUtils";
+// Import units utils
+import { cmToFeetInches, feetAndInchesToCm } from "@/utils/unitsUtils";
 
 export default {
     props: {
@@ -119,7 +136,8 @@ export default {
 	},
     emits: ["userPhotoDeleted", "isLoadingNewUser", "createdUser", "editedUser"],
     setup(props, { emit }) {
-		const { t } = useI18n();
+		const authStore = useAuthStore();
+		const { t, locale } = useI18n();
         // edit user specific variables
 		const editUserId = ref("");
         // edit and add user variables
@@ -131,7 +149,15 @@ export default {
 		const newEditUserBirthDate = ref(null);
 		const newEditUserGender = ref(1);
 		const newEditUserUnits = ref(1);
-		const newEditUserHeight = ref(null);
+		const newEditUserHeightCms = ref(null);
+        const newEditUserHeightFeet = ref(null);
+        const newEditUserHeightInches = ref(null);
+        const isFeetValid = computed(() => {
+            return newEditUserHeightFeet.value >= 0 && newEditUserHeightFeet.value <= 10;
+        });
+        const isInchesValid = computed(() => {
+            return newEditUserHeightInches.value >= 0 && newEditUserHeightInches.value <= 11;
+        });
 		const newEditUserPreferredLanguage = ref("us");
 		const newEditUserAccessType = ref(1);
         const newEditUserIsActive = ref(1);
@@ -153,11 +179,16 @@ export default {
             newEditUserBirthDate.value = props.user.birthdate;
             newEditUserGender.value = props.user.gender;
             newEditUserUnits.value = props.user.units;
-            newEditUserHeight.value = props.user.height;
+            newEditUserHeightCms.value = props.user.height;
             newEditUserPreferredLanguage.value = props.user.preferred_language;
             newEditUserAccessType.value = props.user.access_type;
             newEditUserIsActive.value = props.user.is_active;
             newEditUserPhotoPath.value = props.user.photo_path;
+            if (props.user.height) {
+                const { feet, inches } = cmToFeetInches(props.user.height);
+                newEditUserHeightFeet.value = feet;
+                newEditUserHeightInches.value = inches;
+            }
 		}
 
         async function handleFileChange(event) {
@@ -195,7 +226,7 @@ export default {
 						preferred_language: newEditUserPreferredLanguage.value,
 						gender: newEditUserGender.value,
 						units: newEditUserUnits.value,
-						height: newEditUserHeight.value,
+						height: newEditUserHeightCms.value,
 						access_type: newEditUserAccessType.value,
 						photo_path: null,
 						is_active: newEditUserIsActive.value,
@@ -244,7 +275,7 @@ export default {
 					birthdate: newEditUserBirthDate.value,
 					gender: newEditUserGender.value,
 					units: newEditUserUnits.value,
-					height: newEditUserHeight.value,
+					height: newEditUserHeightCms.value,
 					preferred_language: newEditUserPreferredLanguage.value,
 					access_type: newEditUserAccessType.value,
 					photo_path: newEditUserPhotoPath.value,
@@ -268,6 +299,10 @@ export default {
 
                 emit("editedUser", data);
 
+                if (data.id === authStore.user.id) {
+                    authStore.setUser(data, authStore.session_id, locale);
+                }
+
 				// Set the success message and show the success alert.
 				push.success(t("usersListComponent.userEditSuccessMessage"));
 			} catch (error) {
@@ -279,6 +314,19 @@ export default {
 		}
 
         function handleSubmit() {
+            if (authStore.user.units === 1) {
+                if (newEditUserHeightCms.value !== props.user.height) {
+                    const { feet, inches } = cmToFeetInches(newEditUserHeightCms.value);
+                    newEditUserHeightFeet.value = feet;
+                    newEditUserHeightInches.value = inches;
+                }
+            } else {
+                const { feet, inches } = cmToFeetInches(props.user.height);
+                if (feet !== newEditUserHeightFeet.value || inches !== newEditUserHeightInches.value) {
+                    newEditUserHeightCms.value = feetAndInchesToCm(newEditUserHeightFeet.value, newEditUserHeightInches.value);
+                }
+            }
+            
             if (props.action === 'add') {
                 submitAddUserForm();
             } else {
@@ -287,6 +335,7 @@ export default {
         }
 
         return {
+            authStore,
 			t,
             editUserId,
             newEditUserPhotoFile,
@@ -297,13 +346,17 @@ export default {
             newEditUserBirthDate,
             newEditUserGender,
             newEditUserUnits,
-            newEditUserHeight,
+            newEditUserHeightCms,
+            newEditUserHeightFeet,
+            newEditUserHeightInches,
             newEditUserPreferredLanguage,
             newEditUserAccessType,
             newEditUserIsActive,
             newEditUserPhotoPath,
             newUserPassword,
             isPasswordValid,
+            isFeetValid,
+            isInchesValid,
             submitDeleteUserPhoto,
             handleFileChange,
             handleSubmit,

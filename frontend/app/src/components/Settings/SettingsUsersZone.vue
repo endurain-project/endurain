@@ -36,7 +36,7 @@
 
                     <!-- list zone -->
                     <ul class="list-group list-group-flush"  v-for="user in usersArray" :key="user.id" :user="user" v-else>
-                        <UsersListComponent :user="user" @userDeleted="updateUserList" />
+                        <UsersListComponent :user="user" @userDeleted="updateUserList" @editedUser="editUserList"/>
                     </ul>
 
                     <!-- pagination area -->
@@ -157,9 +157,13 @@ export default {
 		}
 
 		function addUserList(createdUser) {
-			console.log(createdUser);
 			usersArray.value.unshift(createdUser);
 			usersNumber.value++;
+		}
+
+		function editUserList(editedUser) {
+			const index = usersArray.value.findIndex((user) => user.id === editedUser.id);
+			usersArray.value[index] = editedUser;
 		}
 
 		function setIsLoadingNewUser(state) {
@@ -193,6 +197,7 @@ export default {
 			searchUsername,
 			updateUserList,
 			addUserList,
+			editUserList,
 			setIsLoadingNewUser,
 		};
 	},
