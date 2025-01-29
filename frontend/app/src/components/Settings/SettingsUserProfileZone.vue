@@ -38,36 +38,36 @@
                 <!-- user name -->
                 <h2>{{ authStore.user.name }}</h2>
                 <!-- user username -->
-                <p><b>{{ $t("settingsUsersZone.addUserModalUsernameLabel") }}: </b>{{ authStore.user.username }}</p>
+                <p><b>{{ $t("usersAddEditUserModalComponent.addEditUserModalUsernameLabel") }}: </b>{{ authStore.user.username }}</p>
                 <!-- user email -->
-                <p><b>{{ $t("settingsUsersZone.addUserModalEmailLabel") }}: </b>{{ authStore.user.email }}</p>
+                <p><b>{{ $t("usersAddEditUserModalComponent.addEditUserModalEmailLabel") }}: </b>{{ authStore.user.email }}</p>
                 <!-- user city -->
                 <p>
-                    <b>{{ $t("settingsUsersZone.addUserModalTownLabel") }}: </b>
+                    <b>{{ $t("usersAddEditUserModalComponent.addEditUserModalCityLabel") }}: </b>
                     <span v-if="authStore.user.city">{{ authStore.user.city }}</span>
                     <span v-else>N/A</span>
                 </p>
                 <!-- user birthdate -->
                 <p>
-                    <b>{{ $t("settingsUsersZone.addUserModalBirthdayLabel") }}: </b>
+                    <b>{{ $t("usersAddEditUserModalComponent.addEditUserModalBirthdayLabel") }}: </b>
                     <span v-if="authStore.user.birthdate">{{ authStore.user.birthdate }}</span>
                     <span v-else>N/A</span>
                 </p>
                 <!-- user gender -->
                 <p>
-                    <b>{{ $t("settingsUsersZone.addUserModalGenderLabel") }}: </b>
-                    <span v-if="authStore.user.gender == 1">{{ $t("settingsUsersZone.addUserModalGenderOption1") }}</span>
-                    <span v-else>{{ $t("settingsUsersZone.addUserModalGenderOption2") }}</span>
+                    <b>{{ $t("usersAddEditUserModalComponent.addEditUserModalGenderLabel") }}: </b>
+                    <span v-if="authStore.user.gender == 1">{{ $t("usersAddEditUserModalComponent.addEditUserModalGenderOption1") }}</span>
+                    <span v-else>{{ $t("usersAddEditUserModalComponent.addEditUserModalGenderOption2") }}</span>
                 </p>
                 <!-- user units -->
                 <p>
-                    <b>{{ $t("settingsUsersZone.addUserModalUnitsLabel") }}: </b>
-                    <span v-if="authStore.user.units == 1">{{ $t("settingsUsersZone.addUserModalUnitsOption1") }}</span>
-                    <span v-else>{{ $t("settingsUsersZone.addUserModalUnitsOption2") }}</span>
+                    <b>{{ $t("usersAddEditUserModalComponent.addEditUserModalUnitsLabel") }}: </b>
+                    <span v-if="authStore.user.units == 1">{{ $t("usersAddEditUserModalComponent.addEditUserModalUnitsOption1") }}</span>
+                    <span v-else>{{ $t("usersAddEditUserModalComponent.addEditUserModalUnitsOption2") }}</span>
                 </p>
                 <!-- user height -->
                 <p>
-                    <b>{{ $t("settingsUsersZone.addUserModalHeightLabel") }} 
+                    <b>{{ $t("usersAddEditUserModalComponent.addEditUserModalHeightLabel") }} 
                         <span v-if="authStore.user.units == 1">({{ $t("generalItems.unitsCm") }}): </span>
                         <span v-else>({{ $t("generalItems.unitsFeetInches") }}): </span>
                     </b>
@@ -79,18 +79,18 @@
                 </p>
                 <!-- user preferred language -->
                 <p>
-                    <b>{{ $t("settingsUsersZone.addUserModalUserPreferredLanguageLabel") }}: </b>
-                    <span v-if="authStore.user.preferred_language == 'us'">{{ $t("settingsUsersZone.addUserModalPreferredLanguageOption1") }}</span>
-                    <span v-if="authStore.user.preferred_language == 'ca'">{{ $t("settingsUsersZone.addUserModalPreferredLanguageOption2") }}</span>
-                    <span v-if="authStore.user.preferred_language == 'pt'">{{ $t("settingsUsersZone.addUserModalPreferredLanguageOption3") }}</span>
-                    <span v-if="authStore.user.preferred_language == 'de'">{{ $t("settingsUsersZone.addUserModalPreferredLanguageOption4") }}</span>
-                    <span v-if="authStore.user.preferred_language == 'fr'">{{ $t("settingsUsersZone.addUserModalPreferredLanguageOption5") }}</span>
+                    <b>{{ $t("usersAddEditUserModalComponent.addEditUserModalUserPreferredLanguageLabel") }}: </b>
+                    <span v-if="authStore.user.preferred_language == 'us'">{{ $t("usersAddEditUserModalComponent.addEditUserModalPreferredLanguageOption1") }}</span>
+                    <span v-if="authStore.user.preferred_language == 'ca'">{{ $t("usersAddEditUserModalComponent.addEditUserModalPreferredLanguageOption2") }}</span>
+                    <span v-if="authStore.user.preferred_language == 'pt'">{{ $t("usersAddEditUserModalComponent.addEditUserModalPreferredLanguageOption3") }}</span>
+                    <span v-if="authStore.user.preferred_language == 'de'">{{ $t("usersAddEditUserModalComponent.addEditUserModalPreferredLanguageOption4") }}</span>
+                    <span v-if="authStore.user.preferred_language == 'fr'">{{ $t("usersAddEditUserModalComponent.addEditUserModalPreferredLanguageOption5") }}</span>
                 </p>
                 <!-- user type -->
                 <p>
-                    <b>{{ $t("settingsUsersZone.addUserModalUserTypeLabel") }}: </b>
-                    <span v-if="authStore.user.access_type == 1">{{ $t("settingsUsersZone.addUserModalUserTypeOption1") }}</span>
-                    <span v-else>{{ $t("settingsUsersZone.addUserModalUserTypeOption2") }}</span>
+                    <b>{{ $t("usersAddEditUserModalComponent.addEditUserModalUserTypeLabel") }}: </b>
+                    <span v-if="authStore.user.access_type == 1">{{ $t("usersAddEditUserModalComponent.addEditUserModalUserTypeOption1") }}</span>
+                    <span v-else>{{ $t("usersAddEditUserModalComponent.addEditUserModalUserTypeOption2") }}</span>
                 </p>
             </div>
         </div>
@@ -105,6 +105,8 @@ import { profile } from "@/services/profileService";
 import { useAuthStore } from "@/stores/authStore";
 // Import Notivue push
 import { push } from "notivue";
+// Import units utils
+import { cmToFeetInches } from "@/utils/unitsUtils";
 // Importing the components
 import UserAvatarComponent from "../Users/UserAvatarComponent.vue";
 import UsersAddEditUserModalComponent from "@/components/Settings/SettingsUsersZone/UsersAddEditUserModalComponent.vue";
@@ -117,6 +119,7 @@ export default {
 	setup() {
 		const authStore = useAuthStore();
 		const { t, locale } = useI18n();
+        const { feet, inches } = cmToFeetInches(authStore.user.height);
 
 		async function submitDeleteUserPhoto() {
 			try {
@@ -144,6 +147,8 @@ export default {
 			authStore,
 			t,
 			submitDeleteUserPhoto,
+            feet,
+            inches,
 		};
 	},
 };
