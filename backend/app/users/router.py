@@ -91,7 +91,25 @@ async def read_users_username(
     ],
 ):
     # Get the user from the database by username
-    return users_crud.get_user_by_username(username=username, db=db)
+    return users_crud.get_user_by_username(username, db)
+
+
+@router.get(
+    "/email/{email}",
+    response_model=users_schema.User | None,
+)
+async def read_users_email(
+    email: str,
+    check_scopes: Annotated[
+        Callable, Security(session_security.check_scopes, scopes=["users:read"])
+    ],
+    db: Annotated[
+        Session,
+        Depends(core_database.get_db),
+    ],
+):
+    # Get the users from the database by email
+    return users_crud.get_user_by_email(email, db)
 
 
 @router.get("/id/{user_id}", response_model=users_schema.User)

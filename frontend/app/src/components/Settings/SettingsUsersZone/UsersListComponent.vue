@@ -99,82 +99,9 @@ export default {
 		const { t } = useI18n();
 		const authStore = useAuthStore();
 		const userProp = ref(props.user);
-		const editUserPhotoFile = ref(null);
-		const editUserUsername = ref(userProp.value.username);
-		const editUserName = ref(userProp.value.name);
-		const editUserEmail = ref(userProp.value.email);
-		const editUserTown = ref(userProp.value.city);
-		const editUserBirthdate = ref(userProp.value.birthdate);
-		const editUserGender = ref(userProp.value.gender);
-		const editUserUnits = ref(userProp.value.units);
-		const editUserHeight = ref(userProp.value.height);
-		const editUserPreferredLanguage = ref(userProp.value.preferred_language);
-		const editUserAccessType = ref(userProp.value.access_type);
-		const editUserIsActive = ref(userProp.value.is_active);
 		const userDetails = ref(false);
 		const userSessions = ref([]);
 		const isLoading = ref(true);
-
-		async function handleFileChange(event) {
-			editUserPhotoFile.value = event.target.files?.[0] ?? null;
-		}
-
-		async function submitEditUserForm() {
-			try {
-				const data = {
-					id: userProp.value.id,
-					username: editUserUsername.value,
-					name: editUserName.value,
-					email: editUserEmail.value,
-					city: editUserTown.value,
-					birthdate: editUserBirthdate.value,
-					gender: editUserGender.value,
-					units: editUserUnits.value,
-					height: editUserHeight.value,
-					preferred_language: editUserPreferredLanguage.value,
-					access_type: editUserAccessType.value,
-					photo_path: null,
-					is_active: editUserIsActive.value,
-				};
-
-				await users.editUser(userProp.value.id, data);
-
-				// If there is a photo, upload it and get the photo url.
-				if (editUserPhotoFile.value) {
-					try {
-						userProp.value.photo_path = await users.uploadImage(
-							editUserPhotoFile.value,
-							userProp.value.id,
-						);
-					} catch (error) {
-						// Set the error message
-						push.error(`${t("generalItems.errorFetchingInfo")} - ${error}`);
-					}
-				}
-
-				userProp.value.username = editUserUsername.value;
-				userProp.value.name = editUserName.value;
-				userProp.value.email = editUserEmail.value;
-				userProp.value.city = editUserTown.value;
-				userProp.value.birthdate = editUserBirthdate.value;
-				userProp.value.city = editUserTown.value;
-				userProp.value.birthdate = editUserBirthdate.value;
-				userProp.value.gender = editUserGender.value;
-				userProp.value.units = editUserUnits.value;
-				userProp.value.height = editUserHeight.value;
-				userProp.value.preferred_language = editUserPreferredLanguage.value;
-				userProp.value.access_type = editUserAccessType.value;
-				userProp.value.is_active = editUserIsActive.value;
-
-				// Set the success message and show the success alert.
-				push.success(t("usersListComponent.userEditSuccessMessage"));
-			} catch (error) {
-				// If there is an error, set the error message and show the error alert.
-				push.error(
-					`${t("usersListComponent.userEditErrorMessage")} - ${error}`,
-				);
-			}
-		}
 
 		async function submitDeleteUser() {
 			try {
@@ -245,19 +172,6 @@ export default {
 		return {
 			t,
 			authStore,
-			editUserUsername,
-			editUserName,
-			editUserEmail,
-			editUserTown,
-			editUserBirthdate,
-			editUserGender,
-			editUserUnits,
-			editUserHeight,
-			editUserPreferredLanguage,
-			editUserAccessType,
-			editUserIsActive,
-			submitEditUserForm,
-			handleFileChange,
 			submitDeleteUser,
 			submitDeleteUserPhoto,
 			showUserDetails,

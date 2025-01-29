@@ -38,6 +38,7 @@ import caHomeView from './ca/homeView.json';
 import caLoginView from './ca/loginView.json';
 import caGearsView from './ca/gears/gearsView.json';
 import caGearView from './ca/gears/gearView.json';
+import caStravaCallbackView from './ca/strava/stravaCallbackView.json';
 import caActivityView from './ca/activityView.json';
 import caHealthView from './ca/healthView.json';
 import caNotFoundView from './ca/notFoundView.json';
@@ -81,6 +82,7 @@ import deHomeView from './de/homeView.json';
 import deLoginView from './de/loginView.json';
 import deGearsView from './de/gears/gearsView.json';
 import deGearView from './de/gears/gearView.json';
+import deStravaCallbackView from './de/strava/stravaCallbackView.json';
 import deActivityView from './de/activityView.json';
 import deHealthView from './de/healthView.json';
 import deNotFoundView from './de/notFoundView.json';
@@ -125,6 +127,7 @@ import frHomeView from './fr/homeView.json';
 import frLoginView from './fr/loginView.json';
 import frGearsView from './fr/gears/gearsView.json';
 import frGearView from './fr/gears/gearView.json';
+import frStravaCallbackView from './fr/strava/stravaCallbackView.json';
 import frActivityView from './fr/activityView.json';
 import frHealthView from './fr/healthView.json';
 import frNotFoundView from './fr/notFoundView.json';
@@ -169,6 +172,7 @@ import ptHomeView from './pt/homeView.json';
 import ptLoginView from './pt/loginView.json';
 import ptGearsView from './pt/gears/gearsView.json';
 import ptGearView from './pt/gears/gearView.json';
+import ptStravaCallbackView from './pt/strava/stravaCallbackView.json';
 import ptActivityView from './pt/activityView.json';
 import ptHealthView from './pt/healthView.json';
 import ptNotFoundView from './pt/notFoundView.json';
@@ -212,6 +216,7 @@ import usHomeView from './us/homeView.json';
 import usLoginView from './us/loginView.json';
 import usGearsView from './us/gears/gearsView.json';
 import usGearView from './us/gears/gearView.json';
+import usStravaCallbackView from './us/strava/stravaCallbackView.json';
 import usActivityView from './us/activityView.json';
 import usHealthView from './us/healthView.json';
 import usNotFoundView from './us/notFoundView.json';
@@ -257,6 +262,7 @@ const messages = {
     loginView: caLoginView,
     gearsView: caGearsView,
     gearView: caGearView,
+    stravaCallbackView: caStravaCallbackView,
     activity: caActivityView,
     healthView: caHealthView,
     notFound: caNotFoundView,
@@ -300,6 +306,7 @@ const messages = {
     loginView: deLoginView,
     gearsView: deGearsView,
     gearView: deGearView,
+    stravaCallbackView: deStravaCallbackView,
     activity: deActivityView,
     healthView: deHealthView,
     notFound: deNotFoundView,
@@ -343,6 +350,7 @@ const messages = {
     loginView: frLoginView,
     gearsView: frGearsView,
     gearView: frGearView,
+    stravaCallbackView: frStravaCallbackView,
     activity: frActivityView,
     healthView: frHealthView,
     notFound: frNotFoundView,
@@ -386,6 +394,7 @@ const messages = {
     loginView: ptLoginView,
     gearsView: ptGearsView,
     gearView: ptGearView,
+    stravaCallbackView: ptStravaCallbackView,
     activity: ptActivityView,
     healthView: ptHealthView,
     notFound: ptNotFoundView,
@@ -429,6 +438,7 @@ const messages = {
     loginView: usLoginView,
     gearsView: usGearsView,
     gearView: usGearView,
+    stravaCallbackView: usStravaCallbackView,
     activity: usActivityView,
     healthView: usHealthView,
     notFound: usNotFoundView,

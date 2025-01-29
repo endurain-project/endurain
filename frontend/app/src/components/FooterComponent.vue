@@ -68,7 +68,7 @@ export default {
                 return;
             }
             try {
-                searchResults.value = await users.getUserByUsername(query);
+                searchResults.value = await users.getUserContainsUsername(query);
             } catch (error) {
                 push.error(`${t('generalItems.errorFetchingInfo')} - ${error}`)
             }

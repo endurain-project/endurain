@@ -32,73 +32,7 @@
                 <a class="mt-2 w-100 btn btn-primary" href="#" role="button" data-bs-toggle="modal" data-bs-target="#editProfileModal">{{ $t("settingsUserProfileZone.buttonEditProfile") }}</a>
 
                 <!-- Modal edit user -->
-                <div class="modal fade" id="editProfileModal" tabindex="-1" aria-labelledby="editProfileModal" aria-hidden="true">
-                    <div class="modal-dialog">
-                        <div class="modal-content">
-                            <div class="modal-header">
-                                <h1 class="modal-title fs-5" id="editProfileModal">{{ $t("usersListComponent.modalEditUserTitle") }}</h1>
-                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                            </div>
-                            <form @submit.prevent="submitEditUserForm">
-                                <div class="modal-body">
-                                    <label for="userImgEdit"><b>{{ $t("settingsUsersZone.addUserModalUserPhotoLabel") }}</b></label>
-                                    <div>
-                                        <div class="row">
-                                            <div class="col">
-                                                <input class="form-control" type="file" accept="image/*" name="userImgEdit" id="userImgEdit" @change="handleFileChange">
-                                            </div>
-                                            <div class="col" v-if="authStore.user.photo_path">
-                                                <a class="w-100 btn btn-danger" data-bs-dismiss="modal" @click="submitDeleteUserPhoto">{{ $t("usersListComponent.modalEditUserDeleteUserPhotoButton") }}</a>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <!-- username fields -->
-                                    <label for="userUsernameEdit"><b>* {{ $t("settingsUsersZone.addUserModalUsernameLabel") }}</b></label>
-                                    <input class="form-control" type="text" name="userUsernameEdit" :placeholder='$t("settingsUsersZone.addUserModalUsernamePlaceholder")' maxlength="250" v-model="editUserUsername" required>
-                                    <!-- name fields -->
-                                    <label for="userNameEdit"><b>* {{ $t("settingsUsersZone.addUserModalNameLabel") }}</b></label>
-                                    <input class="form-control" type="text" name="userNameEdit" :placeholder='$t("settingsUsersZone.addUserModalNamePlaceholder")' maxlength="250" v-model="editUserName" required>
-                                    <!-- email fields -->
-                                    <label for="userEmailEdit"><b>* {{ $t("settingsUsersZone.addUserModalEmailLabel") }}</b></label>
-                                    <input class="form-control" type="text" name="userEmailEdit" :placeholder='$t("settingsUsersZone.addUserModalEmailPlaceholder")' maxlength="45" v-model="editUserEmail" required>
-                                    <!-- city fields -->
-                                    <label for="userCityEdit"><b>{{ $t("settingsUsersZone.addUserModalTownLabel") }}</b></label>
-                                    <input class="form-control" type="text" name="userCityEdit" :placeholder='$t("settingsUsersZone.addUserModalTownPlaceholder")' maxlength="45" v-model="editUserTown">
-                                    <!-- birth date fields -->
-                                    <label for="userBirthDateEdit"><b>{{ $t("settingsUsersZone.addUserModalBirthdayLabel") }}</b></label>
-                                    <input class="form-control" type="date" name="userBirthDateEdit" v-model="editUserBirthdate">
-                                    <!-- gender fields -->
-                                    <label for="userGenderEdit"><b>* {{ $t("settingsUsersZone.addUserModalGenderLabel") }}</b></label>
-                                    <select class="form-control" name="userGenderEdit" v-model="editUserGender" required>
-                                        <option value="1">{{ $t("settingsUsersZone.addUserModalGenderOption1") }}</option>
-                                        <option value="2">{{ $t("settingsUsersZone.addUserModalGenderOption2") }}</option>
-                                    </select>
-                                    <!-- units fields -->
-                                    <label for="userUnitsEdit"><b>* {{ $t("settingsUsersZone.addUserModalUnitsLabel") }}</b></label>
-                                    <select class="form-control" name="userUnitsEdit" v-model="editUserUnits" required>
-                                        <option value="1">{{ $t("settingsUsersZone.addUserModalUnitsOption1") }}</option>
-                                        <option value="2">{{ $t("settingsUsersZone.addUserModalUnitsOption2") }}</option>
-                                    </select>
-                                    <!-- height fields -->
-                                    <label for="userHeightEdit"><b>{{ $t("settingsUsersZone.addUserModalHeightLabel") }} (cm)</b></label>
-                                    <input class="form-control" type="number" name="userHeightEdit" :placeholder='$t("settingsUsersZone.addUserModalHeightPlaceholder") + " (cm)"' v-model="editUserHeight">
-                                    <!-- preferred language fields -->
-                                    <label for="userPreferredLanguageEdit"><b>* {{ $t("settingsUsersZone.addUserModalUserPreferredLanguageLabel") }}</b></label>
-                                    <select class="form-control" name="userPreferredLanguageEdit" v-model="editUserPreferredLanguage" required>
-                                        <option value="us">{{ $t("settingsUsersZone.addUserModalPreferredLanguageOption1") }}</option>
-                                        <option value="ca">{{ $t("settingsUsersZone.addUserModalPreferredLanguageOption2") }}</option>
-                                        <option value="pt">{{ $t("settingsUsersZone.addUserModalPreferredLanguageOption3") }}</option>
-                                    </select>
-                                    <p>* {{ $t("generalItems.requiredField") }}</p>
-                                </div>
-                                <div class="modal-footer">
-                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ $t("generalItems.buttonClose") }}</button>
-                                    <button type="submit" class="btn btn-success" name="userEdit" data-bs-dismiss="modal">{{ $t("usersListComponent.modalEditUserTitle") }}</button>
-                                </div>
-                            </form>
-                        </div>
-                    </div>
-                </div>
+                <UsersAddEditUserModalComponent :action="'profile'" :user="authStore.user"/>
             </div>
             <div class="col">
                 <!-- user name -->
@@ -164,7 +98,6 @@
 </template>
 
 <script>
-import { ref } from "vue";
 import { useI18n } from "vue-i18n";
 // Importing the services
 import { profile } from "@/services/profileService";
@@ -172,83 +105,18 @@ import { profile } from "@/services/profileService";
 import { useAuthStore } from "@/stores/authStore";
 // Import Notivue push
 import { push } from "notivue";
-// Import units utils
-import { cmToFeetInches } from "@/utils/unitsUtils";
 // Importing the components
 import UserAvatarComponent from "../Users/UserAvatarComponent.vue";
+import UsersAddEditUserModalComponent from "@/components/Settings/SettingsUsersZone/UsersAddEditUserModalComponent.vue";
 
 export default {
 	components: {
 		UserAvatarComponent,
+		UsersAddEditUserModalComponent,
 	},
 	setup() {
 		const authStore = useAuthStore();
 		const { t, locale } = useI18n();
-		const editUserPhotoFile = ref(null);
-		const editUserUsername = ref(authStore.user.username);
-		const editUserName = ref(authStore.user.name);
-		const editUserEmail = ref(authStore.user.email);
-		const editUserTown = ref(authStore.user.city);
-		const editUserBirthdate = ref(authStore.user.birthdate);
-		const editUserGender = ref(authStore.user.gender);
-		const editUserUnits = ref(authStore.user.units);
-		const editUserHeight = ref(authStore.user.height);
-		const editUserPreferredLanguage = ref(authStore.user.preferred_language);
-		const editUserAccessType = ref(authStore.user.access_type);
-        const editUserPhotoPath = ref(authStore.user.photo_path);
-        const { feet, inches } = cmToFeetInches(authStore.user.height);
-
-		async function handleFileChange(event) {
-			editUserPhotoFile.value = event.target.files?.[0] ?? null;
-		}
-
-		async function submitEditUserForm() {
-			try {
-                if (editUserHeight.value === "" || editUserHeight.value === 0) {
-                    editUserHeight.value = null;
-                }
-				const data = {
-					id: authStore.user.id,
-					username: editUserUsername.value,
-					name: editUserName.value,
-					email: editUserEmail.value,
-					city: editUserTown.value,
-					birthdate: editUserBirthdate.value,
-					gender: editUserGender.value,
-                    units: editUserUnits.value,
-					height: editUserHeight.value,
-					preferred_language: editUserPreferredLanguage.value,
-					access_type: editUserAccessType.value,
-					photo_path: editUserPhotoPath.value,
-					is_active: 1,
-				};
-
-				// If there is a photo, upload it and get the photo url.
-				if (editUserPhotoFile.value) {
-					try {
-						data.photo_path = await profile.uploadProfileImage(
-							editUserPhotoFile.value,
-						);
-					} catch (error) {
-						// Set the error message
-						push.error(`${t("generalItems.errorFetchingInfo")} - ${error}`);
-					}
-				}
-
-                await profile.editProfile(data);
-
-				// Save the user data in the local storage and in the store.
-				authStore.setUser(data, locale);
-
-				// Set the success message and show the success alert.
-				push.success(t("usersListComponent.userEditSuccessMessage"));
-			} catch (error) {
-				// If there is an error, set the error message and show the error alert.
-				push.error(
-					`${t("usersListComponent.userEditErrorMessage")} - ${error}`,
-				);
-			}
-		}
 
 		async function submitDeleteUserPhoto() {
 			try {
@@ -260,7 +128,7 @@ export default {
 				user.photo_path = null;
 
 				// Save the user data in the local storage and in the store.
-				authStore.setUser(user, locale);
+				authStore.setUser(user, authStore.session_id, locale);
 
 				// Set the success message and show the success alert.
 				push.success(t("usersListComponent.userPhotoDeleteSuccessMessage"));
@@ -275,21 +143,7 @@ export default {
 		return {
 			authStore,
 			t,
-			editUserUsername,
-			editUserName,
-			editUserEmail,
-			editUserTown,
-			editUserBirthdate,
-			editUserGender,
-            editUserUnits,
-			editUserHeight,
-			editUserPreferredLanguage,
-			editUserAccessType,
-			submitEditUserForm,
 			submitDeleteUserPhoto,
-			handleFileChange,
-            feet,
-            inches,
 		};
 	},
 };

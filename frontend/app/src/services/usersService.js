@@ -10,8 +10,14 @@ export const users = {
     getUserById(user_id) {
         return fetchGetRequest(`users/id/${user_id}`);
     },
-    getUserByUsername(username){
+    getUserContainsUsername(username){
         return fetchGetRequest(`users/username/contains/${username}`);
+    },
+    getUserByUsername(username){
+        return fetchGetRequest(`users/username/${username}`);
+    },
+    getUserByEmail(email){
+        return fetchGetRequest(`users/email/${email}`);
     },
     createUser(data) {
         return fetchPostRequest('users/create', data)

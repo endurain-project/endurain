@@ -162,6 +162,32 @@ def get_user_by_username(username: str, db: Session):
         ) from err
 
 
+def get_user_by_email(email: str, db: Session):
+    try:
+        # Get the user from the database
+        user = (
+            db.query(users_models.User).filter(users_models.User.email == email).first()
+        )
+
+        # If the user was not found, return None
+        if user is None:
+            return None
+
+        # Format the birthdate
+        user = users_utils.format_user_birthdate(user)
+
+        # Return the user
+        return user
+    except Exception as err:
+        # Log the exception
+        core_logger.print_to_log(f"Error in get_user_by_email: {err}", "error", exc=err)
+        # Raise an HTTPException with a 500 Internal Server Error status code
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal Server Error",
+        ) from err
+
+
 def get_user_by_id(user_id: int, db: Session):
     try:
         # Get the user from the database
@@ -247,7 +273,7 @@ def create_user(user: users_schema.UserCreate, db: Session):
         # Create a new user
         db_user = users_models.User(
             **user.model_dump(exclude={"password"}),
-            password=session_security.hash_password(user.password)
+            password=session_security.hash_password(user.password),
         )
 
         # Add the user to the database

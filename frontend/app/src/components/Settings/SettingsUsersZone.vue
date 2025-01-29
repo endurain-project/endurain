@@ -100,7 +100,7 @@ export default {
 			}
 			try {
 				// Fetch the users based on the search username.
-				usersArray.value = await users.getUserByUsername(searchUsername.value);
+				usersArray.value = await users.getUserContainsUsername(searchUsername.value);
 			} catch (error) {
 				// If there is an error, set the error message and show the error alert.
 				push.error(`${t("generalItems.errorFetchingInfo")} - ${error}`);

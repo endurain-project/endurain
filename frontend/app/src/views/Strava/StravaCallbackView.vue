@@ -1,11 +1,14 @@
 <template>
-    <div>
+    <div class="text-center">
         <LoadingComponent />
+		<br>
+		<p>{{ $t("stravaCallbackView.stravaCallbackViewTitle1") }}</p>
+		<p>{{ $t("stravaCallbackView.stravaCallbackViewTitle2") }}</p>
     </div>
 </template>
 
 <script>
-import { ref, onMounted } from "vue";
+import { onMounted } from "vue";
 import { useI18n } from "vue-i18n";
 // Import Notivue push
 import { push } from "notivue";

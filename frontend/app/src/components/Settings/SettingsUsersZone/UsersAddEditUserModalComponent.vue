@@ -1,11 +1,12 @@
 <template>
     <!-- Modal add/edit user -->
-    <div class="modal fade" :id="action == 'add' ? 'addUserModal' : (action == 'edit' ? editUserId : '')" tabindex="-1" :aria-labelledby="action == 'add' ? 'addUserModal' : (action == 'edit' ? editUserId : '')" aria-hidden="true">
+    <div class="modal fade" :id="action == 'add' ? 'addUserModal' : (action == 'edit' ? editUserModalId : (action == 'profile' ? 'editProfileModal' : ''))" tabindex="-1" :aria-labelledby="action == 'add' ? 'addUserModal' : (action == 'edit' ? editUserModalId : (action == 'profile' ? 'editProfileModal' : ''))" aria-hidden="true">
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
                     <h1 class="modal-title fs-5" id="addUserModal" v-if="action == 'add'">{{ $t("settingsUsersZone.buttonAddUser") }}</h1>
-                    <h1 class="modal-title fs-5" id="editUserId" v-else>{{ $t("usersAddEditUserModalComponent.addEditUserModalEditTitle") }}</h1>
+                    <h1 class="modal-title fs-5" id="editUserModalId" v-else-if="action == 'edit'">{{ $t("usersAddEditUserModalComponent.addEditUserModalEditTitle") }}</h1>
+                    <h1 class="modal-title fs-5" id="editProfileModal" v-else>{{ $t("usersAddEditUserModalComponent.addEditUserModalEditProfileTitle") }}</h1>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <form @submit.prevent="handleSubmit">
@@ -23,13 +24,22 @@
                         </div>
                         <!-- username fields -->
                         <label for="userUsernameAddEdit"><b>* {{ $t("usersAddEditUserModalComponent.addEditUserModalUsernameLabel") }}</b></label>
-                        <input class="form-control" type="text" name="userUsernameAddEdit" :placeholder='$t("usersAddEditUserModalComponent.addEditUserModalUsernamePlaceholder")' maxlength="250" v-model="newEditUserUsername" required>
+                        <input class="form-control" :class="{ 'is-invalid': !isUsernameExists }" type="text" name="userUsernameAddEdit" :placeholder='$t("usersAddEditUserModalComponent.addEditUserModalUsernamePlaceholder")' maxlength="250" v-model="newEditUserUsername" required>
+                        <div id="validationUsernameFeedback" class="invalid-feedback" v-if="!isUsernameExists">
+                            {{ $t("generalItems.errorUsernameAlreadyExistsFeedback") }}
+                        </div>
                         <!-- name fields -->
                         <label for="userNameAddEdit"><b>* {{ $t("usersAddEditUserModalComponent.addEditUserModalNameLabel") }}</b></label>
                         <input class="form-control" type="text" name="userNameAddEdit" :placeholder='$t("usersAddEditUserModalComponent.addEditUserModalNamePlaceholder")' maxlength="250" v-model="newEditUserName" required>
                         <!-- email fields -->
                         <label for="userEmailAddEdit"><b>* {{ $t("usersAddEditUserModalComponent.addEditUserModalEmailLabel") }}</b></label>
-                        <input class="form-control" type="text" name="userEmailAddEdit" :placeholder='$t("usersAddEditUserModalComponent.addEditUserModalEmailPlaceholder")' maxlength="45" v-model="newEditUserEmail" required>
+                        <input class="form-control" :class="{ 'is-invalid': !isEmailValid || !isEmailExists }" type="text" name="userEmailAddEdit" :placeholder='$t("usersAddEditUserModalComponent.addEditUserModalEmailPlaceholder")' maxlength="45" v-model="newEditUserEmail" required>
+                        <div id="validationEmailFeedback" class="invalid-feedback" v-if="!isEmailValid">
+                            {{ $t("generalItems.errorEmailNotValidFeedback") }}
+                        </div>
+                        <div id="validationEmailFeedback" class="invalid-feedback" v-else-if="!isEmailExists">
+                            {{ $t("generalItems.errorEmailAlreadyExistsFeedback") }}
+                        </div>
                         <!-- password fields -->
                         <div v-if="action == 'add'">
                             <label for="passUserAdd"><b>* {{ $t("usersAddEditUserModalComponent.addEditUserModalPasswordLabel") }}</b></label>
@@ -86,24 +96,29 @@
                             <option value="fr">{{ $t("usersAddEditUserModalComponent.addEditUserModalPreferredLanguageOption5") }}</option>
                         </select>
                         <!-- access type fields -->
-                        <label for="userTypeAddEdit"><b>* {{ $t("usersAddEditUserModalComponent.addEditUserModalUserTypeLabel") }}</b></label>
-                        <select class="form-control" name="userTypeAddEdit" v-model="newEditUserAccessType" required>
-                            <option value="1">{{ $t("usersAddEditUserModalComponent.addEditUserModalUserTypeOption1") }}</option>
-                            <option value="2">{{ $t("usersAddEditUserModalComponent.addEditUserModalUserTypeOption2") }}</option>
-                        </select>
+                        <div v-if="action != 'profile'">
+                            <label for="userTypeAddEdit"><b>* {{ $t("usersAddEditUserModalComponent.addEditUserModalUserTypeLabel") }}</b></label>
+                            <select class="form-control" name="userTypeAddEdit" v-model="newEditUserAccessType" required>
+                                <option value="1">{{ $t("usersAddEditUserModalComponent.addEditUserModalUserTypeOption1") }}</option>
+                                <option value="2">{{ $t("usersAddEditUserModalComponent.addEditUserModalUserTypeOption2") }}</option>
+                            </select>
+                        </div>
                         <!-- user is_active fields -->
-                        <label for="userIsActiveAddEdit"><b>* {{ $t("usersAddEditUserModalComponent.addEditUserModalIsActiveLabel") }}</b></label>
-                        <select class="form-control" name="userIsActiveAddEdit" v-model="newEditUserIsActive" required>
-                            <option value="1">{{ $t("usersAddEditUserModalComponent.addEditUserModalIsActiveOption1") }}</option>
-                            <option value="2">{{ $t("usersAddEditUserModalComponent.addEditUserModalIsActiveOption2") }}</option>
-                        </select>
+                        <div v-if="action != 'profile'">
+                            <label for="userIsActiveAddEdit"><b>* {{ $t("usersAddEditUserModalComponent.addEditUserModalIsActiveLabel") }}</b></label>
+                            <select class="form-control" name="userIsActiveAddEdit" v-model="newEditUserIsActive" required>
+                                <option value="1">{{ $t("usersAddEditUserModalComponent.addEditUserModalIsActiveOption1") }}</option>
+                                <option value="2">{{ $t("usersAddEditUserModalComponent.addEditUserModalIsActiveOption2") }}</option>
+                            </select>
+                        </div>
 
                         <p>* {{ $t("generalItems.requiredField") }}</p>
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ $t("generalItems.buttonClose") }}</button>
-                        <button type="submit" class="btn btn-success" name="userAdd" data-bs-dismiss="modal" v-if="action == 'add'" :disabled="!isPasswordValid">{{ $t("usersAddEditUserModalComponent.addEditUserModalAddTitle") }}</button>
-                        <button type="submit" class="btn btn-success" name="userEdit" data-bs-dismiss="modal" v-else :disabled="!isFeetValid || !isInchesValid">{{ $t("usersAddEditUserModalComponent.addEditUserModalEditTitle") }}</button>
+                        <button type="submit" class="btn btn-success" name="userAdd" data-bs-dismiss="modal" v-if="action == 'add'" :disabled="!isPasswordValid || !isUsernameExists || !isEmailValid || !isEmailExists">{{ $t("usersAddEditUserModalComponent.addEditUserModalAddTitle") }}</button>
+                        <button type="submit" class="btn btn-success" name="userEdit" data-bs-dismiss="modal" v-else-if="action == 'edit'" :disabled="!isFeetValid || !isInchesValid || !isUsernameExists || !isEmailValid || !isEmailExists">{{ $t("usersAddEditUserModalComponent.addEditUserModalEditTitle") }}</button>
+                        <button type="submit" class="btn btn-success" name="userEdit" data-bs-dismiss="modal" v-else :disabled="!isFeetValid || !isInchesValid || !isUsernameExists || !isEmailValid || !isEmailExists">{{ $t("usersAddEditUserModalComponent.addEditUserModalEditProfileTitle") }}</button>
                     </div>
                 </form>
             </div>
@@ -112,13 +127,16 @@
 </template>
 
 <script>
-import { ref, computed } from "vue";
+import { ref, computed, watch } from "vue";
 import { useI18n } from "vue-i18n";
 // Import the stores
 import { useAuthStore } from "@/stores/authStore";
+// import lodash
+import { debounce } from 'lodash';
 // Import Notivue push
 import { push } from "notivue";
 // Importing the services
+import { profile } from "@/services/profileService";
 import { users } from "@/services/usersService";
 // Import units utils
 import { cmToFeetInches, feetAndInchesToCm } from "@/utils/unitsUtils";
@@ -139,7 +157,7 @@ export default {
 		const authStore = useAuthStore();
 		const { t, locale } = useI18n();
         // edit user specific variables
-		const editUserId = ref("");
+		const editUserModalId = ref("");
         // edit and add user variables
         const newEditUserPhotoFile = ref(null);
 		const newEditUserUsername = ref("");
@@ -162,6 +180,71 @@ export default {
 		const newEditUserAccessType = ref(1);
         const newEditUserIsActive = ref(1);
         const newEditUserPhotoPath = ref(null);
+        const isUsernameExists = ref(true);
+        const validateUsernameExists = debounce(async () => {
+            let tryValidate = false;
+            if (props.action === 'edit' || props.action === 'profile') {
+                if (newEditUserUsername.value !== props.user.username) {
+                    tryValidate = true;
+                }
+            } else {
+                if (props.action === 'add') {
+                    if (newEditUserUsername.value !== "") {
+                        tryValidate = true;
+                    }
+                }
+            }
+
+            if (tryValidate) {
+                try {
+                    if (await users.getUserByUsername(newEditUserUsername.value)) {
+                        isUsernameExists.value = false;
+                    } else {
+                        isUsernameExists.value = true;
+                    }
+                } catch (error) {
+                    push.error(`${t("generalItems.errorFetchingInfo")} - ${error}`);
+                }
+            } else {
+                isUsernameExists.value = true;
+            }
+        }, 500);
+        const isEmailExists = ref(true);
+        // Regular expression for email validation
+        const isEmailValid = computed(() => {
+            const emailRegex = /^[^\s@]{1,}@[^\s@]{2,}\.[^\s@]{2,}$/;
+            return emailRegex.test(newEditUserEmail.value);
+        });
+        const validateEmailExists = debounce(async () => {
+            let tryValidate = false;
+            if (props.action === 'edit' || props.action === 'profile') {
+                if (newEditUserEmail.value !== props.user.email) {
+                    tryValidate = true;
+                }
+            } else {
+                if (props.action === 'add') {
+                    if (newEditUserEmail.value !== "") {
+                        tryValidate = true;
+                    }
+                }
+            }
+
+            if (tryValidate) {
+                if (isEmailValid.value) {
+                    try {
+                        if (await users.getUserByEmail(newEditUserEmail.value)) {
+                            isEmailExists.value = false;
+                        } else {
+                            isEmailExists.value = true;
+                        }
+                    } catch (error) {
+                        push.error(`${t("generalItems.errorFetchingInfo")} - ${error}`);
+                    }
+                }
+            } else {
+                isEmailExists.value = true;
+            }
+        }, 500);
 		// new user variables
 		const newUserPassword = ref("");
 		const isPasswordValid = computed(() => {
@@ -171,7 +254,9 @@ export default {
 		});
 
         if (props.user) {
-			editUserId.value = `editUserModal${props.user.id}`;
+            if (props.action === 'edit') {
+                editUserModalId.value = `editUserModal${props.user.id}`;
+            }
 			newEditUserUsername.value = props.user.username;
             newEditUserName.value = props.user.name;
             newEditUserEmail.value = props.user.email;
@@ -282,24 +367,36 @@ export default {
 					is_active: newEditUserIsActive.value,
 				};
 
-				await users.editUser(data.id, data);
+                // If there is a photo, upload it and get the photo url.
+                if (newEditUserPhotoFile.value) {
+                    try {
+                        if (props.action === 'profile') {
+                            data.photo_path = await profile.uploadProfileImage(
+                                newEditUserPhotoFile.value,
+						    );
+                        } else {
+                            data.photo_path = await users.uploadImage(
+                                newEditUserPhotoFile.value,
+                                data.id,
+                            );
+                        }
+                    } catch (error) {
+                        // Set the error message
+                        push.error(`${t("generalItems.errorFetchingInfo")} - ${error}`);
+                    }
+                }
 
-				// If there is a photo, upload it and get the photo url.
-				if (newEditUserPhotoFile.value) {
-					try {
-						data.photo_path = await users.uploadImage(
-							newEditUserPhotoFile.value,
-							data.id,
-						);
-					} catch (error) {
-						// Set the error message
-						push.error(`${t("generalItems.errorFetchingInfo")} - ${error}`);
-					}
-				}
+                if (props.action === 'profile') {
+                    await profile.editProfile(data);
+                } else {
+                    await users.editUser(data.id, data);
+                }
 
-                emit("editedUser", data);
+                if (props.action === 'edit') {
+                    emit("editedUser", data);
+                }
 
-                if (data.id === authStore.user.id) {
+                if (data.id === authStore.user.id || props.action === 'profile') {
                     authStore.setUser(data, authStore.session_id, locale);
                 }
 
@@ -334,10 +431,17 @@ export default {
             }
         }
 
+        // Watchers
+        // Watch the newEditUserUsername variable.
+        watch(newEditUserUsername, validateUsernameExists, { immediate: false });
+
+        // Watch the newEditUserEmail variable.
+        watch(newEditUserEmail, validateEmailExists, { immediate: false });
+
         return {
             authStore,
 			t,
-            editUserId,
+            editUserModalId,
             newEditUserPhotoFile,
             newEditUserUsername,
             newEditUserName,
@@ -354,6 +458,9 @@ export default {
             newEditUserIsActive,
             newEditUserPhotoPath,
             newUserPassword,
+            isUsernameExists,
+            isEmailExists,
+            isEmailValid,
             isPasswordValid,
             isFeetValid,
             isInchesValid,
