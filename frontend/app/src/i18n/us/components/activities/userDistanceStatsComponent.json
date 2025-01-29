@@ -3,5 +3,9 @@
     "thisWeekDistancesTitle" :"This week distances",
     "distancesRun" :"Run",
     "distancesBike" :"Bike",
-    "distancesSwim" :"Swim"
+    "distancesSwim" :"Swim",
+    "distancesWalk": "Walk",
+    "distancesHike": "Hike",
+    "distancesSki": "Ski",
+    "distancesRowing": "Rowing"
 }

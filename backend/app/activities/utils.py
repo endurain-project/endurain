@@ -400,7 +400,7 @@ def parse_activity_streams_from_file(parsed_info: dict, activity_id: int):
 
 def calculate_activity_distances(activities: list[activities_schema.Activity]):
     # Initialize the distances
-    run = bike = swim = 0.0
+    run = bike = swim = walk = hike = rowing = ski = 0.0
 
     if activities is not None:
         # Calculate the distances
@@ -411,9 +411,17 @@ def calculate_activity_distances(activities: list[activities_schema.Activity]):
                 bike += activity.distance
             elif activity.activity_type in [8, 9]:
                 swim += activity.distance
+            elif activity.activity_type in [11]:
+                walk += activity.distance
+            elif activity.activity_type in [12]:
+                hike += activity.distance
+            elif activity.activity_type in [13]:
+                rowing += activity.distance
+            elif activity.activity_type in [15,16]:
+                ski += activity.distance
 
     # Return the distances
-    return activities_schema.ActivityDistances(run=run, bike=bike, swim=swim)
+    return activities_schema.ActivityDistances(run=run, bike=bike, swim=swim,walk=walk,hike=hike,rowing=rowing,ski=ski)
 
 
 def location_based_on_coordinates(latitude, longitude) -> dict | None:
