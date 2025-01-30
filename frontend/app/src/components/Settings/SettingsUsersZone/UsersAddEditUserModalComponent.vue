@@ -67,7 +67,7 @@
                             <option value="2">{{ $t("usersAddEditUserModalComponent.addEditUserModalUnitsOption2") }}</option>
                         </select>
                         <!-- height fields -->
-                        <div v-if="authStore.user.units == 1">
+                        <div v-if="Number(authStore?.user?.units) === 1">
                             <label for="userHeightAddEditCms"><b>{{ $t("usersAddEditUserModalComponent.addEditUserModalHeightLabel") }} ({{ $t("generalItems.unitsCm") }})</b></label>
                             <input class="form-control" type="number" name="userHeightAddEditCms" :placeholder='$t("usersAddEditUserModalComponent.addEditUserModalHeightPlaceholder") + " (" + $t("generalItems.unitsCm") + ")"' v-model="newEditUserHeightCms">
                         </div>
@@ -411,7 +411,7 @@ export default {
 		}
 
         function handleSubmit() {
-            if (authStore.user.units === 1) {
+            if (Number(authStore?.user?.units) === 1) {
                 if (newEditUserHeightCms.value !== props.user.height) {
                     const { feet, inches } = cmToFeetInches(newEditUserHeightCms.value);
                     newEditUserHeightFeet.value = feet;

@@ -157,16 +157,16 @@
                     {{ $t("activitySummary.activityDistance") }}
                 </span>
                 <br>
-                <span v-if="authStore.user.units == 1">
+                <span v-if="Number(authStore?.user?.units) === 1">
                     <!-- Check if activity_type is not 9 and 8 -->
                     {{ activity.activity_type != 9 && activity.activity_type != 8
-                        ? metersToKm(activity.distance) + ' km' : activity.distance + ' m'
+                        ? metersToKm(activity.distance) + ' ' + $t("generalItems.unitsKm") : activity.distance + ' ' + $t("generalItems.unitsM")
                     }}
                 </span>
                 <span v-else>
                     <!-- Check if activity_type is not 9 and 8 -->
                     {{ activity.activity_type != 9 && activity.activity_type != 8
-                        ? metersToMiles(activity.distance) + ' mi' : metersToYards(activity.distance) + ' yd'
+                        ? metersToMiles(activity.distance) + ' ' + $t("generalItems.unitsMiles") : metersToYards(activity.distance) + ' ' + $t("generalItems.unitsYards")
                     }}
                 </span>
             </div>
@@ -175,7 +175,7 @@
                     {{ $t("activitySummary.activityCalories") }}
                 </span>
                 <br>
-                <span v-if="activity.calories">{{ activity.calories }} cal</span>
+                <span v-if="activity.calories">{{ activity.calories }}{{ ' ' + $t("generalItems.unitsCalories") }}</span>
                 <span v-else>{{ $t("activitySummary.activityNoData") }}</span>
             </div>
             <div class="col border-start border-opacity-50">
@@ -191,8 +191,8 @@
                         {{ $t("activitySummary.activityElevationGain") }}
                     </span>
                     <br>
-                    <span v-if="authStore.user.units == 1">{{ activity.elevation_gain }} m</span>
-                    <span v-else>{{ metersToFeet(activity.elevation_gain) }} ft</span>
+                    <span v-if="Number(authStore?.user?.units) === 1">{{ activity.elevation_gain }}{{ ' ' + $t("generalItems.unitsM") }}</span>
+                    <span v-else>{{ metersToFeet(activity.elevation_gain) }}{{ ' ' + $t("generalItems.unitsFeetShort") }}</span>
                 </div>
                 <div v-else-if="activity.activity_type != 10 && activity.activity_type != 14">
                     <span class="fw-lighter">
@@ -206,7 +206,7 @@
                     {{ $t("activitySummary.activityAvgHR") }}
                     </span>
                     <br>
-                    <span v-if="activity.average_hr">{{ activity.average_hr }} bpm</span>
+                    <span v-if="activity.average_hr">{{ activity.average_hr }}{{ ' ' + $t("generalItems.unitsBpm") }}</span>
                     <span v-else>{{ $t("activitySummary.activityNoData") }}</span>
                 </div>
             </div>
@@ -218,7 +218,7 @@
                     {{ $t("activitySummary.activityAvgPower") }}
                 </span>
                 <br>
-                <span v-if="activity.average_power">{{ activity.average_power }} W</span>
+                <span v-if="activity.average_power">{{ activity.average_power }}{{ ' ' + $t("generalItems.unitsWattsShort") }}</span>
                 <span v-else>{{ $t("activitySummary.activityNoData") }}</span>
             </div>
             <!-- avg_hr not running and cycling activities-->
@@ -227,7 +227,7 @@
                     {{ $t("activitySummary.activityAvgHR") }}
                 </span>
                 <br>
-                <span v-if="activity.average_hr">{{ activity.average_hr }} bpm</span>
+                <span v-if="activity.average_hr">{{ activity.average_hr }}{{ ' ' + $t("generalItems.unitsBpm") }}</span>
                 <span v-else>{{ $t("activitySummary.activityNoData") }}</span>
             </div>
             <!-- max_hr not running and cycling activities-->
@@ -236,15 +236,15 @@
                     {{ $t("activitySummary.activityMaxHR") }}
                 </span>
                 <br>
-                <span v-if="activity.max_hr">{{ activity.max_hr }} bpm</span>
+                <span v-if="activity.max_hr">{{ activity.max_hr }}{{ ' ' + $t("generalItems.unitsBpm") }}</span>
                 <span v-else>{{ $t("activitySummary.activityNoData") }}</span>
             </div>
             <!-- ele gain running activities -->
             <div class="col border-start border-opacity-50" v-if="activity.activity_type == 1 || activity.activity_type == 2 || activity.activity_type == 3">
                 <span class="fw-lighter">{{ $t("activitySummary.activityEleGain") }}</span>
                 <br>
-                <span v-if="authStore.user.units == 1">{{ activity.elevation_gain }} m</span>
-                <span v-else>{{ metersToFeet(activity.elevation_gain) }} ft</span>
+                <span v-if="Number(authStore?.user?.units) === 1">{{ activity.elevation_gain }}{{ ' ' + $t("generalItems.unitsM") }}</span>
+                <span v-else>{{ metersToFeet(activity.elevation_gain) }}{{ ' ' + $t("generalItems.unitsFeetShort") }}</span>
             </div>
             <!-- avg_speed cycling activities -->
             <div class="col border-start border-opacity-50" v-if="activity.activity_type == 4 || activity.activity_type == 5 || activity.activity_type == 6 || activity.activity_type == 7">
@@ -252,8 +252,8 @@
                     {{ $t("activitySummary.activityAvgSpeed") }}
                 </span>
                 <br>
-                <span v-if="activity.average_speed && authStore.user.units == 1">{{ formatAverageSpeedMetric(activity.average_speed) }} km/h</span>
-                <span v-else-if="activity.average_speed && authStore.user.units == 2">{{ formatAverageSpeedImperial(activity.average_speed) }} mph</span>
+                <span v-if="activity.average_speed && Number(authStore?.user?.units) === 1">{{ formatAverageSpeedMetric(activity.average_speed) }}{{ ' ' + $t("generalItems.unitsKmH") }}</span>
+                <span v-else-if="activity.average_speed && authStore.user.units == 2">{{ formatAverageSpeedImperial(activity.average_speed) }}{{ ' ' + $t("generalItems.unitsMph") }}</span>
                 <span v-else>{{ $t("activitySummary.activityNoData") }}</span>
             </div>
             <!-- calories -->
@@ -262,7 +262,7 @@
                     {{ $t("activitySummary.activityCalories") }}
                 </span>
                 <br>
-                <span v-if="activity.calories">{{ activity.calories }} cal</span>
+                <span v-if="activity.calories">{{ activity.calories }}{{ ' ' + $t("generalItems.unitsCalories") }}</span>
                 <span v-else>{{ $t("activitySummary.activityNoData") }}</span>
             </div>
         </div>
@@ -321,13 +321,13 @@ export default {
 			props.activity.activity_type === 9 ||
 			props.activity.activity_type === 13
 		) {
-            if (authStore.user.units === 1) {
+            if (Number(authStore?.user?.units) === 1) {
                 formattedPace = computed(() => formatPaceSwimMetric(props.activity.pace));
             } else {
                 formattedPace = computed(() => formatPaceSwimImperial(props.activity.pace));
             }
 		} else {
-            if (authStore.user.units === 1) {
+            if (Number(authStore?.user?.units) === 1) {
                 formattedPace = computed(() => formatPaceMetric(props.activity.pace));
             } else {
                 formattedPace = computed(() => formatPaceImperial(props.activity.pace));

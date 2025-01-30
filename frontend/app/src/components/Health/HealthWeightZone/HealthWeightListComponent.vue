@@ -4,8 +4,8 @@
             <font-awesome-icon :icon="['fas', 'weight']"     size="2x" />
             <div class="ms-3">
                 <div class="fw-bold">
-                    <span v-if="authStore.user.units == 1">{{ data.weight }} kg</span>
-                    <span v-else>{{ kgToLbs(data.weight) }} lbs</span>
+                    <span v-if="Number(authStore?.user?.units) === 1">{{ data.weight }} {{ $t("generalItems.unitsKg") }}</span>
+                    <span v-else>{{ kgToLbs(data.weight) }} {{ $t("generalItems.unitsLbs") }}</span>
                 </div>
                 <span>
                     Date: {{ formatDateShort(data.date) }}
@@ -35,12 +35,12 @@ import { useAuthStore } from "@/stores/authStore";
 import { push } from "notivue";
 // Importing the services
 import { health_data } from "@/services/health_dataService";
-import { kgToLbs } from "@/utils/unitsUtils";
 // Import the components
 import HealthWeightAddEditModalComponent from './HealthWeightAddEditModalComponent.vue';
 import ModalComponent from '@/components/Modals/ModalComponent.vue';
 
 import { formatDateShort } from "@/utils/dateTimeUtils";
+import { kgToLbs } from "@/utils/unitsUtils";
 
 export default {
 	components: {

@@ -45,13 +45,13 @@
                 <p>
                     <b>{{ $t("usersAddEditUserModalComponent.addEditUserModalCityLabel") }}: </b>
                     <span v-if="authStore.user.city">{{ authStore.user.city }}</span>
-                    <span v-else>N/A</span>
+                    <span v-else>{{ $t("generalItems.labelNotApplicable") }}</span>
                 </p>
                 <!-- user birthdate -->
                 <p>
                     <b>{{ $t("usersAddEditUserModalComponent.addEditUserModalBirthdayLabel") }}: </b>
                     <span v-if="authStore.user.birthdate">{{ authStore.user.birthdate }}</span>
-                    <span v-else>N/A</span>
+                    <span v-else>{{ $t("generalItems.labelNotApplicable") }}</span>
                 </p>
                 <!-- user gender -->
                 <p>
@@ -62,20 +62,20 @@
                 <!-- user units -->
                 <p>
                     <b>{{ $t("usersAddEditUserModalComponent.addEditUserModalUnitsLabel") }}: </b>
-                    <span v-if="authStore.user.units == 1">{{ $t("usersAddEditUserModalComponent.addEditUserModalUnitsOption1") }}</span>
+                    <span v-if="Number(authStore?.user?.units) === 1">{{ $t("usersAddEditUserModalComponent.addEditUserModalUnitsOption1") }}</span>
                     <span v-else>{{ $t("usersAddEditUserModalComponent.addEditUserModalUnitsOption2") }}</span>
                 </p>
                 <!-- user height -->
                 <p>
                     <b>{{ $t("usersAddEditUserModalComponent.addEditUserModalHeightLabel") }} 
-                        <span v-if="authStore.user.units == 1">({{ $t("generalItems.unitsCm") }}): </span>
+                        <span v-if="Number(authStore?.user?.units) === 1">({{ $t("generalItems.unitsCm") }}): </span>
                         <span v-else>({{ $t("generalItems.unitsFeetInches") }}): </span>
                     </b>
                     <span v-if="authStore.user.height">
-                        <span v-if="authStore.user.units == 1">{{ authStore.user.height }}{{ $t("generalItems.unitsCm") }}</span>
+                        <span v-if="Number(authStore?.user?.units) === 1">{{ authStore.user.height }}{{ $t("generalItems.unitsCm") }}</span>
                         <span v-else>{{ feet }}’{{ inches }}’’</span>
                     </span>
-                    <span v-else>N/A</span>
+                    <span v-else>{{ $t("generalItems.labelNotApplicable") }}</span>
                 </p>
                 <!-- user preferred language -->
                 <p>

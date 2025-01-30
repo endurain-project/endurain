@@ -113,8 +113,8 @@
                         <strong>
                             {{ $t("gearView.labelDistance") }}:
                         </strong>
-                        <span v-if="authStore.user.units == 1"> {{ gearDistance }} km</span>
-                        <span v-else> {{ kmToMiles(gearDistance) }} mi</span>
+                        <span v-if="Number(authStore?.user?.units) === 1"> {{ gearDistance }} {{ $t("generalItems.unitsKm") }}</span>
+                        <span v-else> {{ kmToMiles(gearDistance) }} {{ $t("generalItems.unitsMiles") }}</span>
                     </span>
                     <span class="mt-2" v-if="gear?.brand"><strong>{{ $t("gearsView.modalBrand") }}:</strong> {{ gear?.brand }}</span>
                     <span class="mt-2" v-if="gear?.model"><strong>{{ $t("gearsView.modalModel") }}:</strong> {{ gear?.model }}</span>

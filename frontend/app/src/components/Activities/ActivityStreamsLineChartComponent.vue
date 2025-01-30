@@ -4,8 +4,14 @@
   
 <script>
 import { ref, onMounted, onUnmounted, computed, watch } from 'vue';
+import { useI18n } from "vue-i18n";
+// Importing the stores
+import { useAuthStore } from "@/stores/authStore";
 import { Chart, registerables } from 'chart.js';
 Chart.register(...registerables);
+
+import { formatPaceMetric, formatPaceImperial, formatPaceSwimMetric, formatPaceSwimImperial, formatAverageSpeedMetric, formatAverageSpeedImperial } from "@/utils/activityUtils";
+import { metersToKm, metersToMiles, metersToYards, metersToFeet } from "@/utils/unitsUtils";
   
 export default {
     props: {
@@ -23,6 +29,8 @@ export default {
         }
     },
     setup(props) {
+		const { t } = useI18n();
+		const authStore = useAuthStore();
         const chartCanvas = ref(null);
         let myChart = null;
         const computedChartData = computed(() => {
@@ -35,26 +43,36 @@ export default {
                 if (stream.stream_type === 1 && props.graphSelection === 'hr') {
                     for (const streamPoint of stream.stream_waypoints) {
                         data.push(Number.parseInt(streamPoint.hr));
-                        label = "Heart Rate (bpm)";
+                        label = t("generalItems.labelHRinBpm");
                     }
                 } else if (stream.stream_type === 2 && props.graphSelection === 'power') {
                     for (const streamPoint of stream.stream_waypoints) {
                         data.push(Number.parseInt(streamPoint.power));
-                        label = "Power (Watts)";
+                        label = t("generalItems.labelPowerInWatts");
                     }
                 } else if (stream.stream_type === 3 && props.graphSelection === 'cad') {
                     for (const streamPoint of stream.stream_waypoints) {
                         data.push(Number.parseInt(streamPoint.cad));
-                        label = "Cadence (rpm)";
+                        label = t("generalItems.labelCadenceInRpm");
                     }
                 } else if (stream.stream_type === 4 && props.graphSelection === 'ele') {
                     for (const streamPoint of stream.stream_waypoints) {
-                        data.push(Number.parseFloat(streamPoint.ele));
-                        label = "Elevation (m)";
+                        if (Number(authStore?.user?.units) === 1) {
+                            data.push(Number.parseFloat(streamPoint.ele));
+                            label = t("generalItems.labelElevationInMeters");
+                        } else {
+                            data.push(Number.parseFloat(metersToFeet(streamPoint.ele)));
+                            label = t("generalItems.labelElevationInFeet");
+                        }
                     }
                 } else if (stream.stream_type === 5 && props.graphSelection === 'vel') {
-                    data.push(...stream.stream_waypoints.map(velData => Number.parseFloat((velData.vel * 3.6).toFixed(0))));
-                    label = "Velocity (km/h)";
+                    if (Number(authStore?.user?.units) === 1) {
+                        data.push(...stream.stream_waypoints.map(velData => Number.parseFloat(formatAverageSpeedMetric(velData.vel))));
+                        label = t("generalItems.labelVelocityInKmH");
+                    } else {
+                        data.push(...stream.stream_waypoints.map(velData => Number.parseFloat(formatAverageSpeedImperial(velData.vel))));
+                        label = t("generalItems.labelVelocityInMph");
+                    }
                 } else if (stream.stream_type === 6 && props.graphSelection === 'pace') {
                     roundValues = false;
                     for (const paceData of stream.stream_waypoints) {
@@ -62,16 +80,32 @@ export default {
                             data.push(0);
                         } else {
                             if (props.activity.activity_type === 1 || props.activity.activity_type === 2 || props.activity.activity_type === 3) {
-                                data.push((paceData.pace * 1000) / 60);
+                                if (Number(authStore?.user?.units) === 1) {
+                                    data.push((paceData.pace * 1000) / 60);
+                                } else {
+                                    data.push((paceData.pace * 1609.34) / 60);
+                                }
                             } else if (props.activity.activity_type === 8 || props.activity.activity_type === 9) {
-                                data.push((paceData.pace * 100) / 60);
+                                if (Number(authStore?.user?.units) === 1) {
+                                    data.push((paceData.pace * 100) / 60);
+                                } else {
+                                    data.push((paceData.pace * 100 * 0.9144) / 60);
+                                }
                             }
                         }
                     }
                     if (props.activity.activity_type === 1 || props.activity.activity_type === 2 || props.activity.activity_type === 3) {
-                        label = "Pace (min/km)";
+                        if (Number(authStore?.user?.units) === 1) {
+                            label = t("generalItems.labelPaceInMinKm");
+                        } else {
+                            label = t("generalItems.labelPaceInMinMile");
+                        }
                     } else if (props.activity.activity_type === 8 || props.activity.activity_type === 9) {
-                        label = "Pace (min/100m)";
+                        if (Number(authStore?.user?.units) === 1) {
+                            label = t("generalItems.labelPaceInMin100m");
+                        } else {
+                            label = t("generalItems.labelPaceInMin100yd");
+                        }
                     }
                 }
             }

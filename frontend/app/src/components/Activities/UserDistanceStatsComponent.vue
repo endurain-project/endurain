@@ -5,25 +5,25 @@
             <div class="col text-start">
                 <span class="fw-lighter">{{ $t("userDistanceStats.distancesRun") }}</span>
                 <br>
-                <span v-if="authStore.user.units == 1">{{ thisWeekDistances && thisWeekDistances.run ? metersToKm(thisWeekDistances.run) + ' km' : '0 km' }}</span>
-                <span v-else>{{ thisWeekDistances && thisWeekDistances.run ? metersToMiles(thisWeekDistances.run) + ' mi' : '0 mi' }}</span>
+                <span v-if="Number(authStore?.user?.units) === 1">{{ thisWeekDistances && thisWeekDistances.run ? metersToKm(thisWeekDistances.run) + ' ' + $t("generalItems.unitsKm") : '0 ' + $t("generalItems.unitsKm") }}</span>
+                <span v-else>{{ thisWeekDistances && thisWeekDistances.run ? metersToMiles(thisWeekDistances.run) + ' ' + $t("generalItems.unitsMiles") : '0 ' + $t("generalItems.unitsMiles") }}</span>
             </div>
             <div class="col border-start border-opacity-50 text-center">
                 <span class="fw-lighter">{{ $t("userDistanceStats.distancesBike") }}</span>
                 <br>
-                <span v-if="authStore.user.units == 1">{{ thisWeekDistances && thisWeekDistances.bike ? metersToKm(thisWeekDistances.bike) + ' km' : '0 km' }}</span>
-                <span v-else>{{ thisWeekDistances && thisWeekDistances.bike ? metersToMiles(thisWeekDistances.bike) + ' mi' : '0 mi' }}</span>
+                <span v-if="Number(authStore?.user?.units) === 1">{{ thisWeekDistances && thisWeekDistances.bike ? metersToKm(thisWeekDistances.bike) + ' ' + $t("generalItems.unitsKm") : '0 ' + $t("generalItems.unitsKm") }}</span>
+                <span v-else>{{ thisWeekDistances && thisWeekDistances.bike ? metersToMiles(thisWeekDistances.bike) + ' ' + $t("generalItems.unitsMiles") : '0 ' + $t("generalItems.unitsMiles") }}</span>
             </div>
             <div class="col border-start border-opacity-50 text-end">
                 <span class="fw-lighter">{{ $t("userDistanceStats.distancesSwim") }}</span>
                 <br>
                 <span v-if="thisWeekDistances && thisWeekDistances.swim">
-                    <span v-if="authStore.user.units == 1">{{ thisWeekDistances.swim > 10000 ? metersToKm(thisWeekDistances.swim) + ' km' : thisWeekDistances.swim + ' m' }}</span>
-                    <span v-else>{{ metersToYards(thisWeekDistances.swim) + ' yd' }}</span>
+                    <span v-if="Number(authStore?.user?.units) === 1">{{ thisWeekDistances.swim > 10000 ? metersToKm(thisWeekDistances.swim) + ' ' + $t("generalItems.unitsKm") : thisWeekDistances.swim + ' ' + $t("generalItems.unitsM") }}</span>
+                    <span v-else>{{ metersToYards(thisWeekDistances.swim) + ' ' + $t("generalItems.unitsYards") }}</span>
                 </span>
                 <span v-else>
-                    <span v-if="authStore.user.units == 1">0 m</span>
-                    <span v-else>0 yd</span>
+                    <span v-if="Number(authStore?.user?.units) === 1">0 {{ $t("generalItems.unitsM") }}</span>
+                    <span v-else>0 {{ $t("generalItems.unitsYards") }}</span>
                 </span>
             </div>
         </div>
@@ -33,25 +33,25 @@
             <div class="col text-start">
                 <span class="fw-lighter">{{ $t("userDistanceStats.distancesRun") }}</span>
                 <br>
-                <span v-if="authStore.user.units == 1">{{ thisMonthDistances && thisMonthDistances.run ? metersToKm(thisMonthDistances.run) + ' km' : '0 km' }}</span>
-                <span v-else>{{ thisMonthDistances && thisMonthDistances.run ? metersToMiles(thisMonthDistances.run) + ' mi' : '0 mi' }}</span>
+                <span v-if="Number(authStore?.user?.units) === 1">{{ thisMonthDistances && thisMonthDistances.run ? metersToKm(thisMonthDistances.run) + ' ' + $t("generalItems.unitsKm") : '0 ' + $t("generalItems.unitsKm") }}</span>
+                <span v-else>{{ thisMonthDistances && thisMonthDistances.run ? metersToMiles(thisMonthDistances.run) + ' ' + $t("generalItems.unitsMiles") : '0 ' + $t("generalItems.unitsMiles") }}</span>
             </div>
             <div class="col border-start border-opacity-50 text-center">
                 <span class="fw-lighter">{{ $t("userDistanceStats.distancesBike") }}</span>
                 <br>
-                <span v-if="authStore.user.units == 1">{{ thisMonthDistances && thisMonthDistances.bike ? metersToKm(thisMonthDistances.bike) + ' km' : '0 km' }}</span>
-                <span v-else>{{ thisMonthDistances && thisMonthDistances.bike ? metersToMiles(thisMonthDistances.bike) + ' mi' : '0 mi' }}</span>
+                <span v-if="Number(authStore?.user?.units) === 1">{{ thisMonthDistances && thisMonthDistances.bike ? metersToKm(thisMonthDistances.bike) + ' ' + $t("generalItems.unitsKm") : '0 ' + $t("generalItems.unitsKm") }}</span>
+                <span v-else>{{ thisMonthDistances && thisMonthDistances.bike ? metersToMiles(thisMonthDistances.bike) + ' ' + $t("generalItems.unitsMiles") : '0 ' + $t("generalItems.unitsMiles") }}</span>
             </div>
             <div class="col border-start border-opacity-50 text-end">
                 <span class="fw-lighter">{{ $t("userDistanceStats.distancesSwim") }}</span>
                 <br>
                 <span v-if="thisMonthDistances && thisMonthDistances.swim">
-                    <span v-if="authStore.user.units == 1">{{ thisMonthDistances.swim > 10000 ? metersToKm(thisMonthDistances.swim) + ' km' : thisMonthDistances.swim + ' m' }}</span>
-                    <span v-else>{{ metersToYards(thisMonthDistances.swim) + ' yd' }}</span>
+                    <span v-if="Number(authStore?.user?.units) === 1">{{ thisMonthDistances.swim > 10000 ? metersToKm(thisMonthDistances.swim) + ' ' + $t("generalItems.unitsKm") : thisMonthDistances.swim + ' ' + $t("generalItems.unitsM") }}</span>
+                    <span v-else>{{ metersToYards(thisMonthDistances.swim) + ' ' + $t("generalItems.unitsYards") }}</span>
                 </span>
                 <span v-else>
-                    <span v-if="authStore.user.units == 1">0 m</span>
-                    <span v-else>0 yd</span>
+                    <span v-if="Number(authStore?.user?.units) === 1">0 {{ $t("generalItems.unitsM") }}</span>
+                    <span v-else>0 {{ $t("generalItems.unitsYards") }}</span>
                 </span>
             </div>
         </div>
