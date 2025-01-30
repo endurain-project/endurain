@@ -243,7 +243,8 @@
             <div class="col border-start border-opacity-50" v-if="activity.activity_type == 1 || activity.activity_type == 2 || activity.activity_type == 3">
                 <span class="fw-lighter">{{ $t("activitySummary.activityEleGain") }}</span>
                 <br>
-                <span>{{ activity.elevation_gain }} m</span>
+                <span v-if="authStore.user.units == 1">{{ activity.elevation_gain }} m</span>
+                <span v-else>{{ metersToFeet(activity.elevation_gain) }} ft</span>
             </div>
             <!-- avg_speed cycling activities -->
             <div class="col border-start border-opacity-50" v-if="activity.activity_type == 4 || activity.activity_type == 5 || activity.activity_type == 6 || activity.activity_type == 7">
@@ -251,7 +252,8 @@
                     {{ $t("activitySummary.activityAvgSpeed") }}
                 </span>
                 <br>
-                <span v-if="activity.average_speed">{{ (activity.average_speed * 3.6).toFixed(0) }} km/h</span>
+                <span v-if="activity.average_speed && authStore.user.units == 1">{{ formatAverageSpeedMetric(activity.average_speed) }} km/h</span>
+                <span v-else-if="activity.average_speed && authStore.user.units == 2">{{ formatAverageSpeedImperial(activity.average_speed) }} mph</span>
                 <span v-else>{{ $t("activitySummary.activityNoData") }}</span>
             </div>
             <!-- calories -->
@@ -287,7 +289,7 @@ import {
 	formatTime,
 	calculateTimeDifference,
 } from "@/utils/dateTimeUtils";
-import { formatPace, formatPaceSwim } from "@/utils/activityUtils";
+import { formatPaceMetric, formatPaceImperial, formatPaceSwimMetric, formatPaceSwimImperial, formatAverageSpeedMetric, formatAverageSpeedImperial } from "@/utils/activityUtils";
 import { metersToKm, metersToMiles, metersToYards, metersToFeet } from "@/utils/unitsUtils";
 
 export default {
@@ -319,9 +321,17 @@ export default {
 			props.activity.activity_type === 9 ||
 			props.activity.activity_type === 13
 		) {
-			formattedPace = computed(() => formatPaceSwim(props.activity.pace));
+            if (authStore.user.units === 1) {
+                formattedPace = computed(() => formatPaceSwimMetric(props.activity.pace));
+            } else {
+                formattedPace = computed(() => formatPaceSwimImperial(props.activity.pace));
+            }
 		} else {
-			formattedPace = computed(() => formatPace(props.activity.pace));
+            if (authStore.user.units === 1) {
+                formattedPace = computed(() => formatPaceMetric(props.activity.pace));
+            } else {
+                formattedPace = computed(() => formatPaceImperial(props.activity.pace));
+            }
 		}
 		const sourceProp = ref(props.source);
 
@@ -368,6 +378,8 @@ export default {
             metersToMiles,
             metersToYards,
             metersToFeet,
+            formatAverageSpeedMetric,
+            formatAverageSpeedImperial,
 		};
 	},
 };

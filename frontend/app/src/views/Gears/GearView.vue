@@ -109,7 +109,13 @@
 
                 <!-- details  -->
                 <div class="vstack align-items-center">
-                    <span class="mt-2"><strong>{{ $t("gearView.labelDistance") }}:</strong> {{ gearDistance }} km</span>
+                    <span class="mt-2">
+                        <strong>
+                            {{ $t("gearView.labelDistance") }}:
+                        </strong>
+                        <span v-if="authStore.user.units == 1"> {{ gearDistance }} km</span>
+                        <span v-else> {{ kmToMiles(gearDistance) }} mi</span>
+                    </span>
                     <span class="mt-2" v-if="gear?.brand"><strong>{{ $t("gearsView.modalBrand") }}:</strong> {{ gear?.brand }}</span>
                     <span class="mt-2" v-if="gear?.model"><strong>{{ $t("gearsView.modalModel") }}:</strong> {{ gear?.model }}</span>
                 </div>
@@ -155,6 +161,8 @@
 import { ref, onMounted } from "vue";
 import { useI18n } from "vue-i18n";
 import { useRoute, useRouter } from "vue-router";
+// Importing the stores
+import { useAuthStore } from "@/stores/authStore";
 // Import Notivue push
 import { push } from "notivue";
 // Importing the components
@@ -166,6 +174,7 @@ import ModalComponent from '@/components/Modals/ModalComponent.vue';
 import { gears } from "@/services/gearsService";
 import { activities } from "@/services/activitiesService";
 import { formatDateMed, formatTime } from "@/utils/dateTimeUtils";
+import { kmToMiles } from "@/utils/unitsUtils";
 
 export default {
 	components: {
@@ -176,6 +185,7 @@ export default {
 	},
 	setup() {
 		const { t } = useI18n();
+		const authStore = useAuthStore();
 		const route = useRoute();
 		const router = useRouter();
 		const isLoading = ref(true);
@@ -270,6 +280,7 @@ export default {
 		});
 
 		return {
+            authStore,
 			brand,
 			model,
 			nickname,
@@ -286,6 +297,7 @@ export default {
 			submitDeleteGear,
 			formatDateMed,
 			formatTime,
+            kmToMiles,
 		};
 	},
 };

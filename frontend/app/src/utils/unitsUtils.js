@@ -11,12 +11,20 @@ export function metersToMiles(meters) {
 	return (meters / 1609.344).toFixed(2);
 }
 
+export function kmToMiles(km) {
+    return (km / 1.60934).toFixed(2);
+}
+
 export function metersToFeet(meters) {
     return (meters * 3.28084).toFixed(0);
 }
 
 export function metersToYards(meters) {
     return (meters * 1.09361).toFixed(0);
+}
+
+export function kgToLbs(kg) {
+    return (kg * 2.20462).toFixed(0);
 }
 
 // Imperial to Metric conversions
@@ -28,4 +36,8 @@ export function feetAndInchesToCm(feet, inches) {
 // Metric to Metric conversions
 export function metersToKm(meters) {
     return (meters / 1000).toFixed(2);
+}
+
+export function kmToMeters(km) {
+    return (km * 1000).toFixed(0);
 }

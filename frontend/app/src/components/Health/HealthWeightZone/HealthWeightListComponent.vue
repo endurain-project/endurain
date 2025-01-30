@@ -4,9 +4,13 @@
             <font-awesome-icon :icon="['fas', 'weight']"     size="2x" />
             <div class="ms-3">
                 <div class="fw-bold">
-                    {{ data.weight }}
+                    <span v-if="authStore.user.units == 1">{{ data.weight }} kg</span>
+                    <span v-else>{{ kgToLbs(data.weight) }} lbs</span>
                 </div>
-                Date: {{ formatDateShort(data.date) }}<span v-if="data.bmi"> | BMI: {{ data.bmi }}</span>
+                <span>
+                    Date: {{ formatDateShort(data.date) }}
+                    <span v-if="data.bmi"> | BMI: {{ data.bmi }}</span>
+                </span>
             </div>
         </div>
         <div>
@@ -25,10 +29,13 @@
 
 <script>
 import { useI18n } from "vue-i18n";
+// Importing the stores
+import { useAuthStore } from "@/stores/authStore";
 // Import Notivue push
 import { push } from "notivue";
 // Importing the services
 import { health_data } from "@/services/health_dataService";
+import { kgToLbs } from "@/utils/unitsUtils";
 // Import the components
 import HealthWeightAddEditModalComponent from './HealthWeightAddEditModalComponent.vue';
 import ModalComponent from '@/components/Modals/ModalComponent.vue';
@@ -49,6 +56,7 @@ export default {
     emits: ["editedWeight", "deletedWeight"],
 	setup(props, { emit } ) {
 		const { t } = useI18n();
+		const authStore = useAuthStore();
 
         async function updateWeightListEdited(editedWeight){
             try {
@@ -82,9 +90,11 @@ export default {
 
 		return {
             t,
+            authStore,
             updateWeightListEdited,
             submitDeleteWeight,
             formatDateShort,
+            kgToLbs,
 		};
 	},
 };

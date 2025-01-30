@@ -5,11 +5,12 @@
                 <h4>{{ $t("healthDashboardZoneComponent.weight") }}</h4>
             </div>
             <div class="card-body">
-                <h1 v-if="currentWeight">{{ currentWeight }}</h1>
+                <h1 v-if="currentWeight && authStore.user.units == 1">{{ currentWeight }} kg</h1>
+                <h1 v-else-if="currentWeight && authStore.user.units == 2">{{ kgToLbs(currentWeight) }} lbs</h1>
                 <h1 v-else>N/A</h1>
             </div>
             <div class="card-footer text-body-secondary">
-                <span v-if="userHealthTargets">{{ userHealthTargets.weight }}</span>
+                <span v-if="userHealthTargets && userHealthTargets['weight']">{{ userHealthTargets.weight }}</span>
                 <span v-else>{{ $t("healthDashboardZoneComponent.noWeightTarget") }}</span>
             </div>
         </div>
@@ -35,6 +36,9 @@
 <script>
 import { ref, onMounted } from "vue";
 import { useI18n } from "vue-i18n";
+// Importing the stores
+import { useAuthStore } from "@/stores/authStore";
+import { kgToLbs } from "@/utils/unitsUtils";
 
 export default {
 	components: {
@@ -52,6 +56,7 @@ export default {
     },
 	setup(props) {
 		const { t } = useI18n();
+		const authStore = useAuthStore();
         const currentWeight = ref(null);
         const currentBMI = ref(null);
         const bmiDescription = ref(null);
@@ -86,9 +91,11 @@ export default {
 
 
 		return {
+            authStore,
             currentWeight,
             currentBMI,
             bmiDescription,
+            kgToLbs,
 		};
 	},
 };
