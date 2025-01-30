@@ -92,7 +92,7 @@ export default {
                 return;
             }
             try {
-                searchResults.value = await gears.getGearByNickname(query);
+                searchResults.value = await gears.getGearContainsNickname(query);
             } catch (error) {
                 push.error(`${t('generalItems.errorFetchingInfo')} - ${error}`)
             }

@@ -11,6 +11,8 @@ import caActivitySummaryComponent from './ca/components/activities/activitySumma
 import caEditActivityModalComponent from './ca/components/activities/modals/editActivityModalComponent.json';
 // Followers component
 import caFollowersListComponent from './ca/components/followers/followersListComponent.json';
+// Gears component
+import caGearsAddEditUserModalComponent from './ca/components/gears/gearsAddEditUserModalComponent.json';
 // Health components
 import caHealthWeightAddEditModalComponent from './ca/components/health/healthWeightZone/healthWeightAddEditModalComponent.json'
 import caHealthWeightListComponent from './ca/components/health/healthWeightZone/healthWeightListComponent.json'
@@ -55,6 +57,8 @@ import deActivitySummaryComponent from './de/components/activities/activitySumma
 import deEditActivityModalComponent from './de/components/activities/modals/editActivityModalComponent.json';
 // Followers component
 import deFollowersListComponent from './de/components/followers/followersListComponent.json';
+// Gears component
+import deGearsAddEditUserModalComponent from './de/components/gears/gearsAddEditUserModalComponent.json';
 // Health components
 import deHealthWeightAddEditModalComponent from './de/components/health/healthWeightZone/healthWeightAddEditModalComponent.json'
 import deHealthWeightListComponent from './de/components/health/healthWeightZone/healthWeightListComponent.json'
@@ -100,6 +104,8 @@ import frActivitySummaryComponent from './fr/components/activities/activitySumma
 import frEditActivityModalComponent from './fr/components/activities/modals/editActivityModalComponent.json';
 // Followers component
 import frFollowersListComponent from './fr/components/followers/followersListComponent.json';
+// Gears component
+import frGearsAddEditUserModalComponent from './fr/components/gears/gearsAddEditUserModalComponent.json';
 // Health components
 import frHealthWeightAddEditModalComponent from './fr/components/health/healthWeightZone/healthWeightAddEditModalComponent.json'
 import frHealthWeightListComponent from './fr/components/health/healthWeightZone/healthWeightListComponent.json'
@@ -145,6 +151,8 @@ import ptActivitySummaryComponent from './pt/components/activities/activitySumma
 import ptEditActivityModalComponent from './pt/components/activities/modals/editActivityModalComponent.json';
 // Followers component
 import ptFollowersListComponent from './pt/components/followers/followersListComponent.json';
+// Gears component
+import ptGearsAddEditUserModalComponent from './pt/components/gears/gearsAddEditUserModalComponent.json';
 // Health components
 import ptHealthWeightAddEditModalComponent from './pt/components/health/healthWeightZone/healthWeightAddEditModalComponent.json'
 import ptHealthWeightListComponent from './pt/components/health/healthWeightZone/healthWeightListComponent.json'
@@ -189,6 +197,8 @@ import usActivitySummaryComponent from './us/components/activities/activitySumma
 import usEditActivityModalComponent from './us/components/activities/modals/editActivityModalComponent.json';
 // Followers component
 import usFollowersListComponent from './us/components/followers/followersListComponent.json';
+// Gears component
+import usGearsAddEditUserModalComponent from './us/components/gears/gearsAddEditUserModalComponent.json';
 // Health components
 import usHealthWeightAddEditModalComponent from './us/components/health/healthWeightZone/healthWeightAddEditModalComponent.json'
 import usHealthWeightListComponent from './us/components/health/healthWeightZone/healthWeightListComponent.json'
@@ -235,6 +245,8 @@ const messages = {
     editActivityModalComponent: caEditActivityModalComponent,
     // Followers component
     followersListComponent: caFollowersListComponent,
+    // Gears component
+    gearsAddEditUserModalComponent: caGearsAddEditUserModalComponent,
     // Health components
     healthWeightAddEditModalComponent: caHealthWeightAddEditModalComponent,
     healthSideBarComponent: caHealthSideBarComponent,
@@ -279,6 +291,8 @@ const messages = {
     editActivityModalComponent: deEditActivityModalComponent,
     // Followers component
     followersListComponent: deFollowersListComponent,
+    // Gears component
+    gearsAddEditUserModalComponent: deGearsAddEditUserModalComponent,
     // Health components
     healthWeightAddEditModalComponent: deHealthWeightAddEditModalComponent,
     healthSideBarComponent: deHealthSideBarComponent,
@@ -323,6 +337,8 @@ const messages = {
     editActivityModalComponent: frEditActivityModalComponent,
     // Followers component
     followersListComponent: frFollowersListComponent,
+    // Gears component
+    gearsAddEditUserModalComponent: frGearsAddEditUserModalComponent,
     // Health components
     healthWeightAddEditModalComponent: frHealthWeightAddEditModalComponent,
     healthSideBarComponent: frHealthSideBarComponent,
@@ -367,6 +383,8 @@ const messages = {
     editActivityModalComponent: ptEditActivityModalComponent,
     // Followers component
     followersListComponent: ptFollowersListComponent,
+    // Gears component
+    gearsAddEditUserModalComponent: ptGearsAddEditUserModalComponent,
     // Health components
     healthWeightAddEditModalComponent: ptHealthWeightAddEditModalComponent,
     healthSideBarComponent: ptHealthSideBarComponent,
@@ -411,6 +429,8 @@ const messages = {
     editActivityModalComponent: usEditActivityModalComponent,
     // Followers component
     followersListComponent: usFollowersListComponent,
+    // Gears component
+    gearsAddEditUserModalComponent: usGearsAddEditUserModalComponent,
     // Health components
     healthWeightAddEditModalComponent: usHealthWeightAddEditModalComponent,
     healthSideBarComponent: usHealthSideBarComponent,

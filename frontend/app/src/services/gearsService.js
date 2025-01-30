@@ -7,6 +7,9 @@ export const gears = {
     getGearFromType(gearType) {
         return fetchGetRequest(`gears/type/${gearType}`);
     },
+    getGearContainsNickname(nickname) {
+        return fetchGetRequest(`gears/nickname/contains/${nickname}`);
+    },
     getGearByNickname(nickname) {
         return fetchGetRequest(`gears/nickname/${nickname}`);
     },

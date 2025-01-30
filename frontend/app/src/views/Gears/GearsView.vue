@@ -9,54 +9,7 @@
             </a>
 
             <!-- Add gear modal -->
-            <div class="modal fade" id="addGearModal" tabindex="-1" aria-labelledby="addGearModal" aria-hidden="true">
-                <div class="modal-dialog">
-                    <div class="modal-content">
-                        <div class="modal-header">
-                            <h1 class="modal-title fs-5" id="addGearModal">{{ $t("gearsView.buttonAddGear") }}</h1>
-                            <!--<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>-->
-                        </div>
-                        <form @submit.prevent="submitAddGearForm">
-                            <div class="modal-body">
-                                <!-- brand fields -->
-                                <label for="gearBrandAdd"><b>{{ $t("gearsView.modalBrand") }}</b></label>
-                                <input class="form-control" type="text" name="gearBrandAdd" :placeholder='$t("gearsView.modalBrand")' v-model="brand" maxlength="250">
-                                <!-- model fields -->
-                                <label for="gearModelAdd"><b>{{ $t("gearsView.modalModel") }}</b></label>
-                                <input class="form-control" type="text" name="gearModelAdd" :placeholder='$t("gearsView.modalModel")' v-model="model" maxlength="250">
-                                <!-- nickname fields -->
-                                <label for="gearNicknameAdd"><b>* {{ $t("gearsView.modalNickname") }}</b></label>
-                                <input class="form-control" type="text" name="gearNicknameAdd" :placeholder='$t("gearsView.modalNickname")' v-model="nickname" maxlength="250" required>
-                                <!-- gear type fields -->
-                                <label for="gearTypeAdd"><b>* {{ $t("gearsView.modalGearTypeLabel") }}</b></label>
-                                <select class="form-control" name="gearTypeAdd" v-model="gearType" required>
-                                    <option value="1">{{ $t("gearsView.modalGearTypeOption1Bike") }}</option>
-                                    <option value="2">{{ $t("gearsView.modalGearTypeOption2Shoes") }}</option>
-                                    <option value="3">{{ $t("gearsView.modalGearTypeOption3Wetsuit") }}</option>
-                                </select>
-                                <!-- date fields -->
-                                <label for="gearDateAdd"><b>* {{ $t("gearsView.modalDateLabel") }}</b></label>
-                                <input class="form-control" type="date" name="gearDateAdd" :placeholder='$t("gearsView.modalDatePlaceholder")' v-model="date" required>
-                                <!-- gear is_active fields -->
-                                <label for="gearIsActiveAdd"><b>* {{ $t("gearsView.gearIsActiveLabel") }}</b></label>
-                                <select class="form-control" name="gearIsActiveAdd" v-model="isActive" required>
-                                    <option value="1">{{ $t("gearsView.activeState") }}</option>
-                                    <option value="0">{{ $t("gearsView.inactiveState") }}</option>
-                                </select>
-                                <!-- initial kilometers fields -->
-                                <label for="gearInitialKmsAdd"><b>* {{ $t("gearsView.initialKmsLabel") }}</b></label>
-                                <input class="form-control" type="number" step="0.2" name="gearInitialKmsAdd" v-model="initialKms" required>
-                                
-                                <p>* {{ $t("generalItems.requiredField") }}</p>
-                            </div>
-                            <div class="modal-footer">
-                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ $t("generalItems.buttonClose") }}</button>
-                                <button type="submit" class="btn btn-success" name="addGear" data-bs-dismiss="modal">{{ $t("gearsView.buttonAddGear") }}</button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            </div>
+            <GearsAddEditUserModalComponent :action="'add'" @createdGear="addGearList" @isLoadingNewGear="setIsLoadingNewGear"/>
 
             <!-- Search gear by nickname zone -->
             <br>
@@ -143,6 +96,7 @@ import NoItemsFoundComponent from '@/components/GeneralComponents/NoItemsFoundCo
 import LoadingComponent from '@/components/GeneralComponents/LoadingComponent.vue';
 import BackButtonComponent from '@/components/GeneralComponents/BackButtonComponent.vue';
 import PaginationComponent from '@/components/GeneralComponents/PaginationComponent.vue';
+import GearsAddEditUserModalComponent from '@/components/Gears/GearsAddEditUserModalComponent.vue';
 // Importing the services
 import { gears } from '@/services/gearsService';
 
@@ -154,17 +108,11 @@ export default {
         LoadingComponent,
         PaginationComponent,
         BackButtonComponent,
+        GearsAddEditUserModalComponent,
     },
     setup() {
         const { t } = useI18n();
         const route = useRoute();
-        const brand = ref('');
-        const model = ref('');
-        const nickname = ref('');
-        const gearType = ref(1);
-        const date = ref(null);
-		const isActive = ref(1);
-        const initialKms = ref(0);
         const isLoading = ref(true);
         const isGearsUpdatingLoading = ref(true);
         const isLoadingNewGear = ref(false)
@@ -187,46 +135,11 @@ export default {
             }
             try {
                 // Fetch the users based on the search nickname.
-                userGears.value = await gears.getGearByNickname(searchNickname.value);
+                userGears.value = await gears.getGearContainsNickname(searchNickname.value);
             } catch (error) {
 				push.error(`${t("gearsView.errorGearNotFound")} - ${error}`);
             }
         }, 500);
-        
-        async function submitAddGearForm() {
-            // Set the isLoadingNewGear variable to true.
-            isLoadingNewGear.value = true;
-            try {
-                // Create the gear data object.
-                const data = {
-                    brand: brand.value,
-                    model: model.value,
-                    nickname: nickname.value,
-                    gear_type: gearType.value,
-                    created_at: date.value,
-					is_active: isActive.value,
-                    initial_kms: initialKms.value,
-                };
-
-                // Create the gear and get the created gear id.
-                const createdGearId = await gears.createGear(data);
-
-                // Get the created gear and add it to the userGears array.
-                const newGear = await gears.getGearById(createdGearId);
-                userGears.value.unshift(newGear);
-
-                userGearsNumber.value++;
-
-                // Set the success message and show the success alert.
-                push.success(t("gearsView.successGearAdded"));
-            } catch (error) {
-                // If there is an error, set the error message and show the error alert.
-				push.error(`${t("generalItems.errorFetchingInfo")} - ${error}`);
-            } finally {
-                // Set the isLoadingNewGear variable to false.
-                isLoadingNewGear.value = false;
-            }
-        }
 
         function setPageNumber(page) {
             // Set the page number.
@@ -283,6 +196,20 @@ export default {
             isGearsUpdatingLoading.value = false;
             isLoading.value = false;
         });
+
+        function addGearList(createdGear) {
+			userGears.value.unshift(createdGear);
+            userGearsNumber.value++;
+		}
+
+        function editUserList(editedGear) {
+			const index = userGears.value.findIndex((user) => user.id === editedGear.id);
+			userGears.value[index] = editedGear;
+		}
+
+		function setIsLoadingNewGear(state) {
+			isLoadingNewGear.value = state;
+		}
         
         // Watch the search nickname variable.
         watch(searchNickname, performSearch, { immediate: false });
@@ -291,25 +218,20 @@ export default {
         watch(pageNumber, updateGears, { immediate: false });
 
         return {
-            brand,
-            model,
-            nickname,
+            t,
             totalPages,
             pageNumber,
             numRecords,
-            gearType,
-            date,
-			isActive,
-            initialKms,
             isLoading,
             isGearsUpdatingLoading,
             isLoadingNewGear,
             userGears,
             userGearsNumber,
             searchNickname,
-            t,
-            submitAddGearForm,
             setPageNumber,
+            addGearList,
+            editUserList,
+            setIsLoadingNewGear,
         };
     },
 };

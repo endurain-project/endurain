@@ -33,6 +33,10 @@ export function feetAndInchesToCm(feet, inches) {
     return (totalInches * 2.54).toFixed(0);
 }
 
+export function milesToKm(miles) {
+    return (miles * 1.60934).toFixed(0);
+}
+
 // Metric to Metric conversions
 export function metersToKm(meters) {
     return (meters / 1000).toFixed(2);

@@ -85,8 +85,29 @@ async def read_gear_user_number(
 
 
 @router.get(
-    "/nickname/{nickname}",
+    "/nickname/contains/{nickname}",
     response_model=list[gears_schema.Gear] | None,
+)
+async def read_gear_user_contains_nickname(
+    nickname: str,
+    check_scopes: Annotated[
+        Callable, Security(session_security.check_scopes, scopes=["gears:read"])
+    ],
+    token_user_id: Annotated[
+        int, Depends(session_security.get_user_id_from_access_token)
+    ],
+    db: Annotated[
+        Session,
+        Depends(core_database.get_db),
+    ],
+):
+    # Return the gears
+    return gears_crud.get_gear_user_contains_nickname(token_user_id, nickname, db)
+
+
+@router.get(
+    "/nickname/{nickname}",
+    response_model=gears_schema.Gear | None,
 )
 async def read_gear_user_by_nickname(
     nickname: str,
@@ -129,6 +150,7 @@ async def read_gear_user_by_type(
 
 @router.post(
     "/create",
+    response_model=gears_schema.Gear,
     status_code=201,
 )
 async def create_gear(
@@ -144,11 +166,8 @@ async def create_gear(
         Depends(core_database.get_db),
     ],
 ):
-    # Create the gear
-    gear_created = gears_crud.create_gear(gear, token_user_id, db)
-
-    # Return the ID of the gear created
-    return gear_created.id
+    # Create the gear and return it
+    return gears_crud.create_gear(gear, token_user_id, db)
 
 
 @router.put("/{gear_id}/edit")

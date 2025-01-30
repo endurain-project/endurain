@@ -5,7 +5,7 @@
             <div class="modal-content">
                 <div class="modal-header">
                     <h1 class="modal-title fs-5" id="addUserModal" v-if="action == 'add'">{{ $t("settingsUsersZone.buttonAddUser") }}</h1>
-                    <h1 class="modal-title fs-5" id="editUserModalId" v-else-if="action == 'edit'">{{ $t("usersAddEditUserModalComponent.addEditUserModalEditTitle") }}</h1>
+                    <h1 class="modal-title fs-5" :id='editUserModalId' v-else-if="action == 'edit'">{{ $t("usersAddEditUserModalComponent.addEditUserModalEditTitle") }}</h1>
                     <h1 class="modal-title fs-5" id="editProfileModal" v-else>{{ $t("usersAddEditUserModalComponent.addEditUserModalEditProfileTitle") }}</h1>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
@@ -412,15 +412,19 @@ export default {
 
         function handleSubmit() {
             if (Number(authStore?.user?.units) === 1) {
-                if (newEditUserHeightCms.value !== props.user.height) {
+                if ((props.user && newEditUserHeightCms.value !== props.user.height) || props.action === 'add') {
                     const { feet, inches } = cmToFeetInches(newEditUserHeightCms.value);
                     newEditUserHeightFeet.value = feet;
                     newEditUserHeightInches.value = inches;
                 }
             } else {
-                const { feet, inches } = cmToFeetInches(props.user.height);
-                if (feet !== newEditUserHeightFeet.value || inches !== newEditUserHeightInches.value) {
+                if (props.action === 'add') {
                     newEditUserHeightCms.value = feetAndInchesToCm(newEditUserHeightFeet.value, newEditUserHeightInches.value);
+                } else {
+                    const { feet, inches } = cmToFeetInches(props.user.height);
+                    if (feet !== newEditUserHeightFeet.value || inches !== newEditUserHeightInches.value) {
+                        newEditUserHeightCms.value = feetAndInchesToCm(newEditUserHeightFeet.value, newEditUserHeightInches.value);
+                    }
                 }
             }
             

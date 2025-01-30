@@ -13,6 +13,8 @@ files:
     translation: /frontend/app/src/i18n/%two_letters_code%/components/activities/modals/%original_file_name%
   - source: /frontend/app/src/i18n/us/components/followers/*.json
     translation: /frontend/app/src/i18n/%two_letters_code%/components/followers/%original_file_name%
+  - source: /frontend/app/src/i18n/us/components/gears/*.json
+    translation: /frontend/app/src/i18n/%two_letters_code%/components/gears/%original_file_name%
   - source: /frontend/app/src/i18n/us/components/health/*.json
     translation: /frontend/app/src/i18n/%two_letters_code%/components/health/%original_file_name%
   - source: /frontend/app/src/i18n/us/components/health/healthWeightZone/*.json
