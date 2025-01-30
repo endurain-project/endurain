@@ -5,20 +5,26 @@
             <div class="col text-start">
                 <span class="fw-lighter">{{ $t("userDistanceStats.distancesRun") }}</span>
                 <br>
-                <span>{{ thisWeekDistances && thisWeekDistances.run ? (thisWeekDistances.run / 1000).toFixed(2) + ' km' : '0 km' }}</span>
+                <span v-if="authStore.user.units == 1">{{ thisWeekDistances && thisWeekDistances.run ? metersToKm(thisWeekDistances.run) + ' km' : '0 km' }}</span>
+                <span v-else>{{ thisWeekDistances && thisWeekDistances.run ? metersToMiles(thisWeekDistances.run) + ' mi' : '0 mi' }}</span>
             </div>
             <div class="col border-start border-opacity-50 text-center">
                 <span class="fw-lighter">{{ $t("userDistanceStats.distancesBike") }}</span>
                 <br>
-                <span>{{ thisWeekDistances && thisWeekDistances.bike ? (thisWeekDistances.bike / 1000).toFixed(2) + ' km' : '0 km' }}</span>
+                <span v-if="authStore.user.units == 1">{{ thisWeekDistances && thisWeekDistances.bike ? metersToKm(thisWeekDistances.bike) + ' km' : '0 km' }}</span>
+                <span v-else>{{ thisWeekDistances && thisWeekDistances.bike ? metersToMiles(thisWeekDistances.bike) + ' mi' : '0 mi' }}</span>
             </div>
             <div class="col border-start border-opacity-50 text-end">
                 <span class="fw-lighter">{{ $t("userDistanceStats.distancesSwim") }}</span>
                 <br>
                 <span v-if="thisWeekDistances && thisWeekDistances.swim">
-                    {{ thisWeekDistances.swim > 10000 ? (thisWeekDistances.swim / 1000).toFixed(2) + ' km' : thisWeekDistances.swim + ' m' }}
+                    <span v-if="authStore.user.units == 1">{{ thisWeekDistances.swim > 10000 ? metersToKm(thisWeekDistances.swim) + ' km' : thisWeekDistances.swim + ' m' }}</span>
+                    <span v-else>{{ metersToYards(thisWeekDistances.swim) + ' yd' }}</span>
                 </span>
-                <span v-else>0 m</span>
+                <span v-else>
+                    <span v-if="authStore.user.units == 1">0 m</span>
+                    <span v-else>0 yd</span>
+                </span>
             </div>
         </div>
         
@@ -27,27 +33,35 @@
             <div class="col text-start">
                 <span class="fw-lighter">{{ $t("userDistanceStats.distancesRun") }}</span>
                 <br>
-                <span>{{ thisMonthDistances && thisMonthDistances.run ? (thisMonthDistances.run / 1000).toFixed(2) + ' km' : '0 km' }}</span>
+                <span v-if="authStore.user.units == 1">{{ thisMonthDistances && thisMonthDistances.run ? metersToKm(thisMonthDistances.run) + ' km' : '0 km' }}</span>
+                <span v-else>{{ thisMonthDistances && thisMonthDistances.run ? metersToMiles(thisMonthDistances.run) + ' mi' : '0 mi' }}</span>
             </div>
             <div class="col border-start border-opacity-50 text-center">
                 <span class="fw-lighter">{{ $t("userDistanceStats.distancesBike") }}</span>
                 <br>
-                <span>{{ thisMonthDistances && thisMonthDistances.bike ? (thisMonthDistances.bike / 1000).toFixed(2) + ' km' : '0 km' }}</span>
+                <span v-if="authStore.user.units == 1">{{ thisMonthDistances && thisMonthDistances.bike ? metersToKm(thisMonthDistances.bike) + ' km' : '0 km' }}</span>
+                <span v-else>{{ thisMonthDistances && thisMonthDistances.bike ? metersToMiles(thisMonthDistances.bike) + ' mi' : '0 mi' }}</span>
             </div>
             <div class="col border-start border-opacity-50 text-end">
                 <span class="fw-lighter">{{ $t("userDistanceStats.distancesSwim") }}</span>
                 <br>
                 <span v-if="thisMonthDistances && thisMonthDistances.swim">
-                    {{ thisMonthDistances.swim > 10000 ? (thisMonthDistances.swim / 1000).toFixed(2) + ' km' : thisMonthDistances.swim + ' m' }}
+                    <span v-if="authStore.user.units == 1">{{ thisMonthDistances.swim > 10000 ? metersToKm(thisMonthDistances.swim) + ' km' : thisMonthDistances.swim + ' m' }}</span>
+                    <span v-else>{{ metersToYards(thisMonthDistances.swim) + ' yd' }}</span>
                 </span>
-                <span v-else>0 m</span>
+                <span v-else>
+                    <span v-if="authStore.user.units == 1">0 m</span>
+                    <span v-else>0 yd</span>
+                </span>
             </div>
         </div>
     </div>
 </template>
 
 <script>
-import { computed } from 'vue';
+// Importing the stores
+import { useAuthStore } from "@/stores/authStore";
+import { metersToKm, metersToMiles, metersToYards } from "@/utils/unitsUtils";
 
 export default {
     props: {
@@ -61,10 +75,13 @@ export default {
         },
     },
     setup(props) {
+        const authStore = useAuthStore(); 
 
         return {
-            thisWeekDistances: computed(() => props.thisWeekDistances),
-            thisMonthDistances: computed(() => props.thisMonthDistances),
+            authStore,
+            metersToKm,
+            metersToMiles,
+            metersToYards,
         };
     },
 };
