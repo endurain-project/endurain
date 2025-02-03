@@ -57,8 +57,8 @@
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ $t("generalItems.buttonClose") }}</button>
-                        <button type="submit" class="btn btn-success" name="addGear" v-if="action === 'add'" :disabled="!isNicknameExists || !newEditGearCreatedDate || !newEditGearNickname">{{ $t("gearsAddEditGearModalComponent.addEditGearModalAddTitle") }}</button>
-                        <button type="submit" class="btn btn-success" name="editGear" v-else :disabled="!isNicknameExists || !newEditGearCreatedDate || !newEditGearNickname">{{ $t("gearsAddEditGearModalComponent.addEditGearModalEditTitle") }}</button>
+                        <button type="submit" class="btn btn-success" name="addGear" data-bs-dismiss="modal" v-if="action === 'add'" :disabled="!isNicknameExists || !newEditGearCreatedDate || !newEditGearNickname">{{ $t("gearsAddEditGearModalComponent.addEditGearModalAddTitle") }}</button>
+                        <button type="submit" class="btn btn-success" name="editGear" data-bs-dismiss="modal" v-else :disabled="!isNicknameExists || !newEditGearCreatedDate || !newEditGearNickname">{{ $t("gearsAddEditGearModalComponent.addEditGearModalEditTitle") }}</button>
                     </div>
                 </form>
             </div>

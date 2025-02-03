@@ -1,6 +1,6 @@
 {
-    "buttonEditGear": "Edit Gear",
-    "buttonDeleteGear": "Delete Gear",
+    "buttonEditGear": "Edit gear",
+    "buttonDeleteGear": "Delete gear",
     "modalDeleteGearBody1": "Are you sure you want to delete gear",
     "modalDeleteGearBody2": "This action cannot be undone.",
     "gearIsActiveBadge": "Active",

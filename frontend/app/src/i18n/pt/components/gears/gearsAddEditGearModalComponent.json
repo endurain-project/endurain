@@ -1,3 +1,23 @@
 {
-    
+    "addEditGearModalEditTitle": "Editar equipamento",
+    "addEditGearModalAddTitle": "Adicionar equipamento",
+    "addEditGearModalAddBrandLabel": "Marca",
+    "addEditGearModalAddModelLabel": "Modelo",
+    "addEditGearModalAddNicknameLabel": "Alcunha",
+    "addEditGearModalAddTypeLabel": "Tipo de equipamento",
+    "addEditGearModalAddTypeOption1": "Bicicleta",
+    "addEditGearModalAddTypeOption2": "Sapatilhas",
+    "addEditGearModalAddTypeOption3": "Fato de neoprene",
+    "addEditGearModalAddDateLabel": "Data de criação",
+    "addEditGearModalAddIsActiveLabel": "Está ativo",
+    "addEditGearModalAddIsActiveOption1": "Ativo",
+    "addEditGearModalAddIsActiveOption0": "Inativo",
+    "addEditGearModalAddIsInitialKmsLabel": "Quilómetros iniciais",
+    "addEditGearModalAddIsInitialMilesLabel": "Milhas iniciais",
+    "errorNicknameAlreadyExistsFeedback": "Alcunha já existe",
+    "errorNotPossibleToGetGearByNickname": "Não foi possível obter o equipamento por alcunha para validação",
+    "successGearAdded": "Equipamento adicionado com sucesso",
+    "errorGearAdd": "Erro ao adicionar equipamento",
+    "successGearEdited": "Equipamento editado com sucesso",
+    "errorGearEdit": "Erro ao editar equipamento"
 }
