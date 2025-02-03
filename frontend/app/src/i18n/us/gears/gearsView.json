@@ -7,17 +7,6 @@
     "displayUserNumberOfGears1": "There is a total of ",
     "displayUserNumberOfGears2": " gear(s) (",
     "displayUserNumberOfGears3": " loaded):",
-    "gearTypeLabel": "Type",
-    "gearTypeOption1": "Bike",
-    "gearTypeOption2": "Shoes",
-    "gearTypeOption3": "Wetsuit",
-    "gearIsActiveLabel": "Is active",
-    "activeState": "Active",
-    "inactiveState": "Inactive",
-    "initialKmsLabel": "Initial kms",
-    "gearFromStrava": "Strava",
-    "gearFromGarminConnect": "Garmin Connect",
-    "successGearAdded": "Gear added successfully",
     "successGearDeleted": "Gear deleted successfully",
     "errorGearNotFound": "Gear not found"
 }

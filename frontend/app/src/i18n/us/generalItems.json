@@ -6,7 +6,6 @@
     "errorFetchingInfo": "Error fetching info",
     "errorEditingInfo": "Error editing info",
     "errorDeletingInfo": "Error deleting info",
-    "errorNicknameAlreadyExistsFeedback": "Nickname already exists",
     "errorUsernameAlreadyExistsFeedback": "Username already exists",
     "errorEmailNotValidFeedback": "Email not valid",
     "errorEmailAlreadyExistsFeedback": "Email already exists",

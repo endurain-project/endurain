@@ -1,5 +1,3 @@
-import logging
-
 from typing import Annotated, Callable
 
 from fastapi import APIRouter, Depends, HTTPException, status, Security

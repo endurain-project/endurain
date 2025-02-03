@@ -105,9 +105,9 @@ export default {
 
 		async function submitDeleteUser() {
 			try {
-				await users.deleteUser(userProp.value.id);
+				await users.deleteUser(props.user.id);
 
-				emit("userDeleted", userProp.value.id);
+				emit("userDeleted", props.user.id);
 			} catch (error) {
 				// If there is an error, set the error message and show the error alert.
 				push.error(
@@ -122,7 +122,7 @@ export default {
 
 		async function submitDeleteUserPhoto() {
 			try {
-				await users.deleteUserPhoto(userProp.value.id);
+				await users.deleteUserPhoto(props.user.id);
 				userProp.value.photo_path = null;
 
 				// Set the success message and show the success alert.

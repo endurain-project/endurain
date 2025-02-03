@@ -42,7 +42,7 @@ def get_gear_users_with_pagination(
 ) -> list[gears_schema.Gear] | None:
     try:
         # Get the gear by user ID from the database
-        gear = (
+        gears = (
             db.query(gears_models.Gear)
             .filter(gears_models.Gear.user_id == user_id)
             .order_by(gears_models.Gear.nickname.asc())
@@ -52,15 +52,15 @@ def get_gear_users_with_pagination(
         )
 
         # Check if gear is None and return None if it is
-        if gear is None:
+        if gears is None:
             return None
 
         # Format the created_at date
-        for g in gear:
+        for g in gears:
             g = gears_utils.serialize_gear(g)
 
         # Return the gear
-        return gear
+        return gears
     except Exception as err:
         # Log the exception
         core_logger.print_to_log(

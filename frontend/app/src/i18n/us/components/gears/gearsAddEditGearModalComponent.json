@@ -13,5 +13,11 @@
     "addEditGearModalAddIsActiveOption1": "Active",
     "addEditGearModalAddIsActiveOption0": "Inactive",
     "addEditGearModalAddIsInitialKmsLabel": "Initial kms",
-    "addEditGearModalAddIsInitialMilesLabel": "Initial miles"
+    "addEditGearModalAddIsInitialMilesLabel": "Initial miles",
+    "errorNicknameAlreadyExistsFeedback": "Nickname already exists",
+    "errorNotPossibleToGetGearByNickname": "Is was not possible to get gear by nickname for validation",
+    "successGearAdded": "Gear added successfully",
+    "errorGearAdd": "Error adding gear",
+    "successGearEdited": "Gear edited successfully",
+    "errorGearEdit": "Error editing gear"
 }

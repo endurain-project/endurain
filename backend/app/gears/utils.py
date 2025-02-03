@@ -38,7 +38,7 @@ def transform_schema_gear_to_model_gear(
 
 def serialize_gear(gear: gears_schema.Gear):
     # Serialize the gear object
-    gear.created_at = gear.created_at.strftime("%Y-%m-%dT%H:%M:%S")
+    gear.created_at = gear.created_at.strftime("%Y-%m-%d")
 
     # Return the serialized gear object
     return gear

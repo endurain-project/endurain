@@ -42,31 +42,7 @@
 
                     <!-- List gears -->
                     <ul class="list-group list-group-flush" v-for="gear in userGears" :key="gear.id" :gear="gear" v-else>
-                        <li class="list-group-item d-flex justify-content-between">
-                            <div class="d-flex align-items-center">
-                                <img src="/src/assets/avatar/bicycle1.png" alt="Bycicle avatar" width="55" height="55" v-if="gear.gear_type == 1">
-                                <img src="/src/assets/avatar/running_shoe1.png" alt="Bycicle avatar" width="55" height="55" v-else-if="gear.gear_type == 2">
-                                <img src="/src/assets/avatar/wetsuit1.png" alt="Bycicle avatar" width="55" height="55" v-else>
-                                <div class="ms-3">
-                                    <div class="fw-bold">
-                                        <router-link :to="{ name: 'gear', params: { id: gear.id }}" class="link-body-emphasis link-underline-opacity-0 link-underline-opacity-100-hover">
-                                            {{ gear.nickname }}
-                                        </router-link>
-                                    </div>
-                                    <b>{{ $t("gearsView.gearTypeLabel") }}: </b>
-                                    <span v-if="gear.gear_type == 1">{{ $t("gearsView.gearTypeOption1") }}</span>
-                                    <span v-else-if="gear.gear_type == 2">{{ $t("gearsView.gearTypeOption2") }}</span>
-                                    <span v-else>{{ $t("gearsView.gearTypeOption3") }}</span>
-                                    <br>
-                                </div>
-                            </div>
-                            <div>
-                                <!--<span class="badge bg-success-subtle border border-success-subtle text-success-emphasis align-middle" v-if="gear.is_active == 1">{{ $t("gearsView.activeState") }}</span>-->
-                                <span class="badge bg-danger-subtle border border-danger-subtle text-danger-emphasis align-middle" v-if="gear.is_active == 0">{{ $t("gearsView.inactiveState") }}</span>
-                                <span class="badge bg-primary-subtle border border-primary-subtle text-primary-emphasis align-middle ms-2" v-if="gear.strava_gear_id">{{ $t("gearsView.gearFromStrava") }}</span>
-                                <span class="badge bg-primary-subtle border border-primary-subtle text-primary-emphasis align-middle ms-2" v-if="gear.garminconnect_gear_id">{{ $t("gearsView.gearFromGarminConnect") }}</span>
-                            </div>
-                        </li>
+                        <GearsListComponent :gear="gear" @editedGear="editGearList" @gearDeleted="updateGearListOnDelete"/>
                     </ul>
 
                     <!-- pagination area -->
@@ -96,7 +72,8 @@ import NoItemsFoundComponent from '@/components/GeneralComponents/NoItemsFoundCo
 import LoadingComponent from '@/components/GeneralComponents/LoadingComponent.vue';
 import BackButtonComponent from '@/components/GeneralComponents/BackButtonComponent.vue';
 import PaginationComponent from '@/components/GeneralComponents/PaginationComponent.vue';
-import GearsAddEditUserModalComponent from '@/components/Gears/GearsAddEditUserModalComponent.vue';
+import GearsAddEditUserModalComponent from '@/components/Gears/GearsAddEditGearModalComponent.vue';
+import GearsListComponent from '@/components/Gears/GearsListComponent.vue';
 // Importing the services
 import { gears } from '@/services/gearsService';
 
@@ -109,6 +86,7 @@ export default {
         PaginationComponent,
         BackButtonComponent,
         GearsAddEditUserModalComponent,
+        GearsListComponent,
     },
     setup() {
         const { t } = useI18n();
@@ -186,7 +164,7 @@ export default {
 
             if (route.query.gearFound === 'false') {
                 // Set the gearFound value to false and show the error alert.
-				push.error(`${t("gearsView.errorGearNotFound")} - ${error}`);
+				push.error(`${t("gearsView.errorGearNotFound")} - ID:${route.query.id}`);
             }
 
             // Fetch gears
@@ -202,13 +180,20 @@ export default {
             userGearsNumber.value++;
 		}
 
-        function editUserList(editedGear) {
-			const index = userGears.value.findIndex((user) => user.id === editedGear.id);
+        function editGearList(editedGear) {
+			const index = userGears.value.findIndex((gear) => gear.id === editedGear.id);
 			userGears.value[index] = editedGear;
 		}
 
 		function setIsLoadingNewGear(state) {
 			isLoadingNewGear.value = state;
+		}
+
+        function updateGearListOnDelete(gearDeletedId) {
+			userGears.value = userGears.value.filter(
+				(gear) => gear.id !== gearDeletedId,
+			);
+			userGearsNumber.value--;
 		}
         
         // Watch the search nickname variable.
@@ -230,7 +215,8 @@ export default {
             searchNickname,
             setPageNumber,
             addGearList,
-            editUserList,
+            editGearList,
+            updateGearListOnDelete,
             setIsLoadingNewGear,
         };
     },
