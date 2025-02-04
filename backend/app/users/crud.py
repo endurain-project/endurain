@@ -1,4 +1,5 @@
 from fastapi import HTTPException, status
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from urllib.parse import unquote
@@ -102,12 +103,14 @@ def get_users_with_pagination(db: Session, page_number: int = 1, num_records: in
 def get_user_if_contains_username(username: str, db: Session):
     try:
         # Define a search term
-        partial_username = unquote(username).replace("+", " ")
+        partial_username = unquote(username).replace("+", " ").lower()
 
         # Get the user from the database
         users = (
             db.query(users_models.User)
-            .filter(users_models.User.username.like(f"%{partial_username}%"))
+            .filter(
+                func.lower(users_models.User.username).like(f"%{partial_username}%")
+            )
             .all()
         )
 

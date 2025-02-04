@@ -1,6 +1,6 @@
 from operator import and_, or_
 from fastapi import HTTPException, status
-from datetime import datetime, timezone
+from datetime import datetime
 from sqlalchemy import func, desc
 from sqlalchemy.orm import Session, joinedload
 from urllib.parse import unquote
@@ -516,14 +516,14 @@ def get_activity_by_garminconnect_id_from_user_id(
 def get_activities_if_contains_name(name: str, user_id: int, db: Session):
     try:
         # Define a search term
-        partial_name = unquote(name).replace("+", " ")
+        partial_name = unquote(name).replace("+", " ").lower()
 
         # Get the activities from the database
         activities = (
             db.query(activities_models.Activity)
             .filter(
                 activities_models.Activity.user_id == user_id,
-                activities_models.Activity.name.like(f"%{partial_name}%"),
+                func.lower(activities_models.Activity.name).like(f"%{partial_name}%"),
             )
             .order_by(desc(activities_models.Activity.start_time))
             .all()
@@ -556,7 +556,9 @@ def create_activity(
 ) -> activities_schema.Activity:
     try:
         # Create a new activity
-        new_activity = activities_utils.transform_schema_activity_to_model_activity(activity)
+        new_activity = activities_utils.transform_schema_activity_to_model_activity(
+            activity
+        )
 
         # Add the activity to the database
         db.add(new_activity)
