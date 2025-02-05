@@ -44,13 +44,14 @@ class Activity(BaseModel):
 
 
 class ActivityDistances(BaseModel):
-    swim: float
-    bike: float
     run: float
+    bike: float
+    swim: float
     walk: float
     hike: float
     rowing: float
-    ski: float
+    snow_ski: float
+    snowboard: float
 
 
 class ActivityEdit(BaseModel):

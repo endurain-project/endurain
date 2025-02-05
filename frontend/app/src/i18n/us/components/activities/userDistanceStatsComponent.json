@@ -1,11 +1,12 @@
 {
-    "thisMonthDistancesTitle" :"This month distances",
-    "thisWeekDistancesTitle" :"This week distances",
+    "thisMonthDistancesTitle" :"This month top 3 distances",
+    "thisWeekDistancesTitle" :"This week top 3 distances",
     "distancesRun" :"Run",
     "distancesBike" :"Bike",
     "distancesSwim" :"Swim",
     "distancesWalk": "Walk",
     "distancesHike": "Hike",
-    "distancesSki": "Ski",
-    "distancesRowing": "Rowing"
+    "distancesRowing": "Rowing",
+    "distancesSnowSki": "Ski",
+    "distancesSnowboard": "Snowboard"
 }
