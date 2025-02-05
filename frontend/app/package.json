@@ -26,7 +26,7 @@
     "notivue": "^2.4.5",
     "pinia": "^2.2.7",
     "vue": "^3.5.13",
-    "vue-i18n": "^10.0.5",
+    "vue-i18n": "^11.1.0",
     "vue-router": "^4.5.0"
   },
   "devDependencies": {
@@ -38,10 +38,10 @@
     "@vue/test-utils": "^2.4.6",
     "eslint": "^9.15.0",
     "eslint-plugin-vue": "^9.31.0",
-    "jsdom": "^25.0.1",
+    "jsdom": "^26.0.0",
     "prettier": "^3.4.1",
-    "vite": "^5.4.10",
+    "vite": "^6.1.0",
     "vite-plugin-pwa": "^0.21.0",
-    "vitest": "^2.1.6"
+    "vitest": "^3.0.5"
   }
 }
