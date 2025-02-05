@@ -31,6 +31,12 @@
                                 <!-- retrieve gear -->
                                 <a href="#" class="dropdown-item" @click="submitRetrieveStravaGear">{{ $t("settingsIntegrationsZone.buttonRetrieveGear") }}</a>
                             </li>
+							<li><hr class="dropdown-divider"></li>
+							<li>
+                                <!-- relink Strava -->
+                                <a href="#" class="dropdown-item" role="button" @click="submitConnectStrava">{{ $t("settingsIntegrationsZone.buttonRelink") }}</a>
+                            </li>
+							<li><hr class="dropdown-divider"></li>
                             <li>
                                 <!-- unlink Strava -->
                                 <a href="#" class="dropdown-item" role="button" data-bs-toggle="modal" data-bs-target="#unlinkStravaModal">{{ $t("settingsIntegrationsZone.buttonUnlink") }}</a>
@@ -89,6 +95,7 @@
 								<!-- retrieve garmin connect health data by days -->
 								<a class="dropdown-item" href="#" role="button" data-bs-toggle="modal" data-bs-target="#retrieveGarminConnectHealthDataByDaysModal">{{ $t("settingsIntegrationsZone.modalRetrieveHealthDataByDaysTitle") }}</a>
 							</li>
+							<li><hr class="dropdown-divider"></li>
 							<li>
                                 <!-- unlink Garmin Connect -->
                                 <a href="#" class="dropdown-item" role="button" data-bs-toggle="modal" data-bs-target="#unlinkGarminConnectModal">{{ $t("settingsIntegrationsZone.buttonUnlink") }}</a>

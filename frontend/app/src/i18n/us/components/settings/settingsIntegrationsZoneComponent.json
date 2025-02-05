@@ -8,6 +8,7 @@
     "modalRetrieveActivitiesByDaysPlaceholder": "Days",
     "modalRetrieveButton": "Retrieve",
     "buttonRetrieveGear": "Retrieve gear",
+    "buttonRelink": "Relink",
     "buttonUnlink": "Unlink",
     "errorMessageUnableToLinkStrava": "Unable to link Strava account",
     "successMessageStravaAccountLinked": "Strava account linked",
