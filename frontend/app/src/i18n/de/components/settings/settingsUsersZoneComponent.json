@@ -4,5 +4,7 @@
     "labelNumberOfUsers1": "Es gibt insgesamt ",
     "labelNumberOfUsers2": " Benutzer (",
     "labelNumberOfUsers3": " geladen):",
-    "successUserAdded": "Benutzer erfolgreich hinzugefügt"
+    "successUserAdded": "Benutzer erfolgreich hinzugefügt",
+    "successUserDeleted": "User deleted successfully",
+    "errorFetchingUsers": "Error fetching users"
 }
