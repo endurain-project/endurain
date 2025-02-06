@@ -16,5 +16,7 @@
     "labelDate": "Data",
     "title": "Activitats d'equipament",
     "subtitle": "(últimes 10 activitats)",
-    "successGearEdited": "Equipament editat correctament"
+    "successGearEdited": "Equipament editat correctament",
+    "errorGearDelete": "Error deleting gear",
+    "errorFetchingGears": "Error fetching gears"
 }
