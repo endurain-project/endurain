@@ -8,6 +8,7 @@
     "modalRetrieveActivitiesByDaysPlaceholder": "Dies",
     "modalRetrieveButton": "Recupera",
     "buttonRetrieveGear": "Recupera equipament",
+    "buttonRelink": "Relink",
     "buttonUnlink": "Desenllaça",
     "errorMessageUnableToLinkStrava": "No s'ha pogut enllaçar Strava",
     "successMessageStravaAccountLinked": "Strava enllaçat",
