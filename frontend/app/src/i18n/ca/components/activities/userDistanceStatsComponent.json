@@ -4,9 +4,9 @@
     "distancesRun": "Córrer",
     "distancesBike": "Bici",
     "distancesSwim": "Natació",
-    "distancesWalk": "Walk",
-    "distancesHike": "Hike",
-    "distancesRowing": "Rowing",
-    "distancesSnowSki": "Ski",
-    "distancesSnowboard": "Snowboard"
+    "distancesWalk": "Caminar",
+    "distancesHike": "Caminar",
+    "distancesRowing": "Rem",
+    "distancesSnowSki": "Esquí",
+    "distancesSnowboard": "Snow"
 }
