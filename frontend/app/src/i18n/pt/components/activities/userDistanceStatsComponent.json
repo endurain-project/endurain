@@ -3,5 +3,10 @@
     "thisWeekDistancesTitle": "Distâncias desta semana",
     "distancesRun": "Corrida",
     "distancesBike": "Ciclismo",
-    "distancesSwim": "Natação"
+    "distancesSwim": "Natação",
+    "distancesWalk": "Walk",
+    "distancesHike": "Hike",
+    "distancesRowing": "Rowing",
+    "distancesSnowSki": "Ski",
+    "distancesSnowboard": "Snowboard"
 }
