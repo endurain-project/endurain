@@ -1,3 +1,5 @@
 {
-    "title": "Salut"
+    "title": "Salut",
+    "errorFetchingHealthData": "Error fetching health data",
+    "errorFetchingHealthTargets": "Error fetching health targets"
 }
