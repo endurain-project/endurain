@@ -8,5 +8,7 @@
     "errorActivityAdded": "Error adding activity",
     "errorActivityNotFound": "Activity not found",
     "processingActivity": "Processing activity",
-    "successActivityDeleted": "Activity deleted successfully"
+    "successActivityDeleted": "Activity deleted successfully",
+    "errorFetchingUserStats": "Error fetching user stats",
+    "errorFetchingUserActivities": "Error fetching user activities"
 }
