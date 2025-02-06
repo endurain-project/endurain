@@ -1,13 +1,13 @@
 {
-    "gearListTypeLabel": "Type",
-    "gearListTypeOption1": "Bike",
-    "gearListTypeOption2": "Shoes",
-    "gearListTypeOption3": "Wetsuit",
-    "gearListGearIsInactiveBadge": "Inactive",
+    "gearListTypeLabel": "Tipus",
+    "gearListTypeOption1": "Bici",
+    "gearListTypeOption2": "Sabatilles",
+    "gearListTypeOption3": "Neoprè",
+    "gearListGearIsInactiveBadge": "Inactiu",
     "gearListGearFromStrava": "Strava",
     "gearListGearFromGarminConnect": "Garmin Connect",
-    "gearListModalDeleteGearTitle": "Delete gear",
-    "gearListModalDeleteGearBody": "Are you sure you want to delete gear ",
-    "gearListGearDeleteSuccessMessage": "Gear deleted successfully",
-    "gearListGearDeleteErrorMessage": "Error deleting gear"
+    "gearListModalDeleteGearTitle": "Esborra Equipament",
+    "gearListModalDeleteGearBody": "Segur que vols esborrar equipament ",
+    "gearListGearDeleteSuccessMessage": "Equipament esborrat correctament",
+    "gearListGearDeleteErrorMessage": "Error esborrant equip"
 }
