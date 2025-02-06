@@ -8,5 +8,7 @@
     "errorActivityAdded": "Error afegint activitat",
     "errorActivityNotFound": "Activitat no trobada",
     "processingActivity": "Processant activitat",
-    "successActivityDeleted": "Activitat esborrada correctament"
+    "successActivityDeleted": "Activitat esborrada correctament",
+    "errorFetchingUserStats": "Error fetching user stats",
+    "errorFetchingUserActivities": "Error fetching user activities"
 }
