@@ -1,6 +1,13 @@
 {
     "subtitleChangePassword": "Alterar palavra-passe",
+    "changeUserPasswordBodyLabel": "Change password for user ",
+    "changeUserPasswordPasswordLabel": "New password",
+    "changeUserPasswordPasswordConfirmationLabel": "Confirm new password",
+    "changeUserPasswordFeedbackLabel": "Password does not meet requirements",
+    "changeUserPasswordPasswordsDoNotMatchFeedbackLabel": "Passwords do not match",
     "subtitleMySessions": "Minhas sessões",
+    "userChangePasswordSuccessMessage": "Password changed successfully",
+    "userChangePasswordErrorMessage": "Error changing password",
     "successDeleteSession": "Sessão eliminada com sucesso",
     "errorDeleteSession": "Erro ao eliminar sessão"
 }
