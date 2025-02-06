@@ -1,0 +1,10 @@
+{
+    "search": "Search",
+    "gear": "Ausrüstung",
+    "health": "Gesundheit",
+    "profile": "Profil",
+    "settings": "Einstellungen",
+    "login": "Anmelden",
+    "logout": "Abmelden",
+    "errorLogout": "Error logging out"
+}
