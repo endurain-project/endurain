@@ -1152,14 +1152,14 @@ trio = ["async_generator", "trio"]
 
 [[package]]
 name = "joserfc"
-version = "1.0.2"
+version = "1.0.3"
 description = "The ultimate Python library for JOSE RFCs, including JWS, JWE, JWK, JWA, JWT"
 optional = false
 python-versions = ">=3.8"
 groups = ["main"]
 files = [
-    {file = "joserfc-1.0.2-py3-none-any.whl", hash = "sha256:8d3e0253b0b24aeaf049d7bf7a847040dd6462de24cefd0c14abfc8b353f9619"},
-    {file = "joserfc-1.0.2.tar.gz", hash = "sha256:f3c4efa35a62fc100097e4bec2584f5fd21b878eee3eb5324bc9b37d2969b2a4"},
+    {file = "joserfc-1.0.3-py3-none-any.whl", hash = "sha256:76c7efafb9b7bc635dd73e9e3819d393d952f042c24d6a98182759d39cbc743b"},
+    {file = "joserfc-1.0.3.tar.gz", hash = "sha256:bcbed6fdfeefb9dc3bcca827f7539c57b353d514fbddf6c722a1c35aea4eb499"},
 ]
 
 [package.dependencies]
