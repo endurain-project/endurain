@@ -8,5 +8,7 @@
     "errorActivityAdded": "Fehler beim Hinzufügen der Aktivität",
     "errorActivityNotFound": "Aktivität nicht gefunden",
     "processingActivity": "Verarbeite Aktivität",
-    "successActivityDeleted": "Die Aktivität wurde erfolgreich gelöscht"
+    "successActivityDeleted": "Die Aktivität wurde erfolgreich gelöscht",
+    "errorFetchingUserStats": "Error fetching user stats",
+    "errorFetchingUserActivities": "Error fetching user activities"
 }
