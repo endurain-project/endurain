@@ -151,12 +151,12 @@ export default {
 
 				// Show the success alert.
 				push.success(
-					t("settingsSecurityZone.successDeleteSession"),
+					t("usersListComponent.userSessionDeleteSuccessMessage"),
 				);
 			} catch (error) {
 				// If there is an error, show the error alert.
 				push.error(
-					`${t("settingsSecurityZone.errorDeleteSession")} - ${error}`,
+					`${t("usersListComponent.userSessionDeleteErrorMessage")} - ${error}`,
 				);
 			}
 		}

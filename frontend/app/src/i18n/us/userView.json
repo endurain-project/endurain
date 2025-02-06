@@ -25,5 +25,8 @@
     "activitiesPaginationWeek51": "One year ago",
     "successFollowingDeleted": "Following deleted",
     "successFollowerDeleted": "Follower deleted",
-    "successFollowerAccepted": "Follower accepted"
+    "successFollowerAccepted": "Follower accepted",
+    "errorFetchingUserStats": "Error fetching user stats",
+    "errorFetchingUserFollowers": "Error fetching user followers",
+    "errorFetchingUserActivities": "Error fetching user activities"
 }

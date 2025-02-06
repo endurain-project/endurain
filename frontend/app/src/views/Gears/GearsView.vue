@@ -136,7 +136,7 @@ export default {
                 isGearsUpdatingLoading.value = false;
             } catch (error) {
                 // If there is an error, set the error message and show the error alert.
-				push.error(`${t("generalItems.errorFetchingInfo")} - ${error}`);
+				push.error(`${t("gearsView.errorFetchingGears")} - ${error}`);
             }
         }
 
@@ -152,7 +152,7 @@ export default {
                 totalPages.value = Math.ceil(userGearsNumber.value / numRecords);
             } catch (error) {
                 // If there is an error, set the error message and show the error alert.
-				push.error(`${t("generalItems.errorFetchingInfo")} - ${error}`);
+				push.error(`${t("gearsView.errorFetchingGears")} - ${error}`);
             }
         }
 

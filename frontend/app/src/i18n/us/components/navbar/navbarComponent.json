@@ -6,5 +6,5 @@
     "settings": "Settings",
     "login": "Login",
     "logout": "Logout",
-    "warningZone": "Alpha software, some features might not work has expected"
+    "errorLogout": "Error logging out"
 }

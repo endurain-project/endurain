@@ -16,7 +16,7 @@
                     <!-- Search -->
                     <a class="nav-link link-body-emphasis" href="#" role="button" @click="toggleShowSearch" v-if="authStore.isAuthenticated">
                         <font-awesome-icon :icon="['fas', 'magnifying-glass']" />
-                        <span class="ms-1" v-if="!showSearch">{{ $t("navbar.search") }}</span>
+                        <span class="ms-1" v-if="!showSearch">{{ $t("navbarComponent.search") }}</span>
                     </a>
 
                     <NavbarSearchComponent v-if="showSearch" @collapseNavbar="collapseNavbar" @toggleShowSearch="toggleShowSearch"/>
@@ -27,14 +27,14 @@
                     <router-link :to="{ name: 'gears' }" class="nav-link link-body-emphasis" v-if="authStore.isAuthenticated" @click="collapseNavbar">
                         <font-awesome-icon :icon="['fas', 'fa-bicycle']" />
                         <span class="ms-1">
-                            {{ $t("navbar.gear") }}
+                            {{ $t("navbarComponent.gear") }}
                         </span>
                     </router-link>
                     <!-- if is logged in show health button -->
                     <router-link :to="{ name: 'health' }" class="nav-link link-body-emphasis" v-if="authStore.isAuthenticated" @click="collapseNavbar">
                         <font-awesome-icon :icon="['fas', 'fa-heart']" />
                         <span class="ms-1">
-                            {{ $t("navbar.health") }}
+                            {{ $t("navbarComponent.health") }}
                         </span>
                     </router-link>
                 </div>
@@ -52,7 +52,7 @@
                     <!-- profile button -->
                     <router-link :to="{ name: 'user', params: { id: authStore.user.id } }" class="nav-link link-body-emphasis" v-if="authStore.isAuthenticated" @click="collapseNavbar">
                         <UserAvatarComponent :user="authStore.user" :width=24 :height=24 :alignTop=2 />
-                        <span class="ms-2">{{ $t("navbar.profile") }}</span>
+                        <span class="ms-2">{{ $t("navbarComponent.profile") }}</span>
                     </router-link>
 
                     <!-- pipe -->
@@ -63,18 +63,18 @@
                     <!-- Settings button -->
                     <router-link :to="{ name: 'settings' }" class="nav-link link-body-emphasis" v-if="authStore.isAuthenticated" @click="collapseNavbar">
                         <font-awesome-icon :icon="['fas', 'fa-gear']" />
-                        <span class="ms-1">{{ $t("navbar.settings") }}</span>
+                        <span class="ms-1">{{ $t("navbarComponent.settings") }}</span>
                     </router-link>
 
                     <!-- Login/logout button -->
                     <a class="nav-link link-body-emphasis" href="#" v-if="authStore.isAuthenticated" @click="handleLogout">
                         <font-awesome-icon :icon="['fas', 'fa-sign-out-alt']" />
-                        <span class="ms-1">{{ $t("navbar.logout") }}</span>
+                        <span class="ms-1">{{ $t("navbarComponent.logout") }}</span>
                     </a>
                     <!-- if is not logged in -->
                     <router-link :to="{ name: 'login' }" class="nav-link link-body-emphasis" v-if="!authStore.isAuthenticated" @click="collapseNavbar">
                         <font-awesome-icon :icon="['fas', 'fa-sign-in-alt']" />
-                        <span class="ms-1">{{ $t("navbar.login") }}</span>
+                        <span class="ms-1">{{ $t("navbarComponent.login") }}</span>
                     </router-link>
                 </div>
             </div>
@@ -117,7 +117,7 @@ export default {
 				collapseNavbar();
                 await authStore.logoutUser(router, locale);
 			} catch (error) {
-				push.error(`${t("generalItems.errorFetchingInfo")} - ${error}`);
+				push.error(`${t("navbarComponent.errorLogout")} - ${error}`);
 			}
 		}
 

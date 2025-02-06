@@ -160,7 +160,7 @@ export default {
         thisMonthDistances.value = await activities.getUserThisMonthStats(authStore.user.id);
       } catch (error) {
         // Set the error message
-        push.error(`${t('generalItems.errorFetchingInfo')} - ${error}`)
+        push.error(`${t('homeView.errorFetchingUserStats')} - ${error}`)
       }
     }
 
@@ -182,7 +182,7 @@ export default {
         }
       } catch (error) {
         // Set the error message
-        push.error(`${t('generalItems.errorFetchingInfo')} - ${error}`)
+        push.error(`${t('homeView.errorFetchingUserActivities')} - ${error}`)
       }
     }
 
@@ -267,7 +267,7 @@ export default {
         }
       } catch (error) {
         // Set the error message
-        push.error(`${t('generalItems.errorFetchingInfo')} - ${error}`)
+        push.error(`${t('homeView.errorFetchingUserActivities')} - ${error}`)
       }
 
       isLoading.value = false;

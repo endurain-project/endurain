@@ -4,7 +4,7 @@
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h1 class="modal-title fs-5" id="addUserModal" v-if="action == 'add'">{{ $t("settingsUsersZone.buttonAddUser") }}</h1>
+                    <h1 class="modal-title fs-5" id="addUserModal" v-if="action == 'add'">{{ $t("usersAddEditUserModalComponent.addEditUserModalAddTitle") }}</h1>
                     <h1 class="modal-title fs-5" :id='editUserModalId' v-else-if="action == 'edit'">{{ $t("usersAddEditUserModalComponent.addEditUserModalEditTitle") }}</h1>
                     <h1 class="modal-title fs-5" id="editProfileModal" v-else>{{ $t("usersAddEditUserModalComponent.addEditUserModalEditProfileTitle") }}</h1>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -26,7 +26,7 @@
                         <label for="userUsernameAddEdit"><b>* {{ $t("usersAddEditUserModalComponent.addEditUserModalUsernameLabel") }}</b></label>
                         <input class="form-control" :class="{ 'is-invalid': !isUsernameExists }" type="text" name="userUsernameAddEdit" :placeholder='$t("usersAddEditUserModalComponent.addEditUserModalUsernamePlaceholder")' maxlength="250" v-model="newEditUserUsername" required>
                         <div id="validationUsernameFeedback" class="invalid-feedback" v-if="!isUsernameExists">
-                            {{ $t("generalItems.errorUsernameAlreadyExistsFeedback") }}
+                            {{ $t("usersAddEditUserModalComponent.addEditUserModalErrorUsernameExists") }}
                         </div>
                         <!-- name fields -->
                         <label for="userNameAddEdit"><b>* {{ $t("usersAddEditUserModalComponent.addEditUserModalNameLabel") }}</b></label>
@@ -35,17 +35,17 @@
                         <label for="userEmailAddEdit"><b>* {{ $t("usersAddEditUserModalComponent.addEditUserModalEmailLabel") }}</b></label>
                         <input class="form-control" :class="{ 'is-invalid': !isEmailValid || !isEmailExists }" type="text" name="userEmailAddEdit" :placeholder='$t("usersAddEditUserModalComponent.addEditUserModalEmailPlaceholder")' maxlength="45" v-model="newEditUserEmail" required>
                         <div id="validationEmailFeedback" class="invalid-feedback" v-if="!isEmailValid">
-                            {{ $t("generalItems.errorEmailNotValidFeedback") }}
+                            {{ $t("usersAddEditUserModalComponent.addEditUserModalErrorEmailInvalid") }}
                         </div>
                         <div id="validationEmailFeedback" class="invalid-feedback" v-else-if="!isEmailExists">
-                            {{ $t("generalItems.errorEmailAlreadyExistsFeedback") }}
+                            {{ $t("usersAddEditUserModalComponent.addEditUserModalErrorEmailExists") }}
                         </div>
                         <!-- password fields -->
                         <div v-if="action == 'add'">
                             <label for="passUserAdd"><b>* {{ $t("usersAddEditUserModalComponent.addEditUserModalPasswordLabel") }}</b></label>
                             <input class="form-control" :class="{ 'is-invalid': !isPasswordValid }" type="password" id="validationPassword" aria-describedby="validationPasswordFeedback" name="passUserAdd" :placeholder='$t("usersAddEditUserModalComponent.addEditUserModalPasswordPlaceholder")' v-model="newUserPassword" required>
                             <div id="validationPasswordFeedback" class="invalid-feedback" v-if="!isPasswordValid">
-                                {{ $t("usersListComponent.modalChangeUserPasswordFeedbackLabel") }}
+                                {{ $t("usersAddEditUserModalComponent.addEditUserModalErrorPasswordInvalid") }}
                             </div>
                         </div>
                         <!-- city fields -->
@@ -203,7 +203,7 @@ export default {
                         isUsernameExists.value = true;
                     }
                 } catch (error) {
-                    push.error(`${t("generalItems.errorFetchingInfo")} - ${error}`);
+                    push.error(`${t("usersAddEditUserModalComponent.addEditUserModalErrorFetchingUserByUsername")} - ${error}`);
                 }
             } else {
                 isUsernameExists.value = true;
@@ -238,7 +238,7 @@ export default {
                             isEmailExists.value = true;
                         }
                     } catch (error) {
-                        push.error(`${t("generalItems.errorFetchingInfo")} - ${error}`);
+                        push.error(`${t("usersAddEditUserModalComponent.addEditUserModalErrorFetchingUserByEmail")} - ${error}`);
                     }
                 }
             } else {
@@ -287,11 +287,11 @@ export default {
                 emit("userPhotoDeleted", props.user.id);
 
 				// Set the success message and show the success alert.
-				push.success(t("usersListComponent.userPhotoDeleteSuccessMessage"));
+				push.success(t("usersAddEditUserModalComponent.addEditUserModalSuccessDeleteUserPhoto"));
 			} catch (error) {
 				// Set the error message
 				push.error(
-					`${t("usersListComponent.userPhotoDeleteErrorMessage")} - ${error}`,
+					`${t("usersAddEditUserModalComponent.addEditUserModalErrorDeleteUserPhoto")} - ${error}`,
 				);
 			}
 		}
@@ -327,7 +327,7 @@ export default {
 							createdUser.photo_path = await users.uploadImage(newEditUserPhotoFile.value, createdUser.id);
 						} catch (error) {
 							// Set the error message
-							push.error(`${t("generalItems.errorFetchingInfo")} - ${error}`);
+							push.error(`${t("usersAddEditUserModalComponent.addEditUserModalErrorUploadingUserPhoto")} - ${error}`);
 						}
 					}
 
@@ -338,11 +338,11 @@ export default {
                     emit("createdUser", createdUser);
 
 					// Set the success message and show the success alert.
-					push.success(t("settingsUsersZone.successUserAdded"));
+					push.success(t("usersAddEditUserModalComponent.addEditUserModalSuccessAddUser"));
 				}
 			} catch (error) {
 				// If there is an error, set the error message and show the error alert.
-				push.error(`${t("generalItems.errorFetchingInfo")} - ${error}`);
+				push.error(`${t("usersAddEditUserModalComponent.addEditUserModalErrorAddUser")} - ${error}`);
 			} finally {
 				// Set the loading variable to false.
 				emit("isLoadingNewUser", false);
@@ -382,7 +382,7 @@ export default {
                         }
                     } catch (error) {
                         // Set the error message
-                        push.error(`${t("generalItems.errorFetchingInfo")} - ${error}`);
+                        push.error(`${t("usersAddEditUserModalComponent.addEditUserModalErrorUploadingUserPhoto")} - ${error}`);
                     }
                 }
 
@@ -401,11 +401,11 @@ export default {
                 }
 
 				// Set the success message and show the success alert.
-				push.success(t("usersListComponent.userEditSuccessMessage"));
+				push.success(t("usersAddEditUserModalComponent.addEditUserModalSuccessEditUser"));
 			} catch (error) {
 				// If there is an error, set the error message and show the error alert.
 				push.error(
-					`${t("usersListComponent.userEditErrorMessage")} - ${error}`,
+					`${t("usersAddEditUserModalComponent.addEditUserModalErrorEditUser")} - ${error}`,
 				);
 			}
 		}

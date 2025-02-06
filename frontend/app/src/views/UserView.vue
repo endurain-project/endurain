@@ -98,29 +98,7 @@
             </a>
 
             <!-- Modal follow user -->
-            <div class="modal fade" id="followUserModal" tabindex="-1" aria-labelledby="followUserModal" aria-hidden="true">
-                <div class="modal-dialog">
-                    <div class="modal-content">
-                        <div class="modal-header">
-                            <h1 class="modal-title fs-5" id="followUserModal">
-                                {{ $t("userView.modalFollowUserTitle") }}
-                            </h1>
-                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                        </div>
-                        <div class="modal-body">
-                            {{ $t("userView.modalFollowUserBody") }}<b>{{ userProfile.name }}</b>?
-                        </div>
-                        <div class="modal-footer">
-                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                                {{ $t("generalItems.buttonClose") }}
-                            </button>
-                            <a type="button" class="btn btn-success" data-bs-dismiss="modal" @click="submitFollowUser">
-                                {{ $t("userView.modalFollowUserTitle") }}
-                            </a>
-                        </div>
-                    </div>
-                </div>
-            </div>
+            <ModalComponent modalId="followUserModal" :title="t('userView.modalFollowUserTitle')" :body="`${t('userView.modalFollowUserBody')}<b>${userProfile.name}</b>?`" :actionButtonType="`success`" :actionButtonText="t('userView.modalFollowUserTitle')" @submitAction="submitFollowUser"/>
         </li>
         <li class="nav-item" role="presentation" v-if="userProfile.id != authStore.user.id && userFollowState != null && !userFollowState.is_accepted">
             <!-- Cancel follow request button -->
@@ -131,29 +109,7 @@
             </a>
 
             <!-- Modal cancel follow request -->
-            <div class="modal fade" id="cancelFollowUserModal" tabindex="-1" aria-labelledby="cancelFollowUserModal" aria-hidden="true">
-                <div class="modal-dialog">
-                    <div class="modal-content">
-                        <div class="modal-header">
-                            <h1 class="modal-title fs-5" id="cancelFollowUserModal">
-                                {{ $t("userView.modalCancelFollowRequestTitle") }}
-                            </h1>
-                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                        </div>
-                        <div class="modal-body">
-                            {{ $t("userView.modalCancelFollowRequestBody") }}<b>{{ userProfile.name }}</b>?
-                        </div>
-                        <div class="modal-footer">
-                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                                {{ $t("generalItems.buttonClose") }}
-                            </button>
-                            <a type="button" class="btn btn-danger" data-bs-dismiss="modal" @click="submitCancelFollowUser">
-                                {{ $t("userView.modalCancelFollowRequestTitle") }}
-                            </a>
-                        </div>
-                    </div>
-                </div>
-            </div>
+            <ModalComponent modalId="cancelFollowUserModal" :title="t('userView.modalCancelFollowRequestTitle')" :body="`${t('userView.modalCancelFollowRequestBody')}<b>${userProfile.name}</b>?`" :actionButtonType="`danger`" :actionButtonText="t('userView.modalCancelFollowRequestTitle')" @submitAction="submitCancelFollowUser"/>
         </li>
         <li class="nav-item" role="presentation" v-if="userProfile.id != authStore.user.id && userFollowState != null && userFollowState.is_accepted">
             <!-- Unfollow user button -->
@@ -164,29 +120,7 @@
             </a>
 
             <!-- Modal unfollow user -->
-            <div class="modal fade" id="unfollowUserModal" tabindex="-1" aria-labelledby="unfollowUserModal" aria-hidden="true">
-                <div class="modal-dialog">
-                    <div class="modal-content">
-                        <div class="modal-header">
-                            <h1 class="modal-title fs-5" id="unfollowUserModal">
-                                {{ $t("userView.modalUnfollowUserTitle") }}
-                            </h1>
-                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                        </div>
-                        <div class="modal-body">
-                            {{ $t("userView.modalUnfollowUserBody") }}<b>{{ userProfile.name }}</b>?
-                        </div>
-                        <div class="modal-footer">
-                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                                {{ $t("generalItems.buttonClose") }}
-                            </button>
-                            <a type="button" class="btn btn-danger" data-bs-dismiss="modal" @click="submitUnfollowUser">
-                                {{ $t("userView.modalUnfollowUserTitle") }}
-                            </a>
-                        </div>
-                    </div>
-                </div>
-            </div>
+            <ModalComponent modalId="unfollowUserModal" :title="t('userView.modalUnfollowUserTitle')" :body="`${t('userView.modalUnfollowUserBody')}<b>${userProfile.name}</b>?`" :actionButtonType="`danger`" :actionButtonText="t('userView.modalUnfollowUserTitle')" @submitAction="submitUnfollowUser"/>
         </li>
     </ul>
 
@@ -285,6 +219,7 @@ import ActivityMapComponent from '@/components/Activities/ActivityMapComponent.v
 import FollowersListComponent from '@/components/Followers/FollowersListComponent.vue';
 import BackButtonComponent from '@/components/GeneralComponents/BackButtonComponent.vue';
 import UserAvatarComponent from '@/components/Users/UserAvatarComponent.vue';
+import ModalComponent from "@/components/Modals/ModalComponent.vue";
 
 export default {
     components: {
@@ -296,6 +231,7 @@ export default {
         FollowersListComponent,
         BackButtonComponent,
         UserAvatarComponent,
+        ModalComponent,
     },
     setup () {
         const { t } = useI18n();
@@ -328,7 +264,7 @@ export default {
                 thisMonthDistances.value = await activities.getUserThisMonthStats(authStore.user.id);
             } catch (error) {
                 // Set the error message
-                push.error(`${t('generalItems.errorFetchingInfo')} - ${error}`)
+                push.error(`${t('userView.errorFetchingUserStats')} - ${error}`)
             }
         }
 
@@ -350,7 +286,7 @@ export default {
                 }
             } catch (error) {
                 // Set the error message
-                push.error(`${t('generalItems.errorFetchingInfo')} - ${error}`)
+                push.error(`${t('userView.errorFetchingUserFollowers')} - ${error}`)
             }
         }
 
@@ -378,7 +314,7 @@ export default {
                     userFollowState.value = await followers.getUserFollowState(authStore.user.id, route.params.id);
                 }
             } catch (error) {
-                push.error(`${t('generalItems.errorFetchingInfo')} - ${error}`)
+                push.error(`${t('userView.errorFetchingUserActivities')} - ${error}`)
             }
             isLoading.value = false;
             isActivitiesLoading.value = false;
@@ -413,7 +349,7 @@ export default {
                 userWeekActivities.value = await activities.getUserWeekActivities(userProfile.value.id, week.value);
             } catch (error) {
                 // Set the error message
-                push.error(`${t('generalItems.errorEditingInfo')} - ${error}`)
+                push.error(`${t('userView.errorFetchingUserActivities')} - ${error}`)
             } finally {
                 isActivitiesLoading.value = false;
             }
@@ -517,7 +453,7 @@ export default {
                 push.success(t('userView.successFollowRequestCancelled'))
             } catch (error) {
                 // Set the error message
-                push.error(`${t('user.errorUnableToSendFollow')} - ${error}`)
+                push.error(`${t('userView.errorUnableToSendFollow')} - ${error}`)
             }
         }
 
@@ -533,7 +469,7 @@ export default {
                 push.success(t('userView.successUserUnfollowed'))
             } catch (error) {
                 // Set the error message
-                push.error(`${t('user.errorUnableToUnfollow')} - ${error}`)
+                push.error(`${t('userView.errorUnableToUnfollow')} - ${error}`)
             }
         }
 

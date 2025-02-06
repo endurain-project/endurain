@@ -103,7 +103,7 @@ export default {
 				usersArray.value = await users.getUserContainsUsername(searchUsername.value);
 			} catch (error) {
 				// If there is an error, set the error message and show the error alert.
-				push.error(`${t("generalItems.errorFetchingInfo")} - ${error}`);
+				push.error(`${t("settingsUsersZone.errorFetchingUsers")} - ${error}`);
 			}
 		}, 500);
 
@@ -127,7 +127,7 @@ export default {
 				isUsersUpdatingLoading.value = false;
 			} catch (error) {
 				// If there is an error, set the error message and show the error alert.
-				push.error(`${t("generalItems.errorFetchingInfo")} - ${error}`);
+				push.error(`${t("settingsUsersZone.errorFetchingUsers")} - ${error}`);
 			}
 		}
 
@@ -143,7 +143,7 @@ export default {
 				totalPages.value = Math.ceil(usersNumber.value / numRecords);
 			} catch (error) {
 				// If there is an error, set the error message and show the error alert.
-				push.error(`${t("generalItems.errorFetchingInfo")} - ${error}`);
+				push.error(`${t("settingsUsersZone.errorFetchingUsers")} - ${error}`);
 			}
 		}
 
@@ -153,7 +153,7 @@ export default {
 			);
 			usersNumber.value--;
 
-			push.success(t("usersListComponent.userDeleteSuccessMessage"));
+			push.success(t("settingsUsersZone.successUserDeleted"));
 		}
 
 		function addUserList(createdUser) {

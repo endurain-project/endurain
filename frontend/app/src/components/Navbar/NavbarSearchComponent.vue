@@ -2,14 +2,14 @@
     <div>
         <form>
             <div class="input-group">
-                <label for="inputSelectTypeToSearch" class="form-label visually-hidden">{{ $t("footer.searchSelectLabel") }}</label>
+                <label for="inputSelectTypeToSearch" class="form-label visually-hidden">{{ $t("navbarSearchComponent.searchSelectLabel") }}</label>
                 <select id="inputSelectTypeToSearch" class="form-select" v-model="searchSelectValue">
-                    <option value="1">{{ $t("footer.searchSelectOptionUser") }}</option>
-                    <option value="2">{{ $t("footer.searchSelectOptionActivity") }}</option>
-                    <option value="3">{{ $t("footer.searchSelectOptionGear") }}</option>
+                    <option value="1">{{ $t("navbarSearchComponent.searchSelectOptionUser") }}</option>
+                    <option value="2">{{ $t("navbarSearchComponent.searchSelectOptionActivity") }}</option>
+                    <option value="3">{{ $t("navbarSearchComponent.searchSelectOptionGear") }}</option>
                 </select>
                 <div class="ms-1">
-                    <input type="text" class="form-control" id="inputTextFieldToSearch" :placeholder='$t("footer.searchInputPlaceholder")' v-model="inputSearch">
+                    <input type="text" class="form-control" id="inputTextFieldToSearch" :placeholder='$t("navbarSearchComponent.searchInputPlaceholder")' v-model="inputSearch">
                     <ul v-if="searchResults" class="list-group z-1 position-absolute">
                         <li v-for="result in searchResults" :key="result.id" class="list-group-item list-group-item-action">
                             <router-link :to="{ name: 'user', params: { id: result.id }}" class="link-body-emphasis link-underline-opacity-0 link-underline-opacity-100-hover" v-if="searchSelectValue == 1" @click="closeSearch">
@@ -61,7 +61,7 @@ export default {
             try {
                 searchResults.value = await users.getUserContainsUsername(query);
             } catch (error) {
-                push.error(`${t('generalItems.errorFetchingInfo')} - ${error}`)
+                push.error(`${t('navbarSearchComponent.errorFetchingUserWithUsernameContains')} - ${error}`)
             }
         }, 500);
 
@@ -73,7 +73,7 @@ export default {
             try {
                 searchResults.value = await activities.getActivityByName(query);
             } catch (error) {
-                push.error(`${t('generalItems.errorFetchingInfo')} - ${error}`)
+                push.error(`${t('navbarSearchComponent.errorFetchingActivityWithNameContains')} - ${error}`)
             }
         }, 500);
 
@@ -85,7 +85,7 @@ export default {
             try {
                 searchResults.value = await gears.getGearContainsNickname(query);
             } catch (error) {
-                push.error(`${t('generalItems.errorFetchingInfo')} - ${error}`)
+                push.error(`${t('navbarSearchComponent.errorFetchingGearWithNicknameContains')} - ${error}`)
             }
         }, 500);
 

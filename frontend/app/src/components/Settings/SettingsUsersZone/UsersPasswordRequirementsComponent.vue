@@ -3,15 +3,15 @@
     <div class="alert alert-info alert-dismissible d-flex align-items-center" role="alert">
         <!--<i class="fa-solid fa-circle-info me-1 allign-top"></i>-->
         <div>
-            {{ $t("usersListComponent.modalChangeUserPasswordPasswordRequirementsTitle") }}
+            {{ $t("usersPasswordRequirementsComponent.passwordRequirementsTitle") }}
             <br>
-            {{ $t("usersListComponent.modalChangeUserPasswordCharacters") }}
+            {{ $t("usersPasswordRequirementsComponent.passwordCharacters") }}
             <br>
-            {{ $t("usersListComponent.modalChangeUserPasswordCapitalLetters") }}
+            {{ $t("usersPasswordRequirementsComponent.passwordCapitalLetters") }}
             <br>
-            {{ $t("usersListComponent.modalChangeUserPasswordNumbers") }}
+            {{ $t("usersPasswordRequirementsComponent.passwordNumbers") }}
             <br>
-            {{ $t("usersListComponent.modalChangeUserPasswordSpecialCharacters") }}
+            {{ $t("usersPasswordRequirementsComponent.passwordSpecialCharacters") }}
         </div>
     </div>
 </template>

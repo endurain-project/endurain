@@ -152,7 +152,7 @@ export default {
 				gear.value = await gears.deleteGear(route.params.id);
 				router.push({ path: "/gears", query: { gearDeleted: "true" } });
 			} catch (error) {
-				push.error(`${t("generalItems.errorEditingInfo")} - ${error}`);
+				push.error(`${t("gearView.errorGearDelete")} - ${error}`);
 			}
 		}
         
@@ -188,7 +188,7 @@ export default {
 					});
 				}
 				// If there is an error, set the error message and show the error alert.
-				push.error(`${t("generalItems.errorEditingInfo")} - ${error}`);
+				push.error(`${t("gearView.errorFetchingGears")} - ${error}`);
 			}
 
 			isLoading.value = false;

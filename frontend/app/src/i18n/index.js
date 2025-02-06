@@ -2,13 +2,13 @@ import { createI18n } from 'vue-i18n';
 
 // Importing translations
 // Catalan translations
-// Navbar and footer components
-import caNavbarComponent from './ca/components/navbarComponent.json';
+// Footer components
 import caFooterComponent from './ca/components/footerComponent.json';
 // Activities component
+import caAddGearToActivityModalComponent from './ca/components/activities/modals/addGearToActivityModalComponent.json';
+import caEditActivityModalComponent from './ca/components/activities/modals/editActivityModalComponent.json';
 import caUserDistanceStatsComponent from './ca/components/activities/userDistanceStatsComponent.json';
 import caActivitySummaryComponent from './ca/components/activities/activitySummaryComponent.json';
-import caEditActivityModalComponent from './ca/components/activities/modals/editActivityModalComponent.json';
 // Followers component
 import caFollowersListComponent from './ca/components/followers/followersListComponent.json';
 // Gears component
@@ -20,6 +20,9 @@ import caHealthWeightListComponent from './ca/components/health/healthWeightZone
 import caHealthDashboardZoneComponent from './ca/components/health/healthDashboardZoneComponent.json'
 import caHealthSideBarComponent from './ca/components/health/healthSideBarComponent.json';
 import caHealthWeightZoneComponent from './ca/components/health/healthWeightZoneComponent.json'
+// Navbar components
+import caNavbarComponent from './ca/components/navbar/navbarComponent.json';
+import caNavbarSearchComponent from './ca/components/navbar/navbarSearchComponent.json';
 // Settings components
 import caSettingsSideBarComponent from './ca/components/settings/settingsSideBarComponent.json';
 import caSettingsUsersZoneComponent from './ca/components/settings/settingsUsersZoneComponent.json';
@@ -30,7 +33,9 @@ import caSettingsSecurityZoneComponent from './ca/components/settings/settingsSe
 import caSettingsIntegrationsZoneComponent from './ca/components/settings/settingsIntegrationsZoneComponent.json';
 import caGarminConnectLoginModalComponent from './ca/components/settings/settingsIntegrationsZone/garminConnectLoginModalComponent.json';
 import caUsersAddEditUserModalComponent from './ca/components/settings/settingsUsersZone/usersAddEditUserModalComponent.json';
+import caUsersChangeUserPasswordModalComponent from './ca/components/settings/settingsUsersZone/usersChangeUserPasswordModalComponent.json';
 import caUsersListComponent from './ca/components/settings/settingsUsersZone/usersListComponent.json';
+import caUsersPasswordRequirementsComponent from './ca/components/settings/settingsUsersZone/usersPasswordRequirementsComponent.json';
 import caUserSessionsListComponent from './ca/components/settings/settingsUserSessionsZone/userSessionsListComponent.json';
 // General components
 import caNoItemsFoundComponent from './ca/components/noItemsFoundComponent.json';
@@ -49,13 +54,13 @@ import caUserView from './ca/userView.json';
 import caSettingsView from './ca/settingsView.json';
 
 // German translations
-// Navbar and footer components
-import deNavbarComponent from './de/components/navbarComponent.json';
+// Footer components
 import deFooterComponent from './de/components/footerComponent.json';
 // Activities component
+import deAddGearToActivityModalComponent from './de/components/activities/modals/addGearToActivityModalComponent.json';
+import deEditActivityModalComponent from './de/components/activities/modals/editActivityModalComponent.json';
 import deUserDistanceStatsComponent from './de/components/activities/userDistanceStatsComponent.json';
 import deActivitySummaryComponent from './de/components/activities/activitySummaryComponent.json';
-import deEditActivityModalComponent from './de/components/activities/modals/editActivityModalComponent.json';
 // Followers component
 import deFollowersListComponent from './de/components/followers/followersListComponent.json';
 // Gears component
@@ -67,6 +72,9 @@ import deHealthWeightListComponent from './de/components/health/healthWeightZone
 import deHealthDashboardZoneComponent from './de/components/health/healthDashboardZoneComponent.json'
 import deHealthSideBarComponent from './de/components/health/healthSideBarComponent.json';
 import deHealthWeightZoneComponent from './de/components/health/healthWeightZoneComponent.json'
+// Navbar components
+import deNavbarComponent from './de/components/navbar/navbarComponent.json';
+import deNavbarSearchComponent from './de/components/navbar/navbarSearchComponent.json';
 // Settings components
 import deSettingsSideBarComponent from './de/components/settings/settingsSideBarComponent.json';
 import deSettingsUsersZoneComponent from './de/components/settings/settingsUsersZoneComponent.json';
@@ -77,7 +85,9 @@ import deSettingsSecurityZoneComponent from './de/components/settings/settingsSe
 import deSettingsIntegrationsZoneComponent from './de/components/settings/settingsIntegrationsZoneComponent.json';
 import deGarminConnectLoginModalComponent from './de/components/settings/settingsIntegrationsZone/garminConnectLoginModalComponent.json';
 import deUsersAddEditUserModalComponent from './de/components/settings/settingsUsersZone/usersAddEditUserModalComponent.json';
+import deUsersChangeUserPasswordModalComponent from './de/components/settings/settingsUsersZone/usersChangeUserPasswordModalComponent.json';
 import deUsersListComponent from './de/components/settings/settingsUsersZone/usersListComponent.json';
+import deUsersPasswordRequirementsComponent from './de/components/settings/settingsUsersZone/usersPasswordRequirementsComponent.json';
 import deUserSessionsListComponent from './de/components/settings/settingsUserSessionsZone/userSessionsListComponent.json';
 // General components
 import deNoItemsFoundComponent from './de/components/noItemsFoundComponent.json';
@@ -97,13 +107,13 @@ import deSettingsView from './de/settingsView.json';
 
 
 // French translations
-// Navbar and footer components
-import frNavbarComponent from './fr/components/navbarComponent.json';
+// Footer components
 import frFooterComponent from './fr/components/footerComponent.json';
 // Activities component
+import frAddGearToActivityModalComponent from './fr/components/activities/modals/addGearToActivityModalComponent.json';
+import frEditActivityModalComponent from './fr/components/activities/modals/editActivityModalComponent.json';
 import frUserDistanceStatsComponent from './fr/components/activities/userDistanceStatsComponent.json';
 import frActivitySummaryComponent from './fr/components/activities/activitySummaryComponent.json';
-import frEditActivityModalComponent from './fr/components/activities/modals/editActivityModalComponent.json';
 // Followers component
 import frFollowersListComponent from './fr/components/followers/followersListComponent.json';
 // Gears component
@@ -115,6 +125,9 @@ import frHealthWeightListComponent from './fr/components/health/healthWeightZone
 import frHealthDashboardZoneComponent from './fr/components/health/healthDashboardZoneComponent.json'
 import frHealthSideBarComponent from './fr/components/health/healthSideBarComponent.json';
 import frHealthWeightZoneComponent from './fr/components/health/healthWeightZoneComponent.json'
+// Navbar components
+import frNavbarComponent from './fr/components/navbar/navbarComponent.json';
+import frNavbarSearchComponent from './fr/components/navbar/navbarSearchComponent.json';
 // Settings components
 import frSettingsSideBarComponent from './fr/components/settings/settingsSideBarComponent.json';
 import frSettingsUsersZoneComponent from './fr/components/settings/settingsUsersZoneComponent.json';
@@ -125,7 +138,9 @@ import frSettingsSecurityZoneComponent from './fr/components/settings/settingsSe
 import frSettingsIntegrationsZoneComponent from './fr/components/settings/settingsIntegrationsZoneComponent.json';
 import frGarminConnectLoginModalComponent from './fr/components/settings/settingsIntegrationsZone/garminConnectLoginModalComponent.json';
 import frUsersAddEditUserModalComponent from './fr/components/settings/settingsUsersZone/usersAddEditUserModalComponent.json';
+import frUsersChangeUserPasswordModalComponent from './fr/components/settings/settingsUsersZone/usersChangeUserPasswordModalComponent.json';
 import frUsersListComponent from './fr/components/settings/settingsUsersZone/usersListComponent.json';
+import frUsersPasswordRequirementsComponent from './fr/components/settings/settingsUsersZone/usersPasswordRequirementsComponent.json';
 import frUserSessionsListComponent from './fr/components/settings/settingsUserSessionsZone/userSessionsListComponent.json';
 // General components
 import frNoItemsFoundComponent from './fr/components/noItemsFoundComponent.json';
@@ -145,13 +160,13 @@ import frSettingsView from './fr/settingsView.json';
 
 
 // Portuguese Portugal translations
-// Navbar and footer components
-import ptNavbarComponent from './pt/components/navbarComponent.json';
+// Footer components
 import ptFooterComponent from './pt/components/footerComponent.json';
 // Activities component
+import ptAddGearToActivityModalComponent from './pt/components/activities/modals/addGearToActivityModalComponent.json';
+import ptEditActivityModalComponent from './pt/components/activities/modals/editActivityModalComponent.json';
 import ptUserDistanceStatsComponent from './pt/components/activities/userDistanceStatsComponent.json';
 import ptActivitySummaryComponent from './pt/components/activities/activitySummaryComponent.json';
-import ptEditActivityModalComponent from './pt/components/activities/modals/editActivityModalComponent.json';
 // Followers component
 import ptFollowersListComponent from './pt/components/followers/followersListComponent.json';
 // Gears component
@@ -163,6 +178,9 @@ import ptHealthWeightListComponent from './pt/components/health/healthWeightZone
 import ptHealthDashboardZoneComponent from './pt/components/health/healthDashboardZoneComponent.json'
 import ptHealthSideBarComponent from './pt/components/health/healthSideBarComponent.json';
 import ptHealthWeightZoneComponent from './pt/components/health/healthWeightZoneComponent.json'
+// Navbar components
+import ptNavbarComponent from './pt/components/navbar/navbarComponent.json';
+import ptNavbarSearchComponent from './pt/components/navbar/navbarSearchComponent.json';
 // Settings components
 import ptSettingsSideBarComponent from './pt/components/settings/settingsSideBarComponent.json';
 import ptSettingsUsersZoneComponent from './pt/components/settings/settingsUsersZoneComponent.json';
@@ -173,7 +191,9 @@ import ptSettingsSecurityZoneComponent from './pt/components/settings/settingsSe
 import ptSettingsIntegrationsZoneComponent from './pt/components/settings/settingsIntegrationsZoneComponent.json';
 import ptGarminConnectLoginModalComponent from './pt/components/settings/settingsIntegrationsZone/garminConnectLoginModalComponent.json';
 import ptUsersAddEditUserModalComponent from './pt/components/settings/settingsUsersZone/usersAddEditUserModalComponent.json';
+import ptUsersChangeUserPasswordModalComponent from './pt/components/settings/settingsUsersZone/usersChangeUserPasswordModalComponent.json';
 import ptUsersListComponent from './pt/components/settings/settingsUsersZone/usersListComponent.json';
+import ptUsersPasswordRequirementsComponent from './pt/components/settings/settingsUsersZone/usersPasswordRequirementsComponent.json';
 import ptUserSessionsListComponent from './pt/components/settings/settingsUserSessionsZone/userSessionsListComponent.json';
 // General components
 import ptNoItemsFoundComponent from './pt/components/noItemsFoundComponent.json';
@@ -192,13 +212,13 @@ import ptUserView from './pt/userView.json';
 import ptSettingsView from './pt/settingsView.json';
 
 // US translations
-// Navbar and footer components
-import usNavbarComponent from './us/components/navbarComponent.json';
+// Footer components
 import usFooterComponent from './us/components/footerComponent.json';
 // Activities component
+import usAddGearToActivityModalComponent from './us/components/activities/modals/addGearToActivityModalComponent.json';
+import usEditActivityModalComponent from './us/components/activities/modals/editActivityModalComponent.json';
 import usUserDistanceStatsComponent from './us/components/activities/userDistanceStatsComponent.json';
 import usActivitySummaryComponent from './us/components/activities/activitySummaryComponent.json';
-import usEditActivityModalComponent from './us/components/activities/modals/editActivityModalComponent.json';
 // Followers component
 import usFollowersListComponent from './us/components/followers/followersListComponent.json';
 // Gears component
@@ -210,6 +230,9 @@ import usHealthWeightListComponent from './us/components/health/healthWeightZone
 import usHealthDashboardZoneComponent from './us/components/health/healthDashboardZoneComponent.json'
 import usHealthSideBarComponent from './us/components/health/healthSideBarComponent.json';
 import usHealthWeightZoneComponent from './us/components/health/healthWeightZoneComponent.json'
+// Navbar components
+import usNavbarComponent from './us/components/navbar/navbarComponent.json';
+import usNavbarSearchComponent from './us/components/navbar/navbarSearchComponent.json';
 // Settings components
 import usSettingsSideBarComponent from './us/components/settings/settingsSideBarComponent.json';
 import usSettingsUsersZoneComponent from './us/components/settings/settingsUsersZoneComponent.json';
@@ -220,7 +243,9 @@ import usSettingsSecurityZoneComponent from './us/components/settings/settingsSe
 import usSettingsIntegrationsZoneComponent from './us/components/settings/settingsIntegrationsZoneComponent.json';
 import usGarminConnectLoginModalComponent from './us/components/settings/settingsIntegrationsZone/garminConnectLoginModalComponent.json';
 import usUsersAddEditUserModalComponent from './us/components/settings/settingsUsersZone/usersAddEditUserModalComponent.json';
+import usUsersChangeUserPasswordModalComponent from './us/components/settings/settingsUsersZone/usersChangeUserPasswordModalComponent.json';
 import usUsersListComponent from './us/components/settings/settingsUsersZone/usersListComponent.json';
+import usUsersPasswordRequirementsComponent from './us/components/settings/settingsUsersZone/usersPasswordRequirementsComponent.json';
 import usUserSessionsListComponent from './us/components/settings/settingsUserSessionsZone/userSessionsListComponent.json';
 // General components
 import usNoItemsFoundComponent from './us/components/noItemsFoundComponent.json';
@@ -242,13 +267,13 @@ import GearsListComponent from '@/components/Gears/GearsListComponent.vue';
 // Constructing the messages structure
 const messages = {
   ca: {
-    // Navbar and footer components
-    navbar: caNavbarComponent,
+    // Footer components
     footer: caFooterComponent,
     // Activities component
+    addGearToActivityModalComponent: caAddGearToActivityModalComponent,
+    editActivityModalComponent: caEditActivityModalComponent,
     userDistanceStats: caUserDistanceStatsComponent,
     activitySummary: caActivitySummaryComponent,
-    editActivityModalComponent: caEditActivityModalComponent,
     // Followers component
     followersListComponent: caFollowersListComponent,
     // Gears component
@@ -260,6 +285,9 @@ const messages = {
     healthDashboardZoneComponent: caHealthDashboardZoneComponent,
     healthWeightZoneComponent: caHealthWeightZoneComponent,
     healthWeightListComponent: caHealthWeightListComponent,
+    // Navbar components
+    navbarComponent: caNavbarComponent,
+    navbarSearchComponent: caNavbarSearchComponent,
     // Settings components
     settingsSideBar: caSettingsSideBarComponent,
     settingsUsersZone: caSettingsUsersZoneComponent,
@@ -270,7 +298,9 @@ const messages = {
     settingsIntegrationsZone: caSettingsIntegrationsZoneComponent,
     garminConnectLoginModalComponent: caGarminConnectLoginModalComponent,
     usersAddEditUserModalComponent: caUsersAddEditUserModalComponent,
+    usersChangeUserPasswordModalComponent: caUsersChangeUserPasswordModalComponent,
     usersListComponent: caUsersListComponent,
+    usersPasswordRequirementsComponent: caUsersPasswordRequirementsComponent,
     userSessionsListComponent: caUserSessionsListComponent,
     // General components
     noItemsFoundComponent: caNoItemsFoundComponent,
@@ -282,20 +312,20 @@ const messages = {
     gearsView: caGearsView,
     gearView: caGearView,
     stravaCallbackView: caStravaCallbackView,
-    activity: caActivityView,
+    activityView: caActivityView,
     healthView: caHealthView,
     notFound: caNotFoundView,
     settingsView: caSettingsView,
     userView: caUserView,
   },
   de: {
-    // Navbar and footer components
-    navbar: deNavbarComponent,
+    // Footer components
     footer: deFooterComponent,
     // Activities component
+    addGearToActivityModalComponent: deAddGearToActivityModalComponent,
+    editActivityModalComponent: deEditActivityModalComponent,
     userDistanceStats: deUserDistanceStatsComponent,
     activitySummary: deActivitySummaryComponent,
-    editActivityModalComponent: deEditActivityModalComponent,
     // Followers component
     followersListComponent: deFollowersListComponent,
     // Gears component
@@ -307,6 +337,9 @@ const messages = {
     healthDashboardZoneComponent: deHealthDashboardZoneComponent,
     healthWeightZoneComponent: deHealthWeightZoneComponent,
     healthWeightListComponent: deHealthWeightListComponent,
+    // Navbar components
+    navbarComponent: deNavbarComponent,
+    navbarSearchComponent: deNavbarSearchComponent,
     // Settings components
     settingsSideBar: deSettingsSideBarComponent,
     settingsUsersZone: deSettingsUsersZoneComponent,
@@ -317,7 +350,9 @@ const messages = {
     settingsIntegrationsZone: deSettingsIntegrationsZoneComponent,
     garminConnectLoginModalComponent: deGarminConnectLoginModalComponent,
     usersAddEditUserModalComponent: deUsersAddEditUserModalComponent,
+    usersChangeUserPasswordModalComponent: deUsersChangeUserPasswordModalComponent,
     usersListComponent: deUsersListComponent,
+    usersPasswordRequirementsComponent: deUsersPasswordRequirementsComponent,
     userSessionsListComponent: deUserSessionsListComponent,
     // General components
     noItemsFoundComponent: deNoItemsFoundComponent,
@@ -329,20 +364,20 @@ const messages = {
     gearsView: deGearsView,
     gearView: deGearView,
     stravaCallbackView: deStravaCallbackView,
-    activity: deActivityView,
+    activityView: deActivityView,
     healthView: deHealthView,
     notFound: deNotFoundView,
     settingsView: deSettingsView,
     userView: deUserView,
   },
   fr: {
-    // Navbar and footer components
-    navbar: frNavbarComponent,
+    // Footer components
     footer: frFooterComponent,
     // Activities component
+    addGearToActivityModalComponent: frAddGearToActivityModalComponent,
+    editActivityModalComponent: frEditActivityModalComponent,
     userDistanceStats: frUserDistanceStatsComponent,
     activitySummary: frActivitySummaryComponent,
-    editActivityModalComponent: frEditActivityModalComponent,
     // Followers component
     followersListComponent: frFollowersListComponent,
     // Gears component
@@ -354,6 +389,9 @@ const messages = {
     healthDashboardZoneComponent: frHealthDashboardZoneComponent,
     healthWeightZoneComponent: frHealthWeightZoneComponent,
     healthWeightListComponent: frHealthWeightListComponent,
+    // Navbar components
+    navbarComponent: frNavbarComponent,
+    navbarSearchComponent: frNavbarSearchComponent,
     // Settings components
     settingsSideBar: frSettingsSideBarComponent,
     settingsUsersZone: frSettingsUsersZoneComponent,
@@ -364,7 +402,9 @@ const messages = {
     settingsIntegrationsZone: frSettingsIntegrationsZoneComponent,
     garminConnectLoginModalComponent: frGarminConnectLoginModalComponent,
     usersAddEditUserModalComponent: frUsersAddEditUserModalComponent,
+    usersChangeUserPasswordModalComponent: frUsersChangeUserPasswordModalComponent,
     usersListComponent: frUsersListComponent,
+    usersPasswordRequirementsComponent: frUsersPasswordRequirementsComponent,
     userSessionsListComponent: frUserSessionsListComponent,
     // General components
     noItemsFoundComponent: frNoItemsFoundComponent,
@@ -376,20 +416,20 @@ const messages = {
     gearsView: frGearsView,
     gearView: frGearView,
     stravaCallbackView: frStravaCallbackView,
-    activity: frActivityView,
+    activityView: frActivityView,
     healthView: frHealthView,
     notFound: frNotFoundView,
     settingsView: frSettingsView,
     userView: frUserView,
   },
   pt: {
-    // Navbar and footer components
-    navbar: ptNavbarComponent,
+    // Footer components
     footer: ptFooterComponent,
     // Activities component
+    addGearToActivityModalComponent: ptAddGearToActivityModalComponent,
+    editActivityModalComponent: ptEditActivityModalComponent,
     userDistanceStats: ptUserDistanceStatsComponent,
     activitySummary: ptActivitySummaryComponent,
-    editActivityModalComponent: ptEditActivityModalComponent,
     // Followers component
     followersListComponent: ptFollowersListComponent,
     // Gears component
@@ -401,6 +441,9 @@ const messages = {
     healthDashboardZoneComponent: ptHealthDashboardZoneComponent,
     healthWeightZoneComponent: ptHealthWeightZoneComponent,
     healthWeightListComponent: ptHealthWeightListComponent,
+    // Navbar components
+    navbarComponent: ptNavbarComponent,
+    navbarSearchComponent: ptNavbarSearchComponent,
     // Settings components
     settingsSideBar: ptSettingsSideBarComponent,
     settingsUsersZone: ptSettingsUsersZoneComponent,
@@ -411,7 +454,9 @@ const messages = {
     settingsIntegrationsZone: ptSettingsIntegrationsZoneComponent,
     garminConnectLoginModalComponent: ptGarminConnectLoginModalComponent,
     usersAddEditUserModalComponent: ptUsersAddEditUserModalComponent,
+    usersChangeUserPasswordModalComponent: ptUsersChangeUserPasswordModalComponent,
     usersListComponent: ptUsersListComponent,
+    usersPasswordRequirementsComponent: ptUsersPasswordRequirementsComponent,
     userSessionsListComponent: ptUserSessionsListComponent,
     // General components
     noItemsFoundComponent: ptNoItemsFoundComponent,
@@ -423,20 +468,20 @@ const messages = {
     gearsView: ptGearsView,
     gearView: ptGearView,
     stravaCallbackView: ptStravaCallbackView,
-    activity: ptActivityView,
+    activityView: ptActivityView,
     healthView: ptHealthView,
     notFound: ptNotFoundView,
     settingsView: ptSettingsView,
     userView: ptUserView,
   },
   us: {
-    // Navbar and footer components
-    navbar: usNavbarComponent,
+    // Footer components
     footer: usFooterComponent,
     // Activities component
+    addGearToActivityModalComponent: usAddGearToActivityModalComponent,
+    editActivityModalComponent: usEditActivityModalComponent,
     userDistanceStats: usUserDistanceStatsComponent,
     activitySummary: usActivitySummaryComponent,
-    editActivityModalComponent: usEditActivityModalComponent,
     // Followers component
     followersListComponent: usFollowersListComponent,
     // Gears component
@@ -448,6 +493,9 @@ const messages = {
     healthDashboardZoneComponent: usHealthDashboardZoneComponent,
     healthWeightZoneComponent: usHealthWeightZoneComponent,
     healthWeightListComponent: usHealthWeightListComponent,
+    // Navbar components
+    navbarComponent: usNavbarComponent,
+    navbarSearchComponent: usNavbarSearchComponent,
     // Settings components
     settingsSideBar: usSettingsSideBarComponent,
     settingsUsersZone: usSettingsUsersZoneComponent,
@@ -458,7 +506,9 @@ const messages = {
     settingsIntegrationsZone: usSettingsIntegrationsZoneComponent,
     garminConnectLoginModalComponent: usGarminConnectLoginModalComponent,
     usersAddEditUserModalComponent: usUsersAddEditUserModalComponent,
+    usersChangeUserPasswordModalComponent: usUsersChangeUserPasswordModalComponent,
     usersListComponent: usUsersListComponent,
+    usersPasswordRequirementsComponent: usUsersPasswordRequirementsComponent,
     userSessionsListComponent: usUserSessionsListComponent,
     // General components
     noItemsFoundComponent: usNoItemsFoundComponent,
@@ -470,7 +520,7 @@ const messages = {
     gearsView: usGearsView,
     gearView: usGearView,
     stravaCallbackView: usStravaCallbackView,
-    activity: usActivityView,
+    activityView: usActivityView,
     healthView: usHealthView,
     notFound: usNotFoundView,
     settingsView: usSettingsView,

@@ -1,9 +1,6 @@
 <template>
     <form>
         <label for="themeSelect" class="form-label">{{ $t("settingsThemeSwitcher.formLabel") }}</label>
-        <!-- <select class="form-select" id="themeSelect" aria-label="Select for theme picker">
-            <option v-for="theme in themes" :key="theme.value" :value="theme.value" :selected="themeStore.theme == theme.value" @click="changeTheme(theme.value)">{{ theme.label }}</option>
-        </select> -->
         <select 
             class="form-select" 
             id="themeSelect" 

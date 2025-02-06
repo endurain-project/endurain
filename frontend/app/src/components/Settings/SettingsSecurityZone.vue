@@ -5,28 +5,28 @@
 
         <form @submit.prevent="submitChangeUserPasswordForm">
             <!-- password fields -->
-            <label for="validationNewPassword"><b>* {{ $t("usersListComponent.modalChangeUserPasswordPasswordLabel") }}</b></label>
-            <input class="form-control" :class="{ 'is-invalid': !isNewPasswordValid || !isPasswordMatch }" type="password" id="validationNewPassword" aria-describedby="validationNewPasswordFeedback" :placeholder='$t("usersListComponent.modalChangeUserPasswordPasswordLabel")' v-model="newPassword" required>
+            <label for="validationNewPassword"><b>* {{ $t("settingsSecurityZone.changeUserPasswordPasswordLabel") }}</b></label>
+            <input class="form-control" :class="{ 'is-invalid': !isNewPasswordValid || !isPasswordMatch }" type="password" id="validationNewPassword" aria-describedby="validationNewPasswordFeedback" :placeholder='$t("settingsSecurityZone.changeUserPasswordPasswordLabel")' v-model="newPassword" required>
             <div id="validationNewPasswordFeedback" class="invalid-feedback" v-if="!isNewPasswordValid">
-                {{ $t("usersListComponent.modalChangeUserPasswordFeedbackLabel") }}
+                {{ $t("settingsSecurityZone.changeUserPasswordFeedbackLabel") }}
             </div>
             <div id="validationNewPasswordFeedback" class="invalid-feedback" v-if="!isPasswordMatch">
-                {{ $t("usersListComponent.modalChangeUserPasswordPasswordsDoNotMatchFeedbackLabel") }}
+                {{ $t("settingsSecurityZone.changeUserPasswordPasswordsDoNotMatchFeedbackLabel") }}
             </div>
-            <!-- repeat password fields -->
 
-            <label class="mt-1" for="validationNewPasswordRepeat"><b>* {{ $t("usersListComponent.modalChangeUserPasswordPasswordConfirmationLabel") }}</b></label>
-            <input class="form-control" :class="{ 'is-invalid': !isNewPasswordRepeatValid || !isPasswordMatch }" type="password" id="validationNewPasswordRepeat" aria-describedby="validationNewPasswordRepeatFeedback" :placeholder='$t("usersListComponent.modalChangeUserPasswordPasswordConfirmationLabel")' v-model="newPasswordRepeat" required>
+            <!-- repeat password fields -->
+            <label class="mt-1" for="validationNewPasswordRepeat"><b>* {{ $t("settingsSecurityZone.changeUserPasswordPasswordConfirmationLabel") }}</b></label>
+            <input class="form-control" :class="{ 'is-invalid': !isNewPasswordRepeatValid || !isPasswordMatch }" type="password" id="validationNewPasswordRepeat" aria-describedby="validationNewPasswordRepeatFeedback" :placeholder='$t("settingsSecurityZone.changeUserPasswordPasswordConfirmationLabel")' v-model="newPasswordRepeat" required>
             <div id="validationNewPasswordRepeatFeedback" class="invalid-feedback" v-if="!isNewPasswordRepeatValid">
-                {{ $t("usersListComponent.modalChangeUserPasswordFeedbackLabel") }}
+                {{ $t("settingsSecurityZone.changeUserPasswordFeedbackLabel") }}
             </div>
             <div id="validationNewPasswordRepeatFeedback" class="invalid-feedback" v-if="!isPasswordMatch">
-                {{ $t("usersListComponent.modalChangeUserPasswordPasswordsDoNotMatchFeedbackLabel") }}
+                {{ $t("settingsSecurityZone.changeUserPasswordPasswordsDoNotMatchFeedbackLabel") }}
             </div>
 
             <p>* {{ $t("generalItems.requiredField") }}</p>
 
-            <button type="submit" class="btn btn-success" name="editUserPassword">{{ $t("settingsSecurityZone.subtitleChangePassword") }}</button>
+            <button type="submit" class="btn btn-success" :disabled="!isNewPasswordValid || !isNewPasswordRepeatValid || !isPasswordMatch" name="editUserPassword">{{ $t("settingsSecurityZone.subtitleChangePassword") }}</button>
         </form>
 
 		<hr>
@@ -99,13 +99,13 @@ export default {
 
 					// Show the success alert.
 					push.success(
-						t("usersListComponent.userChangePasswordSuccessMessage"),
+						t("settingsSecurityZone.userChangePasswordSuccessMessage"),
 					);
 				}
 			} catch (error) {
 				// If there is an error, show the error alert.
 				push.error(
-					`${t("usersListComponent.userChangePasswordErrorMessage")} - ${error}`,
+					`${t("settingsSecurityZone.userChangePasswordErrorMessage")} - ${error}`,
 				);
 			}
 		}

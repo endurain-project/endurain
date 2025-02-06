@@ -4,40 +4,40 @@
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h1 class="modal-title fs-5" :id="`editUserPasswordModal${user.id}`">{{ $t("usersListComponent.modalChangeUserPasswordTitle") }}</h1>
+                    <h1 class="modal-title fs-5" :id="`editUserPasswordModal${user.id}`">{{ $t("usersChangeUserPasswordModalComponent.modalChangeUserPasswordTitle") }}</h1>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <form @submit.prevent="submitChangeUserPasswordForm">
                     <div class="modal-body">
                         <UsersPasswordRequirementsComponent />
 
-                        <p>{{ $t("usersListComponent.modalChangeUserPasswordBodyLabel") }}<b>{{ user.username }}</b></p>
+                        <p>{{ $t("usersChangeUserPasswordModalComponent.modalChangeUserPasswordBodyLabel") }}<b>{{ user.username }}</b></p>
 
                         <!-- password fields -->
-                        <label for="validationNewPassword"><b>* {{ $t("usersListComponent.modalChangeUserPasswordPasswordLabel") }}</b></label>
-                        <input class="form-control" :class="{ 'is-invalid': !isNewPasswordValid || !isPasswordMatch }" type="password" id="validationNewPassword" aria-describedby="validationNewPasswordFeedback" :placeholder='$t("usersListComponent.modalChangeUserPasswordPasswordLabel")' v-model="newPassword" required>
+                        <label for="validationNewPassword"><b>* {{ $t("usersChangeUserPasswordModalComponent.modalChangeUserPasswordPasswordLabel") }}</b></label>
+                        <input class="form-control" :class="{ 'is-invalid': !isNewPasswordValid || !isPasswordMatch }" type="password" id="validationNewPassword" aria-describedby="validationNewPasswordFeedback" :placeholder='$t("usersChangeUserPasswordModalComponent.modalChangeUserPasswordPasswordLabel")' v-model="newPassword" required>
                         <div id="validationNewPasswordFeedback" class="invalid-feedback" v-if="!isNewPasswordValid">
-                            {{ $t("usersListComponent.modalChangeUserPasswordFeedbackLabel") }}
+                            {{ $t("usersChangeUserPasswordModalComponent.modalChangeUserPasswordFeedbackLabel") }}
                         </div>
                         <div id="validationNewPasswordFeedback" class="invalid-feedback" v-if="!isPasswordMatch">
-                            {{ $t("usersListComponent.modalChangeUserPasswordPasswordsDoNotMatchFeedbackLabel") }}
+                            {{ $t("usersChangeUserPasswordModalComponent.modalChangeUserPasswordPasswordsDoNotMatchFeedbackLabel") }}
                         </div>
                         <!-- repeat password fields -->
 
-                        <label class="mt-1" for="validationNewPasswordRepeat"><b>* {{ $t("usersListComponent.modalChangeUserPasswordPasswordConfirmationLabel") }}</b></label>
-                        <input class="form-control" :class="{ 'is-invalid': !isNewPasswordRepeatValid || !isPasswordMatch }" type="password" id="validationNewPasswordRepeat" aria-describedby="validationNewPasswordRepeatFeedback" :placeholder='$t("usersListComponent.modalChangeUserPasswordPasswordConfirmationLabel")' v-model="newPasswordRepeat" required>
+                        <label class="mt-1" for="validationNewPasswordRepeat"><b>* {{ $t("usersChangeUserPasswordModalComponent.modalChangeUserPasswordPasswordConfirmationLabel") }}</b></label>
+                        <input class="form-control" :class="{ 'is-invalid': !isNewPasswordRepeatValid || !isPasswordMatch }" type="password" id="validationNewPasswordRepeat" aria-describedby="validationNewPasswordRepeatFeedback" :placeholder='$t("usersChangeUserPasswordModalComponent.modalChangeUserPasswordPasswordConfirmationLabel")' v-model="newPasswordRepeat" required>
                         <div id="validationNewPasswordRepeatFeedback" class="invalid-feedback" v-if="!isNewPasswordRepeatValid">
-                            {{ $t("usersListComponent.modalChangeUserPasswordFeedbackLabel") }}
+                            {{ $t("usersChangeUserPasswordModalComponent.modalChangeUserPasswordFeedbackLabel") }}
                         </div>
                         <div id="validationNewPasswordRepeatFeedback" class="invalid-feedback" v-if="!isPasswordMatch">
-                            {{ $t("usersListComponent.modalChangeUserPasswordPasswordsDoNotMatchFeedbackLabel") }}
+                            {{ $t("usersChangeUserPasswordModalComponent.modalChangeUserPasswordPasswordsDoNotMatchFeedbackLabel") }}
                         </div>
 
                         <p>* {{ $t("generalItems.requiredField") }}</p>
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ $t("generalItems.buttonClose") }}</button>
-                        <button type="submit" class="btn btn-success" :disabled="!isNewPasswordValid || !isNewPasswordRepeatValid || !isPasswordMatch" name="editUserPasswordAdmin" data-bs-dismiss="modal">{{ $t("usersListComponent.modalChangeUserPasswordTitle") }}</button>
+                        <button type="submit" class="btn btn-success" :disabled="!isNewPasswordValid || !isNewPasswordRepeatValid || !isPasswordMatch" name="editUserPasswordAdmin" data-bs-dismiss="modal">{{ $t("usersChangeUserPasswordModalComponent.modalChangeUserPasswordTitle") }}</button>
                     </div>
                 </form>
             </div>
@@ -94,13 +94,13 @@ export default {
 					await users.editUserPassword(props.user.id, data);
 					// Set the success message and show the success alert.
 					push.success(
-						t("usersListComponent.userChangePasswordSuccessMessage"),
+						t("usersChangeUserPasswordModalComponent.userChangePasswordSuccessMessage"),
 					);
 				}
 			} catch (error) {
 				// If there is an error, set the error message and show the error alert.
 				push.error(
-					`${t("usersListComponent.userChangePasswordErrorMessage")} - ${error}`,
+					`${t("usersChangeUserPasswordModalComponent.userChangePasswordErrorMessage")} - ${error}`,
 				);
 			}
 		}

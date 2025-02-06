@@ -4,7 +4,7 @@
             <div class="modal-content">
                 <div class="modal-header">
                     <h1 class="modal-title fs-5" id="addGearToActivityModal">
-                        {{ $t("activity.modalLabelAddGear") }}
+                        {{ $t("addGearToActivityModalComponent.modalLabelAddGear") }}
                     </h1>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"
                         aria-label="Close"></button>
@@ -12,7 +12,7 @@
                 <form @submit.prevent="submitAddGearToActivityForm">
                     <div class="modal-body">
                         <!-- gear type fields -->
-                        <label for="gearIDAdd"><b>* {{ $t("activity.modalLabelSelectGear") }}</b></label>
+                        <label for="gearIDAdd"><b>* {{ $t("addGearToActivityModalComponent.modalLabelSelectGear") }}</b></label>
                         <select class="form-control" name="gearIDAdd" v-model="gearId" required>
                             <option v-for="gear in gearsByType" :key="gear.id" :value="gear.id">
                                 {{ gear.nickname }}
@@ -24,7 +24,7 @@
                             {{ $t("generalItems.buttonClose") }}
                         </button>
                         <button type="submit" class="btn btn-success" data-bs-dismiss="modal" name="addGearToActivity">
-                            {{ $t("activity.modalButtonAddGear") }}
+                            {{ $t("addGearToActivityModalComponent.modalButtonAddGear") }}
                         </button>
                     </div>
                 </form>
@@ -72,7 +72,7 @@ export default {
 				// Emit the gearId to the parent component
 				emit("gearId", gearId.value);
 			} catch (error) {
-				push.error(`${t("generalItems.errorEditingInfo")} - ${error}`);
+				push.error(`${t("addGearToActivityModalComponent.errorEditingGear")} - ${error}`);
 			}
 		}
 

@@ -21,7 +21,7 @@
     <div class="d-flex justify-content-between align-items-center" v-else-if="activity">
         <p class="pt-2">
             <span class="fw-lighter">
-                {{ $t("activity.labelGear") }}
+                {{ $t("activityView.labelGear") }}
             </span>
             <br>
             <span v-if="activity.activity_type === 1 || activity.activity_type === 2 || activity.activity_type === 3">
@@ -34,7 +34,7 @@
                 <font-awesome-icon :icon="['fas', 'fa-person-swimming']" />
             </span>
             <span class="ms-2" v-if="activity.gear_id && gear">{{ gear.nickname }}</span>
-            <span class="ms-2" v-else>{{ $t("activity.labelGearNotSet") }}</span>
+            <span class="ms-2" v-else>{{ $t("activityView.labelGearNotSet") }}</span>
         </p>
         <div class="justify-content-end">
             <!-- add gear button -->
@@ -56,7 +56,7 @@
             </a>
 
             <!-- Modal delete gear -->
-            <ModalComponent modalId="deleteGearActivityModal" :title="t('activity.modalLabelDeleteGear')" :body="`${t('activity.modalLabelDeleteGearBody')}`" actionButtonType="danger" :actionButtonText="t('activity.modalLabelDeleteGearButton')" @submitAction="submitDeleteGearFromActivity"/>
+            <ModalComponent modalId="deleteGearActivityModal" :title="t('activityView.modalLabelDeleteGear')" :body="`${t('activityView.modalLabelDeleteGearBody')}`" actionButtonType="danger" :actionButtonText="t('activityView.modalLabelDeleteGearButton')" @submitAction="submitDeleteGearFromActivity"/>
         </div>
     </div>
 
@@ -64,7 +64,7 @@
     <hr class="mb-2 mt-2">
     <div class="row">
         <div class="col-md-2">
-            <p>{{ $t("activity.labelGraph") }}</p>
+            <p>{{ $t("activityView.labelGraph") }}</p>
             <ul class="nav nav-pills flex-column mb-auto" id="sidebarLineGraph">
                 <li class="nav-item" v-for="item in graphItems" :key="item.type">
                     <a href="javascript:void(0);" class="nav-link text-secondary"
@@ -74,7 +74,7 @@
                     </a>
                 </li>
             </ul>
-            <p class="mt-2">{{ $t("activity.labelDownsampling") }}</p>
+            <p class="mt-2">{{ $t("activityView.labelDownsampling") }}</p>
         </div>
         <div class="col">
             <LoadingComponent v-if="isLoading"/>
@@ -156,7 +156,7 @@ export default {
 				await activities.editActivity(auxActivity);
 
 				// Show the success message
-				push.success(t("activity.successMessageGearDeleted"));
+				push.success(t("activityView.successMessageGearDeleted"));
 
 				// Update the activity gear
 				activity.value.gear_id = null;
@@ -171,7 +171,7 @@ export default {
 			activity.value.gear_id = gearId;
 
 			// Show the success message
-			push.success(t("activity.successMessageGearAdded"));
+			push.success(t("activityView.successMessageGearAdded"));
 		}
 
 		function updateActivityFieldsOnEdit(data) {

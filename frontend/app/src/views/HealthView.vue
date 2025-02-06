@@ -79,7 +79,7 @@ export default {
 				isHealthDataUpdatingLoading.value = false;
 			} catch (error) {
 				// If there is an error, set the error message and show the error alert.
-				push.error(`${t("generalItems.errorFetchingInfo")} - ${error}`);
+				push.error(`${t("healthView.errorFetchingHealthData")} - ${error}`);
 			}
 		}
 
@@ -99,7 +99,7 @@ export default {
 				totalPages.value = Math.ceil(userHealthDataNumber.value / numRecords);
 			} catch (error) {
 				// If there is an error, set the error message and show the error alert.
-				push.error(`${t("generalItems.errorFetchingInfo")} - ${error}`);
+				push.error(`${t("healthView.errorFetchingHealthData")} - ${error}`);
 			}
 		}
 
@@ -109,7 +109,7 @@ export default {
 				userHealthTargets.value = await health_targets.getUserHealthTargets();
 			} catch (error) {
 				// If there is an error, set the error message and show the error alert.
-				push.error(`${t("generalItems.errorFetchingInfo")} - ${error}`);
+				push.error(`${t("healthView.errorFetchingHealthTargets")} - ${error}`);
 			}
 		}
 
