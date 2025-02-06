@@ -8,5 +8,6 @@
     "displayUserNumberOfGears2": " gear(s) (",
     "displayUserNumberOfGears3": " loaded):",
     "successGearDeleted": "Gear deleted successfully",
-    "errorGearNotFound": "Gear not found"
+    "errorGearNotFound": "Gear not found",
+    "errorFetchingGears": "Error fetching gears"
 }
