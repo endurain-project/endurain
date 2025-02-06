@@ -8,6 +8,7 @@
     "modalRetrieveActivitiesByDaysPlaceholder": "Dias",
     "modalRetrieveButton": "Obter",
     "buttonRetrieveGear": "Obter equipamento",
+    "buttonRelink": "Relink",
     "buttonUnlink": "Desassociar",
     "errorMessageUnableToLinkStrava": "Não foi possível associar a conta de Strava",
     "successMessageStravaAccountLinked": "Conta Strava associada",
