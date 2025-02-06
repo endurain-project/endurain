@@ -1,0 +1,10 @@
+{
+    "search": "Search",
+    "gear": "Equipament",
+    "health": "Salut",
+    "profile": "Perfil",
+    "settings": "Opcions",
+    "login": "Login",
+    "logout": "Tanca sessió",
+    "errorLogout": "Error logging out"
+}
