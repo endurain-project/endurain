@@ -16,5 +16,7 @@
     "labelDate": "Data",
     "title": "Atividades com este equipamento",
     "subtitle": "(últimas 10 atividades)",
-    "successGearEdited": "Equipamento editado com sucesso"
+    "successGearEdited": "Equipamento editado com sucesso",
+    "errorGearDelete": "Error deleting gear",
+    "errorFetchingGears": "Error fetching gears"
 }
