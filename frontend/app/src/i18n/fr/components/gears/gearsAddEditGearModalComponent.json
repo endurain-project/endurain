@@ -1,3 +1,23 @@
 {
-    
+    "addEditGearModalEditTitle": "Edit gear",
+    "addEditGearModalAddTitle": "Add gear",
+    "addEditGearModalAddBrandLabel": "Brand",
+    "addEditGearModalAddModelLabel": "Model",
+    "addEditGearModalAddNicknameLabel": "Nickname",
+    "addEditGearModalAddTypeLabel": "Gear type",
+    "addEditGearModalAddTypeOption1": "Bike",
+    "addEditGearModalAddTypeOption2": "Shoes",
+    "addEditGearModalAddTypeOption3": "Wetsuit",
+    "addEditGearModalAddDateLabel": "Created date",
+    "addEditGearModalAddIsActiveLabel": "Is active",
+    "addEditGearModalAddIsActiveOption1": "Active",
+    "addEditGearModalAddIsActiveOption0": "Inactive",
+    "addEditGearModalAddIsInitialKmsLabel": "Initial kms",
+    "addEditGearModalAddIsInitialMilesLabel": "Initial miles",
+    "errorNicknameAlreadyExistsFeedback": "Nickname already exists",
+    "errorNotPossibleToGetGearByNickname": "Is was not possible to get gear by nickname for validation",
+    "successGearAdded": "Gear added successfully",
+    "errorGearAdd": "Error adding gear",
+    "successGearEdited": "Gear edited successfully",
+    "errorGearEdit": "Error editing gear"
 }
