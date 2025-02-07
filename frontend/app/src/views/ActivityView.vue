@@ -161,7 +161,7 @@ export default {
 				// Update the activity gear
 				activity.value.gear_id = null;
 			} catch (error) {
-				push.error(`${t("generalItems.errorEditingInfo")} - ${error}`);
+				push.error(`${t("activityView.errorMessageDeleteGear")} - ${error}`);
 			}
 		}
 
@@ -277,7 +277,7 @@ export default {
 					});
 				}
 				// If there is an error, set the error message and show the error alert.
-				push.error(`${t("generalItems.errorEditingInfo")} - ${error}`);
+				push.error(`${t("activityView.errorMessageActivityNotFound")} - ${error}`);
 			}
 
 			isLoading.value = false;

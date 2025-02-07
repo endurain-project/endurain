@@ -10,8 +10,8 @@ import { useAuthStore } from "@/stores/authStore";
 import { Chart, registerables } from 'chart.js';
 Chart.register(...registerables);
 
-import { formatPaceMetric, formatPaceImperial, formatPaceSwimMetric, formatPaceSwimImperial, formatAverageSpeedMetric, formatAverageSpeedImperial } from "@/utils/activityUtils";
-import { metersToKm, metersToMiles, metersToYards, metersToFeet } from "@/utils/unitsUtils";
+import { formatAverageSpeedMetric, formatAverageSpeedImperial } from "@/utils/activityUtils";
+import { metersToFeet } from "@/utils/unitsUtils";
   
 export default {
     props: {

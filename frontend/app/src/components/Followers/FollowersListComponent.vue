@@ -25,121 +25,26 @@
         <!-- delete following zone  -->
         <a class="ms-2 btn btn-link btn-lg link-body-emphasis" href="#" role="button" data-bs-toggle="modal" :data-bs-target="`#deleteFollowingModal${userFollower.id}`" v-if="type == 1 && authStore.user.id == idFromParam"><font-awesome-icon :icon="['fas', 'fa-trash']" /></a>
         
-        <div class="modal fade" :id="`deleteFollowingModal${userFollower.id}`" tabindex="-1" :aria-labelledby="`deleteFollowingModal${userFollower.id}`" aria-hidden="true" v-if="type == 1 && authStore.user.id == idFromParam">
-            <div class="modal-dialog">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h1 class="modal-title fs-5">
-                            {{ $t("followersListComponent.followingModalTitle") }}
-                        </h1>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                    </div>
-                    <div class="modal-body">
-                        {{ $t("followersListComponent.followingModalBody") }}<b>
-                            {{ userFollower.name }}
-                        </b>?
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                            {{ $t("generalItems.buttonClose") }}
-                        </button>
-                        <a @click="submitDeleteFollowing" type="button" class="btn btn-danger" data-bs-dismiss="modal">
-                            {{ $t("followersListComponent.followingModalTitle") }}
-                        </a>
-                    </div>
-                </div>
-            </div>
-        </div>
+        <!-- delete following modal -->
+        <ModalComponent :modalId="`deleteFollowingModal${userFollower.id}`" :title="t('followersListComponent.followingModalTitle')" :body="`${t('followersListComponent.gearListModalDeleteGearBody')}<b>${userFollower.name}</b>?`" :actionButtonType="`danger`" :actionButtonText="t('followersListComponent.followingModalTitle')" @submitAction="submitDeleteFollowing"/>
 
         <!-- delete follower zone  -->
         <a class="ms-2 btn btn-link btn-lg link-body-emphasis" href="#" role="button" data-bs-toggle="modal" :data-bs-target="`#deleteFollowerModal${userFollower.id}`" v-if="type != 1 && authStore.user.id == idFromParam && follower.is_accepted == 1"><font-awesome-icon :icon="['fas', 'fa-trash']" /></a>
 
         <!-- Modal delete follower -->
-        <div class="modal fade" :id="`deleteFollowerModal${userFollower.id}`" tabindex="-1" :aria-labelledby="`deleteFollowerModal${userFollower.id}`" aria-hidden="true" v-if="type != 1 && authStore.user.id == idFromParam && follower.is_accepted == 1">
-            <div class="modal-dialog">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h1 class="modal-title fs-5">
-                            {{ $t("followersListComponent.followerModalTitle") }}
-                        </h1>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                    </div>
-                    <div class="modal-body">
-                        {{ $t("followersListComponent.followerModalBody") }}<b>
-                            {{ userFollower.name }}
-                        </b>?
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                            {{ $t("generalItems.buttonClose") }}
-                        </button>
-                        <a @click="submitDeleteFollower" type="button" class="btn btn-danger" data-bs-dismiss="modal">
-                            {{ $t("followersListComponent.followerModalTitle") }}
-                        </a>
-                    </div>
-                </div>
-            </div>
-        </div>
+        <ModalComponent :modalId="`deleteFollowerModal${userFollower.id}`" :title="t('followersListComponent.followerModalTitle')" :body="`${t('followersListComponent.followerModalBody')}<b>${userFollower.name}</b>?`" :actionButtonType="`danger`" :actionButtonText="t('followersListComponent.followerModalTitle')" @submitAction="submitDeleteFollower"/>
 
         <!-- accept folllower request -->
         <a class="btn btn-link btn-lg link-body-emphasis" href="#" role="button" data-bs-toggle="modal" :data-bs-target="`#acceptRequestModal${userFollower.id}`" v-if="type != 1 && authStore.user.id == idFromParam && follower.is_accepted == 0"><font-awesome-icon :icon="['fas', 'fa-check']" /></a>
 
         <!-- Modal accept user request -->
-        <div class="modal fade" :id="`acceptRequestModal${userFollower.id}`" tabindex="-1" :aria-labelledby="`acceptRequestModal${userFollower.id}`" aria-hidden="true" v-if="type != 1 && authStore.user.id == idFromParam && follower.is_accepted == 0">
-            <div class="modal-dialog">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h1 class="modal-title fs-5">
-                            {{ $t("followersListComponent.followerAcceptModalTitle") }}
-                        </h1>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                    </div>
-                    <div class="modal-body">
-                        {{ $t("followersListComponent.followerAcceptModalBody") }}<b>
-                            {{ userFollower.name }}
-                        </b>?
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                            {{ $t("generalItems.buttonClose") }}
-                        </button>
-                        <a @click="submitAcceptFollowerRequest" type="button" class="btn btn-success" data-bs-dismiss="modal">
-                            {{ $t("followersListComponent.followerAcceptModalTitle") }}
-                        </a>
-                    </div>
-                </div>
-            </div>
-        </div>
+        <ModalComponent :modalId="`acceptRequestModal${userFollower.id}`" :title="t('followersListComponent.followerAcceptModalTitle')" :body="`${t('followersListComponent.followerAcceptModalBody')}<b>${userFollower.name}</b>?`" :actionButtonType="`success`" :actionButtonText="t('followersListComponent.followerAcceptModalTitle')" @submitAction="submitAcceptFollowerRequest"/>
 
         <!-- decline user request button -->
         <a class="ms-2 btn btn-link btn-lg link-body-emphasis" href="#" role="button" data-bs-toggle="modal" :data-bs-target="`#declineRequestModal${userFollower.id}`" v-if="type != 1 && authStore.user.id == idFromParam && follower.is_accepted == 0"><font-awesome-icon :icon="['fas', 'fa-x']" /></a>
 
         <!-- Modal decline user request -->
-        <div class="modal fade" :id="`declineRequestModal${userFollower.id}`" tabindex="-1" :aria-labelledby="`declineRequestModal${userFollower.id}`" aria-hidden="true" v-if="type != 1 && authStore.user.id == idFromParam && follower.is_accepted == 0">
-            <div class="modal-dialog">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h1 class="modal-title fs-5">
-                            {{ $t("followersListComponent.followerDeclineModalTitle") }}
-                        </h1>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                    </div>
-                    <div class="modal-body">
-                        {{ $t("followersListComponent.followerDeclineModalBody") }}<b>
-                            {{ userFollower.name }}
-                        </b>?
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                            {{ $t("generalItems.buttonClose") }}
-                        </button>
-                        <a @click="submitDeleteFollower" type="button" class="btn btn-danger" data-bs-dismiss="modal">
-                            {{ $t("followersListComponent.followerDeclineModalTitle") }}
-                        </a>
-                    </div>
-                </div>
-            </div>
-        </div>
+        <ModalComponent :modalId="`declineRequestModal${userFollower.id}`" :title="t('followersListComponent.followerDeclineModalTitle')" :body="`${t('followersListComponent.followerDeclineModalBody')}<b>${userFollower.name}</b>?`" :actionButtonType="`danger`" :actionButtonText="t('followersListComponent.followerDeclineModalTitle')" @submitAction="submitDeleteFollower"/>
     </div>
 </template>
 
@@ -149,13 +54,17 @@ import { useAuthStore } from '@/stores/authStore';
 import { useRoute } from 'vue-router';
 import { users } from '@/services/usersService';
 import { followers } from '@/services/followersService';
+// Import Notivue push
+import { push } from "notivue";
 import LoadingComponent from '@/components/GeneralComponents/LoadingComponent.vue';
 import UserAvatarComponent from '../Users/UserAvatarComponent.vue';
+import ModalComponent from "@/components/Modals/ModalComponent.vue";
 
 export default {
     components: {
         LoadingComponent,
         UserAvatarComponent,
+        ModalComponent,
     },
     emits: ['followerDeleted', 'followingDeleted', 'followerAccepted'],
     props: {
@@ -180,7 +89,10 @@ export default {
                 await followers.deleteUserFollower(userFollower.value.id);
                 emit('followingDeleted', userFollower.value.id);
             } catch (error) {
-                console.error("Failed to delete following:", error);
+                // If there is an error, set the error message and show the error alert.
+				push.error(
+					`${t("followersListComponent.errorDeleteFollowing")} - ${error}`,
+				);
             }
         }
 
@@ -189,7 +101,10 @@ export default {
                 await followers.deleteUserFollowing(userFollower.value.id);
                 emit('followerDeleted', userFollower.value.id);
             } catch (error) {
-                console.error("Failed to delete follower:", error);
+                // If there is an error, set the error message and show the error alert.
+				push.error(
+					`${t("followersListComponent.errorDeleteFollower")} - ${error}`,
+				);
             }
         }
 
@@ -198,7 +113,10 @@ export default {
                 await followers.acceptUserFollowsSpecificUser(userFollower.value.id);
                 emit('followerAccepted', userFollower.value.id);
             } catch (error) {
-                console.error("Failed to update follower:", error);
+                // If there is an error, set the error message and show the error alert.
+				push.error(
+					`${t("followersListComponent.errorUpdateFollower")} - ${error}`,
+				);
             }
         }
 
@@ -210,7 +128,10 @@ export default {
                     userFollower.value = await users.getUserById(props.follower.follower_id);
                 }
             } catch (error) {
-                console.error("Failed to fetch follower details:", error);
+                // If there is an error, set the error message and show the error alert.
+				push.error(
+					`${t("followersListComponent.errorFetchingFollowersDetails")} - ${error}`,
+				);
             } finally {
                 isLoading.value = false;
             }

@@ -19,13 +19,13 @@
                     <h6>
                         <!-- Display the visibility of the activity -->
                         <span v-if="activity.visibility == 0">
-                            <font-awesome-icon :icon="['fas', 'globe']"/> {{ $t("activitySummary.visibilityPublic") }}
+                            <font-awesome-icon :icon="['fas', 'globe']"/> {{ $t("activitySummaryComponent.visibilityPublic") }}
                         </span>
                         <span v-if="activity.visibility == 1">
-                            <font-awesome-icon :icon="['fas', 'users']" v-if="activity.visibility == 1" /> {{ $t("activitySummary.visibilityFollowers") }}
+                            <font-awesome-icon :icon="['fas', 'users']" v-if="activity.visibility == 1" /> {{ $t("activitySummaryComponent.visibilityFollowers") }}
                         </span>
                         <span v-if="activity.visibility == 2">
-                            <font-awesome-icon :icon="['fas', 'lock']" v-if="activity.visibility == 2" /> {{ $t("activitySummary.visibilityPrivate") }}
+                            <font-awesome-icon :icon="['fas', 'lock']" v-if="activity.visibility == 2" /> {{ $t("activitySummaryComponent.visibilityPrivate") }}
                         </span>
                         <span> - </span>
 
@@ -97,13 +97,13 @@
                     <ul class="dropdown-menu">
                         <li>
                             <a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#editActivityModal">
-                                {{ $t("activitySummary.buttonEditActivity") }}
+                                {{ $t("activitySummaryComponent.buttonEditActivity") }}
                             </a>
                         </li>
                         <li><hr class="dropdown-divider"></li>
                         <li>
                             <a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#deleteActivityModal">
-                                {{ $t("activitySummary.buttonDeleteActivity") }}
+                                {{ $t("activitySummaryComponent.buttonDeleteActivity") }}
                             </a>
                         </li>
                     </ul>
@@ -115,32 +115,7 @@
         <EditActivityModalComponent :activity="activity" @activityEditedFields="updateActivityFieldsOnEdit"/>
 
         <!-- Modal delete activity -->
-        <div class="modal fade" id="deleteActivityModal" tabindex="-1" aria-labelledby="deleteActivityModal"
-            aria-hidden="true">
-            <div class="modal-dialog">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h1 class="modal-title fs-5" id="deleteActivityModal">
-                            {{ $t("activitySummary.buttonDeleteActivity") }}
-                        </h1>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                    </div>
-                    <div class="modal-body">
-                        <span>{{ $t("activitySummary.modalDeleteBody1") }}<b>{{ activity.name }}</b>?</span>
-                        <br>
-                        <span>{{ $t("activitySummary.modalDeleteBody2") }}</span>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                            {{ $t("generalItems.buttonClose") }}
-                        </button>
-                        <a @click="submitDeleteActivity" type="button" class="btn btn-danger" data-bs-dismiss="modal">
-                            {{ $t("activitySummary.buttonDeleteActivity") }}
-                        </a>
-                    </div>
-                </div>
-            </div>
-        </div>
+        <ModalComponent modalId="deleteActivityModal" :title="t('activitySummaryComponent.buttonDeleteActivity')" :body="`${t('activitySummaryComponent.modalDeleteBody1')}<b>${activity.name}</b>?<br>${t('activitySummaryComponent.modalDeleteBody2')}`" :actionButtonType="`danger`" :actionButtonText="t('activitySummaryComponent.buttonDeleteActivity')" @submitAction="submitDeleteActivity"/>
 
         <!-- Activity title -->
         <h1 class="mt-3" v-if="sourceProp === 'activity'">
@@ -154,7 +129,7 @@
         <div class="row d-flex mt-3">
             <div class="col" v-if="activity.activity_type != 10 && activity.activity_type != 14">
                 <span class="fw-lighter">
-                    {{ $t("activitySummary.activityDistance") }}
+                    {{ $t("activitySummaryComponent.activityDistance") }}
                 </span>
                 <br>
                 <span v-if="Number(authStore?.user?.units) === 1">
@@ -172,15 +147,15 @@
             </div>
             <div class="col" v-else>
                 <span class="fw-lighter">
-                    {{ $t("activitySummary.activityCalories") }}
+                    {{ $t("activitySummaryComponent.activityCalories") }}
                 </span>
                 <br>
                 <span v-if="activity.calories">{{ activity.calories }}{{ ' ' + $t("generalItems.unitsCalories") }}</span>
-                <span v-else>{{ $t("activitySummary.activityNoData") }}</span>
+                <span v-else>{{ $t("activitySummaryComponent.activityNoData") }}</span>
             </div>
             <div class="col border-start border-opacity-50">
                 <span class="fw-lighter">
-                    {{ $t("activitySummary.activityTime") }}
+                    {{ $t("activitySummaryComponent.activityTime") }}
                 </span>
                 <br>
                 <span>{{ calculateTimeDifference(activity.start_time, activity.end_time) }}</span>
@@ -188,7 +163,7 @@
             <div class="col border-start border-opacity-50">
                 <div v-if="activity.activity_type != 1 && activity.activity_type != 2 && activity.activity_type != 3 && activity.activity_type != 8 && activity.activity_type != 9 && activity.activity_type != 10 && activity.activity_type != 13 && activity.activity_type != 14">
                     <span class="fw-lighter">
-                        {{ $t("activitySummary.activityElevationGain") }}
+                        {{ $t("activitySummaryComponent.activityElevationGain") }}
                     </span>
                     <br>
                     <span v-if="Number(authStore?.user?.units) === 1">{{ activity.elevation_gain }}{{ ' ' + $t("generalItems.unitsM") }}</span>
@@ -196,18 +171,18 @@
                 </div>
                 <div v-else-if="activity.activity_type != 10 && activity.activity_type != 14">
                     <span class="fw-lighter">
-                        {{ $t("activitySummary.activityPace") }}
+                        {{ $t("activitySummaryComponent.activityPace") }}
                     </span>
                     <br>
                     {{ formattedPace }}
                 </div>
                 <div v-else>
                     <span class="fw-lighter">
-                    {{ $t("activitySummary.activityAvgHR") }}
+                    {{ $t("activitySummaryComponent.activityAvgHR") }}
                     </span>
                     <br>
                     <span v-if="activity.average_hr">{{ activity.average_hr }}{{ ' ' + $t("generalItems.unitsBpm") }}</span>
-                    <span v-else>{{ $t("activitySummary.activityNoData") }}</span>
+                    <span v-else>{{ $t("activitySummaryComponent.activityNoData") }}</span>
                 </div>
             </div>
         </div>        
@@ -215,33 +190,33 @@
             <!-- avg_power running and cycling activities-->
             <div class="col" v-if="activity.activity_type == 1 || activity.activity_type == 2 || activity.activity_type == 3 || activity.activity_type == 4 || activity.activity_type == 5 || activity.activity_type == 6 || activity.activity_type == 7">
                 <span class="fw-lighter">
-                    {{ $t("activitySummary.activityAvgPower") }}
+                    {{ $t("activitySummaryComponent.activityAvgPower") }}
                 </span>
                 <br>
                 <span v-if="activity.average_power">{{ activity.average_power }}{{ ' ' + $t("generalItems.unitsWattsShort") }}</span>
-                <span v-else>{{ $t("activitySummary.activityNoData") }}</span>
+                <span v-else>{{ $t("activitySummaryComponent.activityNoData") }}</span>
             </div>
             <!-- avg_hr not running and cycling activities-->
             <div class="col" v-if="activity.activity_type != 1 && activity.activity_type != 2 && activity.activity_type != 3 && activity.activity_type != 4 && activity.activity_type != 5 && activity.activity_type != 6 && activity.activity_type != 7">
                 <span class="fw-lighter">
-                    {{ $t("activitySummary.activityAvgHR") }}
+                    {{ $t("activitySummaryComponent.activityAvgHR") }}
                 </span>
                 <br>
                 <span v-if="activity.average_hr">{{ activity.average_hr }}{{ ' ' + $t("generalItems.unitsBpm") }}</span>
-                <span v-else>{{ $t("activitySummary.activityNoData") }}</span>
+                <span v-else>{{ $t("activitySummaryComponent.activityNoData") }}</span>
             </div>
             <!-- max_hr not running and cycling activities-->
             <div class="col border-start border-opacity-50" v-if="activity.activity_type != 1 && activity.activity_type != 2 && activity.activity_type != 3 && activity.activity_type != 4 && activity.activity_type != 5 && activity.activity_type != 6 && activity.activity_type != 7">
                 <span class="fw-lighter">
-                    {{ $t("activitySummary.activityMaxHR") }}
+                    {{ $t("activitySummaryComponent.activityMaxHR") }}
                 </span>
                 <br>
                 <span v-if="activity.max_hr">{{ activity.max_hr }}{{ ' ' + $t("generalItems.unitsBpm") }}</span>
-                <span v-else>{{ $t("activitySummary.activityNoData") }}</span>
+                <span v-else>{{ $t("activitySummaryComponent.activityNoData") }}</span>
             </div>
             <!-- ele gain running activities -->
             <div class="col border-start border-opacity-50" v-if="activity.activity_type == 1 || activity.activity_type == 2 || activity.activity_type == 3">
-                <span class="fw-lighter">{{ $t("activitySummary.activityEleGain") }}</span>
+                <span class="fw-lighter">{{ $t("activitySummaryComponent.activityEleGain") }}</span>
                 <br>
                 <span v-if="Number(authStore?.user?.units) === 1">{{ activity.elevation_gain }}{{ ' ' + $t("generalItems.unitsM") }}</span>
                 <span v-else>{{ metersToFeet(activity.elevation_gain) }}{{ ' ' + $t("generalItems.unitsFeetShort") }}</span>
@@ -249,21 +224,21 @@
             <!-- avg_speed cycling activities -->
             <div class="col border-start border-opacity-50" v-if="activity.activity_type == 4 || activity.activity_type == 5 || activity.activity_type == 6 || activity.activity_type == 7">
                 <span class="fw-lighter">
-                    {{ $t("activitySummary.activityAvgSpeed") }}
+                    {{ $t("activitySummaryComponent.activityAvgSpeed") }}
                 </span>
                 <br>
                 <span v-if="activity.average_speed && Number(authStore?.user?.units) === 1">{{ formatAverageSpeedMetric(activity.average_speed) }}{{ ' ' + $t("generalItems.unitsKmH") }}</span>
                 <span v-else-if="activity.average_speed && authStore.user.units == 2">{{ formatAverageSpeedImperial(activity.average_speed) }}{{ ' ' + $t("generalItems.unitsMph") }}</span>
-                <span v-else>{{ $t("activitySummary.activityNoData") }}</span>
+                <span v-else>{{ $t("activitySummaryComponent.activityNoData") }}</span>
             </div>
             <!-- calories -->
             <div class="col border-start border-opacity-50">
                 <span class="fw-lighter">
-                    {{ $t("activitySummary.activityCalories") }}
+                    {{ $t("activitySummaryComponent.activityCalories") }}
                 </span>
                 <br>
                 <span v-if="activity.calories">{{ activity.calories }}{{ ' ' + $t("generalItems.unitsCalories") }}</span>
-                <span v-else>{{ $t("activitySummary.activityNoData") }}</span>
+                <span v-else>{{ $t("activitySummaryComponent.activityNoData") }}</span>
             </div>
         </div>
     </div>
@@ -281,6 +256,7 @@ import { push } from "notivue";
 import LoadingComponent from "@/components/GeneralComponents/LoadingComponent.vue";
 import UserAvatarComponent from "@/components/Users/UserAvatarComponent.vue";
 import EditActivityModalComponent from "@/components/Activities/Modals/EditActivityModalComponent.vue";
+import ModalComponent from "@/components/Modals/ModalComponent.vue";
 // Importing the services
 import { users } from "@/services/usersService";
 import { activities } from "@/services/activitiesService";
@@ -297,6 +273,7 @@ export default {
 		LoadingComponent,
 		UserAvatarComponent,
 		EditActivityModalComponent,
+        ModalComponent,
 	},
 	props: {
 		activity: {
@@ -339,7 +316,7 @@ export default {
 			try {
 				userActivity.value = await users.getUserById(props.activity.user_id);
 			} catch (error) {
-				push.error(`${t("generalItems.errorFetchingInfo")} - ${error}`);
+				push.error(`${t("activitySummaryComponent.errorFetchingUserById")} - ${error}`);
 			} finally {
 				isLoading.value = false;
 			}
@@ -353,7 +330,7 @@ export default {
 					query: { activityDeleted: "true", activityId: props.activity.id },
 				});
 			} catch (error) {
-				push.error(`${t("generalItems.errorDeletingInfo")} - ${error}`);
+				push.error(`${t("activitySummaryComponent.errorDeletingActivity")} - ${error}`);
 			}
 		}
 

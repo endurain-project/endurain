@@ -262,7 +262,6 @@ import usHealthView from './us/healthView.json';
 import usNotFoundView from './us/notFoundView.json';
 import usUserView from './us/userView.json';
 import usSettingsView from './us/settingsView.json';
-import GearsListComponent from '@/components/Gears/GearsListComponent.vue';
 
 // Constructing the messages structure
 const messages = {
@@ -273,7 +272,7 @@ const messages = {
     addGearToActivityModalComponent: caAddGearToActivityModalComponent,
     editActivityModalComponent: caEditActivityModalComponent,
     userDistanceStats: caUserDistanceStatsComponent,
-    activitySummary: caActivitySummaryComponent,
+    activitySummaryComponent: caActivitySummaryComponent,
     // Followers component
     followersListComponent: caFollowersListComponent,
     // Gears component
@@ -325,7 +324,7 @@ const messages = {
     addGearToActivityModalComponent: deAddGearToActivityModalComponent,
     editActivityModalComponent: deEditActivityModalComponent,
     userDistanceStats: deUserDistanceStatsComponent,
-    activitySummary: deActivitySummaryComponent,
+    activitySummaryComponent: deActivitySummaryComponent,
     // Followers component
     followersListComponent: deFollowersListComponent,
     // Gears component
@@ -377,7 +376,7 @@ const messages = {
     addGearToActivityModalComponent: frAddGearToActivityModalComponent,
     editActivityModalComponent: frEditActivityModalComponent,
     userDistanceStats: frUserDistanceStatsComponent,
-    activitySummary: frActivitySummaryComponent,
+    activitySummaryComponent: frActivitySummaryComponent,
     // Followers component
     followersListComponent: frFollowersListComponent,
     // Gears component
@@ -429,7 +428,7 @@ const messages = {
     addGearToActivityModalComponent: ptAddGearToActivityModalComponent,
     editActivityModalComponent: ptEditActivityModalComponent,
     userDistanceStats: ptUserDistanceStatsComponent,
-    activitySummary: ptActivitySummaryComponent,
+    activitySummaryComponent: ptActivitySummaryComponent,
     // Followers component
     followersListComponent: ptFollowersListComponent,
     // Gears component
@@ -481,7 +480,7 @@ const messages = {
     addGearToActivityModalComponent: usAddGearToActivityModalComponent,
     editActivityModalComponent: usEditActivityModalComponent,
     userDistanceStats: usUserDistanceStatsComponent,
-    activitySummary: usActivitySummaryComponent,
+    activitySummaryComponent: usActivitySummaryComponent,
     // Followers component
     followersListComponent: usFollowersListComponent,
     // Gears component
