@@ -26,7 +26,7 @@
     "successFollowingDeleted": "Seguiment eliminat",
     "successFollowerDeleted": "Seguidor eliminat",
     "successFollowerAccepted": "Seguidor acceptat",
-    "errorFetchingUserStats": "Error fetching user stats",
-    "errorFetchingUserFollowers": "Error fetching user followers",
-    "errorFetchingUserActivities": "Error fetching user activities"
+    "errorFetchingUserStats": "Error recollint estadístiques d'usuari",
+    "errorFetchingUserFollowers": "Error recollint seguidors d'usuari",
+    "errorFetchingUserActivities": "Error recollint activitats d'usuari"
 }
