@@ -18,6 +18,6 @@
     "activityEleLoss": "Perda de elevação",
     "activityCalories": "Calorias",
     "activityNoData": "Sem dados",
-    "errorFetchingUserById": "Error fetching user by id",
-    "errorDeletingActivity": "Error deleting activity"
+    "errorFetchingUserById": "Erro ao procurar utilizador por ID",
+    "errorDeletingActivity": "Erro ao eliminar atividade"
 }
