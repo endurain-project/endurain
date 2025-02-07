@@ -7,5 +7,7 @@
     "labelGraph": "Aktivitätsdiagramme",
     "labelDownsampling": "Daten auf ~200 Punkte heruntergerechnet",
     "successMessageGearAdded": "Ausrüstung zur Aktivität hinzugefügt",
-    "successMessageGearDeleted": "Ausrüstung von Aktivität gelöscht"
+    "successMessageGearDeleted": "Ausrüstung von Aktivität gelöscht",
+    "errorMessageDeleteGear": "Error deleting gear from activity",
+    "errorMessageActivityNotFound": "Activity not found"
 }
