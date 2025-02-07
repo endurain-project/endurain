@@ -8,5 +8,9 @@
     "followerAcceptModalTitle": "Accepta petició de l'usuari",
     "followerAcceptModalBody": "Segur que vols acceptar la petició de seguiment de l'usuari ",
     "followerDeclineModalTitle": "Rebutja la petició de l'usuari ",
-    "followerDeclineModalBody": "Segur que vols rebutjar la petició de seguiment de kl'usauri "
+    "followerDeclineModalBody": "Segur que vols rebutjar la petició de seguiment de kl'usauri ",
+    "errorDeleteFollowing": "Error deleting following",
+    "errorDeleteFollower": "Error deleting follower",
+    "errorUpdateFollower": "Error updating follower",
+    "errorFetchingFollowersDetails": "Error fetching followers details"
 }

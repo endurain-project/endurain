@@ -17,5 +17,7 @@
     "activityEleGain": "Höhenunterschied",
     "activityEleLoss": "Höhenverlust",
     "activityCalories": "Kalorien",
-    "activityNoData": "Keine Daten"
+    "activityNoData": "Keine Daten",
+    "errorFetchingUserById": "Error fetching user by id",
+    "errorDeletingActivity": "Error deleting activity"
 }

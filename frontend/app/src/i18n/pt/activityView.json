@@ -7,5 +7,7 @@
     "labelGraph": "Gráficos de dados da atividade",
     "labelDownsampling": "Dados downsampled para ~200 pontos",
     "successMessageGearAdded": "Equipamento adicionado à atividade",
-    "successMessageGearDeleted": "Equipamento eliminado da atividade"
+    "successMessageGearDeleted": "Equipamento eliminado da atividade",
+    "errorMessageDeleteGear": "Erro ao eliminar equipamento da atividade",
+    "errorMessageActivityNotFound": "Atividade não encontrada"
 }

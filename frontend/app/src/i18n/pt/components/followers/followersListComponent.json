@@ -8,5 +8,9 @@
     "followerAcceptModalTitle": "Aceitar pedido do utilizador",
     "followerAcceptModalBody": "Tem certeza de que pretende aceitar o pedido de seguir do utilizador ",
     "followerDeclineModalTitle": "Rejeitar pedido do utilizador ",
-    "followerDeclineModalBody": "Tem certeza de que pretende rejeitar o pedido de seguir do utilizador "
+    "followerDeclineModalBody": "Tem certeza de que pretende rejeitar o pedido de seguir do utilizador ",
+    "errorDeleteFollowing": "Erro ao eliminar seguidor a seguir",
+    "errorDeleteFollower": "Erro ao eliminar seguidor",
+    "errorUpdateFollower": "Erro ao atualizar seguidor",
+    "errorFetchingFollowersDetails": "Erro ao obter detalhes dos seguidores"
 }

@@ -17,5 +17,7 @@
     "activityEleGain": "Desnivell",
     "activityEleLoss": "Pèrdua d'elevació",
     "activityCalories": "Calories",
-    "activityNoData": "Sense dades"
+    "activityNoData": "Sense dades",
+    "errorFetchingUserById": "Error fetching user by id",
+    "errorDeletingActivity": "Error deleting activity"
 }
