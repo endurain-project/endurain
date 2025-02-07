@@ -10,6 +10,6 @@
     "modalDeleteUserTitle": "Esborra usuari",
     "modalDeleteUserBody": "Segur que vols esborrar l'usuari ",
     "userListUserSessionsTitle": "Sessions d'usuari",
-    "userSessionDeleteSuccessMessage": "Session deleted successfully",
-    "userSessionDeleteErrorMessage": "Error deleting session"
+    "userSessionDeleteSuccessMessage": "Sessió eliminada correctament",
+    "userSessionDeleteErrorMessage": "Error esborrant sessió"
 }
