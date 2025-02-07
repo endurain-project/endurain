@@ -1,10 +1,10 @@
 {
-    "searchSelectLabel": "Search",
-    "searchSelectOptionActivity": "Activity",
-    "searchSelectOptionUser": "User",
-    "searchSelectOptionGear": "Gear",
-    "searchInputPlaceholder": "Search text",
-    "errorFetchingUserWithUsernameContains": "Error fetching user with username contains logic",
-    "errorFetchingActivityWithNameContains": "Error fetching activity with name contains logic",
-    "errorFetchingGearWithNicknameContains": "Error fetching gear with nickname contains logic"
+    "searchSelectLabel": "Procurar",
+    "searchSelectOptionActivity": "Atividade",
+    "searchSelectOptionUser": "Utilizador",
+    "searchSelectOptionGear": "Equipamento",
+    "searchInputPlaceholder": "Texto a procurar",
+    "errorFetchingUserWithUsernameContains": "Erro ao obter utilizador com lógica de contém",
+    "errorFetchingActivityWithNameContains": "Erro ao obter atividade com lógica de contém",
+    "errorFetchingGearWithNicknameContains": "Erro ao obter equipamento com lógica de contém"
 }
