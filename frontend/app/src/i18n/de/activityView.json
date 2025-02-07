@@ -1,9 +1,6 @@
 {
     "labelGear": "Ausrüstung",
     "labelGearNotSet": "Nicht konfiguriert",
-    "modalLabelAddGear": "Füge Ausrüstung zur Aktivität hinzu",
-    "modalLabelSelectGear": "Ausrüstung wählen",
-    "modalButtonAddGear": "Ausrüstung hinzufügen",
     "modalLabelDeleteGear": "Ausrüstung von Aktivität löschen",
     "modalLabelDeleteGearBody": "Bist du sicher, dass du die Ausrüstung von der Aktivität entfernen möchtest?",
     "modalLabelDeleteGearButton": "Ausrüstung löschen",

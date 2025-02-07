@@ -1,15 +1,22 @@
 {
     "buttonEditGear": "Ausrüstung bearbeiten",
     "buttonDeleteGear": "Ausrüstung löschen",
-    "modalEditGearIsActiveLabel": "Ist aktiv",
-    "modalEditGearIsActiveOption1": "Ja",
-    "modalEditGearIsActiveOption0": "Nein",
-    "modalEditGearInitialKmsLabel": "Initial kms",
     "modalDeleteGearBody1": "Bist du sicher, dass du die Ausrüstung löschen möchtest?",
     "modalDeleteGearBody2": "Dieser Vorgang kann nicht rückgängig gemacht werden.",
+    "gearIsActiveBadge": "Active",
+    "gearIsInactiveBadge": "Inactive",
+    "gearTypeOption1": "Bike",
+    "gearTypeOption2": "Shoes",
+    "gearTypeOption3": "Wetsuit",
+    "gearFromStrava": "Strava",
+    "gearFromGarminConnect": "Garmin Connect",
+    "labelBrand": "Brand",
+    "labelModel": "Model",
     "labelDistance": "Distanz",
+    "labelDate": "Datum",
     "title": "Ausrüstungsaktivitäten",
     "subtitle": "(letzte 10 Aktivitäten)",
-    "labelDate": "Datum",
-    "successGearEdited": "Ausrüstung erfolgreich bearbeitet"
+    "successGearEdited": "Ausrüstung erfolgreich bearbeitet",
+    "errorGearDelete": "Error deleting gear",
+    "errorFetchingGears": "Error fetching gears"
 }

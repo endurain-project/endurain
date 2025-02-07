@@ -1,9 +1,6 @@
 {
     "labelGear": "Gear",
     "labelGearNotSet": "Not set",
-    "modalLabelAddGear": "Add gear to activity",
-    "modalLabelSelectGear": "Select gear",
-    "modalButtonAddGear": "Add gear",
     "modalLabelDeleteGear": "Delete gear from activity",
     "modalLabelDeleteGearBody": "Are you sure you want to remove the gear from the activity?",
     "modalLabelDeleteGearButton": "Delete gear",

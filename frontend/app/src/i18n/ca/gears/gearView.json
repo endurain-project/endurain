@@ -1,15 +1,22 @@
 {
     "buttonEditGear": "Editar Equipament",
     "buttonDeleteGear": "Esborra Equipament",
-    "modalEditGearIsActiveLabel": "És actiu",
-    "modalEditGearIsActiveOption1": "Si",
-    "modalEditGearIsActiveOption0": "No",
-    "modalEditGearInitialKmsLabel": "Kms inicials",
     "modalDeleteGearBody1": "Segur que vols esborrar equipament",
     "modalDeleteGearBody2": "Aquesta acció no es pot desfer.",
+    "gearIsActiveBadge": "Actiu",
+    "gearIsInactiveBadge": "Inactiu",
+    "gearTypeOption1": "Bici",
+    "gearTypeOption2": "Sabatilles",
+    "gearTypeOption3": "Neoprè",
+    "gearFromStrava": "Strava",
+    "gearFromGarminConnect": "Garmin Connect",
+    "labelBrand": "Marca",
+    "labelModel": "Model",
     "labelDistance": "Distància",
+    "labelDate": "Data",
     "title": "Activitats d'equipament",
     "subtitle": "(últimes 10 activitats)",
-    "labelDate": "Data",
-    "successGearEdited": "Equipament editat correctament"
+    "successGearEdited": "Equipament editat correctament",
+    "errorGearDelete": "Error esborrant equip",
+    "errorFetchingGears": "Error obtenint equips"
 }

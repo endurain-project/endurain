@@ -1,9 +1,6 @@
 {
     "labelGear": "Equipamento",
     "labelGearNotSet": "Não definido",
-    "modalLabelAddGear": "Adicionar equipamento à atividade",
-    "modalLabelSelectGear": "Selecionar equipamento",
-    "modalButtonAddGear": "Adicionar equipamento",
     "modalLabelDeleteGear": "Remover equipamento da atividade",
     "modalLabelDeleteGearBody": "Tem certeza que deseja remover o equipamento da atividade?",
     "modalLabelDeleteGearButton": "Eliminar equipamento",

@@ -25,5 +25,8 @@
     "activitiesPaginationWeek51": "Fa un any",
     "successFollowingDeleted": "Seguiment eliminat",
     "successFollowerDeleted": "Seguidor eliminat",
-    "successFollowerAccepted": "Seguidor acceptat"
+    "successFollowerAccepted": "Seguidor acceptat",
+    "errorFetchingUserStats": "Error recollint estadístiques d'usuari",
+    "errorFetchingUserFollowers": "Error recollint seguidors d'usuari",
+    "errorFetchingUserActivities": "Error recollint activitats d'usuari"
 }

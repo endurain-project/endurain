@@ -1,9 +1,10 @@
 {
+    "search": "Procurar",
     "gear": "Equipamento",
     "health": "Saúde",
     "profile": "Perfil",
     "settings": "Definições",
     "login": "Iniciar sessão",
     "logout": "Encerrar sessão",
-    "warningZone": "Software em versão alfa, alguns recursos podem não funcionar como esperado"
+    "errorLogout": "Erro ao terminar sessão"
 }

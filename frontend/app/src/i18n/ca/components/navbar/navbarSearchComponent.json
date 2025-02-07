@@ -1,3 +1,10 @@
 {
-    
+    "searchSelectLabel": "Cerca",
+    "searchSelectOptionActivity": "Activitat",
+    "searchSelectOptionUser": "Usuari",
+    "searchSelectOptionGear": "Equipament",
+    "searchInputPlaceholder": "Cerca Text",
+    "errorFetchingUserWithUsernameContains": "Error obtenint usuari amb lògica de nom d'usuari",
+    "errorFetchingActivityWithNameContains": "Error obtenint activitat amb lògica de nom d'usuari",
+    "errorFetchingGearWithNicknameContains": "Error obtenint equipaments amb lògica de nom d'usuari"
 }

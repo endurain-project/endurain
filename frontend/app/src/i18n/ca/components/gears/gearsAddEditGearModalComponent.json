@@ -1,3 +1,23 @@
 {
-    
+    "addEditGearModalEditTitle": "Edita Equipament",
+    "addEditGearModalAddTitle": "Afegir Equipament",
+    "addEditGearModalAddBrandLabel": "Marca",
+    "addEditGearModalAddModelLabel": "Model",
+    "addEditGearModalAddNicknameLabel": "Àlies",
+    "addEditGearModalAddTypeLabel": "Tipus d'Equipament",
+    "addEditGearModalAddTypeOption1": "Bici",
+    "addEditGearModalAddTypeOption2": "Sabatilles",
+    "addEditGearModalAddTypeOption3": "Neoprè",
+    "addEditGearModalAddDateLabel": "Data de creació",
+    "addEditGearModalAddIsActiveLabel": "Està actiu",
+    "addEditGearModalAddIsActiveOption1": "Actiu",
+    "addEditGearModalAddIsActiveOption0": "Inactiu",
+    "addEditGearModalAddIsInitialKmsLabel": "Kms inicials",
+    "addEditGearModalAddIsInitialMilesLabel": "Milles inicials",
+    "errorNicknameAlreadyExistsFeedback": "L’àlies ja existeix",
+    "errorNotPossibleToGetGearByNickname": "No ha estat possible obtenir l'equip per sobrenom per a la validació",
+    "successGearAdded": "Equipament afegit correctament",
+    "errorGearAdd": "Error afegint equip",
+    "successGearEdited": "Equipament editat correctament",
+    "errorGearEdit": "Error editant equip"
 }

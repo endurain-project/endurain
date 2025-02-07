@@ -8,6 +8,7 @@
     "modalRetrieveActivitiesByDaysPlaceholder": "Tage",
     "modalRetrieveButton": "Abrufen",
     "buttonRetrieveGear": "Ausrüstung abrufen",
+    "buttonRelink": "Relink",
     "buttonUnlink": "Trennen",
     "errorMessageUnableToLinkStrava": "Strava-Konto konnte nicht getrennt werden",
     "successMessageStravaAccountLinked": "Strava-Konto verknüpft",

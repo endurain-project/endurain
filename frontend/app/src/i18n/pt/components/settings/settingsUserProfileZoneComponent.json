@@ -1,5 +1,27 @@
 {
     "buttonDeleteProfilePhoto": "Eliminar fotografia",
     "modalDeleteProfilePhotoBody": "Tem certeza de que deseja eliminar a sua fotografia de perfil?",
-    "buttonEditProfile": "Editar perfil"
+    "buttonEditProfile": "Editar perfil",
+    "usernameLabel": "Nome de utilizador",
+    "emailLabel": "E-mail",
+    "cityLabel": "Cidade",
+    "birthdayLabel": "Data de nascimento",
+    "genderLabel": "Género",
+    "genderOption1": "Masculino",
+    "genderOption2": "Feminino",
+    "unitsLabel": "Unidades",
+    "unitsOption1": "Métrico",
+    "unitsOption2": "Imperial",
+    "heightLabel": "Altura",
+    "preferredLanguageLabel": "Idioma de preferência",
+    "preferredLanguageOption1": "Inglês (EUA)",
+    "preferredLanguageOption2": "Catalão",
+    "preferredLanguageOption3": "Português (PT)",
+    "preferredLanguageOption4": "Alemão (DE)",
+    "preferredLanguageOption5": "Francês (FR)",
+    "accessTypeLabel": "Tipo de acesso",
+    "accessTypeOption1": "Normal",
+    "accessTypeOption2": "Administrador",
+    "userPhotoDeleteSuccess": "Fotografia do utilizador eliminada com sucesso",
+    "userPhotoDeleteError": "Erro ao eliminar fotografia do utilizador"
 }

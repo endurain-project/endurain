@@ -1,3 +1,10 @@
 {
-    
+    "searchSelectLabel": "Search",
+    "searchSelectOptionActivity": "Activity",
+    "searchSelectOptionUser": "User",
+    "searchSelectOptionGear": "Gear",
+    "searchInputPlaceholder": "Search text",
+    "errorFetchingUserWithUsernameContains": "Error fetching user with username contains logic",
+    "errorFetchingActivityWithNameContains": "Error fetching activity with name contains logic",
+    "errorFetchingGearWithNicknameContains": "Error fetching gear with nickname contains logic"
 }

@@ -1,9 +1,10 @@
 {
+    "search": "Search",
     "gear": "Ausrüstung",
     "health": "Gesundheit",
     "profile": "Profil",
     "settings": "Einstellungen",
     "login": "Anmelden",
     "logout": "Abmelden",
-    "warningZone": "Alpha-Software, einige Funktionen funktionierten möglicherweise nicht"
+    "errorLogout": "Error logging out"
 }

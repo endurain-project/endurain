@@ -1,5 +1,27 @@
 {
     "buttonDeleteProfilePhoto": "Esborra foto",
     "modalDeleteProfilePhotoBody": "Segur que vols esborrar la foto de perfil?",
-    "buttonEditProfile": "Edita perfil"
+    "buttonEditProfile": "Edita perfil",
+    "usernameLabel": "Nom d’usuari",
+    "emailLabel": "Correu",
+    "cityLabel": "Ciutat",
+    "birthdayLabel": "Aniversari",
+    "genderLabel": "Gènere",
+    "genderOption1": "Home",
+    "genderOption2": "Dona",
+    "unitsLabel": "Unitats",
+    "unitsOption1": "Mètrica",
+    "unitsOption2": "Imperial",
+    "heightLabel": "Alçada",
+    "preferredLanguageLabel": "Idioma preferit",
+    "preferredLanguageOption1": "Anglès (US)",
+    "preferredLanguageOption2": "Català (CAT)",
+    "preferredLanguageOption3": "Portuguès (PT)",
+    "preferredLanguageOption4": "Alemany (DE)",
+    "preferredLanguageOption5": "Francès (FR)",
+    "accessTypeLabel": "Tipus d'accés",
+    "accessTypeOption1": "Usuari normal",
+    "accessTypeOption2": "Administrador",
+    "userPhotoDeleteSuccess": "Foto de perfil esborrada correctament",
+    "userPhotoDeleteError": "Error esborrant foto de perfil"
 }
