@@ -17,5 +17,7 @@
     "activityEleGain": "Ganho de elevação",
     "activityEleLoss": "Perda de elevação",
     "activityCalories": "Calorias",
-    "activityNoData": "Sem dados"
+    "activityNoData": "Sem dados",
+    "errorFetchingUserById": "Error fetching user by id",
+    "errorDeletingActivity": "Error deleting activity"
 }
