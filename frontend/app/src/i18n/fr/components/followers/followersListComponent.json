@@ -8,5 +8,9 @@
     "followerAcceptModalTitle": "Accept user request",
     "followerAcceptModalBody": "Are you sure you want to accept follow request from user ",
     "followerDeclineModalTitle": "Decline user request ",
-    "followerDeclineModalBody": "Are you sure you want to decline follow request from user "
+    "followerDeclineModalBody": "Are you sure you want to decline follow request from user ",
+    "errorDeleteFollowing": "Error deleting following",
+    "errorDeleteFollower": "Error deleting follower",
+    "errorUpdateFollower": "Error updating follower",
+    "errorFetchingFollowersDetails": "Error fetching followers details"
 }
