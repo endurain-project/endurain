@@ -2,8 +2,6 @@ import { createI18n } from 'vue-i18n';
 
 // Importing translations
 // Catalan translations
-// Footer components
-import caFooterComponent from './ca/components/footerComponent.json';
 // Activities component
 import caAddGearToActivityModalComponent from './ca/components/activities/modals/addGearToActivityModalComponent.json';
 import caEditActivityModalComponent from './ca/components/activities/modals/editActivityModalComponent.json';
@@ -22,7 +20,6 @@ import caHealthSideBarComponent from './ca/components/health/healthSideBarCompon
 import caHealthWeightZoneComponent from './ca/components/health/healthWeightZoneComponent.json'
 // Navbar components
 import caNavbarComponent from './ca/components/navbar/navbarComponent.json';
-import caNavbarSearchComponent from './ca/components/navbar/navbarSearchComponent.json';
 // Settings components
 import caSettingsSideBarComponent from './ca/components/settings/settingsSideBarComponent.json';
 import caSettingsUsersZoneComponent from './ca/components/settings/settingsUsersZoneComponent.json';
@@ -50,12 +47,11 @@ import caStravaCallbackView from './ca/strava/stravaCallbackView.json';
 import caActivityView from './ca/activityView.json';
 import caHealthView from './ca/healthView.json';
 import caNotFoundView from './ca/notFoundView.json';
-import caUserView from './ca/userView.json';
+import caSearchView from './ca/searchView.json';
 import caSettingsView from './ca/settingsView.json';
+import caUserView from './ca/userView.json';
 
 // German translations
-// Footer components
-import deFooterComponent from './de/components/footerComponent.json';
 // Activities component
 import deAddGearToActivityModalComponent from './de/components/activities/modals/addGearToActivityModalComponent.json';
 import deEditActivityModalComponent from './de/components/activities/modals/editActivityModalComponent.json';
@@ -74,7 +70,6 @@ import deHealthSideBarComponent from './de/components/health/healthSideBarCompon
 import deHealthWeightZoneComponent from './de/components/health/healthWeightZoneComponent.json'
 // Navbar components
 import deNavbarComponent from './de/components/navbar/navbarComponent.json';
-import deNavbarSearchComponent from './de/components/navbar/navbarSearchComponent.json';
 // Settings components
 import deSettingsSideBarComponent from './de/components/settings/settingsSideBarComponent.json';
 import deSettingsUsersZoneComponent from './de/components/settings/settingsUsersZoneComponent.json';
@@ -102,13 +97,12 @@ import deStravaCallbackView from './de/strava/stravaCallbackView.json';
 import deActivityView from './de/activityView.json';
 import deHealthView from './de/healthView.json';
 import deNotFoundView from './de/notFoundView.json';
-import deUserView from './de/userView.json';
+import deSearchView from './de/searchView.json';
 import deSettingsView from './de/settingsView.json';
+import deUserView from './de/userView.json';
 
 
 // French translations
-// Footer components
-import frFooterComponent from './fr/components/footerComponent.json';
 // Activities component
 import frAddGearToActivityModalComponent from './fr/components/activities/modals/addGearToActivityModalComponent.json';
 import frEditActivityModalComponent from './fr/components/activities/modals/editActivityModalComponent.json';
@@ -127,7 +121,6 @@ import frHealthSideBarComponent from './fr/components/health/healthSideBarCompon
 import frHealthWeightZoneComponent from './fr/components/health/healthWeightZoneComponent.json'
 // Navbar components
 import frNavbarComponent from './fr/components/navbar/navbarComponent.json';
-import frNavbarSearchComponent from './fr/components/navbar/navbarSearchComponent.json';
 // Settings components
 import frSettingsSideBarComponent from './fr/components/settings/settingsSideBarComponent.json';
 import frSettingsUsersZoneComponent from './fr/components/settings/settingsUsersZoneComponent.json';
@@ -155,13 +148,12 @@ import frStravaCallbackView from './fr/strava/stravaCallbackView.json';
 import frActivityView from './fr/activityView.json';
 import frHealthView from './fr/healthView.json';
 import frNotFoundView from './fr/notFoundView.json';
-import frUserView from './fr/userView.json';
+import frSearchView from './fr/searchView.json';
 import frSettingsView from './fr/settingsView.json';
+import frUserView from './fr/userView.json';
 
 
 // Portuguese Portugal translations
-// Footer components
-import ptFooterComponent from './pt/components/footerComponent.json';
 // Activities component
 import ptAddGearToActivityModalComponent from './pt/components/activities/modals/addGearToActivityModalComponent.json';
 import ptEditActivityModalComponent from './pt/components/activities/modals/editActivityModalComponent.json';
@@ -180,7 +172,6 @@ import ptHealthSideBarComponent from './pt/components/health/healthSideBarCompon
 import ptHealthWeightZoneComponent from './pt/components/health/healthWeightZoneComponent.json'
 // Navbar components
 import ptNavbarComponent from './pt/components/navbar/navbarComponent.json';
-import ptNavbarSearchComponent from './pt/components/navbar/navbarSearchComponent.json';
 // Settings components
 import ptSettingsSideBarComponent from './pt/components/settings/settingsSideBarComponent.json';
 import ptSettingsUsersZoneComponent from './pt/components/settings/settingsUsersZoneComponent.json';
@@ -208,12 +199,11 @@ import ptStravaCallbackView from './pt/strava/stravaCallbackView.json';
 import ptActivityView from './pt/activityView.json';
 import ptHealthView from './pt/healthView.json';
 import ptNotFoundView from './pt/notFoundView.json';
-import ptUserView from './pt/userView.json';
+import ptSearchView from './pt/searchView.json';
 import ptSettingsView from './pt/settingsView.json';
+import ptUserView from './pt/userView.json';
 
 // US translations
-// Footer components
-import usFooterComponent from './us/components/footerComponent.json';
 // Activities component
 import usAddGearToActivityModalComponent from './us/components/activities/modals/addGearToActivityModalComponent.json';
 import usEditActivityModalComponent from './us/components/activities/modals/editActivityModalComponent.json';
@@ -232,7 +222,6 @@ import usHealthSideBarComponent from './us/components/health/healthSideBarCompon
 import usHealthWeightZoneComponent from './us/components/health/healthWeightZoneComponent.json'
 // Navbar components
 import usNavbarComponent from './us/components/navbar/navbarComponent.json';
-import usNavbarSearchComponent from './us/components/navbar/navbarSearchComponent.json';
 // Settings components
 import usSettingsSideBarComponent from './us/components/settings/settingsSideBarComponent.json';
 import usSettingsUsersZoneComponent from './us/components/settings/settingsUsersZoneComponent.json';
@@ -260,14 +249,13 @@ import usStravaCallbackView from './us/strava/stravaCallbackView.json';
 import usActivityView from './us/activityView.json';
 import usHealthView from './us/healthView.json';
 import usNotFoundView from './us/notFoundView.json';
-import usUserView from './us/userView.json';
+import usSearchView from './us/searchView.json';
 import usSettingsView from './us/settingsView.json';
+import usUserView from './us/userView.json';
 
 // Constructing the messages structure
 const messages = {
   ca: {
-    // Footer components
-    footer: caFooterComponent,
     // Activities component
     addGearToActivityModalComponent: caAddGearToActivityModalComponent,
     editActivityModalComponent: caEditActivityModalComponent,
@@ -286,7 +274,6 @@ const messages = {
     healthWeightListComponent: caHealthWeightListComponent,
     // Navbar components
     navbarComponent: caNavbarComponent,
-    navbarSearchComponent: caNavbarSearchComponent,
     // Settings components
     settingsSideBar: caSettingsSideBarComponent,
     settingsUsersZone: caSettingsUsersZoneComponent,
@@ -314,12 +301,11 @@ const messages = {
     activityView: caActivityView,
     healthView: caHealthView,
     notFound: caNotFoundView,
+    searchView: caSearchView,
     settingsView: caSettingsView,
     userView: caUserView,
   },
   de: {
-    // Footer components
-    footer: deFooterComponent,
     // Activities component
     addGearToActivityModalComponent: deAddGearToActivityModalComponent,
     editActivityModalComponent: deEditActivityModalComponent,
@@ -338,7 +324,6 @@ const messages = {
     healthWeightListComponent: deHealthWeightListComponent,
     // Navbar components
     navbarComponent: deNavbarComponent,
-    navbarSearchComponent: deNavbarSearchComponent,
     // Settings components
     settingsSideBar: deSettingsSideBarComponent,
     settingsUsersZone: deSettingsUsersZoneComponent,
@@ -366,12 +351,11 @@ const messages = {
     activityView: deActivityView,
     healthView: deHealthView,
     notFound: deNotFoundView,
+    searchView: deSearchView,
     settingsView: deSettingsView,
     userView: deUserView,
   },
   fr: {
-    // Footer components
-    footer: frFooterComponent,
     // Activities component
     addGearToActivityModalComponent: frAddGearToActivityModalComponent,
     editActivityModalComponent: frEditActivityModalComponent,
@@ -390,7 +374,6 @@ const messages = {
     healthWeightListComponent: frHealthWeightListComponent,
     // Navbar components
     navbarComponent: frNavbarComponent,
-    navbarSearchComponent: frNavbarSearchComponent,
     // Settings components
     settingsSideBar: frSettingsSideBarComponent,
     settingsUsersZone: frSettingsUsersZoneComponent,
@@ -418,12 +401,11 @@ const messages = {
     activityView: frActivityView,
     healthView: frHealthView,
     notFound: frNotFoundView,
+    searchView: frSearchView,
     settingsView: frSettingsView,
     userView: frUserView,
   },
   pt: {
-    // Footer components
-    footer: ptFooterComponent,
     // Activities component
     addGearToActivityModalComponent: ptAddGearToActivityModalComponent,
     editActivityModalComponent: ptEditActivityModalComponent,
@@ -442,7 +424,6 @@ const messages = {
     healthWeightListComponent: ptHealthWeightListComponent,
     // Navbar components
     navbarComponent: ptNavbarComponent,
-    navbarSearchComponent: ptNavbarSearchComponent,
     // Settings components
     settingsSideBar: ptSettingsSideBarComponent,
     settingsUsersZone: ptSettingsUsersZoneComponent,
@@ -470,12 +451,11 @@ const messages = {
     activityView: ptActivityView,
     healthView: ptHealthView,
     notFound: ptNotFoundView,
+    searchView: ptSearchView,
     settingsView: ptSettingsView,
     userView: ptUserView,
   },
   us: {
-    // Footer components
-    footer: usFooterComponent,
     // Activities component
     addGearToActivityModalComponent: usAddGearToActivityModalComponent,
     editActivityModalComponent: usEditActivityModalComponent,
@@ -494,7 +474,6 @@ const messages = {
     healthWeightListComponent: usHealthWeightListComponent,
     // Navbar components
     navbarComponent: usNavbarComponent,
-    navbarSearchComponent: usNavbarSearchComponent,
     // Settings components
     settingsSideBar: usSettingsSideBarComponent,
     settingsUsersZone: usSettingsUsersZoneComponent,
@@ -522,6 +501,7 @@ const messages = {
     activityView: usActivityView,
     healthView: usHealthView,
     notFound: usNotFoundView,
+    searchView: usSearchView,
     settingsView: usSettingsView,
     userView: usUserView,
   },

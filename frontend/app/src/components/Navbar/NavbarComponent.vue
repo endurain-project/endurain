@@ -14,12 +14,12 @@
                     <NavbarPipeComponent v-if="authStore.isAuthenticated" />
 
                     <!-- Search -->
-                    <a class="nav-link link-body-emphasis" href="#" role="button" @click="toggleShowSearch" v-if="authStore.isAuthenticated">
+                    <router-link :to="{ name: 'search' }" class="nav-link link-body-emphasis" v-if="authStore.isAuthenticated" @click="collapseNavbar">
                         <font-awesome-icon :icon="['fas', 'magnifying-glass']" />
-                        <span class="ms-1" v-if="!showSearch">{{ $t("navbarComponent.search") }}</span>
-                    </a>
-
-                    <NavbarSearchComponent v-if="showSearch" @collapseNavbar="collapseNavbar" @toggleShowSearch="toggleShowSearch"/>
+                        <span class="ms-1">
+                            {{ $t("navbarComponent.search") }}
+                        </span>
+                    </router-link>
 
                     <NavbarPipeComponent v-if="authStore.isAuthenticated" />
 
@@ -96,7 +96,6 @@ import UserAvatarComponent from "@/components/Users/UserAvatarComponent.vue";
 import NavbarPipeComponent from "@/components/Navbar/NavbarPipeComponent.vue";
 import NavbarThemeSwitcherComponent from "@/components/Navbar/NavbarThemeSwitcherComponent.vue";
 import NavbarLanguageSwitcherComponent from "@/components/Navbar/NavbarLanguageSwitcherComponent.vue";
-import NavbarSearchComponent from "@/components/Navbar/NavbarSearchComponent.vue";
 
 export default {
 	components: {
@@ -104,7 +103,6 @@ export default {
 		NavbarPipeComponent,
 		NavbarThemeSwitcherComponent,
 		NavbarLanguageSwitcherComponent,
-        NavbarSearchComponent,
 	},
 	setup() {
 		const router = useRouter();
