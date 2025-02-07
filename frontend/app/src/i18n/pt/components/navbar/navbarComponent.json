@@ -1,10 +1,10 @@
 {
-    "search": "Search",
+    "search": "Procurar",
     "gear": "Equipamento",
     "health": "Saúde",
     "profile": "Perfil",
     "settings": "Definições",
     "login": "Iniciar sessão",
     "logout": "Encerrar sessão",
-    "errorLogout": "Error logging out"
+    "errorLogout": "Erro ao terminar sessão"
 }
