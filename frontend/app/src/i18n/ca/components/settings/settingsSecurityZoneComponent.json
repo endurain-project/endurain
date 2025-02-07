@@ -1,13 +1,13 @@
 {
     "subtitleChangePassword": "Canviar Contrasenya",
-    "changeUserPasswordBodyLabel": "Change password for user ",
-    "changeUserPasswordPasswordLabel": "New password",
-    "changeUserPasswordPasswordConfirmationLabel": "Confirm new password",
-    "changeUserPasswordFeedbackLabel": "Password does not meet requirements",
-    "changeUserPasswordPasswordsDoNotMatchFeedbackLabel": "Passwords do not match",
+    "changeUserPasswordBodyLabel": "Canviar contrasenya per usuari ",
+    "changeUserPasswordPasswordLabel": "Nova contrasenya",
+    "changeUserPasswordPasswordConfirmationLabel": "Confirma nova contrasenya",
+    "changeUserPasswordFeedbackLabel": "Contrasenya no compleix els requisits",
+    "changeUserPasswordPasswordsDoNotMatchFeedbackLabel": "Contrassenyes no coincideixen",
     "subtitleMySessions": "Sessions",
-    "userChangePasswordSuccessMessage": "Password changed successfully",
-    "userChangePasswordErrorMessage": "Error changing password",
+    "userChangePasswordSuccessMessage": "Contrasenya canviada correctament",
+    "userChangePasswordErrorMessage": "Error canviant contrasenya",
     "successDeleteSession": "Sessió eliminada correctament",
     "errorDeleteSession": "Error esborrant sessió"
 }
