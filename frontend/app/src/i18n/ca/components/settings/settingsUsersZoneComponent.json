@@ -5,6 +5,6 @@
     "labelNumberOfUsers2": " usuari(s) (",
     "labelNumberOfUsers3": " carregat):",
     "successUserAdded": "Usuari afegit correctament",
-    "successUserDeleted": "User deleted successfully",
-    "errorFetchingUsers": "Error fetching users"
+    "successUserDeleted": "Usuari esborrat correctament",
+    "errorFetchingUsers": "Error obtenint usuaris"
 }
