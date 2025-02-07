@@ -26,7 +26,7 @@
     "successFollowingDeleted": "Seguidor eliminado",
     "successFollowerDeleted": "Seguidor eliminado",
     "successFollowerAccepted": "Seguidor aceite",
-    "errorFetchingUserStats": "Error fetching user stats",
-    "errorFetchingUserFollowers": "Error fetching user followers",
-    "errorFetchingUserActivities": "Error fetching user activities"
+    "errorFetchingUserStats": "Erro ao obter estatísticas do utilizador",
+    "errorFetchingUserFollowers": "Erro ao buscar seguidores do utilizador",
+    "errorFetchingUserActivities": "Erro ao obter atividades do utilizador"
 }
