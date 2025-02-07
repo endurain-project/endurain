@@ -8,6 +8,6 @@
     "labelDownsampling": "Dados downsampled para ~200 pontos",
     "successMessageGearAdded": "Equipamento adicionado à atividade",
     "successMessageGearDeleted": "Equipamento eliminado da atividade",
-    "errorMessageDeleteGear": "Error deleting gear from activity",
-    "errorMessageActivityNotFound": "Activity not found"
+    "errorMessageDeleteGear": "Erro ao eliminar equipamento da atividade",
+    "errorMessageActivityNotFound": "Atividade não encontrada"
 }
