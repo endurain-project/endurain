@@ -6,6 +6,8 @@ from sqlalchemy.orm import Session
 import activity_streams.schema as activity_streams_schema
 import activity_streams.models as activity_streams_models
 
+import activities.models as activities_models
+
 import core.logger as core_logger
 
 
@@ -28,7 +30,46 @@ def get_activity_streams(activity_id: int, db: Session):
         return activity_streams
     except Exception as err:
         # Log the exception
-        core_logger.print_to_log(f"Error in get_activity_streams: {err}", "error", exc=err)
+        core_logger.print_to_log(
+            f"Error in get_activity_streams: {err}", "error", exc=err
+        )
+        # Raise an HTTPException with a 500 Internal Server Error status code
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal Server Error",
+        ) from err
+
+
+def get_public_activity_streams(activity_id: int, db: Session):
+    try:
+        # Get the activity streams from the database
+        activity_streams = (
+            db.query(activity_streams_models.ActivityStreams)
+            .join(
+                activities_models.Activity,
+                activities_models.Activity.id
+                == activity_streams_models.ActivityStreams.activity_id,
+            )
+            .filter(
+                activity_streams_models.ActivityStreams.activity_id == activity_id,
+                activities_models.Activity.visibility == 0,
+                activities_models.Activity.id
+                == activity_id,
+            )
+            .all()
+        )
+
+        # Check if there are activity streams, if not return None
+        if not activity_streams:
+            return None
+
+        # Return the activity streams
+        return activity_streams
+    except Exception as err:
+        # Log the exception
+        core_logger.print_to_log(
+            f"Error in get_public_activity_streams: {err}", "error", exc=err
+        )
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -56,7 +97,47 @@ def get_activity_stream_by_type(activity_id: int, stream_type: int, db: Session)
         return activity_stream
     except Exception as err:
         # Log the exception
-        core_logger.print_to_log(f"Error in get_activity_stream_by_type: {err}", "error", exc=err)
+        core_logger.print_to_log(
+            f"Error in get_activity_stream_by_type: {err}", "error", exc=err
+        )
+        # Raise an HTTPException with a 500 Internal Server Error status code
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal Server Error",
+        ) from err
+
+
+def get_public_activity_stream_by_type(activity_id: int, stream_type: int, db: Session):
+    try:
+        # Get the activity stream from the database
+        activity_stream = (
+            db.query(activity_streams_models.ActivityStreams)
+            .join(
+                activities_models.Activity,
+                activities_models.Activity.id
+                == activity_streams_models.ActivityStreams.activity_id,
+            )
+            .filter(
+                activity_streams_models.ActivityStreams.activity_id == activity_id,
+                activity_streams_models.ActivityStreams.stream_type == stream_type,
+                activities_models.Activity.visibility == 0,
+                activities_models.Activity.id
+                == activity_id,
+            )
+            .first()
+        )
+
+        # Check if there is an activity stream; if not, return None
+        if not activity_stream:
+            return None
+
+        # Return the activity stream
+        return activity_stream
+    except Exception as err:
+        # Log the exception
+        core_logger.print_to_log(
+            f"Error in get_public_activity_stream_by_type: {err}", "error", exc=err
+        )
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

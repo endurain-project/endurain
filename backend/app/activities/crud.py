@@ -404,6 +404,40 @@ def get_activity_by_id_from_user_id_or_has_visibility(
         ) from err
 
 
+def get_activity_by_id_if_is_public(activity_id: int, db: Session):
+    try:
+        # Get the activities from the database
+        activity = (
+            db.query(activities_models.Activity)
+            .filter(
+                activities_models.Activity.visibility == 0,
+                activities_models.Activity.id == activity_id,
+            )
+            .first()
+        )
+
+        # Check if there are activities if not return None
+        if not activity:
+            return None
+
+        activity = activities_utils.serialize_activity(activity)
+
+        # Return the activities
+        return activity
+    except Exception as err:
+        # Log the exception
+        core_logger.print_to_log(
+            f"Error in get_activity_by_id_if_is_public: {err}",
+            "error",
+            exc=err,
+        )
+        # Raise an HTTPException with a 500 Internal Server Error status code
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal Server Error",
+        ) from err
+
+
 def get_activity_by_id_from_user_id(
     activity_id: int, user_id: int, db: Session
 ) -> activities_schema.Activity:

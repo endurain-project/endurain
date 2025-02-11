@@ -1,6 +1,5 @@
 import os
 import glob
-import logging
 import calendar
 
 from typing import Annotated, Callable

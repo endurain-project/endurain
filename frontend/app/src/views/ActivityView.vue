@@ -14,11 +14,11 @@
     </div>
     
     <!-- gear zone -->
-    <hr class="mb-2 mt-2">
-    <div class="mt-3 mb-3" v-if="isLoading">
+    <hr class="mb-2 mt-2" v-if="activity && authStore.isAuthenticated">
+    <div class="mt-3 mb-3" v-if="isLoading && authStore.isAuthenticated">
         <LoadingComponent />
     </div>
-    <div class="d-flex justify-content-between align-items-center" v-else-if="activity">
+    <div class="d-flex justify-content-between align-items-center" v-else-if="activity && authStore.isAuthenticated">
         <p class="pt-2">
             <span class="fw-lighter">
                 {{ $t("activityView.labelGear") }}
@@ -185,11 +185,31 @@ export default {
 		onMounted(async () => {
 			try {
 				// Get the activity by id
-				activity.value = await activities.getActivityById(route.params.id);
+				if (authStore.isAuthenticated) {
+					activity.value = await activities.getActivityById(route.params.id);
+				} else {
+					activity.value = await activities.getPublicActivityById(route.params.id);
+					if (!activity.value) {
+						router.push({ path: "/login" });
+					}
+				}
+
+				// Check if the activity exists
+				if (!activity.value) {
+					router.push({
+						path: "/",
+						query: { activityFound: "false", id: route.params.id },
+					});
+				}
 
 				// Get the activity streams by activity id
-				activityActivityStreams.value =
-					await activityStreams.getActivitySteamsByActivityId(route.params.id);
+				if (authStore.isAuthenticated) {
+					activityActivityStreams.value =
+						await activityStreams.getActivitySteamsByActivityId(route.params.id);
+				} else {
+					activityActivityStreams.value =
+						await activityStreams.getPublicActivityStreamsByActivityId(route.params.id);
+				}
 
 				// Check if the activity has the streams
 				for (let i = 0; i < activityActivityStreams.value.length; i++) {
@@ -232,40 +252,36 @@ export default {
 						}
 					}
 				}
+				
+				if (authStore.isAuthenticated) {
+					if (activity.value.gear_id) {
+						gear.value = await gears.getGearById(activity.value.gear_id);
+						gearId.value = activity.value.gear_id;
+					}
 
-				if (!activity.value) {
-					router.push({
-						path: "/",
-						query: { activityFound: "false", id: route.params.id },
-					});
-				}
-				if (activity.value.gear_id) {
-					gear.value = await gears.getGearById(activity.value.gear_id);
-					gearId.value = activity.value.gear_id;
-				}
-
-				if (
-					activity.value.activity_type === 1 ||
-					activity.value.activity_type === 2 ||
-					activity.value.activity_type === 3 ||
-					activity.value.activity_type === 11 ||
-					activity.value.activity_type === 12
-				) {
-					gearsByType.value = await gears.getGearFromType(2);
-				} else {
 					if (
-						activity.value.activity_type === 4 ||
-						activity.value.activity_type === 5 ||
-						activity.value.activity_type === 6 ||
-						activity.value.activity_type === 7
+						activity.value.activity_type === 1 ||
+						activity.value.activity_type === 2 ||
+						activity.value.activity_type === 3 ||
+						activity.value.activity_type === 11 ||
+						activity.value.activity_type === 12
 					) {
-						gearsByType.value = await gears.getGearFromType(1);
+						gearsByType.value = await gears.getGearFromType(2);
 					} else {
 						if (
-							activity.value.activity_type === 8 ||
-							activity.value.activity_type === 9
+							activity.value.activity_type === 4 ||
+							activity.value.activity_type === 5 ||
+							activity.value.activity_type === 6 ||
+							activity.value.activity_type === 7
 						) {
-							gearsByType.value = await gears.getGearFromType(3);
+							gearsByType.value = await gears.getGearFromType(1);
+						} else {
+							if (
+								activity.value.activity_type === 8 ||
+								activity.value.activity_type === 9
+							) {
+								gearsByType.value = await gears.getGearFromType(3);
+							}
 						}
 					}
 				}

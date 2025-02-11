@@ -14,6 +14,8 @@ import { ref, onMounted, watchEffect, nextTick } from 'vue';
 import { activityStreams } from '@/services/activityStreams';
 import LoadingComponent from '@/components/GeneralComponents/LoadingComponent.vue';
 import L from 'leaflet';
+// Importing the stores
+import { useAuthStore } from "@/stores/authStore";
 
 export default {
     components: {
@@ -30,13 +32,18 @@ export default {
         }
     },
     setup(props) {
+		const authStore = useAuthStore();
         const isLoading = ref(true);
         const activityStreamLatLng = ref(null);
         const activityMap = ref(null);
 
         onMounted(async () => {
             try {
-                activityStreamLatLng.value = await activityStreams.getActivitySteamByStreamTypeByActivityId(props.activity.id, 7);
+                if (authStore.isAuthenticated) {
+                    activityStreamLatLng.value = await activityStreams.getActivitySteamByStreamTypeByActivityId(props.activity.id, 7);
+                } else {
+                    activityStreamLatLng.value = await activityStreams.getPublicActivitySteamByStreamTypeByActivityId(props.activity.id, 7);
+                }
             } catch (error) {
                 console.error("Failed to fetch activity details:", error);
             } finally {

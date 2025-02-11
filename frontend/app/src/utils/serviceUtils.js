@@ -1,4 +1,3 @@
-
 // Importing the auth store
 import { useAuthStore } from '@/stores/authStore';
 
@@ -25,7 +24,7 @@ async function fetchWithRetry(url, options) {
     }
 }
 
-async function attemptFetch(url, options) {
+export async function attemptFetch(url, options) {
     const fullUrl = `${API_URL}${url}`;
     const response = await fetch(fullUrl, options);
     if (!response.ok) {

@@ -132,7 +132,7 @@
                     {{ $t("activitySummaryComponent.activityDistance") }}
                 </span>
                 <br>
-                <span v-if="Number(authStore?.user?.units) === 1">
+                <span v-if="Number(units) === 1">
                     <!-- Check if activity_type is not 9 and 8 -->
                     {{ activity.activity_type != 9 && activity.activity_type != 8
                         ? metersToKm(activity.distance) + ' ' + $t("generalItems.unitsKm") : activity.distance + ' ' + $t("generalItems.unitsM")
@@ -166,7 +166,7 @@
                         {{ $t("activitySummaryComponent.activityElevationGain") }}
                     </span>
                     <br>
-                    <span v-if="Number(authStore?.user?.units) === 1">{{ activity.elevation_gain }}{{ ' ' + $t("generalItems.unitsM") }}</span>
+                    <span v-if="Number(units) === 1">{{ activity.elevation_gain }}{{ ' ' + $t("generalItems.unitsM") }}</span>
                     <span v-else>{{ metersToFeet(activity.elevation_gain) }}{{ ' ' + $t("generalItems.unitsFeetShort") }}</span>
                 </div>
                 <div v-else-if="activity.activity_type != 10 && activity.activity_type != 14">
@@ -218,7 +218,7 @@
             <div class="col border-start border-opacity-50" v-if="activity.activity_type == 1 || activity.activity_type == 2 || activity.activity_type == 3">
                 <span class="fw-lighter">{{ $t("activitySummaryComponent.activityEleGain") }}</span>
                 <br>
-                <span v-if="Number(authStore?.user?.units) === 1">{{ activity.elevation_gain }}{{ ' ' + $t("generalItems.unitsM") }}</span>
+                <span v-if="Number(units) === 1">{{ activity.elevation_gain }}{{ ' ' + $t("generalItems.unitsM") }}</span>
                 <span v-else>{{ metersToFeet(activity.elevation_gain) }}{{ ' ' + $t("generalItems.unitsFeetShort") }}</span>
             </div>
             <!-- avg_speed cycling activities -->
@@ -227,7 +227,7 @@
                     {{ $t("activitySummaryComponent.activityAvgSpeed") }}
                 </span>
                 <br>
-                <span v-if="activity.average_speed && Number(authStore?.user?.units) === 1">{{ formatAverageSpeedMetric(activity.average_speed) }}{{ ' ' + $t("generalItems.unitsKmH") }}</span>
+                <span v-if="activity.average_speed && Number(units) === 1">{{ formatAverageSpeedMetric(activity.average_speed) }}{{ ' ' + $t("generalItems.unitsKmH") }}</span>
                 <span v-else-if="activity.average_speed && authStore.user.units == 2">{{ formatAverageSpeedImperial(activity.average_speed) }}{{ ' ' + $t("generalItems.unitsMph") }}</span>
                 <span v-else>{{ $t("activitySummaryComponent.activityNoData") }}</span>
             </div>
@@ -293,18 +293,20 @@ export default {
 		const isLoading = ref(true);
 		const userActivity = ref(null);
 		let formattedPace = null;
+        const units = ref(1)
+
 		if (
 			props.activity.activity_type === 8 ||
 			props.activity.activity_type === 9 ||
 			props.activity.activity_type === 13
 		) {
-            if (Number(authStore?.user?.units) === 1) {
+            if (Number(units.value) === 1) {
                 formattedPace = computed(() => formatPaceSwimMetric(props.activity.pace));
             } else {
                 formattedPace = computed(() => formatPaceSwimImperial(props.activity.pace));
             }
 		} else {
-            if (Number(authStore?.user?.units) === 1) {
+            if (Number(units.value) === 1) {
                 formattedPace = computed(() => formatPaceMetric(props.activity.pace));
             } else {
                 formattedPace = computed(() => formatPaceImperial(props.activity.pace));
@@ -314,7 +316,12 @@ export default {
 
 		onMounted(async () => {
 			try {
-				userActivity.value = await users.getUserById(props.activity.user_id);
+                if (authStore.isAuthenticated) {
+                    userActivity.value = await users.getUserById(props.activity.user_id);
+                    units.value = authStore.user.units;
+                } else {
+                    units.value = 1;
+                }
 			} catch (error) {
 				push.error(`${t("activitySummaryComponent.errorFetchingUserById")} - ${error}`);
 			} finally {
@@ -348,6 +355,7 @@ export default {
 			formatTime,
 			calculateTimeDifference,
 			formattedPace,
+            units,
 			sourceProp,
 			submitDeleteActivity,
 			updateActivityFieldsOnEdit,

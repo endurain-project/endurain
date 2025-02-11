@@ -9,8 +9,6 @@ import activity_streams.dependencies as activity_streams_dependencies
 
 import activities.dependencies as activities_dependencies
 
-import session.security as session_security
-
 import core.database as core_database
 
 # Define the API router
@@ -21,13 +19,10 @@ router = APIRouter()
     "/activity_id/{activity_id}/all",
     response_model=list[activity_streams_schema.ActivityStreams] | None,
 )
-async def read_activities_streams_for_activity_all(
+async def read_public_activities_streams_for_activity_all(
     activity_id: int,
     validate_id: Annotated[
         Callable, Depends(activities_dependencies.validate_activity_id)
-    ],
-    check_scopes: Annotated[
-        Callable, Security(session_security.check_scopes, scopes=["activities:read"])
     ],
     db: Annotated[
         Session,
@@ -35,14 +30,14 @@ async def read_activities_streams_for_activity_all(
     ],
 ):
     # Get the activity streams from the database and return them
-    return activity_streams_crud.get_activity_streams(activity_id, db)
+    return activity_streams_crud.get_public_activity_streams(activity_id, db)
 
 
 @router.get(
     "/activity_id/{activity_id}/stream_type/{stream_type}",
     response_model=activity_streams_schema.ActivityStreams | None,
 )
-async def read_activities_streams_for_activity_stream_type(
+async def read_public_activities_streams_for_activity_stream_type(
     activity_id: int,
     validate_activity_id: Annotated[
         Callable, Depends(activities_dependencies.validate_activity_id)
@@ -51,15 +46,12 @@ async def read_activities_streams_for_activity_stream_type(
     validate_activity_stream_type: Annotated[
         Callable, Depends(activity_streams_dependencies.validate_activity_stream_type)
     ],
-    check_scopes: Annotated[
-        Callable, Security(session_security.check_scopes, scopes=["activities:read"])
-    ],
     db: Annotated[
         Session,
         Depends(core_database.get_db),
     ],
 ):
     # Get the activity stream from the database and return them
-    return activity_streams_crud.get_activity_stream_by_type(
+    return activity_streams_crud.get_public_activity_stream_by_type(
         activity_id, stream_type, db
     )

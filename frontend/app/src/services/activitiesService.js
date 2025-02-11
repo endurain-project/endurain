@@ -1,6 +1,8 @@
 import { fetchGetRequest, fetchPostFileRequest, fetchDeleteRequest, fetchPutRequest, fetchPostRequest } from '@/utils/serviceUtils';
+import { fetchPublicGetRequest } from '@/utils/servicePublicUtils';
 
 export const activities = {
+    // Activities authenticated
     getUserWeekActivities(user_id, week_number) {
         return fetchGetRequest(`activities/user/${user_id}/week/${week_number}`);
     },
@@ -42,5 +44,9 @@ export const activities = {
     },
     deleteActivity(activityId) {
         return fetchDeleteRequest(`activities/${activityId}/delete`);
-    }
+    },
+    // Activities public
+    getPublicActivityById(activityId) {
+        return fetchPublicGetRequest(`public/activities/${activityId}`);
+    },
 };
