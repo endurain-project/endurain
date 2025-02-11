@@ -8,6 +8,6 @@
     "labelDownsampling": "Dades reduïdes a ~200 punts",
     "successMessageGearAdded": "Equipament afegit a activitat",
     "successMessageGearDeleted": "Equipament esborat de l'activitat",
-    "errorMessageDeleteGear": "Error deleting gear from activity",
-    "errorMessageActivityNotFound": "Activity not found"
+    "errorMessageDeleteGear": "Error esborrant equipament de l'activitat",
+    "errorMessageActivityNotFound": "Activitat no trobada"
 }
