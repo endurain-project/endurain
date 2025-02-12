@@ -1,13 +1,13 @@
 {
-    "title": "Gear",
-    "buttonAddGear": "Add Gear",
-    "subTitleSearchGearByNickname": "Search gear by nickname",
-    "placeholderSearchGearByNickname": "Nickname",
-    "buttonSearchGear": "Search Gear",
-    "displayUserNumberOfGears1": "There is a total of ",
-    "displayUserNumberOfGears2": " gear(s) (",
-    "displayUserNumberOfGears3": " loaded):",
-    "successGearDeleted": "Gear deleted successfully",
-    "errorGearNotFound": "Gear not found",
-    "errorFetchingGears": "Error fetching gears"
+    "title": "Équipement",
+    "buttonAddGear": "Ajouter un équipement",
+    "subTitleSearchGearByNickname": "Rechercher un équipement par surnom",
+    "placeholderSearchGearByNickname": "Surnom",
+    "buttonSearchGear": "Rechercher un équipement",
+    "displayUserNumberOfGears1": "Il y a un total de ",
+    "displayUserNumberOfGears2": " équipement(s) (",
+    "displayUserNumberOfGears3": " chargé(s) ):",
+    "successGearDeleted": "Équipement supprimé avec succès",
+    "errorGearNotFound": "Équipement introuvable",
+    "errorFetchingGears": "Erreur lors de la recherche d'utilisateur"
 }
