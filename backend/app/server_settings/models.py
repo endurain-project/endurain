@@ -1,7 +1,5 @@
-from sqlalchemy import Column, Integer, CheckConstraint
-from sqlalchemy.orm import declarative_base
-
-Base = declarative_base()
+from sqlalchemy import Column, Integer, Boolean, CheckConstraint
+from core.database import Base
 
 
 class ServerSettings(Base):
@@ -13,6 +11,12 @@ class ServerSettings(Base):
         nullable=False,
         default=1,
         comment="User units (one digit)(1 - metric, 2 - imperial)",
+    )
+    public_shareable_links = Column(
+        Boolean,
+        nullable=False,
+        default=False,
+        comment="Allow public shareable links (true - yes, false - no)",
     )
 
     __table_args__ = (CheckConstraint("id = 1", name="single_row_check"),)

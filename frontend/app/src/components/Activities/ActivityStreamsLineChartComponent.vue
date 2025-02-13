@@ -7,6 +7,7 @@ import { ref, onMounted, onUnmounted, computed, watch } from 'vue';
 import { useI18n } from "vue-i18n";
 // Importing the stores
 import { useAuthStore } from "@/stores/authStore";
+import { useServerSettingsStore } from '@/stores/serverSettingsStore';
 import { Chart, registerables } from 'chart.js';
 Chart.register(...registerables);
 
@@ -31,13 +32,21 @@ export default {
     setup(props) {
 		const { t } = useI18n();
 		const authStore = useAuthStore();
+        const serverSettingsStore = useServerSettingsStore();
         const chartCanvas = ref(null);
+        const units = ref(1);
         let myChart = null;
         const computedChartData = computed(() => {
             const data = [];
             let label = "";
             const labels = [];
             let roundValues = true;
+
+            if (authStore.isAuthenticated) {
+                units.value = authStore.user.units;
+            } else {
+                units.value = serverSettingsStore.serverSettings.units;
+            }
 
             for (const stream of props.activityStreams) {
                 if (stream.stream_type === 1 && props.graphSelection === 'hr') {
@@ -57,7 +66,7 @@ export default {
                     }
                 } else if (stream.stream_type === 4 && props.graphSelection === 'ele') {
                     for (const streamPoint of stream.stream_waypoints) {
-                        if (Number(authStore?.user?.units) === 1) {
+                        if (Number(units.value) === 1) {
                             data.push(Number.parseFloat(streamPoint.ele));
                             label = t("generalItems.labelElevationInMeters");
                         } else {
@@ -66,7 +75,7 @@ export default {
                         }
                     }
                 } else if (stream.stream_type === 5 && props.graphSelection === 'vel') {
-                    if (Number(authStore?.user?.units) === 1) {
+                    if (Number(units.value) === 1) {
                         data.push(...stream.stream_waypoints.map(velData => Number.parseFloat(formatAverageSpeedMetric(velData.vel))));
                         label = t("generalItems.labelVelocityInKmH");
                     } else {
@@ -80,13 +89,13 @@ export default {
                             data.push(0);
                         } else {
                             if (props.activity.activity_type === 1 || props.activity.activity_type === 2 || props.activity.activity_type === 3) {
-                                if (Number(authStore?.user?.units) === 1) {
+                                if (Number(units.value) === 1) {
                                     data.push((paceData.pace * 1000) / 60);
                                 } else {
                                     data.push((paceData.pace * 1609.34) / 60);
                                 }
                             } else if (props.activity.activity_type === 8 || props.activity.activity_type === 9) {
-                                if (Number(authStore?.user?.units) === 1) {
+                                if (Number(units.value) === 1) {
                                     data.push((paceData.pace * 100) / 60);
                                 } else {
                                     data.push((paceData.pace * 100 * 0.9144) / 60);
@@ -95,13 +104,13 @@ export default {
                         }
                     }
                     if (props.activity.activity_type === 1 || props.activity.activity_type === 2 || props.activity.activity_type === 3) {
-                        if (Number(authStore?.user?.units) === 1) {
+                        if (Number(units.value) === 1) {
                             label = t("generalItems.labelPaceInMinKm");
                         } else {
                             label = t("generalItems.labelPaceInMinMile");
                         }
                     } else if (props.activity.activity_type === 8 || props.activity.activity_type === 9) {
-                        if (Number(authStore?.user?.units) === 1) {
+                        if (Number(units.value) === 1) {
                             label = t("generalItems.labelPaceInMin100m");
                         } else {
                             label = t("generalItems.labelPaceInMin100yd");

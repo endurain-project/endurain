@@ -99,6 +99,7 @@ import { useI18n } from "vue-i18n";
 import { useRoute, useRouter } from "vue-router";
 // Importing the stores
 import { useAuthStore } from "@/stores/authStore";
+import { useServerSettingsStore } from "@/stores/serverSettingsStore";
 // Import Notivue push
 import { push } from "notivue";
 // Importing the components
@@ -127,6 +128,7 @@ export default {
 	setup() {
 		const { t } = useI18n();
 		const authStore = useAuthStore();
+		const serverSettingsStore = useServerSettingsStore();
 		const route = useRoute();
 		const router = useRouter();
 		const isLoading = ref(true);
@@ -188,20 +190,30 @@ export default {
 				if (authStore.isAuthenticated) {
 					activity.value = await activities.getActivityById(route.params.id);
 				} else {
-					activity.value = await activities.getPublicActivityById(route.params.id);
-					if (!activity.value) {
-						router.push({ path: "/login" });
+					if (serverSettingsStore.serverSettings.public_shareable_links) {
+						activity.value = await activities.getPublicActivityById(route.params.id);
+						if (!activity.value) {
+							return router.push({ 
+								path: "/login",
+								query: { errorPublicActivityNotFound: "true" },
+							});
+						}
+					} else {
+						return router.push({ 
+							path: "/login",
+							query: { errorPublicShareableLinks: "true" },
+						});
 					}
 				}
 
 				// Check if the activity exists
 				if (!activity.value) {
-					router.push({
+					return router.push({
 						path: "/",
 						query: { activityFound: "false", id: route.params.id },
 					});
 				}
-
+					
 				// Get the activity streams by activity id
 				if (authStore.isAuthenticated) {
 					activityActivityStreams.value =
@@ -211,44 +223,46 @@ export default {
 						await activityStreams.getPublicActivityStreamsByActivityId(route.params.id);
 				}
 
-				// Check if the activity has the streams
-				for (let i = 0; i < activityActivityStreams.value.length; i++) {
-					if (activityActivityStreams.value[i].stream_type === 1) {
-						hrPresent.value = true;
-						graphItems.value.push({ type: "hr", label: "HR" });
-					}
-					if (activityActivityStreams.value[i].stream_type === 2) {
-						powerPresent.value = true;
-						graphItems.value.push({ type: "power", label: "Power" });
-					}
-					if (activityActivityStreams.value[i].stream_type === 3) {
-						cadPresent.value = true;
-						graphItems.value.push({ type: "cad", label: "Cadence" });
-					}
-					if (activityActivityStreams.value[i].stream_type === 4) {
-						elePresent.value = true;
-						graphItems.value.push({ type: "ele", label: "Elevation" });
-					}
-					if (activityActivityStreams.value[i].stream_type === 5) {
-						velPresent.value = true;
-						if (
-							activity.value.activity_type === 4 ||
-							activity.value.activity_type === 5 ||
-							activity.value.activity_type === 6 ||
-							activity.value.activity_type === 7
-						) {
-							graphItems.value.push({ type: "vel", label: "Velocity" });
+				if (activityActivityStreams.value) {
+					// Check if the activity has the streams
+					for (let i = 0; i < activityActivityStreams.value.length; i++) {
+						if (activityActivityStreams.value[i].stream_type === 1) {
+							hrPresent.value = true;
+							graphItems.value.push({ type: "hr", label: "HR" });
 						}
-					}
-					if (activityActivityStreams.value[i].stream_type === 6) {
-						pacePresent.value = true;
-						if (
-							activity.value.activity_type !== 4 &&
-							activity.value.activity_type !== 5 &&
-							activity.value.activity_type !== 6 &&
-							activity.value.activity_type !== 7
-						) {
-							graphItems.value.push({ type: "pace", label: "Pace" });
+						if (activityActivityStreams.value[i].stream_type === 2) {
+							powerPresent.value = true;
+							graphItems.value.push({ type: "power", label: "Power" });
+						}
+						if (activityActivityStreams.value[i].stream_type === 3) {
+							cadPresent.value = true;
+							graphItems.value.push({ type: "cad", label: "Cadence" });
+						}
+						if (activityActivityStreams.value[i].stream_type === 4) {
+							elePresent.value = true;
+							graphItems.value.push({ type: "ele", label: "Elevation" });
+						}
+						if (activityActivityStreams.value[i].stream_type === 5) {
+							velPresent.value = true;
+							if (
+								activity.value.activity_type === 4 ||
+								activity.value.activity_type === 5 ||
+								activity.value.activity_type === 6 ||
+								activity.value.activity_type === 7
+							) {
+								graphItems.value.push({ type: "vel", label: "Velocity" });
+							}
+						}
+						if (activityActivityStreams.value[i].stream_type === 6) {
+							pacePresent.value = true;
+							if (
+								activity.value.activity_type !== 4 &&
+								activity.value.activity_type !== 5 &&
+								activity.value.activity_type !== 6 &&
+								activity.value.activity_type !== 7
+							) {
+								graphItems.value.push({ type: "pace", label: "Pace" });
+							}
 						}
 					}
 				}

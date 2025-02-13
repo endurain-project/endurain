@@ -240,7 +240,7 @@ export default {
     onMounted(async () => {
       if (route.query.activityFound === 'false') {
         // Set the activityFound value to false and show the error alert.
-        push.error(`${t('homeView.errorActivityNotFound')} - ${error}`)
+        push.error(t('homeView.errorActivityNotFound'))
       }
 
       if (route.query.activityDeleted === 'true') {

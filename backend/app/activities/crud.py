@@ -10,6 +10,8 @@ import activities.models as activities_models
 import activities.schema as activities_schema
 import activities.utils as activities_utils
 
+import server_settings.crud as server_settings_crud
+
 import core.logger as core_logger
 
 
@@ -406,6 +408,13 @@ def get_activity_by_id_from_user_id_or_has_visibility(
 
 def get_activity_by_id_if_is_public(activity_id: int, db: Session):
     try:
+        # Check if public sharable links are enabled in server settings
+        server_settings = server_settings_crud.get_server_settings(db)
+
+        # Return None if public sharable links are disabled
+        if not server_settings or not server_settings.public_shareable_links:
+            return None
+        
         # Get the activities from the database
         activity = (
             db.query(activities_models.Activity)

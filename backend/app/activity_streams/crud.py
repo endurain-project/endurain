@@ -8,6 +8,8 @@ import activity_streams.models as activity_streams_models
 
 import activities.models as activities_models
 
+import server_settings.crud as server_settings_crud
+
 import core.logger as core_logger
 
 
@@ -42,6 +44,13 @@ def get_activity_streams(activity_id: int, db: Session):
 
 def get_public_activity_streams(activity_id: int, db: Session):
     try:
+        # Check if public sharable links are enabled in server settings
+        server_settings = server_settings_crud.get_server_settings(db)
+
+        # Return None if public sharable links are disabled
+        if not server_settings or not server_settings.public_shareable_links:
+            return None
+        
         # Get the activity streams from the database
         activity_streams = (
             db.query(activity_streams_models.ActivityStreams)
@@ -109,6 +118,13 @@ def get_activity_stream_by_type(activity_id: int, stream_type: int, db: Session)
 
 def get_public_activity_stream_by_type(activity_id: int, stream_type: int, db: Session):
     try:
+        # Check if public sharable links are enabled in server settings
+        server_settings = server_settings_crud.get_server_settings(db)
+
+        # Return None if public sharable links are disabled
+        if not server_settings or not server_settings.public_shareable_links:
+            return None
+        
         # Get the activity stream from the database
         activity_stream = (
             db.query(activity_streams_models.ActivityStreams)

@@ -4,6 +4,7 @@ import { createPinia } from "pinia";
 
 import { useAuthStore } from "./stores/authStore";
 import { useThemeStore } from "./stores/themeStore";
+import { useServerSettingsStore } from "./stores/serverSettingsStore";
 
 import "bootstrap/dist/css/bootstrap.min.css";
 import "bootstrap/dist/js/bootstrap.bundle.min.js";
@@ -57,5 +58,8 @@ authStore.loadUserFromStorage(i18n);
 
 const themeStore = useThemeStore();
 themeStore.loadThemeFromStorage();
+
+const serverSettingsStore = useServerSettingsStore();
+serverSettingsStore.loadServerSettingsFromServer();
 
 app.mount("#app");

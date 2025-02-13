@@ -150,7 +150,7 @@ export default {
 		async function submitDeleteGear() {
 			try {
 				gear.value = await gears.deleteGear(route.params.id);
-				router.push({ path: "/gears", query: { gearDeleted: "true" } });
+				return router.push({ path: "/gears", query: { gearDeleted: "true" } });
 			} catch (error) {
 				push.error(`${t("gearView.errorGearDelete")} - ${error}`);
 			}
@@ -165,7 +165,7 @@ export default {
 				// Fetch the gear by its id.
 				gear.value = await gears.getGearById(route.params.id);
 				if (!gear.value) {
-					router.push({
+					return router.push({
 						path: "/gears",
 						query: { gearFound: "false", id: route.params.id },
 					});
@@ -182,7 +182,7 @@ export default {
                 gearDistance.value += gear.value.initial_kms;
 			} catch (error) {
 				if (error.toString().includes("422")) {
-					router.push({
+					return router.push({
 						path: "/gears",
 						query: { gearFound: "false", id: route.params.id },
 					});

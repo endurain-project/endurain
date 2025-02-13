@@ -37,7 +37,7 @@ export default {
 						route.query.scope,
 					);
 
-					router.push({
+					return router.push({
 						path: "/settings",
 						query: { stravaLinked: "1" },
 					});
@@ -46,7 +46,7 @@ export default {
 					push.error(
 						`${t("settingsIntegrationsZone.errorMessageUnableToLinkStrava")} - ${error}`,
 					);
-					router.push({
+					return router.push({
 						path: "/settings",
 						query: { stravaLinked: "0" },
 					});
