@@ -9,6 +9,6 @@
     "errorActivityNotFound": "Aktivität nicht gefunden",
     "processingActivity": "Verarbeite Aktivität",
     "successActivityDeleted": "Die Aktivität wurde erfolgreich gelöscht",
-    "errorFetchingUserStats": "Error fetching user stats",
-    "errorFetchingUserActivities": "Error fetching user activities"
+    "errorFetchingUserStats": "Fehler beim Abrufen der Benutzerstatistiken",
+    "errorFetchingUserActivities": "Fehler beim Abrufen der Benutzeraktivitäten"
 }
