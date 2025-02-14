@@ -18,5 +18,11 @@ class ServerSettings(Base):
         default=False,
         comment="Allow public shareable links (true - yes, false - no)",
     )
+    public_shareable_links_user_info = Column(
+        Boolean,
+        nullable=False,
+        default=False,
+        comment="Allow show user info on public shareable links (true - yes, false - no)",
+    )
 
     __table_args__ = (CheckConstraint("id = 1", name="single_row_check"),)

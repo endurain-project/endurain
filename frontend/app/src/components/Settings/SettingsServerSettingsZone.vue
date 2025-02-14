@@ -2,17 +2,32 @@
     <div class="col">
         <form>
             <!-- Units -->
-            <label for="serverSettingsUnits" class="form-label">{{ $t("settingsServerSettingsZoneComponent.unitsLabel") }}</label>
+            <h4 class="mt-4">{{ $t("settingsServerSettingsZoneComponent.unitsLabel") }}</h4>
             <select class="form-select" name="serverSettingsUnits" v-model="units" required>
                 <option value="1">{{ $t("settingsServerSettingsZoneComponent.unitsMetric") }}</option>
                 <option value="2">{{ $t("settingsServerSettingsZoneComponent.unitsImperial") }}</option>
             </select>
             <!-- Public shareable links -->
-            <label class="mt-2 form-label" for="serverSettingsPublicShareableLinks">{{ $t("settingsServerSettingsZoneComponent.publicShareableLinksLabel") }}</label>
-            <select class="form-select" name="serverSettingsPublicShareableLinks" v-model="publicShareableLinks" required>
+            <h4 class="mt-4">{{ $t("settingsServerSettingsZoneComponent.publicShareableLinksLabel") }}</h4>
+            <label class="form-label" for="serverSettingsPublicShareableLinksEnabledSelect">{{ $t("settingsServerSettingsZoneComponent.publicShareableLinksEnabledLabel") }}</label>
+            <select class="form-select" name="serverSettingsPublicShareableLinksEnabledSelect" v-model="publicShareableLinks" required>
                 <option value="false">{{ $t("settingsServerSettingsZoneComponent.publicShareableLinksFalse") }}</option>
                 <option value="true">{{ $t("settingsServerSettingsZoneComponent.publicShareableLinksTrue") }}</option>
             </select>
+            <div class="alert alert-warning mt-1" role="alert">
+                <font-awesome-icon :icon="['fas', 'triangle-exclamation']" />
+                <span class="ms-2">{{ $t("settingsServerSettingsZoneComponent.serverSettingsPublicShareableLinksEnabledWarningAlert") }}</span>
+            </div>
+            <!-- Public shareable user info -->
+            <label class="form-label" for="serverSettingsPublicShareableLinksShowUserInfo">{{ $t("settingsServerSettingsZoneComponent.publicShareableLinksShowUserInfoLabel") }}</label>
+            <select class="form-select" name="serverSettingsPublicShareableLinksShowUserInfo" v-model="publicShareableLinksUserInfo" required>
+                <option value="false">{{ $t("settingsServerSettingsZoneComponent.publicShareableLinksFalse") }}</option>
+                <option value="true">{{ $t("settingsServerSettingsZoneComponent.publicShareableLinksTrue") }}</option>
+            </select>
+            <div class="alert alert-warning mt-1" role="alert">
+                <font-awesome-icon :icon="['fas', 'triangle-exclamation']" />
+                <span class="ms-2">{{ $t("settingsServerSettingsZoneComponent.serverSettingsPublicShareableLinksShowUserWarningAlert") }}</span>
+            </div>
         </form>
     </div>
 </template>
@@ -47,12 +62,14 @@ export default {
         const serverSettingsStore = useServerSettingsStore();
         const units = ref(serverSettingsStore.serverSettings.units);
         const publicShareableLinks = ref(serverSettingsStore.serverSettings.public_shareable_links);
+        const publicShareableLinksUserInfo = ref(serverSettingsStore.serverSettings.public_shareable_links_user_info);
 
         async function updateServerSettings() {
             const data = {
                 id: 1,
                 units: units.value,
                 public_shareable_links: publicShareableLinks.value,
+                public_shareable_links_user_info: publicShareableLinksUserInfo.value,
             };
             try {
                 // Update the server settings in the DB
@@ -70,12 +87,14 @@ export default {
         // watchers
         watch(units, updateServerSettings, { immediate: false });
         watch(publicShareableLinks, updateServerSettings, { immediate: false });
+        watch(publicShareableLinksUserInfo, updateServerSettings, { immediate: false });
 
         return {
 			t,
 			isLoading,
             units,
             publicShareableLinks,
+            publicShareableLinksUserInfo,
 		};
 	},
 };

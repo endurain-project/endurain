@@ -3,8 +3,12 @@
     "unitsMetric": "Metric",
     "unitsImperial": "Imperial",
     "publicShareableLinksLabel": "Public shareable links",
+    "publicShareableLinksEnabledLabel": "Enabled",
     "publicShareableLinksTrue": "True",
     "publicShareableLinksFalse": "False",
+    "serverSettingsPublicShareableLinksEnabledWarningAlert": "Enabling this will allow non authenticated users to see marked public activity information in the frontend but also through API calls",
+    "publicShareableLinksShowUserInfoLabel": "Show user info",
+    "serverSettingsPublicShareableLinksShowUserWarningAlert": "Enabling this will allow non authenticated users to see user information in the frontend but also through API calls",
     "successUpdateServerSettings": "Server settings updated successfully",
     "errorUpdateServerSettings": "Error updating server settings"
 }

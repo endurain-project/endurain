@@ -1,6 +1,8 @@
 import { fetchGetRequest, fetchPostRequest, fetchPutRequest, fetchDeleteRequest, fetchPostFileRequest } from '@/utils/serviceUtils';
+import { fetchPublicGetRequest } from '@/utils/servicePublicUtils';
 
 export const users = {
+    // Users authenticated
     getUsersWithPagination(pageNumber, numRecords) {
         return fetchGetRequest(`users/all/page_number/${pageNumber}/num_records/${numRecords}`);
     },
@@ -39,5 +41,9 @@ export const users = {
     },
     deleteUser(user_id) {
         return fetchDeleteRequest(`users/${user_id}/delete`);
-    }
+    },
+    // Users public
+    getPublicUserById(user_id) {
+        return fetchPublicGetRequest(`public/users/id/${user_id}`);
+    },
 };

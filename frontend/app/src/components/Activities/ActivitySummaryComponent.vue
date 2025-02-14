@@ -5,16 +5,21 @@
     <div v-else>
         <div class="d-flex justify-content-between">
             <!-- user name and photo zone -->
-            <div class="d-flex align-items-center" v-if="userActivity">
-                <UserAvatarComponent :user="userActivity" :width=55 :height=55 />
+            <div class="d-flex align-items-center">
+                <UserAvatarComponent :user="userActivity" :width=55 :height=55  />
                 <div class="ms-3 me-3">
                     <div class="fw-bold">
                         <router-link :to="{ name: 'activity', params: { id: activity.id }}" class="link-body-emphasis link-underline-opacity-0 link-underline-opacity-100-hover" v-if="source === 'home'">
                             {{ activity.name}}
                         </router-link>
-                        <router-link :to="{ name: 'user', params: { id: userActivity.id }}" class="link-body-emphasis link-underline-opacity-0 link-underline-opacity-100-hover" v-if="source === 'activity'">
-                            {{ userActivity.name}}
-                        </router-link>
+                        <span v-if="userActivity">
+                            <router-link :to="{ name: 'user', params: { id: userActivity.id }}" class="link-body-emphasis link-underline-opacity-0 link-underline-opacity-100-hover" v-if="source === 'activity'">
+                                {{ userActivity.name}}
+                            </router-link>
+                        </span>
+                        <span v-else>
+                            {{ $t("activitySummaryComponent.userNameHidden") }}
+                        </span>
                     </div>
                     <h6>
                         <!-- Display the visibility of the activity -->
@@ -303,6 +308,9 @@ export default {
                     userActivity.value = await users.getUserById(props.activity.user_id);
                     units.value = authStore.user.units;
                 } else {
+                    if (serverSettingsStore.serverSettings.public_shareable_links_user_info) {
+                        userActivity.value = await users.getPublicUserById(props.activity.user_id);
+                    }
                     units.value = serverSettingsStore.serverSettings.units;
                 }
 

@@ -12,6 +12,8 @@ import users.models as users_models
 
 import health_data.utils as health_data_utils
 
+import server_settings.crud as server_settings_crud
+
 import core.logger as core_logger
 
 
@@ -210,6 +212,45 @@ def get_user_by_id(user_id: int, db: Session):
     except Exception as err:
         # Log the exception
         core_logger.print_to_log(f"Error in get_user_by_id: {err}", "error", exc=err)
+        # Raise an HTTPException with a 500 Internal Server Error status code
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal Server Error",
+        ) from err
+
+
+def get_user_by_id_if_is_public(user_id: int, db: Session):
+    try:
+        # Check if public sharable links are enabled in server settings
+        server_settings = server_settings_crud.get_server_settings(db)
+
+        # Return None if public sharable links are disabled
+        if (
+            not server_settings
+            or not server_settings.public_shareable_links
+            or not server_settings.public_shareable_links_user_info
+        ):
+            return None
+
+        # Get the user from the database
+        user = (
+            db.query(users_models.User).filter(users_models.User.id == user_id).first()
+        )
+
+        # If the user was not found, return None
+        if user is None:
+            return None
+
+        # Format the birthdate
+        user = users_utils.format_user_birthdate(user)
+
+        # Return the user
+        return user
+    except Exception as err:
+        # Log the exception
+        core_logger.print_to_log(
+            f"Error in get_user_by_id_if_is_public: {err}", "error", exc=err
+        )
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

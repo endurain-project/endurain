@@ -35,13 +35,19 @@ def upgrade() -> None:
             nullable=False,
             comment="Allow public shareable links (true - yes, false - no)",
         ),
+        sa.Column(
+            "public_shareable_links_user_info",
+            sa.Boolean(),
+            nullable=False,
+            comment="Allow show user info on public shareable links (true - yes, false - no)",
+        ),
         sa.CheckConstraint("id = 1", name="single_row_check"),
         sa.PrimaryKeyConstraint("id"),
     )
     # Add the new entry to the server_settings table
     op.execute("""
-    INSERT INTO server_settings (id, units, public_shareable_links) VALUES
-    (1, 1, FALSE);
+    INSERT INTO server_settings (id, units, public_shareable_links, public_shareable_links_user_info) VALUES
+    (1, 1, FALSE, FALSE);
     """)
     # ### end Alembic commands ###
 

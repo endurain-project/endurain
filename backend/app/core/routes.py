@@ -5,6 +5,7 @@ import core.config as core_config
 import session.router as session_router
 import session.security as session_security
 import users.router as users_router
+import users.public_router as users_public_router
 import profile.router as profile_router
 import activities.router as activities_router
 import activities.public_router as activities_public_router
@@ -35,6 +36,11 @@ router.include_router(
     prefix=core_config.ROOT_PATH + "/users",
     tags=["users"],
     dependencies=[Depends(session_security.validate_access_token)],
+)
+router.include_router(
+    users_public_router.router,
+    prefix=core_config.ROOT_PATH + "/public/users",
+    tags=["public_users"],
 )
 router.include_router(
     profile_router.router,
