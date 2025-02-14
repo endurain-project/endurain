@@ -1,13 +1,13 @@
 {
-    "labelGear": "Gear",
-    "labelGearNotSet": "Not set",
-    "modalLabelDeleteGear": "Delete gear from activity",
-    "modalLabelDeleteGearBody": "Are you sure you want to remove the gear from the activity?",
-    "modalLabelDeleteGearButton": "Delete gear",
-    "labelGraph": "Activity data graphs",
-    "labelDownsampling": "Data downsampled to ~200 points",
-    "successMessageGearAdded": "Gear added to activity",
-    "successMessageGearDeleted": "Gear deleted from activity",
-    "errorMessageDeleteGear": "Error deleting gear from activity",
-    "errorMessageActivityNotFound": "Activity not found"
+    "labelGear": "Équipement",
+    "labelGearNotSet": "Non défini",
+    "modalLabelDeleteGear": "Supprimer un équipement de l'activité",
+    "modalLabelDeleteGearBody": "Êtes-vous sûr de vouloir retirer l'équipement de l'activité?",
+    "modalLabelDeleteGearButton": "Supprimer l'équipement",
+    "labelGraph": "Graphiques des données d'activité",
+    "labelDownsampling": "Données abaissées à ~200 points",
+    "successMessageGearAdded": "Équipement ajouté à l'activité",
+    "successMessageGearDeleted": "Équipement supprimé de l'activité",
+    "errorMessageDeleteGear": "Erreur lors de la suppression de l'équipement de l'activité",
+    "errorMessageActivityNotFound": "Activité non trouvée"
 }

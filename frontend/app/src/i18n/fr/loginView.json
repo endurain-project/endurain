@@ -1,14 +1,14 @@
 {
-    "sessionExpired": "User session expired",
-    "error401": "Invalid username or password",
-    "error403": "You do not have permission to access this resource",
-    "error500": "It was not possible to connect to the server. Please try again later",
-    "errorUndefined": "It was not possible to connect to the server. Please try again later",
-    "subtitle": "Sign-in below",
-    "username": "Username",
-    "password": "Password",
-    "neverExpires": "Remember me (do not tick this box if you are using a shared computer)",
-    "signInButton": "Sign in",
-    "signUpText": "Looking for signing up?",
-    "signUpButton": "Sign up"
+    "sessionExpired": "Session utilisateur expirée",
+    "error401": "Identifiant ou mot de passe incorrect",
+    "error403": "Vous n’avez pas la permission d’accéder à cette ressource",
+    "error500": "Impossible de se connecter au serveur. Veuillez réessayer plus tard",
+    "errorUndefined": "Impossible de se connecter au serveur. Veuillez réessayer plus tard",
+    "subtitle": "Connectez-vous ci-dessous",
+    "username": "Identifiant",
+    "password": "Mot de passe",
+    "neverExpires": "Se souvenir de moi (ne cochez pas cette case si vous utilisez un ordinateur partagé)",
+    "signInButton": "S'inscrire",
+    "signUpText": "Vous cherchez à vous inscrire ?",
+    "signUpButton": "S'inscrire"
 }

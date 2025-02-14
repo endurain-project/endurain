@@ -1,6 +1,6 @@
 {
     "visibilityPublic": "Öffentlich",
-    "visibilityFollowers": "Followers",
+    "visibilityFollowers": "Abonnenten",
     "visibilityPrivate": "Privat",
     "buttonDeleteActivity": "Aktivität löschen",
     "buttonEditActivity": "Aktivität bearbeiten",
@@ -18,6 +18,6 @@
     "activityEleLoss": "Höhenverlust",
     "activityCalories": "Kalorien",
     "activityNoData": "Keine Daten",
-    "errorFetchingUserById": "Error fetching user by id",
-    "errorDeletingActivity": "Error deleting activity"
+    "errorFetchingUserById": "Fehler beim Abrufen des Benutzers über id",
+    "errorDeletingActivity": "Fehler beim Löschen der Aktivität"
 }

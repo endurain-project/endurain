@@ -8,6 +8,6 @@
     "labelDownsampling": "Daten auf ~200 Punkte heruntergerechnet",
     "successMessageGearAdded": "Ausrüstung zur Aktivität hinzugefügt",
     "successMessageGearDeleted": "Ausrüstung von Aktivität gelöscht",
-    "errorMessageDeleteGear": "Error deleting gear from activity",
-    "errorMessageActivityNotFound": "Activity not found"
+    "errorMessageDeleteGear": "Fehler beim Löschen der Ausrüstung aus der Aktivität",
+    "errorMessageActivityNotFound": "Aktivität nicht gefunden"
 }

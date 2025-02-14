@@ -18,6 +18,6 @@
     "activityEleLoss": "Pèrdua d'elevació",
     "activityCalories": "Calories",
     "activityNoData": "Sense dades",
-    "errorFetchingUserById": "Error fetching user by id",
-    "errorDeletingActivity": "Error deleting activity"
+    "errorFetchingUserById": "Error obtenint usuari per id",
+    "errorDeletingActivity": "Error esborrant activitat"
 }

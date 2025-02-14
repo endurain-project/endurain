@@ -1,5 +1,5 @@
 {
     "title": "Gesundheit",
-    "errorFetchingHealthData": "Error fetching health data",
-    "errorFetchingHealthTargets": "Error fetching health targets"
+    "errorFetchingHealthData": "Fehler beim Laden der Gesundheitsdaten",
+    "errorFetchingHealthTargets": "Fehler beim Laden der Gesundheitsziele"
 }
