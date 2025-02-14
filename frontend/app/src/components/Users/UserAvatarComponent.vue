@@ -1,12 +1,7 @@
 <template>
-    <div v-if="user">
-        <img :src="userPhotoUrl" :alt="altText" :width="width" :height="height" class="rounded-circle" :class="{ 'align-top': alignTopValue == 2 }" v-if="user.photo_path">
-        <img src="/src/assets/avatar/male1.png" alt="Default Male Avatar" :width="width" :height="height" class="rounded-circle" :class="{ 'align-top': alignTopValue == 2 }" v-else-if="!user.photo_path && user.gender == 1">
-        <img src="/src/assets/avatar/female1.png" alt="Default Female Avatar" :width="width" :height="height" class="rounded-circle" :class="{ 'align-top': alignTopValue == 2 }" v-else>
-    </div>
-    <div v-else>
-        <img src="/src/assets/avatar/male1.png" alt="Default Male Avatar" :width="width" :height="height" class="rounded-circle" :class="{ 'align-top': alignTopValue == 2 }">
-    </div>
+    <img :src="userPhotoUrl" :alt="altText" :width="width" :height="height" class="rounded-circle" :class="{ 'align-top': alignTopValue == 2 }" v-if="user && user.photo_path">
+    <img src="/src/assets/avatar/female1.png" alt="Default Male Avatar" :width="width" :height="height" class="rounded-circle" :class="{ 'align-top': alignTopValue == 2 }" v-else-if="(user && !user.photo_path && user.gender === 2) || !user">
+    <img src="/src/assets/avatar/male1.png" alt="Default Female Avatar" :width="width" :height="height" class="rounded-circle" :class="{ 'align-top': alignTopValue == 2 }" v-else>
 </template>
   
 <script>
