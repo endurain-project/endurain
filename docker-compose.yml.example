@@ -24,7 +24,8 @@ services:
     ports:
       - "8080:8080" # Endurain port, change per your needs
     depends_on:
-      - postgres # mariadb or postgres
+      - postgres: # mariadb or postgres
+        condition: service_healthy # remove this line when using mariadb
       - jaeger # optional
     restart: unless-stopped
   
@@ -54,6 +55,11 @@ services:
       - PGDATA=/var/lib/postgresql/data/pgdata
     ports:
       - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U endurain"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
     volumes:
       - <local_path>/postgres:/var/lib/postgresql/data
     restart: unless-stopped
