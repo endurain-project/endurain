@@ -1,0 +1,10 @@
+{
+    "unitsLabel": "Units",
+    "unitsMetric": "Metric",
+    "unitsImperial": "Imperial",
+    "publicShareableLinksLabel": "Public shareable links",
+    "publicShareableLinksTrue": "True",
+    "publicShareableLinksFalse": "False",
+    "successUpdateServerSettings": "Server settings updated successfully",
+    "errorUpdateServerSettings": "Error updating server settings"
+}

@@ -29,7 +29,7 @@ async def read_server_settings(
     return server_settings_crud.get_server_settings(db)
 
 
-@router.put("/edit")
+@router.put("/")
 async def edit_server_settings(
     server_settings_attributtes: server_settings_schema.ServerSettings,
     check_scopes: Annotated[

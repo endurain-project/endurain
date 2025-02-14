@@ -28,7 +28,7 @@
                         </div>
                         <!-- gear type fields -->
                         <label for="gearTypeAddEdit"><b>* {{ $t("gearsAddEditGearModalComponent.addEditGearModalAddTypeLabel") }}</b></label>
-                        <select class="form-control" name="gearTypeAddEdit" v-model="newEditGearType" required>
+                        <select class="form-select" name="gearTypeAddEdit" v-model="newEditGearType" required>
                             <option value="1">{{ $t("gearsAddEditGearModalComponent.addEditGearModalAddTypeOption1") }}</option>
                             <option value="2">{{ $t("gearsAddEditGearModalComponent.addEditGearModalAddTypeOption2") }}</option>
                             <option value="3">{{ $t("gearsAddEditGearModalComponent.addEditGearModalAddTypeOption3") }}</option>
@@ -38,7 +38,7 @@
                         <input class="form-control" type="date" name="gearDateAddEdit" v-model="newEditGearCreatedDate" required>
                         <!-- gear is_active fields -->
                         <label for="gearIsActiveAddEdit"><b>* {{ $t("gearsAddEditGearModalComponent.addEditGearModalAddIsActiveLabel") }}</b></label>
-                        <select class="form-control" name="gearIsActiveAddEdit" v-model="newEditGearIsActive" required>
+                        <select class="form-select" name="gearIsActiveAddEdit" v-model="newEditGearIsActive" required>
                             <option value="1">{{ $t("gearsAddEditGearModalComponent.addEditGearModalAddIsActiveOption1") }}</option>
                             <option value="0">{{ $t("gearsAddEditGearModalComponent.addEditGearModalAddIsActiveOption0") }}</option>
                         </select>

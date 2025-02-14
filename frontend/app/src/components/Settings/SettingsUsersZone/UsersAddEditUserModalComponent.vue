@@ -56,13 +56,13 @@
                         <input class="form-control" type="date" name="userBirthDateAddEdit" v-model="newEditUserBirthDate">
                         <!-- gender fields -->
                         <label for="userGenderAddEdit"><b>* {{ $t("usersAddEditUserModalComponent.addEditUserModalGenderLabel") }}</b></label>
-                        <select class="form-control" name="userGenderAddEdit" v-model="newEditUserGender" required>
+                        <select class="form-select" name="userGenderAddEdit" v-model="newEditUserGender" required>
                             <option value="1">{{ $t("usersAddEditUserModalComponent.addEditUserModalGenderOption1") }}</option>
                             <option value="2">{{ $t("usersAddEditUserModalComponent.addEditUserModalGenderOption2") }}</option>
                         </select>
                         <!-- units fields -->
                         <label for="userUnitsAddEdit"><b>* {{ $t("usersAddEditUserModalComponent.addEditUserModalUnitsLabel") }}</b></label>
-                        <select class="form-control" name="userUnitsAddEdit" v-model="newEditUserUnits" required>
+                        <select class="form-select" name="userUnitsAddEdit" v-model="newEditUserUnits" required>
                             <option value="1">{{ $t("usersAddEditUserModalComponent.addEditUserModalUnitsOption1") }}</option>
                             <option value="2">{{ $t("usersAddEditUserModalComponent.addEditUserModalUnitsOption2") }}</option>
                         </select>
@@ -88,7 +88,7 @@
                         </div>
                         <!-- preferred language fields -->
                         <label for="userPreferredLanguageAddEdit"><b>* {{ $t("usersAddEditUserModalComponent.addEditUserModalUserPreferredLanguageLabel") }}</b></label>
-                        <select class="form-control" name="userPreferredLanguageAddEdit" v-model="newEditUserPreferredLanguage" required>
+                        <select class="form-select" name="userPreferredLanguageAddEdit" v-model="newEditUserPreferredLanguage" required>
                             <option value="us">{{ $t("usersAddEditUserModalComponent.addEditUserModalPreferredLanguageOption1") }}</option>
                             <option value="ca">{{ $t("usersAddEditUserModalComponent.addEditUserModalPreferredLanguageOption2") }}</option>
                             <option value="pt">{{ $t("usersAddEditUserModalComponent.addEditUserModalPreferredLanguageOption3") }}</option>
@@ -98,7 +98,7 @@
                         <!-- access type fields -->
                         <div v-if="action != 'profile'">
                             <label for="userTypeAddEdit"><b>* {{ $t("usersAddEditUserModalComponent.addEditUserModalUserTypeLabel") }}</b></label>
-                            <select class="form-control" name="userTypeAddEdit" v-model="newEditUserAccessType" required>
+                            <select class="form-select" name="userTypeAddEdit" v-model="newEditUserAccessType" required>
                                 <option value="1">{{ $t("usersAddEditUserModalComponent.addEditUserModalUserTypeOption1") }}</option>
                                 <option value="2">{{ $t("usersAddEditUserModalComponent.addEditUserModalUserTypeOption2") }}</option>
                             </select>
@@ -106,7 +106,7 @@
                         <!-- user is_active fields -->
                         <div v-if="action != 'profile'">
                             <label for="userIsActiveAddEdit"><b>* {{ $t("usersAddEditUserModalComponent.addEditUserModalIsActiveLabel") }}</b></label>
-                            <select class="form-control" name="userIsActiveAddEdit" v-model="newEditUserIsActive" required>
+                            <select class="form-select" name="userIsActiveAddEdit" v-model="newEditUserIsActive" required>
                                 <option value="1">{{ $t("usersAddEditUserModalComponent.addEditUserModalIsActiveOption1") }}</option>
                                 <option value="2">{{ $t("usersAddEditUserModalComponent.addEditUserModalIsActiveOption2") }}</option>
                             </select>

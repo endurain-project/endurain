@@ -201,7 +201,7 @@ export default {
 					} else {
 						return router.push({ 
 							path: "/login",
-							query: { errorPublicShareableLinks: "true" },
+							query: { errorpublic_shareable_links: "true" },
 						});
 					}
 				}

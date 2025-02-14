@@ -96,8 +96,8 @@ export default {
 				push.error(t("loginView.errorPublicActivityNotFound"));
 			}
 			// Check if the public shareable links are disabled
-			if (route.query.errorPublicShareableLinks === "true") {
-				push.error(t("loginView.errorPublicShareableLinks"));
+			if (route.query.errorpublic_shareable_links === "true") {
+				push.error(t("loginView.errorpublic_shareable_links"));
 			}
 		});
 

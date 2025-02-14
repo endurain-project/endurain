@@ -6,4 +6,7 @@ export const serverSettings = {
     getPublicServerSettings() {
         return fetchPublicGetRequest('public/server_settings/');
     },
+    editServerSettings(data) {
+        return fetchPutRequest('server_settings/', data);
+    }
 };

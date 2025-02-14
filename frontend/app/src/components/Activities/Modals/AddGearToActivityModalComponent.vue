@@ -13,7 +13,7 @@
                     <div class="modal-body">
                         <!-- gear type fields -->
                         <label for="gearIDAdd"><b>* {{ $t("addGearToActivityModalComponent.modalLabelSelectGear") }}</b></label>
-                        <select class="form-control" name="gearIDAdd" v-model="gearId" required>
+                        <select class="form-select" name="gearIDAdd" v-model="gearId" required>
                             <option v-for="gear in gearsByType" :key="gear.id" :value="gear.id">
                                 {{ gear.nickname }}
                             </option>

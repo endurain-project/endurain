@@ -4,6 +4,7 @@ import { serverSettings } from '@/services/serverSettingsService';
 export const useServerSettingsStore = defineStore('serverSettings', {
     state: () => ({
         serverSettings: {
+            id: 1,
             units: 1,
             public_shareable_links: false,
         },
