@@ -131,6 +131,7 @@ import { ref, computed, watch } from "vue";
 import { useI18n } from "vue-i18n";
 // Import the stores
 import { useAuthStore } from "@/stores/authStore";
+import { useServerSettingsStore } from "@/stores/serverSettingsStore";
 // import lodash
 import { debounce } from 'lodash';
 // Import Notivue push
@@ -155,6 +156,7 @@ export default {
     emits: ["userPhotoDeleted", "isLoadingNewUser", "createdUser", "editedUser"],
     setup(props, { emit }) {
 		const authStore = useAuthStore();
+        const serverSettingsStore = useServerSettingsStore();
 		const { t, locale } = useI18n();
         // edit user specific variables
 		const editUserModalId = ref("");
@@ -166,7 +168,7 @@ export default {
 		const newEditUserCity = ref(null);
 		const newEditUserBirthDate = ref(null);
 		const newEditUserGender = ref(1);
-		const newEditUserUnits = ref(1);
+		const newEditUserUnits = ref(serverSettingsStore.serverSettings.units);
 		const newEditUserHeightCms = ref(null);
         const newEditUserHeightFeet = ref(null);
         const newEditUserHeightInches = ref(null);
