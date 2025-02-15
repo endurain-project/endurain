@@ -71,10 +71,15 @@ class User(Base):
         back_populates="user",
         cascade="all, delete-orphan",
     )
-
     # Define a relationship to UsersIntegrations model
     users_integrations = relationship(
         "UsersIntegrations",
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
+    # Define a relationship to UsersDefaultGear model
+    users_default_gear = relationship(
+        "UsersDefaultGear",
         back_populates="user",
         cascade="all, delete-orphan",
     )
