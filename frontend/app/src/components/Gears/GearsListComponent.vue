@@ -1,5 +1,5 @@
 <template>
-    <li class="list-group-item d-flex justify-content-between">
+    <li class="list-group-item d-flex justify-content-between px-0 bg-body-tertiary">
         <div class="d-flex align-items-center">
             <img src="/src/assets/avatar/bicycle1.png" alt="Bycicle avatar" width="55" height="55" v-if="gear.gear_type == 1">
             <img src="/src/assets/avatar/running_shoe1.png" alt="Bycicle avatar" width="55" height="55" v-else-if="gear.gear_type == 2">
@@ -18,17 +18,23 @@
             </div>
         </div>
         <div>
-            <span class="badge bg-danger-subtle border border-danger-subtle text-danger-emphasis align-middle" v-if="gear.is_active == 0">{{ $t("gearsListComponent.gearListGearIsInactiveBadge") }}</span>
-            <span class="badge bg-primary-subtle border border-primary-subtle text-primary-emphasis align-middle ms-2" v-if="gear.strava_gear_id">{{ $t("gearsListComponent.gearListGearFromStrava") }}</span>
-            <span class="badge bg-primary-subtle border border-primary-subtle text-primary-emphasis align-middle ms-2" v-if="gear.garminconnect_gear_id">{{ $t("gearsListComponent.gearListGearFromGarminConnect") }}</span>
+            <span class="badge bg-danger-subtle border border-danger-subtle text-danger-emphasis align-middle d-none d-md-inline me-4" v-if="gear.is_active == 0">{{ $t("gearsListComponent.gearListGearIsInactiveBadge") }}</span>
+            <!--<span class="badge bg-primary-subtle border border-primary-subtle text-primary-emphasis align-middle d-none d-lg-inline ms-2" v-if="gear.strava_gear_id">{{ $t("gearsListComponent.gearListGearFromStrava") }}</span>-->
+            <span class="align-middle me-4 d-none d-sm-inline" v-if="gear.strava_gear_id">
+                <font-awesome-icon :icon="['fab', 'fa-strava']" />
+            </span>
+            <!--<span class="badge bg-primary-subtle border border-primary-subtle text-primary-emphasis align-middle d-none d-lg-inline ms-2" v-if="gear.garminconnect_gear_id">{{ $t("gearsListComponent.gearListGearFromGarminConnect") }}</span>-->
+            <span class="align-middle me-3 d-none d-sm-inline" v-if="gear.garminconnect_gear_id">
+                <img src="/src/assets/garminconnect/Garmin_Connect_app_1024x1024-02.png" alt="Garmin Connect logo" height="22" />
+            </span>
 
             <!-- edit gear button -->
-            <a class="btn btn-link btn-lg link-body-emphasis" href="#" role="button" data-bs-toggle="modal" :data-bs-target="`#editGearModal${gear.id}`"><font-awesome-icon :icon="['fas', 'fa-pen-to-square']" /></a>
+            <a class="btn btn-link btn-lg link-body-emphasis d-none d-sm-inline" href="#" role="button" data-bs-toggle="modal" :data-bs-target="`#editGearModal${gear.id}`"><font-awesome-icon :icon="['fas', 'fa-pen-to-square']" /></a>
 
             <GearsAddEditGearModalComponent :action="'edit'" :gear="gear" @editedGear="editGearList"/>
 
             <!-- delete gear button -->
-            <a class="btn btn-link btn-lg link-body-emphasis" href="#" role="button" data-bs-toggle="modal" :data-bs-target="`#deleteGearModal${gear.id}`"><font-awesome-icon :icon="['fas', 'fa-trash-can']" /></a>
+            <a class="btn btn-link btn-lg link-body-emphasis d-none d-sm-inline" href="#" role="button" data-bs-toggle="modal" :data-bs-target="`#deleteGearModal${gear.id}`"><font-awesome-icon :icon="['fas', 'fa-trash-can']" /></a>
 
             <!-- delete gear modal -->
             <ModalComponent :modalId="`deleteGearModal${gear.id}`" :title="t('gearsListComponent.gearListModalDeleteGearTitle')" :body="`${t('gearsListComponent.gearListModalDeleteGearBody')}<b>${gear.nickname}</b>?`" :actionButtonType="`danger`" :actionButtonText="t('gearsListComponent.gearListModalDeleteGearTitle')" @submitAction="submitDeleteGear"/>

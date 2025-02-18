@@ -61,7 +61,7 @@
     <div v-if="isLoading">
         <LoadingComponent />
     </div>
-    <ul class="nav nav-pills mb-3 justify-content-center" id="pills-tab" role="tablist" v-else-if="userProfile">
+    <ul class="nav nav-pills mb-3 mt-3 justify-content-center" id="pills-tab" role="tablist" v-else-if="userProfile">
         <li class="nav-item" role="presentation">
             <button class="nav-link active link-body-emphasis" id="pills-activities-tab" data-bs-toggle="pill"
                 data-bs-target="#pills-activities" type="button" role="tab" aria-controls="pills-activities"

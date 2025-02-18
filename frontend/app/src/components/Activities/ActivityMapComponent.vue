@@ -4,8 +4,8 @@
         <LoadingComponent />
     </div>
     <div v-else-if="activityStreamLatLng">
-        <div ref="activityMap" class="map" style="height: 300px;" v-if="source === 'home'"></div>
-        <div ref="activityMap" class="map" style="height: 500px;" v-if="source === 'activity'"></div>
+        <div ref="activityMap" class="map rounded" style="height: 300px;" v-if="source === 'home'"></div>
+        <div ref="activityMap" class="map rounded" style="height: 500px;" v-if="source === 'activity'"></div>
     </div>
 </template>
 

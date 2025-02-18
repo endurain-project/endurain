@@ -19,6 +19,7 @@ import caHealthDashboardZoneComponent from './ca/components/health/healthDashboa
 import caHealthSideBarComponent from './ca/components/health/healthSideBarComponent.json';
 import caHealthWeightZoneComponent from './ca/components/health/healthWeightZoneComponent.json'
 // Navbar components
+import caNavbarBottomMobileComponent from './ca/components/navbar/navbarBottomMobileComponent.json';
 import caNavbarComponent from './ca/components/navbar/navbarComponent.json';
 // Settings components
 import caSettingsSideBarComponent from './ca/components/settings/settingsSideBarComponent.json';
@@ -70,6 +71,7 @@ import deHealthDashboardZoneComponent from './de/components/health/healthDashboa
 import deHealthSideBarComponent from './de/components/health/healthSideBarComponent.json';
 import deHealthWeightZoneComponent from './de/components/health/healthWeightZoneComponent.json'
 // Navbar components
+import deNavbarBottomMobileComponent from './de/components/navbar/navbarBottomMobileComponent.json';
 import deNavbarComponent from './de/components/navbar/navbarComponent.json';
 // Settings components
 import deSettingsSideBarComponent from './de/components/settings/settingsSideBarComponent.json';
@@ -122,6 +124,7 @@ import frHealthDashboardZoneComponent from './fr/components/health/healthDashboa
 import frHealthSideBarComponent from './fr/components/health/healthSideBarComponent.json';
 import frHealthWeightZoneComponent from './fr/components/health/healthWeightZoneComponent.json'
 // Navbar components
+import frNavbarBottomMobileComponent from './fr/components/navbar/navbarBottomMobileComponent.json';
 import frNavbarComponent from './fr/components/navbar/navbarComponent.json';
 // Settings components
 import frSettingsSideBarComponent from './fr/components/settings/settingsSideBarComponent.json';
@@ -174,6 +177,7 @@ import ptHealthDashboardZoneComponent from './pt/components/health/healthDashboa
 import ptHealthSideBarComponent from './pt/components/health/healthSideBarComponent.json';
 import ptHealthWeightZoneComponent from './pt/components/health/healthWeightZoneComponent.json'
 // Navbar components
+import ptNavbarBottomMobileComponent from './pt/components/navbar/navbarBottomMobileComponent.json';
 import ptNavbarComponent from './pt/components/navbar/navbarComponent.json';
 // Settings components
 import ptSettingsSideBarComponent from './pt/components/settings/settingsSideBarComponent.json';
@@ -225,6 +229,7 @@ import usHealthDashboardZoneComponent from './us/components/health/healthDashboa
 import usHealthSideBarComponent from './us/components/health/healthSideBarComponent.json';
 import usHealthWeightZoneComponent from './us/components/health/healthWeightZoneComponent.json'
 // Navbar components
+import usNavbarBottomMobileComponent from './us/components/navbar/navbarBottomMobileComponent.json';
 import usNavbarComponent from './us/components/navbar/navbarComponent.json';
 // Settings components
 import usSettingsSideBarComponent from './us/components/settings/settingsSideBarComponent.json';
@@ -278,6 +283,7 @@ const messages = {
     healthWeightZoneComponent: caHealthWeightZoneComponent,
     healthWeightListComponent: caHealthWeightListComponent,
     // Navbar components
+    navbarBottomMobileComponent: caNavbarBottomMobileComponent,
     navbarComponent: caNavbarComponent,
     // Settings components
     settingsSideBar: caSettingsSideBarComponent,
@@ -329,6 +335,7 @@ const messages = {
     healthWeightZoneComponent: deHealthWeightZoneComponent,
     healthWeightListComponent: deHealthWeightListComponent,
     // Navbar components
+    navbarBottomMobileComponent: deNavbarBottomMobileComponent,
     navbarComponent: deNavbarComponent,
     // Settings components
     settingsSideBar: deSettingsSideBarComponent,
@@ -380,6 +387,7 @@ const messages = {
     healthWeightZoneComponent: frHealthWeightZoneComponent,
     healthWeightListComponent: frHealthWeightListComponent,
     // Navbar components
+    navbarBottomMobileComponent: frNavbarBottomMobileComponent,
     navbarComponent: frNavbarComponent,
     // Settings components
     settingsSideBar: frSettingsSideBarComponent,
@@ -431,6 +439,7 @@ const messages = {
     healthWeightZoneComponent: ptHealthWeightZoneComponent,
     healthWeightListComponent: ptHealthWeightListComponent,
     // Navbar components
+    navbarBottomMobileComponent: ptNavbarBottomMobileComponent,
     navbarComponent: ptNavbarComponent,
     // Settings components
     settingsSideBar: ptSettingsSideBarComponent,
@@ -482,6 +491,7 @@ const messages = {
     healthWeightZoneComponent: usHealthWeightZoneComponent,
     healthWeightListComponent: usHealthWeightListComponent,
     // Navbar components
+    navbarBottomMobileComponent: usNavbarBottomMobileComponent,
     navbarComponent: usNavbarComponent,
     // Settings components
     settingsSideBar: usSettingsSideBarComponent,

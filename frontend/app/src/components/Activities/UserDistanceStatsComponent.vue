@@ -1,13 +1,16 @@
 <template>
-    <div class="mb-3 mt-3">
-        <span class="fw-lighter">{{ $t("userDistanceStats.thisWeekDistancesTitle") }}</span>
-        <div class="row mb-3">
+    <div class="">
+		<div class="text-center">
+			<span>{{ $t("userDistanceStats.thisWeekDistancesTitle") }}</span>
+		</div>
+        <div class="row mt-3 text-center">
             <!-- this week col one -->
-            <div class="col text-start">
-				<span class="fw-lighter">{{ thisWeek[0].translatedName }}</span>
+            <div class="col">
+				<!--<span class="fw-lighter">{{ thisWeek[0].translatedName }}</span>-->
+				<font-awesome-icon :icon="['fas', thisWeek[0].icon]" size="2x"/>
 				<br>
+				{{ thisWeek && thisWeek[0].distance ? Math.floor(thisWeek[0].distance) + ' ' : '0' }}
 				<span v-if="Number(authStore?.user?.units) === 1">
-					{{ thisWeek && thisWeek[0].distance ? thisWeek[0].distance + ' ' : '0 ' }}
 					<span v-if="thisWeek[0].useMeters">
 						{{ $t("generalItems.unitsM") }}
 					</span>
@@ -16,7 +19,6 @@
 					</span>
 				</span>
 				<span v-else>
-					{{ thisWeek && thisWeek[0].distance ? thisWeek[0].distance + ' ' : '0 ' }}
 					<span v-if="thisWeek[0].useMeters">
 						{{ $t("generalItems.unitsYards") }}
 					</span>
@@ -26,61 +28,64 @@
 				</span>
             </div>
             <!-- this week col two -->
-            <div class="col border-start border-opacity-50 text-center">
-              <span class="fw-lighter">{{ thisWeek[1].translatedName }}</span>
-              <br>
-              <span v-if="Number(authStore?.user?.units) === 1">
-                {{ thisWeek && thisWeek[1].distance ? thisWeek[1].distance + ' ' : '0 ' }}
-                <span v-if="thisWeek[1].useMeters">
-                  {{ $t("generalItems.unitsM") }}
-                </span>
-                <span v-else>
-                  {{ $t("generalItems.unitsKm") }}
-                </span>
-              </span>
-              <span v-else>
-                {{ thisWeek && thisWeek[1].distance ? thisWeek[1].distance + ' ' : '0 ' }}
-                <span v-if="thisWeek[1].useMeters">
-                  {{ $t("generalItems.unitsYards") }}
-                </span>
-                <span v-else>
-                  {{ $t("generalItems.unitsMiles") }}
-                </span>
-              </span>
+            <div class="col">
+				<font-awesome-icon :icon="['fas', thisWeek[1].icon]" size="2x"/>
+				<br>
+				{{ thisWeek && thisWeek[1].distance ? Math.floor(thisWeek[1].distance) + ' ' : '0' }}
+				<span v-if="Number(authStore?.user?.units) === 1">
+					<span v-if="thisWeek[1].useMeters">
+						{{ $t("generalItems.unitsM") }}
+					</span>
+					<span v-else>
+						{{ $t("generalItems.unitsKm") }}
+					</span>
+				</span>
+				<span v-else>
+					<span v-if="thisWeek[1].useMeters">
+						{{ $t("generalItems.unitsYards") }}
+					</span>
+					<span v-else>
+						{{ $t("generalItems.unitsMiles") }}
+					</span>
+				</span>
             </div>
             <!-- this week col three -->
-            <div class="col border-start border-opacity-50 text-end">
-              <span class="fw-lighter">{{ thisWeek[2].translatedName }}</span>
-              <br>
-              <span v-if="Number(authStore?.user?.units) === 1">
-                {{ thisWeek && thisWeek[2].distance ? thisWeek[2].distance + ' ' : '0 ' }}
-                <span v-if="thisWeek[2].useMeters">
-                  {{ $t("generalItems.unitsM") }}
-                </span>
-                <span v-else>
-                  {{ $t("generalItems.unitsKm") }}
-                </span>
-              </span>
-              <span v-else>
-                {{ thisWeek && thisWeek[2].distance ? thisWeek[2].distance + ' ' : '0 ' }}
-                <span v-if="thisWeek[2].useMeters">
-                  {{ $t("generalItems.unitsYards") }}
-                </span>
-                <span v-else>
-                  {{ $t("generalItems.unitsMiles") }}
-                </span>
-              </span>
+            <div class="col">
+				<font-awesome-icon :icon="['fas', thisWeek[2].icon]" size="2x"/>
+				<br>
+				{{ thisWeek && thisWeek[2].distance ? Math.floor(thisWeek[2].distance) + ' ' : '0' }}
+				<span v-if="Number(authStore?.user?.units) === 1">
+					<span v-if="thisWeek[2].useMeters">
+						{{ $t("generalItems.unitsM") }}
+					</span>
+					<span v-else>
+						{{ $t("generalItems.unitsKm") }}
+					</span>
+				</span>
+				<span v-else>
+					<span v-if="thisWeek[2].useMeters">
+						{{ $t("generalItems.unitsYards") }}
+					</span>
+					<span v-else>
+						{{ $t("generalItems.unitsMiles") }}
+					</span>
+				</span>
             </div>
         </div>
-        
-        <span class="fw-lighter">{{ $t("userDistanceStats.thisMonthDistancesTitle") }}</span>
-        <div class="row mb-3">
-            <!-- this week col one -->
-            <div class="col text-start">
-				<span class="fw-lighter">{{ thisMonth[0].translatedName }}</span>
+
+		<hr>
+
+		<div class="text-center">
+			<span>{{ $t("userDistanceStats.thisMonthDistancesTitle") }}</span>
+		</div>
+        <div class="row mt-3 text-center">
+            <!-- this month col one -->
+            <div class="col">
+				<!--<span class="fw-lighter">{{ thisMonth[0].translatedName }}</span>-->
+				<font-awesome-icon :icon="['fas', thisMonth[0].icon]" size="2x"/>
 				<br>
+				{{ thisMonth && thisMonth[0].distance ? Math.floor(thisMonth[0].distance) + ' ' : '0' }}
 				<span v-if="Number(authStore?.user?.units) === 1">
-					{{ thisMonth && thisMonth[0].distance ? thisMonth[0].distance + ' ' : '0 ' }}
 					<span v-if="thisMonth[0].useMeters">
 						{{ $t("generalItems.unitsM") }}
 					</span>
@@ -89,7 +94,6 @@
 					</span>
 				</span>
 				<span v-else>
-					{{ thisMonth && thisMonth[0].distance ? thisMonth[0].distance + ' ' : '0 ' }}
 					<span v-if="thisMonth[0].useMeters">
 						{{ $t("generalItems.unitsYards") }}
 					</span>
@@ -98,53 +102,51 @@
 					</span>
 				</span>
             </div>
-            <!-- this week col two -->
-            <div class="col border-start border-opacity-50 text-center">
-              <span class="fw-lighter">{{ thisMonth[1].translatedName }}</span>
-              <br>
-              <span v-if="Number(authStore?.user?.units) === 1">
-                {{ thisMonth && thisMonth[1].distance ? thisMonth[1].distance + ' ' : '0 ' }}
-                <span v-if="thisMonth[1].useMeters">
-                  {{ $t("generalItems.unitsM") }}
-                </span>
-                <span v-else>
-                  {{ $t("generalItems.unitsKm") }}
-                </span>
-              </span>
-              <span v-else>
-                {{ thisMonth && thisMonth[1].distance ? thisMonth[1].distance + ' ' : '0 ' }}
-                <span v-if="thisMonth[1].useMeters">
-                  {{ $t("generalItems.unitsYards") }}
-                </span>
-                <span v-else>
-                  {{ $t("generalItems.unitsMiles") }}
-                </span>
-              </span>
+            <!-- this month col two -->
+            <div class="col">
+				<font-awesome-icon :icon="['fas', thisMonth[1].icon]" size="2x"/>
+				<br>
+				{{ thisMonth && thisMonth[1].distance ? Math.floor(thisMonth[1].distance) + ' ' : '0' }}
+				<span v-if="Number(authStore?.user?.units) === 1">
+					<span v-if="thisMonth[1].useMeters">
+						{{ $t("generalItems.unitsM") }}
+					</span>
+					<span v-else>
+						{{ $t("generalItems.unitsKm") }}
+					</span>
+				</span>
+				<span v-else>
+					<span v-if="thisMonth[1].useMeters">
+						{{ $t("generalItems.unitsYards") }}
+					</span>
+					<span v-else>
+						{{ $t("generalItems.unitsMiles") }}
+					</span>
+				</span>
             </div>
-            <!-- this week col three -->
-            <div class="col border-start border-opacity-50 text-end">
-              <span class="fw-lighter">{{ thisMonth[2].translatedName }}</span>
-              <br>
-              <span v-if="Number(authStore?.user?.units) === 1">
-                {{ thisMonth && thisMonth[2].distance ? thisMonth[2].distance + ' ' : '0 ' }}
-                <span v-if="thisMonth[2].useMeters">
-                  {{ $t("generalItems.unitsM") }}
-                </span>
-                <span v-else>
-                  {{ $t("generalItems.unitsKm") }}
-                </span>
-              </span>
-              <span v-else>
-                {{ thisMonth && thisMonth[2].distance ? thisMonth[2].distance + ' ' : '0 ' }}
-                <span v-if="thisMonth[2].useMeters">
-                  {{ $t("generalItems.unitsYards") }}
-                </span>
-                <span v-else>
-                  {{ $t("generalItems.unitsMiles") }}
-                </span>
-              </span>
+            <!-- this month col three -->
+            <div class="col">
+				<font-awesome-icon :icon="['fas', thisMonth[2].icon]" size="2x"/>
+				<br>
+				{{ thisMonth && thisMonth[2].distance ? Math.floor(thisMonth[2].distance) + ' ' : '0' }}
+				<span v-if="Number(authStore?.user?.units) === 1">
+					<span v-if="thisMonth[2].useMeters">
+						{{ $t("generalItems.unitsM") }}
+					</span>
+					<span v-else>
+						{{ $t("generalItems.unitsKm") }}
+					</span>
+				</span>
+				<span v-else>
+					<span v-if="thisMonth[2].useMeters">
+						{{ $t("generalItems.unitsYards") }}
+					</span>
+					<span v-else>
+						{{ $t("generalItems.unitsMiles") }}
+					</span>
+				</span>
             </div>
-        </div>
+		</div>
     </div>
 </template>
 
@@ -178,49 +180,49 @@ export default {
 			const activities = [
 				{
 					name: "run",
-					translatedName: t("userDistanceStats.distancesRun"),
+					icon: "person-running",
 					useMeters: false,
 					distance: convertDistanceMetersToKmsOrMiles(distances.run),
 				},
 				{
 					name: "bike",
-					translatedName: t("userDistanceStats.distancesBike"),
+					icon: "person-biking",
 					useMeters: false,
 					distance: convertDistanceMetersToKmsOrMiles(distances.bike),
 				},
 				{
 					name: "swim",
-					translatedName: t("userDistanceStats.distancesSwim"),
+					icon: "person-swimming",
 					useMeters: true,
 					distance: convertDistanceMetersToYards(distances.swim),
 				},
 				{
 					name: "walk",
-					translatedName: t("userDistanceStats.distancesWalk"),
+					icon: "person-walking",
 					useMeters: false,
 					distance: convertDistanceMetersToKmsOrMiles(distances.walk),
 				},
 				{
 					name: "hike",
-					translatedName: t("userDistanceStats.distancesHike"),
+					icon: "person-hiking",
 					useMeters: false,
 					distance: convertDistanceMetersToKmsOrMiles(distances.hike),
 				},
 				{
 					name: "rowing",
-					translatedName: t("userDistanceStats.distancesRowing"),
+					icon: "sailboat",
 					useMeters: false,
 					distance: convertDistanceMetersToKmsOrMiles(distances.rowing),
 				},
 				{
 					name: "snow_ski",
-					translatedName: t("userDistanceStats.distancesSnowSki"),
+					icon: "person-skiing",
 					useMeters: false,
 					distance: convertDistanceMetersToKmsOrMiles(distances.ski),
 				},
 				{
 					name: "snowboard",
-					translatedName: t("userDistanceStats.distancesSnowboard"),
+					icon: "person-snowboarding",
 					useMeters: false,
 					distance: convertDistanceMetersToKmsOrMiles(distances.snowboard),
 				},

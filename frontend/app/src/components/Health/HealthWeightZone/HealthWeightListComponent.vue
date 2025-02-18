@@ -1,7 +1,7 @@
 <template>
-    <li class="list-group-item d-flex justify-content-between">
+    <li class="list-group-item d-flex justify-content-between p-0 bg-body-tertiary">
         <div class="d-flex align-items-center">
-            <font-awesome-icon :icon="['fas', 'weight']"     size="2x" />
+            <font-awesome-icon :icon="['fas', 'weight']" size="2x" />
             <div class="ms-3">
                 <div class="fw-bold">
                     <span v-if="Number(authStore?.user?.units) === 1">{{ data.weight }} {{ $t("generalItems.unitsKg") }}</span>
@@ -14,6 +14,11 @@
             </div>
         </div>
         <div>
+            <!--<span class="badge bg-primary-subtle border border-primary-subtle text-primary-emphasis align-middle ms-2" v-if="data.garminconnect_body_composition_id">{{ $t("healthWeightListComponent.labelGarminConnect") }}</span>-->
+            <span class="align-middle me-3 d-none d-sm-inline" v-if="data.garminconnect_body_composition_id">
+                <img src="/src/assets/garminconnect/Garmin_Connect_app_1024x1024-02.png" alt="Garmin Connect logo" height="22" />
+            </span>
+
             <!-- edit weight button -->
             <a class="btn btn-link btn-lg link-body-emphasis" href="#" role="button" data-bs-toggle="modal" :data-bs-target="`#editWeightId${data.id}`"><font-awesome-icon :icon="['fas', 'fa-pen-to-square']" /></a>
 

@@ -2,33 +2,35 @@
     <h1>{{ $t("gearsView.title") }}</h1>
     <div class="row row-gap-3">
         <div class="col-lg-4 col-md-12">
-            <!-- Add gear zone -->
-            <p>{{ $t("gearsView.buttonAddGear") }}</p>
-            <a class="w-100 btn btn-primary" href="#" role="button" data-bs-toggle="modal" data-bs-target="#addGearModal">
-                {{ $t("gearsView.buttonAddGear") }}
-            </a>
+            <div class="p-3 bg-body-tertiary rounded">
+                <!-- Add gear zone -->
+                <p>{{ $t("gearsView.buttonAddGear") }}</p>
+                <a class="w-100 btn btn-primary" href="#" role="button" data-bs-toggle="modal" data-bs-target="#addGearModal">
+                    {{ $t("gearsView.buttonAddGear") }}
+                </a>
 
-            <!-- Add gear modal -->
-            <GearsAddEditUserModalComponent :action="'add'" @createdGear="addGearList" @isLoadingNewGear="setIsLoadingNewGear"/>
+                <!-- Add gear modal -->
+                <GearsAddEditUserModalComponent :action="'add'" @createdGear="addGearList" @isLoadingNewGear="setIsLoadingNewGear"/>
 
-            <!-- Search gear by nickname zone -->
-            <br>
-            <p class="mt-2">{{ $t("gearsView.subTitleSearchGearByNickname") }}</p>
-            <form>
-                <div class="mb-3">
-                    <input class="form-control" type="text" name="gearNickname" :placeholder='$t("gearsView.placeholderSearchGearByNickname")' v-model="searchNickname" required>
-                </div>
-            </form>
+                <!-- Search gear by nickname zone -->
+                <br>
+                <p class="mt-2">{{ $t("gearsView.subTitleSearchGearByNickname") }}</p>
+                <form>
+                    <div class="mb-3">
+                        <input class="form-control" type="text" name="gearNickname" :placeholder='$t("gearsView.placeholderSearchGearByNickname")' v-model="searchNickname" required>
+                    </div>
+                </form>
+            </div>
         </div>
         <div class="col">
             <div v-if="isLoading">
                 <LoadingComponent />
             </div>
-            <div v-else>
+            <div v-else class="p-3 bg-body-tertiary rounded">
                 <!-- Checking if userGears is loaded and has length -->
                 <div v-if="userGears && userGears.length">
                     <!-- Iterating over userGears to display them -->
-                    <p>{{ $t("gearsView.displayUserNumberOfGears1") }}{{ userGearsNumber }}{{ $t("gearsView.displayUserNumberOfGears2") }}{{ userGears.length }}{{ $t("gearsView.displayUserNumberOfGears3") }}</p>
+                    <span class="mb-1">{{ $t("gearsView.displayUserNumberOfGears1") }}{{ userGearsNumber }}{{ $t("gearsView.displayUserNumberOfGears2") }}{{ userGears.length }}{{ $t("gearsView.displayUserNumberOfGears3") }}</span>
 
                     <!-- Displaying loading new gear if applicable -->
                     <ul class="list-group list-group-flush" v-if="isLoadingNewGear">

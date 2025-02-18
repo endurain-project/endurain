@@ -1,7 +1,7 @@
 <template>
-    <div class="container" style="max-width: 650px;">
+    <div class="mx-auto " style="max-width: 650px;">
         <h1>{{ $t("searchView.searchSelectLabel") }}</h1>
-        <form class="pb-1">
+        <form class="bg-body-tertiary rounded p-3">
             <div class="input-group">
                 <!-- Select type -->
                 <select id="inputSelectTypeToSearch" class="form-select rounded me-1" v-model="searchSelectValue">
@@ -38,8 +38,8 @@
             <LoadingComponent />
         </div>
         <div v-else>
-            <ul v-if="searchResults && searchResults.length" class="list-group list-group-flush mt-1">
-                <li v-for="result in searchResults" :key="result.id" class="list-group-item d-flex justify-content-between">
+            <ul v-if="searchResults && searchResults.length" class="list-group list-group-flush mt-1 rounded">
+                <li v-for="result in searchResults" :key="result.id" class="list-group-item d-flex justify-content-between bg-body-tertiary">
                     <div class="d-flex align-items-center">
                         <!-- icon for user -->
                         <font-awesome-icon :icon="['fas', 'user']" v-if="searchSelectValue == 1" />
