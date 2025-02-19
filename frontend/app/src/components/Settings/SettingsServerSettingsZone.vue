@@ -1,12 +1,13 @@
 <template>
     <div class="col">
-        <form>
+        <form class="bg-body-tertiary rounded p-3">
             <!-- Units -->
-            <h4 class="mt-4">{{ $t("settingsServerSettingsZoneComponent.unitsLabel") }}</h4>
+            <h4>{{ $t("settingsServerSettingsZoneComponent.unitsLabel") }}</h4>
             <select class="form-select" name="serverSettingsUnits" v-model="units" required>
                 <option value="1">{{ $t("settingsServerSettingsZoneComponent.unitsMetric") }}</option>
                 <option value="2">{{ $t("settingsServerSettingsZoneComponent.unitsImperial") }}</option>
             </select>
+            <hr>
             <!-- Public shareable links -->
             <h4 class="mt-4">{{ $t("settingsServerSettingsZoneComponent.publicShareableLinksLabel") }}</h4>
             <label class="form-label" for="serverSettingsPublicShareableLinksEnabledSelect">{{ $t("settingsServerSettingsZoneComponent.publicShareableLinksEnabledLabel") }}</label>
@@ -14,7 +15,7 @@
                 <option value="false">{{ $t("settingsServerSettingsZoneComponent.publicShareableLinksFalse") }}</option>
                 <option value="true">{{ $t("settingsServerSettingsZoneComponent.publicShareableLinksTrue") }}</option>
             </select>
-            <div class="alert alert-warning mt-1" role="alert">
+            <div class="alert alert-warning mt-2" role="alert">
                 <font-awesome-icon :icon="['fas', 'triangle-exclamation']" />
                 <span class="ms-2">{{ $t("settingsServerSettingsZoneComponent.serverSettingsPublicShareableLinksEnabledWarningAlert") }}</span>
             </div>
@@ -24,7 +25,7 @@
                 <option value="false">{{ $t("settingsServerSettingsZoneComponent.publicShareableLinksFalse") }}</option>
                 <option value="true">{{ $t("settingsServerSettingsZoneComponent.publicShareableLinksTrue") }}</option>
             </select>
-            <div class="alert alert-warning mt-1" role="alert">
+            <div class="alert alert-warning mt-2" role="alert">
                 <font-awesome-icon :icon="['fas', 'triangle-exclamation']" />
                 <span class="ms-2">{{ $t("settingsServerSettingsZoneComponent.serverSettingsPublicShareableLinksShowUserWarningAlert") }}</span>
             </div>
@@ -33,7 +34,7 @@
 </template>
 
 <script>
-import { ref, onMounted, watch, computed } from "vue";
+import { ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 // Import stores
 import { useServerSettingsStore } from "@/stores/serverSettingsStore";

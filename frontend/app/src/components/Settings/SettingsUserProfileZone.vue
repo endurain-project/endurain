@@ -1,81 +1,97 @@
 <template>
-    <div class="col">
-        <div class="row row-gap-3">
-            <div class="col-lg-4 col-md-12">
-                <div class="justify-content-center align-items-center d-flex">
-                    <UserAvatarComponent :user="authStore.user" :width=180 :height=180 />
+    <div class="col ">
+        <div class="bg-body-tertiary rounded p-3">
+            <div class="row row-gap-3">
+                <div class="col-lg-4 col-md-12">
+                    <div class="flex justify-center items-center">
+                        <div class="justify-content-center align-items-center d-flex">
+                            <div class="text-center">
+                                <UserAvatarComponent :user="authStore.user" :width=180 :height=180 />
+                                <h2>{{ authStore.user.name }}</h2>
+                                <span>@{{ authStore.user.username }}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Delete profile photo section -->
+                    <a class="mt-4 w-100 btn btn-danger" href="#" role="button" data-bs-toggle="modal" data-bs-target="#deleteProfilePhotoModal" v-if="authStore.user.photo_path">{{ $t("settingsUserProfileZone.buttonDeleteProfilePhoto") }}</a>
+
+                    <!-- Modal delete profile photo -->
+                    <ModalComponent modalId="deleteProfilePhotoModal" :title="t('settingsUserProfileZone.buttonDeleteProfilePhoto')" :body="`${t('settingsUserProfileZone.modalDeleteProfilePhotoBody')}`" actionButtonType="danger" :actionButtonText="t('settingsUserProfileZone.buttonDeleteProfilePhoto')" @submitAction="submitDeleteUserPhoto"/>
+
+                    <!-- Edit profile section -->
+                    <a class="mt-2 w-100 btn btn-primary" href="#" role="button" data-bs-toggle="modal" data-bs-target="#editProfileModal">{{ $t("settingsUserProfileZone.buttonEditProfile") }}</a>
+
+                    <!-- Modal edit user -->
+                    <UsersAddEditUserModalComponent :action="'profile'" :user="authStore.user"/>
                 </div>
-
-                <!-- Delete profile photo section -->
-                <a class="mt-4 w-100 btn btn-danger" href="#" role="button" data-bs-toggle="modal" data-bs-target="#deleteProfilePhotoModal" v-if="authStore.user.photo_path">{{ $t("settingsUserProfileZone.buttonDeleteProfilePhoto") }}</a>
-
-                <!-- Modal delete profile photo -->
-                <ModalComponent modalId="deleteProfilePhotoModal" :title="t('settingsUserProfileZone.buttonDeleteProfilePhoto')" :body="`${t('settingsUserProfileZone.modalDeleteProfilePhotoBody')}`" actionButtonType="danger" :actionButtonText="t('settingsUserProfileZone.buttonDeleteProfilePhoto')" @submitAction="submitDeleteUserPhoto"/>
-
-                <!-- Edit profile section -->
-                <a class="mt-2 w-100 btn btn-primary" href="#" role="button" data-bs-toggle="modal" data-bs-target="#editProfileModal">{{ $t("settingsUserProfileZone.buttonEditProfile") }}</a>
-
-                <!-- Modal edit user -->
-                <UsersAddEditUserModalComponent :action="'profile'" :user="authStore.user"/>
-            </div>
-            <div class="col">
-                <!-- user name -->
-                <h2>{{ authStore.user.name }}</h2>
-                <!-- user username -->
-                <p><b>{{ $t("settingsUserProfileZone.usernameLabel") }}: </b>{{ authStore.user.username }}</p>
-                <!-- user email -->
-                <p><b>{{ $t("settingsUserProfileZone.emailLabel") }}: </b>{{ authStore.user.email }}</p>
-                <!-- user city -->
-                <p>
-                    <b>{{ $t("settingsUserProfileZone.cityLabel") }}: </b>
-                    <span v-if="authStore.user.city">{{ authStore.user.city }}</span>
-                    <span v-else>{{ $t("generalItems.labelNotApplicable") }}</span>
-                </p>
-                <!-- user birthdate -->
-                <p>
-                    <b>{{ $t("settingsUserProfileZone.birthdayLabel") }}: </b>
-                    <span v-if="authStore.user.birthdate">{{ authStore.user.birthdate }}</span>
-                    <span v-else>{{ $t("generalItems.labelNotApplicable") }}</span>
-                </p>
-                <!-- user gender -->
-                <p>
-                    <b>{{ $t("settingsUserProfileZone.genderLabel") }}: </b>
-                    <span v-if="authStore.user.gender == 1">{{ $t("settingsUserProfileZone.genderOption1") }}</span>
-                    <span v-else>{{ $t("settingsUserProfileZone.genderOption2") }}</span>
-                </p>
-                <!-- user units -->
-                <p>
-                    <b>{{ $t("settingsUserProfileZone.unitsLabel") }}: </b>
-                    <span v-if="Number(authStore?.user?.units) === 1">{{ $t("settingsUserProfileZone.unitsOption1") }}</span>
-                    <span v-else>{{ $t("settingsUserProfileZone.unitsOption2") }}</span>
-                </p>
-                <!-- user height -->
-                <p>
-                    <b>{{ $t("settingsUserProfileZone.heightLabel") }} 
-                        <span v-if="Number(authStore?.user?.units) === 1">({{ $t("generalItems.unitsCm") }}): </span>
-                        <span v-else>({{ $t("generalItems.unitsFeetInches") }}): </span>
-                    </b>
-                    <span v-if="authStore.user.height">
-                        <span v-if="Number(authStore?.user?.units) === 1">{{ authStore.user.height }}{{ $t("generalItems.unitsCm") }}</span>
-                        <span v-else>{{ feet }}’{{ inches }}’’</span>
-                    </span>
-                    <span v-else>{{ $t("generalItems.labelNotApplicable") }}</span>
-                </p>
-                <!-- user preferred language -->
-                <p>
-                    <b>{{ $t("settingsUserProfileZone.preferredLanguageLabel") }}: </b>
-                    <span v-if="authStore.user.preferred_language == 'us'">{{ $t("settingsUserProfileZone.preferredLanguageOption1") }}</span>
-                    <span v-if="authStore.user.preferred_language == 'ca'">{{ $t("settingsUserProfileZone.preferredLanguageOption2") }}</span>
-                    <span v-if="authStore.user.preferred_language == 'pt'">{{ $t("settingsUserProfileZone.preferredLanguageOption3") }}</span>
-                    <span v-if="authStore.user.preferred_language == 'de'">{{ $t("settingsUserProfileZone.preferredLanguageOption4") }}</span>
-                    <span v-if="authStore.user.preferred_language == 'fr'">{{ $t("settingsUserProfileZone.preferredLanguageOption5") }}</span>
-                </p>
-                <!-- user type -->
-                <p>
-                    <b>{{ $t("settingsUserProfileZone.accessTypeLabel") }}: </b>
-                    <span v-if="authStore.user.access_type == 1">{{ $t("settingsUserProfileZone.accessTypeOption1") }}</span>
-                    <span v-else>{{ $t("settingsUserProfileZone.accessTypeOption2") }}</span>
-                </p>
+                <div class="col">
+                    <!-- user email -->
+                    <p>
+                        <font-awesome-icon :icon="['fas', 'envelope']" class="me-2"/>
+                        <b>{{ $t("settingsUserProfileZone.emailLabel") }}: </b>
+                        {{ authStore.user.email }}
+                    </p>
+                    <!-- user city -->
+                    <p>
+                        <font-awesome-icon :icon="['fas', 'location-crosshairs']" class="me-2"/>
+                        <b>{{ $t("settingsUserProfileZone.cityLabel") }}: </b>
+                        <span v-if="authStore.user.city">{{ authStore.user.city }}</span>
+                        <span v-else>{{ $t("generalItems.labelNotApplicable") }}</span>
+                    </p>
+                    <!-- user birthdate -->
+                    <p>
+                        <font-awesome-icon :icon="['fas', 'cake-candles']" class="me-2"/>
+                        <b>{{ $t("settingsUserProfileZone.birthdayLabel") }}: </b>
+                        <span v-if="authStore.user.birthdate">{{ authStore.user.birthdate }}</span>
+                        <span v-else>{{ $t("generalItems.labelNotApplicable") }}</span>
+                    </p>
+                    <!-- user gender -->
+                    <p>
+                        <font-awesome-icon :icon="['fas', 'mars']" class="me-2" v-if="authStore.user.gender == 1"/>
+                        <font-awesome-icon :icon="['fas', 'venus']" class="me-2" v-else/>
+                        <b>{{ $t("settingsUserProfileZone.genderLabel") }}: </b>
+                        <span v-if="authStore.user.gender == 1">{{ $t("settingsUserProfileZone.genderOption1") }}</span>
+                        <span v-else>{{ $t("settingsUserProfileZone.genderOption2") }}</span>
+                    </p>
+                    <!-- user units -->
+                    <p>
+                        <font-awesome-icon :icon="['fas', 'gear']" class="me-2"/>
+                        <b>{{ $t("settingsUserProfileZone.unitsLabel") }}: </b>
+                        <span v-if="Number(authStore?.user?.units) === 1">{{ $t("settingsUserProfileZone.unitsOption1") }}</span>
+                        <span v-else>{{ $t("settingsUserProfileZone.unitsOption2") }}</span>
+                    </p>
+                    <!-- user height -->
+                    <p>
+                        <font-awesome-icon :icon="['fas', 'person-arrow-up-from-line']" class="me-2"/>
+                        <b>{{ $t("settingsUserProfileZone.heightLabel") }} 
+                            <span v-if="Number(authStore?.user?.units) === 1">({{ $t("generalItems.unitsCm") }}): </span>
+                            <span v-else>({{ $t("generalItems.unitsFeetInches") }}): </span>
+                        </b>
+                        <span v-if="authStore.user.height">
+                            <span v-if="Number(authStore?.user?.units) === 1">{{ authStore.user.height }}{{ $t("generalItems.unitsCm") }}</span>
+                            <span v-else>{{ feet }}’{{ inches }}’’</span>
+                        </span>
+                        <span v-else>{{ $t("generalItems.labelNotApplicable") }}</span>
+                    </p>
+                    <!-- user preferred language -->
+                    <p>
+                        <font-awesome-icon :icon="['fas', 'language']" class="me-2"/>
+                        <b>{{ $t("settingsUserProfileZone.preferredLanguageLabel") }}: </b>
+                        <span v-if="authStore.user.preferred_language == 'us'">{{ $t("settingsUserProfileZone.preferredLanguageOption1") }}</span>
+                        <span v-if="authStore.user.preferred_language == 'ca'">{{ $t("settingsUserProfileZone.preferredLanguageOption2") }}</span>
+                        <span v-if="authStore.user.preferred_language == 'pt'">{{ $t("settingsUserProfileZone.preferredLanguageOption3") }}</span>
+                        <span v-if="authStore.user.preferred_language == 'de'">{{ $t("settingsUserProfileZone.preferredLanguageOption4") }}</span>
+                        <span v-if="authStore.user.preferred_language == 'fr'">{{ $t("settingsUserProfileZone.preferredLanguageOption5") }}</span>
+                    </p>
+                    <!-- user type -->
+                    <p>
+                        <font-awesome-icon :icon="['fas', 'id-card']" class="me-2"/>
+                        <b>{{ $t("settingsUserProfileZone.accessTypeLabel") }}: </b>
+                        <span v-if="authStore.user.access_type == 1">{{ $t("settingsUserProfileZone.accessTypeOption1") }}</span>
+                        <span v-else>{{ $t("settingsUserProfileZone.accessTypeOption2") }}</span>
+                    </p>
+                </div>
             </div>
         </div>
     </div>

@@ -1,7 +1,9 @@
 <template>
     <div class="col">
-        <SettingsThemeSwitcherComponent />
-        <SettingsLanguageSwitcherComponent class="mt-2"/>
+        <div class="bg-body-tertiary rounded p-3">
+            <SettingsThemeSwitcherComponent />
+            <SettingsLanguageSwitcherComponent class="mt-2"/>
+        </div>
     </div>
 </template>
 

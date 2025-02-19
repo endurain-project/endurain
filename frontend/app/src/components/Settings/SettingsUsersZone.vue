@@ -20,9 +20,8 @@
 				<LoadingComponent v-if="isLoading" />
 				<div v-else>
 					<!-- Checking if usersArray is loaded and has length -->
-					<div v-if="usersArray && usersArray.length">
+					<div class="mt-3" v-if="usersArray && usersArray.length">
 						<!-- title zone -->
-						<br>
 						<span>{{ $t("settingsUsersZone.labelNumberOfUsers1") }}{{ usersNumber }}{{ $t("settingsUsersZone.labelNumberOfUsers2") }}{{ usersArray.length }}{{ $t("settingsUsersZone.labelNumberOfUsers3") }}</span>
 
 						<!-- Displaying loading new gear if applicable -->

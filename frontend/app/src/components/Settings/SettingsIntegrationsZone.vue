@@ -1,129 +1,131 @@
 <template>
     <div class="col">
-        <!-- list zone -->
-        <ul class="list-group list-group-flush">
-            <!-- strava zone -->
-            <li class="list-group-item d-flex justify-content-between">
-                <div class="d-flex align-items-center">
-                    <font-awesome-icon class="me-2" :icon="['fab', 'strava']" size="2x" />
-                    <div class="ms-3">
-                        <div class="fw-bold">
-                            {{ $t("settingsIntegrationsZone.stravaIntegrationTitle") }}
-                        </div>
-                        {{ $t("settingsIntegrationsZone.stravaIntegrationBody") }}
-                    </div>
-                </div>
-                <div class="d-flex align-items-center">
-                    <!-- connect button -->
-                    <a href="#" class="btn btn-primary" v-if="authStore.user.is_strava_linked == 0" @click="submitConnectStrava">{{ $t("settingsIntegrationsZone.buttonConnect") }}</a>
-
-                    <!-- retrieve activities and other buttons -->
-                    <div class="dropdown" v-else>
-                        <button class="btn btn-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-                            {{ $t("settingsIntegrationsZone.buttonDropdownOptions") }}
-                        </button>
-                        <ul class="dropdown-menu">
-                            <li>
-                                <!-- retrieve strava activities by days -->
-                                <a class="dropdown-item" href="#" role="button" data-bs-toggle="modal" data-bs-target="#retrieveStravaActivitiesByDaysModal">{{ $t("settingsIntegrationsZone.modalRetrieveActivitiesByDaysTitle") }}</a>
-                            </li>
-                            <li>
-                                <!-- retrieve gear -->
-                                <a href="#" class="dropdown-item" @click="submitRetrieveStravaGear">{{ $t("settingsIntegrationsZone.buttonRetrieveGear") }}</a>
-                            </li>
-							<li><hr class="dropdown-divider"></li>
-							<li>
-                                <!-- relink Strava -->
-                                <a href="#" class="dropdown-item" role="button" @click="submitConnectStrava">{{ $t("settingsIntegrationsZone.buttonRelink") }}</a>
-                            </li>
-							<li><hr class="dropdown-divider"></li>
-                            <li>
-                                <!-- unlink Strava -->
-                                <a href="#" class="dropdown-item" role="button" data-bs-toggle="modal" data-bs-target="#unlinkStravaModal">{{ $t("settingsIntegrationsZone.buttonUnlink") }}</a>
-                            </li>
-                        </ul>
-                    </div>
-                </div>
-            </li>
-            <!-- bulk import zone -->
-            <li class="list-group-item d-flex justify-content-between">
-                <div class="d-flex align-items-center">
-                    <font-awesome-icon :icon="['fas', 'file-import']" size="2x" />
-                    <div class="ms-3">
-                        <div class="fw-bold">
-                            {{ $t("settingsIntegrationsZone.bulkImportIntegrationTitle") }}
-                        </div>
-                        {{ $t("settingsIntegrationsZone.bulkImportIntegrationBody") }}
-                    </div>
-                </div>
-                <div class="d-flex align-items-center">
-                    <!-- import button -->
-                    <a href="#" class="btn btn-primary" role="button" @click="submitBulkImport">{{ $t("settingsIntegrationsZone.buttonBulkImport") }}</a>
-                </div>
-            </li>
-			<!-- Garmin Connect zone -->
-			<li class="list-group-item d-flex justify-content-between">
-                <div class="d-flex align-items-center">
-                    <!--<font-awesome-icon :icon="['fas', 'file-import']" size="2x" />-->
-					<img src="/src/assets/garminconnect/Garmin_Connect_app_1024x1024-02.png" alt="Garmin Connect logo" height="32" />
-                    <div class="ms-3">
-                        <div class="fw-bold">
-                            {{ $t("settingsIntegrationsZone.garminConnectIntegrationTitle") }}
-                        </div>
-                        {{ $t("settingsIntegrationsZone.garminConnectIntegrationBody") }}
-                    </div>
-                </div>
-                <div class="d-flex align-items-center">
-                    <!-- connect button -->
-                    <a href="#" class="btn btn-primary" v-if="authStore.user.is_garminconnect_linked == 0" data-bs-toggle="modal" data-bs-target="#garminConnectAuthModal">{{ $t("settingsIntegrationsZone.buttonConnect") }}</a>
-
-                    <!-- retrieve activities and other buttons -->
-                    <div class="dropdown" v-else>
-                        <button class="btn btn-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-                            {{ $t("settingsIntegrationsZone.buttonDropdownOptions") }}
-                        </button>
-                        <ul class="dropdown-menu">
-							<li>
-								<!-- retrieve garmin connect activities by days -->
-								<a class="dropdown-item" href="#" role="button" data-bs-toggle="modal" data-bs-target="#retrieveGarminConnectActivitiesByDaysModal">{{ $t("settingsIntegrationsZone.modalRetrieveActivitiesByDaysTitle") }}</a>
-							</li>
-                            <li>
-                                <!-- retrieve gear -->
-                                <a href="#" class="dropdown-item" @click="submitRetrieveGarminConnectGear">{{ $t("settingsIntegrationsZone.buttonRetrieveGear") }}</a>
-                            </li>
-							<li>
-								<!-- retrieve garmin connect health data by days -->
-								<a class="dropdown-item" href="#" role="button" data-bs-toggle="modal" data-bs-target="#retrieveGarminConnectHealthDataByDaysModal">{{ $t("settingsIntegrationsZone.modalRetrieveHealthDataByDaysTitle") }}</a>
-							</li>
-							<li><hr class="dropdown-divider"></li>
-							<li>
-                                <!-- unlink Garmin Connect -->
-                                <a href="#" class="dropdown-item" role="button" data-bs-toggle="modal" data-bs-target="#unlinkGarminConnectModal">{{ $t("settingsIntegrationsZone.buttonUnlink") }}</a>
-                            </li>
-						</ul>
+		<div class="bg-body-tertiary rounded p-3">
+			<!-- list zone -->
+			<ul class="list-group list-group-flush">
+				<!-- strava zone -->
+				<li class="list-group-item d-flex justify-content-between bg-body-tertiary px-0 pt-0">
+					<div class="d-flex align-items-center">
+						<font-awesome-icon class="me-2" :icon="['fab', 'strava']" size="2x" />
+						<div class="ms-3">
+							<div class="fw-bold">
+								{{ $t("settingsIntegrationsZone.stravaIntegrationTitle") }}
+							</div>
+							{{ $t("settingsIntegrationsZone.stravaIntegrationBody") }}
+						</div>
 					</div>
-                </div>
-            </li>
-        </ul>
+					<div class="d-flex align-items-center">
+						<!-- connect button -->
+						<a href="#" class="btn btn-primary" v-if="authStore.user.is_strava_linked == 0" @click="submitConnectStrava">{{ $t("settingsIntegrationsZone.buttonConnect") }}</a>
 
-		<!-- modal retrieve Strava activities by days -->
-		<ModalComponentNumberInput modalId="retrieveStravaActivitiesByDaysModal" :title="t('settingsIntegrationsZone.modalRetrieveActivitiesByDaysTitle')" :numberFieldLabel="`${t('settingsIntegrationsZone.modalRetrieveActivitiesByDaysLabel')}`" :actionButtonType="`success`" :actionButtonText="t('settingsIntegrationsZone.modalRetrieveButton')" @numberToEmitAction="submitRetrieveStravaActivities"/>
+						<!-- retrieve activities and other buttons -->
+						<div class="dropdown" v-else>
+							<button class="btn btn-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+								{{ $t("settingsIntegrationsZone.buttonDropdownOptions") }}
+							</button>
+							<ul class="dropdown-menu">
+								<li>
+									<!-- retrieve strava activities by days -->
+									<a class="dropdown-item" href="#" role="button" data-bs-toggle="modal" data-bs-target="#retrieveStravaActivitiesByDaysModal">{{ $t("settingsIntegrationsZone.modalRetrieveActivitiesByDaysTitle") }}</a>
+								</li>
+								<li>
+									<!-- retrieve gear -->
+									<a href="#" class="dropdown-item" @click="submitRetrieveStravaGear">{{ $t("settingsIntegrationsZone.buttonRetrieveGear") }}</a>
+								</li>
+								<li><hr class="dropdown-divider"></li>
+								<li>
+									<!-- relink Strava -->
+									<a href="#" class="dropdown-item" role="button" @click="submitConnectStrava">{{ $t("settingsIntegrationsZone.buttonRelink") }}</a>
+								</li>
+								<li><hr class="dropdown-divider"></li>
+								<li>
+									<!-- unlink Strava -->
+									<a href="#" class="dropdown-item" role="button" data-bs-toggle="modal" data-bs-target="#unlinkStravaModal">{{ $t("settingsIntegrationsZone.buttonUnlink") }}</a>
+								</li>
+							</ul>
+						</div>
+					</div>
+				</li>
+				<!-- bulk import zone -->
+				<li class="list-group-item d-flex justify-content-between bg-body-tertiary px-0">
+					<div class="d-flex align-items-center">
+						<font-awesome-icon :icon="['fas', 'file-import']" size="2x" />
+						<div class="ms-3">
+							<div class="fw-bold">
+								{{ $t("settingsIntegrationsZone.bulkImportIntegrationTitle") }}
+							</div>
+							{{ $t("settingsIntegrationsZone.bulkImportIntegrationBody") }}
+						</div>
+					</div>
+					<div class="d-flex align-items-center">
+						<!-- import button -->
+						<a href="#" class="btn btn-primary" role="button" @click="submitBulkImport">{{ $t("settingsIntegrationsZone.buttonBulkImport") }}</a>
+					</div>
+				</li>
+				<!-- Garmin Connect zone -->
+				<li class="list-group-item d-flex justify-content-between bg-body-tertiary px-0 pb-0">
+					<div class="d-flex align-items-center">
+						<!--<font-awesome-icon :icon="['fas', 'file-import']" size="2x" />-->
+						<img src="/src/assets/garminconnect/Garmin_Connect_app_1024x1024-02.png" alt="Garmin Connect logo" height="32" />
+						<div class="ms-3">
+							<div class="fw-bold">
+								{{ $t("settingsIntegrationsZone.garminConnectIntegrationTitle") }}
+							</div>
+							{{ $t("settingsIntegrationsZone.garminConnectIntegrationBody") }}
+						</div>
+					</div>
+					<div class="d-flex align-items-center">
+						<!-- connect button -->
+						<a href="#" class="btn btn-primary" v-if="authStore.user.is_garminconnect_linked == 0" data-bs-toggle="modal" data-bs-target="#garminConnectAuthModal">{{ $t("settingsIntegrationsZone.buttonConnect") }}</a>
 
-		<!-- modal unlink Strava -->
-		<ModalComponent modalId="unlinkStravaModal" :title="t('settingsIntegrationsZone.modalUnlinkStravaTitle')" :body="`${t('settingsIntegrationsZone.modalUnlinkStravaBody')}`" :actionButtonType="`danger`" :actionButtonText="t('settingsIntegrationsZone.modalUnlinkStravaTitle')" @submitAction="buttonStravaUnlink"/>
+						<!-- retrieve activities and other buttons -->
+						<div class="dropdown" v-else>
+							<button class="btn btn-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+								{{ $t("settingsIntegrationsZone.buttonDropdownOptions") }}
+							</button>
+							<ul class="dropdown-menu">
+								<li>
+									<!-- retrieve garmin connect activities by days -->
+									<a class="dropdown-item" href="#" role="button" data-bs-toggle="modal" data-bs-target="#retrieveGarminConnectActivitiesByDaysModal">{{ $t("settingsIntegrationsZone.modalRetrieveActivitiesByDaysTitle") }}</a>
+								</li>
+								<li>
+									<!-- retrieve gear -->
+									<a href="#" class="dropdown-item" @click="submitRetrieveGarminConnectGear">{{ $t("settingsIntegrationsZone.buttonRetrieveGear") }}</a>
+								</li>
+								<li>
+									<!-- retrieve garmin connect health data by days -->
+									<a class="dropdown-item" href="#" role="button" data-bs-toggle="modal" data-bs-target="#retrieveGarminConnectHealthDataByDaysModal">{{ $t("settingsIntegrationsZone.modalRetrieveHealthDataByDaysTitle") }}</a>
+								</li>
+								<li><hr class="dropdown-divider"></li>
+								<li>
+									<!-- unlink Garmin Connect -->
+									<a href="#" class="dropdown-item" role="button" data-bs-toggle="modal" data-bs-target="#unlinkGarminConnectModal">{{ $t("settingsIntegrationsZone.buttonUnlink") }}</a>
+								</li>
+							</ul>
+						</div>
+					</div>
+				</li>
+			</ul>
 
-		<!-- modal garmin connect auth -->
-		<GarminConnectLoginModalComponent />
+			<!-- modal retrieve Strava activities by days -->
+			<ModalComponentNumberInput modalId="retrieveStravaActivitiesByDaysModal" :title="t('settingsIntegrationsZone.modalRetrieveActivitiesByDaysTitle')" :numberFieldLabel="`${t('settingsIntegrationsZone.modalRetrieveActivitiesByDaysLabel')}`" :actionButtonType="`success`" :actionButtonText="t('settingsIntegrationsZone.modalRetrieveButton')" @numberToEmitAction="submitRetrieveStravaActivities"/>
 
-		<!-- modal retrieve Garmin Connect activities by days -->
-		<ModalComponentNumberInput modalId="retrieveGarminConnectActivitiesByDaysModal" :title="t('settingsIntegrationsZone.modalRetrieveActivitiesByDaysTitle')" :numberFieldLabel="`${t('settingsIntegrationsZone.modalRetrieveActivitiesByDaysLabel')}`" :actionButtonType="`success`" :actionButtonText="t('settingsIntegrationsZone.modalRetrieveButton')" @numberToEmitAction="submitRetrieveGarminConnectActivities"/>
+			<!-- modal unlink Strava -->
+			<ModalComponent modalId="unlinkStravaModal" :title="t('settingsIntegrationsZone.modalUnlinkStravaTitle')" :body="`${t('settingsIntegrationsZone.modalUnlinkStravaBody')}`" :actionButtonType="`danger`" :actionButtonText="t('settingsIntegrationsZone.modalUnlinkStravaTitle')" @submitAction="buttonStravaUnlink"/>
 
-		<!-- modal retrieve Garmin Connect health data by days -->
-		<ModalComponentNumberInput modalId="retrieveGarminConnectHealthDataByDaysModal" :title="t('settingsIntegrationsZone.modalRetrieveHealthDataByDaysTitle')" :numberFieldLabel="`${t('settingsIntegrationsZone.modalRetrieveActivitiesByDaysLabel')}`" :actionButtonType="`success`" :actionButtonText="t('settingsIntegrationsZone.modalRetrieveButton')" @numberToEmitAction="submitRetrieveGarminConnectHealthData"/>
+			<!-- modal garmin connect auth -->
+			<GarminConnectLoginModalComponent />
 
-		<!-- modal unlink Garmin Connect -->
-		<ModalComponent modalId="unlinkGarminConnectModal" :title="t('settingsIntegrationsZone.modalUnlinkGarminConnectTitle')" :body="`${t('settingsIntegrationsZone.modalUnlinkGarminConnectBody')}`" :actionButtonType="`danger`" :actionButtonText="t('settingsIntegrationsZone.modalUnlinkGarminConnectTitle')" @submitAction="buttonGarminConnectUnlink"/>
-    </div>
+			<!-- modal retrieve Garmin Connect activities by days -->
+			<ModalComponentNumberInput modalId="retrieveGarminConnectActivitiesByDaysModal" :title="t('settingsIntegrationsZone.modalRetrieveActivitiesByDaysTitle')" :numberFieldLabel="`${t('settingsIntegrationsZone.modalRetrieveActivitiesByDaysLabel')}`" :actionButtonType="`success`" :actionButtonText="t('settingsIntegrationsZone.modalRetrieveButton')" @numberToEmitAction="submitRetrieveGarminConnectActivities"/>
+
+			<!-- modal retrieve Garmin Connect health data by days -->
+			<ModalComponentNumberInput modalId="retrieveGarminConnectHealthDataByDaysModal" :title="t('settingsIntegrationsZone.modalRetrieveHealthDataByDaysTitle')" :numberFieldLabel="`${t('settingsIntegrationsZone.modalRetrieveActivitiesByDaysLabel')}`" :actionButtonType="`success`" :actionButtonText="t('settingsIntegrationsZone.modalRetrieveButton')" @numberToEmitAction="submitRetrieveGarminConnectHealthData"/>
+
+			<!-- modal unlink Garmin Connect -->
+			<ModalComponent modalId="unlinkGarminConnectModal" :title="t('settingsIntegrationsZone.modalUnlinkGarminConnectTitle')" :body="`${t('settingsIntegrationsZone.modalUnlinkGarminConnectBody')}`" :actionButtonType="`danger`" :actionButtonText="t('settingsIntegrationsZone.modalUnlinkGarminConnectTitle')" @submitAction="buttonGarminConnectUnlink"/>
+		</div>
+	</div>
 </template>
 
 <script>

@@ -23,59 +23,57 @@
                     </div>
                     <h6>
                         <!-- Display the visibility of the activity -->
-                        <div class="d-lg-none">
-                            <span v-if="activity.visibility == 0">
-                                <font-awesome-icon :icon="['fas', 'globe']"/> {{ $t("activitySummaryComponent.visibilityPublic") }}
-                            </span>
-                            <span v-if="activity.visibility == 1">
-                                <font-awesome-icon :icon="['fas', 'users']" v-if="activity.visibility == 1" /> {{ $t("activitySummaryComponent.visibilityFollowers") }}
-                            </span>
-                            <span v-if="activity.visibility == 2">
-                                <font-awesome-icon :icon="['fas', 'lock']" v-if="activity.visibility == 2" /> {{ $t("activitySummaryComponent.visibilityPrivate") }}
-                            </span>
-                            <span> - </span>
+                        <span v-if="activity.visibility == 0">
+                            <font-awesome-icon :icon="['fas', 'globe']"/> {{ $t("activitySummaryComponent.visibilityPublic") }}
+                        </span>
+                        <span v-if="activity.visibility == 1">
+                            <font-awesome-icon :icon="['fas', 'users']" v-if="activity.visibility == 1" /> {{ $t("activitySummaryComponent.visibilityFollowers") }}
+                        </span>
+                        <span v-if="activity.visibility == 2">
+                            <font-awesome-icon :icon="['fas', 'lock']" v-if="activity.visibility == 2" /> {{ $t("activitySummaryComponent.visibilityPrivate") }}
+                        </span>
+                        <span> - </span>
 
-                            <!-- Display the activity type -->
-                            <span v-if="activity.activity_type == 1 || activity.activity_type == 2">
-                                <font-awesome-icon class="me-1" :icon="['fas', 'person-running']" />
-                            </span>
-                            <span v-else-if="activity.activity_type == 3">
-                                <font-awesome-icon class="me-1" :icon="['fas', 'person-running']" />(Virtual)
-                            </span>
-                            <span v-else-if="activity.activity_type == 4 || activity.activity_type == 5 || activity.activity_type == 6">
-                                <font-awesome-icon class="me-1" :icon="['fas', 'fa-person-biking']" />
-                            </span>
-                            <span v-else-if="activity.activity_type == 7">
-                                <font-awesome-icon class="me-1" :icon="['fas', 'fa-person-biking']" />(Virtual)
-                            </span>
-                            <span v-else-if="activity.activity_type == 8 || activity.activity_type == 9">
-                                <font-awesome-icon class="me-1" :icon="['fas', 'fa-person-swimming']" />
-                            </span>
-                            <span v-else-if="activity.activity_type == 11">
-                                <font-awesome-icon class="me-1" :icon="['fas', 'person-walking']" />
-                            </span>
-                            <span v-else-if="activity.activity_type == 12">
-                                <font-awesome-icon class="me-1" :icon="['fas', 'person-hiking']" />
-                            </span>
-                            <span v-else-if="activity.activity_type == 13">
-                                <font-awesome-icon class="me-1" :icon="['fas', 'sailboat']" />
-                            </span>
-                            <span v-else-if="activity.activity_type == 14">
-                                <font-awesome-icon class="me-1" :icon="['fas', 'hands-praying']" />
-                            </span>
-                            <span v-else-if="activity.activity_type == 15">
-                                <font-awesome-icon class="me-1" :icon="['fas', 'person-skiing']" />
-                            </span>
-                            <span v-else-if="activity.activity_type == 16">
-                                <font-awesome-icon class="me-1" :icon="['fas', 'person-skiing-nordic']" />
-                            </span>
-                            <span v-else-if="activity.activity_type == 17">
-                                <font-awesome-icon class="me-1" :icon="['fas', 'person-snowboarding']" />
-                            </span>
-                            <span v-else>
-                                <font-awesome-icon class="me-1" :icon="['fas', 'fa-dumbbell']" />
-                            </span>
-                        </div>
+                        <!-- Display the activity type -->
+                        <span v-if="activity.activity_type == 1 || activity.activity_type == 2">
+                            <font-awesome-icon class="me-1" :icon="['fas', 'person-running']" />
+                        </span>
+                        <span v-else-if="activity.activity_type == 3">
+                            <font-awesome-icon class="me-1" :icon="['fas', 'person-running']" />{{ $t("activitySummaryComponent.labelVirtual") }}
+                        </span>
+                        <span v-else-if="activity.activity_type == 4 || activity.activity_type == 5 || activity.activity_type == 6">
+                            <font-awesome-icon class="me-1" :icon="['fas', 'fa-person-biking']" />
+                        </span>
+                        <span v-else-if="activity.activity_type == 7">
+                            <font-awesome-icon class="me-1" :icon="['fas', 'fa-person-biking']" />{{ $t("activitySummaryComponent.labelVirtual") }}
+                        </span>
+                        <span v-else-if="activity.activity_type == 8 || activity.activity_type == 9">
+                            <font-awesome-icon class="me-1" :icon="['fas', 'fa-person-swimming']" />
+                        </span>
+                        <span v-else-if="activity.activity_type == 11">
+                            <font-awesome-icon class="me-1" :icon="['fas', 'person-walking']" />
+                        </span>
+                        <span v-else-if="activity.activity_type == 12">
+                            <font-awesome-icon class="me-1" :icon="['fas', 'person-hiking']" />
+                        </span>
+                        <span v-else-if="activity.activity_type == 13">
+                            <font-awesome-icon class="me-1" :icon="['fas', 'sailboat']" />
+                        </span>
+                        <span v-else-if="activity.activity_type == 14">
+                            <font-awesome-icon class="me-1" :icon="['fas', 'hands-praying']" />
+                        </span>
+                        <span v-else-if="activity.activity_type == 15">
+                            <font-awesome-icon class="me-1" :icon="['fas', 'person-skiing']" />
+                        </span>
+                        <span v-else-if="activity.activity_type == 16">
+                            <font-awesome-icon class="me-1" :icon="['fas', 'person-skiing-nordic']" />
+                        </span>
+                        <span v-else-if="activity.activity_type == 17">
+                            <font-awesome-icon class="me-1" :icon="['fas', 'person-snowboarding']" />
+                        </span>
+                        <span v-else>
+                            <font-awesome-icon class="me-1" :icon="['fas', 'fa-dumbbell']" />
+                        </span>
 
                         <!-- Display the date and time -->  
                         <span>{{ formatDateMed(activity.start_time) }}</span> @
@@ -134,63 +132,6 @@
 
         <!-- Activity summary -->
         <div class="row mt-3 align-items-center text-start">
-            <div class="col d-none d-lg-block">
-                <!-- Display the activity type -->
-                <span class="d-flex align-items-center" v-if="activity.activity_type == 1 || activity.activity_type == 2">
-                    <font-awesome-icon class="me-2" :icon="['fas', 'person-running']" size="2x"/>
-                    {{ $t("activitySummaryComponent.labelRun") }}
-                </span>
-                <span class="d-flex align-items-center" v-else-if="activity.activity_type == 3">
-                    <font-awesome-icon class="me-2" :icon="['fas', 'person-running']" size="2x"/>
-                    {{ $t("activitySummaryComponent.labelVirtual") }}
-                    {{ $t("activitySummaryComponent.labelRun") }}
-                </span>
-                <span class="d-flex align-items-center" v-else-if="activity.activity_type == 4 || activity.activity_type == 5 || activity.activity_type == 6">
-                    <font-awesome-icon class="me-2" :icon="['fas', 'fa-person-biking']" size="2x"/>
-                    {{ $t("activitySummaryComponent.labelBike") }}
-                </span>
-                <span class="d-flex align-items-center" v-else-if="activity.activity_type == 7">
-                    <font-awesome-icon class="me-2" :icon="['fas', 'fa-person-biking']" size="2x"/>
-                    {{ $t("activitySummaryComponent.labelVirtual") }}
-                    {{ $t("activitySummaryComponent.labelBike") }}
-                </span>
-                <span class="d-flex align-items-center" v-else-if="activity.activity_type == 8 || activity.activity_type == 9">
-                    <font-awesome-icon class="me-2" :icon="['fas', 'fa-person-swimming']" size="2x"/>
-                    {{ $t("activitySummaryComponent.labelSwim") }}
-                </span>
-                <span class="d-flex align-items-center" v-else-if="activity.activity_type == 11">
-                    <font-awesome-icon class="me-2" :icon="['fas', 'person-walking']" size="2x"/>
-                    {{ $t("activitySummaryComponent.labelWalk") }}
-                </span>
-                <span class="d-flex align-items-center" v-else-if="activity.activity_type == 12">
-                    <font-awesome-icon class="me-2" :icon="['fas', 'person-hiking']" size="2x"/>
-                    {{ $t("activitySummaryComponent.labelHike") }}
-                </span>
-                <span class="d-flex align-items-center" v-else-if="activity.activity_type == 13">
-                    <font-awesome-icon class="me-2" :icon="['fas', 'sailboat']" size="2x"/>
-                    {{ $t("activitySummaryComponent.labelRowing") }}
-                </span>
-                <span class="d-flex align-items-center" v-else-if="activity.activity_type == 14">
-                    <font-awesome-icon class="me-2" :icon="['fas', 'hands-praying']" size="2x"/>
-                    {{ $t("activitySummaryComponent.labelYoga") }}
-                </span>
-                <span class="d-flex align-items-center" v-else-if="activity.activity_type == 15">
-                    <font-awesome-icon class="me-2" :icon="['fas', 'person-skiing']" size="2x"/>
-                    {{ $t("activitySummaryComponent.labelSnowSki") }}
-                </span>
-                <span class="d-flex align-items-center" v-else-if="activity.activity_type == 16">
-                    <font-awesome-icon class="me-2" :icon="['fas', 'person-skiing-nordic']" size="2x"/>
-                    {{ $t("activitySummaryComponent.labelSnowSkiNordic") }}
-                </span>
-                <span class="d-flex align-items-center" v-else-if="activity.activity_type == 17">
-                    <font-awesome-icon class="me-2" :icon="['fas', 'person-snowboarding']" size="2x"/>
-                    {{ $t("activitySummaryComponent.labelSnowboard") }}
-                </span>
-                <span class="d-flex align-items-center" v-else>
-                    <font-awesome-icon class="me-2" :icon="['fas', 'fa-dumbbell']" size="2x"/>
-                    {{ $t("activitySummaryComponent.labelWorkout") }}
-                </span>
-            </div>
             <div class="col" v-if="activity.activity_type != 10 && activity.activity_type != 14">
                 <span class="fw-lighter">
                     {{ $t("activitySummaryComponent.activityDistance") }}

@@ -1,47 +1,49 @@
 <template>
-    <div class="col">
-        <h4>{{ $t("settingsSecurityZone.subtitleChangePassword") }}</h4>
-        <UsersPasswordRequirementsComponent />
+	<div class="col">
+		<div class="bg-body-tertiary rounded p-3">
+			<h4>{{ $t("settingsSecurityZone.subtitleChangePassword") }}</h4>
+			<UsersPasswordRequirementsComponent />
 
-        <form @submit.prevent="submitChangeUserPasswordForm">
-            <!-- password fields -->
-            <label for="validationNewPassword"><b>* {{ $t("settingsSecurityZone.changeUserPasswordPasswordLabel") }}</b></label>
-            <input class="form-control" :class="{ 'is-invalid': !isNewPasswordValid || !isPasswordMatch }" type="password" id="validationNewPassword" aria-describedby="validationNewPasswordFeedback" :placeholder='$t("settingsSecurityZone.changeUserPasswordPasswordLabel")' v-model="newPassword" required>
-            <div id="validationNewPasswordFeedback" class="invalid-feedback" v-if="!isNewPasswordValid">
-                {{ $t("settingsSecurityZone.changeUserPasswordFeedbackLabel") }}
-            </div>
-            <div id="validationNewPasswordFeedback" class="invalid-feedback" v-if="!isPasswordMatch">
-                {{ $t("settingsSecurityZone.changeUserPasswordPasswordsDoNotMatchFeedbackLabel") }}
-            </div>
+			<form @submit.prevent="submitChangeUserPasswordForm">
+				<!-- password fields -->
+				<label for="validationNewPassword"><b>* {{ $t("settingsSecurityZone.changeUserPasswordPasswordLabel") }}</b></label>
+				<input class="form-control" :class="{ 'is-invalid': !isNewPasswordValid || !isPasswordMatch }" type="password" id="validationNewPassword" aria-describedby="validationNewPasswordFeedback" :placeholder='$t("settingsSecurityZone.changeUserPasswordPasswordLabel")' v-model="newPassword" required>
+				<div id="validationNewPasswordFeedback" class="invalid-feedback" v-if="!isNewPasswordValid">
+					{{ $t("settingsSecurityZone.changeUserPasswordFeedbackLabel") }}
+				</div>
+				<div id="validationNewPasswordFeedback" class="invalid-feedback" v-if="!isPasswordMatch">
+					{{ $t("settingsSecurityZone.changeUserPasswordPasswordsDoNotMatchFeedbackLabel") }}
+				</div>
 
-            <!-- repeat password fields -->
-            <label class="mt-1" for="validationNewPasswordRepeat"><b>* {{ $t("settingsSecurityZone.changeUserPasswordPasswordConfirmationLabel") }}</b></label>
-            <input class="form-control" :class="{ 'is-invalid': !isNewPasswordRepeatValid || !isPasswordMatch }" type="password" id="validationNewPasswordRepeat" aria-describedby="validationNewPasswordRepeatFeedback" :placeholder='$t("settingsSecurityZone.changeUserPasswordPasswordConfirmationLabel")' v-model="newPasswordRepeat" required>
-            <div id="validationNewPasswordRepeatFeedback" class="invalid-feedback" v-if="!isNewPasswordRepeatValid">
-                {{ $t("settingsSecurityZone.changeUserPasswordFeedbackLabel") }}
-            </div>
-            <div id="validationNewPasswordRepeatFeedback" class="invalid-feedback" v-if="!isPasswordMatch">
-                {{ $t("settingsSecurityZone.changeUserPasswordPasswordsDoNotMatchFeedbackLabel") }}
-            </div>
+				<!-- repeat password fields -->
+				<label class="mt-1" for="validationNewPasswordRepeat"><b>* {{ $t("settingsSecurityZone.changeUserPasswordPasswordConfirmationLabel") }}</b></label>
+				<input class="form-control" :class="{ 'is-invalid': !isNewPasswordRepeatValid || !isPasswordMatch }" type="password" id="validationNewPasswordRepeat" aria-describedby="validationNewPasswordRepeatFeedback" :placeholder='$t("settingsSecurityZone.changeUserPasswordPasswordConfirmationLabel")' v-model="newPasswordRepeat" required>
+				<div id="validationNewPasswordRepeatFeedback" class="invalid-feedback" v-if="!isNewPasswordRepeatValid">
+					{{ $t("settingsSecurityZone.changeUserPasswordFeedbackLabel") }}
+				</div>
+				<div id="validationNewPasswordRepeatFeedback" class="invalid-feedback" v-if="!isPasswordMatch">
+					{{ $t("settingsSecurityZone.changeUserPasswordPasswordsDoNotMatchFeedbackLabel") }}
+				</div>
 
-            <p>* {{ $t("generalItems.requiredField") }}</p>
+				<p>* {{ $t("generalItems.requiredField") }}</p>
 
-            <button type="submit" class="btn btn-success" :disabled="!isNewPasswordValid || !isNewPasswordRepeatValid || !isPasswordMatch" name="editUserPassword">{{ $t("settingsSecurityZone.subtitleChangePassword") }}</button>
-        </form>
+				<button type="submit" class="btn btn-success" :disabled="!isNewPasswordValid || !isNewPasswordRepeatValid || !isPasswordMatch" name="editUserPassword">{{ $t("settingsSecurityZone.subtitleChangePassword") }}</button>
+			</form>
 
-		<hr>
-		<!-- user sessions list -->
-        <h4>{{ $t("settingsSecurityZone.subtitleMySessions") }}</h4>
-		<div v-if="isLoading">
-			<LoadingComponent />
+			<hr>
+			<!-- user sessions list -->
+			<h4>{{ $t("settingsSecurityZone.subtitleMySessions") }}</h4>
+			<div v-if="isLoading">
+				<LoadingComponent />
+			</div>
+			<div v-else-if="userSessions && userSessions.length > 0">
+				<UserSessionsListComponent v-for="session in userSessions" :key="session.id" :session="session" @sessionDeleted="updateSessionListDeleted"/>
+			</div>
+			<div v-else>
+				<NoItemsFoundComponents />
+			</div>
 		</div>
-		<div v-else-if="userSessions && userSessions.length > 0">
-			<UserSessionsListComponent v-for="session in userSessions" :key="session.id" :session="session" @sessionDeleted="updateSessionListDeleted"/>
-		</div>
-		<div v-else>
-			<NoItemsFoundComponents />
-		</div>
-    </div>
+	</div>
 </template>
 
 <script>
