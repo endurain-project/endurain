@@ -205,7 +205,7 @@ async def edit_gear(
     ],
 ):
     # Get the gear by id
-    gear_db = gears_crud.get_gear_user_by_id(gear_id, db)
+    gear_db = gears_crud.get_gear_user_by_id(token_user_id, gear_id, db)
 
     # Check if gear is None and raise an HTTPException if it is
     if gear_db is None:
@@ -243,7 +243,7 @@ async def delete_gear(
     ],
 ):
     # Get the gear by id
-    gear = gears_crud.get_gear_user_by_id(gear_id, db)
+    gear = gears_crud.get_gear_user_by_id(token_user_id, gear_id, db)
 
     # Check if gear is None and raise an HTTPException if it is
     if gear is None:

@@ -181,7 +181,7 @@ export default {
 					}
 					gearDistance.value = (gearDistance.value / 1000).toFixed(2);
 				}
-                gearDistance.value += gear.value.initial_kms;
+                gearDistance.value = Math.floor(Number(gearDistance.value) + gear.value.initial_kms);
 			} catch (error) {
 				if (error.toString().includes("422")) {
 					return router.push({
