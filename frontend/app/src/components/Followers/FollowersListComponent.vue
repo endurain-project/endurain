@@ -50,6 +50,7 @@
 
 <script>
 import { ref, onMounted, computed } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { useAuthStore } from '@/stores/authStore';
 import { useRoute } from 'vue-router';
 import { users } from '@/services/usersService';
@@ -78,6 +79,7 @@ export default {
         }
     },
     setup(props, { emit }) {
+        const { t } = useI18n();
         const route = useRoute();
         const authStore = useAuthStore();
         const userFollower = ref(null);
@@ -138,6 +140,7 @@ export default {
         });
 
         return {
+            t,
             userFollower,
             isLoading,
             idFromParam,

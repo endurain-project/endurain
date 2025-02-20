@@ -1,59 +1,65 @@
 <template>
-    <div class="row align-items-center">
-        <!-- picture col -->
-        <div class="col">
-            <div v-if="isLoading">
-                <LoadingComponent />
-            </div>
-            <div class="vstack d-flex justify-content-center" v-else>
-                <div class="d-flex justify-content-center" v-if="userProfile">
-                    <UserAvatarComponent :user="userProfile" :width=120 :height=120 />
+    <div class="rounded p-3 bg-body-tertiary">
+        <div class="row align-items-center">
+            <!-- picture col -->
+            <div class="col">
+                <div v-if="isLoading">
+                    <LoadingComponent />
                 </div>
-                <div class="text-center mt-3 mb-3" v-if="userProfile">
-                    <h3>
-                        <span>{{ userProfile.name }}</span>
-                    </h3>
-                    <span class="fw-lighter" v-if="userProfile.city">
-                        <font-awesome-icon :icon="['fas', 'location-dot']" />
-                        {{ userProfile.city }}
+                <div class="vstack d-flex justify-content-center" v-else>
+                    <div class="d-flex justify-content-center" v-if="userProfile">
+                        <UserAvatarComponent :user="userProfile" :width=120 :height=120 />
+                    </div>
+                    <div class="text-center mt-3 mb-3" v-if="userProfile">
+                        <h3>
+                            <span>{{ userProfile.name }}</span>
+                        </h3>
+                        <span class="fw-lighter">
+                            @{{ userProfile.username }}
+                        </span>
+                        <br>
+                        <span class="fw-lighter" v-if="userProfile.city">
+                            <font-awesome-icon :icon="['fas', 'location-dot']" />
+                            {{ userProfile.city }}
+                        </span>
+                    </div>
+                </div>
+            </div>
+            <div class="col">
+                <div v-if="isLoading">
+                    <LoadingComponent />
+                </div>
+                <div class="vstack d-flex align-middle text-center" v-else>
+                    <span class="fw-lighter">
+                        {{ $t("userView.thisMonthActivitiesNumber") }}
                     </span>
-                </div>
-            </div>
-        </div>
-        <div class="col">
-            <div v-if="isLoading">
-                <LoadingComponent />
-            </div>
-            <div class="vstack d-flex align-middle text-center" v-else>
-                <span class="fw-lighter">
-                    {{ $t("userView.thisMonthActivitiesNumber") }}
-                </span>
-                <h1>
-                    {{ thisMonthNumberOfActivities }}
-                </h1>
-                <div class="row align-items-center">
-                    <div class="col">
-                        {{ followingCountAccepted }}
-                        <br>
-                        <span class="fw-lighter">
-                            {{ $t("userView.userFollowing") }}
-                        </span>
-                    </div>
-                    <div class="col">
-                        {{ followersCountAccepted }}
-                        <br>
-                        <span class="fw-lighter">
-                            {{ $t("userView.userFollowers") }}
-                        </span>
+                    <h1>
+                        {{ thisMonthNumberOfActivities }}
+                    </h1>
+                    <div class="row align-items-center">
+                        <div class="col">
+                            {{ followingCountAccepted }}
+                            <br>
+                            <span class="fw-lighter">
+                                {{ $t("userView.userFollowing") }}
+                            </span>
+                        </div>
+                        <div class="col">
+                            {{ followersCountAccepted }}
+                            <br>
+                            <span class="fw-lighter">
+                                {{ $t("userView.userFollowers") }}
+                            </span>
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
-        <div class="col-sm">
-            <div v-if="isLoading">
-                <LoadingComponent />
+            <div class="col-sm">
+                <div v-if="isLoading">
+                    <LoadingComponent />
+                </div>
+                <UserDistanceStatsComponent :thisWeekDistances="thisWeekDistances" :thisMonthDistances="thisMonthDistances" v-else/>
             </div>
-            <UserDistanceStatsComponent :thisWeekDistances="thisWeekDistances" :thisMonthDistances="thisMonthDistances" v-else/>
         </div>
     </div>
 
@@ -160,7 +166,7 @@
             <!-- Checking if userWeekActivities is loaded and has length -->
             <div v-if="userWeekActivities && userWeekActivities.length">
             <!-- Iterating over userWeekActivities to display them -->
-                <div class="card mb-3" v-for="activity in userWeekActivities" :key="activity.id">
+                <div class="card mb-3 rounded border-0 bg-body-tertiary" v-for="activity in userWeekActivities" :key="activity.id">
                     <div class="card-body">
                         <ActivitySummaryComponent :activity="activity" :source="'home'"/>
                     </div>
@@ -173,8 +179,8 @@
 
         <!-- following tab content -->
         <div class="tab-pane fade" id="pills-following" role="tabpanel" aria-labelledby="pills-following-tab" tabindex="0">
-            <ul class="list-group list-group-flush align-items-center" v-if="followersAll && followersAll.length">
-                <li class="list-group-item d-flex justify-content-between" v-for="follower in followersAll" :key="follower.following_id">
+            <ul class="list-group list-group-flush w-100 rounded" v-if="followersAll && followersAll.length">
+                <li class="list-group-item d-flex justify-content-center align-items-center w-100 p-3 bg-body-tertiary" v-for="follower in followersAll" :key="follower.following_id">
                     <FollowersListComponent :follower="follower" :type=1 @followingDeleted="updateFollowingList"/>
                 </li>
             </ul>
@@ -184,8 +190,8 @@
 
         <!-- followers tab content -->
         <div class="tab-pane fade" id="pills-followers" role="tabpanel" aria-labelledby="pills-followers-tab" tabindex="0">
-            <ul class="list-group list-group-flush align-items-center" v-if="followingAll && followingAll.length">
-                <li class="list-group-item d-flex justify-content-between" v-for="follower in followingAll" :key="follower.follower_id">
+            <ul class="list-group list-group-flush w-100 rounded" v-if="followingAll && followingAll.length">
+                <li class="list-group-item d-flex justify-content-center align-items-center w-100 p-3 bg-body-tertiary" v-for="follower in followingAll" :key="follower.follower_id">
                     <FollowersListComponent :follower="follower" :type=2 @followerDeleted="updateFollowerList" @followerAccepted="updateFollowerListWithAccepted"/>
                 </li>
             </ul>
