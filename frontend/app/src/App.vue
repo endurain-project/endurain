@@ -21,14 +21,14 @@ import {
 		</NotivueSwipe>
 	</Notivue>
 	<div class="d-flex flex-column vh-100">
-		<div class="bg-body-tertiary">
+		<div class="bg-body-tertiary shadow-sm">
 			<NavbarComponent class="container" />
 		</div>
 		<main class="container py-4 flex-grow-1">
 			<RouterView />
 		</main>
-		<FooterComponent class="d-none d-sm-block"/>
-		<NavbarBottomMobileComponent class="d-lg-none d-block fixed-bottom"/>
+		<FooterComponent class="d-none d-sm-block shadow-sm"/>
+		<NavbarBottomMobileComponent class="d-lg-none d-block fixed-bottom shadow-sm"/>
 	</div>
 </template>
 

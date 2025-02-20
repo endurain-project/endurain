@@ -1,7 +1,7 @@
 <template>
     <div class="mx-auto " style="max-width: 650px;">
         <h1>{{ $t("searchView.searchSelectLabel") }}</h1>
-        <form class="bg-body-tertiary rounded p-3">
+        <form class="bg-body-tertiary rounded p-3 shadow-sm">
             <div class="input-group">
                 <!-- Select type -->
                 <select id="inputSelectTypeToSearch" class="form-select rounded me-1" v-model="searchSelectValue">

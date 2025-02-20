@@ -1,6 +1,6 @@
 <template>
     <div class="col">
-		<div class="bg-body-tertiary rounded p-3">
+		<div class="bg-body-tertiary rounded p-3 shadow-sm">
 			<!-- list zone -->
 			<ul class="list-group list-group-flush">
 				<!-- strava zone -->

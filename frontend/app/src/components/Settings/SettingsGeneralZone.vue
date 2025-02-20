@@ -1,6 +1,6 @@
 <template>
     <div class="col">
-        <div class="bg-body-tertiary rounded p-3">
+        <div class="bg-body-tertiary rounded p-3 shadow-sm">
             <SettingsThemeSwitcherComponent />
             <SettingsLanguageSwitcherComponent class="mt-2"/>
         </div>

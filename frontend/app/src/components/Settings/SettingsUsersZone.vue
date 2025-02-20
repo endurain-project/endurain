@@ -1,6 +1,6 @@
 <template>
     <div class="col">
-		<div class="bg-body-tertiary rounded p-3">
+		<div class="bg-body-tertiary rounded p-3 shadow-sm">
 			<div class="row row-gap-3">
 				<div class="col-lg-4 col-md-12">
 					<!-- add user button -->

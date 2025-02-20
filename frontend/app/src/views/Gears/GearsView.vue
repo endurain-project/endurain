@@ -2,7 +2,7 @@
     <h1>{{ $t("gearsView.title") }}</h1>
     <div class="row row-gap-3">
         <div class="col-lg-4 col-md-12">
-            <div class="p-3 bg-body-tertiary rounded">
+            <div class="p-3 bg-body-tertiary rounded shadow-sm">
                 <!-- Add gear zone -->
                 <p>{{ $t("gearsView.buttonAddGear") }}</p>
                 <a class="w-100 btn btn-primary" href="#" role="button" data-bs-toggle="modal" data-bs-target="#addGearModal">
@@ -26,7 +26,7 @@
             <div v-if="isLoading">
                 <LoadingComponent />
             </div>
-            <div v-else class="p-3 bg-body-tertiary rounded">
+            <div v-else class="p-3 bg-body-tertiary rounded shadow-sm">
                 <!-- Checking if userGears is loaded and has length -->
                 <div v-if="userGears && userGears.length">
                     <!-- Iterating over userGears to display them -->

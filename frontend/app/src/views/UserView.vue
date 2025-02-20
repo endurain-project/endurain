@@ -1,5 +1,5 @@
 <template>
-    <div class="rounded p-3 bg-body-tertiary">
+    <div class="rounded p-3 bg-body-tertiary shadow-sm">
         <div class="row align-items-center">
             <!-- picture col -->
             <div class="col">
@@ -166,7 +166,7 @@
             <!-- Checking if userWeekActivities is loaded and has length -->
             <div v-if="userWeekActivities && userWeekActivities.length">
             <!-- Iterating over userWeekActivities to display them -->
-                <div class="card mb-3 rounded border-0 bg-body-tertiary" v-for="activity in userWeekActivities" :key="activity.id">
+                <div class="card mb-3 rounded border-0 bg-body-tertiary shadow-sm" v-for="activity in userWeekActivities" :key="activity.id">
                     <div class="card-body">
                         <ActivitySummaryComponent :activity="activity" :source="'home'"/>
                     </div>
@@ -179,7 +179,7 @@
 
         <!-- following tab content -->
         <div class="tab-pane fade" id="pills-following" role="tabpanel" aria-labelledby="pills-following-tab" tabindex="0">
-            <ul class="list-group list-group-flush w-100 rounded" v-if="followersAll && followersAll.length">
+            <ul class="list-group list-group-flush w-100 rounded shadow-sm" v-if="followersAll && followersAll.length">
                 <li class="list-group-item d-flex justify-content-center align-items-center w-100 p-3 bg-body-tertiary" v-for="follower in followersAll" :key="follower.following_id">
                     <FollowersListComponent :follower="follower" :type=1 @followingDeleted="updateFollowingList"/>
                 </li>
@@ -190,7 +190,7 @@
 
         <!-- followers tab content -->
         <div class="tab-pane fade" id="pills-followers" role="tabpanel" aria-labelledby="pills-followers-tab" tabindex="0">
-            <ul class="list-group list-group-flush w-100 rounded" v-if="followingAll && followingAll.length">
+            <ul class="list-group list-group-flush w-100 rounded shadow-sm" v-if="followingAll && followingAll.length">
                 <li class="list-group-item d-flex justify-content-center align-items-center w-100 p-3 bg-body-tertiary" v-for="follower in followingAll" :key="follower.follower_id">
                     <FollowersListComponent :follower="follower" :type=2 @followerDeleted="updateFollowerList" @followerAccepted="updateFollowerListWithAccepted"/>
                 </li>

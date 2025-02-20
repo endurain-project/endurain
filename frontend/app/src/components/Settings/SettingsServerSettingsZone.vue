@@ -1,6 +1,6 @@
 <template>
     <div class="col">
-        <form class="bg-body-tertiary rounded p-3">
+        <form class="bg-body-tertiary rounded p-3 shadow-sm">
             <!-- Units -->
             <h4>{{ $t("settingsServerSettingsZoneComponent.unitsLabel") }}</h4>
             <select class="form-select" name="serverSettingsUnits" v-model="units" required>

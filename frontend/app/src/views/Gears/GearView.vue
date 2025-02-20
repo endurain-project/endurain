@@ -7,7 +7,7 @@
     <div class="row row-gap-3 mt-4">
         <!-- left column -->
         <div class="col-lg-3 col-md-12">
-            <div class="bg-body-tertiary p-3 rounded">
+            <div class="bg-body-tertiary p-3 rounded shadow-sm">
                 <!-- Gear photo -->
                 <div v-if="isLoading">
                     <LoadingComponent />
@@ -80,7 +80,7 @@
             <div v-if="isLoading">
                 <LoadingComponent />
             </div>
-            <div v-else class="bg-body-tertiary p-3 rounded">
+            <div v-else class="bg-body-tertiary p-3 rounded shadow-sm">
                 <div class="hstack align-items-baseline">
                     <h5>
                         {{ $t("gearView.title") }}

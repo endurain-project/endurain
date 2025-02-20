@@ -1,6 +1,6 @@
 <template>
 	<div class="col">
-		<div class="bg-body-tertiary rounded p-3">
+		<div class="bg-body-tertiary rounded p-3 shadow-sm">
 			<h4>{{ $t("settingsSecurityZone.subtitleChangePassword") }}</h4>
 			<UsersPasswordRequirementsComponent />
 

@@ -3,7 +3,7 @@
 		<!-- sidebar zone -->
 		<div class="col-lg-3 col-md-12">
 			<div class="sticky-sidebar">
-				<div class="d-none d-lg-block d-flex mb-3 rounded p-3 bg-body-tertiary">
+				<div class="d-none d-lg-block d-flex mb-3 rounded p-3 bg-body-tertiary shadow-sm">
 					<!-- user name and photo zone -->
 					<div v-if="isLoading">
 						<LoadingComponent />
@@ -26,7 +26,7 @@
 				</div>
 
 				<!-- add activity button -->
-				<a class="w-100 btn btn-primary" href="#" role="button" data-bs-toggle="modal" data-bs-target="#addActivityModal">
+				<a class="w-100 btn btn-primary shadow-sm" href="#" role="button" data-bs-toggle="modal" data-bs-target="#addActivityModal">
 					{{ $t("homeView.buttonAddActivity") }}
 				</a>
 			</div>
@@ -83,7 +83,7 @@
 				<!-- Checking if userActivities is loaded and has length -->
 				<div v-if="userActivities && userActivities.length">
 					<!-- Iterating over userActivities to display them -->
-					<div class="card mb-3 bg-body-tertiary border-0" v-for="activity in userActivities" :key="activity.id">
+					<div class="card mb-3 bg-body-tertiary border-0 shadow-sm" v-for="activity in userActivities" :key="activity.id">
 						<div class="card-body">
 							<ActivitySummaryComponent :activity="activity" :source="'home'"/>
 						</div>
