@@ -1,4 +1,5 @@
 {
+    "userNameHidden": "Hidden",
     "visibilityPublic": "Öffentlich",
     "visibilityFollowers": "Abonnenten",
     "visibilityPrivate": "Privat",
@@ -6,6 +7,7 @@
     "buttonEditActivity": "Aktivität bearbeiten",
     "modalDeleteBody1": "Bist du sicher, dass du die Aktivität löschen möchtest ",
     "modalDeleteBody2": "Dieser Vorgang kann nicht rückgängig gemacht werden.",
+    "labelVirtual": "(Virtual) ",
     "activityDistance": "Distanz",
     "activityTime": "Zeit",
     "activityElevationGain": "Höhenunterschied",
