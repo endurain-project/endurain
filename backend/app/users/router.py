@@ -10,6 +10,8 @@ import users.utils as users_utils
 
 import user_integrations.crud as user_integrations_crud
 
+import user_default_gear.crud as user_default_gear_crud
+
 import health_targets.crud as health_targets_crud
 
 import session.security as session_security
@@ -178,6 +180,9 @@ async def create_user(
 
     # Create the user health targets
     health_targets_crud.create_health_targets(created_user.id, db)
+
+    # Create the user default gear
+    user_default_gear_crud.create_user_default_gear(created_user.id, db)
 
     # Return the user with formatted birthdate
     return users_utils.format_user_birthdate(created_user)

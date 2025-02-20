@@ -108,7 +108,7 @@ def edit_session(session: session_schema.UsersSessions, db: Session):
         )
 
         # Dictionary of the fields to update if they are not None
-        session_data = session.dict(exclude_unset=True)
+        session_data = session.model_dump(exclude_unset=True)
         # Iterate over the fields and update the db_session dynamically
         for key, value in session_data.items():
             setattr(db_session, key, value)

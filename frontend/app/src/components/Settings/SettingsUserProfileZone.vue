@@ -1,7 +1,8 @@
 <template>
-    <div class="col ">
+    <div class="col">
         <div class="bg-body-tertiary rounded p-3">
             <div class="row row-gap-3">
+                <h4>{{ $t("settingsUserProfileZone.titleProfileInfo") }}</h4>
                 <div class="col-lg-4 col-md-12">
                     <div class="flex justify-center items-center">
                         <div class="justify-content-center align-items-center d-flex">
@@ -12,18 +13,22 @@
                             </div>
                         </div>
                     </div>
+                    <div class="row mt-3">
+                        <div class="col">
+                            <!-- Delete profile photo section -->
+                            <a class="w-100 btn btn-danger" href="#" role="button" data-bs-toggle="modal" data-bs-target="#deleteProfilePhotoModal" v-if="authStore.user.photo_path">{{ $t("settingsUserProfileZone.buttonDeleteProfilePhoto") }}<font-awesome-icon :icon="['fas', 'image']" class="ms-1" /></a>
 
-                    <!-- Delete profile photo section -->
-                    <a class="mt-4 w-100 btn btn-danger" href="#" role="button" data-bs-toggle="modal" data-bs-target="#deleteProfilePhotoModal" v-if="authStore.user.photo_path">{{ $t("settingsUserProfileZone.buttonDeleteProfilePhoto") }}</a>
+                            <!-- Modal delete profile photo -->
+                            <ModalComponent modalId="deleteProfilePhotoModal" :title="t('settingsUserProfileZone.buttonDeleteProfilePhoto')" :body="`${t('settingsUserProfileZone.modalDeleteProfilePhotoBody')}`" actionButtonType="danger" :actionButtonText="t('settingsUserProfileZone.buttonDeleteProfilePhoto')" @submitAction="submitDeleteUserPhoto"/>
+                        </div>
+                        <div class="col">
+                            <!-- Edit profile section -->
+                            <a class="w-100 btn btn-primary" href="#" role="button" data-bs-toggle="modal" data-bs-target="#editProfileModal"><font-awesome-icon :icon="['fas', 'user-pen']" class="me-1"/>{{ $t("settingsUserProfileZone.buttonEditProfile") }}</a>
 
-                    <!-- Modal delete profile photo -->
-                    <ModalComponent modalId="deleteProfilePhotoModal" :title="t('settingsUserProfileZone.buttonDeleteProfilePhoto')" :body="`${t('settingsUserProfileZone.modalDeleteProfilePhotoBody')}`" actionButtonType="danger" :actionButtonText="t('settingsUserProfileZone.buttonDeleteProfilePhoto')" @submitAction="submitDeleteUserPhoto"/>
-
-                    <!-- Edit profile section -->
-                    <a class="mt-2 w-100 btn btn-primary" href="#" role="button" data-bs-toggle="modal" data-bs-target="#editProfileModal">{{ $t("settingsUserProfileZone.buttonEditProfile") }}</a>
-
-                    <!-- Modal edit user -->
-                    <UsersAddEditUserModalComponent :action="'profile'" :user="authStore.user"/>
+                            <!-- Modal edit user -->
+                            <UsersAddEditUserModalComponent :action="'profile'" :user="authStore.user"/>
+                        </div>
+                    </div>
                 </div>
                 <div class="col">
                     <!-- user email -->
@@ -93,14 +98,106 @@
                     </p>
                 </div>
             </div>
+            <hr>
+            <div>
+                <h4 class="mt-4">{{ $t("settingsUserProfileZone.titleDefaultGear") }}</h4>
+                <LoadingComponent v-if="isLoading"/>
+                <div class="row" v-else>
+                    <div class="col-lg-4 col-md-12">
+                        <form>
+                            <label class="form-label" for="settingsUserProfileRunGearSelect">{{ $t("settingsUserProfileZone.subTitleRun") }}</label>
+                            <select class="form-select" name="settingsUserProfileRunGearSelect" v-model="defaultRunGear" required>
+                                <option :value="null">{{ $t("settingsUserProfileZone.selectOptionNotDefined") }}</option>
+                                <option v-for="gear in runGear" :key="gear.id" :value="gear.id">
+                                    {{ gear.nickname }}
+                                </option>
+                            </select>
+                            <label class="form-label" for="settingsUserProfileTrailRunGearSelect">{{ $t("settingsUserProfileZone.subTitleTrailRun") }}</label>
+                            <select class="form-select" name="settingsUserProfileTrailRunGearSelect" v-model="defaultTrailRunGear" required>
+                                <option :value="null">{{ $t("settingsUserProfileZone.selectOptionNotDefined") }}</option>
+                                <option v-for="gear in runGear" :key="gear.id" :value="gear.id">
+                                    {{ gear.nickname }}
+                                </option>
+                            </select>
+                            <label class="form-label" for="settingsUserProfileVirtualRunGearSelect">{{ $t("settingsUserProfileZone.subTitleVirtualRun") }}</label>
+                            <select class="form-select" name="settingsUserProfileVirtualRunGearSelect" v-model="defaultVirtualRunGear" required>
+                                <option :value="null">{{ $t("settingsUserProfileZone.selectOptionNotDefined") }}</option>
+                                <option v-for="gear in runGear" :key="gear.id" :value="gear.id">
+                                    {{ gear.nickname }}
+                                </option>
+                            </select>
+                            <label class="form-label" for="settingsUserProfileWalkGearSelect">{{ $t("settingsUserProfileZone.subTitleWalk") }}</label>
+                            <select class="form-select" name="settingsUserProfileWalkGearSelect" v-model="defaultWalkGear" required>
+                                <option :value="null">{{ $t("settingsUserProfileZone.selectOptionNotDefined") }}</option>
+                                <option v-for="gear in runGear" :key="gear.id" :value="gear.id">
+                                    {{ gear.nickname }}
+                                </option>
+                            </select>
+                            <label class="form-label" for="settingsUserProfileHikeGearSelect">{{ $t("settingsUserProfileZone.subTitleHike") }}</label>
+                            <select class="form-select" name="settingsUserProfileHikeGearSelect" v-model="defaultHikeGear" required>
+                                <option :value="null">{{ $t("settingsUserProfileZone.selectOptionNotDefined") }}</option>
+                                <option v-for="gear in runGear" :key="gear.id" :value="gear.id">
+                                    {{ gear.nickname }}
+                                </option>
+                            </select>
+                        </form>
+                    </div>
+                    <div class="col-lg-4 col-md-12">
+                        <form>
+                            <label class="form-label" for="settingsUserProfileRideGearSelect">{{ $t("settingsUserProfileZone.subTitleBike") }}</label>
+                            <select class="form-select" name="settingsUserProfileRideGearSelect" v-model="defaultRideGear" required>
+                                <option :value="null">{{ $t("settingsUserProfileZone.selectOptionNotDefined") }}</option>
+                                <option v-for="gear in bikeGear" :key="gear.id" :value="gear.id">
+                                    {{ gear.nickname }}
+                                </option>
+                            </select>
+                            <label class="form-label" for="settingsUserProfileMTBRideGearSelect">{{ $t("settingsUserProfileZone.subTitleMTBBike") }}</label>
+                            <select class="form-select" name="settingsUserProfileMTBRideGearSelect" v-model="defaultMTBRideGear" required>
+                                <option :value="null">{{ $t("settingsUserProfileZone.selectOptionNotDefined") }}</option>
+                                <option v-for="gear in bikeGear" :key="gear.id" :value="gear.id">
+                                    {{ gear.nickname }}
+                                </option>
+                            </select>
+                            <label class="form-label" for="settingsUserProfileGravelRideGearSelect">{{ $t("settingsUserProfileZone.subTitleGravelBike") }}</label>
+                            <select class="form-select" name="settingsUserProfileGravelRideGearSelect" v-model="defaultGravelRideGear" required>
+                                <option :value="null">{{ $t("settingsUserProfileZone.selectOptionNotDefined") }}</option>
+                                <option v-for="gear in bikeGear" :key="gear.id" :value="gear.id">
+                                    {{ gear.nickname }}
+                                </option>
+                            </select>
+                            <label class="form-label" for="settingsUserProfileVirtualRideGearSelect">{{ $t("settingsUserProfileZone.subTitleVirtualBike") }}</label>
+                            <select class="form-select" name="settingsUserProfileVirtualRideGearSelect" v-model="defaultVirtualRideGear" required>
+                                <option :value="null">{{ $t("settingsUserProfileZone.selectOptionNotDefined") }}</option>
+                                <option v-for="gear in bikeGear" :key="gear.id" :value="gear.id">
+                                    {{ gear.nickname }}
+                                </option>
+                            </select>
+                        </form>
+                    </div>
+                    <div class="col-lg-4 col-md-12">
+                        <form>
+                            <label class="form-label" for="settingsUserProfileOWSGearSelect">{{ $t("settingsUserProfileZone.subTitleSwim") }}</label>
+                            <select class="form-select" name="settingsUserProfileOWSGearSelect" v-model="defaultOWSGear" required>
+                                <option :value="null">{{ $t("settingsUserProfileZone.selectOptionNotDefined") }}</option>
+                                <option v-for="gear in swimGear" :key="gear.id" :value="gear.id">
+                                    {{ gear.nickname }}
+                                </option>
+                            </select>
+                        </form>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 </template>
 
 <script>
+import { ref, onMounted, watch, nextTick } from "vue";
 import { useI18n } from "vue-i18n";
 // Importing the services
 import { profile } from "@/services/profileService";
+import { gears } from "@/services/gearsService";
+import { userDefaultGear } from "@/services/userDefaultGear";
 // Import the stores
 import { useAuthStore } from "@/stores/authStore";
 // Import Notivue push
@@ -111,17 +208,35 @@ import { cmToFeetInches } from "@/utils/unitsUtils";
 import UserAvatarComponent from "../Users/UserAvatarComponent.vue";
 import UsersAddEditUserModalComponent from "@/components/Settings/SettingsUsersZone/UsersAddEditUserModalComponent.vue";
 import ModalComponent from "@/components/Modals/ModalComponent.vue";
+import LoadingComponent from "../GeneralComponents/LoadingComponent.vue";
 
 export default {
 	components: {
 		UserAvatarComponent,
 		UsersAddEditUserModalComponent,
         ModalComponent,
+        LoadingComponent,
 	},
 	setup() {
 		const authStore = useAuthStore();
 		const { t, locale } = useI18n();
         const { feet, inches } = cmToFeetInches(authStore.user.height);
+        const isLoading = ref(false);
+        const allGears = ref(null);
+        const runGear = ref(null);
+        const bikeGear = ref(null);
+        const swimGear = ref(null);
+        const defaultGear = ref(null);
+        const defaultRunGear = ref(null);
+        const defaultTrailRunGear = ref(null);
+        const defaultVirtualRunGear = ref(null);
+        const defaultWalkGear = ref(null);
+        const defaultHikeGear = ref(null);
+        const defaultRideGear = ref(null);
+        const defaultMTBRideGear = ref(null);
+        const defaultGravelRideGear = ref(null);
+        const defaultVirtualRideGear = ref(null);
+        const defaultOWSGear = ref(null);
 
 		async function submitDeleteUserPhoto() {
 			try {
@@ -145,12 +260,91 @@ export default {
 			}
 		}
 
+        async function updateDefaultGear() {
+            const data = {
+                id: defaultGear.value.id,
+                user_id: authStore.user.id,
+                run_gear_id: defaultRunGear.value,
+                trail_run_gear_id: defaultTrailRunGear.value,
+                virtual_run_gear_id: defaultVirtualRunGear.value,
+                walk_gear_id: defaultWalkGear.value,
+                hike_gear_id: defaultHikeGear.value,
+                ride_gear_id: defaultRideGear.value,
+                mtb_ride_gear_id: defaultMTBRideGear.value,
+                gravel_ride_gear_id: defaultGravelRideGear.value,
+                virtual_ride_gear_id: defaultVirtualRideGear.value,
+                ows_gear_id: defaultOWSGear.value,
+            };
+            try {
+                // Update the default gear in the DB
+                await userDefaultGear.editUserDefaultGear(data);
+
+                push.success(t("settingsUserProfileZone.successUpdateDefaultGear"));
+            } catch (error) {
+                push.error(t("settingsUserProfileZone.errorUpdateDefaultGear"));
+            }
+        }
+
+        onMounted(async () => {
+            isLoading.value = true;
+            try {
+                allGears.value = await gears.getGears();
+                runGear.value = allGears.value.filter((gear) => gear.gear_type === 2);
+                bikeGear.value = allGears.value.filter((gear) => gear.gear_type === 1);
+                swimGear.value = allGears.value.filter((gear) => gear.gear_type === 3);
+
+                try {
+                    defaultGear.value = await userDefaultGear.getUserDefaultGear();
+                    defaultRunGear.value = defaultGear.value.run_gear_id;
+                    defaultTrailRunGear.value = defaultGear.value.trail_run_gear_id;
+                    defaultVirtualRunGear.value = defaultGear.value.virtual_run_gear_id;
+                    defaultWalkGear.value = defaultGear.value.walk_gear_id;
+                    defaultHikeGear.value = defaultGear.value.hike_gear_id;
+                    defaultRideGear.value = defaultGear.value.ride_gear_id;
+                    defaultMTBRideGear.value = defaultGear.value.mtb_ride_gear_id;
+                    defaultGravelRideGear.value = defaultGear.value.gravel_ride_gear_id;
+                    defaultVirtualRideGear.value = defaultGear.value.virtual_ride_gear_id;
+                    defaultOWSGear.value = defaultGear.value.ows_gear_id;
+                } catch (error) {
+                    // If there is an error, set the error message and show the error alert.
+                    push.error(`${t("settingsUserProfileZone.errorUnableToGetDefaultGear")} - ${error}`);
+                }
+            } catch (error) {
+				// If there is an error, set the error message and show the error alert.
+				push.error(`${t("settingsUserProfileZone.errorUnableToGetGear")} - ${error}`);
+			} finally {
+                isLoading.value = false;
+                await nextTick();
+            }
+        });
+
+        // watchers
+        watch([defaultRunGear, defaultTrailRunGear, defaultVirtualRunGear, defaultWalkGear, defaultHikeGear, defaultRideGear, defaultMTBRideGear, defaultGravelRideGear, defaultVirtualRideGear, defaultOWSGear], async () => {
+            if (isLoading.value) return;
+            await updateDefaultGear();
+        }, { immediate: false });
+
 		return {
 			authStore,
 			t,
 			submitDeleteUserPhoto,
             feet,
             inches,
+            isLoading,
+            runGear,
+            bikeGear,
+            swimGear,
+            defaultGear,
+            defaultRunGear,
+            defaultTrailRunGear,
+            defaultVirtualRunGear,
+            defaultWalkGear,
+            defaultHikeGear,
+            defaultRideGear,
+            defaultMTBRideGear,
+            defaultGravelRideGear,
+            defaultVirtualRideGear,
+            defaultOWSGear,
 		};
 	},
 };

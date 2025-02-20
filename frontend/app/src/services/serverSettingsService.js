@@ -4,9 +4,10 @@ import { fetchPublicGetRequest } from '@/utils/servicePublicUtils';
 export const serverSettings = {
     // Server settings public
     getPublicServerSettings() {
-        return fetchPublicGetRequest('public/server_settings/');
+        return fetchPublicGetRequest('public/server_settings');
     },
+    // Server settings authenticated
     editServerSettings(data) {
-        return fetchPutRequest('server_settings/', data);
+        return fetchPutRequest('server_settings', data);
     }
 };

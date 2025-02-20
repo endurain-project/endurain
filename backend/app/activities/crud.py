@@ -647,7 +647,7 @@ def edit_activity(user_id: int, activity: activities_schema.Activity, db: Sessio
 
         # Check if 'activity' is a Pydantic model instance and convert it to a dictionary
         if isinstance(activity, BaseModel):
-            activity_data = activity.dict(exclude_unset=True)
+            activity_data = activity.model_dump(exclude_unset=True)
         else:
             activity_data = {
                 key: value for key, value in vars(activity).items() if value is not None

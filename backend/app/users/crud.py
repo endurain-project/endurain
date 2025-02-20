@@ -367,7 +367,7 @@ def edit_user(user_id: int, user: users_schema.User, db: Session):
         height_before = db_user.height
 
         # Dictionary of the fields to update if they are not None
-        user_data = user.dict(exclude_unset=True)
+        user_data = user.model_dump(exclude_unset=True)
         # Iterate over the fields and update the db_user dynamically
         for key, value in user_data.items():
             setattr(db_user, key, value)

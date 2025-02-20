@@ -11,10 +11,16 @@ import gears.models as gears_models
 import core.logger as core_logger
 
 
-def get_gear_user_by_id(gear_id: int, db: Session) -> gears_schema.Gear | None:
+def get_gear_user_by_id(
+    user_id: int, gear_id: int, db: Session
+) -> gears_schema.Gear | None:
     try:
         gear = (
-            db.query(gears_models.Gear).filter(gears_models.Gear.id == gear_id).first()
+            db.query(gears_models.Gear)
+            .filter(
+                gears_models.Gear.user_id == user_id, gears_models.Gear.id == gear_id
+            )
+            .first()
         )
 
         # Check if gear is None and return None if it is

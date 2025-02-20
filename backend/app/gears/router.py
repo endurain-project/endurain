@@ -16,6 +16,23 @@ router = APIRouter()
 
 
 @router.get(
+    "",
+    response_model=list[gears_schema.Gear] | None,
+)
+async def read_gear_id(
+    check_scopes: Annotated[
+        Callable, Security(session_security.check_scopes, scopes=["gears:read"])
+    ],
+    token_user_id: Annotated[
+        int, Depends(session_security.get_user_id_from_access_token)
+    ],
+    db: Annotated[Session, Depends(core_database.get_db)],
+):
+    # Return the gear
+    return gears_crud.get_gear_user(token_user_id, db)
+
+
+@router.get(
     "/id/{gear_id}",
     response_model=gears_schema.Gear | None,
 )
@@ -25,10 +42,13 @@ async def read_gear_id(
     check_scopes: Annotated[
         Callable, Security(session_security.check_scopes, scopes=["gears:read"])
     ],
+    token_user_id: Annotated[
+        int, Depends(session_security.get_user_id_from_access_token)
+    ],
     db: Annotated[Session, Depends(core_database.get_db)],
 ):
     # Return the gear
-    return gears_crud.get_gear_user_by_id(gear_id, db)
+    return gears_crud.get_gear_user_by_id(token_user_id, gear_id, db)
 
 
 @router.get(

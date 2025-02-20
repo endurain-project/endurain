@@ -86,9 +86,9 @@ export default {
         }
 
         // watchers
-        watch(units, updateServerSettings, { immediate: false });
-        watch(publicShareableLinks, updateServerSettings, { immediate: false });
-        watch(publicShareableLinksUserInfo, updateServerSettings, { immediate: false });
+        watch([units, publicShareableLinks, publicShareableLinksUserInfo], async () => {
+            await updateServerSettings();
+        }, { immediate: false });
 
         return {
 			t,

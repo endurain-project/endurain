@@ -12,7 +12,7 @@ import core.database as core_database
 router = APIRouter()
 
 
-@router.get("/", response_model=server_settings_schema.ServerSettings)
+@router.get("", response_model=server_settings_schema.ServerSettings)
 async def read_public_server_settings(
     db: Annotated[
         Session,

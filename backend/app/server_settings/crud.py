@@ -54,13 +54,15 @@ def edit_server_settings(server_settings: server_settings_schema.ServerSettings,
             )
 
         # Dictionary of the fields to update if they are not None
-        server_settings_data = server_settings.dict(exclude_unset=True)
+        server_settings_data = server_settings.model_dump(exclude_unset=True)
         # Iterate over the fields and update the db_user dynamically
         for key, value in server_settings_data.items():
             setattr(db_server_settings, key, value)
 
         # Commit the transaction
         db.commit()
+
+        return db_server_settings
     except Exception as err:
         # Rollback the transaction
         db.rollback()

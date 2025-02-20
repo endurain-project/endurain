@@ -14,7 +14,7 @@ import core.database as core_database
 router = APIRouter()
 
 
-@router.get("/", response_model=server_settings_schema.ServerSettings)
+@router.get("", response_model=server_settings_schema.ServerSettings)
 async def read_server_settings(
     check_scopes: Annotated[
         Callable,
@@ -29,7 +29,7 @@ async def read_server_settings(
     return server_settings_crud.get_server_settings(db)
 
 
-@router.put("/")
+@router.put("", response_model=server_settings_schema.ServerSettings)
 async def edit_server_settings(
     server_settings_attributtes: server_settings_schema.ServerSettings,
     check_scopes: Annotated[
@@ -42,7 +42,4 @@ async def edit_server_settings(
     ],
 ):
     # Update the server_settings in the database
-    server_settings_crud.edit_server_settings(server_settings_attributtes, db)
-
-    # Return success message
-    return {"detail": f"Server settings updated successfully"}
+    return server_settings_crud.edit_server_settings(server_settings_attributtes, db)
