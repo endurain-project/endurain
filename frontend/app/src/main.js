@@ -37,6 +37,9 @@ import "notivue/animations.css";
 import "notivue/notification-progress.css";
 
 const notivue = createNotivue({
+	position: 'top-center',
+	limit: 4,
+	enqueue: true,
 	notifications: {
 		global: {
 			duration: 5000,
