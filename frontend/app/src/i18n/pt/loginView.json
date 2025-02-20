@@ -10,5 +10,7 @@
     "neverExpires": "Lembrar-me (não marque esta caixa se estiver a usar um computador partilhado)",
     "signInButton": "Iniciar sessão",
     "signUpText": "À procura de um novo registo?",
-    "signUpButton": "Registar"
+    "signUpButton": "Registar",
+    "errorPublicActivityNotFound": "Public activity not found",
+    "errorpublic_shareable_links": "Public shareable links are not allowed. To view this activity, you must be signed in"
 }
