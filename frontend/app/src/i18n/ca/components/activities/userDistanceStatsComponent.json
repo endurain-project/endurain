@@ -1,12 +1,4 @@
 {
-    "thisMonthDistancesTitle": "Distàncies mensuals",
-    "thisWeekDistancesTitle": "Distàncies setmanals",
-    "distancesRun": "Córrer",
-    "distancesBike": "Bici",
-    "distancesSwim": "Natació",
-    "distancesWalk": "Caminar",
-    "distancesHike": "Caminar",
-    "distancesRowing": "Rem",
-    "distancesSnowSki": "Esquí",
-    "distancesSnowboard": "Snow"
+    "thisWeekDistancesTitle": "Week top 3",
+    "thisMonthDistancesTitle": "Month top 3"
 }
