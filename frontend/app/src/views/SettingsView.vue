@@ -8,6 +8,9 @@
         <!-- Include the SettingsUserZone -->
         <SettingsUsersZone v-if="activeSection === 'users' && authStore.user.access_type == 2" />
 
+        <!-- Include the SettingsUserZone -->
+        <SettingsServerSettingsZone v-if="activeSection === 'serverSettings' && authStore.user.access_type == 2" />
+
         <!-- Include the SettingsGeneralZone -->
         <SettingsGeneralZone v-if="activeSection === 'general'" />
 
@@ -37,6 +40,7 @@ import { strava } from '@/services/stravaService';
 // Importing the components
 import SettingsSideBarComponent from '../components/Settings/SettingsSideBarComponent.vue';
 import SettingsUsersZone from '../components/Settings/SettingsUsersZone.vue';
+import SettingsServerSettingsZone from '../components/Settings/SettingsServerSettingsZone.vue';
 import SettingsGeneralZone from '../components/Settings/SettingsGeneralZone.vue';
 import SettingsUserProfileZone from '../components/Settings/SettingsUserProfileZone.vue';
 import SettingsSecurityZone from '../components/Settings/SettingsSecurityZone.vue';
@@ -47,6 +51,7 @@ export default {
     components: {
         SettingsSideBarComponent,
         SettingsUsersZone,
+        SettingsServerSettingsZone,
         SettingsGeneralZone,
         SettingsUserProfileZone,
         SettingsSecurityZone,

@@ -19,6 +19,7 @@ import caHealthDashboardZoneComponent from './ca/components/health/healthDashboa
 import caHealthSideBarComponent from './ca/components/health/healthSideBarComponent.json';
 import caHealthWeightZoneComponent from './ca/components/health/healthWeightZoneComponent.json'
 // Navbar components
+import caNavbarBottomMobileComponent from './ca/components/navbar/navbarBottomMobileComponent.json';
 import caNavbarComponent from './ca/components/navbar/navbarComponent.json';
 // Settings components
 import caSettingsSideBarComponent from './ca/components/settings/settingsSideBarComponent.json';
@@ -34,6 +35,7 @@ import caUsersChangeUserPasswordModalComponent from './ca/components/settings/se
 import caUsersListComponent from './ca/components/settings/settingsUsersZone/usersListComponent.json';
 import caUsersPasswordRequirementsComponent from './ca/components/settings/settingsUsersZone/usersPasswordRequirementsComponent.json';
 import caUserSessionsListComponent from './ca/components/settings/settingsUserSessionsZone/userSessionsListComponent.json';
+import caSettingsServerSettingsZoneComponent from './ca/components/settings/settingsServerSettingsZoneComponent.json';
 // General components
 import caNoItemsFoundComponent from './ca/components/noItemsFoundComponent.json';
 // General translations
@@ -69,6 +71,7 @@ import deHealthDashboardZoneComponent from './de/components/health/healthDashboa
 import deHealthSideBarComponent from './de/components/health/healthSideBarComponent.json';
 import deHealthWeightZoneComponent from './de/components/health/healthWeightZoneComponent.json'
 // Navbar components
+import deNavbarBottomMobileComponent from './de/components/navbar/navbarBottomMobileComponent.json';
 import deNavbarComponent from './de/components/navbar/navbarComponent.json';
 // Settings components
 import deSettingsSideBarComponent from './de/components/settings/settingsSideBarComponent.json';
@@ -84,6 +87,7 @@ import deUsersChangeUserPasswordModalComponent from './de/components/settings/se
 import deUsersListComponent from './de/components/settings/settingsUsersZone/usersListComponent.json';
 import deUsersPasswordRequirementsComponent from './de/components/settings/settingsUsersZone/usersPasswordRequirementsComponent.json';
 import deUserSessionsListComponent from './de/components/settings/settingsUserSessionsZone/userSessionsListComponent.json';
+import deSettingsServerSettingsZoneComponent from './de/components/settings/settingsServerSettingsZoneComponent.json';
 // General components
 import deNoItemsFoundComponent from './de/components/noItemsFoundComponent.json';
 // General translations
@@ -120,6 +124,7 @@ import frHealthDashboardZoneComponent from './fr/components/health/healthDashboa
 import frHealthSideBarComponent from './fr/components/health/healthSideBarComponent.json';
 import frHealthWeightZoneComponent from './fr/components/health/healthWeightZoneComponent.json'
 // Navbar components
+import frNavbarBottomMobileComponent from './fr/components/navbar/navbarBottomMobileComponent.json';
 import frNavbarComponent from './fr/components/navbar/navbarComponent.json';
 // Settings components
 import frSettingsSideBarComponent from './fr/components/settings/settingsSideBarComponent.json';
@@ -135,6 +140,7 @@ import frUsersChangeUserPasswordModalComponent from './fr/components/settings/se
 import frUsersListComponent from './fr/components/settings/settingsUsersZone/usersListComponent.json';
 import frUsersPasswordRequirementsComponent from './fr/components/settings/settingsUsersZone/usersPasswordRequirementsComponent.json';
 import frUserSessionsListComponent from './fr/components/settings/settingsUserSessionsZone/userSessionsListComponent.json';
+import frSettingsServerSettingsZoneComponent from './fr/components/settings/settingsServerSettingsZoneComponent.json';
 // General components
 import frNoItemsFoundComponent from './fr/components/noItemsFoundComponent.json';
 // General translations
@@ -171,6 +177,7 @@ import ptHealthDashboardZoneComponent from './pt/components/health/healthDashboa
 import ptHealthSideBarComponent from './pt/components/health/healthSideBarComponent.json';
 import ptHealthWeightZoneComponent from './pt/components/health/healthWeightZoneComponent.json'
 // Navbar components
+import ptNavbarBottomMobileComponent from './pt/components/navbar/navbarBottomMobileComponent.json';
 import ptNavbarComponent from './pt/components/navbar/navbarComponent.json';
 // Settings components
 import ptSettingsSideBarComponent from './pt/components/settings/settingsSideBarComponent.json';
@@ -186,6 +193,7 @@ import ptUsersChangeUserPasswordModalComponent from './pt/components/settings/se
 import ptUsersListComponent from './pt/components/settings/settingsUsersZone/usersListComponent.json';
 import ptUsersPasswordRequirementsComponent from './pt/components/settings/settingsUsersZone/usersPasswordRequirementsComponent.json';
 import ptUserSessionsListComponent from './pt/components/settings/settingsUserSessionsZone/userSessionsListComponent.json';
+import ptSettingsServerSettingsZoneComponent from './pt/components/settings/settingsServerSettingsZoneComponent.json';
 // General components
 import ptNoItemsFoundComponent from './pt/components/noItemsFoundComponent.json';
 // General translations
@@ -221,6 +229,7 @@ import usHealthDashboardZoneComponent from './us/components/health/healthDashboa
 import usHealthSideBarComponent from './us/components/health/healthSideBarComponent.json';
 import usHealthWeightZoneComponent from './us/components/health/healthWeightZoneComponent.json'
 // Navbar components
+import usNavbarBottomMobileComponent from './us/components/navbar/navbarBottomMobileComponent.json';
 import usNavbarComponent from './us/components/navbar/navbarComponent.json';
 // Settings components
 import usSettingsSideBarComponent from './us/components/settings/settingsSideBarComponent.json';
@@ -236,6 +245,7 @@ import usUsersChangeUserPasswordModalComponent from './us/components/settings/se
 import usUsersListComponent from './us/components/settings/settingsUsersZone/usersListComponent.json';
 import usUsersPasswordRequirementsComponent from './us/components/settings/settingsUsersZone/usersPasswordRequirementsComponent.json';
 import usUserSessionsListComponent from './us/components/settings/settingsUserSessionsZone/userSessionsListComponent.json';
+import usSettingsServerSettingsZoneComponent from './us/components/settings/settingsServerSettingsZoneComponent.json';
 // General components
 import usNoItemsFoundComponent from './us/components/noItemsFoundComponent.json';
 // General translations
@@ -273,6 +283,7 @@ const messages = {
     healthWeightZoneComponent: caHealthWeightZoneComponent,
     healthWeightListComponent: caHealthWeightListComponent,
     // Navbar components
+    navbarBottomMobileComponent: caNavbarBottomMobileComponent,
     navbarComponent: caNavbarComponent,
     // Settings components
     settingsSideBar: caSettingsSideBarComponent,
@@ -288,6 +299,7 @@ const messages = {
     usersListComponent: caUsersListComponent,
     usersPasswordRequirementsComponent: caUsersPasswordRequirementsComponent,
     userSessionsListComponent: caUserSessionsListComponent,
+    settingsServerSettingsZoneComponent: caSettingsServerSettingsZoneComponent,
     // General components
     noItemsFoundComponent: caNoItemsFoundComponent,
     // General translations
@@ -323,6 +335,7 @@ const messages = {
     healthWeightZoneComponent: deHealthWeightZoneComponent,
     healthWeightListComponent: deHealthWeightListComponent,
     // Navbar components
+    navbarBottomMobileComponent: deNavbarBottomMobileComponent,
     navbarComponent: deNavbarComponent,
     // Settings components
     settingsSideBar: deSettingsSideBarComponent,
@@ -338,6 +351,7 @@ const messages = {
     usersListComponent: deUsersListComponent,
     usersPasswordRequirementsComponent: deUsersPasswordRequirementsComponent,
     userSessionsListComponent: deUserSessionsListComponent,
+    settingsServerSettingsZoneComponent: deSettingsServerSettingsZoneComponent,
     // General components
     noItemsFoundComponent: deNoItemsFoundComponent,
     // General translations
@@ -373,6 +387,7 @@ const messages = {
     healthWeightZoneComponent: frHealthWeightZoneComponent,
     healthWeightListComponent: frHealthWeightListComponent,
     // Navbar components
+    navbarBottomMobileComponent: frNavbarBottomMobileComponent,
     navbarComponent: frNavbarComponent,
     // Settings components
     settingsSideBar: frSettingsSideBarComponent,
@@ -388,6 +403,7 @@ const messages = {
     usersListComponent: frUsersListComponent,
     usersPasswordRequirementsComponent: frUsersPasswordRequirementsComponent,
     userSessionsListComponent: frUserSessionsListComponent,
+    settingsServerSettingsZoneComponent: frSettingsServerSettingsZoneComponent,
     // General components
     noItemsFoundComponent: frNoItemsFoundComponent,
     // General translations
@@ -423,6 +439,7 @@ const messages = {
     healthWeightZoneComponent: ptHealthWeightZoneComponent,
     healthWeightListComponent: ptHealthWeightListComponent,
     // Navbar components
+    navbarBottomMobileComponent: ptNavbarBottomMobileComponent,
     navbarComponent: ptNavbarComponent,
     // Settings components
     settingsSideBar: ptSettingsSideBarComponent,
@@ -438,6 +455,7 @@ const messages = {
     usersListComponent: ptUsersListComponent,
     usersPasswordRequirementsComponent: ptUsersPasswordRequirementsComponent,
     userSessionsListComponent: ptUserSessionsListComponent,
+    settingsServerSettingsZoneComponent: ptSettingsServerSettingsZoneComponent,
     // General components
     noItemsFoundComponent: ptNoItemsFoundComponent,
     // General translations
@@ -473,6 +491,7 @@ const messages = {
     healthWeightZoneComponent: usHealthWeightZoneComponent,
     healthWeightListComponent: usHealthWeightListComponent,
     // Navbar components
+    navbarBottomMobileComponent: usNavbarBottomMobileComponent,
     navbarComponent: usNavbarComponent,
     // Settings components
     settingsSideBar: usSettingsSideBarComponent,
@@ -488,6 +507,7 @@ const messages = {
     usersListComponent: usUsersListComponent,
     usersPasswordRequirementsComponent: usUsersPasswordRequirementsComponent,
     userSessionsListComponent: usUserSessionsListComponent,
+    settingsServerSettingsZoneComponent: usSettingsServerSettingsZoneComponent,
     // General components
     noItemsFoundComponent: usNoItemsFoundComponent,
     // General translations

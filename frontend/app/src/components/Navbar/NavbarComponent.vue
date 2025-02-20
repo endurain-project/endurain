@@ -1,82 +1,83 @@
 <template>
     <nav class="navbar navbar-expand-lg bg-body-tertiary">
         <div class="container-fluid">
-            <router-link :to="{ name: 'home' }" class="navbar-brand" @click="collapseNavbar">
+            <!-- Navbar brand + search in the left -->
+            <router-link :to="{ name: 'home' }" class="navbar-brand">
                 Endurain
             </router-link>
-
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNavAltMarkup"
-                aria-controls="navbarNavAltMarkup" aria-expanded="false" aria-label="Toggle navigation">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <div class="collapse navbar-collapse" id="navbarNavAltMarkup" ref="navbarCollapse">
-                <div class="navbar-nav me-auto">
-                    <NavbarPipeComponent v-if="authStore.isAuthenticated" />
+            
+            <div class="d-none d-lg-flex w-100 justify-content-between">
+                <div class="navbar-nav me-auto" v-if="authStore.isAuthenticated">
+                    <NavbarPipeComponent  />
 
                     <!-- Search -->
-                    <router-link :to="{ name: 'search' }" class="nav-link link-body-emphasis" v-if="authStore.isAuthenticated" @click="collapseNavbar">
+                    <router-link :to="{ name: 'search' }" class="nav-link link-body-emphasis">
                         <font-awesome-icon :icon="['fas', 'magnifying-glass']" />
                         <span class="ms-1">
                             {{ $t("navbarComponent.search") }}
                         </span>
                     </router-link>
+                </div>
 
-                    <NavbarPipeComponent v-if="authStore.isAuthenticated" />
-
+                <!-- Navigation middle -->
+                <div class="navbar-nav mx-auto" v-if="authStore.isAuthenticated">
                     <!-- if is logged in show gears button -->
-                    <router-link :to="{ name: 'gears' }" class="nav-link link-body-emphasis" v-if="authStore.isAuthenticated" @click="collapseNavbar">
+                    <router-link :to="{ name: 'gears' }" class="nav-link link-body-emphasis">
                         <font-awesome-icon :icon="['fas', 'fa-bicycle']" />
                         <span class="ms-1">
                             {{ $t("navbarComponent.gear") }}
                         </span>
                     </router-link>
                     <!-- if is logged in show health button -->
-                    <router-link :to="{ name: 'health' }" class="nav-link link-body-emphasis" v-if="authStore.isAuthenticated" @click="collapseNavbar">
+                    <router-link :to="{ name: 'health' }" class="nav-link link-body-emphasis">
                         <font-awesome-icon :icon="['fas', 'fa-heart']" />
                         <span class="ms-1">
                             {{ $t("navbarComponent.health") }}
                         </span>
                     </router-link>
                 </div>
-                <div class="navbar-nav">
-                    <span class="border-top d-sm-none d-block" v-if="authStore.isAuthenticated"></span>
-                    
-                    <NavbarLanguageSwitcherComponent />
 
-                    <NavbarPipeComponent />
+                <!-- Navigation end -->
+                <div class="navbar-nav ms-auto" v-if="authStore.isAuthenticated">                    
+                    <NavbarLanguageSwitcherComponent />
 
                     <NavbarThemeSwitcherComponent />
 
-                    <NavbarPipeComponent />
-
-                    <!-- profile button -->
-                    <router-link :to="{ name: 'user', params: { id: authStore.user.id } }" class="nav-link link-body-emphasis" v-if="authStore.isAuthenticated" @click="collapseNavbar">
-                        <UserAvatarComponent :user="authStore.user" :width=24 :height=24 :alignTop=2 />
-                        <span class="ms-2">{{ $t("navbarComponent.profile") }}</span>
-                    </router-link>
-
-                    <!-- pipe -->
-                    <span class="border-top d-sm-none d-block" v-if="authStore.isAuthenticated"></span>
-
-                    <NavbarPipeComponent class="d-none d-sm-block" v-if="authStore.isAuthenticated"/>
-
                     <!-- Settings button -->
-                    <router-link :to="{ name: 'settings' }" class="nav-link link-body-emphasis" v-if="authStore.isAuthenticated" @click="collapseNavbar">
+                    <router-link :to="{ name: 'settings' }" class="nav-link link-body-emphasis">
                         <font-awesome-icon :icon="['fas', 'fa-gear']" />
-                        <span class="ms-1">{{ $t("navbarComponent.settings") }}</span>
+                        <span class="ms-1 d-lg-none">{{ $t("navbarComponent.settings") }}</span>
                     </router-link>
 
-                    <!-- Login/logout button -->
-                    <a class="nav-link link-body-emphasis" href="#" v-if="authStore.isAuthenticated" @click="handleLogout">
-                        <font-awesome-icon :icon="['fas', 'fa-sign-out-alt']" />
-                        <span class="ms-1">{{ $t("navbarComponent.logout") }}</span>
-                    </a>
-                    <!-- if is not logged in -->
-                    <router-link :to="{ name: 'login' }" class="nav-link link-body-emphasis" v-if="!authStore.isAuthenticated" @click="collapseNavbar">
-                        <font-awesome-icon :icon="['fas', 'fa-sign-in-alt']" />
-                        <span class="ms-1">{{ $t("navbarComponent.login") }}</span>
-                    </router-link>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <UserAvatarComponent :user="authStore.user" :width=24 :height=24 :alignTop=2 />
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li>
+                                <router-link :to="{ name: 'user', params: { id: authStore.user.id } }" class="dropdown-item">
+                                    <font-awesome-icon :icon="['fas', 'circle-user']" />
+                                    <span class="ms-2">{{ $t("navbarComponent.profile") }}</span>
+                                </router-link>
+                            </li>
+                            <li>
+                                <hr class="dropdown-divider">
+                            </li>
+                            <li>
+                                <a class="dropdown-item" href="#" @click="handleLogout">
+                                    <font-awesome-icon :icon="['fas', 'fa-sign-out-alt']" />
+                                    <span class="ms-2">{{ $t("navbarComponent.logout") }}</span>
+                                </a>
+                            </li>
+                        </ul>
+                    </li>
                 </div>
+            </div>
+            <div class="navbar-nav" v-if="!authStore.isAuthenticated">
+                <router-link :to="{ name: 'login' }" class="nav-link link-body-emphasis d-flex align-items-center">
+                    <font-awesome-icon :icon="['fas', 'fa-sign-in-alt']" />
+                    <span class="ms-1">{{ $t("navbarComponent.login") }}</span>
+                </router-link>
             </div>
         </div>
     </nav>
@@ -108,35 +109,18 @@ export default {
 		const router = useRouter();
 		const authStore = useAuthStore();
 		const { locale, t } = useI18n();
-        const showSearch = ref(false);
 
 		async function handleLogout() {
 			try {
-				collapseNavbar();
                 await authStore.logoutUser(router, locale);
 			} catch (error) {
 				push.error(`${t("navbarComponent.errorLogout")} - ${error}`);
 			}
 		}
 
-        function toggleShowSearch() {
-            showSearch.value = !showSearch.value;
-        }
-
-		function collapseNavbar() {
-			const navbarToggler = document.querySelector(".navbar-toggler");
-			const navbarCollapse = document.querySelector("#navbarNavAltMarkup");
-			if (navbarToggler && navbarCollapse.classList.contains("show")) {
-				navbarToggler.click();
-			}
-		}
-
 		return {
 			authStore,
 			handleLogout,
-			collapseNavbar,
-            toggleShowSearch,
-            showSearch,
 		};
 	},
 };

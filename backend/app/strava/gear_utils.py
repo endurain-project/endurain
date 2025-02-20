@@ -19,7 +19,7 @@ from core.database import SessionLocal
 
 
 def get_strava_gear(gear_id: str, strava_client: Client):
-    # Fetch Strava athlete
+    # Fetch Strava gear
     try:
         strava_gear = strava_client.get_gear(gear_id)
     except Exception as err:
@@ -45,7 +45,10 @@ def get_strava_gear(gear_id: str, strava_client: Client):
 
 def fetch_and_process_gear(strava_client: Client, user_id: int, db: Session) -> int:
     # Fetch Strava athlete
-    strava_athlete = strava_athlete_utils.get_strava_athlete(strava_client)
+    try:
+        strava_athlete = strava_athlete_utils.get_strava_athlete(strava_client)
+    except Exception as err:
+        raise err
 
     # Initialize an empty list for results
     strava_gear = []
@@ -87,7 +90,10 @@ def process_gear(
         return None
 
     # Get the gear from Strava
-    strava_gear = get_strava_gear(gear.id, strava_client)
+    try:
+        strava_gear = get_strava_gear(gear.id, strava_client)
+    except Exception as err:
+        raise err
 
     new_gear = gears_schema.Gear(
         brand=strava_gear.brand_name,

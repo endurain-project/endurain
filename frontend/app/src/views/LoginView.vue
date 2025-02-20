@@ -27,80 +27,87 @@
 
 <script>
 // Importing the vue composition API
-import { ref, onMounted } from 'vue';
+import { ref, onMounted } from "vue";
 // Importing the router
-import { useRoute, useRouter } from 'vue-router';
+import { useRoute, useRouter } from "vue-router";
 // Importing the i18n
-import { useI18n } from 'vue-i18n';
+import { useI18n } from "vue-i18n";
 // Import Notivue push
-import { push } from 'notivue'
+import { push } from "notivue";
 // Importing the stores
-import { useAuthStore } from '@/stores/authStore';
+import { useAuthStore } from "@/stores/authStore";
 // Importing the services for the login
-import { session } from '@/services/sessionService';
-import { profile } from '@/services/profileService';
-
+import { session } from "@/services/sessionService";
+import { profile } from "@/services/profileService";
 
 // Exporting the default object
 export default {
-  // Setup function
-  setup() {
-    // Variables
-    const route = useRoute();
-    const router = useRouter();
-    const { locale, t } = useI18n();
-    const username = ref('');
-    const password = ref('');
-    const authStore = useAuthStore();
+	// Setup function
+	setup() {
+		// Variables
+		const route = useRoute();
+		const router = useRouter();
+		const { locale, t } = useI18n();
+		const username = ref("");
+		const password = ref("");
+		const authStore = useAuthStore();
 
-    // Handle the form submission
-    const submitForm = async () => {
-      // Create the form data
-      const formData = new URLSearchParams();
-      formData.append('grant_type', 'password');
-      formData.append('username', username.value);
-      formData.append('password', password.value);
+		// Handle the form submission
+		const submitForm = async () => {
+			// Create the form data
+			const formData = new URLSearchParams();
+			formData.append("grant_type", "password");
+			formData.append("username", username.value);
+			formData.append("password", password.value);
 
-      try {
-        // Get the token
-        const session_id = await session.authenticateUser(formData);
+			try {
+				// Get the token
+				const session_id = await session.authenticateUser(formData);
 
-        // Get logged user information
-        const userProfile = await profile.getProfileInfo();
+				// Get logged user information
+				const userProfile = await profile.getProfileInfo();
 
-        // Store the user in the auth store
-        authStore.setUser(userProfile, session_id, locale);
-        
-        // Redirect to the home page
-        router.push('/');
-      } catch (error) {
-        // Handle the error
-        if (error.toString().includes('401')) {
-          push.error(`${t('loginView.error401')} - ${error}`)
-        } else if (error.toString().includes('403')) {
-          push.error(`${t('loginView.error403')} - ${error}`)
-        } else if (error.toString().includes('500')) {
-          push.error(`${t('loginView.error500')} - ${error}`)
-        } else {
-          push.error(`${t('loginView.errorUndefined')} - ${error}`)
-        }
-      }
-    };
+				// Store the user in the auth store
+				authStore.setUser(userProfile, session_id, locale);
 
-    onMounted(() => {
-      // Check if the session expired
-      if (route.query.sessionExpired === 'true') {
-        push.warning(t('loginView.sessionExpired'));
-      }
-    });
+				// Redirect to the home page
+				return router.push("/");
+			} catch (error) {
+				// Handle the error
+				if (error.toString().includes("401")) {
+					push.error(`${t("loginView.error401")} - ${error}`);
+				} else if (error.toString().includes("403")) {
+					push.error(`${t("loginView.error403")} - ${error}`);
+				} else if (error.toString().includes("500")) {
+					push.error(`${t("loginView.error500")} - ${error}`);
+				} else {
+					push.error(`${t("loginView.errorUndefined")} - ${error}`);
+				}
+			}
+		};
 
-    // Return the variables
-    return {
-      username,
-      password,
-      submitForm,
-      t,
-    };
-  },
+		onMounted(() => {
+			// Check if the session expired
+			if (route.query.sessionExpired === "true") {
+				push.warning(t("loginView.sessionExpired"));
+			}
+			// Check if the public activity was not found
+			if (route.query.errorPublicActivityNotFound === "true") {
+				push.error(t("loginView.errorPublicActivityNotFound"));
+			}
+			// Check if the public shareable links are disabled
+			if (route.query.errorpublic_shareable_links === "true") {
+				push.error(t("loginView.errorpublic_shareable_links"));
+			}
+		});
+
+		// Return the variables
+		return {
+			username,
+			password,
+			submitForm,
+			t,
+		};
+	},
 };
 </script>

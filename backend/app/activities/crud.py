@@ -10,6 +10,8 @@ import activities.models as activities_models
 import activities.schema as activities_schema
 import activities.utils as activities_utils
 
+import server_settings.crud as server_settings_crud
+
 import core.logger as core_logger
 
 
@@ -404,6 +406,47 @@ def get_activity_by_id_from_user_id_or_has_visibility(
         ) from err
 
 
+def get_activity_by_id_if_is_public(activity_id: int, db: Session):
+    try:
+        # Check if public sharable links are enabled in server settings
+        server_settings = server_settings_crud.get_server_settings(db)
+
+        # Return None if public sharable links are disabled
+        if not server_settings or not server_settings.public_shareable_links:
+            return None
+        
+        # Get the activities from the database
+        activity = (
+            db.query(activities_models.Activity)
+            .filter(
+                activities_models.Activity.visibility == 0,
+                activities_models.Activity.id == activity_id,
+            )
+            .first()
+        )
+
+        # Check if there are activities if not return None
+        if not activity:
+            return None
+
+        activity = activities_utils.serialize_activity(activity)
+
+        # Return the activities
+        return activity
+    except Exception as err:
+        # Log the exception
+        core_logger.print_to_log(
+            f"Error in get_activity_by_id_if_is_public: {err}",
+            "error",
+            exc=err,
+        )
+        # Raise an HTTPException with a 500 Internal Server Error status code
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal Server Error",
+        ) from err
+
+
 def get_activity_by_id_from_user_id(
     activity_id: int, user_id: int, db: Session
 ) -> activities_schema.Activity:
@@ -604,7 +647,7 @@ def edit_activity(user_id: int, activity: activities_schema.Activity, db: Sessio
 
         # Check if 'activity' is a Pydantic model instance and convert it to a dictionary
         if isinstance(activity, BaseModel):
-            activity_data = activity.dict(exclude_unset=True)
+            activity_data = activity.model_dump(exclude_unset=True)
         else:
             activity_data = {
                 key: value for key, value in vars(activity).items() if value is not None

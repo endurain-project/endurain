@@ -1,6 +1,9 @@
 import { fetchGetRequest, fetchPostRequest, fetchPutRequest, fetchDeleteRequest } from '@/utils/serviceUtils';
 
 export const gears = {
+    getGears() {
+        return fetchGetRequest("gears");
+    },
     getGearById(gearId) {
         return fetchGetRequest(`gears/id/${gearId}`);
     },

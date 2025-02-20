@@ -1,4 +1,5 @@
 {
+    "userNameHidden": "Hidden",
     "visibilityPublic": "Public",
     "visibilityFollowers": "Followers",
     "visibilityPrivate": "Private",
@@ -6,6 +7,7 @@
     "buttonEditActivity": "Edit activity",
     "modalDeleteBody1": "Are you sure you want to delete activity ",
     "modalDeleteBody2": "This action cannot be undone.",
+    "labelVirtual": "(Virtual) ",
     "activityDistance": "Distance",
     "activityTime": "Time",
     "activityElevationGain": "Elevation Gain",

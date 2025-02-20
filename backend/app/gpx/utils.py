@@ -3,16 +3,19 @@ import gpxpy.gpx
 import os
 from geopy.distance import geodesic
 from timezonefinder import TimezoneFinder
+from sqlalchemy.orm import Session
 
 from fastapi import HTTPException, status
 
 import activities.utils as activities_utils
 import activities.schema as activities_schema
 
+import user_default_gear.utils as user_default_gear_utils
+
 import core.logger as core_logger
 
 
-def parse_gpx_file(file: str, user_id: int) -> dict:
+def parse_gpx_file(file: str, user_id: int, db: Session) -> dict:
     try:
         # Create an instance of TimezoneFinder
         tf = TimezoneFinder()
@@ -37,6 +40,7 @@ def parse_gpx_file(file: str, user_id: int) -> dict:
         max_speed = None
         activity_name = "Workout"
         process_one_time_fields = 0
+        gear_id = None
 
         city = None
         town = None
@@ -84,7 +88,10 @@ def parse_gpx_file(file: str, user_id: int) -> dict:
                                 latitude, longitude = point.latitude, point.longitude
 
                                 # Calculate distance between waypoints
-                                if prev_latitude is not None and prev_longitude is not None:
+                                if (
+                                    prev_latitude is not None
+                                    and prev_longitude is not None
+                                ):
                                     distance += geodesic(
                                         (prev_latitude, prev_longitude),
                                         (latitude, longitude),
@@ -121,7 +128,9 @@ def parse_gpx_file(file: str, user_id: int) -> dict:
                                 if point.extensions:
                                     # Iterate through each extension element
                                     for extension in point.extensions:
-                                        if extension.tag.endswith("TrackPointExtension"):
+                                        if extension.tag.endswith(
+                                            "TrackPointExtension"
+                                        ):
                                             hr_element = extension.find(
                                                 ".//{http://www.garmin.com/xmlschemas/TrackPointExtension/v1}hr"
                                             )
@@ -149,13 +158,15 @@ def parse_gpx_file(file: str, user_id: int) -> dict:
                                     power = None
 
                                 # Calculate instant speed, pace, and update waypoint arrays
-                                instant_speed = activities_utils.calculate_instant_speed(
-                                    last_waypoint_time,
-                                    time,
-                                    latitude,
-                                    longitude,
-                                    prev_latitude,
-                                    prev_longitude,
+                                instant_speed = (
+                                    activities_utils.calculate_instant_speed(
+                                        last_waypoint_time,
+                                        time,
+                                        latitude,
+                                        longitude,
+                                        prev_latitude,
+                                        prev_longitude,
+                                    )
                                 )
 
                                 # Calculate instance pace
@@ -226,6 +237,10 @@ def parse_gpx_file(file: str, user_id: int) -> dict:
         # Activity type
         activity_type = activities_utils.define_activity_type(activity_type)
 
+        gear_id = user_default_gear_utils.get_user_default_gear_by_activity_type(
+            user_id, activity_type, db
+        )
+
         # Calculate average and maximum heart rate
         if hr_waypoints:
             avg_hr, max_hr = activities_utils.calculate_avg_and_max(hr_waypoints, "hr")
@@ -289,6 +304,7 @@ def parse_gpx_file(file: str, user_id: int) -> dict:
             max_cad=round(max_cadence) if max_cadence else None,
             calories=calories,
             visibility=visibility,
+            gear_id=gear_id,
             strava_gear_id=None,
             strava_activity_id=None,
         )

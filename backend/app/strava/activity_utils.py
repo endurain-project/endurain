@@ -17,6 +17,8 @@ import activity_streams.crud as activity_streams_crud
 
 import user_integrations.schema as user_integrations_schema
 
+import user_default_gear.utils as user_default_gear_utils
+
 import users.crud as users_crud
 
 import gears.crud as gears_crud
@@ -44,7 +46,7 @@ def fetch_and_process_activities(
             exc=err,
         )
         # Return 0 to indicate no activities were processed
-        #return 0
+        # return 0
         raise HTTPException(
             status_code=status.HTTP_424_FAILED_DEPENDENCY,
             detail="Not able to fetch Strava activities",
@@ -144,7 +146,7 @@ def parse_activity(
             exc=err,
         )
         # Return None to indicate the activity was not processed
-        #eturn None
+        # eturn None
         raise HTTPException(
             status_code=status.HTTP_424_FAILED_DEPENDENCY,
             detail="Not able to fetch Strava activity streams",
@@ -292,6 +294,11 @@ def parse_activity(
     activity_type = activities_utils.define_activity_type(
         detailedActivity.sport_type.root
     )
+
+    if gear_id is None:
+        gear_id = user_default_gear_utils.get_user_default_gear_by_activity_type(
+            user_id, activity_type, db
+        )
 
     if activity_type != 3 and activity_type != 7:
         if is_lat_lon_set:

@@ -11,6 +11,8 @@ from zoneinfo import ZoneInfo, available_timezones
 import activities.utils as activities_utils
 import activities.schema as activities_schema
 
+import user_default_gear.utils as user_default_gear_utils
+
 import garmin.utils as garmin_utils
 
 import gears.crud as gears_crud
@@ -61,6 +63,10 @@ def create_activity_objects(
                 activity_type = activities_utils.define_activity_type(
                     session_record["session"]["activity_type"]
                 )
+
+                if gear_id is None:
+                    gear_id = user_default_gear_utils.get_user_default_gear_by_activity_type(
+                        user_id, activity_type, db)
 
             if session_record["activity_name"]:
                 activity_name = session_record["activity_name"]
@@ -156,7 +162,7 @@ def create_activity_objects(
     except Exception as err:
         # Log the exception
         core_logger.print_to_log(
-            f"Error in parse_sessions_from_fit_file: {err}", "error"
+            f"Error in create_activity_objects: {err}", "error"
         )
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(

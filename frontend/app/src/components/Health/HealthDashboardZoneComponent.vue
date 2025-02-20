@@ -1,6 +1,6 @@
 <template>
     <div class="col">
-        <div class="card mb-3 text-center">
+        <div class="card mb-3 text-center shadow-sm">
             <div class="card-header">
                 <h4>{{ $t("healthDashboardZoneComponent.weight") }}</h4>
             </div>
@@ -16,7 +16,7 @@
         </div>
     </div>
     <div class="col">
-        <div class="card mb-3 text-center">
+        <div class="card mb-3 text-center shadow-sm">
             <div class="card-header">
                 <h4>{{ $t("healthDashboardZoneComponent.bmi") }}</h4>
             </div>

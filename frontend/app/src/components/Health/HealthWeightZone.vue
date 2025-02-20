@@ -3,12 +3,12 @@
         <LoadingComponent v-if="isLoading" />
         <div v-else>
             <!-- add weight button -->
-            <a class="w-100 btn btn-primary" href="#" role="button" data-bs-toggle="modal" data-bs-target="#addWeightModal">{{ $t("healthWeightZoneComponent.buttonAddWeight") }}</a>
+            <a class="w-100 btn btn-primary shadow-sm" href="#" role="button" data-bs-toggle="modal" data-bs-target="#addWeightModal">{{ $t("healthWeightZoneComponent.buttonAddWeight") }}</a>
 
             <HealthWeightAddEditModalComponent :action="'add'" @isLoadingNewWeight="updateIsLoadingNewWeight" @createdWeight="updateWeightListAdded" />
             
             <!-- Checking if dataWithWeight is loaded and has length -->
-            <div v-if="dataWithWeight && dataWithWeight.length" class="mt-3">
+            <div v-if="dataWithWeight && dataWithWeight.length" class="mt-3 p-3 bg-body-tertiary rounded shadow-sm">
                 <!-- show graph -->
                 <HealthWeightLineChartComponent :userHealthData="dataWithWeight" :isLoading="isLoading" />
 
@@ -23,7 +23,7 @@
                     </ul>
 
                 <!-- list zone -->
-                <ul class="mt-3 list-group list-group-flush"  v-for="data in dataWithWeightPagination" :key="data.id" :data="data">
+                <ul class="my-3 list-group list-group-flush"  v-for="data in dataWithWeightPagination" :key="data.id" :data="data">
                     <HealthWeightListComponent :data="data" @deletedWeight="updateWeightListDeleted" @editedWeight="updateWeightListEdited" />
                 </ul>
 

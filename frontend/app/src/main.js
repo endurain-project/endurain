@@ -4,6 +4,7 @@ import { createPinia } from "pinia";
 
 import { useAuthStore } from "./stores/authStore";
 import { useThemeStore } from "./stores/themeStore";
+import { useServerSettingsStore } from "./stores/serverSettingsStore";
 
 import "bootstrap/dist/css/bootstrap.min.css";
 import "bootstrap/dist/js/bootstrap.bundle.min.js";
@@ -36,6 +37,9 @@ import "notivue/animations.css";
 import "notivue/notification-progress.css";
 
 const notivue = createNotivue({
+	position: 'top-center',
+	limit: 4,
+	enqueue: true,
 	notifications: {
 		global: {
 			duration: 5000,
@@ -57,5 +61,8 @@ authStore.loadUserFromStorage(i18n);
 
 const themeStore = useThemeStore();
 themeStore.loadThemeFromStorage();
+
+const serverSettingsStore = useServerSettingsStore();
+serverSettingsStore.loadServerSettingsFromServer();
 
 app.mount("#app");

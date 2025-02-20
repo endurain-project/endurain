@@ -17,7 +17,7 @@
                         <input class="form-control" type="text" name="activityDescriptionEdit" :placeholder='$t("editActivityModalComponent.modalEditActivityDescriptionPlaceholder")' maxlength="2500" v-model="editActivityDescription">
                         <!-- type fields -->
                         <label for="activityTypeEdit"><b>* {{ $t("editActivityModalComponent.modalEditActivityTypeLabel") }}</b></label>
-                        <select class="form-control" name="activityTypeEdit" v-model="editActivityType" required>
+                        <select class="form-select" name="activityTypeEdit" v-model="editActivityType" required>
                             <option value="1">{{ $t("editActivityModalComponent.modalEditActivityTypeOption1") }}</option>
                             <option value="2">{{ $t("editActivityModalComponent.modalEditActivityTypeOption2") }}</option>
                             <option value="3">{{ $t("editActivityModalComponent.modalEditActivityTypeOption3") }}</option>
@@ -38,7 +38,7 @@
                         </select>
                         <!-- visibility fields -->
                         <label for="activityVisibilityEdit"><b>* {{ $t("editActivityModalComponent.modalEditActivityVisibilityLabel") }}</b></label>
-                        <select class="form-control" name="activityVisibilityEdit" v-model="editActivityVisibility" required>
+                        <select class="form-select" name="activityVisibilityEdit" v-model="editActivityVisibility" required>
                             <option value="0">{{ $t("editActivityModalComponent.modalEditActivityVisibilityOption0") }}</option>
                             <option value="1">{{ $t("editActivityModalComponent.modalEditActivityVisibilityOption1") }}</option>
                             <option value="2">{{ $t("editActivityModalComponent.modalEditActivityVisibilityOption2") }}</option>

@@ -4,9 +4,11 @@ from sqlalchemy import (
     String,
     DATETIME,
     ForeignKey,
+    Boolean,
     DECIMAL,
 )
 from sqlalchemy.orm import relationship
+from sqlalchemy.sql import func
 from core.database import Base
 
 
@@ -37,7 +39,12 @@ class Gear(Base):
         nullable=False,
         comment="User ID that the gear belongs to",
     )
-    created_at = Column(DATETIME, nullable=False, comment="Gear creation date (DATETIME)")
+    created_at = Column(
+        DATETIME,
+        nullable=False,
+        default=func.now(),
+        comment="Gear creation date (DATETIME)",
+    )
     is_active = Column(
         Integer, nullable=False, comment="Is gear active (0 - not active, 1 - active)"
     )
@@ -58,3 +65,53 @@ class Gear(Base):
     user = relationship("User", back_populates="gear")
     # Establish a one-to-many relationship with 'activities'
     activities = relationship("Activity", back_populates="gear")
+    users_default_run_gear = relationship(
+        "UsersDefaultGear",
+        back_populates="run_gear",
+        foreign_keys="[UsersDefaultGear.run_gear_id]",
+    )
+    users_default_trail_run_gear = relationship(
+        "UsersDefaultGear",
+        back_populates="trail_run_gear",
+        foreign_keys="[UsersDefaultGear.trail_run_gear_id]",
+    )
+    users_default_virtual_run_gear = relationship(
+        "UsersDefaultGear",
+        back_populates="virtual_run_gear",
+        foreign_keys="[UsersDefaultGear.virtual_run_gear_id]",
+    )
+    users_default_ride_gear = relationship(
+        "UsersDefaultGear",
+        back_populates="ride_gear",
+        foreign_keys="[UsersDefaultGear.ride_gear_id]",
+    )
+    users_default_gravel_ride_gear = relationship(
+        "UsersDefaultGear",
+        back_populates="gravel_ride_gear",
+        foreign_keys="[UsersDefaultGear.gravel_ride_gear_id]",
+    )
+    users_default_mtb_ride_gear = relationship(
+        "UsersDefaultGear",
+        back_populates="mtb_ride_gear",
+        foreign_keys="[UsersDefaultGear.mtb_ride_gear_id]",
+    )
+    users_default_virtual_ride_gear = relationship(
+        "UsersDefaultGear",
+        back_populates="virtual_ride_gear",
+        foreign_keys="[UsersDefaultGear.virtual_ride_gear_id]",
+    )
+    users_default_ows_gear = relationship(
+        "UsersDefaultGear",
+        back_populates="ows_gear",
+        foreign_keys="[UsersDefaultGear.ows_gear_id]",
+    )
+    users_default_walk_gear = relationship(
+        "UsersDefaultGear",
+        back_populates="walk_gear",
+        foreign_keys="[UsersDefaultGear.walk_gear_id]",
+    )
+    users_default_hike_gear = relationship(
+        "UsersDefaultGear",
+        back_populates="hike_gear",
+        foreign_keys="[UsersDefaultGear.hike_gear_id]",
+    )

@@ -236,7 +236,7 @@ def edit_health_data(user_id, health_data: health_data_schema.HealthData, db: Se
             health_data = health_data_utils.calculate_bmi(health_data, user_id, db)
 
         # Dictionary of the fields to update if they are not None
-        health_data_data = health_data.dict(exclude_unset=True)
+        health_data_data = health_data.model_dump(exclude_unset=True)
         # Iterate over the fields and update the db_health_data dynamically
         for key, value in health_data_data.items():
             setattr(db_health_data, key, value)

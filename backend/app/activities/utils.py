@@ -117,7 +117,7 @@ def parse_and_store_activity_from_file(
         # Open the file and process it
         with open(file_path, "rb"):
             # Parse the file
-            parsed_info = parse_file(token_user_id, file_extension, file_path)
+            parsed_info = parse_file(token_user_id, file_extension, file_path, db)
 
             if parsed_info is not None:
                 created_activities = []
@@ -144,7 +144,7 @@ def parse_and_store_activity_from_file(
                         )
                     else:
                         created_activities_objects = fit_utils.create_activity_objects(
-                            split_records_by_activity, token_user_id
+                            split_records_by_activity, token_user_id, None, None, db
                         )
 
                     for activity in created_activities_objects:
@@ -205,7 +205,7 @@ def parse_and_store_activity_from_uploaded_file(
             save_file.write(file.file.read())
 
         # Parse the file
-        parsed_info = parse_file(token_user_id, file_extension, file_path)
+        parsed_info = parse_file(token_user_id, file_extension, file_path, db)
 
         if parsed_info is not None:
             created_activities = []
@@ -223,7 +223,7 @@ def parse_and_store_activity_from_uploaded_file(
 
                 # Create activity objects for each activity in the file
                 created_activities_objects = fit_utils.create_activity_objects(
-                    split_records_by_activity, token_user_id
+                    split_records_by_activity, token_user_id, None, None, db
                 )
 
                 for activity in created_activities_objects:
@@ -295,14 +295,16 @@ def move_file(new_dir: str, new_filename: str, file_path: str):
         ) from err
 
 
-def parse_file(token_user_id: int, file_extension: str, filename: str) -> dict:
+def parse_file(
+    token_user_id: int, file_extension: str, filename: str, db: Session
+) -> dict:
     try:
         if filename.lower() != "bulk_import/__init__.py":
             core_logger.print_to_log(f"Parsing file: {filename}")
             # Choose the appropriate parser based on file extension
             if file_extension.lower() == ".gpx":
                 # Parse the GPX file
-                parsed_info = gpx_utils.parse_gpx_file(filename, token_user_id)
+                parsed_info = gpx_utils.parse_gpx_file(filename, token_user_id, db)
             elif file_extension.lower() == ".fit":
                 # Parse the FIT file
                 parsed_info = fit_utils.parse_fit_file(filename)

@@ -10,5 +10,7 @@
     "neverExpires": "Remember me (do not tick this box if you are using a shared computer)",
     "signInButton": "Sign in",
     "signUpText": "Looking for signing up?",
-    "signUpButton": "Sign up"
+    "signUpButton": "Sign up",
+    "errorPublicActivityNotFound": "Public activity not found",
+    "errorpublic_shareable_links": "Public shareable links are not allowed. To view this activity, you must be signed in"
 }

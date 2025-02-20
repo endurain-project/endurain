@@ -1,54 +1,55 @@
 <template>
     <div class="col">
-        <div class="row row-gap-3">
-            <div class="col-lg-4 col-md-12">
-                <!-- add user button -->
-                <a class="w-100 btn btn-primary" href="#" role="button" data-bs-toggle="modal" data-bs-target="#addUserModal">{{ $t("settingsUsersZone.buttonAddUser") }}</a>
+		<div class="bg-body-tertiary rounded p-3 shadow-sm">
+			<div class="row row-gap-3">
+				<div class="col-lg-4 col-md-12">
+					<!-- add user button -->
+					<a class="w-100 btn btn-primary" href="#" role="button" data-bs-toggle="modal" data-bs-target="#addUserModal">{{ $t("settingsUsersZone.buttonAddUser") }}</a>
 
-                <!-- Modal add user -->
-                <UsersAddEditUserModalComponent :action="'add'" @createdUser="addUserList" @isLoadingNewUser="setIsLoadingNewUser"/>
-            </div>
-            <!-- form to search-->
-            <div class="col">
-                <form class="d-flex">
-                    <input class="form-control me-2" type="text" name="userUsername" :placeholder='$t("settingsUsersZone.labelSearchUsersByUsername")' v-model="searchUsername" required>
-                </form>
-            </div>
-        </div>
-        <div>
-            <LoadingComponent v-if="isLoading" />
-            <div v-else>
-                <!-- Checking if usersArray is loaded and has length -->
-                <div v-if="usersArray && usersArray.length">
-                    <!-- title zone -->
-                    <br>
-                    <p>{{ $t("settingsUsersZone.labelNumberOfUsers1") }}{{ usersNumber }}{{ $t("settingsUsersZone.labelNumberOfUsers2") }}{{ usersArray.length }}{{ $t("settingsUsersZone.labelNumberOfUsers3") }}</p>
+					<!-- Modal add user -->
+					<UsersAddEditUserModalComponent :action="'add'" @createdUser="addUserList" @isLoadingNewUser="setIsLoadingNewUser"/>
+				</div>
+				<!-- form to search-->
+				<div class="col">
+					<form class="d-flex">
+						<input class="form-control me-2" type="text" name="userUsername" :placeholder='$t("settingsUsersZone.labelSearchUsersByUsername")' v-model="searchUsername" required>
+					</form>
+				</div>
+			</div>
+			<div>
+				<LoadingComponent v-if="isLoading" />
+				<div v-else>
+					<!-- Checking if usersArray is loaded and has length -->
+					<div class="mt-3" v-if="usersArray && usersArray.length">
+						<!-- title zone -->
+						<span>{{ $t("settingsUsersZone.labelNumberOfUsers1") }}{{ usersNumber }}{{ $t("settingsUsersZone.labelNumberOfUsers2") }}{{ usersArray.length }}{{ $t("settingsUsersZone.labelNumberOfUsers3") }}</span>
 
-                    <!-- Displaying loading new gear if applicable -->
-                    <ul class="list-group list-group-flush" v-if="isLoadingNewUser">
-                        <li class="list-group-item rounded">
-                            <LoadingComponent />
-                        </li>
-                    </ul>
+						<!-- Displaying loading new gear if applicable -->
+						<ul class="list-group list-group-flush" v-if="isLoadingNewUser">
+							<li class="list-group-item rounded">
+								<LoadingComponent />
+							</li>
+						</ul>
 
-                    <!-- Displaying loading if gears are updating -->
-                    <LoadingComponent v-if="isUsersUpdatingLoading"/>
+						<!-- Displaying loading if gears are updating -->
+						<LoadingComponent v-if="isUsersUpdatingLoading"/>
 
-                    <!-- list zone -->
-                    <ul class="list-group list-group-flush"  v-for="user in usersArray" :key="user.id" :user="user" v-else>
-                        <UsersListComponent :user="user" @userDeleted="updateUserList" @editedUser="editUserList"/>
-                    </ul>
+						<!-- list zone -->
+						<ul class="list-group list-group-flush"  v-for="user in usersArray" :key="user.id" :user="user" v-else>
+							<UsersListComponent :user="user" @userDeleted="updateUserList" @editedUser="editUserList"/>
+						</ul>
 
-                    <!-- pagination area -->
-                    <PaginationComponent :totalPages="totalPages" :pageNumber="pageNumber" @pageNumberChanged="setPageNumber" v-if="!searchUsername"/>
-                </div>
-                <!-- Displaying a message or component when there are no activities -->
-                <div v-else>
-                    <br>
-                    <NoItemsFoundComponent />
-                </div>
-            </div>
-        </div>
+						<!-- pagination area -->
+						<PaginationComponent :totalPages="totalPages" :pageNumber="pageNumber" @pageNumberChanged="setPageNumber" v-if="!searchUsername"/>
+					</div>
+					<!-- Displaying a message or component when there are no activities -->
+					<div v-else>
+						<br>
+						<NoItemsFoundComponent />
+					</div>
+				</div>
+			</div>
+		</div>
     </div>
 </template>
 

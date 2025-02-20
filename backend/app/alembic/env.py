@@ -12,9 +12,11 @@ import gears.models
 import health_data.models
 import health_targets.models
 import migrations.models
+import user_default_gear.models
 import user_integrations.models
 import users.models
 import session.models
+import server_settings.models
 
 # import Base and engine from database file
 from core.database import Base, engine

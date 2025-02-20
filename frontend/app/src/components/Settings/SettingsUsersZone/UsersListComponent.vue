@@ -1,5 +1,5 @@
 <template>
-    <li class="list-group-item rounded" :class="{ 'shadow my-1': userDetails }">
+    <li class="list-group-item bg-body-tertiary rounded px-0">
 		<div class="d-flex justify-content-between">
 			<div class="d-flex align-items-center">
 				<UserAvatarComponent :user="user" :width=55 :height=55 />
