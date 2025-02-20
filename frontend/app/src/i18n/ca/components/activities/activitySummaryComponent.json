@@ -1,4 +1,5 @@
 {
+    "userNameHidden": "Hidden",
     "visibilityPublic": "Públic",
     "visibilityFollowers": "Seguidors",
     "visibilityPrivate": "Privat",
@@ -6,6 +7,7 @@
     "buttonEditActivity": "Edita activitat",
     "modalDeleteBody1": "Segur que vols esborrar l'activitat ",
     "modalDeleteBody2": "Aquesta acció no es pot desfer.",
+    "labelVirtual": "(Virtual) ",
     "activityDistance": "Distància",
     "activityTime": "Temps",
     "activityElevationGain": "Desnivell",
