@@ -1,0 +1,14 @@
+{
+    "unitsLabel": "Default units",
+    "unitsMetric": "Metric",
+    "unitsImperial": "Imperial",
+    "publicShareableLinksLabel": "Public shareable links",
+    "publicShareableLinksEnabledLabel": "Enabled",
+    "publicShareableLinksTrue": "True",
+    "publicShareableLinksFalse": "False",
+    "serverSettingsPublicShareableLinksEnabledWarningAlert": "Enabling this will make all publicly posted activities viewable without authentication.",
+    "publicShareableLinksShowUserInfoLabel": "Show user info",
+    "serverSettingsPublicShareableLinksShowUserWarningAlert": "Enabling this will display user information on all public links",
+    "successUpdateServerSettings": "Server settings updated successfully",
+    "errorUpdateServerSettings": "Error updating server settings"
+}
