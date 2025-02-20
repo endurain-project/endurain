@@ -1,7 +1,8 @@
 {
-    "buttonDeleteProfilePhoto": "Eliminar fotografia",
+    "titleProfileInfo": "My profile",
+    "buttonDeleteProfilePhoto": "Delete",
     "modalDeleteProfilePhotoBody": "Tem certeza de que deseja eliminar a sua fotografia de perfil?",
-    "buttonEditProfile": "Editar perfil",
+    "buttonEditProfile": "Profile",
     "usernameLabel": "Nome de utilizador",
     "emailLabel": "E-mail",
     "cityLabel": "Cidade",
@@ -23,5 +24,21 @@
     "accessTypeOption1": "Normal",
     "accessTypeOption2": "Administrador",
     "userPhotoDeleteSuccess": "Fotografia do utilizador eliminada com sucesso",
-    "userPhotoDeleteError": "Erro ao eliminar fotografia do utilizador"
+    "userPhotoDeleteError": "Erro ao eliminar fotografia do utilizador",
+    "titleDefaultGear": "Default gear",
+    "subTitleRun": "Run",
+    "subTitleTrailRun": "Trail run",
+    "subTitleVirtualRun": "Virtual run",
+    "subTitleBike": "Bike",
+    "subTitleMTBBike": "MTB bike",
+    "subTitleGravelBike": "Gravel bike",
+    "subTitleVirtualBike": "Virtual bike",
+    "subTitleSwim": "Swim",
+    "subTitleWalk": "Walk",
+    "subTitleHike": "Hike",
+    "selectOptionNotDefined": "Not defined",
+    "errorUnableToGetGear": "Unable to get gear",
+    "errorUnableToGetDefaultGear": "Unable to get default gear",
+    "successUpdateDefaultGear": "Default gear updated successfully",
+    "errorUpdateDefaultGear": "Error updating default gear"
 }
