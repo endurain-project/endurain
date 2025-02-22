@@ -11,6 +11,6 @@
     "signInButton": "Inicia la sessió",
     "signUpText": "Cercant el registre?",
     "signUpButton": "Registra't",
-    "errorPublicActivityNotFound": "Public activity not found",
-    "errorpublic_shareable_links": "Public shareable links are not allowed. To view this activity, you must be signed in"
+    "errorPublicActivityNotFound": "Activitat pública no trobada",
+    "errorpublic_shareable_links": "No es permeten enllaços públics compartibles. Per veure l'activitat, has d'iniciar sessió"
 }
