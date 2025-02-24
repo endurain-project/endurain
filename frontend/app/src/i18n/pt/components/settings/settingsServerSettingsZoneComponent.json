@@ -1,3 +1,14 @@
 {
-    
+    "unitsLabel": "Unidades padrão",
+    "unitsMetric": "Métrico",
+    "unitsImperial": "Imperial",
+    "publicShareableLinksLabel": "Links publicamente compartilháveis",
+    "publicShareableLinksEnabledLabel": "Ativo",
+    "publicShareableLinksTrue": "Verdade",
+    "publicShareableLinksFalse": "Falso",
+    "serverSettingsPublicShareableLinksEnabledWarningAlert": "Ao ativar esta opção, todas as atividades publicadas publicamente ficarão visíveis sem autenticação.",
+    "publicShareableLinksShowUserInfoLabel": "Mostrar informação de utilizadores",
+    "serverSettingsPublicShareableLinksShowUserWarningAlert": "Ao ativar esta opção, as informações dos utilizadores ficarão visíveis sem autenticação",
+    "successUpdateServerSettings": "Definições do servidor atualizadas com sucesso",
+    "errorUpdateServerSettings": "Erro ao atualizar definições do servidor"
 }

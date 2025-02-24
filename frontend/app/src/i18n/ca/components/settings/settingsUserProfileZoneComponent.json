@@ -1,7 +1,8 @@
 {
-    "buttonDeleteProfilePhoto": "Esborra foto",
+    "titleProfileInfo": "El meu perfil",
+    "buttonDeleteProfilePhoto": "Esborra",
     "modalDeleteProfilePhotoBody": "Segur que vols esborrar la foto de perfil?",
-    "buttonEditProfile": "Edita perfil",
+    "buttonEditProfile": "Perfil",
     "usernameLabel": "Nom d’usuari",
     "emailLabel": "Correu",
     "cityLabel": "Ciutat",
@@ -23,5 +24,21 @@
     "accessTypeOption1": "Usuari normal",
     "accessTypeOption2": "Administrador",
     "userPhotoDeleteSuccess": "Foto de perfil esborrada correctament",
-    "userPhotoDeleteError": "Error esborrant foto de perfil"
+    "userPhotoDeleteError": "Error esborrant foto de perfil",
+    "titleDefaultGear": "Equipament per defecte",
+    "subTitleRun": "Córrer",
+    "subTitleTrailRun": "Cursa de muntanya",
+    "subTitleVirtualRun": "Cursa virtual",
+    "subTitleBike": "Bici",
+    "subTitleMTBBike": "Bici MTB",
+    "subTitleGravelBike": "Bicicleta gravel",
+    "subTitleVirtualBike": "Bici virtual",
+    "subTitleSwim": "Natació",
+    "subTitleWalk": "Caminar",
+    "subTitleHike": "Senderisme",
+    "selectOptionNotDefined": "No definit",
+    "errorUnableToGetGear": "No es pot obtenir equipament",
+    "errorUnableToGetDefaultGear": "No es pot obtenir equipament per defecte",
+    "successUpdateDefaultGear": "Equipament per defecte actualitzat",
+    "errorUpdateDefaultGear": "Error actualitzant equipament per defecte"
 }

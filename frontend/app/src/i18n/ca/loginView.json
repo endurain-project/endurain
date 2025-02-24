@@ -10,5 +10,7 @@
     "neverExpires": "Recordar (no marcar si estàs utilitzant un ordinador compartit)",
     "signInButton": "Inicia la sessió",
     "signUpText": "Cercant el registre?",
-    "signUpButton": "Registra't"
+    "signUpButton": "Registra't",
+    "errorPublicActivityNotFound": "Activitat pública no trobada",
+    "errorpublic_shareable_links": "No es permeten enllaços públics compartibles. Per veure l'activitat, has d'iniciar sessió"
 }

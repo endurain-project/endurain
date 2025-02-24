@@ -10,5 +10,7 @@
     "neverExpires": "Anmeldung merken (Aktiviere dieses Kontrollkästchen nicht, wenn du einen gemeinsam genutzten Computer verwendest)",
     "signInButton": "Anmelden",
     "signUpText": "Möchtest du dich anmelden?",
-    "signUpButton": "Registrieren"
+    "signUpButton": "Registrieren",
+    "errorPublicActivityNotFound": "Public activity not found",
+    "errorpublic_shareable_links": "Public shareable links are not allowed. To view this activity, you must be signed in"
 }

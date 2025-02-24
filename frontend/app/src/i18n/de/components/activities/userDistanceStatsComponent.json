@@ -1,12 +1,4 @@
 {
-    "thisMonthDistancesTitle": "Distanz diesen Monat",
-    "thisWeekDistancesTitle": "Distanz diese Woche",
-    "distancesRun": "Laufen",
-    "distancesBike": "Fahrrad",
-    "distancesSwim": "Schwimmen",
-    "distancesWalk": "Gehen",
-    "distancesHike": "Wandern",
-    "distancesRowing": "Rudern",
-    "distancesSnowSki": "Ski",
-    "distancesSnowboard": "Snowboard"
+    "thisWeekDistancesTitle": "Week top 3",
+    "thisMonthDistancesTitle": "Month top 3"
 }
