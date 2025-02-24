@@ -9,7 +9,7 @@
 				<!--<span class="fw-lighter">{{ thisWeek[0].translatedName }}</span>-->
 				<font-awesome-icon :icon="['fas', thisWeek[0].icon]" size="2x"/>
 				<br>
-				{{ thisWeek && thisWeek[0].distance ? Math.floor(thisWeek[0].distance) + ' ' : '0' }}
+				{{ thisWeek && thisWeek[0].distance ? Math.floor(thisWeek[0].useMeters && Number(authStore?.user?.units) === 1 ? kmToMeters(thisWeek[0].distance) : thisWeek[0].distance) + ' ' : '0' }}
 				<span v-if="Number(authStore?.user?.units) === 1">
 					<span v-if="thisWeek[0].useMeters">
 						{{ $t("generalItems.unitsM") }}
@@ -31,7 +31,7 @@
             <div class="col">
 				<font-awesome-icon :icon="['fas', thisWeek[1].icon]" size="2x"/>
 				<br>
-				{{ thisWeek && thisWeek[1].distance ? Math.floor(thisWeek[1].distance) + ' ' : '0' }}
+				{{ thisWeek && thisWeek[1].distance ? Math.floor(thisWeek[1].useMeters && Number(authStore?.user?.units) === 1 ? kmToMeters(thisWeek[1].distance) : thisWeek[1].distance) + ' ' : '0' }}
 				<span v-if="Number(authStore?.user?.units) === 1">
 					<span v-if="thisWeek[1].useMeters">
 						{{ $t("generalItems.unitsM") }}
@@ -53,7 +53,7 @@
             <div class="col">
 				<font-awesome-icon :icon="['fas', thisWeek[2].icon]" size="2x"/>
 				<br>
-				{{ thisWeek && thisWeek[2].distance ? Math.floor(thisWeek[2].distance) + ' ' : '0' }}
+				{{ thisWeek && thisWeek[2].distance ? Math.floor(thisWeek[2].useMeters && Number(authStore?.user?.units) === 1 ? kmToMeters(thisWeek[2].distance) : thisWeek[2].distance) + ' ' : '0' }}
 				<span v-if="Number(authStore?.user?.units) === 1">
 					<span v-if="thisWeek[2].useMeters">
 						{{ $t("generalItems.unitsM") }}
@@ -84,7 +84,7 @@
 				<!--<span class="fw-lighter">{{ thisMonth[0].translatedName }}</span>-->
 				<font-awesome-icon :icon="['fas', thisMonth[0].icon]" size="2x"/>
 				<br>
-				{{ thisMonth && thisMonth[0].distance ? Math.floor(thisMonth[0].distance) + ' ' : '0' }}
+				{{ thisMonth && thisMonth[0].distance ? Math.floor(thisMonth[0].useMeters && Number(authStore?.user?.units) === 1 ? kmToMeters(thisMonth[0].distance) : thisMonth[0].distance) + ' ' : '0' }}
 				<span v-if="Number(authStore?.user?.units) === 1">
 					<span v-if="thisMonth[0].useMeters">
 						{{ $t("generalItems.unitsM") }}
@@ -106,7 +106,7 @@
             <div class="col">
 				<font-awesome-icon :icon="['fas', thisMonth[1].icon]" size="2x"/>
 				<br>
-				{{ thisMonth && thisMonth[1].distance ? Math.floor(thisMonth[1].distance) + ' ' : '0' }}
+				{{ thisMonth && thisMonth[1].distance ? Math.floor(thisMonth[1].useMeters && Number(authStore?.user?.units) === 1 ? kmToMeters(thisMonth[1].distance) : thisMonth[1].distance) + ' ' : '0' }}
 				<span v-if="Number(authStore?.user?.units) === 1">
 					<span v-if="thisMonth[1].useMeters">
 						{{ $t("generalItems.unitsM") }}
@@ -128,7 +128,7 @@
             <div class="col">
 				<font-awesome-icon :icon="['fas', thisMonth[2].icon]" size="2x"/>
 				<br>
-				{{ thisMonth && thisMonth[2].distance ? Math.floor(thisMonth[2].distance) + ' ' : '0' }}
+				{{ thisMonth && thisMonth[2].distance ? Math.floor(thisMonth[2].useMeters && Number(authStore?.user?.units) === 1 ? kmToMeters(thisMonth[2].distance) : thisMonth[2].distance) + ' ' : '0' }}
 				<span v-if="Number(authStore?.user?.units) === 1">
 					<span v-if="thisMonth[2].useMeters">
 						{{ $t("generalItems.unitsM") }}
@@ -155,7 +155,7 @@
 import { computed } from "vue";
 import { useI18n } from 'vue-i18n';
 import { useAuthStore } from "@/stores/authStore";
-import { metersToKm, metersToMiles, metersToYards } from "@/utils/unitsUtils";
+import { metersToKm, metersToMiles, metersToYards, kmToMeters } from "@/utils/unitsUtils";
 
 export default {
 	props: {
@@ -175,7 +175,7 @@ export default {
 			const convertDistanceMetersToKmsOrMiles = (distance) => 
 				Number(authStore.user.units) === 1 ? metersToKm(distance) : metersToMiles(distance);
 			const convertDistanceMetersToYards = (distance) => 
-				Number(authStore.user.units) === 1 ? distance : metersToYards(distance);
+				Number(authStore.user.units) === 1 ? metersToKm(distance) : metersToYards(distance);
 
 			const activities = [
 				{
@@ -248,6 +248,7 @@ export default {
 			metersToYards,
 			thisWeek,
 			thisMonth,
+			kmToMeters,
 		};
 	},
 };
