@@ -1,96 +1,98 @@
 <template>
-    <LoadingComponent v-if="isLoading"/>
+	<div class="bg-body-tertiary rounded p-3 shadow-sm">
+		<LoadingComponent v-if="isLoading"/>
 
-    <div v-else>
-        <ActivitySummaryComponent v-if="activity" :activity="activity" :source="'activity'" @activityEditedFields="updateActivityFieldsOnEdit"/>
-    </div>
+		<div v-else>
+			<ActivitySummaryComponent v-if="activity" :activity="activity" :source="'activity'" @activityEditedFields="updateActivityFieldsOnEdit"/>
+		</div>
 
-    <!-- map zone -->
-    <div class="mt-3 mb-3" v-if="isLoading">
-        <LoadingComponent />
-    </div>
-    <div class="mt-3 mb-3" v-else-if="activity">
-        <ActivityMapComponent :activity="activity" :source="'activity'"/>
-    </div>
-    
-    <!-- gear zone -->
-    <hr class="mb-2 mt-2" v-if="activity && authStore.isAuthenticated">
-    <div class="mt-3 mb-3" v-if="isLoading && authStore.isAuthenticated">
-        <LoadingComponent />
-    </div>
-    <div class="d-flex justify-content-between align-items-center" v-else-if="activity && authStore.isAuthenticated">
-        <p class="pt-2">
-            <span class="fw-lighter">
-                {{ $t("activityView.labelGear") }}
-            </span>
-            <br>
-            <span v-if="activity.activity_type === 1 || activity.activity_type === 2 || activity.activity_type === 3">
-                <font-awesome-icon :icon="['fas', 'person-running']" />
-            </span>
-            <span v-else-if="activity.activity_type === 4 || activity.activity_type === 5 || activity.activity_type === 6 || activity.activity_type === 7">
-                <font-awesome-icon :icon="['fas', 'fa-person-biking']" />
-            </span>
-            <span v-else-if="activity.activity_type === 8 || activity.activity_type === 9">
-                <font-awesome-icon :icon="['fas', 'fa-person-swimming']" />
-            </span>
-            <span class="ms-2" v-if="activity.gear_id && gear">{{ gear.nickname }}</span>
-            <span class="ms-2" v-else>{{ $t("activityView.labelGearNotSet") }}</span>
-        </p>
-        <div class="justify-content-end">
-            <!-- add gear button -->
-            <a class="btn btn-link btn-lg link-body-emphasis" href="#" role="button" data-bs-toggle="modal" data-bs-target="#addGearToActivityModal" v-if="!activity.gear_id && activity.user_id === authStore.user.id">
-                <font-awesome-icon :icon="['fas', 'fa-plus']" />
-            </a>
+		<!-- map zone -->
+		<div class="mt-3 mb-3" v-if="isLoading">
+			<LoadingComponent />
+		</div>
+		<div class="mt-3 mb-3" v-else-if="activity">
+			<ActivityMapComponent :activity="activity" :source="'activity'"/>
+		</div>
+		
+		<!-- gear zone -->
+		<hr class="mb-2 mt-2" v-if="activity && authStore.isAuthenticated">
+		<div class="mt-3 mb-3" v-if="isLoading && authStore.isAuthenticated">
+			<LoadingComponent />
+		</div>
+		<div class="d-flex justify-content-between align-items-center" v-else-if="activity && authStore.isAuthenticated">
+			<p class="pt-2">
+				<span class="fw-lighter">
+					{{ $t("activityView.labelGear") }}
+				</span>
+				<br>
+				<span v-if="activity.activity_type === 1 || activity.activity_type === 2 || activity.activity_type === 3">
+					<font-awesome-icon :icon="['fas', 'person-running']" />
+				</span>
+				<span v-else-if="activity.activity_type === 4 || activity.activity_type === 5 || activity.activity_type === 6 || activity.activity_type === 7">
+					<font-awesome-icon :icon="['fas', 'fa-person-biking']" />
+				</span>
+				<span v-else-if="activity.activity_type === 8 || activity.activity_type === 9">
+					<font-awesome-icon :icon="['fas', 'fa-person-swimming']" />
+				</span>
+				<span class="ms-2" v-if="activity.gear_id && gear">{{ gear.nickname }}</span>
+				<span class="ms-2" v-else>{{ $t("activityView.labelGearNotSet") }}</span>
+			</p>
+			<div class="justify-content-end">
+				<!-- add gear button -->
+				<a class="btn btn-link btn-lg link-body-emphasis" href="#" role="button" data-bs-toggle="modal" data-bs-target="#addGearToActivityModal" v-if="!activity.gear_id && activity.user_id === authStore.user.id">
+					<font-awesome-icon :icon="['fas', 'fa-plus']" />
+				</a>
 
-            <!-- add gear to activity modal -->
-            <AddGearToActivityModalComponent :activity="activity" :gearsByType="gearsByType" :gear="gearId" @gearId="updateGearIdOnAddGearToActivity"/>
+				<!-- add gear to activity modal -->
+				<AddGearToActivityModalComponent :activity="activity" :gearsByType="gearsByType" :gear="gearId" @gearId="updateGearIdOnAddGearToActivity"/>
 
-            <!-- edit gear button -->
-            <a class="btn btn-link btn-lg link-body-emphasis" href="#" role="button" data-bs-toggle="modal" data-bs-target="#addGearToActivityModal" v-if="activity.gear_id && activity.user_id === authStore.user.id">
-                <font-awesome-icon :icon="['far', 'fa-pen-to-square']" />
-            </a>
+				<!-- edit gear button -->
+				<a class="btn btn-link btn-lg link-body-emphasis" href="#" role="button" data-bs-toggle="modal" data-bs-target="#addGearToActivityModal" v-if="activity.gear_id && activity.user_id === authStore.user.id">
+					<font-awesome-icon :icon="['far', 'fa-pen-to-square']" />
+				</a>
 
-            <!-- Delete zone -->
-            <a class="btn btn-link btn-lg link-body-emphasis" href="#" role="button" data-bs-toggle="modal" data-bs-target="#deleteGearActivityModal" v-if="activity.gear_id && activity.user_id === authStore.user.id">
-                <font-awesome-icon :icon="['fas', 'fa-trash']" />
-            </a>
+				<!-- Delete zone -->
+				<a class="btn btn-link btn-lg link-body-emphasis" href="#" role="button" data-bs-toggle="modal" data-bs-target="#deleteGearActivityModal" v-if="activity.gear_id && activity.user_id === authStore.user.id">
+					<font-awesome-icon :icon="['fas', 'fa-trash']" />
+				</a>
 
-            <!-- Modal delete gear -->
-            <ModalComponent modalId="deleteGearActivityModal" :title="t('activityView.modalLabelDeleteGear')" :body="`${t('activityView.modalLabelDeleteGearBody')}`" actionButtonType="danger" :actionButtonText="t('activityView.modalLabelDeleteGearButton')" @submitAction="submitDeleteGearFromActivity"/>
-        </div>
-    </div>
+				<!-- Modal delete gear -->
+				<ModalComponent modalId="deleteGearActivityModal" :title="t('activityView.modalLabelDeleteGear')" :body="`${t('activityView.modalLabelDeleteGearBody')}`" actionButtonType="danger" :actionButtonText="t('activityView.modalLabelDeleteGearButton')" @submitAction="submitDeleteGearFromActivity"/>
+			</div>
+		</div>
 
-    <!-- graphs -->
-    <hr class="mb-2 mt-2">
-    <div class="row">
-        <div class="col-md-2">
-            <p>{{ $t("activityView.labelGraph") }}</p>
-            <ul class="nav nav-pills flex-column mb-auto" id="sidebarLineGraph">
-                <li class="nav-item" v-for="item in graphItems" :key="item.type">
-                    <a href="javascript:void(0);" class="nav-link text-secondary"
-                    :class="{ 'active text-white': graphSelection === item.type }"
-                    @click="selectGraph(item.type)">
-                        {{ item.label }}
-                    </a>
-                </li>
-            </ul>
-            <p class="mt-2">{{ $t("activityView.labelDownsampling") }}</p>
-        </div>
-        <div class="col">
-            <LoadingComponent v-if="isLoading"/>
-            <div v-else-if="activity">
-                <ActivityStreamsLineChartComponent :activity="activity" :graphSelection="graphSelection" :activityStreams="activityActivityStreams" v-if="graphSelection === 'hr' && hrPresent"/>
-                <ActivityStreamsLineChartComponent :activity="activity" :graphSelection="graphSelection" :activityStreams="activityActivityStreams" v-if="graphSelection === 'power' && powerPresent"/>
-                <ActivityStreamsLineChartComponent :activity="activity" :graphSelection="graphSelection" :activityStreams="activityActivityStreams" v-if="graphSelection === 'cad' && cadPresent"/>
-                <ActivityStreamsLineChartComponent :activity="activity" :graphSelection="graphSelection" :activityStreams="activityActivityStreams" v-if="graphSelection === 'ele' && elePresent"/>
-                <ActivityStreamsLineChartComponent :activity="activity" :graphSelection="graphSelection" :activityStreams="activityActivityStreams" v-if="graphSelection === 'vel' && velPresent"/>
-                <ActivityStreamsLineChartComponent :activity="activity" :graphSelection="graphSelection" :activityStreams="activityActivityStreams" v-if="graphSelection === 'pace' && pacePresent"/>
-            </div>
-        </div>
-    </div>
+		<!-- graphs -->
+		<hr class="mb-2 mt-2">
+		<div class="row">
+			<div class="col-md-2">
+				<p>{{ $t("activityView.labelGraph") }}</p>
+				<ul class="nav nav-pills flex-column mb-auto" id="sidebarLineGraph">
+					<li class="nav-item" v-for="item in graphItems" :key="item.type">
+						<a href="javascript:void(0);" class="nav-link text-secondary"
+						:class="{ 'active text-white': graphSelection === item.type }"
+						@click="selectGraph(item.type)">
+							{{ item.label }}
+						</a>
+					</li>
+				</ul>
+				<p class="mt-2">{{ $t("activityView.labelDownsampling") }}</p>
+			</div>
+			<div class="col">
+				<LoadingComponent v-if="isLoading"/>
+				<div v-else-if="activity">
+					<ActivityStreamsLineChartComponent :activity="activity" :graphSelection="graphSelection" :activityStreams="activityActivityStreams" v-if="graphSelection === 'hr' && hrPresent"/>
+					<ActivityStreamsLineChartComponent :activity="activity" :graphSelection="graphSelection" :activityStreams="activityActivityStreams" v-if="graphSelection === 'power' && powerPresent"/>
+					<ActivityStreamsLineChartComponent :activity="activity" :graphSelection="graphSelection" :activityStreams="activityActivityStreams" v-if="graphSelection === 'cad' && cadPresent"/>
+					<ActivityStreamsLineChartComponent :activity="activity" :graphSelection="graphSelection" :activityStreams="activityActivityStreams" v-if="graphSelection === 'ele' && elePresent"/>
+					<ActivityStreamsLineChartComponent :activity="activity" :graphSelection="graphSelection" :activityStreams="activityActivityStreams" v-if="graphSelection === 'vel' && velPresent"/>
+					<ActivityStreamsLineChartComponent :activity="activity" :graphSelection="graphSelection" :activityStreams="activityActivityStreams" v-if="graphSelection === 'pace' && pacePresent"/>
+				</div>
+			</div>
+		</div>
 
-    <!-- back button -->
-    <BackButtonComponent />
+		<!-- back button -->
+		<BackButtonComponent />
+	</div>
 </template>
 
 <script>
