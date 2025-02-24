@@ -1,7 +1,7 @@
 import os
 
 from fastapi import HTTPException, status
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from sqlalchemy.orm import Session
 from stravalib.client import Client
 from timezonefinder import TimezoneFinder
@@ -413,7 +413,7 @@ def retrieve_strava_users_activities_for_days(days: int):
     # Process the activities for each user
     for user in users:
         get_user_strava_activities_by_days(
-            (datetime.now(datetime.timezone.utc) - timedelta(days=days)).strftime("%Y-%m-%dT%H:%M:%S"),
+            (datetime.now(timezone.utc) - timedelta(days=days)).strftime("%Y-%m-%dT%H:%M:%S"),
             user.id,
         )
 

@@ -1,7 +1,7 @@
 import os
 import zipfile
 
-from datetime import datetime, timedelta, date
+from datetime import datetime, timedelta, date, timezone
 import garminconnect
 from sqlalchemy.orm import Session
 
@@ -87,7 +87,7 @@ def retrieve_garminconnect_users_bc_for_days(days: int):
     # Process the body composition for each user
     for user in users:
         get_user_garminconnect_bc_by_days(
-            (datetime.now(datetime.timezone.utc) - timedelta(days=days)).strftime("%Y-%m-%dT%H:%M:%S"),
+            (datetime.now(timezone.utc) - timedelta(days=days)).strftime("%Y-%m-%dT%H:%M:%S"),
             user.id,
         )
 
