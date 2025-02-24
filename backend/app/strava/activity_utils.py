@@ -413,7 +413,7 @@ def retrieve_strava_users_activities_for_days(days: int):
     # Process the activities for each user
     for user in users:
         get_user_strava_activities_by_days(
-            (datetime.utcnow() - timedelta(days=days)).strftime("%Y-%m-%dT%H:%M:%S"),
+            (datetime.now(datetime.timezone.utc) - timedelta(days=days)).strftime("%Y-%m-%dT%H:%M:%S"),
             user.id,
         )
 
