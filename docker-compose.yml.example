@@ -24,9 +24,9 @@ services:
     ports:
       - "8080:8080" # Endurain port, change per your needs
     depends_on:
-      - postgres: # mariadb or postgres
+      postgres: # mariadb or postgres
         condition: service_healthy # remove this line when using mariadb
-      - jaeger # optional
+      jaeger: {} # optional
     restart: unless-stopped
   
   # mysql mariadb logic
