@@ -45,17 +45,18 @@ If you have any recommendations or insights on improving any aspect of Endurain,
 
 Endurain currently supports:
 
-- Multi-user functionality
-- Admin and user profiles with adaptable interfaces
+- Multi-user functionality with admin and user profiles adaptable interfaces
 - Activity import via manual or bulk upload (.gpx and .fit files. .fit files are preferred)
 - Strava integration for syncing activities and gear
 - Garmin Connect integration for syncing activities, gear and body composition
 - Activity feeds and statistics (week/month)
 - Basic activity privacy settings
 - Gear tracking (wetsuits, bicycles, shoes)
+- Default gear for activity types
 - User pages with stats and activity histories
 - Follower features (view activities)
 - Multi-language support
+- Imperial and metric units support
 - Dark/light theme switcher
 - Third-party app support
 - Weight logging
@@ -65,7 +66,6 @@ Endurain currently supports:
 Upcoming features (in no particular order):
 
 - Live tracking
-- Default gear for activity types
 - Gear component tracking (e.g., track when components like bike chains need replacing)
 - Activity comments and likes
 - Notification system

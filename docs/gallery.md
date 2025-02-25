@@ -21,8 +21,9 @@
 ![Profile page](assets/gallery/screenshot_profile.png)
 
 ##### Settings pages
-![Users administrator page page](assets/gallery/screenshot_settings_user.png)
-** Users administrator page only visible to admin users**
+![Users administrator page](assets/gallery/screenshot_settings_user.png)
+![Server settings page](assets/gallery/screenshot_settings_server_settings.png)
+** Users administrator and server settings pages only visible to admin users**
 ![Settings general page](assets/gallery/screenshot_settings_general.png)
 ![Settings profile page](assets/gallery/screenshot_settings_profile.png)
 ![Settings security page](assets/gallery/screenshot_settings_security.png)
