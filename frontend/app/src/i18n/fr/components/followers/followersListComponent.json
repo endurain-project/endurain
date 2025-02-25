@@ -9,8 +9,8 @@
     "followerAcceptModalBody": "Êtes-vous sûr de vouloir accepter la demande d'abonnement de l'utilisateur ",
     "followerDeclineModalTitle": "Refuser la demande de l'utilisateur ",
     "followerDeclineModalBody": "Êtes-vous sûr de vouloir refuser la demande d'abonnement de l'utilisateur ",
-    "errorDeleteFollowing": "Error deleting following",
-    "errorDeleteFollower": "Error deleting follower",
-    "errorUpdateFollower": "Error updating follower",
-    "errorFetchingFollowersDetails": "Error fetching followers details"
+    "errorDeleteFollowing": "Erreur lors de la suppression d'abonnements",
+    "errorDeleteFollower": "Erreur lors de la suppression de l'abonné",
+    "errorUpdateFollower": "Erreur lors de la mise à jour de l'abonné",
+    "errorFetchingFollowersDetails": "Erreur lors de la récupération des détails des abonnés"
 }
