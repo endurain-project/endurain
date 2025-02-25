@@ -20,7 +20,7 @@
     "searchSelectGearType3": "Combinaison",
     "resultIsInactiveBadge": "Inactif",
     "searchInputPlaceholder": "Rechercher le texte",
-    "errorFetchingUserWithUsernameContains": "Error fetching user with username contains logic",
-    "errorFetchingActivityWithNameContains": "Error fetching activity with name contains logic",
-    "errorFetchingGearWithNicknameContains": "Error fetching gear with nickname contains logic"
+    "errorFetchingUserWithUsernameContains": "Erreur lors de la récupération de l'utilisateur avec le nom d'utilisateur",
+    "errorFetchingActivityWithNameContains": "Erreur lors de la récupération de l'activité avec le nom",
+    "errorFetchingGearWithNicknameContains": "Erreur lors de la récupération de l'équipement avec le surnom"
 }
