@@ -13,8 +13,6 @@ def get_user_default_gear_by_activity_type(
         )
 
         if activity_type == 1:
-            print(user_default_gear.run_gear_id)
-            print(type(user_default_gear.run_gear_id))
             return user_default_gear.run_gear_id
         elif activity_type == 2:
             return user_default_gear.trail_run_gear_id
