@@ -93,7 +93,7 @@ Currently supported in:
 
  - Catalan by [@rubenixnagios](https://github.com/rubenixnagios)
  - German by [@ThreeCO](https://github.com/ThreeCO)
- - French (FR)
+ - French (FR) [@gwenvador](https://github.com/gwenvador)
  - Portuguese (PT)
  - English (US)
 
