@@ -1,5 +1,5 @@
 {
-    "userNameHidden": "Hidden",
+    "userNameHidden": "Masqué",
     "visibilityPublic": "Publique",
     "visibilityFollowers": "Abonnés",
     "visibilityPrivate": "Privé",
@@ -7,7 +7,7 @@
     "buttonEditActivity": "Modifier l'activité",
     "modalDeleteBody1": "Êtes-vous sûr de vouloir supprimer l'activité ",
     "modalDeleteBody2": "Cette action est irréversible.",
-    "labelVirtual": "(Virtual) ",
+    "labelVirtual": "(Virtuel) ",
     "activityDistance": "Distance",
     "activityTime": "Temps",
     "activityElevationGain": "Dénivelé positif",

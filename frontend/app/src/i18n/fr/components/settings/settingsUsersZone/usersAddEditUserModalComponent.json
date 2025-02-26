@@ -49,5 +49,5 @@
     "addEditUserModalSuccessAddUser": "L’utilisateur a bien été ajouté",
     "addEditUserModalErrorAddUser": "Erreur lors de l'ajout de l'utilisateur",
     "addEditUserModalSuccessEditUser": "Utilisateur modifié avec succès",
-    "addEditUserModalErrorEditUser": "Error editing user"
+    "addEditUserModalErrorEditUser": "Erreur lors de la modification de l'utilisateur"
 }
