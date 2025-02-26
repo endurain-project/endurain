@@ -1,15 +1,15 @@
 {
-    "userListAccessTypeLabel": "Access type: ",
-    "userListAccessTypeOption1": "Regular user",
-    "userListAccessTypeOption2": "Administrator",
-    "userListUserIsMeBadge": "Me",
-    "userListUserIsAdminBadge": "Admin",
-    "userListUserIsActiveBadge": "Active",
-    "userListUserIsInactiveBadge": "Inactive",
-    "userEditErrorMessage": "Error editing user",
-    "modalDeleteUserTitle": "Delete user",
-    "modalDeleteUserBody": "Are you sure you want to delete user ",
-    "userListUserSessionsTitle": "User sessions",
-    "userSessionDeleteSuccessMessage": "Session deleted successfully",
-    "userSessionDeleteErrorMessage": "Error deleting session"
+    "userListAccessTypeLabel": "Type d'accès : ",
+    "userListAccessTypeOption1": "Utilisateur standard",
+    "userListAccessTypeOption2": "Administrateur",
+    "userListUserIsMeBadge": "Moi",
+    "userListUserIsAdminBadge": "Administrateur",
+    "userListUserIsActiveBadge": "Actif",
+    "userListUserIsInactiveBadge": "Inactif",
+    "userEditErrorMessage": "Erreur lors de la modification de l'utilisateur",
+    "modalDeleteUserTitle": "Supprimer l’utilisateur",
+    "modalDeleteUserBody": "Êtes-vous sûr de vouloir supprimer l'utilisateur ",
+    "userListUserSessionsTitle": "Sessions de l'utilisateur",
+    "userSessionDeleteSuccessMessage": "Session supprimée avec succès",
+    "userSessionDeleteErrorMessage": "Erreur lors de la suppression de session"
 }
