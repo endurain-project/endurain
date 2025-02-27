@@ -16,7 +16,7 @@ services:
       - ENDURAIN_HOST=http://localhost:8080 # host or local ip (example: http://192.168.1.10:8080 or https://endurain.com), default is http://localhost:8080
       - BEHIND_PROXY=false # default value is false. Change to true if behind reverse proxy
     volumes:
-    #  - <local_path>/endurain/backend/app:/app # Configure volume if you want to edit the code locally by cloning the repo
+    #  - <local_path>/endurain/backend/app:/backend/app # Configure volume if you want to edit the code locally by cloning the repo
       - <local_path>/endurain/backend/user_images:/app/backend/user_images # necessary for user image persistence on container image updates
       - <local_path>/endurain/backend/files/bulk_import:/app/backend/files/bulk_import # necessary to enable bulk import of activities. Place here your activities files
       - <local_path>/endurain/backend/files/processed:/app/backend/files/processed # necessary for processed original files persistence on container image updates
