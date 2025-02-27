@@ -60,10 +60,17 @@ def fetch_and_process_activities(
 
         # Return 0 to indicate no activities were processed
         return 0
+    
+    user = users_crud.get_user_by_id(user_id, db)
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found",
+        )
 
     # Process the activities
     for activity in strava_activities:
-        process_activity(activity, user_id, strava_client, user_integrations, db)
+        process_activity(activity, user_id, user.default_activity_visibility, strava_client, user_integrations, db)
 
     # Return the number of activities processed
     return len(strava_activities)
@@ -72,6 +79,7 @@ def fetch_and_process_activities(
 def parse_activity(
     activity,
     user_id: int,
+    default_activity_visibility: int,
     strava_client: Client,
     user_integrations: user_integrations_schema.UsersIntegrations,
     db: Session,
@@ -338,6 +346,7 @@ def parse_activity(
         gear_id=gear_id,
         strava_gear_id=detailedActivity.gear_id,
         strava_activity_id=int(activity.id),
+        visibility=default_activity_visibility,
     )
 
     # Return the activity and stream data
@@ -372,6 +381,7 @@ def save_activity_and_streams(
 def process_activity(
     activity,
     user_id: int,
+    default_activity_visibility: int,
     strava_client: Client,
     user_integrations: user_integrations_schema.UsersIntegrations,
     db: Session,
@@ -390,7 +400,7 @@ def process_activity(
 
     # Parse the activity and streams
     parsed_activity = parse_activity(
-        activity, user_id, strava_client, user_integrations, db
+        activity, user_id, default_activity_visibility, strava_client, user_integrations, db
     )
 
     # Save the activity and streams to the database

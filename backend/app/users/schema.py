@@ -15,6 +15,7 @@ class User(BaseModel):
     access_type: int
     photo_path: str | None = None
     is_active: int
+    default_activity_visibility: int
 
     class Config:
         orm_mode = True

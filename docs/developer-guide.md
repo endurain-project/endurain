@@ -40,7 +40,7 @@ services:
             - ENDURAIN_HOST=http://localhost:8080 # change if needed
             - BEHIND_PROXY=false
         volumes:
-            - <path_to_project_root_folder>/backend/app:/backend/app # this will replace the backend code logic with yours. Any changes in the code need a container reboot for them to apply
+            - <path_to_project_root_folder>/backend/app:/app/backend # this will replace the backend code logic with yours. Any changes in the code need a container reboot for them to apply
         ports:
             - "8080:8080" # change if needed
         depends_on:

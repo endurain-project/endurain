@@ -15,7 +15,7 @@ import user_default_gear.utils as user_default_gear_utils
 import core.logger as core_logger
 
 
-def parse_gpx_file(file: str, user_id: int, db: Session) -> dict:
+def parse_gpx_file(file: str, user_id: int, default_activity_visibility: int, db: Session) -> dict:
     try:
         # Create an instance of TimezoneFinder
         tf = TimezoneFinder()
@@ -46,7 +46,6 @@ def parse_gpx_file(file: str, user_id: int, db: Session) -> dict:
         town = None
         country = None
         pace = 0
-        visibility = 0
 
         # Arrays to store waypoint data
         lat_lon_waypoints = []
@@ -303,7 +302,7 @@ def parse_gpx_file(file: str, user_id: int, db: Session) -> dict:
             average_cad=round(avg_cadence) if avg_cadence else None,
             max_cad=round(max_cadence) if max_cadence else None,
             calories=calories,
-            visibility=visibility,
+            visibility=default_activity_visibility,
             gear_id=gear_id,
             strava_gear_id=None,
             strava_activity_id=None,

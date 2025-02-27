@@ -18,6 +18,8 @@ import activities.schema as activities_schema
 import activities.crud as activities_crud
 import activities.models as activities_models
 
+import users.crud as users_crud
+
 import activity_streams.crud as activity_streams_crud
 import activity_streams.schema as activity_streams_schema
 
@@ -116,8 +118,15 @@ def parse_and_store_activity_from_file(
 
         # Open the file and process it
         with open(file_path, "rb"):
+            user = users_crud.get_user_by_id(token_user_id, db)
+            if user is None:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="User not found",
+                )
+        
             # Parse the file
-            parsed_info = parse_file(token_user_id, file_extension, file_path, db)
+            parsed_info = parse_file(token_user_id, user.default_activity_visibility, file_extension, file_path, db)
 
             if parsed_info is not None:
                 created_activities = []
@@ -138,13 +147,14 @@ def parse_and_store_activity_from_file(
                         created_activities_objects = fit_utils.create_activity_objects(
                             split_records_by_activity,
                             token_user_id,
+                            user.default_activity_visibility,
                             int(garmin_connect_activity_id),
                             garminconnect_gear,
                             db,
                         )
                     else:
                         created_activities_objects = fit_utils.create_activity_objects(
-                            split_records_by_activity, token_user_id, None, None, db
+                            split_records_by_activity, token_user_id, user.default_activity_visibility, None, None, db
                         )
 
                     for activity in created_activities_objects:
@@ -204,8 +214,15 @@ def parse_and_store_activity_from_uploaded_file(
         with open(file_path, "wb") as save_file:
             save_file.write(file.file.read())
 
+        user = users_crud.get_user_by_id(token_user_id, db)
+        if user is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found",
+            )
+
         # Parse the file
-        parsed_info = parse_file(token_user_id, file_extension, file_path, db)
+        parsed_info = parse_file(token_user_id, user.default_activity_visibility, file_extension, file_path, db)
 
         if parsed_info is not None:
             created_activities = []
@@ -223,7 +240,7 @@ def parse_and_store_activity_from_uploaded_file(
 
                 # Create activity objects for each activity in the file
                 created_activities_objects = fit_utils.create_activity_objects(
-                    split_records_by_activity, token_user_id, None, None, db
+                    split_records_by_activity, token_user_id, user.default_activity_visibility, None, None, db
                 )
 
                 for activity in created_activities_objects:
@@ -296,7 +313,7 @@ def move_file(new_dir: str, new_filename: str, file_path: str):
 
 
 def parse_file(
-    token_user_id: int, file_extension: str, filename: str, db: Session
+    token_user_id: int, default_activity_visibility: int, file_extension: str, filename: str, db: Session
 ) -> dict:
     try:
         if filename.lower() != "bulk_import/__init__.py":
@@ -304,7 +321,7 @@ def parse_file(
             # Choose the appropriate parser based on file extension
             if file_extension.lower() == ".gpx":
                 # Parse the GPX file
-                parsed_info = gpx_utils.parse_gpx_file(filename, token_user_id, db)
+                parsed_info = gpx_utils.parse_gpx_file(filename, token_user_id, default_activity_visibility, db)
             elif file_extension.lower() == ".fit":
                 # Parse the FIT file
                 parsed_info = fit_utils.parse_fit_file(filename)

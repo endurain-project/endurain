@@ -23,6 +23,7 @@ import core.logger as core_logger
 def create_activity_objects(
     sessions_records: dict,
     user_id: int,
+    default_activity_visibility: int,
     garmin_activity_id: int = None,
     garminconnect_gear: dict = None,
     db: Session = None,
@@ -33,7 +34,6 @@ def create_activity_objects(
         timezone = os.environ.get("TZ")
 
         # Define variables
-        visibility = 0
         gear_id = None
 
         if garminconnect_gear:
@@ -130,7 +130,7 @@ def create_activity_objects(
                     workout_feeling=session_record["session"]["workout_feeling"],
                     workout_rpe=session_record["session"]["workout_rpe"],
                     calories=session_record["session"]["calories"],
-                    visibility=visibility,
+                    visibility=default_activity_visibility,
                     gear_id=gear_id,
                     strava_gear_id=None,
                     strava_activity_id=None,

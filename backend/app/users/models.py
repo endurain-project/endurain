@@ -64,6 +64,12 @@ class User(Base):
     is_active = Column(
         Integer, nullable=False, comment="Is user active (1 - active, 2 - not active)"
     )
+    default_activity_visibility = Column(
+        Integer,
+        nullable=False,
+        default=0,
+        comment="0 - public, 1 - followers, 2 - private",
+    )
 
     # Define a relationship to UsersSessions model
     users_sessions = relationship(
