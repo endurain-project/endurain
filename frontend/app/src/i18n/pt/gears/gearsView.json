@@ -1,7 +1,7 @@
 {
     "title": "Equipamento",
     "buttonAddGear": "Adicionar equipamento",
-    "subTitleSearchGearByNickname": "Procurar equipamento por nickname",
+    "subTitleSearchGearByNickname": "Procurar equipamento por alcunha",
     "placeholderSearchGearByNickname": "Alcunha",
     "buttonSearchGear": "Procurar equipamento",
     "displayUserNumberOfGears1": "Existe um total de ",
