@@ -58,9 +58,9 @@ def process_gear(gear, user_id: int, db: Session) -> gears_schema.Gear | None:
         return None
 
     new_gear = gears_schema.Gear(
-        brand=gear["gearMakeName"],
-        model=gear["gearModelName"],
-        nickname=gear["displayName"],
+        brand=gear["gearMakeName"] if gear["gearMakeName"] else None,
+        model=gear["gearModelName"] if gear["gearModelName"] else None,
+        nickname=gear["displayName"] if gear["displayName"] else gear["customMakeModel"],
         gear_type=1 if gear["gearTypeName"] == "Bike" else 2,
         user_id=user_id,
         is_active=1 if gear["gearStatusName"] == "active" else 0,
