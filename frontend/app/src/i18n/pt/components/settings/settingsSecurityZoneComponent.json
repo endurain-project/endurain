@@ -5,7 +5,7 @@
     "changeUserPasswordPasswordConfirmationLabel": "Confirmar a nova palavra-passe",
     "changeUserPasswordFeedbackLabel": "Palavra-passe não cumpre os requisitos",
     "changeUserPasswordPasswordsDoNotMatchFeedbackLabel": "Palavras-passe não coincidem",
-    "subtitleMySessions": "Minhas sessões",
+    "subtitleMySessions": "As minhas sessões",
     "userChangePasswordSuccessMessage": "Palavra-passe alterada com sucesso",
     "userChangePasswordErrorMessage": "Erro ao alterar palavra-passe",
     "successDeleteSession": "Sessão eliminada com sucesso",
