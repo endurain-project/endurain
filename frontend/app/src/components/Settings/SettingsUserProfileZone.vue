@@ -16,7 +16,7 @@
                     <div class="row mt-3">
                         <div class="col">
                             <!-- Delete profile photo section -->
-                            <a class="w-100 btn btn-danger" href="#" role="button" data-bs-toggle="modal" data-bs-target="#deleteProfilePhotoModal" v-if="authStore.user.photo_path">{{ $t("settingsUserProfileZone.buttonDeleteProfilePhoto") }}<font-awesome-icon :icon="['fas', 'image']" class="ms-1" /></a>
+                            <a class="w-100 btn btn-danger" href="#" role="button" data-bs-toggle="modal" data-bs-target="#deleteProfilePhotoModal" v-if="authStore.user.photo_path"><font-awesome-icon :icon="['fas', 'image']" class="me-1" />{{ $t("settingsUserProfileZone.buttonDeleteProfilePhoto") }}</a>
 
                             <!-- Modal delete profile photo -->
                             <ModalComponent modalId="deleteProfilePhotoModal" :title="t('settingsUserProfileZone.buttonDeleteProfilePhoto')" :body="`${t('settingsUserProfileZone.modalDeleteProfilePhotoBody')}`" actionButtonType="danger" :actionButtonText="t('settingsUserProfileZone.buttonDeleteProfilePhoto')" @submitAction="submitDeleteUserPhoto"/>
@@ -204,12 +204,12 @@
                         <!-- Edit profile section -->
                         <div class="row">
                             <div class="col">
-                                <a class="btn btn-primary w-100" href="#" role="button" data-bs-toggle="modal" data-bs-target="#editProfileModal"><font-awesome-icon :icon="['fas', 'user-pen']" class="me-2"/>{{ $t("settingsUserProfileZone.buttonChangeDefaultActivityVisibility") }}</a>
+                                <a class="btn btn-primary w-100" href="#" role="button" data-bs-toggle="modal" data-bs-target="#editProfileModal"><font-awesome-icon :icon="['fas', 'user-pen']" class="me-1"/>{{ $t("settingsUserProfileZone.buttonChangeDefaultActivityVisibility") }}</a>
                             </div>
 
                             <div class="col">
                                 <!-- Edit activities visibility section -->
-                                <a class="btn btn-primary w-100" href="#" role="button" data-bs-toggle="modal" data-bs-target="#editUserActivitiesVisibilityModal"><font-awesome-icon :icon="['fas', 'eye-slash']" class="me-2"/>{{ $t("settingsUserProfileZone.buttonChangeUserActivitiesVisibility") }}</a>
+                                <a class="btn btn-primary w-100" href="#" role="button" data-bs-toggle="modal" data-bs-target="#editUserActivitiesVisibilityModal"><font-awesome-icon :icon="['fas', 'eye-slash']" class="me-1"/>{{ $t("settingsUserProfileZone.buttonChangeUserActivitiesVisibility") }}</a>
 
                                 <!-- modal retrieve Garmin Connect health data by days -->
                                 <ModalComponentSelectInput modalId="editUserActivitiesVisibilityModal" :title="t('settingsUserProfileZone.changeUserActivitiesVisibilityModalTitle')" :selectFieldLabel="`${t('settingsUserProfileZone.changeUserActivitiesVisibilityModalVisibilityLabel')}`" :selectOptions="visibilityOptionsForModal" :selectCurrentOption="authStore.user.default_activity_visibility" :actionButtonType="`success`" :actionButtonText="t('settingsUserProfileZone.changeUserActivitiesVisibilityModalButton')" @optionToEmitAction="submitChangeUserActivitiesVisibility"/>
