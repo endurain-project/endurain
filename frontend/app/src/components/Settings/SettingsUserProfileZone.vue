@@ -212,7 +212,7 @@
                                 <a class="btn btn-primary w-100" href="#" role="button" data-bs-toggle="modal" data-bs-target="#editUserActivitiesVisibilityModal"><font-awesome-icon :icon="['fas', 'eye-slash']" class="me-1"/>{{ $t("settingsUserProfileZone.buttonChangeUserActivitiesVisibility") }}</a>
 
                                 <!-- modal retrieve Garmin Connect health data by days -->
-                                <ModalComponentSelectInput modalId="editUserActivitiesVisibilityModal" :title="t('settingsUserProfileZone.changeUserActivitiesVisibilityModalTitle')" :selectFieldLabel="`${t('settingsUserProfileZone.changeUserActivitiesVisibilityModalVisibilityLabel')}`" :selectOptions="visibilityOptionsForModal" :selectCurrentOption="authStore.user.default_activity_visibility" :actionButtonType="`success`" :actionButtonText="t('settingsUserProfileZone.changeUserActivitiesVisibilityModalButton')" @optionToEmitAction="submitChangeUserActivitiesVisibility"/>
+                                <ModalComponentSelectInput modalId="editUserActivitiesVisibilityModal" :title="t('settingsUserProfileZone.buttonChangeUserActivitiesVisibility')" :selectFieldLabel="`${t('settingsUserProfileZone.changeUserActivitiesVisibilityModalVisibilityLabel')}`" :selectOptions="visibilityOptionsForModal" :selectCurrentOption="authStore.user.default_activity_visibility" :actionButtonType="`success`" :actionButtonText="t('settingsUserProfileZone.changeUserActivitiesVisibilityModalButton')" @optionToEmitAction="submitChangeUserActivitiesVisibility"/>
                             </div>
                         </div>
                     </div>

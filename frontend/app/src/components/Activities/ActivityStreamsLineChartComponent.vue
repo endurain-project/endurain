@@ -127,17 +127,6 @@ export default {
 
             for (let i = 0; i < numberOfDataPoints; i++) {
                 labels.push(`${(i * distanceInterval).toFixed(0)}km`);
-                /* if (props.graphSelection == 'pace') {
-                    let paceCalculated = 0;
-                    if (props.activity.activity_type == 1 || props.activity.activity_type == 2 || props.activity.activity_type == 3) {
-                        paceCalculated = (dataDS[i] * 1000) / 60;
-                    } else if (props.activity.activity_type == 8 || props.activity.activity_type == 9) {
-                        paceCalculated = (dataDS[i] * 100) / 60;
-                    }
-                    const minutes = Math.floor(paceCalculated);
-                    const seconds = Math.round((paceCalculated - minutes) * 60);
-                    dataDS[i] = `${minutes}:${seconds.toString().padStart(2, '0')}`;
-                } */
             }
 
             return {
