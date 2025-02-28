@@ -12,7 +12,7 @@ import { Chart, registerables } from 'chart.js';
 Chart.register(...registerables);
 
 import { formatAverageSpeedMetric, formatAverageSpeedImperial } from "@/utils/activityUtils";
-import { metersToFeet } from "@/utils/unitsUtils";
+import { metersToFeet, kmToMiles } from "@/utils/unitsUtils";
   
 export default {
     props: {
@@ -126,7 +126,22 @@ export default {
             const distanceInterval = totalDistance / numberOfDataPoints;
 
             for (let i = 0; i < numberOfDataPoints; i++) {
-                labels.push(`${(i * distanceInterval).toFixed(0)}km`);
+                if (Number(units.value) === 1) {
+                    labels.push(`${(i * distanceInterval).toFixed(0)}km`);
+                } else {
+                    labels.push(`${(i * kmToMiles(distanceInterval)).toFixed(0)}mi`);
+                }
+                /* if (props.graphSelection == 'pace') {
+                    let paceCalculated = 0;
+                    if (props.activity.activity_type == 1 || props.activity.activity_type == 2 || props.activity.activity_type == 3) {
+                        paceCalculated = (dataDS[i] * 1000) / 60;
+                    } else if (props.activity.activity_type == 8 || props.activity.activity_type == 9) {
+                        paceCalculated = (dataDS[i] * 100) / 60;
+                    }
+                    const minutes = Math.floor(paceCalculated);
+                    const seconds = Math.round((paceCalculated - minutes) * 60);
+                    dataDS[i] = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+                } */
             }
 
             return {
