@@ -508,6 +508,33 @@ async def edit_activity(
     return {f"Activity ID {activity_attributes.id} updated successfully"}
 
 
+@router.put(
+    "/visibility/{visibility}",
+)
+async def edit_activity(
+    visibility: int,
+    validate_visibility: Annotated[
+        Callable, Depends(activities_dependencies.validate_visibility)
+    ],
+    token_user_id: Annotated[
+        int,
+        Depends(session_security.get_user_id_from_access_token),
+    ],
+    check_scopes: Annotated[
+        Callable, Security(session_security.check_scopes, scopes=["activities:write"])
+    ],
+    db: Annotated[
+        Session,
+        Depends(core_database.get_db),
+    ],
+):
+    # Update the activities in the database
+    activities_crud.edit_user_activities_visibility(token_user_id, visibility, db)
+
+    # Return success message
+    return {f"Visibility change to {visibility} for all user activities"}
+
+
 @router.delete(
     "/{activity_id}/delete",
 )

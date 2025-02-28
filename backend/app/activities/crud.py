@@ -671,6 +671,44 @@ def edit_activity(user_id: int, activity: activities_schema.Activity, db: Sessio
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal Server Error",
         ) from err
+    
+
+def edit_user_activities_visibility(user_id: int, visibility: int, db: Session):
+    try:
+        # Get the activity from the database
+        db_activities = (
+            db.query(activities_models.Activity)
+            .filter(
+                activities_models.Activity.user_id == user_id,
+            )
+            .all()
+        )
+
+        if db_activities is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User has no activities",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
+        # Iterate over the activities and update the visibility
+        for db_activity in db_activities:
+            db_activity.visibility = visibility
+
+        # Commit the transaction
+        db.commit()
+    except Exception as err:
+        # Rollback the transaction
+        db.rollback()
+
+        # Log the exception
+        core_logger.print_to_log(f"Error in edit_user_activities_visibility: {err}", "error", exc=err)
+
+        # Raise an HTTPException with a 500 Internal Server Error status code
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal Server Error",
+        ) from err
 
 
 def edit_multiple_activities_gear_id(

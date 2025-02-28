@@ -20,6 +20,7 @@ export const useAuthStore = defineStore('auth', {
             access_type: null,
             photo_path: '',
             is_active: null,
+            default_activity_visibility: null,
             is_strava_linked: null,
             is_garminconnect_linked: null,
         },
@@ -70,6 +71,7 @@ export const useAuthStore = defineStore('auth', {
                 access_type: null,
                 photo_path: '',
                 is_active: null,
+                default_activity_visibility: null,
                 is_strava_linked: null,
                 is_garminconnect_linked: null,
             };

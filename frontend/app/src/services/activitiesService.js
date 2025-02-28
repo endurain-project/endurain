@@ -42,6 +42,9 @@ export const activities = {
     editActivity(data) {
         return fetchPutRequest('activities/edit', data);
     },
+    editUserActivitiesVisibility(visibility) {
+        return fetchPutRequest(`activities/visibility/${visibility}`);
+    },
     deleteActivity(activityId) {
         return fetchDeleteRequest(`activities/${activityId}/delete`);
     },

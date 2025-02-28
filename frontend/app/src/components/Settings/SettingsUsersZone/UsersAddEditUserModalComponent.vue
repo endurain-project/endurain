@@ -57,14 +57,14 @@
                         <!-- gender fields -->
                         <label for="userGenderAddEdit"><b>* {{ $t("usersAddEditUserModalComponent.addEditUserModalGenderLabel") }}</b></label>
                         <select class="form-select" name="userGenderAddEdit" v-model="newEditUserGender" required>
-                            <option value="1">{{ $t("usersAddEditUserModalComponent.addEditUserModalGenderOption1") }}</option>
-                            <option value="2">{{ $t("usersAddEditUserModalComponent.addEditUserModalGenderOption2") }}</option>
+                            <option :value="1">{{ $t("usersAddEditUserModalComponent.addEditUserModalGenderOption1") }}</option>
+                            <option :value="2">{{ $t("usersAddEditUserModalComponent.addEditUserModalGenderOption2") }}</option>
                         </select>
                         <!-- units fields -->
                         <label for="userUnitsAddEdit"><b>* {{ $t("usersAddEditUserModalComponent.addEditUserModalUnitsLabel") }}</b></label>
                         <select class="form-select" name="userUnitsAddEdit" v-model="newEditUserUnits" required>
-                            <option value="1">{{ $t("usersAddEditUserModalComponent.addEditUserModalUnitsOption1") }}</option>
-                            <option value="2">{{ $t("usersAddEditUserModalComponent.addEditUserModalUnitsOption2") }}</option>
+                            <option :value="1">{{ $t("usersAddEditUserModalComponent.addEditUserModalUnitsOption1") }}</option>
+                            <option :value="2">{{ $t("usersAddEditUserModalComponent.addEditUserModalUnitsOption2") }}</option>
                         </select>
                         <!-- height fields -->
                         <div v-if="Number(authStore?.user?.units) === 1">
@@ -99,25 +99,25 @@
                         <div v-if="action != 'profile'">
                             <label for="userTypeAddEdit"><b>* {{ $t("usersAddEditUserModalComponent.addEditUserModalUserTypeLabel") }}</b></label>
                             <select class="form-select" name="userTypeAddEdit" v-model="newEditUserAccessType" required>
-                                <option value="1">{{ $t("usersAddEditUserModalComponent.addEditUserModalUserTypeOption1") }}</option>
-                                <option value="2">{{ $t("usersAddEditUserModalComponent.addEditUserModalUserTypeOption2") }}</option>
+                                <option :value="1">{{ $t("usersAddEditUserModalComponent.addEditUserModalUserTypeOption1") }}</option>
+                                <option :value="2">{{ $t("usersAddEditUserModalComponent.addEditUserModalUserTypeOption2") }}</option>
                             </select>
                         </div>
                         <!-- user is_active fields -->
                         <div v-if="action != 'profile'">
                             <label for="userIsActiveAddEdit"><b>* {{ $t("usersAddEditUserModalComponent.addEditUserModalIsActiveLabel") }}</b></label>
                             <select class="form-select" name="userIsActiveAddEdit" v-model="newEditUserIsActive" required>
-                                <option value="1">{{ $t("usersAddEditUserModalComponent.addEditUserModalIsActiveOption1") }}</option>
-                                <option value="2">{{ $t("usersAddEditUserModalComponent.addEditUserModalIsActiveOption2") }}</option>
+                                <option :value="1">{{ $t("usersAddEditUserModalComponent.addEditUserModalIsActiveOption1") }}</option>
+                                <option :value="2">{{ $t("usersAddEditUserModalComponent.addEditUserModalIsActiveOption2") }}</option>
                             </select>
                         </div>
                         <!-- user default_activity_visibility fields -->
                         <div v-if="action == 'profile'">
                             <label for="userDefaultActivityVisibilityAddEdit"><b>* {{ $t("usersAddEditUserModalComponent.addEditUserModalDefaultActivityVisibilityLabel") }}</b></label>
                             <select class="form-select" name="userDefaultActivityVisibilityAddEdit" v-model="newEditUserDefaultActivityVisibility" required>
-                                <option value="0">{{ $t("usersAddEditUserModalComponent.addEditUserModalDefaultActivityVisibilityOption1") }}</option>
-                                <option value="1">{{ $t("usersAddEditUserModalComponent.addEditUserModalDefaultActivityVisibilityOption2") }}</option>
-                                <option value="2">{{ $t("usersAddEditUserModalComponent.addEditUserModalDefaultActivityVisibilityOption3") }}</option>
+                                <option :value="0">{{ $t("usersAddEditUserModalComponent.addEditUserModalDefaultActivityVisibilityOption1") }}</option>
+                                <option :value="1">{{ $t("usersAddEditUserModalComponent.addEditUserModalDefaultActivityVisibilityOption2") }}</option>
+                                <option :value="2">{{ $t("usersAddEditUserModalComponent.addEditUserModalDefaultActivityVisibilityOption3") }}</option>
                             </select>
                         </div>
 

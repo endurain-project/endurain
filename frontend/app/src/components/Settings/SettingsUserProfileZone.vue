@@ -187,6 +187,37 @@
                     </div>
                 </div>
             </div>
+            <hr>
+            <div>
+                <h4 class="mt-4">{{ $t("settingsUserProfileZone.titlePrivacy") }}</h4>
+                <LoadingComponent v-if="isLoading"/>
+                <div class="row" v-else>
+                    <div class="col">
+                        <!-- user default_activity_visibility -->
+                        <p>
+                            <font-awesome-icon :icon="['fas', 'eye-slash']" class="me-2"/>
+                            <b>{{ $t("settingsUserProfileZone.defaultActivityVisibility") }}: </b>
+                            <span v-if="authStore.user.default_activity_visibility === 0">{{ $t("settingsUserProfileZone.privacyOption1") }}</span>
+                            <span v-if="authStore.user.default_activity_visibility === 1">{{ $t("settingsUserProfileZone.privacyOption2") }}</span>
+                            <span v-if="authStore.user.default_activity_visibility === 2">{{ $t("settingsUserProfileZone.privacyOption3") }}</span>
+                        </p>
+                        <!-- Edit profile section -->
+                        <div class="row">
+                            <div class="col">
+                                <a class="btn btn-primary w-100" href="#" role="button" data-bs-toggle="modal" data-bs-target="#editProfileModal"><font-awesome-icon :icon="['fas', 'user-pen']" class="me-2"/>{{ $t("settingsUserProfileZone.buttonChangeDefaultActivityVisibility") }}</a>
+                            </div>
+
+                            <div class="col">
+                                <!-- Edit activities visibility section -->
+                                <a class="btn btn-primary w-100" href="#" role="button" data-bs-toggle="modal" data-bs-target="#editUserActivitiesVisibilityModal"><font-awesome-icon :icon="['fas', 'eye-slash']" class="me-2"/>{{ $t("settingsUserProfileZone.buttonChangeUserActivitiesVisibility") }}</a>
+
+                                <!-- modal retrieve Garmin Connect health data by days -->
+                                <ModalComponentSelectInput modalId="editUserActivitiesVisibilityModal" :title="t('settingsUserProfileZone.changeUserActivitiesVisibilityModalTitle')" :selectFieldLabel="`${t('settingsUserProfileZone.changeUserActivitiesVisibilityModalVisibilityLabel')}`" :selectOptions="visibilityOptionsForModal" :selectCurrentOption="authStore.user.default_activity_visibility" :actionButtonType="`success`" :actionButtonText="t('settingsUserProfileZone.changeUserActivitiesVisibilityModalButton')" @optionToEmitAction="submitChangeUserActivitiesVisibility"/>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 </template>
@@ -197,6 +228,7 @@ import { useI18n } from "vue-i18n";
 // Importing the services
 import { profile } from "@/services/profileService";
 import { gears } from "@/services/gearsService";
+import { activities } from "@/services/activitiesService";
 import { userDefaultGear } from "@/services/userDefaultGear";
 // Import the stores
 import { useAuthStore } from "@/stores/authStore";
@@ -209,6 +241,7 @@ import UserAvatarComponent from "../Users/UserAvatarComponent.vue";
 import UsersAddEditUserModalComponent from "@/components/Settings/SettingsUsersZone/UsersAddEditUserModalComponent.vue";
 import ModalComponent from "@/components/Modals/ModalComponent.vue";
 import LoadingComponent from "../GeneralComponents/LoadingComponent.vue";
+import ModalComponentSelectInput from "@/components/Modals/ModalComponentSelectInput.vue";
 
 export default {
 	components: {
@@ -216,6 +249,7 @@ export default {
 		UsersAddEditUserModalComponent,
         ModalComponent,
         LoadingComponent,
+        ModalComponentSelectInput,
 	},
 	setup() {
 		const authStore = useAuthStore();
@@ -237,6 +271,11 @@ export default {
         const defaultGravelRideGear = ref(null);
         const defaultVirtualRideGear = ref(null);
         const defaultOWSGear = ref(null);
+        const visibilityOptionsForModal = ref([
+            { id: 0, name: t("settingsUserProfileZone.privacyOption1") },
+            { id: 1, name: t("settingsUserProfileZone.privacyOption2") },
+            { id: 2, name: t("settingsUserProfileZone.privacyOption3") },
+        ]);
 
 		async function submitDeleteUserPhoto() {
 			try {
@@ -284,6 +323,22 @@ export default {
                 push.error(t("settingsUserProfileZone.errorUpdateDefaultGear"));
             }
         }
+
+        async function submitChangeUserActivitiesVisibility(visibility) {
+			try {
+				await activities.editUserActivitiesVisibility(visibility);
+
+				// Show the success alert.
+				push.success(
+					t("settingsUserProfileZone.successUpdateUserActivitiesVisibility"),
+				);
+			} catch (error) {
+				// If there is an error, show the error alert.
+				push.error(
+					`${t("settingsUserProfileZone.errorUpdateUserActivitiesVisibility")} - ${error}`,
+				);
+			}
+		}
 
         onMounted(async () => {
             isLoading.value = true;
@@ -345,6 +400,8 @@ export default {
             defaultGravelRideGear,
             defaultVirtualRideGear,
             defaultOWSGear,
+            visibilityOptionsForModal,
+            submitChangeUserActivitiesVisibility,
 		};
 	},
 };
