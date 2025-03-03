@@ -71,7 +71,7 @@
                                 </router-link>
                             </div>
                             <span v-if="searchSelectValue == 1">{{ result.username }}</span>
-                            <span v-if="searchSelectValue == 2 || searchSelectValue == 3">{{ formatDateMed(result.created_at) }}</span>
+                            <span v-if="searchSelectValue == 2 || searchSelectValue == 3">{{ formatDateMed(result.start_time) }}</span>
                         </div>
                     </div>
                     <div>
