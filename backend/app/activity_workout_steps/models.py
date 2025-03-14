@@ -36,11 +36,6 @@ class ActivityWorkoutSteps(Base):
     target_type = Column(
         String(length=250), nullable=True, comment="Workout step target type"
     )
-    target_value = Column(
-        Integer,
-        nullable=False,
-        comment="Workout step target value",
-    )
     intensity = Column(
         String(length=250), nullable=True, comment="Workout step intensity type"
     )

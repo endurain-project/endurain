@@ -32,7 +32,9 @@ class ActivityLaps(BaseModel):
     avg_stance_time: float | None = None
     avg_fractional_cadence: float | None = None
     max_fractional_cadence: float | None = None
+    enhanced_avg_pace: float | None = None
     enhanced_avg_speed: float | None = None
+    enhanced_max_pace: float | None = None
     enhanced_max_speed: float | None = None
     enhanced_min_altitude: float | None = None
     enhanced_max_altitude: float | None = None

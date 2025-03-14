@@ -5,6 +5,8 @@ import { createI18n } from 'vue-i18n';
 // Activities component
 import caAddGearToActivityModalComponent from './ca/components/activities/modals/addGearToActivityModalComponent.json';
 import caEditActivityModalComponent from './ca/components/activities/modals/editActivityModalComponent.json';
+import caActivityLapsComponent from './ca/components/activities/activityLapsComponent.json';
+import caActivitySMPillsComponent from './ca/components/activities/activitySMPillsComponent.json';
 import caUserDistanceStatsComponent from './ca/components/activities/userDistanceStatsComponent.json';
 import caActivitySummaryComponent from './ca/components/activities/activitySummaryComponent.json';
 // Followers component
@@ -57,6 +59,8 @@ import caUserView from './ca/userView.json';
 // Activities component
 import deAddGearToActivityModalComponent from './de/components/activities/modals/addGearToActivityModalComponent.json';
 import deEditActivityModalComponent from './de/components/activities/modals/editActivityModalComponent.json';
+import deActivityLapsComponent from './de/components/activities/activityLapsComponent.json';
+import deActivitySMPillsComponent from './de/components/activities/activitySMPillsComponent.json';
 import deUserDistanceStatsComponent from './de/components/activities/userDistanceStatsComponent.json';
 import deActivitySummaryComponent from './de/components/activities/activitySummaryComponent.json';
 // Followers component
@@ -110,6 +114,8 @@ import deUserView from './de/userView.json';
 // Activities component
 import frAddGearToActivityModalComponent from './fr/components/activities/modals/addGearToActivityModalComponent.json';
 import frEditActivityModalComponent from './fr/components/activities/modals/editActivityModalComponent.json';
+import frActivityLapsComponent from './fr/components/activities/activityLapsComponent.json';
+import frActivitySMPillsComponent from './fr/components/activities/activitySMPillsComponent.json';
 import frUserDistanceStatsComponent from './fr/components/activities/userDistanceStatsComponent.json';
 import frActivitySummaryComponent from './fr/components/activities/activitySummaryComponent.json';
 // Followers component
@@ -163,6 +169,8 @@ import frUserView from './fr/userView.json';
 // Activities component
 import ptAddGearToActivityModalComponent from './pt/components/activities/modals/addGearToActivityModalComponent.json';
 import ptEditActivityModalComponent from './pt/components/activities/modals/editActivityModalComponent.json';
+import ptActivityLapsComponent from './pt/components/activities/activityLapsComponent.json';
+import ptActivitySMPillsComponent from './pt/components/activities/activitySMPillsComponent.json';
 import ptUserDistanceStatsComponent from './pt/components/activities/userDistanceStatsComponent.json';
 import ptActivitySummaryComponent from './pt/components/activities/activitySummaryComponent.json';
 // Followers component
@@ -215,6 +223,8 @@ import ptUserView from './pt/userView.json';
 // Activities component
 import usAddGearToActivityModalComponent from './us/components/activities/modals/addGearToActivityModalComponent.json';
 import usEditActivityModalComponent from './us/components/activities/modals/editActivityModalComponent.json';
+import usActivityLapsComponent from './us/components/activities/activityLapsComponent.json';
+import usActivitySMPillsComponent from './us/components/activities/activitySMPillsComponent.json';
 import usUserDistanceStatsComponent from './us/components/activities/userDistanceStatsComponent.json';
 import usActivitySummaryComponent from './us/components/activities/activitySummaryComponent.json';
 // Followers component
@@ -269,6 +279,8 @@ const messages = {
     // Activities component
     addGearToActivityModalComponent: caAddGearToActivityModalComponent,
     editActivityModalComponent: caEditActivityModalComponent,
+    activityLapsComponent: caActivityLapsComponent,
+    activitySMPillsComponent: caActivitySMPillsComponent,
     userDistanceStats: caUserDistanceStatsComponent,
     activitySummaryComponent: caActivitySummaryComponent,
     // Followers component
@@ -321,6 +333,8 @@ const messages = {
     // Activities component
     addGearToActivityModalComponent: deAddGearToActivityModalComponent,
     editActivityModalComponent: deEditActivityModalComponent,
+    activityLapsComponent: deActivityLapsComponent,
+    activitySMPillsComponent: deActivitySMPillsComponent,
     userDistanceStats: deUserDistanceStatsComponent,
     activitySummaryComponent: deActivitySummaryComponent,
     // Followers component
@@ -373,6 +387,8 @@ const messages = {
     // Activities component
     addGearToActivityModalComponent: frAddGearToActivityModalComponent,
     editActivityModalComponent: frEditActivityModalComponent,
+    activityLapsComponent: frActivityLapsComponent,
+    activitySMPillsComponent: frActivitySMPillsComponent,
     userDistanceStats: frUserDistanceStatsComponent,
     activitySummaryComponent: frActivitySummaryComponent,
     // Followers component
@@ -425,6 +441,8 @@ const messages = {
     // Activities component
     addGearToActivityModalComponent: ptAddGearToActivityModalComponent,
     editActivityModalComponent: ptEditActivityModalComponent,
+    activityLapsComponent: ptActivityLapsComponent,
+    activitySMPillsComponent: ptActivitySMPillsComponent,
     userDistanceStats: ptUserDistanceStatsComponent,
     activitySummaryComponent: ptActivitySummaryComponent,
     // Followers component
@@ -477,6 +495,8 @@ const messages = {
     // Activities component
     addGearToActivityModalComponent: usAddGearToActivityModalComponent,
     editActivityModalComponent: usEditActivityModalComponent,
+    activityLapsComponent: usActivityLapsComponent,
+    activitySMPillsComponent: usActivitySMPillsComponent,
     userDistanceStats: usUserDistanceStatsComponent,
     activitySummaryComponent: usActivitySummaryComponent,
     // Followers component

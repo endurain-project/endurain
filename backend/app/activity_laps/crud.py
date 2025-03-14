@@ -5,6 +5,7 @@ import activities.models as activities_models
 
 import activity_laps.models as activity_laps_models
 import activity_laps.schema as activity_laps_schema
+import activity_laps.utils as activity_laps_utils
 
 import server_settings.crud as server_settings_crud
 
@@ -25,6 +26,23 @@ def get_activity_laps(activity_id: int, db: Session):
         # Check if there are activity laps if not return None
         if not activity_laps:
             return None
+        
+        # Get the activity from the database
+        activity = (
+            db.query(activities_models.Activity)
+            .filter(
+                activities_models.Activity.id == activity_id,
+            )
+            .first()
+        )
+
+        # Check if the activity exists, if not return None
+        if not activity:
+            return None
+
+        # Serialize the activity laps
+        for lap in activity_laps:
+            lap = activity_laps_utils.serialize_activity_lap(activity, lap)
 
         # Return the activity laps
         return activity_laps
@@ -122,7 +140,9 @@ def create_activity_laps(activity_laps: list[activity_laps_schema.ActivityLaps],
                 avg_stance_time = lap["avg_stance_time"],
                 avg_fractional_cadence = lap["avg_fractional_cadence"],
                 max_fractional_cadence = lap["max_fractional_cadence"],
+                enhanced_avg_pace = lap["enhanced_avg_pace"] if "enhanced_avg_pace" in lap else None,
                 enhanced_avg_speed = lap["enhanced_avg_speed"],
+                enhanced_max_pace = lap["enhanced_max_pace"] if "enhanced_max_pace" in lap else None,
                 enhanced_max_speed = lap["enhanced_max_speed"],
                 enhanced_min_altitude = lap["enhanced_min_altitude"],
                 enhanced_max_altitude = lap["enhanced_max_altitude"],

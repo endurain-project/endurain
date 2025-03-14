@@ -33,6 +33,36 @@ def get_activity_exercise_titles(db: Session):
         ) from err
 
 
+def get_activity_exercise_title_by_exercise_name(exercise_name: int, db: Session):
+    try:
+        # Get the activity exercise title from the database
+        activity_exercise_title = db.query(
+            activity_exercise_titles_models.ActivityExerciseTitles.filter(
+                activity_exercise_titles_models.ActivityExerciseTitles.exercise_name
+                == exercise_name,
+            )
+        ).first()
+
+        # Check if there are activity exercise title if not return None
+        if not activity_exercise_title:
+            return None
+
+        # Return the activity exercise title
+        return activity_exercise_title
+    except Exception as err:
+        # Log the exception
+        core_logger.print_to_log(
+            f"Error in get_activity_exercise_title_by_exercise_name: {err}",
+            "error",
+            exc=err,
+        )
+        # Raise an HTTPException with a 500 Internal Server Error status code
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal Server Error",
+        ) from err
+
+
 def create_activity_exercise_titles(
     activity_exercise_titles: list[
         activity_exercise_titles_schema.ActivityExerciseTitles

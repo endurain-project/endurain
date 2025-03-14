@@ -28,25 +28,6 @@ import {
 			<RouterView />
 		</main>
 		<FooterComponent class="d-none d-sm-block shadow-sm"/>
-		<NavbarBottomMobileComponent class="d-lg-none d-block fixed-bottom shadow-sm"/>
+		<NavbarBottomMobileComponent class="d-lg-none d-block sticky-bottom shadow-sm"/>
 	</div>
 </template>
-
-<style>
-:root {
-  /* Your variables */
-  --header-height: 65px;
-  --container-padding: 0px;
-  --container-width: 1300px;
-
-  /* Set the maximum width of the stream */
-  --nv-root-width: var(--container-width);
-
-  /* Add the top padding and place it below the header */
-  --nv-root-top: calc(var(--header-height) + var(--container-padding));
-
-  /* Add the same left-right paddings of your app container */
-  --nv-root-left: var(--container-padding);
-  --nv-root-right: var(--container-padding);
-}
-</style>

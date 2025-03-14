@@ -63,31 +63,21 @@
 
 		<!-- graphs -->
 		<hr class="mb-2 mt-2">
-		<div class="row">
-			<div class="col-md-2">
-				<p>{{ $t("activityView.labelGraph") }}</p>
-				<ul class="nav nav-pills flex-column mb-auto" id="sidebarLineGraph">
-					<li class="nav-item" v-for="item in graphItems" :key="item.type">
-						<a href="javascript:void(0);" class="nav-link text-secondary"
-						:class="{ 'active text-white': graphSelection === item.type }"
-						@click="selectGraph(item.type)">
-							{{ item.label }}
-						</a>
-					</li>
-				</ul>
-				<p class="mt-2">{{ $t("activityView.labelDownsampling") }}</p>
-			</div>
-			<div class="col">
-				<LoadingComponent v-if="isLoading"/>
-				<div v-else-if="activity">
-					<ActivityStreamsLineChartComponent :activity="activity" :graphSelection="graphSelection" :activityStreams="activityActivityStreams" v-if="graphSelection === 'hr' && hrPresent"/>
-					<ActivityStreamsLineChartComponent :activity="activity" :graphSelection="graphSelection" :activityStreams="activityActivityStreams" v-if="graphSelection === 'power' && powerPresent"/>
-					<ActivityStreamsLineChartComponent :activity="activity" :graphSelection="graphSelection" :activityStreams="activityActivityStreams" v-if="graphSelection === 'cad' && cadPresent"/>
-					<ActivityStreamsLineChartComponent :activity="activity" :graphSelection="graphSelection" :activityStreams="activityActivityStreams" v-if="graphSelection === 'ele' && elePresent"/>
-					<ActivityStreamsLineChartComponent :activity="activity" :graphSelection="graphSelection" :activityStreams="activityActivityStreams" v-if="graphSelection === 'vel' && velPresent"/>
-					<ActivityStreamsLineChartComponent :activity="activity" :graphSelection="graphSelection" :activityStreams="activityActivityStreams" v-if="graphSelection === 'pace' && pacePresent"/>
-				</div>
-			</div>
+
+		<!-- graphs and laps medium and above screens -->
+		<div class="d-none d-sm-block" v-if="isLoading">
+			<LoadingComponent />
+		</div>
+		<div class="d-none d-sm-block" v-else>
+			<ActivitySMPillsComponent :activity="activity" :activityActivityLaps="activityActivityLaps" :activityActivityStreams="activityActivityStreams" />
+		</div>
+
+		<!-- graphs and laps screens bellow medium -->
+		<div class="d-lg-none d-block" v-if="isLoading">
+			<LoadingComponent />
+		</div>
+		<div class="d-lg-none d-block" v-else>
+			teste
 		</div>
 
 		<!-- back button -->
@@ -107,7 +97,7 @@ import { push } from "notivue";
 // Importing the components
 import ActivitySummaryComponent from "@/components/Activities/ActivitySummaryComponent.vue";
 import ActivityMapComponent from "@/components/Activities/ActivityMapComponent.vue";
-import ActivityStreamsLineChartComponent from "@/components/Activities/ActivityStreamsLineChartComponent.vue";
+import ActivitySMPillsComponent from "@/components/Activities/ActivitySMPillsComponent.vue";
 import LoadingComponent from "@/components/GeneralComponents/LoadingComponent.vue";
 import BackButtonComponent from "@/components/GeneralComponents/BackButtonComponent.vue";
 import ModalComponent from "@/components/Modals/ModalComponent.vue";
@@ -116,12 +106,13 @@ import AddGearToActivityModalComponent from "@/components/Activities/Modals/AddG
 import { gears } from "@/services/gearsService";
 import { activities } from "@/services/activitiesService";
 import { activityStreams } from "@/services/activityStreams";
+import { activityLaps } from "@/services/activityLapsService";
 
 export default {
 	components: {
 		ActivitySummaryComponent,
 		ActivityMapComponent,
-		ActivityStreamsLineChartComponent,
+		ActivitySMPillsComponent,
 		LoadingComponent,
 		BackButtonComponent,
 		ModalComponent,
@@ -139,18 +130,7 @@ export default {
 		const gearsByType = ref([]);
 		const gearId = ref(null);
 		const activityActivityStreams = ref([]);
-		const graphSelection = ref("hr");
-		const graphItems = ref([]);
-		const hrPresent = ref(false);
-		const powerPresent = ref(false);
-		const elePresent = ref(false);
-		const cadPresent = ref(false);
-		const velPresent = ref(false);
-		const pacePresent = ref(false);
-
-		function selectGraph(type) {
-			graphSelection.value = type;
-		}
+		const activityActivityLaps = ref([]);
 
 		async function submitDeleteGearFromActivity() {
 			try {
@@ -193,15 +173,17 @@ export default {
 					activity.value = await activities.getActivityById(route.params.id);
 				} else {
 					if (serverSettingsStore.serverSettings.public_shareable_links) {
-						activity.value = await activities.getPublicActivityById(route.params.id);
+						activity.value = await activities.getPublicActivityById(
+							route.params.id,
+						);
 						if (!activity.value) {
-							return router.push({ 
+							return router.push({
 								path: "/login",
 								query: { errorPublicActivityNotFound: "true" },
 							});
 						}
 					} else {
-						return router.push({ 
+						return router.push({
 							path: "/login",
 							query: { errorpublic_shareable_links: "true" },
 						});
@@ -215,60 +197,26 @@ export default {
 						query: { activityFound: "false", id: route.params.id },
 					});
 				}
-					
-				// Get the activity streams by activity id
+
 				if (authStore.isAuthenticated) {
+					// Get the activity streams by activity id
 					activityActivityStreams.value =
-						await activityStreams.getActivitySteamsByActivityId(route.params.id);
+						await activityStreams.getActivitySteamsByActivityId(
+							route.params.id,
+						);
+
+					// Get the activity laps by activity id
+					activityActivityLaps.value = await activityLaps.getActivityLapsByActivityId(
+						route.params.id,
+					);
 				} else {
+					// Get the activity streams by activity id
 					activityActivityStreams.value =
-						await activityStreams.getPublicActivityStreamsByActivityId(route.params.id);
+						await activityStreams.getPublicActivityStreamsByActivityId(
+							route.params.id,
+						);
 				}
 
-				if (activityActivityStreams.value) {
-					// Check if the activity has the streams
-					for (let i = 0; i < activityActivityStreams.value.length; i++) {
-						if (activityActivityStreams.value[i].stream_type === 1) {
-							hrPresent.value = true;
-							graphItems.value.push({ type: "hr", label: "HR" });
-						}
-						if (activityActivityStreams.value[i].stream_type === 2) {
-							powerPresent.value = true;
-							graphItems.value.push({ type: "power", label: "Power" });
-						}
-						if (activityActivityStreams.value[i].stream_type === 3) {
-							cadPresent.value = true;
-							graphItems.value.push({ type: "cad", label: "Cadence" });
-						}
-						if (activityActivityStreams.value[i].stream_type === 4) {
-							elePresent.value = true;
-							graphItems.value.push({ type: "ele", label: "Elevation" });
-						}
-						if (activityActivityStreams.value[i].stream_type === 5) {
-							velPresent.value = true;
-							if (
-								activity.value.activity_type === 4 ||
-								activity.value.activity_type === 5 ||
-								activity.value.activity_type === 6 ||
-								activity.value.activity_type === 7
-							) {
-								graphItems.value.push({ type: "vel", label: "Velocity" });
-							}
-						}
-						if (activityActivityStreams.value[i].stream_type === 6) {
-							pacePresent.value = true;
-							if (
-								activity.value.activity_type !== 4 &&
-								activity.value.activity_type !== 5 &&
-								activity.value.activity_type !== 6 &&
-								activity.value.activity_type !== 7
-							) {
-								graphItems.value.push({ type: "pace", label: "Pace" });
-							}
-						}
-					}
-				}
-				
 				if (authStore.isAuthenticated) {
 					if (activity.value.gear_id) {
 						gear.value = await gears.getGearById(activity.value.gear_id);
@@ -309,7 +257,9 @@ export default {
 					});
 				}
 				// If there is an error, set the error message and show the error alert.
-				push.error(`${t("activityView.errorMessageActivityNotFound")} - ${error}`);
+				push.error(
+					`${t("activityView.errorMessageActivityNotFound")} - ${error}`,
+				);
 			}
 
 			isLoading.value = false;
@@ -327,15 +277,7 @@ export default {
 			submitDeleteGearFromActivity,
 			updateGearIdOnAddGearToActivity,
 			updateActivityFieldsOnEdit,
-			graphSelection,
-			graphItems,
-			selectGraph,
-			hrPresent,
-			powerPresent,
-			elePresent,
-			cadPresent,
-			velPresent,
-			pacePresent,
+			activityActivityLaps,
 		};
 	},
 };

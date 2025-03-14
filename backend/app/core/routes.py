@@ -10,6 +10,7 @@ import profile.router as profile_router
 import user_default_gear.router as user_default_gear_router
 import activities.router as activities_router
 import activities.public_router as activities_public_router
+import activity_laps.router as activity_laps_router
 import activity_streams.router as activity_streams_router
 import activity_streams.public_router as activity_streams_public_router
 import gears.router as gears_router
@@ -71,6 +72,12 @@ router.include_router(
     activities_public_router.router,
     prefix=core_config.ROOT_PATH + "/public/activities",
     tags=["public_activities"],
+)
+router.include_router(
+    activity_laps_router.router,
+    prefix=core_config.ROOT_PATH + "/activities/laps",
+    tags=["activity_laps"],
+    dependencies=[Depends(session_security.validate_access_token)],
 )
 router.include_router(
     activity_streams_router.router,

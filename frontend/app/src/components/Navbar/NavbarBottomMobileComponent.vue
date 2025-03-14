@@ -2,22 +2,22 @@
     <nav class="navbar bg-body-tertiary text-center" v-if="authStore.isAuthenticated">
         <div class="container-fluid justify-content-around">
             <router-link :to="{ name: 'home' }" class="nav-link link-body-emphasis">
-                <font-awesome-icon :icon="['fas', 'fa-home']" size="2x"/>
+                <font-awesome-icon :icon="['fas', 'fa-home']" />
                 <br>
                 {{ $t("navbarBottomMobileComponent.home") }}
             </router-link>
             <router-link :to="{ name: 'gears' }" class="nav-link link-body-emphasis">
-                <font-awesome-icon :icon="['fas', 'fa-bicycle']" size="2x"/>
+                <font-awesome-icon :icon="['fas', 'fa-bicycle']" />
                 <br>
                 {{ $t("navbarBottomMobileComponent.gear") }}
             </router-link>
             <router-link :to="{ name: 'health' }" class="nav-link link-body-emphasis">
-                <font-awesome-icon :icon="['fas', 'fa-heart']" size="2x"/>
+                <font-awesome-icon :icon="['fas', 'fa-heart']" />
                 <br>
                 {{ $t("navbarBottomMobileComponent.health") }}
             </router-link>
             <router-link :to="{ name: 'search' }" class="nav-link link-body-emphasis">
-                <font-awesome-icon :icon="['fas', 'magnifying-glass']" size="2x"/>
+                <font-awesome-icon :icon="['fas', 'magnifying-glass']" />
                 <br>
                 {{ $t("navbarBottomMobileComponent.search") }}
             </router-link>
@@ -27,7 +27,7 @@
                 {{ $t("navbarBottomMobileComponent.menu") }}
             </router-link>-->
             <button class="nav-link link-body-emphasis" id="offcanvasNavbarButton" type="button" data-bs-toggle="offcanvas" data-bs-target="#offcanvasNavbar" aria-controls="offcanvasNavbar" aria-label="Toggle navigation">
-                <font-awesome-icon :icon="['fas', 'bars']" size="2x"/>
+                <font-awesome-icon :icon="['fas', 'bars']" />
                 <br>
                 {{ $t("navbarBottomMobileComponent.menu") }}
             </button>

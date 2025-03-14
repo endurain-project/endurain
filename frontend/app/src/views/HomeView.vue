@@ -205,12 +205,13 @@ export default {
 				push.error(`${t("homeView.errorFetchingUserActivities")} - ${error}`);
 			}
 		}
-
+		
 		const handleScroll = () => {
 			// If the component is already loading or there are no more activities, return
+			if (isLoading.value || !userHasMoreActivities.value) return;
+
 			const bottomOfWindow =
-				document.documentElement.scrollTop + window.innerHeight ===
-				document.documentElement.offsetHeight;
+				window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 1;
 
 			// If the user has reached the bottom of the page, fetch more activities
 			if (bottomOfWindow) {

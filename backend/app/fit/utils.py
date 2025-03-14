@@ -586,6 +586,12 @@ def parse_fit_file(file: str, db: Session) -> dict:
                             )
                         )
 
+                        if lap_dict["enhanced_avg_speed"]:
+                            lap_dict["enhanced_avg_pace"] = 1 / lap_dict["enhanced_avg_speed"]
+
+                        if lap_dict["enhanced_max_speed"]:
+                            lap_dict["enhanced_max_pace"] = 1 / lap_dict["enhanced_max_speed"]
+
                         laps.append(lap_dict)
 
                     # Extract split data
@@ -640,19 +646,20 @@ def parse_fit_file(file: str, db: Session) -> dict:
                     # Extract workout step data
                     if frame.name == "workout_step":
                         set_data = parse_frame_workout_step(frame)
-                        print(set_data)
+                        set_data = list(set_data)
+                        if set_data[4] == 7:
+                            set_data[4] = "active"
                         workout_steps.append(
                             activity_workout_steps_schema.ActivityWorkoutSteps(
                                 message_index=set_data[0] if set_data[0] else 0,
                                 duration_type=set_data[1],
                                 duration_value=set_data[2],
                                 target_type=set_data[3],
-                                target_value=set_data[4] if set_data[4] else 0,
-                                intensity=set_data[5],
-                                notes=set_data[6],
-                                exercise_name=set_data[7],
-                                exercise_weight=set_data[8],
-                                weight_display_unit=set_data[9],
+                                intensity=set_data[4] if type(set_data[4]) == str else "",
+                                notes=set_data[5],
+                                exercise_name=set_data[6],
+                                exercise_weight=set_data[7],
+                                weight_display_unit=set_data[8],
                             )
                         )
 
@@ -982,7 +989,6 @@ def parse_frame_workout_step(frame):
         "duration_type",
         "duration_value",
         "target_type",
-        "target_value",
         "intensity",
         "notes",
         "exercise_name",

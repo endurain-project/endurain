@@ -5,9 +5,13 @@ import activity_workout_steps.models as activity_workout_steps_models
 import activity_workout_steps.schema as activity_workout_steps_schema
 
 import core.logger as core_logger
-    
 
-def create_activity_workout_steps(activity_workout_steps: list[activity_workout_steps_schema.ActivityWorkoutSteps], activity_id: int, db: Session):
+
+def create_activity_workout_steps(
+    activity_workout_steps: list[activity_workout_steps_schema.ActivityWorkoutSteps],
+    activity_id: int,
+    db: Session,
+):
     try:
         # Create a list to store the ActivityWorkoutSteps objects
         workout_steps = []
@@ -22,7 +26,6 @@ def create_activity_workout_steps(activity_workout_steps: list[activity_workout_
                 duration_type=step.duration_type,
                 duration_value=step.duration_value,
                 target_type=step.target_type,
-                target_value=step.target_value,
                 intensity=step.intensity,
                 notes=step.notes,
                 exercise_name=step.exercise_name,

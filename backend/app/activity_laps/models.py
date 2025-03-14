@@ -158,10 +158,20 @@ class ActivityLaps(Base):
         nullable=True,
         comment="Lap maximum fractional cadence",
     )
+    enhanced_avg_pace = Column(
+        DECIMAL(precision=20, scale=10),
+        nullable=True,
+        comment="Lap enhanced average pace",
+    )
     enhanced_avg_speed = Column(
         DECIMAL(precision=20, scale=10),
         nullable=True,
         comment="Lap enhanced average speed",
+    )
+    enhanced_max_pace = Column(
+        DECIMAL(precision=20, scale=10),
+        nullable=True,
+        comment="Lap enhanced maximum pace",
     )
     enhanced_max_speed = Column(
         DECIMAL(precision=20, scale=10),

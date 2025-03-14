@@ -8,7 +8,6 @@ class ActivityWorkoutSteps(BaseModel):
     duration_type: str
     duration_value: float | None = None
     target_type: str | None = None
-    target_value: int
     intensity: str | None = None
     notes: str | None = None
     exercise_name: int | None = None
