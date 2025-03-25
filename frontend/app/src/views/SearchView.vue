@@ -190,7 +190,7 @@ export default {
                 );
             } else if (searchSelectActivityType.value === "4") {
                 searchResults.value = searchResultsOriginal.value.filter((user) =>
-                    [10].includes(user.activity_type),
+                    [10, 19, 20].includes(user.activity_type),
                 );
             } else if (searchSelectActivityType.value === "5") {
                 searchResults.value = searchResultsOriginal.value.filter((user) =>

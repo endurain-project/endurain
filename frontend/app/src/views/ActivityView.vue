@@ -69,7 +69,7 @@
 			<LoadingComponent />
 		</div>
 		<div class="d-none d-sm-block" v-else>
-			<ActivitySMPillsComponent :activity="activity" :activityActivityLaps="activityActivityLaps" :activityActivityStreams="activityActivityStreams" />
+			<ActivityMandAbovePillsComponent :activity="activity" :activityActivityLaps="activityActivityLaps" :activityActivityStreams="activityActivityStreams" />
 		</div>
 
 		<!-- graphs and laps screens bellow medium -->
@@ -77,7 +77,7 @@
 			<LoadingComponent />
 		</div>
 		<div class="d-lg-none d-block" v-else>
-			teste
+			<ActivityBellowMPillsComponent :activity="activity" :activityActivityLaps="activityActivityLaps" :activityActivityStreams="activityActivityStreams" />
 		</div>
 
 		<!-- back button -->
@@ -97,7 +97,8 @@ import { push } from "notivue";
 // Importing the components
 import ActivitySummaryComponent from "@/components/Activities/ActivitySummaryComponent.vue";
 import ActivityMapComponent from "@/components/Activities/ActivityMapComponent.vue";
-import ActivitySMPillsComponent from "@/components/Activities/ActivitySMPillsComponent.vue";
+import ActivityMandAbovePillsComponent from "@/components/Activities/ActivityMandAbovePillsComponent.vue";
+import ActivityBellowMPillsComponent from "@/components/Activities/ActivityBellowMPillsComponent.vue";
 import LoadingComponent from "@/components/GeneralComponents/LoadingComponent.vue";
 import BackButtonComponent from "@/components/GeneralComponents/BackButtonComponent.vue";
 import ModalComponent from "@/components/Modals/ModalComponent.vue";
@@ -112,7 +113,8 @@ export default {
 	components: {
 		ActivitySummaryComponent,
 		ActivityMapComponent,
-		ActivitySMPillsComponent,
+		ActivityMandAbovePillsComponent,
+		ActivityBellowMPillsComponent,
 		LoadingComponent,
 		BackButtonComponent,
 		ModalComponent,

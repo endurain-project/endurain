@@ -2,12 +2,12 @@
     <ul class="nav nav-pills mb-3 mt-3 justify-content-center" id="pills-tab" role="tablist">
         <li class="nav-item" role="presentation" v-if="graphItems && graphItems.length > 0">
             <button class="nav-link active link-body-emphasis" id="pills-graphs-tab" data-bs-toggle="pill" data-bs-target="#pills-graphs" type="button" role="tab" aria-controls="pills-graphs" aria-selected="true">
-                {{ $t("activitySMPillsComponent.labelPillGraphs") }}
+                {{ $t("activityMandAbovePillsComponent.labelPillGraphs") }}
             </button>
         </li>
         <li class="nav-item" role="presentation" v-if="activityActivityLaps && activityActivityLaps.length > 0">
             <button class="nav-link link-body-emphasis" id="pills-laps-tab" data-bs-toggle="pill" data-bs-target="#pills-laps" type="button" role="tab" aria-controls="pills-laps" aria-selected="false">
-                {{ $t("activitySMPillsComponent.labelPillLaps") }}
+                {{ $t("activityMandAbovePillsComponent.labelPillLaps") }}
             </button>
         </li>
     </ul>
@@ -16,7 +16,7 @@
         <div class="tab-pane fade show active" id="pills-graphs" role="tabpanel" aria-labelledby="pills-graphs-tab" tabindex="0" v-if="graphItems && graphItems.length > 0">
             <div class="row">
                 <div class="col-md-2">
-                    <p>{{ $t("activitySMPillsComponent.labelGraph") }}</p>
+                    <p>{{ $t("activityMandAbovePillsComponent.labelGraph") }}</p>
                     <ul class="nav nav-pills flex-column mb-auto" id="sidebarLineGraph">
                         <li class="nav-item" v-for="item in graphItems" :key="item.type">
                             <a href="javascript:void(0);" class="nav-link text-secondary"
@@ -26,7 +26,7 @@
                             </a>
                         </li>
                     </ul>
-                    <p class="mt-2">{{ $t("activitySMPillsComponent.labelDownsampling") }}</p>
+                    <p class="mt-2">{{ $t("activityMandAbovePillsComponent.labelDownsampling") }}</p>
                 </div>
                 <div class="col">
                     <div if="activity">
@@ -67,7 +67,7 @@ export default {
 			required: true,
 		},
         activityActivityLaps: {
-			type: Object,
+			type: [Object, null],
 			required: true,
 		},
         activityActivityStreams: {
@@ -138,7 +138,7 @@ export default {
             } catch (error) {
 				// If there is an error, set the error message and show the error alert.
 				push.error(
-					`${t("activitySMPillsComponent.errorMessageProcessingActivityStreams")} - ${error}`,
+					`${t("activityMandAbovePillsComponent.errorMessageProcessingActivityStreams")} - ${error}`,
 				);
 			}
         });
