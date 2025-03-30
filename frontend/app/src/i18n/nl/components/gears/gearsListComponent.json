@@ -1,13 +1,13 @@
 {
-    "gearListTypeLabel": "Type",
-    "gearListTypeOption1": "Bike",
-    "gearListTypeOption2": "Shoes",
+    "gearListTypeLabel": "Soort",
+    "gearListTypeOption1": "Fiets",
+    "gearListTypeOption2": "Schoenen",
     "gearListTypeOption3": "Wetsuit",
-    "gearListGearIsInactiveBadge": "Inactive",
+    "gearListGearIsInactiveBadge": "Inactief",
     "gearListGearFromStrava": "Strava",
     "gearListGearFromGarminConnect": "Garmin Connect",
-    "gearListModalDeleteGearTitle": "Delete gear",
-    "gearListModalDeleteGearBody": "Are you sure you want to delete gear ",
-    "gearListGearDeleteSuccessMessage": "Gear deleted successfully",
-    "gearListGearDeleteErrorMessage": "Error deleting gear"
+    "gearListModalDeleteGearTitle": "Verwijder uitrusting",
+    "gearListModalDeleteGearBody": "Weet u zeker dat u de uitrusting wilt verwijderen? ",
+    "gearListGearDeleteSuccessMessage": "Uitrusting succesvol verwijderd",
+    "gearListGearDeleteErrorMessage": "Fout bij verwijderen uitrusting"
 }
