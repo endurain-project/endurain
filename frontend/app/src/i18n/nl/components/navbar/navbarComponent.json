@@ -1,10 +1,10 @@
 {
-    "search": "Search",
-    "gear": "Gear",
-    "health": "Health",
-    "profile": "Profile",
-    "settings": "Settings",
-    "login": "Login",
-    "logout": "Logout",
-    "errorLogout": "Error logging out"
+    "search": "Zoeken",
+    "gear": "Uitrusting",
+    "health": "Gezondheid",
+    "profile": "Profiel",
+    "settings": "Instellingen",
+    "login": "Inloggen",
+    "logout": "Uitloggen",
+    "errorLogout": "Fout bij uitloggen"
 }
