@@ -35,6 +35,7 @@ export default {
             { value: 'ca', label: 'Catalan' },
             { value: 'de', label: 'German' },
             { value: 'fr', label: 'French (FR)' },
+            { value: 'nl', label: 'Dutch (NL)' },
             { value: 'pt', label: 'Portuguese (PT)' },
             { value: 'us', label: 'English (US)' },
         ];
