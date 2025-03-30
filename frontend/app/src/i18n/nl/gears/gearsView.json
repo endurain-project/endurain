@@ -1,13 +1,13 @@
 {
-    "title": "Gear",
-    "buttonAddGear": "Add Gear",
-    "subTitleSearchGearByNickname": "Search gear by nickname",
-    "placeholderSearchGearByNickname": "Nickname",
-    "buttonSearchGear": "Search Gear",
-    "displayUserNumberOfGears1": "There is a total of ",
-    "displayUserNumberOfGears2": " gear(s) (",
-    "displayUserNumberOfGears3": " loaded):",
-    "successGearDeleted": "Gear deleted successfully",
-    "errorGearNotFound": "Gear not found",
-    "errorFetchingGears": "Error fetching gears"
+    "title": "Uitrusting",
+    "buttonAddGear": "Voeg Uitrusting toe",
+    "subTitleSearchGearByNickname": "Zoek uitrusting op bijnaam",
+    "placeholderSearchGearByNickname": "Bijnaam",
+    "buttonSearchGear": "Zoek Uitrusting",
+    "displayUserNumberOfGears1": "Er is een totaal van ",
+    "displayUserNumberOfGears2": " uitrusting(en) (",
+    "displayUserNumberOfGears3": " geladen):",
+    "successGearDeleted": "Uitrusting succesvol verwijderd",
+    "errorGearNotFound": "Uitrusting niet gevonden",
+    "errorFetchingGears": "Fout bij ophalen van uitrusting"
 }
