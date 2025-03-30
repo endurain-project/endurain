@@ -1,13 +1,13 @@
 {
-    "labelGear": "Gear",
-    "labelGearNotSet": "Not set",
-    "modalLabelDeleteGear": "Delete gear from activity",
-    "modalLabelDeleteGearBody": "Are you sure you want to remove the gear from the activity?",
-    "modalLabelDeleteGearButton": "Delete gear",
-    "labelGraph": "Activity data graphs",
-    "labelDownsampling": "Data downsampled to ~200 points",
-    "successMessageGearAdded": "Gear added to activity",
-    "successMessageGearDeleted": "Gear deleted from activity",
-    "errorMessageDeleteGear": "Error deleting gear from activity",
-    "errorMessageActivityNotFound": "Activity not found"
+    "labelGear": "Uitrusting",
+    "labelGearNotSet": "Niet ingesteld",
+    "modalLabelDeleteGear": "Verwijder uitrusting uit activiteit",
+    "modalLabelDeleteGearBody": "Weet je zeker dat je de uitrusting uit de activiteit wilt verwijderen?",
+    "modalLabelDeleteGearButton": "Verwijder uitrusting",
+    "labelGraph": "Activiteit gegevensgrafieken",
+    "labelDownsampling": "Gegevens teruggeschaald naar ~200 punten",
+    "successMessageGearAdded": "Uitrusting toegevoegd aan activiteit",
+    "successMessageGearDeleted": "Uitrusting verwijderd uit activiteit",
+    "errorMessageDeleteGear": "Fout bij verwijderen van uitrusting uit activiteit",
+    "errorMessageActivityNotFound": "Activiteit niet gevonden"
 }
