@@ -1,14 +1,14 @@
 {
     "title": "Endurain",
-    "buttonAddActivity": "Add Activity",
-    "fieldLabelUploadGPXFile": "Upload .gpx or .fit file",
-    "radioUserActivities": "My activities",
-    "radioFollowerActivities": "Followers activities",
-    "successActivityAdded": "Activity added successfully",
-    "errorActivityAdded": "Error adding activity",
-    "errorActivityNotFound": "Activity not found",
-    "processingActivity": "Processing activity",
-    "successActivityDeleted": "Activity deleted successfully",
-    "errorFetchingUserStats": "Error fetching user stats",
-    "errorFetchingUserActivities": "Error fetching user activities"
+    "buttonAddActivity": "Activiteit toevoegen",
+    "fieldLabelUploadGPXFile": "Upload .gpx of .fit bestand",
+    "radioUserActivities": "Mijn activiteiten",
+    "radioFollowerActivities": "Activiteiten volgers",
+    "successActivityAdded": "Activiteit succesvol toegevoegd",
+    "errorActivityAdded": "Fout bij toevoegen activiteit",
+    "errorActivityNotFound": "Activiteit niet gevonden",
+    "processingActivity": "Activiteit verwerken",
+    "successActivityDeleted": "Activiteit succesvol verwijderd",
+    "errorFetchingUserStats": "Fout bij ophalen gebruikersstatistieken",
+    "errorFetchingUserActivities": "Fout bij ophalen gebruikersactiviteiten"
 }
