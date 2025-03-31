@@ -1,13 +1,13 @@
 {
-    "subtitleChangePassword": "Change password",
-    "changeUserPasswordBodyLabel": "Change password for user ",
-    "changeUserPasswordPasswordLabel": "New password",
-    "changeUserPasswordPasswordConfirmationLabel": "Confirm new password",
-    "changeUserPasswordFeedbackLabel": "Password does not meet requirements",
-    "changeUserPasswordPasswordsDoNotMatchFeedbackLabel": "Passwords do not match",
-    "subtitleMySessions": "My sessions",
-    "userChangePasswordSuccessMessage": "Password changed successfully",
-    "userChangePasswordErrorMessage": "Error changing password",
-    "successDeleteSession": "Session deleted successfully",
-    "errorDeleteSession": "Error deleting session"
+    "subtitleChangePassword": "Wachtwoord wijzigen",
+    "changeUserPasswordBodyLabel": "Wijzig wachtwoord voor gebruiker ",
+    "changeUserPasswordPasswordLabel": "Nieuw wachtwoord",
+    "changeUserPasswordPasswordConfirmationLabel": "Bevestig nieuw wachtwoord",
+    "changeUserPasswordFeedbackLabel": "Wachtwoord voldoet niet aan de eisen",
+    "changeUserPasswordPasswordsDoNotMatchFeedbackLabel": "Wachtwoorden komen niet overeen",
+    "subtitleMySessions": "Mijn sessies",
+    "userChangePasswordSuccessMessage": "Wachtwoord met succes gewijzigd",
+    "userChangePasswordErrorMessage": "Fout opgetreden bij wijzigen van wachtwoord",
+    "successDeleteSession": "Sessie succesvol verwijderd",
+    "errorDeleteSession": "Fout bij verwijderen sessie"
 }
