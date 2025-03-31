@@ -1,15 +1,15 @@
 {
-    "userListAccessTypeLabel": "Access type: ",
-    "userListAccessTypeOption1": "Regular user",
-    "userListAccessTypeOption2": "Administrator",
-    "userListUserIsMeBadge": "Me",
+    "userListAccessTypeLabel": "Toegang type: ",
+    "userListAccessTypeOption1": "Reguliere gebruiker",
+    "userListAccessTypeOption2": "Beheerder",
+    "userListUserIsMeBadge": "Ik",
     "userListUserIsAdminBadge": "Admin",
-    "userListUserIsActiveBadge": "Active",
-    "userListUserIsInactiveBadge": "Inactive",
-    "userEditErrorMessage": "Error editing user",
-    "modalDeleteUserTitle": "Delete user",
-    "modalDeleteUserBody": "Are you sure you want to delete user ",
-    "userListUserSessionsTitle": "User sessions",
-    "userSessionDeleteSuccessMessage": "Session deleted successfully",
-    "userSessionDeleteErrorMessage": "Error deleting session"
+    "userListUserIsActiveBadge": "Actief",
+    "userListUserIsInactiveBadge": "Inactief",
+    "userEditErrorMessage": "Fout bij bewerken gebruiker",
+    "modalDeleteUserTitle": "Gebruiker verwijderen",
+    "modalDeleteUserBody": "Weet u zeker dat u gebruiker wilt verwijderen? ",
+    "userListUserSessionsTitle": "Gebruikerssessies",
+    "userSessionDeleteSuccessMessage": "Sessie succesvol verwijderd",
+    "userSessionDeleteErrorMessage": "Fout bij verwijderen sessie"
 }
