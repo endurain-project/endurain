@@ -1,0 +1,13 @@
+{
+    "gearListTypeLabel": "Type",
+    "gearListTypeOption1": "Bike",
+    "gearListTypeOption2": "Shoes",
+    "gearListTypeOption3": "Wetsuit",
+    "gearListGearIsInactiveBadge": "Inactive",
+    "gearListGearFromStrava": "Strava",
+    "gearListGearFromGarminConnect": "Garmin Connect",
+    "gearListModalDeleteGearTitle": "Delete gear",
+    "gearListModalDeleteGearBody": "Are you sure you want to delete gear ",
+    "gearListGearDeleteSuccessMessage": "Gear deleted successfully",
+    "gearListGearDeleteErrorMessage": "Error deleting gear"
+}
