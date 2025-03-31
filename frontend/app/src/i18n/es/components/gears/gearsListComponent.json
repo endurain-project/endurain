@@ -1,13 +1,13 @@
 {
-    "gearListTypeLabel": "Type",
-    "gearListTypeOption1": "Bike",
-    "gearListTypeOption2": "Shoes",
-    "gearListTypeOption3": "Wetsuit",
-    "gearListGearIsInactiveBadge": "Inactive",
+    "gearListTypeLabel": "Tipo",
+    "gearListTypeOption1": "Bicicleta",
+    "gearListTypeOption2": "Calzado",
+    "gearListTypeOption3": "Traje de neopreno",
+    "gearListGearIsInactiveBadge": "Inactivo",
     "gearListGearFromStrava": "Strava",
     "gearListGearFromGarminConnect": "Garmin Connect",
-    "gearListModalDeleteGearTitle": "Delete gear",
-    "gearListModalDeleteGearBody": "Are you sure you want to delete gear ",
-    "gearListGearDeleteSuccessMessage": "Gear deleted successfully",
-    "gearListGearDeleteErrorMessage": "Error deleting gear"
+    "gearListModalDeleteGearTitle": "Eliminar equipo",
+    "gearListModalDeleteGearBody": "¿Está seguro que desea eliminar el equipo?",
+    "gearListGearDeleteSuccessMessage": "Equipo eliminado correctamente",
+    "gearListGearDeleteErrorMessage": "Error al eliminar el equipo"
 }
