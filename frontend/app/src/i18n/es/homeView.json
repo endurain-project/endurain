@@ -1,14 +1,14 @@
 {
-    "title": "Endurain",
-    "buttonAddActivity": "Add Activity",
-    "fieldLabelUploadGPXFile": "Upload .gpx or .fit file",
-    "radioUserActivities": "My activities",
-    "radioFollowerActivities": "Followers activities",
-    "successActivityAdded": "Activity added successfully",
-    "errorActivityAdded": "Error adding activity",
-    "errorActivityNotFound": "Activity not found",
-    "processingActivity": "Processing activity",
-    "successActivityDeleted": "Activity deleted successfully",
-    "errorFetchingUserStats": "Error fetching user stats",
-    "errorFetchingUserActivities": "Error fetching user activities"
+    "title": "Resistencia",
+    "buttonAddActivity": "Agregar Actividad",
+    "fieldLabelUploadGPXFile": "Subir archivo .gpx o .fit",
+    "radioUserActivities": "Mis actividades",
+    "radioFollowerActivities": "Actividades de seguidores",
+    "successActivityAdded": "Actividad agregada correctamente",
+    "errorActivityAdded": "Error al añadir actividad",
+    "errorActivityNotFound": "Actividad no encontrada",
+    "processingActivity": "Procesando actividad",
+    "successActivityDeleted": "Actividad eliminada correctamente",
+    "errorFetchingUserStats": "Error obteniendo las estadísticas del usuario",
+    "errorFetchingUserActivities": "Error obteniendo las actividades del usuario"
 }
