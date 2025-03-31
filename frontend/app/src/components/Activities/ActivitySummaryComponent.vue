@@ -135,7 +135,7 @@
 
         <!-- Activity summary -->
         <div class="row mt-3 align-items-center text-start">
-            <div class="col" v-if="activity.activity_type != 10 && activity.activity_type != 14 && activity.activity_type != 18 && activity.activity_type != 19 && activity.activity_type != 20">
+            <div class="col" v-if="activity.activity_type != 10 && activity.activity_type != 14 && activity.activity_type != 18 && activity.activity_type != 19 && activity.activity_type != 20 && activity.activity_type != 21">
                 <span class="fw-lighter">
                     {{ $t("activitySummaryComponent.activityDistance") }}
                 </span>
@@ -169,7 +169,7 @@
                 <span>{{ calculateTimeDifference(activity.start_time, activity.end_time) }}</span>
             </div>
             <div class="col border-start border-opacity-50">
-                <div v-if="activity.activity_type != 1 && activity.activity_type != 2 && activity.activity_type != 3 && activity.activity_type != 8 && activity.activity_type != 9 && activity.activity_type != 10 && activity.activity_type != 13 && activity.activity_type != 14 && activity.activity_type != 18 && activity.activity_type != 19 && activity.activity_type != 20">
+                <div v-if="activity.activity_type != 1 && activity.activity_type != 2 && activity.activity_type != 3 && activity.activity_type != 8 && activity.activity_type != 9 && activity.activity_type != 10 && activity.activity_type != 13 && activity.activity_type != 14 && activity.activity_type != 18 && activity.activity_type != 19 && activity.activity_type != 20 && activity.activity_type != 21">
                     <span class="fw-lighter">
                         {{ $t("activitySummaryComponent.activityElevationGain") }}
                     </span>
@@ -177,7 +177,7 @@
                     <span v-if="Number(units) === 1">{{ activity.elevation_gain }}{{ ' ' + $t("generalItems.unitsM") }}</span>
                     <span v-else>{{ metersToFeet(activity.elevation_gain) }}{{ ' ' + $t("generalItems.unitsFeetShort") }}</span>
                 </div>
-                <div v-else-if="activity.activity_type != 10 && activity.activity_type != 14 && activity.activity_type != 18 && activity.activity_type != 19 && activity.activity_type != 20">
+                <div v-else-if="activity.activity_type != 10 && activity.activity_type != 14 && activity.activity_type != 18 && activity.activity_type != 19 && activity.activity_type != 20 && activity.activity_type != 21">
                     <span class="fw-lighter">
                         {{ $t("activitySummaryComponent.activityPace") }}
                     </span>
@@ -194,7 +194,7 @@
                 </div>
             </div>
         </div>        
-        <div class="row d-flex mt-3" v-if="source === 'activity' && activity.activity_type != 10 && activity.activity_type != 14 && activity.activity_type != 18 && activity.activity_type != 19 && activity.activity_type != 20">
+        <div class="row d-flex mt-3" v-if="source === 'activity' && activity.activity_type != 10 && activity.activity_type != 14 && activity.activity_type != 18 && activity.activity_type != 19 && activity.activity_type != 20 && activity.activity_type != 21">
             <!-- avg_power running and cycling activities-->
             <div class="col" v-if="activity.activity_type == 1 || activity.activity_type == 2 || activity.activity_type == 3 || activity.activity_type == 4 || activity.activity_type == 5 || activity.activity_type == 6 || activity.activity_type == 7">
                 <span class="fw-lighter">

@@ -1,7 +1,7 @@
 <template>
     <div if="activity" class="fw-lighter">
         <!-- laps -->
-        <ActivityLapsComponent :activity="activity" :activityActivityLaps="activityActivityLaps" :units="units" />
+        <ActivityLapsComponent :activity="activity" :activityActivityLaps="activityActivityLaps" :units="units" v-if="activityActivityLaps && activityActivityLaps.length > 0"/>
 
         <!-- Pace values -->
         <div v-if="pacePresent">

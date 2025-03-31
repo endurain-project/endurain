@@ -168,7 +168,7 @@
             <!-- Iterating over userWeekActivities to display them -->
                 <div class="card mb-3 rounded border-0 bg-body-tertiary shadow-sm" v-for="activity in userWeekActivities" :key="activity.id">
                     <div class="card-body">
-                        <ActivitySummaryComponent :activity="activity" :source="'home'"/>
+                        <ActivitySummaryComponent :activity="activity" :source="'home'" :units="userProfile.units"/>
                     </div>
                     <ActivityMapComponent class="mx-3 mb-3" :activity="activity" :source="'home'"/>
                 </div>

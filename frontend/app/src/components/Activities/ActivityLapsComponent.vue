@@ -17,7 +17,7 @@
                     <td>{{ index + 1 }}</td>
                     <td>{{ lap.formattedDistance }}</td>
                     <td>{{ lap.lapSecondsToMinutes }}</td>
-                    <td v-if="activity.activity_type === 4 || activity.activity_type === 5 || activity.activity_type === 6 || activity.activity_type === 7">{{ lap.formattedPaceFull }}</td>
+                    <td v-if="activity.activity_type === 4 || activity.activity_type === 5 || activity.activity_type === 6 || activity.activity_type === 7">{{ lap.formattedSpeedFull }}</td>
                     <td v-else>{{ lap.formattedPaceFull }}</td>
 					<td>{{ lap.formattedElevationFull.value }}</td>
                     <td>{{ lap.avg_heart_rate ?? 0 + ' ' + $t("generalItems.unitsBpm") }}</td>
@@ -31,7 +31,8 @@
             <thead>
                 <tr>
                     <th scope="col" style="width: 5%;">#</th>
-                    <th scope="col" style="width: 15%;">{{ $t("activityLapsComponent.labelLapPace") }}</th>
+                    <th scope="col" style="width: 15%;" v-if="activity.activity_type === 4 || activity.activity_type === 5 || activity.activity_type === 6 || activity.activity_type === 7">{{ $t("activityLapsComponent.labelLapSpeed") }}</th>
+                    <th scope="col" style="width: 15%;" v-else>{{ $t("activityLapsComponent.labelLapPace") }}</th>
                     <th scope="col" style="width: auto;">&nbsp;</th>
                     <th scope="col" style="width: 10%;">{{ $t("activityLapsComponent.labelLapElev") }}</th>
                     <th scope="col" style="width: 10%;">{{ $t("activityLapsComponent.labelLapHR") }}</th>
@@ -40,7 +41,8 @@
             <tbody>
                 <tr v-for="(lap, index) in normalizedLaps" :key="index">
                     <td>{{ index + 1 }}</td>
-                    <td>{{ lap.formattedPace }}</td>
+                    <td v-if="activity.activity_type === 4 || activity.activity_type === 5 || activity.activity_type === 6 || activity.activity_type === 7">{{ lap.formattedSpeed }}</td>
+                    <td v-else>{{ lap.formattedPace }}</td>
                     <td>
                         <div class="progress" role="progressbar" aria-label="Basic example" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
                             <div class="progress-bar" :style="{ width: lap.normalizedScore + '%' }"></div>
@@ -164,6 +166,18 @@ export default {
                     }
                     return `${metersToFeet(lap.total_ascent)} ${t("generalItems.unitsFeetShort")}` ?? `0 ${t("generalItems.unitsFeetShort")}`;
                 });
+                const formattedSpeedFull = computed(() => {
+                    if (Number(props.units) === 1) {
+                        return `${lap.enhanced_avg_speed} ${t("generalItems.unitsKmH")}`;
+                    }
+                    return `${formatAverageSpeedImperial(lap.enhanced_avg_speed)} ${t("generalItems.unitsMph")}`;
+                });
+                const formattedSpeed = computed(() => {
+                    if (Number(props.units) === 1) {
+                        return lap.enhanced_avg_speed ?? 0;
+                    }
+                    return formatAverageSpeedImperial(lap.enhanced_avg_speed) ?? 0;
+                });
 
 				return {
 					...lap,
@@ -174,6 +188,8 @@ export default {
                     formattedDistance: formattedDistance,
                     formattedElevation: formattedElevation,
                     formattedElevationFull: formattedElevationFull,
+                    formattedSpeedFull: formattedSpeedFull,
+                    formattedSpeed: formattedSpeed,
 				};
 			});
 		});

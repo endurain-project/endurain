@@ -708,6 +708,11 @@ def define_activity_type(activity_type):
         "WeightTraining": 19,
         "Crossfit": 20,
         "Tennis": 21,
+        #"TableTennis": 22,
+        #"Badminton": 23,
+        #"Squash": 24,
+        #"Racquetball": 25,
+        #"Pickleball": 26,
     }
     # "AlpineSki",
     # "BackcountrySki",

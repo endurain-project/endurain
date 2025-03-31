@@ -85,7 +85,7 @@
 					<!-- Iterating over userActivities to display them -->
 					<div class="card mb-3 bg-body-tertiary border-0 shadow-sm" v-for="activity in userActivities" :key="activity.id">
 						<div class="card-body">
-							<ActivitySummaryComponent :activity="activity" :source="'home'"/>
+							<ActivitySummaryComponent :activity="activity" :source="'home'" :units="authStore.user.units"/>
 						</div>
 						<ActivityMapComponent class="mx-3 mb-3" :activity="activity" :source="'home'"/>
 					</div>
