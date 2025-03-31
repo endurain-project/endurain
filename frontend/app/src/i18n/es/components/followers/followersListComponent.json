@@ -1,16 +1,16 @@
 {
     "requestAccepted": "Accepted",
     "requestPending": "Request pending",
-    "followingModalTitle": "Delete following",
-    "followingModalBody": "Are you sure you want to delete following user ",
-    "followerModalTitle": "Delete follower",
-    "followerModalBody": "Are you sure you want to delete follower user ",
-    "followerAcceptModalTitle": "Accept user request",
-    "followerAcceptModalBody": "Are you sure you want to accept follow request from user ",
-    "followerDeclineModalTitle": "Decline user request ",
-    "followerDeclineModalBody": "Are you sure you want to decline follow request from user ",
-    "errorDeleteFollowing": "Error deleting following",
-    "errorDeleteFollower": "Error deleting follower",
-    "errorUpdateFollower": "Error updating follower",
-    "errorFetchingFollowersDetails": "Error fetching followers details"
+    "followingModalTitle": "Eliminar siguiendo",
+    "followingModalBody": "¿Está seguro que desea eliminar el seguimiento?",
+    "followerModalTitle": "Eliminar seguidor",
+    "followerModalBody": "¿Está seguro que desea eliminar el seguidor?",
+    "followerAcceptModalTitle": "Aceptar solicitud de usuario",
+    "followerAcceptModalBody": "¿Estás seguro de que quieres aceptar la solicitud de seguimiento del usuario?",
+    "followerDeclineModalTitle": "Rechazar solicitud de usuario ",
+    "followerDeclineModalBody": "¿Está seguro de que desea rechazar la solicitud de seguimiento del usuario?",
+    "errorDeleteFollowing": "Error al eliminar seguimiento",
+    "errorDeleteFollower": "Error al eliminar seguidor",
+    "errorUpdateFollower": "Error al actualizar seguidor",
+    "errorFetchingFollowersDetails": "Error al recuperar los detalles de los seguidores"
 }
