@@ -1,8 +1,8 @@
 {
-    "usersSection": "Users",
-    "serverSettingsSection": "Server Settings",
+    "usersSection": "Usuarios",
+    "serverSettingsSection": "Ajustes del Servidor",
     "generalSection": "General",
-    "myProfileSection": "My Profile",
-    "securitySection": "Security",
-    "integrationsSection": "Integrations"
+    "myProfileSection": "Mi perfil",
+    "securitySection": "Seguridad",
+    "integrationsSection": "Integraciones"
 }
