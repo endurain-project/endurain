@@ -88,7 +88,7 @@ export default {
 			required: true,
 		},
 		activityActivityLaps: {
-			type: Object,
+			type: [Object, null],
 			required: true,
 		},
 		units: {

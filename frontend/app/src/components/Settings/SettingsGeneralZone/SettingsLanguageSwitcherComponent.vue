@@ -20,6 +20,7 @@ export default {
             { value: 'fr', label: 'French (FR)' },
             { value: 'nl', label: 'Dutch (NL)' },
             { value: 'pt', label: 'Portuguese (PT)' },
+            { value: 'es', label: 'Spanish (ES)' },
             { value: 'us', label: 'English (US)' },
         ];
         const currentLanguage = ref(locale.value);
