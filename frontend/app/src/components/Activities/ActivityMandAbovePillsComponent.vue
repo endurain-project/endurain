@@ -10,6 +10,11 @@
                 {{ $t("activityMandAbovePillsComponent.labelPillLaps") }}
             </button>
         </li>
+		<li class="nav-item" role="presentation" v-if="activityActivityWorkoutSteps && activityActivityWorkoutSteps.length > 0">
+            <button class="nav-link link-body-emphasis" id="pills-workout-steps-tab" data-bs-toggle="pill" data-bs-target="#pills-workout-steps" type="button" role="tab" aria-controls="pills-workout-steps" aria-selected="false">
+                {{ $t("activityMandAbovePillsComponent.labelPillWorkoutSteps") }}
+            </button>
+        </li>
     </ul>
 
     <div class="tab-content" id="pills-tabContent">
@@ -42,8 +47,12 @@
         </div>
 
         <div class="tab-pane fade" id="pills-laps" role="tabpanel" aria-labelledby="pills-laps-tab" tabindex="1" v-if="activityActivityLaps && activityActivityLaps.length > 0">
-            <ActivityLapsComponent :activityActivityLaps="activityActivityLaps" />
+            <ActivityLapsComponent :activity="activity" :activityActivityLaps="activityActivityLaps" :units="units" />
         </div>
+
+		<div class="tab-pane fade" id="pills-workout-steps" role="tabpanel" aria-labelledby="pills-workout-steps-tab" tabindex="2" v-if="activityActivityWorkoutSteps && activityActivityWorkoutSteps.length > 0">
+			{{ activityActivityWorkoutSteps }}
+		</div>
     </div>
 </template>
 
@@ -70,9 +79,17 @@ export default {
 			type: [Object, null],
 			required: true,
 		},
+		activityActivityWorkoutSteps: {
+			type: [Object, null],
+			required: true,
+		},
         activityActivityStreams: {
 			type: Object,
 			required: true,
+		},
+		units: {
+			type: Number,
+			default: 1,
 		},
 	},
 	setup(props) {

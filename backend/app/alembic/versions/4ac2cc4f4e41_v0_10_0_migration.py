@@ -214,116 +214,6 @@ def upgrade() -> None:
         ["activity_id"],
         unique=False,
     )
-    # Create activities_splits table
-    op.create_table(
-        "activities_splits",
-        sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
-        sa.Column(
-            "activity_id",
-            sa.Integer(),
-            nullable=False,
-            comment="Activity ID that the activity split belongs",
-        ),
-        sa.Column("split_type", sa.Integer(), nullable=False, comment="Split type"),
-        sa.Column(
-            "total_elapsed_time",
-            sa.DECIMAL(precision=20, scale=10),
-            nullable=False,
-            comment="Split total elapsed time (s)",
-        ),
-        sa.Column(
-            "total_timer_time",
-            sa.DECIMAL(precision=20, scale=10),
-            nullable=False,
-            comment="Split total timer time (s)",
-        ),
-        sa.Column(
-            "total_distance",
-            sa.DECIMAL(precision=20, scale=10),
-            nullable=True,
-            comment="Split total distance (m)",
-        ),
-        sa.Column(
-            "average_speed",
-            sa.DECIMAL(precision=20, scale=10),
-            nullable=True,
-            comment="Average speed seconds per meter (s/m)",
-        ),
-        sa.Column(
-            "start_time",
-            sa.DateTime(),
-            nullable=False,
-            comment="Split start date (DATETIME)",
-        ),
-        sa.Column(
-            "total_ascent",
-            sa.Integer(),
-            nullable=True,
-            comment="Split total ascent (m)",
-        ),
-        sa.Column(
-            "total_descent",
-            sa.Integer(),
-            nullable=True,
-            comment="Split total descent (m)",
-        ),
-        sa.Column(
-            "start_position_lat",
-            sa.DECIMAL(precision=20, scale=10),
-            nullable=True,
-            comment="Split start position latitude",
-        ),
-        sa.Column(
-            "start_position_long",
-            sa.DECIMAL(precision=20, scale=10),
-            nullable=True,
-            comment="Split start position longitude",
-        ),
-        sa.Column(
-            "end_position_lat",
-            sa.DECIMAL(precision=20, scale=10),
-            nullable=True,
-            comment="Split end position latitude",
-        ),
-        sa.Column(
-            "end_position_long",
-            sa.DECIMAL(precision=20, scale=10),
-            nullable=True,
-            comment="Split end position longitude",
-        ),
-        sa.Column(
-            "max_speed",
-            sa.DECIMAL(precision=20, scale=10),
-            nullable=True,
-            comment="Max speed seconds per meter (s/m)",
-        ),
-        sa.Column(
-            "end_time",
-            sa.DateTime(),
-            nullable=False,
-            comment="Split end date (DATETIME)",
-        ),
-        sa.Column(
-            "total_calories",
-            sa.Integer(),
-            nullable=True,
-            comment="Split total calories",
-        ),
-        sa.Column(
-            "start_elevation",
-            sa.Integer(),
-            nullable=True,
-            comment="Split start elevation (m)",
-        ),
-        sa.ForeignKeyConstraint(["activity_id"], ["activities.id"], ondelete="CASCADE"),
-        sa.PrimaryKeyConstraint("id"),
-    )
-    op.create_index(
-        op.f("ix_activities_splits_activity_id"),
-        "activities_splits",
-        ["activity_id"],
-        unique=False,
-    )
     # Create activity_exercise_titles table
     op.create_table(
         "activity_exercise_titles",
@@ -428,8 +318,6 @@ def downgrade() -> None:
     op.drop_table("activity_workout_steps")
     # Drop activity_exercise_titles table
     op.drop_table("activity_exercise_titles")
-    # Drop activities_splits table
-    op.drop_table("activities_splits")
     # Drop activities_laps table
     op.drop_table("activity_laps")
     # Drop default_activity_visibility column from users table

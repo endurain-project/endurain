@@ -5,14 +5,12 @@ import core.config as core_config
 import session.router as session_router
 import session.security as session_security
 import users.router as users_router
-import users.public_router as users_public_router
 import profile.router as profile_router
 import user_default_gear.router as user_default_gear_router
 import activities.router as activities_router
-import activities.public_router as activities_public_router
 import activity_laps.router as activity_laps_router
 import activity_streams.router as activity_streams_router
-import activity_streams.public_router as activity_streams_public_router
+import activity_workout_steps.router as activity_workout_steps_router
 import gears.router as gears_router
 import followers.router as followers_router
 import strava.router as strava_router
@@ -20,9 +18,14 @@ import garmin.router as garmin_router
 import health_data.router as health_data_router
 import health_targets.router as health_targets_router
 import server_settings.router as server_settings_router
-import server_settings.public_router as server_settings_public_router
 import websocket.router as websocket_router
 
+import users.public_router as users_public_router
+import activities.public_router as activities_public_router
+import activity_laps.public_router as activity_laps_public_router
+import activity_streams.public_router as activity_streams_public_router
+import activity_workout_steps.public_router as activity_workout_steps_public_router
+import server_settings.public_router as server_settings_public_router
 
 router = APIRouter()
 
@@ -38,11 +41,6 @@ router.include_router(
     prefix=core_config.ROOT_PATH + "/users",
     tags=["users"],
     dependencies=[Depends(session_security.validate_access_token)],
-)
-router.include_router(
-    users_public_router.router,
-    prefix=core_config.ROOT_PATH + "/public/users",
-    tags=["public_users"],
 )
 router.include_router(
     profile_router.router,
@@ -69,11 +67,6 @@ router.include_router(
     dependencies=[Depends(session_security.validate_access_token)],
 )
 router.include_router(
-    activities_public_router.router,
-    prefix=core_config.ROOT_PATH + "/public/activities",
-    tags=["public_activities"],
-)
-router.include_router(
     activity_laps_router.router,
     prefix=core_config.ROOT_PATH + "/activities/laps",
     tags=["activity_laps"],
@@ -86,9 +79,10 @@ router.include_router(
     dependencies=[Depends(session_security.validate_access_token)],
 )
 router.include_router(
-    activity_streams_public_router.router,
-    prefix=core_config.ROOT_PATH + "/public/activities/streams",
-    tags=["public_activity_streams"],
+    activity_workout_steps_router.router,
+    prefix=core_config.ROOT_PATH + "/activities/workout_steps",
+    tags=["activity_workout_steps"],
+    dependencies=[Depends(session_security.validate_access_token)],
 )
 router.include_router(
     gears_router.router,
@@ -135,18 +129,45 @@ router.include_router(
     dependencies=[Depends(session_security.validate_access_token)],
 )
 router.include_router(
-    server_settings_public_router.router,
-    prefix=core_config.ROOT_PATH + "/public/server_settings",
-    tags=["public_server_settings"],
-)
-router.include_router(
     websocket_router.router,
     prefix=core_config.ROOT_PATH + "/ws",
     tags=["websocket"],
-    # dependencies=[
-    #    Depends(session_security.validate_access_token),
-    #    Security(session_security.check_scopes, scopes=["profile"]),
-    # ],
+    #dependencies=[
+    #   Depends(session_security.validate_access_token),
+    #   Security(session_security.check_scopes, scopes=["profile"]),
+    #],
+)
+
+# PUBLIC ROUTES
+router.include_router(
+    users_public_router.router,
+    prefix=core_config.ROOT_PATH + "/public/users",
+    tags=["public_users"],
+)
+router.include_router(
+    activities_public_router.router,
+    prefix=core_config.ROOT_PATH + "/public/activities",
+    tags=["public_activities"],
+)
+router.include_router(
+    activity_laps_public_router.router,
+    prefix=core_config.ROOT_PATH + "/public/activities/laps",
+    tags=["public_activities_laps"],
+)
+router.include_router(
+    activity_streams_public_router.router,
+    prefix=core_config.ROOT_PATH + "/public/activities/streams",
+    tags=["public_activity_streams"],
+)
+router.include_router(
+    activity_workout_steps_public_router.router,
+    prefix=core_config.ROOT_PATH + "/public/activities/workout_steps",
+    tags=["public_activity_workout_steps"],
+)
+router.include_router(
+    server_settings_public_router.router,
+    prefix=core_config.ROOT_PATH + "/public/server_settings",
+    tags=["public_server_settings"],
 )
 router.include_router(
     core_router.router,

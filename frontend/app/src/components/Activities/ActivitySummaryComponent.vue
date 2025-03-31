@@ -290,6 +290,10 @@ export default {
 			type: String,
 			required: true,
 		},
+        units: {
+            type: Number,
+            default: 1,
+        },
 	},
 	emits: ["activityEditedFields"],
 	setup(props, { emit }) {
@@ -300,18 +304,15 @@ export default {
 		const isLoading = ref(true);
 		const userActivity = ref(null);
 		const formattedPace = ref(null);
-        const units = ref(1)
 
 		onMounted(async () => {
 			try {
                 if (authStore.isAuthenticated) {
                     userActivity.value = await users.getUserById(props.activity.user_id);
-                    units.value = authStore.user.units;
                 } else {
                     if (serverSettingsStore.serverSettings.public_shareable_links_user_info) {
                         userActivity.value = await users.getPublicUserById(props.activity.user_id);
                     }
-                    units.value = serverSettingsStore.serverSettings.units;
                 }
 
                 if (
@@ -319,13 +320,13 @@ export default {
                     props.activity.activity_type === 9 ||
                     props.activity.activity_type === 13
                 ) {
-                    if (Number(units.value) === 1) {
+                    if (Number(props.units) === 1) {
                         formattedPace.value = computed(() => formatPaceSwimMetric(props.activity.pace));
                     } else {
                         formattedPace.value = computed(() => formatPaceSwimImperial(props.activity.pace));
                     }
                 } else {
-                    if (Number(units.value) === 1) {
+                    if (Number(props.units) === 1) {
                         formattedPace.value = computed(() => formatPaceMetric(props.activity.pace));
                     } else {
                         formattedPace.value = computed(() => formatPaceImperial(props.activity.pace));
@@ -364,7 +365,6 @@ export default {
 			formatTime,
 			calculateTimeDifference,
 			formattedPace,
-            units,
 			submitDeleteActivity,
 			updateActivityFieldsOnEdit,
             metersToKm,

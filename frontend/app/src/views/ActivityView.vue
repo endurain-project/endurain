@@ -3,7 +3,7 @@
 		<LoadingComponent v-if="isLoading"/>
 
 		<div v-else>
-			<ActivitySummaryComponent v-if="activity" :activity="activity" :source="'activity'" @activityEditedFields="updateActivityFieldsOnEdit"/>
+			<ActivitySummaryComponent v-if="activity" :activity="activity" :source="'activity'" @activityEditedFields="updateActivityFieldsOnEdit" :units="units" />
 		</div>
 
 		<!-- map zone -->
@@ -69,7 +69,7 @@
 			<LoadingComponent />
 		</div>
 		<div class="d-none d-sm-block" v-else>
-			<ActivityMandAbovePillsComponent :activity="activity" :activityActivityLaps="activityActivityLaps" :activityActivityStreams="activityActivityStreams" />
+			<ActivityMandAbovePillsComponent :activity="activity" :activityActivityLaps="activityActivityLaps" :activityActivityWorkoutSteps="activityActivityWorkoutSteps" :activityActivityStreams="activityActivityStreams" :units="units" />
 		</div>
 
 		<!-- graphs and laps screens bellow medium -->
@@ -77,7 +77,7 @@
 			<LoadingComponent />
 		</div>
 		<div class="d-lg-none d-block" v-else>
-			<ActivityBellowMPillsComponent :activity="activity" :activityActivityLaps="activityActivityLaps" :activityActivityStreams="activityActivityStreams" />
+			<ActivityBellowMPillsComponent :activity="activity" :activityActivityLaps="activityActivityLaps" :activityActivityStreams="activityActivityStreams" :units="units" />
 		</div>
 
 		<!-- back button -->
@@ -108,6 +108,7 @@ import { gears } from "@/services/gearsService";
 import { activities } from "@/services/activitiesService";
 import { activityStreams } from "@/services/activityStreams";
 import { activityLaps } from "@/services/activityLapsService";
+import { activityWorkoutSteps } from "@/services/activityWorkoutStepsService";
 
 export default {
 	components: {
@@ -133,6 +134,8 @@ export default {
 		const gearId = ref(null);
 		const activityActivityStreams = ref([]);
 		const activityActivityLaps = ref([]);
+		const activityActivityWorkoutSteps = ref([]);
+		const units = ref(1);
 
 		async function submitDeleteGearFromActivity() {
 			try {
@@ -201,6 +204,9 @@ export default {
 				}
 
 				if (authStore.isAuthenticated) {
+					// Set the units
+                    units.value = authStore.user.units;
+
 					// Get the activity streams by activity id
 					activityActivityStreams.value =
 						await activityStreams.getActivitySteamsByActivityId(
@@ -211,10 +217,30 @@ export default {
 					activityActivityLaps.value = await activityLaps.getActivityLapsByActivityId(
 						route.params.id,
 					);
+
+					// Get the activity workout steps by activity id
+					activityActivityWorkoutSteps.value =
+						await activityWorkoutSteps.getActivityWorkoutStepsByActivityId(
+							route.params.id,
+						);
 				} else {
+					// Set the units
+					units.value = serverSettingsStore.serverSettings.units;
+
 					// Get the activity streams by activity id
 					activityActivityStreams.value =
 						await activityStreams.getPublicActivityStreamsByActivityId(
+							route.params.id,
+						);
+
+					// Get the activity laps by activity id
+					activityActivityLaps.value = await activityLaps.getPublicActivityLapsByActivityId(
+						route.params.id,
+					);
+
+					// Get the activity workout steps by activity id
+					activityActivityWorkoutSteps.value =
+						await activityWorkoutSteps.getPublicActivityWorkoutStepsByActivityId(
 							route.params.id,
 						);
 				}
@@ -272,6 +298,7 @@ export default {
 			authStore,
 			isLoading,
 			activity,
+			units,
 			gear,
 			gearId,
 			activityActivityStreams,
@@ -280,6 +307,7 @@ export default {
 			updateGearIdOnAddGearToActivity,
 			updateActivityFieldsOnEdit,
 			activityActivityLaps,
+			activityActivityWorkoutSteps,
 		};
 	},
 };

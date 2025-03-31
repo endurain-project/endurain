@@ -142,13 +142,6 @@ class Activity(Base):
         cascade="all, delete-orphan",
     )
 
-    # Establish a one-to-many relationship with 'activities_splits'
-    activities_splits = relationship(
-        "ActivitySplits",
-        back_populates="activity",
-        cascade="all, delete-orphan",
-    )
-
     # Establish a one-to-many relationship with 'activity_laps'
     activity_laps = relationship(
         "ActivityLaps",

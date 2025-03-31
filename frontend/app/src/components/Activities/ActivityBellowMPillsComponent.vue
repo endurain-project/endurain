@@ -1,33 +1,7 @@
 <template>
     <div if="activity" class="fw-lighter">
         <!-- laps -->
-        <div class="table-responsive">
-            <table class="table table-sm table-borderless" style="--bs-table-bg: var(--bs-gray-850);">
-                <thead>
-                    <tr>
-                        <th scope="col" style="width: 5%;">#</th>
-                        <th scope="col" style="width: 15%;">{{ $t("activityBellowMPillsComponent.subTitlePace") }}</th>
-                        <th scope="col" style="width: auto;">&nbsp;</th>
-                        <th scope="col" style="width: 10%;">{{ $t("activityBellowMPillsComponent.tableElevTitle") }}</th>
-                        <th scope="col" style="width: 10%;">{{ $t("activityBellowMPillsComponent.tableHRTitle") }}</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr v-for="(lap, index) in normalizedLaps" :key="index">
-                        <td>{{ index + 1 }}</td>
-                        <td>{{ lap.formattedPace }}</td>
-                        <td>
-                            <div class="progress" role="progressbar" aria-label="Basic example" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
-                                <div class="progress-bar" :style="{ width: lap.normalizedScore + '%' }"></div>
-                            </div>
-                        </td>
-                        <td>{{ lap.total_ascent ?? 0 }}</td>
-                        <td>{{ lap.avg_heart_rate ?? 0 }}</td>
-                    </tr>
-                </tbody>
-            </table>
-            <hr>
-        </div>
+        <ActivityLapsComponent :activity="activity" :activityActivityLaps="activityActivityLaps" :units="units" />
 
         <!-- Pace values -->
         <div v-if="pacePresent">
@@ -242,11 +216,13 @@ export default {
 			type: Object,
 			required: true,
 		},
+		units: {
+			type: Number,
+			default: 1,
+		},
 	},
 	setup(props) {
 		const { t } = useI18n();
-		const authStore = useAuthStore();
-        const serverSettingsStore = useServerSettingsStore();
 		const hrPresent = ref(false);
 		const powerPresent = ref(false);
 		const elePresent = ref(false);
@@ -254,47 +230,6 @@ export default {
 		const velPresent = ref(false);
 		const pacePresent = ref(false);
         const formattedPace = ref(null);
-        const units = ref(1)
-        const normalizedLaps = computed(() => {
-            if (!props.activityActivityLaps || props.activityActivityLaps.length === 0) {
-                return [];
-            }
-
-            // Extract all enhanced_avg_pace values
-            const laps = props.activityActivityLaps;
-            const enhancedAvgPaces = laps.map(lap => lap.enhanced_avg_pace);
-
-            // Find the fastest pace (smallest value)
-            const fastestPace = Math.min(...enhancedAvgPaces);
-
-            // Normalize each lap's pace relative to the fastest
-            return laps.map(lap => {
-                const normalizedScore = fastestPace / lap.enhanced_avg_pace * 100;
-                const formattedPace = computed(() => {
-                    if (
-                        props.activity.activity_type === 8 ||
-                        props.activity.activity_type === 9 ||
-                        props.activity.activity_type === 13
-                    ) {
-                        if (Number(units.value) === 1) {
-                            return formatPaceSwimMetric(lap.enhanced_avg_pace, false);
-                        }
-                        return formatPaceSwimImperial(lap.enhanced_avg_pace, false);
-                    }
-                    if (Number(units.value) === 1) {
-                        return formatPaceMetric(lap.enhanced_avg_pace, false);
-                    }
-                    return formatPaceImperial(lap.enhanced_avg_pace, false);
-                });
-
-                return {
-                    ...lap,
-                    normalizedScore: Math.min(Math.max(normalizedScore, 0), 100), // Clamp between 0 and 100
-                    formattedPace: formattedPace,
-                };
-            });
-        });
-        console.log("normalizedLaps", normalizedLaps.value);
 
         onMounted(async () => {
 			try {
@@ -343,28 +278,18 @@ export default {
 			}
 
             try {
-                if (authStore.isAuthenticated) {
-                    //userActivity.value = await users.getUserById(props.activity.user_id);
-                    units.value = authStore.user.units;
-                } else {
-                    //if (serverSettingsStore.serverSettings.public_shareable_links_user_info) {
-                    //    userActivity.value = await users.getPublicUserById(props.activity.user_id);
-                    //}
-                    units.value = serverSettingsStore.serverSettings.units;
-                }
-
                 if (
                     props.activity.activity_type === 8 ||
                     props.activity.activity_type === 9 ||
                     props.activity.activity_type === 13
                 ) {
-                    if (Number(units.value) === 1) {
+                    if (Number(props.units) === 1) {
                         formattedPace.value = computed(() => formatPaceSwimMetric(props.activity.pace));
                     } else {
                         formattedPace.value = computed(() => formatPaceSwimImperial(props.activity.pace));
                     }
                 } else {
-                    if (Number(units.value) === 1) {
+                    if (Number(props.units) === 1) {
                         formattedPace.value = computed(() => formatPaceMetric(props.activity.pace));
                     } else {
                         formattedPace.value = computed(() => formatPaceImperial(props.activity.pace));
@@ -376,7 +301,6 @@ export default {
         });
 
 		return {
-            units,
 			hrPresent,
 			powerPresent,
 			elePresent,
@@ -387,7 +311,6 @@ export default {
             formatSecondsToMinutes,
             formatAverageSpeedMetric,
             formatAverageSpeedImperial,
-            normalizedLaps,
 		};
 	},
 };

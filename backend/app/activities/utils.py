@@ -410,6 +410,7 @@ def store_activity(parsed_info: dict, db: Session):
         parsed_info["laps"], created_activity.id, db
     )
 
+    # Create activity workout steps in the database
     activity_workout_steps_crud.create_activity_workout_steps(
         parsed_info["workout_steps"], created_activity.id, db
     )

@@ -87,6 +87,23 @@ def get_public_activity_laps(activity_id: int, db: Session):
         # Check if there are activity laps, if not return None
         if not activity_laps:
             return None
+        
+        # Get the activity from the database
+        activity = (
+            db.query(activities_models.Activity)
+            .filter(
+                activities_models.Activity.id == activity_id,
+            )
+            .first()
+        )
+
+        # Check if the activity exists, if not return None
+        if not activity:
+            return None
+        
+        # Serialize the activity laps
+        for lap in activity_laps:
+            lap = activity_laps_utils.serialize_activity_lap(activity, lap)
 
         # Return the activity laps
         return activity_laps
@@ -109,7 +126,7 @@ def create_activity_laps(activity_laps: list[activity_laps_schema.ActivityLaps],
 
         # Iterate over the list of ActivityLaps objects
         for lap in activity_laps:
-            # Create an ActivitySplits object
+            # Create an ActivityLaps object
             db_stream = activity_laps_models.ActivityLaps(
                 activity_id=activity_id,
                 start_time=lap["start_time"],
@@ -153,7 +170,7 @@ def create_activity_laps(activity_laps: list[activity_laps_schema.ActivityLaps],
             # Append the object to the list
             laps.append(db_stream)
 
-        # Bulk insert the list of ActivitySplits objects
+        # Bulk insert the list of ActivityLaps objects
         db.bulk_save_objects(laps)
         db.commit()
     except Exception as err:

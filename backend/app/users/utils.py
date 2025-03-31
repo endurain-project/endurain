@@ -33,10 +33,8 @@ def delete_user_photo_filesystem(user_id: int):
 
     # Remove each file found
     for file_path in files_to_delete:
-        print(f"Deleting: {file_path}")
         if os.path.exists(file_path):
             os.remove(file_path)
-            print(f"Deleted: {file_path}")
 
 
 def format_user_birthdate(user):

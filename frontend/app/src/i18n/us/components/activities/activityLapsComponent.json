@@ -5,5 +5,7 @@
     "labelLapPace": "Pace",
     "labelLapSpeed": "Speed",
     "labelLapElevation": "Elevation",
-    "labelLapAvgHr": "Avg heart rate"
+    "labelLapElev": "Elev",
+    "labelLapAvgHr": "Avg heart rate",
+    "labelLapHR": "HR"
 }
