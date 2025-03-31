@@ -1,6 +1,6 @@
 {
-    "requestAccepted": "Accepted",
-    "requestPending": "Request pending",
+    "requestAccepted": "Aceptado",
+    "requestPending": "Solicitud pendiente",
     "followingModalTitle": "Eliminar siguiendo",
     "followingModalBody": "¿Está seguro que desea eliminar el seguimiento?",
     "followerModalTitle": "Eliminar seguidor",
