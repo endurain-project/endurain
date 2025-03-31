@@ -22,6 +22,7 @@
                     <option value="8">{{ $t("searchView.searchSelectActivityType8") }}</option>
                     <option value="9">{{ $t("searchView.searchSelectActivityType9") }}</option>
                     <option value="10">{{ $t("searchView.searchSelectActivityType10") }}</option>
+                    <option value="11">{{ $t("searchView.searchSelectActivityType11") }}</option>
                 </select>
                 <!-- Gear type area -->
                 <select id="inputSelectGearTypeToSearch" class="form-select rounded me-1" v-model="searchSelectGearType" v-if="searchSelectValue == 3">
@@ -54,6 +55,7 @@
                         <font-awesome-icon :icon="['fas', 'hands-praying']" v-if="searchSelectValue == 2 && [14].includes(Number(result.activity_type))" />
                         <font-awesome-icon :icon="['fas', 'person-person-skiing']" v-if="searchSelectValue == 2 && [15].includes(Number(result.activity_type))" />
                         <font-awesome-icon :icon="['fas', 'person-hands-snowboarding']" v-if="searchSelectValue == 2 && [16].includes(Number(result.activity_type))" />
+                        <font-awesome-icon :icon="['fas', 'table-tennis-paddle-ball']" v-if="searchSelectValue == 2 && [21].includes(Number(result.activity_type))" />
                         <!-- icons for gears -->
                         <font-awesome-icon :icon="['fas', 'bicycle']" v-if="searchSelectValue == 3 && [1].includes(Number(result.gear_type))" />
                         <font-awesome-icon :icon="['fas', 'person-running']" v-if="searchSelectValue == 3 && [2].includes(Number(result.gear_type))" class="ms-1"/>
@@ -215,6 +217,10 @@ export default {
             } else if (searchSelectActivityType.value === "10") {
                 searchResults.value = searchResultsOriginal.value.filter((user) =>
                     [16].includes(user.activity_type),
+                );
+            } else if (searchSelectActivityType.value === "11") {
+                searchResults.value = searchResultsOriginal.value.filter((user) =>
+                    [21].includes(user.activity_type),
                 );
             } else {
                 searchResults.value = searchResultsOriginal.value;

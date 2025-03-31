@@ -38,6 +38,7 @@
                             <option value="18">{{ $t("editActivityModalComponent.modalEditActivityTypeOption18") }}</option>
                             <option value="19">{{ $t("editActivityModalComponent.modalEditActivityTypeOption19") }}</option>
                             <option value="20">{{ $t("editActivityModalComponent.modalEditActivityTypeOption20") }}</option>
+                            <option value="21">{{ $t("editActivityModalComponent.modalEditActivityTypeOption21") }}</option>
                         </select>
                         <!-- visibility fields -->
                         <label for="activityVisibilityEdit"><b>* {{ $t("editActivityModalComponent.modalEditActivityVisibilityLabel") }}</b></label>

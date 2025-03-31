@@ -167,16 +167,22 @@
                 <span>
                     {{ $t("activityBellowMPillsComponent.labelElevationGain") }}
                 </span>
-                <span>
+                <span v-if="Number(units) === 1">
                     <b>{{ activity.elevation_gain }}{{ ' ' + $t("generalItems.unitsM") }}</b>
+                </span>
+                <span v-else>
+                    <b>{{ metersToFeet(activity.elevation_gain) }}{{ ' ' + $t("generalItems.unitsFeetShort") }}</b>
                 </span>
             </div>
             <div class="d-flex justify-content-between mt-3" v-if="activity.elevation_loss">
                 <span>
                     {{ $t("activityBellowMPillsComponent.labelElevationLoss") }}
                 </span>
-                <span>
+                <span v-if="Number(units) === 1">
                     <b>{{ activity.elevation_loss }}{{ ' ' + $t("generalItems.unitsM") }}</b>
+                </span>
+                <span v-else>
+                    <b>{{ metersToFeet(activity.elevation_loss) }}{{ ' ' + $t("generalItems.unitsFeetShort") }}</b>
                 </span>
             </div>
             <hr>
@@ -187,9 +193,6 @@
 <script>
 import { ref, onMounted, computed } from "vue";
 import { useI18n } from "vue-i18n";
-// Importing the stores
-import { useAuthStore } from "@/stores/authStore";
-import { useServerSettingsStore } from "@/stores/serverSettingsStore";
 // Importing the components
 import ActivityLapsComponent from "@/components/Activities/ActivityLapsComponent.vue";
 import ActivityStreamsLineChartComponent from "@/components/Activities/ActivityStreamsLineChartComponent.vue";
@@ -197,6 +200,9 @@ import ActivityStreamsLineChartComponent from "@/components/Activities/ActivityS
 import { push } from "notivue";
 import { formatPaceMetric, formatPaceImperial, formatPaceSwimMetric, formatPaceSwimImperial, formatAverageSpeedMetric, formatAverageSpeedImperial } from "@/utils/activityUtils";
 import { formatSecondsToMinutes } from "@/utils/dateTimeUtils";
+import {
+	metersToFeet,
+} from "@/utils/unitsUtils";
 
 export default {
 	components: {
@@ -311,6 +317,7 @@ export default {
             formatSecondsToMinutes,
             formatAverageSpeedMetric,
             formatAverageSpeedImperial,
+            metersToFeet,
 		};
 	},
 };

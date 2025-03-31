@@ -707,6 +707,7 @@ def define_activity_type(activity_type):
         "strength_training": 19,
         "WeightTraining": 19,
         "Crossfit": 20,
+        "Tennis": 21,
     }
     # "AlpineSki",
     # "BackcountrySki",

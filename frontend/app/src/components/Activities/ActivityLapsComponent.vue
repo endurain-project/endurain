@@ -6,7 +6,8 @@
                     <th>{{ $t("activityLapsComponent.labelLapNumber") }}</th>
                     <th>{{ $t("activityLapsComponent.labelLapDistance") }}</th>
                     <th>{{ $t("activityLapsComponent.labelLapTime") }}</th>
-                    <th>{{ $t("activityLapsComponent.labelLapPace") }}</th>
+                    <th v-if="activity.activity_type === 4 || activity.activity_type === 5 || activity.activity_type === 6 || activity.activity_type === 7">{{ $t("activityLapsComponent.labelLapSpeed") }}</th>
+                    <th v-else>{{ $t("activityLapsComponent.labelLapPace") }}</th>
                     <th>{{ $t("activityLapsComponent.labelLapElevation") }}</th>
                     <th>{{ $t("activityLapsComponent.labelLapAvgHr") }}</th>
                 </tr>
@@ -16,9 +17,10 @@
                     <td>{{ index + 1 }}</td>
                     <td>{{ lap.formattedDistance }}</td>
                     <td>{{ lap.lapSecondsToMinutes }}</td>
-                    <td>{{ lap.formattedPaceFull }}</td>
+                    <td v-if="activity.activity_type === 4 || activity.activity_type === 5 || activity.activity_type === 6 || activity.activity_type === 7">{{ lap.formattedPaceFull }}</td>
+                    <td v-else>{{ lap.formattedPaceFull }}</td>
 					<td>{{ lap.formattedElevationFull.value }}</td>
-                    <td>{{ lap.avg_heart_rate + ' ' + $t("generalItems.unitsBpm") }}</td>
+                    <td>{{ lap.avg_heart_rate ?? 0 + ' ' + $t("generalItems.unitsBpm") }}</td>
                 </tr>
             </tbody>
         </table>
