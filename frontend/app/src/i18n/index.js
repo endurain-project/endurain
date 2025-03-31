@@ -5,6 +5,7 @@ import { createI18n } from 'vue-i18n';
 // Activities component
 import caAddGearToActivityModalComponent from './ca/components/activities/modals/addGearToActivityModalComponent.json';
 import caEditActivityModalComponent from './ca/components/activities/modals/editActivityModalComponent.json';
+import caActivityBellowMPillsComponent from './ca/components/activities/activityBellowMPillsComponent.json';
 import caActivityLapsComponent from './ca/components/activities/activityLapsComponent.json';
 import caActivityMandAbovePillsComponent from './ca/components/activities/activityMandAbovePillsComponent.json';
 import caUserDistanceStatsComponent from './ca/components/activities/userDistanceStatsComponent.json';
@@ -59,6 +60,7 @@ import caUserView from './ca/userView.json';
 // Activities component
 import deAddGearToActivityModalComponent from './de/components/activities/modals/addGearToActivityModalComponent.json';
 import deEditActivityModalComponent from './de/components/activities/modals/editActivityModalComponent.json';
+import deActivityBellowMPillsComponent from './de/components/activities/activityBellowMPillsComponent.json';
 import deActivityLapsComponent from './de/components/activities/activityLapsComponent.json';
 import deActivityMandAbovePillsComponent from './de/components/activities/activityMandAbovePillsComponent.json';
 import deUserDistanceStatsComponent from './de/components/activities/userDistanceStatsComponent.json';
@@ -114,6 +116,7 @@ import deUserView from './de/userView.json';
 // Activities component
 import frAddGearToActivityModalComponent from './fr/components/activities/modals/addGearToActivityModalComponent.json';
 import frEditActivityModalComponent from './fr/components/activities/modals/editActivityModalComponent.json';
+import frActivityBellowMPillsComponent from './fr/components/activities/activityBellowMPillsComponent.json';
 import frActivityLapsComponent from './fr/components/activities/activityLapsComponent.json';
 import frActivityMandAbovePillsComponent from './fr/components/activities/activityMandAbovePillsComponent.json';
 import frUserDistanceStatsComponent from './fr/components/activities/userDistanceStatsComponent.json';
@@ -169,6 +172,7 @@ import frUserView from './fr/userView.json';
 // Activities component
 import ptAddGearToActivityModalComponent from './pt/components/activities/modals/addGearToActivityModalComponent.json';
 import ptEditActivityModalComponent from './pt/components/activities/modals/editActivityModalComponent.json';
+import ptActivityBellowMPillsComponent from './pt/components/activities/activityBellowMPillsComponent.json';
 import ptActivityLapsComponent from './pt/components/activities/activityLapsComponent.json';
 import ptActivityMandAbovePillsComponent from './pt/components/activities/activityMandAbovePillsComponent.json';
 import ptUserDistanceStatsComponent from './pt/components/activities/userDistanceStatsComponent.json';
@@ -223,6 +227,7 @@ import ptUserView from './pt/userView.json';
 // Activities component
 import usAddGearToActivityModalComponent from './us/components/activities/modals/addGearToActivityModalComponent.json';
 import usEditActivityModalComponent from './us/components/activities/modals/editActivityModalComponent.json';
+import usActivityBellowMPillsComponent from './us/components/activities/activityBellowMPillsComponent.json';
 import usActivityLapsComponent from './us/components/activities/activityLapsComponent.json';
 import usActivityMandAbovePillsComponent from './us/components/activities/activityMandAbovePillsComponent.json';
 import usUserDistanceStatsComponent from './us/components/activities/userDistanceStatsComponent.json';
@@ -279,6 +284,7 @@ const messages = {
     // Activities component
     addGearToActivityModalComponent: caAddGearToActivityModalComponent,
     editActivityModalComponent: caEditActivityModalComponent,
+    activityBellowMPillsComponent: caActivityBellowMPillsComponent,
     activityLapsComponent: caActivityLapsComponent,
     activityMandAbovePillsComponent: caActivityMandAbovePillsComponent,
     userDistanceStats: caUserDistanceStatsComponent,
@@ -333,6 +339,7 @@ const messages = {
     // Activities component
     addGearToActivityModalComponent: deAddGearToActivityModalComponent,
     editActivityModalComponent: deEditActivityModalComponent,
+    activityBellowMPillsComponent: deActivityBellowMPillsComponent,
     activityLapsComponent: deActivityLapsComponent,
     activityMandAbovePillsComponent: deActivityMandAbovePillsComponent,
     userDistanceStats: deUserDistanceStatsComponent,
@@ -387,6 +394,7 @@ const messages = {
     // Activities component
     addGearToActivityModalComponent: frAddGearToActivityModalComponent,
     editActivityModalComponent: frEditActivityModalComponent,
+    activityBellowMPillsComponent: frActivityBellowMPillsComponent,
     activityLapsComponent: frActivityLapsComponent,
     activityMandAbovePillsComponent: frActivityMandAbovePillsComponent,
     userDistanceStats: frUserDistanceStatsComponent,
@@ -441,6 +449,7 @@ const messages = {
     // Activities component
     addGearToActivityModalComponent: ptAddGearToActivityModalComponent,
     editActivityModalComponent: ptEditActivityModalComponent,
+    activityBellowMPillsComponent: ptActivityBellowMPillsComponent,
     activityLapsComponent: ptActivityLapsComponent,
     activityMandAbovePillsComponent: ptActivityMandAbovePillsComponent,
     userDistanceStats: ptUserDistanceStatsComponent,
@@ -495,6 +504,7 @@ const messages = {
     // Activities component
     addGearToActivityModalComponent: usAddGearToActivityModalComponent,
     editActivityModalComponent: usEditActivityModalComponent,
+    activityBellowMPillsComponent: usActivityBellowMPillsComponent,
     activityLapsComponent: usActivityLapsComponent,
     activityMandAbovePillsComponent: usActivityMandAbovePillsComponent,
     userDistanceStats: usUserDistanceStatsComponent,

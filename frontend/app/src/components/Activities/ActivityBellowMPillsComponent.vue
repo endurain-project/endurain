@@ -1,14 +1,43 @@
 <template>
     <div if="activity" class="fw-lighter">
+        <!-- laps -->
+        <div class="table-responsive">
+            <table class="table table-sm table-borderless" style="--bs-table-bg: var(--bs-gray-850);">
+                <thead>
+                    <tr>
+                        <th scope="col" style="width: 5%;">#</th>
+                        <th scope="col" style="width: 15%;">{{ $t("activityBellowMPillsComponent.subTitlePace") }}</th>
+                        <th scope="col" style="width: auto;">&nbsp;</th>
+                        <th scope="col" style="width: 10%;">{{ $t("activityBellowMPillsComponent.tableElevTitle") }}</th>
+                        <th scope="col" style="width: 10%;">{{ $t("activityBellowMPillsComponent.tableHRTitle") }}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr v-for="(lap, index) in normalizedLaps" :key="index">
+                        <td>{{ index + 1 }}</td>
+                        <td>{{ lap.formattedPace }}</td>
+                        <td>
+                            <div class="progress" role="progressbar" aria-label="Basic example" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
+                                <div class="progress-bar" :style="{ width: lap.normalizedScore + '%' }"></div>
+                            </div>
+                        </td>
+                        <td>{{ lap.total_ascent ?? 0 }}</td>
+                        <td>{{ lap.avg_heart_rate ?? 0 }}</td>
+                    </tr>
+                </tbody>
+            </table>
+            <hr>
+        </div>
+
         <!-- Pace values -->
         <div v-if="pacePresent">
-            <span class="fw-lighter">
-                Pace
+            <span class="fw-normal">
+                {{ $t("activityBellowMPillsComponent.subTitlePace") }}
             </span>
             <ActivityStreamsLineChartComponent :activity="activity" :graphSelection="'pace'" :activityStreams="activityActivityStreams" />
             <div class="d-flex justify-content-between mt-3" v-if="formattedPace">
                 <span>
-                    Avg Pace
+                    {{ $t("activityBellowMPillsComponent.labelAvgPace") }}
                 </span>
                 <span>
                     <b>{{ formattedPace }}</b>
@@ -16,7 +45,7 @@
             </div>
             <div class="d-flex justify-content-between mt-3" v-if="activity.total_elapsed_time">
                 <span>
-                    Moving time
+                    {{ $t("activityBellowMPillsComponent.labelMovingTime") }}
                 </span>
                 <span>
                     <b>{{ formatSecondsToMinutes(activity.total_elapsed_time) }}</b>
@@ -24,7 +53,7 @@
             </div>
             <div class="d-flex justify-content-between mt-3" v-if="activity.total_timer_time">
                 <span>
-                    Elapsed time
+                    {{ $t("activityBellowMPillsComponent.labelElapsedTime") }}
                 </span>
                 <span>
                     <b>{{ formatSecondsToMinutes(activity.total_timer_time) }}</b>
@@ -34,13 +63,13 @@
         </div>
         <!-- Velocity values -->
         <div v-if="velPresent">
-            <span class="fw-lighter">
-                Velocity
+            <span class="fw-normal">
+                {{ $t("activityBellowMPillsComponent.subTitleSpeed") }}
             </span>
             <ActivityStreamsLineChartComponent :activity="activity" :graphSelection="'vel'" :activityStreams="activityActivityStreams" />
             <div class="d-flex justify-content-between mt-3" v-if="activity.average_speed">
                 <span>
-                    Avg Speed
+                    {{ $t("activityBellowMPillsComponent.labelAvgSpeed") }}
                 </span>
                 <span>
                     <span v-if="activity.average_speed && Number(units) === 1"><b>{{ formatAverageSpeedMetric(activity.average_speed) }}{{ ' ' + $t("generalItems.unitsKmH") }}</b></span>
@@ -49,7 +78,7 @@
             </div>
             <div class="d-flex justify-content-between mt-3" v-if="activity.max_speed">
                 <span>
-                    Max Speed
+                    {{ $t("activityBellowMPillsComponent.labelMaxSpeed") }}
                 </span>
                 <span>
                     <span v-if="activity.max_speed && Number(units) === 1"><b>{{ formatAverageSpeedMetric(activity.max_speed) }}{{ ' ' + $t("generalItems.unitsKmH") }}</b></span>
@@ -58,7 +87,7 @@
             </div>
             <div class="d-flex justify-content-between mt-3" v-if="activity.total_elapsed_time">
                 <span>
-                    Moving time
+                    {{ $t("activityBellowMPillsComponent.labelMovingTime") }}
                 </span>
                 <span>
                     <b>{{ formatSecondsToMinutes(activity.total_elapsed_time) }}</b>
@@ -66,7 +95,7 @@
             </div>
             <div class="d-flex justify-content-between mt-3" v-if="activity.total_timer_time">
                 <span>
-                    Elapsed time
+                    {{ $t("activityBellowMPillsComponent.labelElapsedTime") }}
                 </span>
                 <span>
                     <b>{{ formatSecondsToMinutes(activity.total_timer_time) }}</b>
@@ -76,13 +105,13 @@
         </div>
         <!-- Heart rate values -->
         <div v-if="hrPresent">
-            <span class="fw-lighter">
-                Heart Rate
+            <span class="fw-normal">
+                {{ $t("activityBellowMPillsComponent.subTitleHeartRate") }}
             </span>
             <ActivityStreamsLineChartComponent :activity="activity" :graphSelection="'hr'" :activityStreams="activityActivityStreams" />
             <div class="d-flex justify-content-between mt-3" v-if="activity.average_hr">
                 <span>
-                    Avg Heart Rate
+                    {{ $t("activityBellowMPillsComponent.labelAvgHeartRate") }}
                 </span>
                 <span>
                     <b>{{ activity.average_hr }}{{ ' ' + $t("generalItems.unitsBpm") }}</b>
@@ -90,7 +119,7 @@
             </div>
             <div class="d-flex justify-content-between mt-3" v-if="activity.max_hr">
                 <span>
-                    Max Heart Rate
+                    {{ $t("activityBellowMPillsComponent.labelMaxHeartRate") }}
                 </span>
                 <span>
                     <b>{{ activity.max_hr }}{{ ' ' + $t("generalItems.unitsBpm") }}</b>
@@ -100,13 +129,13 @@
         </div>
         <!-- Power values -->
         <div v-if="powerPresent">
-            <span class="fw-lighter">
-                Power
+            <span class="fw-normal">
+                {{ $t("activityBellowMPillsComponent.subTitlePower") }}
             </span>
             <ActivityStreamsLineChartComponent :activity="activity" :graphSelection="'power'" :activityStreams="activityActivityStreams" />
             <div class="d-flex justify-content-between mt-3" v-if="activity.average_power">
                 <span>
-                    Avg Power
+                    {{ $t("activityBellowMPillsComponent.labelAvgPower") }}
                 </span>
                 <span>
                     <b>{{ activity.average_power }}{{ ' ' + $t("generalItems.unitsWattsShort") }}</b>
@@ -114,7 +143,7 @@
             </div>
             <div class="d-flex justify-content-between mt-3" v-if="activity.max_power">
                 <span>
-                    Max Power
+                    {{ $t("activityBellowMPillsComponent.labelMaxPower") }}
                 </span>
                 <span>
                     <b>{{ activity.max_power }}{{ ' ' + $t("generalItems.unitsWattsShort") }}</b>
@@ -122,7 +151,7 @@
             </div>
             <div class="d-flex justify-content-between mt-3" v-if="activity.normalized_power">
                 <span>
-                    Normalized Power
+                    {{ $t("activityBellowMPillsComponent.labelNormalizedPower") }}
                 </span>
                 <span>
                     <b>{{ activity.normalized_power }}{{ ' ' + $t("generalItems.unitsWattsShort") }}</b>
@@ -132,13 +161,13 @@
         </div>
         <!-- Cadence values -->
         <div v-if="cadPresent">
-            <span class="fw-lighter">
-                Cadence
+            <span class="fw-normal">
+                {{ $t("activityBellowMPillsComponent.subTitleCadence") }}
             </span>
             <ActivityStreamsLineChartComponent :activity="activity" :graphSelection="'cad'" :activityStreams="activityActivityStreams" />
             <div class="d-flex justify-content-between mt-3" v-if="activity.average_cad">
                 <span>
-                    Avg Cadence
+                    {{ $t("activityBellowMPillsComponent.labelAvgCadence") }}
                 </span>
                 <span>
                     <b>{{ activity.average_cad }}{{ ' ' + $t("generalItems.unitsSpm") }}</b>
@@ -146,7 +175,7 @@
             </div>
             <div class="d-flex justify-content-between mt-3" v-if="activity.max_cad">
                 <span>
-                    Max Cadence
+                    {{ $t("activityBellowMPillsComponent.labelMaxCadence") }}
                 </span>
                 <span>
                     <b>{{ activity.max_cad }}{{ ' ' + $t("generalItems.unitsSpm") }}</b>
@@ -156,13 +185,13 @@
         </div>
         <!-- Elevation values -->
         <div v-if="elePresent">
-            <span class="fw-lighter">
-                Elevation
+            <span class="fw-normal">
+                {{ $t("activityBellowMPillsComponent.subTitleElevation") }}
             </span>
             <ActivityStreamsLineChartComponent :activity="activity" :graphSelection="'ele'" :activityStreams="activityActivityStreams" />
             <div class="d-flex justify-content-between mt-3" v-if="activity.elevation_gain">
                 <span>
-                    Elevation Gain
+                    {{ $t("activityBellowMPillsComponent.labelElevationGain") }}
                 </span>
                 <span>
                     <b>{{ activity.elevation_gain }}{{ ' ' + $t("generalItems.unitsM") }}</b>
@@ -170,7 +199,7 @@
             </div>
             <div class="d-flex justify-content-between mt-3" v-if="activity.elevation_loss">
                 <span>
-                    Elevation Loss
+                    {{ $t("activityBellowMPillsComponent.labelElevationLoss") }}
                 </span>
                 <span>
                     <b>{{ activity.elevation_loss }}{{ ' ' + $t("generalItems.unitsM") }}</b>
@@ -226,6 +255,46 @@ export default {
 		const pacePresent = ref(false);
         const formattedPace = ref(null);
         const units = ref(1)
+        const normalizedLaps = computed(() => {
+            if (!props.activityActivityLaps || props.activityActivityLaps.length === 0) {
+                return [];
+            }
+
+            // Extract all enhanced_avg_pace values
+            const laps = props.activityActivityLaps;
+            const enhancedAvgPaces = laps.map(lap => lap.enhanced_avg_pace);
+
+            // Find the fastest pace (smallest value)
+            const fastestPace = Math.min(...enhancedAvgPaces);
+
+            // Normalize each lap's pace relative to the fastest
+            return laps.map(lap => {
+                const normalizedScore = fastestPace / lap.enhanced_avg_pace * 100;
+                const formattedPace = computed(() => {
+                    if (
+                        props.activity.activity_type === 8 ||
+                        props.activity.activity_type === 9 ||
+                        props.activity.activity_type === 13
+                    ) {
+                        if (Number(units.value) === 1) {
+                            return formatPaceSwimMetric(lap.enhanced_avg_pace, false);
+                        }
+                        return formatPaceSwimImperial(lap.enhanced_avg_pace, false);
+                    }
+                    if (Number(units.value) === 1) {
+                        return formatPaceMetric(lap.enhanced_avg_pace, false);
+                    }
+                    return formatPaceImperial(lap.enhanced_avg_pace, false);
+                });
+
+                return {
+                    ...lap,
+                    normalizedScore: Math.min(Math.max(normalizedScore, 0), 100), // Clamp between 0 and 100
+                    formattedPace: formattedPace,
+                };
+            });
+        });
+        console.log("normalizedLaps", normalizedLaps.value);
 
         onMounted(async () => {
 			try {
@@ -318,6 +387,7 @@ export default {
             formatSecondsToMinutes,
             formatAverageSpeedMetric,
             formatAverageSpeedImperial,
+            normalizedLaps,
 		};
 	},
 };

@@ -2,9 +2,10 @@
  * Formats a given pace in meters per minute to a string representation in minutes per kilometer.
  *
  * @param {number} pace - The pace in meters per minute.
+ * @param {boolean} units - Whether to include the units in the output string.
  * @returns {string} The formatted pace as a string in the format "MM:SS min/km".
  */
-export function formatPaceMetric(pace) {
+export function formatPaceMetric(pace, units = true) {
     // Convert pace to seconds per kilometer
     const pacePerKm = pace * 1000 / 60;
     // Calculate minutes and seconds
@@ -15,16 +16,20 @@ export function formatPaceMetric(pace) {
     const formattedSeconds = seconds < 10 ? `0${seconds}` : seconds;
 
     // Return the formatted pace
-    return `${minutes}:${formattedSeconds} min/km`;
+    if (units) {
+        return `${minutes}:${formattedSeconds} min/km`;
+    }
+    return `${minutes}:${formattedSeconds}`;
 }
 
 /**
  * Converts a pace in meters per minute to a pace in minutes per mile.
  *
  * @param {number} pace - The pace in meters per minute.
+ * @param {boolean} units - Whether to include the units in the output string.
  * @returns {string} The formatted pace in minutes per mile (min/mi).
  */
-export function formatPaceImperial(pace) {
+export function formatPaceImperial(pace, units = true) {
     // Convert pace to seconds per mile (1 mile = 1609.34 meters)
     const pacePerMile = (pace * 1609.34) / 60;
     // Calculate minutes and seconds
@@ -35,16 +40,20 @@ export function formatPaceImperial(pace) {
     const formattedSeconds = seconds < 10 ? `0${seconds}` : seconds;
 
     // Return the formatted pace
-    return `${minutes}:${formattedSeconds} min/mi`;
+    if (units) {
+        return `${minutes}:${formattedSeconds} min/mi`;
+    }
+    return `${minutes}:${formattedSeconds}`;
 }
 
 /**
  * Formats the swimming pace from minutes per kilometer to minutes per 100 meters.
  *
  * @param {number} pace - The swimming pace in minutes per kilometer.
+ * @param {boolean} units - Whether to include the units in the output string.
  * @returns {string} The formatted pace as a string in the format "MM:SS min/100m".
  */
-export function formatPaceSwimMetric(pace) {
+export function formatPaceSwimMetric(pace, units = true) {
     // Convert pace to seconds per 100 meters
     const pacePerKm = pace * 100 / 60;
     // Calculate minutes and seconds
@@ -55,16 +64,20 @@ export function formatPaceSwimMetric(pace) {
     const formattedSeconds = seconds < 10 ? `0${seconds}` : seconds;
 
     // Return the formatted pace
-    return `${minutes}:${formattedSeconds} min/100m`;
+    if (units) {
+        return `${minutes}:${formattedSeconds} min/100m`;
+    }
+    return `${minutes}:${formattedSeconds}`;
 }
 
 /**
  * Converts a swimming pace from meters per second to minutes per 100 yards.
  *
  * @param {number} pace - The swimming pace in meters per second.
+ * @param {boolean} units - Whether to include the units in the output string.
  * @returns {string} The formatted pace in minutes per 100 yards (min/100yd).
  */
-export function formatPaceSwimImperial(pace) {
+export function formatPaceSwimImperial(pace, units = true) {
     // Convert pace to seconds per 100 yards (1 yard = 0.9144 meters)
     const pacePer100Yards = (pace * 100 * 0.9144) / 60;
     // Calculate minutes and seconds
@@ -75,7 +88,10 @@ export function formatPaceSwimImperial(pace) {
     const formattedSeconds = seconds < 10 ? `0${seconds}` : seconds;
 
     // Return the formatted pace
-    return `${minutes}:${formattedSeconds} min/100yd`;
+    if (units) {
+        return `${minutes}:${formattedSeconds} min/100yd`;
+    }
+    return `${minutes}:${formattedSeconds}`;
 }
 
 /**

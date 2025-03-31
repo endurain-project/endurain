@@ -1,6 +1,6 @@
 <template>
     <div class="table-responsive">
-        <table class="table table-dark table-striped table-borderless table-hover table-sm rounded text-center">
+        <table class="table table-striped table-borderless table-hover table-sm rounded text-center" style="--bs-table-bg: var(--bs-gray-850);">
             <thead>
                 <tr>
                     <th>{{ $t("activityLapsComponent.labelLapNumber") }}</th>
