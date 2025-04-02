@@ -13,7 +13,8 @@
                 <b>{{ $t("gearsListComponent.gearListTypeLabel") }}: </b>
                 <span v-if="gear.gear_type == 1">{{ $t("gearsListComponent.gearListTypeOption1") }}</span>
                 <span v-else-if="gear.gear_type == 2">{{ $t("gearsListComponent.gearListTypeOption2") }}</span>
-                <span v-else>{{ $t("gearsListComponent.gearListTypeOption3") }}</span>
+                <span v-else-if="gear.gear_type == 3">{{ $t("gearsListComponent.gearListTypeOption3") }}</span>
+                <span v-else>{{ $t("gearsListComponent.gearListTypeOption4") }}</span>
                 <br>
             </div>
         </div>

@@ -32,6 +32,7 @@
                             <option value="1">{{ $t("gearsAddEditGearModalComponent.addEditGearModalAddTypeOption1") }}</option>
                             <option value="2">{{ $t("gearsAddEditGearModalComponent.addEditGearModalAddTypeOption2") }}</option>
                             <option value="3">{{ $t("gearsAddEditGearModalComponent.addEditGearModalAddTypeOption3") }}</option>
+                            <option value="4">{{ $t("gearsAddEditGearModalComponent.addEditGearModalAddTypeOption4") }}</option>
                         </select>
                         <!-- date fields -->
                         <label for="gearDateAddEdit"><b>* {{ $t("gearsAddEditGearModalComponent.addEditGearModalAddDateLabel") }}</b></label>
@@ -43,12 +44,12 @@
                             <option value="0">{{ $t("gearsAddEditGearModalComponent.addEditGearModalAddIsActiveOption0") }}</option>
                         </select>
                         <!-- initial kilometers fields -->
-                        <div v-if="Number(authStore?.user?.units) === 1">
+                        <div v-if="Number(authStore?.user?.units) === 1 && Number(newEditGearType) !== 4">
                             <label for="gearInitialKmsAddEdit"><b>* {{ $t("gearsAddEditGearModalComponent.addEditGearModalAddIsInitialKmsLabel") }}</b></label>
                             <input class="form-control" type="number" step="0.1" name="gearInitialKmsAddEdit" v-model="newEditGearInitialKms" required>
                         </div>
                         <!-- initial miles fields -->
-                        <div v-else>
+                        <div v-else-if="Number(authStore?.user?.units) === 2 && Number(newEditGearType) !== 4">
                             <label for="gearInitialMilesAddEdit"><b>* {{ $t("gearsAddEditGearModalComponent.addEditGearModalAddIsInitialMilesLabel") }}</b></label>
                             <input class="form-control" type="number" step="0.1" name="gearInitialMilesAddEdit" v-model="newEditGearInitialMiles" required>
                         </div>

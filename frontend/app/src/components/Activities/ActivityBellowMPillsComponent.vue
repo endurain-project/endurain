@@ -259,7 +259,8 @@ export default {
 								props.activity.activity_type === 4 ||
 								props.activity.activity_type === 5 ||
 								props.activity.activity_type === 6 ||
-								props.activity.activity_type === 7
+								props.activity.activity_type === 7 ||
+								props.activity.activity_type === 27
 							) {
                                 velPresent.value = true;
                             }
@@ -269,7 +270,8 @@ export default {
 								props.activity.activity_type !== 4 &&
 								props.activity.activity_type !== 5 &&
 								props.activity.activity_type !== 6 &&
-								props.activity.activity_type !== 7
+								props.activity.activity_type !== 7 &&
+								props.activity.activity_type !== 27
 							) {
                                 pacePresent.value = true;
                             }

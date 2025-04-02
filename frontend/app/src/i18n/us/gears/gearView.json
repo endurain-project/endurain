@@ -8,6 +8,7 @@
     "gearTypeOption1": "Bike",
     "gearTypeOption2": "Shoes",
     "gearTypeOption3": "Wetsuit",
+    "gearTypeOption4": "Racquet",
     "gearFromStrava": "Strava",
     "gearFromGarminConnect": "Garmin Connect",
     "labelBrand": "Brand",

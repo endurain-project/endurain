@@ -823,6 +823,8 @@ def parse_frame_session(frame):
     if sub_sport and sub_sport != "generic":
         if activity_type == "cycling" and sub_sport == "virtual_activity":
             activity_type = "virtual_ride"
+        elif activity_type == "cycling" and sub_sport == "commuting":
+            activity_type = "commuting_ride"
         else:
             activity_type = sub_sport
 

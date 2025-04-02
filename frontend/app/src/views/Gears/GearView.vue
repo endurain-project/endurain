@@ -34,8 +34,11 @@
                             <span class="ms-2 badge bg-primary-subtle border border-primary-subtle text-primary-emphasis align-middle" v-else-if="gear?.gear_type == 2">
                                 {{ $t("gearView.gearTypeOption2") }}
                             </span>
-                            <span class="ms-2 badge bg-primary-subtle border border-primary-subtle text-primary-emphasis align-middle" v-else>
+                            <span class="ms-2 badge bg-primary-subtle border border-primary-subtle text-primary-emphasis align-middle" v-else-if="gear?.gear_type == 3">
                                 {{ $t("gearView.gearTypeOption3") }}
+                            </span>
+                            <span class="ms-2 badge bg-primary-subtle border border-primary-subtle text-primary-emphasis align-middle" v-else>
+                                {{ $t("gearView.gearTypeOption4") }}
                             </span>
                             <span class="ms-2 badge bg-primary-subtle border border-primary-subtle text-primary-emphasis align-middle" v-if="gear?.strava_gear_id">
                                 {{ $t("gearView.gearFromStrava") }}
@@ -62,7 +65,7 @@
 
                     <!-- details  -->
                     <div class="vstack align-items-center">
-                        <span class="mt-2">
+                        <span class="mt-2" v-if="gear?.gear_type !== 4">
                             <strong>
                                 {{ $t("gearView.labelDistance") }}:
                             </strong>

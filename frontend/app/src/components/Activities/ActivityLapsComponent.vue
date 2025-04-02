@@ -6,7 +6,7 @@
                     <th>{{ $t("activityLapsComponent.labelLapNumber") }}</th>
                     <th>{{ $t("activityLapsComponent.labelLapDistance") }}</th>
                     <th>{{ $t("activityLapsComponent.labelLapTime") }}</th>
-                    <th v-if="activity.activity_type === 4 || activity.activity_type === 5 || activity.activity_type === 6 || activity.activity_type === 7">{{ $t("activityLapsComponent.labelLapSpeed") }}</th>
+                    <th v-if="activity.activity_type === 4 || activity.activity_type === 5 || activity.activity_type === 6 || activity.activity_type === 7 || activity.activity_type === 27">{{ $t("activityLapsComponent.labelLapSpeed") }}</th>
                     <th v-else>{{ $t("activityLapsComponent.labelLapPace") }}</th>
                     <th>{{ $t("activityLapsComponent.labelLapElevation") }}</th>
                     <th>{{ $t("activityLapsComponent.labelLapAvgHr") }}</th>
@@ -17,7 +17,7 @@
                     <td>{{ index + 1 }}</td>
                     <td>{{ lap.formattedDistance }}</td>
                     <td>{{ lap.lapSecondsToMinutes }}</td>
-                    <td v-if="activity.activity_type === 4 || activity.activity_type === 5 || activity.activity_type === 6 || activity.activity_type === 7">{{ lap.formattedSpeedFull }}</td>
+                    <td v-if="activity.activity_type === 4 || activity.activity_type === 5 || activity.activity_type === 6 || activity.activity_type === 7 || activity.activity_type === 27">{{ lap.formattedSpeedFull }}</td>
                     <td v-else>{{ lap.formattedPaceFull }}</td>
 					<td>{{ lap.formattedElevationFull.value }}</td>
                     <td>{{ lap.avg_heart_rate ?? 0 + ' ' + $t("generalItems.unitsBpm") }}</td>
@@ -31,7 +31,7 @@
             <thead>
                 <tr>
                     <th scope="col" style="width: 5%;">#</th>
-                    <th scope="col" style="width: 15%;" v-if="activity.activity_type === 4 || activity.activity_type === 5 || activity.activity_type === 6 || activity.activity_type === 7">{{ $t("activityLapsComponent.labelLapSpeed") }}</th>
+                    <th scope="col" style="width: 15%;" v-if="activity.activity_type === 4 || activity.activity_type === 5 || activity.activity_type === 6 || activity.activity_type === 7 || activity.activity_type === 27">{{ $t("activityLapsComponent.labelLapSpeed") }}</th>
                     <th scope="col" style="width: 15%;" v-else>{{ $t("activityLapsComponent.labelLapPace") }}</th>
                     <th scope="col" style="width: auto;">&nbsp;</th>
                     <th scope="col" style="width: 10%;">{{ $t("activityLapsComponent.labelLapElev") }}</th>
@@ -41,7 +41,7 @@
             <tbody>
                 <tr v-for="(lap, index) in normalizedLaps" :key="index">
                     <td>{{ index + 1 }}</td>
-                    <td v-if="activity.activity_type === 4 || activity.activity_type === 5 || activity.activity_type === 6 || activity.activity_type === 7">{{ lap.formattedSpeed }}</td>
+                    <td v-if="activity.activity_type === 4 || activity.activity_type === 5 || activity.activity_type === 6 || activity.activity_type === 7 || activity.activity_type === 27">{{ lap.formattedSpeed }}</td>
                     <td v-else>{{ lap.formattedPace }}</td>
                     <td>
                         <div class="progress" role="progressbar" aria-label="Basic example" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">

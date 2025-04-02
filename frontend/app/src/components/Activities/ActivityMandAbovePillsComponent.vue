@@ -134,7 +134,8 @@ export default {
 								props.activity.activity_type === 4 ||
 								props.activity.activity_type === 5 ||
 								props.activity.activity_type === 6 ||
-								props.activity.activity_type === 7
+								props.activity.activity_type === 7 ||
+								props.activity.activity_type === 27
 							) {
 								graphItems.value.push({ type: "vel", label: "Velocity" });
 							}
@@ -145,7 +146,8 @@ export default {
 								props.activity.activity_type !== 4 &&
 								props.activity.activity_type !== 5 &&
 								props.activity.activity_type !== 6 &&
-								props.activity.activity_type !== 7
+								props.activity.activity_type !== 7 &&
+								props.activity.activity_type !== 27
 							) {
 								graphItems.value.push({ type: "pace", label: "Pace" });
 							}

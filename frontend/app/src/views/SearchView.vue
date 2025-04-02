@@ -184,7 +184,7 @@ export default {
                 );
             } else if (searchSelectActivityType.value === "2") {
                 searchResults.value = searchResultsOriginal.value.filter((user) =>
-                    [4, 5, 6, 7].includes(user.activity_type),
+                    [4, 5, 6, 7, 27].includes(user.activity_type),
                 );
             } else if (searchSelectActivityType.value === "3") {
                 searchResults.value = searchResultsOriginal.value.filter((user) =>
@@ -220,7 +220,7 @@ export default {
                 );
             } else if (searchSelectActivityType.value === "11") {
                 searchResults.value = searchResultsOriginal.value.filter((user) =>
-                    [21].includes(user.activity_type),
+                    [21, 22, 23, 24, 25, 26].includes(user.activity_type),
                 );
             } else {
                 searchResults.value = searchResultsOriginal.value;
