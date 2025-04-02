@@ -11,11 +11,13 @@ from sqlalchemy.orm import Session
 import activities.crud as activities_crud
 import activities.utils as activities_utils
 
-import activity_streams.crud as activity_streams_crud
-
 import activity_exercise_titles.crud as activity_exercise_titles_crud
 
 import activity_laps.crud as activity_laps_crud
+
+import activity_sets.crud as activity_sets_crud
+
+import activity_streams.crud as activity_streams_crud
 
 import activity_workout_steps.crud as activity_workout_steps_crud
 
@@ -339,9 +341,9 @@ def process_migration_3(db: Session):
                     activity_gpx_file_path = os.path.join(
                         "files/processed", f"{activity.id}.gpx"
                     )
-                    if not os.path.exists(activity_fit_file_path) and not os.path.exists(
-                        activity_gpx_file_path
-                    ):
+                    if not os.path.exists(
+                        activity_fit_file_path
+                    ) and not os.path.exists(activity_gpx_file_path):
                         core_logger.print_to_log(
                             f"Migration 3 - Activity {activity.id} does not have a file. Skipping.",
                             "info",
@@ -357,8 +359,13 @@ def process_migration_3(db: Session):
                         # Array to store exercise titles
                         exercises_titles = []
 
+                        # Array to store sets
+                        sets = []
+
                         if os.path.exists(activity_fit_file_path):
-                            print(f"Migration 3 - Activity {activity.id} has a fit file.")
+                            print(
+                                f"Migration 3 - Activity {activity.id} has a fit file."
+                            )
                             try:
                                 # Open the FIT file
                                 with open(activity_fit_file_path, "rb") as fit_file:
@@ -389,6 +396,12 @@ def process_migration_3(db: Session):
                                                     )
                                                 )
 
+                                            # Extract set data
+                                            if frame.name == "set":
+                                                sets.append(
+                                                    fit_utils.parse_frame_set(frame)
+                                                )
+
                                 # Check if exercises titles is not none
                                 if exercises_titles:
                                     activity_exercise_titles_crud.create_activity_exercise_titles(
@@ -405,7 +418,14 @@ def process_migration_3(db: Session):
                                     workout_steps, activity.id, db
                                 )
 
-                                core_logger.print_to_log(f"Activity {activity.id} file processed.")
+                                # Create activity sets in the database
+                                activity_sets_crud.create_activity_sets(
+                                    sets, activity.id, db
+                                )
+
+                                core_logger.print_to_log(
+                                    f"Activity {activity.id} file processed."
+                                )
                             except Exception as err:
                                 activities_processed_with_no_errors = False
                                 core_logger.print_to_log(
@@ -414,7 +434,9 @@ def process_migration_3(db: Session):
                                     exc=err,
                                 )
                         else:
-                            print(f"Migration 3 - Activity {activity.id} has a gpx file.")
+                            print(
+                                f"Migration 3 - Activity {activity.id} has a gpx file."
+                            )
             except Exception as err:
                 activities_processed_with_no_errors = False
                 core_logger.print_to_log(
