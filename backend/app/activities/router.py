@@ -426,7 +426,7 @@ async def create_activity_with_uploaded_file(
     except Exception as err:
         # Log the exception
         core_logger.print_to_log(
-            f"Error in create_activity_with_uploaded_file: {err}", "error"
+            f"Error in create_activity_with_uploaded_file: {err}", "error", exc=err
         )
 
         # Raise an HTTPException with a 500 Internal Server Error status code

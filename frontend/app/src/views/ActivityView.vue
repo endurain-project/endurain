@@ -69,7 +69,7 @@
 			<LoadingComponent />
 		</div>
 		<div class="d-none d-sm-block" v-else>
-			<ActivityMandAbovePillsComponent :activity="activity" :activityActivityLaps="activityActivityLaps" :activityActivityWorkoutSteps="activityActivityWorkoutSteps" :activityActivityStreams="activityActivityStreams" :units="units" :activityActivityExerciseTitles="activityActivityExerciseTitles" />
+			<ActivityMandAbovePillsComponent :activity="activity" :activityActivityLaps="activityActivityLaps" :activityActivityWorkoutSteps="activityActivityWorkoutSteps" :activityActivityStreams="activityActivityStreams" :units="units" :activityActivityExerciseTitles="activityActivityExerciseTitles" :activityActivitySets="activityActivitySets" />
 		</div>
 
 		<!-- graphs and laps screens bellow medium -->
@@ -110,6 +110,7 @@ import { activityStreams } from "@/services/activityStreams";
 import { activityLaps } from "@/services/activityLapsService";
 import { activityWorkoutSteps } from "@/services/activityWorkoutStepsService";
 import { activityExerciseTitles } from "@/services/activityExerciseTitlesService";
+import { activitySets } from "@/services/activitySetsService";
 
 export default {
 	components: {
@@ -138,6 +139,7 @@ export default {
 		const activityActivityWorkoutSteps = ref([]);
 		const units = ref(1);
 		const activityActivityExerciseTitles = ref([]);
+		const activityActivitySets = ref([]);
 
 		async function submitDeleteGearFromActivity() {
 			try {
@@ -229,6 +231,11 @@ export default {
 					// Get the activity exercise titles
 					activityActivityExerciseTitles.value =
 						await activityExerciseTitles.getActivityExerciseTitlesAll();
+
+					// Get the activity sets by activity id
+					activityActivitySets.value = await activitySets.getActivitySetsByActivityId(
+						route.params.id,
+					);
 				} else {
 					// Set the units
 					units.value = serverSettingsStore.serverSettings.units;
@@ -253,6 +260,11 @@ export default {
 					// Get the activity exercise titles
 					activityActivityExerciseTitles.value =
 						await activityExerciseTitles.getPublicActivityExerciseTitlesAll();
+
+					// Get the activity sets by activity id
+					activityActivitySets.value = await activitySets.getPublicActivitySetsByActivityId(
+						route.params.id,
+					);
 				}
 
 				if (authStore.isAuthenticated) {
@@ -319,6 +331,7 @@ export default {
 			activityActivityLaps,
 			activityActivityWorkoutSteps,
 			activityActivityExerciseTitles,
+			activityActivitySets,
 		};
 	},
 };

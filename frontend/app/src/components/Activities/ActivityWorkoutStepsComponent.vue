@@ -1,6 +1,8 @@
 <template>
     <div class="table-responsive d-none d-sm-block">
-        {{ activityActivityWorkoutSteps }}
+        <!--{{ activityActivityWorkoutSteps }}-->
+        <br />
+        {{ activityActivitySets }}
         <table class="table table-striped table-borderless table-hover table-sm rounded text-center" style="--bs-table-bg: var(--bs-gray-850);">
             <thead>
                 <tr>
@@ -66,6 +68,10 @@ export default {
 			type: [Object, null],
 			required: true,
 		},
+        activityActivitySets: {
+            type: [Object, null],
+            required: true,
+        },
 	},
 	setup(props) {
 

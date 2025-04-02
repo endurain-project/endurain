@@ -447,8 +447,7 @@ def process_migration_3(db: Session):
     # Mark migration as executed
     if activities_processed_with_no_errors:
         try:
-            # migrations_crud.set_migration_as_executed(3, db)
-            print("Skipped migration 3")
+            migrations_crud.set_migration_as_executed(3, db)
         except Exception as err:
             core_logger.print_to_log(
                 f"Migration 3 - Failed to set migration as executed: {err}",

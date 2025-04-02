@@ -172,7 +172,7 @@ def create_activity_objects(
         raise http_err
     except Exception as err:
         # Log the exception
-        core_logger.print_to_log(f"Error in create_activity_objects: {err}", "error")
+        core_logger.print_to_log(f"Error in create_activity_objects: {err}", "error", exc=err)
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -259,6 +259,7 @@ def split_records_by_activity(parsed_data: dict) -> dict:
             "laps": laps_records,
             "split_summary": parsed_data["split_summary"],
             "workout_steps": parsed_data["workout_steps"],
+            "sets": parsed_data["sets"],
         }
 
         # Only parse arrays if the respective flag is set

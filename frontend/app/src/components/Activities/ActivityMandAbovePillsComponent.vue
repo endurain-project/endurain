@@ -51,7 +51,7 @@
         </div>
 
 		<div class="tab-pane fade" id="pills-workout-steps" role="tabpanel" aria-labelledby="pills-workout-steps-tab" tabindex="2" v-if="activityActivityWorkoutSteps && activityActivityWorkoutSteps.length > 0">
-			<ActivityWorkoutStepsComponent :activity="activity" :activityActivityWorkoutSteps="activityActivityWorkoutSteps" :units="units" :activityActivityExerciseTitles="activityActivityExerciseTitles" />
+			<ActivityWorkoutStepsComponent :activity="activity" :activityActivityWorkoutSteps="activityActivityWorkoutSteps" :units="units" :activityActivityExerciseTitles="activityActivityExerciseTitles" :activityActivitySets="activityActivitySets" />
 		</div>
     </div>
 </template>
@@ -94,6 +94,10 @@ export default {
 			default: 1,
 		},
 		activityActivityExerciseTitles: {
+			type: [Object, null],
+			required: true,
+		},
+		activityActivitySets: {
 			type: [Object, null],
 			required: true,
 		},

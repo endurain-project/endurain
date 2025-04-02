@@ -37,11 +37,19 @@ class ActivitySets(Base):
         nullable=True,
         comment="Workout set exercise weight",
     )
-    set_type = Column(
-        String(length=250), nullable=False, comment="Workout set type"
-    )
+    set_type = Column(String(length=250), nullable=False, comment="Workout set type")
     start_time = Column(
         DateTime, nullable=False, comment="Workout set start date (DATETIME)"
+    )
+    category = Column(
+        Integer,
+        nullable=True,
+        comment="Category number",
+    )
+    category_subtype = Column(
+        Integer,
+        nullable=True,
+        comment="Category sub type number",
     )
 
     # Define a relationship to the Activity model

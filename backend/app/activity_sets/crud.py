@@ -26,7 +26,7 @@ def get_activity_sets(activity_id: int, db: Session):
         # Check if there are activity sets if not return None
         if not activity_sets:
             return None
-        
+
         # Get the activity from the database
         activity = (
             db.query(activities_models.Activity)
@@ -42,15 +42,13 @@ def get_activity_sets(activity_id: int, db: Session):
 
         # Serialize the activity sets
         for set in activity_sets:
-            set = activity_sets_utils.serialize_activity_set(activity, lap)
+            set = activity_sets_utils.serialize_activity_set(activity, set)
 
         # Return the activity sets
         return activity_sets
     except Exception as err:
         # Log the exception
-        core_logger.print_to_log(
-            f"Error in get_activity_sets: {err}", "error", exc=err
-        )
+        core_logger.print_to_log(f"Error in get_activity_sets: {err}", "error", exc=err)
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -66,7 +64,7 @@ def get_public_activity_sets(activity_id: int, db: Session):
         # Return None if public sharable links are disabled
         if not server_settings or not server_settings.public_shareable_links:
             return None
-        
+
         # Get the activity sets from the database
         activity_sets = (
             db.query(activity_sets_models.ActivitySets)
@@ -78,8 +76,7 @@ def get_public_activity_sets(activity_id: int, db: Session):
             .filter(
                 activity_sets_models.ActivitySets.activity_id == activity_id,
                 activities_models.Activity.visibility == 0,
-                activities_models.Activity.id
-                == activity_id,
+                activities_models.Activity.id == activity_id,
             )
             .all()
         )
@@ -87,7 +84,7 @@ def get_public_activity_sets(activity_id: int, db: Session):
         # Check if there are activity sets, if not return None
         if not activity_sets:
             return None
-        
+
         # Get the activity from the database
         activity = (
             db.query(activities_models.Activity)
@@ -103,7 +100,7 @@ def get_public_activity_sets(activity_id: int, db: Session):
 
         # Serialize the activity sets
         for set in activity_sets:
-            set = activity_sets_utils.serialize_activity_set(activity, lap)
+            set = activity_sets_utils.serialize_activity_set(activity, set)
 
         # Return the activity sets
         return activity_sets
@@ -117,9 +114,13 @@ def get_public_activity_sets(activity_id: int, db: Session):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal Server Error",
         ) from err
-    
 
-def create_activity_sets(activity_sets: list[activity_sets_schema.ActivitySets], activity_id: int, db: Session):
+
+def create_activity_sets(
+    activity_sets: list[activity_sets_schema.ActivitySets],
+    activity_id: int,
+    db: Session,
+):
     try:
         # Create a list to store the ActivitySets objects
         sets = []
@@ -134,6 +135,10 @@ def create_activity_sets(activity_sets: list[activity_sets_schema.ActivitySets],
                 weight=set["weight"],
                 set_type=set["set_type"],
                 start_time=set["start_time"],
+                category=set["category"][0] if set["category"] else None,
+                category_subtype=(
+                    set["category_subtype"][0] if set["category_subtype"] else None
+                ),
             )
 
             # Append the object to the list

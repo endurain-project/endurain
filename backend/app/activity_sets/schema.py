@@ -9,6 +9,8 @@ class ActivitySets(BaseModel):
     weight: float | None
     set_type: str
     start_time: str
+    category: int | None
+    category_subtype: int | None
 
     class Config:
         orm_mode = True
