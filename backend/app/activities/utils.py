@@ -22,10 +22,12 @@ import users.crud as users_crud
 
 import activity_laps.crud as activity_laps_crud
 
-import activity_workout_steps.crud as activity_workout_steps_crud
+import activity_sets.crud as activity_sets_crud
 
 import activity_streams.crud as activity_streams_crud
 import activity_streams.schema as activity_streams_schema
+
+import activity_workout_steps.crud as activity_workout_steps_crud
 
 import gpx.utils as gpx_utils
 import fit.utils as fit_utils
@@ -413,6 +415,11 @@ def store_activity(parsed_info: dict, db: Session):
     # Create activity workout steps in the database
     activity_workout_steps_crud.create_activity_workout_steps(
         parsed_info["workout_steps"], created_activity.id, db
+    )
+
+    # Create activity sets in the database
+    activity_sets_crud.create_activity_sets(
+        parsed_info["sets"], created_activity.id, db
     )
 
     # Return the created activity

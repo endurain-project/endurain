@@ -1,0 +1,9 @@
+{
+    "labelWorkoutStepType": "Type",
+    "labelWorkoutStepTime": "Time",
+    "labelWorkoutStepTarget": "Target",
+    "labelWorkoutStepIntensity": "Intensity",
+    "labelWorkoutStepNotes": "Notes",
+    "labelWorkoutStepExerciseName": "Name",
+    "labelWorkoutStepExerciseWeight": "Weight"
+}

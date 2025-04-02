@@ -1,5 +1,6 @@
 {
     "labelLapNumber": "Lap",
+    "labelLapIntensity": "Intensity",
     "labelLapDistance": "Distance",
     "labelLapTime": "Time",
     "labelLapPace": "Pace",

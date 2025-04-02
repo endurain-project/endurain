@@ -69,7 +69,7 @@
 			<LoadingComponent />
 		</div>
 		<div class="d-none d-sm-block" v-else>
-			<ActivityMandAbovePillsComponent :activity="activity" :activityActivityLaps="activityActivityLaps" :activityActivityWorkoutSteps="activityActivityWorkoutSteps" :activityActivityStreams="activityActivityStreams" :units="units" />
+			<ActivityMandAbovePillsComponent :activity="activity" :activityActivityLaps="activityActivityLaps" :activityActivityWorkoutSteps="activityActivityWorkoutSteps" :activityActivityStreams="activityActivityStreams" :units="units" :activityActivityExerciseTitles="activityActivityExerciseTitles" />
 		</div>
 
 		<!-- graphs and laps screens bellow medium -->
@@ -109,6 +109,7 @@ import { activities } from "@/services/activitiesService";
 import { activityStreams } from "@/services/activityStreams";
 import { activityLaps } from "@/services/activityLapsService";
 import { activityWorkoutSteps } from "@/services/activityWorkoutStepsService";
+import { activityExerciseTitles } from "@/services/activityExerciseTitlesService";
 
 export default {
 	components: {
@@ -136,6 +137,7 @@ export default {
 		const activityActivityLaps = ref([]);
 		const activityActivityWorkoutSteps = ref([]);
 		const units = ref(1);
+		const activityActivityExerciseTitles = ref([]);
 
 		async function submitDeleteGearFromActivity() {
 			try {
@@ -223,6 +225,10 @@ export default {
 						await activityWorkoutSteps.getActivityWorkoutStepsByActivityId(
 							route.params.id,
 						);
+
+					// Get the activity exercise titles
+					activityActivityExerciseTitles.value =
+						await activityExerciseTitles.getActivityExerciseTitlesAll();
 				} else {
 					// Set the units
 					units.value = serverSettingsStore.serverSettings.units;
@@ -243,6 +249,10 @@ export default {
 						await activityWorkoutSteps.getPublicActivityWorkoutStepsByActivityId(
 							route.params.id,
 						);
+
+					// Get the activity exercise titles
+					activityActivityExerciseTitles.value =
+						await activityExerciseTitles.getPublicActivityExerciseTitlesAll();
 				}
 
 				if (authStore.isAuthenticated) {
@@ -308,6 +318,7 @@ export default {
 			updateActivityFieldsOnEdit,
 			activityActivityLaps,
 			activityActivityWorkoutSteps,
+			activityActivityExerciseTitles,
 		};
 	},
 };

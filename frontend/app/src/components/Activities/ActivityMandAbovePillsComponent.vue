@@ -51,7 +51,7 @@
         </div>
 
 		<div class="tab-pane fade" id="pills-workout-steps" role="tabpanel" aria-labelledby="pills-workout-steps-tab" tabindex="2" v-if="activityActivityWorkoutSteps && activityActivityWorkoutSteps.length > 0">
-			{{ activityActivityWorkoutSteps }}
+			<ActivityWorkoutStepsComponent :activity="activity" :activityActivityWorkoutSteps="activityActivityWorkoutSteps" :units="units" :activityActivityExerciseTitles="activityActivityExerciseTitles" />
 		</div>
     </div>
 </template>
@@ -62,6 +62,7 @@ import { useI18n } from "vue-i18n";
 // Importing the components
 import ActivityLapsComponent from "@/components/Activities/ActivityLapsComponent.vue";
 import ActivityStreamsLineChartComponent from "@/components/Activities/ActivityStreamsLineChartComponent.vue";
+import ActivityWorkoutStepsComponent from "@/components/Activities/ActivityWorkoutStepsComponent.vue";
 // Import Notivue push
 import { push } from "notivue";
 
@@ -69,6 +70,7 @@ export default {
 	components: {
 		ActivityLapsComponent,
 		ActivityStreamsLineChartComponent,
+		ActivityWorkoutStepsComponent,
 	},
 	props: {
 		activity: {
@@ -90,6 +92,10 @@ export default {
 		units: {
 			type: Number,
 			default: 1,
+		},
+		activityActivityExerciseTitles: {
+			type: [Object, null],
+			required: true,
 		},
 	},
 	setup(props) {

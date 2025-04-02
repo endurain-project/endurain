@@ -1,55 +1,39 @@
 <template>
     <div class="table-responsive d-none d-sm-block">
+        {{ activityActivityWorkoutSteps }}
         <table class="table table-striped table-borderless table-hover table-sm rounded text-center" style="--bs-table-bg: var(--bs-gray-850);">
             <thead>
                 <tr>
-                    <th>{{ $t("activityLapsComponent.labelLapNumber") }}</th>
-                    <th>{{ $t("activityLapsComponent.labelLapDistance") }}</th>
-                    <th>{{ $t("activityLapsComponent.labelLapTime") }}</th>
-                    <th>{{ $t("activityLapsComponent.labelLapPace") }}</th>
-                    <th>{{ $t("activityLapsComponent.labelLapElevation") }}</th>
-                    <th>{{ $t("activityLapsComponent.labelLapAvgHr") }}</th>
+                    <th>#</th>
+                    <th>{{ $t("activityWorkoutStepsComponent.labelWorkoutStepType") }}</th>
+                    <th>{{ $t("activityWorkoutStepsComponent.labelWorkoutStepTime") }}</th>
+                    <th>{{ $t("activityWorkoutStepsComponent.labelWorkoutStepTarget") }}</th>
+                    <th>{{ $t("activityWorkoutStepsComponent.labelWorkoutStepIntensity") }}</th>
+                    <th v-if="activity.activity_type === 10 || activity.activity_type === 19 || activity.activity_type === 20">{{ $t("activityWorkoutStepsComponent.labelWorkoutStepExerciseName") }}</th>
+                    <th v-if="activity.activity_type === 10 || activity.activity_type === 19 || activity.activity_type === 20">{{ $t("activityWorkoutStepsComponent.labelWorkoutStepExerciseWeight") }}</th>
+                    <th>{{ $t("activityWorkoutStepsComponent.labelWorkoutStepNotes") }}</th>
                 </tr>
             </thead>
             <tbody class="table-group-divider">
-                <tr v-for="(lap, index) in activityActivityLaps" :key="lap.id">
+                <tr v-for="(step, index) in activityActivityWorkoutSteps" :key="step.id">
                     <td>{{ index + 1 }}</td>
-                    <td>{{ metersToKm(lap.total_distance) + ' ' + $t("generalItems.unitsKm") }}</td>
-                    <td>{{ formatSecondsToMinutes(lap.total_elapsed_time) }}</td>
-                    <td>{{ formatPaceMetric(lap.enhanced_avg_pace) }}</td>
-                    <td>{{ (lap.total_ascent || 0) + ' ' + $t("generalItems.unitsM") }}</td>
-                    <td>{{ lap.avg_heart_rate + ' ' + $t("generalItems.unitsBpm") }}</td>
-                </tr>
-            </tbody>
-        </table>
-    </div>
-
-    <div class="table-responsive d-lg-none d-block">
-        <table class="table table-sm table-borderless" style="--bs-table-bg: var(--bs-gray-850);">
-            <thead>
-                <tr>
-                    <th scope="col" style="width: 5%;">#</th>
-                    <th scope="col" style="width: 15%;">{{ $t("activityLapsComponent.labelLapPace") }}</th>
-                    <th scope="col" style="width: auto;">&nbsp;</th>
-                    <th scope="col" style="width: 10%;">{{ $t("activityLapsComponent.labelLapElev") }}</th>
-                    <th scope="col" style="width: 10%;">{{ $t("activityLapsComponent.labelLapHR") }}</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr v-for="(lap, index) in normalizedLaps" :key="index">
-                    <td>{{ index + 1 }}</td>
-                    <td>{{ lap.formattedPace }}</td>
-                    <td>
-                        <div class="progress" role="progressbar" aria-label="Basic example" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
-                            <div class="progress-bar" :style="{ width: lap.normalizedScore + '%' }"></div>
-                        </div>
+                    <td>{{ step.duration_type ?? $t("generalItems.labelNoData") }}</td>
+                    <td>{{ formatSecondsToMinutes(step.duration_value) }}</td>
+                    <td>{{ step.target_type ?? $t("generalItems.labelNoData") }}</td>
+                    <td>{{ step.intensity ?? $t("generalItems.labelNoData") }}</td>
+                    <td v-if="activity.activity_type === 10 || activity.activity_type === 19 || activity.activity_type === 20">
+                        <span v-if="activityActivityExerciseTitles && activityActivityExerciseTitles.some(title => title.exercise_name === step.exercise_name)">
+                            {{ activityActivityExerciseTitles.find(title => title.exercise_name === step.exercise_name).wkt_step_name }}
+                        </span>
+                        <span v-else>
+                            {{ step.exercise_name ?? $t("generalItems.labelNoData") }}
+                        </span>
                     </td>
-                    <td>{{ lap.total_ascent ?? 0 }}</td>
-                    <td>{{ lap.avg_heart_rate ?? 0 }}</td>
+                    <td v-if="activity.activity_type === 10 || activity.activity_type === 19 || activity.activity_type === 20">{{ step.exercise_weight ?? $t("generalItems.labelNoData") }}</td>
+                    <td>{{ step.notes ?? $t("generalItems.labelNoData") }}</td>
                 </tr>
             </tbody>
         </table>
-        <hr>
     </div>
 </template>
 
@@ -70,7 +54,7 @@ export default {
 			type: Object,
 			required: true,
 		},
-		activityActivityLaps: {
+		activityActivityWorkoutSteps: {
 			type: Object,
 			required: true,
 		},
@@ -78,6 +62,10 @@ export default {
             type: Number,
 			default: 1,
         },
+		activityActivityExerciseTitles: {
+			type: [Object, null],
+			required: true,
+		},
 	},
 	setup(props) {
 

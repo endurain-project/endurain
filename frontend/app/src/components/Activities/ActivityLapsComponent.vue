@@ -4,6 +4,7 @@
             <thead>
                 <tr>
                     <th>{{ $t("activityLapsComponent.labelLapNumber") }}</th>
+                    <th>{{ $t("activityLapsComponent.labelLapIntensity") }}</th>
                     <th>{{ $t("activityLapsComponent.labelLapDistance") }}</th>
                     <th>{{ $t("activityLapsComponent.labelLapTime") }}</th>
                     <th v-if="activity.activity_type === 4 || activity.activity_type === 5 || activity.activity_type === 6 || activity.activity_type === 7 || activity.activity_type === 27">{{ $t("activityLapsComponent.labelLapSpeed") }}</th>
@@ -15,12 +16,20 @@
             <tbody class="table-group-divider">
                 <tr v-for="(lap, index) in normalizedLaps" :key="lap.id">
                     <td>{{ index + 1 }}</td>
+                    <td>{{ lap.intensity ?? $t("generalItems.labelNoData") }}</td>
                     <td>{{ lap.formattedDistance }}</td>
                     <td>{{ lap.lapSecondsToMinutes }}</td>
                     <td v-if="activity.activity_type === 4 || activity.activity_type === 5 || activity.activity_type === 6 || activity.activity_type === 7 || activity.activity_type === 27">{{ lap.formattedSpeedFull }}</td>
                     <td v-else>{{ lap.formattedPaceFull }}</td>
 					<td>{{ lap.formattedElevationFull.value }}</td>
-                    <td>{{ lap.avg_heart_rate ?? 0 + ' ' + $t("generalItems.unitsBpm") }}</td>
+                    <td>
+						<span v-if="lap.avg_heart_rate">
+							{{ lap.avg_heart_rate + ' ' + $t("generalItems.unitsBpm") }}
+						</span>
+						<span v-else>
+							{{ $t("generalItems.labelNoData") }}
+						</span>
+					</td>
                 </tr>
             </tbody>
         </table>
@@ -49,7 +58,14 @@
                         </div>
                     </td>
                     <td>{{ lap.formattedElevation }}</td>
-                    <td>{{ lap.avg_heart_rate ?? 0 }}</td>
+					<td>
+						<span v-if="lap.avg_heart_rate">
+							{{ lap.avg_heart_rate }}
+						</span>
+						<span v-else>
+							{{ $t("generalItems.labelNotApplicable") }}
+						</span>
+					</td>
                 </tr>
             </tbody>
         </table>
@@ -133,6 +149,9 @@ export default {
 					return formatPaceImperial(lap.enhanced_avg_pace, false);
 				});
 				const formattedPaceFull = computed(() => {
+					if (lap.enhanced_avg_pace === null) {
+						return t("generalItems.labelNoData");
+					}
 					if (
 						props.activity.activity_type === 8 ||
 						props.activity.activity_type === 9 ||
@@ -149,6 +168,9 @@ export default {
 					return formatPaceImperial(lap.enhanced_avg_pace);
 				});
 				const formattedDistance = computed(() => {
+					if (lap.total_distance === null) {
+						return t("generalItems.labelNoData");
+					}
 					if (Number(props.units) === 1) {
 						return `${metersToKm(lap.total_distance)} ${t("generalItems.unitsKm")}`;
 					}
@@ -162,17 +184,23 @@ export default {
                 });
                 const formattedElevationFull = computed(() => {
                     if (Number(props.units) === 1) {
-                        return `${lap.total_ascent} ${t("generalItems.unitsM")}` ?? `0 ${t("generalItems.unitsM")}`;
+						return `${lap.total_ascent ?? 0} ${t("generalItems.unitsM")}`;
                     }
                     return `${metersToFeet(lap.total_ascent)} ${t("generalItems.unitsFeetShort")}` ?? `0 ${t("generalItems.unitsFeetShort")}`;
                 });
                 const formattedSpeedFull = computed(() => {
+					if (lap.enhanced_avg_speed === null) {
+						return t("generalItems.labelNoData");
+					}
                     if (Number(props.units) === 1) {
                         return `${lap.enhanced_avg_speed} ${t("generalItems.unitsKmH")}`;
                     }
                     return `${formatAverageSpeedImperial(lap.enhanced_avg_speed)} ${t("generalItems.unitsMph")}`;
                 });
                 const formattedSpeed = computed(() => {
+					if (lap.enhanced_avg_speed === null) {
+						return t("generalItems.labelNotApplicable");
+					}
                     if (Number(props.units) === 1) {
                         return lap.enhanced_avg_speed ?? 0;
                     }

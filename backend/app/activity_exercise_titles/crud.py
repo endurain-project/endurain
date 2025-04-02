@@ -5,6 +5,8 @@ from sqlalchemy.exc import IntegrityError
 import activity_exercise_titles.models as activity_exercise_titles_models
 import activity_exercise_titles.schema as activity_exercise_titles_schema
 
+import server_settings.crud as server_settings_crud
+
 import core.logger as core_logger
 
 
@@ -25,6 +27,29 @@ def get_activity_exercise_titles(db: Session):
         # Log the exception
         core_logger.print_to_log(
             f"Error in get_activity_exercise_titles: {err}", "error", exc=err
+        )
+        # Raise an HTTPException with a 500 Internal Server Error status code
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal Server Error",
+        ) from err
+
+
+def get_public_activity_exercise_titles(db: Session):
+    try:
+        # Check if public sharable links are enabled in server settings
+        server_settings = server_settings_crud.get_server_settings(db)
+
+        # Return None if public sharable links are disabled
+        if not server_settings or not server_settings.public_shareable_links:
+            return None
+        
+        # Get the activity exercise titles from the database
+        return get_activity_exercise_titles(db)
+    except Exception as err:
+        # Log the exception
+        core_logger.print_to_log(
+            f"Error in get_public_activity_exercise_titles: {err}", "error", exc=err
         )
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(

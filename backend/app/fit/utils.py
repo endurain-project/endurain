@@ -161,6 +161,7 @@ def create_activity_objects(
                 "is_lat_lon_set": session_record["is_lat_lon_set"],
                 "lat_lon_waypoints": session_record["lat_lon_waypoints"],
                 "laps": session_record["laps"],
+                "sets": session_record["sets"],
                 "workout_steps": session_record["workout_steps"],
             }
 
