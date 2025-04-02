@@ -527,72 +527,7 @@ def parse_fit_file(file: str, db: Session) -> dict:
 
                     # Extract lap data
                     if frame.name == "lap":
-                        lap_data = parse_frame_lap(frame)
-                        lap_keys = [
-                            "start_time",
-                            "start_position_lat",
-                            "start_position_long",
-                            "end_position_lat",
-                            "end_position_long",
-                            "total_elapsed_time",
-                            "total_timer_time",
-                            "total_distance",
-                            "total_cycles",
-                            "total_calories",
-                            "avg_heart_rate",
-                            "max_heart_rate",
-                            "avg_cadence",
-                            "max_cadence",
-                            "avg_power",
-                            "max_power",
-                            "total_ascent",
-                            "total_descent",
-                            "intensity",
-                            "lap_trigger",
-                            "sport",
-                            "sub_sport",
-                            "normalized_power",
-                            "total_work",
-                            "avg_vertical_oscillation",
-                            "avg_stance_time",
-                            "avg_fractional_cadence",
-                            "max_fractional_cadence",
-                            "enhanced_avg_speed",
-                            "enhanced_max_speed",
-                            "enhanced_min_altitude",
-                            "enhanced_max_altitude",
-                            "avg_vertical_ratio",
-                            "avg_step_length",
-                        ]
-                        lap_dict = dict(zip(lap_keys, lap_data))
-
-                        # Ensure start_time and end_time is timezone-naive
-                        if isinstance(lap_dict["start_time"], datetime):
-                            lap_dict["start_time"] = lap_dict["start_time"].replace(
-                                tzinfo=None
-                            )
-
-                        (
-                            lap_dict["start_position_lat"],
-                            lap_dict["start_position_long"],
-                        ) = convert_coordinates_to_degrees(
-                            lap_dict["start_position_lat"],
-                            lap_dict["start_position_long"],
-                        )
-                        lap_dict["end_position_lat"], lap_dict["end_position_long"] = (
-                            convert_coordinates_to_degrees(
-                                lap_dict["end_position_lat"],
-                                lap_dict["end_position_long"],
-                            )
-                        )
-
-                        if lap_dict["enhanced_avg_speed"]:
-                            lap_dict["enhanced_avg_pace"] = 1 / lap_dict["enhanced_avg_speed"]
-
-                        if lap_dict["enhanced_max_speed"]:
-                            lap_dict["enhanced_max_pace"] = 1 / lap_dict["enhanced_max_speed"]
-
-                        laps.append(lap_dict)
+                        laps.append(parse_frame_lap(frame))
 
                     # Extract split data
                     if frame.name in {"split", "unknown_312"}:
@@ -631,49 +566,15 @@ def parse_fit_file(file: str, db: Session) -> dict:
 
                     # Extract set data
                     if frame.name == "set":
-                        set_data = parse_frame_set(frame)
-                        set_keys = [
-                            "set_type",
-                            "start_time",
-                            "end_time",
-                            "duration",
-                            "repetitions",
-                            "weight",
-                            "set_notes",
-                        ]
-                        sets.append(dict(zip(set_keys, set_data)))
+                        sets.append(parse_frame_set(frame))
 
                     # Extract workout step data
                     if frame.name == "workout_step":
-                        set_data = parse_frame_workout_step(frame)
-                        set_data = list(set_data)
-                        if set_data[4] == 7:
-                            set_data[4] = "active"
-                        workout_steps.append(
-                            activity_workout_steps_schema.ActivityWorkoutSteps(
-                                message_index=set_data[0] if set_data[0] else 0,
-                                duration_type=set_data[1],
-                                duration_value=set_data[2],
-                                target_type=set_data[3],
-                                intensity=set_data[4] if type(set_data[4]) == str else "",
-                                notes=set_data[5],
-                                exercise_name=set_data[6],
-                                exercise_weight=set_data[7],
-                                weight_display_unit=set_data[8],
-                            )
-                        )
-
+                        workout_steps.append(parse_frame_workout_step(frame))
 
                     # Extract exercise title data
                     if frame.name == "exercise_title":
-                        set_data = parse_frame_exercise_title(frame)
-                        exercises_titles.append(
-                            activity_exercise_titles_schema.ActivityExerciseTitles(
-                                exercise_category=str(set_data[0]),
-                                exercise_name=set_data[1],
-                                wkt_step_name=str(set_data[2]),
-                            )
-                        )
+                        exercises_titles.append(parse_frame_exercise_title(frame))
 
                     # Extract waypoint data
                     if frame.name == "record":
@@ -860,11 +761,8 @@ def parse_frame_session(frame):
 
 
 def parse_frame_workout(frame):
-    # Extracting data using the helper function
-    name = get_value_from_frame(frame, "wkt_name", "Workout")
-
     # Return the extracted name
-    return name
+    return get_value_from_frame(frame, "wkt_name", "Workout")
 
 
 def parse_frame_record(frame):
@@ -923,7 +821,34 @@ def parse_frame_lap(frame):
         "avg_step_length",
     ]
 
-    return tuple(get_value_from_frame(frame, key) for key in keys)
+    lap_data = tuple(get_value_from_frame(frame, key) for key in keys)
+    lap_dict = dict(zip(keys, lap_data))
+
+    # Ensure start_time and end_time is timezone-naive
+    if isinstance(lap_dict["start_time"], datetime):
+        lap_dict["start_time"] = lap_dict["start_time"].replace(tzinfo=None)
+
+    (
+        lap_dict["start_position_lat"],
+        lap_dict["start_position_long"],
+    ) = convert_coordinates_to_degrees(
+        lap_dict["start_position_lat"],
+        lap_dict["start_position_long"],
+    )
+    lap_dict["end_position_lat"], lap_dict["end_position_long"] = (
+        convert_coordinates_to_degrees(
+            lap_dict["end_position_lat"],
+            lap_dict["end_position_long"],
+        )
+    )
+
+    if lap_dict["enhanced_avg_speed"]:
+        lap_dict["enhanced_avg_pace"] = 1 / lap_dict["enhanced_avg_speed"]
+
+    if lap_dict["enhanced_max_speed"]:
+        lap_dict["enhanced_max_pace"] = 1 / lap_dict["enhanced_max_speed"]
+
+    return lap_dict
 
 
 def parse_frame_split(frame):
@@ -982,7 +907,9 @@ def parse_frame_set(frame):
         "category_subtype",
     ]
 
-    return tuple(get_value_from_frame(frame, key) for key in keys)
+    set_data = tuple(get_value_from_frame(frame, key) for key in keys)
+
+    return dict(zip(keys, set_data))
 
 
 def parse_frame_workout_step(frame):
@@ -998,7 +925,21 @@ def parse_frame_workout_step(frame):
         "weight_display_unit",
     ]
 
-    return tuple(get_value_from_frame(frame, key) for key in keys)
+    workout_set_data = list(tuple(get_value_from_frame(frame, key) for key in keys))
+    if workout_set_data[4] == 7:
+        workout_set_data[4] = "active"
+
+    return activity_workout_steps_schema.ActivityWorkoutSteps(
+        message_index=workout_set_data[0] if workout_set_data[0] else 0,
+        duration_type=workout_set_data[1],
+        duration_value=workout_set_data[2],
+        target_type=workout_set_data[3],
+        intensity=workout_set_data[4] if type(workout_set_data[4]) == str else "",
+        notes=workout_set_data[5],
+        exercise_name=workout_set_data[6],
+        exercise_weight=workout_set_data[7],
+        weight_display_unit=workout_set_data[8],
+    )
 
 
 def parse_frame_exercise_title(frame):
@@ -1008,7 +949,13 @@ def parse_frame_exercise_title(frame):
         "wkt_step_name",
     ]
 
-    return tuple(get_value_from_frame(frame, key) for key in keys)
+    exercise_title_data = tuple(get_value_from_frame(frame, key) for key in keys)
+
+    return activity_exercise_titles_schema.ActivityExerciseTitles(
+        exercise_category=str(exercise_title_data[0]),
+        exercise_name=exercise_title_data[1],
+        wkt_step_name=str(exercise_title_data[2]),
+    )
 
 
 def parse_frame_device_settings(frame):
