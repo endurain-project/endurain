@@ -282,12 +282,6 @@ def upgrade() -> None:
             comment="Workout step target type",
         ),
         sa.Column(
-            "target_value",
-            sa.Integer(),
-            nullable=False,
-            comment="Workout step target value",
-        ),
-        sa.Column(
             "intensity",
             sa.String(length=250),
             nullable=True,

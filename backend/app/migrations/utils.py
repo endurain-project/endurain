@@ -332,7 +332,6 @@ def process_migration_3(db: Session):
     if activities:
         for activity in activities:
             try:
-                print(activity.id)
                 if activity.strava_activity_id is None:
                     # check if activity file exists
                     activity_fit_file_path = os.path.join(
