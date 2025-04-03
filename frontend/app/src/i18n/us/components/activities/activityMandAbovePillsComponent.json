@@ -1,7 +1,7 @@
 {
     "labelPillGraphs": "Graphs",
     "labelPillLaps": "Laps",
-    "labelPillWorkoutSteps": "Workout Steps",
+    "labelPillWorkoutSets": "Sets",
     "labelGraph": "Activity data graphs",
     "labelDownsampling": "Data downsampled to ~200 points",
     "errorMessageProcessingActivityStreams": "Error processing activity streams"

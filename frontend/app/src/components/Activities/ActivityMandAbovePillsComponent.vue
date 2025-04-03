@@ -12,7 +12,7 @@
         </li>
 		<li class="nav-item" role="presentation" v-if="activityActivityWorkoutSteps && activityActivityWorkoutSteps.length > 0">
             <button class="nav-link link-body-emphasis" id="pills-workout-steps-tab" data-bs-toggle="pill" data-bs-target="#pills-workout-steps" type="button" role="tab" aria-controls="pills-workout-steps" aria-selected="false">
-                {{ $t("activityMandAbovePillsComponent.labelPillWorkoutSteps") }}
+                {{ $t("activityMandAbovePillsComponent.labelPillWorkoutSets") }}
             </button>
         </li>
     </ul>

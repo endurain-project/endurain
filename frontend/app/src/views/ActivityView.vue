@@ -35,7 +35,7 @@
 					<font-awesome-icon :icon="['fas', 'fa-person-swimming']" />
 				</span>
 				<span class="ms-2" v-if="activity.gear_id && gear">{{ gear.nickname }}</span>
-				<span class="ms-2" v-else>{{ $t("activityView.labelGearNotSet") }}</span>
+				<span v-else>{{ $t("activityView.labelGearNotSet") }}</span>
 			</p>
 			<div class="justify-content-end">
 				<!-- add gear button -->

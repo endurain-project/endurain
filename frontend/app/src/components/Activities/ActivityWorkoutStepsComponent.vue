@@ -1,88 +1,74 @@
 <template>
     <div class="table-responsive d-none d-sm-block">
-        {{ activityActivityWorkoutSteps }}
-        <table class="table table-striped table-borderless table-hover table-sm rounded text-center" style="--bs-table-bg: var(--bs-gray-850);">
+        <table v-if="largerLength" class="table table-striped table-borderless table-hover table-sm rounded text-center" style="--bs-table-bg: var(--bs-gray-850);">
             <thead>
                 <tr>
                     <th>#</th>
-                    <th>{{ $t("activityWorkoutStepsComponent.labelWorkoutStepType") }}</th>
-                    <th>{{ $t("activityWorkoutStepsComponent.labelWorkoutStepTime") }}</th>
-                    <th>Repetitions</th>
-                    <th>{{ $t("activityWorkoutStepsComponent.labelWorkoutStepTarget") }}</th>
-                    <th>{{ $t("activityWorkoutStepsComponent.labelWorkoutStepIntensity") }}</th>
-                    <th v-if="activity.activity_type === 10 || activity.activity_type === 19 || activity.activity_type === 20">{{ $t("activityWorkoutStepsComponent.labelWorkoutStepExerciseName") }}</th>
-                    <th v-if="activity.activity_type === 10 || activity.activity_type === 19 || activity.activity_type === 20">{{ $t("activityWorkoutStepsComponent.labelWorkoutStepExerciseWeight") }}</th>
-                    <th>{{ $t("activityWorkoutStepsComponent.labelWorkoutStepNotes") }}</th>
+                    <th v-if="activityActivityWorkoutSteps && activityActivityWorkoutSteps.length > 0">{{ $t("activityWorkoutStepsComponent.labelWorkoutStepType") }}</th>
+                    <th v-if="activityActivityWorkoutSteps && activityActivityWorkoutSteps.length > 0">{{ $t("activityWorkoutStepsComponent.labelWorkoutStepTime") }}</th>
+                    <th v-if="(activity.activity_type === 10 || activity.activity_type === 19 || activity.activity_type === 20) && activityActivityWorkoutSteps && activityActivityWorkoutSteps.length > 0">{{ $t("activityWorkoutStepsComponent.labelWorkoutStepReps") }}</th>
+                    <th v-if="(activity.activity_type === 10 || activity.activity_type === 19 || activity.activity_type === 20) && activityActivityWorkoutSteps && activityActivityWorkoutSteps.length > 0">{{ $t("activityWorkoutStepsComponent.labelWorkoutStepExerciseName") }}</th>
+                    <th v-if="(activity.activity_type === 8 || activity.activity_type === 9) && activityActivityWorkoutSteps && activityActivityWorkoutSteps.length > 0">{{ $t("activityWorkoutStepsComponent.labelWorkoutStepSwimStroke") }}</th>
+                    <!-- sets -->
+                    <th v-if="activityActivitySets && activityActivitySets.length > 0">{{ $t("activityWorkoutStepsComponent.labelWorkoutSetType") }}</th>
+                    <th v-if="activityActivitySets && activityActivitySets.length > 0">{{ $t("activityWorkoutStepsComponent.labelWorkoutSetTime") }}</th>
+                    <th v-if="activityActivitySets && activityActivitySets.length > 0">{{ $t("activityWorkoutStepsComponent.labelWorkoutSetReps") }}</th>
+                    <th v-if="activityActivitySets && activityActivitySets.length > 0">{{ $t("activityWorkoutStepsComponent.labelWorkoutSetExerciseName") }}</th>
+                    <th v-if="activityActivitySets && activityActivitySets.length > 0">{{ $t("activityWorkoutStepsComponent.labelWorkoutSetExerciseWeight") }}</th>
                 </tr>
             </thead>
             <tbody class="table-group-divider">
-                <tr v-for="(step, index) in processedWorkoutSteps" :key="step.id">
-                    <td>{{ index + 1 }}</td>
-                    <td>{{ step.duration_type ?? $t("generalItems.labelNoData") }}</td>
-                    <td>
-                        <span v-if="step.duration_type === 'time'">
-                            {{ formatSecondsToMinutes(step.duration_value) }}
+                <tr v-for="i in largerLength" :key="i">
+                    <td>{{ i }}</td>
+                    <td v-if="activityActivityWorkoutSteps && activityActivityWorkoutSteps.length > 0">
+                        <span v-if="processedWorkoutSteps[i - 1]">{{ processedWorkoutSteps[i - 1].intensity ?? $t("generalItems.labelNoData") }}</span>
+                    </td>
+                    <td v-if="activityActivityWorkoutSteps && activityActivityWorkoutSteps.length > 0">
+                        <span v-if="processedWorkoutSteps[i - 1] && processedWorkoutSteps[i - 1].duration_type === 'time'">
+                            {{ formatSecondsToMinutes(processedWorkoutSteps[i - 1].duration_value) }}
                         </span>
                     </td>
-                    <td>
-                        <span v-if="step.duration_type === 'reps'">
-                            {{ step.duration_value }}
+                    <td v-if="(activity.activity_type === 10 || activity.activity_type === 19 || activity.activity_type === 20) && activityActivityWorkoutSteps && activityActivityWorkoutSteps.length > 0">
+                        <span v-if="processedWorkoutSteps[i - 1] && processedWorkoutSteps[i - 1].duration_type === 'reps'">
+                            {{ processedWorkoutSteps[i - 1].duration_value }}
                         </span>
                     </td>
-                    <td>{{ step.target_type ?? $t("generalItems.labelNoData") }}</td>
-                    <td>{{ step.intensity ?? $t("generalItems.labelNoData") }}</td>
-                    <td v-if="activity.activity_type === 10 || activity.activity_type === 19 || activity.activity_type === 20">
-                        <span v-if="activityActivityExerciseTitles && activityActivityExerciseTitles.some(title => title.exercise_name === step.exercise_name)">
-                            {{ activityActivityExerciseTitles.find(title => title.exercise_name === step.exercise_name).wkt_step_name }}
+                    <td v-if="(activity.activity_type === 10 || activity.activity_type === 19 || activity.activity_type === 20) && activityActivityWorkoutSteps && activityActivityWorkoutSteps.length > 0">
+                        <span v-if="processedWorkoutSteps[i - 1] && activityActivityExerciseTitles && activityActivityExerciseTitles.some(title => title.exercise_name === processedWorkoutSteps[i - 1].exercise_name)">
+                            {{ activityActivityExerciseTitles.find(title => title.exercise_name === processedWorkoutSteps[i - 1].exercise_name).wkt_step_name }}
                         </span>
-                        <span v-else-if="step.intensity !== 'rest'">
-                            {{ step.exercise_name ?? $t("generalItems.labelNoData") }}
+                        <span v-else-if="processedWorkoutSteps[i - 1] && processedWorkoutSteps[i - 1].intensity !== 'rest'">
+                            {{ processedWorkoutSteps[i - 1].exercise_name ?? $t("generalItems.labelNoData") }}
                         </span>
                     </td>
-                    <td v-if="activity.activity_type === 10 || activity.activity_type === 19 || activity.activity_type === 20">
-                        <span v-if="step.intensity !== 'rest'">
-                            {{ step.exercise_weight ?? $t("generalItems.labelNoData") }}
+                    <td v-if="(activity.activity_type === 8 || activity.activity_type === 9) && activityActivityWorkoutSteps && activityActivityWorkoutSteps.length > 0">
+                        <span v-if="processedWorkoutSteps[i - 1] && processedWorkoutSteps[i - 1].target_type === 'swim_stroke'">
+                            {{ processedWorkoutSteps[i - 1].secondary_target_value ?? $t("generalItems.labelNoData") }}
                         </span>
                     </td>
-                    <td>{{ step.notes ?? $t("generalItems.labelNoData") }}</td>
-                </tr>
-            </tbody>
-        </table>
-
-        {{ activityActivitySets }}
-
-        <table class="table table-striped table-borderless table-hover table-sm rounded text-center" style="--bs-table-bg: var(--bs-gray-850);">
-            <thead>
-                <tr>
-                    <th>#</th>
-                    <th>{{ $t("activityWorkoutStepsComponent.labelWorkoutStepType") }}</th>
-                    <th>{{ $t("activityWorkoutStepsComponent.labelWorkoutStepTime") }}</th>
-                    <th>Repetitions</th>
-                    <th v-if="activity.activity_type === 10 || activity.activity_type === 19 || activity.activity_type === 20">{{ $t("activityWorkoutStepsComponent.labelWorkoutStepExerciseName") }}</th>
-                    <th v-if="activity.activity_type === 10 || activity.activity_type === 19 || activity.activity_type === 20">{{ $t("activityWorkoutStepsComponent.labelWorkoutStepExerciseWeight") }}</th>
-                </tr>
-            </thead>
-            <tbody class="table-group-divider">
-                <tr v-for="(set, index) in activityActivitySets" :key="set.id">
-                    <td>{{ index + 1 }}</td>
-                    <td>{{ set.set_type ?? $t("generalItems.labelNoData") }}</td>
-                    <td>{{ formatSecondsToMinutes(set.duration) }}</td>
-                    <td>
-                        <span v-if="set.set_type !== 'rest'">
-                            {{ set.repetitions ?? $t("generalItems.labelNoData") }}
+                    <!-- sets -->
+                    <td v-if="activityActivitySets && activityActivitySets.length > 0">
+                        <span v-if="activityActivitySets[i - 1]">{{ activityActivitySets[i - 1].set_type ?? $t("generalItems.labelNoData") }}</span>
+                    </td>
+                    <td v-if="activityActivitySets && activityActivitySets.length > 0 && activityActivitySets[i - 1]">
+                        <span v-if="activityActivitySets[i - 1]">{{ formatSecondsToMinutes(activityActivitySets[i - 1].duration) ?? $t("generalItems.labelNoData") }}</span>
+                    </td>
+                    <td v-if="activityActivitySets && activityActivitySets.length > 0">
+                        <span v-if="activityActivitySets[i - 1] && activityActivitySets[i - 1].set_type !== 'rest'">
+                            {{ activityActivitySets[i - 1].repetitions ?? $t("generalItems.labelNoData") }}
                         </span>
                     </td>
-                    <td v-if="activity.activity_type === 10 || activity.activity_type === 19 || activity.activity_type === 20">
-                        <span v-if="activityActivityExerciseTitles && activityActivityExerciseTitles.some(title => title.exercise_name === set.category_subtype) && set.set_type !== 'rest'">
-                            {{ activityActivityExerciseTitles.find(title => title.exercise_name === set.category_subtype).wkt_step_name }}
+                    <td v-if="(activity.activity_type === 10 || activity.activity_type === 19 || activity.activity_type === 20) && activityActivitySets && activityActivitySets.length > 0">
+                        <span v-if="activityActivitySets[i - 1] && activityActivityExerciseTitles && activityActivityExerciseTitles.some(title => title.exercise_name === activityActivitySets[i - 1].category_subtype) && activityActivitySets[i - 1].set_type !== 'rest'">
+                            {{ activityActivityExerciseTitles.find(title => title.exercise_name === activityActivitySets[i - 1].category_subtype).wkt_step_name }}
                         </span>
-                        <span v-else-if="set.set_type !== 'rest'">
-                            {{ set.category_subtype ?? $t("generalItems.labelNoData") }}
+                        <span v-else-if="activityActivitySets[i - 1] && activityActivitySets[i - 1].set_type !== 'rest'">
+                            {{ activityActivitySets[i - 1].category_subtype ?? $t("generalItems.labelNoData") }}
                         </span>
                     </td>
-                    <td v-if="activity.activity_type === 10 || activity.activity_type === 19 || activity.activity_type === 20">
-                        <span v-if="set.set_type !== 'rest'">
-                            {{ set.weight ?? $t("generalItems.labelNoData") }}
+                    <td v-if="(activity.activity_type === 10 || activity.activity_type === 19 || activity.activity_type === 20) && activityActivitySets && activityActivitySets.length > 0">
+                        <span v-if="activityActivitySets[i - 1] && activityActivitySets[i - 1].set_type !== 'rest'">
+                            {{ activityActivitySets[i - 1].weight ?? $t("generalItems.labelNoData") }}
                         </span>
                     </td>
                 </tr>
@@ -139,11 +125,24 @@ export default {
             return result;
         }, []);
 
+        const largerLength = computed(() => {
+            if (!props.activityActivityWorkoutSteps) {
+                return props.activityActivitySets.length;
+            } if (!props.activityActivitySets) {
+                return props.activityActivityWorkoutSteps.length;
+            }
+            return Math.max(
+                props.activityActivityWorkoutSteps.length,
+                props.activityActivitySets.length
+            );
+        });
+
 		return {
             formatSecondsToMinutes,
             formatPaceMetric,
             metersToKm,
             processedWorkoutSteps,
+            largerLength,
 		};
 	},
 };
