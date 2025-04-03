@@ -3,7 +3,8 @@
         <div class="d-flex align-items-center">
             <img src="/src/assets/avatar/bicycle1.png" alt="Bycicle avatar" width="55" height="55" v-if="gear.gear_type == 1">
             <img src="/src/assets/avatar/running_shoe1.png" alt="Bycicle avatar" width="55" height="55" v-else-if="gear.gear_type == 2">
-            <img src="/src/assets/avatar/wetsuit1.png" alt="Bycicle avatar" width="55" height="55" v-else>
+            <img src="/src/assets/avatar/wetsuit1.png" alt="Bycicle avatar" width="55" height="55" v-else-if="gear.gear_type == 3">
+            <img src="/src/assets/avatar/racquet1.png" alt="Bycicle avatar" width="55" height="55" v-else>
             <div class="ms-3">
                 <div class="fw-bold">
                     <router-link :to="{ name: 'gear', params: { id: gear.id }}" class="link-body-emphasis link-underline-opacity-0 link-underline-opacity-100-hover">
