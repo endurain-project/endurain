@@ -39,10 +39,6 @@ def get_activity_workout_steps(activity_id: int, db: Session):
         if not activity:
             return None
 
-        # Serialize the activity workout steps
-        #for step in activity_workout_steps:
-        #    step = activity_laps_utils.serialize_activity_lap(activity, lap)
-
         # Return the activity laps
         return activity_workout_steps
     except Exception as err:
@@ -99,10 +95,6 @@ def get_public_activity_workout_steps(activity_id: int, db: Session):
         # Check if the activity exists, if not return None
         if not activity:
             return None
-        
-        # Serialize the activity laps
-        #for step in activity_workout_steps:
-        #    step = activity_laps_utils.serialize_activity_lap(activity, lap)
 
         # Return the activity laps
         return activity_workout_steps
@@ -136,11 +128,13 @@ def create_activity_workout_steps(
                 duration_type=step.duration_type,
                 duration_value=step.duration_value,
                 target_type=step.target_type,
+                target_value=step.target_value,
                 intensity=step.intensity,
                 notes=step.notes,
                 exercise_name=step.exercise_name,
                 exercise_weight=step.exercise_weight,
                 weight_display_unit=step.weight_display_unit,
+                secondary_target_value=step.secondary_target_value,
             )
 
             # Append the object to the list

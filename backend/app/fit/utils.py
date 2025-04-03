@@ -920,6 +920,7 @@ def parse_frame_workout_step(frame):
         "duration_type",
         "duration_value",
         "target_type",
+        "target_value",
         "intensity",
         "notes",
         "exercise_name",
@@ -928,19 +929,27 @@ def parse_frame_workout_step(frame):
     ]
 
     workout_set_data = list(tuple(get_value_from_frame(frame, key) for key in keys))
-    if workout_set_data[4] == 7:
-        workout_set_data[4] = "active"
+    if workout_set_data[5] == 7:
+        workout_set_data[5] = "active"
+    
+    secondary_target_value = None
+
+    if workout_set_data[3] == "swim_stroke":
+        secondary_target_value = workout_set_data[4]
+        workout_set_data[4] = None
 
     return activity_workout_steps_schema.ActivityWorkoutSteps(
         message_index=workout_set_data[0] if workout_set_data[0] else 0,
         duration_type=workout_set_data[1],
         duration_value=workout_set_data[2],
         target_type=workout_set_data[3],
-        intensity=workout_set_data[4] if type(workout_set_data[4]) == str else "",
-        notes=workout_set_data[5],
-        exercise_name=workout_set_data[6],
-        exercise_weight=workout_set_data[7],
-        weight_display_unit=workout_set_data[8],
+        target_value=workout_set_data[4] if workout_set_data[4] else None,
+        intensity=workout_set_data[5] if type(workout_set_data[5]) == str else None,
+        notes=workout_set_data[6],
+        exercise_name=workout_set_data[7],
+        exercise_weight=workout_set_data[8],
+        weight_display_unit=workout_set_data[9],
+        secondary_target_value=secondary_target_value,
     )
 
 

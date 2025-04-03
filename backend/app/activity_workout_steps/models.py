@@ -36,6 +36,11 @@ class ActivityWorkoutSteps(Base):
     target_type = Column(
         String(length=250), nullable=True, comment="Workout step target type"
     )
+    target_value = Column(
+        Integer,
+        nullable=True,
+        comment="Workout step target value",
+    )
     intensity = Column(
         String(length=250), nullable=True, comment="Workout step intensity type"
     )
@@ -54,6 +59,11 @@ class ActivityWorkoutSteps(Base):
         String(length=250),
         nullable=True,
         comment="Workout step weight display unit",
+    )
+    secondary_target_value = Column(
+        String(length=250),
+        nullable=True,
+        comment="Workout step secondary target value",
     )
 
     # Define a relationship to the User model

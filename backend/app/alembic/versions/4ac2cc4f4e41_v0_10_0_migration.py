@@ -282,6 +282,12 @@ def upgrade() -> None:
             comment="Workout step target type",
         ),
         sa.Column(
+            "target_value",
+            sa.Integer(),
+            nullable=True,
+            comment="Workout step target value",
+        ),
+        sa.Column(
             "intensity",
             sa.String(length=250),
             nullable=True,
@@ -304,6 +310,12 @@ def upgrade() -> None:
             sa.String(length=250),
             nullable=True,
             comment="Workout step weight display unit",
+        ),
+        sa.Column(
+            "secondary_target_value",
+            sa.String(length=250),
+            nullable=True,
+            comment="Workout step secondary target value",
         ),
         sa.ForeignKeyConstraint(["activity_id"], ["activities.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),
@@ -351,6 +363,12 @@ def upgrade() -> None:
             sa.DateTime(),
             nullable=False,
             comment="Workout set start date (DATETIME)",
+        ),
+        sa.Column(
+            "category", sa.Integer(), nullable=True, comment="Category number"
+        ),
+        sa.Column(
+            "category_subtype", sa.Integer(), nullable=True, comment="Category sub type number"
         ),
         sa.ForeignKeyConstraint(["activity_id"], ["activities.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),
