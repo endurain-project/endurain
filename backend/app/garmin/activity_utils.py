@@ -175,23 +175,24 @@ def get_user_garminconnect_activities_by_days(
     start_date: datetime, user_id: int, db: Session
 ):
     try:
-        # Log the start of the activities processing
-        core_logger.print_to_log(
-            f"User {user_id}: Started Garmin Connect activities processing"
-        )
-
         # Get the Garmin Connect client for the user
         garminconnect_client = get_user_garminconnect_client(user_id, db)
 
-        # Fetch Garmin Connect activities after the specified start date
-        num_garminconnect_activities_processed = fetch_and_process_activities(
-            garminconnect_client, start_date, user_id, db
-        )
+        if garminconnect_client is not None:
+            # Fetch Garmin Connect activities after the specified start date
+            num_garminconnect_activities_processed = fetch_and_process_activities(
+                garminconnect_client, start_date, user_id, db
+            )
 
-        # Log an informational event for tracing
-        core_logger.print_to_log(
-            f"User {user_id}: {num_garminconnect_activities_processed} Garmin Connect activities processed"
-        )
+            # Log the start of the activities processing
+            core_logger.print_to_log(
+                f"User {user_id}: Started Garmin Connect activities processing"
+            )
+
+            # Log an informational event for tracing
+            core_logger.print_to_log(
+                f"User {user_id}: {num_garminconnect_activities_processed} Garmin Connect activities processed"
+            )
     except Exception as err:
         # Log specific errors during Garmin Connect processing
         core_logger.print_to_log(
