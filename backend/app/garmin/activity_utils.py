@@ -142,10 +142,8 @@ def retrieve_garminconnect_users_activities_for_days(days: int):
         # Ensure the session is closed after use
         db.close()
 
-
-def get_user_garminconnect_activities_by_days(
-    start_date: datetime, user_id: int, db: Session
-):
+    
+def get_user_garminconnect_client(user_id: int, db: Session):
     try:
         # Get the user integrations by user ID
         user_integrations = garmin_utils.fetch_user_integrations_and_validate_token(
@@ -156,16 +154,34 @@ def get_user_garminconnect_activities_by_days(
             core_logger.print_to_log(f"User {user_id}: Garmin Connect not linked")
             return None
 
-        # Log the start of the activities processing
-        core_logger.print_to_log(
-            f"User {user_id}: Started Garmin Connect activities processing"
-        )
-
         # Create a Garmin Connect client with the user's access token
         garminconnect_client = garmin_utils.login_garminconnect_using_tokens(
             user_integrations.garminconnect_oauth1,
             user_integrations.garminconnect_oauth2,
         )
+
+        # return the Garmin Connect client
+        return garminconnect_client
+    except Exception as err:
+        # Log specific errors during getting the Garmin Connect client
+        core_logger.print_to_log(
+            f"Error in get_user_garminconnect_client: {err}",
+            "error",
+            exc=err,
+        )
+
+
+def get_user_garminconnect_activities_by_days(
+    start_date: datetime, user_id: int, db: Session
+):
+    try:
+        # Log the start of the activities processing
+        core_logger.print_to_log(
+            f"User {user_id}: Started Garmin Connect activities processing"
+        )
+
+        # Get the Garmin Connect client for the user
+        garminconnect_client = get_user_garminconnect_client(user_id, db)
 
         # Fetch Garmin Connect activities after the specified start date
         num_garminconnect_activities_processed = fetch_and_process_activities(

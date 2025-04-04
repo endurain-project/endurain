@@ -1,5 +1,6 @@
 import os
 import fitdecode
+import zipfile
 
 from enum import Enum
 from datetime import datetime
@@ -20,6 +21,8 @@ import activity_sets.crud as activity_sets_crud
 import activity_streams.crud as activity_streams_crud
 
 import activity_workout_steps.crud as activity_workout_steps_crud
+
+import garmin.activity_utils as garmin_activity_utils
 
 import migrations.crud as migrations_crud
 
@@ -340,6 +343,75 @@ def process_migration_3(db: Session):
                     activity_gpx_file_path = os.path.join(
                         "files/processed", f"{activity.id}.gpx"
                     )
+
+                    if not os.path.exists(activity_fit_file_path) and activity.garminconnect_activity_id is not None:
+                        # Log getting file from Garmin Connect
+                        core_logger.print_to_log(
+                            f"Migration 3 - Activity {activity.id} does not have a file, but it is a Garmin Connect activity. Will retrieve file from Garmin.",
+                            "info",
+                        )
+
+                        # Get the user Garmin Connect client
+                        garminconnect_client = garmin_activity_utils.get_user_garminconnect_client(
+                            activity.user_id, db)
+                        
+                        # Download the activity in original format (.zip file)
+                        zip_data = garminconnect_client.download_activity(
+                            activity.garminconnect_activity_id, dl_fmt=garminconnect_client.ActivityDownloadFormat.ORIGINAL
+                        )
+
+                        # Save the zip file
+                        output_file = f"files/{str(activity.garminconnect_activity_id)}.zip"
+
+                        # Write the ZIP data to the output file
+                        with open(output_file, "wb") as fb:
+                            fb.write(zip_data)
+
+                        # Array to store the names of extracted files
+                        extracted_files = []
+
+                        # Open the ZIP file
+                        with zipfile.ZipFile(output_file, "r") as zip_ref:
+                            # Extract all contents to the specified directory
+                            zip_ref.extractall("files")
+                            # Populate the array with file names
+                            extracted_files = zip_ref.namelist()
+
+                        # Remove the zip file
+                        try:
+                            os.remove(output_file)
+                        except OSError as err:
+                            core_logger.print_to_log(
+                                f"Error removing file {output_file}: {err}",
+                                "error",
+                                exc=err,
+                            )
+
+                        try:
+                            # Define the directory where the processed files will be stored
+                            processed_dir = "files/processed"
+
+                            for file in extracted_files:
+                                _, file_extension = os.path.splitext(f"files/{file}")
+
+                                # Define new file path with activity ID as filename
+                                new_file_name = f"{activity.id}{file_extension}"
+
+                                # Move the file to the processed directory
+                                activities_utils.move_file(processed_dir, new_file_name, f"files/{file}")
+                        except Exception as err:
+                            core_logger.print_to_log(
+                                f"Migration 3 - Failed to move activity {activity.id} file: {err}",
+                                "error",
+                                exc=err,
+                            )
+
+                        # check if activity file exists
+                        activity_fit_file_path = os.path.join(
+                            "files/processed", f"{activity.id}.fit"
+                        )
+
+                    # if .gpx and .fit for activity do not exist, skip
                     if not os.path.exists(
                         activity_fit_file_path
                     ) and not os.path.exists(activity_gpx_file_path):
@@ -348,6 +420,7 @@ def process_migration_3(db: Session):
                             "info",
                         )
                         continue
+                    # if exists, process it
                     else:
                         # Array to store laps
                         laps = []
@@ -362,8 +435,8 @@ def process_migration_3(db: Session):
                         sets = []
 
                         if os.path.exists(activity_fit_file_path):
-                            print(
-                                f"Migration 3 - Activity {activity.id} has a fit file."
+                            core_logger.print_to_log(
+                                f"Migration 3 - Activity {activity.id} has a fit file. Will process it."
                             )
                             try:
                                 # Open the FIT file
@@ -423,7 +496,7 @@ def process_migration_3(db: Session):
                                 )
 
                                 core_logger.print_to_log(
-                                    f"Activity {activity.id} file processed."
+                                    f"Migration 3 - Activity {activity.id} file processed."
                                 )
                             except Exception as err:
                                 activities_processed_with_no_errors = False
