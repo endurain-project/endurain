@@ -1,15 +1,15 @@
 {
-    "labelWorkoutStepType": "Step type",
-    "labelWorkoutStepTime": "Step time",
-    "labelWorkoutStepReps": "Step reps",
-    "labelWorkoutStepIntensity": "Intensity",
-    "labelWorkoutStepNotes": "Notes",
-    "labelWorkoutStepExerciseName": "Step name",
-    "labelWorkoutStepExerciseWeight": "Weight",
-    "labelWorkoutStepSwimStroke": "Step swim stroke",
-    "labelWorkoutSetType": "Set type",
-    "labelWorkoutSetTime": "Set time",
-    "labelWorkoutSetReps": "Set reps",
-    "labelWorkoutSetExerciseName": "Set name",
-    "labelWorkoutSetExerciseWeight": "Set weight"
+    "labelWorkoutStepType": "Tipo etapa",
+    "labelWorkoutStepTime": "Tempo etapa",
+    "labelWorkoutStepReps": "Reps etapa",
+    "labelWorkoutStepIntensity": "Intensidade",
+    "labelWorkoutStepNotes": "Notas",
+    "labelWorkoutStepExerciseName": "Nome etapa",
+    "labelWorkoutStepExerciseWeight": "Peso",
+    "labelWorkoutStepSwimStroke": "Estilo etapa",
+    "labelWorkoutSetType": "Tipo jogo",
+    "labelWorkoutSetTime": "Tempo jogo",
+    "labelWorkoutSetReps": "Reps jogo",
+    "labelWorkoutSetExerciseName": "Nome jogo",
+    "labelWorkoutSetExerciseWeight": "Peso jogo"
 }
