@@ -113,6 +113,62 @@ import deSearchView from './de/searchView.json';
 import deSettingsView from './de/settingsView.json';
 import deUserView from './de/userView.json';
 
+// Spanish translations
+// Activities component
+import esAddGearToActivityModalComponent from './es/components/activities/modals/addGearToActivityModalComponent.json';
+import esEditActivityModalComponent from './es/components/activities/modals/editActivityModalComponent.json';
+import esActivityBellowMPillsComponent from './es/components/activities/activityBellowMPillsComponent.json';
+import esActivityLapsComponent from './es/components/activities/activityLapsComponent.json';
+import esActivityMandAbovePillsComponent from './es/components/activities/activityMandAbovePillsComponent.json';
+import esActivitySummaryComponent from './es/components/activities/activitySummaryComponent.json';
+import esActivityWorkoutStepsComponent from './es/components/activities/activityWorkoutStepsComponent.json';
+import esUserDistanceStatsComponent from './es/components/activities/userDistanceStatsComponent.json';
+// Followers component
+import esFollowersListComponent from './es/components/followers/followersListComponent.json';
+// Gears component
+import esGearsAddEditGearModalComponent from './es/components/gears/gearsAddEditGearModalComponent.json';
+import esGearsListComponent from './es/components/gears/gearsListComponent.json';
+// Health components
+import esHealthWeightAddEditModalComponent from './es/components/health/healthWeightZone/healthWeightAddEditModalComponent.json'
+import esHealthWeightListComponent from './es/components/health/healthWeightZone/healthWeightListComponent.json'
+import esHealthDashboardZoneComponent from './es/components/health/healthDashboardZoneComponent.json'
+import esHealthSideBarComponent from './es/components/health/healthSideBarComponent.json';
+import esHealthWeightZoneComponent from './es/components/health/healthWeightZoneComponent.json'
+// Navbar components
+import esNavbarBottomMobileComponent from './es/components/navbar/navbarBottomMobileComponent.json';
+import esNavbarComponent from './es/components/navbar/navbarComponent.json';
+// Settings components
+import esSettingsSideBarComponent from './es/components/settings/settingsSideBarComponent.json';
+import esSettingsUsersZoneComponent from './es/components/settings/settingsUsersZoneComponent.json';
+import esSettingsThemeSwitcherComponent from './es/components/settings/settingsGeneralZone/settingsThemeSwitcherComponent.json';
+import esSettingsLanguageSwitcherComponent from './es/components/settings/settingsGeneralZone/settingsLanguageSwitcherComponent.json';
+import esSettingsUserProfileZoneComponent from './es/components/settings/settingsUserProfileZoneComponent.json';
+import esSettingsSecurityZoneComponent from './es/components/settings/settingsSecurityZoneComponent.json';
+import esSettingsIntegrationsZoneComponent from './es/components/settings/settingsIntegrationsZoneComponent.json';
+import esGarminConnectLoginModalComponent from './es/components/settings/settingsIntegrationsZone/garminConnectLoginModalComponent.json';
+import esUsersAddEditUserModalComponent from './es/components/settings/settingsUsersZone/usersAddEditUserModalComponent.json';
+import esUsersChangeUserPasswordModalComponent from './es/components/settings/settingsUsersZone/usersChangeUserPasswordModalComponent.json';
+import esUsersListComponent from './es/components/settings/settingsUsersZone/usersListComponent.json';
+import esUsersPasswordRequirementsComponent from './es/components/settings/settingsUsersZone/usersPasswordRequirementsComponent.json';
+import esUserSessionsListComponent from './es/components/settings/settingsUserSessionsZone/userSessionsListComponent.json';
+import esSettingsServerSettingsZoneComponent from './es/components/settings/settingsServerSettingsZoneComponent.json';
+// General components
+import esNoItemsFoundComponent from './es/components/noItemsFoundComponent.json';
+// General translations
+import esGeneralItems from './es/generalItems.json'
+// Views
+import esHomeView from './es/homeView.json';
+import esLoginView from './es/loginView.json';
+import esGearsView from './es/gears/gearsView.json';
+import esGearView from './es/gears/gearView.json';
+import esStravaCallbackView from './es/strava/stravaCallbackView.json';
+import esActivityView from './es/activityView.json';
+import esHealthView from './es/healthView.json';
+import esNotFoundView from './es/notFoundView.json';
+import esSearchView from './es/searchView.json';
+import esSettingsView from './es/settingsView.json';
+import esUserView from './es/userView.json';
+
 
 // French translations
 // Activities component
@@ -169,6 +225,63 @@ import frNotFoundView from './fr/notFoundView.json';
 import frSearchView from './fr/searchView.json';
 import frSettingsView from './fr/settingsView.json';
 import frUserView from './fr/userView.json';
+
+
+// Dutch translations
+// Activities component
+import nlAddGearToActivityModalComponent from './nl/components/activities/modals/addGearToActivityModalComponent.json';
+import nlEditActivityModalComponent from './nl/components/activities/modals/editActivityModalComponent.json';
+import nlActivityBellowMPillsComponent from './nl/components/activities/activityBellowMPillsComponent.json';
+import nlActivityLapsComponent from './nl/components/activities/activityLapsComponent.json';
+import nlActivityMandAbovePillsComponent from './nl/components/activities/activityMandAbovePillsComponent.json';
+import nlActivitySummaryComponent from './nl/components/activities/activitySummaryComponent.json';
+import nlActivityWorkoutStepsComponent from './nl/components/activities/activityWorkoutStepsComponent.json';
+import nlUserDistanceStatsComponent from './nl/components/activities/userDistanceStatsComponent.json';
+// Followers component
+import nlFollowersListComponent from './nl/components/followers/followersListComponent.json';
+// Gears component
+import nlGearsAddEditGearModalComponent from './nl/components/gears/gearsAddEditGearModalComponent.json';
+import nlGearsListComponent from './nl/components/gears/gearsListComponent.json';
+// Health components
+import nlHealthWeightAddEditModalComponent from './nl/components/health/healthWeightZone/healthWeightAddEditModalComponent.json'
+import nlHealthWeightListComponent from './nl/components/health/healthWeightZone/healthWeightListComponent.json'
+import nlHealthDashboardZoneComponent from './nl/components/health/healthDashboardZoneComponent.json'
+import nlHealthSideBarComponent from './nl/components/health/healthSideBarComponent.json';
+import nlHealthWeightZoneComponent from './nl/components/health/healthWeightZoneComponent.json'
+// Navbar components
+import nlNavbarBottomMobileComponent from './nl/components/navbar/navbarBottomMobileComponent.json';
+import nlNavbarComponent from './nl/components/navbar/navbarComponent.json';
+// Settings components
+import nlSettingsSideBarComponent from './nl/components/settings/settingsSideBarComponent.json';
+import nlSettingsUsersZoneComponent from './nl/components/settings/settingsUsersZoneComponent.json';
+import nlSettingsThemeSwitcherComponent from './nl/components/settings/settingsGeneralZone/settingsThemeSwitcherComponent.json';
+import nlSettingsLanguageSwitcherComponent from './nl/components/settings/settingsGeneralZone/settingsLanguageSwitcherComponent.json';
+import nlSettingsUserProfileZoneComponent from './nl/components/settings/settingsUserProfileZoneComponent.json';
+import nlSettingsSecurityZoneComponent from './nl/components/settings/settingsSecurityZoneComponent.json';
+import nlSettingsIntegrationsZoneComponent from './nl/components/settings/settingsIntegrationsZoneComponent.json';
+import nlGarminConnectLoginModalComponent from './nl/components/settings/settingsIntegrationsZone/garminConnectLoginModalComponent.json';
+import nlUsersAddEditUserModalComponent from './nl/components/settings/settingsUsersZone/usersAddEditUserModalComponent.json';
+import nlUsersChangeUserPasswordModalComponent from './nl/components/settings/settingsUsersZone/usersChangeUserPasswordModalComponent.json';
+import nlUsersListComponent from './nl/components/settings/settingsUsersZone/usersListComponent.json';
+import nlUsersPasswordRequirementsComponent from './nl/components/settings/settingsUsersZone/usersPasswordRequirementsComponent.json';
+import nlUserSessionsListComponent from './nl/components/settings/settingsUserSessionsZone/userSessionsListComponent.json';
+import nlSettingsServerSettingsZoneComponent from './nl/components/settings/settingsServerSettingsZoneComponent.json';
+// General components
+import nlNoItemsFoundComponent from './nl/components/noItemsFoundComponent.json';
+// General translations
+import nlGeneralItems from './nl/generalItems.json'
+// Views
+import nlHomeView from './nl/homeView.json';
+import nlLoginView from './nl/loginView.json';
+import nlGearsView from './nl/gears/gearsView.json';
+import nlGearView from './nl/gears/gearView.json';
+import nlStravaCallbackView from './nl/strava/stravaCallbackView.json';
+import nlActivityView from './nl/activityView.json';
+import nlHealthView from './nl/healthView.json';
+import nlNotFoundView from './nl/notFoundView.json';
+import nlSearchView from './nl/searchView.json';
+import nlSettingsView from './nl/settingsView.json';
+import nlUserView from './nl/userView.json';
 
 
 // Portuguese Portugal translations
@@ -397,6 +510,62 @@ const messages = {
     settingsView: deSettingsView,
     userView: deUserView,
   },
+  es: {
+    // Activities component
+    addGearToActivityModalComponent: esAddGearToActivityModalComponent,
+    editActivityModalComponent: esEditActivityModalComponent,
+    activityBellowMPillsComponent: esActivityBellowMPillsComponent,
+    activityLapsComponent: esActivityLapsComponent,
+    activityMandAbovePillsComponent: esActivityMandAbovePillsComponent,
+    activitySummaryComponent: esActivitySummaryComponent,
+    activityWorkoutStepsComponent: esActivityWorkoutStepsComponent,
+    userDistanceStats: esUserDistanceStatsComponent,
+    // Followers component
+    followersListComponent: esFollowersListComponent,
+    // Gears component
+    gearsAddEditGearModalComponent: esGearsAddEditGearModalComponent,
+    gearsListComponent: esGearsListComponent,
+    // Health components
+    healthWeightAddEditModalComponent: esHealthWeightAddEditModalComponent,
+    healthSideBarComponent: esHealthSideBarComponent,
+    healthDashboardZoneComponent: esHealthDashboardZoneComponent,
+    healthWeightZoneComponent: esHealthWeightZoneComponent,
+    healthWeightListComponent: esHealthWeightListComponent,
+    // Navbar components
+    navbarBottomMobileComponent: esNavbarBottomMobileComponent,
+    navbarComponent: esNavbarComponent,
+    // Settings components
+    settingsSideBar: esSettingsSideBarComponent,
+    settingsUsersZone: esSettingsUsersZoneComponent,
+    settingsThemeSwitcher: esSettingsThemeSwitcherComponent,
+    settingsLanguageSwitcher: esSettingsLanguageSwitcherComponent,
+    settingsUserProfileZone: esSettingsUserProfileZoneComponent,
+    settingsSecurityZone: esSettingsSecurityZoneComponent,
+    settingsIntegrationsZone: esSettingsIntegrationsZoneComponent,
+    garminConnectLoginModalComponent: esGarminConnectLoginModalComponent,
+    usersAddEditUserModalComponent: esUsersAddEditUserModalComponent,
+    usersChangeUserPasswordModalComponent: esUsersChangeUserPasswordModalComponent,
+    usersListComponent: esUsersListComponent,
+    usersPasswordRequirementsComponent: esUsersPasswordRequirementsComponent,
+    userSessionsListComponent: esUserSessionsListComponent,
+    settingsServerSettingsZoneComponent: esSettingsServerSettingsZoneComponent,
+    // General components
+    noItemsFoundComponent: esNoItemsFoundComponent,
+    // General translations
+    generalItems: esGeneralItems,
+    // Views
+    homeView: esHomeView,
+    loginView: esLoginView,
+    gearsView: esGearsView,
+    gearView: esGearView,
+    stravaCallbackView: esStravaCallbackView,
+    activityView: esActivityView,
+    healthView: esHealthView,
+    notFound: esNotFoundView,
+    searchView: esSearchView,
+    settingsView: esSettingsView,
+    userView: esUserView,
+  },
   fr: {
     // Activities component
     addGearToActivityModalComponent: frAddGearToActivityModalComponent,
@@ -452,6 +621,62 @@ const messages = {
     searchView: frSearchView,
     settingsView: frSettingsView,
     userView: frUserView,
+  },
+  nl: {
+    // Activities component
+    addGearToActivityModalComponent: nlAddGearToActivityModalComponent,
+    editActivityModalComponent: nlEditActivityModalComponent,
+    activityBellowMPillsComponent: nlActivityBellowMPillsComponent,
+    activityLapsComponent: nlActivityLapsComponent,
+    activityMandAbovePillsComponent: nlActivityMandAbovePillsComponent,
+    activitySummaryComponent: nlActivitySummaryComponent,
+    activityWorkoutStepsComponent: nlActivityWorkoutStepsComponent,
+    userDistanceStats: nlUserDistanceStatsComponent,
+    // Followers component
+    followersListComponent: nlFollowersListComponent,
+    // Gears component
+    gearsAddEditGearModalComponent: nlGearsAddEditGearModalComponent,
+    gearsListComponent: nlGearsListComponent,
+    // Health components
+    healthWeightAddEditModalComponent: nlHealthWeightAddEditModalComponent,
+    healthSideBarComponent: nlHealthSideBarComponent,
+    healthDashboardZoneComponent: nlHealthDashboardZoneComponent,
+    healthWeightZoneComponent: nlHealthWeightZoneComponent,
+    healthWeightListComponent: nlHealthWeightListComponent,
+    // Navbar components
+    navbarBottomMobileComponent: nlNavbarBottomMobileComponent,
+    navbarComponent: nlNavbarComponent,
+    // Settings components
+    settingsSideBar: nlSettingsSideBarComponent,
+    settingsUsersZone: nlSettingsUsersZoneComponent,
+    settingsThemeSwitcher: nlSettingsThemeSwitcherComponent,
+    settingsLanguageSwitcher: nlSettingsLanguageSwitcherComponent,
+    settingsUserProfileZone: nlSettingsUserProfileZoneComponent,
+    settingsSecurityZone: nlSettingsSecurityZoneComponent,
+    settingsIntegrationsZone: nlSettingsIntegrationsZoneComponent,
+    garminConnectLoginModalComponent: nlGarminConnectLoginModalComponent,
+    usersAddEditUserModalComponent: nlUsersAddEditUserModalComponent,
+    usersChangeUserPasswordModalComponent: nlUsersChangeUserPasswordModalComponent,
+    usersListComponent: nlUsersListComponent,
+    usersPasswordRequirementsComponent: nlUsersPasswordRequirementsComponent,
+    userSessionsListComponent: nlUserSessionsListComponent,
+    settingsServerSettingsZoneComponent: nlSettingsServerSettingsZoneComponent,
+    // General components
+    noItemsFoundComponent: nlNoItemsFoundComponent,
+    // General translations
+    generalItems: nlGeneralItems,
+    // Views
+    homeView: nlHomeView,
+    loginView: nlLoginView,
+    gearsView: nlGearsView,
+    gearView: nlGearView,
+    stravaCallbackView: nlStravaCallbackView,
+    activityView: nlActivityView,
+    healthView: nlHealthView,
+    notFound: nlNotFoundView,
+    searchView: nlSearchView,
+    settingsView: nlSettingsView,
+    userView: nlUserView,
   },
   pt: {
     // Activities component
