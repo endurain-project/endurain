@@ -1,8 +1,8 @@
 {
-    "labelPillGraphs": "Graphs",
-    "labelPillLaps": "Laps",
-    "labelPillWorkoutSets": "Sets",
-    "labelGraph": "Activity data graphs",
-    "labelDownsampling": "Data downsampled to ~200 points",
-    "errorMessageProcessingActivityStreams": "Error processing activity streams"
+    "labelPillGraphs": "Gráficos",
+    "labelPillLaps": "Voltas",
+    "labelPillWorkoutSets": "Jogos",
+    "labelGraph": "Gráficos de dados da atividade",
+    "labelDownsampling": "Dados downsampled para ~200 pontos",
+    "errorMessageProcessingActivityStreams": "Erro ao processar fluxos de atividade"
 }
