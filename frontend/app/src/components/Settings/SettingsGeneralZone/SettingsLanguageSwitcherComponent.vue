@@ -16,9 +16,11 @@ export default {
         const { locale } = useI18n();
         const languages = [
             { value: 'ca', label: 'Catalan' },
-            { value: 'fr', label: 'French (FR)' },
             { value: 'de', label: 'German' },
+            { value: 'fr', label: 'French (FR)' },
+            { value: 'nl', label: 'Dutch (NL)' },
             { value: 'pt', label: 'Portuguese (PT)' },
+            { value: 'es', label: 'Spanish (ES)' },
             { value: 'us', label: 'English (US)' },
         ];
         const currentLanguage = ref(locale.value);

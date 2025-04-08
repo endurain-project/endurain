@@ -11,6 +11,11 @@ from zoneinfo import ZoneInfo, available_timezones
 import activities.utils as activities_utils
 import activities.schema as activities_schema
 
+import activity_exercise_titles.schema as activity_exercise_titles_schema
+import activity_exercise_titles.crud as activity_exercise_titles_crud
+
+import activity_workout_steps.schema as activity_workout_steps_schema
+
 import user_default_gear.utils as user_default_gear_utils
 
 import garmin.utils as garmin_utils
@@ -65,8 +70,11 @@ def create_activity_objects(
                 )
 
                 if gear_id is None:
-                    gear_id = user_default_gear_utils.get_user_default_gear_by_activity_type(
-                        user_id, activity_type, db)
+                    gear_id = (
+                        user_default_gear_utils.get_user_default_gear_by_activity_type(
+                            user_id, activity_type, db
+                        )
+                    )
 
             if session_record["activity_name"]:
                 activity_name = session_record["activity_name"]
@@ -152,6 +160,9 @@ def create_activity_objects(
                 "cad_waypoints": session_record["cad_waypoints"],
                 "is_lat_lon_set": session_record["is_lat_lon_set"],
                 "lat_lon_waypoints": session_record["lat_lon_waypoints"],
+                "laps": session_record["laps"],
+                "sets": session_record["sets"],
+                "workout_steps": session_record["workout_steps"],
             }
 
             activities.append(parsed_activity)
@@ -161,9 +172,7 @@ def create_activity_objects(
         raise http_err
     except Exception as err:
         # Log the exception
-        core_logger.print_to_log(
-            f"Error in create_activity_objects: {err}", "error"
-        )
+        core_logger.print_to_log(f"Error in create_activity_objects: {err}", "error", exc=err)
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -220,6 +229,15 @@ def split_records_by_activity(parsed_data: dict) -> dict:
         start_time = start_time.replace(tzinfo=None)
         end_time = end_time.replace(tzinfo=None)
 
+        laps_records = []
+
+        if parsed_data["laps"]:
+            for lap in parsed_data["laps"]:
+                # Check if the lap's start time is within the session's start and end times
+                if start_time <= lap["start_time"] <= end_time:
+                    # Append the lap to the session's laps
+                    laps_records.append(lap)
+
         # Initialize a parsed session dictionary
         parsed_session = {
             "session": session,
@@ -238,7 +256,10 @@ def split_records_by_activity(parsed_data: dict) -> dict:
             "vel_waypoints": [],
             "pace_waypoints": [],
             "is_velocity_set": False,
+            "laps": laps_records,
             "split_summary": parsed_data["split_summary"],
+            "workout_steps": parsed_data["workout_steps"],
+            "sets": parsed_data["sets"],
         }
 
         # Only parse arrays if the respective flag is set
@@ -364,7 +385,7 @@ def split_records_by_activity(parsed_data: dict) -> dict:
     return sessions_records
 
 
-def parse_fit_file(file: str) -> dict:
+def parse_fit_file(file: str, db: Session) -> dict:
     try:
         # Initialize default values for various variables
         sessions = []
@@ -381,8 +402,23 @@ def parse_fit_file(file: str) -> dict:
         vel_waypoints = []
         pace_waypoints = []
 
+        # Array to store laps
+        laps = []
+
+        # Array to store split waypoints
+        splits = []
+
         # Array to store split summary info
         split_summary = []
+
+        # Array to store sets
+        sets = []
+
+        # Array to store workout steps
+        workout_steps = []
+
+        # Array to store exercises titles
+        exercises_titles = []
 
         # Initialize variables to store previous latitude and longitude
         prev_latitude, prev_longitude = None, None
@@ -485,21 +521,62 @@ def parse_fit_file(file: str) -> dict:
                         # Append the session data to the sessions list
                         sessions.append(session_data)
 
+                    # unknown_147 Sensor Accessories
+
                     # Extract activity name
                     if frame.name == "workout":
                         activity_name = parse_frame_workout(frame)
 
-                    if frame.name == "split_summary" or frame.name == "unknown_313":
+                    # Extract lap data
+                    if frame.name == "lap":
+                        laps.append(parse_frame_lap(frame))
+
+                    # Extract split data
+                    if frame.name in {"split", "unknown_312"}:
+                        split_data = parse_frame_split(frame)
+                        split_keys = [
+                            "split_type",
+                            "total_elapsed_time",
+                            "total_timer_time",
+                            "total_distance",
+                            "avg_speed",
+                            "start_time",
+                            "total_ascent",
+                            "total_descent",
+                            "start_position_lat",
+                            "start_position_long",
+                            "end_position_lat",
+                            "end_position_long",
+                            "max_speed",
+                            "end_time",
+                            "total_calories",
+                            "start_elevation",
+                        ]
+                        splits.append(dict(zip(split_keys, split_data)))
+
+                    # Extract split summary data
+                    if frame.name in {"split_summary", "unknown_313"}:
                         split_summary_split_type, split_summary_total_timer_time = (
                             parse_frame_split_summary(frame)
                         )
-
                         split_summary.append(
                             {
                                 "split_type": split_summary_split_type,
                                 "total_timer_time": split_summary_total_timer_time,
                             }
                         )
+
+                    # Extract set data
+                    if frame.name == "set":
+                        sets.append(parse_frame_set(frame))
+
+                    # Extract workout step data
+                    if frame.name == "workout_step":
+                        workout_steps.append(parse_frame_workout_step(frame))
+
+                    # Extract exercise title data
+                    if frame.name == "exercise_title":
+                        exercises_titles.append(parse_frame_exercise_title(frame))
 
                     # Extract waypoint data
                     if frame.name == "record":
@@ -594,6 +671,12 @@ def parse_fit_file(file: str) -> dict:
                         time_offset = parse_frame_device_settings(frame)
                         time_offset = interpret_time_offset(time_offset)
 
+        # Check if exercises titles is not none
+        if exercises_titles:
+            activity_exercise_titles_crud.create_activity_exercise_titles(
+                exercises_titles, db
+            )
+
         # Return parsed data as a dictionary
         return {
             "sessions": sessions,
@@ -612,7 +695,11 @@ def parse_fit_file(file: str) -> dict:
             "cad_waypoints": cad_waypoints,
             "is_lat_lon_set": is_lat_lon_set,
             "lat_lon_waypoints": lat_lon_waypoints,
+            "laps": laps,
+            "splits": splits,
             "split_summary": split_summary,
+            "sets": sets,
+            "workout_steps": workout_steps,
         }
     except HTTPException as http_err:
         raise http_err
@@ -628,8 +715,10 @@ def parse_fit_file(file: str) -> dict:
 
 def parse_frame_session(frame):
     # Extracting coordinates
-    initial_latitude = get_value_from_frame(frame, "start_position_lat")
-    initial_longitude = get_value_from_frame(frame, "start_position_long")
+    initial_latitude, initial_longitude = convert_coordinates_to_degrees(
+        get_value_from_frame(frame, "start_position_lat"),
+        get_value_from_frame(frame, "start_position_long"),
+    )
 
     # Activity type logic
     activity_type = get_value_from_frame(frame, "sport", "Workout")
@@ -637,40 +726,17 @@ def parse_frame_session(frame):
     if sub_sport and sub_sport != "generic":
         if activity_type == "cycling" and sub_sport == "virtual_activity":
             activity_type = "virtual_ride"
+        elif activity_type == "cycling" and sub_sport == "commuting":
+            activity_type = "commuting_ride"
         else:
             activity_type = sub_sport
 
     # Extracting time values
     start_time = get_value_from_frame(frame, "start_time")
-    # total activity time
     total_elapsed_time = get_value_from_frame(frame, "total_elapsed_time")
-    # total working time
     total_timer_time = get_value_from_frame(frame, "total_timer_time")
 
     # Extracting other values
-    calories = get_value_from_frame(frame, "total_calories")
-    distance = get_value_from_frame(frame, "total_distance")
-    avg_hr = get_value_from_frame(frame, "avg_heart_rate")
-    max_hr = get_value_from_frame(frame, "max_heart_rate")
-    avg_cadence = get_value_from_frame(frame, "avg_cadence")
-    max_cadence = get_value_from_frame(frame, "max_cadence")
-    avg_power = get_value_from_frame(frame, "avg_power")
-    max_power = get_value_from_frame(frame, "max_power")
-    ele_gain = get_value_from_frame(frame, "total_ascent")
-    ele_loss = get_value_from_frame(frame, "total_descent")
-    np = get_value_from_frame(frame, "normalized_power")
-    avg_speed = get_value_from_frame(frame, "enhanced_avg_speed")
-    max_speed = get_value_from_frame(frame, "enhanced_max_speed")
-    # Feeling after workout 0 to 100
-    workout_feeling = get_value_from_frame(frame, "workout_feeling")
-    # RPE (Rate of Perceived Exertion) scale from 10 to 100
-    workout_rpe = get_value_from_frame(frame, "workout_rpe")
-
-    initial_latitude, initial_longitude = convert_coordinates_to_degrees(
-        initial_latitude, initial_longitude
-    )
-
-    # Return all extracted values
     return (
         initial_latitude,
         initial_longitude,
@@ -678,30 +744,27 @@ def parse_frame_session(frame):
         start_time,
         total_elapsed_time,
         total_timer_time,
-        calories,
-        distance,
-        avg_hr,
-        max_hr,
-        avg_cadence,
-        max_cadence,
-        avg_power,
-        max_power,
-        ele_gain,
-        ele_loss,
-        np,
-        avg_speed,
-        max_speed,
-        workout_feeling,
-        workout_rpe,
+        get_value_from_frame(frame, "total_calories"),
+        get_value_from_frame(frame, "total_distance"),
+        get_value_from_frame(frame, "avg_heart_rate"),
+        get_value_from_frame(frame, "max_heart_rate"),
+        get_value_from_frame(frame, "avg_cadence"),
+        get_value_from_frame(frame, "max_cadence"),
+        get_value_from_frame(frame, "avg_power"),
+        get_value_from_frame(frame, "max_power"),
+        get_value_from_frame(frame, "total_ascent"),
+        get_value_from_frame(frame, "total_descent"),
+        get_value_from_frame(frame, "normalized_power"),
+        get_value_from_frame(frame, "enhanced_avg_speed"),
+        get_value_from_frame(frame, "enhanced_max_speed"),
+        get_value_from_frame(frame, "workout_feeling"),
+        get_value_from_frame(frame, "workout_rpe"),
     )
 
 
 def parse_frame_workout(frame):
-    # Extracting data using the helper function
-    name = get_value_from_frame(frame, "wkt_name", "Workout")
-
     # Return the extracted name
-    return name
+    return get_value_from_frame(frame, "wkt_name", "Workout")
 
 
 def parse_frame_record(frame):
@@ -711,7 +774,7 @@ def parse_frame_record(frame):
     elevation = get_value_from_frame(frame, "enhanced_altitude")
     time = get_value_from_frame(frame, "timestamp")
     if time:
-        time = datetime.fromisoformat(time.strftime("%Y-%m-%dT%H:%M:%S"))
+        time = time.replace(tzinfo=None)
     heart_rate = get_value_from_frame(frame, "heart_rate")
     cadence = get_value_from_frame(frame, "cadence")
     power = get_value_from_frame(frame, "power")
@@ -723,41 +786,101 @@ def parse_frame_record(frame):
 
 
 def parse_frame_lap(frame):
-    # start time
-    start_time = get_value_from_frame(frame, "start_time")
-    # total activity time
-    total_elapsed_time = get_value_from_frame(frame, "total_elapsed_time")
-    # total working time
-    total_timer_time = get_value_from_frame(frame, "total_timer_time")
-    # total distance
-    distance = get_value_from_frame(frame, "total_distance")
-    # speed values
-    avg_speed = get_value_from_frame(frame, "enhanced_avg_speed")
-    max_speed = get_value_from_frame(frame, "enhanced_max_speed")
+    keys = [
+        "start_time",
+        "start_position_lat",
+        "start_position_long",
+        "end_position_lat",
+        "end_position_long",
+        "total_elapsed_time",
+        "total_timer_time",
+        "total_distance",
+        "total_cycles",
+        "total_calories",
+        "avg_heart_rate",
+        "max_heart_rate",
+        "avg_cadence",
+        "max_cadence",
+        "avg_power",
+        "max_power",
+        "total_ascent",
+        "total_descent",
+        "intensity",
+        "lap_trigger",
+        "sport",
+        "sub_sport",
+        "normalized_power",
+        "total_work",
+        "avg_vertical_oscillation",
+        "avg_stance_time",
+        "avg_fractional_cadence",
+        "max_fractional_cadence",
+        "enhanced_avg_speed",
+        "enhanced_max_speed",
+        "enhanced_min_altitude",
+        "enhanced_max_altitude",
+        "avg_vertical_ratio",
+        "avg_step_length",
+    ]
 
-    return (
-        start_time,
-        total_elapsed_time,
-        total_timer_time,
-        distance,
-        avg_speed,
-        max_speed,
+    lap_data = tuple(get_value_from_frame(frame, key) for key in keys)
+    lap_dict = dict(zip(keys, lap_data))
+
+    # Ensure start_time and end_time is timezone-naive
+    if isinstance(lap_dict["start_time"], datetime):
+        lap_dict["start_time"] = lap_dict["start_time"].replace(tzinfo=None)
+
+    (
+        lap_dict["start_position_lat"],
+        lap_dict["start_position_long"],
+    ) = convert_coordinates_to_degrees(
+        lap_dict["start_position_lat"],
+        lap_dict["start_position_long"],
     )
+    lap_dict["end_position_lat"], lap_dict["end_position_long"] = (
+        convert_coordinates_to_degrees(
+            lap_dict["end_position_lat"],
+            lap_dict["end_position_long"],
+        )
+    )
+
+    if lap_dict["enhanced_avg_speed"]:
+        lap_dict["enhanced_avg_pace"] = 1 / lap_dict["enhanced_avg_speed"]
+
+    if lap_dict["enhanced_max_speed"]:
+        lap_dict["enhanced_max_pace"] = 1 / lap_dict["enhanced_max_speed"]
+
+    return lap_dict
 
 
 def parse_frame_split(frame):
-    # split type
-    split_type = get_value_from_frame(frame, "split_type")
-    # total activity time
-    total_elapsed_time = get_value_from_frame(frame, "total_elapsed_time")
-    # total working time
-    total_timer_time = get_value_from_frame(frame, "total_timer_time")
-    # start time
-    start_time = get_value_from_frame(frame, "start_time")
-    # end time
-    end_time = get_value_from_frame(frame, "end_time")
+    # Define a list of keys and their default values
+    keys_defaults = [
+        ("split_type", 0),
+        ("total_elapsed_time", 1),
+        ("total_timer_time", 2),
+        ("total_distance", 3),
+        ("avg_speed", 4),
+        ("start_time", 9),
+        ("total_ascent", 13),
+        ("total_descent", 14),
+        ("start_position_lat", 21),
+        ("start_position_long", 22),
+        ("end_position_lat", 23),
+        ("end_position_long", 24),
+        ("max_speed", 25),
+        ("end_time", 27),
+        ("total_calories", 28),
+        ("start_elevation", 74),
+    ]
 
-    return split_type, total_elapsed_time, total_timer_time, start_time, end_time
+    # Extract values using the keys and defaults
+    values = [
+        get_value_from_frame(frame, key, get_value_from_frame(frame, default))
+        for key, default in keys_defaults
+    ]
+
+    return tuple(values)
 
 
 def parse_frame_split_summary(frame):
@@ -773,6 +896,77 @@ def parse_frame_split_summary(frame):
             total_timer_time = total_timer_time / 1000
 
     return split_type, total_timer_time
+
+
+def parse_frame_set(frame):
+    keys = [
+        "duration",
+        "repetitions",
+        "weight",
+        "set_type",
+        "start_time",
+        "category",
+        "category_subtype",
+    ]
+
+    set_data = tuple(get_value_from_frame(frame, key) for key in keys)
+
+    return dict(zip(keys, set_data))
+
+
+def parse_frame_workout_step(frame):
+    keys = [
+        "message_index",
+        "duration_type",
+        "duration_value",
+        "target_type",
+        "target_value",
+        "intensity",
+        "notes",
+        "exercise_name",
+        "exercise_weight",
+        "weight_display_unit",
+    ]
+
+    workout_set_data = list(tuple(get_value_from_frame(frame, key) for key in keys))
+    if workout_set_data[5] == 7:
+        workout_set_data[5] = "active"
+    
+    secondary_target_value = None
+
+    if workout_set_data[3] == "swim_stroke":
+        secondary_target_value = workout_set_data[4]
+        workout_set_data[4] = None
+
+    return activity_workout_steps_schema.ActivityWorkoutSteps(
+        message_index=workout_set_data[0] if workout_set_data[0] else 0,
+        duration_type=workout_set_data[1],
+        duration_value=workout_set_data[2],
+        target_type=workout_set_data[3],
+        target_value=workout_set_data[4] if workout_set_data[4] else None,
+        intensity=workout_set_data[5] if type(workout_set_data[5]) == str else None,
+        notes=workout_set_data[6],
+        exercise_name=workout_set_data[7],
+        exercise_weight=workout_set_data[8],
+        weight_display_unit=workout_set_data[9],
+        secondary_target_value=secondary_target_value,
+    )
+
+
+def parse_frame_exercise_title(frame):
+    keys = [
+        "exercise_category",
+        "exercise_name",
+        "wkt_step_name",
+    ]
+
+    exercise_title_data = tuple(get_value_from_frame(frame, key) for key in keys)
+
+    return activity_exercise_titles_schema.ActivityExerciseTitles(
+        exercise_category=str(exercise_title_data[0]),
+        exercise_name=exercise_title_data[1],
+        wkt_step_name=str(exercise_title_data[2]),
+    )
 
 
 def parse_frame_device_settings(frame):

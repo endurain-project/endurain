@@ -22,19 +22,38 @@
                             <option value="2">{{ $t("editActivityModalComponent.modalEditActivityTypeOption2") }}</option>
                             <option value="3">{{ $t("editActivityModalComponent.modalEditActivityTypeOption3") }}</option>
                             <option value="4">{{ $t("editActivityModalComponent.modalEditActivityTypeOption4") }}</option>
+                            <hr>
                             <option value="5">{{ $t("editActivityModalComponent.modalEditActivityTypeOption5") }}</option>
                             <option value="6">{{ $t("editActivityModalComponent.modalEditActivityTypeOption6") }}</option>
                             <option value="7">{{ $t("editActivityModalComponent.modalEditActivityTypeOption7") }}</option>
+                            <option value="27">{{ $t("editActivityModalComponent.modalEditActivityTypeOption27") }}</option>
+                            <hr>
                             <option value="8">{{ $t("editActivityModalComponent.modalEditActivityTypeOption8") }}</option>
                             <option value="9">{{ $t("editActivityModalComponent.modalEditActivityTypeOption9") }}</option>
+                            <hr>
+                            <option value="18">{{ $t("editActivityModalComponent.modalEditActivityTypeOption18") }}</option>
+                            <hr>
                             <option value="10">{{ $t("editActivityModalComponent.modalEditActivityTypeOption10") }}</option>
+                            <option value="19">{{ $t("editActivityModalComponent.modalEditActivityTypeOption19") }}</option>
+                            <option value="20">{{ $t("editActivityModalComponent.modalEditActivityTypeOption20") }}</option>
+                            <hr>
                             <option value="11">{{ $t("editActivityModalComponent.modalEditActivityTypeOption11") }}</option>
                             <option value="12">{{ $t("editActivityModalComponent.modalEditActivityTypeOption12") }}</option>
+                            <hr>
                             <option value="13">{{ $t("editActivityModalComponent.modalEditActivityTypeOption13") }}</option>
+                            <hr>
                             <option value="14">{{ $t("editActivityModalComponent.modalEditActivityTypeOption14") }}</option>
+                            <hr>
                             <option value="15">{{ $t("editActivityModalComponent.modalEditActivityTypeOption15") }}</option>
                             <option value="16">{{ $t("editActivityModalComponent.modalEditActivityTypeOption16") }}</option>
                             <option value="17">{{ $t("editActivityModalComponent.modalEditActivityTypeOption17") }}</option>
+                            <hr>
+                            <option value="21">{{ $t("editActivityModalComponent.modalEditActivityTypeOption21") }}</option>
+                            <option value="22">{{ $t("editActivityModalComponent.modalEditActivityTypeOption22") }}</option>
+                            <option value="23">{{ $t("editActivityModalComponent.modalEditActivityTypeOption23") }}</option>
+                            <option value="24">{{ $t("editActivityModalComponent.modalEditActivityTypeOption24") }}</option>
+                            <option value="25">{{ $t("editActivityModalComponent.modalEditActivityTypeOption25") }}</option>
+                            <option value="26">{{ $t("editActivityModalComponent.modalEditActivityTypeOption26") }}</option>
                         </select>
                         <!-- visibility fields -->
                         <label for="activityVisibilityEdit"><b>* {{ $t("editActivityModalComponent.modalEditActivityVisibilityLabel") }}</b></label>

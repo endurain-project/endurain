@@ -5,8 +5,12 @@ import { createI18n } from 'vue-i18n';
 // Activities component
 import caAddGearToActivityModalComponent from './ca/components/activities/modals/addGearToActivityModalComponent.json';
 import caEditActivityModalComponent from './ca/components/activities/modals/editActivityModalComponent.json';
-import caUserDistanceStatsComponent from './ca/components/activities/userDistanceStatsComponent.json';
+import caActivityBellowMPillsComponent from './ca/components/activities/activityBellowMPillsComponent.json';
+import caActivityLapsComponent from './ca/components/activities/activityLapsComponent.json';
+import caActivityMandAbovePillsComponent from './ca/components/activities/activityMandAbovePillsComponent.json';
 import caActivitySummaryComponent from './ca/components/activities/activitySummaryComponent.json';
+import caActivityWorkoutStepsComponent from './ca/components/activities/activityWorkoutStepsComponent.json';
+import caUserDistanceStatsComponent from './ca/components/activities/userDistanceStatsComponent.json';
 // Followers component
 import caFollowersListComponent from './ca/components/followers/followersListComponent.json';
 // Gears component
@@ -57,8 +61,12 @@ import caUserView from './ca/userView.json';
 // Activities component
 import deAddGearToActivityModalComponent from './de/components/activities/modals/addGearToActivityModalComponent.json';
 import deEditActivityModalComponent from './de/components/activities/modals/editActivityModalComponent.json';
-import deUserDistanceStatsComponent from './de/components/activities/userDistanceStatsComponent.json';
+import deActivityBellowMPillsComponent from './de/components/activities/activityBellowMPillsComponent.json';
+import deActivityLapsComponent from './de/components/activities/activityLapsComponent.json';
+import deActivityMandAbovePillsComponent from './de/components/activities/activityMandAbovePillsComponent.json';
 import deActivitySummaryComponent from './de/components/activities/activitySummaryComponent.json';
+import deActivityWorkoutStepsComponent from './de/components/activities/activityWorkoutStepsComponent.json';
+import deUserDistanceStatsComponent from './de/components/activities/userDistanceStatsComponent.json';
 // Followers component
 import deFollowersListComponent from './de/components/followers/followersListComponent.json';
 // Gears component
@@ -110,8 +118,12 @@ import deUserView from './de/userView.json';
 // Activities component
 import frAddGearToActivityModalComponent from './fr/components/activities/modals/addGearToActivityModalComponent.json';
 import frEditActivityModalComponent from './fr/components/activities/modals/editActivityModalComponent.json';
-import frUserDistanceStatsComponent from './fr/components/activities/userDistanceStatsComponent.json';
+import frActivityBellowMPillsComponent from './fr/components/activities/activityBellowMPillsComponent.json';
+import frActivityLapsComponent from './fr/components/activities/activityLapsComponent.json';
+import frActivityMandAbovePillsComponent from './fr/components/activities/activityMandAbovePillsComponent.json';
 import frActivitySummaryComponent from './fr/components/activities/activitySummaryComponent.json';
+import frActivityWorkoutStepsComponent from './fr/components/activities/activityWorkoutStepsComponent.json';
+import frUserDistanceStatsComponent from './fr/components/activities/userDistanceStatsComponent.json';
 // Followers component
 import frFollowersListComponent from './fr/components/followers/followersListComponent.json';
 // Gears component
@@ -163,8 +175,12 @@ import frUserView from './fr/userView.json';
 // Activities component
 import ptAddGearToActivityModalComponent from './pt/components/activities/modals/addGearToActivityModalComponent.json';
 import ptEditActivityModalComponent from './pt/components/activities/modals/editActivityModalComponent.json';
-import ptUserDistanceStatsComponent from './pt/components/activities/userDistanceStatsComponent.json';
+import ptActivityBellowMPillsComponent from './pt/components/activities/activityBellowMPillsComponent.json';
+import ptActivityLapsComponent from './pt/components/activities/activityLapsComponent.json';
+import ptActivityMandAbovePillsComponent from './pt/components/activities/activityMandAbovePillsComponent.json';
 import ptActivitySummaryComponent from './pt/components/activities/activitySummaryComponent.json';
+import ptActivityWorkoutStepsComponent from './pt/components/activities/activityWorkoutStepsComponent.json';
+import ptUserDistanceStatsComponent from './pt/components/activities/userDistanceStatsComponent.json';
 // Followers component
 import ptFollowersListComponent from './pt/components/followers/followersListComponent.json';
 // Gears component
@@ -215,8 +231,12 @@ import ptUserView from './pt/userView.json';
 // Activities component
 import usAddGearToActivityModalComponent from './us/components/activities/modals/addGearToActivityModalComponent.json';
 import usEditActivityModalComponent from './us/components/activities/modals/editActivityModalComponent.json';
-import usUserDistanceStatsComponent from './us/components/activities/userDistanceStatsComponent.json';
+import usActivityBellowMPillsComponent from './us/components/activities/activityBellowMPillsComponent.json';
+import usActivityLapsComponent from './us/components/activities/activityLapsComponent.json';
+import usActivityMandAbovePillsComponent from './us/components/activities/activityMandAbovePillsComponent.json';
 import usActivitySummaryComponent from './us/components/activities/activitySummaryComponent.json';
+import usActivityWorkoutStepsComponent from './us/components/activities/activityWorkoutStepsComponent.json';
+import usUserDistanceStatsComponent from './us/components/activities/userDistanceStatsComponent.json';
 // Followers component
 import usFollowersListComponent from './us/components/followers/followersListComponent.json';
 // Gears component
@@ -269,8 +289,12 @@ const messages = {
     // Activities component
     addGearToActivityModalComponent: caAddGearToActivityModalComponent,
     editActivityModalComponent: caEditActivityModalComponent,
-    userDistanceStats: caUserDistanceStatsComponent,
+    activityBellowMPillsComponent: caActivityBellowMPillsComponent,
+    activityLapsComponent: caActivityLapsComponent,
+    activityMandAbovePillsComponent: caActivityMandAbovePillsComponent,
     activitySummaryComponent: caActivitySummaryComponent,
+    activityWorkoutStepsComponent: caActivityWorkoutStepsComponent,
+    userDistanceStats: caUserDistanceStatsComponent,
     // Followers component
     followersListComponent: caFollowersListComponent,
     // Gears component
@@ -321,8 +345,12 @@ const messages = {
     // Activities component
     addGearToActivityModalComponent: deAddGearToActivityModalComponent,
     editActivityModalComponent: deEditActivityModalComponent,
-    userDistanceStats: deUserDistanceStatsComponent,
+    activityBellowMPillsComponent: deActivityBellowMPillsComponent,
+    activityLapsComponent: deActivityLapsComponent,
+    activityMandAbovePillsComponent: deActivityMandAbovePillsComponent,
     activitySummaryComponent: deActivitySummaryComponent,
+    activityWorkoutStepsComponent: deActivityWorkoutStepsComponent,
+    userDistanceStats: deUserDistanceStatsComponent,
     // Followers component
     followersListComponent: deFollowersListComponent,
     // Gears component
@@ -373,8 +401,12 @@ const messages = {
     // Activities component
     addGearToActivityModalComponent: frAddGearToActivityModalComponent,
     editActivityModalComponent: frEditActivityModalComponent,
-    userDistanceStats: frUserDistanceStatsComponent,
+    activityBellowMPillsComponent: frActivityBellowMPillsComponent,
+    activityLapsComponent: frActivityLapsComponent,
+    activityMandAbovePillsComponent: frActivityMandAbovePillsComponent,
     activitySummaryComponent: frActivitySummaryComponent,
+    activityWorkoutStepsComponent: frActivityWorkoutStepsComponent,
+    userDistanceStats: frUserDistanceStatsComponent,
     // Followers component
     followersListComponent: frFollowersListComponent,
     // Gears component
@@ -425,8 +457,12 @@ const messages = {
     // Activities component
     addGearToActivityModalComponent: ptAddGearToActivityModalComponent,
     editActivityModalComponent: ptEditActivityModalComponent,
-    userDistanceStats: ptUserDistanceStatsComponent,
+    activityBellowMPillsComponent: ptActivityBellowMPillsComponent,
+    activityLapsComponent: ptActivityLapsComponent,
+    activityMandAbovePillsComponent: ptActivityMandAbovePillsComponent,
     activitySummaryComponent: ptActivitySummaryComponent,
+    activityWorkoutStepsComponent: ptActivityWorkoutStepsComponent,
+    userDistanceStats: ptUserDistanceStatsComponent,
     // Followers component
     followersListComponent: ptFollowersListComponent,
     // Gears component
@@ -477,8 +513,12 @@ const messages = {
     // Activities component
     addGearToActivityModalComponent: usAddGearToActivityModalComponent,
     editActivityModalComponent: usEditActivityModalComponent,
-    userDistanceStats: usUserDistanceStatsComponent,
+    activityBellowMPillsComponent: usActivityBellowMPillsComponent,
+    activityLapsComponent: usActivityLapsComponent,
+    activityMandAbovePillsComponent: usActivityMandAbovePillsComponent,
     activitySummaryComponent: usActivitySummaryComponent,
+    activityWorkoutStepsComponent: usActivityWorkoutStepsComponent,
+    userDistanceStats: usUserDistanceStatsComponent,
     // Followers component
     followersListComponent: usFollowersListComponent,
     // Gears component

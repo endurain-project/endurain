@@ -63,3 +63,23 @@ export function calculateTimeDifference(startTime, endTime) {
   // If the difference is greater than an hour, return the hours and minutes
   return `${hours}h ${minutes}m`;
 }
+
+/**
+ * Converts a given number of seconds into a minutes:seconds format.
+ *
+ * @param {number} totalSeconds - The total number of seconds.
+ * @returns {string} The formatted time string in minutes:seconds.
+ */
+export function formatSecondsToMinutes(totalSeconds) {
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = Math.floor(totalSeconds % 60);
+
+  const formattedSeconds = seconds < 10 ? `0${seconds}` : seconds;
+  const formattedMinutes = minutes < 10 && hours > 0 ? `0${minutes}` : minutes;
+
+  if (hours > 0) {
+    return `${hours}:${formattedMinutes}:${formattedSeconds}`;
+  }
+  return `${minutes}:${formattedSeconds}`;
+}

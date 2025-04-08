@@ -33,15 +33,12 @@ def delete_user_photo_filesystem(user_id: int):
 
     # Remove each file found
     for file_path in files_to_delete:
-        print(f"Deleting: {file_path}")
         if os.path.exists(file_path):
             os.remove(file_path)
-            print(f"Deleted: {file_path}")
 
 
 def format_user_birthdate(user):
-    #user.birthdate = user.birthdate.strftime("%d-%m-%Y") if user.birthdate else None
-    user.birthdate = user.birthdate.isoformat() if user.birthdate else None
+    user.birthdate = user.birthdate if isinstance(user.birthdate, str) else user.birthdate.isoformat() if user.birthdate else None
     return user
 
 

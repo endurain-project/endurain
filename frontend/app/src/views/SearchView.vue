@@ -22,6 +22,7 @@
                     <option value="8">{{ $t("searchView.searchSelectActivityType8") }}</option>
                     <option value="9">{{ $t("searchView.searchSelectActivityType9") }}</option>
                     <option value="10">{{ $t("searchView.searchSelectActivityType10") }}</option>
+                    <option value="11">{{ $t("searchView.searchSelectActivityType11") }}</option>
                 </select>
                 <!-- Gear type area -->
                 <select id="inputSelectGearTypeToSearch" class="form-select rounded me-1" v-model="searchSelectGearType" v-if="searchSelectValue == 3">
@@ -47,17 +48,19 @@
                         <font-awesome-icon :icon="['fas', 'person-running']" v-if="searchSelectValue == 2 && [1, 2, 3].includes(Number(result.activity_type))" class="ms-1" />
                         <font-awesome-icon :icon="['fas', 'person-biking']" v-if="searchSelectValue == 2 && [4, 5, 6, 7].includes(Number(result.activity_type))" />
                         <font-awesome-icon :icon="['fas', 'person-swimming']" v-if="searchSelectValue == 2 && [8, 9].includes(Number(result.activity_type))" />
-                        <font-awesome-icon :icon="['fas', 'dumbbell']" v-if="searchSelectValue == 2 && [10].includes(Number(result.activity_type))" />
+                        <font-awesome-icon :icon="['fas', 'dumbbell']" v-if="searchSelectValue == 2 && [10, 19, 20].includes(Number(result.activity_type))" />
                         <font-awesome-icon :icon="['fas', 'person-walking']" v-if="searchSelectValue == 2 && [11].includes(Number(result.activity_type))" class="ms-1 me-1" />
                         <font-awesome-icon :icon="['fas', 'person-hiking']" v-if="searchSelectValue == 2 && [12].includes(Number(result.activity_type))" />
                         <font-awesome-icon :icon="['fas', 'person-sailboat']" v-if="searchSelectValue == 2 && [13].includes(Number(result.activity_type))" />
                         <font-awesome-icon :icon="['fas', 'hands-praying']" v-if="searchSelectValue == 2 && [14].includes(Number(result.activity_type))" />
                         <font-awesome-icon :icon="['fas', 'person-person-skiing']" v-if="searchSelectValue == 2 && [15].includes(Number(result.activity_type))" />
                         <font-awesome-icon :icon="['fas', 'person-hands-snowboarding']" v-if="searchSelectValue == 2 && [16].includes(Number(result.activity_type))" />
+                        <font-awesome-icon :icon="['fas', 'table-tennis-paddle-ball']" v-if="searchSelectValue == 2 && [21, 22, 23, 24, 25, 26].includes(Number(result.activity_type))" />
                         <!-- icons for gears -->
                         <font-awesome-icon :icon="['fas', 'bicycle']" v-if="searchSelectValue == 3 && [1].includes(Number(result.gear_type))" />
                         <font-awesome-icon :icon="['fas', 'person-running']" v-if="searchSelectValue == 3 && [2].includes(Number(result.gear_type))" class="ms-1"/>
                         <font-awesome-icon :icon="['fas', 'swimmer']" v-if="searchSelectValue == 3 && [3].includes(Number(result.gear_type))" />
+                        <font-awesome-icon :icon="['fas', 'table-tennis-paddle-ball']" v-if="searchSelectValue == 3 && [4].includes(Number(result.gear_type))" />
                         <div class="ms-3">
                             <div class="fw-bold">
                                 <router-link :to="{ name: 'user', params: { id: result.id }}" class="link-body-emphasis link-underline-opacity-0 link-underline-opacity-100-hover" v-if="searchSelectValue == 1" @click="closeSearch">
@@ -71,7 +74,8 @@
                                 </router-link>
                             </div>
                             <span v-if="searchSelectValue == 1">{{ result.username }}</span>
-                            <span v-if="searchSelectValue == 2 || searchSelectValue == 3">{{ formatDateMed(result.created_at) }}</span>
+                            <span v-else-if="searchSelectValue == 2">{{ formatDateMed(result.start_time) }}</span>
+                            <span v-else="searchSelectValue == 3">{{ formatDateMed(result.created_at) }}</span>
                         </div>
                     </div>
                     <div>
@@ -182,7 +186,7 @@ export default {
                 );
             } else if (searchSelectActivityType.value === "2") {
                 searchResults.value = searchResultsOriginal.value.filter((user) =>
-                    [4, 5, 6, 7].includes(user.activity_type),
+                    [4, 5, 6, 7, 27].includes(user.activity_type),
                 );
             } else if (searchSelectActivityType.value === "3") {
                 searchResults.value = searchResultsOriginal.value.filter((user) =>
@@ -190,7 +194,7 @@ export default {
                 );
             } else if (searchSelectActivityType.value === "4") {
                 searchResults.value = searchResultsOriginal.value.filter((user) =>
-                    [10].includes(user.activity_type),
+                    [10, 19, 20].includes(user.activity_type),
                 );
             } else if (searchSelectActivityType.value === "5") {
                 searchResults.value = searchResultsOriginal.value.filter((user) =>
@@ -215,6 +219,10 @@ export default {
             } else if (searchSelectActivityType.value === "10") {
                 searchResults.value = searchResultsOriginal.value.filter((user) =>
                     [16].includes(user.activity_type),
+                );
+            } else if (searchSelectActivityType.value === "11") {
+                searchResults.value = searchResultsOriginal.value.filter((user) =>
+                    [21, 22, 23, 24, 25, 26].includes(user.activity_type),
                 );
             } else {
                 searchResults.value = searchResultsOriginal.value;

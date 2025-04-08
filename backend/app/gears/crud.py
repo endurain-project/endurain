@@ -357,7 +357,6 @@ def create_gear(gear: gears_schema.Gear, user_id: int, db: Session):
             status_code=status.HTTP_409_CONFLICT,
             detail="Duplicate entry error. Check if nickname, strava_gear_id or garminconnect_gear_id are unique",
         ) from integrity_error
-
     except Exception as err:
         # Rollback the transaction
         db.rollback()

@@ -6,7 +6,11 @@ from sqlalchemy import pool
 from alembic import context
 
 import activities.models
+import activity_laps.models
 import activity_streams.models
+import activity_sets.models
+import activity_exercise_titles.models
+import activity_workout_steps.models
 import followers.models
 import gears.models
 import health_data.models

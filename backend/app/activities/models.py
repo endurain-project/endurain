@@ -135,9 +135,30 @@ class Activity(Base):
     # Define a relationship to the Gear model
     gear = relationship("Gear", back_populates="activities")
 
+    # Establish a one-to-many relationship with 'activity_laps'
+    activity_laps = relationship(
+        "ActivityLaps",
+        back_populates="activity",
+        cascade="all, delete-orphan",
+    )
+
+    # Establish a one-to-many relationship with 'activity_sets'
+    activity_sets = relationship(
+        "ActivitySets",
+        back_populates="activity",
+        cascade="all, delete-orphan",
+    )
+
     # Establish a one-to-many relationship with 'activities_streams'
     activities_streams = relationship(
         "ActivityStreams",
+        back_populates="activity",
+        cascade="all, delete-orphan",
+    )
+
+    # Establish a one-to-many relationship with 'activity_workout_steps'
+    activity_workout_steps = relationship(
+        "ActivityWorkoutSteps",
         back_populates="activity",
         cascade="all, delete-orphan",
     )

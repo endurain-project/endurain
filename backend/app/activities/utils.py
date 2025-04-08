@@ -20,8 +20,14 @@ import activities.models as activities_models
 
 import users.crud as users_crud
 
+import activity_laps.crud as activity_laps_crud
+
+import activity_sets.crud as activity_sets_crud
+
 import activity_streams.crud as activity_streams_crud
 import activity_streams.schema as activity_streams_schema
+
+import activity_workout_steps.crud as activity_workout_steps_crud
 
 import gpx.utils as gpx_utils
 import fit.utils as fit_utils
@@ -124,9 +130,15 @@ def parse_and_store_activity_from_file(
                     status_code=status.HTTP_404_NOT_FOUND,
                     detail="User not found",
                 )
-        
+
             # Parse the file
-            parsed_info = parse_file(token_user_id, user.default_activity_visibility, file_extension, file_path, db)
+            parsed_info = parse_file(
+                token_user_id,
+                user.default_activity_visibility,
+                file_extension,
+                file_path,
+                db,
+            )
 
             if parsed_info is not None:
                 created_activities = []
@@ -154,7 +166,12 @@ def parse_and_store_activity_from_file(
                         )
                     else:
                         created_activities_objects = fit_utils.create_activity_objects(
-                            split_records_by_activity, token_user_id, user.default_activity_visibility, None, None, db
+                            split_records_by_activity,
+                            token_user_id,
+                            user.default_activity_visibility,
+                            None,
+                            None,
+                            db,
                         )
 
                     for activity in created_activities_objects:
@@ -222,7 +239,13 @@ def parse_and_store_activity_from_uploaded_file(
             )
 
         # Parse the file
-        parsed_info = parse_file(token_user_id, user.default_activity_visibility, file_extension, file_path, db)
+        parsed_info = parse_file(
+            token_user_id,
+            user.default_activity_visibility,
+            file_extension,
+            file_path,
+            db,
+        )
 
         if parsed_info is not None:
             created_activities = []
@@ -240,7 +263,12 @@ def parse_and_store_activity_from_uploaded_file(
 
                 # Create activity objects for each activity in the file
                 created_activities_objects = fit_utils.create_activity_objects(
-                    split_records_by_activity, token_user_id, user.default_activity_visibility, None, None, db
+                    split_records_by_activity,
+                    token_user_id,
+                    user.default_activity_visibility,
+                    None,
+                    None,
+                    db,
                 )
 
                 for activity in created_activities_objects:
@@ -284,6 +312,7 @@ def parse_and_store_activity_from_uploaded_file(
         core_logger.print_to_log(
             f"Error in parse_and_store_activity_from_uploaded_file - {str(err)}",
             "error",
+            exc=err,
         )
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
@@ -313,7 +342,11 @@ def move_file(new_dir: str, new_filename: str, file_path: str):
 
 
 def parse_file(
-    token_user_id: int, default_activity_visibility: int, file_extension: str, filename: str, db: Session
+    token_user_id: int,
+    default_activity_visibility: int,
+    file_extension: str,
+    filename: str,
+    db: Session,
 ) -> dict:
     try:
         if filename.lower() != "bulk_import/__init__.py":
@@ -321,10 +354,12 @@ def parse_file(
             # Choose the appropriate parser based on file extension
             if file_extension.lower() == ".gpx":
                 # Parse the GPX file
-                parsed_info = gpx_utils.parse_gpx_file(filename, token_user_id, default_activity_visibility, db)
+                parsed_info = gpx_utils.parse_gpx_file(
+                    filename, token_user_id, default_activity_visibility, db
+                )
             elif file_extension.lower() == ".fit":
                 # Parse the FIT file
-                parsed_info = fit_utils.parse_fit_file(filename)
+                parsed_info = fit_utils.parse_fit_file(filename, db)
             else:
                 # file extension not supported raise an HTTPException with a 406 Not Acceptable status code
                 raise HTTPException(
@@ -371,6 +406,21 @@ def store_activity(parsed_info: dict, db: Session):
 
     # Create activity streams in the database
     activity_streams_crud.create_activity_streams(activity_streams, db)
+
+    # Create activity laps in the database
+    activity_laps_crud.create_activity_laps(
+        parsed_info["laps"], created_activity.id, db
+    )
+
+    # Create activity workout steps in the database
+    activity_workout_steps_crud.create_activity_workout_steps(
+        parsed_info["workout_steps"], created_activity.id, db
+    )
+
+    # Create activity sets in the database
+    activity_sets_crud.create_activity_sets(
+        parsed_info["sets"], created_activity.id, db
+    )
 
     # Return the created activity
     return created_activity
@@ -642,6 +692,7 @@ def define_activity_type(activity_type):
         "mountain": 6,
         "VirtualRide": 7,
         "virtual_ride": 7,
+        "commuting_ride": 27,
         "Swim": 8,
         "swimming": 8,
         "lap_swimming": 8,
@@ -660,6 +711,17 @@ def define_activity_type(activity_type):
         "alpine_skiing": 15,
         "NordicSki": 16,
         "Snowboard": 17,
+        "transition": 18,
+        "strength_training": 19,
+        "WeightTraining": 19,
+        "Crossfit": 20,
+        "Tennis": 21,
+        "tennis": 21,
+        "TableTennis": 22,
+        "Badminton": 23,
+        "Squash": 24,
+        "Racquetball": 25,
+        "Pickleball": 26,
     }
     # "AlpineSki",
     # "BackcountrySki",

@@ -1,4 +1,6 @@
 import os
+import fitdecode
+import zipfile
 
 from enum import Enum
 from datetime import datetime
@@ -10,13 +12,25 @@ from sqlalchemy.orm import Session
 import activities.crud as activities_crud
 import activities.utils as activities_utils
 
+import activity_exercise_titles.crud as activity_exercise_titles_crud
+
+import activity_laps.crud as activity_laps_crud
+
+import activity_sets.crud as activity_sets_crud
+
 import activity_streams.crud as activity_streams_crud
+
+import activity_workout_steps.crud as activity_workout_steps_crud
+
+import garmin.activity_utils as garmin_activity_utils
 
 import migrations.crud as migrations_crud
 
 import health_data.crud as health_data_crud
 
 import core.logger as core_logger
+
+import fit.utils as fit_utils
 
 
 class StreamType(Enum):
@@ -46,6 +60,10 @@ def check_migrations_not_executed(db: Session):
             if migration.id == 2:
                 # Execute the migration
                 process_migration_2(db)
+
+            if migration.id == 3:
+                # Execute the migration
+                process_migration_3(db)
 
 
 def process_migration_1(db: Session):
@@ -153,7 +171,6 @@ def process_migration_1(db: Session):
                 core_logger.print_to_log(
                     f"Migration 1 - Processed activity: {activity.id} - {activity.name}"
                 )
-
             except Exception as err:
                 activities_processed_with_no_errors = False
                 core_logger.print_to_log(
@@ -272,9 +289,7 @@ def process_migration_2(db: Session):
                 # Update the weight in the database
                 health_data_crud.edit_health_data(data.user_id, data, db)
 
-                core_logger.print_to_log(
-                    f"Migration 2 - Processed BMI: {data.id}"
-                )
+                core_logger.print_to_log(f"Migration 2 - Processed BMI: {data.id}")
 
             except Exception as err:
                 health_data_processed_with_no_errors = False
@@ -302,3 +317,221 @@ def process_migration_2(db: Session):
         )
 
     core_logger.print_to_log("Finished migration 2")
+
+
+def process_migration_3(db: Session):
+    core_logger.print_to_log("Started migration 3")
+
+    activities_processed_with_no_errors = True
+
+    try:
+        activities = activities_crud.get_all_activities(db)
+    except Exception as err:
+        core_logger.print_to_log(
+            f"Migration 3 - Error fetching activities: {err}", "error", exc=err
+        )
+        return
+
+    if activities:
+        for activity in activities:
+            try:
+                if activity.strava_activity_id is None:
+                    # check if activity file exists
+                    activity_fit_file_path = os.path.join(
+                        "files/processed", f"{activity.id}.fit"
+                    )
+                    activity_gpx_file_path = os.path.join(
+                        "files/processed", f"{activity.id}.gpx"
+                    )
+
+                    if not os.path.exists(activity_fit_file_path) and activity.garminconnect_activity_id is not None:
+                        # Log getting file from Garmin Connect
+                        core_logger.print_to_log(
+                            f"Migration 3 - Activity {activity.id} does not have a file, but it is a Garmin Connect activity. Will retrieve file from Garmin.",
+                            "info",
+                        )
+
+                        # Get the user Garmin Connect client
+                        garminconnect_client = garmin_activity_utils.get_user_garminconnect_client(
+                            activity.user_id, db)
+                        
+                        # Download the activity in original format (.zip file)
+                        zip_data = garminconnect_client.download_activity(
+                            activity.garminconnect_activity_id, dl_fmt=garminconnect_client.ActivityDownloadFormat.ORIGINAL
+                        )
+
+                        # Save the zip file
+                        output_file = f"files/{str(activity.garminconnect_activity_id)}.zip"
+
+                        # Write the ZIP data to the output file
+                        with open(output_file, "wb") as fb:
+                            fb.write(zip_data)
+
+                        # Array to store the names of extracted files
+                        extracted_files = []
+
+                        # Open the ZIP file
+                        with zipfile.ZipFile(output_file, "r") as zip_ref:
+                            # Extract all contents to the specified directory
+                            zip_ref.extractall("files")
+                            # Populate the array with file names
+                            extracted_files = zip_ref.namelist()
+
+                        # Remove the zip file
+                        try:
+                            os.remove(output_file)
+                        except OSError as err:
+                            core_logger.print_to_log(
+                                f"Error removing file {output_file}: {err}",
+                                "error",
+                                exc=err,
+                            )
+
+                        try:
+                            # Define the directory where the processed files will be stored
+                            processed_dir = "files/processed"
+
+                            for file in extracted_files:
+                                _, file_extension = os.path.splitext(f"files/{file}")
+
+                                # Define new file path with activity ID as filename
+                                new_file_name = f"{activity.id}{file_extension}"
+
+                                # Move the file to the processed directory
+                                activities_utils.move_file(processed_dir, new_file_name, f"files/{file}")
+                        except Exception as err:
+                            core_logger.print_to_log(
+                                f"Migration 3 - Failed to move activity {activity.id} file: {err}",
+                                "error",
+                                exc=err,
+                            )
+
+                        # check if activity file exists
+                        activity_fit_file_path = os.path.join(
+                            "files/processed", f"{activity.id}.fit"
+                        )
+
+                    # if .gpx and .fit for activity do not exist, skip
+                    if not os.path.exists(
+                        activity_fit_file_path
+                    ) and not os.path.exists(activity_gpx_file_path):
+                        core_logger.print_to_log(
+                            f"Migration 3 - Activity {activity.id} does not have a file. Skipping.",
+                            "info",
+                        )
+                        continue
+                    # if exists, process it
+                    else:
+                        # Array to store laps
+                        laps = []
+
+                        # Array to store workout steps
+                        workout_steps = []
+
+                        # Array to store exercise titles
+                        exercises_titles = []
+
+                        # Array to store sets
+                        sets = []
+
+                        if os.path.exists(activity_fit_file_path):
+                            core_logger.print_to_log(
+                                f"Migration 3 - Activity {activity.id} has a fit file. Will process it."
+                            )
+                            try:
+                                # Open the FIT file
+                                with open(activity_fit_file_path, "rb") as fit_file:
+                                    fit_data = fitdecode.FitReader(fit_file)
+
+                                    # Iterate over FIT messages
+                                    for frame in fit_data:
+                                        if isinstance(frame, fitdecode.FitDataMessage):
+                                            # Parse lap data
+                                            if frame.name == "lap":
+                                                laps.append(
+                                                    fit_utils.parse_frame_lap(frame)
+                                                )
+
+                                            # Extract workout step data
+                                            if frame.name == "workout_step":
+                                                workout_steps.append(
+                                                    fit_utils.parse_frame_workout_step(
+                                                        frame
+                                                    )
+                                                )
+
+                                            # Extract exercise title data
+                                            if frame.name == "exercise_title":
+                                                exercises_titles.append(
+                                                    fit_utils.parse_frame_exercise_title(
+                                                        frame
+                                                    )
+                                                )
+
+                                            # Extract set data
+                                            if frame.name == "set":
+                                                sets.append(
+                                                    fit_utils.parse_frame_set(frame)
+                                                )
+
+                                # Check if exercises titles is not none
+                                if exercises_titles:
+                                    activity_exercise_titles_crud.create_activity_exercise_titles(
+                                        exercises_titles, db
+                                    )
+
+                                # Create activity laps in the database
+                                activity_laps_crud.create_activity_laps(
+                                    laps, activity.id, db
+                                )
+
+                                # Create activity workout steps in the database
+                                activity_workout_steps_crud.create_activity_workout_steps(
+                                    workout_steps, activity.id, db
+                                )
+
+                                # Create activity sets in the database
+                                activity_sets_crud.create_activity_sets(
+                                    sets, activity.id, db
+                                )
+
+                                core_logger.print_to_log(
+                                    f"Migration 3 - Activity {activity.id} file processed."
+                                )
+                            except Exception as err:
+                                activities_processed_with_no_errors = False
+                                core_logger.print_to_log(
+                                    f"Migration 3 - Failed to process activity {activity.id} file: {err}",
+                                    "error",
+                                    exc=err,
+                                )
+                        else:
+                            print(
+                                f"Migration 3 - Activity {activity.id} has a gpx file."
+                            )
+            except Exception as err:
+                activities_processed_with_no_errors = False
+                core_logger.print_to_log(
+                    f"Migration 3 - Failed to process activity {activity.id}: {err}",
+                    "error",
+                    exc=err,
+                )
+
+    # Mark migration as executed
+    if activities_processed_with_no_errors:
+        try:
+            migrations_crud.set_migration_as_executed(3, db)
+        except Exception as err:
+            core_logger.print_to_log(
+                f"Migration 3 - Failed to set migration as executed: {err}",
+                "error",
+                exc=err,
+            )
+            return
+    else:
+        core_logger.print_to_log(
+            "Migration 3 failed to process all activities. Will try again later.",
+            "error",
+        )
+
+    core_logger.print_to_log("Finished migration 3")
