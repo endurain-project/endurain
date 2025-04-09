@@ -1,12 +1,12 @@
 {
-    "labelLapNumber": "Lap",
-    "labelLapIntensity": "Intensity",
-    "labelLapDistance": "Distance",
-    "labelLapTime": "Time",
-    "labelLapPace": "Pace",
-    "labelLapSpeed": "Speed",
-    "labelLapElevation": "Elevation",
+    "labelLapNumber": "Vuelta",
+    "labelLapIntensity": "Intensidad",
+    "labelLapDistance": "Distancia",
+    "labelLapTime": "Tiempo",
+    "labelLapPace": "Ritmo",
+    "labelLapSpeed": "Velocidad",
+    "labelLapElevation": "Elevación",
     "labelLapElev": "Elev",
-    "labelLapAvgHr": "Avg heart rate",
-    "labelLapHR": "HR"
+    "labelLapAvgHr": "Ritmo cardíaco medio",
+    "labelLapHR": "RC"
 }
