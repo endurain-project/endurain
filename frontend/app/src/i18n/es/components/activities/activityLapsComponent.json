@@ -5,8 +5,8 @@
     "labelLapTime": "Tiempo",
     "labelLapPace": "Ritmo",
     "labelLapSpeed": "Velocidad",
-    "labelLapElevation": "Elevación",
-    "labelLapElev": "Elev",
+    "labelLapElevation": "Altura",
+    "labelLapElev": "Alt",
     "labelLapAvgHr": "Ritmo cardíaco medio",
     "labelLapHR": "RC"
 }
