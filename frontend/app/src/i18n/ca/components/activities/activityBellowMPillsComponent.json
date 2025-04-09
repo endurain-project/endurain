@@ -1,3 +1,22 @@
 {
-    
+    "subTitlePace": "Pace",
+    "labelAvgPace": "Avg pace",
+    "labelMovingTime": "Moving time",
+    "labelElapsedTime": "Elapsed time",
+    "subTitleSpeed": "Speed",
+    "labelAvgSpeed": "Avg speed",
+    "labelMaxSpeed": "Max speed",
+    "subTitleHeartRate": "Heart rate",
+    "labelAvgHeartRate": "Avg heart rate",
+    "labelMaxHeartRate": "Max heart rate",
+    "subTitlePower": "Power",
+    "labelAvgPower": "Avg power",
+    "labelMaxPower": "Max power",
+    "labelNormalizedPower": "Normalized power",
+    "subTitleCadence": "Cadence",
+    "labelAvgCadence": "Avg cadence",
+    "labelMaxCadence": "Max cadence",
+    "subTitleElevation": "Elevation",
+    "labelElevationGain": "Elevation gain",
+    "labelElevationLoss": "Elevation loss"
 }

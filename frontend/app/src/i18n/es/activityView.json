@@ -4,8 +4,6 @@
     "modalLabelDeleteGear": "Eliminar equipo de la actividad",
     "modalLabelDeleteGearBody": "¿Está seguro que desea eliminar el equipo de la actividad?",
     "modalLabelDeleteGearButton": "Eliminar equipo",
-    "labelGraph": "Gráficos de datos de actividad",
-    "labelDownsampling": "Datos reducidos a ~200 puntos",
     "successMessageGearAdded": "Equipo añadido a la actividad",
     "successMessageGearDeleted": "Equipo eliminado de la actividad",
     "errorMessageDeleteGear": "Error al eliminar el equipo de la actividad",

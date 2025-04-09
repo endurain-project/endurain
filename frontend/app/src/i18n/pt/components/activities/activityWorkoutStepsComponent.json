@@ -1,3 +1,15 @@
 {
-    
+    "labelWorkoutStepType": "Tipo etapa",
+    "labelWorkoutStepTime": "Tempo etapa",
+    "labelWorkoutStepReps": "Reps etapa",
+    "labelWorkoutStepIntensity": "Intensidade",
+    "labelWorkoutStepNotes": "Notas",
+    "labelWorkoutStepExerciseName": "Nome etapa",
+    "labelWorkoutStepExerciseWeight": "Peso",
+    "labelWorkoutStepSwimStroke": "Estilo etapa",
+    "labelWorkoutSetType": "Tipo jogo",
+    "labelWorkoutSetTime": "Tempo jogo",
+    "labelWorkoutSetReps": "Reps jogo",
+    "labelWorkoutSetExerciseName": "Nome jogo",
+    "labelWorkoutSetExerciseWeight": "Peso jogo"
 }

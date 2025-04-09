@@ -1,3 +1,12 @@
 {
-    
+    "labelLapNumber": "Vuelta",
+    "labelLapIntensity": "Intensidad",
+    "labelLapDistance": "Distancia",
+    "labelLapTime": "Tiempo",
+    "labelLapPace": "Ritmo",
+    "labelLapSpeed": "Velocidad",
+    "labelLapElevation": "Altura",
+    "labelLapElev": "Alt",
+    "labelLapAvgHr": "Ritmo cardíaco medio",
+    "labelLapHR": "RC"
 }

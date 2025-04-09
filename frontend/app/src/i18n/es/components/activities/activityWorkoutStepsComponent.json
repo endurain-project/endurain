@@ -1,3 +1,15 @@
 {
-    
+    "labelWorkoutStepType": "Tipo de paso",
+    "labelWorkoutStepTime": "Tiempo de paso",
+    "labelWorkoutStepReps": "Repeticiones de paso",
+    "labelWorkoutStepIntensity": "Intensidad",
+    "labelWorkoutStepNotes": "Notas",
+    "labelWorkoutStepExerciseName": "Nombre del paso",
+    "labelWorkoutStepExerciseWeight": "Peso",
+    "labelWorkoutStepSwimStroke": "Paso de brazada",
+    "labelWorkoutSetType": "Establecer tipo",
+    "labelWorkoutSetTime": "Establecer tiempo",
+    "labelWorkoutSetReps": "Establecer repeticiones",
+    "labelWorkoutSetExerciseName": "Establecer nombre",
+    "labelWorkoutSetExerciseWeight": "Establecer peso"
 }

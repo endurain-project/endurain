@@ -4,8 +4,6 @@
     "modalLabelDeleteGear": "Supprimer un équipement de l'activité",
     "modalLabelDeleteGearBody": "Êtes-vous sûr de vouloir retirer l'équipement de l'activité?",
     "modalLabelDeleteGearButton": "Supprimer l'équipement",
-    "labelGraph": "Graphiques des données d'activité",
-    "labelDownsampling": "Données abaissées à ~200 points",
     "successMessageGearAdded": "Équipement ajouté à l'activité",
     "successMessageGearDeleted": "Équipement supprimé de l'activité",
     "errorMessageDeleteGear": "Erreur lors de la suppression de l'équipement de l'activité",
