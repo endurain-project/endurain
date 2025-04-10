@@ -1,8 +1,8 @@
 {
-    "labelPillGraphs": "Graphs",
-    "labelPillLaps": "Laps",
+    "labelPillGraphs": "Gràfics",
+    "labelPillLaps": "Voltes",
     "labelPillWorkoutSets": "Sets",
-    "labelGraph": "Activity data graphs",
-    "labelDownsampling": "Data downsampled to ~200 points",
-    "errorMessageProcessingActivityStreams": "Error processing activity streams"
+    "labelGraph": "Gràfics d'Activitat",
+    "labelDownsampling": "Dades reduïdes a ~200 punts",
+    "errorMessageProcessingActivityStreams": "Error processant activitats de carrera"
 }

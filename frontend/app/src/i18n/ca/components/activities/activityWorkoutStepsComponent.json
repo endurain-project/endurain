@@ -1,15 +1,15 @@
 {
-    "labelWorkoutStepType": "Step type",
-    "labelWorkoutStepTime": "Step time",
-    "labelWorkoutStepReps": "Step reps",
-    "labelWorkoutStepIntensity": "Intensity",
+    "labelWorkoutStepType": "Tipus pas",
+    "labelWorkoutStepTime": "Temps pas",
+    "labelWorkoutStepReps": "Reps passos",
+    "labelWorkoutStepIntensity": "Intensitat",
     "labelWorkoutStepNotes": "Notes",
-    "labelWorkoutStepExerciseName": "Step name",
-    "labelWorkoutStepExerciseWeight": "Weight",
-    "labelWorkoutStepSwimStroke": "Step swim stroke",
-    "labelWorkoutSetType": "Set type",
-    "labelWorkoutSetTime": "Set time",
-    "labelWorkoutSetReps": "Set reps",
-    "labelWorkoutSetExerciseName": "Set name",
-    "labelWorkoutSetExerciseWeight": "Set weight"
+    "labelWorkoutStepExerciseName": "Nom del pas",
+    "labelWorkoutStepExerciseWeight": "Pes",
+    "labelWorkoutStepSwimStroke": "Braçada",
+    "labelWorkoutSetType": "Tipus pas",
+    "labelWorkoutSetTime": "Temps pas",
+    "labelWorkoutSetReps": "Reps passos",
+    "labelWorkoutSetExerciseName": "Nom del pas",
+    "labelWorkoutSetExerciseWeight": "Estableix pes"
 }

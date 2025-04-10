@@ -4,7 +4,7 @@
     "buttonlistAll": "Llista tot",
     "requiredField": "Camp obligatori",
     "labelNotApplicable": "N/D",
-    "labelNoData": "No data",
+    "labelNoData": "Sense dades",
     "unitsCm": "cm",
     "unitsCms": "cms",
     "unitsM": "m",
@@ -35,5 +35,5 @@
     "labelPaceInMinKm": "Ritme en min/km",
     "labelPaceInMin100m": "Ritme en min/100m",
     "labelPaceInMinMile": "Ritme en min/mil",
-    "labelPaceInMin100yd": "Ritme en min/iarda"
+    "labelPaceInMin100yd": "Ritme en min/100yds"
 }
