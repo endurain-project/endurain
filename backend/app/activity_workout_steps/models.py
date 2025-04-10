@@ -45,6 +45,11 @@ class ActivityWorkoutSteps(Base):
         String(length=250), nullable=True, comment="Workout step intensity type"
     )
     notes = Column(String(length=250), nullable=True, comment="Workout step notes")
+    exercise_category = Column(
+        Integer,
+        nullable=True,
+        comment="Workout step exercise category",
+    )
     exercise_name = Column(
         Integer,
         nullable=True,

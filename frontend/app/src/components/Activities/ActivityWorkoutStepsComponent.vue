@@ -9,6 +9,8 @@
                     <th v-if="(activity.activity_type === 10 || activity.activity_type === 19 || activity.activity_type === 20) && activityActivityWorkoutSteps && activityActivityWorkoutSteps.length > 0">{{ $t("activityWorkoutStepsComponent.labelWorkoutStepReps") }}</th>
                     <th v-if="(activity.activity_type === 10 || activity.activity_type === 19 || activity.activity_type === 20) && activityActivityWorkoutSteps && activityActivityWorkoutSteps.length > 0">{{ $t("activityWorkoutStepsComponent.labelWorkoutStepExerciseName") }}</th>
                     <th v-if="(activity.activity_type === 8 || activity.activity_type === 9) && activityActivityWorkoutSteps && activityActivityWorkoutSteps.length > 0">{{ $t("activityWorkoutStepsComponent.labelWorkoutStepSwimStroke") }}</th>
+                    <!-- divide -->
+                    <th v-if="activityActivityWorkoutSteps && activityActivityWorkoutSteps.length > 0 && activityActivitySets && activityActivitySets.length > 0"></th>
                     <!-- sets -->
                     <th v-if="activityActivitySets && activityActivitySets.length > 0">{{ $t("activityWorkoutStepsComponent.labelWorkoutSetType") }}</th>
                     <th v-if="activityActivitySets && activityActivitySets.length > 0">{{ $t("activityWorkoutStepsComponent.labelWorkoutSetTime") }}</th>
@@ -34,8 +36,8 @@
                         </span>
                     </td>
                     <td v-if="(activity.activity_type === 10 || activity.activity_type === 19 || activity.activity_type === 20) && activityActivityWorkoutSteps && activityActivityWorkoutSteps.length > 0">
-                        <span v-if="processedWorkoutSteps[i - 1] && activityActivityExerciseTitles && activityActivityExerciseTitles.some(title => title.exercise_name === processedWorkoutSteps[i - 1].exercise_name)">
-                            {{ activityActivityExerciseTitles.find(title => title.exercise_name === processedWorkoutSteps[i - 1].exercise_name).wkt_step_name }}
+                        <span v-if="processedWorkoutSteps[i - 1] && activityActivityExerciseTitles && activityActivityExerciseTitles.some(title => title.exercise_name === processedWorkoutSteps[i - 1].exercise_name && title.exercise_category === processedWorkoutSteps[i - 1].exercise_category)">
+                            {{ activityActivityExerciseTitles.find(title => title.exercise_name === processedWorkoutSteps[i - 1].exercise_name && title.exercise_category === processedWorkoutSteps[i - 1].exercise_category).wkt_step_name }}
                         </span>
                         <span v-else-if="processedWorkoutSteps[i - 1] && processedWorkoutSteps[i - 1].intensity !== 'rest'">
                             {{ processedWorkoutSteps[i - 1].exercise_name ?? $t("generalItems.labelNoData") }}
@@ -46,6 +48,8 @@
                             {{ processedWorkoutSteps[i - 1].secondary_target_value ?? $t("generalItems.labelNoData") }}
                         </span>
                     </td>
+                    <!-- divide -->
+                    <td v-if="activityActivityWorkoutSteps && activityActivityWorkoutSteps.length > 0 && activityActivitySets && activityActivitySets.length > 0">|</td>
                     <!-- sets -->
                     <td v-if="activityActivitySets && activityActivitySets.length > 0">
                         <span v-if="activityActivitySets[i - 1]">{{ activityActivitySets[i - 1].set_type ?? $t("generalItems.labelNoData") }}</span>
@@ -59,8 +63,8 @@
                         </span>
                     </td>
                     <td v-if="(activity.activity_type === 10 || activity.activity_type === 19 || activity.activity_type === 20) && activityActivitySets && activityActivitySets.length > 0">
-                        <span v-if="activityActivitySets[i - 1] && activityActivityExerciseTitles && activityActivityExerciseTitles.some(title => title.exercise_name === activityActivitySets[i - 1].category_subtype) && activityActivitySets[i - 1].set_type !== 'rest'">
-                            {{ activityActivityExerciseTitles.find(title => title.exercise_name === activityActivitySets[i - 1].category_subtype).wkt_step_name }}
+                        <span v-if="activityActivitySets[i - 1] && activityActivityExerciseTitles && activityActivityExerciseTitles.some(title => title.exercise_name === activityActivitySets[i - 1].category_subtype && title.exercise_category === activityActivitySets[i - 1].category) && activityActivitySets[i - 1].set_type !== 'rest'">
+                            {{ activityActivityExerciseTitles.find(title => title.exercise_name === activityActivitySets[i - 1].category_subtype && title.exercise_category === activityActivitySets[i - 1].category).wkt_step_name }}
                         </span>
                         <span v-else-if="activityActivitySets[i - 1] && activityActivitySets[i - 1].set_type !== 'rest'">
                             {{ activityActivitySets[i - 1].category_subtype ?? $t("generalItems.labelNoData") }}
@@ -112,18 +116,23 @@ export default {
         },
 	},
 	setup(props) {
-        const processedWorkoutSteps = props.activityActivityWorkoutSteps.reduce((result, step, index, array) => {
-            if (step.duration_type === "repeat_until_steps_cmplt") {
-                const repeatCount = step.target_value;
-                const stepsToRepeat = array.slice(index - 2, index); // Get the two previous steps
-                for (let i = 1; i < repeatCount; i++) {
-                    result.push(...stepsToRepeat); // Add the repeated steps
+        const processedWorkoutSteps = computed(() => {
+            if (!props.activityActivityWorkoutSteps) return [];
+            return props.activityActivityWorkoutSteps.reduce((result, step, index, array) => {
+                console.log("Step:", step);
+                if (step.duration_type === "repeat_until_steps_cmplt") {
+                    const repeatCount = step.target_value;
+                    const stepsToRepeat = array.slice(index - 2, index); // Get the two previous steps
+                    for (let i = 1; i < repeatCount; i++) {
+                        result.push(...stepsToRepeat); // Add the repeated steps
+                    }
+                } else {
+                    result.push(step); // Add the current step if not "repeat_until_steps_cmplt"
                 }
-            } else {
-                result.push(step); // Add the current step if not "repeat_until_steps_cmplt"
-            }
-            return result;
-        }, []);
+                return result;
+                }, 
+            []);
+        });
 
         const largerLength = computed(() => {
             if (!props.activityActivityWorkoutSteps) {

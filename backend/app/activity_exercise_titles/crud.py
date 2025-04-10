@@ -102,7 +102,10 @@ def create_activity_exercise_titles(
             # Check if exercise_name already exists
             existing_entry = (
                 db.query(activity_exercise_titles_models.ActivityExerciseTitles)
-                .filter_by(exercise_name=exercise_title.exercise_name)
+                .filter_by(
+                    exercise_name=exercise_title.exercise_name,
+                    exercise_category=exercise_title.exercise_category,
+                )
                 .first()
             )
 

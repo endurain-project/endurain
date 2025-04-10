@@ -172,7 +172,9 @@ def create_activity_objects(
         raise http_err
     except Exception as err:
         # Log the exception
-        core_logger.print_to_log(f"Error in create_activity_objects: {err}", "error", exc=err)
+        core_logger.print_to_log(
+            f"Error in create_activity_objects: {err}", "error", exc=err
+        )
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -899,23 +901,31 @@ def parse_frame_split_summary(frame):
 
 
 def parse_frame_set(frame):
-    keys = [
+    keys_value = [
         "duration",
         "repetitions",
         "weight",
         "set_type",
         "start_time",
+    ]
+
+    keys_raw = [
         "category",
         "category_subtype",
     ]
 
-    set_data = tuple(get_value_from_frame(frame, key) for key in keys)
+    set_data = [get_value_from_frame(frame, key) for key in keys_value]
+    set_data.extend(get_raw_value_from_frame(frame, key) for key in keys_raw)
 
-    return dict(zip(keys, set_data))
+    # Adjust category based on category_subtype
+    if set_data[5] is None:
+        set_data[5] = 0 if set_data[6] is not None else None
+
+    return list(set_data)
 
 
 def parse_frame_workout_step(frame):
-    keys = [
+    keys_value = [
         "message_index",
         "duration_type",
         "duration_value",
@@ -923,20 +933,29 @@ def parse_frame_workout_step(frame):
         "target_value",
         "intensity",
         "notes",
-        "exercise_name",
         "exercise_weight",
         "weight_display_unit",
     ]
 
-    workout_set_data = list(tuple(get_value_from_frame(frame, key) for key in keys))
-    if workout_set_data[5] == 7:
-        workout_set_data[5] = "active"
-    
+    keys_raw = [
+        "exercise_category",
+        "exercise_name",
+    ]
+
+    workout_set_data = [get_value_from_frame(frame, key) for key in keys_value]
+    workout_set_data.extend(get_raw_value_from_frame(frame, key) for key in keys_raw)
+
     secondary_target_value = None
 
     if workout_set_data[3] == "swim_stroke":
         secondary_target_value = workout_set_data[4]
         workout_set_data[4] = None
+
+    if workout_set_data[5] == 7:
+        workout_set_data[5] = "active"
+
+    if workout_set_data[9] is None:
+        workout_set_data[9] = 0 if workout_set_data[10] is not None else None
 
     return activity_workout_steps_schema.ActivityWorkoutSteps(
         message_index=workout_set_data[0] if workout_set_data[0] else 0,
@@ -946,26 +965,31 @@ def parse_frame_workout_step(frame):
         target_value=workout_set_data[4] if workout_set_data[4] else None,
         intensity=workout_set_data[5] if type(workout_set_data[5]) == str else None,
         notes=workout_set_data[6],
-        exercise_name=workout_set_data[7],
-        exercise_weight=workout_set_data[8],
-        weight_display_unit=workout_set_data[9],
+        exercise_category=workout_set_data[9],
+        exercise_name=workout_set_data[10] if workout_set_data[10] else None,
+        exercise_weight=workout_set_data[7],
+        weight_display_unit=workout_set_data[8],
         secondary_target_value=secondary_target_value,
     )
 
 
 def parse_frame_exercise_title(frame):
-    keys = [
-        "exercise_category",
-        "exercise_name",
+    keys_value = [
         "wkt_step_name",
     ]
 
-    exercise_title_data = tuple(get_value_from_frame(frame, key) for key in keys)
+    keys_raw = [
+        "exercise_category",
+        "exercise_name",
+    ]
+
+    exercise_title_data = [get_value_from_frame(frame, key) for key in keys_value]
+    exercise_title_data.extend(get_raw_value_from_frame(frame, key) for key in keys_raw)
 
     return activity_exercise_titles_schema.ActivityExerciseTitles(
-        exercise_category=str(exercise_title_data[0]),
-        exercise_name=exercise_title_data[1],
-        wkt_step_name=str(exercise_title_data[2]),
+        exercise_category=exercise_title_data[1] if exercise_title_data[1] else 0,
+        exercise_name=exercise_title_data[2] if exercise_title_data[2] else 0,
+        wkt_step_name=str(exercise_title_data[0]),
     )
 
 
@@ -985,6 +1009,14 @@ def get_value_from_frame(frame, key, default=None):
     try:
         value = frame.get_value(key)
         return value if value else default
+    except KeyError:
+        return default
+
+
+def get_raw_value_from_frame(frame, key, default=None):
+    try:
+        raw_value = frame.get_raw_value(key)
+        return raw_value if raw_value else default
     except KeyError:
         return default
 

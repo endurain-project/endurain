@@ -11,6 +11,7 @@ class ActivityWorkoutSteps(BaseModel):
     target_value: int | None = None
     intensity: str | None = None
     notes: str | None = None
+    exercise_category: int | None = None
     exercise_name: int | None = None
     exercise_weight: float | None = None
     weight_display_unit: str | None = None

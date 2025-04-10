@@ -11,13 +11,12 @@ class ActivityExerciseTitles(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     exercise_category = Column(
-        String(length=250),
+        Integer,
         nullable=False,
-        comment="Exercise category (May include spaces and may be a number)",
+        comment="Exercise category",
     )
     exercise_name = Column(
         Integer,
-        unique=True,
         nullable=False,
         comment="Exercise name ID",
     )

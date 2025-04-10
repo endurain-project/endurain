@@ -130,14 +130,14 @@ def create_activity_sets(
             # Create an ActivitySets object
             db_stream = activity_sets_models.ActivitySets(
                 activity_id=activity_id,
-                duration=set["duration"],
-                repetitions=set["repetitions"],
-                weight=set["weight"],
-                set_type=set["set_type"],
-                start_time=set["start_time"],
-                category=set["category"][0] if set["category"] else None,
+                duration=set[0],
+                repetitions=set[1],
+                weight=set[2],
+                set_type=set[3],
+                start_time=set[4],
+                category=set[5][0] if set[5] else None,
                 category_subtype=(
-                    set["category_subtype"][0] if set["category_subtype"] else None
+                    set[6][0] if set[6] else None
                 ),
             )
 

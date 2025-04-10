@@ -232,9 +232,9 @@ def upgrade() -> None:
         sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
         sa.Column(
             "exercise_category",
-            sa.String(length=250),
+            sa.Integer(),
             nullable=False,
-            comment="Exercise category (May include spaces and may be a number)",
+            comment="Exercise category",
         ),
         sa.Column(
             "exercise_name", sa.Integer(), nullable=False, comment="Exercise name ID"
@@ -297,6 +297,9 @@ def upgrade() -> None:
             "notes", sa.String(length=250), nullable=True, comment="Workout step notes"
         ),
         sa.Column(
+            "exercise_category", sa.Integer(), nullable=True, comment="Workout step exercise category"
+        ),
+        sa.Column(
             "exercise_name", sa.Integer(), nullable=True, comment="Exercise name ID"
         ),
         sa.Column(
@@ -326,7 +329,6 @@ def upgrade() -> None:
         ["activity_id"],
         unique=False,
     )
-    op.create_unique_constraint(None, "activity_exercise_titles", ["exercise_name"])
     # Create activity_sets table
     op.create_table(
         "activity_sets",
@@ -365,7 +367,7 @@ def upgrade() -> None:
             comment="Workout set start date (DATETIME)",
         ),
         sa.Column(
-            "category", sa.Integer(), nullable=True, comment="Category number"
+            "category", sa.Integer(), nullable=True, comment="Category name"
         ),
         sa.Column(
             "category_subtype", sa.Integer(), nullable=True, comment="Category sub type number"

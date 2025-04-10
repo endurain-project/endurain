@@ -131,6 +131,7 @@ def create_activity_workout_steps(
                 target_value=step.target_value,
                 intensity=step.intensity,
                 notes=step.notes,
+                exercise_category=step.exercise_category,
                 exercise_name=step.exercise_name,
                 exercise_weight=step.exercise_weight,
                 weight_display_unit=step.weight_display_unit,

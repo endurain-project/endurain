@@ -44,7 +44,7 @@ class ActivitySets(Base):
     category = Column(
         Integer,
         nullable=True,
-        comment="Category number",
+        comment="Category name",
     )
     category_subtype = Column(
         Integer,
