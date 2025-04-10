@@ -175,6 +175,12 @@ The table bellow details the activity types supported by Endurain:
 | Transition | 18 |
 | Strength Training | 19 |
 | Crossfit | 20 |
+| Tennis | 21 |
+| Table Tennis | 22 |
+| Badminton | 23 |
+| Squash | 24 |
+| Racquetball | 25 |
+| Pickleball | 26 |
 
 
 ## Supported gear types
@@ -185,3 +191,4 @@ The table bellow details the gear types supported by Endurain:
 | Bike | 1 |
 | Shoes | 2 |
 | Wetsuit | 3 |
+| Racquet | 4 |

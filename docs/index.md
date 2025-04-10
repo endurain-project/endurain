@@ -94,7 +94,9 @@ Currently supported in:
  - Catalan by [@rubenixnagios](https://github.com/rubenixnagios)
  - German by [@ThreeCO](https://github.com/ThreeCO)
  - French (FR) [@gwenvador](https://github.com/gwenvador)
+ - Dutch (NL) [@woutvanderaa](https://github.com/woutvanderaa)
  - Portuguese (PT)
+ - Spanish (ES) [@rgmelkor](https://github.com/rgmelkor)
  - English (US)
 
 ## Star History
