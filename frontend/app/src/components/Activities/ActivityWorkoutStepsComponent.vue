@@ -10,7 +10,7 @@
                     <th v-if="(activity.activity_type === 10 || activity.activity_type === 19 || activity.activity_type === 20) && activityActivityWorkoutSteps && activityActivityWorkoutSteps.length > 0">{{ $t("activityWorkoutStepsComponent.labelWorkoutStepExerciseName") }}</th>
                     <th v-if="(activity.activity_type === 8 || activity.activity_type === 9) && activityActivityWorkoutSteps && activityActivityWorkoutSteps.length > 0">{{ $t("activityWorkoutStepsComponent.labelWorkoutStepSwimStroke") }}</th>
                     <!-- divide -->
-                    <th v-if="activityActivityWorkoutSteps && activityActivityWorkoutSteps.length > 0 && activityActivitySets && activityActivitySets.length > 0"></th>
+                    <th v-if="activityActivityWorkoutSteps && activityActivityWorkoutSteps.length > 0 && activityActivitySets && activityActivitySets.length > 0">|</th>
                     <!-- sets -->
                     <th v-if="activityActivitySets && activityActivitySets.length > 0">{{ $t("activityWorkoutStepsComponent.labelWorkoutSetType") }}</th>
                     <th v-if="activityActivitySets && activityActivitySets.length > 0">{{ $t("activityWorkoutStepsComponent.labelWorkoutSetTime") }}</th>
