@@ -187,6 +187,9 @@
             </div>
             <hr>
         </div>
+
+        <!-- sets -->    
+        <ActivityWorkoutStepsComponent :activity="activity" :activityActivityWorkoutSteps="activityActivityWorkoutSteps" :units="units" :activityActivityExerciseTitles="activityActivityExerciseTitles" :activityActivitySets="activityActivitySets" />
     </div>
 </template>
 
@@ -196,6 +199,7 @@ import { useI18n } from "vue-i18n";
 // Importing the components
 import ActivityLapsComponent from "@/components/Activities/ActivityLapsComponent.vue";
 import ActivityStreamsLineChartComponent from "@/components/Activities/ActivityStreamsLineChartComponent.vue";
+import ActivityWorkoutStepsComponent from "@/components/Activities/ActivityWorkoutStepsComponent.vue";
 // Import Notivue push
 import { push } from "notivue";
 import { formatPaceMetric, formatPaceImperial, formatPaceSwimMetric, formatPaceSwimImperial, formatAverageSpeedMetric, formatAverageSpeedImperial } from "@/utils/activityUtils";
@@ -208,6 +212,7 @@ export default {
 	components: {
 		ActivityLapsComponent,
 		ActivityStreamsLineChartComponent,
+        ActivityWorkoutStepsComponent,
 	},
 	props: {
 		activity: {
@@ -218,6 +223,10 @@ export default {
 			type: [Object, null],
 			required: true,
 		},
+		activityActivityWorkoutSteps: {
+			type: [Object, null],
+			required: true,
+		},
         activityActivityStreams: {
 			type: Object,
 			required: true,
@@ -225,6 +234,14 @@ export default {
 		units: {
 			type: Number,
 			default: 1,
+		},
+		activityActivityExerciseTitles: {
+			type: [Object, null],
+			required: true,
+		},
+		activityActivitySets: {
+			type: [Object, null],
+			required: true,
 		},
 	},
 	setup(props) {

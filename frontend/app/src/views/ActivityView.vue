@@ -77,7 +77,7 @@
 			<LoadingComponent />
 		</div>
 		<div class="d-lg-none d-block" v-else>
-			<ActivityBellowMPillsComponent :activity="activity" :activityActivityLaps="activityActivityLaps" :activityActivityStreams="activityActivityStreams" :units="units" />
+			<ActivityBellowMPillsComponent :activity="activity" :activityActivityLaps="activityActivityLaps" :activityActivityWorkoutSteps="activityActivityWorkoutSteps" :activityActivityStreams="activityActivityStreams" :units="units" :activityActivityExerciseTitles="activityActivityExerciseTitles" :activityActivitySets="activityActivitySets" />
 		</div>
 
 		<!-- back button -->

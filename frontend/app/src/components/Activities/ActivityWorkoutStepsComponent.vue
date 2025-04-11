@@ -79,6 +79,32 @@
             </tbody>
         </table>
     </div>
+
+    <div class="table-responsive d-lg-none d-block" v-if="activityActivitySets && activityActivitySets.length > 0">
+        <table class="table table-sm table-borderless" style="--bs-table-bg: var(--bs-gray-850);">
+            <thead>
+                <tr>
+                    <th>{{ $t("activityWorkoutStepsComponent.labelWorkoutSetTypeMobile") }}</th>
+                    <th>{{ $t("activityWorkoutStepsComponent.labelWorkoutSetTimeMobile") }}</th>
+                    <th>{{ $t("activityWorkoutStepsComponent.labelWorkoutSetRepsMobile") }}</th>
+                    <th>{{ $t("activityWorkoutStepsComponent.labelWorkoutSetExerciseNameMobile") }}</th>
+                    <th>{{ $t("activityWorkoutStepsComponent.labelWorkoutSetExerciseWeightMobile") }}</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr v-for="i in activityActivitySets.length" :key="i">
+                    <td v-if="activityActivitySets[i - 1]">{{ activityActivitySets[i - 1].set_type ?? $t("generalItems.labelNoData") }}</td>
+                    <td v-if="activityActivitySets[i - 1]">{{ formatSecondsToMinutes(activityActivitySets[i - 1].duration) ?? $t("generalItems.labelNoData") }}</td>
+                    <td v-if="activityActivitySets[i - 1] && activityActivitySets[i - 1].set_type !== 'rest'">{{ activityActivitySets[i - 1].repetitions ?? $t("generalItems.labelNoData") }}</td>
+                    <td v-if="activityActivitySets[i - 1] && activityActivityExerciseTitles && activityActivityExerciseTitles.some(title => title.exercise_name === activityActivitySets[i - 1].category_subtype && title.exercise_category === activityActivitySets[i - 1].category) && activityActivitySets[i - 1].set_type !== 'rest'">
+                        {{ activityActivityExerciseTitles.find(title => title.exercise_name === activityActivitySets[i - 1].category_subtype && title.exercise_category === activityActivitySets[i - 1].category).wkt_step_name }}
+                    </td>
+                    <td v-else-if="activityActivitySets[i - 1] && activityActivitySets[i - 1].set_type !== 'rest'">{{ activityActivitySets[i - 1].category_subtype ?? $t("generalItems.labelNoData") }}</td>
+                    <td v-if="activityActivitySets[i - 1] && activityActivitySets[i - 1].set_type !== 'rest'">{{ activityActivitySets[i - 1].weight ?? $t("generalItems.labelNoData") }}</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
 </template>
 
 <script>
@@ -99,7 +125,7 @@ export default {
 			required: true,
 		},
 		activityActivityWorkoutSteps: {
-			type: Object,
+			type: [Object, null],
 			required: true,
 		},
         units: {
@@ -119,7 +145,6 @@ export default {
         const processedWorkoutSteps = computed(() => {
             if (!props.activityActivityWorkoutSteps) return [];
             return props.activityActivityWorkoutSteps.reduce((result, step, index, array) => {
-                console.log("Step:", step);
                 if (step.duration_type === "repeat_until_steps_cmplt") {
                     const repeatCount = step.target_value;
                     const stepsToRepeat = array.slice(index - 2, index); // Get the two previous steps
@@ -136,9 +161,9 @@ export default {
 
         const largerLength = computed(() => {
             if (!props.activityActivityWorkoutSteps) {
-                return props.activityActivitySets.length;
+                return props.activityActivitySets ? props.activityActivitySets.length : 0;
             } if (!props.activityActivitySets) {
-                return props.activityActivityWorkoutSteps.length;
+                return props.activityActivityWorkoutSteps ? props.activityActivityWorkoutSteps.length : 0;
             }
             return Math.max(
                 props.activityActivityWorkoutSteps.length,

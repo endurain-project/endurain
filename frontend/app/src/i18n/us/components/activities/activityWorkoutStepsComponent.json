@@ -11,5 +11,10 @@
     "labelWorkoutSetTime": "Set time",
     "labelWorkoutSetReps": "Set reps",
     "labelWorkoutSetExerciseName": "Set name",
-    "labelWorkoutSetExerciseWeight": "Set weight"
+    "labelWorkoutSetExerciseWeight": "Set weight",
+    "labelWorkoutSetTypeMobile": "Type",
+    "labelWorkoutSetTimeMobile": "Time",
+    "labelWorkoutSetRepsMobile": "Reps",
+    "labelWorkoutSetExerciseNameMobile": "Name",
+    "labelWorkoutSetExerciseWeightMobile": "Weight"
 }
