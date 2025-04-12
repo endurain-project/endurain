@@ -11,5 +11,10 @@
     "labelWorkoutSetTime": "Tempo jogo",
     "labelWorkoutSetReps": "Reps jogo",
     "labelWorkoutSetExerciseName": "Nome jogo",
-    "labelWorkoutSetExerciseWeight": "Peso jogo"
+    "labelWorkoutSetExerciseWeight": "Peso jogo",
+    "labelWorkoutSetTypeMobile": "Type",
+    "labelWorkoutSetTimeMobile": "Time",
+    "labelWorkoutSetRepsMobile": "Reps",
+    "labelWorkoutSetExerciseNameMobile": "Name",
+    "labelWorkoutSetExerciseWeightMobile": "Weight"
 }
