@@ -547,29 +547,29 @@ def fetch_and_process_activity_laps(
             )
 
         laps_processed.append(
-            activity_laps_schema.ActivityLaps(
-                start_time=lap.start_date_local.strftime("%Y-%m-%dT%H:%M:%S"),
-                start_position_lat=lat_lon_stream[0]["lat"] if lat_lon_stream else None,
-                start_position_long=lat_lon_stream[0]["lon"] if lat_lon_stream else None,
-                end_position_lat=lat_lon_stream[-1]["lat"] if lat_lon_stream else None,
-                end_position_long=lat_lon_stream[-1]["lon"] if lat_lon_stream else None,
-                total_elapsed_time=lap.elapsed_time,
-                total_timer_time=lap.moving_time,
-                total_distance=lap.distance,
-                avg_heart_rate=round(lap.average_heartrate),
-                max_heart_rate=round(lap.max_heartrate),
-                avg_cadence=round(lap.average_cadence),
-                max_cadence=round(cad_max) if cad_stream else None,
-                avg_power=round(lap.average_watts),
-                max_power=round(power_max) if power_stream else None,
-                total_ascent=round(lap.total_elevation_gain),
-                total_descent=round(ele_loss) if ele_stream else None,
-                normalized_power=round(np) if np else None,
-                enhanced_avg_pace=1 / lap.average_speed if lap.average_speed != 0 and lap.average_speed != None else None,
-                enhanced_avg_speed=lap.average_speed,
-                enhanced_max_pace=1 / lap.max_speed if lap.max_speed != 0 and lap.max_speed != None else None,
-                enhanced_max_speed=lap.max_speed,
-            )
+            {
+                "start_time": lap.start_date_local.strftime("%Y-%m-%dT%H:%M:%S"),
+                "start_position_lat": lat_lon_stream[0]["lat"] if lat_lon_stream else None,
+                "start_position_long": lat_lon_stream[0]["lon"] if lat_lon_stream else None,
+                "end_position_lat": lat_lon_stream[-1]["lat"] if lat_lon_stream else None,
+                "end_position_long": lat_lon_stream[-1]["lon"] if lat_lon_stream else None,
+                "total_elapsed_time": lap.elapsed_time,
+                "total_timer_time": lap.moving_time,
+                "total_distance": lap.distance,
+                "avg_heart_rate": round(lap.average_heartrate),
+                "max_heart_rate": round(lap.max_heartrate),
+                "avg_cadence": round(lap.average_cadence),
+                "max_cadence": round(cad_max) if cad_stream else None,
+                "avg_power": round(lap.average_watts),
+                "max_power": round(power_max) if power_stream else None,
+                "total_ascent": round(lap.total_elevation_gain),
+                "total_descent": round(ele_loss) if ele_stream else None,
+                "normalized_power": round(np) if np else None,
+                "enhanced_avg_pace": 1 / lap.average_speed if lap.average_speed != 0 and lap.average_speed is not None else None,
+                "enhanced_avg_speed": lap.average_speed,
+                "enhanced_max_pace": 1 / lap.max_speed if lap.max_speed != 0 and lap.max_speed is not None else None,
+                "enhanced_max_speed": lap.max_speed,
+            }
         )
 
     # Return the processed laps
