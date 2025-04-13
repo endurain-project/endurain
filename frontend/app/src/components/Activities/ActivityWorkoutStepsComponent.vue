@@ -84,6 +84,7 @@
         <table class="table table-sm table-borderless" style="--bs-table-bg: var(--bs-gray-850);">
             <thead>
                 <tr>
+                    <th>#</th>
                     <th>{{ $t("activityWorkoutStepsComponent.labelWorkoutSetTypeMobile") }}</th>
                     <th>{{ $t("activityWorkoutStepsComponent.labelWorkoutSetTimeMobile") }}</th>
                     <th>{{ $t("activityWorkoutStepsComponent.labelWorkoutSetRepsMobile") }}</th>
@@ -93,6 +94,7 @@
             </thead>
             <tbody>
                 <tr v-for="i in activityActivitySets.length" :key="i">
+                    <td>{{ i }}</td>
                     <td v-if="activityActivitySets[i - 1]">{{ activityActivitySets[i - 1].set_type ?? $t("generalItems.labelNoData") }}</td>
                     <td v-if="activityActivitySets[i - 1]">{{ formatSecondsToMinutes(activityActivitySets[i - 1].duration) ?? $t("generalItems.labelNoData") }}</td>
                     <td v-if="activityActivitySets[i - 1] && activityActivitySets[i - 1].set_type !== 'rest'">{{ activityActivitySets[i - 1].repetitions ?? $t("generalItems.labelNoData") }}</td>

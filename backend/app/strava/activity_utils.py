@@ -12,6 +12,9 @@ import activities.schema as activities_schema
 import activities.crud as activities_crud
 import activities.utils as activities_utils
 
+import activity_laps.crud as activity_laps_crud
+import activity_laps.schema as activity_laps_schema
+
 import activity_streams.schema as activity_streams_schema
 import activity_streams.crud as activity_streams_crud
 
@@ -60,7 +63,7 @@ def fetch_and_process_activities(
 
         # Return 0 to indicate no activities were processed
         return 0
-    
+
     user = users_crud.get_user_by_id(user_id, db)
     if user is None:
         raise HTTPException(
@@ -70,7 +73,14 @@ def fetch_and_process_activities(
 
     # Process the activities
     for activity in strava_activities:
-        process_activity(activity, user_id, user.default_activity_visibility, strava_client, user_integrations, db)
+        process_activity(
+            activity,
+            user_id,
+            user.default_activity_visibility,
+            strava_client,
+            user_integrations,
+            db,
+        )
 
     # Return the number of activities processed
     return len(strava_activities)
@@ -99,7 +109,7 @@ def parse_activity(
             exc=err,
         )
         # Return None to indicate the activity was not processed
-        #return None
+        # return None
         raise HTTPException(
             status_code=status.HTTP_424_FAILED_DEPENDENCY,
             detail="Not able to fetch Strava activity",
@@ -132,94 +142,22 @@ def parse_activity(
     if detailedActivity.location_country is not None:
         country = detailedActivity.location_country
 
-    # Get streams for the activity
-    try:
-        streams = strava_client.get_activity_streams(
-            activity.id,
-            types=[
-                "latlng",
-                "altitude",
-                "time",
-                "heartrate",
-                "cadence",
-                "watts",
-                "velocity_smooth",
-            ],
-        )
-    except Exception as err:
-        # Log an error event if an exception occurred
-        core_logger.print_to_log(
-            f"User {user_id}: Error fetching Strava activity streams {activity.id}: {str(err)}",
-            "error",
-            exc=err,
-        )
-        # Return None to indicate the activity was not processed
-        # eturn None
-        raise HTTPException(
-            status_code=status.HTTP_424_FAILED_DEPENDENCY,
-            detail="Not able to fetch Strava activity streams",
-        )
-
-    # Extract data from streams
-    lat_lon = streams["latlng"].data if "latlng" in streams else []
-    lat_lon_waypoints = []
-    is_lat_lon_set = False
-    ele = streams["altitude"].data if "altitude" in streams else []
-    ele_waypoints = []
-    is_elevation_set = False
-    time = streams["time"].data if "time" in streams else []
-    hr = streams["heartrate"].data if "heartrate" in streams else []
-    hr_waypoints = []
-    is_heart_rate_set = False
-    cad = streams["cadence"].data if "cadence" in streams else []
-    cad_waypoints = []
-    is_cadence_set = False
-    power = streams["watts"].data if "watts" in streams else []
-    power_waypoints = []
-    is_power_set = False
-    vel = streams["velocity_smooth"].data if "velocity_smooth" in streams else []
-    vel_waypoints = []
-    is_velocity_set = False
-    pace_waypoints = []
-
-    for i in range(len(lat_lon)):
-        lat_lon_waypoints.append(
-            {
-                "time": time[i],
-                "lat": lat_lon[i][0],
-                "lon": lat_lon[i][1],
-            }
-        )
-        is_lat_lon_set = True
-
-    for i in range(len(ele)):
-        ele_waypoints.append({"time": time[i], "ele": ele[i]})
-        is_elevation_set = True
-
-    for i in range(len(hr)):
-        hr_waypoints.append({"time": time[i], "hr": hr[i]})
-        is_heart_rate_set = True
-
-    for i in range(len(cad)):
-        cad_waypoints.append({"time": time[i], "cad": cad[i]})
-        is_cadence_set = True
-
-    for i in range(len(power)):
-        power_waypoints.append({"time": time[i], "power": power[i]})
-        is_power_set = True
-
-    for i in range(len(vel)):
-        # Append velocity to the velocity waypoints
-        vel_waypoints.append({"time": time[i], "vel": vel[i]})
-
-        # Calculate pace on-the-fly. If velocity is 0, pace is 0
-        pace_calculation = 0
-        if vel[i] != 0:
-            pace_calculation = 1 / vel[i]
-
-        # Append pace to the pace waypoints
-        pace_waypoints.append({"time": time[i], "pace": pace_calculation})
-        is_velocity_set = True
+    # Fetch and process activity streams
+    (
+        lat_lon_waypoints,
+        is_lat_lon_set,
+        ele_waypoints,
+        is_elevation_set,
+        hr_waypoints,
+        is_heart_rate_set,
+        cad_waypoints,
+        is_cadence_set,
+        power_waypoints,
+        is_power_set,
+        vel_waypoints,
+        is_velocity_set,
+        pace_waypoints,
+    ) = fetch_and_process_activity_streams(strava_client, activity.id, user_id)
 
     ele_gain, ele_loss = None, None
     # Calculate elevation gain and loss
@@ -349,33 +287,49 @@ def parse_activity(
         visibility=default_activity_visibility,
     )
 
+    # Fetch and process activity laps
+    laps = fetch_and_process_activity_laps(strava_client, activity.id, user_id, stream_data)
+
     # Return the activity and stream data
-    return {"activity_to_store": activity_to_store, "stream_data": stream_data}
+    return {
+        "activity_to_store": activity_to_store,
+        "stream_data": stream_data,
+        "laps": laps,
+    }
 
 
-def save_activity_and_streams(
-    activity: activities_schema.Activity, stream_data: list, db: Session
+def save_activity_streams_laps(
+    activity: activities_schema.Activity, stream_data: list, laps: dict, db: Session
 ):
     # Create the activity and get the ID
     created_activity = activities_crud.create_activity(activity, db)
 
-    # Create the empty array of activity streams
-    activity_streams = []
+    if stream_data is not None:
+        # Create the empty array of activity streams
+        activity_streams = []
 
-    # Create the activity streams objects
-    for is_set, stream_type, waypoints in stream_data:
-        if is_set:
-            activity_streams.append(
-                activity_streams_schema.ActivityStreams(
-                    activity_id=created_activity.id,
-                    stream_type=stream_type,
-                    stream_waypoints=waypoints,
-                    strava_activity_stream_id=None,
+        # Create the activity streams objects
+        for is_set, stream_type, waypoints in stream_data:
+            if is_set:
+                activity_streams.append(
+                    activity_streams_schema.ActivityStreams(
+                        activity_id=created_activity.id,
+                        stream_type=stream_type,
+                        stream_waypoints=waypoints,
+                        strava_activity_stream_id=None,
+                    )
                 )
-            )
 
-    # Create the activity streams in the database
-    activity_streams_crud.create_activity_streams(activity_streams, db)
+        # Create the activity streams in the database
+        activity_streams_crud.create_activity_streams(activity_streams, db)
+
+    # Append activity id to laps
+    if laps is not None:
+        for lap in laps:
+            lap.activity_id = created_activity.id
+    
+        # Create the laps in the database
+        activity_laps_crud.create_activity_laps(laps, db)
 
 
 def process_activity(
@@ -400,13 +354,230 @@ def process_activity(
 
     # Parse the activity and streams
     parsed_activity = parse_activity(
-        activity, user_id, default_activity_visibility, strava_client, user_integrations, db
+        activity,
+        user_id,
+        default_activity_visibility,
+        strava_client,
+        user_integrations,
+        db,
     )
 
     # Save the activity and streams to the database
-    save_activity_and_streams(
-        parsed_activity["activity_to_store"], parsed_activity["stream_data"], db
+    save_activity_streams_laps(
+        parsed_activity["activity_to_store"],
+        parsed_activity["stream_data"],
+        parsed_activity["laps"],
+        db,
     )
+
+
+def fetch_and_process_activity_streams(
+    strava_client: Client,
+    strava_activity_id: int,
+    user_id: int,
+):
+    # Get streams for the activity
+    try:
+        streams = strava_client.get_activity_streams(
+            strava_activity_id,
+            types=[
+                "latlng",
+                "altitude",
+                "time",
+                "heartrate",
+                "cadence",
+                "watts",
+                "velocity_smooth",
+            ],
+        )
+    except Exception as err:
+        # Log an error event if an exception occurred
+        core_logger.print_to_log(
+            f"User {user_id}: Error fetching Strava activity streams {strava_activity_id}: {str(err)}",
+            "error",
+            exc=err,
+        )
+        # Return None to indicate the activity was not processed
+        # eturn None
+        raise HTTPException(
+            status_code=status.HTTP_424_FAILED_DEPENDENCY,
+            detail="Not able to fetch Strava activity streams",
+        )
+
+    # Extract data from streams
+    lat_lon = streams["latlng"].data if "latlng" in streams else []
+    lat_lon_waypoints = []
+    is_lat_lon_set = False
+    ele = streams["altitude"].data if "altitude" in streams else []
+    ele_waypoints = []
+    is_elevation_set = False
+    time = streams["time"].data if "time" in streams else []
+    hr = streams["heartrate"].data if "heartrate" in streams else []
+    hr_waypoints = []
+    is_heart_rate_set = False
+    cad = streams["cadence"].data if "cadence" in streams else []
+    cad_waypoints = []
+    is_cadence_set = False
+    power = streams["watts"].data if "watts" in streams else []
+    power_waypoints = []
+    is_power_set = False
+    vel = streams["velocity_smooth"].data if "velocity_smooth" in streams else []
+    vel_waypoints = []
+    is_velocity_set = False
+    pace_waypoints = []
+
+    for i in range(len(lat_lon)):
+        lat_lon_waypoints.append(
+            {
+                "time": time[i],
+                "lat": lat_lon[i][0],
+                "lon": lat_lon[i][1],
+            }
+        )
+        is_lat_lon_set = True
+
+    for i in range(len(ele)):
+        ele_waypoints.append({"time": time[i], "ele": ele[i]})
+        is_elevation_set = True
+
+    for i in range(len(hr)):
+        hr_waypoints.append({"time": time[i], "hr": hr[i]})
+        is_heart_rate_set = True
+
+    for i in range(len(cad)):
+        cad_waypoints.append({"time": time[i], "cad": cad[i]})
+        is_cadence_set = True
+
+    for i in range(len(power)):
+        power_waypoints.append({"time": time[i], "power": power[i]})
+        is_power_set = True
+
+    for i in range(len(vel)):
+        # Append velocity to the velocity waypoints
+        vel_waypoints.append({"time": time[i], "vel": vel[i]})
+
+        # Calculate pace on-the-fly. If velocity is 0, pace is 0
+        pace_calculation = 0
+        if vel[i] != 0:
+            pace_calculation = 1 / vel[i]
+
+        # Append pace to the pace waypoints
+        pace_waypoints.append({"time": time[i], "pace": pace_calculation})
+        is_velocity_set = True
+
+    return (
+        lat_lon_waypoints,
+        is_lat_lon_set,
+        ele_waypoints,
+        is_elevation_set,
+        hr_waypoints,
+        is_heart_rate_set,
+        cad_waypoints,
+        is_cadence_set,
+        power_waypoints,
+        is_power_set,
+        vel_waypoints,
+        is_velocity_set,
+        pace_waypoints,
+    )
+
+
+def fetch_and_process_activity_laps(
+    strava_client: Client,
+    strava_activity_id: int,
+    user_id: int,
+    stream_data: list,
+):
+    # Fetch the activity laps
+    try:
+        laps = strava_client.get_activity_laps(strava_activity_id)
+    except Exception as err:
+        # Log an error event if an exception occurred
+        core_logger.print_to_log(
+            f"User {user_id}: Error fetching Strava activity laps for Strava activity {strava_activity_id}: {str(err)}",
+            "error",
+            exc=err,
+        )
+        # Return None to indicate the activity was not processed
+        return None
+
+    # Create an array to store the processed laps
+    laps_processed = []
+
+    # Process the laps
+    for lap in laps:
+        # filter the stream data based on the lap's start and end times
+        filtered_stream_data = [
+            (enabled, stream_id, waypoints[lap.start_index:lap.end_index + 1])
+            for enabled, stream_id, waypoints in stream_data
+            if enabled
+        ]
+
+        lat_lon_stream = next(
+            (waypoints for enabled, stream_id, waypoints in filtered_stream_data if stream_id == 7),
+            None
+        )
+
+        cad_stream = next(
+            (waypoints for enabled, stream_id, waypoints in filtered_stream_data if stream_id == 3),
+            None
+        )
+
+        if cad_stream:
+            cad_avg, cad_max = activities_utils.calculate_avg_and_max(
+                cad_stream, "cad"
+            )
+
+        power_stream = next(
+            (waypoints for enabled, stream_id, waypoints in filtered_stream_data if stream_id == 2),
+            None
+        )
+
+        if power_stream:
+            power_avg, power_max = activities_utils.calculate_avg_and_max(
+                power_stream, "power"
+            )
+            np = activities_utils.calculate_np(power_stream)
+
+        ele_stream = next(
+            (waypoints for enabled, stream_id, waypoints in filtered_stream_data if stream_id == 4),
+            None
+        )
+
+        if ele_stream:
+            ele_gain, ele_loss = activities_utils.calculate_elevation_gain_loss(
+                ele_stream
+            )
+
+        laps_processed.append(
+            activity_laps_schema.ActivityLaps(
+                activity_id=None,  # This will be set later when saving the activity
+                start_time=lap.start_date_local.strftime("%Y-%m-%dT%H:%M:%S"),
+                start_position_lat=lat_lon_stream[0]["lat"] if lat_lon_stream else None,
+                start_position_long=lat_lon_stream[0]["lon"] if lat_lon_stream else None,
+                end_position_lat=lat_lon_stream[-1]["lat"] if lat_lon_stream else None,
+                end_position_long=lat_lon_stream[-1]["lon"] if lat_lon_stream else None,
+                total_elapsed_time=lap.elapsed_time,
+                total_timer_time=lap.moving_time,
+                total_distance=lap.distance,
+                avg_heart_rate=lap.average_heartrate,
+                max_heart_rate=lap.max_heartrate,
+                avg_cadence=lap.average_cadence,
+                max_cadence=cad_max if cad_stream else None,
+                avg_power=lap.average_watts,
+                max_power=power_max if power_stream else None,
+                total_ascent=lap.total_elevation_gain,
+                total_descent=ele_loss if ele_stream else None,
+                normalized_power=round(np) if np else None,
+                enhanced_avg_pace=1 / lap.average_speed if lap.average_speed != 0 and lap.average_speed != None else None,
+                enhanced_avg_speed=lap.average_speed,
+                enhanced_max_pace=1 / lap.max_speed if lap.max_speed != 0 and lap.max_speed != None else None,
+                enhanced_max_speed=lap.max_speed,
+            )
+        )
+
+    # Return the processed laps
+    return laps_processed
 
 
 def retrieve_strava_users_activities_for_days(days: int):
@@ -423,7 +594,9 @@ def retrieve_strava_users_activities_for_days(days: int):
     # Process the activities for each user
     for user in users:
         get_user_strava_activities_by_days(
-            (datetime.now(timezone.utc) - timedelta(days=days)).strftime("%Y-%m-%dT%H:%M:%S"),
+            (datetime.now(timezone.utc) - timedelta(days=days)).strftime(
+                "%Y-%m-%dT%H:%M:%S"
+            ),
             user.id,
         )
 
