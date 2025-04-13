@@ -3,7 +3,7 @@ from pydantic import BaseModel
 
 class ActivityLaps(BaseModel):
     id: int | None = None
-    activity_id: int
+    activity_id: int | None = None
     start_time: str
     start_position_lat: float | None = None
     start_position_long: float | None = None
