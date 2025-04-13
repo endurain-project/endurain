@@ -28,6 +28,9 @@ import migrations.crud as migrations_crud
 
 import health_data.crud as health_data_crud
 
+import strava.utils as strava_utils
+import strava.activity_utils as strava_activity_utils
+
 import core.logger as core_logger
 
 import fit.utils as fit_utils
@@ -344,7 +347,10 @@ def process_migration_3(db: Session):
                         "files/processed", f"{activity.id}.gpx"
                     )
 
-                    if not os.path.exists(activity_fit_file_path) and activity.garminconnect_activity_id is not None:
+                    if (
+                        not os.path.exists(activity_fit_file_path)
+                        and activity.garminconnect_activity_id is not None
+                    ):
                         # Log getting file from Garmin Connect
                         core_logger.print_to_log(
                             f"Migration 3 - Activity {activity.id} does not have a file, but it is a Garmin Connect activity. Will retrieve file from Garmin.",
@@ -352,16 +358,22 @@ def process_migration_3(db: Session):
                         )
 
                         # Get the user Garmin Connect client
-                        garminconnect_client = garmin_activity_utils.get_user_garminconnect_client(
-                            activity.user_id, db)
-                        
+                        garminconnect_client = (
+                            garmin_activity_utils.get_user_garminconnect_client(
+                                activity.user_id, db
+                            )
+                        )
+
                         # Download the activity in original format (.zip file)
                         zip_data = garminconnect_client.download_activity(
-                            activity.garminconnect_activity_id, dl_fmt=garminconnect_client.ActivityDownloadFormat.ORIGINAL
+                            activity.garminconnect_activity_id,
+                            dl_fmt=garminconnect_client.ActivityDownloadFormat.ORIGINAL,
                         )
 
                         # Save the zip file
-                        output_file = f"files/{str(activity.garminconnect_activity_id)}.zip"
+                        output_file = (
+                            f"files/{str(activity.garminconnect_activity_id)}.zip"
+                        )
 
                         # Write the ZIP data to the output file
                         with open(output_file, "wb") as fb:
@@ -398,7 +410,9 @@ def process_migration_3(db: Session):
                                 new_file_name = f"{activity.id}{file_extension}"
 
                                 # Move the file to the processed directory
-                                activities_utils.move_file(processed_dir, new_file_name, f"files/{file}")
+                                activities_utils.move_file(
+                                    processed_dir, new_file_name, f"files/{file}"
+                                )
                         except Exception as err:
                             core_logger.print_to_log(
                                 f"Migration 3 - Failed to move activity {activity.id} file: {err}",
@@ -509,6 +523,88 @@ def process_migration_3(db: Session):
                             print(
                                 f"Migration 3 - Activity {activity.id} has a gpx file."
                             )
+                else:
+                    # Get the user integrations by user ID
+                    user_integrations = (
+                        strava_utils.fetch_user_integrations_and_validate_token(
+                            activity.user_id, db
+                        )
+                    )
+
+                    if user_integrations is None:
+                        core_logger.print_to_log(
+                            f"Migration 3 - User {activity.user_id} does not have a Strava account linked. Skipping.",
+                            "info",
+                        )
+                        continue
+
+                    activity_streams = activity_streams_crud.get_activity_streams(
+                        activity.user_id, db
+                    )
+
+                    # Define constants for stream types
+                    HEART_RATE = 1
+                    POWER = 2
+                    CADENCE = 3
+                    ELEVATION = 4
+                    VELOCITY = 5
+                    PACE = 6
+                    LAT_LON = 7
+
+                    # Create a dictionary from stream_type to waypoints
+                    stream_map = {
+                        stream.stream_type: stream.stream_waypoints
+                        for stream in activity_streams
+                    }
+
+                    # Create flags for which streams are available
+                    is_heart_rate_set = HEART_RATE in stream_map
+                    is_power_set = POWER in stream_map
+                    is_cadence_set = CADENCE in stream_map
+                    is_elevation_set = ELEVATION in stream_map
+                    is_velocity_set = VELOCITY in stream_map
+                    is_pace_set = PACE in stream_map
+                    is_lat_lon_set = (
+                        LAT_LON in stream_map
+                    )  # Or: detailedActivity.start_latlng is not None
+
+                    # Extract waypoints (empty list if not set)
+                    hr_waypoints = stream_map.get(HEART_RATE, [])
+                    power_waypoints = stream_map.get(POWER, [])
+                    cad_waypoints = stream_map.get(CADENCE, [])
+                    ele_waypoints = stream_map.get(ELEVATION, [])
+                    vel_waypoints = stream_map.get(VELOCITY, [])
+                    pace_waypoints = stream_map.get(PACE, [])
+                    lat_lon_waypoints = stream_map.get(LAT_LON, [])
+
+                    # Assemble final stream data list
+                    stream_data = [
+                        (is_heart_rate_set, HEART_RATE, hr_waypoints),
+                        (is_power_set, POWER, power_waypoints),
+                        (is_cadence_set, CADENCE, cad_waypoints),
+                        (is_elevation_set, ELEVATION, ele_waypoints),
+                        (is_velocity_set, VELOCITY, vel_waypoints),
+                        (is_velocity_set, PACE, pace_waypoints),
+                        (is_lat_lon_set, LAT_LON, lat_lon_waypoints),
+                    ]
+
+                    # Create a Strava client with the user's access token
+                    strava_client = strava_utils.create_strava_client(user_integrations)
+
+                    # Get laps from Strava
+                    laps = strava_activity_utils.fetch_and_process_activity_laps(
+                        strava_client,
+                        activity.strava_activity_id,
+                        activity.user_id,
+                        stream_data,
+                    )
+
+                    # Create activity laps in the database
+                    activity_laps_crud.create_activity_laps(laps, activity.id, db)
+
+                    core_logger.print_to_log(
+                        f"Migration 3 - Strava activity {activity.id} file processed."
+                    )
             except Exception as err:
                 activities_processed_with_no_errors = False
                 core_logger.print_to_log(
