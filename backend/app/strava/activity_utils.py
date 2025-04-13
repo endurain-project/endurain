@@ -288,7 +288,9 @@ def parse_activity(
     )
 
     # Fetch and process activity laps
-    laps = fetch_and_process_activity_laps(strava_client, activity.id, user_id, stream_data)
+    laps = fetch_and_process_activity_laps(
+        strava_client, activity.id, user_id, stream_data
+    )
 
     # Return the activity and stream data
     return {
@@ -505,29 +507,39 @@ def fetch_and_process_activity_laps(
     for lap in laps:
         # filter the stream data based on the lap's start and end times
         filtered_stream_data = [
-            (enabled, stream_id, waypoints[lap.start_index:lap.end_index + 1])
+            (enabled, stream_id, waypoints[lap.start_index : lap.end_index + 1])
             for enabled, stream_id, waypoints in stream_data
             if enabled
         ]
 
         lat_lon_stream = next(
-            (waypoints for enabled, stream_id, waypoints in filtered_stream_data if stream_id == 7),
-            None
+            (
+                waypoints
+                for enabled, stream_id, waypoints in filtered_stream_data
+                if stream_id == 7
+            ),
+            None,
         )
 
         cad_stream = next(
-            (waypoints for enabled, stream_id, waypoints in filtered_stream_data if stream_id == 3),
-            None
+            (
+                waypoints
+                for enabled, stream_id, waypoints in filtered_stream_data
+                if stream_id == 3
+            ),
+            None,
         )
 
         if cad_stream:
-            cad_avg, cad_max = activities_utils.calculate_avg_and_max(
-                cad_stream, "cad"
-            )
+            cad_avg, cad_max = activities_utils.calculate_avg_and_max(cad_stream, "cad")
 
         power_stream = next(
-            (waypoints for enabled, stream_id, waypoints in filtered_stream_data if stream_id == 2),
-            None
+            (
+                waypoints
+                for enabled, stream_id, waypoints in filtered_stream_data
+                if stream_id == 2
+            ),
+            None,
         )
 
         if power_stream:
@@ -537,8 +549,12 @@ def fetch_and_process_activity_laps(
             np = activities_utils.calculate_np(power_stream)
 
         ele_stream = next(
-            (waypoints for enabled, stream_id, waypoints in filtered_stream_data if stream_id == 4),
-            None
+            (
+                waypoints
+                for enabled, stream_id, waypoints in filtered_stream_data
+                if stream_id == 4
+            ),
+            None,
         )
 
         if ele_stream:
@@ -549,10 +565,18 @@ def fetch_and_process_activity_laps(
         laps_processed.append(
             {
                 "start_time": lap.start_date_local.strftime("%Y-%m-%dT%H:%M:%S"),
-                "start_position_lat": lat_lon_stream[0]["lat"] if lat_lon_stream else None,
-                "start_position_long": lat_lon_stream[0]["lon"] if lat_lon_stream else None,
-                "end_position_lat": lat_lon_stream[-1]["lat"] if lat_lon_stream else None,
-                "end_position_long": lat_lon_stream[-1]["lon"] if lat_lon_stream else None,
+                "start_position_lat": (
+                    lat_lon_stream[0]["lat"] if lat_lon_stream else None
+                ),
+                "start_position_long": (
+                    lat_lon_stream[0]["lon"] if lat_lon_stream else None
+                ),
+                "end_position_lat": (
+                    lat_lon_stream[-1]["lat"] if lat_lon_stream else None
+                ),
+                "end_position_long": (
+                    lat_lon_stream[-1]["lon"] if lat_lon_stream else None
+                ),
                 "total_elapsed_time": lap.elapsed_time,
                 "total_timer_time": lap.moving_time,
                 "total_distance": lap.distance,
@@ -565,9 +589,17 @@ def fetch_and_process_activity_laps(
                 "total_ascent": round(lap.total_elevation_gain),
                 "total_descent": round(ele_loss) if ele_stream else None,
                 "normalized_power": round(np) if np else None,
-                "enhanced_avg_pace": 1 / lap.average_speed if lap.average_speed != 0 and lap.average_speed is not None else None,
+                "enhanced_avg_pace": (
+                    1 / lap.average_speed
+                    if lap.average_speed != 0 and lap.average_speed is not None
+                    else None
+                ),
                 "enhanced_avg_speed": lap.average_speed,
-                "enhanced_max_pace": 1 / lap.max_speed if lap.max_speed != 0 and lap.max_speed is not None else None,
+                "enhanced_max_pace": (
+                    1 / lap.max_speed
+                    if lap.max_speed != 0 and lap.max_speed is not None
+                    else None
+                ),
                 "enhanced_max_speed": lap.max_speed,
             }
         )
