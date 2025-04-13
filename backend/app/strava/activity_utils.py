@@ -325,11 +325,8 @@ def save_activity_streams_laps(
 
     # Append activity id to laps
     if laps is not None:
-        for lap in laps:
-            lap.activity_id = created_activity.id
-    
         # Create the laps in the database
-        activity_laps_crud.create_activity_laps(laps, db)
+        activity_laps_crud.create_activity_laps(laps, created_activity.id, db)
 
 
 def process_activity(
