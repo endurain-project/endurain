@@ -3,6 +3,12 @@
     "labelPillLaps": "Voltes",
     "labelPillWorkoutSets": "Sets",
     "labelGraph": "Gràfics d'Activitat",
+    "labelGraphHR": "Heart rate",
+    "labelGraphPower": "Power",
+    "labelGraphCadence": "Cadence",
+    "labelGraphElevation": "Elevation",
+    "labelGraphVelocity": "Velocity",
+    "labelGraphPace": "Pace",
     "labelDownsampling": "Dades reduïdes a ~200 punts",
     "errorMessageProcessingActivityStreams": "Error processant activitats de carrera"
 }
