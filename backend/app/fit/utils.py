@@ -65,9 +65,23 @@ def create_activity_objects(
             pace = 0
 
             if session_record["session"]["activity_type"]:
+                # Set the activity type based on the session record
                 activity_type = activities_utils.define_activity_type(
                     session_record["session"]["activity_type"]
                 )
+
+                # Set the activity name based on the activity type
+                activity_name = (
+                    activities_utils.set_activity_name_based_on_activity_type(
+                        activity_type
+                    )
+                )
+
+                location_fields = ["city", "town"]
+                for field in location_fields:
+                    if session_record["session"].get(field):
+                        activity_name += f" - {session_record['session'][field]}"
+                        break
 
                 if gear_id is None:
                     gear_id = (
@@ -76,7 +90,7 @@ def create_activity_objects(
                         )
                     )
 
-            if session_record["activity_name"]:
+            if session_record["activity_name"] and session_record["activity_name"] != "Workout":
                 activity_name = session_record["activity_name"]
 
             # Calculate elevation gain/loss, pace, average speed, and average power

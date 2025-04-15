@@ -783,3 +783,40 @@ def define_activity_type(activity_type):
 
     # Return the activity type
     return auxType
+
+
+def set_activity_name_based_on_activity_type(activity_type):
+    type_mapping = {
+        1: "Run",
+        2: "Trail run",
+        3: "Virtual run",
+        4: "Ride",
+        5: "Gravel ride",
+        6: "MTB ride",
+        7: "Virtual ride",
+        8: "Lap swimming",
+        9: "Open water swimming",
+        10: "Workout",
+        11: "Walk",
+        12: "Hike",
+        13: "Rowing",
+        14: "Yoga",
+        15: "Alpine ski",
+        16: "Nordic ski",
+        17: "Snowboard",
+        18: "Transition",
+        19: "Strength training",
+        20: "Crossfit",
+        21: "Tennis",
+        22: "TableTennis",
+        23: "Badminton",
+        24: "Squash",
+        25: "Racquetball",
+        26: "Pickleball",
+    }
+
+    # Get the mapping for the activity type, default to 10 (Workout)
+    mapping = type_mapping.get(activity_type, "Workout")
+
+    # If type is not 10, return the mapping with " workout" suffix
+    return mapping + " workout" if mapping != "Workout" else mapping
