@@ -34,6 +34,9 @@
 				<span v-else-if="activity.activity_type === 8 || activity.activity_type === 9">
 					<font-awesome-icon :icon="['fas', 'fa-person-swimming']" />
 				</span>
+				<span v-else-if="activity.activity_type === 21 || activity.activity_type === 22 || activity.activity_type === 23 || activity.activity_type === 24 || activity.activity_type === 25 || activity.activity_type === 26">
+					<font-awesome-icon :icon="['fas', 'fa-table-tennis-paddle-ball']" />
+				</span>
 				<span class="ms-2" v-if="activity.gear_id && gear">{{ gear.nickname }}</span>
 				<span class="ms-2" v-else>{{ $t("activityView.labelGearNotSet") }}</span>
 			</p>
@@ -295,6 +298,17 @@ export default {
 								activity.value.activity_type === 9
 							) {
 								gearsByType.value = await gears.getGearFromType(3);
+							} else {
+								if (
+									activity.value.activity_type === 21 ||
+									activity.value.activity_type === 22 ||
+									activity.value.activity_type === 23 ||
+									activity.value.activity_type === 24 ||
+									activity.value.activity_type === 25 ||
+									activity.value.activity_type === 26
+								) {
+									gearsByType.value = await gears.getGearFromType(4);
+								}
 							}
 						}
 					}
