@@ -104,6 +104,7 @@
                 <LoadingComponent v-if="isLoading"/>
                 <div class="row" v-else>
                     <div class="col-lg-4 col-md-12">
+                        <h5>{{ $t("settingsUserProfileZone.subTitleShoeActivities") }}</h5>
                         <form>
                             <label class="form-label" for="settingsUserProfileRunGearSelect">{{ $t("settingsUserProfileZone.subTitleRun") }}</label>
                             <select class="form-select" name="settingsUserProfileRunGearSelect" v-model="defaultRunGear" required>
@@ -143,6 +144,7 @@
                         </form>
                     </div>
                     <div class="col-lg-4 col-md-12">
+                        <h5>{{ $t("settingsUserProfileZone.subTitleBikeActivities") }}</h5>
                         <form>
                             <label class="form-label" for="settingsUserProfileRideGearSelect">{{ $t("settingsUserProfileZone.subTitleBike") }}</label>
                             <select class="form-select" name="settingsUserProfileRideGearSelect" v-model="defaultRideGear" required>
@@ -175,11 +177,24 @@
                         </form>
                     </div>
                     <div class="col-lg-4 col-md-12">
+                        <h5>{{ $t("settingsUserProfileZone.subTitleSwimActivities") }}</h5>
                         <form>
                             <label class="form-label" for="settingsUserProfileOWSGearSelect">{{ $t("settingsUserProfileZone.subTitleSwim") }}</label>
                             <select class="form-select" name="settingsUserProfileOWSGearSelect" v-model="defaultOWSGear" required>
                                 <option :value="null">{{ $t("settingsUserProfileZone.selectOptionNotDefined") }}</option>
                                 <option v-for="gear in swimGear" :key="gear.id" :value="gear.id">
+                                    {{ gear.nickname }}
+                                </option>
+                            </select>
+                        </form>
+                    </div>
+                    <div class="col-lg-4 col-md-12 mt-md-2">
+                        <h5>{{ $t("settingsUserProfileZone.subTitleRacquetActivities") }}</h5>
+                        <form>
+                            <label class="form-label" for="settingsUserProfileTennisGearSelect">{{ $t("settingsUserProfileZone.subTitleTennis") }}</label>
+                            <select class="form-select" name="settingsUserProfileTennisGearSelect" v-model="defaultTennisGear" required>
+                                <option :value="null">{{ $t("settingsUserProfileZone.selectOptionNotDefined") }}</option>
+                                <option v-for="gear in racquetGear" :key="gear.id" :value="gear.id">
                                     {{ gear.nickname }}
                                 </option>
                             </select>
@@ -260,6 +275,7 @@ export default {
         const runGear = ref(null);
         const bikeGear = ref(null);
         const swimGear = ref(null);
+        const racquetGear = ref(null);
         const defaultGear = ref(null);
         const defaultRunGear = ref(null);
         const defaultTrailRunGear = ref(null);
@@ -271,6 +287,7 @@ export default {
         const defaultGravelRideGear = ref(null);
         const defaultVirtualRideGear = ref(null);
         const defaultOWSGear = ref(null);
+        const defaultTennisGear = ref(null);
         const visibilityOptionsForModal = ref([
             { id: 0, name: t("settingsUserProfileZone.privacyOption1") },
             { id: 1, name: t("settingsUserProfileZone.privacyOption2") },
@@ -313,6 +330,7 @@ export default {
                 gravel_ride_gear_id: defaultGravelRideGear.value,
                 virtual_ride_gear_id: defaultVirtualRideGear.value,
                 ows_gear_id: defaultOWSGear.value,
+                tennis_gear_id: defaultTennisGear.value,
             };
             try {
                 // Update the default gear in the DB
@@ -347,6 +365,7 @@ export default {
                 runGear.value = allGears.value.filter((gear) => gear.gear_type === 2);
                 bikeGear.value = allGears.value.filter((gear) => gear.gear_type === 1);
                 swimGear.value = allGears.value.filter((gear) => gear.gear_type === 3);
+                racquetGear.value = allGears.value.filter((gear) => gear.gear_type === 4);
 
                 try {
                     defaultGear.value = await userDefaultGear.getUserDefaultGear();
@@ -360,6 +379,7 @@ export default {
                     defaultGravelRideGear.value = defaultGear.value.gravel_ride_gear_id;
                     defaultVirtualRideGear.value = defaultGear.value.virtual_ride_gear_id;
                     defaultOWSGear.value = defaultGear.value.ows_gear_id;
+                    defaultTennisGear.value = defaultGear.value.tennis_gear_id;
                 } catch (error) {
                     // If there is an error, set the error message and show the error alert.
                     push.error(`${t("settingsUserProfileZone.errorUnableToGetDefaultGear")} - ${error}`);
@@ -374,7 +394,7 @@ export default {
         });
 
         // watchers
-        watch([defaultRunGear, defaultTrailRunGear, defaultVirtualRunGear, defaultWalkGear, defaultHikeGear, defaultRideGear, defaultMTBRideGear, defaultGravelRideGear, defaultVirtualRideGear, defaultOWSGear], async () => {
+        watch([defaultRunGear, defaultTrailRunGear, defaultVirtualRunGear, defaultWalkGear, defaultHikeGear, defaultRideGear, defaultMTBRideGear, defaultGravelRideGear, defaultVirtualRideGear, defaultOWSGear, defaultTennisGear], async () => {
             if (isLoading.value) return;
             await updateDefaultGear();
         }, { immediate: false });
@@ -389,6 +409,7 @@ export default {
             runGear,
             bikeGear,
             swimGear,
+            racquetGear,
             defaultGear,
             defaultRunGear,
             defaultTrailRunGear,
@@ -400,6 +421,7 @@ export default {
             defaultGravelRideGear,
             defaultVirtualRideGear,
             defaultOWSGear,
+            defaultTennisGear,
             visibilityOptionsForModal,
             submitChangeUserActivitiesVisibility,
 		};

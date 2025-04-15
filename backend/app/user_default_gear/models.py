@@ -84,6 +84,13 @@ class UsersDefaultGear(Base):
         index=True,
         comment="Gear ID that the default hike activity type belongs",
     )
+    tennis_gear_id = Column(
+        Integer,
+        ForeignKey("gear.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+        comment="Gear ID that the default tennis activity type belongs",
+    )
 
     # Define a relationship to the User model
     user = relationship("User", back_populates="users_default_gear")
@@ -99,3 +106,4 @@ class UsersDefaultGear(Base):
     ows_gear = relationship("Gear", foreign_keys=[ows_gear_id])
     walk_gear = relationship("Gear", foreign_keys=[walk_gear_id])
     hike_gear = relationship("Gear", foreign_keys=[hike_gear_id])
+    tennis_gear = relationship("Gear", foreign_keys=[tennis_gear_id])

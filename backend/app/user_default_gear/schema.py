@@ -14,6 +14,7 @@ class UserDefaultGear(BaseModel):
     ows_gear_id: int | None
     walk_gear_id: int | None
     hike_gear_id: int | None
+    tennis_gear_id: int | None
 
     class Config:
         orm_mode = True

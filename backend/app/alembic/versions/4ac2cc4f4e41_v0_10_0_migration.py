@@ -271,7 +271,7 @@ def upgrade() -> None:
         ),
         sa.Column(
             "duration_value",
-            sa.Integer(),
+            sa.DECIMAL(precision=20, scale=10),
             nullable=True,
             comment="Workout step duration value",
         ),
@@ -390,6 +390,10 @@ def upgrade() -> None:
         existing_comment="Gear type (1 - bike, 2 - shoes, 3 - wetsuit)",
         existing_nullable=False,
     )
+    # Add column tennis_gear_id to users_default_gear table
+    op.add_column('users_default_gear', sa.Column('tennis_gear_id', sa.Integer(), nullable=True, comment='Gear ID that the default tennis activity type belongs'))
+    op.create_index(op.f('ix_users_default_gear_tennis_gear_id'), 'users_default_gear', ['tennis_gear_id'], unique=False)
+    op.create_foreign_key(None, 'users_default_gear', 'gear', ['tennis_gear_id'], ['id'], ondelete='SET NULL')
     # Create migration record
     op.execute(
         """
@@ -409,6 +413,10 @@ def downgrade() -> None:
     WHERE id = 3;
     """
     )
+    # Drop foreign key constraint from users_default_gear table
+    op.drop_constraint(None, 'users_default_gear', type_='foreignkey')
+    op.drop_index(op.f('ix_users_default_gear_tennis_gear_id'), table_name='users_default_gear')
+    op.drop_column('users_default_gear', 'tennis_gear_id')
     # Alter gear column gear_type to remove racquet from comment
     op.alter_column(
         "gear",

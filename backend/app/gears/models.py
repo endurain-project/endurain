@@ -115,3 +115,8 @@ class Gear(Base):
         back_populates="hike_gear",
         foreign_keys="[UsersDefaultGear.hike_gear_id]",
     )
+    users_default_tennis_gear = relationship(
+        "UsersDefaultGear",
+        back_populates="tennis_gear",
+        foreign_keys="[UsersDefaultGear.tennis_gear_id]",
+    )

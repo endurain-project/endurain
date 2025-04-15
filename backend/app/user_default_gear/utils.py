@@ -32,6 +32,8 @@ def get_user_default_gear_by_activity_type(
             return user_default_gear.walk_gear_id
         elif activity_type == 12:
             return user_default_gear.hike_gear_id
+        elif activity_type == 21:
+            return user_default_gear.tennis_gear_id
         else:
             return None
     except HTTPException as err:
