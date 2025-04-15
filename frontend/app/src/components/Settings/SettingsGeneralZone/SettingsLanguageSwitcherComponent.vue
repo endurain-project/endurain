@@ -15,8 +15,8 @@ export default {
     setup() {
         const { locale } = useI18n();
         const languages = [
-            { value: 'ca', label: 'Catalan' },
-            { value: 'de', label: 'German' },
+            { value: 'ca', label: 'Catalan (CA)' },
+            { value: 'de', label: 'German (DE)' },
             { value: 'fr', label: 'French (FR)' },
             { value: 'nl', label: 'Dutch (NL)' },
             { value: 'pt', label: 'Portuguese (PT)' },
