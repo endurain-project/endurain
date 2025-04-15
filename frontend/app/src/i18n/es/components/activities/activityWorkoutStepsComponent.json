@@ -12,9 +12,9 @@
     "labelWorkoutSetReps": "Establecer repeticiones",
     "labelWorkoutSetExerciseName": "Establecer nombre",
     "labelWorkoutSetExerciseWeight": "Establecer peso",
-    "labelWorkoutSetTypeMobile": "Type",
-    "labelWorkoutSetTimeMobile": "Time",
-    "labelWorkoutSetRepsMobile": "Reps",
-    "labelWorkoutSetExerciseNameMobile": "Name",
-    "labelWorkoutSetExerciseWeightMobile": "Weight"
+    "labelWorkoutSetTypeMobile": "Tipo",
+    "labelWorkoutSetTimeMobile": "Tiempo",
+    "labelWorkoutSetRepsMobile": "Repeticiones",
+    "labelWorkoutSetExerciseNameMobile": "Nombre",
+    "labelWorkoutSetExerciseWeightMobile": "Peso"
 }
