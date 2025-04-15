@@ -124,19 +124,19 @@ export default {
 					for (let i = 0; i < props.activityActivityStreams.length; i++) {
 						if (props.activityActivityStreams[i].stream_type === 1) {
 							hrPresent.value = true;
-							graphItems.value.push({ type: "hr", label: "HR" });
+							graphItems.value.push({ type: "hr", label: `${t("activityMandAbovePillsComponent.labelGraphHR")}` });
 						}
 						if (props.activityActivityStreams[i].stream_type === 2) {
 							powerPresent.value = true;
-							graphItems.value.push({ type: "power", label: "Power" });
+							graphItems.value.push({ type: "power", label: `${t("activityMandAbovePillsComponent.labelGraphPower")}` });
 						}
 						if (props.activityActivityStreams[i].stream_type === 3) {
 							cadPresent.value = true;
-							graphItems.value.push({ type: "cad", label: "Cadence" });
+							graphItems.value.push({ type: "cad", label: `${t("activityMandAbovePillsComponent.labelGraphCadence")}` });
 						}
 						if (props.activityActivityStreams[i].stream_type === 4) {
 							elePresent.value = true;
-							graphItems.value.push({ type: "ele", label: "Elevation" });
+							graphItems.value.push({ type: "ele", label: `${t("activityMandAbovePillsComponent.labelGraphElevation")}` });
 						}
 						if (props.activityActivityStreams[i].stream_type === 5) {
 							velPresent.value = true;
@@ -147,7 +147,7 @@ export default {
 								props.activity.activity_type === 7 ||
 								props.activity.activity_type === 27
 							) {
-								graphItems.value.push({ type: "vel", label: "Velocity" });
+								graphItems.value.push({ type: "vel", label: `${t("activityMandAbovePillsComponent.labelGraphVelocity")}` });
 							}
 						}
 						if (props.activityActivityStreams[i].stream_type === 6) {
@@ -159,7 +159,7 @@ export default {
 								props.activity.activity_type !== 7 &&
 								props.activity.activity_type !== 27
 							) {
-								graphItems.value.push({ type: "pace", label: "Pace" });
+								graphItems.value.push({ type: "pace", label: `${t("activityMandAbovePillsComponent.labelGraphPace")}` });
 							}
 						}
 					}
