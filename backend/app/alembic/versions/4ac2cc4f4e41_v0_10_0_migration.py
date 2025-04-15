@@ -74,13 +74,13 @@ def upgrade() -> None:
         sa.Column(
             "total_elapsed_time",
             sa.DECIMAL(precision=20, scale=10),
-            nullable=False,
+            nullable=True,
             comment="Lap total elapsed time (s)",
         ),
         sa.Column(
             "total_timer_time",
             sa.DECIMAL(precision=20, scale=10),
-            nullable=False,
+            nullable=True,
             comment="Lap total timer time (s)",
         ),
         sa.Column(

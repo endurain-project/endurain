@@ -404,23 +404,27 @@ def store_activity(parsed_info: dict, db: Session):
         parsed_info, created_activity.id
     )
 
-    # Create activity streams in the database
-    activity_streams_crud.create_activity_streams(activity_streams, db)
+    if activity_streams is not None:
+        # Create activity streams in the database
+        activity_streams_crud.create_activity_streams(activity_streams, db)
 
-    # Create activity laps in the database
-    activity_laps_crud.create_activity_laps(
-        parsed_info["laps"], created_activity.id, db
-    )
+    if parsed_info.get("laps") is not None:
+        # Create activity laps in the database
+        activity_laps_crud.create_activity_laps(
+            parsed_info["laps"], created_activity.id, db
+        )
 
-    # Create activity workout steps in the database
-    activity_workout_steps_crud.create_activity_workout_steps(
-        parsed_info["workout_steps"], created_activity.id, db
-    )
+    if parsed_info.get("workout_steps") is not None:
+        # Create activity workout steps in the database
+        activity_workout_steps_crud.create_activity_workout_steps(
+            parsed_info["workout_steps"], created_activity.id, db
+        )
 
-    # Create activity sets in the database
-    activity_sets_crud.create_activity_sets(
-        parsed_info["sets"], created_activity.id, db
-    )
+    if parsed_info.get("sets") is not None:
+        # Create activity sets in the database
+        activity_sets_crud.create_activity_sets(
+            parsed_info["sets"], created_activity.id, db
+        )
 
     # Return the created activity
     return created_activity

@@ -4,6 +4,7 @@ import os
 from geopy.distance import geodesic
 from timezonefinder import TimezoneFinder
 from sqlalchemy.orm import Session
+from datetime import datetime
 
 from fastapi import HTTPException, status
 
@@ -15,7 +16,9 @@ import user_default_gear.utils as user_default_gear_utils
 import core.logger as core_logger
 
 
-def parse_gpx_file(file: str, user_id: int, default_activity_visibility: int, db: Session) -> dict:
+def parse_gpx_file(
+    file: str, user_id: int, default_activity_visibility: int, db: Session
+) -> dict:
     try:
         # Create an instance of TimezoneFinder
         tf = TimezoneFinder()
@@ -308,6 +311,16 @@ def parse_gpx_file(file: str, user_id: int, default_activity_visibility: int, db
             strava_activity_id=None,
         )
 
+        # Generate activity laps
+        laps = generate_activity_laps(
+            lat_lon_waypoints,
+            ele_waypoints,
+            power_waypoints,
+            hr_waypoints,
+            cad_waypoints,
+            vel_waypoints,
+        )
+
         # Return parsed data as a dictionary
         return {
             "activity": activity,
@@ -324,6 +337,7 @@ def parse_gpx_file(file: str, user_id: int, default_activity_visibility: int, db
             "cad_waypoints": cad_waypoints,
             "is_lat_lon_set": is_lat_lon_set,
             "lat_lon_waypoints": lat_lon_waypoints,
+            "laps": laps,
         }
 
     except HTTPException as http_err:
@@ -338,3 +352,221 @@ def parse_gpx_file(file: str, user_id: int, default_activity_visibility: int, db
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Can't open GPX file: {str(err)}",
         ) from err
+
+
+def generate_activity_laps(
+    lat_lon_waypoints: list[dict],
+    ele_waypoints: list[dict],
+    power_waypoints: list[dict],
+    hr_waypoints: list[dict],
+    cad_waypoints: list[dict],
+    vel_waypoints: list[dict],
+    distance_per_lap_km: float = 1.0,
+) -> list[dict]:
+    laps = []
+    current_lap_distance = 0.0
+    lap_start = None
+    lap_ele_waypoints = []
+    lap_power_waypoints = []
+    lap_hr_waypoints = []
+    lap_cad_waypoints = []
+    lap_vel_waypoints = []
+
+    def filter_waypoints(waypoints, start_time, end_time):
+        return [
+            waypoint
+            for waypoint in waypoints
+            if datetime.strptime(start_time, "%Y-%m-%dT%H:%M:%S")
+            <= datetime.strptime(waypoint["time"], "%Y-%m-%dT%H:%M:%S")
+            <= datetime.strptime(end_time, "%Y-%m-%dT%H:%M:%S")
+        ]
+
+    for i in range(1, len(lat_lon_waypoints)):
+        # Get the current and previous waypoints
+        prev_point = lat_lon_waypoints[i - 1]
+        current_point = lat_lon_waypoints[i]
+
+        # Calculate the distance between the two waypoints
+        segment_distance = geodesic(
+            (prev_point["lat"], prev_point["lon"]),
+            (current_point["lat"], current_point["lon"]),
+        ).kilometers
+
+        # Accumulate the distance
+        current_lap_distance += segment_distance
+
+        # Set the start of the lap if not already set
+        if lap_start is None:
+            lap_start = prev_point
+
+        # Check if the current lap distance exceeds or equals the lap distance
+        if current_lap_distance >= distance_per_lap_km:
+            # Filter waypoints for the current lap
+            start_time = lap_start["time"]
+            end_time = current_point["time"]
+            lap_ele_waypoints = filter_waypoints(ele_waypoints, start_time, end_time)
+            lap_power_waypoints = filter_waypoints(
+                power_waypoints, start_time, end_time
+            )
+            lap_hr_waypoints = filter_waypoints(hr_waypoints, start_time, end_time)
+            lap_cad_waypoints = filter_waypoints(cad_waypoints, start_time, end_time)
+            lap_vel_waypoints = filter_waypoints(vel_waypoints, start_time, end_time)
+
+            # Calculate total ascent and descent
+            if lap_ele_waypoints:
+                ele_gain, ele_loss = activities_utils.calculate_elevation_gain_loss(
+                    lap_ele_waypoints
+                )
+
+            # Calculate average and maximum heart rate
+            if lap_hr_waypoints:
+                avg_hr, max_hr = activities_utils.calculate_avg_and_max(
+                    lap_hr_waypoints, "hr"
+                )
+
+            # Calculate average and maximum cadence
+            if lap_cad_waypoints:
+                avg_cadence, max_cadence = activities_utils.calculate_avg_and_max(
+                    lap_cad_waypoints, "cad"
+                )
+
+            # Calculate average and maximum velocity
+            if lap_vel_waypoints:
+                avg_speed, max_speed = activities_utils.calculate_avg_and_max(
+                    lap_vel_waypoints, "vel"
+                )
+
+            # Calculate average and maximum power
+            if lap_power_waypoints:
+                avg_power, max_power = activities_utils.calculate_avg_and_max(
+                    lap_power_waypoints, "power"
+                )
+
+                # Calculate normalised power
+                np = activities_utils.calculate_np(lap_power_waypoints)
+
+            # Create a lap
+            laps.append(
+                {
+                    "start_time": lap_start["time"],
+                    "start_position_lat": lap_start["lat"],
+                    "start_position_long": lap_start["lon"],
+                    "end_position_lat": current_point["lat"],
+                    "end_position_long": current_point["lon"],
+                    "total_elapsed_time": (
+                        datetime.strptime(end_time, "%Y-%m-%dT%H:%M:%S")
+                        - datetime.strptime(start_time, "%Y-%m-%dT%H:%M:%S")
+                    ).total_seconds(),
+                    "total_timer_time": (
+                        datetime.strptime(end_time, "%Y-%m-%dT%H:%M:%S")
+                        - datetime.strptime(start_time, "%Y-%m-%dT%H:%M:%S")
+                    ).total_seconds(),
+                    "total_distance": current_lap_distance * 1000,
+                    "avg_heart_rate": round(avg_hr) if avg_hr else None,
+                    "max_heart_rate": round(max_hr) if max_hr else None,
+                    "avg_cadence": round(avg_cadence) if avg_cadence else None,
+                    "max_cadence": round(max_cadence) if max_cadence else None,
+                    "avg_power": round(avg_power) if avg_power else None,
+                    "max_power": round(max_power) if max_power else None,
+                    "total_ascent": round(ele_gain) if ele_gain else None,
+                    "total_descent": round(ele_loss) if ele_loss else None,
+                    "normalized_power": round(np) if np else None,
+                    "enhanced_avg_pace": (
+                        1 / avg_speed
+                        if avg_speed != 0 and avg_speed is not None
+                        else None
+                    ),
+                    "enhanced_avg_speed": avg_speed,
+                    "enhanced_max_pace": (
+                        1 / max_speed
+                        if max_speed != 0 and max_speed is not None
+                        else None
+                    ),
+                    "enhanced_max_speed": max_speed,
+                }
+            )
+
+            # Reset for the next lap
+            lap_start = current_point
+            current_lap_distance = 0.0
+
+    # Add the final lap if it exists and is less than the lap distance
+    if lap_start is not None and current_lap_distance > 0:
+        start_time = lap_start["time"]
+        end_time = lat_lon_waypoints[-1]["time"]
+        lap_ele_waypoints = filter_waypoints(ele_waypoints, start_time, end_time)
+        lap_power_waypoints = filter_waypoints(power_waypoints, start_time, end_time)
+        lap_hr_waypoints = filter_waypoints(hr_waypoints, start_time, end_time)
+        lap_cad_waypoints = filter_waypoints(cad_waypoints, start_time, end_time)
+        lap_vel_waypoints = filter_waypoints(vel_waypoints, start_time, end_time)
+
+        # Calculate total ascent and descent
+        if lap_ele_waypoints:
+            ele_gain, ele_loss = activities_utils.calculate_elevation_gain_loss(
+                lap_ele_waypoints
+            )
+
+        # Calculate average and maximum heart rate
+        if lap_hr_waypoints:
+            avg_hr, max_hr = activities_utils.calculate_avg_and_max(
+                lap_hr_waypoints, "hr"
+            )
+
+        # Calculate average and maximum cadence
+        if lap_cad_waypoints:
+            avg_cadence, max_cadence = activities_utils.calculate_avg_and_max(
+                lap_cad_waypoints, "cad"
+            )
+
+        # Calculate average and maximum velocity
+        if lap_vel_waypoints:
+            avg_speed, max_speed = activities_utils.calculate_avg_and_max(
+                lap_vel_waypoints, "vel"
+            )
+
+        # Calculate average and maximum power
+        if lap_power_waypoints:
+            avg_power, max_power = activities_utils.calculate_avg_and_max(
+                lap_power_waypoints, "power"
+            )
+
+            # Calculate normalised power
+            np = activities_utils.calculate_np(lap_power_waypoints)
+
+        laps.append(
+            {
+                "start_time": lap_start["time"],
+                "start_position_lat": lap_start["lat"],
+                "start_position_long": lap_start["lon"],
+                "end_position_lat": lat_lon_waypoints[-1]["lat"],
+                "end_position_long": lat_lon_waypoints[-1]["lon"],
+                "total_elapsed_time": (
+                    datetime.strptime(end_time, "%Y-%m-%dT%H:%M:%S")
+                    - datetime.strptime(start_time, "%Y-%m-%dT%H:%M:%S")
+                ).total_seconds(),
+                "total_timer_time": (
+                    datetime.strptime(end_time, "%Y-%m-%dT%H:%M:%S")
+                    - datetime.strptime(start_time, "%Y-%m-%dT%H:%M:%S")
+                ).total_seconds(),
+                "total_distance": current_lap_distance * 1000,
+                "avg_heart_rate": round(avg_hr) if avg_hr else None,
+                "max_heart_rate": round(max_hr) if max_hr else None,
+                "avg_cadence": round(avg_cadence) if avg_cadence else None,
+                "max_cadence": round(max_cadence) if max_cadence else None,
+                "avg_power": round(avg_power) if avg_power else None,
+                "max_power": round(max_power) if max_power else None,
+                "total_ascent": round(ele_gain) if ele_gain else None,
+                "total_descent": round(ele_loss) if ele_loss else None,
+                "normalized_power": round(np) if np else None,
+                "enhanced_avg_pace": (
+                    1 / avg_speed if avg_speed != 0 and avg_speed is not None else None
+                ),
+                "enhanced_avg_speed": avg_speed,
+                "enhanced_max_pace": (
+                    1 / max_speed if max_speed != 0 and max_speed is not None else None
+                ),
+                "enhanced_max_speed": max_speed,
+            }
+        )
+
+    return laps

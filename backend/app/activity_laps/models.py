@@ -45,12 +45,12 @@ class ActivityLaps(Base):
     )
     total_elapsed_time = Column(
         DECIMAL(precision=20, scale=10),
-        nullable=False,
+        nullable=True,
         comment="Lap total elapsed time (s)",
     )
     total_timer_time = Column(
         DECIMAL(precision=20, scale=10),
-        nullable=False,
+        nullable=True,
         comment="Lap total timer time (s)",
     )
     total_distance = Column(
