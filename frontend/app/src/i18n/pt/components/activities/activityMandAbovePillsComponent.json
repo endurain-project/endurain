@@ -3,6 +3,12 @@
     "labelPillLaps": "Voltas",
     "labelPillWorkoutSets": "Jogos",
     "labelGraph": "Gráficos de dados da atividade",
+    "labelGraphHR": "Heart rate",
+    "labelGraphPower": "Power",
+    "labelGraphCadence": "Cadence",
+    "labelGraphElevation": "Elevation",
+    "labelGraphVelocity": "Velocity",
+    "labelGraphPace": "Pace",
     "labelDownsampling": "Dados downsampled para ~200 pontos",
     "errorMessageProcessingActivityStreams": "Erro ao processar fluxos de atividade"
 }
