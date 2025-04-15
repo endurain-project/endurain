@@ -83,11 +83,13 @@
                     <p>
                         <font-awesome-icon :icon="['fas', 'language']" class="me-2"/>
                         <b>{{ $t("settingsUserProfileZone.preferredLanguageLabel") }}: </b>
-                        <span v-if="authStore.user.preferred_language == 'us'">{{ $t("settingsUserProfileZone.preferredLanguageOption1") }}</span>
                         <span v-if="authStore.user.preferred_language == 'ca'">{{ $t("settingsUserProfileZone.preferredLanguageOption2") }}</span>
-                        <span v-if="authStore.user.preferred_language == 'pt'">{{ $t("settingsUserProfileZone.preferredLanguageOption3") }}</span>
                         <span v-if="authStore.user.preferred_language == 'de'">{{ $t("settingsUserProfileZone.preferredLanguageOption4") }}</span>
                         <span v-if="authStore.user.preferred_language == 'fr'">{{ $t("settingsUserProfileZone.preferredLanguageOption5") }}</span>
+                        <span v-if="authStore.user.preferred_language == 'nl'">{{ $t("settingsUserProfileZone.preferredLanguageOption6") }}</span>
+                        <span v-if="authStore.user.preferred_language == 'pt'">{{ $t("settingsUserProfileZone.preferredLanguageOption3") }}</span>
+                        <span v-if="authStore.user.preferred_language == 'es'">{{ $t("settingsUserProfileZone.preferredLanguageOption7") }}</span>
+                        <span v-if="authStore.user.preferred_language == 'us'">{{ $t("settingsUserProfileZone.preferredLanguageOption1") }}</span>
                     </p>
                     <!-- user type -->
                     <p>
