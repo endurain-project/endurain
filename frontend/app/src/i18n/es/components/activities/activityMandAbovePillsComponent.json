@@ -3,12 +3,12 @@
     "labelPillLaps": "Vueltas",
     "labelPillWorkoutSets": "Sets",
     "labelGraph": "Gráficos de datos de actividad",
-    "labelGraphHR": "Heart rate",
-    "labelGraphPower": "Power",
-    "labelGraphCadence": "Cadence",
-    "labelGraphElevation": "Elevation",
-    "labelGraphVelocity": "Velocity",
-    "labelGraphPace": "Pace",
+    "labelGraphHR": "Frecuencia cardíaca",
+    "labelGraphPower": "Potencia",
+    "labelGraphCadence": "Cadencia",
+    "labelGraphElevation": "Altura",
+    "labelGraphVelocity": "Velocidad",
+    "labelGraphPace": "Ritmo",
     "labelDownsampling": "Datos reducidos a ~200 puntos",
     "errorMessageProcessingActivityStreams": "Error al procesar los flujos de actividad"
 }
