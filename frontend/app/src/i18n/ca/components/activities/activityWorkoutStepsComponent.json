@@ -11,5 +11,10 @@
     "labelWorkoutSetTime": "Temps pas",
     "labelWorkoutSetReps": "Reps passos",
     "labelWorkoutSetExerciseName": "Nom del pas",
-    "labelWorkoutSetExerciseWeight": "Estableix pes"
+    "labelWorkoutSetExerciseWeight": "Estableix pes",
+    "labelWorkoutSetTypeMobile": "Tipus",
+    "labelWorkoutSetTimeMobile": "Temps",
+    "labelWorkoutSetRepsMobile": "Reps",
+    "labelWorkoutSetExerciseNameMobile": "Nom",
+    "labelWorkoutSetExerciseWeightMobile": "Pes"
 }
