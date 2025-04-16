@@ -43,6 +43,10 @@ import { useI18n } from "vue-i18n";
 import { push } from "notivue";
 // Importing the services
 import { health_data } from "@/services/health_dataService";
+// Import the stores
+import { useAuthStore } from "@/stores/authStore";
+// Importing the utils
+import { lbsToKg, kgToLbs } from "@/utils/unitsUtils";
 
 export default {
     props: {
@@ -57,13 +61,14 @@ export default {
 	},
     emits: ["isLoadingNewWeight", "createdWeight", "editedWeight"],
 	setup(props, { emit }) {
+		const authStore = useAuthStore();
 		const { t } = useI18n();
 		const newEditWeightWeight = ref(50);
 		const newEditWeightDate = ref(new Date().toISOString().split('T')[0]);
         const editWeightId = ref("");
 
         if(props.data){
-            newEditWeightWeight.value = props.data.weight;
+            newEditWeightWeight.value = Number(authStore?.user?.units) === 1 ? props.data.weight : kgToLbs(props.data.weight);
             newEditWeightDate.value = props.data.date;
             editWeightId.value = `editWeightId${props.data.id}`;
         }
@@ -74,7 +79,7 @@ export default {
 			try {
                 // Create the weight data object.
                 const data = {
-                    weight: newEditWeightWeight.value,
+                    weight: Number(authStore?.user?.units) === 1 ? newEditWeightWeight.value : lbsToKg(newEditWeightWeight.value),
                     date: newEditWeightDate.value,
                 };
 
