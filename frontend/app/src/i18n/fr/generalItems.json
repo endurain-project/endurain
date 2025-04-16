@@ -1,6 +1,13 @@
 {
     "buttonBack": "Précédent",
     "buttonClose": "Fermer",
+    "languageOption1": "English (US)",
+    "languageOption2": "Catalan (CA)",
+    "languageOption3": "Portuguese (PT)",
+    "languageOption4": "German (DE)",
+    "languageOption5": "French (FR)",
+    "languageOption6": "Dutch (NL)",
+    "languageOption7": "Spanish (ES)",
     "buttonlistAll": "Tout lister",
     "requiredField": "Champs requis",
     "labelNotApplicable": "N / A",

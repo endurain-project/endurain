@@ -1,6 +1,13 @@
 {
     "buttonBack": "Voltar",
     "buttonClose": "Fechar",
+    "languageOption1": "Inglês (EUA)",
+    "languageOption2": "Catalão (CA)",
+    "languageOption3": "Português (PT)",
+    "languageOption4": "Alemão (DE)",
+    "languageOption5": "Francês (FR)",
+    "languageOption6": "Neerlandês (NL)",
+    "languageOption7": "Espanhol (ES)",
     "buttonlistAll": "Listar todos",
     "requiredField": "Campos obrigatórios",
     "labelNotApplicable": "N/A",
