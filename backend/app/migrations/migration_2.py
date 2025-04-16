@@ -1,0 +1,133 @@
+from timezonefinder import TimezoneFinder
+
+from sqlalchemy.orm import Session
+
+import activities.crud as activities_crud
+
+import activity_streams.crud as activity_streams_crud
+
+import migrations.crud as migrations_crud
+
+import health_data.crud as health_data_crud
+
+import core.logger as core_logger
+
+
+def process_migration_2(db: Session):
+    core_logger.print_to_log("Started migration 2")
+
+    # Create an instance of TimezoneFinder
+    tf = TimezoneFinder()
+
+    # Initialize flag to track if all activities and health_data were processed without errors
+    activities_processed_with_no_errors = True
+    health_data_processed_with_no_errors = True
+
+    # Fetch all activities and health_data
+    try:
+        activities = activities_crud.get_all_activities(db)
+        health_data = health_data_crud.get_all_health_data(db)
+    except Exception as err:
+        core_logger.print_to_log(
+            f"Migration 2 - Error fetching activities and/or health_data: {err}",
+            "error",
+            exc=err,
+        )
+        return
+
+    if activities:
+        # Process each activity and add timezone
+        for activity in activities:
+            try:
+                # Skip if activity already has timezone
+                if activity.timezone:
+                    core_logger.print_to_log(
+                        f"Migration 2 - {activity.id} already has timezone defined. Skipping.",
+                        "info",
+                    )
+                    continue
+
+                timezone = os.environ.get("TZ")
+
+                # Get activity stream
+                try:
+                    activity_stream_coord = (
+                        activity_streams_crud.get_activity_stream_by_type(
+                            activity.id, 7, db
+                        )
+                    )
+                except Exception as err:
+                    core_logger.print_to_log(
+                        f"Migration 2 - Failed to fetch streams for activity {activity.id}: {err}",
+                        "warning",
+                        exc=err,
+                    )
+                    activities_processed_with_no_errors = False
+                    continue
+
+                if activity_stream_coord:
+                    timezone = tf.timezone_at(
+                        lat=activity_stream_coord.stream_waypoints[0]["lat"],
+                        lng=activity_stream_coord.stream_waypoints[0]["lon"],
+                    )
+
+                activity.timezone = timezone
+
+                # Update the activity in the database
+                activities_crud.edit_activity(activity.user_id, activity, db)
+
+                core_logger.print_to_log(
+                    f"Migration 2 - Processed activity: {activity.id} - {activity.name}"
+                )
+
+            except Exception as err:
+                activities_processed_with_no_errors = False
+                core_logger.print_to_log(
+                    f"Migration 2 - Failed to process activity {activity.id}: {err}",
+                    "error",
+                    exc=err,
+                )
+
+    if health_data:
+        # Process each weight and add timezone
+        for data in health_data:
+            try:
+                # Skip if weight already has timezone
+                if data.bmi:
+                    core_logger.print_to_log(
+                        f"Migration 2 - {data.id} already has BMI defined. Skipping.",
+                        "info",
+                    )
+                    continue
+
+                # Update the weight in the database
+                health_data_crud.edit_health_data(data.user_id, data, db)
+
+                core_logger.print_to_log(f"Migration 2 - Processed BMI: {data.id}")
+
+            except Exception as err:
+                health_data_processed_with_no_errors = False
+                core_logger.print_to_log(
+                    f"Migration 2 - Failed to process BMI {data.id}: {err}",
+                    "error",
+                    exc=err,
+                )
+
+    # Mark migration as executed
+    if activities_processed_with_no_errors and health_data_processed_with_no_errors:
+        try:
+            migrations_crud.set_migration_as_executed(2, db)
+        except Exception as err:
+            core_logger.print_to_log(
+                f"Migration 2 - Failed to set migration as executed: {err}",
+                "error",
+                exc=err,
+            )
+            return
+    else:
+        core_logger.print_to_log(
+            "Migration 2 failed to process all activities. Will try again later.",
+            "error",
+        )
+
+    core_logger.print_to_log("Finished migration 2")

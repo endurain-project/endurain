@@ -193,9 +193,9 @@ export default {
 						return t("generalItems.labelNoData");
 					}
                     if (Number(props.units) === 1) {
-                        return `${lap.enhanced_avg_speed} ${t("generalItems.unitsKmH")}`;
+						return `${Math.round(lap.enhanced_avg_speed)} ${t("generalItems.unitsKmH")}`;
                     }
-                    return `${formatAverageSpeedImperial(lap.enhanced_avg_speed)} ${t("generalItems.unitsMph")}`;
+                    return `${Math.round(formatAverageSpeedImperial(lap.enhanced_avg_speed))} ${t("generalItems.unitsMph")}`;
                 });
                 const formattedSpeed = computed(() => {
 					if (lap.enhanced_avg_speed === null) {
