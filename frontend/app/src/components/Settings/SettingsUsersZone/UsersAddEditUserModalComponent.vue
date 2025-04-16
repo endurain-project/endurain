@@ -89,13 +89,13 @@
                         <!-- preferred language fields -->
                         <label for="userPreferredLanguageAddEdit"><b>* {{ $t("usersAddEditUserModalComponent.addEditUserModalUserPreferredLanguageLabel") }}</b></label>
                         <select class="form-select" name="userPreferredLanguageAddEdit" v-model="newEditUserPreferredLanguage" required>
-                            <option value="ca">{{ $t("usersAddEditUserModalComponent.addEditUserModalPreferredLanguageOption2") }}</option>
-                            <option value="de">{{ $t("usersAddEditUserModalComponent.addEditUserModalPreferredLanguageOption4") }}</option>
-                            <option value="fr">{{ $t("usersAddEditUserModalComponent.addEditUserModalPreferredLanguageOption5") }}</option>
-                            <option value="nl">{{ $t("usersAddEditUserModalComponent.addEditUserModalPreferredLanguageOption6") }}</option>
-                            <option value="pt">{{ $t("usersAddEditUserModalComponent.addEditUserModalPreferredLanguageOption3") }}</option>
-                            <option value="es">{{ $t("usersAddEditUserModalComponent.addEditUserModalPreferredLanguageOption7") }}</option>
-                            <option value="us">{{ $t("usersAddEditUserModalComponent.addEditUserModalPreferredLanguageOption1") }}</option>
+                            <option value="ca">{{ $t("generalItems.languageOption2") }}</option>
+                            <option value="de">{{ $t("generalItems.languageOption4") }}</option>
+                            <option value="fr">{{ $t("generalItems.languageOption5") }}</option>
+                            <option value="nl">{{ $t("generalItems.languageOption6") }}</option>
+                            <option value="pt">{{ $t("generalItems.languageOption3") }}</option>
+                            <option value="es">{{ $t("generalItems.languageOption7") }}</option>
+                            <option value="us">{{ $t("generalItems.languageOption1") }}</option>
                         </select>
                         <!-- access type fields -->
                         <div v-if="action != 'profile'">

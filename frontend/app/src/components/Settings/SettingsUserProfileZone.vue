@@ -83,13 +83,13 @@
                     <p>
                         <font-awesome-icon :icon="['fas', 'language']" class="me-2"/>
                         <b>{{ $t("settingsUserProfileZone.preferredLanguageLabel") }}: </b>
-                        <span v-if="authStore.user.preferred_language == 'ca'">{{ $t("settingsUserProfileZone.preferredLanguageOption2") }}</span>
-                        <span v-if="authStore.user.preferred_language == 'de'">{{ $t("settingsUserProfileZone.preferredLanguageOption4") }}</span>
-                        <span v-if="authStore.user.preferred_language == 'fr'">{{ $t("settingsUserProfileZone.preferredLanguageOption5") }}</span>
-                        <span v-if="authStore.user.preferred_language == 'nl'">{{ $t("settingsUserProfileZone.preferredLanguageOption6") }}</span>
-                        <span v-if="authStore.user.preferred_language == 'pt'">{{ $t("settingsUserProfileZone.preferredLanguageOption3") }}</span>
-                        <span v-if="authStore.user.preferred_language == 'es'">{{ $t("settingsUserProfileZone.preferredLanguageOption7") }}</span>
-                        <span v-if="authStore.user.preferred_language == 'us'">{{ $t("settingsUserProfileZone.preferredLanguageOption1") }}</span>
+                        <span v-if="authStore.user.preferred_language == 'ca'">{{ $t("generalItems.languageOption2") }}</span>
+                        <span v-if="authStore.user.preferred_language == 'de'">{{ $t("generalItems.languageOption4") }}</span>
+                        <span v-if="authStore.user.preferred_language == 'fr'">{{ $t("generalItems.languageOption5") }}</span>
+                        <span v-if="authStore.user.preferred_language == 'nl'">{{ $t("generalItems.languageOption6") }}</span>
+                        <span v-if="authStore.user.preferred_language == 'pt'">{{ $t("generalItems.languageOption3") }}</span>
+                        <span v-if="authStore.user.preferred_language == 'es'">{{ $t("generalItems.languageOption7") }}</span>
+                        <span v-if="authStore.user.preferred_language == 'us'">{{ $t("generalItems.languageOption1") }}</span>
                     </p>
                     <!-- user type -->
                     <p>

@@ -13,15 +13,15 @@ import { useI18n } from 'vue-i18n';
 
 export default {
     setup() {
-        const { locale } = useI18n();
+        const { locale, t } = useI18n();
         const languages = [
-            { value: 'ca', label: 'Catalan (CA)' },
-            { value: 'de', label: 'German (DE)' },
-            { value: 'fr', label: 'French (FR)' },
-            { value: 'nl', label: 'Dutch (NL)' },
-            { value: 'pt', label: 'Portuguese (PT)' },
-            { value: 'es', label: 'Spanish (ES)' },
-            { value: 'us', label: 'English (US)' },
+            { value: 'ca', label: t("generalItems.languageOption2") },
+            { value: 'de', label: t("generalItems.languageOption4") },
+            { value: 'fr', label: t("generalItems.languageOption5") },
+            { value: 'nl', label: t("generalItems.languageOption6") },
+            { value: 'pt', label: t("generalItems.languageOption3") },
+            { value: 'es', label: t("generalItems.languageOption7") },
+            { value: 'us', label: t("generalItems.languageOption1") },
         ];
         const currentLanguage = ref(locale.value);
 
