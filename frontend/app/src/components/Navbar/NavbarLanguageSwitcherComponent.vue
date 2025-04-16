@@ -25,13 +25,13 @@
 </template>
 
 <script>
-import { ref, onMounted, watch } from 'vue';
+import { ref, onMounted, watch, computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 export default {
     setup() {
         const { locale, t } = useI18n();
-        const languages = [
+        const languages = computed(() => [
             { value: 'ca', label: t("generalItems.languageOption2") },
             { value: 'de', label: t("generalItems.languageOption4") },
             { value: 'fr', label: t("generalItems.languageOption5") },
@@ -39,7 +39,7 @@ export default {
             { value: 'pt', label: t("generalItems.languageOption3") },
             { value: 'es', label: t("generalItems.languageOption7") },
             { value: 'us', label: t("generalItems.languageOption1") },
-        ];
+        ]);
         const currentLanguage = ref(locale.value);
 
         const getStoredLanguage = () => localStorage.getItem('lang');
