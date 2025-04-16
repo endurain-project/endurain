@@ -1,6 +1,13 @@
 {
     "buttonBack": "Terug",
     "buttonClose": "Sluiten",
+    "languageOption1": "English (US)",
+    "languageOption2": "Catalan (CA)",
+    "languageOption3": "Portuguese (PT)",
+    "languageOption4": "German (DE)",
+    "languageOption5": "French (FR)",
+    "languageOption6": "Dutch (NL)",
+    "languageOption7": "Spanish (ES)",
     "buttonlistAll": "Toon alles",
     "requiredField": "Verplichte velden",
     "labelNotApplicable": "Niet van toepassing",
