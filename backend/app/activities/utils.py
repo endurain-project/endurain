@@ -1,6 +1,7 @@
 import os
 import shutil
 import requests
+import statistics
 from geopy.distance import geodesic
 import numpy as np
 from zoneinfo import ZoneInfo
@@ -589,27 +590,58 @@ def calculate_instant_speed(
     return instant_speed
 
 
-def calculate_elevation_gain_loss(waypoints):
+def compute_elevation_gain_and_loss(
+    elevations, median_window=6, avg_window=3, threshold=0.1
+):
+    # 1) Median Filter
+    def median_filter(values, window_size):
+        if window_size < 2:
+            return values[:]
+        half = window_size // 2
+        filtered = []
+        for i in range(len(values)):
+            start = max(0, i - half)
+            end = min(len(values), i + half + 1)
+            window_vals = values[start:end]
+            m = statistics.median(window_vals)
+            filtered.append(m)
+        return filtered
+
+    # 2) Moving-Average Smoothing
+    def moving_average(values, window_size):
+        if window_size < 2:
+            return values[:]
+        half = window_size // 2
+        smoothed = []
+        n = len(values)
+        for i in range(n):
+            start = max(0, i - half)
+            end = min(n, i + half + 1)
+            window_vals = values[start:end]
+            smoothed.append(statistics.mean(window_vals))
+        return smoothed
+
     try:
-        # Get the values from the waypoints
-        values = [float(waypoint["ele"]) for waypoint in waypoints]
+        # Get the values from the elevations
+        values = [float(waypoint["ele"]) for waypoint in elevations]
     except (ValueError, KeyError):
         # If there are no valid values, return 0
         return 0, 0
 
-    elevation_gain = 0
-    elevation_loss = 0
+    # Apply median filter -> then average smoothing
+    filtered = median_filter(values, median_window)
+    filtered = moving_average(filtered, avg_window)
 
-    # Iterate over the elevation data, comparing consecutive points
-    for i in range(1, len(values)):
-        diff = values[i] - values[i - 1]
-
-        if diff > 0:
-            elevation_gain += diff  # If elevation increases, add to gain
-        elif diff < 0:
-            elevation_loss += abs(diff)  # If elevation decreases, add to loss
-
-    return elevation_gain, elevation_loss
+    # 3) Compute gain/loss with threshold
+    total_gain = 0.0
+    total_loss = 0.0
+    for i in range(1, len(filtered)):
+        diff = filtered[i] - filtered[i - 1]
+        if diff > threshold:
+            total_gain += diff
+        elif diff < -threshold:
+            total_loss -= diff  # diff is negative, so subtracting it is adding positive
+    return total_gain, total_loss
 
 
 def calculate_pace(distance, first_waypoint_time, last_waypoint_time):

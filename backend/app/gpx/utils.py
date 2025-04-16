@@ -228,8 +228,11 @@ def parse_gpx_file(
 
         # Calculate elevation gain/loss, pace, average speed, and average power
         if ele_waypoints:
-            ele_gain, ele_loss = activities_utils.calculate_elevation_gain_loss(
+            """ele_gain, ele_loss = activities_utils.calculate_elevation_gain_loss(
                 ele_waypoints
+            )"""
+            ele_gain, ele_loss = activities_utils.compute_elevation_gain_and_loss(
+                elevations=ele_waypoints
             )
 
         pace = activities_utils.calculate_pace(
@@ -411,11 +414,22 @@ def generate_activity_laps(
             lap_hr_waypoints = filter_waypoints(hr_waypoints, start_time, end_time)
             lap_cad_waypoints = filter_waypoints(cad_waypoints, start_time, end_time)
             lap_vel_waypoints = filter_waypoints(vel_waypoints, start_time, end_time)
+            ele_gain = None
+            ele_loss = None
+            avg_hr = None
+            max_hr = None
+            avg_cadence = None
+            max_cadence = None
+            avg_speed = None
+            max_speed = None
+            avg_power = None
+            max_power = None
+            np = None
 
             # Calculate total ascent and descent
             if lap_ele_waypoints:
-                ele_gain, ele_loss = activities_utils.calculate_elevation_gain_loss(
-                    lap_ele_waypoints
+                ele_gain, ele_loss = activities_utils.compute_elevation_gain_and_loss(
+                    elevations=lap_ele_waypoints
                 )
 
             # Calculate average and maximum heart rate
@@ -502,7 +516,7 @@ def generate_activity_laps(
 
         # Calculate total ascent and descent
         if lap_ele_waypoints:
-            ele_gain, ele_loss = activities_utils.calculate_elevation_gain_loss(
+            ele_gain, ele_loss = activities_utils.compute_elevation_gain_and_loss(
                 lap_ele_waypoints
             )
 
