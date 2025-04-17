@@ -32,6 +32,10 @@ export const useAuthStore = defineStore('auth', {
         async logoutUser(router = null, locale = null) {
             try {
                 await session.logoutUser();
+            } catch (error) {
+                console.error('Error during logout:', error);
+            } finally {
+                // Always clear the user data after attempting to logout
                 this.clearUser(locale);
 
                 // Check if router is not null before trying to navigate
@@ -42,8 +46,6 @@ export const useAuthStore = defineStore('auth', {
                         console.error('Navigation error:', navigationError);
                     }
                 }
-            } catch (error) {
-                console.error('Error during logout:', error);
             }
         },
         setUser(userData, session_id, locale) {
