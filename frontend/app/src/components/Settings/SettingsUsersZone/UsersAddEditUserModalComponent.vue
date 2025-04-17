@@ -15,7 +15,7 @@
                         <div>
                             <div class="row">
                                 <div class="col">
-                                    <input class="form-control" type="file" accept="image/*" name="userImgAddEdit" id="userImgAddEdit" @change="handleFileChange">
+                                    <input class="form-control" type="file" accept="image/*" name="userImgAddEdit" :id="`userImgAddEdit-${action}`" @change="handleFileChange">
                                 </div>
                                 <div class="col" v-if="newEditUserPhotoPath">
                                     <a class="w-100 btn btn-danger" data-bs-dismiss="modal" @click="submitDeleteUserPhoto">{{ $t("usersAddEditUserModalComponent.addEditUserModalDeleteUserPhotoButton") }}</a>
