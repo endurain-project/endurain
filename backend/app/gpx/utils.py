@@ -228,9 +228,6 @@ def parse_gpx_file(
 
         # Calculate elevation gain/loss, pace, average speed, and average power
         if ele_waypoints:
-            """ele_gain, ele_loss = activities_utils.calculate_elevation_gain_loss(
-                ele_waypoints
-            )"""
             ele_gain, ele_loss = activities_utils.compute_elevation_gain_and_loss(
                 elevations=ele_waypoints
             )

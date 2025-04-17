@@ -162,7 +162,7 @@ def parse_activity(
     ele_gain, ele_loss = None, None
     # Calculate elevation gain and loss
     if ele_waypoints:
-        ele_gain, ele_loss = activities_utils.calculate_elevation_gain_loss(
+        ele_gain, ele_loss = activities_utils.compute_elevation_gain_and_loss(
             ele_waypoints
         )
 
@@ -563,7 +563,7 @@ def fetch_and_process_activity_laps(
         )
 
         if ele_stream:
-            ele_gain, ele_loss = activities_utils.calculate_elevation_gain_loss(
+            ele_gain, ele_loss = activities_utils.compute_elevation_gain_and_loss(
                 ele_stream
             )
 
