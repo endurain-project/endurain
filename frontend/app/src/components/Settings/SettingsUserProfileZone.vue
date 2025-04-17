@@ -264,37 +264,38 @@ export default {
 	components: {
 		UserAvatarComponent,
 		UsersAddEditUserModalComponent,
-        ModalComponent,
-        LoadingComponent,
-        ModalComponentSelectInput,
+		ModalComponent,
+		LoadingComponent,
+		ModalComponentSelectInput,
 	},
 	setup() {
 		const authStore = useAuthStore();
 		const { t, locale } = useI18n();
-        const { feet, inches } = cmToFeetInches(authStore.user.height);
-        const isLoading = ref(false);
-        const allGears = ref(null);
-        const runGear = ref(null);
-        const bikeGear = ref(null);
-        const swimGear = ref(null);
-        const racquetGear = ref(null);
-        const defaultGear = ref(null);
-        const defaultRunGear = ref(null);
-        const defaultTrailRunGear = ref(null);
-        const defaultVirtualRunGear = ref(null);
-        const defaultWalkGear = ref(null);
-        const defaultHikeGear = ref(null);
-        const defaultRideGear = ref(null);
-        const defaultMTBRideGear = ref(null);
-        const defaultGravelRideGear = ref(null);
-        const defaultVirtualRideGear = ref(null);
-        const defaultOWSGear = ref(null);
-        const defaultTennisGear = ref(null);
-        const visibilityOptionsForModal = ref([
-            { id: 0, name: t("settingsUserProfileZone.privacyOption1") },
-            { id: 1, name: t("settingsUserProfileZone.privacyOption2") },
-            { id: 2, name: t("settingsUserProfileZone.privacyOption3") },
-        ]);
+		const { feet, inches } = cmToFeetInches(authStore.user.height);
+		const isLoading = ref(false);
+		const isMounted = ref(false);
+		const allGears = ref(null);
+		const runGear = ref(null);
+		const bikeGear = ref(null);
+		const swimGear = ref(null);
+		const racquetGear = ref(null);
+		const defaultGear = ref(null);
+		const defaultRunGear = ref(null);
+		const defaultTrailRunGear = ref(null);
+		const defaultVirtualRunGear = ref(null);
+		const defaultWalkGear = ref(null);
+		const defaultHikeGear = ref(null);
+		const defaultRideGear = ref(null);
+		const defaultMTBRideGear = ref(null);
+		const defaultGravelRideGear = ref(null);
+		const defaultVirtualRideGear = ref(null);
+		const defaultOWSGear = ref(null);
+		const defaultTennisGear = ref(null);
+		const visibilityOptionsForModal = ref([
+			{ id: 0, name: t("settingsUserProfileZone.privacyOption1") },
+			{ id: 1, name: t("settingsUserProfileZone.privacyOption2") },
+			{ id: 2, name: t("settingsUserProfileZone.privacyOption3") },
+		]);
 
 		async function submitDeleteUserPhoto() {
 			try {
@@ -318,33 +319,33 @@ export default {
 			}
 		}
 
-        async function updateDefaultGear() {
-            const data = {
-                id: defaultGear.value.id,
-                user_id: authStore.user.id,
-                run_gear_id: defaultRunGear.value,
-                trail_run_gear_id: defaultTrailRunGear.value,
-                virtual_run_gear_id: defaultVirtualRunGear.value,
-                walk_gear_id: defaultWalkGear.value,
-                hike_gear_id: defaultHikeGear.value,
-                ride_gear_id: defaultRideGear.value,
-                mtb_ride_gear_id: defaultMTBRideGear.value,
-                gravel_ride_gear_id: defaultGravelRideGear.value,
-                virtual_ride_gear_id: defaultVirtualRideGear.value,
-                ows_gear_id: defaultOWSGear.value,
-                tennis_gear_id: defaultTennisGear.value,
-            };
-            try {
-                // Update the default gear in the DB
-                await userDefaultGear.editUserDefaultGear(data);
+		async function updateDefaultGear() {
+			const data = {
+				id: defaultGear.value.id,
+				user_id: authStore.user.id,
+				run_gear_id: defaultRunGear.value,
+				trail_run_gear_id: defaultTrailRunGear.value,
+				virtual_run_gear_id: defaultVirtualRunGear.value,
+				walk_gear_id: defaultWalkGear.value,
+				hike_gear_id: defaultHikeGear.value,
+				ride_gear_id: defaultRideGear.value,
+				mtb_ride_gear_id: defaultMTBRideGear.value,
+				gravel_ride_gear_id: defaultGravelRideGear.value,
+				virtual_ride_gear_id: defaultVirtualRideGear.value,
+				ows_gear_id: defaultOWSGear.value,
+				tennis_gear_id: defaultTennisGear.value,
+			};
+			try {
+				// Update the default gear in the DB
+				await userDefaultGear.editUserDefaultGear(data);
 
-                push.success(t("settingsUserProfileZone.successUpdateDefaultGear"));
-            } catch (error) {
-                push.error(t("settingsUserProfileZone.errorUpdateDefaultGear"));
-            }
-        }
+				push.success(t("settingsUserProfileZone.successUpdateDefaultGear"));
+			} catch (error) {
+				push.error(t("settingsUserProfileZone.errorUpdateDefaultGear"));
+			}
+		}
 
-        async function submitChangeUserActivitiesVisibility(visibility) {
+		async function submitChangeUserActivitiesVisibility(visibility) {
 			try {
 				await activities.editUserActivitiesVisibility(visibility);
 
@@ -360,72 +361,95 @@ export default {
 			}
 		}
 
-        onMounted(async () => {
-            isLoading.value = true;
-            try {
-                allGears.value = await gears.getGears();
-                runGear.value = allGears.value.filter((gear) => gear.gear_type === 2);
-                bikeGear.value = allGears.value.filter((gear) => gear.gear_type === 1);
-                swimGear.value = allGears.value.filter((gear) => gear.gear_type === 3);
-                racquetGear.value = allGears.value.filter((gear) => gear.gear_type === 4);
+		onMounted(async () => {
+			isLoading.value = true;
+			try {
+				allGears.value = await gears.getGears();
+				runGear.value = allGears.value.filter((gear) => gear.gear_type === 2);
+				bikeGear.value = allGears.value.filter((gear) => gear.gear_type === 1);
+				swimGear.value = allGears.value.filter((gear) => gear.gear_type === 3);
+				racquetGear.value = allGears.value.filter(
+					(gear) => gear.gear_type === 4,
+				);
 
-                try {
-                    defaultGear.value = await userDefaultGear.getUserDefaultGear();
-                    defaultRunGear.value = defaultGear.value.run_gear_id;
-                    defaultTrailRunGear.value = defaultGear.value.trail_run_gear_id;
-                    defaultVirtualRunGear.value = defaultGear.value.virtual_run_gear_id;
-                    defaultWalkGear.value = defaultGear.value.walk_gear_id;
-                    defaultHikeGear.value = defaultGear.value.hike_gear_id;
-                    defaultRideGear.value = defaultGear.value.ride_gear_id;
-                    defaultMTBRideGear.value = defaultGear.value.mtb_ride_gear_id;
-                    defaultGravelRideGear.value = defaultGear.value.gravel_ride_gear_id;
-                    defaultVirtualRideGear.value = defaultGear.value.virtual_ride_gear_id;
-                    defaultOWSGear.value = defaultGear.value.ows_gear_id;
-                    defaultTennisGear.value = defaultGear.value.tennis_gear_id;
-                } catch (error) {
-                    // If there is an error, set the error message and show the error alert.
-                    push.error(`${t("settingsUserProfileZone.errorUnableToGetDefaultGear")} - ${error}`);
-                }
-            } catch (error) {
+				try {
+					defaultGear.value = await userDefaultGear.getUserDefaultGear();
+					defaultRunGear.value = defaultGear.value.run_gear_id;
+					defaultTrailRunGear.value = defaultGear.value.trail_run_gear_id;
+					defaultVirtualRunGear.value = defaultGear.value.virtual_run_gear_id;
+					defaultWalkGear.value = defaultGear.value.walk_gear_id;
+					defaultHikeGear.value = defaultGear.value.hike_gear_id;
+					defaultRideGear.value = defaultGear.value.ride_gear_id;
+					defaultMTBRideGear.value = defaultGear.value.mtb_ride_gear_id;
+					defaultGravelRideGear.value = defaultGear.value.gravel_ride_gear_id;
+					defaultVirtualRideGear.value = defaultGear.value.virtual_ride_gear_id;
+					defaultOWSGear.value = defaultGear.value.ows_gear_id;
+					defaultTennisGear.value = defaultGear.value.tennis_gear_id;
+				} catch (error) {
+					// If there is an error, set the error message and show the error alert.
+					push.error(
+						`${t("settingsUserProfileZone.errorUnableToGetDefaultGear")} - ${error}`,
+					);
+				}
+			} catch (error) {
 				// If there is an error, set the error message and show the error alert.
-				push.error(`${t("settingsUserProfileZone.errorUnableToGetGear")} - ${error}`);
+				push.error(
+					`${t("settingsUserProfileZone.errorUnableToGetGear")} - ${error}`,
+				);
 			} finally {
-                isLoading.value = false;
-                await nextTick();
-            }
-        });
+				isLoading.value = false;
+				await nextTick();
+				isMounted.value = true;
+			}
+		});
 
-        // watchers
-        watch([defaultRunGear, defaultTrailRunGear, defaultVirtualRunGear, defaultWalkGear, defaultHikeGear, defaultRideGear, defaultMTBRideGear, defaultGravelRideGear, defaultVirtualRideGear, defaultOWSGear, defaultTennisGear], async () => {
-            if (isLoading.value) return;
-            await updateDefaultGear();
-        }, { immediate: false });
+		// watchers
+		watch(
+			[
+				defaultRunGear,
+				defaultTrailRunGear,
+				defaultVirtualRunGear,
+				defaultWalkGear,
+				defaultHikeGear,
+				defaultRideGear,
+				defaultMTBRideGear,
+				defaultGravelRideGear,
+				defaultVirtualRideGear,
+				defaultOWSGear,
+				defaultTennisGear,
+			],
+			async () => {
+				if (!isMounted.value || isLoading.value) return;
+				await updateDefaultGear();
+			},
+			{ immediate: false },
+		);
 
 		return {
 			authStore,
 			t,
 			submitDeleteUserPhoto,
-            feet,
-            inches,
-            isLoading,
-            runGear,
-            bikeGear,
-            swimGear,
-            racquetGear,
-            defaultGear,
-            defaultRunGear,
-            defaultTrailRunGear,
-            defaultVirtualRunGear,
-            defaultWalkGear,
-            defaultHikeGear,
-            defaultRideGear,
-            defaultMTBRideGear,
-            defaultGravelRideGear,
-            defaultVirtualRideGear,
-            defaultOWSGear,
-            defaultTennisGear,
-            visibilityOptionsForModal,
-            submitChangeUserActivitiesVisibility,
+			feet,
+			inches,
+			isLoading,
+			runGear,
+			bikeGear,
+			swimGear,
+			racquetGear,
+			defaultGear,
+			defaultRunGear,
+			defaultTrailRunGear,
+			defaultVirtualRunGear,
+			defaultWalkGear,
+			defaultHikeGear,
+			defaultRideGear,
+			defaultMTBRideGear,
+			defaultGravelRideGear,
+			defaultVirtualRideGear,
+			defaultOWSGear,
+			defaultTennisGear,
+			visibilityOptionsForModal,
+			submitChangeUserActivitiesVisibility,
 		};
 	},
 };
