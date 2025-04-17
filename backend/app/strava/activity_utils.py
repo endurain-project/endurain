@@ -505,6 +505,11 @@ def fetch_and_process_activity_laps(
 
     # Process the laps
     for lap in laps:
+        cad_avg, cad_max = None, None
+        power_avg, power_max = None, None
+        np = None
+        ele_gain, ele_loss = None, None
+        
         # filter the stream data based on the lap's start and end times
         filtered_stream_data = [
             (enabled, stream_id, waypoints[lap.start_index : lap.end_index + 1])
