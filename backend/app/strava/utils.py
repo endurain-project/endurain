@@ -1,4 +1,3 @@
-from datetime import datetime
 import time
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
@@ -60,12 +59,8 @@ def fetch_user_integrations_and_validate_token(
 def create_strava_client(
     user_integrations: user_integrations_schema.UsersIntegrations,
 ) -> Client:
-    # Convert to datetime object
-    dt_object = datetime.strptime(
-        user_integrations.strava_token_expires_at, "%Y-%m-%d %H:%M:%S"
-    )
     # Convert to epoch timestamp
-    epoch_time = int(time.mktime(dt_object.timetuple()))
+    epoch_time = int(time.mktime(user_integrations.strava_token_expires_at.timetuple()))
 
     # Create a Strava client with the user's access token and return it
     return Client(
