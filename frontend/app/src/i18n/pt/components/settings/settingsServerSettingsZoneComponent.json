@@ -9,6 +9,17 @@
     "serverSettingsPublicShareableLinksEnabledWarningAlert": "Ao ativar esta opção, todas as atividades publicadas publicamente ficarão visíveis sem autenticação.",
     "publicShareableLinksShowUserInfoLabel": "Mostrar informação de utilizadores",
     "serverSettingsPublicShareableLinksShowUserWarningAlert": "Ao ativar esta opção, as informações dos utilizadores ficarão visíveis sem autenticação",
+    "photosLabel": "Photos",
+    "loginPhotoLabel": "Login photo",
+    "buttonAddPhoto": "Add photo",
+    "logonPhotoAddLabel": "Login page photo (.png)",
+    "logonPhotoAddDetailsLabel": "Square .png image with a size of 1000x1000 pixels.",
+    "processingPhotoUpload": "Processing photo upload",
+    "successPhotoUpload": "Photo uploaded successfully",
+    "buttonDeleteLoginPhoto": "Delete login photo",
+    "modalDeleteLoginPhotoBody": "Are you sure you want to delete the login photo?",
+    "processingPhotoDelete": "Processing photo delete",
+    "successPhotoDelete": "Photo deleted successfully",
     "successUpdateServerSettings": "Definições do servidor atualizadas com sucesso",
     "errorUpdateServerSettings": "Erro ao atualizar definições do servidor"
 }
