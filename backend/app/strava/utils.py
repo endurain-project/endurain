@@ -51,28 +51,17 @@ def refresh_strava_tokens(db: Session):
             ) - timedelta(minutes=60)
 
             if datetime.now(timezone.utc) > refresh_time:
-                # Strava token refresh endpoint
-                token_url = "https://www.strava.com/oauth/token"
-                # Parameters for the token refresh request
-                payload = {
-                    "client_id": os.environ.get("STRAVA_CLIENT_ID"),
-                    "client_secret": os.environ.get("STRAVA_CLIENT_SECRET"),
-                    "refresh_token": user_integrations.strava_refresh_token,
-                    "grant_type": "refresh_token",
-                }
-
                 try:
-                    # Send a POST request to the token URL
-                    response = requests.post(token_url, data=payload)
+                    # Create a Strava client with the user's refresh token
+                    strava_client = create_strava_client(user_integrations)
 
-                    # Check if the response status code is not 200
-                    if response.status_code != 200:
-                        # Raise an HTTPException with a 424 Failed Dependency status code
-                        core_logger.print_to_log(
-                            "Unable to retrieve tokens for refresh process from Strava", "error"
+                    if strava_client:
+                        # Refresh the Strava tokens
+                        tokens = strava_client.refresh_access_token(
+                            client_id=os.environ.get("STRAVA_CLIENT_ID"),
+                            client_secret=os.environ.get("STRAVA_CLIENT_SECRET"),
+                            refresh_token=user_integrations.strava_refresh_token,
                         )
-
-                    tokens = response.json()
                 except Exception as err:
                     # Log the exception
                     core_logger.print_to_log(
@@ -90,9 +79,7 @@ def refresh_strava_tokens(db: Session):
                         user_integrations, tokens, db
                     )
 
-                    core_logger.print_to_log(
-                        f"User {user.id}: Strava tokens refreshed"
-                    )
+                    core_logger.print_to_log(f"User {user.id}: Strava tokens refreshed")
 
 
 def fetch_and_validate_activity(
