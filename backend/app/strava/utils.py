@@ -1,7 +1,5 @@
-import os
-import requests
-
-from datetime import datetime, timedelta, timezone
+from datetime import datetime
+import time
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 from stravalib.client import Client
@@ -13,73 +11,6 @@ import activities.crud as activities_crud
 
 import user_integrations.schema as user_integrations_schema
 import user_integrations.crud as user_integrations_crud
-
-import users.crud as users_crud
-
-from core.database import SessionLocal
-
-
-def refresh_strava_tokens_job():
-    # Create a new database session
-    db = SessionLocal()
-    try:
-        # Refresh Strava tokens
-        refresh_strava_tokens(db)
-    finally:
-        # Ensure the session is closed after use
-        db.close()
-
-
-def refresh_strava_tokens(db: Session):
-    # Get all users
-    users = users_crud.get_all_users(db)
-
-    # Iterate through all users
-    for user in users:
-        # Get the user integrations by user ID
-        user_integrations = user_integrations_crud.get_user_integrations_by_user_id(
-            user.id, db
-        )
-
-        # Check if user_integrations strava token is not None
-        if user_integrations.strava_token is not None:
-            # refresh_time = user_integrations.strava_token_expires_at - timedelta(
-            #    minutes=60
-            # )
-            refresh_time = user_integrations.strava_token_expires_at.replace(
-                tzinfo=timezone.utc
-            ) - timedelta(minutes=60)
-
-            if datetime.now(timezone.utc) > refresh_time:
-                try:
-                    # Create a Strava client with the user's refresh token
-                    strava_client = create_strava_client(user_integrations)
-
-                    if strava_client:
-                        # Refresh the Strava tokens
-                        tokens = strava_client.refresh_access_token(
-                            client_id=os.environ.get("STRAVA_CLIENT_ID"),
-                            client_secret=os.environ.get("STRAVA_CLIENT_SECRET"),
-                            refresh_token=user_integrations.strava_refresh_token,
-                        )
-                except Exception as err:
-                    # Log the exception
-                    core_logger.print_to_log(
-                        f"Error in refresh_strava_token: {err}", "error"
-                    )
-
-                    # Raise an HTTPException with a 500 Internal Server Error status code
-                    raise HTTPException(
-                        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                        detail="Internal Server Error",
-                    ) from err
-                finally:
-                    # Update the user integrations with the tokens
-                    user_integrations_crud.link_strava_account(
-                        user_integrations, tokens, db
-                    )
-
-                    core_logger.print_to_log(f"User {user.id}: Strava tokens refreshed")
 
 
 def fetch_and_validate_activity(
@@ -129,5 +60,16 @@ def fetch_user_integrations_and_validate_token(
 def create_strava_client(
     user_integrations: user_integrations_schema.UsersIntegrations,
 ) -> Client:
+    # Convert to datetime object
+    dt_object = datetime.strptime(
+        user_integrations.strava_token_expires_at, "%Y-%m-%d %H:%M:%S"
+    )
+    # Convert to epoch timestamp
+    epoch_time = int(time.mktime(dt_object.timetuple()))
+
     # Create a Strava client with the user's access token and return it
-    return Client(access_token=user_integrations.strava_token)
+    return Client(
+        access_token=user_integrations.strava_token,
+        refresh_token=user_integrations.strava_refresh_token,
+        token_expires=epoch_time,
+    )

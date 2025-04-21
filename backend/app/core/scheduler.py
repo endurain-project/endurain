@@ -1,7 +1,6 @@
 # from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
-import strava.utils as strava_utils
 import strava.activity_utils as strava_activity_utils
 
 import garmin.activity_utils as garmin_activity_utils
@@ -17,12 +16,6 @@ def start_scheduler():
     if not scheduler.running:
         # Start the scheduler
         scheduler.start()
-
-    # Log the addition of the job to refresh Strava user tokens
-    core_logger.print_to_log(
-        "Added scheduler job to refresh Strava user tokens every 60 minutes"
-    )
-    scheduler.add_job(strava_utils.refresh_strava_tokens_job, "interval", minutes=60)
 
     add_scheduler_job(
         strava_activity_utils.retrieve_strava_users_activities_for_days,
