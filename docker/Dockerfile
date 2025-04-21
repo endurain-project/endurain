@@ -58,7 +58,8 @@ ENV UID=1000 \
     JAGGER_PORT=4317 \
     ENDURAIN_HOST="http://localhost:8080" \
     GEOCODES_MAPS_API="changeme" \
-    BEHIND_PROXY=false
+    BEHIND_PROXY=false \
+    ENVIRONMENT="production"
 
 # Set the working directory to /app/frontend
 WORKDIR /app/frontend

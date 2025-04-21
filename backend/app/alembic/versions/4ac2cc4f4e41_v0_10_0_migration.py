@@ -31,6 +31,30 @@ def upgrade() -> None:
             comment="0 - public, 1 - followers, 2 - private",
         ),
     )
+    # Add login_photo_set column to server_settings table
+    op.add_column(
+        "server_settings",
+        sa.Column(
+            "login_photo_set",
+            sa.Boolean(),
+            nullable=True,
+            comment="Is login photo set (true - yes, false - no)",
+        ),
+    )
+    # Set default value for existing records
+    op.execute(
+        """
+        UPDATE server_settings
+        SET login_photo_set = FALSE
+        """
+    )
+    # Make the column non-nullable now that all rows have a value
+    op.alter_column(
+        "server_settings",
+        "login_photo_set",
+        existing_type=sa.Boolean(),
+        nullable=False,
+    )
     # Create activities_laps table
     op.create_table(
         "activity_laps",
@@ -297,7 +321,10 @@ def upgrade() -> None:
             "notes", sa.String(length=250), nullable=True, comment="Workout step notes"
         ),
         sa.Column(
-            "exercise_category", sa.Integer(), nullable=True, comment="Workout step exercise category"
+            "exercise_category",
+            sa.Integer(),
+            nullable=True,
+            comment="Workout step exercise category",
         ),
         sa.Column(
             "exercise_name", sa.Integer(), nullable=True, comment="Exercise name ID"
@@ -366,11 +393,12 @@ def upgrade() -> None:
             nullable=False,
             comment="Workout set start date (DATETIME)",
         ),
+        sa.Column("category", sa.Integer(), nullable=True, comment="Category name"),
         sa.Column(
-            "category", sa.Integer(), nullable=True, comment="Category name"
-        ),
-        sa.Column(
-            "category_subtype", sa.Integer(), nullable=True, comment="Category sub type number"
+            "category_subtype",
+            sa.Integer(),
+            nullable=True,
+            comment="Category sub type number",
         ),
         sa.ForeignKeyConstraint(["activity_id"], ["activities.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),
@@ -391,9 +419,29 @@ def upgrade() -> None:
         existing_nullable=False,
     )
     # Add column tennis_gear_id to users_default_gear table
-    op.add_column('users_default_gear', sa.Column('tennis_gear_id', sa.Integer(), nullable=True, comment='Gear ID that the default tennis activity type belongs'))
-    op.create_index(op.f('ix_users_default_gear_tennis_gear_id'), 'users_default_gear', ['tennis_gear_id'], unique=False)
-    op.create_foreign_key(None, 'users_default_gear', 'gear', ['tennis_gear_id'], ['id'], ondelete='SET NULL')
+    op.add_column(
+        "users_default_gear",
+        sa.Column(
+            "tennis_gear_id",
+            sa.Integer(),
+            nullable=True,
+            comment="Gear ID that the default tennis activity type belongs",
+        ),
+    )
+    op.create_index(
+        op.f("ix_users_default_gear_tennis_gear_id"),
+        "users_default_gear",
+        ["tennis_gear_id"],
+        unique=False,
+    )
+    op.create_foreign_key(
+        None,
+        "users_default_gear",
+        "gear",
+        ["tennis_gear_id"],
+        ["id"],
+        ondelete="SET NULL",
+    )
     # Create migration record
     op.execute(
         """
@@ -414,9 +462,11 @@ def downgrade() -> None:
     """
     )
     # Drop foreign key constraint from users_default_gear table
-    op.drop_constraint(None, 'users_default_gear', type_='foreignkey')
-    op.drop_index(op.f('ix_users_default_gear_tennis_gear_id'), table_name='users_default_gear')
-    op.drop_column('users_default_gear', 'tennis_gear_id')
+    op.drop_constraint(None, "users_default_gear", type_="foreignkey")
+    op.drop_index(
+        op.f("ix_users_default_gear_tennis_gear_id"), table_name="users_default_gear"
+    )
+    op.drop_column("users_default_gear", "tennis_gear_id")
     # Alter gear column gear_type to remove racquet from comment
     op.alter_column(
         "gear",

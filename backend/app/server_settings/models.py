@@ -24,5 +24,11 @@ class ServerSettings(Base):
         default=False,
         comment="Allow show user info on public shareable links (true - yes, false - no)",
     )
+    login_photo_set = Column(
+        Boolean,
+        nullable=False,
+        default=False,
+        comment="Is login photo set (true - yes, false - no)",
+    )
 
     __table_args__ = (CheckConstraint("id = 1", name="single_row_check"),)

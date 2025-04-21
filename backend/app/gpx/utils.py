@@ -510,6 +510,12 @@ def generate_activity_laps(
         lap_hr_waypoints = filter_waypoints(hr_waypoints, start_time, end_time)
         lap_cad_waypoints = filter_waypoints(cad_waypoints, start_time, end_time)
         lap_vel_waypoints = filter_waypoints(vel_waypoints, start_time, end_time)
+        ele_gain, ele_loss = None, None
+        avg_hr, max_hr = None, None
+        avg_cadence, max_cadence = None, None
+        avg_speed, max_speed = None, None
+        avg_power, max_power, np = None, None, None
+        
 
         # Calculate total ascent and descent
         if lap_ele_waypoints:

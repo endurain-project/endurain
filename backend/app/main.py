@@ -77,15 +77,21 @@ def create_app() -> FastAPI:
 
     # Add CORS middleware to allow requests from the frontend
     origins = [
-        "http://localhost",
         "http://localhost:8080",
         "http://localhost:5173",
         os.environ.get("ENDURAIN_HOST"),
     ]
 
+    print(core_config.ENVIRONMENT)
+    print("CORS Origins:", origins)
+
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=origins,
+        allow_origins=(
+            origins
+            if core_config.ENVIRONMENT == "development"
+            else os.environ.get("ENDURAIN_HOST")
+        ),
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
@@ -96,6 +102,9 @@ def create_app() -> FastAPI:
 
     # Add a route to serve the user images
     app.mount("/user_images", StaticFiles(directory="user_images"), name="user_images")
+    app.mount(
+        "/server_images", StaticFiles(directory="server_images"), name="server_images"
+    )
     app.mount(
         "/", StaticFiles(directory=core_config.FRONTEND_DIR, html=True), name="frontend"
     )

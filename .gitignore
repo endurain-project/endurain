@@ -14,6 +14,11 @@ backend/app/*.pyc
 backend/app/logs/*.log
 backend/app/*.log
 
+# server image folder images
+backend/app/server_images/*.jpeg
+backend/app/server_images/*.png
+backend/app/server_images/*.jpg
+
 # user image folder images
 backend/app/user_images/*.jpeg
 backend/app/user_images/*.png

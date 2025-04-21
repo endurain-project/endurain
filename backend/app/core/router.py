@@ -34,7 +34,35 @@ def api_not_found():
 def user_img_return(
     user_img: str,
 ):
-    return core_utils.return_user_img_path(user_img)
+    path = core_utils.return_user_img_path(user_img)
+
+    # If the path is None, raise a 404 error
+    if path is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User image not found",
+        )
+
+    # Return the user image path
+    return path
+
+
+@router.get("/server_images/{server_img}", include_in_schema=False)
+def server_img_return(
+    server_img: str,
+):
+    # Get the server image path
+    path = core_utils.return_server_img_path(server_img)
+
+    # If the path is None, raise a 404 error
+    if path is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Server image not found",
+        )
+
+    # Return the server image path
+    return path
 
 
 @router.get("/{path:path}", include_in_schema=False)

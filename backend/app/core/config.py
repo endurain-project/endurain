@@ -9,6 +9,7 @@ LICENSE_IDENTIFIER = "AGPL-3.0-or-later"
 LICENSE_URL = "https://spdx.org/licenses/AGPL-3.0-or-later.html"
 ROOT_PATH = "/api/v1"
 FRONTEND_DIR = "/app/frontend/dist"
+ENVIRONMENT = os.getenv("ENVIRONMENT")
 
 
 def check_required_env_vars():
@@ -33,6 +34,7 @@ def check_required_env_vars():
         "JAGGER_PORT",
         "ENDURAIN_HOST",
         "GEOCODES_MAPS_API",
+        "ENVIRONMENT",
     ]
 
     for var in required_env_vars:

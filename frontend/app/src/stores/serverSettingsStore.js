@@ -8,6 +8,7 @@ export const useServerSettingsStore = defineStore('serverSettings', {
             units: 1,
             public_shareable_links: false,
             public_shareable_links_user_info: false,
+            login_photo_set: false,
         },
     }),
     actions: {

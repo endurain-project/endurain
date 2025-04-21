@@ -43,6 +43,7 @@ Environment variable  | Default value | Optional | Notes |
 | JAEGER_HOST | jaeger | Yes | N/A |
 | JAGGER_PORT | 4317 | Yes | N/A |
 | BEHIND_PROXY | false | Yes | Change to true if behind reverse proxy |
+| ENVIRONMENT | production | Yes | "production" and "development" allowed. "development" allows connections from localhost:8080 and localhost:5173 at the CORS level |
 
 Table below shows the obligatory environment variables for mariadb container. You should set them based on what was also set for the Endurain container.
 
@@ -79,6 +80,7 @@ Docker image uses a non-root user, so ensure target folders are not owned by roo
 | `<local_path>/endurain/backend/files/bulk_import:/app/backend/files/bulk_import` | Necessary to enable bulk import of activities. Place here your activities files |
 | `<local_path>/endurain/backend/files/processed:/app/backend/files/processed` | Necessary for processed original files persistence on container image updates |
 | `<local_path>/endurain/backend/user_images:/app/backend/user_images` | Necessary for user image persistence on container image updates |
+| `<local_path>/endurain/backend/server_images:/app/backend/server_images` | Necessary for server image persistence on container image updates |
 | `<local_path>/endurain/backend/logs:/app/backend/logs` | Log files for the backend |
 
 ## Bulk import and file upload
@@ -86,5 +88,11 @@ Docker image uses a non-root user, so ensure target folders are not owned by roo
 .fit files are preferred. I noticed that Strava/Garmin Connect process of converting .fit to .gpx introduces additional data to the activity file leading to minor variances in the data, like for example additional meters in distance and elevation gain.
 Some notes:
 
-- After the files are processed, the files are moved to the processed folder.
-- GEOCODES API has a limit of 1 Request/Second on the free plan, so if you have a large number of files, it might not be possible to import all in the same action.
+- After the files are processed, the files are moved to the processed folder
+- GEOCODES API has a limit of 1 Request/Second on the free plan, so if you have a large number of files, it might not be possible to import all in the same action
+
+## Image personalization
+
+It is possible (v0.10.0 or higher) to personalize the login image in the login page. To do that, map the server_images directory and:
+ - Place the image there with the name "login.png"
+ - A square image is expected. Default one uses 1000px vs 1000px

@@ -2,7 +2,7 @@
 	<div class="bg-body-tertiary shadow-sm rounded p-3">
 		<div class="row justify-content-center align-items-center">
 			<div class="col d-none d-lg-block">
-				<img width="auto" height="auto" src="../assets/sports_images/run_triton.png" alt="João at the finish line in Triton 1 Lisbon" class="img-fluid rounded">
+				<img width="auto" height="auto" :src="loginPhotoUrl" alt="Square login image" class="img-fluid rounded" />
 			</div>
 			<div class="col form-signin text-center m-3">
 				<form @submit.prevent="submitForm">
@@ -45,6 +45,7 @@ import { useI18n } from "vue-i18n";
 import { push } from "notivue";
 // Importing the stores
 import { useAuthStore } from "@/stores/authStore";
+import { useServerSettingsStore } from "@/stores/serverSettingsStore";
 // Importing the services for the login
 import { session } from "@/services/sessionService";
 import { profile } from "@/services/profileService";
@@ -60,7 +61,13 @@ export default {
 		const username = ref("");
 		const password = ref("");
 		const authStore = useAuthStore();
+		const serverSettingsStore = useServerSettingsStore();
 		const showPassword = ref(false);
+		const loginPhotoUrl = serverSettingsStore.serverSettings.login_photo_set
+			? `${import.meta.env.VITE_ENDURAIN_HOST}/server_images/login.png`
+			: "/src/assets/login.png";
+
+		console.log("loginPhotoUrl", loginPhotoUrl);
 
 		// Toggle password visibility
 		const togglePasswordVisibility = () => {
@@ -124,6 +131,7 @@ export default {
 			togglePasswordVisibility,
 			submitForm,
 			t,
+			loginPhotoUrl,
 		};
 	},
 };
