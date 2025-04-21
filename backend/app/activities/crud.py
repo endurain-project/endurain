@@ -42,6 +42,30 @@ def get_all_activities(db: Session):
         ) from err
 
 
+def get_all_activities_no_serialize(db: Session):
+    try:
+        # Get the activities from the database
+        activities = db.query(activities_models.Activity).all()
+
+        # Check if there are activities if not return None
+        if not activities:
+            return None
+
+        # Return the activities
+        return activities
+
+    except Exception as err:
+        # Log the exception
+        core_logger.print_to_log(
+            f"Error in get_all_activities_no_serialize: {err}", "error", exc=err
+        )
+        # Raise an HTTPException with a 500 Internal Server Error status code
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal Server Error",
+        ) from err
+
+
 def get_user_activities(
     user_id: int,
     db: Session,
@@ -414,7 +438,7 @@ def get_activity_by_id_if_is_public(activity_id: int, db: Session):
         # Return None if public sharable links are disabled
         if not server_settings or not server_settings.public_shareable_links:
             return None
-        
+
         # Get the activities from the database
         activity = (
             db.query(activities_models.Activity)
@@ -671,7 +695,7 @@ def edit_activity(user_id: int, activity: activities_schema.Activity, db: Sessio
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal Server Error",
         ) from err
-    
+
 
 def edit_user_activities_visibility(user_id: int, visibility: int, db: Session):
     try:
@@ -702,7 +726,9 @@ def edit_user_activities_visibility(user_id: int, visibility: int, db: Session):
         db.rollback()
 
         # Log the exception
-        core_logger.print_to_log(f"Error in edit_user_activities_visibility: {err}", "error", exc=err)
+        core_logger.print_to_log(
+            f"Error in edit_user_activities_visibility: {err}", "error", exc=err
+        )
 
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(

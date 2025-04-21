@@ -98,7 +98,7 @@ def serialize_activity(activity: activities_schema.Activity):
     timezone = (
         ZoneInfo(activity.timezone)
         if activity.timezone
-        else ZoneInfo(os.environ.get("TZ"))
+        else ZoneInfo(os.environ.get("TZ", "UTC"))
     )
 
     activity.start_time = make_aware_and_format(activity.start_time, timezone)
