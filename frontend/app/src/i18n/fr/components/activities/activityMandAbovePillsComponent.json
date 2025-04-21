@@ -1,14 +1,14 @@
 {
-    "labelPillGraphs": "Graphs",
-    "labelPillLaps": "Laps",
-    "labelPillWorkoutSets": "Sets",
-    "labelGraph": "Activity data graphs",
-    "labelGraphHR": "Heart rate",
-    "labelGraphPower": "Power",
+    "labelPillGraphs": "Graphiques",
+    "labelPillLaps": "Intervalle",
+    "labelPillWorkoutSets": "Ensembles",
+    "labelGraph": "Graphiques des données d'activité",
+    "labelGraphHR": "Fréquence cardiaque",
+    "labelGraphPower": "Puissance",
     "labelGraphCadence": "Cadence",
-    "labelGraphElevation": "Elevation",
-    "labelGraphVelocity": "Velocity",
-    "labelGraphPace": "Pace",
-    "labelDownsampling": "Data downsampled to ~200 points",
-    "errorMessageProcessingActivityStreams": "Error processing activity streams"
+    "labelGraphElevation": "Élévation",
+    "labelGraphVelocity": "Vitesse ",
+    "labelGraphPace": "Allure",
+    "labelDownsampling": "Données abaissées à ~200 points",
+    "errorMessageProcessingActivityStreams": "Erreur lors du traitement des flux d'activité"
 }
