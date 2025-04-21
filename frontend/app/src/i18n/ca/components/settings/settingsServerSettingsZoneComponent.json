@@ -9,6 +9,17 @@
     "serverSettingsPublicShareableLinksEnabledWarningAlert": "Activant això, es podran veure totes les activitats publicades sense autenticació.",
     "publicShareableLinksShowUserInfoLabel": "Mostra informació de l'usuari",
     "serverSettingsPublicShareableLinksShowUserWarningAlert": "Activant això, es mostrarà la informació de l'usuari a tots els enllaços públics",
+    "photosLabel": "Photos",
+    "loginPhotoLabel": "Login photo",
+    "buttonAddPhoto": "Add photo",
+    "logonPhotoAddLabel": "Login page photo (.png)",
+    "logonPhotoAddDetailsLabel": "Square .png image with a size of 1000x1000 pixels.",
+    "processingPhotoUpload": "Processing photo upload",
+    "successPhotoUpload": "Photo uploaded successfully",
+    "buttonDeleteLoginPhoto": "Delete login photo",
+    "modalDeleteLoginPhotoBody": "Are you sure you want to delete the login photo?",
+    "processingPhotoDelete": "Processing photo delete",
+    "successPhotoDelete": "Photo deleted successfully",
     "successUpdateServerSettings": "Opcions de servidor actualitzades",
     "errorUpdateServerSettings": "Error actualitzant opcions de servidor"
 }
