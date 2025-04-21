@@ -2,7 +2,8 @@
 	<div class="bg-body-tertiary shadow-sm rounded p-3">
 		<div class="row justify-content-center align-items-center">
 			<div class="col d-none d-lg-block">
-				<img width="auto" height="auto" :src="loginPhotoUrl" alt="Square login image" class="img-fluid rounded" />
+				<img width="auto" height="auto" :src="loginPhotoUrl" alt="Square login image" class="img-fluid rounded" v-if="serverSettingsStore.serverSettings.login_photo_set" />
+				<img width="auto" height="auto" src="/src/assets/login.png"  alt="Square login image" class="img-fluid rounded" v-else >
 			</div>
 			<div class="col form-signin text-center m-3">
 				<form @submit.prevent="submitForm">
@@ -65,9 +66,7 @@ export default {
 		const showPassword = ref(false);
 		const loginPhotoUrl = serverSettingsStore.serverSettings.login_photo_set
 			? `${import.meta.env.VITE_ENDURAIN_HOST}/server_images/login.png`
-			: "/src/assets/login.png";
-
-		console.log("loginPhotoUrl", loginPhotoUrl);
+			: null;
 
 		// Toggle password visibility
 		const togglePasswordVisibility = () => {
@@ -132,6 +131,7 @@ export default {
 			submitForm,
 			t,
 			loginPhotoUrl,
+			serverSettingsStore,
 		};
 	},
 };
