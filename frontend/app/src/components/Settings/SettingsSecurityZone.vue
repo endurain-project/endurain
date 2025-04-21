@@ -7,21 +7,31 @@
 			<form @submit.prevent="submitChangeUserPasswordForm">
 				<!-- password fields -->
 				<label for="validationNewPassword"><b>* {{ $t("settingsSecurityZone.changeUserPasswordPasswordLabel") }}</b></label>
-				<input class="form-control" :class="{ 'is-invalid': !isNewPasswordValid || !isPasswordMatch }" type="password" id="validationNewPassword" aria-describedby="validationNewPasswordFeedback" :placeholder='$t("settingsSecurityZone.changeUserPasswordPasswordLabel")' v-model="newPassword" required>
-				<div id="validationNewPasswordFeedback" class="invalid-feedback" v-if="!isNewPasswordValid">
+				<div class="position-relative">
+					<input :type="showNewPassword ? 'text' : 'password'" class="form-control" :class="{ 'is-invalid': !isNewPasswordValid || !isPasswordMatch }" id="validationNewPassword" aria-describedby="validationNewPasswordFeedback" :placeholder='$t("settingsSecurityZone.changeUserPasswordPasswordLabel")' v-model="newPassword" required>
+					<button type="button" class="btn position-absolute top-50 end-0 translate-middle-y" :class="{ 'me-4': !isNewPasswordValid || !isPasswordMatch }" @click="toggleNewPasswordVisibility">
+						<font-awesome-icon :icon="showNewPassword ? ['fas', 'eye-slash'] : ['fas', 'eye']" />
+					</button>
+				</div>
+				<div id="validationNewPasswordFeedback" class="invalid-feedback d-block" v-if="!isNewPasswordValid">
 					{{ $t("settingsSecurityZone.changeUserPasswordFeedbackLabel") }}
 				</div>
-				<div id="validationNewPasswordFeedback" class="invalid-feedback" v-if="!isPasswordMatch">
+				<div id="validationNewPasswordFeedback" class="invalid-feedback d-block" v-if="!isPasswordMatch">
 					{{ $t("settingsSecurityZone.changeUserPasswordPasswordsDoNotMatchFeedbackLabel") }}
 				</div>
 
 				<!-- repeat password fields -->
 				<label class="mt-1" for="validationNewPasswordRepeat"><b>* {{ $t("settingsSecurityZone.changeUserPasswordPasswordConfirmationLabel") }}</b></label>
-				<input class="form-control" :class="{ 'is-invalid': !isNewPasswordRepeatValid || !isPasswordMatch }" type="password" id="validationNewPasswordRepeat" aria-describedby="validationNewPasswordRepeatFeedback" :placeholder='$t("settingsSecurityZone.changeUserPasswordPasswordConfirmationLabel")' v-model="newPasswordRepeat" required>
-				<div id="validationNewPasswordRepeatFeedback" class="invalid-feedback" v-if="!isNewPasswordRepeatValid">
+				<div class="position-relative">
+					<input :type="showNewPasswordRepeat ? 'text' : 'password'" class="form-control" :class="{ 'is-invalid': !isNewPasswordRepeatValid || !isPasswordMatch }" id="validationNewPasswordRepeat" aria-describedby="validationNewPasswordRepeatFeedback" :placeholder='$t("settingsSecurityZone.changeUserPasswordPasswordConfirmationLabel")' v-model="newPasswordRepeat" required>
+					<button type="button" class="btn position-absolute top-50 end-0 translate-middle-y" :class="{ 'me-4': !isNewPasswordRepeatValid || !isPasswordMatch }" @click="toggleNewPasswordRepeatVisibility">
+						<font-awesome-icon :icon="showNewPasswordRepeat ? ['fas', 'eye-slash'] : ['fas', 'eye']" />
+					</button>
+				</div>
+				<div id="validationNewPasswordRepeatFeedback" class="invalid-feedback d-block" v-if="!isNewPasswordRepeatValid">
 					{{ $t("settingsSecurityZone.changeUserPasswordFeedbackLabel") }}
 				</div>
-				<div id="validationNewPasswordRepeatFeedback" class="invalid-feedback" v-if="!isPasswordMatch">
+				<div id="validationNewPasswordRepeatFeedback" class="invalid-feedback d-block" v-if="!isPasswordMatch">
 					{{ $t("settingsSecurityZone.changeUserPasswordPasswordsDoNotMatchFeedbackLabel") }}
 				</div>
 
@@ -83,6 +93,19 @@ export default {
 		);
 		const userSessions = ref([]);
 		const isLoading = ref(true);
+
+		const showNewPassword = ref(false);
+		const showNewPasswordRepeat = ref(false);
+
+		// Toggle visibility for new password
+		const toggleNewPasswordVisibility = () => {
+			showNewPassword.value = !showNewPassword.value;
+		};
+
+		// Toggle visibility for repeated password
+		const toggleNewPasswordRepeatVisibility = () => {
+			showNewPasswordRepeat.value = !showNewPasswordRepeat.value;
+		};
 
 		async function submitChangeUserPasswordForm() {
 			try {
@@ -153,6 +176,10 @@ export default {
 			userSessions,
 			isLoading,
 			updateSessionListDeleted,
+			showNewPassword,
+			showNewPasswordRepeat,
+			toggleNewPasswordVisibility,
+			toggleNewPasswordRepeatVisibility,
 		};
 	},
 };

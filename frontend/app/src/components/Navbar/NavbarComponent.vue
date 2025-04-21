@@ -2,7 +2,8 @@
     <nav class="navbar navbar-expand-lg bg-body-tertiary">
         <div class="container-fluid">
             <!-- Navbar brand + search in the left -->
-            <router-link :to="{ name: 'home' }" class="navbar-brand">
+            <router-link :to="{ name: 'home' }" class="navbar-brand d-flex align-items-center">
+                <img src="/logo/logo.svg" alt="Logo" width="24" height="24" class="me-2 rounded">
                 Endurain
             </router-link>
             

@@ -43,8 +43,13 @@
                         <!-- password fields -->
                         <div v-if="action == 'add'">
                             <label for="passUserAdd"><b>* {{ $t("usersAddEditUserModalComponent.addEditUserModalPasswordLabel") }}</b></label>
-                            <input class="form-control" :class="{ 'is-invalid': !isPasswordValid }" type="password" id="validationPassword" aria-describedby="validationPasswordFeedback" name="passUserAdd" :placeholder='$t("usersAddEditUserModalComponent.addEditUserModalPasswordPlaceholder")' v-model="newUserPassword" required>
-                            <div id="validationPasswordFeedback" class="invalid-feedback" v-if="!isPasswordValid">
+                            <div class="position-relative">
+                                <input :type="showPassword ? 'text' : 'password'" class="form-control" :class="{ 'is-invalid': !isPasswordValid }" id="validationPassword" aria-describedby="validationPasswordFeedback" name="passUserAdd" :placeholder='$t("usersAddEditUserModalComponent.addEditUserModalPasswordPlaceholder")' v-model="newUserPassword" required>
+                                <button type="button" class="btn position-absolute top-50 end-0 translate-middle-y" :class="{ 'me-4': !isPasswordValid }" @click="togglePasswordVisibility">
+                                    <font-awesome-icon :icon="showPassword ? ['fas', 'eye-slash'] : ['fas', 'eye']" />
+                                </button>
+                            </div>
+                            <div id="validationPasswordFeedback" class="invalid-feedback d-block" v-if="!isPasswordValid">
                                 {{ $t("usersAddEditUserModalComponent.addEditUserModalErrorPasswordInvalid") }}
                             </div>
                         </div>
@@ -266,6 +271,12 @@ export default {
 				/^(?=.*[A-Z])(?=.*\d)(?=.*[ !\"#$%&'()*+,\-./:;<=>?@[\\\]^_`{|}~])[A-Za-z\d !"#$%&'()*+,\-./:;<=>?@[\\\]^_`{|}~]{8,}$/;
 			return regex.test(newUserPassword.value);
 		});
+        const showPassword = ref(false);
+
+        // Toggle password visibility
+        const togglePasswordVisibility = () => {
+            showPassword.value = !showPassword.value;
+        };
 
         if (props.user) {
             if (props.action === 'edit') {
@@ -489,6 +500,8 @@ export default {
             submitDeleteUserPhoto,
             handleFileChange,
             handleSubmit,
+            showPassword,
+            togglePasswordVisibility,
 		};
     },
 };

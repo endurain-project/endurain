@@ -1,28 +1,37 @@
 <template>
-  <div class="form-signin w-100 m-auto text-center p-5" style="max-width: 500px">
-    <form @submit.prevent="submitForm">
-        <h1>Endurain</h1>
-        <p>{{ $t("loginView.subtitle") }}</p>
-        <br>
+	<div class="bg-body-tertiary shadow-sm rounded p-3">
+		<div class="row justify-content-center align-items-center">
+			<div class="col d-none d-lg-block">
+				<img width="auto" height="auto" src="../assets/sports_images/run_triton.png" alt="João at the finish line in Triton 1 Lisbon" class="img-fluid rounded">
+			</div>
+			<div class="col form-signin text-center m-3">
+				<form @submit.prevent="submitForm">
+					<h1>Endurain</h1>
+					<p>{{ $t("loginView.subtitle") }}</p>
+					<br>
 
-        <div class="form-floating">
-            <input type="text" class="form-control" id="floatingInput" name="loginUsername" :placeholder='$t("loginView.username")' v-model="username" required>
-            <label for="loginUsername">{{ $t("loginView.username") }}</label>
-        </div>
-        <br>
-        <div class="form-floating">
-            <input type="password" class="form-control" name="loginPassword" :placeholder='$t("loginView.password")' v-model="password" required>
-            <label for="loginPassword">{{ $t("loginView.password") }}</label>
-        </div>
-        <br>
-        <button class="w-100 btn btn-lg btn-primary" type="submit">{{ $t("loginView.signInButton") }}</button>
-        <!--<div>
-            <br>
-            <p>{{ $t("loginView.signUpText") }}</p>
-            <button class="w-100 btn btn-lg btn-primary disabled" type="submit">{{ $t("loginView.signUpButton") }}></button>
-        </div>-->
-    </form>
-  </div>
+					<div class="form-floating">
+						<input type="text" class="form-control" id="floatingInput" name="loginUsername" :placeholder='$t("loginView.username")' v-model="username" required>
+						<label for="loginUsername">{{ $t("loginView.username") }}</label>
+					</div>
+					<br>
+					<div class="form-floating position-relative">
+						<input :type="showPassword ? 'text' : 'password'" class="form-control" name="loginPassword" :placeholder='$t("loginView.password")' v-model="password" required>
+						<label for="loginPassword">{{ $t("loginView.password") }}</label>
+						<button type="button" class="btn position-absolute top-50 end-0 translate-middle-y me-2" @click="togglePasswordVisibility">
+							<font-awesome-icon :icon="showPassword ? ['fas', 'eye-slash'] : ['fas', 'eye']" />
+						</button>
+					</div>
+					<br>
+					<button class="w-100 btn btn-lg btn-primary" type="submit">{{ $t("loginView.signInButton") }}</button>
+					<!--<div>
+						<hr>
+						<button class="w-100 btn btn-lg btn-warning disabled" type="submit">{{ $t("loginView.signUpButton") }}</button>
+					</div>-->
+				</form>
+			</div>
+		</div>
+	</div>
 </template>
 
 <script>
@@ -51,6 +60,12 @@ export default {
 		const username = ref("");
 		const password = ref("");
 		const authStore = useAuthStore();
+		const showPassword = ref(false);
+
+		// Toggle password visibility
+		const togglePasswordVisibility = () => {
+			showPassword.value = !showPassword.value;
+		};
 
 		// Handle the form submission
 		const submitForm = async () => {
@@ -105,6 +120,8 @@ export default {
 		return {
 			username,
 			password,
+			showPassword,
+			togglePasswordVisibility,
 			submitForm,
 			t,
 		};

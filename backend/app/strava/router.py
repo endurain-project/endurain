@@ -17,6 +17,7 @@ import activities.crud as activities_crud
 
 import strava.gear_utils as strava_gear_utils
 import strava.activity_utils as strava_activity_utils
+import strava.utils as strava_utils
 
 import core.logger as core_logger
 import core.database as core_database
@@ -227,6 +228,15 @@ async def strava_unlink(
         Depends(core_database.get_db),
     ],
 ):
+    # Get Strava client
+    strava_client = strava_utils.create_strava_client(
+        strava_utils.fetch_user_integrations_and_validate_token(token_user_id, db)
+    )
+
+    # Deauthorize the Strava client
+    if strava_client:
+        strava_client.deauthorize()
+
     # delete all strava gear for user
     gears_crud.delete_all_strava_gear_for_user(token_user_id, db)
 

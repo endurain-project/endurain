@@ -27,7 +27,7 @@ import {
 		<main class="container py-4 flex-grow-1">
 			<RouterView />
 		</main>
-		<FooterComponent class="d-none d-sm-block shadow-sm"/>
+		<FooterComponent class="d-none d-lg-block shadow-sm"/>
 		<NavbarBottomMobileComponent class="d-lg-none d-block sticky-bottom shadow-sm"/>
 	</div>
 </template>
