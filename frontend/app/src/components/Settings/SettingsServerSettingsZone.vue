@@ -70,7 +70,7 @@
                                         {{ $t("generalItems.buttonClose") }}
                                         </button>
                                         <button type="submit" class="btn btn-success" data-bs-dismiss="modal">
-                                        {{ $t("homeView.buttonAddActivity") }}
+                                        {{ $t("settingsServerSettingsZoneComponent.buttonAddPhoto") }}
                                         </button>
                                     </div>
                                 </form>
