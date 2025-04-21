@@ -82,9 +82,6 @@ def create_app() -> FastAPI:
         os.environ.get("ENDURAIN_HOST"),
     ]
 
-    print(core_config.ENVIRONMENT)
-    print("CORS Origins:", origins)
-
     app.add_middleware(
         CORSMiddleware,
         allow_origins=(
