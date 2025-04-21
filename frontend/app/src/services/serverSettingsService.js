@@ -9,5 +9,11 @@ export const serverSettings = {
     // Server settings authenticated
     editServerSettings(data) {
         return fetchPutRequest('server_settings', data);
+    },
+    uploadLoginPhotoFile(formData) {
+        return fetchPostFileRequest('server_settings/upload/login', formData);
+    },
+    deleteLoginPhotoFile() {
+        return fetchDeleteRequest('server_settings/upload/login');
     }
 };
