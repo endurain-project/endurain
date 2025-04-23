@@ -68,7 +68,6 @@ To check Python backend dependencies used, use poetry file (pyproject.toml).
 Frontend dependencies:
 
 - To check npm dependencies used, use npm file (package.json)
-- User avatars create using DiceBear (https://www.dicebear.com) avataaars style
 - Logo created on Canva
 
 ## Volumes
@@ -93,6 +92,6 @@ Some notes:
 
 ## Image personalization
 
-It is possible (v0.10.0 or higher) to personalize the login image in the login page. To do that, map the server_images directory and:
- - Place the image there with the name "login.png"
+It is possible (v0.10.0 or higher) to personalize the login image in the login page. To do that, map the server_images directory for image persistence on container updates and:
+ - Set the image in the server settings zone of the settings page
  - A square image is expected. Default one uses 1000px vs 1000px
