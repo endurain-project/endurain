@@ -1,10 +1,10 @@
 {
     "thisMonthActivitiesNumber": "Aktivitäten aus diesem Monat",
     "userFollowing": "Folgend",
-    "userFollowers": "Followers",
+    "userFollowers": "Abonnenten",
     "navigationActivities": "Aktivitäten",
     "navigationFollowing": "Folgend",
-    "navigationFollowers": "Followers",
+    "navigationFollowers": "Abonnenten",
     "navigationUserSettings": "Benutzereinstellungen",
     "navigationFollow": "Folgen",
     "modalFollowUserTitle": "Benutzer folgen",
@@ -26,7 +26,7 @@
     "successFollowingDeleted": "Follower gelöscht",
     "successFollowerDeleted": "Follower gelöscht",
     "successFollowerAccepted": "Follower angenommen",
-    "errorFetchingUserStats": "Error fetching user stats",
-    "errorFetchingUserFollowers": "Error fetching user followers",
-    "errorFetchingUserActivities": "Error fetching user activities"
+    "errorFetchingUserStats": "Fehler beim Abrufen der Benutzerstatistiken",
+    "errorFetchingUserFollowers": "Fehler beim Abrufen der Abonnenten",
+    "errorFetchingUserActivities": "Fehler beim Abrufen der Benutzeraktivitäten"
 }
