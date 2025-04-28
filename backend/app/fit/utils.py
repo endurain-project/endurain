@@ -962,8 +962,12 @@ def parse_frame_workout_step(frame):
     secondary_target_value = None
 
     if workout_set_data[3] == "swim_stroke":
-        secondary_target_value = workout_set_data[4]
-        workout_set_data[4] = None
+        if isinstance(workout_set_data[4], str):
+            secondary_target_value = workout_set_data[4]
+            workout_set_data[4] = None
+        elif isinstance(workout_set_data[4], int) and workout_set_data[4] == 255:
+            secondary_target_value = "any stroke"
+            workout_set_data[4] = None
 
     if workout_set_data[5] == 7:
         workout_set_data[5] = "active"
