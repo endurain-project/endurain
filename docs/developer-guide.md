@@ -39,6 +39,7 @@ services:
             - GEOCODES_MAPS_API=changeme
             - ENDURAIN_HOST=http://localhost:8080 # change if needed
             - BEHIND_PROXY=false
+            - ENVIRONMENT=development
         volumes:
             - <path_to_project_root_folder>/backend/app:/app/backend # this will replace the backend code logic with yours. Any changes in the code need a container reboot for them to apply
         ports:
