@@ -3,12 +3,12 @@
     "buttonDeleteGear": "Ausrüstung löschen",
     "modalDeleteGearBody1": "Bist du sicher, dass du die Ausrüstung löschen möchtest?",
     "modalDeleteGearBody2": "Dieser Vorgang kann nicht rückgängig gemacht werden.",
-    "gearIsActiveBadge": "Active",
-    "gearIsInactiveBadge": "Inactive",
+    "gearIsActiveBadge": "Aktiv",
+    "gearIsInactiveBadge": "Inaktiv",
     "gearTypeOption1": "Fahrrad",
     "gearTypeOption2": "Schuhe",
     "gearTypeOption3": "Neoprenanzug",
-    "gearTypeOption4": "Racquet",
+    "gearTypeOption4": "Tennisschläger",
     "gearFromStrava": "Strava",
     "gearFromGarminConnect": "Garmin Connect",
     "labelBrand": "Hersteller",
@@ -18,6 +18,6 @@
     "title": "Ausrüstungsaktivitäten",
     "subtitle": "(letzte 10 Aktivitäten)",
     "successGearEdited": "Ausrüstung erfolgreich bearbeitet",
-    "errorGearDelete": "Error deleting gear",
-    "errorFetchingGears": "Error fetching gears"
+    "errorGearDelete": "Fehler beim Löschen der Ausrüstung",
+    "errorFetchingGears": "Fehler beim Abrufen der Ausrüstung"
 }

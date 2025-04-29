@@ -11,6 +11,6 @@
     "signInButton": "Anmelden",
     "signUpText": "Möchtest du dich anmelden?",
     "signUpButton": "Registrieren",
-    "errorPublicActivityNotFound": "Public activity not found",
-    "errorpublic_shareable_links": "Public shareable links are not allowed. To view this activity, you must be signed in"
+    "errorPublicActivityNotFound": "Öffentliche Aktivität nicht gefunden",
+    "errorpublic_shareable_links": "Öffentliche Links sind nicht erlaubt. Um diese Aktivität anzuzeigen, müssen Sie angemeldet sein"
 }

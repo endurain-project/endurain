@@ -1,10 +1,10 @@
 {
     "buttonAddUser": "Benutzer hinzufügen",
-    "labelSearchUsersByUsername": "Search users by username",
+    "labelSearchUsersByUsername": "Benutzer nach Benutzername suchen",
     "labelNumberOfUsers1": "Es gibt insgesamt ",
     "labelNumberOfUsers2": " Benutzer (",
     "labelNumberOfUsers3": " geladen):",
     "successUserAdded": "Benutzer erfolgreich hinzugefügt",
-    "successUserDeleted": "User deleted successfully",
-    "errorFetchingUsers": "Error fetching users"
+    "successUserDeleted": "Benutzer wurde erfolgreich gelöscht",
+    "errorFetchingUsers": "Fehler beim Laden der Benutzer"
 }
