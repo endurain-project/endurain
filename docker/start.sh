@@ -20,24 +20,24 @@ validate_id() {
     fi
 }
 
-# Check ownership of necessary directories
-echo_info_log "Checking ownership of necessary directories..."
-
-# Dynamically adjust UID and GID based on host-mounted directory or environment variables
-HOST_UID=${UID:-$(stat -c '%u' /app/backend/logs 2>/dev/null || echo 1000)}
-HOST_GID=${GID:-$(stat -c '%g' /app/backend/logs 2>/dev/null || echo 1000)}
+check_folder_ownership(){
+    if [ -d "$1" ]; then
+        # Dynamically adjust UID and GID based on host-mounted directory or environment variables
+        HOST_UID=${UID:-$(stat -c '%u' "$1" 2>/dev/null || echo 1000)}
+        HOST_GID=${GID:-$(stat -c '%g' "$1" 2>/dev/null || echo 1000)}
+        # Avoid setting ownership to root (UID/GID = 0)
+        if [ "$HOST_UID" -eq 0 ] || [ "$HOST_GID" -eq 0 ]; then
+            echo_error_log "UID or GID is set to 0 (root). Adjust ownership manually to a non-root user."
+            exit 1
+        fi
+    else
+        echo_info_log "Directory $1 does not exist, skipping."
+    fi
+}
 
 # Validate UID and GID
-validate_id "$HOST_UID"
-validate_id "$HOST_GID"
-
-# Avoid setting ownership to root (UID/GID = 0)
-if [ "$HOST_UID" -eq 0 ] || [ "$HOST_GID" -eq 0 ]; then
-    echo_error_log "UID or GID is set to 0 (root). Adjust ownership manually to a non-root user."
-    exit 1
-fi
-
-echo_info_log "Adjusting ownership to match host UID ($HOST_UID) and GID ($HOST_GID)..."
+validate_id "$UID"
+validate_id "$GID"
 
 # List of directories to adjust ownership
 directories=(
@@ -47,7 +47,16 @@ directories=(
     /app/backend/server_images
 )
 
+# Check ownership of necessary directories
+echo_info_log "Checking ownership of necessary directories..."
+
+for dir in "${directories[@]}"; do
+    check_folder_ownership "$dir"
+done
+
 # Adjust ownership for each directory
+echo_info_log "Adjusting ownership to match host UID ($HOST_UID) and GID ($HOST_GID)..."
+
 for dir in "${directories[@]}"; do
     if [ -d "$dir" ]; then
         chown -R "$HOST_UID:$HOST_GID" "$dir"
