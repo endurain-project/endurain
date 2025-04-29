@@ -1,11 +1,22 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr, field_validator
+import re
+
+PASSWORD_REGEX = r"^(?=.*[A-Z])(?=.*\d)(?=.*[ !\"#$%&'()*+,\-./:;<=>?@[\\\]^_`{|}~])[A-Za-z\d !\"#$%&'()*+,\-./:;<=>?@[\\\]^_`{|}~]{8,}$"
+
+
+def validate_password(value: str) -> str:
+    if not re.match(PASSWORD_REGEX, value):
+        raise ValueError(
+            "Password must be at least 8 characters long, include an uppercase letter, a number, and a special character."
+        )
+    return value
 
 
 class User(BaseModel):
     id: int | None = None
     name: str
     username: str
-    email: str
+    email: EmailStr
     city: str | None = None
     birthdate: str | None = None
     preferred_language: str
@@ -24,6 +35,10 @@ class User(BaseModel):
 class UserCreate(User):
     password: str
 
+    @field_validator("password")
+    def validate_password_field(cls, value):
+        return validate_password(value)
+
 
 class UserMe(User):
     is_strava_linked: int | None = None
@@ -32,3 +47,7 @@ class UserMe(User):
 
 class UserEditPassword(BaseModel):
     password: str
+
+    @field_validator("password")
+    def validate_password_field(cls, value):
+        return validate_password(value)
