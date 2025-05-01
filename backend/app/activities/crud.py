@@ -1,18 +1,15 @@
-from operator import and_, or_
-from fastapi import HTTPException, status
-from datetime import datetime
-from sqlalchemy import func, desc
-from sqlalchemy.orm import Session, joinedload
+from datetime import date, datetime  # Added date
 from urllib.parse import unquote
-from pydantic import BaseModel
 
 import activities.models as activities_models
 import activities.schema as activities_schema
 import activities.utils as activities_utils
-
-import server_settings.crud as server_settings_crud
-
 import core.logger as core_logger
+import server_settings.crud as server_settings_crud
+from fastapi import HTTPException, status
+from pydantic import BaseModel
+from sqlalchemy import and_, desc, func, or_  # Import or_ and and_ from sqlalchemy
+from sqlalchemy.orm import Session, joinedload
 
 
 def get_all_activities(db: Session):
@@ -141,33 +138,179 @@ def get_user_activities_by_user_id_and_garminconnect_gear_set(
 
 
 def get_user_activities_with_pagination(
-    user_id: int, db: Session, page_number: int = 1, num_records: int = 5
-):
+    user_id: int,
+    db: Session,
+    page_number: int = 1,
+    num_records: int = 5,
+    activity_type: str | None = None,
+    start_date: date | None = None,
+    end_date: date | None = None,
+    name_search: str | None = None,
+    sort_by: str | None = None,  # Added sort_by
+    sort_order: str | None = None,  # Added sort_order
+) -> dict:
+    """
+    Retrieves paginated, filtered, and sorted activities for a user, along with the total count.
+    """
     try:
-        # Get the activities from the database
-        activities = (
-            db.query(activities_models.Activity)
-            .filter(activities_models.Activity.user_id == user_id)
-            .order_by(desc(activities_models.Activity.start_time))
-            .offset((page_number - 1) * num_records)
-            .limit(num_records)
-            .all()
+        # Mapping from frontend sort keys to database model fields
+        SORT_MAP = {
+            "type": activities_models.Activity.activity_type,
+            "name": activities_models.Activity.name,
+            "start_time": activities_models.Activity.start_time,
+            "duration": activities_models.Activity.total_timer_time,
+            "distance": activities_models.Activity.distance,
+            "calories": activities_models.Activity.calories,
+            "elevation": activities_models.Activity.elevation_gain,
+            "pace": activities_models.Activity.pace,
+            # Location sorting will be handled specially below
+        }
+
+        # Base query
+        query = db.query(activities_models.Activity).filter(
+            activities_models.Activity.user_id == user_id
         )
 
-        # Check if there are activities if not return None
-        if not activities:
-            return None
+        # Apply filters
+        if activity_type:
+            # Map the string type name (case-insensitive) to its ID
+            activity_type_id = activities_utils.ACTIVITY_NAME_TO_ID.get(
+                activity_type.lower()
+            )
+            if activity_type_id is not None:
+                query = query.filter(
+                    activities_models.Activity.activity_type == activity_type_id
+                )
+            # else: handle case where type name is invalid? Or just return no results?
+            # For now, if the type name doesn't map, the filter won't be applied effectively.
+        if start_date:
+            query = query.filter(
+                func.date(activities_models.Activity.start_time) >= start_date
+            )
+        if end_date:
+            query = query.filter(
+                func.date(activities_models.Activity.start_time) <= end_date
+            )
+        if name_search:
+            # Decode and prepare search term
+            search_term = unquote(name_search).replace("+", " ").lower()
+            # Apply search across name, town, city, and country
+            query = query.filter(
+                or_(
+                    func.lower(activities_models.Activity.name).like(
+                        f"%{search_term}%"
+                    ),
+                    func.lower(activities_models.Activity.town).like(
+                        f"%{search_term}%"
+                    ),
+                    func.lower(activities_models.Activity.city).like(
+                        f"%{search_term}%"
+                    ),
+                    func.lower(activities_models.Activity.country).like(
+                        f"%{search_term}%"
+                    ),
+                )
+            )
 
-        for activity in activities:
-            activity = activities_utils.serialize_activity(activity)
+        # Get total count before sorting and pagination
+        total_count = query.count()
 
-        # Return the activities
-        return activities
+        # Apply sorting
+        sort_ascending = sort_order and sort_order.lower() == "asc"
+
+        if sort_by == "location":
+            # Special handling for location: sort by country, then city, then town
+            country_sort = activities_models.Activity.country
+            city_sort = activities_models.Activity.city
+            town_sort = activities_models.Activity.town
+            if sort_ascending:
+                query = query.order_by(
+                    country_sort.asc().nullslast(),
+                    city_sort.asc().nullslast(),
+                    town_sort.asc().nullslast(),
+                )
+            else:
+                query = query.order_by(
+                    country_sort.desc().nullslast(),
+                    city_sort.desc().nullslast(),
+                    town_sort.desc().nullslast(),
+                )
+        else:
+            # Standard sorting for other columns
+            sort_column = SORT_MAP.get(
+                sort_by, activities_models.Activity.start_time
+            )  # Default to start_time
+            if sort_ascending:
+                # Handle potential None values for numeric/date columns if needed, e.g., .nullslast()
+                query = query.order_by(
+                    sort_column.asc().nullslast()
+                    if hasattr(sort_column, "asc")
+                    else sort_column
+                )
+            else:
+                # Default to descending order
+                query = query.order_by(
+                    sort_column.desc().nullslast()
+                    if hasattr(sort_column, "desc")
+                    else desc(sort_column)
+                )
+
+        # Apply pagination
+        paginated_query = query.offset((page_number - 1) * num_records).limit(
+            num_records
+        )
+
+        # Fetch activities
+        activities = paginated_query.all()
+
+        # Serialize activities
+        serialized_activities = []
+        if activities:
+            for activity in activities:
+                serialized_activities.append(
+                    activities_utils.serialize_activity(activity)
+                )
+
+        # Return the activities and total count
+        return {"activities": serialized_activities, "total_count": total_count}
 
     except Exception as err:
         # Log the exception
         core_logger.print_to_log(
             f"Error in get_user_activities_with_pagination: {err}", "error", exc=err
+        )
+        # Raise an HTTPException with a 500 Internal Server Error status code
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal Server Error",
+        ) from err
+
+
+def get_distinct_activity_types_for_user(user_id: int, db: Session):
+    """
+    Retrieves a sorted list of distinct activity types for a specific user.
+    """
+    try:
+        # Query distinct activity types (IDs) for the user
+        types_query = (
+            db.query(activities_models.Activity.activity_type)  # Corrected column name
+            .filter(activities_models.Activity.user_id == user_id)
+            .distinct()
+            .order_by(activities_models.Activity.activity_type)  # Corrected column name
+            .all()
+        )
+
+        type_ids = [result[0] for result in types_query if result[0] is not None]
+        type_names = sorted(
+            [activities_utils.ACTIVITY_ID_TO_NAME.get(id, "Unknown") for id in type_ids]
+        )
+        unique_type_names = list(dict.fromkeys(type_names))
+        return unique_type_names
+
+    except Exception as err:
+        # Log the exception
+        core_logger.print_to_log(
+            f"Error in get_distinct_activity_types_for_user: {err}", "error", exc=err
         )
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(

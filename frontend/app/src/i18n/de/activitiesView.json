@@ -1,0 +1,14 @@
+{
+  "title": "Aktivitäten",
+  "loading": "Wird geladen...",
+  "filterLabelType": "Typ",
+  "filterOptionAllTypes": "Alle Typen",
+  "filterLabelFromDate": "Von Datum",
+  "filterLabelToDate": "Bis Datum",
+  "filterLabelNameLocation": "Name oder Ort",
+  "filterPlaceholderNameLocation": "z.B. Morgenlauf",
+  "buttonClear": "Löschen",
+  "buttonApply": "Anwenden",
+  "errorUserNotAuthenticated": "Benutzer nicht authentifiziert.",
+  "errorFailedLoad": "Fehler beim Laden der Aktivitäten. Bitte versuchen Sie es später erneut."
+}

@@ -1,7 +1,8 @@
 {
-    "home": "Home",
-    "search": "Search",
-    "gear": "Gear",
-    "health": "Health",
-    "menu": "Menu"
+  "home": "Home",
+  "activities": "Activities",
+  "search": "Search",
+  "gear": "Gear",
+  "health": "Health",
+  "menu": "Menu"
 }
