@@ -55,9 +55,7 @@ async def read_users_all_pagination(
     ],
 ):
     # Get the users from the database with pagination
-    return users_crud.get_users_with_pagination(
-        db, page_number, num_records
-    )
+    return users_crud.get_users_with_pagination(db, page_number, num_records)
 
 
 @router.get(
@@ -232,7 +230,7 @@ async def edit_user(
 async def edit_user_password(
     user_id: int,
     validate_id: Annotated[Callable, Depends(users_dependencies.validate_user_id)],
-    user_attributtes: users_schema.UserEditPassword,
+    user_attributes: users_schema.UserEditPassword,
     check_scopes: Annotated[
         Callable, Security(session_security.check_scopes, scopes=["users:write"])
     ],
@@ -242,17 +240,17 @@ async def edit_user_password(
     ],
 ):
     # Check if the password meets the complexity requirements
-    if (
-        session_security.is_password_complexity_valid(user_attributtes.password)
-        is False
-    ):
+    is_valid, message = session_security.is_password_complexity_valid(
+        user_attributes.password
+    )
+    if not is_valid:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Password does not meet complexity requirements",
+            detail=message,
         )
 
     # Update the user password in the database
-    users_crud.edit_user_password(user_id, user_attributtes.password, db)
+    users_crud.edit_user_password(user_id, user_attributes.password, db)
 
     # Return success message
     return {f"User ID {user_id} password updated successfully"}
