@@ -1,13 +1,13 @@
 {
   "headerType": "Type",
-  "headerName": "Nom",
-  "headerLocation": "Lieu",
-  "headerStartTime": "Heure de début",
-  "headerDuration": "Durée",
+  "headerName": "Name",
+  "headerLocation": "Location",
+  "headerStartTime": "Start time",
+  "headerDuration": "Duration",
   "headerDistance": "Distance",
-  "headerPace": "Allure",
+  "headerPace": "Pace",
   "headerCalories": "Calories",
-  "headerElevation": "Élévation",
-  "headerAvgHr": "FC Moy.",
-  "noActivitiesFound": "Aucune activité trouvée."
+  "headerElevation": "Elevation",
+  "headerAvgHr": "Avg HR",
+  "noActivitiesFound": "No activities found."
 }
