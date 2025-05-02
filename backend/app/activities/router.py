@@ -1,7 +1,7 @@
 import calendar
 import glob
 import os
-from datetime import date, datetime, timedelta, timezone  # Added date
+from datetime import date, datetime, timedelta, timezone
 from typing import Annotated, Callable
 
 import activities.crud as activities_crud
@@ -14,13 +14,13 @@ import core.logger as core_logger
 import gears.dependencies as gears_dependencies
 import session.security as session_security
 import users.dependencies as users_dependencies
-from fastapi import Query  # Added Query
 from fastapi import (
     APIRouter,
     BackgroundTasks,
     Depends,
     HTTPException,
     Security,
+    Query,
     UploadFile,
     status,
 )
@@ -260,7 +260,7 @@ async def read_activities_user_activities_number(
 
 @router.get(
     "/types",
-    response_model=list[str],  # Changed List to list
+    response_model=dict | None,
 )
 async def read_activities_types(
     check_scopes: Annotated[
@@ -275,16 +275,9 @@ async def read_activities_types(
         Depends(core_database.get_db),
     ],
 ):
-    """
-    Retrieve a list of distinct activity types for the logged-in user.
-    """
-    types = activities_crud.get_distinct_activity_types_for_user(token_user_id, db)
-    if types is None:
-        return []
-    return types
+    return activities_crud.get_distinct_activity_types_for_user(token_user_id, db)
 
 
-# <<< START MODIFIED ENDPOINT >>>
 @router.get(
     "/user/{user_id}/page_number/{page_number}/num_records/{num_records}",
     response_model=activities_schema.PaginatedActivitiesResponse,  # Changed response model
@@ -304,16 +297,26 @@ async def read_activities_user_activities_pagination(
         Session,
         Depends(core_database.get_db),
     ],
+    # Added dependencies for optional query parameters
+    validate_activity_type: Annotated[
+        Callable, Depends(activities_dependencies.validate_activity_type)
+    ],
+    validate_sort_by: Annotated[
+        Callable, Depends(activities_dependencies.validate_sort_by)
+    ],
+    validate_sort_order: Annotated[
+        Callable, Depends(activities_dependencies.validate_sort_order)
+    ],
     # Added optional filter query parameters
-    activity_type: str | None = Query(None, alias="type"),
+    activity_type: int | None = Query(None, alias="type"),
     start_date: date | None = Query(None),
     end_date: date | None = Query(None),
     name_search: str | None = Query(None),
-    sort_by: str | None = Query(None),  # Added sort_by query parameter
-    sort_order: str | None = Query(None),  # Added sort_order query parameter
+    sort_by: str | None = Query(None),
+    sort_order: str | None = Query(None),
 ):
-    # Get the activities and total count for the user with pagination and filters
-    result = activities_crud.get_user_activities_with_pagination(
+    # Get and return the activities and total count for the user with pagination and filters
+    return activities_crud.get_user_activities_with_pagination(
         user_id=user_id,
         db=db,
         page_number=page_number,
@@ -322,15 +325,9 @@ async def read_activities_user_activities_pagination(
         start_date=start_date,
         end_date=end_date,
         name_search=name_search,
-        sort_by=sort_by,  # Pass sort_by to CRUD function
-        sort_order=sort_order,  # Pass sort_order to CRUD function
+        sort_by=sort_by,
+        sort_order=sort_order,
     )
-
-    # Return activities and total count in the new structure
-    return result
-
-
-# <<< END MODIFIED ENDPOINT >>>
 
 
 @router.get(

@@ -24,7 +24,7 @@
                 @change="applyFilters"
               >
                 <option value="">{{ $t('activitiesView.filterOptionAllTypes') }}</option>
-                <option v-for="type in activityTypes" :key="type" :value="type">{{ type }}</option>
+                <option v-for="(value, key) in activityTypes" :key="key" :value="key">{{ value }}</option>
               </select>
             </div>
             <!-- Start Date -->
@@ -58,7 +58,7 @@
       </div>
       <!-- End Filter Section -->
 
-      <ActivitiesTable
+      <ActivitiesTableComponent
         :activities="activities"
         :sort-by="sortBy"
         :sort-order="sortOrder"
@@ -81,7 +81,7 @@
 import { ref, onMounted, computed, watch } from 'vue' // Added watch
 import { useI18n } from 'vue-i18n' // Import useI18n
 import { useAuthStore } from '@/stores/authStore'
-import ActivitiesTable from '@/components/Activities/ActivitiesTable.vue'
+import ActivitiesTableComponent from '@/components/Activities/ActivitiesTableComponent.vue'
 import PaginationComponent from '@/components/Common/PaginationComponent.vue'
 import { activities as activitiesService } from '@/services/activitiesService' // Import the service
 

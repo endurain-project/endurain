@@ -142,16 +142,13 @@ def get_user_activities_with_pagination(
     db: Session,
     page_number: int = 1,
     num_records: int = 5,
-    activity_type: str | None = None,
+    activity_type: int | None = None,
     start_date: date | None = None,
     end_date: date | None = None,
     name_search: str | None = None,
-    sort_by: str | None = None,  # Added sort_by
-    sort_order: str | None = None,  # Added sort_order
+    sort_by: str | None = None,
+    sort_order: str | None = None,
 ) -> dict:
-    """
-    Retrieves paginated, filtered, and sorted activities for a user, along with the total count.
-    """
     try:
         # Mapping from frontend sort keys to database model fields
         SORT_MAP = {
@@ -163,8 +160,7 @@ def get_user_activities_with_pagination(
             "calories": activities_models.Activity.calories,
             "elevation": activities_models.Activity.elevation_gain,
             "pace": activities_models.Activity.pace,
-            "average_hr": activities_models.Activity.average_hr,  # Added for sorting
-            # Location sorting will be handled specially below
+            "average_hr": activities_models.Activity.average_hr,
         }
 
         # Base query
@@ -174,24 +170,23 @@ def get_user_activities_with_pagination(
 
         # Apply filters
         if activity_type:
-            # Map the string type name (case-insensitive) to its ID
-            activity_type_id = activities_utils.ACTIVITY_NAME_TO_ID.get(
-                activity_type.lower()
+            # add filter for activity type
+            query = query.filter(
+                activities_models.Activity.activity_type == activity_type
             )
-            if activity_type_id is not None:
-                query = query.filter(
-                    activities_models.Activity.activity_type == activity_type_id
-                )
-            # else: handle case where type name is invalid? Or just return no results?
-            # For now, if the type name doesn't map, the filter won't be applied effectively.
+            
         if start_date:
+            # add filter for start date
             query = query.filter(
                 func.date(activities_models.Activity.start_time) >= start_date
             )
+
         if end_date:
+            # add filter for end date
             query = query.filter(
                 func.date(activities_models.Activity.start_time) <= end_date
             )
+
         if name_search:
             # Decode and prepare search term
             search_term = unquote(name_search).replace("+", " ").lower()
@@ -288,26 +283,21 @@ def get_user_activities_with_pagination(
 
 
 def get_distinct_activity_types_for_user(user_id: int, db: Session):
-    """
-    Retrieves a sorted list of distinct activity types for a specific user.
-    """
     try:
         # Query distinct activity types (IDs) for the user
-        types_query = (
-            db.query(activities_models.Activity.activity_type)  # Corrected column name
+        type_ids = (
+            db.query(activities_models.Activity.activity_type)
             .filter(activities_models.Activity.user_id == user_id)
             .distinct()
-            .order_by(activities_models.Activity.activity_type)  # Corrected column name
+            .order_by(activities_models.Activity.activity_type)
             .all()
         )
 
-        type_ids = [result[0] for result in types_query if result[0] is not None]
-        type_names = sorted(
-            [activities_utils.ACTIVITY_ID_TO_NAME.get(id, "Unknown") for id in type_ids]
-        )
-        unique_type_names = list(dict.fromkeys(type_names))
-        return unique_type_names
-
+        # Map type IDs to names, excluding None values
+        return {
+            type_id: activities_utils.ACTIVITY_ID_TO_NAME.get(type_id, "Unknown")
+            for type_id, in type_ids if type_id is not None
+        }
     except Exception as err:
         # Log the exception
         core_logger.print_to_log(
@@ -394,9 +384,7 @@ def get_user_following_activities_per_timeframe(
     except Exception as err:
         # Log the exception
         core_logger.print_to_log(
-            f"Error in get_user_following_activities_per_timeframe: {err}",
-            "error",
-            exc=err,
+            f"Error in get_user_following_activities_per_timeframe: {err}", "error", exc=err
         )
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
@@ -444,9 +432,7 @@ def get_user_following_activities_with_pagination(
     except Exception as err:
         # Log the exception
         core_logger.print_to_log(
-            f"Error in get_user_following_activities_with_pagination: {err}",
-            "error",
-            exc=err,
+            f"Error in get_user_following_activities_with_pagination: {err}", "error", exc=err
         )
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
@@ -523,9 +509,7 @@ def get_user_activities_by_gear_id_and_user_id(user_id: int, gear_id: int, db: S
     except Exception as err:
         # Log the exception
         core_logger.print_to_log(
-            f"Error in get_user_activities_by_gear_id_and_user_id: {err}",
-            "error",
-            exc=err,
+            f"Error in get_user_activities_by_gear_id_and_user_id: {err}", "error", exc=err
         )
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
@@ -563,9 +547,7 @@ def get_activity_by_id_from_user_id_or_has_visibility(
     except Exception as err:
         # Log the exception
         core_logger.print_to_log(
-            f"Error in get_activity_by_id_from_user_id_or_has_visibility: {err}",
-            "error",
-            exc=err,
+            f"Error in get_activity_by_id_from_user_id_or_has_visibility: {err}", "error", exc=err
         )
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
@@ -604,9 +586,7 @@ def get_activity_by_id_if_is_public(activity_id: int, db: Session):
     except Exception as err:
         # Log the exception
         core_logger.print_to_log(
-            f"Error in get_activity_by_id_if_is_public: {err}",
-            "error",
-            exc=err,
+            f"Error in get_activity_by_id_if_is_public: {err}", "error", exc=err
         )
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
@@ -713,9 +693,7 @@ def get_activity_by_garminconnect_id_from_user_id(
     except Exception as err:
         # Log the exception
         core_logger.print_to_log(
-            f"Error in get_activity_by_garminconnect_id_from_user_id: {err}",
-            "error",
-            exc=err,
+            f"Error in get_activity_by_garminconnect_id_from_user_id: {err}", "error", exc=err
         )
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
