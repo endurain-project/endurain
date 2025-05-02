@@ -1,14 +1,14 @@
 {
-  "title": "Activités",
-  "loading": "Chargement...",
+  "title": "Activities",
+  "loading": "Loading...",
   "filterLabelType": "Type",
-  "filterOptionAllTypes": "Tous les types",
-  "filterLabelFromDate": "Date de début",
-  "filterLabelToDate": "Date de fin",
-  "filterLabelNameLocation": "Nom ou lieu",
-  "filterPlaceholderNameLocation": "ex: Course matinale",
-  "buttonClear": "Effacer",
-  "buttonApply": "Appliquer",
-  "errorUserNotAuthenticated": "Utilisateur non authentifié.",
-  "errorFailedLoad": "Échec du chargement des activités. Veuillez réessayer plus tard."
+  "filterOptionAllTypes": "All Types",
+  "filterLabelFromDate": "From Date",
+  "filterLabelToDate": "To Date",
+  "filterLabelNameLocation": "Name or Location",
+  "filterPlaceholderNameLocation": "e.g., Morning Run",
+  "buttonClear": "Clear",
+  "buttonApply": "Apply",
+  "errorUserNotAuthenticated": "User not authenticated.",
+  "errorFailedLoad": "Failed to load activities. Please try again later."
 }
