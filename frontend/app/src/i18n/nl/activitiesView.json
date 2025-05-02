@@ -1,14 +1,14 @@
 {
-  "title": "Activiteiten",
-  "loading": "Laden...",
+  "title": "Activities",
+  "loading": "Loading...",
   "filterLabelType": "Type",
-  "filterOptionAllTypes": "Alle types",
-  "filterLabelFromDate": "Vanaf datum",
-  "filterLabelToDate": "Tot datum",
-  "filterLabelNameLocation": "Naam of locatie",
-  "filterPlaceholderNameLocation": "bijv. Ochtendloop",
-  "buttonClear": "Wissen",
-  "buttonApply": "Toepassen",
-  "errorUserNotAuthenticated": "Gebruiker niet geauthenticeerd.",
-  "errorFailedLoad": "Fout bij het laden van activiteiten. Probeer het later opnieuw."
+  "filterOptionAllTypes": "All Types",
+  "filterLabelFromDate": "From Date",
+  "filterLabelToDate": "To Date",
+  "filterLabelNameLocation": "Name or Location",
+  "filterPlaceholderNameLocation": "e.g., Morning Run",
+  "buttonClear": "Clear",
+  "buttonApply": "Apply",
+  "errorUserNotAuthenticated": "User not authenticated.",
+  "errorFailedLoad": "Failed to load activities. Please try again later."
 }
