@@ -1,13 +1,13 @@
 {
   "headerType": "Type",
-  "headerName": "Naam",
-  "headerLocation": "Locatie",
-  "headerStartTime": "Starttijd",
-  "headerDuration": "Duur",
-  "headerDistance": "Afstand",
-  "headerPace": "Tempo",
-  "headerCalories": "Calorieën",
-  "headerElevation": "Hoogteverschil",
-  "headerAvgHr": "Gem. HS",
-  "noActivitiesFound": "Geen activiteiten gevonden."
+  "headerName": "Name",
+  "headerLocation": "Location",
+  "headerStartTime": "Start time",
+  "headerDuration": "Duration",
+  "headerDistance": "Distance",
+  "headerPace": "Pace",
+  "headerCalories": "Calories",
+  "headerElevation": "Elevation",
+  "headerAvgHr": "Avg HR",
+  "noActivitiesFound": "No activities found."
 }
