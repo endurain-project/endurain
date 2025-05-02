@@ -75,135 +75,142 @@
 </template>
 
 <script setup>
-import { defineProps, defineEmits, computed } from "vue";
-import { useI18n } from "vue-i18n"; // Import useI18n
-import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
+import { defineProps, defineEmits, computed } from 'vue'
+import { useI18n } from 'vue-i18n' // Import useI18n
+import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome'
 
-const { t } = useI18n(); // Setup useI18n
+const { t } = useI18n() // Setup useI18n
 
 const props = defineProps({
-	activities: {
-		type: Array,
-		required: true,
-		default: () => [],
-	},
-	sortBy: {
-		type: String,
-		default: "start_time",
-	},
-	sortOrder: {
-		type: String,
-		default: "desc",
-	},
-});
+  activities: {
+    type: Array,
+    required: true,
+    default: () => []
+  },
+  sortBy: {
+    type: String,
+    default: 'start_time'
+  },
+  sortOrder: {
+    type: String,
+    default: 'desc'
+  }
+})
 
-const emit = defineEmits(["sort-changed"]);
+const emit = defineEmits(['sort-changed'])
 
 function changeSort(columnName) {
-	emit("sort-changed", columnName);
+  emit('sort-changed', columnName)
 }
 
 function sortIcon(columnName) {
-	if (props.sortBy !== columnName) {
-		return ["fas", "sort"]; // Default sort icon
-	}
-	if (props.sortOrder === "asc") {
-		return ["fas", "sort-up"]; // Ascending icon
-	}
-	return ["fas", "sort-down"]; // Descending icon
+  if (props.sortBy !== columnName) {
+    return ['fas', 'sort'] // Default sort icon
+  }
+  if (props.sortOrder === 'asc') {
+    return ['fas', 'sort-up'] // Ascending icon
+  }
+  return ['fas', 'sort-down'] // Descending icon
 }
 
 function formatDateTime(dateTimeString) {
-	if (!dateTimeString) return t("generalItems.labelNotApplicable");
-	try {
-		const options = {
-			year: "numeric",
-			month: "short",
-			day: "numeric",
-			hour: "2-digit",
-			minute: "2-digit",
-		};
-		return new Date(dateTimeString).toLocaleString(undefined, options);
-	} catch (e) {
-		console.error("Error formatting date:", e);
-		return dateTimeString; // Fallback
-	}
+  if (!dateTimeString) return t('generalItems.labelNotApplicable')
+  try {
+    const options = {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    }
+    return new Date(dateTimeString).toLocaleString(undefined, options)
+  } catch (e) {
+    console.error('Error formatting date:', e)
+    return dateTimeString // Fallback
+  }
 }
 
 function formatDuration(seconds) {
-	if (seconds === null || seconds === undefined)
-		return t("generalItems.labelNotApplicable");
-	const h = Math.floor(seconds / 3600);
-	const m = Math.floor((seconds % 3600) / 60);
-	const s = Math.floor(seconds % 60);
-	let result = "";
-	if (h > 0) result += `${h}h `;
-	if (m > 0 || h > 0) result += `${m}m `; // Show minutes if hours exist
-	result += `${s}s`;
-	return result.trim();
+  if (seconds === null || seconds === undefined) return t('generalItems.labelNotApplicable')
+  const h = Math.floor(seconds / 3600)
+  const m = Math.floor((seconds % 3600) / 60)
+  const s = Math.floor(seconds % 60)
+  let result = ''
+  if (h > 0) result += `${h}h `
+  if (m > 0 || h > 0) result += `${m}m ` // Show minutes if hours exist
+  result += `${s}s`
+  return result.trim()
 }
 
 function formatDistance(meters) {
-	if (meters === null || meters === undefined)
-		return t("generalItems.labelNotApplicable");
-	const kilometers = meters / 1000;
-	const precision = kilometers < 10 ? 2 : 1;
-	return `${kilometers.toFixed(precision)} km`; // Assuming 'km' unit doesn't need translation for US
+  if (meters === null || meters === undefined) return t('generalItems.labelNotApplicable')
+  const kilometers = meters / 1000
+  const precision = kilometers < 10 ? 2 : 1
+  return `${kilometers.toFixed(precision)} km` // Assuming 'km' unit doesn't need translation for US
 }
 
 function formatAvgHr(avgHr) {
-	if (avgHr === null || avgHr === undefined || avgHr <= 0)
-		return t("generalItems.labelNotApplicable");
-	return `${Math.round(avgHr)} bpm`; // Assuming 'bpm' unit doesn't need translation for US
+  if (avgHr === null || avgHr === undefined || avgHr <= 0) return t('generalItems.labelNotApplicable')
+  return `${Math.round(avgHr)} bpm` // Assuming 'bpm' unit doesn't need translation for US
 }
 
 function formatPace(pace) {
-	if (pace === null || pace === undefined || pace <= 0)
-		return t("generalItems.labelNotApplicable");
+  if (pace === null || pace === undefined || pace <= 0) return t('generalItems.labelNotApplicable')
 
-	// Convert seconds/meter to seconds/kilometer
-	const paceSecondsPerKm = pace * 1000;
+  // Convert seconds/meter to seconds/kilometer
+  const paceSecondsPerKm = pace * 1000
 
-	const minutes = Math.floor(paceSecondsPerKm / 60);
-	const seconds = Math.round(paceSecondsPerKm % 60);
-	return `${minutes}:${seconds.toString().padStart(2, "0")} /km`;
+  const minutes = Math.floor(paceSecondsPerKm / 60)
+  const seconds = Math.round(paceSecondsPerKm % 60)
+  return `${minutes}:${seconds.toString().padStart(2, '0')} /km`
 }
 
 function formatElevation(meters) {
-	if (meters === null || meters === undefined)
-		return t("generalItems.labelNotApplicable");
-	return `${meters.toLocaleString()} m`; // Assuming 'm' unit doesn't need translation for US
+  if (meters === null || meters === undefined) return t('generalItems.labelNotApplicable')
+  return `${meters.toLocaleString()} m` // Assuming 'm' unit doesn't need translation for US
 }
 
 function getActivityIcon(typeId) {
-  const iconMap = {
-    1: ["fas", "person-running"],
-    2: ["fas", "person-running"],
-    3: ["fas", "person-running"], // Consider a different icon for virtual?
-    4: ["fas", "person-biking"],
-    5: ["fas", "person-biking"],
-    6: ["fas", "person-biking"],
-    7: ["fas", "person-biking"], // Consider a different icon for virtual?
-    8: ["fas", "person-swimming"],
-    9: ["fas", "person-swimming"],
-    11: ["fas", "person-walking"],
-    12: ["fas", "person-hiking"],
-    13: ["fas", "sailboat"], // Rowing icon might be better if available
-    14: ["fas", "hands-praying"], // Yoga icon might be better if available
-    15: ["fas", "person-skiing"],
-    16: ["fas", "person-skiing-nordic"],
-    17: ["fas", "person-snowboarding"],
-    18: ["fas", "repeat"], // Transition icon
-    21: ["fas", "table-tennis-paddle-ball"], // Racquet sports
-    22: ["fas", "table-tennis-paddle-ball"],
-    23: ["fas", "table-tennis-paddle-ball"],
-    24: ["fas", "table-tennis-paddle-ball"],
-    25: ["fas", "table-tennis-paddle-ball"],
-    26: ["fas", "table-tennis-paddle-ball"],
-    27: ["fas", "person-biking"],
-  };
-
-  return iconMap[typeId] || ["fas", "dumbbell"]; // Default for Workout, Strength, Crossfit, etc.
+  // Based on logic in ActivitySummaryComponent.vue
+  if (typeId == 1 || typeId == 2) {
+    return ['fas', 'person-running']
+  } else if (typeId == 3) {
+    return ['fas', 'person-running'] // Consider a different icon for virtual?
+  } else if (typeId == 4 || typeId == 5 || typeId == 6 || typeId == 27) {
+    return ['fas', 'person-biking']
+  } else if (typeId == 7) {
+    return ['fas', 'person-biking'] // Consider a different icon for virtual?
+  } else if (typeId == 8 || typeId == 9) {
+    return ['fas', 'person-swimming']
+  } else if (typeId == 11) {
+    return ['fas', 'person-walking']
+  } else if (typeId == 12) {
+    return ['fas', 'person-hiking']
+  } else if (typeId == 13) {
+    return ['fas', 'sailboat'] // Rowing icon might be better if available
+  } else if (typeId == 14) {
+    return ['fas', 'hands-praying'] // Yoga icon might be better if available
+  } else if (typeId == 15) {
+    return ['fas', 'person-skiing']
+  } else if (typeId == 16) {
+    return ['fas', 'person-skiing-nordic']
+  } else if (typeId == 17) {
+    return ['fas', 'person-snowboarding']
+  } else if (typeId == 18) {
+    return ['fas', 'repeat'] // Transition icon
+  } else if (
+    typeId == 21 ||
+    typeId == 22 ||
+    typeId == 23 ||
+    typeId == 24 ||
+    typeId == 25 ||
+    typeId == 26
+  ) {
+    return ['fas', 'table-tennis-paddle-ball'] // Racquet sports
+  } else {
+    // Default for Workout, Strength, Crossfit, etc.
+    return ['fas', 'dumbbell']
+  }
 }
 </script>
 
