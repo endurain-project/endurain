@@ -1,8 +1,7 @@
 {
-  "home": "Thuis",
-  "activities": "Activities",
-  "search": "Zoeken",
-  "gear": "Uitrusting",
-  "health": "Gezondheid",
-  "menu": "Menu"
+    "home": "Thuis",
+    "search": "Zoeken",
+    "gear": "Uitrusting",
+    "health": "Gezondheid",
+    "menu": "Menu"
 }
