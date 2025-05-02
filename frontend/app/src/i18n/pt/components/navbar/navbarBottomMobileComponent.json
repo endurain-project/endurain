@@ -1,8 +1,7 @@
 {
-  "home": "Início",
-  "activities": "Activities",
-  "search": "Procurar",
-  "gear": "Equipamento",
-  "health": "Saúde",
-  "menu": "Menu"
+    "home": "Início",
+    "search": "Procurar",
+    "gear": "Equipamento",
+    "health": "Saúde",
+    "menu": "Menu"
 }
