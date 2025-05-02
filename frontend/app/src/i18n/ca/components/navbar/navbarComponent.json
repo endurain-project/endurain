@@ -1,11 +1,10 @@
 {
-  "activities": "Activities",
-  "search": "Cerca",
-  "gear": "Equipament",
-  "health": "Salut",
-  "profile": "Perfil",
-  "settings": "Opcions",
-  "login": "Login",
-  "logout": "Tanca sessió",
-  "errorLogout": "Error tancant sessió"
+    "search": "Cerca",
+    "gear": "Equipament",
+    "health": "Salut",
+    "profile": "Perfil",
+    "settings": "Opcions",
+    "login": "Login",
+    "logout": "Tanca sessió",
+    "errorLogout": "Error tancant sessió"
 }
