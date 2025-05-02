@@ -20,16 +20,10 @@ validate_id() {
     fi
 }
 
-check_folder_ownership(){
+adjust_folder_ownership(){
     if [ -d "$1" ]; then
-        # Dynamically adjust UID and GID based on host-mounted directory or environment variables
-        HOST_UID=${UID:-$(stat -c '%u' "$1" 2>/dev/null || echo 1000)}
-        HOST_GID=${GID:-$(stat -c '%g' "$1" 2>/dev/null || echo 1000)}
-        # Avoid setting ownership to root (UID/GID = 0)
-        if [ "$HOST_UID" -eq 0 ] || [ "$HOST_GID" -eq 0 ]; then
-            echo_error_log "UID or GID is set to 0 (root). Adjust ownership manually to a non-root user."
-            exit 1
-        fi
+        chown -R "$UID:$GID" "$1"
+        echo_info_log "Ownership adjusted for $1"
     else
         echo_info_log "Directory $1 does not exist, skipping."
     fi
@@ -39,6 +33,8 @@ check_folder_ownership(){
 validate_id "$UID"
 validate_id "$GID"
 
+echo_info_log "UID=$UID, GID=$GID"
+
 # List of directories to adjust ownership
 directories=(
     /app/backend/logs
@@ -47,23 +43,11 @@ directories=(
     /app/backend/server_images
 )
 
-# Check ownership of necessary directories
-echo_info_log "Checking ownership of necessary directories..."
-
-for dir in "${directories[@]}"; do
-    check_folder_ownership "$dir"
-done
-
 # Adjust ownership for each directory
-echo_info_log "Adjusting ownership to match host UID ($HOST_UID) and GID ($HOST_GID)..."
+echo_info_log "Adjusting ownership to match UID ($UID) and GID ($GID)..."
 
 for dir in "${directories[@]}"; do
-    if [ -d "$dir" ]; then
-        chown -R "$HOST_UID:$HOST_GID" "$dir"
-        echo_info_log "Ownership adjusted for $dir"
-    else
-        echo_info_log "Directory $dir does not exist, skipping."
-    fi
+    adjust_folder_ownership "$dir"
 done
 
 # Substitute MY_APP_ENDURAIN_HOST with the value of ENDURAIN_HOST
@@ -90,4 +74,4 @@ if [ "$BEHIND_PROXY" = "true" ]; then
 fi
 
 # Execute the command
-exec "${CMD[@]}"
+exec gosu "$UID:$GID" "${CMD[@]}"

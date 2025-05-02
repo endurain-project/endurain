@@ -35,6 +35,11 @@ RUN poetry export -f requirements.txt --output requirements.txt --without-hashes
 # Stage 3: Build FastAPI app
 FROM python:3.12
 
+# Install gosu for privilege dropping
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends gosu \
+  && rm -rf /var/lib/apt/lists/*
+
 # Define environment variables
 ENV UID=1000 \
     GID=1000 \
@@ -84,12 +89,6 @@ COPY docker/start.sh /docker-entrypoint.d/start.sh
 
 # Make the script executable
 RUN chmod +x /docker-entrypoint.d/start.sh
-
-# Change ownership to UID and GID
-RUN chown -R $UID:$GID /app
-
-# Switch to the non-root user by UID and GID
-USER $UID:$GID
 
 # Make port 8080 available to the world outside this container
 EXPOSE 8080
