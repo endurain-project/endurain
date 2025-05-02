@@ -10,7 +10,6 @@ import caActivityLapsComponent from './ca/components/activities/activityLapsComp
 import caActivityMandAbovePillsComponent from './ca/components/activities/activityMandAbovePillsComponent.json';
 import caActivitySummaryComponent from './ca/components/activities/activitySummaryComponent.json';
 import caActivityWorkoutStepsComponent from './ca/components/activities/activityWorkoutStepsComponent.json';
-import caActivitiesTableComponent from './ca/components/activities/activitiesTableComponent.json'; // Added import
 import caUserDistanceStatsComponent from './ca/components/activities/userDistanceStatsComponent.json';
 // Followers component
 import caFollowersListComponent from './ca/components/followers/followersListComponent.json';
@@ -51,7 +50,7 @@ import caLoginView from './ca/loginView.json';
 import caGearsView from './ca/gears/gearsView.json';
 import caGearView from './ca/gears/gearView.json';
 import caStravaCallbackView from './ca/strava/stravaCallbackView.json';
-import caActivitiesView from './ca/activitiesView.json'; // Corrected path and alias
+import caActivityView from './ca/activityView.json';
 import caHealthView from './ca/healthView.json';
 import caNotFoundView from './ca/notFoundView.json';
 import caSearchView from './ca/searchView.json';
@@ -67,7 +66,6 @@ import deActivityLapsComponent from './de/components/activities/activityLapsComp
 import deActivityMandAbovePillsComponent from './de/components/activities/activityMandAbovePillsComponent.json';
 import deActivitySummaryComponent from './de/components/activities/activitySummaryComponent.json';
 import deActivityWorkoutStepsComponent from './de/components/activities/activityWorkoutStepsComponent.json';
-import deActivitiesTableComponent from './de/components/activities/activitiesTableComponent.json'; // Added import
 import deUserDistanceStatsComponent from './de/components/activities/userDistanceStatsComponent.json';
 // Followers component
 import deFollowersListComponent from './de/components/followers/followersListComponent.json';
@@ -108,7 +106,7 @@ import deLoginView from './de/loginView.json';
 import deGearsView from './de/gears/gearsView.json';
 import deGearView from './de/gears/gearView.json';
 import deStravaCallbackView from './de/strava/stravaCallbackView.json';
-import deActivitiesView from './de/activitiesView.json'; // Corrected path and alias
+import deActivityView from './de/activityView.json';
 import deHealthView from './de/healthView.json';
 import deNotFoundView from './de/notFoundView.json';
 import deSearchView from './de/searchView.json';
@@ -124,7 +122,6 @@ import esActivityLapsComponent from './es/components/activities/activityLapsComp
 import esActivityMandAbovePillsComponent from './es/components/activities/activityMandAbovePillsComponent.json';
 import esActivitySummaryComponent from './es/components/activities/activitySummaryComponent.json';
 import esActivityWorkoutStepsComponent from './es/components/activities/activityWorkoutStepsComponent.json';
-import esActivitiesTableComponent from './es/components/activities/activitiesTableComponent.json'; // Added import
 import esUserDistanceStatsComponent from './es/components/activities/userDistanceStatsComponent.json';
 // Followers component
 import esFollowersListComponent from './es/components/followers/followersListComponent.json';
@@ -165,7 +162,7 @@ import esLoginView from './es/loginView.json';
 import esGearsView from './es/gears/gearsView.json';
 import esGearView from './es/gears/gearView.json';
 import esStravaCallbackView from './es/strava/stravaCallbackView.json';
-import esActivitiesView from './es/activitiesView.json'; // Corrected path and alias
+import esActivityView from './es/activityView.json';
 import esHealthView from './es/healthView.json';
 import esNotFoundView from './es/notFoundView.json';
 import esSearchView from './es/searchView.json';
@@ -182,7 +179,6 @@ import frActivityLapsComponent from './fr/components/activities/activityLapsComp
 import frActivityMandAbovePillsComponent from './fr/components/activities/activityMandAbovePillsComponent.json';
 import frActivitySummaryComponent from './fr/components/activities/activitySummaryComponent.json';
 import frActivityWorkoutStepsComponent from './fr/components/activities/activityWorkoutStepsComponent.json';
-import frActivitiesTableComponent from './fr/components/activities/activitiesTableComponent.json'; // Added import
 import frUserDistanceStatsComponent from './fr/components/activities/userDistanceStatsComponent.json';
 // Followers component
 import frFollowersListComponent from './fr/components/followers/followersListComponent.json';
@@ -223,7 +219,7 @@ import frLoginView from './fr/loginView.json';
 import frGearsView from './fr/gears/gearsView.json';
 import frGearView from './fr/gears/gearView.json';
 import frStravaCallbackView from './fr/strava/stravaCallbackView.json';
-import frActivitiesView from './fr/activitiesView.json'; // Corrected path and alias
+import frActivityView from './fr/activityView.json';
 import frHealthView from './fr/healthView.json';
 import frNotFoundView from './fr/notFoundView.json';
 import frSearchView from './fr/searchView.json';
@@ -240,7 +236,6 @@ import nlActivityLapsComponent from './nl/components/activities/activityLapsComp
 import nlActivityMandAbovePillsComponent from './nl/components/activities/activityMandAbovePillsComponent.json';
 import nlActivitySummaryComponent from './nl/components/activities/activitySummaryComponent.json';
 import nlActivityWorkoutStepsComponent from './nl/components/activities/activityWorkoutStepsComponent.json';
-import nlActivitiesTableComponent from './nl/components/activities/activitiesTableComponent.json'; // Added import
 import nlUserDistanceStatsComponent from './nl/components/activities/userDistanceStatsComponent.json';
 // Followers component
 import nlFollowersListComponent from './nl/components/followers/followersListComponent.json';
@@ -281,7 +276,7 @@ import nlLoginView from './nl/loginView.json';
 import nlGearsView from './nl/gears/gearsView.json';
 import nlGearView from './nl/gears/gearView.json';
 import nlStravaCallbackView from './nl/strava/stravaCallbackView.json';
-import nlActivitiesView from './nl/activitiesView.json'; // Corrected path and alias
+import nlActivityView from './nl/activityView.json';
 import nlHealthView from './nl/healthView.json';
 import nlNotFoundView from './nl/notFoundView.json';
 import nlSearchView from './nl/searchView.json';
@@ -298,7 +293,6 @@ import ptActivityLapsComponent from './pt/components/activities/activityLapsComp
 import ptActivityMandAbovePillsComponent from './pt/components/activities/activityMandAbovePillsComponent.json';
 import ptActivitySummaryComponent from './pt/components/activities/activitySummaryComponent.json';
 import ptActivityWorkoutStepsComponent from './pt/components/activities/activityWorkoutStepsComponent.json';
-import ptActivitiesTableComponent from './pt/components/activities/activitiesTableComponent.json'; // Added import
 import ptUserDistanceStatsComponent from './pt/components/activities/userDistanceStatsComponent.json';
 // Followers component
 import ptFollowersListComponent from './pt/components/followers/followersListComponent.json';
@@ -339,7 +333,7 @@ import ptLoginView from './pt/loginView.json';
 import ptGearsView from './pt/gears/gearsView.json';
 import ptGearView from './pt/gears/gearView.json';
 import ptStravaCallbackView from './pt/strava/stravaCallbackView.json';
-import ptActivitiesView from './pt/activitiesView.json'; // Corrected path and alias
+import ptActivityView from './pt/activityView.json';
 import ptHealthView from './pt/healthView.json';
 import ptNotFoundView from './pt/notFoundView.json';
 import ptSearchView from './pt/searchView.json';
@@ -355,7 +349,6 @@ import usActivityLapsComponent from './us/components/activities/activityLapsComp
 import usActivityMandAbovePillsComponent from './us/components/activities/activityMandAbovePillsComponent.json';
 import usActivitySummaryComponent from './us/components/activities/activitySummaryComponent.json';
 import usActivityWorkoutStepsComponent from './us/components/activities/activityWorkoutStepsComponent.json';
-import usActivitiesTableComponent from './us/components/activities/activitiesTableComponent.json'; // Added import
 import usUserDistanceStatsComponent from './us/components/activities/userDistanceStatsComponent.json';
 // Followers component
 import usFollowersListComponent from './us/components/followers/followersListComponent.json';
@@ -396,7 +389,7 @@ import usLoginView from './us/loginView.json';
 import usGearsView from './us/gears/gearsView.json';
 import usGearView from './us/gears/gearView.json';
 import usStravaCallbackView from './us/strava/stravaCallbackView.json';
-import usActivitiesView from './us/activitiesView.json'; // Corrected path and alias
+import usActivityView from './us/activityView.json';
 import usHealthView from './us/healthView.json';
 import usNotFoundView from './us/notFoundView.json';
 import usSearchView from './us/searchView.json';
@@ -414,7 +407,6 @@ const messages = {
     activityMandAbovePillsComponent: caActivityMandAbovePillsComponent,
     activitySummaryComponent: caActivitySummaryComponent,
     activityWorkoutStepsComponent: caActivityWorkoutStepsComponent,
-    activitiesTableComponent: caActivitiesTableComponent, // Added key
     userDistanceStats: caUserDistanceStatsComponent,
     // Followers component
     followersListComponent: caFollowersListComponent,
@@ -455,7 +447,7 @@ const messages = {
     gearsView: caGearsView,
     gearView: caGearView,
     stravaCallbackView: caStravaCallbackView,
-    activitiesView: caActivitiesView, // Corrected key
+    activityView: caActivityView,
     healthView: caHealthView,
     notFound: caNotFoundView,
     searchView: caSearchView,
@@ -471,7 +463,6 @@ const messages = {
     activityMandAbovePillsComponent: deActivityMandAbovePillsComponent,
     activitySummaryComponent: deActivitySummaryComponent,
     activityWorkoutStepsComponent: deActivityWorkoutStepsComponent,
-    activitiesTableComponent: deActivitiesTableComponent, // Added key
     userDistanceStats: deUserDistanceStatsComponent,
     // Followers component
     followersListComponent: deFollowersListComponent,
@@ -512,7 +503,7 @@ const messages = {
     gearsView: deGearsView,
     gearView: deGearView,
     stravaCallbackView: deStravaCallbackView,
-    activitiesView: deActivitiesView, // Corrected key
+    activityView: deActivityView,
     healthView: deHealthView,
     notFound: deNotFoundView,
     searchView: deSearchView,
@@ -528,7 +519,6 @@ const messages = {
     activityMandAbovePillsComponent: esActivityMandAbovePillsComponent,
     activitySummaryComponent: esActivitySummaryComponent,
     activityWorkoutStepsComponent: esActivityWorkoutStepsComponent,
-    activitiesTableComponent: esActivitiesTableComponent, // Added key
     userDistanceStats: esUserDistanceStatsComponent,
     // Followers component
     followersListComponent: esFollowersListComponent,
@@ -569,7 +559,7 @@ const messages = {
     gearsView: esGearsView,
     gearView: esGearView,
     stravaCallbackView: esStravaCallbackView,
-    activitiesView: esActivitiesView, // Corrected key
+    activityView: esActivityView,
     healthView: esHealthView,
     notFound: esNotFoundView,
     searchView: esSearchView,
@@ -585,7 +575,6 @@ const messages = {
     activityMandAbovePillsComponent: frActivityMandAbovePillsComponent,
     activitySummaryComponent: frActivitySummaryComponent,
     activityWorkoutStepsComponent: frActivityWorkoutStepsComponent,
-    activitiesTableComponent: frActivitiesTableComponent, // Added key
     userDistanceStats: frUserDistanceStatsComponent,
     // Followers component
     followersListComponent: frFollowersListComponent,
@@ -626,7 +615,7 @@ const messages = {
     gearsView: frGearsView,
     gearView: frGearView,
     stravaCallbackView: frStravaCallbackView,
-    activitiesView: frActivitiesView, // Corrected key
+    activityView: frActivityView,
     healthView: frHealthView,
     notFound: frNotFoundView,
     searchView: frSearchView,
@@ -642,7 +631,6 @@ const messages = {
     activityMandAbovePillsComponent: nlActivityMandAbovePillsComponent,
     activitySummaryComponent: nlActivitySummaryComponent,
     activityWorkoutStepsComponent: nlActivityWorkoutStepsComponent,
-    activitiesTableComponent: nlActivitiesTableComponent, // Added key
     userDistanceStats: nlUserDistanceStatsComponent,
     // Followers component
     followersListComponent: nlFollowersListComponent,
@@ -683,7 +671,7 @@ const messages = {
     gearsView: nlGearsView,
     gearView: nlGearView,
     stravaCallbackView: nlStravaCallbackView,
-    activitiesView: nlActivitiesView, // Corrected key
+    activityView: nlActivityView,
     healthView: nlHealthView,
     notFound: nlNotFoundView,
     searchView: nlSearchView,
@@ -699,7 +687,6 @@ const messages = {
     activityMandAbovePillsComponent: ptActivityMandAbovePillsComponent,
     activitySummaryComponent: ptActivitySummaryComponent,
     activityWorkoutStepsComponent: ptActivityWorkoutStepsComponent,
-    activitiesTableComponent: ptActivitiesTableComponent, // Added key
     userDistanceStats: ptUserDistanceStatsComponent,
     // Followers component
     followersListComponent: ptFollowersListComponent,
@@ -740,7 +727,7 @@ const messages = {
     gearsView: ptGearsView,
     gearView: ptGearView,
     stravaCallbackView: ptStravaCallbackView,
-    activitiesView: ptActivitiesView, // Corrected key
+    activityView: ptActivityView,
     healthView: ptHealthView,
     notFound: ptNotFoundView,
     searchView: ptSearchView,
@@ -756,7 +743,6 @@ const messages = {
     activityMandAbovePillsComponent: usActivityMandAbovePillsComponent,
     activitySummaryComponent: usActivitySummaryComponent,
     activityWorkoutStepsComponent: usActivityWorkoutStepsComponent,
-    activitiesTableComponent: usActivitiesTableComponent, // Added key
     userDistanceStats: usUserDistanceStatsComponent,
     // Followers component
     followersListComponent: usFollowersListComponent,
@@ -797,7 +783,7 @@ const messages = {
     gearsView: usGearsView,
     gearView: usGearView,
     stravaCallbackView: usStravaCallbackView,
-    activitiesView: usActivitiesView, // Corrected key
+    activityView: usActivityView,
     healthView: usHealthView,
     notFound: usNotFoundView,
     searchView: usSearchView,

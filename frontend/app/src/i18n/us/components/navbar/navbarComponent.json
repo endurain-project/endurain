@@ -1,11 +1,10 @@
 {
-  "activities": "Activities",
-  "search": "Search",
-  "gear": "Gear",
-  "health": "Health",
-  "profile": "Profile",
-  "settings": "Settings",
-  "login": "Login",
-  "logout": "Logout",
-  "errorLogout": "Error logging out"
+    "search": "Search",
+    "gear": "Gear",
+    "health": "Health",
+    "profile": "Profile",
+    "settings": "Settings",
+    "login": "Login",
+    "logout": "Logout",
+    "errorLogout": "Error logging out"
 }
