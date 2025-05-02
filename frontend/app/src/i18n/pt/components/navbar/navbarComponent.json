@@ -1,11 +1,11 @@
 {
-    "activities": "Atividades",
-    "search": "Procurar",
-    "gear": "Equipamento",
-    "health": "Saúde",
-    "profile": "Perfil",
-    "settings": "Definições",
-    "login": "Iniciar sessão",
-    "logout": "Encerrar sessão",
-    "errorLogout": "Erro ao terminar sessão"
+  "activities": "Activities",
+  "search": "Procurar",
+  "gear": "Equipamento",
+  "health": "Saúde",
+  "profile": "Perfil",
+  "settings": "Definições",
+  "login": "Iniciar sessão",
+  "logout": "Encerrar sessão",
+  "errorLogout": "Erro ao terminar sessão"
 }
