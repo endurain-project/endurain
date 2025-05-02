@@ -22,6 +22,7 @@
     "addEditUserModalGenderLabel": "Gender",
     "addEditUserModalGenderOption1": "Male",
     "addEditUserModalGenderOption2": "Female",
+    "addEditUserModalGenderOption3": "Unspecified",
     "addEditUserModalUnitsLabel": "Units",
     "addEditUserModalUnitsOption1": "Metric",
     "addEditUserModalUnitsOption2": "Imperial",

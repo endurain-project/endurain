@@ -48,7 +48,7 @@ class User(Base):
         Integer,
         nullable=False,
         default=1,
-        comment="User gender (one digit)(1 - male, 2 - female)",
+        comment="User gender (one digit)(1 - male, 2 - female, 3 - unspecified)",
     )
     units = Column(
         Integer,

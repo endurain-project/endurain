@@ -64,6 +64,7 @@
                         <select class="form-select" name="userGenderAddEdit" v-model="newEditUserGender" required>
                             <option :value="1">{{ $t("usersAddEditUserModalComponent.addEditUserModalGenderOption1") }}</option>
                             <option :value="2">{{ $t("usersAddEditUserModalComponent.addEditUserModalGenderOption2") }}</option>
+                            <option :value="3">{{ $t("usersAddEditUserModalComponent.addEditUserModalGenderOption3") }}</option>
                         </select>
                         <!-- units fields -->
                         <label for="userUnitsAddEdit"><b>* {{ $t("usersAddEditUserModalComponent.addEditUserModalUnitsLabel") }}</b></label>

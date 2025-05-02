@@ -54,10 +54,12 @@
                     <!-- user gender -->
                     <p>
                         <font-awesome-icon :icon="['fas', 'mars']" class="me-2" v-if="authStore.user.gender == 1"/>
-                        <font-awesome-icon :icon="['fas', 'venus']" class="me-2" v-else/>
+                        <font-awesome-icon :icon="['fas', 'venus']" class="me-2" v-else-if="authStore.user.gender == 2"/>
+                        <font-awesome-icon :icon="['fas', 'genderless']" class="me-2" v-else/>
                         <b>{{ $t("settingsUserProfileZone.genderLabel") }}: </b>
                         <span v-if="authStore.user.gender == 1">{{ $t("settingsUserProfileZone.genderOption1") }}</span>
-                        <span v-else>{{ $t("settingsUserProfileZone.genderOption2") }}</span>
+                        <span v-else-if="authStore.user.gender == 2">{{ $t("settingsUserProfileZone.genderOption2") }}</span>
+                        <span v-else>{{ $t("settingsUserProfileZone.genderOption3") }}</span>
                     </p>
                     <!-- user units -->
                     <p>
