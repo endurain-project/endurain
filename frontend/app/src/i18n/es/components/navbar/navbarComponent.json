@@ -1,11 +1,10 @@
 {
-  "activities": "Activities",
-  "search": "Buscar",
-  "gear": "Equipo",
-  "health": "Salud",
-  "profile": "Perfil",
-  "settings": "Ajustes",
-  "login": "Iniciar sesión",
-  "logout": "Cerrar sesión",
-  "errorLogout": "Error al cerrar sesión"
+    "search": "Buscar",
+    "gear": "Equipo",
+    "health": "Salud",
+    "profile": "Perfil",
+    "settings": "Ajustes",
+    "login": "Iniciar sesión",
+    "logout": "Cerrar sesión",
+    "errorLogout": "Error al cerrar sesión"
 }
