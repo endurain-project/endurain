@@ -8,7 +8,7 @@ import core.logger as core_logger
 import server_settings.crud as server_settings_crud
 from fastapi import HTTPException, status
 from pydantic import BaseModel
-from sqlalchemy import and_, desc, func, or_  # Import or_ and and_ from sqlalchemy
+from sqlalchemy import and_, desc, func, or_
 from sqlalchemy.orm import Session, joinedload
 
 
@@ -163,6 +163,7 @@ def get_user_activities_with_pagination(
             "calories": activities_models.Activity.calories,
             "elevation": activities_models.Activity.elevation_gain,
             "pace": activities_models.Activity.pace,
+            "average_hr": activities_models.Activity.average_hr,  # Added for sorting
             # Location sorting will be handled specially below
         }
 

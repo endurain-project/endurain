@@ -14,7 +14,6 @@ from statistics import mean
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 
-
 import activities.schema as activities_schema
 import activities.crud as activities_crud
 import activities.models as activities_models
@@ -34,6 +33,136 @@ import gpx.utils as gpx_utils
 import fit.utils as fit_utils
 
 import core.logger as core_logger
+
+# Global Activity Type Mappings (ID to Name)
+ACTIVITY_ID_TO_NAME = {
+    1: "Run",
+    2: "Trail run",
+    3: "Virtual run",
+    4: "Ride",
+    5: "Gravel ride",
+    6: "MTB ride",
+    7: "Virtual ride",
+    8: "Lap swimming",
+    9: "Open water swimming",
+    10: "Workout",
+    11: "Walk",
+    12: "Hike",
+    13: "Rowing",
+    14: "Yoga",
+    15: "Alpine ski",
+    16: "Nordic ski",
+    17: "Snowboard",
+    18: "Transition",
+    19: "Strength training",
+    20: "Crossfit",
+    21: "Tennis",
+    22: "TableTennis",
+    23: "Badminton",
+    24: "Squash",
+    25: "Racquetball",
+    26: "Pickleball",
+    27: "Commuting ride", # Added based on define_activity_type
+    # Add other mappings as needed based on the full list in define_activity_type comments if required
+    # "AlpineSki",
+    # "BackcountrySki",
+    # "Badminton",
+    # "Canoeing",
+    # "Crossfit",
+    # "EBikeRide",
+    # "Elliptical",
+    # "EMountainBikeRide",
+    # "Golf",
+    # "GravelRide",
+    # "Handcycle",
+    # "HighIntensityIntervalTraining",
+    # "Hike",
+    # "IceSkate",
+    # "InlineSkate",
+    # "Kayaking",
+    # "Kitesurf",
+    # "MountainBikeRide",
+    # "NordicSki",
+    # "Pickleball",
+    # "Pilates",
+    # "Racquetball",
+    # "Ride",
+    # "RockClimbing",
+    # "RollerSki",
+    # "Rowing",
+    # "Run",
+    # "Sail",
+    # "Skateboard",
+    # "Snowboard",
+    # "Snowshoe",
+    # "Soccer",
+    # "Squash",
+    # "StairStepper",
+    # "StandUpPaddling",
+    # "Surfing",
+    # "Swim",
+    # "TableTennis",
+    # "Tennis",
+    # "TrailRun",
+    # "Velomobile",
+    # "VirtualRide",
+    # "VirtualRow",
+    # "VirtualRun",
+    # "Walk",
+    # "WeightTraining",
+    # "Wheelchair",
+    # "Windsurf",
+    # "Workout",
+    # "Yoga"
+}
+
+# Global Activity Type Mappings (Name to ID) - Case Insensitive Keys
+ACTIVITY_NAME_TO_ID = {
+    name.lower(): id for id, name in ACTIVITY_ID_TO_NAME.items()
+}
+# Add specific variations found in define_activity_type
+ACTIVITY_NAME_TO_ID.update({
+    "running": 1,
+    "trail running": 2,
+    "trailrun": 2,
+    "virtualrun": 3,
+    "cycling": 4,
+    "road": 4,
+    "gravelride": 5,
+    "gravel_cycling": 5,
+    "mountainbikeride": 6,
+    "mountain": 6,
+    "virtualride": 7,
+    "virtual_ride": 7,
+    "commuting_ride": 27,
+    "swim": 8,
+    "swimming": 8,
+    "lap_swimming": 8,
+    "open_water_swimming": 9,
+    "open_water": 9,
+    "walk": 11,
+    "walking": 11,
+    "hike": 12,
+    "hiking": 12,
+    "rowing": 13,
+    "indoor_rowing": 13,
+    "yoga": 14,
+    "alpineski": 15,
+    "resort_skiing": 15,
+    "alpine_skiing": 15,
+    "nordicski": 16,
+    "snowboard": 17,
+    "transition": 18,
+    "strength_training": 19,
+    "weighttraining": 19,
+    "crossfit": 20,
+    "tennis": 21,
+    "tabletennis": 22,
+    "badminton": 23,
+    "squash": 24,
+    "racquetball": 25,
+    "pickleball": 26,
+})
 
 
 def transform_schema_activity_to_model_activity(
@@ -86,7 +215,6 @@ def transform_schema_activity_to_model_activity(
 
     return new_activity
 
-
 def serialize_activity(activity: activities_schema.Activity):
     def make_aware_and_format(dt, timezone):
         if isinstance(dt, str):
@@ -106,7 +234,6 @@ def serialize_activity(activity: activities_schema.Activity):
     activity.created_at = make_aware_and_format(activity.created_at, timezone)
 
     return activity
-
 
 def parse_and_store_activity_from_file(
     token_user_id: int,
@@ -211,7 +338,6 @@ def parse_and_store_activity_from_file(
         core_logger.print_to_log(
             f"Error in parse_and_store_activity_from_file - {str(err)}", "error"
         )
-
 
 def parse_and_store_activity_from_uploaded_file(
     token_user_id: int, file: UploadFile, db: Session
@@ -321,7 +447,6 @@ def parse_and_store_activity_from_uploaded_file(
             detail=f"Internal Server Error: {str(err)}",
         ) from err
 
-
 def move_file(new_dir: str, new_filename: str, file_path: str):
     try:
         # Ensure the new directory exists
@@ -340,7 +465,6 @@ def move_file(new_dir: str, new_filename: str, file_path: str):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Internal Server Error: {str(err)}",
         ) from err
-
 
 def parse_file(
     token_user_id: int,
@@ -381,7 +505,6 @@ def parse_file(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Internal Server Error: {str(err)}",
         ) from err
-
 
 def store_activity(parsed_info: dict, db: Session):
     # create the activity in the database
@@ -430,7 +553,6 @@ def store_activity(parsed_info: dict, db: Session):
     # Return the created activity
     return created_activity
 
-
 def parse_activity_streams_from_file(parsed_info: dict, activity_id: int):
     # Create a dictionary mapping stream types to is_set keys and waypoints keys
     stream_mapping = {
@@ -471,7 +593,6 @@ def parse_activity_streams_from_file(parsed_info: dict, activity_id: int):
         for stream_type, is_set, waypoints in stream_data_list
     ]
 
-
 def calculate_activity_distances(activities: list[activities_schema.Activity]):
     # Initialize the distances
     run = bike = swim = walk = hike = rowing = snow_ski = snowboard = 0.0
@@ -481,7 +602,7 @@ def calculate_activity_distances(activities: list[activities_schema.Activity]):
         for activity in activities:
             if activity.activity_type in [1, 2, 3]:
                 run += activity.distance
-            elif activity.activity_type in [4, 5, 6, 7]:
+            elif activity.activity_type in [4, 5, 6, 7, 27]:
                 bike += activity.distance
             elif activity.activity_type in [8, 9]:
                 swim += activity.distance
@@ -507,7 +628,6 @@ def calculate_activity_distances(activities: list[activities_schema.Activity]):
         snow_ski=snow_ski,
         snowboard=snowboard,
     )
-
 
 def location_based_on_coordinates(latitude, longitude) -> dict | None:
     if latitude is None or longitude is None:
@@ -551,11 +671,9 @@ def location_based_on_coordinates(latitude, longitude) -> dict | None:
             detail=f"Error in location_based_on_coordinates: {str(err)}",
         )
 
-
 def append_if_not_none(waypoint_list, time, value, key):
     if value is not None:
         waypoint_list.append({"time": time, key: value})
-
 
 def calculate_instant_speed(
     prev_time, time, latitude, longitude, prev_latitude, prev_longitude
@@ -588,7 +706,6 @@ def calculate_instant_speed(
 
     # Return the instant speed
     return instant_speed
-
 
 def compute_elevation_gain_and_loss(
     elevations, median_window=6, avg_window=3, threshold=0.1
@@ -643,7 +760,6 @@ def compute_elevation_gain_and_loss(
             total_loss -= diff  # diff is negative, so subtracting it is adding positive
     return total_gain, total_loss
 
-
 def calculate_pace(distance, first_waypoint_time, last_waypoint_time):
     # If the distance is 0, return 0
     if distance == 0:
@@ -666,7 +782,6 @@ def calculate_pace(distance, first_waypoint_time, last_waypoint_time):
     # Return the pace
     return pace_seconds_per_meter
 
-
 def calculate_avg_and_max(data, type):
     try:
         # Get the values from the data
@@ -682,7 +797,6 @@ def calculate_avg_and_max(data, type):
     max_value = max(values)
 
     return avg_value, max_value
-
 
 def calculate_np(data):
     try:
@@ -707,148 +821,33 @@ def calculate_np(data):
 
     return normalized_power
 
-
-def define_activity_type(activity_type):
+def define_activity_type(activity_type_name: str) -> int:
+    """
+    Maps an activity type name (string) to its corresponding ID (integer).
+    Uses the global ACTIVITY_NAME_TO_ID dictionary.
+    Returns 10 (Workout) if the name is not found.
+    """
     # Default value
-    auxType = 10
+    default_type_id = 10
 
-    # Define the mapping for the activity types
-    type_mapping = {
-        "Run": 1,
-        "running": 1,
-        "trail running": 2,
-        "TrailRun": 2,
-        "VirtualRun": 3,
-        "cycling": 4,
-        "Ride": 4,
-        "road": 4,
-        "GravelRide": 5,
-        "gravel_cycling": 5,
-        "MountainBikeRide": 6,
-        "mountain": 6,
-        "VirtualRide": 7,
-        "virtual_ride": 7,
-        "commuting_ride": 27,
-        "Swim": 8,
-        "swimming": 8,
-        "lap_swimming": 8,
-        "open_water_swimming": 9,
-        "open_water": 9,
-        "Walk": 11,
-        "walking": 11,
-        "Hike": 12,
-        "hiking": 12,
-        "Rowing": 13,
-        "indoor_rowing": 13,
-        "yoga": 14,
-        "Yoga": 14,
-        "AlpineSki": 15,
-        "resort_skiing": 15,
-        "alpine_skiing": 15,
-        "NordicSki": 16,
-        "Snowboard": 17,
-        "transition": 18,
-        "strength_training": 19,
-        "WeightTraining": 19,
-        "Crossfit": 20,
-        "Tennis": 21,
-        "tennis": 21,
-        "TableTennis": 22,
-        "Badminton": 23,
-        "Squash": 24,
-        "Racquetball": 25,
-        "Pickleball": 26,
-    }
-    # "AlpineSki",
-    # "BackcountrySki",
-    # "Badminton",
-    # "Canoeing",
-    # "Crossfit",
-    # "EBikeRide",
-    # "Elliptical",
-    # "EMountainBikeRide",
-    # "Golf",
-    # "GravelRide",
-    # "Handcycle",
-    # "HighIntensityIntervalTraining",
-    # "Hike",
-    # "IceSkate",
-    # "InlineSkate",
-    # "Kayaking",
-    # "Kitesurf",
-    # "MountainBikeRide",
-    # "NordicSki",
-    # "Pickleball",
-    # "Pilates",
-    # "Racquetball",
-    # "Ride",
-    # "RockClimbing",
-    # "RollerSki",
-    # "Rowing",
-    # "Run",
-    # "Sail",
-    # "Skateboard",
-    # "Snowboard",
-    # "Snowshoe",
-    # "Soccer",
-    # "Squash",
-    # "StairStepper",
-    # "StandUpPaddling",
-    # "Surfing",
-    # "Swim",
-    # "TableTennis",
-    # "Tennis",
-    # "TrailRun",
-    # "Velomobile",
-    # "VirtualRide",
-    # "VirtualRow",
-    # "VirtualRun",
-    # "Walk",
-    # "WeightTraining",
-    # "Wheelchair",
-    # "Windsurf",
-    # "Workout",
-    # "Yoga"
-
-    # Get the activity type from the mapping
-    auxType = type_mapping.get(activity_type, 10)
-
-    # Return the activity type
-    return auxType
+    # Get the activity type ID from the global mapping (case-insensitive)
+    # Ensure input is a string before lowercasing
+    if isinstance(activity_type_name, str):
+        return ACTIVITY_NAME_TO_ID.get(activity_type_name.lower(), default_type_id)
+    else:
+        # Handle non-string input if necessary, or return default
+        return default_type_id
 
 
-def set_activity_name_based_on_activity_type(activity_type):
-    type_mapping = {
-        1: "Run",
-        2: "Trail run",
-        3: "Virtual run",
-        4: "Ride",
-        5: "Gravel ride",
-        6: "MTB ride",
-        7: "Virtual ride",
-        8: "Lap swimming",
-        9: "Open water swimming",
-        10: "Workout",
-        11: "Walk",
-        12: "Hike",
-        13: "Rowing",
-        14: "Yoga",
-        15: "Alpine ski",
-        16: "Nordic ski",
-        17: "Snowboard",
-        18: "Transition",
-        19: "Strength training",
-        20: "Crossfit",
-        21: "Tennis",
-        22: "TableTennis",
-        23: "Badminton",
-        24: "Squash",
-        25: "Racquetball",
-        26: "Pickleball",
-    }
+def set_activity_name_based_on_activity_type(activity_type_id: int) -> str:
+    """
+    Maps an activity type ID (integer) to its corresponding name (string).
+    Uses the global ACTIVITY_ID_TO_NAME dictionary.
+    Returns "Workout" if the ID is not found or is 10.
+    Appends " workout" suffix if the name is not "Workout".
+    """
+    # Get the mapping for the activity type ID, default to "Workout"
+    mapping = ACTIVITY_ID_TO_NAME.get(activity_type_id, "Workout")
 
-    # Get the mapping for the activity type, default to 10 (Workout)
-    mapping = type_mapping.get(activity_type, "Workout")
-
-    # If type is not 10, return the mapping with " workout" suffix
+    # If type is not 10 (Workout), return the mapping with " workout" suffix
     return mapping + " workout" if mapping != "Workout" else mapping
