@@ -1,5 +1,5 @@
 # Stage 1: Build Vue.js app
-FROM node:20 AS frontend-build
+FROM node:22 AS frontend-build
 
 # Set the working directory to /app/frontend
 WORKDIR /tmp/frontend
@@ -15,7 +15,7 @@ COPY frontend/app ./
 RUN npm run build
 
 # Stage 2: Install requirements
-FROM python:3.12 AS requirements-stage
+FROM python:3.13 AS requirements-stage
 
 # Set the working directory
 WORKDIR /tmp/backend
@@ -33,7 +33,7 @@ COPY backend/pyproject.toml backend/poetry.lock* ./
 RUN poetry export -f requirements.txt --output requirements.txt --without-hashes
 
 # Stage 3: Build FastAPI app
-FROM python:3.12
+FROM python:3.13
 
 # Install gosu for privilege dropping
 RUN apt-get update \
