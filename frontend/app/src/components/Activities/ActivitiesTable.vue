@@ -31,11 +31,14 @@
           <th scope="col" class="sortable-header" @click="changeSort('elevation')">
             {{ $t('activitiesTableComponent.headerElevation') }} <font-awesome-icon :icon="sortIcon('elevation')" class="ms-1 sort-icon" />
           </th>
+          <th scope="col" class="sortable-header" @click="changeSort('average_hr')">
+            {{ $t('activitiesTableComponent.headerAvgHr') }} <font-awesome-icon :icon="sortIcon('average_hr')" class="ms-1 sort-icon" />
+          </th>
         </tr>
       </thead>
       <tbody>
         <tr v-if="activities.length === 0">
-          <td colspan="9" class="text-center">{{ $t('activitiesTableComponent.noActivitiesFound') }}</td>
+          <td colspan="10" class="text-center">{{ $t('activitiesTableComponent.noActivitiesFound') }}</td>
         </tr>
         <tr v-for="activity in activities" :key="activity.id">
           <td class="text-center">
@@ -64,6 +67,7 @@
           <td>{{ formatPace(activity.pace) }}</td>
           <td>{{ activity.calories ? activity.calories.toLocaleString() + ' kcal' : $t('generalItems.labelNotApplicable') }}</td>
           <td>{{ formatElevation(activity.elevation_gain) }}</td>
+          <td>{{ formatAvgHr(activity.average_hr) }}</td>
         </tr>
       </tbody>
     </table>
@@ -143,6 +147,11 @@ function formatDistance(meters) {
   const kilometers = meters / 1000
   const precision = kilometers < 10 ? 2 : 1
   return `${kilometers.toFixed(precision)} km` // Assuming 'km' unit doesn't need translation for US
+}
+
+function formatAvgHr(avgHr) {
+  if (avgHr === null || avgHr === undefined || avgHr <= 0) return t('generalItems.labelNotApplicable')
+  return `${Math.round(avgHr)} bpm` // Assuming 'bpm' unit doesn't need translation for US
 }
 
 function formatPace(pace) {

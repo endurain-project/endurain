@@ -7,6 +7,7 @@
   "headerDistance": "Afstand",
   "headerPace": "Tempo",
   "headerCalories": "Calorieën",
-  "headerElevation": "Hoogte",
+  "headerElevation": "Hoogteverschil",
+  "headerAvgHr": "Gem. HS",
   "noActivitiesFound": "Geen activiteiten gevonden."
 }
