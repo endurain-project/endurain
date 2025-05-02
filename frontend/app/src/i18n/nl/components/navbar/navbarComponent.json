@@ -1,11 +1,10 @@
 {
-  "activities": "Activities",
-  "search": "Zoeken",
-  "gear": "Uitrusting",
-  "health": "Gezondheid",
-  "profile": "Profiel",
-  "settings": "Instellingen",
-  "login": "Inloggen",
-  "logout": "Uitloggen",
-  "errorLogout": "Fout bij uitloggen"
+    "search": "Zoeken",
+    "gear": "Uitrusting",
+    "health": "Gezondheid",
+    "profile": "Profiel",
+    "settings": "Instellingen",
+    "login": "Inloggen",
+    "logout": "Uitloggen",
+    "errorLogout": "Fout bij uitloggen"
 }
