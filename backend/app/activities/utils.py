@@ -134,7 +134,6 @@ ACTIVITY_NAME_TO_ID.update({
     "mountain": 6,
     "virtualride": 7,
     "virtual_ride": 7,
-    "commuting_ride": 27,
     "swim": 8,
     "swimming": 8,
     "lap_swimming": 8,
@@ -162,6 +161,7 @@ ACTIVITY_NAME_TO_ID.update({
     "squash": 24,
     "racquetball": 25,
     "pickleball": 26,
+    "commuting_ride": 27,
 })
 
 
