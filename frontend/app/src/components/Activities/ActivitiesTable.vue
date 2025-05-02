@@ -103,7 +103,7 @@ function changeSort(columnName) {
   emit('sort-changed', columnName)
 }
 
-const sortIcon = computed(() => (columnName) => {
+function sortIcon(columnName) {
   if (props.sortBy !== columnName) {
     return ['fas', 'sort'] // Default sort icon
   }
@@ -111,7 +111,7 @@ const sortIcon = computed(() => (columnName) => {
     return ['fas', 'sort-up'] // Ascending icon
   }
   return ['fas', 'sort-down'] // Descending icon
-})
+}
 
 function formatDateTime(dateTimeString) {
   if (!dateTimeString) return t('generalItems.labelNotApplicable')
