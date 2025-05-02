@@ -1,0 +1,14 @@
+{
+  "title": "Activités",
+  "loading": "Chargement...",
+  "filterLabelType": "Type",
+  "filterOptionAllTypes": "Tous les types",
+  "filterLabelFromDate": "Date de début",
+  "filterLabelToDate": "Date de fin",
+  "filterLabelNameLocation": "Nom ou lieu",
+  "filterPlaceholderNameLocation": "ex: Course matinale",
+  "buttonClear": "Effacer",
+  "buttonApply": "Appliquer",
+  "errorUserNotAuthenticated": "Utilisateur non authentifié.",
+  "errorFailedLoad": "Échec du chargement des activités. Veuillez réessayer plus tard."
+}

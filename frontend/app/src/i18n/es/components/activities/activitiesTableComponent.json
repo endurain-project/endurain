@@ -1,0 +1,12 @@
+{
+  "headerType": "Tipo",
+  "headerName": "Nombre",
+  "headerLocation": "Ubicación",
+  "headerStartTime": "Hora de inicio",
+  "headerDuration": "Duración",
+  "headerDistance": "Distancia",
+  "headerPace": "Ritmo",
+  "headerCalories": "Calorías",
+  "headerElevation": "Elevación",
+  "noActivitiesFound": "No se encontraron actividades."
+}

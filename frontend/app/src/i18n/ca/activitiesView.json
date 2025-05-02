@@ -1,0 +1,14 @@
+{
+  "title": "Activitats",
+  "loading": "Carregant...",
+  "filterLabelType": "Tipus",
+  "filterOptionAllTypes": "Tots els tipus",
+  "filterLabelFromDate": "Des de data",
+  "filterLabelToDate": "Fins a data",
+  "filterLabelNameLocation": "Nom o ubicació",
+  "filterPlaceholderNameLocation": "p. ex., Cursa matinal",
+  "buttonClear": "Netejar",
+  "buttonApply": "Aplicar",
+  "errorUserNotAuthenticated": "Usuari no autenticat.",
+  "errorFailedLoad": "Error en carregar les activitats. Si us plau, torna-ho a provar més tard."
+}

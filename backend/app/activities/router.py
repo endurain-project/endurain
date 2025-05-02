@@ -1,37 +1,30 @@
-import os
-import glob
 import calendar
-
+import glob
+import os
+from datetime import date, datetime, timedelta, timezone  # Added date
 from typing import Annotated, Callable
 
-from fastapi import (
-    APIRouter,
-    Depends,
-    HTTPException,
-    status,
-    UploadFile,
-    Security,
-    BackgroundTasks,
-)
-from sqlalchemy.orm import Session
-from datetime import datetime, timedelta, timezone
-
-import activities.schema as activities_schema
-import activities.utils as activities_utils
 import activities.crud as activities_crud
 import activities.dependencies as activities_dependencies
-
-import session.security as session_security
-
-import gears.crud as gears_crud
-import gears.dependencies as gears_dependencies
-
-import users.dependencies as users_dependencies
-
-import core.logger as core_logger
-
+import activities.schema as activities_schema
+import activities.utils as activities_utils
 import core.database as core_database
 import core.dependencies as core_dependencies
+import core.logger as core_logger
+import gears.dependencies as gears_dependencies
+import session.security as session_security
+import users.dependencies as users_dependencies
+from fastapi import Query  # Added Query
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Depends,
+    HTTPException,
+    Security,
+    UploadFile,
+    status,
+)
+from sqlalchemy.orm import Session
 
 # Define the API router
 router = APIRouter()
@@ -266,8 +259,35 @@ async def read_activities_user_activities_number(
 
 
 @router.get(
+    "/types",
+    response_model=list[str],  # Changed List to list
+)
+async def read_activities_types(
+    check_scopes: Annotated[
+        Callable, Security(session_security.check_scopes, scopes=["activities:read"])
+    ],
+    token_user_id: Annotated[
+        int,
+        Depends(session_security.get_user_id_from_access_token),
+    ],
+    db: Annotated[
+        Session,
+        Depends(core_database.get_db),
+    ],
+):
+    """
+    Retrieve a list of distinct activity types for the logged-in user.
+    """
+    types = activities_crud.get_distinct_activity_types_for_user(token_user_id, db)
+    if types is None:
+        return []
+    return types
+
+
+# <<< START MODIFIED ENDPOINT >>>
+@router.get(
     "/user/{user_id}/page_number/{page_number}/num_records/{num_records}",
-    response_model=list[activities_schema.Activity] | None,
+    response_model=activities_schema.PaginatedActivitiesResponse,  # Changed response model
 )
 async def read_activities_user_activities_pagination(
     user_id: int,
@@ -284,23 +304,39 @@ async def read_activities_user_activities_pagination(
         Session,
         Depends(core_database.get_db),
     ],
+    # Added optional filter query parameters
+    activity_type: str | None = Query(None, alias="type"),
+    start_date: date | None = Query(None),
+    end_date: date | None = Query(None),
+    name_search: str | None = Query(None),
+    sort_by: str | None = Query(None),  # Added sort_by query parameter
+    sort_order: str | None = Query(None),  # Added sort_order query parameter
 ):
-    # Get the activities for the user with pagination
-    activities = activities_crud.get_user_activities_with_pagination(
-        user_id, db, page_number, num_records
+    # Get the activities and total count for the user with pagination and filters
+    result = activities_crud.get_user_activities_with_pagination(
+        user_id=user_id,
+        db=db,
+        page_number=page_number,
+        num_records=num_records,
+        activity_type=activity_type,
+        start_date=start_date,
+        end_date=end_date,
+        name_search=name_search,
+        sort_by=sort_by,  # Pass sort_by to CRUD function
+        sort_order=sort_order,  # Pass sort_order to CRUD function
     )
 
-    # Check if activities is None and return None if it is
-    if activities is None:
-        return None
+    # Return activities and total count in the new structure
+    return result
 
-    # Return activities
-    return activities
+
+# <<< END MODIFIED ENDPOINT >>>
 
 
 @router.get(
     "/user/{user_id}/followed/page_number/{page_number}/num_records/{num_records}",
-    response_model=list[activities_schema.Activity] | None,
+    response_model=list[activities_schema.Activity]
+    | None,  # Keep old response model for now
 )
 async def read_activities_followed_user_activities_pagination(
     user_id: int,
@@ -319,6 +355,7 @@ async def read_activities_followed_user_activities_pagination(
     ],
 ):
     # Get the activities for the following users with pagination
+    # Note: This endpoint is NOT updated to use the new response structure or filters yet.
     return activities_crud.get_user_following_activities_with_pagination(
         user_id, page_number, num_records, db
     )

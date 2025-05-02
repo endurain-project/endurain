@@ -1,0 +1,14 @@
+{
+  "title": "Activities",
+  "loading": "Loading...",
+  "filterLabelType": "Type",
+  "filterOptionAllTypes": "All Types",
+  "filterLabelFromDate": "From Date",
+  "filterLabelToDate": "To Date",
+  "filterLabelNameLocation": "Name or Location",
+  "filterPlaceholderNameLocation": "e.g., Morning Run",
+  "buttonClear": "Clear",
+  "buttonApply": "Apply",
+  "errorUserNotAuthenticated": "User not authenticated.",
+  "errorFailedLoad": "Failed to load activities. Please try again later."
+}
