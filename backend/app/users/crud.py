@@ -258,60 +258,6 @@ def get_user_by_id_if_is_public(user_id: int, db: Session):
         ) from err
 
 
-def get_user_id_by_username(username: str, db: Session):
-    try:
-        # Get the user from the database
-        user_id = (
-            db.query(users_models.User.id)
-            .filter(users_models.User.username == unquote(username).replace("+", " "))
-            .first()
-        )
-
-        # If the user was not found, return None
-        if user_id is None:
-            return None
-
-        # Return the user id
-        return user_id
-    except Exception as err:
-        # Log the exception
-        core_logger.print_to_log(
-            f"Error in get_user_id_by_username: {err}", "error", exc=err
-        )
-        # Raise an HTTPException with a 500 Internal Server Error status code
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Internal Server Error",
-        ) from err
-
-
-def get_user_photo_path_by_id(user_id: int, db: Session):
-    try:
-        # Get the user from the database
-        user_db = (
-            db.query(users_models.User.photo_path)
-            .filter(users_models.User.id == user_id)
-            .first()
-        )
-
-        # If the user was not found, return None
-        if user_db is None:
-            return None
-
-        # Return the user
-        return user_db.photo_path
-    except Exception as err:
-        # Log the exception
-        core_logger.print_to_log(
-            f"Error in get_user_photo_path_by_id: {err}", "error", exc=err
-        )
-        # Raise an HTTPException with a 500 Internal Server Error status code
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Internal Server Error",
-        ) from err
-
-
 def create_user(user: users_schema.UserCreate, db: Session):
     try:
         # Create a new user
