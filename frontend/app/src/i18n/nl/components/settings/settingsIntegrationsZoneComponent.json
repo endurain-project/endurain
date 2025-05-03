@@ -12,7 +12,7 @@
     "buttonUnlink": "Ontkoppel",
     "modalRetrieveClientIdTitle": "Connect Strava",
     "modalRetrieveClientIdLabel": "Client ID",
-    "modalRetrieveClientSecretLabel": "Client Secret",
+    "modalRetrieveClientSecretLabel": "Client secret",
     "errorMessageUnableToLinkStrava": "Kan Strava account niet koppelen",
     "errorMessageUnableToUnsetStravaClientSettings": "Unable to unset Strava client and state settings after linking error",
     "successMessageStravaAccountLinked": "Strava account gekoppeld",
