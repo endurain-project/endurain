@@ -9,7 +9,7 @@
                 </div>
                 <span>
                     Date: {{ formatDateShort(data.date) }}
-                    <span v-if="data.bmi"> | BMI: {{ data.bmi }}</span>
+                    <span v-if="data.bmi"> | BMI: {{ data.bmi.toFixed(2) }}</span>
                 </span>
             </div>
         </div>

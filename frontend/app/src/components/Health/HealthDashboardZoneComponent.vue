@@ -66,7 +66,7 @@ export default {
                 for(const data of props.userHealthData){
                     if(data.weight){
                         currentWeight.value = data.weight;
-                        currentBMI.value = data.bmi;
+                        currentBMI.value = data.bmi.toFixed(2);
                         break;
                     }
                 }
