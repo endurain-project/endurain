@@ -109,7 +109,7 @@
 			</ul>
 
 			<!-- modal retrieve Strava Client ID -->
-			<ModalComponentNumberAndStringInput modalId="retrieveStravaClientIdModal" :title="t('settingsIntegrationsZone.modalRetrieveClientIdTitle')" :numberFieldLabel="`${t('settingsIntegrationsZone.modalRetrieveClientIdLabel')}`" :numberDefaultValue="Number(123456)" :stringFieldLabel="`${t('settingsIntegrationsZone.modalRetrieveClientSecretLabel')}`" :stringDefaultValue="`${t('settingsIntegrationsZone.modalRetrieveClientSecretLabel')}`" :actionButtonType="`success`" :actionButtonText="t('settingsIntegrationsZone.buttonConnect')" @fieldsToEmitAction="submitConnectStrava"/>
+			<ModalComponentNumberAndStringInput modalId="retrieveStravaClientIdModal" :title="t('settingsIntegrationsZone.modalRetrieveClientIdTitle')" :numberFieldLabel="`${t('settingsIntegrationsZone.modalRetrieveClientIdLabel')}`" :numberDefaultValue="Number(123456)" :stringFieldLabel="`${t('settingsIntegrationsZone.modalRetrieveClientSecretLabel')}`" :actionButtonType="`success`" :actionButtonText="t('settingsIntegrationsZone.buttonConnect')" @fieldsToEmitAction="submitConnectStrava"/>
 
 			<!-- modal retrieve Strava activities by days -->
 			<ModalComponentNumberInput modalId="retrieveStravaActivitiesByDaysModal" :title="t('settingsIntegrationsZone.modalRetrieveActivitiesByDaysTitle')" :numberFieldLabel="`${t('settingsIntegrationsZone.modalRetrieveActivitiesByDaysLabel')}`" :actionButtonType="`success`" :actionButtonText="t('settingsIntegrationsZone.modalRetrieveButton')" @numberToEmitAction="submitRetrieveStravaActivities"/>
