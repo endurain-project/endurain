@@ -167,7 +167,7 @@ async def read_gear_user_by_type(
 
 
 @router.post(
-    "/create",
+    "",
     response_model=gears_schema.Gear,
     status_code=201,
 )
@@ -188,7 +188,7 @@ async def create_gear(
     return gears_crud.create_gear(gear, token_user_id, db)
 
 
-@router.put("/{gear_id}/edit")
+@router.put("/{gear_id}")
 async def edit_gear(
     gear_id: int,
     validate_id: Annotated[Callable, Depends(gears_dependencies.validate_gear_id)],
@@ -227,7 +227,7 @@ async def edit_gear(
     return {"detail": f"Gear ID {gear_id} edited successfully"}
 
 
-@router.delete("/{gear_id}/delete")
+@router.delete("/{gear_id}")
 async def delete_gear(
     gear_id: int,
     validate_id: Annotated[Callable, Depends(gears_dependencies.validate_gear_id)],

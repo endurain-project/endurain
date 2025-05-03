@@ -11,16 +11,16 @@ export const profile = {
         const formData = new FormData();
         formData.append('file', file);
 
-        return fetchPostFileRequest('profile/upload/image', formData);
+        return fetchPostFileRequest('profile/image', formData);
     },
     editProfile(data) {
-        return fetchPutRequest('profile/edit', data)
+        return fetchPutRequest('profile', data)
     },
     editProfilePassword(data) {
-        return fetchPutRequest('profile/edit/password', data)
+        return fetchPutRequest('profile/password', data)
     },
     deleteProfilePhoto() {
-        return fetchPutRequest('profile/delete-photo');
+        return fetchPutRequest('profile/photo');
     },
     deleteProfileSession(session_id) {
         return fetchDeleteRequest(`profile/sessions/${session_id}`);

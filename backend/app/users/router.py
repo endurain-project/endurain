@@ -128,7 +128,7 @@ async def read_users_id(
     return users_crud.get_user_by_id(user_id, db)
 
 
-@router.post("/", response_model=users_schema.User, status_code=201)
+@router.post("", response_model=users_schema.User, status_code=201)
 async def create_user(
     user: users_schema.UserCreate,
     check_scopes: Annotated[

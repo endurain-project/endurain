@@ -22,7 +22,7 @@ export const users = {
         return fetchGetRequest(`users/id/${user_id}`);
     },
     createUser(data) {
-        return fetchPostRequest('users/', data)
+        return fetchPostRequest('users', data)
     },
     uploadImage(file, user_id) {
         const formData = new FormData();
