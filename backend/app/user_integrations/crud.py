@@ -170,7 +170,7 @@ def unlink_strava_account(user_id: int, db: Session):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal Server Error",
         ) from err
-    
+
 
 def set_user_strava_client(user_id: int, id: int, secret: str, db: Session):
     try:
@@ -197,7 +197,10 @@ def set_user_strava_client(user_id: int, id: int, secret: str, db: Session):
 
         # Log the exception
         core_logger.print_to_log(
-            f"Error in set_user_strava_client: {err}", "error", exc=err
+            f"Error in set_user_strava_client: {err}",
+            "error",
+            exc=err,
+            context={"id": "[REDACTED]", "secret": "[REDACTED]"},
         )
 
         # Raise an HTTPException with a 500 Internal Server Error status code
