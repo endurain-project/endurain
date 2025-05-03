@@ -29,12 +29,11 @@ export default {
 		const { t } = useI18n();
 
 		onMounted(async () => {
-			if (route.query.state && route.query.code && route.query.scope) {
+			if (route.query.state && route.query.code) {
 				try {
 					await strava.linkStravaCallback(
 						route.query.state,
 						route.query.code,
-						route.query.scope,
 					);
 
 					return router.push({
@@ -46,6 +45,7 @@ export default {
 					push.error(
 						`${t("settingsIntegrationsZone.errorMessageUnableToLinkStrava")} - ${error}`,
 					);
+
 					return router.push({
 						path: "/settings",
 						query: { stravaLinked: "0" },

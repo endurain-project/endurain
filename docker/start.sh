@@ -56,12 +56,6 @@ if [ -n "$ENDURAIN_HOST" ]; then
     find /app/frontend/dist -type f \( -name '*.js' -o -name '*.css' \) -exec sed -i "s|MY_APP_ENDURAIN_HOST|${ENDURAIN_HOST}|g" '{}' +
 fi
 
-# Substitute MY_APP_STRAVA_CLIENT_ID with the value of STRAVA_CLIENT_ID
-if [ -n "$STRAVA_CLIENT_ID" ]; then
-    echo_info_log "Substituting MY_APP_STRAVA_CLIENT_ID with $STRAVA_CLIENT_ID"
-    find /app/frontend/dist -type f \( -name '*.js' -o -name '*.css' \) -exec sed -i "s|MY_APP_STRAVA_CLIENT_ID|${STRAVA_CLIENT_ID}|g" '{}' +
-fi
-
 echo_info_log "Starting FastAPI with BEHIND_PROXY=$BEHIND_PROXY"
 
 # Define the base command for starting the FastAPI server as an array

@@ -1,10 +1,8 @@
 import requests
-import os
 
 from datetime import datetime, timedelta, timezone
 from typing import Annotated, Callable
 from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks, Security
-from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 
 import session.security as session_security
@@ -18,6 +16,7 @@ import activities.crud as activities_crud
 import strava.gear_utils as strava_gear_utils
 import strava.activity_utils as strava_activity_utils
 import strava.utils as strava_utils
+import strava.schema as strava_schema
 
 import core.logger as core_logger
 import core.database as core_database
@@ -37,13 +36,36 @@ async def strava_link(
         Depends(core_database.get_db),
     ],
 ):
+    # Get the user integrations by the state
+    user_integrations = (
+        user_integrations_crud.get_user_integrations_by_strava_state(state, db)
+    )
+
+    # Check if user integrations is None
+    if user_integrations is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User integrations not found",
+        )
+    
+    if user_integrations.strava_client_id is None or user_integrations.strava_client_secret is None:
+        # Set the user Strava client to None
+        user_integrations_crud.set_user_strava_client(
+            user_integrations.user_id, None, None, db
+        )
+
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Strava client ID or secret not set",
+        )
+    
     # Define the token URL
     token_url = "https://www.strava.com/oauth/token"
 
     # Define the payload
     payload = {
-        "client_id": os.environ.get("STRAVA_CLIENT_ID"),
-        "client_secret": os.environ.get("STRAVA_CLIENT_SECRET"),
+        "client_id": user_integrations.strava_client_id,
+        "client_secret": user_integrations.strava_client_secret,
         "code": code,
         "grant_type": "authorization_code",
     }
@@ -63,23 +85,16 @@ async def strava_link(
         # Get the tokens from the response
         tokens = response.json()
 
-        # Get the user integrations by the state
-        user_integrations = (
-            user_integrations_crud.get_user_integrations_by_strava_state(state, db)
-        )
-
-        # Check if user integrations is None
-        if user_integrations is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="User integrations not found",
-            )
-
         # Update the user integrations with the tokens
         user_integrations_crud.link_strava_account(user_integrations, tokens, db)
     except Exception as err:
         # Log the exception
         core_logger.print_to_log(f"Error in strava_link: {err}", "error", exc=err)
+        
+        # Set the user Strava client to None
+        user_integrations_crud.set_user_strava_client(
+            user_integrations.user_id, None, None, db
+        )
 
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
@@ -159,10 +174,38 @@ async def strava_retrieve_gear(
 
 
 @router.put(
-    "/set-user-unique-state/{state}",
+    "/client"
+)
+async def strava_set_user_client(
+    client: strava_schema.StravaClient,
+    validate_access_token: Annotated[
+        Callable,
+        Depends(session_security.validate_access_token),
+    ],
+    check_scopes: Annotated[
+        Callable,
+        Security(session_security.check_scopes, scopes=["profile"]),
+    ],
+    token_user_id: Annotated[
+        int,
+        Depends(session_security.get_user_id_from_access_token),
+    ],
+    db: Annotated[Session, Depends(core_database.get_db)],
+):
+    # Set the user Strava client
+    user_integrations_crud.set_user_strava_client(
+        token_user_id, client.client_id, client.client_secret, db
+    )
+
+    # Return success message
+    return {f"Strava client for user {token_user_id} edited successfully"}
+
+
+@router.put(
+    "/state/{state}",
 )
 async def strava_set_user_unique_state(
-    state: str,
+    state: str | None,
     validate_access_token: Annotated[
         Callable,
         Depends(session_security.validate_access_token),
@@ -182,31 +225,6 @@ async def strava_set_user_unique_state(
 
     # Return success message
     return {f"Strava state for user {token_user_id} edited successfully"}
-
-
-@router.put(
-    "/unset-user-unique-state",
-)
-async def strava_unset_user_unique_state(
-    validate_access_token: Annotated[
-        Callable,
-        Depends(session_security.validate_access_token),
-    ],
-    check_scopes: Annotated[
-        Callable,
-        Security(session_security.check_scopes, scopes=["profile"]),
-    ],
-    token_user_id: Annotated[
-        int,
-        Depends(session_security.get_user_id_from_access_token),
-    ],
-    db: Annotated[Session, Depends(core_database.get_db)],
-):
-    # Set the user Strava state
-    user_integrations_crud.set_user_strava_state(token_user_id, None, db)
-
-    # Return success message
-    return {f"Strava state for user {token_user_id} removed successfully"}
 
 
 @router.delete("/unlink")

@@ -9,9 +9,6 @@ services:
       - DB_PORT=5432 # 3306 or 5432
       - DB_PASSWORD=changeme
       - SECRET_KEY=chnageme # openssl rand -hex 32
-      #- STRAVA_CLIENT_ID=changeme
-      #- STRAVA_CLIENT_SECRET=changeme
-      #- STRAVA_AUTH_CODE=changeme
       - GEOCODES_MAPS_API=changeme
       - ENDURAIN_HOST=http://localhost:8080 # host or local ip (example: http://192.168.1.10:8080 or https://endurain.com), default is http://localhost:8080
       - BEHIND_PROXY=false # default value is false. Change to true if behind reverse proxy

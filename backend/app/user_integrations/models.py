@@ -22,10 +22,16 @@ class UsersIntegrations(Base):
         index=True,
         comment="User ID that the integration belongs",
     )
-    strava_state = Column(String(length=45), default=None, nullable=True)
-    strava_token = Column(String(length=250), default=None, nullable=True)
-    strava_refresh_token = Column(String(length=250), default=None, nullable=True)
-    strava_token_expires_at = Column(DateTime, default=None, nullable=True)
+    strava_client_id = Column(
+        Integer, default=None, nullable=True, comment="Strava client ID"
+    )
+    strava_client_secret = Column(
+        String(length=250), default=None, nullable=True, comment="Strava client secret"
+    )
+    strava_state = Column(String(length=45), default=None, nullable=True, comment="Strava temporary state for link process")
+    strava_token = Column(String(length=250), default=None, nullable=True, comment="Strava token after link process")
+    strava_refresh_token = Column(String(length=250), default=None, nullable=True, comment="Strava refresh token after link process")
+    strava_token_expires_at = Column(DateTime, default=None, nullable=True, comment="Strava token expiration date")
     strava_sync_gear = Column(
         Boolean,
         nullable=False,
