@@ -109,7 +109,7 @@
 			</ul>
 
 			<!-- modal retrieve Strava Client ID -->
-			<ModalComponentNumberAndStringInput modalId="retrieveStravaClientIdModal" :title="t('settingsIntegrationsZone.modalRetrieveClientIdTitle')" :numberFieldLabel="`${t('settingsIntegrationsZone.modalRetrieveClientIdLabel')}`" :numberDefaultValue="Number(123456)" :stringFieldLabel="`${t('settingsIntegrationsZone.modalRetrieveClientSecretLabel')}`" :stringDefaultValue="`${t('settingsIntegrationsZone.modalRetrieveClientSecretLabel')}`" :actionButtonType="`success`" :actionButtonText="t('settingsIntegrationsZone.buttonConnect')" @numberToEmitAction="submitConnectStrava"/>
+			<ModalComponentNumberAndStringInput modalId="retrieveStravaClientIdModal" :title="t('settingsIntegrationsZone.modalRetrieveClientIdTitle')" :numberFieldLabel="`${t('settingsIntegrationsZone.modalRetrieveClientIdLabel')}`" :numberDefaultValue="Number(123456)" :stringFieldLabel="`${t('settingsIntegrationsZone.modalRetrieveClientSecretLabel')}`" :stringDefaultValue="`${t('settingsIntegrationsZone.modalRetrieveClientSecretLabel')}`" :actionButtonType="`success`" :actionButtonText="t('settingsIntegrationsZone.buttonConnect')" @fieldsToEmitAction="submitConnectStrava"/>
 
 			<!-- modal retrieve Strava activities by days -->
 			<ModalComponentNumberInput modalId="retrieveStravaActivitiesByDaysModal" :title="t('settingsIntegrationsZone.modalRetrieveActivitiesByDaysTitle')" :numberFieldLabel="`${t('settingsIntegrationsZone.modalRetrieveActivitiesByDaysLabel')}`" :actionButtonType="`success`" :actionButtonText="t('settingsIntegrationsZone.modalRetrieveButton')" @numberToEmitAction="submitRetrieveStravaActivities"/>
@@ -173,7 +173,7 @@ export default {
 				await strava.setUniqueUserStateStravaLink(state);
 				await strava.setUserStravaClientSettings(stravaClient.numberToEmit, stravaClient.stringToEmit);
 
-				strava.linkStrava(state, stravaClientId);
+				strava.linkStrava(state, stravaClient.numberToEmit);
 			} catch (error) {
 				// If there is an error, show the error alert.
 				push.error(
