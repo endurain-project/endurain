@@ -1,4 +1,5 @@
-import { metersToKm } from "@/utils/unitsUtils"; // Import unit utils
+import i18n from "@/i18n";
+import { metersToKm } from "@/utils/unitsUtils";
 import {
     formatDateMed,
     formatTime,
@@ -181,7 +182,7 @@ export function formatAverageSpeed(activity, unitSystem) {
 
 // Refactored to use dateTimeUtils
 export function formatDateTime(dateTimeString) {
-  if (!dateTimeString) return t("generalItems.labelNotApplicable");
+  if (!dateTimeString) return i18n.global.t("generalItems.labelNotApplicable");
   try {
     // Combine localized date and time from utils
     return `${formatDateMed(dateTimeString)}, ${formatTime(dateTimeString)}`;
@@ -193,7 +194,7 @@ export function formatDateTime(dateTimeString) {
 
 export function formatDuration(seconds) {
     if (seconds === null || seconds === undefined || seconds < 0)
-      return t("generalItems.labelNotApplicable");
+      return i18n.global.t("generalItems.labelNotApplicable");
     try {
       return formatSecondsToMinutes(seconds);
     } catch (e) {
@@ -205,7 +206,7 @@ export function formatDuration(seconds) {
 // Refactored to use unitsUtils
 export function formatDistance(meters) {
   if (meters === null || meters === undefined || meters < 0)
-    return t("generalItems.labelNotApplicable");
+    return i18n.global.t("generalItems.labelNotApplicable");
   try {
     return `${metersToKm(meters)} km`; // Use util, keep unit consistent
   } catch (e) {
@@ -215,21 +216,21 @@ export function formatDistance(meters) {
 }
 
 export function formatAvgHr(avgHr) {
-	if (avgHr === null || avgHr === undefined || avgHr <= 0)
-		return t("generalItems.labelNotApplicable");
+if (avgHr === null || avgHr === undefined || avgHr <= 0)
+return i18n.global.t("generalItems.labelNotApplicable");
 return `${Math.round(avgHr)} bpm`; // Assuming 'bpm' unit doesn't need translation for US
 }
 
 export function formatElevation(meters) {
-	if (meters === null || meters === undefined)
-		return t("generalItems.labelNotApplicable");
-	return `${meters.toLocaleString()} m`; // Assuming 'm' unit doesn't need translation for US
+if (meters === null || meters === undefined)
+return i18n.global.t("generalItems.labelNotApplicable");
+return `${meters.toLocaleString()} m`; // Assuming 'm' unit doesn't need translation for US
 }
 
 export function formatCalories(calories) {
-	if (calories === null || calories === undefined)
-		return t("generalItems.labelNotApplicable");
-	return `${calories.toLocaleString()} kcal`; // Assuming 'm' unit doesn't need translation for US
+if (calories === null || calories === undefined)
+return i18n.global.t("generalItems.labelNotApplicable");
+return `${calories.toLocaleString()} kcal`; // Assuming 'm' unit doesn't need translation for US
 }
 
 export function getIcon(typeId) {
@@ -267,14 +268,13 @@ export function getIcon(typeId) {
  * Formats the location of an activity based on available town, city, and country data.
  *
  * @param {object} activity - The activity object containing location fields (town, city, country).
- * @param {string} notApplicableLabel - The label to return if no location data is available.
  * @returns {string} The formatted location string (e.g., "Town, Country", "City", "N/A").
  */
 export function formatLocation(activity) {
   const { town, city, country } = activity;
 
   if (!town && !city && !country) {
-    return t("generalItems.labelNotApplicable");
+    return i18n.global.t("generalItems.labelNotApplicable");
   }
 
   let locationParts = [];
