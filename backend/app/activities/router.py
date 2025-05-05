@@ -352,7 +352,6 @@ async def read_activities_followed_user_activities_pagination(
     ],
 ):
     # Get the activities for the following users with pagination
-    # Note: This endpoint is NOT updated to use the new response structure or filters yet.
     return activities_crud.get_user_following_activities_with_pagination(
         user_id, page_number, num_records, db
     )

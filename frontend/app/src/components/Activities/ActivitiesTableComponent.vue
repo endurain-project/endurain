@@ -22,7 +22,6 @@
             {{ $t('activitiesTableComponent.headerDistance') }} <font-awesome-icon :icon="sortIcon('distance')" class="ms-1 sort-icon" />
           </th>
           <th scope="col" class="sortable-header" @click="changeSort('pace')">
-            <!-- Made sortable -->
             {{ $t('activitiesTableComponent.headerPace') }} <font-awesome-icon :icon="sortIcon('pace')" class="ms-1 sort-icon" />
           </th>
           <th scope="col" class="sortable-header" @click="changeSort('calories')">
@@ -42,30 +41,19 @@
         </tr>
         <tr v-for="activity in activities" :key="activity.id">
           <td class="text-center">
-            <font-awesome-icon :icon="getActivityIcon(activity.activity_type)" />
+            <font-awesome-icon :icon="getIcon(activity.activity_type)" />
           </td>
           <td>
             <router-link :to="{ name: 'activity', params: { id: activity.id } }">
               {{ activity.name }}
             </router-link>
           </td>
-          <td>
-            <span v-if="activity.town || activity.city || activity.country">
-              <span v-if="activity.town"
-                >{{ activity.town }}<span v-if="activity.country">,</span></span
-              >
-              <span v-else-if="activity.city"
-                >{{ activity.city }}<span v-if="activity.country">,</span></span
-              >
-              <span v-if="activity.country">{{ ' ' + activity.country }}</span>
-            </span>
-            <span v-else>{{ $t('generalItems.labelNotApplicable') }}</span>
-          </td>
+          <td>{{ formatLocation(activity) }}</td>
           <td>{{ formatDateTime(activity.start_time) }}</td>
           <td>{{ formatDuration(activity.total_timer_time) }}</td>
           <td>{{ formatDistance(activity.distance) }}</td>
-          <td>{{ formatPace(activity.pace) }}</td>
-          <td>{{ activity.calories ? activity.calories.toLocaleString() + ' kcal' : $t('generalItems.labelNotApplicable') }}</td>
+          <td>{{ formatPace(activity, authStore.user.units) }}</td> <!-- Pass whole activity object -->
+          <td>{{ formatCalories(activity.calories) }}</td>
           <td>{{ formatElevation(activity.elevation_gain) }}</td>
           <td>{{ formatAvgHr(activity.average_hr) }}</td>
         </tr>
@@ -75,135 +63,45 @@
 </template>
 
 <script setup>
-import { defineProps, defineEmits, computed } from "vue";
-import { useI18n } from "vue-i18n"; // Import useI18n
+import { defineProps, defineEmits } from "vue";
+import { useI18n } from "vue-i18n"; 
 import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
+import { formatDuration, formatDateTime, formatDistance, formatElevation, formatPace, formatAvgHr, formatCalories, getIcon, formatLocation } from "@/utils/activityUtils"; // Added formatLocation
+import { useAuthStore } from "@/stores/authStore";
 
-const { t } = useI18n(); // Setup useI18n
+const { t } = useI18n();
+const authStore = useAuthStore();
 
 const props = defineProps({
-	activities: {
-		type: Array,
-		required: true,
-		default: () => [],
-	},
-	sortBy: {
-		type: String,
-		default: "start_time",
-	},
-	sortOrder: {
-		type: String,
-		default: "desc",
-	},
+activities: {
+type: Array,
+required: true,
+default: () => [],
+},
+sortBy: {
+type: String,
+default: "start_time",
+},
+sortOrder: {
+type: String,
+default: "desc",
+},
 });
 
 const emit = defineEmits(["sort-changed"]);
 
 function changeSort(columnName) {
-	emit("sort-changed", columnName);
+emit("sort-changed", columnName);
 }
 
 function sortIcon(columnName) {
-	if (props.sortBy !== columnName) {
-		return ["fas", "sort"]; // Default sort icon
-	}
-	if (props.sortOrder === "asc") {
-		return ["fas", "sort-up"]; // Ascending icon
-	}
-	return ["fas", "sort-down"]; // Descending icon
+if (props.sortBy !== columnName) {
+return ["fas", "sort"]; // Default sort icon
 }
-
-function formatDateTime(dateTimeString) {
-	if (!dateTimeString) return t("generalItems.labelNotApplicable");
-	try {
-		const options = {
-			year: "numeric",
-			month: "short",
-			day: "numeric",
-			hour: "2-digit",
-			minute: "2-digit",
-		};
-		return new Date(dateTimeString).toLocaleString(undefined, options);
-	} catch (e) {
-		console.error("Error formatting date:", e);
-		return dateTimeString; // Fallback
-	}
+if (props.sortOrder === "asc") {
+return ["fas", "sort-up"]; // Ascending icon
 }
-
-function formatDuration(seconds) {
-	if (seconds === null || seconds === undefined)
-		return t("generalItems.labelNotApplicable");
-	const h = Math.floor(seconds / 3600);
-	const m = Math.floor((seconds % 3600) / 60);
-	const s = Math.floor(seconds % 60);
-	let result = "";
-	if (h > 0) result += `${h}h `;
-	if (m > 0 || h > 0) result += `${m}m `; // Show minutes if hours exist
-	result += `${s}s`;
-	return result.trim();
-}
-
-function formatDistance(meters) {
-	if (meters === null || meters === undefined)
-		return t("generalItems.labelNotApplicable");
-	const kilometers = meters / 1000;
-	const precision = kilometers < 10 ? 2 : 1;
-	return `${kilometers.toFixed(precision)} km`; // Assuming 'km' unit doesn't need translation for US
-}
-
-function formatAvgHr(avgHr) {
-	if (avgHr === null || avgHr === undefined || avgHr <= 0)
-		return t("generalItems.labelNotApplicable");
-	return `${Math.round(avgHr)} bpm`; // Assuming 'bpm' unit doesn't need translation for US
-}
-
-function formatPace(pace) {
-	if (pace === null || pace === undefined || pace <= 0)
-		return t("generalItems.labelNotApplicable");
-
-	// Convert seconds/meter to seconds/kilometer
-	const paceSecondsPerKm = pace * 1000;
-
-	const minutes = Math.floor(paceSecondsPerKm / 60);
-	const seconds = Math.round(paceSecondsPerKm % 60);
-	return `${minutes}:${seconds.toString().padStart(2, "0")} /km`;
-}
-
-function formatElevation(meters) {
-	if (meters === null || meters === undefined)
-		return t("generalItems.labelNotApplicable");
-	return `${meters.toLocaleString()} m`; // Assuming 'm' unit doesn't need translation for US
-}
-
-function getActivityIcon(typeId) {
-  const iconMap = {
-    1: ["fas", "person-running"],
-    2: ["fas", "person-running"],
-    3: ["fas", "person-running"], // Consider a different icon for virtual?
-    4: ["fas", "person-biking"],
-    5: ["fas", "person-biking"],
-    6: ["fas", "person-biking"],
-    7: ["fas", "person-biking"], // Consider a different icon for virtual?
-    8: ["fas", "person-swimming"],
-    9: ["fas", "person-swimming"],
-    11: ["fas", "person-walking"],
-    12: ["fas", "person-hiking"],
-    13: ["fas", "sailboat"], // Rowing icon might be better if available
-    14: ["fas", "hands-praying"], // Yoga icon might be better if available
-    15: ["fas", "person-skiing"],
-    16: ["fas", "person-skiing-nordic"],
-    17: ["fas", "person-snowboarding"],
-    18: ["fas", "repeat"], // Transition icon
-    21: ["fas", "table-tennis-paddle-ball"], // Racquet sports
-    22: ["fas", "table-tennis-paddle-ball"],
-    23: ["fas", "table-tennis-paddle-ball"],
-    24: ["fas", "table-tennis-paddle-ball"],
-    25: ["fas", "table-tennis-paddle-ball"],
-    26: ["fas", "table-tennis-paddle-ball"],
-    27: ["fas", "person-biking"],
-  };
-
-  return iconMap[typeId] || ["fas", "dumbbell"]; // Default for Workout, Strength, Crossfit, etc.
+return ["fas", "sort-down"]; // Descending icon
 }
 </script>
 
