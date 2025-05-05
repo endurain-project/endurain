@@ -620,6 +620,27 @@ def retrieve_strava_users_activities_for_days(days: int):
     try:
         # Get all users
         users = users_crud.get_all_users(db)
+    except HTTPException as err:
+        # Log an error event if an HTTPException occurred
+        core_logger.print_to_log(
+            f"Error retrieving users: {str(err)}",
+            "error",
+            exc=err,
+        )
+        # Raise the HTTPException to propagate the error
+        raise err
+    except Exception as err:
+        # Log an error event if an exception occurred
+        core_logger.print_to_log(
+            f"Error retrieving users: {str(err)}",
+            "error",
+            exc=err,
+        )
+        # Raise an HTTPException with a 500 Internal Server Error status code
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal Server Error",
+        ) from err
     finally:
         # Ensure the session is closed after use
         db.close()
@@ -665,6 +686,27 @@ def get_user_strava_activities_by_days(start_date: datetime, user_id: int):
         core_logger.print_to_log(
             f"User {user_id}: {num_strava_activities_processed} Strava activities processed"
         )
+    except HTTPException as err:
+        # Log an error event if an exception occurred
+        core_logger.print_to_log(
+            f"User {user_id}: Error processing Strava activities: {str(err)}",
+            "error",
+            exc=err,
+        )
+        # Raise the HTTPException to propagate the error
+        raise err
+    except Exception as err:
+        # Log an error event if an exception occurred
+        core_logger.print_to_log(
+            f"User {user_id}: Error processing Strava activities: {str(err)}",
+            "error",
+            exc=err,
+        )
+        # Raise an HTTPException with a 500 Internal Server Error status code
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal Server Error",
+        ) from err
     finally:
         # Ensure the session is closed after use
         db.close()

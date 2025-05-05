@@ -112,8 +112,10 @@ def link_strava_account(
             tokens["expires_at"]
         )
 
-        # Set the strava state to None
+        # Set the strava state, client ID and client Secret to None
         user_integrations.strava_state = None
+        user_integrations.strava_client_id = None
+        user_integrations.strava_client_secret = None
 
         # Commit the changes to the database
         db.commit()
@@ -161,6 +163,44 @@ def unlink_strava_account(user_id: int, db: Session):
         # Log the exception
         core_logger.print_to_log(
             f"Error in unlink_strava_account: {err}", "error", exc=err
+        )
+
+        # Raise an HTTPException with a 500 Internal Server Error status code
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal Server Error",
+        ) from err
+
+
+def set_user_strava_client(user_id: int, id: int, secret: str, db: Session):
+    try:
+        # Get the user integrations by the user id
+        user_integrations = get_user_integrations_by_user_id(user_id, db)
+
+        # Check if user_integrations is None and return None if it is
+        if user_integrations is None:
+            # If the user was not found, return a 404 Not Found error
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User integrations not found",
+            )
+
+        # Set the user Strava client id and secret
+        user_integrations.strava_client_id = id
+        user_integrations.strava_client_secret = secret
+
+        # Commit the changes to the database
+        db.commit()
+    except Exception as err:
+        # Rollback the transaction
+        db.rollback()
+
+        # Log the exception
+        core_logger.print_to_log(
+            f"Error in set_user_strava_client: {err}",
+            "error",
+            exc=err,
+            context={"id": "[REDACTED]", "secret": "[REDACTED]"},
         )
 
         # Raise an HTTPException with a 500 Internal Server Error status code

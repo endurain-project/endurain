@@ -10,6 +10,9 @@
                     <!-- number field -->
                     <label for="numberToEmit"><b>* {{ numberFieldLabel }}</b></label>
                     <input class="form-control" type="number" name="numberToEmit" :placeholder="`${numberFieldLabel}`" v-model="numberToEmit" required>
+                    <!-- string field -->
+                    <label for="stringToEmit"><b>* {{ stringFieldLabel }}</b></label>
+                    <input class="form-control" type="text" name="stringToEmit" :placeholder="`${stringFieldLabel}`" v-model="stringToEmit" required>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ $t("generalItems.buttonClose") }}</button>
@@ -41,6 +44,14 @@ export default {
             type: Number,
             default: 7,
         },
+        stringFieldLabel: {
+            type: String,
+            required: true,
+        },
+        stringDefaultValue: {
+            type: String,
+            default: '',
+        },
         actionButtonType: {
             type: String,
             required: true,
@@ -50,16 +61,21 @@ export default {
             required: true,
         },
     },
-    emits: ['numberToEmitAction'],
+    emits: ['fieldsToEmitAction'],
     setup(props, { emit }) {
         const numberToEmit = ref(props.numberDefaultValue);
+        const stringToEmit = ref(props.stringDefaultValue);
 
         function submitAction() {
-            emit('numberToEmitAction', numberToEmit.value);
+            emit('fieldsToEmitAction', {
+                "numberToEmit": numberToEmit.value,
+                "stringToEmit": stringToEmit.value,
+            });
         }
 
         return {
             numberToEmit,
+            stringToEmit,
             submitAction,
         };
     },

@@ -37,7 +37,7 @@ async def read_users_number(
 
 
 @router.get(
-    "/all/page_number/{page_number}/num_records/{num_records}",
+    "/page_number/{page_number}/num_records/{num_records}",
     response_model=list[users_schema.User] | None,
 )
 async def read_users_all_pagination(
@@ -128,38 +128,7 @@ async def read_users_id(
     return users_crud.get_user_by_id(user_id, db)
 
 
-@router.get("/{username}/id", response_model=int)
-async def read_users_username_id(
-    username: str,
-    check_scopes: Annotated[
-        Callable, Security(session_security.check_scopes, scopes=["users:read"])
-    ],
-    db: Annotated[
-        Session,
-        Depends(core_database.get_db),
-    ],
-):
-    # Get the users from the database by username
-    return users_crud.get_user_id_by_username(username, db)
-
-
-@router.get("/{user_id}/photo_path", response_model=str | None)
-async def read_users_id_photo_path(
-    user_id: int,
-    validate_id: Annotated[Callable, Depends(users_dependencies.validate_user_id)],
-    check_scopes: Annotated[
-        Callable, Security(session_security.check_scopes, scopes=["users:read"])
-    ],
-    db: Annotated[
-        Session,
-        Depends(core_database.get_db),
-    ],
-):
-    # Get the photo_path from the database by id
-    return users_crud.get_user_photo_path_by_id(user_id, db)
-
-
-@router.post("/create", response_model=users_schema.User, status_code=201)
+@router.post("", response_model=users_schema.User, status_code=201)
 async def create_user(
     user: users_schema.UserCreate,
     check_scopes: Annotated[
@@ -187,7 +156,7 @@ async def create_user(
 
 
 @router.post(
-    "/{user_id}/upload/image",
+    "/{user_id}/image",
     status_code=201,
     response_model=str | None,
 )
@@ -206,7 +175,7 @@ async def upload_user_image(
     return await users_utils.save_user_image(user_id, file, db)
 
 
-@router.put("/{user_id}/edit")
+@router.put("/{user_id}")
 async def edit_user(
     user_id: int,
     validate_id: Annotated[Callable, Depends(users_dependencies.validate_user_id)],
@@ -226,7 +195,7 @@ async def edit_user(
     return {"detail": f"User ID {user_attributtes.id} updated successfully"}
 
 
-@router.put("/{user_id}/edit/password")
+@router.put("/{user_id}/password")
 async def edit_user_password(
     user_id: int,
     validate_id: Annotated[Callable, Depends(users_dependencies.validate_user_id)],
@@ -256,7 +225,7 @@ async def edit_user_password(
     return {f"User ID {user_id} password updated successfully"}
 
 
-@router.put("/{user_id}/delete-photo")
+@router.delete("/{user_id}/photo")
 async def delete_user_photo(
     user_id: int,
     validate_id: Annotated[Callable, Depends(users_dependencies.validate_user_id)],
@@ -275,7 +244,7 @@ async def delete_user_photo(
     return {"detail": f"User ID {user_id} photo deleted successfully"}
 
 
-@router.delete("/{user_id}/delete")
+@router.delete("/{user_id}")
 async def delete_user(
     user_id: int,
     validate_id: Annotated[Callable, Depends(users_dependencies.validate_user_id)],

@@ -110,7 +110,6 @@ $ npm install
 
 ```
 VITE_ENDURAIN_HOST=http://localhost:8080 # Adapt this based on the docker compose of your dev environment
-VITE_STRAVA_CLIENT_ID=MY_APP_STRAVA_CLIENT_ID
 ```
 
  - After the dependencies are installed run the frontend:

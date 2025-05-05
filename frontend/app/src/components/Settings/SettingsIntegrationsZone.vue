@@ -15,8 +15,9 @@
 						</div>
 					</div>
 					<div class="d-flex align-items-center">
-						<!-- connect button -->
-						<a href="#" class="btn btn-primary" v-if="authStore.user.is_strava_linked == 0" @click="submitConnectStrava">{{ $t("settingsIntegrationsZone.buttonConnect") }}</a>
+						<!-- connect button«
+						<a href="#" class="btn btn-primary" v-if="authStore.user.is_strava_linked == 0" @click="submitConnectStrava">{{ $t("settingsIntegrationsZone.buttonConnect") }}</a> -->
+						<a href="#" class="btn btn-primary" role="button" data-bs-toggle="modal" data-bs-target="#retrieveStravaClientIdModal" v-if="authStore.user.is_strava_linked == 0">{{ $t("settingsIntegrationsZone.buttonConnect") }}</a>
 
 						<!-- retrieve activities and other buttons -->
 						<div class="dropdown" v-else>
@@ -107,6 +108,9 @@
 				</li>
 			</ul>
 
+			<!-- modal retrieve Strava Client ID -->
+			<ModalComponentNumberAndStringInput modalId="retrieveStravaClientIdModal" :title="t('settingsIntegrationsZone.modalRetrieveClientIdTitle')" :numberFieldLabel="`${t('settingsIntegrationsZone.modalRetrieveClientIdLabel')}`" :numberDefaultValue="Number(123456)" :stringFieldLabel="`${t('settingsIntegrationsZone.modalRetrieveClientSecretLabel')}`" :actionButtonType="`success`" :actionButtonText="t('settingsIntegrationsZone.buttonConnect')" @fieldsToEmitAction="submitConnectStrava"/>
+
 			<!-- modal retrieve Strava activities by days -->
 			<ModalComponentNumberInput modalId="retrieveStravaActivitiesByDaysModal" :title="t('settingsIntegrationsZone.modalRetrieveActivitiesByDaysTitle')" :numberFieldLabel="`${t('settingsIntegrationsZone.modalRetrieveActivitiesByDaysLabel')}`" :actionButtonType="`success`" :actionButtonText="t('settingsIntegrationsZone.modalRetrieveButton')" @numberToEmitAction="submitRetrieveStravaActivities"/>
 
@@ -141,6 +145,7 @@ import { activities } from "@/services/activitiesService";
 import { garminConnect } from "@/services/garminConnectService";
 // Import the components
 import ModalComponent from "@/components/Modals/ModalComponent.vue";
+import ModalComponentNumberAndStringInput from "@/components/Modals/ModalComponentNumberAndStringInput.vue";
 import ModalComponentNumberInput from "@/components/Modals/ModalComponentNumberInput.vue";
 import GarminConnectLoginModalComponent from "./SettingsIntegrations/GarminConnectLoginModalComponent.vue";
 
@@ -149,6 +154,7 @@ import GarminConnectLoginModalComponent from "./SettingsIntegrations/GarminConne
 export default {
 	components: {
 		ModalComponent,
+		ModalComponentNumberAndStringInput,
 		ModalComponentNumberInput,
 		GarminConnectLoginModalComponent,
 	},
@@ -156,7 +162,7 @@ export default {
 		const authStore = useAuthStore();
 		const { locale, t } = useI18n();
 
-		async function submitConnectStrava() {
+		async function submitConnectStrava(stravaClient) {
 			const array = new Uint8Array(16);
 			window.crypto.getRandomValues(array);
 			const state = Array.from(array, (byte) =>
@@ -165,13 +171,28 @@ export default {
 
 			try {
 				await strava.setUniqueUserStateStravaLink(state);
+				await strava.setUserStravaClientSettings(stravaClient.numberToEmit, stravaClient.stringToEmit);
 
-				strava.linkStrava(state);
+				strava.linkStrava(state, stravaClient.numberToEmit);
 			} catch (error) {
 				// If there is an error, show the error alert.
 				push.error(
 					`${t("settingsIntegrationsZone.errorMessageUnableToLinkStrava")} - ${error}`,
 				);
+
+				try {
+					await strava.setUniqueUserStateStravaLink(null);
+					await strava.setUserStravaClientSettings(null, null);
+				} catch (error) {
+					// If there is an error, show the error alert.
+					push.error(
+						`${t("settingsIntegrationsZone.errorMessageUnableToUnsetStravaClientSettings")} - ${error}`,
+					);
+				}
+			} finally {
+				// Clear the stravaClientId and stravaClientSecret fields
+				stravaClient.numberToEmit = null;
+				stravaClient.stringToEmit = null;
 			}
 		}
 

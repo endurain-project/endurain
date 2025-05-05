@@ -35,9 +35,6 @@ Environment variable  | Default value | Optional | Notes |
 | ALGORITHM | HS256 | Yes | Currently only HS256 is supported |
 | ACCESS_TOKEN_EXPIRE_MINUTES | 15 | Yes | Time in minutes |
 | REFRESH_TOKEN_EXPIRE_DAYS | 7 | Yes | Time in days |
-| STRAVA_CLIENT_ID | changeme | Yes | Needed if you want to enable the Strava integration |
-| STRAVA_CLIENT_SECRET | changeme | Yes | Needed if you want to enable the Strava integration |
-| STRAVA_AUTH_CODE | changeme | Yes | Needed if you want to enable the Strava integration |
 | JAEGER_ENABLED | false | Yes | N/A |
 | JAEGER_PROTOCOL | http | Yes | N/A |
 | JAEGER_HOST | jaeger | Yes | N/A |

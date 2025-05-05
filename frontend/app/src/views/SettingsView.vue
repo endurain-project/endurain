@@ -88,7 +88,7 @@ export default {
                 push.success(t('settingsIntegrationsZone.successMessageStravaAccountLinked'))
 
                 try {
-                    await strava.unsetUniqueUserStateStravaLink();
+                    await strava.setUniqueUserStateStravaLink(null);
                 } catch (error) {
                     // If there is an error, set the error message and show the error alert.
                     push.error(`${t('settingsIntegrationsZone.errorMessageUnableToUnSetStravaState')} - ${error}`)
@@ -100,7 +100,7 @@ export default {
                 activeSection.value = 'integrations';
 
                 try {
-                    await strava.unsetUniqueUserStateStravaLink();
+                    await strava.setUniqueUserStateStravaLink(null);
                 } catch (error) {
                     // If there is an error, set the error message and show the error alert.
                     push.error(`${t('settingsIntegrationsZone.errorMessageUnableToUnSetStravaState')} - ${error}`)

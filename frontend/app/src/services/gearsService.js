@@ -23,12 +23,12 @@ export const gears = {
         return fetchGetRequest('gears/number');
     },
     createGear(data) {
-        return fetchPostRequest('gears/create', data)
+        return fetchPostRequest('gears', data)
     },
     editGear(gearId, data) {
-        return fetchPutRequest(`gears/${gearId}/edit`, data);
+        return fetchPutRequest(`gears/${gearId}`, data);
     },
     deleteGear(gearId) {
-        return fetchDeleteRequest(`gears/${gearId}/delete`);
+        return fetchDeleteRequest(`gears/${gearId}`);
     }
 };

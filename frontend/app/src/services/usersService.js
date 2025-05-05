@@ -3,14 +3,11 @@ import { fetchPublicGetRequest } from '@/utils/servicePublicUtils';
 
 export const users = {
     // Users authenticated
-    getUsersWithPagination(pageNumber, numRecords) {
-        return fetchGetRequest(`users/all/page_number/${pageNumber}/num_records/${numRecords}`);
-    },
     getUsersNumber() {
         return fetchGetRequest('users/number');
     },
-    getUserById(user_id) {
-        return fetchGetRequest(`users/id/${user_id}`);
+    getUsersWithPagination(pageNumber, numRecords) {
+        return fetchGetRequest(`users/page_number/${pageNumber}/num_records/${numRecords}`);
     },
     getUserContainsUsername(username){
         return fetchGetRequest(`users/username/contains/${username}`);
@@ -21,26 +18,29 @@ export const users = {
     getUserByEmail(email){
         return fetchGetRequest(`users/email/${email}`);
     },
+    getUserById(user_id) {
+        return fetchGetRequest(`users/id/${user_id}`);
+    },
     createUser(data) {
-        return fetchPostRequest('users/create', data)
+        return fetchPostRequest('users', data)
     },
     uploadImage(file, user_id) {
         const formData = new FormData();
         formData.append('file', file);
 
-        return fetchPostFileRequest(`users/${user_id}/upload/image`, formData);
+        return fetchPostFileRequest(`users/${user_id}/image`, formData);
     },
     editUser(user_id, data) {
-        return fetchPutRequest(`users/${user_id}/edit`, data)
+        return fetchPutRequest(`users/${user_id}`, data)
     },
     editUserPassword(user_id, data) {
-        return fetchPutRequest(`users/${user_id}/edit/password`, data)
+        return fetchPutRequest(`users/${user_id}/password`, data)
     },
     deleteUserPhoto(user_id) {
-        return fetchPutRequest(`users/${user_id}/delete-photo`);
+        return fetchDeleteRequest(`users/${user_id}/photo`);
     },
     deleteUser(user_id) {
-        return fetchDeleteRequest(`users/${user_id}/delete`);
+        return fetchDeleteRequest(`users/${user_id}`);
     },
     // Users public
     getPublicUserById(user_id) {

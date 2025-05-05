@@ -20,7 +20,7 @@
       Endurain
   </h2>
   <p>
-    A self-hosted fitness tracking service - <a href="https://fosstodon.org/@endurain">Mastodon profile</a>.
+    A self-hosted fitness tracking service - <a href="https://fosstodon.org/@endurain">Mastodon profile</a> - <a href="https://discord.gg/6VUjUq2uZR">Discord server</a>
   </p>
 </div>
 

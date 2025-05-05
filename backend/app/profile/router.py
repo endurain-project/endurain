@@ -74,7 +74,7 @@ async def read_sessions_me(
 
 
 @router.post(
-    "/upload/image",
+    "/image",
     status_code=201,
     response_model=str | None,
 )
@@ -92,7 +92,7 @@ async def upload_profile_image(
     return await users_utils.save_user_image(token_user_id, file, db)
 
 
-@router.put("/edit")
+@router.put("")
 async def edit_user(
     user_attributtes: users_schema.User,
     token_user_id: Annotated[
@@ -111,7 +111,7 @@ async def edit_user(
     return {"detail": f"User ID {user_attributtes.id} updated successfully"}
 
 
-@router.put("/edit/password")
+@router.put("/password")
 async def edit_profile_password(
     user_attributtes: users_schema.UserEditPassword,
     token_user_id: Annotated[
@@ -138,7 +138,7 @@ async def edit_profile_password(
     return {f"User ID {token_user_id} password updated successfully"}
 
 
-@router.put("/delete-photo")
+@router.put("/photo")
 async def delete_profile_photo(
     token_user_id: Annotated[
         int,
