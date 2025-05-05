@@ -11,6 +11,8 @@ To enable Strava integration, ensure your Endurain instance is accessible from t
 
 Once the integration with Strava is configured, on startup and every hour the backend will check if there is new unimported activities. If yes, the new activity is automatically imported.
 
+On link, user will need to provide his/her API client ID and secret. Pair will be temporary stored in the DB until the process finishes. Info is sent on a JSON payload and HTTPS end2end is encouraged.
+
 On Strava unlink action every data imported from Strava, i.e. activities and gears, will be deleted according to Strava [API Agreement](https://www.strava.com/legal/api).
 
 For Strava integration [stravalib](https://github.com/stravalib/stravalib) Python module is used.
