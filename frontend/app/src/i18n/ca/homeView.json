@@ -6,6 +6,8 @@
     "radioFollowerActivities": "Activitats de seguidors",
     "successActivityAdded": "Activitat afegida correctament",
     "errorActivityAdded": "Error afegint activitat",
+    "refreshingActivities": "Refreshing activities from linked services",
+    "successActivitiesRefreshed": "Activities refreshed successfully",
     "errorActivityNotFound": "Activitat no trobada",
     "processingActivity": "Processant activitat",
     "successActivityDeleted": "Activitat esborrada correctament",
