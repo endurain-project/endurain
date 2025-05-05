@@ -15,8 +15,7 @@
 						</div>
 					</div>
 					<div class="d-flex align-items-center">
-						<!-- connect button«
-						<a href="#" class="btn btn-primary" v-if="authStore.user.is_strava_linked == 0" @click="submitConnectStrava">{{ $t("settingsIntegrationsZone.buttonConnect") }}</a> -->
+						<!-- connect button -->
 						<a href="#" class="btn btn-primary" role="button" data-bs-toggle="modal" data-bs-target="#retrieveStravaClientIdModal" v-if="authStore.user.is_strava_linked == 0">{{ $t("settingsIntegrationsZone.buttonConnect") }}</a>
 
 						<!-- retrieve activities and other buttons -->
