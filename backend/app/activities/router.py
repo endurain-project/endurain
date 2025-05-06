@@ -164,10 +164,6 @@ async def read_activities_user_activities_this_month_distances(
             user_id, start_of_month, end_of_month, db
         )
 
-    # if activities is None:
-    # Return None if activities is None
-    #    return None
-
     # Return the activities distances for this month
     return activities_utils.calculate_activity_distances(activities)
 
@@ -354,55 +350,6 @@ async def read_activities_followed_user_activities_number(
 
 
 @router.get(
-    "/{activity_id}",
-    response_model=activities_schema.Activity | None,
-)
-async def read_activities_activity_from_id(
-    activity_id: int,
-    validate_activity_id: Annotated[
-        Callable, Depends(activities_dependencies.validate_activity_id)
-    ],
-    check_scopes: Annotated[
-        Callable, Security(session_security.check_scopes, scopes=["activities:read"])
-    ],
-    token_user_id: Annotated[
-        int,
-        Depends(session_security.get_user_id_from_access_token),
-    ],
-    db: Annotated[
-        Session,
-        Depends(core_database.get_db),
-    ],
-):
-    # Get the activity from the database and return it
-    return activities_crud.get_activity_by_id_from_user_id_or_has_visibility(
-        activity_id, token_user_id, db
-    )
-
-
-@router.get(
-    "/name/contains/{name}",
-    response_model=list[activities_schema.Activity] | None,
-)
-async def read_activities_contain_name(
-    name: str,
-    check_scopes: Annotated[
-        Callable, Security(session_security.check_scopes, scopes=["activities:read"])
-    ],
-    token_user_id: Annotated[
-        int,
-        Depends(session_security.get_user_id_from_access_token),
-    ],
-    db: Annotated[
-        Session,
-        Depends(core_database.get_db),
-    ],
-):
-    # Get the activities from the database by name
-    return activities_crud.get_activities_if_contains_name(name, token_user_id, db)
-
-
-@router.get(
     "/refresh",
     response_model=list[activities_schema.Activity] | None,
 )
@@ -453,6 +400,55 @@ async def read_activities_user_activities_refresh(
 
     # Return the activities
     return activities
+
+
+@router.get(
+    "/{activity_id}",
+    response_model=activities_schema.Activity | None,
+)
+async def read_activities_activity_from_id(
+    activity_id: int,
+    validate_activity_id: Annotated[
+        Callable, Depends(activities_dependencies.validate_activity_id)
+    ],
+    check_scopes: Annotated[
+        Callable, Security(session_security.check_scopes, scopes=["activities:read"])
+    ],
+    token_user_id: Annotated[
+        int,
+        Depends(session_security.get_user_id_from_access_token),
+    ],
+    db: Annotated[
+        Session,
+        Depends(core_database.get_db),
+    ],
+):
+    # Get the activity from the database and return it
+    return activities_crud.get_activity_by_id_from_user_id_or_has_visibility(
+        activity_id, token_user_id, db
+    )
+
+
+@router.get(
+    "/name/contains/{name}",
+    response_model=list[activities_schema.Activity] | None,
+)
+async def read_activities_contain_name(
+    name: str,
+    check_scopes: Annotated[
+        Callable, Security(session_security.check_scopes, scopes=["activities:read"])
+    ],
+    token_user_id: Annotated[
+        int,
+        Depends(session_security.get_user_id_from_access_token),
+    ],
+    db: Annotated[
+        Session,
+        Depends(core_database.get_db),
+    ],
+):
+    # Get the activities from the database by name
+    return activities_crud.get_activities_if_contains_name(name, token_user_id, db)
 
 
 @router.post(
