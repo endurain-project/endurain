@@ -1,9 +1,9 @@
 {
-    "subTitlePace": "Pace",
-    "labelAvgPace": "Avg pace",
-    "labelMovingTime": "Moving time",
-    "labelElapsedTime": "Elapsed time",
-    "subTitleSpeed": "Speed",
+    "subTitlePace": "Tempo",
+    "labelAvgPace": "Gem tempo",
+    "labelMovingTime": "Beweeg tijd",
+    "labelElapsedTime": "Verlopen tijd",
+    "subTitleSpeed": "Snelheid",
     "labelAvgSpeed": "Avg speed",
     "labelMaxSpeed": "Max speed",
     "subTitleHeartRate": "Heart rate",
@@ -11,12 +11,12 @@
     "labelMaxHeartRate": "Max heart rate",
     "subTitlePower": "Power",
     "labelAvgPower": "Avg power",
-    "labelMaxPower": "Max power",
-    "labelNormalizedPower": "Normalized power",
-    "subTitleCadence": "Cadence",
+    "labelMaxPower": "Max vermogen",
+    "labelNormalizedPower": "Genormaliseerd vermogen",
+    "subTitleCadence": "Kadans",
     "labelAvgCadence": "Avg cadence",
     "labelMaxCadence": "Max cadence",
     "subTitleElevation": "Elevation",
     "labelElevationGain": "Elevation gain",
-    "labelElevationLoss": "Elevation loss"
+    "labelElevationLoss": "Daling"
 }
