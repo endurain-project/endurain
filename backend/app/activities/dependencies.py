@@ -113,7 +113,7 @@ def validate_sort_by(sort_by: str | None = Query(None)):
             "pace",
             "calories",
             "elevation",
-            "avreage_hr",
+            "average_hr",
         ]
         and sort_by is not None
     ):
