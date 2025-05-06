@@ -10,5 +10,5 @@
     "labelGraphVelocity": "Velocity",
     "labelGraphPace": "Pace",
     "labelDownsampling": "Data downsampled to ~200 points",
-    "errorMessageProcessingActivityStreams": "Error processing activity streams"
+    "errorMessageProcessingActivityStreams": "Fout bij verwerken activiteit streams"
 }
