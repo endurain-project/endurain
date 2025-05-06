@@ -368,7 +368,6 @@ async def read_activities_user_activities_refresh(
 ):
     # Set the activities to empty list
     activities = []
-    print("entrou")
 
     # Get the strava activities for the user for the last 24h
     strava_activities = strava_activity_utils.get_user_strava_activities_by_days(
@@ -377,8 +376,6 @@ async def read_activities_user_activities_refresh(
         db,
     )
 
-    print("passou strava")
-
     # Get the garmin activities for the user for the last 24h
     garmin_activities = garmin_activity_utils.get_user_garminconnect_activities_by_days(
         (datetime.now(timezone.utc) - timedelta(days=1)).strftime("%Y-%m-%dT%H:%M:%S"),
@@ -386,13 +383,12 @@ async def read_activities_user_activities_refresh(
         db,
     )
 
-    print("passou garmin")
-
     # Extend the activities to the list
-    activities.extend(strava_activities)
-    activities.extend(garmin_activities)
-
-    print("passou activities extend")
+    if strava_activities is not None:
+        activities.extend(strava_activities)
+    
+    if garmin_activities is not None:
+        activities.extend(garmin_activities)
 
     # Check if activities is None and return None if it is
     if activities is None:
