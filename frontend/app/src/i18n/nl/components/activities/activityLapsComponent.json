@@ -6,7 +6,7 @@
     "labelLapPace": "Pace",
     "labelLapSpeed": "Speed",
     "labelLapElevation": "Elevation",
-    "labelLapElev": "Elev",
-    "labelLapAvgHr": "Avg heart rate",
-    "labelLapHR": "HR"
+    "labelLapElev": "Hoogte",
+    "labelLapAvgHr": "Gem hartslag",
+    "labelLapHR": "HS"
 }
