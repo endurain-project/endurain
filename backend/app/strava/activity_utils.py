@@ -71,19 +71,23 @@ def fetch_and_process_activities(
             detail="User not found",
         )
 
+    processed_activities = []
+
     # Process the activities
     for activity in strava_activities:
-        process_activity(
-            activity,
-            user_id,
-            user.default_activity_visibility,
-            strava_client,
-            user_integrations,
-            db,
+        processed_activities.append(
+            process_activity(
+                activity,
+                user_id,
+                user.default_activity_visibility,
+                strava_client,
+                user_integrations,
+                db,
+            )
         )
 
-    # Return the number of activities processed
-    return len(strava_activities)
+    # Return the activities processed
+    return processed_activities if processed_activities else None
 
 
 def parse_activity(
@@ -302,7 +306,7 @@ def parse_activity(
 
 def save_activity_streams_laps(
     activity: activities_schema.Activity, stream_data: list, laps: dict, db: Session
-):
+) -> activities_schema.Activity:
     # Create the activity and get the ID
     created_activity = activities_crud.create_activity(activity, db)
 
@@ -329,6 +333,9 @@ def save_activity_streams_laps(
     if laps is not None:
         # Create the laps in the database
         activity_laps_crud.create_activity_laps(laps, created_activity.id, db)
+
+    # return the created activity
+    return created_activity
 
 
 def process_activity(
@@ -362,7 +369,7 @@ def process_activity(
     )
 
     # Save the activity and streams to the database
-    save_activity_streams_laps(
+    return save_activity_streams_laps(
         parsed_activity["activity_to_store"],
         parsed_activity["stream_data"],
         parsed_activity["laps"],
@@ -509,7 +516,7 @@ def fetch_and_process_activity_laps(
         power_avg, power_max = None, None
         np = None
         ele_gain, ele_loss = None, None
-        
+
         # filter the stream data based on the lap's start and end times
         filtered_stream_data = [
             (enabled, stream_id, waypoints[lap.start_index : lap.end_index + 1])
@@ -655,9 +662,14 @@ def retrieve_strava_users_activities_for_days(days: int):
         )
 
 
-def get_user_strava_activities_by_days(start_date: datetime, user_id: int):
-    # Create a new database session
-    db = SessionLocal()
+def get_user_strava_activities_by_days(
+    start_date: datetime, user_id: int, db: Session = None
+) -> list[activities_schema.Activity] | None:
+    close_session = False
+    if db is None:
+        # Create a new database session
+        db = SessionLocal()
+        close_session = True
 
     try:
         # Get the user integrations by user ID
@@ -678,14 +690,16 @@ def get_user_strava_activities_by_days(start_date: datetime, user_id: int):
         strava_client = strava_utils.create_strava_client(user_integrations)
 
         # Fetch Strava activities after the specified start date
-        num_strava_activities_processed = fetch_and_process_activities(
+        strava_activities_processed = fetch_and_process_activities(
             strava_client, start_date, user_id, user_integrations, db
         )
 
         # Log an informational event for tracing
         core_logger.print_to_log(
-            f"User {user_id}: {num_strava_activities_processed} Strava activities processed"
+            f"User {user_id}: {len(strava_activities_processed) if strava_activities_processed else 0} Strava activities processed"
         )
+
+        return strava_activities_processed
     except HTTPException as err:
         # Log an error event if an exception occurred
         core_logger.print_to_log(
@@ -708,5 +722,6 @@ def get_user_strava_activities_by_days(start_date: datetime, user_id: int):
             detail="Internal Server Error",
         ) from err
     finally:
-        # Ensure the session is closed after use
-        db.close()
+        if close_session:
+            # Ensure the session is closed after use
+            db.close()

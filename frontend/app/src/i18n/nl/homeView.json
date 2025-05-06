@@ -6,6 +6,8 @@
     "radioFollowerActivities": "Activiteiten volgers",
     "successActivityAdded": "Activiteit succesvol toegevoegd",
     "errorActivityAdded": "Fout bij toevoegen activiteit",
+    "refreshingActivities": "Refreshing activities from linked services",
+    "successActivitiesRefreshed": "Activities refreshed successfully",
     "errorActivityNotFound": "Activiteit niet gevonden",
     "processingActivity": "Activiteit verwerken",
     "successActivityDeleted": "Activiteit succesvol verwijderd",

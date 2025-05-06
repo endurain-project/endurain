@@ -33,6 +33,9 @@ export const activities = {
     getActivityByName(name) {
         return fetchGetRequest(`activities/name/contains/${name}`);
     },
+    getActivityRefresh() {
+        return fetchGetRequest('activities/refresh');
+    },
     uploadActivityFile(formData) {
         return fetchPostFileRequest('activities/create/upload', formData);
     },

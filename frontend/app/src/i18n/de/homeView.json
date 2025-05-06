@@ -6,6 +6,8 @@
     "radioFollowerActivities": "Follower Aktivitäten",
     "successActivityAdded": "Aktivität erfolgreich hinzugefügt",
     "errorActivityAdded": "Fehler beim Hinzufügen der Aktivität",
+    "refreshingActivities": "Refreshing activities from linked services",
+    "successActivitiesRefreshed": "Activities refreshed successfully",
     "errorActivityNotFound": "Aktivität nicht gefunden",
     "processingActivity": "Verarbeite Aktivität",
     "successActivityDeleted": "Die Aktivität wurde erfolgreich gelöscht",

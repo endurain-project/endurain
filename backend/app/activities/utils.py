@@ -114,7 +114,7 @@ def parse_and_store_activity_from_file(
     db: Session,
     from_garmin: bool = False,
     garminconnect_gear: dict = None,
-):
+) -> list[activities_schema.Activity] | None:
     try:
         # Get file extension
         _, file_extension = os.path.splitext(file_path)
