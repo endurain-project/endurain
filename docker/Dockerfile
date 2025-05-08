@@ -1,12 +1,12 @@
 # Stage 1: Build Vue.js app
 FROM node:24-slim AS frontend-build
 
-# Set the working directory to /app/frontend
+# Set the working directory to /tmp/frontend
 WORKDIR /tmp/frontend
 
 # Copy and install dependencies
 COPY frontend/app/package*.json ./
-RUN npm install --frozen-lockfile
+RUN npm ci --prefer-offline
 
 # Copy the frontend directory
 COPY frontend/app ./
@@ -20,11 +20,9 @@ FROM python:3.13-alpine AS requirements-stage
 # Set the working directory
 WORKDIR /tmp/backend
 
-# Install Poetry
-RUN pip install --no-cache-dir poetry
-
-# Add poetry-plugin-export
-RUN poetry self add poetry-plugin-export
+# Install Poetry and add poetry-plugin-export
+RUN pip install --no-cache-dir poetry \
+&& poetry self add poetry-plugin-export
 
 # Copy pyproject.toml and poetry.lock* files
 COPY backend/pyproject.toml backend/poetry.lock* ./
@@ -97,8 +95,8 @@ WORKDIR /app/backend
 COPY --from=requirements-stage /tmp/backend/requirements.txt ./requirements.txt
 
 # Install dependencies
-RUN pip install --no-cache-dir --upgrade pip
-RUN pip install --no-cache-dir --upgrade -r ./requirements.txt
+RUN pip install --no-cache-dir --upgrade pip \
+ && pip install --no-cache-dir --upgrade -r ./requirements.txt
 
 # Copy the directory app contents to /app
 COPY backend/app ./
