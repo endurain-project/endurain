@@ -1,14 +1,14 @@
 {
-    "labelPillGraphs": "Graphs",
-    "labelPillLaps": "Laps",
+    "labelPillGraphs": "Grafieken",
+    "labelPillLaps": "Rondes",
     "labelPillWorkoutSets": "Sets",
-    "labelGraph": "Activity data graphs",
-    "labelGraphHR": "Heart rate",
-    "labelGraphPower": "Power",
-    "labelGraphCadence": "Cadence",
-    "labelGraphElevation": "Elevation",
-    "labelGraphVelocity": "Velocity",
-    "labelGraphPace": "Pace",
-    "labelDownsampling": "Data downsampled to ~200 points",
-    "errorMessageProcessingActivityStreams": "Error processing activity streams"
+    "labelGraph": "Activiteit data grafieken",
+    "labelGraphHR": "Hartslag",
+    "labelGraphPower": "Vermogen",
+    "labelGraphCadence": "Cadans",
+    "labelGraphElevation": "Hoogte",
+    "labelGraphVelocity": "Snelheid",
+    "labelGraphPace": "Tempo",
+    "labelDownsampling": "Gegevens teruggeschaald naar ~200 punten",
+    "errorMessageProcessingActivityStreams": "Fout bij verwerken activiteit streams"
 }

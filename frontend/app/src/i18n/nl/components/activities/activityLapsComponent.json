@@ -1,12 +1,12 @@
 {
-    "labelLapNumber": "Lap",
-    "labelLapIntensity": "Intensity",
-    "labelLapDistance": "Distance",
-    "labelLapTime": "Time",
-    "labelLapPace": "Pace",
-    "labelLapSpeed": "Speed",
-    "labelLapElevation": "Elevation",
-    "labelLapElev": "Elev",
-    "labelLapAvgHr": "Avg heart rate",
-    "labelLapHR": "HR"
+    "labelLapNumber": "Ronde",
+    "labelLapIntensity": "Intensiteit",
+    "labelLapDistance": "Afstand",
+    "labelLapTime": "Tijd",
+    "labelLapPace": "Tempo",
+    "labelLapSpeed": "Snelheid",
+    "labelLapElevation": "Hoogte",
+    "labelLapElev": "Hoogte",
+    "labelLapAvgHr": "Gem hartslag",
+    "labelLapHR": "HS"
 }

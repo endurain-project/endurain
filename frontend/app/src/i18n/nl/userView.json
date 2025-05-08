@@ -17,7 +17,7 @@
     "errorUnableToCancelFollowRequest": "Kan het volgverzoek voor de gebruiker niet annuleren",
     "successFollowRequestCancelled": "Volgverzoek geannuleerd",
     "navigationUnfollow": "Ontvolgen",
-    "modalUnfollowUserTitle": "Gebruiker ontvolgen?",
+    "modalUnfollowUserTitle": "Gebruiker ontvolgen",
     "modalUnfollowUserBody": "Weet u zeker dat u de gebruiker niet meer wilt volgen? ",
     "errorUnableToUnfollow": "Kan gebruiker niet ontvolgen",
     "successUserUnfollowed": "Gebruiker ontvolgd",
