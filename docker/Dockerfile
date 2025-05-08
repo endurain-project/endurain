@@ -1,5 +1,5 @@
 # Stage 1: Build Vue.js app
-FROM node:22 AS frontend-build
+FROM node:24-slim AS frontend-build
 
 # Set the working directory to /app/frontend
 WORKDIR /tmp/frontend
@@ -15,7 +15,7 @@ COPY frontend/app ./
 RUN npm run build
 
 # Stage 2: Install requirements
-FROM python:3.13 AS requirements-stage
+FROM python:3.13-alpine AS requirements-stage
 
 # Set the working directory
 WORKDIR /tmp/backend
@@ -33,12 +33,33 @@ COPY backend/pyproject.toml backend/poetry.lock* ./
 RUN poetry export -f requirements.txt --output requirements.txt --without-hashes
 
 # Stage 3: Build FastAPI app
-FROM python:3.13
+FROM python:3.13-alpine
 
-# Install gosu for privilege dropping
-RUN apt-get update \
-  && apt-get install -y --no-install-recommends gosu \
-  && rm -rf /var/lib/apt/lists/*
+# Install dependencies
+RUN apk add --no-cache \
+    build-base \
+    mariadb-dev \
+    pkgconfig \
+    musl-dev \
+    python3-dev \
+    libffi-dev \
+    openssl-dev \
+    gcc \
+    curl \
+    ca-certificates
+
+# Install the latest gosu
+RUN set -eux; \
+    arch="$(uname -m)"; \
+    case "$arch" in \
+        x86_64) gosu_arch='amd64' ;; \
+        aarch64) gosu_arch='arm64' ;; \
+        *) echo "unsupported architecture: $arch" >&2; exit 1 ;; \
+    esac; \
+    latest_version="$(curl -sSL https://api.github.com/repos/tianon/gosu/releases/latest | grep '"tag_name"' | head -n 1 | cut -d '"' -f4)"; \
+    curl -o /usr/local/bin/gosu -SL "https://github.com/tianon/gosu/releases/download/${latest_version}/gosu-${gosu_arch}"; \
+    chmod +x /usr/local/bin/gosu; \
+    gosu nobody true
 
 # Define environment variables
 ENV UID=1000 \
@@ -76,6 +97,7 @@ WORKDIR /app/backend
 COPY --from=requirements-stage /tmp/backend/requirements.txt ./requirements.txt
 
 # Install dependencies
+RUN pip install --no-cache-dir --upgrade pip
 RUN pip install --no-cache-dir --upgrade -r ./requirements.txt
 
 # Copy the directory app contents to /app
