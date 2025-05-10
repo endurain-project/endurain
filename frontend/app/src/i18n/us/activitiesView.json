@@ -1,6 +1,5 @@
 {
   "title": "Activities",
-  "loading": "Loading...",
   "filterLabelType": "Type",
   "filterOptionAllTypes": "All Types",
   "filterLabelFromDate": "From Date",
@@ -9,6 +8,7 @@
   "filterPlaceholderNameLocation": "e.g., Morning Run",
   "buttonClear": "Clear",
   "buttonApply": "Apply",
-  "errorUserNotAuthenticated": "User not authenticated.",
-  "errorFailedLoad": "Failed to load activities. Please try again later."
+  "errorFailedFetchActivityTypes": "Failed to fetch activity types",
+  "errorUpdatingActivities": "Failed to updated activities",
+  "errorFetchingActivities": "Failed to fetch user activities"
 }

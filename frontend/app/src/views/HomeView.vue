@@ -185,16 +185,15 @@ export default {
 			// Add 1 to the page number
 			pageNumberUserActivities.value++;
 			try {
-				// Fetch the activities response (contains activities array and total_count)
-				const response = await activities.getUserActivitiesWithPagination(
-				authStore.user.id,
-				pageNumberUserActivities.value,
-				numRecords,
+				// Fetch the activities
+				const newActivities = await activities.getUserActivitiesWithPagination(
+					authStore.user.id,
+					pageNumberUserActivities.value,
+					numRecords,
 				);
-				// Append only the activities array to the existing list
-				Array.prototype.push.apply(userActivities.value, response.activities);
+				Array.prototype.push.apply(userActivities.value, newActivities);
 
-				// Use the total_count from the response to check if there are more activities
+				// If the number of activities is greater than the page number times the number of records, there are no more activities
 				if (
 					pageNumberUserActivities.value * numRecords >=
 					userNumberOfActivities.value
@@ -206,13 +205,14 @@ export default {
 				push.error(`${t("homeView.errorFetchingUserActivities")} - ${error}`);
 			}
 		}
-		
+
 		const handleScroll = () => {
 			// If the component is already loading or there are no more activities, return
 			if (isLoading.value || !userHasMoreActivities.value) return;
 
 			const bottomOfWindow =
-				window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 1;
+				window.innerHeight + window.scrollY >=
+				document.documentElement.scrollHeight - 1;
 
 			// If the user has reached the bottom of the page, fetch more activities
 			if (bottomOfWindow) {
@@ -283,14 +283,16 @@ export default {
 				// Fetch the user stats
 				fetchUserStars();
 
+				// Fetch the user activities and user activities number
+				userNumberOfActivities.value =
+					await activities.getUserNumberOfActivities();
+
 				// Fetch the initial user activities response (contains activities array and total_count)
-				const initialResponse = await activities.getUserActivitiesWithPagination(
-				authStore.user.id,
-				pageNumberUserActivities.value,
-				numRecords,
+				userActivities.value = await activities.getUserActivitiesWithPagination(
+					authStore.user.id,
+					pageNumberUserActivities.value,
+					numRecords,
 				);
-				userActivities.value = initialResponse.activities;
-				userNumberOfActivities.value = initialResponse.total_count; // Use total_count from response
 
 				//followedUserActivities.value = await activities.getUserFollowersActivitiesWithPagination(authStore.user.id, pageNumberUserActivities, numRecords);
 

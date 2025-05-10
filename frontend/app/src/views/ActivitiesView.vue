@@ -69,6 +69,8 @@
 <script>
 import { ref, onMounted, watch } from "vue";
 import { useI18n } from "vue-i18n";
+// Import Notivue push
+import { push } from "notivue";
 // Import stores
 import { useAuthStore } from "@/stores/authStore";
 // Import services
@@ -113,9 +115,8 @@ export default {
 		async function fetchActivityTypes() {
 			try {
 				activityTypes.value = await activitiesService.getActivityTypes(); // Assuming a new service function
-			} catch (err) {
-				console.error("Failed to fetch activity types:", err);
-				// Handle error appropriately, maybe show a message
+			} catch (error) {
+				push.error(`${t("activitiesView.errorFailedFetchActivityTypes")} - ${error}`);
 			}
 		}
 
@@ -127,16 +128,16 @@ export default {
 		async function updateActivities() {
 			try {
 				// Set the loading variable to true.
-				//isGearsUpdatingLoading.value = true;
+				isLoading.value = true;
 
 				// Fetch the gears with pagination.
 				fetchActivities({}, sortBy.value, sortOrder.value);
-
-				// Set the loading variable to false.
-				//isGearsUpdatingLoading.value = false;
 			} catch (error) {
 				// If there is an error, set the error message and show the error alert.
-				push.error(`${t("gearsView.errorFetchingGears")} - ${error}`);
+				push.error(`${t("activitiesView.errorUpdatingActivities")} - ${error}`);
+			} finally {
+				// Set the loading variable to false.
+				isLoading.value = false;
 			}
 		}
 
@@ -175,9 +176,8 @@ export default {
 					await activitiesService.getUserNumberOfActivities();
 
 				totalPages.value = Math.ceil(userNumberActivities.value / numRecords);
-			} catch (err) {
-				console.error("Failed to fetch activities:", err);
-				error.value = t("activitiesView.errorFailedLoad");
+			} catch (error) {
+				push.error(`${t("activitiesView.errorFetchingActivities")} - ${error}`);
 			} finally {
 				isLoading.value = false;
 			}
@@ -228,7 +228,6 @@ export default {
 			}
 			// Fetch data with new sorting, reset to page 1
 			fetchActivities(
-				1,
 				{
 					type: selectedType.value,
 					start_date: startDate.value,
