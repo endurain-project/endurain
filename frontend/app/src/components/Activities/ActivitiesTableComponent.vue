@@ -1,5 +1,5 @@
 <template>
-  <div class="table-responsive">
+  <div class="table-responsive mb-3">
     <table class="table table-striped table-hover table-sm">
       <thead>
         <tr>

@@ -148,7 +148,7 @@ def get_user_activities_with_pagination(
     name_search: str | None = None,
     sort_by: str | None = None,
     sort_order: str | None = None,
-) -> dict:
+) -> list[activities_schema.Activity] | None:
     try:
         # Mapping from frontend sort keys to database model fields
         SORT_MAP = {
@@ -208,9 +208,6 @@ def get_user_activities_with_pagination(
                 )
             )
 
-        # Get total count before sorting and pagination
-        total_count = query.count()
-
         # Apply sorting
         sort_ascending = sort_order and sort_order.lower() == "asc"
 
@@ -267,8 +264,8 @@ def get_user_activities_with_pagination(
                     activities_utils.serialize_activity(activity)
                 )
 
-        # Return the activities and total count
-        return {"activities": serialized_activities, "total_count": total_count}
+        # Return the activities
+        return serialized_activities if serialized_activities else None
 
     except Exception as err:
         # Log the exception

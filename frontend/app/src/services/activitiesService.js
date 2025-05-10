@@ -24,8 +24,8 @@ export const activities = {
   getUserActivitiesByGearId(gear_id) {
     return fetchGetRequest(`activities/user/gear/${gear_id}`)
   },
-  getUserNumberOfActivities(user_id) {
-    return fetchGetRequest(`activities/user/${user_id}/number`)
+  getUserNumberOfActivities() {
+    return fetchGetRequest('activities/number')
   },
   // New function to get distinct activity types
   getActivityTypes() {

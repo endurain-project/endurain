@@ -233,14 +233,16 @@ async def read_activities_gear_activities(
 
 
 @router.get(
-    "/user/{user_id}/number",
+    "/number",
     response_model=int,
 )
 async def read_activities_user_activities_number(
-    user_id: int,
-    validate_user_id: Annotated[Callable, Depends(users_dependencies.validate_user_id)],
     check_scopes: Annotated[
         Callable, Security(session_security.check_scopes, scopes=["activities:read"])
+    ],
+    token_user_id: Annotated[
+        int,
+        Depends(session_security.get_user_id_from_access_token),
     ],
     db: Annotated[
         Session,
@@ -248,7 +250,7 @@ async def read_activities_user_activities_number(
     ],
 ):
     # Get the number of activities for the user
-    activities = activities_crud.get_user_activities(user_id, db)
+    activities = activities_crud.get_user_activities(token_user_id, db)
 
     # Check if activities is None and return 0 if it is
     if activities is None:
@@ -280,7 +282,7 @@ async def read_activities_types(
 
 @router.get(
     "/user/{user_id}/page_number/{page_number}/num_records/{num_records}",
-    response_model=activities_schema.PaginatedActivitiesResponse,  # Changed response model
+    response_model=list[activities_schema.Activity] | None,
 )
 async def read_activities_user_activities_pagination(
     user_id: int,
@@ -315,7 +317,7 @@ async def read_activities_user_activities_pagination(
     sort_by: str | None = Query(None),
     sort_order: str | None = Query(None),
 ):
-    # Get and return the activities and total count for the user with pagination and filters
+    # Get and return the activities for the user with pagination and filters
     return activities_crud.get_user_activities_with_pagination(
         user_id=user_id,
         db=db,

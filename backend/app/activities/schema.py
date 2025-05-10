@@ -61,9 +61,3 @@ class ActivityEdit(BaseModel):
     activity_type: int
     visibility: int | None = None
     gear_id: int | None = None
-
-
-# New schema for paginated response including total count
-class PaginatedActivitiesResponse(BaseModel):
-    activities: list[Activity]
-    total_count: int
