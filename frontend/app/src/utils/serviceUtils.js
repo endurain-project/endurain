@@ -1,6 +1,8 @@
 // Importing the auth store
 import { useAuthStore } from '@/stores/authStore';
 
+let refreshTokenPromise = null;
+
 export const API_URL = `${import.meta.env.VITE_ENDURAIN_HOST}/api/v1/`;
 export const FRONTEND_URL = `${import.meta.env.VITE_ENDURAIN_HOST}/`;
 
@@ -36,22 +38,32 @@ export async function attemptFetch(url, options) {
 }
 
 async function refreshAccessToken() {
+    if (refreshTokenPromise) {
+        return refreshTokenPromise;
+    }
+
     const refreshUrl = `${API_URL}refresh`;
-    const response = await fetch(refreshUrl, {
+    refreshTokenPromise = fetch(refreshUrl, {
         method: 'POST',
         credentials: 'include',
         headers: {
             'Content-Type': 'application/json',
             'X-Client-Type': 'web',
         },
+    })
+    .then(async (response) => {
+        if (!response.ok) {
+            const errorBody = await response.json();
+            const errorMessage = errorBody.detail || 'Unknown error';
+            throw new Error(`${response.status} - ${errorMessage}`);
+        }
+    })
+    .finally(() => {
+        refreshTokenPromise = null;
     });
-    if (!response.ok) {
-        const errorBody = await response.json(); // Parse the response as JSON
-        const errorMessage = errorBody.detail || 'Unknown error'; // Get the 'detail' field or a default message
-        throw new Error(`${response.status} - ${errorMessage}`);
-    }
-}
 
+    return refreshTokenPromise;
+}
 
 export async function fetchGetRequest(url) {
     const options = {
@@ -65,7 +77,6 @@ export async function fetchGetRequest(url) {
     return fetchWithRetry(url, options);
 }
 
-
 export async function fetchPostFileRequest(url, formData) {
     const options = {
         method: 'POST',
@@ -77,7 +88,6 @@ export async function fetchPostFileRequest(url, formData) {
     };
     return fetchWithRetry(url, options);
 }
-
 
 export async function fetchPostFormUrlEncoded(url, formData) {
     const urlEncodedData = new URLSearchParams(formData);
@@ -93,7 +103,6 @@ export async function fetchPostFormUrlEncoded(url, formData) {
     return attemptFetch(url, options);
 }
 
-
 export async function fetchPostRequest(url, data) {
     const options = {
         method: 'POST',
@@ -107,7 +116,6 @@ export async function fetchPostRequest(url, data) {
     return fetchWithRetry(url, options);
 }
 
-
 export async function fetchPutRequest(url, data) {
     const options = {
         method: 'PUT',
@@ -120,7 +128,6 @@ export async function fetchPutRequest(url, data) {
     };
     return fetchWithRetry(url, options);
 }
-
 
 export async function fetchDeleteRequest(url) {
     const options = {
