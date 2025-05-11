@@ -100,7 +100,7 @@ export async function fetchPostFormUrlEncoded(url, formData) {
             'X-Client-Type': 'web',
         },
     };
-    return attemptFetch(url, options);
+    return fetchWithRetry(url, options);
 }
 
 export async function fetchPostRequest(url, data) {
