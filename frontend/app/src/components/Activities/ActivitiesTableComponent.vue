@@ -64,44 +64,54 @@
 
 <script setup>
 import { defineProps, defineEmits } from "vue";
-import { useI18n } from "vue-i18n"; 
+import { useI18n } from "vue-i18n";
 import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
-import { formatDuration, formatDateTime, formatDistance, formatElevation, formatPace, formatAvgHr, formatCalories, getIcon, formatLocation } from "@/utils/activityUtils"; // Added formatLocation
+import {
+	formatDuration,
+	formatDateTime,
+	formatDistance,
+	formatElevation,
+	formatPace,
+	formatAvgHr,
+	formatCalories,
+	getIcon,
+	formatLocation,
+} from "@/utils/activityUtils"; // Added formatLocation
 import { useAuthStore } from "@/stores/authStore";
 
 const { t } = useI18n();
 const authStore = useAuthStore();
 
 const props = defineProps({
-activities: {
-type: Array,
-required: true,
-default: () => [],
-},
-sortBy: {
-type: String,
-default: "start_time",
-},
-sortOrder: {
-type: String,
-default: "desc",
-},
+	activities: {
+		type: Array,
+		required: true,
+		default: () => [],
+	},
+	sortBy: {
+		type: String,
+		default: "start_time",
+	},
+	sortOrder: {
+		type: String,
+		default: "desc",
+	},
 });
 
-const emit = defineEmits(["sort-changed"]);
+const emit = defineEmits(["sortChanged"]);
 
 function changeSort(columnName) {
-emit("sort-changed", columnName);
+	emit("sortChanged", columnName);
 }
 
 function sortIcon(columnName) {
-if (props.sortBy !== columnName) {
-return ["fas", "sort"]; // Default sort icon
-}
-if (props.sortOrder === "asc") {
-return ["fas", "sort-up"]; // Ascending icon
-}
-return ["fas", "sort-down"]; // Descending icon
+	if (props.sortBy !== columnName) {
+		return ["fas", "sort"]; // Default sort icon
+	}
+	if (props.sortOrder === "asc") {
+		return ["fas", "sort-up"]; // Ascending icon
+	}
+	return ["fas", "sort-down"]; // Descending icon
 }
 </script>
 

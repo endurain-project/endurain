@@ -1,7 +1,7 @@
 <template>
 	<h1>{{ $t('activitiesView.title') }}</h1>
 	<!-- Filter Section -->
-	<div class="card mb-4">
+	<div class="card mb-4 bg-body-tertiary border-0 rounded">
 		<div class="card-body">
 			<form @submit.prevent="applyFilters" class="row g-3 align-items-end">
 				<!-- Activity Type -->
@@ -56,7 +56,7 @@
 			:activities="activities"
 			:sort-by="sortBy"
 			:sort-order="sortOrder"
-			@sort-changed="handleSort"
+			@sortChanged="handleSort"
 			v-if="activities && activities.length"
 		/>
 
