@@ -1,14 +1,14 @@
 {
-  "title": "Activities",
+  "title": "Activiteiten",
   "filterLabelType": "Type",
-  "filterOptionAllTypes": "All Types",
-  "filterLabelFromDate": "From Date",
-  "filterLabelToDate": "To Date",
-  "filterLabelNameLocation": "Name or Location",
-  "filterPlaceholderNameLocation": "e.g., Morning Run",
-  "buttonClear": "Clear",
-  "buttonApply": "Apply",
-  "errorFailedFetchActivityTypes": "Failed to fetch activity types",
-  "errorUpdatingActivities": "Failed to updated activities",
-  "errorFetchingActivities": "Failed to fetch user activities"
+  "filterOptionAllTypes": "Alle types",
+  "filterLabelFromDate": "Vanaf datum",
+  "filterLabelToDate": "Tot datum",
+  "filterLabelNameLocation": "Naam van de Locatie",
+  "filterPlaceholderNameLocation": "bv. Ochtend loop",
+  "buttonClear": "Wissen",
+  "buttonApply": "Toepassen",
+  "errorFailedFetchActivityTypes": "Kon activiteitstypes niet ophalen",
+  "errorUpdatingActivities": "Kon activiteiten niet vernieuwen",
+  "errorFetchingActivities": "Kon gebruikers activiteiten niet ophalen"
 }
