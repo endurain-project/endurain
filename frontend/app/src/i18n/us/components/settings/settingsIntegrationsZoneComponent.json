@@ -3,8 +3,8 @@
     "stravaIntegrationBody": "Strava is an American internet service for tracking physical exercise which incorporates social network features.",
     "buttonConnect": "Connect",
     "buttonDropdownOptions": "Options",
-    "modalRetrieveActivitiesByDaysTitle": "Retrieve activities by days",
-    "modalRetrieveActivitiesByDaysLabel": "Days",
+    "modalRetrieveActivitiesByDateRangeTitle": "Retrieve Activities by Date Range",
+    "modalRetrieveActivitiesByDaysLabel": "Days", 
     "modalRetrieveActivitiesByDaysPlaceholder": "Days",
     "modalRetrieveButton": "Retrieve",
     "buttonRetrieveGear": "Retrieve gear",
@@ -42,7 +42,7 @@
     "errorMessageUnableToUnlinkGarminConnect": "Unable to unlink Garmin Connect account",
     "errorMessageUnableToGetGarminConnectGear": "Unable to get Garmin Connect gear",
     "loadingMessageRetrievingGarminConnectGear": "Retrieving Garmin Connect gear",
-    "modalRetrieveHealthDataByDaysTitle": "Retrieve health data by days",
+    "modalRetrieveHealthDataByDateRangeTitle": "Retrieve Health Data by Date Range",
     "errorMessageUnableToGetGarminConnectHealthData": "Unable to get Garmin Connect health data",
     "loadingMessageRetrievingGarminConnectHealthData": "Retrieving Garmin Connect health data"
 }

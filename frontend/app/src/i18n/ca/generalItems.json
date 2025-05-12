@@ -42,5 +42,7 @@
     "labelPaceInMinKm": "Ritme en min/km",
     "labelPaceInMin100m": "Ritme en min/100m",
     "labelPaceInMinMile": "Ritme en min/mil",
-    "labelPaceInMin100yd": "Ritme en min/100yds"
+    "labelPaceInMin100yd": "Ritme en min/100yds",
+    "startDateLabel": "Data d'inici",
+    "endDateLabel": "Data de finalització"
 }

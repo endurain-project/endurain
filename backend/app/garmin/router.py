@@ -2,7 +2,7 @@ import logging
 from typing import Annotated
 from fastapi import APIRouter, Depends, BackgroundTasks
 from sqlalchemy.orm import Session
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone, date
 
 import session.security as session_security
 
@@ -73,11 +73,12 @@ async def garminconnect_mfa_code(
 
 
 @router.get(
-    "/activities/days/{days}",
+    "/activities",
     status_code=202,
 )
 async def garminconnect_retrieve_activities_days(
-    days: int,
+    start_date: date,
+    end_date: date,
     token_user_id: Annotated[
         int,
         Depends(session_security.get_user_id_from_access_token),
@@ -85,12 +86,14 @@ async def garminconnect_retrieve_activities_days(
     db: Annotated[Session, Depends(core_database.get_db)],
     background_tasks: BackgroundTasks,
 ):
+    start_datetime = datetime.combine(start_date, datetime.min.time(), tzinfo=timezone.utc)
+    end_datetime = datetime.combine(end_date, datetime.max.time(), tzinfo=timezone.utc)
+
     # Process Garmin Connect activities in the background
     background_tasks.add_task(
-        garmin_activity_utils.get_user_garminconnect_activities_by_days,
-        (datetime.now(timezone.utc) - timedelta(days=days)).strftime(
-            "%Y-%m-%dT%H:%M:%S"
-        ),
+        garmin_activity_utils.get_user_garminconnect_activities_by_dates,
+        start_datetime,
+        end_datetime,
         token_user_id,
         db,
     )
@@ -128,11 +131,12 @@ async def garminconnect_retrieve_gear(
 
 
 @router.get(
-    "/health/days/{days}",
+    "/health",
     status_code=202,
 )
 async def garminconnect_retrieve_health_days(
-    days: int,
+    start_date: date,
+    end_date: date,
     token_user_id: Annotated[
         int,
         Depends(session_security.get_user_id_from_access_token),
@@ -140,12 +144,14 @@ async def garminconnect_retrieve_health_days(
     # db: Annotated[Session, Depends(core_database.get_db)],
     background_tasks: BackgroundTasks,
 ):
+    start_datetime = datetime.combine(start_date, datetime.min.time(), tzinfo=timezone.utc)
+    end_datetime = datetime.combine(end_date, datetime.max.time(), tzinfo=timezone.utc)
+
     # Process Garmin Connect activities in the background
     background_tasks.add_task(
-        garmin_health_utils.get_user_garminconnect_bc_by_days,
-        (datetime.now(timezone.utc) - timedelta(days=days)).strftime(
-            "%Y-%m-%dT%H:%M:%S"
-        ),
+        garmin_health_utils.get_user_garminconnect_bc_by_dates,
+        start_datetime,
+        end_datetime,
         token_user_id,
     )
 

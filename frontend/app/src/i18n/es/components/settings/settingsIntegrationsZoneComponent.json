@@ -4,6 +4,7 @@
     "buttonConnect": "Conectar",
     "buttonDropdownOptions": "Opciones",
     "modalRetrieveActivitiesByDaysTitle": "Obtener actividades por días",
+    "modalRetrieveActivitiesByDateRangeTitle": "Recuperar actividades por rango de fechas",
     "modalRetrieveActivitiesByDaysLabel": "Días",
     "modalRetrieveActivitiesByDaysPlaceholder": "Días",
     "modalRetrieveButton": "Obtener",
@@ -43,6 +44,7 @@
     "errorMessageUnableToGetGarminConnectGear": "No se pudo obtener el equipo de Garmin Connect",
     "loadingMessageRetrievingGarminConnectGear": "Recuperando equipo de Garmin Connect",
     "modalRetrieveHealthDataByDaysTitle": "Obtener datos de salud por días",
+    "modalRetrieveHealthDataByDateRangeTitle": "Recuperar datos de salud por rango de fechas",
     "errorMessageUnableToGetGarminConnectHealthData": "No se han podido obtener datos de salud de Garmin Connect",
     "loadingMessageRetrievingGarminConnectHealthData": "Obteniendo datos de salud de Garmin Connect"
 }

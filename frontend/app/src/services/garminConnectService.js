@@ -9,18 +9,18 @@ export const garminConnect = {
 		return fetchPostRequest("garminconnect/link", data);
 	},
 	mfaGarminConnect(data) {
-		return fetchPostRequest("garminconnect/mfa", data);
-	},
-	getGarminConnectActivitiesLastDays(days) {
-		return fetchGetRequest(`garminconnect/activities/days/${days}`);
-	},
-	getGarminConnectGear() {
-		return fetchGetRequest("garminconnect/gear");
-	},
-	getGarminConnectHealthDataLastDays(days) {
-		return fetchGetRequest(`garminconnect/health/days/${days}`);
-	},
-	unlinkGarminConnect() {
+return fetchPostRequest("garminconnect/mfa", data);
+},
+getGarminConnectActivitiesByDates(startDate, endDate) { // Renamed and params changed
+return fetchGetRequest(`garminconnect/activities?start_date=${startDate}&end_date=${endDate}`); // Path and params updated
+},
+getGarminConnectGear() {
+return fetchGetRequest("garminconnect/gear");
+},
+getGarminConnectHealthDataByDates(startDate, endDate) { // Renamed and params changed
+return fetchGetRequest(`garminconnect/health?start_date=${startDate}&end_date=${endDate}`); // Path and params updated
+},
+unlinkGarminConnect() {
 		return fetchDeleteRequest("garminconnect/unlink");
 	},
 };

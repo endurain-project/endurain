@@ -42,5 +42,7 @@
     "labelPaceInMinKm": "Pace in min/km",
     "labelPaceInMin100m": "Pace in min/100m",
     "labelPaceInMinMile": "Pace in min/mile",
-    "labelPaceInMin100yd": "Pace in min/100yd"
+    "labelPaceInMin100yd": "Pace in min/100yd",
+    "startDateLabel": "Start Date",
+    "endDateLabel": "End Date"
 }

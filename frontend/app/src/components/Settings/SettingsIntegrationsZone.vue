@@ -83,21 +83,21 @@
 							<button class="btn btn-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
 								{{ $t("settingsIntegrationsZone.buttonDropdownOptions") }}
 							</button>
-							<ul class="dropdown-menu">
-								<li>
-									<!-- retrieve garmin connect activities by days -->
-									<a class="dropdown-item" href="#" role="button" data-bs-toggle="modal" data-bs-target="#retrieveGarminConnectActivitiesByDaysModal">{{ $t("settingsIntegrationsZone.modalRetrieveActivitiesByDaysTitle") }}</a>
-								</li>
-								<li>
-									<!-- retrieve gear -->
-									<a href="#" class="dropdown-item" @click="submitRetrieveGarminConnectGear">{{ $t("settingsIntegrationsZone.buttonRetrieveGear") }}</a>
-								</li>
-								<li>
-									<!-- retrieve garmin connect health data by days -->
-									<a class="dropdown-item" href="#" role="button" data-bs-toggle="modal" data-bs-target="#retrieveGarminConnectHealthDataByDaysModal">{{ $t("settingsIntegrationsZone.modalRetrieveHealthDataByDaysTitle") }}</a>
-								</li>
-								<li><hr class="dropdown-divider"></li>
-								<li>
+<ul class="dropdown-menu">
+<li>
+<!-- retrieve garmin connect activities by date range -->
+<a class="dropdown-item" href="#" role="button" data-bs-toggle="modal" data-bs-target="#retrieveGarminConnectActivitiesByDateRangeModal">{{ $t("settingsIntegrationsZone.modalRetrieveActivitiesByDateRangeTitle") }}</a>
+</li>
+<li>
+<!-- retrieve gear -->
+<a href="#" class="dropdown-item" @click="submitRetrieveGarminConnectGear">{{ $t("settingsIntegrationsZone.buttonRetrieveGear") }}</a>
+</li>
+<li>
+<!-- retrieve garmin connect health data by date range -->
+<a class="dropdown-item" href="#" role="button" data-bs-toggle="modal" data-bs-target="#retrieveGarminConnectHealthDataByDateRangeModal">{{ $t("settingsIntegrationsZone.modalRetrieveHealthDataByDateRangeTitle") }}</a>
+</li>
+<li><hr class="dropdown-divider"></li>
+<li>
 									<!-- unlink Garmin Connect -->
 									<a href="#" class="dropdown-item" role="button" data-bs-toggle="modal" data-bs-target="#unlinkGarminConnectModal">{{ $t("settingsIntegrationsZone.buttonUnlink") }}</a>
 								</li>
@@ -116,18 +116,18 @@
 			<!-- modal unlink Strava -->
 			<ModalComponent modalId="unlinkStravaModal" :title="t('settingsIntegrationsZone.modalUnlinkStravaTitle')" :body="`${t('settingsIntegrationsZone.modalUnlinkStravaBody')}`" :actionButtonType="`danger`" :actionButtonText="t('settingsIntegrationsZone.modalUnlinkStravaTitle')" @submitAction="buttonStravaUnlink"/>
 
-			<!-- modal garmin connect auth -->
-			<GarminConnectLoginModalComponent />
+<!-- modal garmin connect auth -->
+<GarminConnectLoginModalComponent />
 
-			<!-- modal retrieve Garmin Connect activities by days -->
-			<ModalComponentNumberInput modalId="retrieveGarminConnectActivitiesByDaysModal" :title="t('settingsIntegrationsZone.modalRetrieveActivitiesByDaysTitle')" :numberFieldLabel="`${t('settingsIntegrationsZone.modalRetrieveActivitiesByDaysLabel')}`" :actionButtonType="`success`" :actionButtonText="t('settingsIntegrationsZone.modalRetrieveButton')" @numberToEmitAction="submitRetrieveGarminConnectActivities"/>
+<!-- modal retrieve Garmin Connect activities by date range -->
+<ModalComponentDateRangeInput modalId="retrieveGarminConnectActivitiesByDateRangeModal" :title="t('settingsIntegrationsZone.modalRetrieveActivitiesByDateRangeTitle')" :actionButtonType="`success`" :actionButtonText="t('settingsIntegrationsZone.modalRetrieveButton')" @datesToEmitAction="submitRetrieveGarminConnectActivities"/>
 
-			<!-- modal retrieve Garmin Connect health data by days -->
-			<ModalComponentNumberInput modalId="retrieveGarminConnectHealthDataByDaysModal" :title="t('settingsIntegrationsZone.modalRetrieveHealthDataByDaysTitle')" :numberFieldLabel="`${t('settingsIntegrationsZone.modalRetrieveActivitiesByDaysLabel')}`" :actionButtonType="`success`" :actionButtonText="t('settingsIntegrationsZone.modalRetrieveButton')" @numberToEmitAction="submitRetrieveGarminConnectHealthData"/>
+<!-- modal retrieve Garmin Connect health data by date range -->
+<ModalComponentDateRangeInput modalId="retrieveGarminConnectHealthDataByDateRangeModal" :title="t('settingsIntegrationsZone.modalRetrieveHealthDataByDateRangeTitle')" :actionButtonType="`success`" :actionButtonText="t('settingsIntegrationsZone.modalRetrieveButton')" @datesToEmitAction="submitRetrieveGarminConnectHealthData"/>
 
-			<!-- modal unlink Garmin Connect -->
-			<ModalComponent modalId="unlinkGarminConnectModal" :title="t('settingsIntegrationsZone.modalUnlinkGarminConnectTitle')" :body="`${t('settingsIntegrationsZone.modalUnlinkGarminConnectBody')}`" :actionButtonType="`danger`" :actionButtonText="t('settingsIntegrationsZone.modalUnlinkGarminConnectTitle')" @submitAction="buttonGarminConnectUnlink"/>
-		</div>
+<!-- modal unlink Garmin Connect -->
+<ModalComponent modalId="unlinkGarminConnectModal" :title="t('settingsIntegrationsZone.modalUnlinkGarminConnectTitle')" :body="`${t('settingsIntegrationsZone.modalUnlinkGarminConnectBody')}`" :actionButtonType="`danger`" :actionButtonText="t('settingsIntegrationsZone.modalUnlinkGarminConnectTitle')" @submitAction="buttonGarminConnectUnlink"/>
+</div>
 	</div>
 </template>
 
@@ -146,18 +146,20 @@ import { garminConnect } from "@/services/garminConnectService";
 import ModalComponent from "@/components/Modals/ModalComponent.vue";
 import ModalComponentNumberAndStringInput from "@/components/Modals/ModalComponentNumberAndStringInput.vue";
 import ModalComponentNumberInput from "@/components/Modals/ModalComponentNumberInput.vue";
+import ModalComponentDateRangeInput from "@/components/Modals/ModalComponentDateRangeInput.vue"; // Added import
 import GarminConnectLoginModalComponent from "./SettingsIntegrations/GarminConnectLoginModalComponent.vue";
 
 //import Modal from 'bootstrap/js/dist/modal';
 
 export default {
-	components: {
-		ModalComponent,
-		ModalComponentNumberAndStringInput,
-		ModalComponentNumberInput,
-		GarminConnectLoginModalComponent,
-	},
-	setup() {
+components: {
+ModalComponent,
+ModalComponentNumberAndStringInput,
+ModalComponentNumberInput,
+ModalComponentDateRangeInput, // Registered component
+GarminConnectLoginModalComponent,
+},
+setup() {
 		const authStore = useAuthStore();
 		const { locale, t } = useI18n();
 
@@ -261,15 +263,16 @@ export default {
 				push.error(
 					`${t("settingsIntegrationsZone.errorMessageUnableToImportActivities")} - ${error}`,
 				);
-			}
-		}
+}
+}
 
-		async function submitRetrieveGarminConnectActivities(daysToRetrieveGarmin) {
-			try {
-				await garminConnect.getGarminConnectActivitiesLastDays(daysToRetrieveGarmin);
+async function submitRetrieveGarminConnectActivities(dateRange) { // Parameter changed from daysToRetrieveGarmin to dateRange
+try {
+// Call the updated service method with startDate and endDate
+await garminConnect.getGarminConnectActivitiesByDates(dateRange.startDate, dateRange.endDate);
 
-				// Show the loading alert.
-				push.info(
+// Show the loading alert.
+push.info(
 					t(
 						"settingsIntegrationsZone.loadingMessageRetrievingGarminConnectActivities",
 					),
@@ -295,15 +298,16 @@ export default {
 				push.error(
 					`${t("settingsIntegrationsZone.errorMessageUnableToGetGarminConnectGear")} - ${error}`,
 				);
-			}
-		}
+}
+}
 
-		async function submitRetrieveGarminConnectHealthData(daysToRetrieveGarmin) {
-			try {
-				await garminConnect.getGarminConnectHealthDataLastDays(daysToRetrieveGarmin);
+async function submitRetrieveGarminConnectHealthData(dateRange) { // Parameter changed from daysToRetrieveGarmin to dateRange
+try {
+// Call the updated service method with startDate and endDate
+await garminConnect.getGarminConnectHealthDataByDates(dateRange.startDate, dateRange.endDate);
 
-				// Show the loading alert.
-				push.info(
+// Show the loading alert.
+push.info(
 					t("settingsIntegrationsZone.loadingMessageRetrievingGarminConnectHealthData"),
 				);
 			} catch (error) {
