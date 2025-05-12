@@ -8,15 +8,14 @@ from timezonefinder import TimezoneFinder
 
 import core.logger as core_logger
 
-import activities.schema as activities_schema
-import activities.crud as activities_crud
-import activities.utils as activities_utils
+import activities.activity.schema as activities_schema
+import activities.activity.crud as activities_crud
+import activities.activity.utils as activities_utils
 
-import activity_laps.crud as activity_laps_crud
-import activity_laps.schema as activity_laps_schema
+import activities.activity_laps.crud as activity_laps_crud
 
-import activity_streams.schema as activity_streams_schema
-import activity_streams.crud as activity_streams_crud
+import activities.activity_streams.schema as activity_streams_schema
+import activities.activity_streams.crud as activity_streams_crud
 
 import user_integrations.schema as user_integrations_schema
 

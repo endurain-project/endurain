@@ -1,9 +1,9 @@
 from datetime import date, datetime  # Added date
 from urllib.parse import unquote
 
-import activities.models as activities_models
-import activities.schema as activities_schema
-import activities.utils as activities_utils
+import activities.activity.models as activities_models
+import activities.activity.schema as activities_schema
+import activities.activity.utils as activities_utils
 import core.logger as core_logger
 import server_settings.crud as server_settings_crud
 from fastapi import HTTPException, status

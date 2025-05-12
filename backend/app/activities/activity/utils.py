@@ -14,20 +14,20 @@ from statistics import mean
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 
-import activities.schema as activities_schema
-import activities.crud as activities_crud
-import activities.models as activities_models
+import activities.activity.schema as activities_schema
+import activities.activity.crud as activities_crud
+import activities.activity.models as activities_models
 
 import users.crud as users_crud
 
-import activity_laps.crud as activity_laps_crud
+import activities.activity_laps.crud as activity_laps_crud
 
-import activity_sets.crud as activity_sets_crud
+import activities.activity_sets.crud as activity_sets_crud
 
-import activity_streams.crud as activity_streams_crud
-import activity_streams.schema as activity_streams_schema
+import activities.activity_streams.crud as activity_streams_crud
+import activities.activity_streams.schema as activity_streams_schema
 
-import activity_workout_steps.crud as activity_workout_steps_crud
+import activities.activity_workout_steps.crud as activity_workout_steps_crud
 
 import gpx.utils as gpx_utils
 import fit.utils as fit_utils

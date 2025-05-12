@@ -5,12 +5,12 @@ from sqlalchemy import pool
 
 from alembic import context
 
-import activities.models
-import activity_laps.models
-import activity_streams.models
-import activity_sets.models
-import activity_exercise_titles.models
-import activity_workout_steps.models
+import activities.activity.models
+import activities.activity_laps.models
+import activities.activity_streams.models
+import activities.activity_sets.models
+import activities.activity_exercise_titles.models
+import activities.activity_workout_steps.models
 import followers.models
 import gears.models
 import health_data.models

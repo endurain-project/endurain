@@ -3,10 +3,10 @@ from typing import Annotated, Callable
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
-import activity_workout_steps.schema as activity_workout_steps_schema
-import activity_workout_steps.crud as activity_workout_steps_crud
+import activities.activity_workout_steps.schema as activity_workout_steps_schema
+import activities.activity_workout_steps.crud as activity_workout_steps_crud
 
-import activities.dependencies as activities_dependencies
+import activities.activity.dependencies as activities_dependencies
 
 import core.database as core_database
 

@@ -4,7 +4,7 @@ from typing import Annotated, Callable
 from fastapi import APIRouter, Depends, Security, UploadFile
 from sqlalchemy.orm import Session
 
-import activities.utils as activities_utils
+import activities.activity.utils as activities_utils
 
 import server_settings.schema as server_settings_schema
 import server_settings.crud as server_settings_crud

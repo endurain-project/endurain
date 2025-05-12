@@ -8,8 +8,8 @@ import garmin.utils as garmin_utils
 import gears.schema as gears_schema
 import gears.crud as gears_crud
 
-import activities.schema as activities_schema
-import activities.crud as activities_crud
+import activities.activity.schema as activities_schema
+import activities.activity.crud as activities_crud
 
 import user_integrations.crud as user_integrations_crud
 

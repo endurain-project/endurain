@@ -11,7 +11,7 @@ import user_integrations.crud as user_integrations_crud
 
 import gears.crud as gears_crud
 
-import activities.crud as activities_crud
+import activities.activity.crud as activities_crud
 
 import strava.gear_utils as strava_gear_utils
 import strava.activity_utils as strava_activity_utils

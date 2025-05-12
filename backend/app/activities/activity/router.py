@@ -4,10 +4,10 @@ import os
 from datetime import date, datetime, timedelta, timezone
 from typing import Annotated, Callable
 
-import activities.crud as activities_crud
-import activities.dependencies as activities_dependencies
-import activities.schema as activities_schema
-import activities.utils as activities_utils
+import activities.activity.crud as activities_crud
+import activities.activity.dependencies as activities_dependencies
+import activities.activity.schema as activities_schema
+import activities.activity.utils as activities_utils
 import core.database as core_database
 import core.dependencies as core_dependencies
 import core.logger as core_logger

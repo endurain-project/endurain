@@ -3,9 +3,9 @@ from zoneinfo import ZoneInfo
 
 from datetime import datetime
 
-import activity_sets.schema as activity_sets_schema
+import activities.activity_sets.schema as activity_sets_schema
 
-import activities.schema as activities_schema
+import activities.activity.schema as activities_schema
 
 def serialize_activity_set(activity: activities_schema.Activity, activity_set: activity_sets_schema.ActivitySets):
     def make_aware_and_format(dt, timezone):

@@ -7,9 +7,9 @@ from fastapi import (
 )
 from sqlalchemy.orm import Session
 
-import activities.schema as activities_schema
-import activities.crud as activities_crud
-import activities.dependencies as activities_dependencies
+import activities.activity.schema as activities_schema
+import activities.activity.crud as activities_crud
+import activities.activity.dependencies as activities_dependencies
 
 import core.database as core_database
 

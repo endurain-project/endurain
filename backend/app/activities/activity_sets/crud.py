@@ -1,11 +1,11 @@
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
-import activities.models as activities_models
+import activities.activity.models as activities_models
 
-import activity_sets.models as activity_sets_models
-import activity_sets.schema as activity_sets_schema
-import activity_sets.utils as activity_sets_utils
+import activities.activity_sets.models as activity_sets_models
+import activities.activity_sets.schema as activity_sets_schema
+import activities.activity_sets.utils as activity_sets_utils
 
 import server_settings.crud as server_settings_crud
 

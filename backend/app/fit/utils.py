@@ -8,13 +8,13 @@ from sqlalchemy.orm import Session
 from timezonefinder import TimezoneFinder
 from zoneinfo import ZoneInfo, available_timezones
 
-import activities.utils as activities_utils
-import activities.schema as activities_schema
+import activities.activity.utils as activities_utils
+import activities.activity.schema as activities_schema
 
-import activity_exercise_titles.schema as activity_exercise_titles_schema
-import activity_exercise_titles.crud as activity_exercise_titles_crud
+import activities.activity_exercise_titles.schema as activity_exercise_titles_schema
+import activities.activity_exercise_titles.crud as activity_exercise_titles_crud
 
-import activity_workout_steps.schema as activity_workout_steps_schema
+import activities.activity_workout_steps.schema as activity_workout_steps_schema
 
 import user_default_gear.utils as user_default_gear_utils
 

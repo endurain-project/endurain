@@ -7,12 +7,12 @@ import session.security as session_security
 import users.router as users_router
 import profile.router as profile_router
 import user_default_gear.router as user_default_gear_router
-import activities.router as activities_router
-import activity_exercise_titles.router as activity_exercise_titles_router
-import activity_laps.router as activity_laps_router
-import activity_sets.router as activity_sets_router
-import activity_streams.router as activity_streams_router
-import activity_workout_steps.router as activity_workout_steps_router
+import activities.activity.router as activities_router
+import activities.activity_exercise_titles.router as activity_exercise_titles_router
+import activities.activity_laps.router as activity_laps_router
+import activities.activity_sets.router as activity_sets_router
+import activities.activity_streams.router as activity_streams_router
+import activities.activity_workout_steps.router as activity_workout_steps_router
 import gears.router as gears_router
 import followers.router as followers_router
 import strava.router as strava_router
@@ -23,12 +23,12 @@ import server_settings.router as server_settings_router
 import websocket.router as websocket_router
 
 import users.public_router as users_public_router
-import activities.public_router as activities_public_router
-import activity_exercise_titles.public_router as activity_exercise_titles_public_router
-import activity_laps.public_router as activity_laps_public_router
-import activity_sets.public_router as activity_sets_public_router
-import activity_streams.public_router as activity_streams_public_router
-import activity_workout_steps.public_router as activity_workout_steps_public_router
+import activities.activity.public_router as activities_public_router
+import activities.activity_exercise_titles.public_router as activity_exercise_titles_public_router
+import activities.activity_laps.public_router as activity_laps_public_router
+import activities.activity_sets.public_router as activity_sets_public_router
+import activities.activity_streams.public_router as activity_streams_public_router
+import activities.activity_workout_steps.public_router as activity_workout_steps_public_router
 import server_settings.public_router as server_settings_public_router
 
 router = APIRouter()

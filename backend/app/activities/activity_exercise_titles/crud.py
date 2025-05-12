@@ -2,8 +2,8 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 
-import activity_exercise_titles.models as activity_exercise_titles_models
-import activity_exercise_titles.schema as activity_exercise_titles_schema
+import activities.activity_exercise_titles.models as activity_exercise_titles_models
+import activities.activity_exercise_titles.schema as activity_exercise_titles_schema
 
 import server_settings.crud as server_settings_crud
 

@@ -8,8 +8,8 @@ from datetime import datetime
 
 from fastapi import HTTPException, status
 
-import activities.utils as activities_utils
-import activities.schema as activities_schema
+import activities.activity.utils as activities_utils
+import activities.activity.schema as activities_schema
 
 import user_default_gear.utils as user_default_gear_utils
 

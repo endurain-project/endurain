@@ -3,8 +3,8 @@ from typing import Annotated, Callable
 from fastapi import APIRouter, Depends, Security
 from sqlalchemy.orm import Session
 
-import activity_exercise_titles.schema as activity_exercise_titles_schema
-import activity_exercise_titles.crud as activity_exercise_titles_crud
+import activities.activity_exercise_titles.schema as activity_exercise_titles_schema
+import activities.activity_exercise_titles.crud as activity_exercise_titles_crud
 
 import session.security as session_security
 

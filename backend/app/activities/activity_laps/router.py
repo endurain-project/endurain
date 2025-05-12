@@ -3,10 +3,10 @@ from typing import Annotated, Callable
 from fastapi import APIRouter, Depends, Security
 from sqlalchemy.orm import Session
 
-import activity_workout_steps.schema as activity_workout_steps_schema
-import activity_workout_steps.crud as activity_workout_steps_crud
+import activities.activity_laps.schema as activity_laps_schema
+import activities.activity_laps.crud as activity_laps_crud
 
-import activities.dependencies as activities_dependencies
+import activities.activity.dependencies as activities_dependencies
 
 import session.security as session_security
 
@@ -18,9 +18,9 @@ router = APIRouter()
 
 @router.get(
     "/activity_id/{activity_id}/all",
-    response_model=list[activity_workout_steps_schema.ActivityWorkoutSteps] | None,
+    response_model=list[activity_laps_schema.ActivityLaps] | None,
 )
-async def read_activities_workout_steps_for_activity_all(
+async def read_activities_laps_for_activity_all(
     activity_id: int,
     validate_id: Annotated[
         Callable, Depends(activities_dependencies.validate_activity_id)
@@ -34,4 +34,4 @@ async def read_activities_workout_steps_for_activity_all(
     ],
 ):
     # Get the activity laps from the database and return them
-    return activity_workout_steps_crud.get_activity_workout_steps(activity_id, db)
+    return activity_laps_crud.get_activity_laps(activity_id, db)

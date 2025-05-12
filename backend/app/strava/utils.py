@@ -6,8 +6,8 @@ from stravalib.client import Client
 
 import core.logger as core_logger
 
-import activities.schema as activities_schema
-import activities.crud as activities_crud
+import activities.activity.schema as activities_schema
+import activities.activity.crud as activities_crud
 
 import user_integrations.schema as user_integrations_schema
 import user_integrations.crud as user_integrations_crud

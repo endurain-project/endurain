@@ -3,11 +3,11 @@ from typing import Annotated, Callable
 from fastapi import APIRouter, Depends, Security
 from sqlalchemy.orm import Session
 
-import activity_streams.schema as activity_streams_schema
-import activity_streams.crud as activity_streams_crud
-import activity_streams.dependencies as activity_streams_dependencies
+import activities.activity_streams.schema as activity_streams_schema
+import activities.activity_streams.crud as activity_streams_crud
+import activities.activity_streams.dependencies as activity_streams_dependencies
 
-import activities.dependencies as activities_dependencies
+import activities.activity.dependencies as activities_dependencies
 
 import session.security as session_security
 

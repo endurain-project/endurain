@@ -3,10 +3,8 @@ from typing import Annotated
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
-import activity_exercise_titles.schema as activity_exercise_titles_schema
-import activity_exercise_titles.crud as activity_exercise_titles_crud
-
-import activities.dependencies as activities_dependencies
+import activities.activity_exercise_titles.schema as activity_exercise_titles_schema
+import activities.activity_exercise_titles.crud as activity_exercise_titles_crud
 
 import core.database as core_database
 

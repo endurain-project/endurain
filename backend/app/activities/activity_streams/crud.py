@@ -1,10 +1,10 @@
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
-import activity_streams.schema as activity_streams_schema
-import activity_streams.models as activity_streams_models
+import activities.activity_streams.schema as activity_streams_schema
+import activities.activity_streams.models as activity_streams_models
 
-import activities.models as activities_models
+import activities.activity.models as activities_models
 
 import server_settings.crud as server_settings_crud
 
