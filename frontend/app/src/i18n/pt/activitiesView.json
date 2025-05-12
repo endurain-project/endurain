@@ -1,14 +1,14 @@
 {
-  "title": "Activities",
-  "filterLabelType": "Type",
-  "filterOptionAllTypes": "All Types",
-  "filterLabelFromDate": "From Date",
-  "filterLabelToDate": "To Date",
-  "filterLabelNameLocation": "Name or Location",
-  "filterPlaceholderNameLocation": "e.g., Morning Run",
-  "buttonClear": "Clear",
-  "buttonApply": "Apply",
-  "errorFailedFetchActivityTypes": "Failed to fetch activity types",
-  "errorUpdatingActivities": "Failed to updated activities",
-  "errorFetchingActivities": "Failed to fetch user activities"
+  "title": "Atividades",
+  "filterLabelType": "Tipo",
+  "filterOptionAllTypes": "Todos os tipos",
+  "filterLabelFromDate": "Data de início",
+  "filterLabelToDate": "Data de fim",
+  "filterLabelNameLocation": "Nome ou localização",
+  "filterPlaceholderNameLocation": "ex., Corrida da Manhã",
+  "buttonClear": "Limpar",
+  "buttonApply": "Aplicar",
+  "errorFailedFetchActivityTypes": "Falha ao buscar tipos de atividades",
+  "errorUpdatingActivities": "Falha ao atualizar as atividades",
+  "errorFetchingActivities": "Falha ao atualizar as atividades do utilizador"
 }
