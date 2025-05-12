@@ -70,7 +70,7 @@ def get_user_activities(
     start_date: date | None = None,
     end_date: date | None = None,
     name_search: str | None = None,
-):
+) -> list[activities_schema.Activity] | None:
     try:
         # Base query
         query = db.query(activities_models.Activity).filter(
@@ -127,11 +127,13 @@ def get_user_activities(
         if not activities:
             return None
 
+        # Serialize all activities in one pass
+        serialized_activities = []
         for activity in activities:
-            activity = activities_utils.serialize_activity(activity)
+            serialized_activities.append(activities_utils.serialize_activity(activity))
 
         # Return the activities
-        return activities
+        return serialized_activities
 
     except Exception as err:
         # Log the exception
