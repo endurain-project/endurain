@@ -1,5 +1,10 @@
 import i18n from "@/i18n";
-import { metersToKm, metersToMiles, metersToFeet, metersToYards } from "@/utils/unitsUtils";
+import {
+	metersToKm,
+	metersToMiles,
+	metersToFeet,
+	metersToYards,
+} from "@/utils/unitsUtils";
 import {
 	formatDateMed,
 	formatTime,
@@ -123,38 +128,55 @@ export function formatAverageSpeedImperial(speed) {
 }
 
 /**
- * Formats the pace of an activity based on its type and the unit system.
+ * Formats the pace of an activity based on its type and the specified unit system.
  *
- * @param {Object} activity - The activity object containing details about the activity.
- * @param {number} unitSystem - The unit system to use (1 for metric, 2 for imperial).
- * @param {boolean} [units=true] - Whether to include units in the formatted pace.
+ * @param {Object} activity - The activity object containing pace and activity_type.
+ * @param {number|string} unitSystem - The unit system to use (1 for metric, otherwise imperial).
+ * @param {Object|null} [lap=null] - Optional lap object to use its enhanced_avg_pace instead of activity pace.
+ * @param {boolean} [units=true] - Whether to include units in the formatted output.
  * @returns {string} The formatted pace string.
  */
-export function formatPace(activity, unitSystem, units = true) {
+export function formatPace(activity, unitSystem, lap = null, units = true) {
+	let pace = activity.pace;
+	if (lap) {
+		pace = lap.enhanced_avg_pace;
+	}
 	if (
 		activity.activity_type === 8 ||
 		activity.activity_type === 9 ||
 		activity.activity_type === 13
 	) {
 		if (Number(unitSystem) === 1) {
-			return formatPaceSwimMetric(activity.pace, units);
+			return formatPaceSwimMetric(pace, units);
 		}
-		return formatPaceSwimImperial(activity.pace);
+		return formatPaceSwimImperial(pace, units);
 	}
 	if (Number(unitSystem) === 1) {
-		return formatPaceMetric(activity.pace, units);
+		return formatPaceMetric(pace, units);
 	}
-	return formatPaceImperial(activity.pace, units);
+	return formatPaceImperial(pace, units);
 }
+
 
 /**
  * Formats the average speed of an activity based on the unit system and activity type.
  *
- * @param {Object} activity - The activity object containing details about the activity.
- * @param {number} unitSystem - The unit system to use (1 for metric, other values for imperial).
- * @returns {string} - The formatted average speed with the appropriate unit or a "Not Applicable" label.
+ * @param {Object} activity - The activity object containing speed and type information.
+ * @param {number|string} unitSystem - The unit system to use (1 for imperial, otherwise metric).
+ * @param {Object|null} [lap=null] - Optional lap object to use for speed calculation.
+ * @param {boolean} [units=true] - Whether to include units in the formatted string.
+ * @returns {string} The formatted average speed, including units if specified, or a "No Data" label if unavailable.
  */
-export function formatAverageSpeed(activity, unitSystem) {
+export function formatAverageSpeed(
+	activity,
+	unitSystem,
+	lap = null,
+	units = true,
+) {
+	let speed = activity.average_speed;
+	if (lap) {
+		speed = lap.enhanced_avg_speed;
+	}
 	if (
 		activity.average_speed === null ||
 		activity.average_speed === undefined ||
@@ -169,9 +191,12 @@ export function formatAverageSpeed(activity, unitSystem) {
 			activity.activity_type === 7 ||
 			activity.activity_type === 27
 		) {
-			return `${formatAverageSpeedMetric(activity.average_speed)} ${i18n.global.t("generalItems.unitsKmH")}`;
+			if (units) {
+				return `${formatAverageSpeedImperial(speed)} ${i18n.global.t("generalItems.unitsKmH")}`;
+			}
+			return `${formatAverageSpeedMetric(speed)}`;
 		}
-		return i18n.global.t("generalItems.activityNoData");
+		return i18n.global.t("generalItems.labelNoData");
 	}
 	if (
 		activity.activity_type === 4 ||
@@ -180,11 +205,13 @@ export function formatAverageSpeed(activity, unitSystem) {
 		activity.activity_type === 7 ||
 		activity.activity_type === 27
 	) {
-		return `${formatAverageSpeedImperial(activity.average_speed)} ${i18n.global.t("generalItems.unitsMph")}`;
+		if (units) {
+			return `${formatAverageSpeedMetric(speed)} ${i18n.global.t("generalItems.unitsMph")}`;
+		}
+		return `${formatAverageSpeedImperial(speed)}`;
 	}
-	return i18n.global.t("generalItems.activityNoData");
+	return i18n.global.t("generalItems.labelNoData");
 }
-
 
 /**
  * Formats a date-time string into a localized date and time string.
@@ -211,31 +238,31 @@ export function formatDuration(seconds) {
 	return formatSecondsToMinutes(seconds);
 }
 
-
 /**
- * Formats the distance of an activity based on the unit system and activity type.
+ * Formats the distance of an activity or lap based on the unit system and activity type.
  *
- * @param {Object} activity - The activity object containing distance and activity type.
- * @param {number} unitSystem - The unit system to use (1 for metric, other values for imperial).
- * @returns {string} The formatted distance string with appropriate units, or a "not applicable" label if the distance is invalid.
+ * @param {Object} activity - The activity object containing distance and activity_type.
+ * @param {number|string} unitSystem - The unit system to use (1 for metric, otherwise imperial).
+ * @param {Object|null} [lap=null] - Optional lap object containing total_distance.
+ * @returns {string} The formatted distance string with appropriate units or a "No Data" label.
  */
-export function formatDistance(activity, unitSystem) {
-	if (
-		activity.distance === null ||
-		activity.distance === undefined ||
-		activity.distance < 0
-	)
+export function formatDistance(activity, unitSystem, lap = null) {
+	let distance = activity.distance;
+	if (lap) {
+		distance = lap.total_distance;
+	}
+	if (distance === null || distance === undefined || distance < 0)
 		return i18n.global.t("generalItems.labelNoData");
 	if (Number(unitSystem) === 1) {
 		if (activity.activity_type !== 9 && activity.activity_type !== 8) {
-			return `${metersToKm(activity.distance)} ${i18n.global.t("generalItems.unitsKm")}`;
+			return `${metersToKm(distance)} ${i18n.global.t("generalItems.unitsKm")}`;
 		}
-		return `${activity.distance} ${i18n.global.t("generalItems.unitsM")}`;
+		return `${distance} ${i18n.global.t("generalItems.unitsM")}`;
 	}
 	if (activity.activity_type !== 9 && activity.activity_type !== 8) {
-		return `${metersToMiles(activity.distance)} ${i18n.global.t("generalItems.unitsMiles")}`;
+		return `${metersToMiles(distance)} ${i18n.global.t("generalItems.unitsMiles")}`;
 	}
-	return `${metersToYards(activity.distance)} ${i18n.global.t("generalItems.unitsYards")}`;
+	return `${metersToYards(distance)} ${i18n.global.t("generalItems.unitsYards")}`;
 }
 
 /**
@@ -255,7 +282,6 @@ export function formatHr(hr) {
 	return `${Math.round(hr)} ${i18n.global.t("generalItems.unitsBpm")}`;
 }
 
-
 export function formatPower(power) {
 	if (power === null || power === undefined || power <= 0)
 		return i18n.global.t("generalItems.labelNoData");
@@ -269,13 +295,19 @@ export function formatPower(power) {
  * @param {number} unitSystem - The unit system to use. If `1`, the elevation is returned in meters; otherwise, it is converted to feet.
  * @returns {string} The formatted elevation string with the appropriate unit, or a "not applicable" label if the input is null or undefined.
  */
-export function formatElevation(meters, unitSystem) {
+export function formatElevation(meters, unitSystem, units = true) {
 	if (meters === null || meters === undefined)
 		return i18n.global.t("generalItems.labelNoData");
 	if (Number(unitSystem) === 1) {
-		return `${meters} ${i18n.global.t("generalItems.unitsM")}`;
+		if (units) {
+			return `${meters} ${i18n.global.t("generalItems.unitsM")}`;
+		}
+		return `${meters}`;
 	}
-	return `${metersToFeet(meters)} ${i18n.global.t("generalItems.unitsFeetShort")}`;
+	if (units) {
+		return `${metersToFeet(meters)} ${i18n.global.t("generalItems.unitsFeet")}`;
+	}
+	return `${metersToFeet(meters)}`;
 }
 
 /**
@@ -328,12 +360,11 @@ export function getIcon(typeId) {
 	return iconMap[typeId] || ["fas", "dumbbell"];
 }
 
-
 /**
  * Formats the location of an activity into a readable string.
  *
  * @param {Object} activity - The activity object containing location details.
- * @returns {string} A formatted location string. If no location details are provided, 
+ * @returns {string} A formatted location string. If no location details are provided,
  * it returns a localized "Not Applicable" label.
  */
 export function formatLocation(activity) {

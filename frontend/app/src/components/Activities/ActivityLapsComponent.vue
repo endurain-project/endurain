@@ -21,7 +21,7 @@
                     <td>{{ lap.lapSecondsToMinutes }}</td>
                     <td v-if="activity.activity_type === 4 || activity.activity_type === 5 || activity.activity_type === 6 || activity.activity_type === 7 || activity.activity_type === 27">{{ lap.formattedSpeedFull }}</td>
                     <td v-else>{{ lap.formattedPaceFull }}</td>
-					<td>{{ lap.formattedElevationFull.value }}</td>
+					<td>{{ lap.formattedElevationFull }}</td>
                     <td>
 						<span v-if="lap.avg_heart_rate">
 							{{ lap.avg_heart_rate + ' ' + $t("generalItems.unitsBpm") }}
@@ -74,25 +74,19 @@
 </template>
 
 <script>
-import { ref, computed } from "vue";
-import { useI18n } from "vue-i18n";
+import { computed } from "vue";
 // Importing the components
 import LoadingComponent from "@/components/GeneralComponents/LoadingComponent.vue";
+// Importing the stores
+import { useAuthStore } from "@/stores/authStore";
+// Importing the utils
 import { formatSecondsToMinutes } from "@/utils/dateTimeUtils";
 import {
-	formatPaceMetric,
-	formatPaceImperial,
-	formatPaceSwimMetric,
-	formatPaceSwimImperial,
-	formatAverageSpeedMetric,
-	formatAverageSpeedImperial,
+	formatDistance,
+	formatElevation,
+	formatPace,
+    formatAverageSpeed,
 } from "@/utils/activityUtils";
-import {
-	metersToKm,
-	metersToMiles,
-	metersToYards,
-	metersToFeet,
-} from "@/utils/unitsUtils";
 
 export default {
 	components: {
@@ -113,7 +107,7 @@ export default {
 		},
 	},
 	setup(props) {
-		const { t } = useI18n();
+		const authStore = useAuthStore();
 		const normalizedLaps = computed(() => {
 			if (
 				!props.activityActivityLaps ||
@@ -132,80 +126,13 @@ export default {
 			// Normalize each lap's pace relative to the fastest
 			return laps.map((lap) => {
 				const normalizedScore = (fastestPace / lap.enhanced_avg_pace) * 100;
-				const formattedPace = computed(() => {
-					if (
-						props.activity.activity_type === 8 ||
-						props.activity.activity_type === 9 ||
-						props.activity.activity_type === 13
-					) {
-						if (Number(props.units) === 1) {
-							return formatPaceSwimMetric(lap.enhanced_avg_pace, false);
-						}
-						return formatPaceSwimImperial(lap.enhanced_avg_pace, false);
-					}
-					if (Number(props.units) === 1) {
-						return formatPaceMetric(lap.enhanced_avg_pace, false);
-					}
-					return formatPaceImperial(lap.enhanced_avg_pace, false);
-				});
-				const formattedPaceFull = computed(() => {
-					if (lap.enhanced_avg_pace === null) {
-						return t("generalItems.labelNoData");
-					}
-					if (
-						props.activity.activity_type === 8 ||
-						props.activity.activity_type === 9 ||
-						props.activity.activity_type === 13
-					) {
-						if (Number(props.units) === 1) {
-							return formatPaceSwimMetric(lap.enhanced_avg_pace);
-						}
-						return formatPaceSwimImperial(lap.enhanced_avg_pace);
-					}
-					if (Number(props.units) === 1) {
-						return formatPaceMetric(lap.enhanced_avg_pace);
-					}
-					return formatPaceImperial(lap.enhanced_avg_pace);
-				});
-				const formattedDistance = computed(() => {
-					if (lap.total_distance === null) {
-						return t("generalItems.labelNoData");
-					}
-					if (Number(props.units) === 1) {
-						return `${metersToKm(lap.total_distance)} ${t("generalItems.unitsKm")}`;
-					}
-					return `${metersToMiles(lap.total_distance)} ${t("generalItems.unitsMiles")}`;
-				});
-                const formattedElevation = computed(() => {
-                    if (Number(props.units) === 1) {
-                        return lap.total_ascent ?? 0;
-                    }
-                    return metersToFeet(lap.total_ascent) ?? 0;
-                });
-                const formattedElevationFull = computed(() => {
-                    if (Number(props.units) === 1) {
-						return `${lap.total_ascent ?? 0} ${t("generalItems.unitsM")}`;
-                    }
-                    return `${metersToFeet(lap.total_ascent)} ${t("generalItems.unitsFeetShort")}` ?? `0 ${t("generalItems.unitsFeetShort")}`;
-                });
-                const formattedSpeedFull = computed(() => {
-					if (lap.enhanced_avg_speed === null) {
-						return t("generalItems.labelNoData");
-					}
-                    if (Number(props.units) === 1) {
-						return `${Math.round(lap.enhanced_avg_speed)} ${t("generalItems.unitsKmH")}`;
-                    }
-                    return `${Math.round(formatAverageSpeedImperial(lap.enhanced_avg_speed))} ${t("generalItems.unitsMph")}`;
-                });
-                const formattedSpeed = computed(() => {
-					if (lap.enhanced_avg_speed === null) {
-						return t("generalItems.labelNotApplicable");
-					}
-                    if (Number(props.units) === 1) {
-                        return lap.enhanced_avg_speed ?? 0;
-                    }
-                    return formatAverageSpeedImperial(lap.enhanced_avg_speed) ?? 0;
-                });
+				const formattedPace = formatPace(props.activity, authStore.user.units, lap, false);
+				const formattedPaceFull = formatPace(props.activity, authStore.user.units, lap);
+				const formattedDistance = formatDistance(props.activity, authStore.user.units, lap);
+				const formattedElevation = formatElevation(lap.total_ascent, authStore.user.units, false);
+				const formattedElevationFull = formatElevation(lap.total_ascent, authStore.user.units);
+				const formattedSpeed = formatAverageSpeed(props.activity, authStore.user.units, lap, false);
+				const formattedSpeedFull = formatAverageSpeed(props.activity, authStore.user.units, lap);
 
 				return {
 					...lap,

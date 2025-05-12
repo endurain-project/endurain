@@ -29,6 +29,9 @@
 
 <script>
 import { useI18n } from "vue-i18n";
+// Importing the stores
+import { useAuthStore } from "@/stores/authStore";
+// Importing the utils
 import {
 	formatDuration,
 	formatDateTime,
@@ -41,7 +44,6 @@ import {
 	formatLocation,
     formatAverageSpeed,
 } from "@/utils/activityUtils";
-import { useAuthStore } from "@/stores/authStore";
 
 export default {
 	props: {
