@@ -187,7 +187,7 @@ export default {
 						sortOrder.value,
 					);
 				userNumberActivities.value =
-					await activitiesService.getUserNumberOfActivities();
+					await activitiesService.getUserNumberOfActivities(filters);
 
 				totalPages.value = Math.ceil(userNumberActivities.value / numRecords);
 			} catch (error) {

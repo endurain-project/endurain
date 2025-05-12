@@ -24,8 +24,30 @@ export const activities = {
   getUserActivitiesByGearId(gear_id) {
     return fetchGetRequest(`activities/user/gear/${gear_id}`)
   },
-  getUserNumberOfActivities() {
-    return fetchGetRequest('activities/number')
+  getUserNumberOfActivities(filters = {}) {
+    let baseUrl = "activities/number"
+    const params = new URLSearchParams()
+
+    // Add filters to query parameters if they exist
+    if (filters.type) {
+      params.append('type', filters.type)
+    }
+    if (filters.start_date) {
+      params.append('start_date', filters.start_date)
+    }
+    if (filters.end_date) {
+      params.append('end_date', filters.end_date)
+    }
+    if (filters.name_search) {
+      params.append('name_search', filters.name_search)
+    }
+
+    const queryString = params.toString()
+    if (queryString) {
+      baseUrl += `?${queryString}`
+    }
+
+    return fetchGetRequest(baseUrl)
   },
   // New function to get distinct activity types
   getActivityTypes() {

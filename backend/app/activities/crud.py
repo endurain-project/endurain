@@ -66,15 +66,62 @@ def get_all_activities_no_serialize(db: Session):
 def get_user_activities(
     user_id: int,
     db: Session,
+    activity_type: int | None = None,
+    start_date: date | None = None,
+    end_date: date | None = None,
+    name_search: str | None = None,
 ):
     try:
-        # Get the activities from the database
-        activities = (
-            db.query(activities_models.Activity)
-            .filter(activities_models.Activity.user_id == user_id)
-            .order_by(desc(activities_models.Activity.start_time))
-            .all()
+        # Base query
+        query = db.query(activities_models.Activity).filter(
+            activities_models.Activity.user_id == user_id
         )
+
+        # Apply filters
+        if activity_type:
+            # add filter for activity type
+            query = query.filter(
+                activities_models.Activity.activity_type == activity_type
+            )
+            
+        if start_date:
+            # add filter for start date
+            query = query.filter(
+                func.date(activities_models.Activity.start_time) >= start_date
+            )
+
+        if end_date:
+            # add filter for end date
+            query = query.filter(
+                func.date(activities_models.Activity.start_time) <= end_date
+            )
+
+        if name_search:
+            # Decode and prepare search term
+            search_term = unquote(name_search).replace("+", " ").lower()
+            # Apply search across name, town, city, and country
+            query = query.filter(
+                or_(
+                    func.lower(activities_models.Activity.name).like(
+                        f"%{search_term}%"
+                    ),
+                    func.lower(activities_models.Activity.town).like(
+                        f"%{search_term}%"
+                    ),
+                    func.lower(activities_models.Activity.city).like(
+                        f"%{search_term}%"
+                    ),
+                    func.lower(activities_models.Activity.country).like(
+                        f"%{search_term}%"
+                    ),
+                )
+            )
+
+        # Apply sorting
+        query = query.order_by(desc(activities_models.Activity.start_time))
+
+        # Get the activities from the database
+        activities = query.all()
 
         # Check if there are activities if not return None
         if not activities:

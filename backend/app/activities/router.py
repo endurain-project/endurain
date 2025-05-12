@@ -248,9 +248,25 @@ async def read_activities_user_activities_number(
         Session,
         Depends(core_database.get_db),
     ],
+    # Added dependencies for optional query parameters
+    validate_activity_type: Annotated[
+        Callable, Depends(activities_dependencies.validate_activity_type)
+    ],
+    # Added optional filter query parameters
+    activity_type: int | None = Query(None, alias="type"),
+    start_date: date | None = Query(None),
+    end_date: date | None = Query(None),
+    name_search: str | None = Query(None),
 ):
     # Get the number of activities for the user
-    activities = activities_crud.get_user_activities(token_user_id, db)
+    activities = activities_crud.get_user_activities(
+        user_id=token_user_id,
+        db=db,
+        activity_type=activity_type,
+        start_date=start_date,
+        end_date=end_date,
+        name_search=name_search,
+    )
 
     # Check if activities is None and return 0 if it is
     if activities is None:
