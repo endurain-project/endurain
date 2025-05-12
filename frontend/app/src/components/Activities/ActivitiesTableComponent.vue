@@ -67,22 +67,7 @@
       </thead>
       <tbody>
         <tr v-for="activity in activities" :key="activity.id">
-          <td class="text-center">
-            <font-awesome-icon :icon="getIcon(activity.activity_type)" />
-          </td>
-          <td>
-            <router-link :to="{ name: 'activity', params: { id: activity.id } }" class="link-body-emphasis link-underline-opacity-0 link-underline-opacity-100-hover">
-              {{ activity.name }}
-            </router-link>
-          </td>
-          <td>{{ formatLocation(activity) }}</td>
-          <td class="d-none d-md-table-cell">{{ formatDateTime(activity.start_time) }}</td>
-          <td class="d-none d-md-table-cell">{{ formatDuration(activity.total_timer_time) }}</td>
-          <td class="d-none d-md-table-cell">{{ formatDistance(activity.distance) }}</td>
-          <td class="d-none d-md-table-cell">{{ formatPace(activity, authStore.user.units) }}</td>
-          <td class="d-none d-md-table-cell">{{ formatCalories(activity.calories) }}</td>
-          <td class="d-none d-md-table-cell">{{ formatElevation(activity.elevation_gain) }}</td>
-          <td class="d-none d-md-table-cell">{{ formatAvgHr(activity.average_hr) }}</td>
+			<ActivitiesTableRowComponent :activity="activity" />
         </tr>
       </tbody>
     </table>
@@ -91,20 +76,13 @@
 
 <script>
 import { useI18n } from "vue-i18n";
-import {
-	formatDuration,
-	formatDateTime,
-	formatDistance,
-	formatElevation,
-	formatPace,
-	formatAvgHr,
-	formatCalories,
-	getIcon,
-	formatLocation,
-} from "@/utils/activityUtils";
-import { useAuthStore } from "@/stores/authStore";
+// Importing the components
+import ActivitiesTableRowComponent from "./ActivitiesTableRowComponent.vue";
 
 export default {
+	components: {
+		ActivitiesTableRowComponent,
+	},
 	props: {
 		activities: {
 			type: Array,
@@ -123,7 +101,6 @@ export default {
 	emits: ["sortChanged"],
 	setup(props, { emit }) {
 		const { t } = useI18n();
-		const authStore = useAuthStore();
 
 		function changeSort(columnName) {
 			emit("sortChanged", columnName);
@@ -140,17 +117,7 @@ export default {
 		}
 
 		return {
-			formatDuration,
-			formatDateTime,
-			formatDistance,
-			formatElevation,
-			formatPace,
-			formatAvgHr,
-			formatCalories,
-			getIcon,
-			formatLocation,
 			t,
-			authStore,
 			changeSort,
 			sortIcon,
 		};

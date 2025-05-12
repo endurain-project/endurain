@@ -51,7 +51,8 @@ import caLoginView from './ca/loginView.json';
 import caGearsView from './ca/gears/gearsView.json';
 import caGearView from './ca/gears/gearView.json';
 import caStravaCallbackView from './ca/strava/stravaCallbackView.json';
-import caActivitiesView from './ca/activitiesView.json'; // Corrected path and alias
+import caActivityView from './ca/activityView.json';
+import caActivitiesView from './ca/activitiesView.json';
 import caHealthView from './ca/healthView.json';
 import caNotFoundView from './ca/notFoundView.json';
 import caSearchView from './ca/searchView.json';
@@ -108,7 +109,8 @@ import deLoginView from './de/loginView.json';
 import deGearsView from './de/gears/gearsView.json';
 import deGearView from './de/gears/gearView.json';
 import deStravaCallbackView from './de/strava/stravaCallbackView.json';
-import deActivitiesView from './de/activitiesView.json'; // Corrected path and alias
+import deActivityView from './de/activityView.json';
+import deActivitiesView from './de/activitiesView.json';
 import deHealthView from './de/healthView.json';
 import deNotFoundView from './de/notFoundView.json';
 import deSearchView from './de/searchView.json';
@@ -165,7 +167,8 @@ import esLoginView from './es/loginView.json';
 import esGearsView from './es/gears/gearsView.json';
 import esGearView from './es/gears/gearView.json';
 import esStravaCallbackView from './es/strava/stravaCallbackView.json';
-import esActivitiesView from './es/activitiesView.json'; // Corrected path and alias
+import esActivityView from './es/activityView.json';
+import esActivitiesView from './es/activitiesView.json';
 import esHealthView from './es/healthView.json';
 import esNotFoundView from './es/notFoundView.json';
 import esSearchView from './es/searchView.json';
@@ -223,7 +226,8 @@ import frLoginView from './fr/loginView.json';
 import frGearsView from './fr/gears/gearsView.json';
 import frGearView from './fr/gears/gearView.json';
 import frStravaCallbackView from './fr/strava/stravaCallbackView.json';
-import frActivitiesView from './fr/activitiesView.json'; // Corrected path and alias
+import frActivityView from './fr/activityView.json';
+import frActivitiesView from './fr/activitiesView.json';
 import frHealthView from './fr/healthView.json';
 import frNotFoundView from './fr/notFoundView.json';
 import frSearchView from './fr/searchView.json';
@@ -281,7 +285,8 @@ import nlLoginView from './nl/loginView.json';
 import nlGearsView from './nl/gears/gearsView.json';
 import nlGearView from './nl/gears/gearView.json';
 import nlStravaCallbackView from './nl/strava/stravaCallbackView.json';
-import nlActivitiesView from './nl/activitiesView.json'; // Corrected path and alias
+import nlActivityView from './nl/activityView.json';
+import nlActivitiesView from './nl/activitiesView.json';
 import nlHealthView from './nl/healthView.json';
 import nlNotFoundView from './nl/notFoundView.json';
 import nlSearchView from './nl/searchView.json';
@@ -339,7 +344,8 @@ import ptLoginView from './pt/loginView.json';
 import ptGearsView from './pt/gears/gearsView.json';
 import ptGearView from './pt/gears/gearView.json';
 import ptStravaCallbackView from './pt/strava/stravaCallbackView.json';
-import ptActivitiesView from './pt/activitiesView.json'; // Corrected path and alias
+import ptActivityView from './pt/activityView.json';
+import ptActivitiesView from './pt/activitiesView.json';
 import ptHealthView from './pt/healthView.json';
 import ptNotFoundView from './pt/notFoundView.json';
 import ptSearchView from './pt/searchView.json';
@@ -396,7 +402,8 @@ import usLoginView from './us/loginView.json';
 import usGearsView from './us/gears/gearsView.json';
 import usGearView from './us/gears/gearView.json';
 import usStravaCallbackView from './us/strava/stravaCallbackView.json';
-import usActivitiesView from './us/activitiesView.json'; // Corrected path and alias
+import usActivityView from './us/activityView.json';
+import usActivitiesView from './us/activitiesView.json';
 import usHealthView from './us/healthView.json';
 import usNotFoundView from './us/notFoundView.json';
 import usSearchView from './us/searchView.json';
@@ -455,7 +462,8 @@ const messages = {
     gearsView: caGearsView,
     gearView: caGearView,
     stravaCallbackView: caStravaCallbackView,
-    activitiesView: caActivitiesView, // Corrected key
+    activityView: caActivityView,
+    activitiesView: caActivitiesView,
     healthView: caHealthView,
     notFound: caNotFoundView,
     searchView: caSearchView,
@@ -512,7 +520,8 @@ const messages = {
     gearsView: deGearsView,
     gearView: deGearView,
     stravaCallbackView: deStravaCallbackView,
-    activitiesView: deActivitiesView, // Corrected key
+    activityView: deActivityView,
+    activitiesView: deActivitiesView,
     healthView: deHealthView,
     notFound: deNotFoundView,
     searchView: deSearchView,
@@ -569,7 +578,8 @@ const messages = {
     gearsView: esGearsView,
     gearView: esGearView,
     stravaCallbackView: esStravaCallbackView,
-    activitiesView: esActivitiesView, // Corrected key
+    activityView: esActivityView,
+    activitiesView: esActivitiesView,
     healthView: esHealthView,
     notFound: esNotFoundView,
     searchView: esSearchView,
@@ -626,7 +636,8 @@ const messages = {
     gearsView: frGearsView,
     gearView: frGearView,
     stravaCallbackView: frStravaCallbackView,
-    activitiesView: frActivitiesView, // Corrected key
+    activityView: frActivityView,
+    activitiesView: frActivitiesView,
     healthView: frHealthView,
     notFound: frNotFoundView,
     searchView: frSearchView,
@@ -683,7 +694,8 @@ const messages = {
     gearsView: nlGearsView,
     gearView: nlGearView,
     stravaCallbackView: nlStravaCallbackView,
-    activitiesView: nlActivitiesView, // Corrected key
+    activityView: nlActivityView,
+    activitiesView: nlActivitiesView,
     healthView: nlHealthView,
     notFound: nlNotFoundView,
     searchView: nlSearchView,
@@ -740,7 +752,8 @@ const messages = {
     gearsView: ptGearsView,
     gearView: ptGearView,
     stravaCallbackView: ptStravaCallbackView,
-    activitiesView: ptActivitiesView, // Corrected key
+    activityView: ptActivityView,
+    activitiesView: ptActivitiesView,
     healthView: ptHealthView,
     notFound: ptNotFoundView,
     searchView: ptSearchView,
@@ -797,7 +810,8 @@ const messages = {
     gearsView: usGearsView,
     gearView: usGearView,
     stravaCallbackView: usStravaCallbackView,
-    activitiesView: usActivitiesView, // Corrected key
+    activityView: usActivityView,
+    activitiesView: usActivitiesView,
     healthView: usHealthView,
     notFound: usNotFoundView,
     searchView: usSearchView,
