@@ -43,7 +43,7 @@
                     <th scope="col" style="width: 15%;" v-if="activity.activity_type === 4 || activity.activity_type === 5 || activity.activity_type === 6 || activity.activity_type === 7 || activity.activity_type === 27">{{ $t("activityLapsComponent.labelLapSpeed") }}</th>
                     <th scope="col" style="width: 15%;" v-else>{{ $t("activityLapsComponent.labelLapPace") }}</th>
                     <th scope="col" style="width: auto;">&nbsp;</th>
-                    <th scope="col" style="width: 10%;">{{ $t("activityLapsComponent.labelLapElev") }}</th>
+                    <th scope="col" style="width: 10%;" v-if="activity.activity_type !== 8 && activity.activity_type !== 9 && activity.activity_type !== 13">{{ $t("activityLapsComponent.labelLapElev") }}</th>
                     <th scope="col" style="width: 10%;">{{ $t("activityLapsComponent.labelLapHR") }}</th>
                 </tr>
             </thead>
@@ -57,7 +57,7 @@
                             <div class="progress-bar" :style="{ width: lap.normalizedScore + '%' }"></div>
                         </div>
                     </td>
-                    <td>{{ lap.formattedElevation }}</td>
+                    <td v-if="activity.activity_type !== 8 && activity.activity_type !== 9 && activity.activity_type !== 13">{{ lap.formattedElevation }}</td>
 					<td>
 						<span v-if="lap.avg_heart_rate">
 							{{ lap.avg_heart_rate }}
