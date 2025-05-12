@@ -71,8 +71,8 @@ def create_strava_client(
 
 
 def check_and_save_tokens(
-    user_id: int,
     strava_client: Client,
+    user_id: int,
     user_integrations: user_integrations_schema.UsersIntegrations | None,
     db: Session,
 ) -> None:
