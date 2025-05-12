@@ -24,7 +24,7 @@
     </td>
     <td class="d-none d-md-table-cell">{{ formatCalories(activity.calories) }}</td>
     <td class="d-none d-md-table-cell">{{ formatElevation(activity.elevation_gain, authStore.user.units) }}</td>
-    <td class="d-none d-md-table-cell">{{ formatAvgHr(activity.average_hr) }}</td>
+    <td class="d-none d-md-table-cell">{{ formatHr(activity.average_hr) }}</td>
 </template>
 
 <script>
@@ -35,7 +35,7 @@ import {
 	formatDistance,
 	formatElevation,
 	formatPace,
-	formatAvgHr,
+	formatHr,
 	formatCalories,
 	getIcon,
 	formatLocation,
@@ -60,7 +60,7 @@ export default {
             formatDistance,
             formatElevation,
             formatPace,
-            formatAvgHr,
+            formatHr,
             formatCalories,
             getIcon,
             formatLocation,

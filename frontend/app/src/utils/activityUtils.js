@@ -1,5 +1,5 @@
 import i18n from "@/i18n";
-import { metersToKm, metersToMiles, metersToFeet } from "@/utils/unitsUtils";
+import { metersToKm, metersToMiles, metersToFeet, metersToYards } from "@/utils/unitsUtils";
 import {
 	formatDateMed,
 	formatTime,
@@ -160,7 +160,7 @@ export function formatAverageSpeed(activity, unitSystem) {
 		activity.average_speed === undefined ||
 		activity.average_speed < 0
 	)
-		return i18n.global.t("generalItems.labelNotApplicable");
+		return i18n.global.t("generalItems.labelNoData");
 	if (Number(unitSystem) === 1) {
 		if (
 			activity.activity_type === 4 ||
@@ -171,7 +171,7 @@ export function formatAverageSpeed(activity, unitSystem) {
 		) {
 			return `${formatAverageSpeedMetric(activity.average_speed)} ${i18n.global.t("generalItems.unitsKmH")}`;
 		}
-		return i18n.global.t("generalItems.labelNotApplicable");
+		return i18n.global.t("generalItems.activityNoData");
 	}
 	if (
 		activity.activity_type === 4 ||
@@ -182,7 +182,7 @@ export function formatAverageSpeed(activity, unitSystem) {
 	) {
 		return `${formatAverageSpeedImperial(activity.average_speed)} ${i18n.global.t("generalItems.unitsMph")}`;
 	}
-	return i18n.global.t("generalItems.labelNotApplicable");
+	return i18n.global.t("generalItems.activityNoData");
 }
 
 
@@ -194,7 +194,7 @@ export function formatAverageSpeed(activity, unitSystem) {
  * @returns {string} The formatted date and time string, or a "Not Applicable" label if the input is invalid.
  */
 export function formatDateTime(dateTimeString, separator = ", ") {
-	if (!dateTimeString) return i18n.global.t("generalItems.labelNotApplicable");
+	if (!dateTimeString) return i18n.global.t("generalItems.labelNoData");
 	return `${formatDateMed(dateTimeString)}${separator}${formatTime(dateTimeString)}`;
 }
 
@@ -207,7 +207,7 @@ export function formatDateTime(dateTimeString, separator = ", ") {
  */
 export function formatDuration(seconds) {
 	if (seconds === null || seconds === undefined || seconds < 0)
-		return i18n.global.t("generalItems.labelNotApplicable");
+		return i18n.global.t("generalItems.labelNoData");
 	return formatSecondsToMinutes(seconds);
 }
 
@@ -225,34 +225,41 @@ export function formatDistance(activity, unitSystem) {
 		activity.distance === undefined ||
 		activity.distance < 0
 	)
-		return i18n.global.t("generalItems.labelNotApplicable");
+		return i18n.global.t("generalItems.labelNoData");
 	if (Number(unitSystem) === 1) {
-		if (activity.activity_type !== 9 || activity.activity_type !== 8) {
+		if (activity.activity_type !== 9 && activity.activity_type !== 8) {
 			return `${metersToKm(activity.distance)} ${i18n.global.t("generalItems.unitsKm")}`;
 		}
 		return `${activity.distance} ${i18n.global.t("generalItems.unitsM")}`;
 	}
-	if (activity.activity_type !== 9 || activity.activity_type !== 8) {
+	if (activity.activity_type !== 9 && activity.activity_type !== 8) {
 		return `${metersToMiles(activity.distance)} ${i18n.global.t("generalItems.unitsMiles")}`;
 	}
 	return `${metersToYards(activity.distance)} ${i18n.global.t("generalItems.unitsYards")}`;
 }
 
 /**
- * Formats the average heart rate (avgHr) into a user-friendly string.
+ * Formats the heart rate (hr) into a user-friendly string.
  *
- * If the provided avgHr is null, undefined, or less than or equal to 0,
+ * If the provided hr is null, undefined, or less than or equal to 0,
  * it returns a localized "Not Applicable" label. Otherwise, it rounds
- * the avgHr value and appends the localized "bpm" unit.
+ * the hr value and appends the localized "bpm" unit.
  *
- * @param {number|null|undefined} avgHr - The average heart rate to format.
- * @returns {string} A formatted string representing the average heart rate
+ * @param {number|null|undefined} hr - The heart rate to format.
+ * @returns {string} A formatted string representing the heart rate
  *                   or a "Not Applicable" label if the input is invalid.
  */
-export function formatAvgHr(avgHr) {
-	if (avgHr === null || avgHr === undefined || avgHr <= 0)
-		return i18n.global.t("generalItems.labelNotApplicable");
-	return `${Math.round(avgHr)} ${i18n.global.t("generalItems.unitsBpm")}`;
+export function formatHr(hr) {
+	if (hr === null || hr === undefined || hr <= 0)
+		return i18n.global.t("generalItems.labelNoData");
+	return `${Math.round(hr)} ${i18n.global.t("generalItems.unitsBpm")}`;
+}
+
+
+export function formatPower(power) {
+	if (power === null || power === undefined || power <= 0)
+		return i18n.global.t("generalItems.labelNoData");
+	return `${Math.round(power)} ${i18n.global.t("generalItems.unitsWattsShort")}`;
 }
 
 /**
@@ -264,7 +271,7 @@ export function formatAvgHr(avgHr) {
  */
 export function formatElevation(meters, unitSystem) {
 	if (meters === null || meters === undefined)
-		return i18n.global.t("generalItems.labelNotApplicable");
+		return i18n.global.t("generalItems.labelNoData");
 	if (Number(unitSystem) === 1) {
 		return `${meters} ${i18n.global.t("generalItems.unitsM")}`;
 	}
@@ -279,7 +286,7 @@ export function formatElevation(meters, unitSystem) {
  */
 export function formatCalories(calories) {
 	if (calories === null || calories === undefined)
-		return i18n.global.t("generalItems.labelNotApplicable");
+		return i18n.global.t("generalItems.labelNoData");
 	return `${calories} ${i18n.global.t("generalItems.unitsCalories")}`;
 }
 
@@ -333,7 +340,7 @@ export function formatLocation(activity) {
 	const { town, city, country } = activity;
 
 	if (!town && !city && !country) {
-		return i18n.global.t("generalItems.labelNotApplicable");
+		return i18n.global.t("generalItems.labelNoData");
 	}
 
 	const locationParts = [];
