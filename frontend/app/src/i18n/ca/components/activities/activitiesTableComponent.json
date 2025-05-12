@@ -1,0 +1,12 @@
+{
+  "headerType": "Tipus",
+  "headerName": "Nom",
+  "headerLocation": "Ubicació",
+  "headerStartTime": "Hora d'inici",
+  "headerDuration": "Durada",
+  "headerDistance": "Distància",
+  "headerPace": "Ritme",
+  "headerCalories": "Calories",
+  "headerElevation": "Elevació",
+  "headerAvgHr": "FC Mitj."
+}

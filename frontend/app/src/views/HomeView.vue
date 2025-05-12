@@ -1,5 +1,5 @@
 <template>
-	<div class="row">
+	<div class="row row-gap-3">
 		<!-- sidebar zone -->
 		<div class="col-lg-3 col-md-12">
 			<div class="sticky-sidebar">
@@ -25,19 +25,10 @@
 					<UserDistanceStatsComponent :thisWeekDistances="thisWeekDistances" :thisMonthDistances="thisMonthDistances" v-else />
 				</div>
 
-				<!-- add activity and refresh buttons -->
-				<div class="row mb-3">
-					<div class="col">
-						<a class="w-100 btn btn-primary shadow-sm" href="#" role="button" data-bs-toggle="modal" data-bs-target="#addActivityModal">
-							{{ $t("homeView.buttonAddActivity") }}
-						</a>
-					</div>
-					<div class="col-4" v-if="authStore.user.is_strava_linked == 1 || authStore.user.is_garminconnect_linked == 1">
-						<a class="w-100 btn btn-primary shadow-sm" href="#" role="button" @click="refreshActivities">
-							<font-awesome-icon :icon="['fas', 'arrows-rotate']" />
-						</a>
-					</div>
-				</div>
+				<!-- add activity button -->
+				<a class="w-100 btn btn-primary shadow-sm" href="#" role="button" data-bs-toggle="modal" data-bs-target="#addActivityModal">
+					{{ $t("homeView.buttonAddActivity") }}
+				</a>
 			</div>
 
 			<!-- Modal add actvity -->
@@ -214,13 +205,14 @@ export default {
 				push.error(`${t("homeView.errorFetchingUserActivities")} - ${error}`);
 			}
 		}
-		
+
 		const handleScroll = () => {
 			// If the component is already loading or there are no more activities, return
 			if (isLoading.value || !userHasMoreActivities.value) return;
 
 			const bottomOfWindow =
-				window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 1;
+				window.innerHeight + window.scrollY >=
+				document.documentElement.scrollHeight - 1;
 
 			// If the user has reached the bottom of the page, fetch more activities
 			if (bottomOfWindow) {
@@ -270,43 +262,6 @@ export default {
 			}
 		};
 
-		async function refreshActivities() {
-			// Set the loading message
-			const notification = push.promise(t("homeView.refreshingActivities"));
-
-			try {
-				console.log("Refreshing activities");
-				// Get the user activities
-				const newActivities = await activities.getActivityRefresh();
-
-				// If userActivities is not defined, do it
-				if (!userActivities.value) {
-					userActivities.value = [];
-				}
-
-				// Iterate over the new activities and add them to the user activities
-				if (newActivities) {
-					for (const newActivity of newActivities) {
-						userActivities.value.unshift(newActivity);
-					}
-				}
-
-				// Set the success message
-				notification.resolve(t("homeView.successActivitiesRefreshed"));
-
-				// Fetch the user stats
-				fetchUserStars();
-				
-				// Set the user number of activities
-				console.log(userNumberOfActivities.value);
-				userNumberOfActivities.value += newActivities.length; 
-				console.log(userNumberOfActivities.value);
-			} catch (error) {
-				// Set the error message
-				notification.reject(`${error}`);
-			}
-		}
-
 		onMounted(async () => {
 			if (route.query.activityFound === "false") {
 				// Set the activityFound value to false and show the error alert.
@@ -330,15 +285,18 @@ export default {
 
 				// Fetch the user activities and user activities number
 				userNumberOfActivities.value =
-					await activities.getUserNumberOfActivities(authStore.user.id);
+					await activities.getUserNumberOfActivities();
+
+				// Fetch the initial user activities response (contains activities array and total_count)
 				userActivities.value = await activities.getUserActivitiesWithPagination(
 					authStore.user.id,
 					pageNumberUserActivities.value,
 					numRecords,
 				);
+
 				//followedUserActivities.value = await activities.getUserFollowersActivitiesWithPagination(authStore.user.id, pageNumberUserActivities, numRecords);
 
-				// If the number of activities is greater than the page number times the number of records, there are no more activities
+				// Use the total_count from the response to check if there are more activities
 				if (
 					pageNumberUserActivities.value * numRecords >=
 					userNumberOfActivities.value
@@ -368,7 +326,6 @@ export default {
 			followedUserActivities,
 			submitUploadFileForm,
 			t,
-			refreshActivities
 		};
 	},
 };

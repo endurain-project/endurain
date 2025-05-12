@@ -1,18 +1,15 @@
-from operator import and_, or_
-from fastapi import HTTPException, status
-from datetime import datetime
-from sqlalchemy import func, desc
-from sqlalchemy.orm import Session, joinedload
+from datetime import date, datetime  # Added date
 from urllib.parse import unquote
-from pydantic import BaseModel
 
 import activities.models as activities_models
 import activities.schema as activities_schema
 import activities.utils as activities_utils
-
-import server_settings.crud as server_settings_crud
-
 import core.logger as core_logger
+import server_settings.crud as server_settings_crud
+from fastapi import HTTPException, status
+from pydantic import BaseModel
+from sqlalchemy import and_, desc, func, or_
+from sqlalchemy.orm import Session, joinedload
 
 
 def get_all_activities(db: Session):
@@ -69,25 +66,74 @@ def get_all_activities_no_serialize(db: Session):
 def get_user_activities(
     user_id: int,
     db: Session,
-):
+    activity_type: int | None = None,
+    start_date: date | None = None,
+    end_date: date | None = None,
+    name_search: str | None = None,
+) -> list[activities_schema.Activity] | None:
     try:
-        # Get the activities from the database
-        activities = (
-            db.query(activities_models.Activity)
-            .filter(activities_models.Activity.user_id == user_id)
-            .order_by(desc(activities_models.Activity.start_time))
-            .all()
+        # Base query
+        query = db.query(activities_models.Activity).filter(
+            activities_models.Activity.user_id == user_id
         )
+
+        # Apply filters
+        if activity_type:
+            # add filter for activity type
+            query = query.filter(
+                activities_models.Activity.activity_type == activity_type
+            )
+            
+        if start_date:
+            # add filter for start date
+            query = query.filter(
+                func.date(activities_models.Activity.start_time) >= start_date
+            )
+
+        if end_date:
+            # add filter for end date
+            query = query.filter(
+                func.date(activities_models.Activity.start_time) <= end_date
+            )
+
+        if name_search:
+            # Decode and prepare search term
+            search_term = unquote(name_search).replace("+", " ").lower()
+            # Apply search across name, town, city, and country
+            query = query.filter(
+                or_(
+                    func.lower(activities_models.Activity.name).like(
+                        f"%{search_term}%"
+                    ),
+                    func.lower(activities_models.Activity.town).like(
+                        f"%{search_term}%"
+                    ),
+                    func.lower(activities_models.Activity.city).like(
+                        f"%{search_term}%"
+                    ),
+                    func.lower(activities_models.Activity.country).like(
+                        f"%{search_term}%"
+                    ),
+                )
+            )
+
+        # Apply sorting
+        query = query.order_by(desc(activities_models.Activity.start_time))
+
+        # Get the activities from the database
+        activities = query.all()
 
         # Check if there are activities if not return None
         if not activities:
             return None
 
+        # Serialize all activities in one pass
+        serialized_activities = []
         for activity in activities:
-            activity = activities_utils.serialize_activity(activity)
+            serialized_activities.append(activities_utils.serialize_activity(activity))
 
         # Return the activities
-        return activities
+        return serialized_activities
 
     except Exception as err:
         # Log the exception
@@ -141,33 +187,167 @@ def get_user_activities_by_user_id_and_garminconnect_gear_set(
 
 
 def get_user_activities_with_pagination(
-    user_id: int, db: Session, page_number: int = 1, num_records: int = 5
-):
+    user_id: int,
+    db: Session,
+    page_number: int = 1,
+    num_records: int = 5,
+    activity_type: int | None = None,
+    start_date: date | None = None,
+    end_date: date | None = None,
+    name_search: str | None = None,
+    sort_by: str | None = None,
+    sort_order: str | None = None,
+) -> list[activities_schema.Activity] | None:
     try:
-        # Get the activities from the database
-        activities = (
-            db.query(activities_models.Activity)
-            .filter(activities_models.Activity.user_id == user_id)
-            .order_by(desc(activities_models.Activity.start_time))
-            .offset((page_number - 1) * num_records)
-            .limit(num_records)
-            .all()
+        # Mapping from frontend sort keys to database model fields
+        SORT_MAP = {
+            "type": activities_models.Activity.activity_type,
+            "name": activities_models.Activity.name,
+            "start_time": activities_models.Activity.start_time,
+            "duration": activities_models.Activity.total_timer_time,
+            "distance": activities_models.Activity.distance,
+            "calories": activities_models.Activity.calories,
+            "elevation": activities_models.Activity.elevation_gain,
+            "pace": activities_models.Activity.pace,
+            "average_hr": activities_models.Activity.average_hr,
+        }
+
+        # Base query
+        query = db.query(activities_models.Activity).filter(
+            activities_models.Activity.user_id == user_id
         )
 
-        # Check if there are activities if not return None
-        if not activities:
-            return None
+        # Apply filters
+        if activity_type:
+            # add filter for activity type
+            query = query.filter(
+                activities_models.Activity.activity_type == activity_type
+            )
+            
+        if start_date:
+            # add filter for start date
+            query = query.filter(
+                func.date(activities_models.Activity.start_time) >= start_date
+            )
 
-        for activity in activities:
-            activity = activities_utils.serialize_activity(activity)
+        if end_date:
+            # add filter for end date
+            query = query.filter(
+                func.date(activities_models.Activity.start_time) <= end_date
+            )
+
+        if name_search:
+            # Decode and prepare search term
+            search_term = unquote(name_search).replace("+", " ").lower()
+            # Apply search across name, town, city, and country
+            query = query.filter(
+                or_(
+                    func.lower(activities_models.Activity.name).like(
+                        f"%{search_term}%"
+                    ),
+                    func.lower(activities_models.Activity.town).like(
+                        f"%{search_term}%"
+                    ),
+                    func.lower(activities_models.Activity.city).like(
+                        f"%{search_term}%"
+                    ),
+                    func.lower(activities_models.Activity.country).like(
+                        f"%{search_term}%"
+                    ),
+                )
+            )
+
+        # Apply sorting
+        sort_ascending = sort_order and sort_order.lower() == "asc"
+
+        if sort_by == "location":
+            # Special handling for location: sort by country, then city, then town
+            country_sort = activities_models.Activity.country
+            city_sort = activities_models.Activity.city
+            town_sort = activities_models.Activity.town
+            if sort_ascending:
+                query = query.order_by(
+                    country_sort.asc().nullslast(),
+                    city_sort.asc().nullslast(),
+                    town_sort.asc().nullslast(),
+                )
+            else:
+                query = query.order_by(
+                    country_sort.desc().nullslast(),
+                    city_sort.desc().nullslast(),
+                    town_sort.desc().nullslast(),
+                )
+        else:
+            # Standard sorting for other columns
+            sort_column = SORT_MAP.get(
+                sort_by, activities_models.Activity.start_time
+            )  # Default to start_time
+            if sort_ascending:
+                # Handle potential None values for numeric/date columns if needed, e.g., .nullslast()
+                query = query.order_by(
+                    sort_column.asc().nullslast()
+                    if hasattr(sort_column, "asc")
+                    else sort_column
+                )
+            else:
+                # Default to descending order
+                query = query.order_by(
+                    sort_column.desc().nullslast()
+                    if hasattr(sort_column, "desc")
+                    else desc(sort_column)
+                )
+
+        # Apply pagination
+        paginated_query = query.offset((page_number - 1) * num_records).limit(
+            num_records
+        )
+
+        # Fetch activities
+        activities = paginated_query.all()
+
+        # Serialize activities
+        serialized_activities = []
+        if activities:
+            for activity in activities:
+                serialized_activities.append(
+                    activities_utils.serialize_activity(activity)
+                )
 
         # Return the activities
-        return activities
+        return serialized_activities if serialized_activities else None
 
     except Exception as err:
         # Log the exception
         core_logger.print_to_log(
             f"Error in get_user_activities_with_pagination: {err}", "error", exc=err
+        )
+        # Raise an HTTPException with a 500 Internal Server Error status code
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal Server Error",
+        ) from err
+
+
+def get_distinct_activity_types_for_user(user_id: int, db: Session):
+    try:
+        # Query distinct activity types (IDs) for the user
+        type_ids = (
+            db.query(activities_models.Activity.activity_type)
+            .filter(activities_models.Activity.user_id == user_id)
+            .distinct()
+            .order_by(activities_models.Activity.activity_type)
+            .all()
+        )
+
+        # Map type IDs to names, excluding None values
+        return {
+            type_id: activities_utils.ACTIVITY_ID_TO_NAME.get(type_id, "Unknown")
+            for type_id, in type_ids if type_id is not None
+        }
+    except Exception as err:
+        # Log the exception
+        core_logger.print_to_log(
+            f"Error in get_distinct_activity_types_for_user: {err}", "error", exc=err
         )
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
@@ -250,9 +430,7 @@ def get_user_following_activities_per_timeframe(
     except Exception as err:
         # Log the exception
         core_logger.print_to_log(
-            f"Error in get_user_following_activities_per_timeframe: {err}",
-            "error",
-            exc=err,
+            f"Error in get_user_following_activities_per_timeframe: {err}", "error", exc=err
         )
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
@@ -300,9 +478,7 @@ def get_user_following_activities_with_pagination(
     except Exception as err:
         # Log the exception
         core_logger.print_to_log(
-            f"Error in get_user_following_activities_with_pagination: {err}",
-            "error",
-            exc=err,
+            f"Error in get_user_following_activities_with_pagination: {err}", "error", exc=err
         )
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
@@ -379,9 +555,7 @@ def get_user_activities_by_gear_id_and_user_id(user_id: int, gear_id: int, db: S
     except Exception as err:
         # Log the exception
         core_logger.print_to_log(
-            f"Error in get_user_activities_by_gear_id_and_user_id: {err}",
-            "error",
-            exc=err,
+            f"Error in get_user_activities_by_gear_id_and_user_id: {err}", "error", exc=err
         )
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
@@ -419,9 +593,7 @@ def get_activity_by_id_from_user_id_or_has_visibility(
     except Exception as err:
         # Log the exception
         core_logger.print_to_log(
-            f"Error in get_activity_by_id_from_user_id_or_has_visibility: {err}",
-            "error",
-            exc=err,
+            f"Error in get_activity_by_id_from_user_id_or_has_visibility: {err}", "error", exc=err
         )
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
@@ -460,9 +632,7 @@ def get_activity_by_id_if_is_public(activity_id: int, db: Session):
     except Exception as err:
         # Log the exception
         core_logger.print_to_log(
-            f"Error in get_activity_by_id_if_is_public: {err}",
-            "error",
-            exc=err,
+            f"Error in get_activity_by_id_if_is_public: {err}", "error", exc=err
         )
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
@@ -569,9 +739,7 @@ def get_activity_by_garminconnect_id_from_user_id(
     except Exception as err:
         # Log the exception
         core_logger.print_to_log(
-            f"Error in get_activity_by_garminconnect_id_from_user_id: {err}",
-            "error",
-            exc=err,
+            f"Error in get_activity_by_garminconnect_id_from_user_id: {err}", "error", exc=err
         )
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
