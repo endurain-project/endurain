@@ -1,4 +1,5 @@
 import time
+from datetime import datetime
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 from stravalib.client import Client
@@ -90,7 +91,8 @@ def check_and_save_tokens(
 
     if (
         strava_client.refresh_token != user_integrations.strava_refresh_token
-        or strava_client.token_expires != user_integrations.strava_token_expires_at
+        or datetime.fromtimestamp(strava_client.token_expires)
+        != user_integrations.strava_token_expires_at
     ):
         tokens = {
             "access_token": strava_client.access_token,
