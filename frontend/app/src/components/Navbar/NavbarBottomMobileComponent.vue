@@ -6,6 +6,12 @@
                 <br>
                 {{ $t("navbarBottomMobileComponent.home") }}
             </router-link>
+            <router-link :to="{ name: 'activities' }" class="nav-link link-body-emphasis">
+                <!-- Corrected route name -->
+                <font-awesome-icon :icon="['fas', 'fa-person-running']" />
+                <br />
+                {{ $t('navbarBottomMobileComponent.activities') }}
+            </router-link>
             <router-link :to="{ name: 'gears' }" class="nav-link link-body-emphasis">
                 <font-awesome-icon :icon="['fas', 'fa-bicycle']" />
                 <br>
@@ -16,16 +22,6 @@
                 <br>
                 {{ $t("navbarBottomMobileComponent.health") }}
             </router-link>
-            <router-link :to="{ name: 'search' }" class="nav-link link-body-emphasis">
-                <font-awesome-icon :icon="['fas', 'magnifying-glass']" />
-                <br>
-                {{ $t("navbarBottomMobileComponent.search") }}
-            </router-link>
-            <!--<router-link :to="{ name: 'menu' }" class="nav-link link-body-emphasis">
-                <font-awesome-icon :icon="['fas', 'bars']" size="2x"/>
-                <br>
-                {{ $t("navbarBottomMobileComponent.menu") }}
-            </router-link>-->
             <button class="nav-link link-body-emphasis" id="offcanvasNavbarButton" type="button" data-bs-toggle="offcanvas" data-bs-target="#offcanvasNavbar" aria-controls="offcanvasNavbar" aria-label="Toggle navigation">
                 <font-awesome-icon :icon="['fas', 'bars']" />
                 <br>
@@ -38,6 +34,16 @@
                 </div>
                 <div class="offcanvas-body">
                     <ul class="navbar-nav justify-content-end flex-grow-1 pe-3">
+                        <li class="nav-item">
+                            <router-link
+                                :to="{ name: 'search' }"
+                                class="nav-link link-body-emphasis w-100 py-3 fs-5"
+                                @click="closeOffcanvas"
+                            >
+                                <font-awesome-icon :icon="['fas', 'magnifying-glass']" />
+                                <span class="ms-1">{{ $t('navbarComponent.search') }}</span>
+                            </router-link>
+                        </li>
                         <li class="nav-item">
                             <router-link :to="{ name: 'settings' }" class="nav-link link-body-emphasis w-100 py-3 fs-5" @click="closeOffcanvas">
                                 <font-awesome-icon :icon="['fas', 'fa-gear']" />
