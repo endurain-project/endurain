@@ -1,12 +1,12 @@
 {
-  "headerType": "Tipus",
-  "headerName": "Nom",
-  "headerLocation": "Ubicació",
-  "headerStartTime": "Hora d'inici",
-  "headerDuration": "Durada",
-  "headerDistance": "Distància",
-  "headerPace": "Ritme",
+  "headerType": "Type",
+  "headerName": "Name",
+  "headerLocation": "Location",
+  "headerStartTime": "Start time",
+  "headerDuration": "Duration",
+  "headerDistance": "Distance",
+  "headerPace": "Pace/Speed",
   "headerCalories": "Calories",
-  "headerElevation": "Elevació",
-  "headerAvgHr": "FC Mitj."
+  "headerElevation": "Elevation",
+  "headerAvgHr": "Avg HR"
 }
