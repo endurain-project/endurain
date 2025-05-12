@@ -28,7 +28,6 @@
 </template>
 
 <script>
-import { ref } from "vue";
 import { useI18n } from "vue-i18n";
 import {
 	formatDuration,
@@ -54,7 +53,6 @@ export default {
 	setup(props) {
 		const { t } = useI18n();
 		const authStore = useAuthStore();
-		const formattedPace = ref(null);
 
 		return {
             formatDuration,
@@ -69,7 +67,6 @@ export default {
             formatAverageSpeed,
 			t,
 			authStore,
-            formattedPace,
 		};
 	},
 };

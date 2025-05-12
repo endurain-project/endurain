@@ -266,7 +266,7 @@ export function formatElevation(meters, unitSystem) {
 	if (meters === null || meters === undefined)
 		return i18n.global.t("generalItems.labelNotApplicable");
 	if (Number(unitSystem) === 1) {
-		return `${meters} ${i18n.global.t("generalItems.unitsBpm")}`;
+		return `${meters} ${i18n.global.t("generalItems.unitsM")}`;
 	}
 	return `${metersToFeet(meters)} ${i18n.global.t("generalItems.unitsFeetShort")}`;
 }
