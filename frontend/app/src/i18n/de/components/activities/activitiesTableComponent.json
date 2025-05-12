@@ -1,12 +1,12 @@
 {
-  "headerType": "Typ",
+  "headerType": "Type",
   "headerName": "Name",
-  "headerLocation": "Ort",
-  "headerStartTime": "Startzeit",
-  "headerDuration": "Dauer",
-  "headerDistance": "Distanz",
-  "headerPace": "Tempo",
-  "headerCalories": "Kalorien",
-  "headerElevation": "Höhenmeter",
-  "headerAvgHr": "Ø HF"
+  "headerLocation": "Location",
+  "headerStartTime": "Start time",
+  "headerDuration": "Duration",
+  "headerDistance": "Distance",
+  "headerPace": "Pace/Speed",
+  "headerCalories": "Calories",
+  "headerElevation": "Elevation",
+  "headerAvgHr": "Avg HR"
 }
