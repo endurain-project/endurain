@@ -6,7 +6,7 @@
     "buttonDeleteActivity": "Verwijder activiteit",
     "buttonEditActivity": "Bewerk activiteit",
     "modalDeleteBody1": "Weet u zeker dat u de activiteit wilt verwijderen? ",
-    "modalDeleteBody2": "(Virtueel)",
+    "modalDeleteBody2": "Deze actie kan niet ongedaan worden gemaakt.",
     "labelVirtual": "(Virtueel) ",
     "activityDistance": "Afstand",
     "activityTime": "Tijd",
