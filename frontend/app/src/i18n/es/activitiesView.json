@@ -1,3 +1,14 @@
 {
-  
+  "title": "Activities",
+  "filterLabelType": "Type",
+  "filterOptionAllTypes": "All Types",
+  "filterLabelFromDate": "From Date",
+  "filterLabelToDate": "To Date",
+  "filterLabelNameLocation": "Name or Location",
+  "filterPlaceholderNameLocation": "e.g., Morning Run",
+  "buttonClear": "Clear",
+  "buttonApply": "Apply",
+  "errorFailedFetchActivityTypes": "Failed to fetch activity types",
+  "errorUpdatingActivities": "Failed to updated activities",
+  "errorFetchingActivities": "Failed to fetch user activities"
 }
