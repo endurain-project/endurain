@@ -1,13 +1,21 @@
 from fastapi import HTTPException, status
+from sqlalchemy.orm import Session
 from stravalib.client import Client
 
 import core.logger as core_logger
 
+import strava.utils as strava_utils
 
-def get_strava_athlete(strava_client: Client):
+def get_strava_athlete(strava_client: Client, user_id: int, db: Session):
     # Fetch Strava athlete
     try:
         strava_athlete = strava_client.get_athlete()
+
+        strava_utils.check_and_save_tokens(
+            strava_client,
+            user_id,
+            None,
+            db)
     except Exception as err:
         core_logger.print_to_log(
             f"Error fetching Strava athlete: {err}. Returning 424 Failed Dependency",

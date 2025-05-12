@@ -18,10 +18,16 @@ import user_integrations.crud as user_integrations_crud
 from core.database import SessionLocal
 
 
-def get_strava_gear(gear_id: str, strava_client: Client):
+def get_strava_gear(gear_id: str, user_id: int, strava_client: Client, db: Session):
     # Fetch Strava gear
     try:
         strava_gear = strava_client.get_gear(gear_id)
+
+        strava_utils.check_and_save_tokens(
+            strava_client,
+            user_id,
+            None,
+            db)
     except Exception as err:
         # Log an error event if the gear could not be fetched
         core_logger.print_to_log(
@@ -46,7 +52,7 @@ def get_strava_gear(gear_id: str, strava_client: Client):
 def fetch_and_process_gear(strava_client: Client, user_id: int, db: Session) -> int:
     # Fetch Strava athlete
     try:
-        strava_athlete = strava_athlete_utils.get_strava_athlete(strava_client)
+        strava_athlete = strava_athlete_utils.get_strava_athlete(strava_client, user_id, db)
     except Exception as err:
         raise err
 
@@ -91,7 +97,7 @@ def process_gear(
 
     # Get the gear from Strava
     try:
-        strava_gear = get_strava_gear(gear.id, strava_client)
+        strava_gear = get_strava_gear(gear.id, user_id, strava_client, db)
     except Exception as err:
         raise err
 

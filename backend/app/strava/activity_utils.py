@@ -41,6 +41,10 @@ def fetch_and_process_activities(
     # Fetch Strava activities after the specified start date
     try:
         strava_activities = list(strava_client.get_activities(after=start_date))
+
+        strava_utils.check_and_save_tokens(
+            strava_client, user_id, user_integrations, db
+        )
     except Exception as err:
         # Log an error event if an exception occurred
         core_logger.print_to_log(
@@ -105,6 +109,10 @@ def parse_activity(
     # Get the detailed activity
     try:
         detailedActivity = strava_client.get_activity(activity.id)
+
+        strava_utils.check_and_save_tokens(
+            strava_client, user_id, user_integrations, db
+        )
     except Exception as err:
         # Log an error event if an exception occurred
         core_logger.print_to_log(
@@ -161,7 +169,9 @@ def parse_activity(
         vel_waypoints,
         is_velocity_set,
         pace_waypoints,
-    ) = fetch_and_process_activity_streams(strava_client, activity.id, user_id)
+    ) = fetch_and_process_activity_streams(
+        strava_client, activity.id, user_id, user_integrations, db
+    )
 
     ele_gain, ele_loss = None, None
     # Calculate elevation gain and loss
@@ -293,7 +303,7 @@ def parse_activity(
 
     # Fetch and process activity laps
     laps = fetch_and_process_activity_laps(
-        strava_client, activity.id, user_id, stream_data
+        strava_client, activity.id, user_id, stream_data, user_integrations, db
     )
 
     # Return the activity and stream data
@@ -381,6 +391,8 @@ def fetch_and_process_activity_streams(
     strava_client: Client,
     strava_activity_id: int,
     user_id: int,
+    user_integrations: user_integrations_schema.UsersIntegrations,
+    db: Session,
 ):
     # Get streams for the activity
     try:
@@ -395,6 +407,10 @@ def fetch_and_process_activity_streams(
                 "watts",
                 "velocity_smooth",
             ],
+        )
+
+        strava_utils.check_and_save_tokens(
+            strava_client, user_id, user_integrations, db
         )
     except Exception as err:
         # Log an error event if an exception occurred
@@ -493,10 +509,16 @@ def fetch_and_process_activity_laps(
     strava_activity_id: int,
     user_id: int,
     stream_data: list,
+    user_integrations: user_integrations_schema.UsersIntegrations,
+    db: Session,
 ):
     # Fetch the activity laps
     try:
         laps = strava_client.get_activity_laps(strava_activity_id)
+
+        strava_utils.check_and_save_tokens(
+            strava_client, user_id, user_integrations, db
+        )
     except Exception as err:
         # Log an error event if an exception occurred
         core_logger.print_to_log(

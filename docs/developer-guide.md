@@ -161,6 +161,7 @@ The table bellow details the activity types supported by Endurain:
 | Road cycling | 4 |
 | Gravel cycling | 5 |
 | MTB cycling | 6 |
+| Commuting cycling | 27 |
 | Virtual cycling | 7 |
 | Indoor swimming | 8 |
 | Open water swimming | 9 |
