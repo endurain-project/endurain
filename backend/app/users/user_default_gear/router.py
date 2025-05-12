@@ -3,8 +3,8 @@ from typing import Annotated, Callable
 from fastapi import APIRouter, Depends, Security
 from sqlalchemy.orm import Session
 
-import user_default_gear.schema as user_default_gear_schema
-import user_default_gear.crud as user_default_gear_crud
+import users.user_default_gear.schema as user_default_gear_schema
+import users.user_default_gear.crud as user_default_gear_crud
 
 import session.security as session_security
 

@@ -18,7 +18,7 @@ import activities.activity.schema as activities_schema
 import activities.activity.crud as activities_crud
 import activities.activity.models as activities_models
 
-import users.crud as users_crud
+import users.user.crud as users_crud
 
 import activities.activity_laps.crud as activity_laps_crud
 

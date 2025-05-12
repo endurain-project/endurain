@@ -16,9 +16,9 @@ import gears.models
 import health_data.models
 import health_targets.models
 import migrations.models
-import user_default_gear.models
-import user_integrations.models
-import users.models
+import users.user_default_gear.models
+import users.user_integrations.models
+import users.user.models
 import session.models
 import server_settings.models
 

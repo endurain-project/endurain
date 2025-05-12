@@ -8,8 +8,8 @@ import shutil
 
 import session.constants as session_constants
 
-import users.crud as users_crud
-import users.schema as users_schema
+import users.user.crud as users_crud
+import users.user.schema as users_schema
 
 import core.logger as core_logger
 

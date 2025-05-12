@@ -6,9 +6,9 @@ from urllib.parse import unquote
 
 import session.security as session_security
 
-import users.schema as users_schema
-import users.utils as users_utils
-import users.models as users_models
+import users.user.schema as users_schema
+import users.user.utils as users_utils
+import users.user.models as users_models
 
 import health_data.utils as health_data_utils
 

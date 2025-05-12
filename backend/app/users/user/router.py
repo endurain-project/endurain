@@ -3,14 +3,14 @@ from typing import Annotated, Callable
 from fastapi import APIRouter, Depends, UploadFile, Security, HTTPException, status
 from sqlalchemy.orm import Session
 
-import users.schema as users_schema
-import users.crud as users_crud
-import users.dependencies as users_dependencies
-import users.utils as users_utils
+import users.user.schema as users_schema
+import users.user.crud as users_crud
+import users.user.dependencies as users_dependencies
+import users.user.utils as users_utils
 
-import user_integrations.crud as user_integrations_crud
+import users.user_integrations.crud as user_integrations_crud
 
-import user_default_gear.crud as user_default_gear_crud
+import users.user_default_gear.crud as user_default_gear_crud
 
 import health_targets.crud as health_targets_crud
 

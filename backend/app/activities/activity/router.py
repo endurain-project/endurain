@@ -13,7 +13,7 @@ import core.dependencies as core_dependencies
 import core.logger as core_logger
 import gears.dependencies as gears_dependencies
 import session.security as session_security
-import users.dependencies as users_dependencies
+import users.user.dependencies as users_dependencies
 from fastapi import (
     APIRouter,
     BackgroundTasks,

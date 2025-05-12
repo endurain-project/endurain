@@ -27,9 +27,17 @@ def upgrade() -> None:
             "default_activity_visibility",
             sa.Integer(),
             nullable=False,
-            server_default=sa.text("0"),
+            server_default="0",
             comment="0 - public, 1 - followers, 2 - private",
         ),
+    )
+    # Set default value for existing records
+    op.execute(
+        """
+        UPDATE users
+        SET default_activity_visibility = 0
+        WHERE default_activity_visibility IS NULL
+        """
     )
     # Add login_photo_set column to server_settings table
     op.add_column(

@@ -9,8 +9,8 @@ import core.logger as core_logger
 import activities.activity.schema as activities_schema
 import activities.activity.crud as activities_crud
 
-import user_integrations.schema as user_integrations_schema
-import user_integrations.crud as user_integrations_crud
+import users.user_integrations.schema as user_integrations_schema
+import users.user_integrations.crud as user_integrations_crud
 
 
 def fetch_and_validate_activity(

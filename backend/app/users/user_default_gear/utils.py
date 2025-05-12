@@ -1,7 +1,7 @@
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
-import user_default_gear.crud as user_default_gear_crud
+import users.user_default_gear.crud as user_default_gear_crud
 
 
 def get_user_default_gear_by_activity_type(

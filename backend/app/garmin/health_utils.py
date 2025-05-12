@@ -12,7 +12,7 @@ import garmin.utils as garmin_utils
 import health_data.crud as health_data_crud
 import health_data.schema as health_data_schema
 
-import users.crud as users_crud
+import users.user.crud as users_crud
 
 from core.database import SessionLocal
 

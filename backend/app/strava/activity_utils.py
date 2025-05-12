@@ -17,11 +17,11 @@ import activities.activity_laps.crud as activity_laps_crud
 import activities.activity_streams.schema as activity_streams_schema
 import activities.activity_streams.crud as activity_streams_crud
 
-import user_integrations.schema as user_integrations_schema
+import users.user_integrations.schema as user_integrations_schema
 
-import user_default_gear.utils as user_default_gear_utils
+import users.user_default_gear.utils as user_default_gear_utils
 
-import users.crud as users_crud
+import users.user.crud as users_crud
 
 import gears.crud as gears_crud
 

@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 import followers.schema as followers_schema
 import followers.crud as followers_crud
 
-import users.dependencies as users_dependencies
+import users.user.dependencies as users_dependencies
 
 import session.security as session_security
 

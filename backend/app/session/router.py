@@ -17,8 +17,8 @@ import session.security as session_security
 import session.constants as session_constants
 import session.crud as session_crud
 
-import users.crud as users_crud
-import users.utils as users_utils
+import users.user.crud as users_crud
+import users.user.utils as users_utils
 
 import core.database as core_database
 

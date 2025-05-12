@@ -3,9 +3,9 @@ from typing import Annotated, Callable
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
-import users.schema as users_schema
-import users.crud as users_crud
-import users.dependencies as users_dependencies
+import users.user.schema as users_schema
+import users.user.crud as users_crud
+import users.user.dependencies as users_dependencies
 
 import core.database as core_database
 

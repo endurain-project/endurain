@@ -2,8 +2,8 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 from datetime import datetime
 
-import user_integrations.schema as user_integrations_schema
-import user_integrations.models as user_integrations_models
+import users.user_integrations.schema as user_integrations_schema
+import users.user_integrations.models as user_integrations_models
 
 import core.logger as core_logger
 

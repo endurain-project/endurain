@@ -16,7 +16,7 @@ import activities.activity_exercise_titles.crud as activity_exercise_titles_crud
 
 import activities.activity_workout_steps.schema as activity_workout_steps_schema
 
-import user_default_gear.utils as user_default_gear_utils
+import users.user_default_gear.utils as user_default_gear_utils
 
 import garmin.utils as garmin_utils
 

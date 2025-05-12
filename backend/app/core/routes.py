@@ -4,9 +4,9 @@ import core.router as core_router
 import core.config as core_config
 import session.router as session_router
 import session.security as session_security
-import users.router as users_router
+import users.user.router as users_router
 import profile.router as profile_router
-import user_default_gear.router as user_default_gear_router
+import users.user_default_gear.router as user_default_gear_router
 import activities.activity.router as activities_router
 import activities.activity_exercise_titles.router as activity_exercise_titles_router
 import activities.activity_laps.router as activity_laps_router
@@ -22,7 +22,7 @@ import health_targets.router as health_targets_router
 import server_settings.router as server_settings_router
 import websocket.router as websocket_router
 
-import users.public_router as users_public_router
+import users.user.public_router as users_public_router
 import activities.activity.public_router as activities_public_router
 import activities.activity_exercise_titles.public_router as activity_exercise_titles_public_router
 import activities.activity_laps.public_router as activity_laps_public_router

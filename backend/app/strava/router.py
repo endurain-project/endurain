@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 import session.security as session_security
 
-import user_integrations.crud as user_integrations_crud
+import users.user_integrations.crud as user_integrations_crud
 
 import gears.crud as gears_crud
 

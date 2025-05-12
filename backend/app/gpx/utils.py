@@ -11,7 +11,7 @@ from fastapi import HTTPException, status
 import activities.activity.utils as activities_utils
 import activities.activity.schema as activities_schema
 
-import user_default_gear.utils as user_default_gear_utils
+import users.user_default_gear.utils as user_default_gear_utils
 
 import core.logger as core_logger
 

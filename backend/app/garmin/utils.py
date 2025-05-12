@@ -10,8 +10,8 @@ import garminconnect
 
 from sqlalchemy.orm import Session
 
-import user_integrations.schema as user_integrations_schema
-import user_integrations.crud as user_integrations_crud
+import users.user_integrations.schema as user_integrations_schema
+import users.user_integrations.crud as user_integrations_crud
 
 import websocket.schema as websocket_schema
 
