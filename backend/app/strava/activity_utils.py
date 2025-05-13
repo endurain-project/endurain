@@ -659,6 +659,7 @@ def retrieve_strava_users_activities_for_days(days: int, is_startup: bool = Fals
                             "%Y-%m-%dT%H:%M:%S"
                         ),
                         user.id,
+                        None,
                         is_startup,
                     )
                 except HTTPException as err:
