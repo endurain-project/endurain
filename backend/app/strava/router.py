@@ -1,9 +1,9 @@
-import requests
-
 from datetime import datetime, timedelta, timezone
 from typing import Annotated, Callable
 from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks, Security
 from sqlalchemy.orm import Session
+
+from stravalib.exc import AccessUnauthorized
 
 import session.security as session_security
 
@@ -61,7 +61,7 @@ async def strava_link(
     try:
         # Create a Strava client
         strava_client = strava_utils.create_strava_client(user_integrations)
-        
+
         # Exchange code for token
         tokens = strava_client.exchange_code_for_token(
             client_id=user_integrations.strava_client_id,
@@ -71,9 +71,11 @@ async def strava_link(
 
         # Update the user integrations with the tokens
         user_integrations_crud.link_strava_account(user_integrations, tokens, db)
-        
+
         # Return success message
-        return {"detail": f"Strava linked successfully for user {user_integrations.user_id}"}
+        return {
+            "detail": f"Strava linked successfully for user {user_integrations.user_id}"
+        }
     except Exception as err:
         core_logger.print_to_log(
             f"Unable to link Strava account: {err}", "error", exc=err
@@ -239,7 +241,14 @@ async def strava_unlink(
 
     # Deauthorize the Strava client
     if strava_client:
-        strava_client.deauthorize()
+        try:
+            strava_client.deauthorize()
+        except (AccessUnauthorized, Exception) as err:
+            core_logger.print_to_log(
+                f"Unable to deauthorize Strava account, using stravalib deauthorize logic. Will unlink forcibly",
+                "info",
+                exc=err,
+            )
 
     # delete all strava gear for user
     gears_crud.delete_all_strava_gear_for_user(token_user_id, db)
