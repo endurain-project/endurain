@@ -741,21 +741,43 @@ def get_user_strava_activities_by_days(
         # Create a Strava client with the user's access token
         strava_client = strava_utils.create_strava_client(user_integrations)
 
-        # Fetch Strava activities after the specified start date
-        strava_activities_processed = fetch_and_process_activities(
-            strava_client, start_date, user_id, user_integrations, db
-        )
+        try:
+            # Fetch Strava activities after the specified start date
+            strava_activities_processed = fetch_and_process_activities(
+                strava_client, start_date, user_id, user_integrations, db
+            )
 
-        # Log an informational event for tracing
-        core_logger.print_to_log(
-            f"User {user_id}: {len(strava_activities_processed) if strava_activities_processed else 0} Strava activities processed"
-        )
+            # Log an informational event for tracing
+            core_logger.print_to_log(
+                f"User {user_id}: {len(strava_activities_processed) if strava_activities_processed else 0} Strava activities processed"
+            )
 
-        return strava_activities_processed
+            return strava_activities_processed
+        except HTTPException as err:
+            # Log an error event if an exception occurred
+            core_logger.print_to_log(
+                f"User {user_id}: Error processing Strava activities: {str(err)}",
+                "error",
+                exc=err,
+            )
+            # Raise the HTTPException to propagate the error
+            raise err
+        except Exception as err:
+            # Log an error event if an exception occurred
+            core_logger.print_to_log(
+                f"User {user_id}: Error processing Strava activities: {str(err)}",
+                "error",
+                exc=err,
+            )
+            # Raise an HTTPException with a 500 Internal Server Error status code
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Internal Server Error",
+            ) from err
     except HTTPException as err:
         # Log an error event if an exception occurred
         core_logger.print_to_log(
-            f"User {user_id}: Error processing Strava activities: {str(err)}",
+            f"User {user_id}: Error getting user integrations and Strava client: {str(err)}",
             "error",
             exc=err,
         )
@@ -764,7 +786,7 @@ def get_user_strava_activities_by_days(
     except Exception as err:
         # Log an error event if an exception occurred
         core_logger.print_to_log(
-            f"User {user_id}: Error processing Strava activities: {str(err)}",
+            f"User {user_id}: Error getting user integrations and Strava client: {str(err)}",
             "error",
             exc=err,
         )
