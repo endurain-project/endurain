@@ -38,6 +38,9 @@ def fetch_and_process_activities(
     db: Session,
     is_startup: bool = False,
 ) -> int:
+    # set the strava activities to None
+    strava_activities = None
+
     # Fetch Strava activities after the specified start date
     try:
         strava_activities = list(strava_client.get_activities(after=start_date))
@@ -58,6 +61,8 @@ def fetch_and_process_activities(
                 status_code=status.HTTP_424_FAILED_DEPENDENCY,
                 detail="Not able to fetch Strava activities",
             )
+        # Return 0 to indicate no activities were processed
+        return 0
 
     if strava_activities is None:
         # Log an informational event if no activities were found
