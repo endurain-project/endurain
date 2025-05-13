@@ -36,6 +36,7 @@ def fetch_and_process_activities(
     user_id: int,
     user_integrations: user_integrations_schema.UsersIntegrations,
     db: Session,
+    is_startup: bool = False,
 ) -> int:
     # Fetch Strava activities after the specified start date
     try:
@@ -51,12 +52,12 @@ def fetch_and_process_activities(
             "error",
             exc=err,
         )
-        # Return 0 to indicate no activities were processed
-        # return 0
-        raise HTTPException(
-            status_code=status.HTTP_424_FAILED_DEPENDENCY,
-            detail="Not able to fetch Strava activities",
-        )
+        # Raise an HTTPException with a 424 Failed Dependency status code
+        if not is_startup:
+            raise HTTPException(
+                status_code=status.HTTP_424_FAILED_DEPENDENCY,
+                detail="Not able to fetch Strava activities",
+            )
 
     if strava_activities is None:
         # Log an informational event if no activities were found
@@ -69,10 +70,11 @@ def fetch_and_process_activities(
 
     user = users_crud.get_user_by_id(user_id, db)
     if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found",
-        )
+        if not is_startup:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found",
+            )
 
     processed_activities = []
 
@@ -657,6 +659,7 @@ def retrieve_strava_users_activities_for_days(days: int, is_startup: bool = Fals
                             "%Y-%m-%dT%H:%M:%S"
                         ),
                         user.id,
+                        is_startup,
                     )
                 except HTTPException as err:
                     # Log the error but continue processing other users
@@ -691,8 +694,6 @@ def retrieve_strava_users_activities_for_days(days: int, is_startup: bool = Fals
         # Raise the HTTPException to propagate the error
         if not is_startup:
             raise err
-        else:
-            return
     except Exception as err:
         # Log an error event if an exception occurred
         core_logger.print_to_log(
@@ -706,8 +707,6 @@ def retrieve_strava_users_activities_for_days(days: int, is_startup: bool = Fals
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Internal Server Error",
             ) from err
-        else:
-            return
     finally:
         # Ensure the session is closed after use
         if db is not None:
@@ -715,7 +714,7 @@ def retrieve_strava_users_activities_for_days(days: int, is_startup: bool = Fals
 
 
 def get_user_strava_activities_by_days(
-    start_date: datetime, user_id: int, db: Session = None
+    start_date: datetime, user_id: int, db: Session = None, is_startup: bool = False
 ) -> list[activities_schema.Activity] | None:
     close_session = False
     if db is None:
@@ -744,7 +743,7 @@ def get_user_strava_activities_by_days(
         try:
             # Fetch Strava activities after the specified start date
             strava_activities_processed = fetch_and_process_activities(
-                strava_client, start_date, user_id, user_integrations, db
+                strava_client, start_date, user_id, user_integrations, db, is_startup
             )
 
             # Log an informational event for tracing
@@ -761,7 +760,8 @@ def get_user_strava_activities_by_days(
                 exc=err,
             )
             # Raise the HTTPException to propagate the error
-            raise err
+            if not is_startup:
+                raise err
         except Exception as err:
             # Log an error event if an exception occurred
             core_logger.print_to_log(
@@ -770,10 +770,11 @@ def get_user_strava_activities_by_days(
                 exc=err,
             )
             # Raise an HTTPException with a 500 Internal Server Error status code
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Internal Server Error",
-            ) from err
+            if not is_startup:
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="Internal Server Error",
+                ) from err
     except HTTPException as err:
         # Log an error event if an exception occurred
         core_logger.print_to_log(
@@ -782,7 +783,8 @@ def get_user_strava_activities_by_days(
             exc=err,
         )
         # Raise the HTTPException to propagate the error
-        raise err
+        if not is_startup:
+            raise err
     except Exception as err:
         # Log an error event if an exception occurred
         core_logger.print_to_log(
@@ -791,10 +793,11 @@ def get_user_strava_activities_by_days(
             exc=err,
         )
         # Raise an HTTPException with a 500 Internal Server Error status code
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Internal Server Error",
-        ) from err
+        if not is_startup:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Internal Server Error",
+            ) from err
     finally:
         if close_session:
             # Ensure the session is closed after use
