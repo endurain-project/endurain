@@ -4,6 +4,7 @@ from fastapi import HTTPException, status
 from datetime import datetime, timedelta, timezone
 from sqlalchemy.orm import Session
 from stravalib.client import Client
+from stravalib.exc import AccessUnauthorized
 from timezonefinder import TimezoneFinder
 
 import core.logger as core_logger
@@ -48,6 +49,21 @@ def fetch_and_process_activities(
         strava_utils.check_and_save_tokens(
             strava_client, user_id, user_integrations, db
         )
+    except AccessUnauthorized as auth_err:
+        # Log a more specific error message for authentication issues
+        core_logger.print_to_log(
+            f"User {user_id}: Authentication error with Strava: {str(auth_err)}",
+            "error",
+            exc=auth_err,
+        )
+        # Attempt to refresh token or notify user about authentication issues
+        if not is_startup:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Strava authentication failed. Please reconnect your Strava account.",
+            )
+        # Return 0 to indicate no activities were processed
+        return 0
     except Exception as err:
         # Log an error event if an exception occurred
         core_logger.print_to_log(
