@@ -641,13 +641,23 @@ def fetch_and_process_activity_laps(
     return laps_processed
 
 
-def retrieve_strava_users_activities_for_days(days: int):
+def retrieve_strava_users_activities_for_days(days: int, is_startup: bool = False):
     # Create a new database session
     db = SessionLocal()
 
     try:
         # Get all users
         users = users_crud.get_all_users(db)
+
+        # Process the activities for each user
+        if users:
+            for user in users:
+                get_user_strava_activities_by_days(
+                    (datetime.now(timezone.utc) - timedelta(days=days)).strftime(
+                        "%Y-%m-%dT%H:%M:%S"
+                    ),
+                    user.id,
+                )
     except HTTPException as err:
         # Log an error event if an HTTPException occurred
         core_logger.print_to_log(
@@ -656,7 +666,10 @@ def retrieve_strava_users_activities_for_days(days: int):
             exc=err,
         )
         # Raise the HTTPException to propagate the error
-        raise err
+        if not is_startup:
+            raise err
+        else:
+            return
     except Exception as err:
         # Log an error event if an exception occurred
         core_logger.print_to_log(
@@ -665,22 +678,17 @@ def retrieve_strava_users_activities_for_days(days: int):
             exc=err,
         )
         # Raise an HTTPException with a 500 Internal Server Error status code
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Internal Server Error",
-        ) from err
+        if not is_startup:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Internal Server Error",
+            ) from err
+        else:
+            return
     finally:
         # Ensure the session is closed after use
-        db.close()
-
-    # Process the activities for each user
-    for user in users:
-        get_user_strava_activities_by_days(
-            (datetime.now(timezone.utc) - timedelta(days=days)).strftime(
-                "%Y-%m-%dT%H:%M:%S"
-            ),
-            user.id,
-        )
+        if db is not None:
+            db.close()
 
 
 def get_user_strava_activities_by_days(

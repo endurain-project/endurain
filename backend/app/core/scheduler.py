@@ -21,7 +21,7 @@ def start_scheduler():
         strava_activity_utils.retrieve_strava_users_activities_for_days,
         "interval",
         60,
-        [1],
+        [1, True],
         "retrieve last day Strava users activities",
     )
 
