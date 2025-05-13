@@ -418,8 +418,7 @@ def fetch_and_process_activity_streams(
             "error",
             exc=err,
         )
-        # Return None to indicate the activity was not processed
-        # eturn None
+        # Raise exception
         raise HTTPException(
             status_code=status.HTTP_424_FAILED_DEPENDENCY,
             detail="Not able to fetch Strava activity streams",
@@ -652,12 +651,36 @@ def retrieve_strava_users_activities_for_days(days: int, is_startup: bool = Fals
         # Process the activities for each user
         if users:
             for user in users:
-                get_user_strava_activities_by_days(
-                    (datetime.now(timezone.utc) - timedelta(days=days)).strftime(
-                        "%Y-%m-%dT%H:%M:%S"
-                    ),
-                    user.id,
-                )
+                try:
+                    get_user_strava_activities_by_days(
+                        (datetime.now(timezone.utc) - timedelta(days=days)).strftime(
+                            "%Y-%m-%dT%H:%M:%S"
+                        ),
+                        user.id,
+                    )
+                except HTTPException as err:
+                    # Log the error but continue processing other users
+                    core_logger.print_to_log(
+                        f"User {user.id}: Error processing Strava activities: {str(err)}",
+                        "error",
+                        exc=err,
+                    )
+                    # Don't reraise the exception if we're in startup mode
+                    if not is_startup:
+                        raise err
+                except Exception as err:
+                    # Log the error but continue processing other users
+                    core_logger.print_to_log(
+                        f"User {user.id}: Unexpected error processing Strava activities: {str(err)}",
+                        "error",
+                        exc=err,
+                    )
+                    # Don't reraise the exception if we're in startup mode
+                    if not is_startup:
+                        raise HTTPException(
+                            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail="Internal Server Error",
+                        ) from err
     except HTTPException as err:
         # Log an error event if an HTTPException occurred
         core_logger.print_to_log(

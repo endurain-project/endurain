@@ -43,7 +43,7 @@ def startup_event():
         "Retrieving last day activities from Garmin Connect and Strava on startup"
     )
     garmin_activity_utils.retrieve_garminconnect_users_activities_for_days(1)
-    strava_activity_utils.retrieve_strava_users_activities_for_days(1)
+    strava_activity_utils.retrieve_strava_users_activities_for_days(1, True)
 
     # Retrieve last day body composition from Garmin Connect
     core_logger.print_to_log_and_console(
