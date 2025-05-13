@@ -23,25 +23,25 @@ class UsersIntegrations(Base):
         comment="User ID that the integration belongs",
     )
     strava_client_id = Column(
-        String(length=250), default=None, nullable=True, comment="Strava client ID encrypted at rest with Fernet key"
+        String(length=512), default=None, nullable=True, comment="Strava client ID encrypted at rest with Fernet key"
     )
     strava_client_secret = Column(
-        String(length=250), default=None, nullable=True, comment="Strava client secret encrypted at rest with Fernet key"
+        String(length=512), default=None, nullable=True, comment="Strava client secret encrypted at rest with Fernet key"
     )
     strava_state = Column(
-        String(length=250),
+        String(length=512),
         default=None,
         nullable=True,
         comment="Strava temporary state for link process encrypted at rest with Fernet key",
     )
     strava_token = Column(
-        String(length=250),
+        String(length=512),
         default=None,
         nullable=True,
         comment="Strava token after link process encrypted at rest with Fernet key",
     )
     strava_refresh_token = Column(
-        String(length=250),
+        String(length=512),
         default=None,
         nullable=True,
         comment="Strava refresh token after link process encrypted at rest with Fernet key",
