@@ -23,11 +23,15 @@ def create_fernet_cipher():
         ) from err
 
 
-def encrypt_token_fernet(token: str) -> str:
+def encrypt_token_fernet(token) -> str:
     try:
         # Create a Fernet cipher
         cipher = create_fernet_cipher()
 
+        # Convert to string if token is not already a string
+        if not isinstance(token, str):
+            token = str(token)
+            
         # Encrypt the token
         return cipher.encrypt(token.encode())
     except Exception as err:
@@ -48,7 +52,7 @@ def decrypt_token_fernet(encrypted_token: str) -> str:
         # Create a Fernet cipher
         cipher = create_fernet_cipher()
 
-        # Encrypt the token
+        # Decrypt the token
         return cipher.decrypt(encrypted_token).decode()
     except Exception as err:
         # Log the exception
