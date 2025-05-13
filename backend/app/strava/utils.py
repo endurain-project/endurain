@@ -60,50 +60,8 @@ def fetch_user_integrations_and_validate_token(
 def create_strava_client(
     user_integrations: user_integrations_schema.UsersIntegrations,
 ) -> Client:
-    # Convert to epoch timestamp
-    epoch_time = int(time.mktime(user_integrations.strava_token_expires_at.timetuple()))
-
     # Create a Strava client with the user's access token and return it
     return Client(
         access_token=user_integrations.strava_token,
         refresh_token=user_integrations.strava_refresh_token,
-        token_expires=epoch_time,
     )
-
-
-def check_and_save_tokens(
-    strava_client: Client,
-    user_id: int,
-    user_integrations: user_integrations_schema.UsersIntegrations | None,
-    db: Session,
-) -> None:
-    # Check if the token has changed
-    if user_integrations is None:
-        user_integrations = user_integrations_crud.get_user_integrations_by_user_id(
-            user_id, db
-        )
-
-        if user_integrations is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="User integrations information not found",
-            )
-
-    if (
-        strava_client.refresh_token != user_integrations.strava_refresh_token
-        or datetime.fromtimestamp(strava_client.token_expires)
-        != user_integrations.strava_token_expires_at
-    ):
-        tokens = {
-            "access_token": strava_client.access_token,
-            "refresh_token": strava_client.refresh_token,
-            "expires_at": strava_client.token_expires,
-        }
-
-        user_integrations_crud.link_strava_account(
-            user_integrations,
-            tokens,
-            db,
-        )
-
-        core_logger.print_to_log(f"User {user_id}: Strava tokens updated successfully")

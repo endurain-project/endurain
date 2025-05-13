@@ -106,8 +106,8 @@ def link_strava_account(
 ):
     try:
         # Update the user integrations with the tokens
-        user_integrations.strava_token = tokens["access_token"]
-        user_integrations.strava_refresh_token = tokens["refresh_token"]
+        user_integrations.strava_token = tokens["access token"]
+        user_integrations.strava_refresh_token = tokens["refresh token"]
         user_integrations.strava_token_expires_at = datetime.fromtimestamp(
             tokens["expires_at"]
         )
