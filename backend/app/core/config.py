@@ -22,6 +22,7 @@ def check_required_env_vars():
         "DB_PASSWORD",
         "DB_DATABASE",
         "SECRET_KEY",
+        "FERNET_KEY",
         "ALGORITHM",
         "ACCESS_TOKEN_EXPIRE_MINUTES",
         "REFRESH_TOKEN_EXPIRE_DAYS",

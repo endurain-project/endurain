@@ -18,6 +18,7 @@ import strava.activity_utils as strava_activity_utils
 import strava.utils as strava_utils
 import strava.schema as strava_schema
 
+import core.cryptography as core_cryptography
 import core.logger as core_logger
 import core.database as core_database
 
@@ -64,8 +65,8 @@ async def strava_link(
 
         # Exchange code for token
         tokens = strava_client.exchange_code_for_token(
-            client_id=user_integrations.strava_client_id,
-            client_secret=user_integrations.strava_client_secret,
+            client_id=core_cryptography.decrypt_token_fernet(user_integrations.strava_client_id),
+            client_secret=core_cryptography.decrypt_token_fernet(user_integrations.strava_client_secret),
             code=code,
         )
 
@@ -81,9 +82,9 @@ async def strava_link(
             f"Unable to link Strava account: {err}", "error", exc=err
         )
 
-        # Clean up by setting Strava client to None
-        user_integrations_crud.set_user_strava_client(
-            user_integrations.user_id, None, None, db
+        # Clean up by setting Strava
+        user_integrations_crud.unlink_strava_account(
+            user_integrations.user_id, db
         )
 
         # Raise an HTTPException with appropriate status code

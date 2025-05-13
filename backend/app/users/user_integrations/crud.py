@@ -5,6 +5,7 @@ from datetime import datetime
 import users.user_integrations.schema as user_integrations_schema
 import users.user_integrations.models as user_integrations_models
 
+import core.cryptography as core_cryptography
 import core.logger as core_logger
 
 
@@ -44,7 +45,7 @@ def get_user_integrations_by_strava_state(strava_state: str, db: Session):
         user_integrations = (
             db.query(user_integrations_models.UsersIntegrations)
             .filter(
-                user_integrations_models.UsersIntegrations.strava_state == strava_state
+                user_integrations_models.UsersIntegrations.strava_state == core_cryptography.encrypt_token_fernet(strava_state)
             )
             .first()
         )
@@ -106,15 +107,13 @@ def link_strava_account(
 ):
     try:
         # Update the user integrations with the tokens
-        user_integrations.strava_token = tokens["access token"]
-        user_integrations.strava_refresh_token = tokens["refresh token"]
+        user_integrations.strava_token = core_cryptography.encrypt_token_fernet(tokens["access_token"])
+        user_integrations.strava_refresh_token = core_cryptography.encrypt_token_fernet(tokens["refresh_token"])
         user_integrations.strava_token_expires_at = datetime.fromtimestamp(
             tokens["expires_at"]
         )
 
-        # Set the strava state, client ID and client Secret to None
-        user_integrations.strava_state = None
-        user_integrations.strava_client_id = None
+        # Set the strava state to None
         user_integrations.strava_client_secret = None
 
         # Commit the changes to the database
@@ -149,6 +148,8 @@ def unlink_strava_account(user_id: int, db: Session):
             )
 
         # Set the user integrations Strava tokens to None
+        user_integrations.strava_state = None
+        user_integrations.strava_client_id = None
         user_integrations.strava_token = None
         user_integrations.strava_refresh_token = None
         user_integrations.strava_token_expires_at = None
@@ -186,8 +187,8 @@ def set_user_strava_client(user_id: int, id: int, secret: str, db: Session):
             )
 
         # Set the user Strava client id and secret
-        user_integrations.strava_client_id = id
-        user_integrations.strava_client_secret = secret
+        user_integrations.strava_client_id = core_cryptography.encrypt_token_fernet(id)
+        user_integrations.strava_client_secret = core_cryptography.encrypt_token_fernet(secret)
 
         # Commit the changes to the database
         db.commit()
@@ -224,7 +225,7 @@ def set_user_strava_state(user_id: int, state: str, db: Session):
             )
 
         # Set the user Strava state
-        user_integrations.strava_state = state
+        user_integrations.strava_state = core_cryptography.encrypt_token_fernet(state)
 
         # Commit the changes to the database
         db.commit()

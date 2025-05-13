@@ -181,7 +181,6 @@ export default {
 
 				try {
 					await strava.setUniqueUserStateStravaLink(null);
-					await strava.setUserStravaClientSettings(null, null);
 				} catch (error) {
 					// If there is an error, show the error alert.
 					push.error(

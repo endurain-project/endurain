@@ -1,9 +1,8 @@
-import time
-from datetime import datetime
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 from stravalib.client import Client
 
+import core.cryptography as core_cryptography
 import core.logger as core_logger
 
 import activities.activity.schema as activities_schema
@@ -62,6 +61,16 @@ def create_strava_client(
 ) -> Client:
     # Create a Strava client with the user's access token and return it
     return Client(
-        access_token=user_integrations.strava_token,
-        refresh_token=user_integrations.strava_refresh_token,
+        access_token=(
+            core_cryptography.decrypt_token_fernet(user_integrations.strava_token)
+            if user_integrations.strava_token
+            else None
+        ),
+        refresh_token=(
+            core_cryptography.decrypt_token_fernet(
+                user_integrations.strava_refresh_token
+            )
+            if user_integrations.strava_refresh_token
+            else None
+        ),
     )
