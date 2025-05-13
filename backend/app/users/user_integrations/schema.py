@@ -4,7 +4,7 @@ from pydantic import BaseModel
 class UsersIntegrations(BaseModel):
     id: int
     user_id: int
-    strava_client_id: int | None = None
+    strava_client_id: str | None = None
     strava_client_secret: str | None = None
     strava_state: str | None = None
     strava_token: str | None = None
