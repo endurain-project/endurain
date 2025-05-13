@@ -30,7 +30,6 @@ def upgrade() -> None:
         "users_integrations",
         "strava_client_id",
         existing_type=sa.INTEGER(),
-        type_=sa.String(length=250),
         type_=sa.String(length=512),
         comment="Strava client ID encrypted at rest with Fernet key",
         existing_comment="Strava client ID",
