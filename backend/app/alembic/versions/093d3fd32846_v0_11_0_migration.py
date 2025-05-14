@@ -46,15 +46,6 @@ def upgrade() -> None:
     )
     op.alter_column(
         "users_integrations",
-        "strava_state",
-        existing_type=sa.VARCHAR(length=45),
-        type_=sa.String(length=512),
-        comment="Strava temporary state for link process encrypted at rest with Fernet key",
-        existing_comment="Strava temporary state for link process",
-        existing_nullable=True,
-    )
-    op.alter_column(
-        "users_integrations",
         "strava_token",
         existing_type=sa.VARCHAR(length=250),
         type_=sa.String(length=512),
@@ -90,15 +81,6 @@ def downgrade() -> None:
         existing_type=sa.VARCHAR(length=250),
         comment="Strava token after link process",
         existing_comment="Strava token after link process encrypted at rest with Fernet key",
-        existing_nullable=True,
-    )
-    op.alter_column(
-        "users_integrations",
-        "strava_state",
-        existing_type=sa.String(length=250),
-        type_=sa.VARCHAR(length=45),
-        comment="Strava temporary state for link process",
-        existing_comment="Strava temporary state for link process encrypted at rest with Fernet key",
         existing_nullable=True,
     )
     op.alter_column(

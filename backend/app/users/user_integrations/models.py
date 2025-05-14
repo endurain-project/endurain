@@ -29,10 +29,10 @@ class UsersIntegrations(Base):
         String(length=512), default=None, nullable=True, comment="Strava client secret encrypted at rest with Fernet key"
     )
     strava_state = Column(
-        String(length=512),
+        String(length=45),
         default=None,
         nullable=True,
-        comment="Strava temporary state for link process encrypted at rest with Fernet key",
+        comment="Strava temporary state for link process",
     )
     strava_token = Column(
         String(length=512),
