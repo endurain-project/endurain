@@ -16,6 +16,8 @@ import core.migrations as core_migrations
 import garmin.activity_utils as garmin_activity_utils
 import garmin.health_utils as garmin_health_utils
 
+import session.schema as session_schema
+
 import strava.activity_utils as strava_activity_utils
 
 from core.routes import router as api_router
@@ -93,6 +95,8 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    app.add_middleware(session_schema.CSRFMiddleware)
 
     # Router files
     app.include_router(api_router)

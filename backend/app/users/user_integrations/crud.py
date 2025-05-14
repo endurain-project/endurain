@@ -42,12 +42,24 @@ def get_user_integrations_by_user_id(user_id: int, db: Session):
 
 def get_user_integrations_by_strava_state(strava_state: str, db: Session):
     try:
-        user_integrations = (
+        # Get all user integrations first
+        all_user_integrations = (
             db.query(user_integrations_models.UsersIntegrations)
             .filter(
-                user_integrations_models.UsersIntegrations.strava_state == core_cryptography.encrypt_token_fernet(strava_state)
+                user_integrations_models.UsersIntegrations.strava_state.is_not(None)
             )
-            .first()
+            .all()
+        )
+
+        # Find the one with matching decrypted strava_state
+        user_integrations = next(
+            (
+                ui
+                for ui in all_user_integrations
+                if core_cryptography.decrypt_token_fernet(ui.strava_state)
+                == strava_state
+            ),
+            None,
         )
 
         # Check if user_integrations is None and return None if it is
@@ -107,8 +119,12 @@ def link_strava_account(
 ):
     try:
         # Update the user integrations with the tokens
-        user_integrations.strava_token = core_cryptography.encrypt_token_fernet(tokens["access_token"])
-        user_integrations.strava_refresh_token = core_cryptography.encrypt_token_fernet(tokens["refresh_token"])
+        user_integrations.strava_token = core_cryptography.encrypt_token_fernet(
+            tokens["access_token"]
+        )
+        user_integrations.strava_refresh_token = core_cryptography.encrypt_token_fernet(
+            tokens["refresh_token"]
+        )
         user_integrations.strava_token_expires_at = datetime.fromtimestamp(
             tokens["expires_at"]
         )
@@ -188,7 +204,9 @@ def set_user_strava_client(user_id: int, id: int, secret: str, db: Session):
 
         # Set the user Strava client id and secret
         user_integrations.strava_client_id = core_cryptography.encrypt_token_fernet(id)
-        user_integrations.strava_client_secret = core_cryptography.encrypt_token_fernet(secret)
+        user_integrations.strava_client_secret = core_cryptography.encrypt_token_fernet(
+            secret
+        )
 
         # Commit the changes to the database
         db.commit()
