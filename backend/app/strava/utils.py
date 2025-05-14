@@ -61,7 +61,7 @@ def create_strava_client(
     user_integrations: user_integrations_schema.UsersIntegrations,
 ) -> Client:
     # Convert to epoch timestamp
-    epoch_time = int(time.mktime(user_integrations.strava_token_expires_at.timetuple()))
+    epoch_time = int(time.mktime(user_integrations.strava_token_expires_at.timetuple())) if user_integrations.strava_token_expires_at else None
 
     # Create a Strava client with the user's access token and return it
     return Client(

@@ -268,7 +268,7 @@ def set_user_strava_sync_gear(user_id: int, strava_sync_gear: bool, db: Session)
 
         # Log the exception
         core_logger.print_to_log(
-            f"Error in set_user_strava_state: {err}", "error", exc=err
+            f"Error in set_user_strava_sync_gear: {err}", "error", exc=err
         )
 
         # Raise an HTTPException with a 500 Internal Server Error status code
