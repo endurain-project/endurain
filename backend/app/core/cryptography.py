@@ -33,7 +33,7 @@ def encrypt_token_fernet(token) -> str:
             token = str(token)
             
         # Encrypt the token
-        return cipher.encrypt(token.encode())
+        return cipher.encrypt(token.encode()).decode()
     except Exception as err:
         # Log the exception
         core_logger.print_to_log(
@@ -53,7 +53,7 @@ def decrypt_token_fernet(encrypted_token: str) -> str:
         cipher = create_fernet_cipher()
 
         # Decrypt the token
-        return cipher.decrypt(encrypted_token).decode()
+        return cipher.decrypt(encrypted_token.encode()).decode()
     except Exception as err:
         # Log the exception
         core_logger.print_to_log(

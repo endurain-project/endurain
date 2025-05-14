@@ -52,11 +52,11 @@ async def strava_link(
     # Check if client ID and client secret are set
     if (
         user_integrations.strava_client_id is None
-        or user_integrations.strava_client_secret is None
+        and user_integrations.strava_client_secret is None
     ):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Strava client ID or secret not set",
+            detail="Strava client ID and secret not set",
         )
 
     try:

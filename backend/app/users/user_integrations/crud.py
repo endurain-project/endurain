@@ -119,7 +119,7 @@ def link_strava_account(
         )
 
         # Set the strava state to None
-        user_integrations.strava_client_secret = None
+        user_integrations.strava_state = None
 
         # Commit the changes to the database
         db.commit()
@@ -154,11 +154,12 @@ def unlink_strava_account(user_id: int, db: Session):
 
         # Set the user integrations Strava tokens to None
         user_integrations.strava_state = None
-        user_integrations.strava_client_id = None
         user_integrations.strava_token = None
         user_integrations.strava_refresh_token = None
         user_integrations.strava_token_expires_at = None
         user_integrations.strava_sync_gear = False
+        user_integrations.strava_client_id = None
+        user_integrations.strava_client_secret = None
 
         # Commit the changes to the database
         db.commit()
@@ -218,7 +219,7 @@ def set_user_strava_client(user_id: int, id: int, secret: str, db: Session):
         ) from err
 
 
-def set_user_strava_state(user_id: int, state: str, db: Session):
+def set_user_strava_state(user_id: int, state: str | None, db: Session):
     try:
         # Get the user integrations by the user id
         user_integrations = get_user_integrations_by_user_id(user_id, db)
@@ -232,7 +233,7 @@ def set_user_strava_state(user_id: int, state: str, db: Session):
             )
 
         # Set the user Strava state
-        user_integrations.strava_state = state
+        user_integrations.strava_state = None if state in ("null", None) else state
 
         # Commit the changes to the database
         db.commit()
