@@ -153,7 +153,7 @@ export default {
 
 			// Normalize each lap's pace relative to the fastest
 			return lapsWithRest.map(lap => {
-				const normalizedScore = (fastestPace / lap.enhanced_avg_pace) * 100;
+				const normalizedScore = lap.enhanced_avg_pace === null || lap.enhanced_avg_pace === 0 ? 0 : (fastestPace / lap.enhanced_avg_pace) * 100;
 				const formattedPace = computed(() => {
 					if (
 						props.activity.activity_type === 8 ||
@@ -245,7 +245,7 @@ export default {
 
 				return {
 					...lap,
-					normalizedScore: lap.swimIsRest ? 0 : Math.min(Math.max(normalizedScore, 0), 100), // Clamp between 0 and 100
+					normalizedScore: Math.min(Math.max(normalizedScore, 0), 100), // Clamp between 0 and 100
 					formattedPace: formattedPace,
 					formattedPaceFull: formattedPaceFull,
 					lapSecondsToMinutes: formatSecondsToMinutes(lap.total_elapsed_time),
