@@ -135,8 +135,24 @@ export default {
 			// Find the fastest pace (smallest value)
 			const fastestPace = Math.min(...enhancedAvgPaces);
 
+            // Work out whether each lap is a rest (swim activities only)
+            const lapsWithRest = laps.map(lap => {
+                const swimIsRest = (props.activity.activity_type === 8 || props.activity.activity_type === 9) 
+                    && (lap.total_distance === 0 || lap.total_distance === null);
+                return {
+                    ...lap,
+                    swimIsRest: swimIsRest,
+                };
+            });
+            // Assume that 2 rests in a row is an error/drills
+            for (let i = 0; i < lapsWithRest.length - 1; i++) {
+                if (lapsWithRest[i].swimIsRest === true && lapsWithRest[i + 1].swimIsRest === true) {
+                    lapsWithRest[i + 1].swimIsRest = false;
+                }
+            }
+
 			// Normalize each lap's pace relative to the fastest
-			const normalizedLaps = laps.map((lap, index) => {
+			return lapsWithRest.map(lap => {
 				const normalizedScore = (fastestPace / lap.enhanced_avg_pace) * 100;
 				const formattedPace = computed(() => {
 					if (
@@ -144,6 +160,9 @@ export default {
 						props.activity.activity_type === 9 ||
 						props.activity.activity_type === 13
 					) {
+                        if (lap.enhanced_avg_pace === null && lap.swimIsRest === true && props.activity.activity_type !== 13) {
+                            return "Rest"; // TODO: Add translation
+                        }
 						if (Number(props.units) === 1) {
 							return formatPaceSwimMetric(lap.enhanced_avg_pace, false);
 						}
@@ -156,7 +175,10 @@ export default {
 				});
 				const formattedPaceFull = computed(() => {
 					if (lap.enhanced_avg_pace === null) {
-						return t("generalItems.labelNoData");
+                        if ((props.activity.activity_type === 8 || props.activity.activity_type === 9) && lap.swimIsRest === true) {
+                            return "Rest"; // TODO: Add translation
+                        }
+                        return t("generalItems.labelNoData");
 					}
 					if (
 						props.activity.activity_type === 8 ||
@@ -220,9 +242,6 @@ export default {
                     }
                     return formatAverageSpeedImperial(lap.enhanced_avg_speed) ?? 0;
                 });
-                
-                const swimIsRest = (props.activity.activity_type === 8 || props.activity.activity_type === 9) 
-                    && (lap.total_distance === 0 || lap.total_distance === null);
 
 				return {
 					...lap,
@@ -235,18 +254,8 @@ export default {
                     formattedElevationFull: formattedElevationFull,
                     formattedSpeedFull: formattedSpeedFull,
                     formattedSpeed: formattedSpeed,
-                    swimIsRest: swimIsRest,
 				};
 			});
-            
-            // Assume that 2 rests in a row is an error/drills
-            for (let i = 0; i < normalizedLaps.length - 1; i++) {
-                if (normalizedLaps[i].swimIsRest === true && normalizedLaps[i + 1].swimIsRest === true) {
-                    normalizedLaps[i + 1].swimIsRest = false;
-                }
-            }
-
-            return normalizedLaps;
 		});
         
         const hasIntensity = computed(() => {
