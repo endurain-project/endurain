@@ -20,11 +20,7 @@
                 <tr v-for="(lap, index) in normalizedLaps" :key="lap.id">
                     <td>{{ index + 1 }}</td>
                     <td>{{ lap.intensity ?? $t("generalItems.labelNoData") }}</td>
-                    <td v-if="activity.activity_type !== 8 && activity.activity_type !== 9">{{ lap.formattedDistance }}</td>
-                    <!-- Show distance in meters for swimming activities -->
-                    <td v-if="(activity.activity_type === 8 || activity.activity_type === 9) && units === 1">{{ lap.total_distance }}{{ $t("generalItems.unitsM") }}</td>
-                    <!-- TODO: Make units dynamic -->
-                    <td v-else-if="(activity.activity_type === 8 || activity.activity_type === 9)">{{ lap.total_distance }}{{ $t("generalItems.unitsYards") }}</td>
+                    <td>{{ lap.formattedDistance }}</td>
                     <td>{{ lap.lapSecondsToMinutes }}</td>
                     <td v-if="activity.activity_type === 4 || activity.activity_type === 5 || activity.activity_type === 6 || activity.activity_type === 7 || activity.activity_type === 27">{{ lap.formattedSpeedFull }}</td>
                     <td v-else>{{ lap.formattedPaceFull }}</td>
@@ -182,8 +178,16 @@ export default {
 						return t("generalItems.labelNoData");
 					}
 					if (Number(props.units) === 1) {
+                        // Show distance in meters for swimming activities
+                        if (props.activity.activity_type === 8 || props.activity.activity_type === 9) {
+                            return `${lap.total_distance} ${t("generalItems.unitsMeters")}`;
+                        }
 						return `${metersToKm(lap.total_distance)} ${t("generalItems.unitsKm")}`;
 					}
+                    // Show distance in yards for swimming activities
+                    if (props.activity.activity_type === 8 || props.activity.activity_type === 9) {
+                        return `${metersToYards(lap.total_distance)} ${t("generalItems.unitsYards")}`;
+                    }
 					return `${metersToMiles(lap.total_distance)} ${t("generalItems.unitsMiles")}`;
 				});
                 const formattedElevation = computed(() => {
