@@ -48,7 +48,7 @@
                     <th scope="col" style="width: 15%;" v-else>{{ $t("activityLapsComponent.labelLapPace") }}</th>
                     <th scope="col" style="width: auto;">&nbsp;</th>
                     <th scope="col" style="width: 10%;" v-if="activity.activity_type !== 8 && activity.activity_type !== 9">{{ $t("activityLapsComponent.labelLapElev") }}</th>
-                    <th scope="col" style="width: 10%;" v-if="activity.activity_type === 8 || activity.activity_type === 9">Stroke Rate</th> <!-- TODO: Add translation -->
+                    <th scope="col" style="width: 10%;" v-if="activity.activity_type === 8 || activity.activity_type === 9">SR</th> <!-- TODO: Add translation -->
                     <th scope="col" style="width: 10%;">{{ $t("activityLapsComponent.labelLapHR") }}</th>
                 </tr>
             </thead>
@@ -133,7 +133,7 @@ export default {
 			const enhancedAvgPaces = laps.map((lap) => lap.enhanced_avg_pace);
 
 			// Find the fastest pace (smallest value)
-			const fastestPace = Math.min(...enhancedAvgPaces);
+			const fastestPace = Math.min(...enhancedAvgPaces.filter(pace => pace !== null && pace > 0));
 
             // Work out whether each lap is a rest (swim activities only)
             const lapsWithRest = laps.map(lap => {
@@ -245,7 +245,7 @@ export default {
 
 				return {
 					...lap,
-					normalizedScore: Math.min(Math.max(normalizedScore, 0), 100), // Clamp between 0 and 100
+					normalizedScore: lap.swimIsRest ? 0 : Math.min(Math.max(normalizedScore, 0), 100), // Clamp between 0 and 100
 					formattedPace: formattedPace,
 					formattedPaceFull: formattedPaceFull,
 					lapSecondsToMinutes: formatSecondsToMinutes(lap.total_elapsed_time),
