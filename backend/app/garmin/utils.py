@@ -10,6 +10,8 @@ import garminconnect
 
 from sqlalchemy.orm import Session
 
+import core.cryptography as core_cryptography
+
 import users.user_integrations.schema as user_integrations_schema
 import users.user_integrations.crud as user_integrations_crud
 
@@ -138,9 +140,9 @@ def login_garminconnect_using_tokens(oauth1_token, oauth2_token):
 
 def serialize_oauth1_token(token):
     return {
-        "oauth_token": token.oauth_token,
-        "oauth_token_secret": token.oauth_token_secret,
-        "mfa_token": token.mfa_token,
+        "oauth_token": core_cryptography.encrypt_token_fernet(token.oauth_token),
+        "oauth_token_secret": core_cryptography.encrypt_token_fernet(token.oauth_token_secret),
+        "mfa_token": core_cryptography.encrypt_token_fernet(token.mfa_token),
         "mfa_expiration_timestamp": (
             token.mfa_expiration_timestamp.isoformat()
             if token.mfa_expiration_timestamp
@@ -155,8 +157,8 @@ def serialize_oauth2_token(token):
         "scope": token.scope,
         "jti": token.jti,
         "token_type": token.token_type,
-        "access_token": token.access_token,
-        "refresh_token": token.refresh_token,
+        "access_token": core_cryptography.encrypt_token_fernet(token.access_token),
+        "refresh_token": core_cryptography.encrypt_token_fernet(token.refresh_token),
         "expires_in": token.expires_in,
         "expires_at": token.expires_at,
         "refresh_token_expires_in": token.refresh_token_expires_in,
@@ -166,9 +168,9 @@ def serialize_oauth2_token(token):
 
 def deserialize_oauth1_token(data):
     return garminconnect.garth.auth_tokens.OAuth1Token(
-        oauth_token=data["oauth_token"],
-        oauth_token_secret=data["oauth_token_secret"],
-        mfa_token=data.get("mfa_token"),
+        oauth_token=core_cryptography.decrypt_token_fernet(data["oauth_token"]),
+        oauth_token_secret=core_cryptography.decrypt_token_fernet(data["oauth_token_secret"]),
+        mfa_token=core_cryptography.decrypt_token_fernet(data.get("mfa_token")),
         mfa_expiration_timestamp=(
             datetime.fromisoformat(data["mfa_expiration_timestamp"])
             if data.get("mfa_expiration_timestamp")
@@ -183,8 +185,8 @@ def deserialize_oauth2_token(data):
         scope=data["scope"],
         jti=data["jti"],
         token_type=data["token_type"],
-        access_token=data["access_token"],
-        refresh_token=data["refresh_token"],
+        access_token=core_cryptography.decrypt_token_fernet(data["access_token"]),
+        refresh_token=core_cryptography.decrypt_token_fernet(data["refresh_token"]),
         expires_in=data["expires_in"],
         expires_at=data["expires_at"],
         refresh_token_expires_in=data.get("refresh_token_expires_in"),

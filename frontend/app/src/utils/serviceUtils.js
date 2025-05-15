@@ -34,7 +34,7 @@ async function fetchWithRetry(url, options) {
 	try {
 		return await attemptFetch(url, options);
 	} catch (error) {
-		if (error.message.startsWith("401")) {
+		if (error.message.startsWith("401") && isExempt) {
 			try {
 				await refreshAccessToken();
 				return await attemptFetch(url, options);
