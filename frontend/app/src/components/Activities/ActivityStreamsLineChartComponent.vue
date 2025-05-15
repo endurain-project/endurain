@@ -129,9 +129,17 @@ export default {
 
             for (let i = 0; i < numberOfDataPoints; i++) {
                 if (Number(units.value) === 1) {
-                    labels.push(`${(i * distanceInterval).toFixed(0)}km`);
+                    if (props.activity.activity_type === 8 || props.activity.activity_type === 9) {
+                        labels.push(`${(i * distanceInterval).toFixed(1)}km`);
+                    } else {
+                        labels.push(`${(i * distanceInterval).toFixed(0)}km`);
+                    }
                 } else {
-                    labels.push(`${(i * kmToMiles(distanceInterval)).toFixed(0)}mi`);
+                    if (props.activity.activity_type === 8 || props.activity.activity_type === 9) {
+                        labels.push(`${(i * distanceInterval).toFixed(1)}mi`);
+                    } else {
+                        labels.push(`${(i * kmToMiles(distanceInterval)).toFixed(0)}mi`);
+                    }
                 }
             }
 
