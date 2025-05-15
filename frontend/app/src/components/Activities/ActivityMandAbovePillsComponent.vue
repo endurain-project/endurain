@@ -132,11 +132,19 @@ export default {
 						}
 						if (props.activityActivityStreams[i].stream_type === 3) {
 							cadPresent.value = true;
-							graphItems.value.push({ type: "cad", label: `${t("activityMandAbovePillsComponent.labelGraphCadence")}` });
+							// Label as "Stroke Rate" over "Cadence" for swimming activities
+                            if (props.activity.activity_type === 8 || props.activity.activity_type === 9) {
+                                graphItems.value.push({ type: "cad", label: "Stroke rate" }); // TODO: Add translation
+                            } else {
+                                graphItems.value.push({ type: "cad", label: `${t("activityMandAbovePillsComponent.labelGraphCadence")}` });
+                            }
 						}
 						if (props.activityActivityStreams[i].stream_type === 4) {
-							elePresent.value = true;
-							graphItems.value.push({ type: "ele", label: `${t("activityMandAbovePillsComponent.labelGraphElevation")}` });
+							// Do not show elevation for swimming activities
+                            if (props.activity.activity_type !== 8 && props.activity.activity_type !== 9) {
+                                elePresent.value = true;
+							    graphItems.value.push({ type: "ele", label: `${t("activityMandAbovePillsComponent.labelGraphElevation")}` });
+                            }
 						}
 						if (props.activityActivityStreams[i].stream_type === 5) {
 							velPresent.value = true;

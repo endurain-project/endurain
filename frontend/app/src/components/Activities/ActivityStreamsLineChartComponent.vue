@@ -62,7 +62,9 @@ export default {
                 } else if (stream.stream_type === 3 && props.graphSelection === 'cad') {
                     for (const streamPoint of stream.stream_waypoints) {
                         data.push(Number.parseInt(streamPoint.cad));
-                        label = t("generalItems.labelCadenceInRpm");
+                        // Label as "Stroke Rate" over "Cadence" for swimming activities
+                        // TODO: Add translation
+                        label = props.activity.activity_type === 8 || props.activity.activity_type === 9 ? "Stroke Rate in spm" : t("generalItems.labelCadenceInRpm");
                     }
                 } else if (stream.stream_type === 4 && props.graphSelection === 'ele') {
                     for (const streamPoint of stream.stream_waypoints) {

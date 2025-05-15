@@ -135,21 +135,30 @@
         </div>
         <!-- Cadence values -->
         <div v-if="cadPresent">
-            <span class="fw-normal">
+            <span class="fw-normal" v-if="activity.activity_type !== 8 && activity.activity_type !== 9">
                 {{ $t("activityBellowMPillsComponent.subTitleCadence") }}
+            </span>
+            <span class="fw-normal" v-else>
+                Stroke Rate <!-- TODO: Add translation -->
             </span>
             <ActivityStreamsLineChartComponent :activity="activity" :graphSelection="'cad'" :activityStreams="activityActivityStreams" />
             <div class="d-flex justify-content-between mt-3" v-if="activity.average_cad">
-                <span>
+                <span v-if="activity.activity_type !== 8 && activity.activity_type !== 9">
                     {{ $t("activityBellowMPillsComponent.labelAvgCadence") }}
+                </span>
+                <span v-else>
+                    Stroke Rate <!-- TODO: Add translation -->
                 </span>
                 <span>
                     <b>{{ activity.average_cad }}{{ ' ' + $t("generalItems.unitsSpm") }}</b>
                 </span>
             </div>
             <div class="d-flex justify-content-between mt-3" v-if="activity.max_cad">
-                <span>
+                <span v-if="activity.activity_type !== 8 && activity.activity_type !== 9">
                     {{ $t("activityBellowMPillsComponent.labelMaxCadence") }}
+                </span>
+                <span v-else>
+                    Stroke Rate <!-- TODO: Add translation -->
                 </span>
                 <span>
                     <b>{{ activity.max_cad }}{{ ' ' + $t("generalItems.unitsSpm") }}</b>
@@ -158,7 +167,7 @@
             <hr>
         </div>
         <!-- Elevation values -->
-        <div v-if="elePresent">
+        <div v-if="elePresent && activity.activity_type !== 8 && activity.activity_type !== 9">
             <span class="fw-normal">
                 {{ $t("activityBellowMPillsComponent.subTitleElevation") }}
             </span>
