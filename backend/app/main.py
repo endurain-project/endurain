@@ -19,6 +19,7 @@ import garmin.health_utils as garmin_health_utils
 import session.schema as session_schema
 
 import strava.activity_utils as strava_activity_utils
+import strava.utils as strava_utils
 
 from core.routes import router as api_router
 
@@ -39,6 +40,12 @@ def startup_event():
 
     # Create a scheduler to run background jobs
     core_scheduler.start_scheduler()
+
+    # Retrieve last day activities from Garmin Connect and Strava
+    core_logger.print_to_log_and_console(
+        "Refreshing Strava tokens on startup on startup"
+    )
+    strava_utils.refresh_strava_tokens(True)
 
     # Retrieve last day activities from Garmin Connect and Strava
     core_logger.print_to_log_and_console(
