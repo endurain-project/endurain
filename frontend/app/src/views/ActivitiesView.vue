@@ -101,7 +101,7 @@ export default {
 		const activities = ref([]);
 		const userNumberActivities = ref(0);
 		const pageNumber = ref(1);
-		const numRecords = 5;
+		const numRecords = 20;
 		const totalPages = ref(1);
 		const isLoading = ref(true);
 
