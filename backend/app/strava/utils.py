@@ -58,9 +58,15 @@ def refresh_user_strava_token(user_id: int, db: Session, is_startup: bool = Fals
             try:
                 strava_client = create_strava_client(user_integrations)
                 tokens = strava_client.refresh_access_token(
-                    client_id=user_integrations.strava_client_id,
-                    client_secret=user_integrations.strava_client_secret,
-                    refresh_token=user_integrations.strava_refresh_token,
+                    client_id=core_cryptography.decrypt_token_fernet(
+                        user_integrations.strava_client_id
+                    ),
+                    client_secret=core_cryptography.decrypt_token_fernet(
+                        user_integrations.strava_client_secret
+                    ),
+                    refresh_token=core_cryptography.decrypt_token_fernet(
+                        user_integrations.strava_refresh_token
+                    ),
                 )
 
                 # Update the user integrations with the tokens
