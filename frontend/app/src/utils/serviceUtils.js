@@ -8,15 +8,17 @@ export const FRONTEND_URL = `${import.meta.env.VITE_ENDURAIN_HOST}/`;
 
 async function fetchWithRetry(url, options) {
 	// Define paths that don't need CSRF token
-	const exemptPaths = ["/api/v1/token", "/api/v1/refresh"];
+	const exemptPathsCsrf = ["/api/v1/token", "/api/v1/refresh"];
+	const exemptPaths = ["/api/v1/token"];
 
 	// Check if the current URL path is exempt
+	const isExemptCsrf = exemptPathsCsrf.some((path) => url.includes(path));
 	const isExempt = exemptPaths.some((path) => url.includes(path));
 
 	// Add CSRF token to headers for state-changing requests
 	if (
 		["POST", "PUT", "DELETE", "PATCH"].includes(options.method) &&
-		!isExempt
+		!isExemptCsrf
 	) {
 		const csrfToken = document.cookie
 			.split("; ")
