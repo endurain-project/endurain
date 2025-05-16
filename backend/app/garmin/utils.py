@@ -21,6 +21,7 @@ import garmin.schema as garmin_schema
 
 import core.logger as core_logger
 
+
 async def get_mfa(
     user_id: int,
     mfa_codes: garmin_schema.MFACodeStore,
@@ -98,9 +99,11 @@ async def link_garminconnect(
     ) as err:
         # Print error info to check dedicated log in main log
         core_logger.print_to_log_and_console(
-            "There was an authentication error using Garmin Connect: {err}", "error", err
+            "There was an authentication error using Garmin Connect: {err}",
+            "error",
+            err,
         )
-        
+
         return None
     except garminconnect.GarminConnectTooManyRequestsError as err:
         raise HTTPException(
@@ -133,65 +136,101 @@ def login_garminconnect_using_tokens(oauth1_token, oauth2_token):
     ) as err:
         # Print error info to check dedicated log in main log
         core_logger.print_to_log_and_console(
-            "There was an authentication error using Garmin Connect: {err}", "error", err
+            "There was an authentication error using Garmin Connect: {err}",
+            "error",
+            err,
         )
         return None
 
 
 def serialize_oauth1_token(token):
-    return {
-        "oauth_token": core_cryptography.encrypt_token_fernet(token.oauth_token),
-        "oauth_token_secret": core_cryptography.encrypt_token_fernet(token.oauth_token_secret),
-        "mfa_token": core_cryptography.encrypt_token_fernet(token.mfa_token),
-        "mfa_expiration_timestamp": (
-            token.mfa_expiration_timestamp.isoformat()
-            if token.mfa_expiration_timestamp
-            else None
-        ),
-        "domain": token.domain,
-    }
+    try:
+        return {
+            "oauth_token": core_cryptography.encrypt_token_fernet(token.oauth_token),
+            "oauth_token_secret": core_cryptography.encrypt_token_fernet(
+                token.oauth_token_secret
+            ),
+            "mfa_token": core_cryptography.encrypt_token_fernet(token.mfa_token),
+            "mfa_expiration_timestamp": (
+                token.mfa_expiration_timestamp.isoformat()
+                if token.mfa_expiration_timestamp
+                else None
+            ),
+            "domain": token.domain,
+        }
+    except Exception as err:
+        # Log the error and re-raise the exception
+        core_logger.print_to_log_and_console(
+            f"Error in serialize_oauth1_token: {err}", "error", err
+        )
+        raise err
 
 
 def serialize_oauth2_token(token):
-    return {
-        "scope": token.scope,
-        "jti": token.jti,
-        "token_type": token.token_type,
-        "access_token": core_cryptography.encrypt_token_fernet(token.access_token),
-        "refresh_token": core_cryptography.encrypt_token_fernet(token.refresh_token),
-        "expires_in": token.expires_in,
-        "expires_at": token.expires_at,
-        "refresh_token_expires_in": token.refresh_token_expires_in,
-        "refresh_token_expires_at": token.refresh_token_expires_at,
-    }
+    try:
+        return {
+            "scope": token.scope,
+            "jti": token.jti,
+            "token_type": token.token_type,
+            "access_token": core_cryptography.encrypt_token_fernet(token.access_token),
+            "refresh_token": core_cryptography.encrypt_token_fernet(
+                token.refresh_token
+            ),
+            "expires_in": token.expires_in,
+            "expires_at": token.expires_at,
+            "refresh_token_expires_in": token.refresh_token_expires_in,
+            "refresh_token_expires_at": token.refresh_token_expires_at,
+        }
+    except Exception as err:
+        # Log the error and re-raise the exception
+        core_logger.print_to_log_and_console(
+            f"Error in serialize_oauth2_token: {err}", "error", err
+        )
+        raise err
 
 
 def deserialize_oauth1_token(data):
-    return garminconnect.garth.auth_tokens.OAuth1Token(
-        oauth_token=core_cryptography.decrypt_token_fernet(data["oauth_token"]),
-        oauth_token_secret=core_cryptography.decrypt_token_fernet(data["oauth_token_secret"]),
-        mfa_token=core_cryptography.decrypt_token_fernet(data.get("mfa_token")),
-        mfa_expiration_timestamp=(
-            datetime.fromisoformat(data["mfa_expiration_timestamp"])
-            if data.get("mfa_expiration_timestamp")
-            else None
-        ),
-        domain=data.get("domain"),
-    )
+    try:
+        return garminconnect.garth.auth_tokens.OAuth1Token(
+            oauth_token=core_cryptography.decrypt_token_fernet(data["oauth_token"]),
+            oauth_token_secret=core_cryptography.decrypt_token_fernet(
+                data["oauth_token_secret"]
+            ),
+            mfa_token=core_cryptography.decrypt_token_fernet(data.get("mfa_token")),
+            mfa_expiration_timestamp=(
+                datetime.fromisoformat(data["mfa_expiration_timestamp"])
+                if data.get("mfa_expiration_timestamp")
+                else None
+            ),
+            domain=data.get("domain"),
+        )
+    except Exception as err:
+        # Log the error and re-raise the exception
+        core_logger.print_to_log_and_console(
+            f"Error in deserialize_oauth1_token: {err}", "error", err
+        )
+        raise err
 
 
 def deserialize_oauth2_token(data):
-    return garminconnect.garth.auth_tokens.OAuth2Token(
-        scope=data["scope"],
-        jti=data["jti"],
-        token_type=data["token_type"],
-        access_token=core_cryptography.decrypt_token_fernet(data["access_token"]),
-        refresh_token=core_cryptography.decrypt_token_fernet(data["refresh_token"]),
-        expires_in=data["expires_in"],
-        expires_at=data["expires_at"],
-        refresh_token_expires_in=data.get("refresh_token_expires_in"),
-        refresh_token_expires_at=data.get("refresh_token_expires_at"),
-    )
+    try:
+        return garminconnect.garth.auth_tokens.OAuth2Token(
+            scope=data["scope"],
+            jti=data["jti"],
+            token_type=data["token_type"],
+            access_token=core_cryptography.decrypt_token_fernet(data["access_token"]),
+            refresh_token=core_cryptography.decrypt_token_fernet(data["refresh_token"]),
+            expires_in=data["expires_in"],
+            expires_at=data["expires_at"],
+            refresh_token_expires_in=data.get("refresh_token_expires_in"),
+            refresh_token_expires_at=data.get("refresh_token_expires_at"),
+        )
+    except Exception as err:
+        # Log the error and re-raise the exception
+        core_logger.print_to_log_and_console(
+            f"Error in deserialize_oauth2_token: {err}", "error", err
+        )
+        raise err
 
 
 def fetch_user_integrations_and_validate_token(
