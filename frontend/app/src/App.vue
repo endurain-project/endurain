@@ -10,11 +10,10 @@ import {
 	NotificationProgress,
 	pastelTheme,
 } from "notivue";
-import { useScreenSafeArea } from '@vueuse/core'
 </script>
 
 <template>
-	<UseScreenSafeArea top right bottom left>
+	<div class="safe-area-container">
 		<Notivue v-slot="item">
 			<NotivueSwipe :item="item">
 				<Notification :item="item" :theme="pastelTheme">
@@ -32,5 +31,14 @@ import { useScreenSafeArea } from '@vueuse/core'
 			<FooterComponent class="d-none d-lg-block shadow-sm"/>
 			<NavbarBottomMobileComponent class="d-lg-none d-block sticky-bottom shadow-sm"/>
 		</div>
-	</UseScreenSafeArea>
+	</div>
 </template>
+
+<style>
+.safe-area-container {
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+</style>
