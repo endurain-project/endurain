@@ -55,6 +55,8 @@ export default {
                 if (stream.stream_type === 3) {
                     for (const streamPoint of stream.stream_waypoints) {
                         cadData.push(Number.parseInt(streamPoint.cad));
+                    }
+                    if (cadData.length > 0) {
                         cadLabel = activityTypeIsSwimming(props.activity) ? t("generalItems.labelStrokeRateInSpm") : t("generalItems.labelCadenceInRpm");
                     }
                 }
@@ -163,7 +165,7 @@ export default {
                 fillColor: 'rgba(54, 162, 235, 0.2)',
             }]
 
-            // Only push laps 'bg shading' if there is cadence data and indoor swimming activity
+            // Only push laps 'background shading' if there is cadence data and indoor swimming activity
             if (cadDataDS.length > 0 && activityTypeIsSwimming(props.activity)) {
                 datasets.push({
                     type: 'bar',
