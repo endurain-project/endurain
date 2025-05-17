@@ -147,10 +147,10 @@ export default {
             }
 
 			// Normalize each lap's pace relative to the fastest
-			return laps.map((lap) => {
+			return lapsWithRest.map((lap) => {
 				const normalizedScore = (fastestPace / lap.enhanced_avg_pace) * 100;
-				const formattedPace = formatPace(props.activity, authStore.user.units, lap, false);
-				const formattedPaceFull = formatPace(props.activity, authStore.user.units, lap);
+				const formattedPace = formatPace(props.activity, authStore.user.units, lap, false, lap.swimIsRest);
+				const formattedPaceFull = formatPace(props.activity, authStore.user.units, lap, true, lap.swimIsRest);
 				const formattedDistance = formatDistance(props.activity, authStore.user.units, lap);
 				const formattedElevation = formatElevation(lap.total_ascent, authStore.user.units, false);
 				const formattedElevationFull = formatElevation(lap.total_ascent, authStore.user.units);

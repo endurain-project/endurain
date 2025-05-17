@@ -146,11 +146,14 @@ export function activityTypeIsSwimming(activity) {
  * @param {boolean} [units=true] - Whether to include units in the formatted output.
  * @returns {string} The formatted pace string.
  */
-export function formatPace(activity, unitSystem, lap = null, units = true) {
+export function formatPace(activity, unitSystem, lap = null, units = true, isRest = false) {
 	let pace = activity.pace;
 	if (lap) {
 		pace = lap.enhanced_avg_pace;
 	}
+    if (isRest) {
+        return i18n.global.t("generalItems.labelRest");
+    }
 	if (
 		activityTypeIsSwimming(activity) ||
 		activity.activity_type === 13
@@ -263,12 +266,12 @@ export function formatDistance(activity, unitSystem, lap = null) {
 	if (distance === null || distance === undefined || distance < 0)
 		return i18n.global.t("generalItems.labelNoData");
 	if (Number(unitSystem) === 1) {
-		if (activity.activity_type !== 9 && activity.activity_type !== 8) {
+		if (!activityTypeIsSwimming(activity)) {
 			return `${metersToKm(distance)} ${i18n.global.t("generalItems.unitsKm")}`;
 		}
 		return `${distance} ${i18n.global.t("generalItems.unitsM")}`;
 	}
-	if (activity.activity_type !== 9 && activity.activity_type !== 8) {
+	if (!activityTypeIsSwimming(activity)) {
 		return `${metersToMiles(distance)} ${i18n.global.t("generalItems.unitsMiles")}`;
 	}
 	return `${metersToYards(distance)} ${i18n.global.t("generalItems.unitsYards")}`;
