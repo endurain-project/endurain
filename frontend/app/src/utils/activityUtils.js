@@ -113,3 +113,13 @@ export function formatAverageSpeedMetric(speed) {
 export function formatAverageSpeedImperial(speed) {
     return (speed * 2.23694).toFixed(0);
 }
+
+/**
+ * Checks if the activity type is a swimming activity.
+ *
+ * @param {object} activity - The activity object.
+ * @returns {boolean} True if the type of the activity is swimming (Indoor or Outdoor), false otherwise.
+ */
+export function activityTypeIsSwimming(activity) {
+    return activity.activity_type === 8 || activity.activity_type === 9;
+}

@@ -11,7 +11,7 @@ import { useServerSettingsStore } from '@/stores/serverSettingsStore';
 import { Chart, registerables } from 'chart.js';
 Chart.register(...registerables);
 
-import { formatAverageSpeedMetric, formatAverageSpeedImperial } from "@/utils/activityUtils";
+import { formatAverageSpeedMetric, formatAverageSpeedImperial, activityTypeIsSwimming } from "@/utils/activityUtils";
 import { metersToFeet, kmToMiles } from "@/utils/unitsUtils";
   
 export default {
@@ -55,7 +55,7 @@ export default {
                 if (stream.stream_type === 3) {
                     for (const streamPoint of stream.stream_waypoints) {
                         cadData.push(Number.parseInt(streamPoint.cad));
-                        cadLabel = props.activity.activity_type === 8 || props.activity.activity_type === 9 ? t("generalItems.labelStrokeRateInSpm") : t("generalItems.labelCadenceInRpm");
+                        cadLabel = activityTypeIsSwimming(props.activity) ? t("generalItems.labelStrokeRateInSpm") : t("generalItems.labelCadenceInRpm");
                     }
                 }
                 // Add data points
@@ -73,7 +73,7 @@ export default {
                     for (const streamPoint of stream.stream_waypoints) {
                         data.push(Number.parseInt(streamPoint.cad));
                         // Label as "Stroke Rate" over "Cadence" for swimming activities
-                        label = props.activity.activity_type === 8 || props.activity.activity_type === 9 ? t("generalItems.labelStrokeRateInSpm") : t("generalItems.labelCadenceInRpm");
+                        label = activityTypeIsSwimming(props.activity) ? t("generalItems.labelStrokeRateInSpm") : t("generalItems.labelCadenceInRpm");
                     }
                 } else if (stream.stream_type === 4 && props.graphSelection === 'ele') {
                     for (const streamPoint of stream.stream_waypoints) {
@@ -105,7 +105,7 @@ export default {
                                 } else {
                                     data.push((paceData.pace * 1609.34) / 60);
                                 }
-                            } else if (props.activity.activity_type === 8 || props.activity.activity_type === 9) {
+                            } else if (activityTypeIsSwimming(props.activity)) {
                                 if (Number(units.value) === 1) {
                                     data.push((paceData.pace * 100) / 60);
                                 } else {
@@ -120,7 +120,7 @@ export default {
                         } else {
                             label = t("generalItems.labelPaceInMinMile");
                         }
-                    } else if (props.activity.activity_type === 8 || props.activity.activity_type === 9) {
+                    } else if (activityTypeIsSwimming(props.activity)) {
                         if (Number(units.value) === 1) {
                             label = t("generalItems.labelPaceInMin100m");
                         } else {
@@ -139,13 +139,13 @@ export default {
 
             for (let i = 0; i < numberOfDataPoints; i++) {
                 if (Number(units.value) === 1) {
-                    if (props.activity.activity_type === 8 || props.activity.activity_type === 9) {
+                    if (activityTypeIsSwimming(props.activity)) {
                         labels.push(`${(i * distanceInterval).toFixed(1)}km`);
                     } else {
                         labels.push(`${(i * distanceInterval).toFixed(0)}km`);
                     }
                 } else {
-                    if (props.activity.activity_type === 8 || props.activity.activity_type === 9) {
+                    if (activityTypeIsSwimming(props.activity)) {
                         labels.push(`${(i * distanceInterval).toFixed(1)}mi`);
                     } else {
                         labels.push(`${(i * kmToMiles(distanceInterval)).toFixed(0)}mi`);
@@ -164,7 +164,7 @@ export default {
             }]
 
             // Only push laps 'bg shading' if there is cadence data and indoor swimming activity
-            if (cadDataDS.length > 0 && (props.activity.activity_type === 8)) {
+            if (cadDataDS.length > 0 && activityTypeIsSwimming(props.activity)) {
                 datasets.push({
                     type: 'bar',
                     label: t("generalItems.labelLaps"),
@@ -244,7 +244,8 @@ export default {
         });
     
         return {
-            chartCanvas
+            chartCanvas,
+            activityTypeIsSwimming,
         };
     }
 }

@@ -1,6 +1,6 @@
 <template>
     <div class="table-responsive d-none d-sm-block">
-        <table class="table table-borderless table-hover table-sm rounded text-center" :class="{ 'table-striped': activity.activity_type !== 8 && activity.activity_type !== 9 }" style="--bs-table-bg: var(--bs-gray-850);">
+        <table class="table table-borderless table-hover table-sm rounded text-center" :class="{ 'table-striped': !activityTypeIsSwimming(activity) }" style="--bs-table-bg: var(--bs-gray-850);">
             <thead>
                 <tr>
                     <th>{{ $t("activityLapsComponent.labelLapNumber") }}</th>
@@ -10,9 +10,9 @@
                     <th v-if="activity.activity_type === 4 || activity.activity_type === 5 || activity.activity_type === 6 || activity.activity_type === 7 || activity.activity_type === 27">{{ $t("activityLapsComponent.labelLapSpeed") }}</th>
                     <th v-else>{{ $t("activityLapsComponent.labelLapPace") }}</th>
                     <!-- Do not show elevation for swimming activities -->
-                    <th v-if="activity.activity_type !== 8 && activity.activity_type !== 9">{{ $t("activityLapsComponent.labelLapElevation") }}</th>
+                    <th v-if="!activityTypeIsSwimming(activity)">{{ $t("activityLapsComponent.labelLapElevation") }}</th>
                     <!-- Show Stroke Rate for swimming activities -->
-                    <th v-if="activity.activity_type === 8 || activity.activity_type === 9">{{ $t("activityLapsComponent.labelLapStrokeRate") }}</th>
+                    <th v-if="activityTypeIsSwimming(activity)">{{ $t("activityLapsComponent.labelLapStrokeRate") }}</th>
                     <th>{{ $t("activityLapsComponent.labelLapAvgHr") }}</th>
                 </tr>
             </thead>
@@ -24,8 +24,8 @@
                     <td>{{ lap.lapSecondsToMinutes }}</td>
                     <td v-if="activity.activity_type === 4 || activity.activity_type === 5 || activity.activity_type === 6 || activity.activity_type === 7 || activity.activity_type === 27">{{ lap.formattedSpeedFull }}</td>
                     <td v-else>{{ lap.formattedPaceFull }}</td>
-					<td v-if="activity.activity_type !== 8 && activity.activity_type !== 9">{{ lap.formattedElevationFull.value }}</td>
-                    <td v-if="activity.activity_type === 8 || activity.activity_type === 9">{{ lap.avg_cadence }}</td>
+					<td v-if="!activityTypeIsSwimming(activity)">{{ lap.formattedElevationFull }}</td>
+                    <td v-if="activityTypeIsSwimming(activity)">{{ lap.avg_cadence }}</td>
                     <td>
 						<span v-if="lap.avg_heart_rate">
 							{{ lap.avg_heart_rate + ' ' + $t("generalItems.unitsBpm") }}
@@ -47,8 +47,8 @@
                     <th scope="col" style="width: 15%;" v-if="activity.activity_type === 4 || activity.activity_type === 5 || activity.activity_type === 6 || activity.activity_type === 7 || activity.activity_type === 27">{{ $t("activityLapsComponent.labelLapSpeed") }}</th>
                     <th scope="col" style="width: 15%;" v-else>{{ $t("activityLapsComponent.labelLapPace") }}</th>
                     <th scope="col" style="width: auto;">&nbsp;</th>
-                    <th scope="col" style="width: 10%;" v-if="activity.activity_type !== 8 && activity.activity_type !== 9">{{ $t("activityLapsComponent.labelLapElev") }}</th>
-                    <th scope="col" style="width: 10%;" v-if="activity.activity_type === 8 || activity.activity_type === 9">{{ $t("activityLapsComponent.labelLapSR") }}</th>
+                    <th scope="col" style="width: 10%;" v-if="!activityTypeIsSwimming(activity)">{{ $t("activityLapsComponent.labelLapElev") }}</th>
+                    <th scope="col" style="width: 10%;" v-if="activityTypeIsSwimming(activity)">{{ $t("activityLapsComponent.labelLapSR") }}</th>
                     <th scope="col" style="width: 10%;">{{ $t("activityLapsComponent.labelLapHR") }}</th>
                 </tr>
             </thead>
@@ -62,8 +62,8 @@
                             <div class="progress-bar" :style="{ width: lap.normalizedScore + '%' }"></div>
                         </div>
                     </td>
-                    <td v-if="activity.activity_type !== 8 && activity.activity_type !== 9">{{ lap.formattedElevation }}</td>
-                    <td v-if="activity.activity_type === 8 || activity.activity_type === 9">{{ lap.avg_cadence }}</td>
+                    <td v-if="!activityTypeIsSwimming(activity)">{{ lap.formattedElevation }}</td>
+                    <td v-if="activityTypeIsSwimming(activity)">{{ lap.avg_cadence }}</td>
 					<td>
 						<span v-if="lap.avg_heart_rate">
 							{{ lap.avg_heart_rate }}
@@ -92,6 +92,7 @@ import {
 	formatPaceSwimImperial,
 	formatAverageSpeedMetric,
 	formatAverageSpeedImperial,
+    activityTypeIsSwimming,
 } from "@/utils/activityUtils";
 import {
 	metersToKm,
@@ -137,7 +138,7 @@ export default {
 
             // Work out whether each lap is a rest (swim activities only)
             const lapsWithRest = laps.map(lap => {
-                const swimIsRest = (props.activity.activity_type === 8 || props.activity.activity_type === 9) 
+                const swimIsRest = activityTypeIsSwimming(props.activity)
                     && (lap.total_distance === 0 || lap.total_distance === null);
                 return {
                     ...lap,
@@ -156,11 +157,10 @@ export default {
 				const normalizedScore = lap.enhanced_avg_pace === null || lap.enhanced_avg_pace === 0 ? 0 : (fastestPace / lap.enhanced_avg_pace) * 100;
 				const formattedPace = computed(() => {
 					if (
-						props.activity.activity_type === 8 ||
-						props.activity.activity_type === 9 ||
+						activityTypeIsSwimming(props.activity) ||
 						props.activity.activity_type === 13
 					) {
-                        if (lap.enhanced_avg_pace === null && lap.swimIsRest === true && props.activity.activity_type !== 13) {
+                        if (lap.enhanced_avg_pace === null && lap.swimIsRest === true) {
                             return t("generalItems.labelRest");
                         }
 						if (Number(props.units) === 1) {
@@ -175,14 +175,13 @@ export default {
 				});
 				const formattedPaceFull = computed(() => {
 					if (lap.enhanced_avg_pace === null) {
-                        if ((props.activity.activity_type === 8 || props.activity.activity_type === 9) && lap.swimIsRest === true) {
+                        if (activityTypeIsSwimming(props.activity) && lap.swimIsRest === true) {
                             return t("generalItems.labelRest");
                         }
                         return t("generalItems.labelNoData");
 					}
 					if (
-						props.activity.activity_type === 8 ||
-						props.activity.activity_type === 9 ||
+						activityTypeIsSwimming(props.activity) ||
 						props.activity.activity_type === 13
 					) {
 						if (Number(props.units) === 1) {
@@ -201,13 +200,13 @@ export default {
 					}
 					if (Number(props.units) === 1) {
                         // Show distance in meters for swimming activities
-                        if (props.activity.activity_type === 8 || props.activity.activity_type === 9) {
+                        if (activityTypeIsSwimming(props.activity)) {
                             return `${lap.total_distance}${t("generalItems.unitsM")}`;
                         }
 						return `${metersToKm(lap.total_distance)} ${t("generalItems.unitsKm")}`;
 					}
                     // Show distance in yards for swimming activities
-                    if (props.activity.activity_type === 8 || props.activity.activity_type === 9) {
+                    if (activityTypeIsSwimming(props.activity)) {
                         return `${metersToYards(lap.total_distance)}${t("generalItems.unitsYards")}`;
                     }
 					return `${metersToMiles(lap.total_distance)} ${t("generalItems.unitsMiles")}`;
@@ -265,6 +264,7 @@ export default {
 		return {
 			normalizedLaps,
             hasIntensity,
+            activityTypeIsSwimming,
 		};
 	},
 };
