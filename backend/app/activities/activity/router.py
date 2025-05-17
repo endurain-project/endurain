@@ -14,6 +14,8 @@ import core.logger as core_logger
 import gears.dependencies as gears_dependencies
 import session.security as session_security
 import users.user.dependencies as users_dependencies
+import garmin.activity_utils as garmin_activity_utils
+import strava.activity_utils as strava_activity_utils
 from fastapi import (
     APIRouter,
     BackgroundTasks,
@@ -399,6 +401,55 @@ async def read_activities_followed_user_activities_number(
 
     # Return the number of activities
     return len(activities)
+
+
+@router.get(
+    "/refresh",
+    response_model=list[activities_schema.Activity] | None,
+)
+async def read_activities_user_activities_refresh(
+    check_scopes: Annotated[
+        Callable, Security(session_security.check_scopes, scopes=["activities:read"])
+    ],
+    token_user_id: Annotated[
+        int,
+        Depends(session_security.get_user_id_from_access_token),
+    ],
+    db: Annotated[
+        Session,
+        Depends(core_database.get_db),
+    ],
+):
+    # Set the activities to empty list
+    activities = []
+
+    # Get the strava activities for the user for the last 24h
+    strava_activities = strava_activity_utils.get_user_strava_activities_by_days(
+        (datetime.now(timezone.utc) - timedelta(days=1)).strftime("%Y-%m-%dT%H:%M:%S"),
+        token_user_id,
+        db,
+    )
+
+    # Get the garmin activities for the user for the last 24h
+    garmin_activities = garmin_activity_utils.get_user_garminconnect_activities_by_days(
+        (datetime.now(timezone.utc) - timedelta(days=1)).strftime("%Y-%m-%dT%H:%M:%S"),
+        token_user_id,
+        db,
+    )
+
+    # Extend the activities to the list
+    if strava_activities is not None:
+        activities.extend(strava_activities)
+
+    if garmin_activities is not None:
+        activities.extend(garmin_activities)
+
+    # Check if activities is None and return None if it is
+    if activities is None:
+        return None
+
+    # Return the activities
+    return activities
 
 
 @router.get(

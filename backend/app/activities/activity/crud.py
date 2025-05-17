@@ -83,7 +83,7 @@ def get_user_activities(
             query = query.filter(
                 activities_models.Activity.activity_type == activity_type
             )
-            
+
         if start_date:
             # add filter for start date
             query = query.filter(
@@ -223,7 +223,7 @@ def get_user_activities_with_pagination(
             query = query.filter(
                 activities_models.Activity.activity_type == activity_type
             )
-            
+
         if start_date:
             # add filter for start date
             query = query.filter(
@@ -265,20 +265,20 @@ def get_user_activities_with_pagination(
             # Handle nulls by using COALESCE with a maximum value for DESC or minimum value for ASC
             if sort_ascending:
                 query = query.order_by(
-                    func.coalesce(activities_models.Activity.country, '').asc(),
-                    func.coalesce(activities_models.Activity.city, '').asc(),
-                    func.coalesce(activities_models.Activity.town, '').asc()
+                    func.coalesce(activities_models.Activity.country, "").asc(),
+                    func.coalesce(activities_models.Activity.city, "").asc(),
+                    func.coalesce(activities_models.Activity.town, "").asc(),
                 )
             else:
                 query = query.order_by(
-                    func.coalesce(activities_models.Activity.country, '').desc(),
-                    func.coalesce(activities_models.Activity.city, '').desc(),
-                    func.coalesce(activities_models.Activity.town, '').desc()
+                    func.coalesce(activities_models.Activity.country, "").desc(),
+                    func.coalesce(activities_models.Activity.city, "").desc(),
+                    func.coalesce(activities_models.Activity.town, "").desc(),
                 )
         else:
             # Standard sorting for other columns
             sort_column = SORT_MAP.get(sort_by, activities_models.Activity.start_time)
-            
+
             # For numeric columns, use COALESCE with a very small/large number
             if sort_column in [
                 activities_models.Activity.distance,
@@ -286,7 +286,7 @@ def get_user_activities_with_pagination(
                 activities_models.Activity.calories,
                 activities_models.Activity.elevation_gain,
                 activities_models.Activity.pace,
-                activities_models.Activity.average_hr
+                activities_models.Activity.average_hr,
             ]:
                 if sort_ascending:
                     query = query.order_by(func.coalesce(sort_column, -999999).asc())
@@ -344,7 +344,8 @@ def get_distinct_activity_types_for_user(user_id: int, db: Session):
         # Map type IDs to names, excluding None values
         return {
             type_id: activities_utils.ACTIVITY_ID_TO_NAME.get(type_id, "Unknown")
-            for type_id, in type_ids if type_id is not None
+            for type_id, in type_ids
+            if type_id is not None
         }
     except Exception as err:
         # Log the exception
@@ -432,7 +433,9 @@ def get_user_following_activities_per_timeframe(
     except Exception as err:
         # Log the exception
         core_logger.print_to_log(
-            f"Error in get_user_following_activities_per_timeframe: {err}", "error", exc=err
+            f"Error in get_user_following_activities_per_timeframe: {err}",
+            "error",
+            exc=err,
         )
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
@@ -480,7 +483,9 @@ def get_user_following_activities_with_pagination(
     except Exception as err:
         # Log the exception
         core_logger.print_to_log(
-            f"Error in get_user_following_activities_with_pagination: {err}", "error", exc=err
+            f"Error in get_user_following_activities_with_pagination: {err}",
+            "error",
+            exc=err,
         )
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
@@ -557,7 +562,9 @@ def get_user_activities_by_gear_id_and_user_id(user_id: int, gear_id: int, db: S
     except Exception as err:
         # Log the exception
         core_logger.print_to_log(
-            f"Error in get_user_activities_by_gear_id_and_user_id: {err}", "error", exc=err
+            f"Error in get_user_activities_by_gear_id_and_user_id: {err}",
+            "error",
+            exc=err,
         )
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
@@ -595,7 +602,9 @@ def get_activity_by_id_from_user_id_or_has_visibility(
     except Exception as err:
         # Log the exception
         core_logger.print_to_log(
-            f"Error in get_activity_by_id_from_user_id_or_has_visibility: {err}", "error", exc=err
+            f"Error in get_activity_by_id_from_user_id_or_has_visibility: {err}",
+            "error",
+            exc=err,
         )
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
@@ -741,7 +750,9 @@ def get_activity_by_garminconnect_id_from_user_id(
     except Exception as err:
         # Log the exception
         core_logger.print_to_log(
-            f"Error in get_activity_by_garminconnect_id_from_user_id: {err}", "error", exc=err
+            f"Error in get_activity_by_garminconnect_id_from_user_id: {err}",
+            "error",
+            exc=err,
         )
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
