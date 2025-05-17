@@ -23,16 +23,16 @@ Environment variable  | Default value | Optional | Notes |
 | UID | 1000 | Yes | User ID for mounted volumes. Default is 1000 |
 | GID | 1000 | Yes | Group ID for mounted volumes. Default is 1000 |
 | TZ | UTC | Yes | Timezone definition. Useful for TZ calculation for activities that do not have coordinates associated, like indoor swim or weight training. If not specified UTC will be used. List of available time zones [here](https://en.wikipedia.org/wiki/List_of_tz_database_time_zones). Format `Europe/Lisbon` expected |
-| ENDURAIN_HOST | http://localhost:8080 | `No` | Required for internal communication and Strava. For Strava https must be used. Host or local ip (example: http://192.168.1.10:8080 or https://endurain.com) |
-| GEOCODES_MAPS_API | changeme | `No` | <a href="https://geocode.maps.co/">Geocode maps</a> offers a free plan consisting of 1 Request/Second. Registration necessary. |
+| ENDURAIN_HOST | No default set | `No` | Required for internal communication and Strava. For Strava https must be used. Host or local ip (example: http://192.168.1.10:8080 or https://endurain.com) |
+| GEOCODES_MAPS_API | No default set | `No` | <a href="https://geocode.maps.co/">Geocode maps</a> offers a free plan consisting of 1 Request/Second. Registration necessary. |
 | DB_TYPE | postgres | Yes | mariadb or postgres |
 | DB_HOST | postgres | Yes | mariadb or postgres |
 | DB_PORT | 5432 | Yes | 3306 or 5432 |
 | DB_USER | endurain | Yes | N/A |
-| DB_PASSWORD | changeme | `No` | N/A |
+| DB_PASSWORD | No default set | `No` | N/A |
 | DB_DATABASE | endurain | Yes | N/A |
-| SECRET_KEY | changeme | `No` | Run `openssl rand -hex 32` on a terminal to get a secret |
-| FERNET_KEY | changeme | `No` | Run `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"` on a terminal to get a secret or go to [https://fernetkeygen.com](https://fernetkeygen.com). Example output is `7NfMMRSCWcoNDSjqBX8WoYH9nTFk1VdQOdZY13po53Y=` |
+| SECRET_KEY | No default set | `No` | Run `openssl rand -hex 32` on a terminal to get a secret |
+| FERNET_KEY | No default set | `No` | Run `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"` on a terminal to get a secret or go to [https://fernetkeygen.com](https://fernetkeygen.com). Example output is `7NfMMRSCWcoNDSjqBX8WoYH9nTFk1VdQOdZY13po53Y=` |
 | ALGORITHM | HS256 | Yes | Currently only HS256 is supported |
 | ACCESS_TOKEN_EXPIRE_MINUTES | 15 | Yes | Time in minutes |
 | REFRESH_TOKEN_EXPIRE_DAYS | 7 | Yes | Time in days |
