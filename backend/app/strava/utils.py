@@ -149,18 +149,25 @@ def create_strava_client(
     )
 
     # Create a Strava client with the user's access token and return it
-    return Client(
-        access_token=(
-            core_cryptography.decrypt_token_fernet(user_integrations.strava_token)
-            if user_integrations.strava_token
-            else None
-        ),
-        refresh_token=(
-            core_cryptography.decrypt_token_fernet(
-                user_integrations.strava_refresh_token
-            )
-            if user_integrations.strava_refresh_token
-            else None
-        ),
-        token_expires=epoch_time,
-    )
+    try:
+        return Client(
+            access_token=(
+                core_cryptography.decrypt_token_fernet(user_integrations.strava_token)
+                if user_integrations.strava_token
+                else None
+            ),
+            refresh_token=(
+                core_cryptography.decrypt_token_fernet(
+                    user_integrations.strava_refresh_token
+                )
+                if user_integrations.strava_refresh_token
+                else None
+            ),
+            token_expires=epoch_time,
+        )
+    except Exception as err:
+        # Log the error and re-raise the exception
+        core_logger.print_to_log_and_console(
+            f"Error in create_strava_client: {err}", "error", err
+        )
+        raise err

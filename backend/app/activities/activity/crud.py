@@ -262,40 +262,42 @@ def get_user_activities_with_pagination(
 
         if sort_by == "location":
             # Special handling for location: sort by country, then city, then town
-            country_sort = activities_models.Activity.country
-            city_sort = activities_models.Activity.city
-            town_sort = activities_models.Activity.town
+            # Handle nulls by using COALESCE with a maximum value for DESC or minimum value for ASC
             if sort_ascending:
                 query = query.order_by(
-                    country_sort.asc().nullslast(),
-                    city_sort.asc().nullslast(),
-                    town_sort.asc().nullslast(),
+                    func.coalesce(activities_models.Activity.country, '').asc(),
+                    func.coalesce(activities_models.Activity.city, '').asc(),
+                    func.coalesce(activities_models.Activity.town, '').asc()
                 )
             else:
                 query = query.order_by(
-                    country_sort.desc().nullslast(),
-                    city_sort.desc().nullslast(),
-                    town_sort.desc().nullslast(),
+                    func.coalesce(activities_models.Activity.country, '').desc(),
+                    func.coalesce(activities_models.Activity.city, '').desc(),
+                    func.coalesce(activities_models.Activity.town, '').desc()
                 )
         else:
             # Standard sorting for other columns
-            sort_column = SORT_MAP.get(
-                sort_by, activities_models.Activity.start_time
-            )  # Default to start_time
-            if sort_ascending:
-                # Handle potential None values for numeric/date columns if needed, e.g., .nullslast()
-                query = query.order_by(
-                    sort_column.asc().nullslast()
-                    if hasattr(sort_column, "asc")
-                    else sort_column
-                )
+            sort_column = SORT_MAP.get(sort_by, activities_models.Activity.start_time)
+            
+            # For numeric columns, use COALESCE with a very small/large number
+            if sort_column in [
+                activities_models.Activity.distance,
+                activities_models.Activity.total_timer_time,
+                activities_models.Activity.calories,
+                activities_models.Activity.elevation_gain,
+                activities_models.Activity.pace,
+                activities_models.Activity.average_hr
+            ]:
+                if sort_ascending:
+                    query = query.order_by(func.coalesce(sort_column, -999999).asc())
+                else:
+                    query = query.order_by(func.coalesce(sort_column, -999999).desc())
+            # For string/date columns
             else:
-                # Default to descending order
-                query = query.order_by(
-                    sort_column.desc().nullslast()
-                    if hasattr(sort_column, "desc")
-                    else desc(sort_column)
-                )
+                if sort_ascending:
+                    query = query.order_by(sort_column.asc())
+                else:
+                    query = query.order_by(sort_column.desc())
 
         # Apply pagination
         paginated_query = query.offset((page_number - 1) * num_records).limit(
