@@ -7,5 +7,5 @@
     "settings": "Einstellungen",
     "login": "Anmelden",
     "logout": "Abmelden",
-    "errorLogout": "Error logging out"
+    "errorLogout": "Fehler beim Ausloggen"
 }
