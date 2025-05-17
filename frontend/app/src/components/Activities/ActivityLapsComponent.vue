@@ -12,7 +12,7 @@
                     <!-- Do not show elevation for swimming activities -->
                     <th v-if="activity.activity_type !== 8 && activity.activity_type !== 9">{{ $t("activityLapsComponent.labelLapElevation") }}</th>
                     <!-- Show Stroke Rate for swimming activities -->
-                    <th v-if="activity.activity_type === 8 || activity.activity_type === 9">Stroke Rate</th> <!-- TODO: Add translation -->
+                    <th v-if="activity.activity_type === 8 || activity.activity_type === 9">{{ $t("activityLapsComponent.labelLapStrokeRate") }}</th>
                     <th>{{ $t("activityLapsComponent.labelLapAvgHr") }}</th>
                 </tr>
             </thead>
@@ -48,7 +48,7 @@
                     <th scope="col" style="width: 15%;" v-else>{{ $t("activityLapsComponent.labelLapPace") }}</th>
                     <th scope="col" style="width: auto;">&nbsp;</th>
                     <th scope="col" style="width: 10%;" v-if="activity.activity_type !== 8 && activity.activity_type !== 9">{{ $t("activityLapsComponent.labelLapElev") }}</th>
-                    <th scope="col" style="width: 10%;" v-if="activity.activity_type === 8 || activity.activity_type === 9">SR</th> <!-- TODO: Add translation -->
+                    <th scope="col" style="width: 10%;" v-if="activity.activity_type === 8 || activity.activity_type === 9">{{ $t("activityLapsComponent.labelLapSR") }}</th>
                     <th scope="col" style="width: 10%;">{{ $t("activityLapsComponent.labelLapHR") }}</th>
                 </tr>
             </thead>
@@ -161,7 +161,7 @@ export default {
 						props.activity.activity_type === 13
 					) {
                         if (lap.enhanced_avg_pace === null && lap.swimIsRest === true && props.activity.activity_type !== 13) {
-                            return "Rest"; // TODO: Add translation
+                            return t("generalItems.labelRest");
                         }
 						if (Number(props.units) === 1) {
 							return formatPaceSwimMetric(lap.enhanced_avg_pace, false);
@@ -176,7 +176,7 @@ export default {
 				const formattedPaceFull = computed(() => {
 					if (lap.enhanced_avg_pace === null) {
                         if ((props.activity.activity_type === 8 || props.activity.activity_type === 9) && lap.swimIsRest === true) {
-                            return "Rest"; // TODO: Add translation
+                            return t("generalItems.labelRest");
                         }
                         return t("generalItems.labelNoData");
 					}

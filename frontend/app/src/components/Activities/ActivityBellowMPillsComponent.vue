@@ -139,7 +139,7 @@
                 {{ $t("activityBellowMPillsComponent.subTitleCadence") }}
             </span>
             <span class="fw-normal" v-else>
-                Stroke Rate <!-- TODO: Add translation -->
+                {{ $t("activityBellowMPillsComponent.subTitleStrokeRate") }}
             </span>
             <ActivityStreamsLineChartComponent :activity="activity" :graphSelection="'cad'" :activityStreams="activityActivityStreams" />
             <div class="d-flex justify-content-between mt-3" v-if="activity.average_cad">
@@ -147,7 +147,7 @@
                     {{ $t("activityBellowMPillsComponent.labelAvgCadence") }}
                 </span>
                 <span v-else>
-                    Stroke Rate <!-- TODO: Add translation -->
+                    {{ $t("activityBellowMPillsComponent.labelAvgStrokeRate") }}
                 </span>
                 <span>
                     <b>{{ activity.average_cad }}{{ ' ' + $t("generalItems.unitsSpm") }}</b>
@@ -158,7 +158,7 @@
                     {{ $t("activityBellowMPillsComponent.labelMaxCadence") }}
                 </span>
                 <span v-else>
-                    Stroke Rate <!-- TODO: Add translation -->
+                    {{ $t("activityBellowMPillsComponent.labelMaxStrokeRate") }}
                 </span>
                 <span>
                     <b>{{ activity.max_cad }}{{ ' ' + $t("generalItems.unitsSpm") }}</b>

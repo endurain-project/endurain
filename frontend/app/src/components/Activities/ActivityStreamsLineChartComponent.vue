@@ -55,7 +55,7 @@ export default {
                 if (stream.stream_type === 3) {
                     for (const streamPoint of stream.stream_waypoints) {
                         cadData.push(Number.parseInt(streamPoint.cad));
-                        cadLabel = props.activity.activity_type === 8 || props.activity.activity_type === 9 ? "Stroke Rate in spm" : t("generalItems.labelCadenceInRpm"); // TODO: Add translation
+                        cadLabel = props.activity.activity_type === 8 || props.activity.activity_type === 9 ? t("generalItems.labelStrokeRateInSpm") : t("generalItems.labelCadenceInRpm");
                     }
                 }
                 // Add data points
@@ -73,8 +73,7 @@ export default {
                     for (const streamPoint of stream.stream_waypoints) {
                         data.push(Number.parseInt(streamPoint.cad));
                         // Label as "Stroke Rate" over "Cadence" for swimming activities
-                        // TODO: Add translation
-                        label = props.activity.activity_type === 8 || props.activity.activity_type === 9 ? "Stroke Rate in spm" : t("generalItems.labelCadenceInRpm");
+                        label = props.activity.activity_type === 8 || props.activity.activity_type === 9 ? t("generalItems.labelStrokeRateInSpm") : t("generalItems.labelCadenceInRpm");
                     }
                 } else if (stream.stream_type === 4 && props.graphSelection === 'ele') {
                     for (const streamPoint of stream.stream_waypoints) {
@@ -168,7 +167,7 @@ export default {
             if (cadDataDS.length > 0 && (props.activity.activity_type === 8)) {
                 datasets.push({
                     type: 'bar',
-                    label: 'Laps', // TODO: Add translation
+                    label: t("generalItems.labelLaps"),
                     data: cadDataDS.map(d => d === 0 ? 0 : 1),
                     yAxisID: 'y1',
                     backgroundColor: 'rgba(0, 0, 0, 0.2)',

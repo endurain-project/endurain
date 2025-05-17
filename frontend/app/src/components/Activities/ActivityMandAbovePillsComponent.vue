@@ -134,7 +134,7 @@ export default {
 							cadPresent.value = true;
 							// Label as "Stroke Rate" over "Cadence" for swimming activities
                             if (props.activity.activity_type === 8 || props.activity.activity_type === 9) {
-                                graphItems.value.push({ type: "cad", label: "Stroke rate" }); // TODO: Add translation
+                                graphItems.value.push({ type: "cad", label: `${t("activityMandAbovePillsComponent.labelGraphStrokeRate")}` });
                             } else {
                                 graphItems.value.push({ type: "cad", label: `${t("activityMandAbovePillsComponent.labelGraphCadence")}` });
                             }
