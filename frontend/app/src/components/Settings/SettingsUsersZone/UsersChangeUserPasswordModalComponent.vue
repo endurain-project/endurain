@@ -14,32 +14,32 @@
                         <p>{{ $t("usersChangeUserPasswordModalComponent.modalChangeUserPasswordBodyLabel") }}<b>{{ user.username }}</b></p>
 
                         <!-- password fields -->
-                        <label for="validationNewPassword"><b>* {{ $t("usersChangeUserPasswordModalComponent.modalChangeUserPasswordPasswordLabel") }}</b></label>
+                        <label :for="`validationNewPassword${user.id}`"><b>* {{ $t("usersChangeUserPasswordModalComponent.modalChangeUserPasswordPasswordLabel") }}</b></label>
                         <div class="position-relative">
-                            <input :type="showNewPassword ? 'text' : 'password'" class="form-control" :class="{ 'is-invalid': !isNewPasswordValid || !isPasswordMatch }" id="validationNewPassword" aria-describedby="validationNewPasswordFeedback" :placeholder='$t("usersChangeUserPasswordModalComponent.modalChangeUserPasswordPasswordLabel")' v-model="newPassword" required>
+                            <input :type="showNewPassword ? 'text' : 'password'" class="form-control" :class="{ 'is-invalid': !isNewPasswordValid || !isPasswordMatch }" :id="`validationNewPassword${user.id}`" :aria-describedby="`validationNewPasswordFeedback${user.id}`" :placeholder='$t("usersChangeUserPasswordModalComponent.modalChangeUserPasswordPasswordLabel")' v-model="newPassword" required>
                             <button type="button" class="btn position-absolute top-50 end-0 translate-middle-y" :class="{ 'me-4': !isNewPasswordValid || !isPasswordMatch }" @click="toggleNewPasswordVisibility">
                                 <font-awesome-icon :icon="showNewPassword ? ['fas', 'eye-slash'] : ['fas', 'eye']" />
                             </button>
                         </div>
-                        <div id="validationNewPasswordFeedback" class="invalid-feedback d-block" v-if="!isNewPasswordValid">
+                        <div :id="`validationNewPasswordFeedback${user.id}`" class="invalid-feedback d-block" v-if="!isNewPasswordValid">
                             {{ $t("usersChangeUserPasswordModalComponent.modalChangeUserPasswordFeedbackLabel") }}
                         </div>
-                        <div id="validationNewPasswordFeedback" class="invalid-feedback d-block" v-if="!isPasswordMatch">
+                        <div :id="`validationNewPasswordFeedback${user.id}`" class="invalid-feedback d-block" v-if="!isPasswordMatch">
                             {{ $t("usersChangeUserPasswordModalComponent.modalChangeUserPasswordPasswordsDoNotMatchFeedbackLabel") }}
                         </div>
                         <!-- repeat password fields -->
 
-                        <label class="mt-1" for="validationNewPasswordRepeat"><b>* {{ $t("usersChangeUserPasswordModalComponent.modalChangeUserPasswordPasswordConfirmationLabel") }}</b></label>
+                        <label class="mt-1" :for="`validationNewPasswordRepeat${user.id}`"><b>* {{ $t("usersChangeUserPasswordModalComponent.modalChangeUserPasswordPasswordConfirmationLabel") }}</b></label>
                         <div class="position-relative">
-                            <input :type="showNewPasswordRepeat ? 'text' : 'password'" class="form-control" :class="{ 'is-invalid': !isNewPasswordRepeatValid || !isPasswordMatch }" id="validationNewPasswordRepeat" aria-describedby="validationNewPasswordRepeatFeedback" :placeholder='$t("usersChangeUserPasswordModalComponent.modalChangeUserPasswordPasswordConfirmationLabel")' v-model="newPasswordRepeat" required>
+                            <input :type="showNewPasswordRepeat ? 'text' : 'password'" class="form-control" :class="{ 'is-invalid': !isNewPasswordRepeatValid || !isPasswordMatch }" :id="`validationNewPasswordRepeat${user.id}`" :aria-describedby="`validationNewPasswordRepeatFeedback${user.id}`" :placeholder='$t("usersChangeUserPasswordModalComponent.modalChangeUserPasswordPasswordConfirmationLabel")' v-model="newPasswordRepeat" required>
                             <button type="button" class="btn position-absolute top-50 end-0 translate-middle-y" :class="{ 'me-4': !isNewPasswordRepeatValid || !isPasswordMatch }" @click="toggleNewPasswordRepeatVisibility">
                                 <font-awesome-icon :icon="showNewPasswordRepeat ? ['fas', 'eye-slash'] : ['fas', 'eye']" />
                             </button>
                         </div>
-                        <div id="validationNewPasswordRepeatFeedback" class="invalid-feedback d-block" v-if="!isNewPasswordRepeatValid">
+                        <div :id="`validationNewPasswordRepeatFeedback${user.id}`" class="invalid-feedback d-block" v-if="!isNewPasswordRepeatValid">
                             {{ $t("usersChangeUserPasswordModalComponent.modalChangeUserPasswordFeedbackLabel") }}
                         </div>
-                        <div id="validationNewPasswordRepeatFeedback" class="invalid-feedback d-block" v-if="!isPasswordMatch">
+                        <div :id="`validationNewPasswordRepeatFeedback${user.id}`" class="invalid-feedback d-block" v-if="!isPasswordMatch">
                             {{ $t("usersChangeUserPasswordModalComponent.modalChangeUserPasswordPasswordsDoNotMatchFeedbackLabel") }}
                         </div>
 
