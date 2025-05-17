@@ -2,10 +2,10 @@ from datetime import datetime
 
 from sqlalchemy.orm import Session
 
-import activities.crud as activities_crud
-import activities.utils as activities_utils
+import activities.activity.crud as activities_crud
+import activities.activity.utils as activities_utils
 
-import activity_streams.crud as activity_streams_crud
+import activities.activity_streams.crud as activity_streams_crud
 
 import migrations.crud as migrations_crud
 from migrations.schema import StreamType

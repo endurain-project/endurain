@@ -29,6 +29,12 @@ const router = createRouter({
 			name: "activity",
 			component: () => import("../views/ActivityView.vue"),
 		},
+		// Added Activities List Route
+		{
+			path: '/activities',
+			name: 'activities',
+			component: () => import('../views/ActivitiesView.vue'),
+		  },
 		{
 			path: "/health",
 			name: "health",

@@ -3,11 +3,11 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile
 from sqlalchemy.orm import Session
 
-import users.schema as users_schema
-import users.crud as users_crud
-import users.utils as users_utils
+import users.user.schema as users_schema
+import users.user.crud as users_crud
+import users.user.utils as users_utils
 
-import user_integrations.crud as user_integrations_crud
+import users.user_integrations.crud as user_integrations_crud
 
 import session.security as session_security
 import session.crud as session_crud

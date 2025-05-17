@@ -4,25 +4,25 @@ from fastapi import HTTPException, status
 from datetime import datetime, timedelta, timezone
 from sqlalchemy.orm import Session
 from stravalib.client import Client
+from stravalib.exc import AccessUnauthorized
 from timezonefinder import TimezoneFinder
 
 import core.logger as core_logger
 
-import activities.schema as activities_schema
-import activities.crud as activities_crud
-import activities.utils as activities_utils
+import activities.activity.schema as activities_schema
+import activities.activity.crud as activities_crud
+import activities.activity.utils as activities_utils
 
-import activity_laps.crud as activity_laps_crud
-import activity_laps.schema as activity_laps_schema
+import activities.activity_laps.crud as activity_laps_crud
 
-import activity_streams.schema as activity_streams_schema
-import activity_streams.crud as activity_streams_crud
+import activities.activity_streams.schema as activity_streams_schema
+import activities.activity_streams.crud as activity_streams_crud
 
-import user_integrations.schema as user_integrations_schema
+import users.user_integrations.schema as user_integrations_schema
 
-import user_default_gear.utils as user_default_gear_utils
+import users.user_default_gear.utils as user_default_gear_utils
 
-import users.crud as users_crud
+import users.user.crud as users_crud
 
 import gears.crud as gears_crud
 
@@ -37,10 +37,29 @@ def fetch_and_process_activities(
     user_id: int,
     user_integrations: user_integrations_schema.UsersIntegrations,
     db: Session,
+    is_startup: bool = False,
 ) -> int:
+    # set the strava activities to None
+    strava_activities = None
+
     # Fetch Strava activities after the specified start date
     try:
         strava_activities = list(strava_client.get_activities(after=start_date))
+    except AccessUnauthorized as auth_err:
+        # Log a more specific error message for authentication issues
+        core_logger.print_to_log(
+            f"User {user_id}: Authentication error with Strava: {str(auth_err)}",
+            "error",
+            exc=auth_err,
+        )
+        # Attempt to refresh token or notify user about authentication issues
+        if not is_startup:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Strava authentication failed. Please reconnect your Strava account.",
+            )
+        # Return 0 to indicate no activities were processed
+        return 0
     except Exception as err:
         # Log an error event if an exception occurred
         core_logger.print_to_log(
@@ -48,12 +67,14 @@ def fetch_and_process_activities(
             "error",
             exc=err,
         )
+        # Raise an HTTPException with a 424 Failed Dependency status code
+        if not is_startup:
+            raise HTTPException(
+                status_code=status.HTTP_424_FAILED_DEPENDENCY,
+                detail="Not able to fetch Strava activities",
+            )
         # Return 0 to indicate no activities were processed
-        # return 0
-        raise HTTPException(
-            status_code=status.HTTP_424_FAILED_DEPENDENCY,
-            detail="Not able to fetch Strava activities",
-        )
+        return 0
 
     if strava_activities is None:
         # Log an informational event if no activities were found
@@ -66,10 +87,11 @@ def fetch_and_process_activities(
 
     user = users_crud.get_user_by_id(user_id, db)
     if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found",
-        )
+        if not is_startup:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found",
+            )
 
     processed_activities = []
 
@@ -161,7 +183,9 @@ def parse_activity(
         vel_waypoints,
         is_velocity_set,
         pace_waypoints,
-    ) = fetch_and_process_activity_streams(strava_client, activity.id, user_id)
+    ) = fetch_and_process_activity_streams(
+        strava_client, activity.id, user_id,
+    )
 
     ele_gain, ele_loss = None, None
     # Calculate elevation gain and loss
@@ -293,7 +317,7 @@ def parse_activity(
 
     # Fetch and process activity laps
     laps = fetch_and_process_activity_laps(
-        strava_client, activity.id, user_id, stream_data
+        strava_client, activity.id, user_id, stream_data,
     )
 
     # Return the activity and stream data
@@ -403,8 +427,7 @@ def fetch_and_process_activity_streams(
             "error",
             exc=err,
         )
-        # Return None to indicate the activity was not processed
-        # eturn None
+        # Raise exception
         raise HTTPException(
             status_code=status.HTTP_424_FAILED_DEPENDENCY,
             detail="Not able to fetch Strava activity streams",
@@ -620,13 +643,49 @@ def fetch_and_process_activity_laps(
     return laps_processed
 
 
-def retrieve_strava_users_activities_for_days(days: int):
+def retrieve_strava_users_activities_for_days(days: int, is_startup: bool = False):
     # Create a new database session
     db = SessionLocal()
 
     try:
         # Get all users
         users = users_crud.get_all_users(db)
+
+        # Process the activities for each user
+        if users:
+            for user in users:
+                try:
+                    get_user_strava_activities_by_days(
+                        (datetime.now(timezone.utc) - timedelta(days=days)).strftime(
+                            "%Y-%m-%dT%H:%M:%S"
+                        ),
+                        user.id,
+                        None,
+                        is_startup,
+                    )
+                except HTTPException as err:
+                    # Log the error but continue processing other users
+                    core_logger.print_to_log(
+                        f"User {user.id}: Error processing Strava activities: {str(err)}",
+                        "error",
+                        exc=err,
+                    )
+                    # Don't reraise the exception if we're in startup mode
+                    if not is_startup:
+                        raise err
+                except Exception as err:
+                    # Log the error but continue processing other users
+                    core_logger.print_to_log(
+                        f"User {user.id}: Unexpected error processing Strava activities: {str(err)}",
+                        "error",
+                        exc=err,
+                    )
+                    # Don't reraise the exception if we're in startup mode
+                    if not is_startup:
+                        raise HTTPException(
+                            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail="Internal Server Error",
+                        ) from err
     except HTTPException as err:
         # Log an error event if an HTTPException occurred
         core_logger.print_to_log(
@@ -635,7 +694,8 @@ def retrieve_strava_users_activities_for_days(days: int):
             exc=err,
         )
         # Raise the HTTPException to propagate the error
-        raise err
+        if not is_startup:
+            raise err
     except Exception as err:
         # Log an error event if an exception occurred
         core_logger.print_to_log(
@@ -644,26 +704,19 @@ def retrieve_strava_users_activities_for_days(days: int):
             exc=err,
         )
         # Raise an HTTPException with a 500 Internal Server Error status code
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Internal Server Error",
-        ) from err
+        if not is_startup:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Internal Server Error",
+            ) from err
     finally:
         # Ensure the session is closed after use
-        db.close()
-
-    # Process the activities for each user
-    for user in users:
-        get_user_strava_activities_by_days(
-            (datetime.now(timezone.utc) - timedelta(days=days)).strftime(
-                "%Y-%m-%dT%H:%M:%S"
-            ),
-            user.id,
-        )
+        if db is not None:
+            db.close()
 
 
 def get_user_strava_activities_by_days(
-    start_date: datetime, user_id: int, db: Session = None
+    start_date: datetime, user_id: int, db: Session = None, is_startup: bool = False
 ) -> list[activities_schema.Activity] | None:
     close_session = False
     if db is None:
@@ -689,38 +742,64 @@ def get_user_strava_activities_by_days(
         # Create a Strava client with the user's access token
         strava_client = strava_utils.create_strava_client(user_integrations)
 
-        # Fetch Strava activities after the specified start date
-        strava_activities_processed = fetch_and_process_activities(
-            strava_client, start_date, user_id, user_integrations, db
-        )
+        try:
+            # Fetch Strava activities after the specified start date
+            strava_activities_processed = fetch_and_process_activities(
+                strava_client, start_date, user_id, user_integrations, db, is_startup
+            )
 
-        # Log an informational event for tracing
-        core_logger.print_to_log(
-            f"User {user_id}: {len(strava_activities_processed) if strava_activities_processed else 0} Strava activities processed"
-        )
+            # Log an informational event for tracing
+            core_logger.print_to_log(
+                f"User {user_id}: {len(strava_activities_processed) if strava_activities_processed else 0} Strava activities processed"
+            )
 
-        return strava_activities_processed
+            return strava_activities_processed
+        except HTTPException as err:
+            # Log an error event if an exception occurred
+            core_logger.print_to_log(
+                f"User {user_id}: Error processing Strava activities: {str(err)}",
+                "error",
+                exc=err,
+            )
+            # Raise the HTTPException to propagate the error
+            if not is_startup:
+                raise err
+        except Exception as err:
+            # Log an error event if an exception occurred
+            core_logger.print_to_log(
+                f"User {user_id}: Error processing Strava activities: {str(err)}",
+                "error",
+                exc=err,
+            )
+            # Raise an HTTPException with a 500 Internal Server Error status code
+            if not is_startup:
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="Internal Server Error",
+                ) from err
     except HTTPException as err:
         # Log an error event if an exception occurred
         core_logger.print_to_log(
-            f"User {user_id}: Error processing Strava activities: {str(err)}",
+            f"User {user_id}: Error getting user integrations and Strava client: {str(err)}",
             "error",
             exc=err,
         )
         # Raise the HTTPException to propagate the error
-        raise err
+        if not is_startup:
+            raise err
     except Exception as err:
         # Log an error event if an exception occurred
         core_logger.print_to_log(
-            f"User {user_id}: Error processing Strava activities: {str(err)}",
+            f"User {user_id}: Error getting user integrations and Strava client: {str(err)}",
             "error",
             exc=err,
         )
         # Raise an HTTPException with a 500 Internal Server Error status code
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Internal Server Error",
-        ) from err
+        if not is_startup:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Internal Server Error",
+            ) from err
     finally:
         if close_session:
             # Ensure the session is closed after use

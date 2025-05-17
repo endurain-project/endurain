@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 
-import users.crud as users_crud
+import users.user.crud as users_crud
 
 import health_data.schema as health_data_schema
 import health_data.crud as health_data_crud

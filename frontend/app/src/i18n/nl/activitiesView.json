@@ -1,0 +1,14 @@
+{
+  "title": "Activiteiten",
+  "filterLabelType": "Type",
+  "filterOptionAllTypes": "Alle types",
+  "filterLabelFromDate": "Vanaf datum",
+  "filterLabelToDate": "Tot datum",
+  "filterLabelNameLocation": "Naam van de Locatie",
+  "filterPlaceholderNameLocation": "bv. Ochtend loop",
+  "buttonClear": "Wissen",
+  "buttonApply": "Toepassen",
+  "errorFailedFetchActivityTypes": "Kon activiteitstypes niet ophalen",
+  "errorUpdatingActivities": "Kon activiteiten niet vernieuwen",
+  "errorFetchingActivities": "Kon gebruikers activiteiten niet ophalen"
+}

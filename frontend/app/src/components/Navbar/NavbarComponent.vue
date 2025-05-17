@@ -22,6 +22,14 @@
 
                 <!-- Navigation middle -->
                 <div class="navbar-nav mx-auto" v-if="authStore.isAuthenticated">
+                    <!-- if is logged in show activities button -->
+                    <router-link :to="{ name: 'activities' }" class="nav-link link-body-emphasis">
+                        <!-- Corrected route name -->
+                        <font-awesome-icon :icon="['fas', 'fa-person-running']" />
+                        <span class="ms-1">
+                            {{ $t('navbarComponent.activities') }}
+                        </span>
+                    </router-link>
                     <!-- if is logged in show gears button -->
                     <router-link :to="{ name: 'gears' }" class="nav-link link-body-emphasis">
                         <font-awesome-icon :icon="['fas', 'fa-bicycle']" />

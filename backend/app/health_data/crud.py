@@ -3,7 +3,7 @@ from sqlalchemy import func, desc
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 
-import users.crud as users_crud
+import users.user.crud as users_crud
 
 import health_data.schema as health_data_schema
 import health_data.models as health_data_models

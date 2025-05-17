@@ -1,5 +1,6 @@
 # General
 docker-compose.yml
+.vscode/
 
 # aux folder
 aux_scripts/.garminconnect

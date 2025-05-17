@@ -1,0 +1,12 @@
+{
+  "headerType": "Type",
+  "headerName": "Naam",
+  "headerLocation": "Locatie",
+  "headerStartTime": "Start tijd",
+  "headerDuration": "Duur",
+  "headerDistance": "Afstand",
+  "headerPace": "Tempo/Snelheid",
+  "headerCalories": "Calorieën",
+  "headerElevation": "Hoogte",
+  "headerAvgHr": "Gem. HS"
+}

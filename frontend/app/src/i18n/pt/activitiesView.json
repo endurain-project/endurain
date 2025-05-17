@@ -1,0 +1,14 @@
+{
+  "title": "Atividades",
+  "filterLabelType": "Tipo",
+  "filterOptionAllTypes": "Todos os tipos",
+  "filterLabelFromDate": "Data de início",
+  "filterLabelToDate": "Data de fim",
+  "filterLabelNameLocation": "Nome ou localização",
+  "filterPlaceholderNameLocation": "ex., Corrida da Manhã",
+  "buttonClear": "Limpar",
+  "buttonApply": "Aplicar",
+  "errorFailedFetchActivityTypes": "Falha ao buscar tipos de atividades",
+  "errorUpdatingActivities": "Falha ao atualizar as atividades",
+  "errorFetchingActivities": "Falha ao atualizar as atividades do utilizador"
+}

@@ -6,7 +6,7 @@ from datetime import datetime, timedelta, timezone
 
 import session.security as session_security
 
-import user_integrations.crud as user_integrations_crud
+import users.user_integrations.crud as user_integrations_crud
 
 import garmin.utils as garmin_utils
 import garmin.schema as garmin_schema

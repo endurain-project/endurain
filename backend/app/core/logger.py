@@ -44,6 +44,6 @@ def print_to_log(message: str, type: str = "info", exc: Exception = None):
         main_logger.debug(message)
 
 
-def print_to_log_and_console(message: str, type: str = "info"):
-    print_to_log(message, type)
+def print_to_log_and_console(message: str, type: str = "info", exc: Exception = None):
+    print_to_log(message, type, exc)
     print(message)

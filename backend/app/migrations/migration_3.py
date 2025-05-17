@@ -8,21 +8,21 @@ from zoneinfo import ZoneInfo
 
 from sqlalchemy.orm import Session
 
-import activities.crud as activities_crud
-import activities.utils as activities_utils
-import activities.schema as activities_schema
+import activities.activity.crud as activities_crud
+import activities.activity.utils as activities_utils
+import activities.activity.schema as activities_schema
 
-import activity_streams.crud as activity_streams_crud
+import activities.activity_streams.crud as activity_streams_crud
 
-import activity_exercise_titles.crud as activity_exercise_titles_crud
+import activities.activity_exercise_titles.crud as activity_exercise_titles_crud
 
-import activity_laps.crud as activity_laps_crud
+import activities.activity_laps.crud as activity_laps_crud
 
-import activity_sets.crud as activity_sets_crud
+import activities.activity_sets.crud as activity_sets_crud
 
-import activity_streams.crud as activity_streams_crud
+import activities.activity_streams.crud as activity_streams_crud
 
-import activity_workout_steps.crud as activity_workout_steps_crud
+import activities.activity_workout_steps.crud as activity_workout_steps_crud
 
 import garmin.activity_utils as garmin_activity_utils
 

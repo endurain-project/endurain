@@ -1,8 +1,10 @@
 from fastapi import HTTPException, status
+from sqlalchemy.orm import Session
 from stravalib.client import Client
 
 import core.logger as core_logger
 
+import strava.utils as strava_utils
 
 def get_strava_athlete(strava_client: Client):
     # Fetch Strava athlete

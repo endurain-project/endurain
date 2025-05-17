@@ -17,8 +17,8 @@ import session.constants as session_constants
 import session.schema as session_schema
 import session.crud as session_crud
 
-import users.crud as users_crud
-import users.schema as users_schema
+import users.user.crud as users_crud
+import users.user.schema as users_schema
 
 
 def create_session_object(
@@ -154,7 +154,7 @@ def create_response_with_tokens(
     response.set_cookie(
         key="endurain_csrf_token",
         value=csrf_token,
-        httponly=True,
+        httponly=False,
         path="/",
         secure=secure,
         samesite="Lax",
