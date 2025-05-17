@@ -6,6 +6,10 @@ import { useAuthStore } from "./stores/authStore";
 import { useThemeStore } from "./stores/themeStore";
 import { useServerSettingsStore } from "./stores/serverSettingsStore";
 
+// PWA service worker registration (required for `injectRegister: 'auto'`)
+import { registerSW } from 'virtual:pwa-register';
+registerSW();
+
 import "bootstrap/dist/css/bootstrap.min.css";
 import "bootstrap/dist/js/bootstrap.bundle.min.js";
 

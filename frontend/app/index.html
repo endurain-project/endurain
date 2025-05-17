@@ -2,39 +2,37 @@
 <html class="bg-body" data-bs-theme="dark" lang="en">
   <head>
     <meta charset="UTF-8">
-    <link rel="icon" href="/logo/logo.png">
-    <link rel="apple-touch-icon" href="/logo/logo.png">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <meta name="apple-mobile-web-app-status-bar-style" content="default">
-    <meta name="theme-color" content="#212529">
     <title>Endurain</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="description" content="A self-hosted fitness tracking service">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#212529" media="(prefers-color-scheme: dark)">
+    <link rel="icon" href="/logo/favicon.ico">
+    <link rel="icon" href="/logo/favicon-32x32.png" type="image/png" sizes="32x32">
+    <link rel="icon" href="/logo/favicon-16x16.png" type="image/png" sizes="16x16">
+    <link rel="apple-touch-icon" href="/logo/apple-touch-icon.png">
+    <link rel="manifest" href="/manifest.webmanifest">
   </head>
   <body>
     <div id="app"></div>
     <script type="module" src="/src/main.js"></script>
     <script>
-      // Function to update theme-color meta tag
-      function updateThemeColor(isDark) {
-        const metaThemeColor = document.querySelector('meta[name="theme-color"]');
-        metaThemeColor.setAttribute('content', isDark ? '#212529' : '#ffffff');
-      }
-
       // Detects if the user has set their system to use dark mode
       if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
         // Applies dark theme by setting data-bs-theme="dark"
         document.documentElement.setAttribute('data-bs-theme', 'dark');
-        updateThemeColor(true);
       } else {
         // Applies light theme or removes the attribute for default behavior
         document.documentElement.setAttribute('data-bs-theme', 'light');
-        updateThemeColor(false);
       }
       
       // Optional: Listen for changes in the preference and adjust on the fly
       window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', event => {
         const newColorScheme = event.matches ? "dark" : "light";
         document.documentElement.setAttribute('data-bs-theme', newColorScheme);
-        updateThemeColor(event.matches);
       });
     </script>
   </body>

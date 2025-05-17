@@ -36,9 +36,13 @@ import {
 
 <style>
 .safe-area-container {
+  display: block;
+  position: relative;
+  min-height: 100vh;
   padding-left: env(safe-area-inset-left);
   padding-right: env(safe-area-inset-right);
   padding-top: env(safe-area-inset-top);
   padding-bottom: env(safe-area-inset-bottom);
+  box-sizing: border-box;
 }
 </style>
