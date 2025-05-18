@@ -296,18 +296,18 @@ export function formatPower(power) {
  * @returns {string} The formatted elevation string with the appropriate unit, or a "not applicable" label if the input is null or undefined.
  */
 export function formatElevation(meters, unitSystem, units = true) {
-	if (meters === null || meters === undefined)
-		return i18n.global.t("generalItems.labelNoData");
-	if (Number(unitSystem) === 1) {
-		if (units) {
-			return `${meters} ${i18n.global.t("generalItems.unitsM")}`;
-		}
-		return `${meters}`;
-	}
-	if (units) {
-		return `${metersToFeet(meters)} ${i18n.global.t("generalItems.unitsFeet")}`;
-	}
-	return `${metersToFeet(meters)}`;
+  if (meters === null || meters === undefined) {
+    return i18n.global.t("generalItems.labelNoData");
+  }
+  const numericValue = Number(unitSystem) === 1 ? parseFloat(meters) : parseFloat(metersToFeet(meters));
+  const formattedValue = numericValue.toLocaleString(undefined, { maximumFractionDigits: 0 });
+
+  if (!units) {
+    return formattedValue;
+  }
+
+  const unitLabel = Number(unitSystem) === 1 ? i18n.global.t("generalItems.unitsM") : i18n.global.t("generalItems.unitsFeet");
+  return `${formattedValue} ${unitLabel}`;
 }
 
 /**
@@ -317,9 +317,12 @@ export function formatElevation(meters, unitSystem, units = true) {
  * @returns {string} A formatted string representing the calorie value with units, or a "not applicable" label if the input is null or undefined.
  */
 export function formatCalories(calories) {
-	if (calories === null || calories === undefined)
-		return i18n.global.t("generalItems.labelNoData");
-	return `${calories} ${i18n.global.t("generalItems.unitsCalories")}`;
+  if (calories === null || calories === undefined) {
+    return i18n.global.t("generalItems.labelNoData");
+  }
+  const numericValue = parseFloat(calories);
+  const formattedValue = numericValue.toLocaleString(undefined, { maximumFractionDigits: 0 });
+  return `${formattedValue} ${i18n.global.t("generalItems.unitsCalories")}`;
 }
 
 /**
@@ -404,8 +407,11 @@ export function formatRawDistance(meters, unitSystem) {
   if (meters === null || meters === undefined || meters < 0) {
     return i18n.global.t("generalItems.labelNoData");
   }
-  if (Number(unitSystem) === 1) {
-    return `${metersToKm(meters)} ${i18n.global.t("generalItems.unitsKm")}`;
-  }
-  return `${metersToMiles(meters)} ${i18n.global.t("generalItems.unitsMiles")}`;
+  const numericValue = Number(unitSystem) === 1 ? parseFloat(metersToKm(meters)) : parseFloat(metersToMiles(meters));
+  // Assuming metersToKm and metersToMiles return numbers or strings that can be parsed to numbers
+  // Use toLocaleString for formatting, allow for some decimal places for precision if needed
+  const formattedValue = numericValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+  const unitLabel = Number(unitSystem) === 1 ? i18n.global.t("generalItems.unitsKm") : i18n.global.t("generalItems.unitsMiles");
+  return `${formattedValue} ${unitLabel}`;
 }

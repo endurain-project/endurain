@@ -1,9 +1,11 @@
 <template>
+  <h1>{{ t('summaryView.title') }}</h1>
   <div class="container mt-4">
-    <h2>{{ t('summaryView.title') }}</h2>
 
     <!-- Controls Section -->
-    <div class="row mb-3 align-items-end">
+    <div class="card mb-4 bg-body-tertiary border-0 rounded">
+      <div class="card-body">
+        <div class="row mb-3 align-items-end">
       <!-- Activity Type Filter -->
       <div class="col-md-3">
         <label for="activityTypeFilter" class="form-label">{{ t('summaryView.filterLabelActivityType') }}</label>
@@ -31,8 +33,10 @@
          <input type="number" :id="periodInputId" class="form-control" v-else-if="selectedViewType === 'year'" v-model.number="selectedYear" placeholder="YYYY" min="1900" max="2100">
       </div>
        <div class="col-md-3 d-flex align-items-end" v-if="selectedViewType !== 'lifetime'">
-         <button class="btn btn-outline-secondary me-1" @click="navigatePeriod(-1)" :disabled="loadingSummary || loadingActivities"><</button>
-         <button class="btn btn-outline-secondary" @click="navigatePeriod(1)" :disabled="loadingSummary || loadingActivities">></button>
+         <button class="btn btn-primary me-1" @click="navigatePeriod(-1)" :disabled="loadingSummary || loadingActivities"><</button>
+         <button class="btn btn-primary" @click="navigatePeriod(1)" :disabled="loadingSummary || loadingActivities">></button>
+      </div>
+        </div>
       </div>
     </div>
 
@@ -168,7 +172,7 @@
       <div v-else-if="errorActivities" class="alert alert-danger">
         {{ t('summaryView.errorLoadingActivities', { error: errorActivities }) }}
       </div>
-      <div v-else ref="activitiesSectionRef">
+      <div v-else ref="activitiesSectionRef" class="p-3 bg-body-tertiary rounded shadow-sm">
         <ActivitiesTableComponent
           :activities="activities"
           :sort-by="sortBy"
