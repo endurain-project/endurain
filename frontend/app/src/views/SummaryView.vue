@@ -54,41 +54,41 @@
         <!-- New Highlighted Summary Totals Section -->
         <div class="row text-center justify-content-around mb-3">
             <div class="col-lg col-md-4 col-sm-6 mb-3">
-                <div class="card shadow-sm h-100 bg-primary text-white">
+                <div class="card shadow-sm h-100 card-total-summary-highlight">
                     <div class="card-body d-flex flex-column justify-content-center">
-                        <h6 class="card-subtitle mb-2 text-white-50">{{ t('summaryView.metricTotalDistance') }}</h6>
+                        <h6 class="card-subtitle mb-2">{{ t('summaryView.metricTotalDistance') }}</h6>
                         <p class="card-text h4 mb-0">{{ formatRawDistance(summaryData.total_distance, authStore.user.units) }}</p>
                     </div>
                 </div>
             </div>
             <div class="col-lg col-md-4 col-sm-6 mb-3">
-                <div class="card shadow-sm h-100 bg-primary text-white">
+                <div class="card shadow-sm h-100 card-total-summary-highlight">
                     <div class="card-body d-flex flex-column justify-content-center">
-                        <h6 class="card-subtitle mb-2 text-white-50">{{ t('summaryView.metricTotalDuration') }}</h6>
+                        <h6 class="card-subtitle mb-2">{{ t('summaryView.metricTotalDuration') }}</h6>
                         <p class="card-text h4 mb-0">{{ formatDuration(summaryData.total_duration) }}</p>
                     </div>
                 </div>
             </div>
             <div class="col-lg col-md-4 col-sm-6 mb-3">
-                <div class="card shadow-sm h-100 bg-primary text-white">
+                <div class="card shadow-sm h-100 card-total-summary-highlight">
                     <div class="card-body d-flex flex-column justify-content-center">
-                        <h6 class="card-subtitle mb-2 text-white-50">{{ t('summaryView.metricTotalElevation') }}</h6>
+                        <h6 class="card-subtitle mb-2">{{ t('summaryView.metricTotalElevation') }}</h6>
                         <p class="card-text h4 mb-0">{{ formatElevation(summaryData.total_elevation_gain, authStore.user.units) }}</p>
                     </div>
                 </div>
             </div>
             <div class="col-lg col-md-6 col-sm-6 mb-3"> <!-- Adjusted col-md for potentially wider content -->
-                <div class="card shadow-sm h-100 bg-primary text-white">
+                <div class="card shadow-sm h-100 card-total-summary-highlight">
                     <div class="card-body d-flex flex-column justify-content-center">
-                        <h6 class="card-subtitle mb-2 text-white-50">{{ t('summaryView.metricTotalCalories') }}</h6>
+                        <h6 class="card-subtitle mb-2">{{ t('summaryView.metricTotalCalories') }}</h6>
                         <p class="card-text h4 mb-0">{{ formatCalories(summaryData.total_calories) }}</p>
                     </div>
                 </div>
             </div>
             <div class="col-lg col-md-6 col-sm-12 mb-3"> <!-- Adjusted col-md and col-sm for last item -->
-                <div class="card shadow-sm h-100 bg-primary text-white">
+                <div class="card shadow-sm h-100 card-total-summary-highlight">
                     <div class="card-body d-flex flex-column justify-content-center">
-                        <h6 class="card-subtitle mb-2 text-white-50">{{ t('summaryView.metricTotalActivities') }}</h6>
+                        <h6 class="card-subtitle mb-2">{{ t('summaryView.metricTotalActivities') }}</h6>
                         <p class="card-text h4 mb-0">{{ summaryData.activity_count }}</p>
                     </div>
                 </div>
@@ -764,5 +764,13 @@ onBeforeUnmount(() => {
 .responsive-summary-table .col-activity-type {
     min-width: 60px;
     text-align: center;
+}
+
+.card-total-summary-highlight {
+  background-color: #ffdb5c !important; /* Logo yellowish-orange */
+  color: #212529; /* Dark text for contrast, Bootstrap's $gray-900 */
+}
+.card-total-summary-highlight .card-subtitle {
+  color: #495057 !important; /* A darker muted color, Bootstrap's $gray-700 */
 }
 </style>
