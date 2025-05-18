@@ -144,6 +144,7 @@ export function activityTypeIsSwimming(activity) {
  * @param {number|string} unitSystem - The unit system to use (1 for metric, otherwise imperial).
  * @param {Object|null} [lap=null] - Optional lap object to use its enhanced_avg_pace instead of activity pace.
  * @param {boolean} [units=true] - Whether to include units in the formatted output.
+ * @param {boolean} [isRest=false] - Whether the lap is a rest lap.
  * @returns {string} The formatted pace string.
  */
 export function formatPace(activity, unitSystem, lap = null, units = true, isRest = false) {
