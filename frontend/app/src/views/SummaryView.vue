@@ -48,7 +48,7 @@
     </div>
     <div v-else-if="summaryData" class="card mb-4">
       <div class="card-header">
-        {{ t('summaryView.headerSummaryFor', { period: summaryPeriodText }) }}
+        <h4>{{ t('summaryView.headerSummaryFor', { period: summaryPeriodText }) }}</h4>
       </div>
       <div class="card-body">
         <!-- New Highlighted Summary Totals Section -->
