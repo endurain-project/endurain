@@ -388,7 +388,24 @@ export function formatLocation(activity) {
 		} else {
 			locationParts.push(country);
 		}
-	}
+}
 
-	return locationParts.join(""); // Join without extra spaces, comma is handled above
+return locationParts.join(""); // Join without extra spaces, comma is handled above
+}
+
+/**
+ * Formats a raw distance in meters based on the unit system.
+ *
+ * @param {number|null|undefined} meters - The distance in meters.
+ * @param {number|string} unitSystem - The unit system to use (1 for metric, otherwise imperial).
+ * @returns {string} The formatted distance string with appropriate units or a "No Data" label.
+ */
+export function formatRawDistance(meters, unitSystem) {
+  if (meters === null || meters === undefined || meters < 0) {
+    return i18n.global.t("generalItems.labelNoData");
+  }
+  if (Number(unitSystem) === 1) {
+    return `${metersToKm(meters)} ${i18n.global.t("generalItems.unitsKm")}`;
+  }
+  return `${metersToMiles(meters)} ${i18n.global.t("generalItems.unitsMiles")}`;
 }
