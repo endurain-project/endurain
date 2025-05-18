@@ -35,7 +35,7 @@ def _get_type_breakdown(db: Session, user_id: int, start_date: date, end_date: d
         if activity_type_id is not None:
             query = query.filter(Activity.activity_type == activity_type_id)
         else:
-            return None
+            return []
 
     query = query.group_by(
         Activity.activity_type
@@ -319,21 +319,18 @@ def get_lifetime_summary(db: Session, user_id: int, activity_type: str | None = 
             total_calories=float(overall_totals.total_calories),
             activity_count=int(overall_totals.activity_count),
             breakdown=breakdown_list,
-            type_breakdown=_get_type_breakdown(db, user_id, date.min, date.max, activity_type)
+            type_breakdown=_get_type_breakdown(db, user_id, date.min, date.max, activity_type) or []
         )
     else: # No activities matching criteria
         response = LifetimeSummaryResponse(
-            breakdown=[], # Empty breakdown
-            type_breakdown=[] # Empty type breakdown or None based on _get_type_breakdown behavior
+            total_distance=0.0,
+            total_duration=0.0,
+            total_elevation_gain=0.0,
+            total_calories=0.0,
+            activity_count=0,
+            breakdown=[],
+            type_breakdown=[]
         )
-        # If activity_type was specified but invalid, _get_type_breakdown might return None
-        # If activity_type was valid but no activities, it should return []
-        # If activity_type was None and no activities, it should return []
-        # Let's ensure type_breakdown is [] if overall_totals is None and activity_type was not invalid for _get_type_breakdown
-        if activity_type and activity_type_id_filter is None: # Invalid activity type for main summary
-             response.type_breakdown = None
-        else:
-             response.type_breakdown = _get_type_breakdown(db, user_id, date.min, date.max, activity_type)
 
 
     return response
