@@ -135,21 +135,30 @@
         </div>
         <!-- Cadence values -->
         <div v-if="cadPresent">
-            <span class="fw-normal">
+            <span class="fw-normal" v-if="!activityTypeIsSwimming(activity)">
                 {{ $t("activityBellowMPillsComponent.subTitleCadence") }}
+            </span>
+            <span class="fw-normal" v-else>
+                {{ $t("activityBellowMPillsComponent.subTitleStrokeRate") }}
             </span>
             <ActivityStreamsLineChartComponent :activity="activity" :graphSelection="'cad'" :activityStreams="activityActivityStreams" />
             <div class="d-flex justify-content-between mt-3" v-if="activity.average_cad">
-                <span>
+                <span v-if="!activityTypeIsSwimming(activity)">
                     {{ $t("activityBellowMPillsComponent.labelAvgCadence") }}
+                </span>
+                <span v-else>
+                    {{ $t("activityBellowMPillsComponent.labelAvgStrokeRate") }}
                 </span>
                 <span>
                     <b>{{ activity.average_cad }}{{ ' ' + $t("generalItems.unitsSpm") }}</b>
                 </span>
             </div>
             <div class="d-flex justify-content-between mt-3" v-if="activity.max_cad">
-                <span>
+                <span v-if="!activityTypeIsSwimming(activity)">
                     {{ $t("activityBellowMPillsComponent.labelMaxCadence") }}
+                </span>
+                <span v-else>
+                    {{ $t("activityBellowMPillsComponent.labelMaxStrokeRate") }}
                 </span>
                 <span>
                     <b>{{ activity.max_cad }}{{ ' ' + $t("generalItems.unitsSpm") }}</b>
@@ -158,7 +167,7 @@
             <hr>
         </div>
         <!-- Elevation values -->
-        <div v-if="elePresent">
+        <div v-if="elePresent && !activityTypeIsSwimming(activity)">
             <span class="fw-normal">
                 {{ $t("activityBellowMPillsComponent.subTitleElevation") }}
             </span>
@@ -202,7 +211,7 @@ import ActivityStreamsLineChartComponent from "@/components/Activities/ActivityS
 import ActivityWorkoutStepsComponent from "@/components/Activities/ActivityWorkoutStepsComponent.vue";
 // Import Notivue push
 import { push } from "notivue";
-import { formatPaceMetric, formatPaceImperial, formatPaceSwimMetric, formatPaceSwimImperial, formatAverageSpeedMetric, formatAverageSpeedImperial } from "@/utils/activityUtils";
+import { formatPaceMetric, formatPaceImperial, formatPaceSwimMetric, formatPaceSwimImperial, formatAverageSpeedMetric, formatAverageSpeedImperial, activityTypeIsSwimming } from "@/utils/activityUtils";
 import { formatSecondsToMinutes } from "@/utils/dateTimeUtils";
 import {
 	metersToFeet,
@@ -304,8 +313,7 @@ export default {
 
             try {
                 if (
-                    props.activity.activity_type === 8 ||
-                    props.activity.activity_type === 9 ||
+                    activityTypeIsSwimming(props.activity) ||
                     props.activity.activity_type === 13
                 ) {
                     if (Number(props.units) === 1) {
@@ -336,6 +344,7 @@ export default {
             formatSecondsToMinutes,
             formatAverageSpeedMetric,
             formatAverageSpeedImperial,
+            activityTypeIsSwimming,
             metersToFeet,
 		};
 	},

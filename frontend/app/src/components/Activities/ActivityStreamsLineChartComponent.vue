@@ -11,7 +11,7 @@ import { useServerSettingsStore } from '@/stores/serverSettingsStore';
 import { Chart, registerables } from 'chart.js';
 Chart.register(...registerables);
 
-import { formatAverageSpeedMetric, formatAverageSpeedImperial } from "@/utils/activityUtils";
+import { formatAverageSpeedMetric, formatAverageSpeedImperial, activityTypeIsSwimming } from "@/utils/activityUtils";
 import { metersToFeet, kmToMiles } from "@/utils/unitsUtils";
   
 export default {
@@ -39,6 +39,8 @@ export default {
         const computedChartData = computed(() => {
             const data = [];
             let label = "";
+            const cadData = [];
+            let cadLabel = "";
             const labels = [];
             let roundValues = true;
 
@@ -49,6 +51,16 @@ export default {
             }
 
             for (const stream of props.activityStreams) {
+                // Save Cadence (Stroke Rate) data for swimming rest detection
+                if (stream.stream_type === 3) {
+                    for (const streamPoint of stream.stream_waypoints) {
+                        cadData.push(Number.parseInt(streamPoint.cad));
+                    }
+                    if (cadData.length > 0) {
+                        cadLabel = activityTypeIsSwimming(props.activity) ? t("generalItems.labelStrokeRateInSpm") : t("generalItems.labelCadenceInRpm");
+                    }
+                }
+                // Add data points
                 if (stream.stream_type === 1 && props.graphSelection === 'hr') {
                     for (const streamPoint of stream.stream_waypoints) {
                         data.push(Number.parseInt(streamPoint.hr));
@@ -62,7 +74,8 @@ export default {
                 } else if (stream.stream_type === 3 && props.graphSelection === 'cad') {
                     for (const streamPoint of stream.stream_waypoints) {
                         data.push(Number.parseInt(streamPoint.cad));
-                        label = t("generalItems.labelCadenceInRpm");
+                        // Label as "Stroke Rate" over "Cadence" for swimming activities
+                        label = activityTypeIsSwimming(props.activity) ? t("generalItems.labelStrokeRateInSpm") : t("generalItems.labelCadenceInRpm");
                     }
                 } else if (stream.stream_type === 4 && props.graphSelection === 'ele') {
                     for (const streamPoint of stream.stream_waypoints) {
@@ -94,7 +107,7 @@ export default {
                                 } else {
                                     data.push((paceData.pace * 1609.34) / 60);
                                 }
-                            } else if (props.activity.activity_type === 8 || props.activity.activity_type === 9) {
+                            } else if (activityTypeIsSwimming(props.activity)) {
                                 if (Number(units.value) === 1) {
                                     data.push((paceData.pace * 100) / 60);
                                 } else {
@@ -109,7 +122,7 @@ export default {
                         } else {
                             label = t("generalItems.labelPaceInMinMile");
                         }
-                    } else if (props.activity.activity_type === 8 || props.activity.activity_type === 9) {
+                    } else if (activityTypeIsSwimming(props.activity)) {
                         if (Number(units.value) === 1) {
                             label = t("generalItems.labelPaceInMin100m");
                         } else {
@@ -120,6 +133,7 @@ export default {
             }
 
             const dataDS = downsampleData(data, 200, roundValues);
+            const cadDataDS = downsampleData(cadData, 200, true);
             
             const totalDistance = props.activity.distance / 1000;
             const numberOfDataPoints = dataDS.length;
@@ -127,17 +141,47 @@ export default {
 
             for (let i = 0; i < numberOfDataPoints; i++) {
                 if (Number(units.value) === 1) {
-                    labels.push(`${(i * distanceInterval).toFixed(0)}km`);
+                    if (activityTypeIsSwimming(props.activity)) {
+                        labels.push(`${(i * distanceInterval).toFixed(1)}km`);
+                    } else {
+                        labels.push(`${(i * distanceInterval).toFixed(0)}km`);
+                    }
                 } else {
-                    labels.push(`${(i * kmToMiles(distanceInterval)).toFixed(0)}mi`);
+                    if (activityTypeIsSwimming(props.activity)) {
+                        labels.push(`${(i * distanceInterval).toFixed(1)}mi`);
+                    } else {
+                        labels.push(`${(i * kmToMiles(distanceInterval)).toFixed(0)}mi`);
+                    }
                 }
             }
 
+            const datasets = [{
+                label: label,
+                data: dataDS,
+                yAxisID: 'y',
+                backgroundColor: 'transparent',
+                borderColor: 'rgba(54, 162, 235, 0.8)',
+                fill: true,
+                fillColor: 'rgba(54, 162, 235, 0.2)',
+            }]
+
+            // Only push laps 'background shading' if there is cadence data and indoor swimming activity
+            if (cadDataDS.length > 0 && activityTypeIsSwimming(props.activity)) {
+                datasets.push({
+                    type: 'bar',
+                    label: t("generalItems.labelLaps"),
+                    data: cadDataDS.map(d => d === 0 ? 0 : 1),
+                    yAxisID: 'y1',
+                    backgroundColor: 'rgba(0, 0, 0, 0.2)',
+                    fill: true,
+                    fillColor: 'rgba(0, 0, 0, 0.2)',
+                    borderWidth: 0,
+                    barThickness: 5,
+                })
+            }
+
             return {
-                datasets: [{
-                    label: label,
-                    data: dataDS,
-                }],
+                datasets: datasets,
                 labels: labels,
             };
         });
@@ -178,8 +222,14 @@ export default {
                 options: {
                     responsive: true,
                     scales: {
-                        y: { 
-                            beginAtZero: false 
+                        y: {
+                            beginAtZero: false,
+                            position: 'left'
+                        },
+                        y1: {
+                            beginAtZero: true,
+                            max: 1,
+                            display: false
                         },
                         x: { 
                             autoSkip: true 
@@ -196,7 +246,8 @@ export default {
         });
     
         return {
-            chartCanvas
+            chartCanvas,
+            activityTypeIsSwimming,
         };
     }
 }

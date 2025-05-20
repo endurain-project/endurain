@@ -1,27 +1,31 @@
 <template>
     <div class="table-responsive d-none d-sm-block">
-        <table class="table table-striped table-borderless table-hover table-sm rounded text-center" style="--bs-table-bg: var(--bs-gray-850);">
+        <table class="table table-borderless table-hover table-sm rounded text-center" :class="{ 'table-striped': !activityTypeIsSwimming(activity) }" style="--bs-table-bg: var(--bs-gray-850);">
             <thead>
                 <tr>
                     <th>{{ $t("activityLapsComponent.labelLapNumber") }}</th>
-                    <th>{{ $t("activityLapsComponent.labelLapIntensity") }}</th>
+                    <th v-if="hasIntensity">{{ $t("activityLapsComponent.labelLapIntensity") }}</th>
                     <th>{{ $t("activityLapsComponent.labelLapDistance") }}</th>
                     <th>{{ $t("activityLapsComponent.labelLapTime") }}</th>
                     <th v-if="activity.activity_type === 4 || activity.activity_type === 5 || activity.activity_type === 6 || activity.activity_type === 7 || activity.activity_type === 27">{{ $t("activityLapsComponent.labelLapSpeed") }}</th>
                     <th v-else>{{ $t("activityLapsComponent.labelLapPace") }}</th>
-                    <th>{{ $t("activityLapsComponent.labelLapElevation") }}</th>
+                    <!-- Do not show elevation for swimming activities -->
+                    <th v-if="!activityTypeIsSwimming(activity)">{{ $t("activityLapsComponent.labelLapElevation") }}</th>
+                    <!-- Show Stroke Rate for swimming activities -->
+                    <th v-if="activityTypeIsSwimming(activity)">{{ $t("activityLapsComponent.labelLapStrokeRate") }}</th>
                     <th>{{ $t("activityLapsComponent.labelLapAvgHr") }}</th>
                 </tr>
             </thead>
             <tbody class="table-group-divider">
-                <tr v-for="(lap, index) in normalizedLaps" :key="lap.id">
+                <tr v-for="(lap, index) in normalizedLaps" :key="lap.id" :style="{ 'background-color': !lap.swimIsRest ? 'var(--bs-table-striped-bg)' : 'var(--bs-table-bg)' }">
                     <td>{{ index + 1 }}</td>
-                    <td>{{ lap.intensity ?? $t("generalItems.labelNoData") }}</td>
+                    <td v-if="hasIntensity">{{ lap.intensity ?? $t("generalItems.labelNoData") }}</td>
                     <td>{{ lap.formattedDistance }}</td>
                     <td>{{ lap.lapSecondsToMinutes }}</td>
                     <td v-if="activity.activity_type === 4 || activity.activity_type === 5 || activity.activity_type === 6 || activity.activity_type === 7 || activity.activity_type === 27">{{ lap.formattedSpeedFull }}</td>
                     <td v-else>{{ lap.formattedPaceFull }}</td>
-					<td>{{ lap.formattedElevationFull }}</td>
+					<td v-if="!activityTypeIsSwimming(activity)">{{ lap.formattedElevationFull }}</td>
+                    <td v-if="activityTypeIsSwimming(activity)">{{ lap.avg_cadence }}</td>
                     <td>
 						<span v-if="lap.avg_heart_rate">
 							{{ lap.avg_heart_rate + ' ' + $t("generalItems.unitsBpm") }}
@@ -43,7 +47,8 @@
                     <th scope="col" style="width: 15%;" v-if="activity.activity_type === 4 || activity.activity_type === 5 || activity.activity_type === 6 || activity.activity_type === 7 || activity.activity_type === 27">{{ $t("activityLapsComponent.labelLapSpeed") }}</th>
                     <th scope="col" style="width: 15%;" v-else>{{ $t("activityLapsComponent.labelLapPace") }}</th>
                     <th scope="col" style="width: auto;">&nbsp;</th>
-                    <th scope="col" style="width: 10%;" v-if="activity.activity_type !== 8 && activity.activity_type !== 9 && activity.activity_type !== 13">{{ $t("activityLapsComponent.labelLapElev") }}</th>
+                    <th scope="col" style="width: 10%;" v-if="!activityTypeIsSwimming(activity) && activity.activity_type !== 13">{{ $t("activityLapsComponent.labelLapElev") }}</th>
+                    <th scope="col" style="width: 10%;" v-if="activityTypeIsSwimming(activity)">{{ $t("activityLapsComponent.labelLapSR") }}</th>
                     <th scope="col" style="width: 10%;">{{ $t("activityLapsComponent.labelLapHR") }}</th>
                 </tr>
             </thead>
@@ -57,7 +62,8 @@
                             <div class="progress-bar" :style="{ width: lap.normalizedScore + '%' }"></div>
                         </div>
                     </td>
-                    <td v-if="activity.activity_type !== 8 && activity.activity_type !== 9 && activity.activity_type !== 13">{{ lap.formattedElevation }}</td>
+                    <td v-if="!activityTypeIsSwimming(activity) && activity.activity_type !== 13">{{ lap.formattedElevation }}</td>
+                    <td v-if="activityTypeIsSwimming(activity)">{{ lap.avg_cadence }}</td>
 					<td>
 						<span v-if="lap.avg_heart_rate">
 							{{ lap.avg_heart_rate }}
@@ -86,6 +92,7 @@ import {
 	formatElevation,
 	formatPace,
     formatAverageSpeed,
+    activityTypeIsSwimming,
 } from "@/utils/activityUtils";
 
 export default {
@@ -121,13 +128,29 @@ export default {
 			const enhancedAvgPaces = laps.map((lap) => lap.enhanced_avg_pace);
 
 			// Find the fastest pace (smallest value)
-			const fastestPace = Math.min(...enhancedAvgPaces);
+			const fastestPace = Math.min(...enhancedAvgPaces.filter(pace => pace !== null && pace > 0));
+
+            // Work out whether each lap is a rest (swim activities only)
+            const lapsWithRest = laps.map(lap => {
+                const swimIsRest = activityTypeIsSwimming(props.activity)
+                    && (lap.total_distance === 0 || lap.total_distance === null);
+                return {
+                    ...lap,
+                    swimIsRest: swimIsRest,
+                };
+            });
+            // Assume that 2 rests in a row is an error/drills
+            for (let i = 0; i < lapsWithRest.length - 1; i++) {
+                if (lapsWithRest[i].swimIsRest === true && lapsWithRest[i + 1].swimIsRest === true) {
+                    lapsWithRest[i + 1].swimIsRest = false;
+                }
+            }
 
 			// Normalize each lap's pace relative to the fastest
-			return laps.map((lap) => {
+			return lapsWithRest.map((lap) => {
 				const normalizedScore = (fastestPace / lap.enhanced_avg_pace) * 100;
-				const formattedPace = formatPace(props.activity, authStore.user.units, lap, false);
-				const formattedPaceFull = formatPace(props.activity, authStore.user.units, lap);
+				const formattedPace = formatPace(props.activity, authStore.user.units, lap, false, lap.swimIsRest);
+				const formattedPaceFull = formatPace(props.activity, authStore.user.units, lap, true, lap.swimIsRest);
 				const formattedDistance = formatDistance(props.activity, authStore.user.units, lap);
 				const formattedElevation = formatElevation(lap.total_ascent, authStore.user.units, false);
 				const formattedElevationFull = formatElevation(lap.total_ascent, authStore.user.units);
@@ -148,9 +171,15 @@ export default {
 				};
 			});
 		});
+        
+        const hasIntensity = computed(() => {
+            return normalizedLaps.value.some(lap => lap.intensity !== null);
+        });
 
 		return {
 			normalizedLaps,
+            hasIntensity,
+            activityTypeIsSwimming,
 		};
 	},
 };

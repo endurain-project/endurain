@@ -8,5 +8,7 @@
     "labelLapElevation": "Elevation",
     "labelLapElev": "Elev",
     "labelLapAvgHr": "Avg heart rate",
-    "labelLapHR": "HR"
+    "labelLapHR": "HR",
+    "labelLapStrokeRate": "Stroke rate",
+    "labelLapSR": "SR"
 }

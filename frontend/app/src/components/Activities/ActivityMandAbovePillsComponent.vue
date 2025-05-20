@@ -63,6 +63,7 @@ import { useI18n } from "vue-i18n";
 import ActivityLapsComponent from "@/components/Activities/ActivityLapsComponent.vue";
 import ActivityStreamsLineChartComponent from "@/components/Activities/ActivityStreamsLineChartComponent.vue";
 import ActivityWorkoutStepsComponent from "@/components/Activities/ActivityWorkoutStepsComponent.vue";
+import { activityTypeIsSwimming } from "@/utils/activityUtils";
 // Import Notivue push
 import { push } from "notivue";
 
@@ -132,11 +133,19 @@ export default {
 						}
 						if (props.activityActivityStreams[i].stream_type === 3) {
 							cadPresent.value = true;
-							graphItems.value.push({ type: "cad", label: `${t("activityMandAbovePillsComponent.labelGraphCadence")}` });
+							// Label as "Stroke Rate" over "Cadence" for swimming activities
+                            if (activityTypeIsSwimming(props.activity)) {
+                                graphItems.value.push({ type: "cad", label: `${t("activityMandAbovePillsComponent.labelGraphStrokeRate")}` });
+                            } else {
+                                graphItems.value.push({ type: "cad", label: `${t("activityMandAbovePillsComponent.labelGraphCadence")}` });
+                            }
 						}
 						if (props.activityActivityStreams[i].stream_type === 4) {
-							elePresent.value = true;
-							graphItems.value.push({ type: "ele", label: `${t("activityMandAbovePillsComponent.labelGraphElevation")}` });
+							// Do not show elevation for swimming activities
+                            if (!activityTypeIsSwimming(props.activity)) {
+                                elePresent.value = true;
+							    graphItems.value.push({ type: "ele", label: `${t("activityMandAbovePillsComponent.labelGraphElevation")}` });
+                            }
 						}
 						if (props.activityActivityStreams[i].stream_type === 5) {
 							velPresent.value = true;
@@ -182,6 +191,7 @@ export default {
 			velPresent,
 			pacePresent,
 			selectGraph,
+            activityTypeIsSwimming,
 		};
 	},
 };

@@ -18,5 +18,8 @@
     "labelMaxCadence": "Max cadence",
     "subTitleElevation": "Elevation",
     "labelElevationGain": "Elevation gain",
-    "labelElevationLoss": "Elevation loss"
+    "labelElevationLoss": "Elevation loss",
+    "subTitleStrokeRate": "Stroke rate",
+    "labelAvgStrokeRate": "Avg stroke rate",
+    "labelMaxStrokeRate": "Max stroke rate"
 }
