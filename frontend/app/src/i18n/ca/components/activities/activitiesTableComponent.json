@@ -2,11 +2,11 @@
   "headerType": "Tipus",
   "headerName": "Nom",
   "headerLocation": "Ubicació",
-  "headerStartTime": "Start time",
+  "headerStartTime": "Data Inici",
   "headerDuration": "Durada",
   "headerDistance": "Distància",
-  "headerPace": "Pace/Speed",
+  "headerPace": "Rit/Vel",
   "headerCalories": "Calories",
   "headerElevation": "Elevació",
-  "headerAvgHr": "Avg HR"
+  "headerAvgHr": "FC Mitja"
 }
