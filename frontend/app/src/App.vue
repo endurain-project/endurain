@@ -10,6 +10,7 @@ import {
 	NotificationProgress,
 	pastelTheme,
 } from "notivue";
+import { UseScreenSafeArea } from '@vueuse/components'
 </script>
 
 <template>
