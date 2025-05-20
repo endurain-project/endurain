@@ -42,5 +42,8 @@
     "labelPaceInMinKm": "Ritmo en min/km",
     "labelPaceInMin100m": "Ritmo en min/100m",
     "labelPaceInMinMile": "Ritmo en min/milla",
-    "labelPaceInMin100yd": "Ritmo en min/100yd"
+    "labelPaceInMin100yd": "Ritmo en min/100yd",
+    "labelLaps": "Laps",
+    "labelRest": "Rest",
+    "labelStrokeRateInSpm": "Stroke rate in spm"
 }
