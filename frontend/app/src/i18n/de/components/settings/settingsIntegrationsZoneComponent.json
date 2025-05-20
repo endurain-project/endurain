@@ -4,6 +4,7 @@
     "buttonConnect": "Verbinden",
     "buttonDropdownOptions": "Optionen",
     "modalRetrieveActivitiesByDaysTitle": "Abrufen von Aktivitäten nach Tagen",
+    "modalRetrieveActivitiesByDateRangeTitle": "Aktivitäten nach Datumsbereich abrufen",
     "modalRetrieveActivitiesByDaysLabel": "Tage",
     "modalRetrieveActivitiesByDaysPlaceholder": "Tage",
     "modalRetrieveButton": "Abrufen",
@@ -43,6 +44,7 @@
     "errorMessageUnableToGetGarminConnectGear": "Garmin Connect Ausrüstung konnte nicht geladen werden",
     "loadingMessageRetrievingGarminConnectGear": "Garmin Connect Ausrüstung abrufen",
     "modalRetrieveHealthDataByDaysTitle": "Retrieve health data by days",
+    "modalRetrieveHealthDataByDateRangeTitle": "Gesundheitsdaten nach Datumsbereich abrufen",
     "errorMessageUnableToGetGarminConnectHealthData": "Unable to get Garmin Connect health data",
     "loadingMessageRetrievingGarminConnectHealthData": "Retrieving Garmin Connect health data"
 }
