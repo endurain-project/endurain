@@ -10,5 +10,6 @@
     "labelGraphVelocity": "Velocitat",
     "labelGraphPace": "Ritme",
     "labelDownsampling": "Dades reduïdes a ~200 punts",
-    "errorMessageProcessingActivityStreams": "Error processant activitats de carrera"
+    "errorMessageProcessingActivityStreams": "Error processant activitats de carrera",
+    "labelGraphStrokeRate": "Stroke rate"
 }
