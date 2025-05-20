@@ -1,12 +1,12 @@
 {
-  "headerType": "Type",
-  "headerName": "Name",
-  "headerLocation": "Location",
+  "headerType": "Tipus",
+  "headerName": "Nom",
+  "headerLocation": "Ubicació",
   "headerStartTime": "Start time",
-  "headerDuration": "Duration",
-  "headerDistance": "Distance",
+  "headerDuration": "Durada",
+  "headerDistance": "Distància",
   "headerPace": "Pace/Speed",
   "headerCalories": "Calories",
-  "headerElevation": "Elevation",
+  "headerElevation": "Elevació",
   "headerAvgHr": "Avg HR"
 }
