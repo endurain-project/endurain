@@ -9,6 +9,6 @@
     "labelLapElev": "Elev",
     "labelLapAvgHr": "Freq. cardíaca média",
     "labelLapHR": "FC",
-    "labelLapStrokeRate": "Stroke rate",
-    "labelLapSR": "SR"
+    "labelLapStrokeRate": "Velocidade de braçada",
+    "labelLapSR": "VB"
 }
