@@ -191,22 +191,26 @@ export default {
 			// If the component is already loading or there are no more activities, return
 			if (isLoading.value || !userHasMoreActivities.value) return;
 
-			// Add 1 to the page number
-			pageNumberUserActivities.value++;
-			try {
+			try {				
+				// Add 1 to the page number
+				pageNumberUserActivities.value++;
+
 				// Fetch the activities
 				const newActivities = await activities.getUserActivitiesWithPagination(
 					authStore.user.id,
 					pageNumberUserActivities.value,
 					numRecords,
 				);
-				Array.prototype.push.apply(userActivities.value, newActivities);
 
-				// If the number of activities is greater than the page number times the number of records, there are no more activities
-				if (
-					pageNumberUserActivities.value * numRecords >=
-					userNumberOfActivities.value
-				) {
+				if (newActivities?.length) {
+					if (!userActivities.value) {
+						userActivities.value = [];
+					}
+					userActivities.value = [...userActivities.value, ...newActivities];
+
+					// Check if we've reached the end
+					userHasMoreActivities.value = newActivities.length === numRecords;
+				} else {
 					userHasMoreActivities.value = false;
 				}
 			} catch (error) {
@@ -216,15 +220,12 @@ export default {
 		}
 
 		const handleScroll = () => {
-			// If the component is already loading or there are no more activities, return
-			if (isLoading.value || !userHasMoreActivities.value) return;
-
-			const bottomOfWindow =
-				window.innerHeight + window.scrollY >=
-				document.documentElement.scrollHeight - 1;
-
-			// If the user has reached the bottom of the page, fetch more activities
-			if (bottomOfWindow) {
+			// Get scroll position and page height more reliably
+			const scrollPosition = window.scrollY + window.innerHeight;
+			const totalHeight = document.documentElement.scrollHeight;
+			
+			// Trigger load when within 100px of bottom
+			if (totalHeight - scrollPosition < 100) {
 				fetchMoreActivities();
 			}
 		};
