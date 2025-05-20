@@ -43,7 +43,7 @@
     "labelPaceInMin100m": "Ritmo em min/100m",
     "labelPaceInMinMile": "Ritmo em min/milha",
     "labelPaceInMin100yd": "Ritmo em min/100jardas",
-    "labelLaps": "Laps",
-    "labelRest": "Rest",
-    "labelStrokeRateInSpm": "Stroke rate in spm"
+    "labelLaps": "Voltas",
+    "labelRest": "Descanso",
+    "labelStrokeRateInSpm": "Velocidade de braçada em spm"
 }
