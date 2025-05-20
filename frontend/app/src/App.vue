@@ -10,11 +10,11 @@ import {
 	NotificationProgress,
 	pastelTheme,
 } from "notivue";
-import { UseScreenSafeArea } from '@vueuse/components'
+import { UseScreenSafeArea } from "@vueuse/components";
 </script>
 
 <template>
-	<UseScreenSafeArea top right bottom left>
+	<UseScreenSafeArea v-slot="{ top, right, bottom, left }">
 		<Notivue v-slot="item">
 			<NotivueSwipe :item="item">
 				<Notification :item="item" :theme="pastelTheme">
@@ -22,7 +22,15 @@ import { UseScreenSafeArea } from '@vueuse/components'
 				</Notification>
 			</NotivueSwipe>
 		</Notivue>
-		<div class="d-flex flex-column vh-100">
+		<div 
+			class="d-flex flex-column vh-100"
+			:style="{
+				paddingTop: `${top}px`,
+				paddingRight: `${right}px`,
+				paddingBottom: `${bottom}px`,
+				paddingLeft: `${left}px`,
+			}"
+		>
 			<div class="bg-body-tertiary shadow-sm">
 				<NavbarComponent class="container" />
 			</div>
@@ -30,7 +38,10 @@ import { UseScreenSafeArea } from '@vueuse/components'
 				<RouterView />
 			</main>
 			<FooterComponent class="d-none d-lg-block shadow-sm"/>
-			<NavbarBottomMobileComponent class="d-lg-none d-block sticky-bottom shadow-sm"/>
+			<NavbarBottomMobileComponent 
+				class="d-lg-none d-block sticky-bottom shadow-sm"
+				:style="{ marginBottom: `${bottom}px` }"
+			/>
 		</div>
 	</UseScreenSafeArea>
 </template>
