@@ -166,7 +166,7 @@ export default {
             }]
 
             // Only push laps 'background shading' if there is cadence data and indoor swimming activity
-            if (cadDataDS.length > 0 && activityTypeIsSwimming(props.activity)) {
+            if (cadDataDS.length > 0 && props.activity.activity_type === 8) {
                 datasets.push({
                     type: 'bar',
                     label: t("generalItems.labelLaps"),

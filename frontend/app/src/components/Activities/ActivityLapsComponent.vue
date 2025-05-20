@@ -1,6 +1,6 @@
 <template>
     <div class="table-responsive d-none d-sm-block">
-        <table class="table table-borderless table-hover table-sm rounded text-center" :class="{ 'table-striped': !activityTypeIsSwimming(activity) }" style="--bs-table-bg: var(--bs-gray-850);">
+        <table class="table table-borderless table-hover table-sm rounded text-center" :class="{ 'table-striped': activity.activity_type !== 8 }" style="--bs-table-bg: var(--bs-gray-850);">
             <thead>
                 <tr>
                     <th>{{ $t("activityLapsComponent.labelLapNumber") }}</th>
@@ -17,7 +17,7 @@
                 </tr>
             </thead>
             <tbody class="table-group-divider">
-                <tr v-for="(lap, index) in normalizedLaps" :key="lap.id" :style="{ 'background-color': !lap.swimIsRest ? 'var(--bs-table-striped-bg)' : 'var(--bs-table-bg)' }">
+                <tr v-for="(lap, index) in normalizedLaps" :key="lap.id" :style="activity.activity_type === 8 ? { 'background-color': lap.swimIsRest ? 'var(--bs-table-bg)' : 'var(--bs-table-striped-bg)' } : null">
                     <td>{{ index + 1 }}</td>
                     <td v-if="hasIntensity">{{ lap.intensity ?? $t("generalItems.labelNoData") }}</td>
                     <td>{{ lap.formattedDistance }}</td>

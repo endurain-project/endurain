@@ -32,8 +32,8 @@
                     <h3 class="offcanvas-title" id="offcanvasNavbarLabel">{{ $t("navbarBottomMobileComponent.menu") }}</h3>
                     <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
                 </div>
-                <div class="offcanvas-body">
-                    <ul class="navbar-nav justify-content-end flex-grow-1 pe-3">
+                <div class="offcanvas-body d-flex flex-column">
+                    <ul class="navbar-nav flex-grow-1 pe-3">
                         <li class="nav-item">
                             <router-link
                                 :to="{ name: 'search' }"
@@ -66,6 +66,10 @@
                             </a>
                         </li>
                     </ul>
+                    <!-- Footer pinned to bottom -->
+                    <div class="mt-auto">
+                        <FooterComponent :enableBackground="false" />
+                    </div>
                 </div>
             </div>
         </div>
@@ -74,7 +78,6 @@
 </template>
 
 <script>
-import { ref } from "vue";
 import { useRouter } from "vue-router";
 // Importing the i18n
 import { useI18n } from "vue-i18n";
