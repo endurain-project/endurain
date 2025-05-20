@@ -26,9 +26,9 @@
             <div v-if="isLoading">
                 <LoadingComponent />
             </div>
-            <div v-else class="p-3 bg-body-tertiary rounded shadow-sm">
+            <div v-else>
                 <!-- Checking if userGears is loaded and has length -->
-                <div v-if="userGears && userGears.length">
+                <div v-if="userGears && userGears.length" class="p-3 bg-body-tertiary rounded shadow-sm">
                     <!-- Iterating over userGears to display them -->
                     <span class="mb-1">{{ $t("gearsView.displayUserNumberOfGears1") }}{{ userGearsNumber }}{{ $t("gearsView.displayUserNumberOfGears2") }}{{ userGears.length }}{{ $t("gearsView.displayUserNumberOfGears3") }}</span>
 
