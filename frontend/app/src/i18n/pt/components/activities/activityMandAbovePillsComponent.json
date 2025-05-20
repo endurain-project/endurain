@@ -11,5 +11,5 @@
     "labelGraphPace": "Ritmo",
     "labelDownsampling": "Dados downsampled para ~200 pontos",
     "errorMessageProcessingActivityStreams": "Erro ao processar fluxos de atividade",
-    "labelGraphStrokeRate": "Stroke rate"
+    "labelGraphStrokeRate": "Velocidade de braçada"
 }
