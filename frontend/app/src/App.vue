@@ -13,7 +13,7 @@ import {
 </script>
 
 <template>
-	<div class="safe-area-container">
+	<UseScreenSafeArea top right bottom left>
 		<Notivue v-slot="item">
 			<NotivueSwipe :item="item">
 				<Notification :item="item" :theme="pastelTheme">
@@ -31,18 +31,5 @@ import {
 			<FooterComponent class="d-none d-lg-block shadow-sm"/>
 			<NavbarBottomMobileComponent class="d-lg-none d-block sticky-bottom shadow-sm"/>
 		</div>
-	</div>
+	</UseScreenSafeArea>
 </template>
-
-<style>
-.safe-area-container {
-  display: block;
-  position: relative;
-  min-height: 100vh;
-  padding-left: env(safe-area-inset-left);
-  padding-right: env(safe-area-inset-right);
-  padding-top: env(safe-area-inset-top);
-  padding-bottom: env(safe-area-inset-bottom);
-  box-sizing: border-box;
-}
-</style>
