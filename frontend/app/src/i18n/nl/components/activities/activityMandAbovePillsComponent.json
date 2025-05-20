@@ -10,5 +10,6 @@
     "labelGraphVelocity": "Snelheid",
     "labelGraphPace": "Tempo",
     "labelDownsampling": "Gegevens teruggeschaald naar ~200 punten",
-    "errorMessageProcessingActivityStreams": "Fout bij verwerken activiteit streams"
+    "errorMessageProcessingActivityStreams": "Fout bij verwerken activiteit streams",
+    "labelGraphStrokeRate": "Stroke rate"
 }
