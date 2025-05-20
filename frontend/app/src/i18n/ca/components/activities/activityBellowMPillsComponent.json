@@ -18,5 +18,8 @@
     "labelMaxCadence": "Cadència màx",
     "subTitleElevation": "Elevació",
     "labelElevationGain": "Desnivell positiu",
-    "labelElevationLoss": "Pèrdua elevació"
+    "labelElevationLoss": "Pèrdua elevació",
+    "subTitleStrokeRate": "Stroke rate",
+    "labelAvgStrokeRate": "Avg stroke rate",
+    "labelMaxStrokeRate": "Max stroke rate"
 }
