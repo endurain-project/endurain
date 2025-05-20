@@ -15,6 +15,14 @@
     <link rel="icon" href="/logo/favicon-16x16.png" type="image/png" sizes="16x16">
     <link rel="apple-touch-icon" href="/logo/apple-touch-icon.png">
     <link rel="manifest" href="/manifest.webmanifest">
+    <style>
+      body {
+        /* Try constant() first as it's the older syntax */
+        padding: constant(safe-area-inset-top) constant(safe-area-inset-right) constant(safe-area-inset-bottom) constant(safe-area-inset-left);
+        /* Then fallback to env() for newer iOS versions */
+        padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+      }
+    </style>
   </head>
   <body>
     <div id="app"></div>
@@ -28,7 +36,6 @@
         // Applies light theme or removes the attribute for default behavior
         document.documentElement.setAttribute('data-bs-theme', 'light');
       }
-      
       // Optional: Listen for changes in the preference and adjust on the fly
       window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', event => {
         const newColorScheme = event.matches ? "dark" : "light";
