@@ -22,25 +22,24 @@ import { UseScreenSafeArea } from "@vueuse/components";
 				</Notification>
 			</NotivueSwipe>
 		</Notivue>
-		<div 
-			class="d-flex flex-column vh-100"
-			:style="{
-				paddingTop: `${top}px`,
-				paddingRight: `${right}px`,
-				paddingBottom: `${bottom}px`,
-				paddingLeft: `${left}px`,
-			}"
-		>
-			<div class="bg-body-tertiary shadow-sm">
-				<NavbarComponent class="container" />
+		<div class="d-flex flex-column vh-100">
+			<!-- Top Navbar with safe-area padding -->
+			<div class="bg-body-tertiary shadow-sm" :style="{ paddingTop: `${top}px` }">
+				<NavbarComponent class="container"/>
 			</div>
+
+			<!-- Main content -->
 			<main class="container py-4 flex-grow-1">
 				<RouterView />
 			</main>
+
+			<!-- Desktop Footer -->
 			<FooterComponent class="d-none d-lg-block shadow-sm"/>
+
+			<!-- Bottom Mobile Navbar with safe-area padding -->
 			<NavbarBottomMobileComponent 
 				class="d-lg-none d-block sticky-bottom shadow-sm"
-				:style="{ marginBottom: `${bottom}px` }"
+				:style="{ paddingBottom: `${bottom}px` }"
 			/>
 		</div>
 	</UseScreenSafeArea>
