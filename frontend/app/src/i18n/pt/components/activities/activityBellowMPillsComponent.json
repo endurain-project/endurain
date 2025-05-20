@@ -19,7 +19,7 @@
     "subTitleElevation": "Elevação",
     "labelElevationGain": "Ganho de elevação",
     "labelElevationLoss": "Perda de elevação",
-    "subTitleStrokeRate": "Stroke rate",
-    "labelAvgStrokeRate": "Avg stroke rate",
-    "labelMaxStrokeRate": "Max stroke rate"
+    "subTitleStrokeRate": "Velocidade de braçada",
+    "labelAvgStrokeRate": "Velocidade de braçada média",
+    "labelMaxStrokeRate": "Velocidade de braçada máxima"
 }
