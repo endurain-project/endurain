@@ -27,6 +27,7 @@ backend/app/user_images/*.jpg
 
 # gpx and fit files
 backend/app/files/*.gpx
+backend/app/files/*.zip
 backend/app/files/*.fit
 backend/app/files/bulk_import/*.gpx
 backend/app/files/bulk_import/*.fit
