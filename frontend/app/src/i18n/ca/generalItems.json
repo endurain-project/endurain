@@ -46,6 +46,6 @@
     "labelLaps": "Voltes",
     "labelRest": "Descans",
     "labelStrokeRateInSpm": "Freqüència batecs en spm",
-    "startDateLabel": "Start date",
-    "endDateLabel": "End date"
+    "startDateLabel": "Data inici",
+    "endDateLabel": "Data fi"
 }
