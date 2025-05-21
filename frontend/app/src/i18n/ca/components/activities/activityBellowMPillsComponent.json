@@ -19,7 +19,7 @@
     "subTitleElevation": "Elevació",
     "labelElevationGain": "Desnivell positiu",
     "labelElevationLoss": "Pèrdua elevació",
-    "subTitleStrokeRate": "Stroke rate",
-    "labelAvgStrokeRate": "Avg stroke rate",
-    "labelMaxStrokeRate": "Max stroke rate"
+    "subTitleStrokeRate": "Freqüència batecs",
+    "labelAvgStrokeRate": "Freqüència mitjana de batecs",
+    "labelMaxStrokeRate": "Freqüència de batecs Max"
 }
