@@ -100,15 +100,7 @@ export default {
 
     onMounted(() => {
       setDefaultDates();
-      // Listener to reset dates when modal is shown
-      const modalElement = document.getElementById(props.modalId);
-      if (modalElement) {
-        modalElement.addEventListener('show.bs.modal', setDefaultDates);
-      }
     });
-    
-    // It might be good to also remove the event listener when the component is unmounted,
-    // but for simplicity in this context, we'll omit that.
 
     function emitDates() {
       emit("datesToEmitAction", {
