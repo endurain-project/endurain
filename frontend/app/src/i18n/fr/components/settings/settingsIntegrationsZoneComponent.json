@@ -4,6 +4,7 @@
     "buttonConnect": "Connecter",
     "buttonDropdownOptions": "Options",
     "modalRetrieveActivitiesByDaysTitle": "Récupérer les activités par jours",
+    "modalRetrieveActivitiesByDateRangeTitle": "Retrieve activities by date range",
     "modalRetrieveActivitiesByDaysLabel": "Jours",
     "modalRetrieveActivitiesByDaysPlaceholder": "Jours",
     "modalRetrieveButton": "Récupérer",
@@ -34,7 +35,8 @@
     "garminConnectIntegrationTitle": "Garmin Connect",
     "garminConnectIntegrationBody": "Garmin Connect est une plate-forme d'activités de santé et de fitness pour les utilisateurs de dispositifs Garmin",
     "loadingMessageRetrievingGarminConnectActivities": "Récupération des activités de Garmin Connect",
-    "errorMessageUnableToGetGarminConnectActivities": "Impossible d'obtenir les activités de Garmin Connect",
+    "errorMessageUnableToGetGarminConnectActivitiesDays": "Unable to get Garmin Connect activities by days",
+    "errorMessageUnableToGetGarminConnectActivitiesDataRange": "Unable to get Garmin Connect activities using data range",
     "modalUnlinkGarminConnectTitle": "Dissocier Garmin Connect",
     "modalUnlinkGarminConnectBody": "Êtes-vous sûr de vouloir dissocier votre compte Garmin Connect ?",
     "processingMessageUnlinkGarminConnect": "Dissociation du compte Garmin Connect...",
@@ -43,6 +45,8 @@
     "errorMessageUnableToGetGarminConnectGear": "Impossible d'obtenir les équipements de Garmin Connect",
     "loadingMessageRetrievingGarminConnectGear": "Récupération des équipements de Garmin Connect",
     "modalRetrieveHealthDataByDaysTitle": "Récupérer les données de santé par jour",
-    "errorMessageUnableToGetGarminConnectHealthData": "Impossible d'obtenir les données de santé de Garmin Connect",
+    "modalRetrieveHealthDataByDateRangeTitle": "Retrieve health data by date range",
+    "errorMessageUnableToGetGarminConnectHealthDataDays": "Unable to get Garmin Connect health data by days",
+    "errorMessageUnableToGetGarminConnectHealthDataDateRange": "Unable to get Garmin Connect health data using date range",
     "loadingMessageRetrievingGarminConnectHealthData": "Récupération des données de santé de Garmin Connect"
 }
