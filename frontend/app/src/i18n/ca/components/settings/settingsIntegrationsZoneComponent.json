@@ -4,6 +4,7 @@
     "buttonConnect": "Connecta",
     "buttonDropdownOptions": "Opcions",
     "modalRetrieveActivitiesByDaysTitle": "Recupera activitats per dies",
+    "modalRetrieveActivitiesByDateRangeTitle": "Retrieve activities by date range",
     "modalRetrieveActivitiesByDaysLabel": "Dies",
     "modalRetrieveActivitiesByDaysPlaceholder": "Dies",
     "modalRetrieveButton": "Recupera",
@@ -34,7 +35,8 @@
     "garminConnectIntegrationTitle": "Garmin Connect",
     "garminConnectIntegrationBody": "Garmin Connect és una plataforma d'activitats de salut i fitness pels usuaris de dispositius Garmin",
     "loadingMessageRetrievingGarminConnectActivities": "Obtenint activitats de Garmin Connect",
-    "errorMessageUnableToGetGarminConnectActivities": "No es poden obtenir les activitats de Garmin Connect",
+    "errorMessageUnableToGetGarminConnectActivitiesDays": "Unable to get Garmin Connect activities by days",
+    "errorMessageUnableToGetGarminConnectActivitiesDataRange": "Unable to get Garmin Connect activities using data range",
     "modalUnlinkGarminConnectTitle": "Desenllaça Garmin Connect",
     "modalUnlinkGarminConnectBody": "Segur que vols desenllaçar el compte de Garmin Connect?",
     "processingMessageUnlinkGarminConnect": "Desenllaçant el compte de Garmin Connect...",
@@ -43,6 +45,8 @@
     "errorMessageUnableToGetGarminConnectGear": "No es pot obtenir equipament de Garmin Connect",
     "loadingMessageRetrievingGarminConnectGear": "Obtenint equipament de Garmin Connect",
     "modalRetrieveHealthDataByDaysTitle": "Recupera dades de salut per dies",
-    "errorMessageUnableToGetGarminConnectHealthData": "No es poden obtenir dades de salut de Garmin Connect",
+    "modalRetrieveHealthDataByDateRangeTitle": "Retrieve health data by date range",
+    "errorMessageUnableToGetGarminConnectHealthDataDays": "Unable to get Garmin Connect health data by days",
+    "errorMessageUnableToGetGarminConnectHealthDataDateRange": "Unable to get Garmin Connect health data using date range",
     "loadingMessageRetrievingGarminConnectHealthData": "Recuperant dades de salut de Garmin Connect"
 }
