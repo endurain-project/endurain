@@ -6,6 +6,7 @@ from fastapi import (
     HTTPException,
     status,
 )
+import garth.exc
 import garminconnect
 
 from sqlalchemy.orm import Session
@@ -96,15 +97,18 @@ async def link_garminconnect(
     except (
         garminconnect.GarminConnectAuthenticationError,
         requests.exceptions.HTTPError,
+        garth.exc.GarthException,
     ) as err:
         # Print error info to check dedicated log in main log
         core_logger.print_to_log_and_console(
-            "There was an authentication error using Garmin Connect: {err}",
+            "There was an authentication error using Garmin Connect. Check credentials: {err}",
             "error",
             err,
         )
-
-        return None
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="There was an authentication error using Garmin Connect. Check credentials.",
+        )
     except garminconnect.GarminConnectTooManyRequestsError as err:
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
@@ -114,10 +118,20 @@ async def link_garminconnect(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect MFA code",
-            headers={"WWW-Authenticate": "Bearer"},
+        )
+    except Exception as err:
+        core_logger.print_to_log_and_console(
+            f"Internal server error while linking Garmin Connect: {err}",
+            "error",
+            err,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal server error while linking Garmin Connect",
         )
     finally:
-        mfa_codes.delete_code(user_id)
+        if mfa_codes.has_code(user_id):
+            mfa_codes.delete_code(user_id)
 
 
 def login_garminconnect_using_tokens(oauth1_token, oauth2_token):

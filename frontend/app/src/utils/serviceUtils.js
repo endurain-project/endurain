@@ -30,6 +30,14 @@ async function fetchWithRetry(url, options) {
 		return await attemptFetch(url, options);
 	} catch (error) {
 		if (error.message.startsWith("401") && url !== "token") {
+			if (
+				url === "garminconnect/link" &&
+				error.message.includes(
+					"There was an authentication error using Garmin Connect",
+				)
+			) {
+				throw error;
+			}
 			try {
 				await refreshAccessToken();
 				return await attemptFetch(url, options);

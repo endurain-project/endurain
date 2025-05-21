@@ -58,17 +58,17 @@
                 <a class="btn btn-link btn-lg link-body-emphasis" :href="`https://connect.garmin.com/modern/activity/${activity.garminconnect_activity_id}`" role="button" v-if="activity.garminconnect_activity_id">
                     <img src="/src/assets/garminconnect/Garmin_Connect_app_1024x1024-02.png" alt="Garmin Connect logo" height="22" />
                 </a>
-                <div v-if="source === 'activity'">
+                <div>
                     <button class="btn btn-link btn-lg link-body-emphasis" type="button" data-bs-toggle="dropdown" aria-expanded="false">
                         <font-awesome-icon :icon="['fas', 'fa-ellipsis-vertical']" />
                     </button>
                     <ul class="dropdown-menu">
-                        <li>
+                        <li v-if="source === 'activity'">
                             <a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#editActivityModal">
                                 {{ $t("activitySummaryComponent.buttonEditActivity") }}
                             </a>
                         </li>
-                        <li><hr class="dropdown-divider"></li>
+                        <li v-if="source === 'activity'"><hr class="dropdown-divider"></li>
                         <li>
                             <a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#deleteActivityModal">
                                 {{ $t("activitySummaryComponent.buttonDeleteActivity") }}

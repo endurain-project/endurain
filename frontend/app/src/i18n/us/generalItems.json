@@ -46,6 +46,6 @@
     "labelLaps": "Laps",
     "labelRest": "Rest",
     "labelStrokeRateInSpm": "Stroke rate in spm",
-    "startDateLabel": "Start Date",
-    "endDateLabel": "End Date"
+    "startDateLabel": "Start date",
+    "endDateLabel": "End date"
 }
