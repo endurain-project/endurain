@@ -4,6 +4,7 @@
     "buttonConnect": "Verbinden",
     "buttonDropdownOptions": "Opties",
     "modalRetrieveActivitiesByDaysTitle": "Activiteiten ophalen per dag",
+    "modalRetrieveActivitiesByDateRangeTitle": "Retrieve activities by date range",
     "modalRetrieveActivitiesByDaysLabel": "Dagen",
     "modalRetrieveActivitiesByDaysPlaceholder": "Dagen",
     "modalRetrieveButton": "Ophalen",
@@ -34,7 +35,8 @@
     "garminConnectIntegrationTitle": "Garmin Connect",
     "garminConnectIntegrationBody": "Garmin Connect is een gezondheidsplatform en fitness voor gebruikers van Garmin apparaten",
     "loadingMessageRetrievingGarminConnectActivities": "Ophalen van Garmin Connect activiteiten",
-    "errorMessageUnableToGetGarminConnectActivities": "Kan Garmin Connect activiteiten niet ophalen",
+    "errorMessageUnableToGetGarminConnectActivitiesDays": "Unable to get Garmin Connect activities by days",
+    "errorMessageUnableToGetGarminConnectActivitiesDataRange": "Unable to get Garmin Connect activities using data range",
     "modalUnlinkGarminConnectTitle": "Garmin verbinding ontkoppelen",
     "modalUnlinkGarminConnectBody": "Weet u zeker dat u uw Garmin Connect account wilt ontkoppelen?",
     "processingMessageUnlinkGarminConnect": "Garmin Connect account ontkoppelen...",
@@ -43,6 +45,8 @@
     "errorMessageUnableToGetGarminConnectGear": "Kan geen Garmin Connect uitrusting krijgen",
     "loadingMessageRetrievingGarminConnectGear": "Ophalen van Garmin Connect uitrusting",
     "modalRetrieveHealthDataByDaysTitle": "Gezondheidsgegevens ophalen per dag",
-    "errorMessageUnableToGetGarminConnectHealthData": "Kan Garmin Connect gezondheidsgegevens niet ophalen",
+    "modalRetrieveHealthDataByDateRangeTitle": "Retrieve health data by date range",
+    "errorMessageUnableToGetGarminConnectHealthDataDays": "Unable to get Garmin Connect health data by days",
+    "errorMessageUnableToGetGarminConnectHealthDataDateRange": "Unable to get Garmin Connect health data using date range",
     "loadingMessageRetrievingGarminConnectHealthData": "Ophalen van Garmin Connect gezondheidsgegevens"
 }
