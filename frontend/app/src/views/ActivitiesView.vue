@@ -52,11 +52,11 @@
 	</div>
 	<!-- End Filter Section -->
 
-	<LoadingComponent v-if="isLoading" />
+<LoadingComponent v-if="isLoading" />
 
-	<div class="p-3 bg-body-tertiary rounded shadow-sm" v-else-if="activities && activities.length">
-		<!-- Activities Table -->
-		<ActivitiesTableComponent
+<div class="p-3 bg-body-tertiary rounded shadow-sm" v-else-if="activities && activities.length" ref="activitiesListRef">
+<!-- Activities Table -->
+<ActivitiesTableComponent
 			:activities="activities"
 			:sort-by="sortBy"
 			:sort-order="sortOrder"
@@ -72,7 +72,7 @@
 </template>
 
 <script>
-import { ref, onMounted, watch } from "vue";
+import { ref, onMounted, watch, nextTick } from "vue";
 import { useI18n } from "vue-i18n";
 // import lodash
 import { debounce } from "lodash";
@@ -106,10 +106,14 @@ export default {
 		const pageNumber = ref(1);
 		const numRecords = 20;
 		const totalPages = ref(1);
-		const isLoading = ref(true);
+const isLoading = ref(true);
 
-		// Filter state
-		const selectedType = ref("");
+// Scroll position preservation
+const activitiesListRef = ref(null);
+let storedScrollPositionActivities = null;
+
+// Filter state
+const selectedType = ref("");
 		const startDate = ref("");
 		const endDate = ref("");
 		const nameSearch = ref("");
@@ -136,23 +140,26 @@ export default {
 			}
 		}, 500);
 
-		// Fetch available activity types for the filter dropdown
-		async function fetchActivityTypes() {
-			try {
-				activityTypes.value = await activitiesService.getActivityTypes();
-			} catch (error) {
-				push.error(
-					`${t("activitiesView.errorFailedFetchActivityTypes")} - ${error}`,
-				);
-			}
-		}
+// Fetch available activity types for the filter dropdown
+async function fetchActivityTypes() {
+try {
+activityTypes.value = await activitiesService.getActivityTypes();
+} catch (error) {
+push.error(
+`${t("activitiesView.errorFailedFetchActivityTypes")} - ${error}`,
+);
+}
+}
 
-		function setPageNumber(page) {
-			// Set the page number.
-			pageNumber.value = page;
-		}
+function setPageNumber(page) {
+  if (activitiesListRef.value) {
+    storedScrollPositionActivities = activitiesListRef.value.getBoundingClientRect().top;
+  }
+// Set the page number.
+pageNumber.value = page;
+}
 
-		async function updateActivities() {
+async function updateActivities() {
 			try {
 				// Set the loading variable to true.
 				isLoading.value = true;
@@ -161,12 +168,20 @@ export default {
 				await fetchActivities();
 			} catch (error) {
 				// If there is an error, set the error message and show the error alert.
-				push.error(`${t("activitiesView.errorUpdatingActivities")} - ${error}`);
-			} finally {
-				// Set the loading variable to false.
-				isLoading.value = false;
-			}
-		}
+push.error(`${t("activitiesView.errorUpdatingActivities")} - ${error}`);
+} finally {
+// Set the loading variable to false.
+isLoading.value = false;
+      nextTick(() => {
+        if (storedScrollPositionActivities !== null && activitiesListRef.value) {
+          const newTop = activitiesListRef.value.getBoundingClientRect().top;
+          const scrollDifference = newTop - storedScrollPositionActivities;
+          window.scrollBy(0, scrollDifference);
+          storedScrollPositionActivities = null; // Reset after use
+        }
+      });
+}
+}
 
 		// Fetch activities with pagination, filters, and sorting
 		async function fetchActivities() {
@@ -224,19 +239,22 @@ export default {
 			await applyFilters();
 		}
 
-		// Function to handle sorting changes from table component
-		async function handleSort(columnName) {
-			if (sortBy.value === columnName) {
-				// Toggle sort order if same column is clicked
-				sortOrder.value = sortOrder.value === "asc" ? "desc" : "asc";
-			} else {
-				// Set new column and default to descending order
-				sortBy.value = columnName;
-				sortOrder.value = "desc"; // Or 'asc' if preferred as default
-			}
-			// Fetch data with new sorting, reset to page 1
-			await updateActivities();
-		}
+// Function to handle sorting changes from table component
+async function handleSort(columnName) {
+  if (activitiesListRef.value) {
+    storedScrollPositionActivities = activitiesListRef.value.getBoundingClientRect().top;
+  }
+if (sortBy.value === columnName) {
+// Toggle sort order if same column is clicked
+sortOrder.value = sortOrder.value === "asc" ? "desc" : "asc";
+} else {
+// Set new column and default to descending order
+sortBy.value = columnName;
+sortOrder.value = "desc"; // Or 'asc' if preferred as default
+}
+// Fetch data with new sorting, reset to page 1
+await updateActivities();
+}
 
 		// Watch the search name variable.
 		watch(nameSearch, performNameSearch, { immediate: false });
@@ -252,15 +270,16 @@ export default {
 			activityTypes,
 			selectedType,
 			startDate,
-			endDate,
-			nameSearch,
-			sortBy,
-			sortOrder,
-			setPageNumber,
-			applyFilters,
-			clearFilters,
-			handleSort,
-		};
-	},
+endDate,
+nameSearch,
+sortBy,
+sortOrder,
+activitiesListRef,
+setPageNumber,
+applyFilters,
+clearFilters,
+handleSort,
+};
+},
 };
 </script>

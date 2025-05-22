@@ -14,6 +14,7 @@ backend/app/*.pyc
 # Logs
 backend/app/logs/*.log
 backend/app/*.log
+backend/logs/*.log
 
 # server image folder images
 backend/app/server_images/*.jpeg
@@ -33,6 +34,7 @@ backend/app/files/bulk_import/*.gpx
 backend/app/files/bulk_import/*.fit
 backend/app/files/processed/*.gpx
 backend/app/files/processed/*.fit
+backend/files/
 
 # Frontend
 frontend/app/img/users_img/*.*
@@ -72,3 +74,10 @@ frontend/app/*.tsbuildinfo
 
 # site folder
 site/
+
+# LLM supporting files
+memory-bank/
+.clinerules
+
+# local postgres
+postgres/

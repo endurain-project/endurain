@@ -17,6 +17,11 @@
                 <br>
                 {{ $t("navbarBottomMobileComponent.gear") }}
             </router-link>
+            <router-link :to="{ name: 'summary' }" class="nav-link link-body-emphasis">
+                <font-awesome-icon :icon="['fas', 'fa-calendar-alt']" />
+                <br />
+                {{ $t('navbarBottomMobileComponent.summary') }}
+            </router-link>
             <router-link :to="{ name: 'health' }" class="nav-link link-body-emphasis">
                 <font-awesome-icon :icon="['fas', 'fa-heart']" />
                 <br>
@@ -35,14 +40,14 @@
 <script>
 import { useRouter } from "vue-router";
 // Importing the i18n
-import { useI18n } from "vue-i18n";
+import { useI18n } from 'vue-i18n'
 // import the stores
-import { useAuthStore } from "@/stores/authStore";
+import { useAuthStore } from '@/stores/authStore'
 // Import the components
-import FooterComponent from "@/components/FooterComponent.vue";
-import UserAvatarComponent from "@/components/Users/UserAvatarComponent.vue";
+import FooterComponent from '@/components/FooterComponent.vue'
+import UserAvatarComponent from '@/components/Users/UserAvatarComponent.vue'
 // Import Notivue push
-import { push } from "notivue";
+import { push } from 'notivue'
 
 export default {
 	components: {

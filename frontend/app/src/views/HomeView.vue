@@ -29,12 +29,12 @@
 				<div class="row mb-3">
 					<div class="col">
 						<a class="w-100 btn btn-primary shadow-sm" href="#" role="button" data-bs-toggle="modal" data-bs-target="#addActivityModal">
-							{{ $t("homeView.buttonAddActivity") }}
-						</a>
-					</div>
-					<div class="col-4" v-if="authStore.user.is_strava_linked == 1 || authStore.user.is_garminconnect_linked == 1">
-						<a class="w-100 btn btn-primary shadow-sm" href="#" role="button" @click="refreshActivities">
-							<font-awesome-icon :icon="['fas', 'arrows-rotate']" />
+      {{ $t("homeView.buttonAddActivity") }}
+    </a>
+  </div>
+  <div class="col-auto" v-if="authStore.user.is_strava_linked == 1 || authStore.user.is_garminconnect_linked == 1">
+    <a class="w-100 btn btn-primary shadow-sm" href="#" role="button" @click="refreshActivities">
+      <font-awesome-icon :icon="['fas', 'arrows-rotate']" />
 						</a>
 					</div>
 				</div>
