@@ -29,7 +29,6 @@ const router = createRouter({
 			name: "activity",
 			component: () => import("../views/ActivityView.vue"),
 		},
-		// Added Activities List Route
 		{
 			path: '/activities',
 			name: 'activities',
@@ -54,6 +53,11 @@ const router = createRouter({
 			path: "/settings",
 			name: "settings",
 			component: () => import("../views/SettingsView.vue"),
+		},
+		{
+			path: "/menu",
+			name: "menu",
+			component: () => import("../views/MenuMobileView.vue"),
 		},
 		{
 			path: "/strava/callback",

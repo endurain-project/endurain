@@ -1,7 +1,6 @@
 <template>
+    <h1>{{ $t("healthView.title") }}</h1>
     <div class="row row-gap-3">
-        <h1>{{ $t("healthView.title") }}</h1>
-
         <!-- Include the HealthSideBarComponent -->
         <HealthSideBarComponent :activeSection="activeSection" @update-active-section="updateActiveSection" />
 

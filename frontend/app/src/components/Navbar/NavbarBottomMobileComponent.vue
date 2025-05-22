@@ -22,56 +22,11 @@
                 <br>
                 {{ $t("navbarBottomMobileComponent.health") }}
             </router-link>
-            <button class="nav-link link-body-emphasis" id="offcanvasNavbarButton" type="button" data-bs-toggle="offcanvas" data-bs-target="#offcanvasNavbar" aria-controls="offcanvasNavbar" aria-label="Toggle navigation">
+            <router-link :to="{ name: 'menu' }" class="nav-link link-body-emphasis">
                 <font-awesome-icon :icon="['fas', 'bars']" />
                 <br>
                 {{ $t("navbarBottomMobileComponent.menu") }}
-            </button>
-            <div class="offcanvas offcanvas-end" tabindex="-1" id="offcanvasNavbar" aria-labelledby="offcanvasNavbarLabel">
-                <div class="offcanvas-header">
-                    <h3 class="offcanvas-title" id="offcanvasNavbarLabel">{{ $t("navbarBottomMobileComponent.menu") }}</h3>
-                    <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
-                </div>
-                <div class="offcanvas-body d-flex flex-column">
-                    <ul class="navbar-nav flex-grow-1 pe-3">
-                        <li class="nav-item">
-                            <router-link
-                                :to="{ name: 'search' }"
-                                class="nav-link link-body-emphasis w-100 py-3 fs-5"
-                                @click="closeOffcanvas"
-                            >
-                                <font-awesome-icon :icon="['fas', 'magnifying-glass']" />
-                                <span class="ms-1">{{ $t('navbarComponent.search') }}</span>
-                            </router-link>
-                        </li>
-                        <li class="nav-item">
-                            <router-link :to="{ name: 'settings' }" class="nav-link link-body-emphasis w-100 py-3 fs-5" @click="closeOffcanvas">
-                                <font-awesome-icon :icon="['fas', 'fa-gear']" />
-                                <span class="ms-1">{{ $t("navbarComponent.settings") }}</span>
-                            </router-link>
-                        </li>
-                        <li class="nav-item">
-                            <router-link :to="{ name: 'user', params: { id: authStore.user.id } }" class="nav-link link-body-emphasis w-100 py-3 fs-5" @click="closeOffcanvas">
-                                <UserAvatarComponent :user="authStore.user" :width=24 :height=24 :alignTop=2 />
-                                <span class="ms-2">{{ $t("navbarComponent.profile") }}</span>
-                            </router-link>
-                        </li>
-                        <li class="nav-item">
-                            <hr>
-                        </li>
-                        <li>
-                            <a class="nav-link link-body-emphasis w-100 py-3 fs-5" href="#" @click="handleLogout">
-                                <font-awesome-icon :icon="['fas', 'fa-sign-out-alt']" />
-                                <span class="ms-2">{{ $t("navbarComponent.logout") }}</span>
-                            </a>
-                        </li>
-                    </ul>
-                    <!-- Footer pinned to bottom -->
-                    <div class="mt-auto">
-                        <FooterComponent :enableBackground="false" />
-                    </div>
-                </div>
-            </div>
+            </router-link>
         </div>
     </nav>
     <FooterComponent v-else/>
@@ -90,35 +45,26 @@ import UserAvatarComponent from "@/components/Users/UserAvatarComponent.vue";
 import { push } from "notivue";
 
 export default {
-    components: {
-        UserAvatarComponent,
-        FooterComponent,
-    },
+	components: {
+		UserAvatarComponent,
+		FooterComponent,
+	},
 	setup() {
 		const router = useRouter();
 		const authStore = useAuthStore();
 		const { locale, t } = useI18n();
 
-        async function handleLogout() {
+		async function handleLogout() {
 			try {
-                await authStore.logoutUser(router, locale);
+				await authStore.logoutUser(router, locale);
 			} catch (error) {
 				push.error(`${t("navbarComponent.errorLogout")} - ${error}`);
 			}
 		}
 
-        function closeOffcanvas() {
-			const navbarToggler = document.querySelector("#offcanvasNavbarButton");
-			const navbarCollapse = document.querySelector("#offcanvasNavbar");
-			if (navbarToggler && navbarCollapse.classList.contains("show")) {
-				navbarToggler.click();
-			}
-		}
-
 		return {
 			authStore,
-            closeOffcanvas,
-            handleLogout,
+			handleLogout,
 		};
 	},
 };
