@@ -18,5 +18,8 @@
     "labelMaxCadence": "Cadencia máxima",
     "subTitleElevation": "Altura",
     "labelElevationGain": "Altura aumentada",
-    "labelElevationLoss": "Altura disminuida"
+    "labelElevationLoss": "Altura disminuida",
+    "subTitleStrokeRate": "Stroke rate",
+    "labelAvgStrokeRate": "Avg stroke rate",
+    "labelMaxStrokeRate": "Max stroke rate"
 }

@@ -18,5 +18,8 @@
     "labelMaxCadence": "Max Candans",
     "subTitleElevation": "Hoogte",
     "labelElevationGain": "Stijging",
-    "labelElevationLoss": "Daling"
+    "labelElevationLoss": "Daling",
+    "subTitleStrokeRate": "Stroke rate",
+    "labelAvgStrokeRate": "Avg stroke rate",
+    "labelMaxStrokeRate": "Max stroke rate"
 }

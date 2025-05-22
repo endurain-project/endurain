@@ -43,6 +43,10 @@
     "labelPaceInMin100m": "Ritmo em min/100m",
     "labelPaceInMinMile": "Ritmo em min/milha",
     "labelPaceInMin100yd": "Ritmo em min/100jardas",
+    "labelLaps": "Voltas",
+    "labelRest": "Descanso",
+    "labelStrokeRateInSpm": "Velocidade de braçada em spm",
     "startDateLabel": "Data de início",
     "endDateLabel": "Data de fim"
 }
+

@@ -10,5 +10,6 @@
     "labelGraphVelocity": "Velocidad",
     "labelGraphPace": "Ritmo",
     "labelDownsampling": "Datos reducidos a ~200 puntos",
-    "errorMessageProcessingActivityStreams": "Error al procesar los flujos de actividad"
+    "errorMessageProcessingActivityStreams": "Error al procesar los flujos de actividad",
+    "labelGraphStrokeRate": "Stroke rate"
 }

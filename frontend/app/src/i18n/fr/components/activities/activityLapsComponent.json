@@ -8,5 +8,7 @@
     "labelLapElevation": "Élévation",
     "labelLapElev": "Élév.",
     "labelLapAvgHr": "Fréq. cardiaque moy.",
-    "labelLapHR": "FC"
+    "labelLapHR": "FC",
+    "labelLapStrokeRate": "Stroke rate",
+    "labelLapSR": "SR"
 }

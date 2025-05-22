@@ -43,6 +43,10 @@
     "labelPaceInMin100m": "Tempo in min/100m",
     "labelPaceInMinMile": "Tempo in min/Meile",
     "labelPaceInMin100yd": "Pace in min/100yd",
+    "labelLaps": "Laps",
+    "labelRest": "Rest",
+    "labelStrokeRateInSpm": "Stroke rate in spm",
     "startDateLabel": "Startdatum",
     "endDateLabel": "Enddatum"
 }
+

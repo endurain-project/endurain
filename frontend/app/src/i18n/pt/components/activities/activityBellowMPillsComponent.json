@@ -18,5 +18,8 @@
     "labelMaxCadence": "Cadência máxima",
     "subTitleElevation": "Elevação",
     "labelElevationGain": "Ganho de elevação",
-    "labelElevationLoss": "Perda de elevação"
+    "labelElevationLoss": "Perda de elevação",
+    "subTitleStrokeRate": "Velocidade de braçada",
+    "labelAvgStrokeRate": "Velocidade de braçada média",
+    "labelMaxStrokeRate": "Velocidade de braçada máxima"
 }

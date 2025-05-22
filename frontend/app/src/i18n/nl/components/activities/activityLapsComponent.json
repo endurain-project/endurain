@@ -8,5 +8,7 @@
     "labelLapElevation": "Hoogte",
     "labelLapElev": "Hoogte",
     "labelLapAvgHr": "Gem hartslag",
-    "labelLapHR": "HS"
+    "labelLapHR": "HS",
+    "labelLapStrokeRate": "Stroke rate",
+    "labelLapSR": "SR"
 }

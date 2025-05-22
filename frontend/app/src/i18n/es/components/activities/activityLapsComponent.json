@@ -8,5 +8,7 @@
     "labelLapElevation": "Altura",
     "labelLapElev": "Alt",
     "labelLapAvgHr": "Ritmo cardíaco medio",
-    "labelLapHR": "RC"
+    "labelLapHR": "RC",
+    "labelLapStrokeRate": "Stroke rate",
+    "labelLapSR": "SR"
 }

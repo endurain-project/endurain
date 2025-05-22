@@ -5,10 +5,10 @@
   "filterLabelFromDate": "Des de",
   "filterLabelToDate": "Fins a",
   "filterLabelNameLocation": "Nom o Ubicació",
-  "filterPlaceholderNameLocation": "e.g., Morning Run",
+  "filterPlaceholderNameLocation": "p.ex. Carrera de Matí",
   "buttonClear": "Neteja",
   "buttonApply": "Aplica",
-  "errorFailedFetchActivityTypes": "Failed to fetch activity types",
-  "errorUpdatingActivities": "Failed to updated activities",
-  "errorFetchingActivities": "Failed to fetch user activities"
+  "errorFailedFetchActivityTypes": "Error obtenint tipus d'activitats",
+  "errorUpdatingActivities": "Error actualitzant activitats",
+  "errorFetchingActivities": "Error obtenint activitats d'usuari"
 }
