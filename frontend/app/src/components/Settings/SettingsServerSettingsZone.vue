@@ -96,7 +96,6 @@ import { push } from "notivue";
 import LoadingComponent from "@/components/GeneralComponents/LoadingComponent.vue";
 import NoItemsFoundComponent from "@/components/GeneralComponents/NoItemsFoundComponents.vue";
 import UsersListComponent from "@/components/Settings/SettingsUsersZone/UsersListComponent.vue";
-import PaginationComponent from "@/components/GeneralComponents/PaginationComponent.vue";
 import UsersAddEditUserModalComponent from "@/components/Settings/SettingsUsersZone/UsersAddEditUserModalComponent.vue";
 import ModalComponent from "@/components/Modals/ModalComponent.vue";
 
@@ -104,7 +103,6 @@ export default {
 	components: {
 		LoadingComponent,
 		NoItemsFoundComponent,
-		PaginationComponent,
 		UsersListComponent,
 		UsersAddEditUserModalComponent,
         ModalComponent,

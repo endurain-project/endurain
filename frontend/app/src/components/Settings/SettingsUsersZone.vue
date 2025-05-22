@@ -40,7 +40,8 @@
 						</ul>
 
 						<!-- pagination area -->
-						<PaginationComponent :totalPages="totalPages" :pageNumber="pageNumber" @pageNumberChanged="setPageNumber" v-if="!searchUsername"/>
+						<PaginationComponent class="d-none d-lg-block" :totalPages="totalPages" :pageNumber="pageNumber" @pageNumberChanged="setPageNumber" v-if="!searchUsername"/>
+						<PaginationMobileComponent class="d-lg-none d-block" :totalPages="totalPages" :pageNumber="pageNumber" @pageNumberChanged="setPageNumber" v-if="!searchUsername"/>
 					</div>
 					<!-- Displaying a message or component when there are no activities -->
 					<div v-else>
@@ -65,6 +66,7 @@ import LoadingComponent from "@/components/GeneralComponents/LoadingComponent.vu
 import NoItemsFoundComponent from "@/components/GeneralComponents/NoItemsFoundComponents.vue";
 import UsersListComponent from "@/components/Settings/SettingsUsersZone/UsersListComponent.vue";
 import PaginationComponent from "@/components/GeneralComponents/PaginationComponent.vue";
+import PaginationMobileComponent from "@/components/GeneralComponents/PaginationMobileComponent.vue";
 import UsersAddEditUserModalComponent from "@/components/Settings/SettingsUsersZone/UsersAddEditUserModalComponent.vue";
 // Importing the services
 import { users } from "@/services/usersService";
@@ -74,6 +76,7 @@ export default {
 		LoadingComponent,
 		NoItemsFoundComponent,
 		PaginationComponent,
+		PaginationMobileComponent,
 		UsersListComponent,
 		UsersAddEditUserModalComponent,
 	},

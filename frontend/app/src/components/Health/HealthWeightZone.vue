@@ -28,7 +28,8 @@
                 </ul>
 
                 <!-- pagination area -->
-                <PaginationComponent :totalPages="totalPages" :pageNumber="pageNumber" @pageNumberChanged="setPageNumber" />
+                <PaginationComponent class="d-none d-lg-block" :totalPages="totalPages" :pageNumber="pageNumber" @pageNumberChanged="setPageNumber" />
+                <PaginationMobileComponent class="d-lg-none d-block" :totalPages="totalPages" :pageNumber="pageNumber" @pageNumberChanged="setPageNumber" />
             </div>
             <!-- Displaying a message or component when there are no weight measurements -->
             <div v-else class="mt-3">
@@ -47,6 +48,7 @@ import HealthWeightListComponent from './HealthWeightZone/HealthWeightListCompon
 import LoadingComponent from '../GeneralComponents/LoadingComponent.vue';
 import NoItemsFoundComponent from '../GeneralComponents/NoItemsFoundComponents.vue';
 import PaginationComponent from '../GeneralComponents/PaginationComponent.vue';
+import PaginationMobileComponent from "../GeneralComponents/PaginationMobileComponent.vue";
 
 export default {
 	components: {
@@ -56,6 +58,7 @@ export default {
         LoadingComponent,
         NoItemsFoundComponent,
         PaginationComponent,
+        PaginationMobileComponent,
 	},
     props: {
         userHealthData: {

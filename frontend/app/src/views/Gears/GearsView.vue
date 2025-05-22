@@ -48,7 +48,8 @@
                     </ul>
 
                     <!-- pagination area -->
-                    <PaginationComponent :totalPages="totalPages" :pageNumber="pageNumber" @pageNumberChanged="setPageNumber" v-if="!searchNickname"/>
+                    <PaginationComponent class="d-none d-lg-block" :totalPages="totalPages" :pageNumber="pageNumber" @pageNumberChanged="setPageNumber" v-if="!searchNickname"/>
+                    <PaginationMobileComponent class="d-lg-none d-block" :totalPages="totalPages" :pageNumber="pageNumber" @pageNumberChanged="setPageNumber" v-if="!searchNickname"/>
                 </div>
                 <!-- Displaying a message or component when there are no activities -->
                 <NoItemsFoundComponent v-else />
@@ -74,6 +75,7 @@ import NoItemsFoundComponent from '@/components/GeneralComponents/NoItemsFoundCo
 import LoadingComponent from '@/components/GeneralComponents/LoadingComponent.vue';
 import BackButtonComponent from '@/components/GeneralComponents/BackButtonComponent.vue';
 import PaginationComponent from '@/components/GeneralComponents/PaginationComponent.vue';
+import PaginationMobileComponent from '@/components/GeneralComponents/PaginationMobileComponent.vue';
 import GearsAddEditUserModalComponent from '@/components/Gears/GearsAddEditGearModalComponent.vue';
 import GearsListComponent from '@/components/Gears/GearsListComponent.vue';
 // Importing the services
@@ -86,6 +88,7 @@ export default {
         NoItemsFoundComponent,
         LoadingComponent,
         PaginationComponent,
+        PaginationMobileComponent,
         BackButtonComponent,
         GearsAddEditUserModalComponent,
         GearsListComponent,

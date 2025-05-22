@@ -64,7 +64,8 @@
 			v-if="activities && activities.length"
 		/>
 
-		<PaginationComponent :totalPages="totalPages" :pageNumber="pageNumber" @pageNumberChanged="setPageNumber" v-if="activities && activities.length"/>
+		<PaginationComponent class="d-none d-lg-block" :totalPages="totalPages" :pageNumber="pageNumber" @pageNumberChanged="setPageNumber" v-if="activities && activities.length"/>
+		<PaginationMobileComponent class="d-lg-none d-block" :totalPages="totalPages" :pageNumber="pageNumber" @pageNumberChanged="setPageNumber" v-if="activities && activities.length"/>
 	</div>
 		
 	<NoItemsFoundComponents v-else />
@@ -84,6 +85,7 @@ import { activities as activitiesService } from "@/services/activitiesService";
 // Import components
 import ActivitiesTableComponent from "@/components/Activities/ActivitiesTableComponent.vue";
 import PaginationComponent from "@/components/GeneralComponents/PaginationComponent.vue";
+import PaginationMobileComponent from "@/components/GeneralComponents/PaginationMobileComponent.vue";
 import LoadingComponent from "@/components/GeneralComponents/LoadingComponent.vue";
 import NoItemsFoundComponents from "@/components/GeneralComponents/NoItemsFoundComponents.vue";
 
@@ -91,6 +93,7 @@ export default {
 	components: {
 		ActivitiesTableComponent,
 		PaginationComponent,
+		PaginationMobileComponent,
 		LoadingComponent,
 		NoItemsFoundComponents,
 	},
