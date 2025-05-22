@@ -2,7 +2,7 @@
     <nav aria-label="Page navigation example">
         <ul class="pagination justify-content-center">
             <li class="page-item" :class="{ 'disabled': pageNumber == 1 }">
-                <a class="page-link" @click="setPageNumber(1)">&laquo;</a>
+                <a class="page-link" @click="setPageNumber(pageNumber-1)">&laquo;</a>
             </li>
             <template v-for="(page, index) in pagesToShow" :key="page === '...' ? `ellipsis_${index}` : page">
                 <li v-if="page === '...'" class="page-item disabled">
@@ -13,7 +13,7 @@
                 </li>
             </template>
             <li class="page-item" :class="{ 'disabled': pageNumber == totalPages }">
-                <a class="page-link" @click="setPageNumber(totalPages)">&raquo;</a>
+                <a class="page-link" @click="setPageNumber(pageNumber+1)">&raquo;</a>
             </li>
         </ul>
     </nav>
