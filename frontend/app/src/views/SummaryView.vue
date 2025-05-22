@@ -32,8 +32,20 @@
 			</div>
 			<!-- Buttons -->
 			<div class="col-12 mt-3 d-flex justify-content-end gap-3" v-if="selectedViewType !== 'lifetime'">
-				<button class="btn btn-primary me-1" @click="navigatePeriod(-1)" :disabled="isLoading || isLoadingActivities">{{ t('summaryView.buttonPreviousPeriod') }}</button>
-				<button class="btn btn-primary" @click="navigatePeriod(1)" :disabled="isLoading || isLoadingActivities">{{ t('summaryView.buttonNextPeriod') }}</button>
+				<button class="btn btn-primary me-1" disabled v-if="isLoading || isLoadingActivities">
+					<span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>
+					<span role="status">{{ t('summaryView.buttonPreviousPeriod') }}</span>
+				</button>
+				<button class="btn btn-primary me-1" @click="navigatePeriod(-1)" v-else>
+					{{ t('summaryView.buttonPreviousPeriod') }}
+				</button>
+				<button class="btn btn-primary" disabled v-if="isLoading || isLoadingActivities">
+					<span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>
+					<span role="status">{{ t('summaryView.buttonNextPeriod') }}</span>
+				</button>
+				<button class="btn btn-primary" @click="navigatePeriod(1)" v-else>
+					{{ t('summaryView.buttonNextPeriod') }}
+				</button>
 			</div>
 		</div>
     </div>
