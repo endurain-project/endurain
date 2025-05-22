@@ -52,7 +52,7 @@ export default {
             }
 
             if (currentPage <= 2) {
-                // First few pages selected (1-4)
+                // First few pages selected (1-3)
                 pages.push(1, 2, 3);
                 pages.push('...');
                 for (const ten of tens) {
@@ -62,7 +62,7 @@ export default {
                     }
                 }
                 pages.push(lastPage);
-            } else if (currentPage >= lastPage - 2) {
+            } else if (currentPage >= lastPage - 1) {
                 // Last few pages selected
                 pages.push(1, '...');
                 for (const ten of tens) {
