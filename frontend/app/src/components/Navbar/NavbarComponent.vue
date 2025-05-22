@@ -29,13 +29,6 @@
               {{ $t('navbarComponent.activities') }}
             </span>
           </router-link>
-          <!-- Summary link -->
-          <router-link :to="{ name: 'summary' }" class="nav-link link-body-emphasis">
-            <font-awesome-icon :icon="['fas', 'fa-calendar-alt']" />
-            <span class="ms-1">
-              {{ $t('navbarComponent.summary') }}
-            </span>
-          </router-link>
           <!-- if is logged in show gears button -->
           <router-link :to="{ name: 'gears' }" class="nav-link link-body-emphasis">
             <font-awesome-icon :icon="['fas', 'fa-bicycle']" />
@@ -48,6 +41,13 @@
             <font-awesome-icon :icon="['fas', 'fa-heart']" />
             <span class="ms-1">
               {{ $t('navbarComponent.health') }}
+            </span>
+          </router-link>
+          <!-- Summary link -->
+          <router-link :to="{ name: 'summary' }" class="nav-link link-body-emphasis">
+            <font-awesome-icon :icon="['fas', 'fa-calendar-alt']" />
+            <span class="ms-1">
+              {{ $t('navbarComponent.summary') }}
             </span>
           </router-link>
         </div>

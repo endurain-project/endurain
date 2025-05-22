@@ -14,6 +14,17 @@
         </ul>
         <ul class="navbar-nav bg-body-tertiary rounded shadow-sm mt-3">
             <li class="nav-item">
+                <router-link
+                    :to="{ name: 'summary' }"
+                    class="nav-link link-body-emphasis w-100 py-3 fs-5"
+                >
+                    <font-awesome-icon :icon="['fas', 'fa-calendar-alt']" />
+                    <span class="ms-1">{{ $t('navbarComponent.summary') }}</span>
+                </router-link>
+            </li>
+        </ul>
+        <ul class="navbar-nav bg-body-tertiary rounded shadow-sm mt-3">
+            <li class="nav-item">
                 <router-link :to="{ name: 'settings' }" class="nav-link link-body-emphasis w-100 py-3 fs-5">
                     <font-awesome-icon :icon="['fas', 'fa-gear']" />
                     <span class="ms-1">{{ $t("navbarComponent.settings") }}</span>
