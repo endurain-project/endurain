@@ -94,7 +94,7 @@
 					<!-- Iterating over userActivities to display them -->
 					<div class="card mb-3 bg-body-tertiary border-0 shadow-sm" v-for="activity in userActivities" :key="activity.id">
 						<div class="card-body">
-							<ActivitySummaryComponent :activity="activity" :source="'home'" :units="authStore.user.units"/>
+							<ActivitySummaryComponent :activity="activity" :source="'home'" @activityDeleted="updateActivitiesOnDelete" :units="authStore.user.units"/>
 						</div>
 						<ActivityMapComponent class="mx-3 mb-3" :activity="activity" :source="'home'"/>
 					</div>
@@ -191,7 +191,7 @@ export default {
 			// If the component is already loading or there are no more activities, return
 			if (isLoading.value || !userHasMoreActivities.value) return;
 
-			try {				
+			try {
 				// Add 1 to the page number
 				pageNumberUserActivities.value++;
 
@@ -223,7 +223,7 @@ export default {
 			// Get scroll position and page height more reliably
 			const scrollPosition = window.scrollY + window.innerHeight;
 			const totalHeight = document.documentElement.scrollHeight;
-			
+
 			// Trigger load when within 100px of bottom
 			if (totalHeight - scrollPosition < 100) {
 				fetchMoreActivities();
@@ -307,6 +307,15 @@ export default {
 			}
 		}
 
+		function updateActivitiesOnDelete(activityId) {
+			// Filter out the deleted activity from userActivities
+			userActivities.value = userActivities.value.filter(
+				(activity) => activity.id !== activityId,
+			);
+			// Set the activityDeleted value to true and show the success alert.
+			push.success(t("homeView.successActivityDeleted"));
+		}
+
 		onMounted(async () => {
 			if (route.query.activityFound === "false") {
 				// Set the activityFound value to false and show the error alert.
@@ -314,11 +323,7 @@ export default {
 			}
 
 			if (route.query.activityDeleted === "true") {
-				userActivities.value = userActivities.value.filter(
-					(activity) => activity.id !== Number(route.query.activityId),
-				);
-				// Set the activityDeleted value to true and show the success alert.
-				push.success(t("homeView.successActivityDeleted"));
+				updateActivitiesOnDelete(Number(route.query.activityId));
 			}
 
 			// Add the scroll event listener
@@ -377,6 +382,7 @@ export default {
 			submitUploadFileForm,
 			t,
 			refreshActivities,
+			updateActivitiesOnDelete,
 		};
 	},
 };

@@ -253,7 +253,7 @@ export default {
             default: 1,
         },
 	},
-	emits: ["activityEditedFields"],
+	emits: ["activityEditedFields", "activityDeleted"],
 	setup(props, { emit }) {
 		const router = useRouter();
 		const authStore = useAuthStore();
@@ -281,10 +281,13 @@ export default {
 		async function submitDeleteActivity() {
 			try {
 				userActivity.value = await activities.deleteActivity(props.activity.id);
-				return router.push({
-					path: "/",
-					query: { activityDeleted: "true", activityId: props.activity.id },
-				});
+                if (props.source === 'activity') {
+                    return router.push({
+                        path: "/",
+                        query: { activityDeleted: "true", activityId: props.activity.id },
+                    });
+                }
+                emit("activityDeleted", props.activity.id);
 			} catch (error) {
 				push.error(`${t("activitySummaryComponent.errorDeletingActivity")} - ${error}`);
 			}
