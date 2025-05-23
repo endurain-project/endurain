@@ -1,77 +1,77 @@
 <template>
-  <div class="table-responsive mb-3">
-    <table class="table table-striped table-hover table-sm">
-      <thead>
-        <tr>
-          <th scope="col" class="text-center user-select-none" style="cursor: pointer;" @click="changeSort('type')">
-            <span class="d-flex align-items-center justify-content-center">
-              {{ $t('activitiesTableComponent.headerType') }} 
-              <font-awesome-icon :icon="sortIcon('type')" class="ms-1 opacity-75" />
-            </span>
-          </th>
-          <th scope="col" class="user-select-none" style="cursor: pointer;" @click="changeSort('name')">
-            <span class="d-flex align-items-center">
-              {{ $t('activitiesTableComponent.headerName') }}
-              <font-awesome-icon :icon="sortIcon('name')" class="ms-1 opacity-75" />
-            </span>
-          </th>
-          <th scope="col" class="user-select-none" style="cursor: pointer;" @click="changeSort('location')">
-            <span class="d-flex align-items-center">
-              {{ $t('activitiesTableComponent.headerLocation') }}
-              <font-awesome-icon :icon="sortIcon('location')" class="ms-1 opacity-75" />
-            </span>
-          </th>
-          <th scope="col" class="user-select-none d-none d-md-table-cell" style="cursor: pointer;" @click="changeSort('start_time')">
-            <span class="d-flex align-items-center">
-              {{ $t('activitiesTableComponent.headerStartTime') }}
-              <font-awesome-icon :icon="sortIcon('start_time')" class="ms-1 opacity-75" />
-            </span>
-          </th>
-          <th scope="col" class="user-select-none d-none d-md-table-cell" style="cursor: pointer;" @click="changeSort('duration')">
-            <span class="d-flex align-items-center">
-              {{ $t('activitiesTableComponent.headerDuration') }}
-              <font-awesome-icon :icon="sortIcon('duration')" class="ms-1 opacity-75" />
-            </span>
-          </th>
-          <th scope="col" class="user-select-none d-none d-md-table-cell" style="cursor: pointer;" @click="changeSort('distance')">
-            <span class="d-flex align-items-center">
-              {{ $t('activitiesTableComponent.headerDistance') }}
-              <font-awesome-icon :icon="sortIcon('distance')" class="ms-1 opacity-75" />
-            </span>
-          </th>
-          <th scope="col" class="user-select-none d-none d-md-table-cell" style="cursor: pointer;" @click="changeSort('pace')">
-            <span class="d-flex align-items-center">
-              {{ $t('activitiesTableComponent.headerPace') }}
-              <font-awesome-icon :icon="sortIcon('pace')" class="ms-1 opacity-75" />
-            </span>
-          </th>
-          <th scope="col" class="user-select-none d-none d-md-table-cell" style="cursor: pointer;" @click="changeSort('calories')">
-            <span class="d-flex align-items-center">
-              {{ $t('activitiesTableComponent.headerCalories') }}
-              <font-awesome-icon :icon="sortIcon('calories')" class="ms-1 opacity-75" />
-            </span>
-          </th>
-          <th scope="col" class="user-select-none d-none d-md-table-cell" style="cursor: pointer;" @click="changeSort('elevation')">
-            <span class="d-flex align-items-center">
-              {{ $t('activitiesTableComponent.headerElevation') }}
-              <font-awesome-icon :icon="sortIcon('elevation')" class="ms-1 opacity-75" />
-            </span>
-          </th>
-          <th scope="col" class="user-select-none d-none d-md-table-cell" style="cursor: pointer;" @click="changeSort('average_hr')">
-            <span class="d-flex align-items-center">
-              {{ $t('activitiesTableComponent.headerAvgHr') }}
-              <font-awesome-icon :icon="sortIcon('average_hr')" class="ms-1 opacity-75" />
-            </span>
-          </th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="activity in activities" :key="activity.id">
-			<ActivitiesTableRowComponent :activity="activity" />
-        </tr>
-      </tbody>
-    </table>
-  </div>
+	<div class="table-responsive mb-3">
+		<table class="table table-borderless table-striped table-hover table-sm rounded" style="--bs-table-bg: var(--bs-gray-850);">
+			<thead>
+				<tr>
+					<th class="text-center" style="cursor: pointer; white-space: nowrap;" @click="changeSort('type')">
+						<span class="d-flex align-items-center justify-content-center flex-nowrap">
+							{{ $t('activitiesTableComponent.headerType') }} 
+							<font-awesome-icon :icon="sortIcon('type')" class="ms-1 opacity-75" />
+						</span>
+					</th>
+					<th class="text-center" style="cursor: pointer; white-space: nowrap;" @click="changeSort('name')">
+						<span class="d-flex align-items-center justify-content-center flex-nowrap">
+							{{ $t('activitiesTableComponent.headerName') }}
+							<font-awesome-icon :icon="sortIcon('name')" class="ms-1 opacity-75" />
+						</span>
+					</th>
+					<th class="text-center" style="cursor: pointer; white-space: nowrap;" @click="changeSort('location')">
+						<span class="d-flex align-items-center justify-content-center flex-nowrap">
+							{{ $t('activitiesTableComponent.headerLocation') }}
+							<font-awesome-icon :icon="sortIcon('location')" class="ms-1 opacity-75" />
+						</span>
+					</th>
+					<th class="d-none d-md-table-cell text-center" style="cursor: pointer; white-space: nowrap;" @click="changeSort('start_time')">
+						<span class="d-flex align-items-center justify-content-center flex-nowrap">
+							{{ $t('activitiesTableComponent.headerStartTime') }}
+							<font-awesome-icon :icon="sortIcon('start_time')" class="ms-1 opacity-75" />
+						</span>
+					</th>
+					<th class="d-none d-md-table-cell text-center" style="cursor: pointer; white-space: nowrap;" @click="changeSort('duration')">
+						<span class="d-flex align-items-center justify-content-center flex-nowrap">
+							{{ $t('activitiesTableComponent.headerDuration') }}
+							<font-awesome-icon :icon="sortIcon('duration')" class="ms-1 opacity-75" />
+						</span>
+					</th>
+					<th class="d-none d-md-table-cell text-center" style="cursor: pointer; white-space: nowrap;" @click="changeSort('distance')">
+						<span class="d-flex align-items-center justify-content-center flex-nowrap">
+							{{ $t('activitiesTableComponent.headerDistance') }}
+							<font-awesome-icon :icon="sortIcon('distance')" class="ms-1 opacity-75" />
+						</span>
+					</th>
+					<th class="d-none d-md-table-cell text-center" style="cursor: pointer; white-space: nowrap;" @click="changeSort('pace')">
+						<span class="d-flex align-items-center justify-content-center flex-nowrap">
+							{{ $t('activitiesTableComponent.headerPace') }}
+							<font-awesome-icon :icon="sortIcon('pace')" class="ms-1 opacity-75" />
+						</span>
+					</th>
+					<th class="d-none d-md-table-cell text-center" style="cursor: pointer; white-space: nowrap;" @click="changeSort('calories')">
+						<span class="d-flex align-items-center justify-content-center flex-nowrap">
+							{{ $t('activitiesTableComponent.headerCalories') }}
+							<font-awesome-icon :icon="sortIcon('calories')" class="ms-1 opacity-75" />
+						</span>
+					</th>
+					<th class="d-none d-md-table-cell text-center" style="cursor: pointer; white-space: nowrap;" @click="changeSort('elevation')">
+						<span class="d-flex align-items-center justify-content-center flex-nowrap">
+							{{ $t('activitiesTableComponent.headerElevation') }}
+							<font-awesome-icon :icon="sortIcon('elevation')" class="ms-1 opacity-75" />
+						</span>
+					</th>
+					<th class="d-none d-md-table-cell text-center" style="cursor: pointer; white-space: nowrap;" @click="changeSort('average_hr')">
+						<span class="d-flex align-items-center justify-content-center flex-nowrap">
+							{{ $t('activitiesTableComponent.headerAvgHr') }}
+							<font-awesome-icon :icon="sortIcon('average_hr')" class="ms-1 opacity-75" />
+						</span>
+					</th>
+				</tr>
+      		</thead>
+			<tbody>
+				<tr v-for="activity in activities" :key="activity.id" class="text-center">
+					<ActivitiesTableRowComponent :activity="activity" />
+				</tr>
+      		</tbody>
+    	</table>
+  	</div>
 </template>
 
 <script>
