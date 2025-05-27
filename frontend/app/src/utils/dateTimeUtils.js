@@ -84,12 +84,12 @@ export function formatSecondsToMinutes(totalSeconds) {
 }
 
 /**
- * Gets the start date (Monday) of the week for a given JavaScript Date object, in UTC.
- * @param {Date} jsDate - The input JavaScript Date object.
- * @returns {Date} - The JavaScript Date object for the Monday of that week (UTC).
+ * Gets the start date (Monday) of the week for a given date object, in UTC.
+ * @param {Date} date - The input data object.
+ * @returns {Date} - The data object for the Monday of that week (UTC).
  */
-export function getWeekStartDate(jsDate) {
-  return DateTime.fromJSDate(jsDate, { zone: 'utc' }).startOf('week').toJSDate();
+export function getWeekStartDate(date) {
+  return DateTime.fromJSDate(date, { zone: 'utc' }).startOf('week').toJSDate();
 }
 
 /**
@@ -191,6 +191,58 @@ export function formatDateToMonthString(jsDateInput) {
   }
   console.error("formatDateToMonthString failed to create valid DateTime:", jsDateInput);
   return "";
+}
+
+/**
+ * Validates that a Date object is valid (not NaN).
+ * 
+ * @param {Date} date - The Date object to validate
+ * @returns {boolean} - True if the date is valid, false otherwise
+ */
+export function isValidDate(date) {
+    return date instanceof Date && !Number.isNaN(date.getTime());
+}
+
+/**
+ * Validates and parses a date string in ISO format with UTC timezone.
+ * This utility consolidates the common pattern of creating a Date object 
+ * from selectedDate.value and validating it.
+ * 
+ * @param {string} dateString - The date string in YYYY-MM-DD format
+ * @param {Date} fallbackDate - Optional fallback date if parsing fails (defaults to new Date())
+ * @returns {Object} - { isValid: boolean, date: Date, error?: string }
+ */
+export function validateAndParseDate(dateString, fallbackDate = null) {
+    if (!dateString) {
+        const fallback = fallbackDate || new Date();
+        return { 
+            isValid: false, 
+            date: fallback, 
+            error: "No date string provided" 
+        };
+    }
+    
+    try {
+        const date = new Date(`${dateString}T00:00:00Z`);
+        
+        if (Number.isNaN(date.getTime())) {
+            const fallback = fallbackDate || new Date();
+            return { 
+                isValid: false, 
+                date: fallback, 
+                error: "Invalid date format" 
+            };
+        }
+        
+        return { isValid: true, date };
+    } catch (error) {
+        const fallback = fallbackDate || new Date();
+        return { 
+            isValid: false, 
+            date: fallback, 
+            error: error.message 
+        };
+    }
 }
 
 /**

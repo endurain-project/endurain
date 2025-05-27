@@ -13,7 +13,7 @@ import activities.activity_laps.router as activity_laps_router
 import activities.activity_sets.router as activity_sets_router
 import activities.activity_streams.router as activity_streams_router
 import activities.activity_workout_steps.router as activity_workout_steps_router
-import activity_summaries.router as activity_summaries_router
+import activities.activity_summaries.router as activity_summaries_router
 import gears.router as gears_router
 import followers.router as followers_router
 import strava.router as strava_router

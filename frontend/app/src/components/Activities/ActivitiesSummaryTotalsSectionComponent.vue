@@ -8,6 +8,7 @@
 </template>
 
 <script>
+
 export default {
     props: {
         title: {
@@ -20,5 +21,4 @@ export default {
         },
     },
 };
-
 </script>
