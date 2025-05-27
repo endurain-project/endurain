@@ -56,52 +56,27 @@
 		<h5>{{ t('summaryView.headerSummaryFor', { period: summaryPeriodText }) }}</h5>
 		<hr>
 		<!-- New Highlighted Summary Totals Section -->
-		<div class="row row-gap-3 gap-0 text-center justify-content-around">
+		<div class="row row-gap-3 gap-0 justify-content-around">
 			<div class="col-lg col-md-4 col-sm-6">
-				<div class="card shadow-sm h-100 bg-primary-subtle text-primary-emphasis">
-					<div class="card-body d-flex flex-column justify-content-center">
-						<h6 class="card-subtitle mb-2">{{ t('summaryView.metricTotalDistance') }}</h6>
-						<p class="card-text h4">{{ formatRawDistance(summaryData.total_distance, authStore.user.units) }}</p>
-					</div>
-				</div>
+				<ActivitiesSummaryTotalsSectionComponent :title="t('summaryView.metricTotalDistance')" :subTitle="formatRawDistance(summaryData.total_distance, authStore.user.units)" />
 			</div>
 			<div class="col-lg col-md-4 col-sm-6">
-				<div class="card shadow-sm h-100 bg-primary-subtle text-primary-emphasis">
-					<div class="card-body d-flex flex-column justify-content-center">
-						<h6 class="card-subtitle mb-2">{{ t('summaryView.metricTotalDuration') }}</h6>
-						<p class="card-text h4">{{ formatDuration(summaryData.total_duration) }}</p>
-					</div>
-				</div>
+				<ActivitiesSummaryTotalsSectionComponent :title="t('summaryView.metricTotalDuration')" :subTitle="formatDuration(summaryData.total_duration)" />
 			</div>
 			<div class="col-lg col-md-4 col-sm-6">
-				<div class="card shadow-sm h-100 bg-primary-subtle text-primary-emphasis">
-					<div class="card-body d-flex flex-column justify-content-center">
-						<h6 class="card-subtitle mb-2">{{ t('summaryView.metricTotalElevation') }}</h6>
-						<p class="card-text h4">{{ formatElevation(summaryData.total_elevation_gain, authStore.user.units) }}</p>
-					</div>
-				</div>
+				<ActivitiesSummaryTotalsSectionComponent :title="t('summaryView.metricTotalElevation')" :subTitle="formatElevation(summaryData.total_elevation_gain, authStore.user.units)" />
 			</div>
 			<div class="col-lg col-md-6 col-sm-6">
-				<div class="card shadow-sm h-100 bg-primary-subtle text-primary-emphasis">
-					<div class="card-body d-flex flex-column justify-content-center">
-						<h6 class="card-subtitle mb-2">{{ t('summaryView.metricTotalCalories') }}</h6>
-						<p class="card-text h4">{{ formatCalories(summaryData.total_calories) }}</p>
-					</div>
-				</div>
+				<ActivitiesSummaryTotalsSectionComponent :title="t('summaryView.metricTotalCalories')" :subTitle="formatCalories(summaryData.total_calories)" />
 			</div>
 			<div class="col-lg col-md-6 col-sm-6">
-				<div class="card shadow-sm h-100 bg-primary-subtle text-primary-emphasis">
-					<div class="card-body d-flex flex-column justify-content-center">
-						<h6 class="card-subtitle mb-2">{{ t('summaryView.metricTotalActivities') }}</h6>
-						<p class="card-text h4">{{ summaryData.activity_count }}</p>
-					</div>
-				</div>
+				<ActivitiesSummaryTotalsSectionComponent :title="t('summaryView.metricTotalActivities')" :subTitle="summaryData.activity_count" />
 			</div>
 		</div>
 		<h5 class="mt-3">{{ t('summaryView.headerBreakdown') }}</h5>
 		<hr>
 		<div class="table-responsive">
-			<table class="table table-sm table-striped">
+			<table class="table table-borderless table-sm table-striped rounded" style="--bs-table-bg: var(--bs-gray-850);">
 				<thead>
 					<tr>
 						<th>{{ breakdownHeader }}</th>
@@ -145,7 +120,7 @@
 					</thead>
 					<tbody>
 						<tr v-for="item in typeBreakdownData" :key="item.activity_type_id">
-							<td class="text-center"><font-awesome-icon :icon="getIcon(item.activity_type_id)" /></td>
+							<td><font-awesome-icon :icon="getIcon(item.activity_type_id)" /></td>
 							<td>{{ formatRawDistance(item.total_distance, authStore.user.units) }}</td>
 							<td>{{ formatDuration(item.total_duration) }}</td>
 							<td v-if="showElevation">{{ formatElevation(item.total_elevation_gain, authStore.user.units) }}</td>
@@ -199,6 +174,7 @@ import { useAuthStore } from "@/stores/authStore";
 import { summaryService } from "@/services/summaryService";
 import { activities as activitiesService } from "@/services/activitiesService";
 import ActivitiesTableComponent from "@/components/Activities/ActivitiesTableComponent.vue";
+import ActivitiesSummaryTotalsSectionComponent from "@/components/Activities/ActivitiesSummaryTotalsSectionComponent.vue";
 import PaginationComponent from "@/components/GeneralComponents/PaginationComponent.vue";
 import LoadingComponent from "@/components/GeneralComponents/LoadingComponent.vue";
 import NoItemsFoundComponents from "@/components/GeneralComponents/NoItemsFoundComponents.vue";
@@ -382,7 +358,7 @@ const getBreakdownKey = (item) => {
 
 const getBreakdownLabel = (item) => {
 	switch (selectedViewType.value) {
-		case "week":
+		case "week": {
 			const days = [
 				"Monday",
 				"Tuesday",
@@ -393,9 +369,10 @@ const getBreakdownLabel = (item) => {
 				"Sunday",
 			];
 			return days[item.day_of_week] || "Unknown Day";
+		}
 		case "month":
 			return `${t("summaryView.colWeekNum")} ${item.week_number}`;
-		case "year":
+		case "year": {
 			const monthDate = new Date(
 				Date.UTC(selectedYear.value, item.month_number - 1, 1),
 			);
@@ -403,6 +380,7 @@ const getBreakdownLabel = (item) => {
 				month: "long",
 				timeZone: "UTC",
 			});
+		}
 		case "lifetime":
 			return item.year_number;
 		default:
@@ -531,8 +509,8 @@ const fetchActivitiesForPeriod = async (page = currentPage.value) => {
 			if (!selectedDate.value) {
 				throw new Error(t("summaryView.noDateSelected"));
 			}
-			const date = new Date(selectedDate.value + "T00:00:00Z");
-			if (isNaN(date.getTime()))
+			const date = new Date(`${selectedDate.value}T00:00:00Z`);
+			if (Number.isNaN(date.getTime()))
 				throw new Error(t("summaryView.invalidDateSelected"));
 
 			if (selectedViewType.value === "week") {
@@ -550,10 +528,11 @@ const fetchActivitiesForPeriod = async (page = currentPage.value) => {
 		}
 		// For 'lifetime', no date filters are added (already handled by the guard clause at the start)
 
-		Object.keys(filters).forEach(
-			(key) =>
-				(filters[key] == null || filters[key] === "") && delete filters[key],
-		);
+		for (const key of Object.keys(filters)) {
+			if (filters[key] == null || filters[key] === "") {
+				delete filters[key];
+			}
+		}
 
 		const response = await activitiesService.getUserActivitiesWithPagination(
 			authStore.user.id,
@@ -675,7 +654,7 @@ watch(selectedPeriodString, (newString) => {
 	if (selectedViewType.value !== "month" || !newString) return;
 	try {
 		const newDate = parseMonthString(newString);
-		if (newDate && !isNaN(newDate.getTime())) {
+		if (newDate && !Number.isNaN(newDate.getTime())) {
 			const newDateISO = formatDateISO(newDate);
 			if (newDateISO !== selectedDate.value) {
 				selectedDate.value = newDateISO;
@@ -725,8 +704,8 @@ watch(selectedViewType, (newType, oldType) => {
 		if (newType !== "lifetime") {
 			let baseDate;
 			try {
-				baseDate = new Date(selectedDate.value + "T00:00:00Z");
-				if (isNaN(baseDate.getTime()))
+				baseDate = new Date(`${selectedDate.value}T00:00:00Z`);
+				if (Number.isNaN(baseDate.getTime()))
 					throw new Error(
 						"Current selectedDate is invalid, defaulting to today.",
 					);
@@ -775,8 +754,8 @@ function navigatePeriod(direction) {
 		} else {
 			let currentDate;
 			try {
-				currentDate = new Date(selectedDate.value + "T00:00:00Z");
-				if (isNaN(currentDate.getTime()))
+				currentDate = new Date(`${selectedDate.value}T00:00:00Z`);
+				if (Number.isNaN(currentDate.getTime()))
 					throw new Error("Invalid date for navigation");
 			} catch {
 				currentDate = new Date();

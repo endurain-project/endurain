@@ -1,6 +1,6 @@
 <template>
-    <td class="text-center">
-        <font-awesome-icon :icon="getIcon(activity.activity_type)" />
+    <td>
+        <font-awesome-icon :icon="getIcon(activity.activity_type)"/>
     </td>
     <td>
         <router-link :to="{ name: 'activity', params: { id: activity.id } }" class="link-body-emphasis link-underline-opacity-0 link-underline-opacity-100-hover">
