@@ -431,10 +431,11 @@ async def read_activities_user_activities_refresh(
     )
 
     # Get the garmin activities for the user for the last 24h
-    garmin_activities = garmin_activity_utils.get_user_garminconnect_activities_by_days(
-        (datetime.now(timezone.utc) - timedelta(days=1)).strftime("%Y-%m-%dT%H:%M:%S"),
-        token_user_id,
-        db,
+    garmin_activities = garmin_activity_utils.get_user_garminconnect_activities_by_dates(
+        start_date=datetime.now(timezone.utc) - timedelta(days=1),
+        end_date=datetime.now(timezone.utc),
+        user_id=token_user_id,
+        db=db,
     )
 
     # Extend the activities to the list

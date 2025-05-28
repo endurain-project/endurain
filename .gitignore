@@ -14,6 +14,7 @@ backend/app/*.pyc
 # Logs
 backend/app/logs/*.log
 backend/app/*.log
+backend/logs/*.log
 
 # server image folder images
 backend/app/server_images/*.jpeg
@@ -27,15 +28,16 @@ backend/app/user_images/*.jpg
 
 # gpx and fit files
 backend/app/files/*.gpx
-backend/app/files/*.zip
 backend/app/files/*.fit
 backend/app/files/bulk_import/*.gpx
 backend/app/files/bulk_import/*.fit
 backend/app/files/processed/*.gpx
 backend/app/files/processed/*.fit
+backend/files/
 
 # Frontend
 frontend/app/img/users_img/*.*
+frontend/app/dev-dist/
 # Logs
 frontend/app/.gitignore
 frontend/app/logs
@@ -45,7 +47,7 @@ frontend/app/yarn-debug.log*
 frontend/app/yarn-error.log*
 frontend/app/pnpm-debug.log*
 frontend/app/lerna-debug.log*
-frontend/app/dev-dist
+
 frontend/app/node_modules
 frontend/app/.DS_Store
 frontend/app/dist
@@ -72,3 +74,10 @@ frontend/app/*.tsbuildinfo
 
 # site folder
 site/
+
+# LLM supporting files
+memory-bank/
+.clinerules
+
+# local postgres
+postgres/
