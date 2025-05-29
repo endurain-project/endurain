@@ -149,25 +149,6 @@ export function formatDateToISOString(jsDateInput) {
 }
 
 /**
- * Parses a "YYYY-MM" string into the JavaScript Date object for the 1st of that month (UTC).
- * @param {string} monthString - The month string (e.g., "2023-10").
- * @returns {Date | null} - The JavaScript Date object for the start of the month (UTC), or null if invalid.
- */
-export function parseMonthString(monthString) {
-  if (typeof monthString !== 'string') {
-    console.error("parseMonthString expects a string input. Received:", monthString);
-    return null;
-  }
-  const dt = DateTime.fromFormat(monthString, 'yyyy-MM', { zone: 'utc' });
-  if (dt.isValid) {
-    return dt.startOf('month').toJSDate();
-  }
-  // Do not log error here if SummaryView handles it, to avoid console spam for tentative inputs
-  // console.error(`Invalid month string format for : ${monthString}`); 
-  return null;
-}
-
-/**
  * Formats a JavaScript Date object into a "YYYY-MM" string (UTC).
  * Handles non-Date inputs by attempting to parse them.
  * @param {Date | string | number} jsDateInput - The input JavaScript Date object or a value parseable into a Date.
@@ -191,58 +172,6 @@ export function formatDateToMonthString(jsDateInput) {
   }
   console.error("formatDateToMonthString failed to create valid DateTime:", jsDateInput);
   return "";
-}
-
-/**
- * Validates that a Date object is valid (not NaN).
- * 
- * @param {Date} date - The Date object to validate
- * @returns {boolean} - True if the date is valid, false otherwise
- */
-export function isValidDate(date) {
-    return date instanceof Date && !Number.isNaN(date.getTime());
-}
-
-/**
- * Validates and parses a date string in ISO format with UTC timezone.
- * This utility consolidates the common pattern of creating a Date object 
- * from selectedDate.value and validating it.
- * 
- * @param {string} dateString - The date string in YYYY-MM-DD format
- * @param {Date} fallbackDate - Optional fallback date if parsing fails (defaults to new Date())
- * @returns {Object} - { isValid: boolean, date: Date, error?: string }
- */
-export function validateAndParseDate(dateString, fallbackDate = null) {
-    if (!dateString) {
-        const fallback = fallbackDate || new Date();
-        return { 
-            isValid: false, 
-            date: fallback, 
-            error: "No date string provided" 
-        };
-    }
-    
-    try {
-        const date = new Date(`${dateString}T00:00:00Z`);
-        
-        if (Number.isNaN(date.getTime())) {
-            const fallback = fallbackDate || new Date();
-            return { 
-                isValid: false, 
-                date: fallback, 
-                error: "Invalid date format" 
-            };
-        }
-        
-        return { isValid: true, date };
-    } catch (error) {
-        const fallback = fallbackDate || new Date();
-        return { 
-            isValid: false, 
-            date: fallback, 
-            error: error.message 
-        };
-    }
 }
 
 /**

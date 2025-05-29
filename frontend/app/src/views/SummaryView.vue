@@ -25,14 +25,14 @@
 			<div class="col-md-3" v-if="selectedViewType !== 'lifetime'">
 				<label :for="periodInputId" class="form-label">{{ periodLabel }}</label>
 				<input type="date" :id="periodInputId" class="form-control" v-if="selectedViewType === 'week'" v-model="selectedDate">
-				<input type="month" :id="periodInputId" class="form-control" v-else-if="selectedViewType === 'month'" v-model="selectedPeriodString">
-				<input type="number" :id="periodInputId" class="form-control" v-else-if="selectedViewType === 'year'" v-model="selectedYear" placeholder="YYYY" min="1900" :max="todayYear">
+				<input type="month" :id="periodInputId" class="form-control" v-else-if="selectedViewType === 'month'" v-model="selectedMonth">
+				<input type="number" :id="periodInputId" class="form-control" v-else-if="selectedViewType === 'year'" v-model="selectedYear" placeholder="YYYY" min="1900" :max="todayYear" @input="validateYear">
 			</div>
 			<!-- Buttons -->
 			<div class="col-12 mt-3 d-flex justify-content-end gap-3" v-if="selectedViewType !== 'lifetime'">
 				<button 
 					class="btn btn-primary me-1" 
-					:disabled="isAnyLoading"
+					:disabled="isAnyLoading || (selectedViewType === 'year' && selectedYear === 1900)"
 					@click="navigatePeriod(-1)"
 				>
 					<span v-if="isAnyLoading" class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>
@@ -40,7 +40,7 @@
 				</button>
 				<button 
 					class="btn btn-primary" 
-					:disabled="isAnyLoading"
+					:disabled="isAnyLoading || (selectedViewType === 'year' && selectedYear === todayYear)"
 					@click="navigatePeriod(1)"
 				>
 					<span v-if="isAnyLoading" class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>
@@ -78,43 +78,41 @@
 		<h5 class="mt-3">{{ t('summaryView.headerBreakdown') }}</h5>
 		<hr>
 		<LoadingComponent v-if="isLoading" />
-		<SuspenseWrapper v-else-if="summaryData">
-			<ActivitiesSummaryBreakdownTableComponent 
-				:selectedViewType="selectedViewType" 
-				:summaryData="summaryData" 
-				:authStore="authStore" 
-				:selectedYear="selectedYear" 
-			/>
-		</SuspenseWrapper>
+		<ActivitiesSummaryBreakdownTableComponent 
+			:selectedViewType="selectedViewType" 
+			:summaryData="summaryData" 
+			:authStore="authStore" 
+			:selectedYear="selectedYear"
+			v-else-if="summaryData['activity_count'] > 0"
+		/>
 		<NoItemsFoundComponents :showShadow="false" v-else />
 
         <h5>{{ t('summaryView.headerTypeBreakdown') }}</h5>
         <hr>
 		<LoadingComponent v-if="isLoading" />
-		<SuspenseWrapper v-else-if="typeBreakdownData && !selectedActivityType">
-			<ActivitiesTypeBreakdownTableComponent 
-				:typeBreakdownData="typeBreakdownData"
-				:authStore="authStore"
-			/>
-		</SuspenseWrapper>
+		<ActivitiesTypeBreakdownTableComponent 
+			:typeBreakdownData="typeBreakdownData"
+			:authStore="authStore"
+			v-else-if="typeBreakdownData && !selectedActivityType"
+		/>
 		<NoItemsFoundComponents :showShadow="false" v-else />
 	</div>
 
     <!-- Activities in Period Section -->
     <div class="mt-3" v-if="selectedViewType !== 'lifetime'">
 		<LoadingComponent v-if="isLoadingActivities" />
-		<div v-else ref="activitiesSectionRef" class="p-3 bg-body-tertiary rounded shadow-sm">
+		<div v-else class="p-3 bg-body-tertiary rounded shadow-sm">
 			<h5>{{ t('summaryView.headerActivitiesInPeriod') }}</h5>
 			<hr>
 			<div v-if="activities && activities.length">
-				<SuspenseWrapper>
-					<ActivitiesTableComponent
-						:activities="activities"
-						:sortBy="sortBy"
-						:sortOrder="sortOrder"
-						@sortChanged="handleSort"
-					/>
-				</SuspenseWrapper>
+				<LoadingComponent v-if="isLoading" />
+				<ActivitiesTableComponent
+					:activities="activities"
+					:sortBy="sortBy"
+					:sortOrder="sortOrder"
+					@sortChanged="handleSort"
+					v-else
+				/>
 				<PaginationComponent
 					v-if="userNumberActivities > 0"
 					:pageNumber="pageNumber"
@@ -158,7 +156,6 @@ import ActivitiesSummaryTotalsSectionComponent from "@/components/Activities/Act
 import PaginationComponent from "@/components/GeneralComponents/PaginationComponent.vue";
 import LoadingComponent from "@/components/GeneralComponents/LoadingComponent.vue";
 import NoItemsFoundComponents from "@/components/GeneralComponents/NoItemsFoundComponents.vue";
-import SuspenseWrapper from "@/components/GeneralComponents/SuspenseWrapper.vue";
 
 // Import utility functions for formatting and date handling
 import {
@@ -170,10 +167,7 @@ import {
 import {
 	getWeekStartDate,
 	formatDateISO,
-	parseMonthString,
 	formatDateToMonthString,
-	validateAndParseDate,
-	isValidDate,
 } from "@/utils/dateTimeUtils";
 import { buildSummaryParams, buildActivityFilters } from "@/utils/summaryUtils";
 
@@ -185,10 +179,10 @@ const selectedViewType = ref("week");
 const selectedActivityType = ref("");
 const activityTypes = ref([]);
 const initialDate = new Date();
-const selectedDate = ref(formatDateISO(initialDate));
+const selectedDate = ref(formatDateISO(getWeekStartDate(initialDate)));
 const selectedYear = ref(initialDate.getFullYear());
-const selectedPeriodString = ref(formatDateToMonthString(initialDate));
-const todayYear = new Date().getFullYear();
+const selectedMonth = ref(formatDateToMonthString(initialDate));
+const todayYear = initialDate.getFullYear();
 
 // Data State
 const summaryData = ref(null);
@@ -202,9 +196,6 @@ const numRecords = 20;
 // Loading State
 const isLoading = ref(true);
 const isLoadingActivities = ref(true);
-
-// Scroll position preservation
-const activitiesSectionRef = ref(null);
 
 // Sorting State
 const sortBy = ref("start_time");
@@ -283,7 +274,7 @@ function setPageNumber(page) {
 function updateViewType() {
 	if (selectedViewType.value !== "lifetime") {
 		if (selectedViewType.value === "month") {
-			selectedPeriodString.value = formatDateToMonthString(selectedDate.value);
+			selectedMonth.value = formatDateToMonthString(selectedDate.value);
 		} else if (selectedViewType.value === "year") {
 			console.log("Selected date:", selectedDate.value);
 			selectedYear.value = new Date(selectedDate.value).getUTCFullYear();
@@ -301,7 +292,7 @@ function updateViewType() {
 	try {
 		triggerDataFetch();
 	} catch (error) {
-		push.error(t("summaryView.errorLoadingSummary"));
+		push.error(`${t("summaryView.errorLoadingSummary")} - ${error}`);
 	}
 }
 
@@ -400,12 +391,22 @@ async function fetchSummaryData() {
 };
 
 const performYearTriggerDataFetch = debounce(async () => {
-	try {
-		await triggerDataFetch();
-	} catch (error) {
-		push.error(t("summaryView.errorLoadingSummary"));
+	if (selectedYear.value >= 1900 && selectedYear.value <= todayYear) {
+		try {
+			await triggerDataFetch();
+		} catch (error) {
+			push.error(`${t("summaryView.errorLoadingSummary")} - ${error}`);
+		}
+	} else {
+		push.error(`${t("summaryView.invalidYearSelected")}: ${selectedYear.value} - 1900-${todayYear}`);
 	}
 }, 500);
+
+async function performMonthTriggerDataFetch() {
+	if (selectedViewType.value === "month") {
+		triggerDataFetch();
+	}
+}
 
 async function triggerDataFetch() {
 	try {
@@ -429,46 +430,51 @@ onMounted(async () => {
 		await fetchActivityTypes();
 		await triggerDataFetch();
 	} catch (error) {
-		push.error(t("summaryView.errorLoadingSummaryLoad"));
+		push.error(`${t("summaryView.errorLoadingSummaryLoad")} - ${error}`);
 	}
 });
 
 const summaryPeriodText = computed(() => {
-	if (selectedViewType.value === "lifetime") {
-		return t("summaryView.optionLifetime");
-	}
-	if (!summaryData.value && !isLoading.value)
-		return t("summaryView.labelSelectPeriod");
-	if (isLoading.value) return t("generalItems.labelNotApplicable");
+    // Early return for lifetime view
+    if (selectedViewType.value === "lifetime") {
+        return t("summaryView.optionLifetime");
+    }
 
-	try {
-		if (selectedViewType.value === "year") {
-			return t("summaryView.headerYear", { year: selectedYear.value });
-		}
+    // Early return for loading state
+    if (isLoading.value) {
+        return t("generalItems.labelNotApplicable");
+    }
 
-		const { isValid, date } = validateAndParseDate(selectedDate.value);
-		if (!isValid) {
-			return t("summaryView.invalidDateSelected");
-		}
+    // Early return when no data and not loading
+    if (!summaryData.value) {
+        return t("summaryView.labelSelectPeriod");
+    }
 
-		if (selectedViewType.value === "month") {
-			return date.toLocaleDateString(undefined, {
-				year: "numeric",
-				month: "long",
-				timeZone: "UTC",
-			});
-		}
-		if (selectedViewType.value === "week") {
-			const weekStart = getWeekStartDate(date);
-			return t("summaryView.headerWeekStarting", {
-				date: formatDateISO(weekStart),
-			});
-		}
-	} catch (e) {
-		console.error("Error formatting summary period text:", e);
-		return t("summaryView.labelSelectPeriod");
-	}
-	return "";
+    // Handle year view type
+    if (selectedViewType.value === "year") {
+        return t("summaryView.headerYear", { year: selectedYear.value });
+    }
+
+	let date = new Date(selectedDate.value);
+    // Handle month view type
+    if (selectedViewType.value === "month") {
+        return date.toLocaleDateString(undefined, {
+            year: "numeric",
+            month: "long",
+            timeZone: "UTC",
+        });
+    }
+
+    // Handle week view type
+    if (selectedViewType.value === "week") {
+        const weekStart = getWeekStartDate(date);
+        return t("summaryView.headerWeekStarting", {
+            date: formatDateISO(weekStart),
+        });
+    }
+
+    // Fallback
+    return t("summaryView.labelSelectPeriod");
 });
 
 function handleSort(columnName) {
@@ -481,64 +487,35 @@ function handleSort(columnName) {
 	updateActivities();
 }
 
-watch(selectedPeriodString, (newString) => {
-	if (selectedViewType.value !== "month" || !newString) return;
-	try {
-		const newDate = parseMonthString(newString);
-		if (newDate && isValidDate(newDate)) {
-			const newDateISO = formatDateISO(newDate);
-			if (newDateISO !== selectedDate.value) {
-				selectedDate.value = newDateISO;
-				triggerDataFetch();
-			}
-		} else if (newString) {
-			push.error(t("summaryView.invalidInputFormat"));
-		}
-	} catch (e) {
-		console.error("Error parsing month string ${newString}:", e);
-		push.error(t("summaryView.invalidInputFormat"));
-	}
-});
-
 function navigatePeriod(direction) {
 	if (selectedViewType.value === "lifetime" || isAnyLoading.value) return;
 
 	try {
 		if (selectedViewType.value === "year") {
-			const currentYear = selectedYear.value || new Date().getUTCFullYear();
-			selectedYear.value = currentYear + direction;
-			// triggerDataFetch() is called by the watcher on selectedYear
+			selectedYear.value = selectedYear.value + direction;
 		} else {
-			let currentDate;
-			try {
-				const { isValid, date } = validateAndParseDate(selectedDate.value);
-				if (!isValid) {
-					throw new Error("Invalid date for navigation");
-				}
-				currentDate = date;
-			} catch {
-				currentDate = new Date();
-			}
-
+			let date = new Date(selectedDate.value);
 			if (selectedViewType.value === "week") {
-				currentDate.setUTCDate(currentDate.getUTCDate() + 7 * direction);
+				date.setUTCDate(date.getUTCDate() + 7 * direction);
 			} else {
 				// 'month'
-				currentDate.setUTCMonth(currentDate.getUTCMonth() + direction, 1);
+				date.setUTCMonth(date.getUTCMonth() + direction, 1);
 			}
-			selectedDate.value = formatDateISO(currentDate);
-
-			if (selectedViewType.value === "month") {
-				selectedPeriodString.value = formatDateToMonthString(currentDate); // This will trigger its watcher
-				triggerDataFetch();
-			} else {
-				// week
-				triggerDataFetch(); // For week, date change needs to trigger fetch directly
-			}
+			selectedDate.value = formatDateISO(date);
 		}
-	} catch (e) {
-		console.error("Error navigating period:", e);
-		push.error(t("generalItems.labelError"));
+		if (selectedViewType.value === 'month') {
+			selectedMonth.value = formatDateToMonthString(selectedDate.value);
+		}
+	} catch (error) {
+		push.error(`${t("summaryView.labelError")} - ${error}`);
+	}
+}
+
+function validateYear() {
+	if (selectedYear.value < 1900) {
+		selectedYear.value = 1900;
+	} else if (selectedYear.value > todayYear) {
+		selectedYear.value = todayYear;
 	}
 }
 
@@ -552,4 +529,6 @@ watch(selectedActivityType, triggerDataFetch, { immediate: false });
 watch(selectedDate, triggerDataFetch, { immediate: false });
 // Watch the selectedYear variable.
 watch(selectedYear, performYearTriggerDataFetch, { immediate: false });
+// Watch the selectedMonth variable.
+watch(selectedMonth, performMonthTriggerDataFetch, { immediate: false });
 </script>
