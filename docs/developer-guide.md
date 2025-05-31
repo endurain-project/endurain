@@ -35,7 +35,8 @@ services:
             - DB_HOST=postgres
             - DB_PORT=5432
             - DB_PASSWORD=changeme
-            - SECRET_KEY=changeme
+            - SECRET_KEY=changeme # openssl rand -hex 32
+            - FERNET_KEY=changeme # https://fernetkeygen.com or python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
             - GEOCODES_MAPS_API=changeme
             - ENDURAIN_HOST=http://localhost:8080 # change if needed
             - BEHIND_PROXY=false
