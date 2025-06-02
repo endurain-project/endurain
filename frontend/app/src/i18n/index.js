@@ -409,6 +409,7 @@ import usNotFoundView from './us/notFoundView.json';
 import usSearchView from './us/searchView.json';
 import usSettingsView from './us/settingsView.json';
 import usUserView from './us/userView.json';
+import usSummaryView from './us/summaryView.json';
 
 // Constructing the messages structure
 const messages = {
@@ -817,6 +818,7 @@ const messages = {
     searchView: usSearchView,
     settingsView: usSettingsView,
     userView: usUserView,
+    summaryView: usSummaryView,
   },
 };
 

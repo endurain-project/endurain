@@ -14,7 +14,6 @@ export function formatDateShort(dateString) {
   return date.toLocaleString(DateTime.DATE_SHORT);
 }
 
-
 export function formatDateMed(dateString) {
   // Create a DateTime object from the date string
   const date = DateTime.fromISO(dateString, { setZone: true });
@@ -82,4 +81,70 @@ export function formatSecondsToMinutes(totalSeconds) {
     return `${hours}:${formattedMinutes}:${formattedSeconds}`;
   }
   return `${minutes}:${formattedSeconds}`;
+}
+
+/**
+ * Gets the start date (Monday) of the week for a given date object, in UTC.
+ * @param {Date} date - The input data object.
+ * @returns {Date} - The data object for the Monday of that week (UTC).
+ */
+export function getWeekStartDate(date) {
+  return DateTime.fromJSDate(date, { zone: 'utc' }).startOf('week').toJSDate();
+}
+
+/**
+ * Gets the end date (start of next week) for a given JavaScript Date object's week, in UTC.
+ * This means it's the first day of the next week, making the range exclusive for the end date.
+ * @param {Date} jsDate - The input JavaScript Date object.
+ * @returns {Date} - The JavaScript Date object for the start of the next week (UTC).
+ */
+export function getWeekEndDate(jsDate) {
+  return DateTime.fromJSDate(jsDate, { zone: 'utc' }).startOf('week').plus({ days: 7 }).toJSDate();
+}
+
+/**
+ * Gets the start date (1st) of the month for a given JavaScript Date object, in UTC.
+ * @param {Date} jsDate - The input JavaScript Date object.
+ * @returns {Date} - The JavaScript Date object for the first day of that month (UTC).
+ */
+export function getMonthStartDate(jsDate) {
+  return DateTime.fromJSDate(jsDate, { zone: 'utc' }).startOf('month').toJSDate();
+}
+
+/**
+ * Gets the end date (start of next month) for a given JavaScript Date object's month, in UTC.
+ * This means it's the first day of the next month, making the range exclusive for the end date.
+ * @param {Date} jsDate - The input JavaScript Date object.
+ * @returns {Date} - The JavaScript Date object for the start of the next month (UTC).
+ */
+export function getMonthEndDate(jsDate) {
+  return DateTime.fromJSDate(jsDate, { zone: 'utc' }).startOf('month').plus({ months: 1 }).toJSDate();
+}
+
+
+/**
+ * Formats a Date object into a string with the format "YYYY-MM".
+ *
+ * @param {Date} date - The date to format.
+ * @returns {string} The formatted date string in "YYYY-MM" format.
+ */
+export function formatDateToMonthString(date) {
+  let year = date.getFullYear();
+  let month = String(date.getMonth() + 1).padStart(2, '0');
+  return `${year}-${month}`;
+}
+
+
+/**
+ * Formats a Date object into an ISO date string (YYYY-MM-DD).
+ *
+ * @param {Date} date - The date to format.
+ * @returns {string} The formatted date string in ISO format.
+ */
+export function formatDateISO(date) {
+    let year = date.getFullYear();
+    let month = String(date.getMonth() + 1).padStart(2, '0');
+    let day = String(date.getDate()).padStart(2, '0');
+    
+    return `${year}-${month}-${day}`;
 }

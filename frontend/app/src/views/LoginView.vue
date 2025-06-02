@@ -112,6 +112,10 @@ export default {
 			if (route.query.sessionExpired === "true") {
 				push.warning(t("loginView.sessionExpired"));
 			}
+			// Check if the logout was successful
+			if (route.query.logoutSuccess === "true") {
+				push.success(t("loginView.logoutSuccess"));
+			}
 			// Check if the public activity was not found
 			if (route.query.errorPublicActivityNotFound === "true") {
 				push.error(t("loginView.errorPublicActivityNotFound"));

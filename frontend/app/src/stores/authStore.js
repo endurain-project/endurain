@@ -41,7 +41,7 @@ export const useAuthStore = defineStore('auth', {
                 // Check if router is not null before trying to navigate
                 if (router) {
                     try {
-                        await router.push('/login');
+                        await router.push('/login?logoutSuccess=true');
                     } catch (navigationError) {
                         console.error('Navigation error:', navigationError);
                     }
@@ -59,6 +59,7 @@ export const useAuthStore = defineStore('auth', {
             this.setLocale(this.user.preferred_language, locale);
         },
         clearUser(locale) {
+            this.isAuthenticated = false;
             this.user = {
                 id: null,
                 name: '',
@@ -77,7 +78,6 @@ export const useAuthStore = defineStore('auth', {
                 is_strava_linked: null,
                 is_garminconnect_linked: null,
             };
-            this.isAuthenticated = false;
             if (this.user_websocket && this.user_websocket.readyState === WebSocket.OPEN) {
                 this.user_websocket.close();
             }
