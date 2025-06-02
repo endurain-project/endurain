@@ -159,6 +159,8 @@ def login_garminconnect_using_tokens(oauth1_token, oauth2_token):
 
 def serialize_oauth1_token(token):
     try:
+        print("Serializing OAuth1 token")
+        print(token)
         return {
             "oauth_token": core_cryptography.encrypt_token_fernet(token.oauth_token),
             "oauth_token_secret": core_cryptography.encrypt_token_fernet(
@@ -182,6 +184,8 @@ def serialize_oauth1_token(token):
 
 def serialize_oauth2_token(token):
     try:
+        print("Serializing OAuth2 token")
+        print(token)
         return {
             "scope": token.scope,
             "jti": token.jti,
@@ -205,6 +209,8 @@ def serialize_oauth2_token(token):
 
 def deserialize_oauth1_token(data):
     try:
+        print("Deserializing OAuth1 token. Tokens should be encrypted.")
+        print(data)
         return garminconnect.garth.auth_tokens.OAuth1Token(
             oauth_token=core_cryptography.decrypt_token_fernet(data["oauth_token"]),
             oauth_token_secret=core_cryptography.decrypt_token_fernet(
@@ -228,6 +234,8 @@ def deserialize_oauth1_token(data):
 
 def deserialize_oauth2_token(data):
     try:
+        print("Deserializing OAuth2 token. Tokens should be encrypted.")
+        print(data)
         return garminconnect.garth.auth_tokens.OAuth2Token(
             scope=data["scope"],
             jti=data["jti"],
