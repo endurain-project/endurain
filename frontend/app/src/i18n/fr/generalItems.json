@@ -28,7 +28,7 @@
     "unitsMph": "mile/h",
     "unitsLbs": "livres",
     "labelWeightInLbs": "Poids en livres",
-    "unitsCalories": "cal",
+    "unitsCalories": "kcal",
     "unitsBpm": "bpm",
     "labelHRinBpm": "Fréquence cardiaque en bpm",
     "unitsWattsShort": "W",
@@ -46,7 +46,6 @@
     "labelLaps": "Laps",
     "labelRest": "Rest",
     "labelStrokeRateInSpm": "Stroke rate in spm",
-    "startDateLabel": "Date de début",
-    "endDateLabel": "Date de fin"
+    "startDateLabel": "Start date",
+    "endDateLabel": "End date"
 }
-
