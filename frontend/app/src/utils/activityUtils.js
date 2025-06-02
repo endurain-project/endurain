@@ -134,7 +134,7 @@ export function formatAverageSpeedImperial(speed) {
  * @returns {boolean} True if the type of the activity is swimming (Indoor or Outdoor), false otherwise.
  */
 export function activityTypeIsSwimming(activity) {
-    return activity.activity_type === 8 || activity.activity_type === 9;
+	return activity.activity_type === 8 || activity.activity_type === 9;
 }
 
 /**
@@ -152,9 +152,9 @@ export function formatPace(activity, unitSystem, lap = null, units = true, isRes
 	if (lap) {
 		pace = lap.enhanced_avg_pace;
 	}
-    if (isRest) {
-        return i18n.global.t("generalItems.labelRest");
-    }
+	if (isRest) {
+		return i18n.global.t("generalItems.labelRest");
+	}
 	if (
 		activityTypeIsSwimming(activity) ||
 		activity.activity_type === 13
@@ -309,18 +309,18 @@ export function formatPower(power) {
  * @returns {string} The formatted elevation string with the appropriate unit, or a "not applicable" label if the input is null or undefined.
  */
 export function formatElevation(meters, unitSystem, units = true) {
-  if (meters === null || meters === undefined) {
-    return i18n.global.t("generalItems.labelNoData");
-  }
-  const numericValue = Number(unitSystem) === 1 ? parseFloat(meters) : parseFloat(metersToFeet(meters));
-  const formattedValue = numericValue.toLocaleString(undefined, { maximumFractionDigits: 0 });
+	if (meters === null || meters === undefined) {
+		return i18n.global.t("generalItems.labelNoData");
+	}
+	const numericValue = Number(unitSystem) === 1 ? parseFloat(meters) : parseFloat(metersToFeet(meters));
+	const formattedValue = numericValue.toLocaleString(undefined, { maximumFractionDigits: 0 });
 
-  if (!units) {
-    return formattedValue;
-  }
+	if (!units) {
+		return formattedValue;
+	}
 
-  const unitLabel = Number(unitSystem) === 1 ? i18n.global.t("generalItems.unitsM") : i18n.global.t("generalItems.unitsFeet");
-  return `${formattedValue} ${unitLabel}`;
+	const unitLabel = Number(unitSystem) === 1 ? i18n.global.t("generalItems.unitsM") : i18n.global.t("generalItems.unitsFeet");
+	return `${formattedValue} ${unitLabel}`;
 }
 
 /**
@@ -330,12 +330,12 @@ export function formatElevation(meters, unitSystem, units = true) {
  * @returns {string} A formatted string representing the calorie value with units, or a "not applicable" label if the input is null or undefined.
  */
 export function formatCalories(calories) {
-  if (calories === null || calories === undefined) {
-    return i18n.global.t("generalItems.labelNoData");
-  }
-  const numericValue = parseFloat(calories);
-  const formattedValue = numericValue.toLocaleString(undefined, { maximumFractionDigits: 0 });
-  return `${formattedValue} ${i18n.global.t("generalItems.unitsCalories")}`;
+	if (calories === null || calories === undefined) {
+		return i18n.global.t("generalItems.labelNoData");
+	}
+	const numericValue = parseFloat(calories);
+	const formattedValue = numericValue.toLocaleString(undefined, { maximumFractionDigits: 0 });
+	return `${formattedValue} ${i18n.global.t("generalItems.unitsCalories")}`;
 }
 
 /**
@@ -364,7 +364,7 @@ export function getIcon(typeId) {
 		16: ["fas", "person-skiing-nordic"],
 		17: ["fas", "person-snowboarding"],
 		18: ["fas", "repeat"],
-		21: ["fas", "table-tennis-paddle-ball"], // Racquet sports
+		21: ["fas", "table-tennis-paddle-ball"],
 		22: ["fas", "table-tennis-paddle-ball"],
 		23: ["fas", "table-tennis-paddle-ball"],
 		24: ["fas", "table-tennis-paddle-ball"],
@@ -404,9 +404,9 @@ export function formatLocation(activity) {
 		} else {
 			locationParts.push(country);
 		}
-}
+	}
 
-return locationParts.join(""); // Join without extra spaces, comma is handled above
+	return locationParts.join(""); // Join without extra spaces, comma is handled above
 }
 
 /**
@@ -417,14 +417,14 @@ return locationParts.join(""); // Join without extra spaces, comma is handled ab
  * @returns {string} The formatted distance string with appropriate units or a "No Data" label.
  */
 export function formatRawDistance(meters, unitSystem) {
-  if (meters === null || meters === undefined || meters < 0) {
-    return i18n.global.t("generalItems.labelNoData");
-  }
-  const numericValue = Number(unitSystem) === 1 ? parseFloat(metersToKm(meters)) : parseFloat(metersToMiles(meters));
-  // Assuming metersToKm and metersToMiles return numbers or strings that can be parsed to numbers
-  // Use toLocaleString for formatting, allow for some decimal places for precision if needed
-  const formattedValue = numericValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+	if (meters === null || meters === undefined || meters < 0) {
+		return i18n.global.t("generalItems.labelNoData");
+	}
+	const numericValue = Number(unitSystem) === 1 ? parseFloat(metersToKm(meters)) : parseFloat(metersToMiles(meters));
+	// Assuming metersToKm and metersToMiles return numbers or strings that can be parsed to numbers
+	// Use toLocaleString for formatting, allow for some decimal places for precision if needed
+	const formattedValue = numericValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-  const unitLabel = Number(unitSystem) === 1 ? i18n.global.t("generalItems.unitsKm") : i18n.global.t("generalItems.unitsMiles");
-  return `${formattedValue} ${unitLabel}`;
+	const unitLabel = Number(unitSystem) === 1 ? i18n.global.t("generalItems.unitsKm") : i18n.global.t("generalItems.unitsMiles");
+	return `${formattedValue} ${unitLabel}`;
 }

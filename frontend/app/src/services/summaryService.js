@@ -11,7 +11,7 @@ export const summaryService = {
 	 */
 	getSummary(userId, viewType, params = {}, activityType = null) {
 		// Added activityType parameter
-		const url = `summaries/${viewType}`;
+		const url = `activities/summaries/${viewType}`;
 		const queryParams = new URLSearchParams(params); // Create params object
 
 		// Add activity type filter if provided

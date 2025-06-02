@@ -21,8 +21,6 @@ router = APIRouter()
         activities_summary_schema.YearlySummaryResponse,
         activities_summary_schema.LifetimeSummaryResponse,
     ],
-    summary="Get Activity Summary by Period",
-    description="Retrieves aggregated activity summaries (weekly, monthly, yearly, or lifetime) for a specific user.",
 )
 async def read_activity_summary(
     view_type: str,

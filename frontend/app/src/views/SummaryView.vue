@@ -32,7 +32,7 @@
 			<div class="col-12 mt-3 d-flex justify-content-end gap-3" v-if="selectedViewType !== 'lifetime'">
 				<button 
 					class="btn btn-primary me-1" 
-					:disabled="isAnyLoading || (selectedViewType === 'year' && selectedYear === 1900)"
+					:disabled="isAnyLoading || (selectedViewType === 'year' && selectedYear === 1900) || (selectedViewType === 'month' && selectedMonth === '1900-01') || (selectedViewType === 'week' && selectedDate === '1900-01-01')"
 					@click="navigatePeriod(-1)"
 				>
 					<span v-if="isAnyLoading" class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>
@@ -40,7 +40,7 @@
 				</button>
 				<button 
 					class="btn btn-primary" 
-					:disabled="isAnyLoading || (selectedViewType === 'year' && selectedYear === todayYear)"
+					:disabled="isAnyLoading || (selectedViewType === 'year' && selectedYear === todayYear) || (selectedViewType === 'month' && selectedMonth === todayMonth) || (selectedViewType === 'week' && selectedDate === todayWeek)"
 					@click="navigatePeriod(1)"
 				>
 					<span v-if="isAnyLoading" class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>
@@ -180,9 +180,11 @@ const selectedActivityType = ref("");
 const activityTypes = ref([]);
 const initialDate = new Date();
 const selectedDate = ref(formatDateISO(getWeekStartDate(initialDate)));
-const selectedYear = ref(initialDate.getFullYear());
-const selectedMonth = ref(formatDateToMonthString(initialDate));
+const todayWeek = selectedDate.value;
+const todayMonth = formatDateToMonthString(initialDate);
 const todayYear = initialDate.getFullYear();
+const selectedYear = ref(todayYear);
+const selectedMonth = ref(todayMonth);
 
 // Data State
 const summaryData = ref(null);
@@ -274,7 +276,7 @@ function setPageNumber(page) {
 function updateViewType() {
 	if (selectedViewType.value !== "lifetime") {
 		if (selectedViewType.value === "month") {
-			selectedMonth.value = formatDateToMonthString(selectedDate.value);
+			selectedMonth.value = formatDateToMonthString(new Date(selectedDate.value));
 		} else if (selectedViewType.value === "year") {
 			console.log("Selected date:", selectedDate.value);
 			selectedYear.value = new Date(selectedDate.value).getUTCFullYear();
@@ -403,6 +405,7 @@ const performYearTriggerDataFetch = debounce(async () => {
 }, 500);
 
 async function performMonthTriggerDataFetch() {
+console.log("selected month:", selectedMonth.value);
 	if (selectedViewType.value === "month") {
 		triggerDataFetch();
 	}
@@ -504,7 +507,7 @@ function navigatePeriod(direction) {
 			selectedDate.value = formatDateISO(date);
 		}
 		if (selectedViewType.value === 'month') {
-			selectedMonth.value = formatDateToMonthString(selectedDate.value);
+			selectedMonth.value = formatDateToMonthString(new Date(selectedDate.value));
 		}
 	} catch (error) {
 		push.error(`${t("summaryView.labelError")} - ${error}`);

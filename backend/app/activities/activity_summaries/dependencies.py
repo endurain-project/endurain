@@ -1,5 +1,6 @@
 from fastapi import HTTPException, status
 
+
 def validate_view_type(view_type: str):
     if (
         view_type

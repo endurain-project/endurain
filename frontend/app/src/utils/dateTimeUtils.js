@@ -121,80 +121,30 @@ export function getMonthEndDate(jsDate) {
   return DateTime.fromJSDate(jsDate, { zone: 'utc' }).startOf('month').plus({ months: 1 }).toJSDate();
 }
 
+
 /**
- * Formats a JavaScript Date object into YYYY-MM-DD string (UTC).
- * Handles non-Date inputs by attempting to parse them.
- * @param {Date | string | number} jsDateInput - The input JavaScript Date object or a value parseable into a Date.
- * @returns {string} - The formatted date string (YYYY-MM-DD), or an empty string if input is invalid.
+ * Formats a Date object into a string with the format "YYYY-MM".
+ *
+ * @param {Date} date - The date to format.
+ * @returns {string} The formatted date string in "YYYY-MM" format.
  */
-export function formatDateToISOString(jsDateInput) {
-  let dt;
-  if (jsDateInput instanceof Date && !isNaN(jsDateInput.getTime())) {
-    dt = DateTime.fromJSDate(jsDateInput, { zone: 'utc' });
-  } else {
-    // Attempt to parse if not a valid Date object (e.g., could be a date string)
-    const parsedDate = new Date(jsDateInput);
-    if (isNaN(parsedDate.getTime())) {
-      console.error("formatDateToISOString received invalid date input:", jsDateInput);
-      return "";
-    }
-    dt = DateTime.fromJSDate(parsedDate, { zone: 'utc' });
-  }
-  
-  if (dt.isValid) {
-    return dt.toISODate();
-  }
-  console.error("formatDateToISOString failed to create valid DateTime:", jsDateInput);
-  return "";
+export function formatDateToMonthString(date) {
+  let year = date.getFullYear();
+  let month = String(date.getMonth() + 1).padStart(2, '0');
+  return `${year}-${month}`;
 }
 
-/**
- * Formats a JavaScript Date object into a "YYYY-MM" string (UTC).
- * Handles non-Date inputs by attempting to parse them.
- * @param {Date | string | number} jsDateInput - The input JavaScript Date object or a value parseable into a Date.
- * @returns {string} - The formatted month string (YYYY-MM), or an empty string if input is invalid.
- */
-export function formatDateToMonthString(jsDateInput) {
-  let dt;
-  if (jsDateInput instanceof Date && !isNaN(jsDateInput.getTime())) {
-    dt = DateTime.fromJSDate(jsDateInput, { zone: 'utc' });
-  } else {
-    const parsedDate = new Date(jsDateInput);
-    if (isNaN(parsedDate.getTime())) {
-      console.error("formatDateToMonthString received invalid date input:", jsDateInput);
-      return "";
-    }
-    dt = DateTime.fromJSDate(parsedDate, { zone: 'utc' });
-  }
-
-  if (dt.isValid) {
-    return dt.toFormat('yyyy-MM');
-  }
-  console.error("formatDateToMonthString failed to create valid DateTime:", jsDateInput);
-  return "";
-}
 
 /**
- * Formats a Date object into YYYY-MM-DD string.
- * @param {Date} date - The input date.
- * @returns {string} - The formatted date string.
+ * Formats a Date object into an ISO date string (YYYY-MM-DD).
+ *
+ * @param {Date} date - The date to format.
+ * @returns {string} The formatted date string in ISO format.
  */
 export function formatDateISO(date) {
-    // Ensure input is a Date object
-    if (!(date instanceof Date)) {
-        console.error("formatDateISO received non-Date object:", date);
-        // Attempt to parse if it's a valid date string, otherwise return empty or throw
-        try {
-            date = new Date(date);
-            if (isNaN(date.getTime())) throw new Error("Invalid date input");
-        } catch (e) {
-            return ""; // Or handle error appropriately
-        }
-    }
-    // Check for invalid date after potential parsing
-    if (isNaN(date.getTime())) {
-        console.error("formatDateISO received invalid Date object:", date);
-        return "";
-    }
-    return date.toISOString().slice(0, 10);
+    let year = date.getFullYear();
+    let month = String(date.getMonth() + 1).padStart(2, '0');
+    let day = String(date.getDate()).padStart(2, '0');
+    
+    return `${year}-${month}-${day}`;
 }

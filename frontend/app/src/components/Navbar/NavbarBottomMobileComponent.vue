@@ -29,43 +29,13 @@
             </router-link>
         </div>
     </nav>
-    <FooterComponent v-else/>
+    <FooterComponent v-else />
 </template>
 
-<script>
-import { useRouter } from "vue-router";
-// Importing the i18n
-import { useI18n } from "vue-i18n";
-// import the stores
+<script setup>
 import { useAuthStore } from "@/stores/authStore";
-// Import the components
 import FooterComponent from "@/components/FooterComponent.vue";
-import UserAvatarComponent from "@/components/Users/UserAvatarComponent.vue";
-// Import Notivue push
-import { push } from "notivue";
 
-export default {
-	components: {
-		UserAvatarComponent,
-		FooterComponent,
-	},
-	setup() {
-		const router = useRouter();
-		const authStore = useAuthStore();
-		const { locale, t } = useI18n();
-
-		async function handleLogout() {
-			try {
-				await authStore.logoutUser(router, locale);
-			} catch (error) {
-				push.error(`${t("navbarComponent.errorLogout")} - ${error}`);
-			}
-		}
-
-		return {
-			authStore,
-			handleLogout,
-		};
-	},
-};
+// Composables
+const authStore = useAuthStore();
 </script>

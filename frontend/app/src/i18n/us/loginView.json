@@ -1,5 +1,6 @@
 {
     "sessionExpired": "User session expired",
+    "logoutSuccess": "You have been successfully logged out",
     "error401": "Invalid username or password",
     "error403": "You do not have permission to access this resource",
     "error500": "It was not possible to connect to the server. Please try again later",

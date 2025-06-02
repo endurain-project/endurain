@@ -103,7 +103,7 @@ router.include_router(
 )
 router.include_router(
     activity_summaries_router.router,
-    prefix=core_config.ROOT_PATH + "/summaries",
+    prefix=core_config.ROOT_PATH + "/activities/summaries",
     tags=["summaries"],
     dependencies=[Depends(session_security.validate_access_token)],
 )
