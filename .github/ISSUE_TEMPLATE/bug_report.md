@@ -28,7 +28,7 @@ What did you expect to happen?
 
 ## Screenshots, logs or files
 
-If applicable, add screenshots, logs or files to help explain your problem. If you do not wish to upload sensitive information to the issue you can send that info to [joao@endurain.com](joao@endurain.com).
+If applicable, add screenshots, logs (Docker logs and logs available on app.log file) or files to help explain your problem. If you do not wish to upload sensitive information to the issue you can send that info to [joao@endurain.com](joao@endurain.com).
 
 ## Additional Context
 
