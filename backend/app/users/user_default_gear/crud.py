@@ -76,7 +76,6 @@ def edit_user_default_gear(
         db_user_default_gear = (
             db.query(user_default_gear_models.UsersDefaultGear)
             .filter(
-                user_default_gear_models.UsersDefaultGear.id == 1,
                 user_default_gear_models.UsersDefaultGear.user_id == user_id,
             )
             .first()
