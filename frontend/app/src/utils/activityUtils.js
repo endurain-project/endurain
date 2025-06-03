@@ -138,6 +138,36 @@ export function activityTypeIsSwimming(activity) {
 }
 
 /**
+ * Checks if the activity type is a running activity.
+ *
+ * @param {object} activity - The activity object.
+ * @returns {boolean} True if the type of the activity is running, false otherwise.
+ */
+export function activityTypeIsRunning(activity) {
+	return activity.activity_type === 1 || activity.activity_type === 2 || activity.activity_type === 3;
+}
+
+/**
+ * Checks if the activity type is a running activity.
+ *
+ * @param {object} activity - The activity object.
+ * @returns {boolean} True if the type of the activity is cycling, false otherwise.
+ */
+export function activityTypeIsCycling(activity) {
+	return activity.activity_type === 4 || activity.activity_type === 5 || activity.activity_type === 6 || activity.activity_type === 7 || activity.activity_type === 27;
+}
+
+/**
+ * Checks if the activity type is a running activity.
+ *
+ * @param {object} activity - The activity object.
+ * @returns {boolean} True if the type of the activity is walking, false otherwise.
+ */
+export function activityTypeIsWalking(activity) {
+	return activity.activity_type === 11 || activity.activity_type === 12;
+}
+
+/**
  * Formats the pace of an activity based on its type and the specified unit system.
  *
  * @param {Object} activity - The activity object containing pace and activity_type.

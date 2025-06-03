@@ -287,6 +287,13 @@
                                 <option :value="false">{{ $t("generalItems.no") }}</option>
                             </select>
                         </form>
+                        <form>
+                            <label for="activityPace">{{ $t("settingsUserProfileZone.defaultActivityPace") }}</label>
+                            <select class="form-select" name="activityPace" v-model="activityPace" required>
+                                <option :value="true">{{ $t("generalItems.yes") }}</option>
+                                <option :value="false">{{ $t("generalItems.no") }}</option>
+                            </select>
+                        </form>
                     </div>
                 </div>
                 <!-- Edit profile section -->
@@ -361,6 +368,7 @@ const activityPower = ref(authStore.user.hide_activity_power);
 const activityCadence = ref(authStore.user.hide_activity_cadence);
 const activityElevation = ref(authStore.user.hide_activity_elevation);
 const activitySpeed = ref(authStore.user.hide_activity_speed);
+const activityPace = ref(authStore.user.hide_activity_pace);
 
 async function submitDeleteUserPhoto() {
 	try {
@@ -438,6 +446,7 @@ async function updateUserPrivacySettings() {
         hide_activity_cadence: activityCadence.value,
         hide_activity_elevation: activityElevation.value,
         hide_activity_speed: activitySpeed.value,
+        hide_activity_pace: activityPace.value,
     };
     try {
         // Update the user privacy settings in the DB
@@ -453,6 +462,7 @@ async function updateUserPrivacySettings() {
         authStore.user.hide_activity_cadence = activityCadence.value;
         authStore.user.hide_activity_elevation = activityElevation.value;
         authStore.user.hide_activity_speed = activitySpeed.value;
+        authStore.user.hide_activity_pace = activityPace.value;
 
         push.success(t("settingsUserProfileZone.successUpdateUserPrivacySettings"));
     } catch (error) {
@@ -536,6 +546,7 @@ watch(
         activityCadence,
         activityElevation,
         activitySpeed,
+        activityPace,
 	],
 	async () => {
 		if (!isMounted.value || isLoading.value) return;

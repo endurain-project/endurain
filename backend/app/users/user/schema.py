@@ -51,6 +51,7 @@ class UserMe(User):
     hide_activity_cadence: bool | None = None
     hide_activity_elevation: bool | None = None
     hide_activity_speed: bool | None = None
+    hide_activity_pace: bool | None = None
 
 
 class UserEditPassword(BaseModel):

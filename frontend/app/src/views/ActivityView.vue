@@ -4,6 +4,7 @@
 
 		<div v-else>
 			<ActivitySummaryComponent v-if="activity" :activity="activity" :source="'activity'" @activityEditedFields="updateActivityFieldsOnEdit" :units="units" />
+			<AlertComponent v-if="activity && activity.user_id === authStore.user.id" :message="alertPrivacyMessage" :dismissible="true" class="mt-2"/>
 		</div>
 
 		<!-- map zone -->
@@ -106,6 +107,7 @@ import LoadingComponent from "@/components/GeneralComponents/LoadingComponent.vu
 import BackButtonComponent from "@/components/GeneralComponents/BackButtonComponent.vue";
 import ModalComponent from "@/components/Modals/ModalComponent.vue";
 import AddGearToActivityModalComponent from "@/components/Activities/Modals/AddGearToActivityModalComponent.vue";
+import AlertComponent from "@/components/GeneralComponents/AlertComponent.vue";
 // Importing the services
 import { gears } from "@/services/gearsService";
 import { activities } from "@/services/activitiesService";
@@ -125,6 +127,7 @@ export default {
 		BackButtonComponent,
 		ModalComponent,
 		AddGearToActivityModalComponent,
+		AlertComponent,
 	},
 	setup() {
 		const { t } = useI18n();
@@ -143,6 +146,7 @@ export default {
 		const units = ref(1);
 		const activityActivityExerciseTitles = ref([]);
 		const activityActivitySets = ref([]);
+		const alertPrivacyMessage = ref(null);
 
 		async function submitDeleteGearFromActivity() {
 			try {
@@ -176,6 +180,15 @@ export default {
 			activity.value.description = data.description;
 			activity.value.activity_type = data.activity_type;
 			activity.value.visibility = data.visibility;
+			activity,value.hide_start_time = data.hide_start_time;
+			activity,value.location = data.location;
+			activity,value.hide_map = data.hide_map;
+			activity,value.hide_hr = data.hide_hr;
+			activity.value.hide_power = data.hide_power;
+			activity.value.hide_cadence = data.hide_cadence;
+			activity.value.hide_elevation = data.hide_elevation;
+			activity.value.hide_speed = data.hide_speed;
+			activity.value.hide_pace = data.hide_pace;
 		}
 
 		onMounted(async () => {
@@ -327,6 +340,10 @@ export default {
 			}
 
 			isLoading.value = false;
+			console.log("Activity loaded:", activity.value);
+			if (authStore.user.id === activity.value.user_id) {
+				alertPrivacyMessage.value = t("activityView.alertPrivacyMessage");
+			}
 		});
 
 		return {
@@ -346,6 +363,7 @@ export default {
 			activityActivityWorkoutSteps,
 			activityActivityExerciseTitles,
 			activityActivitySets,
+			alertPrivacyMessage,
 		};
 	},
 };

@@ -1,72 +1,191 @@
 <template>
     <!-- Modal edit activity -->
-    <div class="modal fade" id="editActivityModal" tabindex="-1" aria-labelledby="editActivityModalComponent" aria-hidden="true">
+    <div class="modal fade" id="editActivityModal" tabindex="-1" aria-labelledby="editActivityModalComponent"
+        aria-hidden="true">
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h1 class="modal-title fs-5" id="editActivityModal">{{ $t("editActivityModalComponent.modalEditActivityTitle") }}</h1>
+                    <h1 class="modal-title fs-5" id="editActivityModal">{{
+                        $t("editActivityModalComponent.modalEditActivityTitle") }}</h1>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-                <form  @submit.prevent="submitEditActivityForm">
+                <form @submit.prevent="submitEditActivityForm">
                     <div class="modal-body">
                         <!-- name fields -->
-                        <label for="activityNameEdit"><b>* {{ $t("editActivityModalComponent.modalEditActivityNameLabel") }}</b></label>
-                        <input class="form-control" type="text" name="activityNameEdit" :placeholder='$t("editActivityModalComponent.modalEditActivityNamePlaceholder")' maxlength="45" v-model="editActivityName" required>
+                        <label for="activityNameEdit"><b>* {{
+                            $t("editActivityModalComponent.modalEditActivityNameLabel") }}</b></label>
+                        <input class="form-control" type="text" name="activityNameEdit"
+                            :placeholder='$t("editActivityModalComponent.modalEditActivityNamePlaceholder")'
+                            maxlength="45" v-model="editActivityName" required>
                         <!-- description fields -->
-                        <label for="activityDescriptionEdit"><b>{{ $t("editActivityModalComponent.modalEditActivityDescriptionLabel") }}</b></label>
-                        <input class="form-control" type="text" name="activityDescriptionEdit" :placeholder='$t("editActivityModalComponent.modalEditActivityDescriptionPlaceholder")' maxlength="2500" v-model="editActivityDescription">
+                        <label for="activityDescriptionEdit"><b>{{
+                            $t("editActivityModalComponent.modalEditActivityDescriptionLabel") }}</b></label>
+                        <input class="form-control" type="text" name="activityDescriptionEdit"
+                            :placeholder='$t("editActivityModalComponent.modalEditActivityDescriptionPlaceholder")'
+                            maxlength="2500" v-model="editActivityDescription">
                         <!-- type fields -->
-                        <label for="activityTypeEdit"><b>* {{ $t("editActivityModalComponent.modalEditActivityTypeLabel") }}</b></label>
+                        <label for="activityTypeEdit"><b>* {{
+                            $t("editActivityModalComponent.modalEditActivityTypeLabel") }}</b></label>
                         <select class="form-select" name="activityTypeEdit" v-model="editActivityType" required>
-                            <option value="1">{{ $t("editActivityModalComponent.modalEditActivityTypeOption1") }}</option>
-                            <option value="2">{{ $t("editActivityModalComponent.modalEditActivityTypeOption2") }}</option>
-                            <option value="3">{{ $t("editActivityModalComponent.modalEditActivityTypeOption3") }}</option>
-                            <option value="4">{{ $t("editActivityModalComponent.modalEditActivityTypeOption4") }}</option>
+                            <option value="1">{{ $t("editActivityModalComponent.modalEditActivityTypeOption1") }}
+                            </option>
+                            <option value="2">{{ $t("editActivityModalComponent.modalEditActivityTypeOption2") }}
+                            </option>
+                            <option value="3">{{ $t("editActivityModalComponent.modalEditActivityTypeOption3") }}
+                            </option>
+                            <option value="4">{{ $t("editActivityModalComponent.modalEditActivityTypeOption4") }}
+                            </option>
                             <hr>
-                            <option value="5">{{ $t("editActivityModalComponent.modalEditActivityTypeOption5") }}</option>
-                            <option value="6">{{ $t("editActivityModalComponent.modalEditActivityTypeOption6") }}</option>
-                            <option value="7">{{ $t("editActivityModalComponent.modalEditActivityTypeOption7") }}</option>
-                            <option value="27">{{ $t("editActivityModalComponent.modalEditActivityTypeOption27") }}</option>
+                            <option value="5">{{ $t("editActivityModalComponent.modalEditActivityTypeOption5") }}
+                            </option>
+                            <option value="6">{{ $t("editActivityModalComponent.modalEditActivityTypeOption6") }}
+                            </option>
+                            <option value="7">{{ $t("editActivityModalComponent.modalEditActivityTypeOption7") }}
+                            </option>
+                            <option value="27">{{ $t("editActivityModalComponent.modalEditActivityTypeOption27") }}
+                            </option>
                             <hr>
-                            <option value="8">{{ $t("editActivityModalComponent.modalEditActivityTypeOption8") }}</option>
-                            <option value="9">{{ $t("editActivityModalComponent.modalEditActivityTypeOption9") }}</option>
+                            <option value="8">{{ $t("editActivityModalComponent.modalEditActivityTypeOption8") }}
+                            </option>
+                            <option value="9">{{ $t("editActivityModalComponent.modalEditActivityTypeOption9") }}
+                            </option>
                             <hr>
-                            <option value="18">{{ $t("editActivityModalComponent.modalEditActivityTypeOption18") }}</option>
+                            <option value="18">{{ $t("editActivityModalComponent.modalEditActivityTypeOption18") }}
+                            </option>
                             <hr>
-                            <option value="10">{{ $t("editActivityModalComponent.modalEditActivityTypeOption10") }}</option>
-                            <option value="19">{{ $t("editActivityModalComponent.modalEditActivityTypeOption19") }}</option>
-                            <option value="20">{{ $t("editActivityModalComponent.modalEditActivityTypeOption20") }}</option>
+                            <option value="10">{{ $t("editActivityModalComponent.modalEditActivityTypeOption10") }}
+                            </option>
+                            <option value="19">{{ $t("editActivityModalComponent.modalEditActivityTypeOption19") }}
+                            </option>
+                            <option value="20">{{ $t("editActivityModalComponent.modalEditActivityTypeOption20") }}
+                            </option>
                             <hr>
-                            <option value="11">{{ $t("editActivityModalComponent.modalEditActivityTypeOption11") }}</option>
-                            <option value="12">{{ $t("editActivityModalComponent.modalEditActivityTypeOption12") }}</option>
+                            <option value="11">{{ $t("editActivityModalComponent.modalEditActivityTypeOption11") }}
+                            </option>
+                            <option value="12">{{ $t("editActivityModalComponent.modalEditActivityTypeOption12") }}
+                            </option>
                             <hr>
-                            <option value="13">{{ $t("editActivityModalComponent.modalEditActivityTypeOption13") }}</option>
+                            <option value="13">{{ $t("editActivityModalComponent.modalEditActivityTypeOption13") }}
+                            </option>
                             <hr>
-                            <option value="14">{{ $t("editActivityModalComponent.modalEditActivityTypeOption14") }}</option>
+                            <option value="14">{{ $t("editActivityModalComponent.modalEditActivityTypeOption14") }}
+                            </option>
                             <hr>
-                            <option value="15">{{ $t("editActivityModalComponent.modalEditActivityTypeOption15") }}</option>
-                            <option value="16">{{ $t("editActivityModalComponent.modalEditActivityTypeOption16") }}</option>
-                            <option value="17">{{ $t("editActivityModalComponent.modalEditActivityTypeOption17") }}</option>
+                            <option value="15">{{ $t("editActivityModalComponent.modalEditActivityTypeOption15") }}
+                            </option>
+                            <option value="16">{{ $t("editActivityModalComponent.modalEditActivityTypeOption16") }}
+                            </option>
+                            <option value="17">{{ $t("editActivityModalComponent.modalEditActivityTypeOption17") }}
+                            </option>
                             <hr>
-                            <option value="21">{{ $t("editActivityModalComponent.modalEditActivityTypeOption21") }}</option>
-                            <option value="22">{{ $t("editActivityModalComponent.modalEditActivityTypeOption22") }}</option>
-                            <option value="23">{{ $t("editActivityModalComponent.modalEditActivityTypeOption23") }}</option>
-                            <option value="24">{{ $t("editActivityModalComponent.modalEditActivityTypeOption24") }}</option>
-                            <option value="25">{{ $t("editActivityModalComponent.modalEditActivityTypeOption25") }}</option>
-                            <option value="26">{{ $t("editActivityModalComponent.modalEditActivityTypeOption26") }}</option>
+                            <option value="21">{{ $t("editActivityModalComponent.modalEditActivityTypeOption21") }}
+                            </option>
+                            <option value="22">{{ $t("editActivityModalComponent.modalEditActivityTypeOption22") }}
+                            </option>
+                            <option value="23">{{ $t("editActivityModalComponent.modalEditActivityTypeOption23") }}
+                            </option>
+                            <option value="24">{{ $t("editActivityModalComponent.modalEditActivityTypeOption24") }}
+                            </option>
+                            <option value="25">{{ $t("editActivityModalComponent.modalEditActivityTypeOption25") }}
+                            </option>
+                            <option value="26">{{ $t("editActivityModalComponent.modalEditActivityTypeOption26") }}
+                            </option>
                         </select>
                         <!-- visibility fields -->
-                        <label for="activityVisibilityEdit"><b>* {{ $t("editActivityModalComponent.modalEditActivityVisibilityLabel") }}</b></label>
-                        <select class="form-select" name="activityVisibilityEdit" v-model="editActivityVisibility" required>
-                            <option value="0">{{ $t("editActivityModalComponent.modalEditActivityVisibilityOption0") }}</option>
-                            <option value="1">{{ $t("editActivityModalComponent.modalEditActivityVisibilityOption1") }}</option>
-                            <option value="2">{{ $t("editActivityModalComponent.modalEditActivityVisibilityOption2") }}</option>
+                        <label for="activityVisibilityEdit"><b>* {{
+                            $t("editActivityModalComponent.modalEditActivityVisibilityLabel") }}</b></label>
+                        <select class="form-select" name="activityVisibilityEdit" v-model="editActivityVisibility"
+                            required>
+                            <option value="0">{{ $t("editActivityModalComponent.modalEditActivityVisibilityOption0") }}
+                            </option>
+                            <option value="1">{{ $t("editActivityModalComponent.modalEditActivityVisibilityOption1") }}
+                            </option>
+                            <option value="2">{{ $t("editActivityModalComponent.modalEditActivityVisibilityOption2") }}
+                            </option>
                         </select>
+                        <!-- hide start time fields -->
+                        <label for="activityHideStartTimeEdit"><b>* {{
+                            $t("editActivityModalComponent.modalEditActivityHideStartTimeLabel") }}</b></label>
+                        <select class="form-select" name="activityHideStartTimeEdit" v-model="editActivityHideStartTime"
+                            required>
+                            <option :value="true">{{ $t("generalItems.yes") }}</option>
+                            <option :value="false">{{ $t("generalItems.no") }}</option>
+                        </select>
+                        <!-- hide location fields -->
+                        <label for="activityHideLocationEdit"><b>* {{
+                            $t("editActivityModalComponent.modalEditActivityHideLocationLabel") }}</b></label>
+                        <select class="form-select" name="activityHideLocationEdit" v-model="editActivityHideLocation"
+                            required>
+                            <option :value="true">{{ $t("generalItems.yes") }}</option>
+                            <option :value="false">{{ $t("generalItems.no") }}</option>
+                        </select>
+                        <!-- hide map fields -->
+                        <label for="activityHideMapEdit"><b>* {{
+                            $t("editActivityModalComponent.modalEditActivityHideMapLabel") }}</b></label>
+                        <select class="form-select" name="activityHideMapEdit" v-model="editActivityHideMap" required>
+                            <option :value="true">{{ $t("generalItems.yes") }}</option>
+                            <option :value="false">{{ $t("generalItems.no") }}</option>
+                        </select>
+                        <!-- hide HR fields -->
+                        <label for="activityHideHrEdit"><b>* {{
+                            $t("editActivityModalComponent.modalEditActivityHideHrLabel") }}</b></label>
+                        <select class="form-select" name="activityHideHrEdit" v-model="editActivityHideHr" required>
+                            <option :value="true">{{ $t("generalItems.yes") }}</option>
+                            <option :value="false">{{ $t("generalItems.no") }}</option>
+                        </select>
+                        <!-- hide power fields -->
+                        <label for="activityHidePowerEdit"><b>* {{
+                            $t("editActivityModalComponent.modalEditActivityHidePowerLabel") }}</b></label>
+                        <select class="form-select" name="activityHidePowerEdit" v-model="editActivityHidePower"
+                            required>
+                            <option :value="true">{{ $t("generalItems.yes") }}</option>
+                            <option :value="false">{{ $t("generalItems.no") }}</option>
+                        </select>
+                        <!-- hide cadence fields -->
+                        <label for="activityHideCadenceEdit"><b>* {{
+                            $t("editActivityModalComponent.modalEditActivityHideCadenceLabel") }}</b></label>
+                        <select class="form-select" name="activityHideCadenceEdit" v-model="editActivityHideCadence"
+                            required>
+                            <option :value="true">{{ $t("generalItems.yes") }}</option>
+                            <option :value="false">{{ $t("generalItems.no") }}</option>
+                        </select>
+                        <!-- hide elevation fields -->
+                        <div v-if="!activityTypeIsSwimming(activity)">
+                            <label for="activityHideElevationEdit"><b>* {{
+                                $t("editActivityModalComponent.modalEditActivityHideElevationLabel") }}</b></label>
+                            <select class="form-select" name="activityHideElevationEdit" v-model="editActivityHideElevation"
+                                required>
+                                <option :value="true">{{ $t("generalItems.yes") }}</option>
+                                <option :value="false">{{ $t("generalItems.no") }}</option>
+                            </select>
+                        </div>
+                        <!-- hide speed fields -->
+                        <div v-if="activityTypeIsCycling(activity)">
+                            <label for="activityHideSpeedEdit"><b>* {{
+                                $t("editActivityModalComponent.modalEditActivityHideSpeedLabel") }}</b></label>
+                            <select class="form-select" name="activityHideSpeedEdit" v-model="editActivityHideSpeed"
+                                required>
+                                <option :value="true">{{ $t("generalItems.yes") }}</option>
+                                <option :value="false">{{ $t("generalItems.no") }}</option>
+                            </select>
+                        </div>
+                        <!-- hide pace fields -->
+                        <div v-if="activityTypeIsRunning(activity) || activityTypeIsWalking(activity) || activityTypeIsSwimming(activity)">
+                            <label for="activityHidePaceEdit"><b>* {{
+                                $t("editActivityModalComponent.modalEditActivityHidePaceLabel") }}</b></label>
+                            <select class="form-select" name="activityHidePaceEdit" v-model="editActivityHidePace"
+                                required>
+                                <option :value="true">{{ $t("generalItems.yes") }}</option>
+                                <option :value="false">{{ $t("generalItems.no") }}</option>
+                            </select>
+                        </div>
                         <p>* {{ $t("generalItems.requiredField") }}</p>
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ $t("generalItems.buttonClose") }}</button>
-                        <button type="submit" class="btn btn-success" data-bs-dismiss="modal">{{ $t("editActivityModalComponent.modalEditActivityTitle") }}</button>
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{
+                            $t("generalItems.buttonClose") }}</button>
+                        <button type="submit" class="btn btn-success" data-bs-dismiss="modal">{{
+                            $t("editActivityModalComponent.modalEditActivityTitle") }}</button>
                     </div>
                 </form>
             </div>
@@ -81,56 +200,89 @@ import { useI18n } from "vue-i18n";
 import { push } from "notivue";
 // Importing the services
 import { activities } from "@/services/activitiesService";
+// Importing the utils
+import { activityTypeIsRunning, activityTypeIsCycling, activityTypeIsWalking, activityTypeIsSwimming } from "@/utils/activityUtils";
 
 export default {
-	components: {},
-	props: {
-		activity: {
-			type: Object,
-			required: true,
-		},
-	},
-	emits: ["activityEditedFields"],
-	setup(props, { emit }) {
-		const { t } = useI18n();
-		const editActivityDescription = ref(props.activity.description);
-		const editActivityName = ref(props.activity.name);
-		const editActivityType = ref(props.activity.activity_type);
-		const editActivityVisibility = ref(props.activity.visibility);
+    components: {},
+    props: {
+        activity: {
+            type: Object,
+            required: true,
+        },
+    },
+    emits: ["activityEditedFields"],
+    setup(props, { emit }) {
+        const { t } = useI18n();
+        const editActivityDescription = ref(props.activity.description);
+        const editActivityName = ref(props.activity.name);
+        const editActivityType = ref(props.activity.activity_type);
+        const editActivityVisibility = ref(props.activity.visibility);
+        const editActivityHideStartTime = ref(props.activity.hide_start_time);
+        const editActivityHideLocation = ref(props.activity.hide_location);
+        const editActivityHideMap = ref(props.activity.hide_map);
+        const editActivityHideHr = ref(props.activity.hide_hr);
+        const editActivityHidePower = ref(props.activity.hide_power);
+        const editActivityHideCadence = ref(props.activity.hide_cadence);
+        const editActivityHideElevation = ref(props.activity.hide_elevation);
+        const editActivityHideSpeed = ref(props.activity.hide_speed);
+        const editActivityHidePace = ref(props.activity.hide_pace);
 
-		async function submitEditActivityForm() {
-			try {
-				const data = {
-					id: props.activity.id,
-					description: editActivityDescription.value,
-					name: editActivityName.value,
-					activity_type: editActivityType.value,
-					visibility: editActivityVisibility.value,
-				};
+        async function submitEditActivityForm() {
+            try {
+                const data = {
+                    id: props.activity.id,
+                    description: editActivityDescription.value,
+                    name: editActivityName.value,
+                    activity_type: editActivityType.value,
+                    visibility: editActivityVisibility.value,
+                    hide_start_time: editActivityHideStartTime.value,
+                    hide_location: editActivityHideLocation.value,
+                    hide_map: editActivityHideMap.value,
+                    hide_hr: editActivityHideHr.value,
+                    hide_power: editActivityHidePower.value,
+                    hide_cadence: editActivityHideCadence.value,
+                    hide_elevation: editActivityHideElevation.value,
+                    hide_speed: editActivityHideSpeed.value,
+                    hide_pace: editActivityHidePace.value,
+                };
 
-				// Call the service to edit the activity
-				await activities.editActivity(data);
+                // Call the service to edit the activity
+                await activities.editActivity(data);
 
-				// show success toast
-				push.success(t("editActivityModalComponent.successActivityEdit"));
+                // show success toast
+                push.success(t("editActivityModalComponent.successActivityEdit"));
 
-				// Emit the activityEditedFields event to the parent component
-				emit("activityEditedFields", data);
-			} catch (error) {
-				// If there is an error, set the error message and show the error alert.
-				push.error(
-					`${t("editActivityModalComponent.errorActivityEdit")} - ${error}`,
-				);
-			}
-		}
+                // Emit the activityEditedFields event to the parent component
+                emit("activityEditedFields", data);
+            } catch (error) {
+                // If there is an error, set the error message and show the error alert.
+                push.error(
+                    `${t("editActivityModalComponent.errorActivityEdit")} - ${error}`,
+                );
+            }
+        }
 
-		return {
-			editActivityDescription,
-			editActivityName,
-			editActivityType,
-			editActivityVisibility,
-			submitEditActivityForm,
-		};
-	},
+        return {
+            editActivityDescription,
+            editActivityName,
+            editActivityType,
+            editActivityVisibility,
+            editActivityHideStartTime,
+            editActivityHideLocation,
+            editActivityHideMap,
+            editActivityHideHr,
+            editActivityHidePower,
+            editActivityHideCadence,
+            editActivityHideElevation,
+            editActivityHideSpeed,
+            editActivityHidePace,
+            submitEditActivityForm,
+            activityTypeIsCycling,
+            activityTypeIsRunning,
+            activityTypeIsWalking,
+            activityTypeIsSwimming,
+        };
+    },
 };
 </script>

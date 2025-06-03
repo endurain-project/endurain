@@ -36,6 +36,15 @@
     "modalEditActivityVisibilityOption0": "Public",
     "modalEditActivityVisibilityOption1": "Followers",
     "modalEditActivityVisibilityOption2": "Private",
+    "modalEditActivityHideStartTimeLabel": "Hide start time",
+    "modalEditActivityHideLocationLabel": "Hide location",
+    "modalEditActivityHideMapLabel": "Hide map",
+    "modalEditActivityHideHrLabel": "Hide heart rate",
+    "modalEditActivityHidePowerLabel": "Hide power",
+    "modalEditActivityHideCadenceLabel": "Hide cadence",
+    "modalEditActivityHideElevationLabel": "Hide elevation",
+    "modalEditActivityHideSpeedLabel": "Hide speed",
+    "modalEditActivityHidePaceLabel": "Hide pace",
     "successActivityEdit": "Activity edited successfully",
     "errorActivityEdit": "Error editing activity"
 }

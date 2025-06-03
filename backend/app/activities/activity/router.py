@@ -63,7 +63,7 @@ async def read_activities_user_activities_week(
     if user_id == token_user_id:
         # Get all user activities for the requested week if the user is the owner of the token
         activities = activities_crud.get_user_activities_per_timeframe(
-            user_id, start_of_week, end_of_week, db
+            user_id, start_of_week, end_of_week, db, True
         )
     else:
         # Get user following activities for the requested week if the user is not the owner of the token
@@ -107,7 +107,7 @@ async def read_activities_user_activities_this_week_distances(
     if user_id == token_user_id:
         # Get all user activities for the requested week if the user is the owner of the token
         activities = activities_crud.get_user_activities_per_timeframe(
-            user_id, start_of_week, end_of_week, db
+            user_id, start_of_week, end_of_week, db, True
         )
     else:
         # Get user following activities for the requested week if the user is not the owner of the token
@@ -148,7 +148,7 @@ async def read_activities_user_activities_this_month_distances(
     if user_id == token_user_id:
         # Get all user activities for the requested month if the user is the owner of the token
         activities = activities_crud.get_user_activities_per_timeframe(
-            user_id, start_of_month, end_of_month, db
+            user_id, start_of_month, end_of_month, db, True
         )
     else:
         # Get user following activities for the requested month if the user is not the owner of the token
@@ -193,7 +193,7 @@ async def read_activities_user_activities_this_month_number(
     if user_id == token_user_id:
         # Get all user activities for the requested month if the user is the owner of the token
         activities = activities_crud.get_user_activities_per_timeframe(
-            user_id, start_of_month, end_of_month, db
+            user_id, start_of_month, end_of_month, db, True
         )
     else:
         # Get user following activities for the requested month if the user is not the owner of the token
@@ -313,6 +313,10 @@ async def read_activities_user_activities_pagination(
     check_scopes: Annotated[
         Callable, Security(session_security.check_scopes, scopes=["activities:read"])
     ],
+    token_user_id: Annotated[
+        int,
+        Depends(session_security.get_user_id_from_access_token),
+    ],
     db: Annotated[
         Session,
         Depends(core_database.get_db),
@@ -335,6 +339,9 @@ async def read_activities_user_activities_pagination(
     sort_by: str | None = Query(None),
     sort_order: str | None = Query(None),
 ):
+    user_is_owner = True
+    if token_user_id != user_id:
+        user_is_owner = False
     # Get and return the activities for the user with pagination and filters
     return activities_crud.get_user_activities_with_pagination(
         user_id=user_id,
@@ -347,6 +354,7 @@ async def read_activities_user_activities_pagination(
         name_search=name_search,
         sort_by=sort_by,
         sort_order=sort_order,
+        user_is_owner=user_is_owner,
     )
 
 

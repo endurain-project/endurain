@@ -56,6 +56,7 @@ def create_user_privacy_settings(user_id: int, db: Session):
             hide_activity_cadence=False,
             hide_activity_elevation=False,
             hide_activity_speed=False,
+            hide_activity_pace=False,
         )
 
         # Add the user privacy settings to the database

@@ -197,6 +197,7 @@ def get_user_activities_with_pagination(
     name_search: str | None = None,
     sort_by: str | None = None,
     sort_order: str | None = None,
+    user_is_owner: bool = False,
 ) -> list[activities_schema.Activity] | None:
     try:
         # Mapping from frontend sort keys to database model fields
@@ -311,6 +312,13 @@ def get_user_activities_with_pagination(
         serialized_activities = []
         if activities:
             for activity in activities:
+                if not user_is_owner:
+                    if activity.hide_start_time:
+                        activity.start_time = None
+                    if activity.hide_location:
+                        activity.city = None
+                        activity.town = None
+                        activity.country = None
                 serialized_activities.append(
                     activities_utils.serialize_activity(activity)
                 )
@@ -364,6 +372,7 @@ def get_user_activities_per_timeframe(
     start: datetime,
     end: datetime,
     db: Session,
+    user_is_owner: bool = False,
 ):
     try:
         # Get the activities from the database
@@ -383,6 +392,14 @@ def get_user_activities_per_timeframe(
 
         for activity in activities:
             activity = activities_utils.serialize_activity(activity)
+
+            if not user_is_owner:
+                if activity.hide_start_time:
+                    activity.start_time = None
+                if activity.hide_location:
+                    activity.city = None
+                    activity.town = None
+                    activity.country = None
 
         # Return the activities
         return activities
@@ -426,6 +443,12 @@ def get_user_following_activities_per_timeframe(
 
         for activity in activities:
             activity = activities_utils.serialize_activity(activity)
+            if activity.hide_start_time:
+                activity.start_time = None
+            if activity.hide_location:
+                activity.city = None
+                activity.town = None
+                activity.country = None
 
         # Return the activities
         return activities
@@ -477,6 +500,12 @@ def get_user_following_activities_with_pagination(
         # Iterate and format the dates
         for activity in activities:
             activity = activities_utils.serialize_activity(activity)
+            if activity.hide_start_time:
+                activity.start_time = None
+            if activity.hide_location:
+                activity.city = None
+                activity.town = None
+                activity.country = None
 
         # Return the activities
         return activities

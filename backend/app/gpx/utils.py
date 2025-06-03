@@ -330,6 +330,7 @@ def parse_gpx_file(
             hide_elevation=user_privacy_settings.hide_activity_elevation
             or False,
             hide_speed=user_privacy_settings.hide_activity_speed or False,
+            hide_pace=user_privacy_settings.hide_activity_pace or False,
         )
 
         # Generate activity laps

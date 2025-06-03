@@ -223,6 +223,7 @@ def transform_schema_activity_to_model_activity(
         hide_cadence=activity.hide_cadence,
         hide_elevation=activity.hide_elevation,
         hide_speed=activity.hide_speed,
+        hide_pace=activity.hide_pace,
     )
 
     return new_activity

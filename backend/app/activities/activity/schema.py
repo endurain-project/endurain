@@ -46,6 +46,7 @@ class Activity(BaseModel):
     hide_cadence: bool | None = None
     hide_elevation: bool | None = None
     hide_speed: bool | None = None
+    hide_pace: bool | None = None
 
     class Config:
         orm_mode = True

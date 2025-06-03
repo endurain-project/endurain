@@ -73,6 +73,12 @@ class UsersPrivacySettings(Base):
         default=False,
         comment="Hide activity speed",
     )
+    hide_activity_pace = Column(
+        Boolean,
+        nullable=False,
+        default=False,
+        comment="Hide activity pace",
+    )
 
 
     # Define a relationship to the User model

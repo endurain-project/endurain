@@ -31,6 +31,7 @@ export const useAuthStore = defineStore('auth', {
             hide_activity_cadence: false,
             hide_activity_elevation: false,
             hide_activity_speed: false,
+            hide_activity_pace: false,
         },
         isAuthenticated: false,
         user_websocket: null,
@@ -93,6 +94,7 @@ export const useAuthStore = defineStore('auth', {
                 hide_activity_cadence: false,
                 hide_activity_elevation: false,
                 hide_activity_speed: false,
+                hide_activity_pace: false,
             };
             if (this.user_websocket && this.user_websocket.readyState === WebSocket.OPEN) {
                 this.user_websocket.close();

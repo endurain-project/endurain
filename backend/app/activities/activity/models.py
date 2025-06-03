@@ -171,6 +171,11 @@ class Activity(Base):
         nullable=False,
         comment="Hide activity speed",
     )
+    hide_pace = Column(
+        Boolean,
+        nullable=False,
+        comment="Hide activity pace",
+    )
 
     # Define a relationship to the User model
     user = relationship("User", back_populates="activities")
