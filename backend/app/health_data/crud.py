@@ -245,6 +245,8 @@ def edit_health_data(user_id, health_data: health_data_schema.HealthData, db: Se
         db.commit()
 
         return health_data
+    except HTTPException as http_err:
+        raise http_err
     except Exception as err:
         # Rollback the transaction
         db.rollback()
@@ -280,6 +282,8 @@ def delete_health_data(user_id: int, health_data_id: int, db: Session):
 
         # Commit the transaction
         db.commit()
+    except HTTPException as http_err:
+        raise http_err
     except Exception as err:
         # Rollback the transaction
         db.rollback()

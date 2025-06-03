@@ -430,6 +430,8 @@ def delete_gear(gear_id: int, db: Session):
 
         # Commit the transaction
         db.commit()
+    except HTTPException as http_err:
+        raise http_err
     except Exception as err:
         # Rollback the transaction
         db.rollback()

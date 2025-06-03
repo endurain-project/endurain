@@ -864,6 +864,8 @@ def edit_activity(user_id: int, activity: activities_schema.Activity, db: Sessio
 
         # Commit the transaction
         db.commit()
+    except HTTPException as http_err:
+        raise http_err
     except Exception as err:
         # Rollback the transaction
         db.rollback()
@@ -902,6 +904,8 @@ def edit_user_activities_visibility(user_id: int, visibility: int, db: Session):
 
         # Commit the transaction
         db.commit()
+    except HTTPException as http_err:
+        raise http_err
     except Exception as err:
         # Rollback the transaction
         db.rollback()
@@ -966,6 +970,8 @@ def delete_activity(activity_id: int, db: Session):
 
         # Commit the transaction
         db.commit()
+    except HTTPException as http_err:
+        raise http_err
     except Exception as err:
         # Rollback the transaction
         db.rollback()

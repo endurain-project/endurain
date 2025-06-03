@@ -376,7 +376,7 @@ def check_scopes(
                 "missing_scopes": missing_scopes,
             },
         )
-        raise
+        raise http_err
     except Exception as err:
         core_logger.print_to_log(
             f"Unexpected error during scope validation: {err}",

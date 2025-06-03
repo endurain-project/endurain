@@ -63,6 +63,8 @@ def fetch_and_process_activities(
             )
         # Return 0 to indicate no activities were processed
         return 0
+    except HTTPException as http_err:
+        raise http_err
     except Exception as err:
         # Log an error event if an exception occurred
         core_logger.print_to_log(

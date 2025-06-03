@@ -26,6 +26,8 @@ def get_user_default_gear_by_user_id(user_id: int, db: Session):
 
         # Return the user default gear
         return user_default_gear
+    except HTTPException as http_err:
+        raise http_err
     except Exception as err:
         # Log the exception
         core_logger.print_to_log(
@@ -98,6 +100,8 @@ def edit_user_default_gear(
         db.commit()
 
         return db_user_default_gear
+    except HTTPException as http_err:
+        raise http_err
     except Exception as err:
         # Rollback the transaction
         db.rollback()

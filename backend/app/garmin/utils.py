@@ -94,6 +94,8 @@ async def link_garminconnect(
             serialize_oauth2_token(garmin.garth.oauth2_token),
             db,
         )
+    except HTTPException as http_err:
+        raise http_err
     except (
         garminconnect.GarminConnectAuthenticationError,
         requests.exceptions.HTTPError,

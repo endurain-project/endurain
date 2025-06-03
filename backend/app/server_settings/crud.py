@@ -63,6 +63,8 @@ def edit_server_settings(server_settings: server_settings_schema.ServerSettings,
         db.commit()
 
         return db_server_settings
+    except HTTPException as http_err:
+        raise http_err
     except Exception as err:
         # Rollback the transaction
         db.rollback()

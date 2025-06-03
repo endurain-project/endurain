@@ -324,6 +324,8 @@ def edit_user(user_id: int, user: users_schema.User, db: Session):
         if db_user.photo_path is None:
             # Delete the user photo in the filesystem
             users_utils.delete_user_photo_filesystem(db_user.id)
+    except HTTPException as http_err:
+        raise http_err
     except IntegrityError as integrity_error:
         # Rollback the transaction
         db.rollback()
@@ -454,6 +456,8 @@ def delete_user(user_id: int, db: Session):
 
         # Delete the user photo in the filesystem
         users_utils.delete_user_photo_filesystem(user_id)
+    except HTTPException as http_err:
+        raise http_err
     except Exception as err:
         # Rollback the transaction
         db.rollback()

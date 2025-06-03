@@ -28,6 +28,8 @@ def get_user_privacy_settings_by_user_id(user_id: int, db: Session):
 
         # Return the user privacy settings
         return user_privacy_settings
+    except HTTPException as http_err:
+        raise http_err
     except Exception as err:
         # Log the exception
         core_logger.print_to_log(

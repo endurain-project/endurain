@@ -28,6 +28,8 @@ def get_user_integrations_by_user_id(user_id: int, db: Session):
 
         # Return the user integrations
         return user_integrations
+    except HTTPException as http_err:
+        raise http_err
     except Exception as err:
         # Log the exception
         core_logger.print_to_log(
@@ -163,6 +165,8 @@ def unlink_strava_account(user_id: int, db: Session):
 
         # Commit the changes to the database
         db.commit()
+    except HTTPException as http_err:
+        raise http_err
     except Exception as err:
         # Rollback the transaction
         db.rollback()
@@ -200,6 +204,8 @@ def set_user_strava_client(user_id: int, id: int, secret: str, db: Session):
 
         # Commit the changes to the database
         db.commit()
+    except HTTPException as http_err:
+        raise http_err
     except Exception as err:
         # Rollback the transaction
         db.rollback()
@@ -237,6 +243,8 @@ def set_user_strava_state(user_id: int, state: str | None, db: Session):
 
         # Commit the changes to the database
         db.commit()
+    except HTTPException as http_err:
+        raise http_err
     except Exception as err:
         # Rollback the transaction
         db.rollback()
@@ -303,6 +311,8 @@ def link_garminconnect_account(
 
         # Commit the changes to the database
         db.commit()
+    except HTTPException as http_err:
+        raise http_err
     except Exception as err:
         # Rollback the transaction
         db.rollback()
@@ -367,6 +377,8 @@ def unlink_garminconnect_account(user_id: int, db: Session):
 
         # Commit the changes to the database
         db.commit()
+    except HTTPException as http_err:
+        raise http_err
     except Exception as err:
         # Rollback the transaction
         db.rollback()

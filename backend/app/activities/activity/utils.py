@@ -351,8 +351,8 @@ def parse_and_store_activity_from_file(
                 return created_activities
             else:
                 return None
-    except HTTPException:
-        pass
+    except HTTPException as http_err:
+        raise http_err
     except Exception as err:
         # Log the exception
         core_logger.print_to_log(
