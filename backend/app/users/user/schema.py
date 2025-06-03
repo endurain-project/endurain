@@ -26,7 +26,6 @@ class User(BaseModel):
     access_type: int
     photo_path: str | None = None
     is_active: int
-    default_activity_visibility: int
 
     class Config:
         orm_mode = True
@@ -43,6 +42,15 @@ class UserCreate(User):
 class UserMe(User):
     is_strava_linked: int | None = None
     is_garminconnect_linked: int | None = None
+    default_activity_visibility: int | None = None
+    hide_activity_start_time: bool | None = None
+    hide_activity_location: bool | None = None
+    hide_activity_map: bool | None = None
+    hide_activity_hr: bool | None = None
+    hide_activity_power: bool | None = None
+    hide_activity_cadence: bool | None = None
+    hide_activity_elevation: bool | None = None
+    hide_activity_speed: bool | None = None
 
 
 class UserEditPassword(BaseModel):

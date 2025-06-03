@@ -1,6 +1,10 @@
 {
     "buttonBack": "Back",
     "buttonClose": "Close",
+    "true": "True",
+    "false": "False",
+    "yes": "Yes",
+    "no": "No",
     "languageOption1": "English (US)",
     "languageOption2": "Catalan (CA)",
     "languageOption3": "Portuguese (PT)",

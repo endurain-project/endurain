@@ -1,6 +1,6 @@
 from fastapi import HTTPException, status
 from sqlalchemy import func
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy.exc import IntegrityError
 from urllib.parse import unquote
 
@@ -19,18 +19,14 @@ import core.logger as core_logger
 
 def authenticate_user(username: str, db: Session):
     try:
-        # Get the user from the database
         user = (
             db.query(users_models.User)
             .filter(users_models.User.username == username)
             .first()
         )
 
-        # Check if the user exists and if the password is correct and if not return None
         if not user:
             return None
-
-        # Return the user if the password is correct
         return user
     except Exception as err:
         # Log the exception

@@ -64,12 +64,6 @@ class User(Base):
     is_active = Column(
         Integer, nullable=False, comment="Is user active (1 - active, 2 - not active)"
     )
-    default_activity_visibility = Column(
-        Integer,
-        nullable=False,
-        default=0,
-        comment="0 - public, 1 - followers, 2 - private",
-    )
 
     # Define a relationship to UsersSessions model
     users_sessions = relationship(
@@ -86,6 +80,12 @@ class User(Base):
     # Define a relationship to UsersDefaultGear model
     users_default_gear = relationship(
         "UsersDefaultGear",
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
+    # Define a relationship to UsersPrivacySettings model
+    users_privacy_settings = relationship(
+        "UsersPrivacySettings",
         back_populates="user",
         cascade="all, delete-orphan",
     )

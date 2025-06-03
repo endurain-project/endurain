@@ -20,6 +20,9 @@ import activities.activity.models as activities_models
 
 import users.user.crud as users_crud
 
+import users.user_privacy_settings.crud as users_privacy_settings_crud
+import users.user_privacy_settings.schema as users_privacy_settings_schema
+
 import activities.activity_laps.crud as activity_laps_crud
 
 import activities.activity_sets.crud as activity_sets_crud
@@ -62,7 +65,7 @@ ACTIVITY_ID_TO_NAME = {
     24: "Squash",
     25: "Racquetball",
     26: "Pickleball",
-    27: "Commuting ride", # Added based on define_activity_type
+    27: "Commuting ride",  # Added based on define_activity_type
     # Add other mappings as needed based on the full list in define_activity_type comments if required
     # "AlpineSki",
     # "BackcountrySki",
@@ -117,52 +120,52 @@ ACTIVITY_ID_TO_NAME = {
 }
 
 # Global Activity Type Mappings (Name to ID) - Case Insensitive Keys
-ACTIVITY_NAME_TO_ID = {
-    name.lower(): id for id, name in ACTIVITY_ID_TO_NAME.items()
-}
+ACTIVITY_NAME_TO_ID = {name.lower(): id for id, name in ACTIVITY_ID_TO_NAME.items()}
 # Add specific variations found in define_activity_type
-ACTIVITY_NAME_TO_ID.update({
-    "running": 1,
-    "trail running": 2,
-    "trailrun": 2,
-    "virtualrun": 3,
-    "cycling": 4,
-    "road": 4,
-    "gravelride": 5,
-    "gravel_cycling": 5,
-    "mountainbikeride": 6,
-    "mountain": 6,
-    "virtualride": 7,
-    "virtual_ride": 7,
-    "swim": 8,
-    "swimming": 8,
-    "lap_swimming": 8,
-    "open_water_swimming": 9,
-    "open_water": 9,
-    "walk": 11,
-    "walking": 11,
-    "hike": 12,
-    "hiking": 12,
-    "rowing": 13,
-    "indoor_rowing": 13,
-    "yoga": 14,
-    "alpineski": 15,
-    "resort_skiing": 15,
-    "alpine_skiing": 15,
-    "nordicski": 16,
-    "snowboard": 17,
-    "transition": 18,
-    "strength_training": 19,
-    "weighttraining": 19,
-    "crossfit": 20,
-    "tennis": 21,
-    "tabletennis": 22,
-    "badminton": 23,
-    "squash": 24,
-    "racquetball": 25,
-    "pickleball": 26,
-    "commuting_ride": 27,
-})
+ACTIVITY_NAME_TO_ID.update(
+    {
+        "running": 1,
+        "trail running": 2,
+        "trailrun": 2,
+        "virtualrun": 3,
+        "cycling": 4,
+        "road": 4,
+        "gravelride": 5,
+        "gravel_cycling": 5,
+        "mountainbikeride": 6,
+        "mountain": 6,
+        "virtualride": 7,
+        "virtual_ride": 7,
+        "swim": 8,
+        "swimming": 8,
+        "lap_swimming": 8,
+        "open_water_swimming": 9,
+        "open_water": 9,
+        "walk": 11,
+        "walking": 11,
+        "hike": 12,
+        "hiking": 12,
+        "rowing": 13,
+        "indoor_rowing": 13,
+        "yoga": 14,
+        "alpineski": 15,
+        "resort_skiing": 15,
+        "alpine_skiing": 15,
+        "nordicski": 16,
+        "snowboard": 17,
+        "transition": 18,
+        "strength_training": 19,
+        "weighttraining": 19,
+        "crossfit": 20,
+        "tennis": 21,
+        "tabletennis": 22,
+        "badminton": 23,
+        "squash": 24,
+        "racquetball": 25,
+        "pickleball": 26,
+        "commuting_ride": 27,
+    }
+)
 
 
 def transform_schema_activity_to_model_activity(
@@ -178,6 +181,7 @@ def transform_schema_activity_to_model_activity(
     # Create a new activity object
     new_activity = activities_models.Activity(
         user_id=activity.user_id,
+        description=activity.description,
         distance=activity.distance,
         name=activity.name,
         activity_type=activity.activity_type,
@@ -211,9 +215,18 @@ def transform_schema_activity_to_model_activity(
         strava_activity_id=activity.strava_activity_id,
         garminconnect_activity_id=activity.garminconnect_activity_id,
         garminconnect_gear_id=activity.garminconnect_gear_id,
+        hide_start_time=activity.hide_start_time,
+        hide_location=activity.hide_location,
+        hide_map=activity.hide_map,
+        hide_hr=activity.hide_hr,
+        hide_power=activity.hide_power,
+        hide_cadence=activity.hide_cadence,
+        hide_elevation=activity.hide_elevation,
+        hide_speed=activity.hide_speed,
     )
 
     return new_activity
+
 
 def serialize_activity(activity: activities_schema.Activity):
     def make_aware_and_format(dt, timezone):
@@ -234,6 +247,7 @@ def serialize_activity(activity: activities_schema.Activity):
     activity.created_at = make_aware_and_format(activity.created_at, timezone)
 
     return activity
+
 
 def parse_and_store_activity_from_file(
     token_user_id: int,
@@ -259,10 +273,16 @@ def parse_and_store_activity_from_file(
                     detail="User not found",
                 )
 
+            user_privacy_settings = (
+                users_privacy_settings_crud.get_user_privacy_settings_by_user_id(
+                    user.id, db
+                )
+            )
+
             # Parse the file
             parsed_info = parse_file(
                 token_user_id,
-                user.default_activity_visibility,
+                user_privacy_settings,
                 file_extension,
                 file_path,
                 db,
@@ -287,7 +307,7 @@ def parse_and_store_activity_from_file(
                         created_activities_objects = fit_utils.create_activity_objects(
                             split_records_by_activity,
                             token_user_id,
-                            user.default_activity_visibility,
+                            user_privacy_settings,
                             int(garmin_connect_activity_id),
                             garminconnect_gear,
                             db,
@@ -296,7 +316,7 @@ def parse_and_store_activity_from_file(
                         created_activities_objects = fit_utils.create_activity_objects(
                             split_records_by_activity,
                             token_user_id,
-                            user.default_activity_visibility,
+                            user_privacy_settings,
                             None,
                             None,
                             db,
@@ -339,6 +359,7 @@ def parse_and_store_activity_from_file(
             f"Error in parse_and_store_activity_from_file - {str(err)}", "error"
         )
 
+
 def parse_and_store_activity_from_uploaded_file(
     token_user_id: int, file: UploadFile, db: Session
 ):
@@ -365,10 +386,16 @@ def parse_and_store_activity_from_uploaded_file(
                 detail="User not found",
             )
 
+        user_privacy_settings = (
+            users_privacy_settings_crud.get_user_privacy_settings_by_user_id(
+                user.id, db
+            )
+        )
+
         # Parse the file
         parsed_info = parse_file(
             token_user_id,
-            user.default_activity_visibility,
+            user_privacy_settings,
             file_extension,
             file_path,
             db,
@@ -392,7 +419,7 @@ def parse_and_store_activity_from_uploaded_file(
                 created_activities_objects = fit_utils.create_activity_objects(
                     split_records_by_activity,
                     token_user_id,
-                    user.default_activity_visibility,
+                    user_privacy_settings,
                     None,
                     None,
                     db,
@@ -447,6 +474,7 @@ def parse_and_store_activity_from_uploaded_file(
             detail=f"Internal Server Error: {str(err)}",
         ) from err
 
+
 def move_file(new_dir: str, new_filename: str, file_path: str):
     try:
         # Ensure the new directory exists
@@ -466,9 +494,10 @@ def move_file(new_dir: str, new_filename: str, file_path: str):
             detail=f"Internal Server Error: {str(err)}",
         ) from err
 
+
 def parse_file(
     token_user_id: int,
-    default_activity_visibility: int,
+    user_privacy_settings: users_privacy_settings_schema.UsersPrivacySettings,
     file_extension: str,
     filename: str,
     db: Session,
@@ -480,7 +509,10 @@ def parse_file(
             if file_extension.lower() == ".gpx":
                 # Parse the GPX file
                 parsed_info = gpx_utils.parse_gpx_file(
-                    filename, token_user_id, default_activity_visibility, db
+                    filename,
+                    token_user_id,
+                    user_privacy_settings,
+                    db,
                 )
             elif file_extension.lower() == ".fit":
                 # Parse the FIT file
@@ -505,6 +537,7 @@ def parse_file(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Internal Server Error: {str(err)}",
         ) from err
+
 
 def store_activity(parsed_info: dict, db: Session):
     # create the activity in the database
@@ -553,6 +586,7 @@ def store_activity(parsed_info: dict, db: Session):
     # Return the created activity
     return created_activity
 
+
 def parse_activity_streams_from_file(parsed_info: dict, activity_id: int):
     # Create a dictionary mapping stream types to is_set keys and waypoints keys
     stream_mapping = {
@@ -593,6 +627,7 @@ def parse_activity_streams_from_file(parsed_info: dict, activity_id: int):
         for stream_type, is_set, waypoints in stream_data_list
     ]
 
+
 def calculate_activity_distances(activities: list[activities_schema.Activity]):
     # Initialize the distances
     run = bike = swim = walk = hike = rowing = snow_ski = snowboard = 0.0
@@ -628,6 +663,7 @@ def calculate_activity_distances(activities: list[activities_schema.Activity]):
         snow_ski=snow_ski,
         snowboard=snowboard,
     )
+
 
 def location_based_on_coordinates(latitude, longitude) -> dict | None:
     if latitude is None or longitude is None:
@@ -671,9 +707,11 @@ def location_based_on_coordinates(latitude, longitude) -> dict | None:
             detail=f"Error in location_based_on_coordinates: {str(err)}",
         )
 
+
 def append_if_not_none(waypoint_list, time, value, key):
     if value is not None:
         waypoint_list.append({"time": time, key: value})
+
 
 def calculate_instant_speed(
     prev_time, time, latitude, longitude, prev_latitude, prev_longitude
@@ -706,6 +744,7 @@ def calculate_instant_speed(
 
     # Return the instant speed
     return instant_speed
+
 
 def compute_elevation_gain_and_loss(
     elevations, median_window=6, avg_window=3, threshold=0.1
@@ -760,6 +799,7 @@ def compute_elevation_gain_and_loss(
             total_loss -= diff  # diff is negative, so subtracting it is adding positive
     return total_gain, total_loss
 
+
 def calculate_pace(distance, first_waypoint_time, last_waypoint_time):
     # If the distance is 0, return 0
     if distance == 0:
@@ -782,6 +822,7 @@ def calculate_pace(distance, first_waypoint_time, last_waypoint_time):
     # Return the pace
     return pace_seconds_per_meter
 
+
 def calculate_avg_and_max(data, type):
     try:
         # Get the values from the data
@@ -797,6 +838,7 @@ def calculate_avg_and_max(data, type):
     max_value = max(values)
 
     return avg_value, max_value
+
 
 def calculate_np(data):
     try:
@@ -820,6 +862,7 @@ def calculate_np(data):
     normalized_power = avg_fourth_power ** (1 / 4)
 
     return normalized_power
+
 
 def define_activity_type(activity_type_name: str) -> int:
     """

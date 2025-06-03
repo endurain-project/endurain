@@ -38,6 +38,14 @@ class Activity(BaseModel):
     strava_activity_id: int | None = None
     garminconnect_activity_id: int | None = None
     garminconnect_gear_id: str | None = None
+    hide_start_time: bool | None = None
+    hide_location: bool | None = None
+    hide_map: bool | None = None
+    hide_hr: bool | None = None
+    hide_power: bool | None = None
+    hide_cadence: bool | None = None
+    hide_elevation: bool | None = None
+    hide_speed: bool | None = None
 
     class Config:
         orm_mode = True

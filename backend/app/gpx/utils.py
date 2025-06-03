@@ -13,11 +13,16 @@ import activities.activity.schema as activities_schema
 
 import users.user_default_gear.utils as user_default_gear_utils
 
+import users.user_privacy_settings.schema as users_privacy_settings_schema
+
 import core.logger as core_logger
 
 
 def parse_gpx_file(
-    file: str, user_id: int, default_activity_visibility: int, db: Session
+    file: str,
+    user_id: int,
+    user_privacy_settings: users_privacy_settings_schema.UsersPrivacySettings,
+    db: Session,
 ) -> dict:
     try:
         # Create an instance of TimezoneFinder
@@ -305,10 +310,26 @@ def parse_gpx_file(
             average_cad=round(avg_cadence) if avg_cadence else None,
             max_cad=round(max_cadence) if max_cadence else None,
             calories=calories,
-            visibility=default_activity_visibility,
+            visibility=(
+                user_privacy_settings.default_activity_visibility
+                if user_privacy_settings.default_activity_visibility is not None
+                else 0
+            ),
             gear_id=gear_id,
             strava_gear_id=None,
             strava_activity_id=None,
+            garminconnect_activity_id=None,
+            garminconnect_gear_id=None,
+            hide_start_time=user_privacy_settings.hide_activity_start_time
+            or False,
+            hide_location=user_privacy_settings.hide_activity_location or False,
+            hide_map=user_privacy_settings.hide_activity_map or False,
+            hide_hr=user_privacy_settings.hide_activity_hr or False,
+            hide_power=user_privacy_settings.hide_activity_power or False,
+            hide_cadence=user_privacy_settings.hide_activity_cadence or False,
+            hide_elevation=user_privacy_settings.hide_activity_elevation
+            or False,
+            hide_speed=user_privacy_settings.hide_activity_speed or False,
         )
 
         # Generate activity laps
@@ -515,7 +536,6 @@ def generate_activity_laps(
         avg_cadence, max_cadence = None, None
         avg_speed, max_speed = None, None
         avg_power, max_power, np = None, None, None
-        
 
         # Calculate total ascent and descent
         if lap_ele_waypoints:

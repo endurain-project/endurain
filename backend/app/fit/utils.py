@@ -22,13 +22,15 @@ import garmin.utils as garmin_utils
 
 import gears.crud as gears_crud
 
+import users.user_privacy_settings.schema as users_privacy_settings_schema
+
 import core.logger as core_logger
 
 
 def create_activity_objects(
     sessions_records: dict,
     user_id: int,
-    default_activity_visibility: int,
+    user_privacy_settings: users_privacy_settings_schema.UsersPrivacySettings,
     garmin_activity_id: int = None,
     garminconnect_gear: dict = None,
     db: Session = None,
@@ -90,7 +92,10 @@ def create_activity_objects(
                         )
                     )
 
-            if session_record["activity_name"] and session_record["activity_name"] != "Workout":
+            if (
+                session_record["activity_name"]
+                and session_record["activity_name"] != "Workout"
+            ):
                 activity_name = session_record["activity_name"]
 
             # Calculate elevation gain/loss, pace, average speed, and average power
@@ -113,7 +118,6 @@ def create_activity_objects(
                             session_record["time_offset"],
                             session_record["session"]["first_waypoint_time"],
                         )
-
             parsed_activity = {
                 # Create an Activity object with parsed data
                 "activity": activities_schema.Activity(
@@ -152,7 +156,11 @@ def create_activity_objects(
                     workout_feeling=session_record["session"]["workout_feeling"],
                     workout_rpe=session_record["session"]["workout_rpe"],
                     calories=session_record["session"]["calories"],
-                    visibility=default_activity_visibility,
+                    visibility=(
+                        user_privacy_settings.default_activity_visibility
+                        if user_privacy_settings.default_activity_visibility is not None
+                        else 0
+                    ),
                     gear_id=gear_id,
                     strava_gear_id=None,
                     strava_activity_id=None,
@@ -160,6 +168,16 @@ def create_activity_objects(
                     garminconnect_gear_id=(
                         garminconnect_gear[0]["uuid"] if garminconnect_gear else None
                     ),
+                    hide_start_time=user_privacy_settings.hide_activity_start_time
+                    or False,
+                    hide_location=user_privacy_settings.hide_activity_location or False,
+                    hide_map=user_privacy_settings.hide_activity_map or False,
+                    hide_hr=user_privacy_settings.hide_activity_hr or False,
+                    hide_power=user_privacy_settings.hide_activity_power or False,
+                    hide_cadence=user_privacy_settings.hide_activity_cadence or False,
+                    hide_elevation=user_privacy_settings.hide_activity_elevation
+                    or False,
+                    hide_speed=user_privacy_settings.hide_activity_speed or False,
                 ),
                 "is_elevation_set": session_record["is_elevation_set"],
                 "ele_waypoints": session_record["ele_waypoints"],

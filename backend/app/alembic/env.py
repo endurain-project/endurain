@@ -18,6 +18,7 @@ import health_targets.models
 import migrations.models
 import users.user_default_gear.models
 import users.user_integrations.models
+import users.user_privacy_settings.models
 import users.user.models
 import session.models
 import server_settings.models

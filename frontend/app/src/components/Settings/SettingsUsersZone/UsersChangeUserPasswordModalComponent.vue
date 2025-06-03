@@ -55,7 +55,7 @@
     </div>
 </template>
 
-<script>
+<script setup>
 import { ref, computed } from "vue";
 import { useI18n } from "vue-i18n";
 // Import Notivue push
@@ -65,81 +65,64 @@ import { users } from "@/services/usersService";
 // Importing the components
 import UsersPasswordRequirementsComponent from "@/components/Settings/SettingsUsersZone/UsersPasswordRequirementsComponent.vue";
 
-export default {
-	components: {
-		UsersPasswordRequirementsComponent,
+// Define props
+const props = defineProps({
+	user: {
+		type: Object,
+		required: true,
 	},
-    props: {
-		user: {
-			type: Object,
-			required: true,
-		},
-	},
-    setup(props) {
-		const { t } = useI18n();
-        const newPassword = ref("");
-		const newPasswordRepeat = ref("");
-		const regex =
-			/^(?=.*[A-Z])(?=.*\d)(?=.*[ !\"#$%&'()*+,\-./:;<=>?@[\\\]^_`{|}~])[A-Za-z\d !"#$%&'()*+,\-./:;<=>?@[\\\]^_`{|}~]{8,}$/;
-		const isNewPasswordValid = computed(() => {
-			return regex.test(newPassword.value);
-		});
-		const isNewPasswordRepeatValid = computed(() => {
-			return regex.test(newPasswordRepeat.value);
-		});
-		const isPasswordMatch = computed(
-			() => newPassword.value === newPasswordRepeat.value,
-		);
+});
 
-        const showNewPassword = ref(false);
-        const showNewPasswordRepeat = ref(false);
+// Composition API setup
+const { t } = useI18n();
+const newPassword = ref("");
+const newPasswordRepeat = ref("");
+const regex =
+	/^(?=.*[A-Z])(?=.*\d)(?=.*[ !\"#$%&'()*+,\-./:;<=>?@[\\\]^_`{|}~])[A-Za-z\d !"#$%&'()*+,\-./:;<=>?@[\\\]^_`{|}~]{8,}$/;
+const isNewPasswordValid = computed(() => {
+	return regex.test(newPassword.value);
+});
+const isNewPasswordRepeatValid = computed(() => {
+	return regex.test(newPasswordRepeat.value);
+});
+const isPasswordMatch = computed(
+	() => newPassword.value === newPasswordRepeat.value,
+);
 
-        // Toggle visibility for new password
-        const toggleNewPasswordVisibility = () => {
-            showNewPassword.value = !showNewPassword.value;
-        };
+const showNewPassword = ref(false);
+const showNewPasswordRepeat = ref(false);
 
-        // Toggle visibility for repeated password
-        const toggleNewPasswordRepeatVisibility = () => {
-            showNewPasswordRepeat.value = !showNewPasswordRepeat.value;
-        };
-
-        async function submitChangeUserPasswordForm() {
-			try {
-				if (
-					isNewPasswordValid.value &&
-					isNewPasswordRepeatValid.value &&
-					isPasswordMatch.value
-				) {
-					const data = {
-						password: newPassword.value,
-					};
-					await users.editUserPassword(props.user.id, data);
-					// Set the success message and show the success alert.
-					push.success(
-						t("usersChangeUserPasswordModalComponent.userChangePasswordSuccessMessage"),
-					);
-				}
-			} catch (error) {
-				// If there is an error, set the error message and show the error alert.
-				push.error(
-					`${t("usersChangeUserPasswordModalComponent.userChangePasswordErrorMessage")} - ${error}`,
-				);
-			}
-		}
-
-        return {
-			newPassword,
-			newPasswordRepeat,
-			isNewPasswordValid,
-			isNewPasswordRepeatValid,
-			isPasswordMatch,
-			submitChangeUserPasswordForm,
-            showNewPassword,
-            showNewPasswordRepeat,
-            toggleNewPasswordVisibility,
-            toggleNewPasswordRepeatVisibility,
-		};
-    },
+// Toggle visibility for new password
+const toggleNewPasswordVisibility = () => {
+	showNewPassword.value = !showNewPassword.value;
 };
+
+// Toggle visibility for repeated password
+const toggleNewPasswordRepeatVisibility = () => {
+	showNewPasswordRepeat.value = !showNewPasswordRepeat.value;
+};
+
+async function submitChangeUserPasswordForm() {
+	try {
+		if (
+			isNewPasswordValid.value &&
+			isNewPasswordRepeatValid.value &&
+			isPasswordMatch.value
+		) {
+			const data = {
+				password: newPassword.value,
+			};
+			await users.editUserPassword(props.user.id, data);
+			// Set the success message and show the success alert.
+			push.success(
+				t("usersChangeUserPasswordModalComponent.userChangePasswordSuccessMessage"),
+			);
+		}
+	} catch (error) {
+		// If there is an error, set the error message and show the error alert.
+		push.error(
+			`${t("usersChangeUserPasswordModalComponent.userChangePasswordErrorMessage")} - ${error}`,
+		);
+	}
+}
 </script>

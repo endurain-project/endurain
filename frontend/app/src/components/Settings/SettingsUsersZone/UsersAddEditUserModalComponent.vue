@@ -119,15 +119,6 @@
                                 <option :value="2">{{ $t("usersAddEditUserModalComponent.addEditUserModalIsActiveOption2") }}</option>
                             </select>
                         </div>
-                        <!-- user default_activity_visibility fields -->
-                        <div v-if="action == 'profile'">
-                            <label for="userDefaultActivityVisibilityAddEdit"><b>* {{ $t("usersAddEditUserModalComponent.addEditUserModalDefaultActivityVisibilityLabel") }}</b></label>
-                            <select class="form-select" name="userDefaultActivityVisibilityAddEdit" v-model="newEditUserDefaultActivityVisibility" required>
-                                <option :value="0">{{ $t("usersAddEditUserModalComponent.addEditUserModalDefaultActivityVisibilityOption1") }}</option>
-                                <option :value="1">{{ $t("usersAddEditUserModalComponent.addEditUserModalDefaultActivityVisibilityOption2") }}</option>
-                                <option :value="2">{{ $t("usersAddEditUserModalComponent.addEditUserModalDefaultActivityVisibilityOption3") }}</option>
-                            </select>
-                        </div>
 
                         <p>* {{ $t("generalItems.requiredField") }}</p>
                     </div>
@@ -198,7 +189,6 @@ export default {
 		const newEditUserPreferredLanguage = ref("us");
 		const newEditUserAccessType = ref(1);
         const newEditUserIsActive = ref(1);
-        const newEditUserDefaultActivityVisibility = ref(0);
         const newEditUserPhotoPath = ref(null);
         const isUsernameExists = ref(true);
         const validateUsernameExists = debounce(async () => {
@@ -294,7 +284,6 @@ export default {
             newEditUserPreferredLanguage.value = props.user.preferred_language;
             newEditUserAccessType.value = props.user.access_type;
             newEditUserIsActive.value = props.user.is_active;
-            newEditUserDefaultActivityVisibility.value = props.user.default_activity_visibility;
             newEditUserPhotoPath.value = props.user.photo_path;
             if (props.user.height) {
                 const { feet, inches } = cmToFeetInches(props.user.height);
@@ -342,7 +331,6 @@ export default {
 						access_type: newEditUserAccessType.value,
 						photo_path: null,
 						is_active: newEditUserIsActive.value,
-                        default_activity_visibility: newEditUserDefaultActivityVisibility.value,
 						password: newUserPassword.value,
 					};
 
@@ -393,7 +381,6 @@ export default {
 					access_type: newEditUserAccessType.value,
 					photo_path: newEditUserPhotoPath.value,
 					is_active: newEditUserIsActive.value,
-                    default_activity_visibility: newEditUserDefaultActivityVisibility.value,
 				};
 
                 // If there is a photo, upload it and get the photo url.
@@ -489,7 +476,6 @@ export default {
             newEditUserPreferredLanguage,
             newEditUserAccessType,
             newEditUserIsActive,
-            newEditUserDefaultActivityVisibility,
             newEditUserPhotoPath,
             newUserPassword,
             isUsernameExists,

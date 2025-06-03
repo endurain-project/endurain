@@ -12,6 +12,8 @@ import users.user_integrations.crud as user_integrations_crud
 
 import users.user_default_gear.crud as user_default_gear_crud
 
+import users.user_privacy_settings.crud as users_privacy_settings_crud
+
 import health_targets.crud as health_targets_crud
 
 import session.security as session_security
@@ -144,6 +146,9 @@ async def create_user(
 
     # Create the user integrations in the database
     user_integrations_crud.create_user_integrations(created_user.id, db)
+
+    # Create the user privacy settings
+    users_privacy_settings_crud.create_user_privacy_settings(created_user.id, db)
 
     # Create the user health targets
     health_targets_crud.create_health_targets(created_user.id, db)

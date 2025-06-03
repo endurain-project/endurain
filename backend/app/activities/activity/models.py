@@ -6,6 +6,7 @@ from sqlalchemy import (
     ForeignKey,
     DECIMAL,
     BigInteger,
+    Boolean,
 )
 from sqlalchemy.orm import relationship
 from core.database import Base
@@ -127,6 +128,48 @@ class Activity(Base):
     )
     garminconnect_gear_id = Column(
         String(length=45), nullable=True, comment="Garmin Connect gear ID"
+    )
+    hide_start_time = Column(
+        Boolean,
+        nullable=False,
+        comment="Hide activity start time",
+    )
+    hide_location = Column(
+        Boolean,
+        nullable=False,
+        default=False,
+        comment="Hide activity location",
+    )
+    hide_map = Column(
+        Boolean,
+        nullable=False,
+        comment="Hide activity map",
+    )
+    hide_hr = Column(
+        Boolean,
+        nullable=False,
+        default=False,
+        comment="Hide activity heart rate",
+    )
+    hide_power = Column(
+        Boolean,
+        nullable=False,
+        comment="Hide activity power",
+    )
+    hide_cadence = Column(
+        Boolean,
+        nullable=False,
+        comment="Hide activity cadence",
+    )
+    hide_elevation = Column(
+        Boolean,
+        nullable=False,
+        comment="Hide activity elevation",
+    )
+    hide_speed = Column(
+        Boolean,
+        nullable=False,
+        comment="Hide activity speed",
     )
 
     # Define a relationship to the User model

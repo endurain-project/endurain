@@ -43,6 +43,14 @@
     "privacyOption1": "Public",
     "privacyOption2": "Followers",
     "privacyOption3": "Private",
+    "defaultActivityStartTime": "Hide activity start time",
+    "defaultActivityLocation": "Hide activity location",
+    "defaultActivityMap": "Hide activity map",
+    "defaultActivityHeartRate": "Hide activity heart rate",
+    "defaultActivityPower": "Hide activity power",
+    "defaultActivityCadence": "Hide activity cadence",
+    "defaultActivityElevation": "Hide activity elevation",
+    "defaultActivitySpeed": "Hide activity speed",
     "buttonChangeDefaultActivityVisibility": "Change default visibility",
     "buttonChangeUserActivitiesVisibility": "Change activities visibility",
     "changeUserActivitiesVisibilityModalVisibilityLabel": "Visibility",
@@ -52,5 +60,7 @@
     "errorUnableToGetGear": "Unable to get gear",
     "errorUnableToGetDefaultGear": "Unable to get default gear",
     "successUpdateDefaultGear": "Default gear updated successfully",
-    "errorUpdateDefaultGear": "Error updating default gear"
+    "errorUpdateDefaultGear": "Error updating default gear",
+    "successUpdateUserPrivacySettings": "User privacy settings updated successfully",
+    "errorUpdateUserPrivacySettings": "Error updating user privacy settings"
 }
