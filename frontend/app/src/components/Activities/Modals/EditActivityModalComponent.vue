@@ -193,7 +193,7 @@
     </div>
 </template>
 
-<script>
+<script setup>
 import { ref } from "vue";
 import { useI18n } from "vue-i18n";
 // Import Notivue push
@@ -203,86 +203,65 @@ import { activities } from "@/services/activitiesService";
 // Importing the utils
 import { activityTypeIsRunning, activityTypeIsCycling, activityTypeIsWalking, activityTypeIsSwimming } from "@/utils/activityUtils";
 
-export default {
-    components: {},
-    props: {
-        activity: {
-            type: Object,
-            required: true,
-        },
+// Define props
+const props = defineProps({
+    activity: {
+        type: Object,
+        required: true,
     },
-    emits: ["activityEditedFields"],
-    setup(props, { emit }) {
-        const { t } = useI18n();
-        const editActivityDescription = ref(props.activity.description);
-        const editActivityName = ref(props.activity.name);
-        const editActivityType = ref(props.activity.activity_type);
-        const editActivityVisibility = ref(props.activity.visibility);
-        const editActivityHideStartTime = ref(props.activity.hide_start_time);
-        const editActivityHideLocation = ref(props.activity.hide_location);
-        const editActivityHideMap = ref(props.activity.hide_map);
-        const editActivityHideHr = ref(props.activity.hide_hr);
-        const editActivityHidePower = ref(props.activity.hide_power);
-        const editActivityHideCadence = ref(props.activity.hide_cadence);
-        const editActivityHideElevation = ref(props.activity.hide_elevation);
-        const editActivityHideSpeed = ref(props.activity.hide_speed);
-        const editActivityHidePace = ref(props.activity.hide_pace);
+});
 
-        async function submitEditActivityForm() {
-            try {
-                const data = {
-                    id: props.activity.id,
-                    description: editActivityDescription.value,
-                    name: editActivityName.value,
-                    activity_type: editActivityType.value,
-                    visibility: editActivityVisibility.value,
-                    hide_start_time: editActivityHideStartTime.value,
-                    hide_location: editActivityHideLocation.value,
-                    hide_map: editActivityHideMap.value,
-                    hide_hr: editActivityHideHr.value,
-                    hide_power: editActivityHidePower.value,
-                    hide_cadence: editActivityHideCadence.value,
-                    hide_elevation: editActivityHideElevation.value,
-                    hide_speed: editActivityHideSpeed.value,
-                    hide_pace: editActivityHidePace.value,
-                };
+// Define emits
+const emit = defineEmits(["activityEditedFields"]);
 
-                // Call the service to edit the activity
-                await activities.editActivity(data);
+// Setup
+const { t } = useI18n();
+const editActivityDescription = ref(props.activity.description);
+const editActivityName = ref(props.activity.name);
+const editActivityType = ref(props.activity.activity_type);
+const editActivityVisibility = ref(props.activity.visibility);
+const editActivityHideStartTime = ref(props.activity.hide_start_time);
+const editActivityHideLocation = ref(props.activity.hide_location);
+const editActivityHideMap = ref(props.activity.hide_map);
+const editActivityHideHr = ref(props.activity.hide_hr);
+const editActivityHidePower = ref(props.activity.hide_power);
+const editActivityHideCadence = ref(props.activity.hide_cadence);
+const editActivityHideElevation = ref(props.activity.hide_elevation);
+const editActivityHideSpeed = ref(props.activity.hide_speed);
+const editActivityHidePace = ref(props.activity.hide_pace);
 
-                // show success toast
-                push.success(t("editActivityModalComponent.successActivityEdit"));
-
-                // Emit the activityEditedFields event to the parent component
-                emit("activityEditedFields", data);
-            } catch (error) {
-                // If there is an error, set the error message and show the error alert.
-                push.error(
-                    `${t("editActivityModalComponent.errorActivityEdit")} - ${error}`,
-                );
-            }
-        }
-
-        return {
-            editActivityDescription,
-            editActivityName,
-            editActivityType,
-            editActivityVisibility,
-            editActivityHideStartTime,
-            editActivityHideLocation,
-            editActivityHideMap,
-            editActivityHideHr,
-            editActivityHidePower,
-            editActivityHideCadence,
-            editActivityHideElevation,
-            editActivityHideSpeed,
-            editActivityHidePace,
-            submitEditActivityForm,
-            activityTypeIsCycling,
-            activityTypeIsRunning,
-            activityTypeIsWalking,
-            activityTypeIsSwimming,
+async function submitEditActivityForm() {
+    try {
+        const data = {
+            id: props.activity.id,
+            description: editActivityDescription.value,
+            name: editActivityName.value,
+            activity_type: editActivityType.value,
+            visibility: editActivityVisibility.value,
+            hide_start_time: editActivityHideStartTime.value,
+            hide_location: editActivityHideLocation.value,
+            hide_map: editActivityHideMap.value,
+            hide_hr: editActivityHideHr.value,
+            hide_power: editActivityHidePower.value,
+            hide_cadence: editActivityHideCadence.value,
+            hide_elevation: editActivityHideElevation.value,
+            hide_speed: editActivityHideSpeed.value,
+            hide_pace: editActivityHidePace.value,
         };
-    },
-};
+
+        // Call the service to edit the activity
+        await activities.editActivity(data);
+
+        // show success toast
+        push.success(t("editActivityModalComponent.successActivityEdit"));
+
+        // Emit the activityEditedFields event to the parent component
+        emit("activityEditedFields", data);
+    } catch (error) {
+        // If there is an error, set the error message and show the error alert.
+        push.error(
+            `${t("editActivityModalComponent.errorActivityEdit")} - ${error}`,
+        );
+    }
+}
 </script>

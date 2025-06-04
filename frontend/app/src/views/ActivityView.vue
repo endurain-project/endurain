@@ -11,7 +11,7 @@
 		<div class="mt-3 mb-3" v-if="isLoading">
 			<LoadingComponent />
 		</div>
-		<div class="mt-3 mb-3" v-else-if="activity">
+		<div class="mt-3 mb-3" v-else-if="activity && (authStore.isAuthenticated || (activity.hide_map === false && authStore.isAuthenticated === false))">
 			<ActivityMapComponent :activity="activity" :source="'activity'"/>
 		</div>
 		
@@ -180,10 +180,10 @@ export default {
 			activity.value.description = data.description;
 			activity.value.activity_type = data.activity_type;
 			activity.value.visibility = data.visibility;
-			activity,value.hide_start_time = data.hide_start_time;
-			activity,value.location = data.location;
-			activity,value.hide_map = data.hide_map;
-			activity,value.hide_hr = data.hide_hr;
+			activity.value.hide_start_time = data.hide_start_time;
+			activity.value.location = data.location;
+			activity.value.hide_map = data.hide_map;
+			activity.value.hide_hr = data.hide_hr;
 			activity.value.hide_power = data.hide_power;
 			activity.value.hide_cadence = data.hide_cadence;
 			activity.value.hide_elevation = data.hide_elevation;

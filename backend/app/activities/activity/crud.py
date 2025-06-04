@@ -860,14 +860,16 @@ def create_activity(
         ) from err
 
 
-def edit_activity(user_id: int, activity: activities_schema.Activity, db: Session):
+def edit_activity(
+    user_id: int, activity_attributes: activities_schema.ActivityEdit, db: Session
+):
     try:
         # Get the activity from the database
         db_activity = (
             db.query(activities_models.Activity)
             .filter(
                 activities_models.Activity.user_id == user_id,
-                activities_models.Activity.id == activity.id,
+                activities_models.Activity.id == activity_attributes.id,
             )
             .first()
         )
@@ -880,11 +882,13 @@ def edit_activity(user_id: int, activity: activities_schema.Activity, db: Sessio
             )
 
         # Check if 'activity' is a Pydantic model instance and convert it to a dictionary
-        if isinstance(activity, BaseModel):
-            activity_data = activity.model_dump(exclude_unset=True)
+        if isinstance(activity_attributes, BaseModel):
+            activity_data = activity_attributes.model_dump(exclude_unset=True)
         else:
             activity_data = {
-                key: value for key, value in vars(activity).items() if value is not None
+                key: value
+                for key, value in vars(activity_attributes).items()
+                if value is not None
             }
 
         # Iterate over the fields and update the db_activity dynamically
