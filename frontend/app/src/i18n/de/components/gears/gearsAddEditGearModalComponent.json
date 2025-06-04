@@ -20,5 +20,5 @@
     "successGearAdded": "Ausrüstung erfolgreich hinzugefügt",
     "errorGearAdd": "Fehler beim Hinzufügen der Ausrüstung",
     "successGearEdited": "Ausrüstung erfolgreich bearbeitet",
-    "errorGearEdit": "Error editing gear"
+    "errorGearEdit": "Fehler beim bearbeiten aufgetreten"
 }
