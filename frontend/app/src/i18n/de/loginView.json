@@ -1,6 +1,6 @@
 {
     "sessionExpired": "Benutzersitzung abgelaufen",
-    "logoutSuccess": "You have been successfully logged out",
+    "logoutSuccess": "Du wurdest erfolgreich abgemeldet",
     "error401": "Benutzername oder Passwort ungültig",
     "error403": "Du hast keine Berechtigung auf diese Ressource",
     "error500": "Es war nicht möglich, sich mit dem Server zu verbinden. Bitte versuche es später erneut",
