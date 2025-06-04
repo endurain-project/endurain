@@ -11,7 +11,7 @@
 		<div class="mt-3 mb-3" v-if="isLoading">
 			<LoadingComponent />
 		</div>
-		<div class="mt-3 mb-3" v-else-if="activity && (authStore.isAuthenticated || (activity.hide_map === false && authStore.isAuthenticated === false))">
+		<div class="mt-3 mb-3" v-else-if="activity && ((authStore.isAuthenticated && authStore.user.id === activity.user_id) || (activity.hide_map === false && authStore.isAuthenticated === false))">
 			<ActivityMapComponent :activity="activity" :source="'activity'"/>
 		</div>
 		

@@ -37,12 +37,11 @@
                         <!-- Display the activity type -->
                         <span>
                             <font-awesome-icon class="me-1" :icon="getIcon(activity.activity_type)" />
-                            <span v-if="activity.activity_type == 3">{{ $t("activitySummaryComponent.labelVirtual") }}</span>
+                            <span v-if="activity.activity_type === 3 || activity.activity_type === 7">{{ $t("activitySummaryComponent.labelVirtual") }}</span>
                         </span>
 
                         <!-- Display the date and time -->
-                        <span>{{ formatDateMed(activity.start_time) }}</span> @
-                        <span>{{ formatTime(activity.start_time) }}</span>
+                        <span v-if="activity.start_time">{{ formatDateMed(activity.start_time) }} @ {{ formatTime(activity.start_time) }}</span>
                         <!-- Conditionally display city and country -->
                         <span v-if="activity.town || activity.city || activity.country">
                             - 
@@ -197,8 +196,8 @@
     </div>
 </template>
 
-<script>
-import { ref, onMounted, computed } from "vue";
+<script setup>
+import { ref, onMounted } from "vue";
 import { useI18n } from "vue-i18n";
 import { useRouter } from "vue-router";
 // Importing the stores
@@ -232,92 +231,70 @@ import {
 	calculateTimeDifference,
 } from "@/utils/dateTimeUtils";
 
-export default {
-	components: {
-		LoadingComponent,
-		UserAvatarComponent,
-		EditActivityModalComponent,
-        ModalComponent,
+// Props
+const props = defineProps({
+	activity: {
+		type: Object,
+		required: true,
 	},
-	props: {
-		activity: {
-			type: Object,
-			required: true,
-		},
-		source: {
-			type: String,
-			required: true,
-		},
-        units: {
-            type: Number,
-            default: 1,
-        },
+	source: {
+		type: String,
+		required: true,
 	},
-	emits: ["activityEditedFields", "activityDeleted"],
-	setup(props, { emit }) {
-		const router = useRouter();
-		const authStore = useAuthStore();
-        const serverSettingsStore = useServerSettingsStore();
-		const { t } = useI18n();
-		const isLoading = ref(true);
-		const userActivity = ref(null);
+    units: {
+        type: Number,
+        default: 1,
+    },
+});
 
-		onMounted(async () => {
-			try {
-                if (authStore.isAuthenticated) {
-                    userActivity.value = await users.getUserById(props.activity.user_id);
-                } else {
-                    if (serverSettingsStore.serverSettings.public_shareable_links_user_info) {
-                        userActivity.value = await users.getPublicUserById(props.activity.user_id);
-                    }
-                }
-			} catch (error) {
-				push.error(`${t("activitySummaryComponent.errorFetchingUserById")} - ${error}`);
-			} finally {
-				isLoading.value = false;
-			}
-		});
+// Emits
+const emit = defineEmits(["activityEditedFields", "activityDeleted"]);
 
-		async function submitDeleteActivity() {
-			try {
-				userActivity.value = await activities.deleteActivity(props.activity.id);
-                if (props.source === 'activity') {
-                    return router.push({
-                        path: "/",
-                        query: { activityDeleted: "true", activityId: props.activity.id },
-                    });
-                }
-                emit("activityDeleted", props.activity.id);
-			} catch (error) {
-				push.error(`${t("activitySummaryComponent.errorDeletingActivity")} - ${error}`);
-			}
-		}
+// Composables
+const router = useRouter();
+const authStore = useAuthStore();
+const serverSettingsStore = useServerSettingsStore();
+const { t } = useI18n();
 
-		function updateActivityFieldsOnEdit(data) {
-			// Emit the activityEditedFields event to the parent component
-			emit("activityEditedFields", data);
-		}
+// Reactive data
+const isLoading = ref(true);
+const userActivity = ref(null);
 
-		return {
-			authStore,
-			isLoading,
-			t,
-			userActivity,
-			formatDateMed,
-			formatTime,
-			calculateTimeDifference,
-			submitDeleteActivity,
-			updateActivityFieldsOnEdit,
-            getIcon,
-            formatLocation,
-            formatDistance,
-            formatCalories,
-            formatElevation,
-            formatPace,
-            formatAverageSpeed,
-            formatHr,
-            formatPower,
-		};
-	},
-};
+// Lifecycle
+onMounted(async () => {
+	try {
+        if (authStore.isAuthenticated) {
+            userActivity.value = await users.getUserById(props.activity.user_id);
+        } else {
+            if (serverSettingsStore.serverSettings.public_shareable_links_user_info) {
+                userActivity.value = await users.getPublicUserById(props.activity.user_id);
+            }
+        }
+	} catch (error) {
+		push.error(`${t("activitySummaryComponent.errorFetchingUserById")} - ${error}`);
+	} finally {
+		isLoading.value = false;
+	}
+});
+
+// Methods
+async function submitDeleteActivity() {
+	try {
+		userActivity.value = await activities.deleteActivity(props.activity.id);
+        if (props.source === 'activity') {
+            return router.push({
+                path: "/",
+                query: { activityDeleted: "true", activityId: props.activity.id },
+            });
+        }
+        emit("activityDeleted", props.activity.id);
+	} catch (error) {
+		push.error(`${t("activitySummaryComponent.errorDeletingActivity")} - ${error}`);
+	}
+}
+
+function updateActivityFieldsOnEdit(data) {
+	// Emit the activityEditedFields event to the parent component
+	emit("activityEditedFields", data);
+}
 </script>

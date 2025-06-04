@@ -170,7 +170,7 @@
                     <div class="card-body">
                         <ActivitySummaryComponent :activity="activity" :source="'home'" :units="userProfile.units"/>
                     </div>
-                    <ActivityMapComponent class="mx-3 mb-3" :activity="activity" :source="'home'"/>
+                    <ActivityMapComponent class="mx-3 mb-3" :activity="activity" :source="'home'" v-if="activity && ((authStore.isAuthenticated && authStore.user.id === activity.user_id) || (activity.hide_map === false && authStore.isAuthenticated === false))"/>
                 </div>
             </div>
             <!-- Displaying a message or component when there are no activities -->
