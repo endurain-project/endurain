@@ -211,7 +211,7 @@
                 <h4 class="mt-4">{{ $t("settingsUserProfileZone.titlePrivacy") }}</h4>
                 <LoadingComponent v-if="isLoading"/>
                 <div class="row" v-else>
-                    <div class="col-lg-6 col-md-12">
+                    <div class="col-lg-4 col-md-12">
                         <!-- user default_activity_visibility -->
                         <form>
                             <label for="activityVisibility">{{ $t("settingsUserProfileZone.defaultActivityVisibility") }}</label>
@@ -254,7 +254,7 @@
                             </select>
                         </form>
                     </div>
-                    <div class="col-lg-6 col-md-12">
+                    <div class="col-lg-4 col-md-12">
                         <!-- user hide_activity_power -->
                         <form>
                             <label for="activityPower">{{ $t("settingsUserProfileZone.defaultActivityPower") }}</label>
@@ -287,9 +287,36 @@
                                 <option :value="false">{{ $t("generalItems.no") }}</option>
                             </select>
                         </form>
+                        <!-- user hide_activity_pace -->
                         <form>
                             <label for="activityPace">{{ $t("settingsUserProfileZone.defaultActivityPace") }}</label>
                             <select class="form-select" name="activityPace" v-model="activityPace" required>
+                                <option :value="true">{{ $t("generalItems.yes") }}</option>
+                                <option :value="false">{{ $t("generalItems.no") }}</option>
+                            </select>
+                        </form>
+                    </div>
+                    <div class="col-lg-4 col-md-12">
+                        <!-- user hide_activity_laps -->
+                        <form>
+                            <label for="activityLaps">{{ $t("settingsUserProfileZone.defaultActivityLaps") }}</label>
+                            <select class="form-select" name="activityLaps" v-model="activityLaps" required>
+                                <option :value="true">{{ $t("generalItems.yes") }}</option>
+                                <option :value="false">{{ $t("generalItems.no") }}</option>
+                            </select>
+                        </form>
+                        <!-- user hide_activity_workout_sets_steps -->
+                        <form>
+                            <label for="activitySetsSteps">{{ $t("settingsUserProfileZone.defaultActivitySetsSteps") }}</label>
+                            <select class="form-select" name="activitySetsSteps" v-model="activitySetsSteps" required>
+                                <option :value="true">{{ $t("generalItems.yes") }}</option>
+                                <option :value="false">{{ $t("generalItems.no") }}</option>
+                            </select>
+                        </form>
+                        <!-- user hide_activity_gear -->
+                        <form>
+                            <label for="activityGear">{{ $t("settingsUserProfileZone.defaultActivityGear") }}</label>
+                            <select class="form-select" name="activityGear" v-model="activityGear" required>
                                 <option :value="true">{{ $t("generalItems.yes") }}</option>
                                 <option :value="false">{{ $t("generalItems.no") }}</option>
                             </select>
@@ -369,6 +396,9 @@ const activityCadence = ref(authStore.user.hide_activity_cadence);
 const activityElevation = ref(authStore.user.hide_activity_elevation);
 const activitySpeed = ref(authStore.user.hide_activity_speed);
 const activityPace = ref(authStore.user.hide_activity_pace);
+const activityLaps = ref(authStore.user.hide_activity_laps);
+const activitySetsSteps = ref(authStore.user.hide_activity_workout_sets_steps);
+const activityGear = ref(authStore.user.hide_activity_gear);
 
 async function submitDeleteUserPhoto() {
 	try {
@@ -447,6 +477,9 @@ async function updateUserPrivacySettings() {
         hide_activity_elevation: activityElevation.value,
         hide_activity_speed: activitySpeed.value,
         hide_activity_pace: activityPace.value,
+        hide_activity_laps: activityLaps.value,
+        hide_activity_workout_sets_steps: activitySetsSteps.value,
+        hide_activity_gear: activityGear.value,
     };
     try {
         // Update the user privacy settings in the DB
@@ -463,6 +496,9 @@ async function updateUserPrivacySettings() {
         authStore.user.hide_activity_elevation = activityElevation.value;
         authStore.user.hide_activity_speed = activitySpeed.value;
         authStore.user.hide_activity_pace = activityPace.value;
+        authStore.user.hide_activity_laps = activityLaps.value;
+        authStore.user.hide_activity_workout_sets_steps = activitySetsSteps.value;
+        authStore.user.hide_activity_gear = activityGear.value;
 
         push.success(t("settingsUserProfileZone.successUpdateUserPrivacySettings"));
     } catch (error) {
@@ -547,6 +583,9 @@ watch(
         activityElevation,
         activitySpeed,
         activityPace,
+        activityLaps,
+        activitySetsSteps,
+        activityGear,
 	],
 	async () => {
 		if (!isMounted.value || isLoading.value) return;

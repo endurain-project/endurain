@@ -202,7 +202,7 @@
     </div>
 </template>
 
-<script>
+<script setup>
 import { ref, onMounted, computed } from "vue";
 import { useI18n } from "vue-i18n";
 // Importing the components
@@ -211,142 +211,123 @@ import ActivityStreamsLineChartComponent from "@/components/Activities/ActivityS
 import ActivityWorkoutStepsComponent from "@/components/Activities/ActivityWorkoutStepsComponent.vue";
 // Import Notivue push
 import { push } from "notivue";
+import { useAuthStore } from "@/stores/authStore";
 import { formatPaceMetric, formatPaceImperial, formatPaceSwimMetric, formatPaceSwimImperial, formatAverageSpeedMetric, formatAverageSpeedImperial, activityTypeIsSwimming } from "@/utils/activityUtils";
 import { formatSecondsToMinutes } from "@/utils/dateTimeUtils";
 import {
 	metersToFeet,
 } from "@/utils/unitsUtils";
 
-export default {
-	components: {
-		ActivityLapsComponent,
-		ActivityStreamsLineChartComponent,
-        ActivityWorkoutStepsComponent,
+// Define props
+const props = defineProps({
+	activity: {
+		type: Object,
+		required: true,
 	},
-	props: {
-		activity: {
-			type: Object,
-			required: true,
-		},
-        activityActivityLaps: {
-			type: [Object, null],
-			required: true,
-		},
-		activityActivityWorkoutSteps: {
-			type: [Object, null],
-			required: true,
-		},
-        activityActivityStreams: {
-			type: Object,
-			required: true,
-		},
-		units: {
-			type: Number,
-			default: 1,
-		},
-		activityActivityExerciseTitles: {
-			type: [Object, null],
-			required: true,
-		},
-		activityActivitySets: {
-			type: [Object, null],
-			required: true,
-		},
+	activityActivityLaps: {
+		type: [Object, null],
+		required: true,
 	},
-	setup(props) {
-		const { t } = useI18n();
-		const hrPresent = ref(false);
-		const powerPresent = ref(false);
-		const elePresent = ref(false);
-		const cadPresent = ref(false);
-		const velPresent = ref(false);
-		const pacePresent = ref(false);
-        const formattedPace = ref(null);
+	activityActivityWorkoutSteps: {
+		type: [Object, null],
+		required: true,
+	},
+	activityActivityStreams: {
+		type: Object,
+		required: true,
+	},
+	units: {
+		type: Number,
+		default: 1,
+	},
+	activityActivityExerciseTitles: {
+		type: [Object, null],
+		required: true,
+	},
+	activityActivitySets: {
+		type: [Object, null],
+		required: true,
+	},
+});
 
-        onMounted(async () => {
-			try {
-                if (props.activityActivityStreams && props.activityActivityStreams.length > 0) {
-					// Check if the activity has the streams
-					for (let i = 0; i < props.activityActivityStreams.length; i++) {
-						if (props.activityActivityStreams[i].stream_type === 1) {
-							hrPresent.value = true;
-						}
-						if (props.activityActivityStreams[i].stream_type === 2) {
-							powerPresent.value = true;
-						}
-						if (props.activityActivityStreams[i].stream_type === 3) {
-							cadPresent.value = true;
-						}
-						if (props.activityActivityStreams[i].stream_type === 4) {
-							elePresent.value = true;
-						}
-						if (props.activityActivityStreams[i].stream_type === 5) {
-                            if (
-								props.activity.activity_type === 4 ||
-								props.activity.activity_type === 5 ||
-								props.activity.activity_type === 6 ||
-								props.activity.activity_type === 7 ||
-								props.activity.activity_type === 27
-							) {
-                                velPresent.value = true;
-                            }
-						}
-						if (props.activityActivityStreams[i].stream_type === 6) {
-                            if (
-								props.activity.activity_type !== 4 &&
-								props.activity.activity_type !== 5 &&
-								props.activity.activity_type !== 6 &&
-								props.activity.activity_type !== 7 &&
-								props.activity.activity_type !== 27
-							) {
-                                pacePresent.value = true;
-                            }
-						}
+// Setup composables and reactive data
+const { t } = useI18n();
+const authStore = useAuthStore();
+const hrPresent = ref(false);
+const powerPresent = ref(false);
+const elePresent = ref(false);
+const cadPresent = ref(false);
+const velPresent = ref(false);
+const pacePresent = ref(false);
+const formattedPace = ref(null);
+
+onMounted(async () => {
+	try {
+		if (props.activityActivityStreams && props.activityActivityStreams.length > 0) {
+			// Check if the activity has the streams
+			for (let i = 0; i < props.activityActivityStreams.length; i++) {
+				if (props.activityActivityStreams[i].stream_type === 1 && ((authStore.isAuthenticated && authStore.user.id === props.activity.user_id) || (authStore.isAuthenticated && authStore.user.id !== props.activity.user_id && props.activity.hide_hr === false) || (!authStore.isAuthenticated && props.activity.hide_hr === false))) {
+					hrPresent.value = true;
+				}
+				if (props.activityActivityStreams[i].stream_type === 2 && ((authStore.isAuthenticated && authStore.user.id === props.activity.user_id) || (authStore.isAuthenticated && authStore.user.id !== props.activity.user_id && props.activity.hide_power === false) || (!authStore.isAuthenticated && props.activity.hide_power === false))) {
+					powerPresent.value = true;
+				}
+				if (props.activityActivityStreams[i].stream_type === 3 && ((authStore.isAuthenticated && authStore.user.id === props.activity.user_id) || (authStore.isAuthenticated && authStore.user.id !== props.activity.user_id && props.activity.hide_cadence === false) || (!authStore.isAuthenticated && props.activity.hide_cadence === false))) {
+					cadPresent.value = true;
+				}
+				if (props.activityActivityStreams[i].stream_type === 4 && ((authStore.isAuthenticated && authStore.user.id === props.activity.user_id) || (authStore.isAuthenticated && authStore.user.id !== props.activity.user_id && props.activity.hide_elevation === false) || (!authStore.isAuthenticated && props.activity.hide_elevation === false))) {
+					elePresent.value = true;
+				}
+				if (props.activityActivityStreams[i].stream_type === 5 && ((authStore.isAuthenticated && authStore.user.id === props.activity.user_id) || (authStore.isAuthenticated && authStore.user.id !== props.activity.user_id && props.activity.hide_speed === false) || (!authStore.isAuthenticated && props.activity.hide_speed === false))) {
+					if (
+						props.activity.activity_type === 4 ||
+						props.activity.activity_type === 5 ||
+						props.activity.activity_type === 6 ||
+						props.activity.activity_type === 7 ||
+						props.activity.activity_type === 27
+					) {
+						velPresent.value = true;
 					}
 				}
-            } catch (error) {
-				// If there is an error, set the error message and show the error alert.
-				push.error(
-					`${t("activityMandAbovePillsComponent.errorMessageProcessingActivityStreams")} - ${error}`,
-				);
+				if (props.activityActivityStreams[i].stream_type === 6 && ((authStore.isAuthenticated && authStore.user.id === props.activity.user_id) || (authStore.isAuthenticated && authStore.user.id !== props.activity.user_id && props.activity.hide_pace === false) || (!authStore.isAuthenticated && props.activity.hide_pace === false))) {
+					if (
+						props.activity.activity_type !== 4 &&
+						props.activity.activity_type !== 5 &&
+						props.activity.activity_type !== 6 &&
+						props.activity.activity_type !== 7 &&
+						props.activity.activity_type !== 27
+					) {
+						pacePresent.value = true;
+					}
+				}
 			}
+		}
+	} catch (error) {
+		// If there is an error, set the error message and show the error alert.
+		push.error(
+			`${t("activityMandAbovePillsComponent.errorMessageProcessingActivityStreams")} - ${error}`,
+		);
+	}
 
-            try {
-                if (
-                    activityTypeIsSwimming(props.activity) ||
-                    props.activity.activity_type === 13
-                ) {
-                    if (Number(props.units) === 1) {
-                        formattedPace.value = computed(() => formatPaceSwimMetric(props.activity.pace));
-                    } else {
-                        formattedPace.value = computed(() => formatPaceSwimImperial(props.activity.pace));
-                    }
-                } else {
-                    if (Number(props.units) === 1) {
-                        formattedPace.value = computed(() => formatPaceMetric(props.activity.pace));
-                    } else {
-                        formattedPace.value = computed(() => formatPaceImperial(props.activity.pace));
-                    }
-                }
-			} catch (error) {
-				push.error(`${t("activitySummaryComponent.errorFetchingUserById")} - ${error}`);
+	try {
+		if (
+			activityTypeIsSwimming(props.activity) ||
+			props.activity.activity_type === 13
+		) {
+			if (Number(props.units) === 1) {
+				formattedPace.value = computed(() => formatPaceSwimMetric(props.activity.pace));
+			} else {
+				formattedPace.value = computed(() => formatPaceSwimImperial(props.activity.pace));
 			}
-        });
-
-		return {
-			hrPresent,
-			powerPresent,
-			elePresent,
-			cadPresent,
-			velPresent,
-			pacePresent,
-            formattedPace,
-            formatSecondsToMinutes,
-            formatAverageSpeedMetric,
-            formatAverageSpeedImperial,
-            activityTypeIsSwimming,
-            metersToFeet,
-		};
-	},
-};
+		} else {
+			if (Number(props.units) === 1) {
+				formattedPace.value = computed(() => formatPaceMetric(props.activity.pace));
+			} else {
+				formattedPace.value = computed(() => formatPaceImperial(props.activity.pace));
+			}
+		}
+	} catch (error) {
+		push.error(`${t("activitySummaryComponent.errorFetchingUserById")} - ${error}`);
+	}
+});
 </script>

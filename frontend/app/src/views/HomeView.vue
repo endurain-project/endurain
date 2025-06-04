@@ -277,7 +277,6 @@ export default {
 			const notification = push.promise(t("homeView.refreshingActivities"));
 
 			try {
-				console.log("Refreshing activities");
 				// Get the user activities
 				const newActivities = await activities.getActivityRefresh();
 

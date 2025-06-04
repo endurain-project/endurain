@@ -179,6 +179,30 @@
                                 <option :value="false">{{ $t("generalItems.no") }}</option>
                             </select>
                         </div>
+                        <!-- hide laps fields -->
+                        <label for="activityHideLapsEdit"><b>* {{
+                            $t("editActivityModalComponent.modalEditActivityHideLapsLabel") }}</b></label>
+                        <select class="form-select" name="activityHideLapsEdit" v-model="editActivityHideLaps"
+                            required>
+                            <option :value="true">{{ $t("generalItems.yes") }}</option>
+                            <option :value="false">{{ $t("generalItems.no") }}</option>
+                        </select>
+                        <!-- hide workout sets/steps fields -->
+                        <label for="activityHideWorkoutSetsStepsEdit"><b>* {{
+                            $t("editActivityModalComponent.modalEditActivityHideWorkoutSetsStepsLabel") }}</b></label>
+                        <select class="form-select" name="activityHideWorkoutSetsStepsEdit" v-model="editActivityHideWorkoutSetsSteps"
+                            required>
+                            <option :value="true">{{ $t("generalItems.yes") }}</option>
+                            <option :value="false">{{ $t("generalItems.no") }}</option>
+                        </select>
+                        <!-- hide gear fields -->
+                        <label for="activityHideGearEdit"><b>* {{
+                            $t("editActivityModalComponent.modalEditActivityHideGearLabel") }}</b></label>
+                        <select class="form-select" name="activityHideGearEdit" v-model="editActivityHideGear"
+                            required>
+                            <option :value="true">{{ $t("generalItems.yes") }}</option>
+                            <option :value="false">{{ $t("generalItems.no") }}</option>
+                        </select>
                         <p>* {{ $t("generalItems.requiredField") }}</p>
                     </div>
                     <div class="modal-footer">
@@ -229,6 +253,9 @@ const editActivityHideCadence = ref(props.activity.hide_cadence);
 const editActivityHideElevation = ref(props.activity.hide_elevation);
 const editActivityHideSpeed = ref(props.activity.hide_speed);
 const editActivityHidePace = ref(props.activity.hide_pace);
+const editActivityHideLaps = ref(props.activity.hide_laps);
+const editActivityHideWorkoutSetsSteps = ref(props.activity.hide_workout_sets_steps);
+const editActivityHideGear = ref(props.activity.hide_gear);
 
 async function submitEditActivityForm() {
     try {
@@ -247,6 +274,9 @@ async function submitEditActivityForm() {
             hide_elevation: editActivityHideElevation.value,
             hide_speed: editActivityHideSpeed.value,
             hide_pace: editActivityHidePace.value,
+            hide_laps: editActivityHideLaps.value,
+            hide_workout_sets_steps: editActivityHideWorkoutSetsSteps.value,
+            hide_gear: editActivityHideGear.value,
         };
 
         // Call the service to edit the activity

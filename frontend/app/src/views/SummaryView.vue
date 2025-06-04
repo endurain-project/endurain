@@ -278,7 +278,6 @@ function updateViewType() {
 		if (selectedViewType.value === "month") {
 			selectedMonth.value = formatDateToMonthString(new Date(selectedDate.value));
 		} else if (selectedViewType.value === "year") {
-			console.log("Selected date:", selectedDate.value);
 			selectedYear.value = new Date(selectedDate.value).getUTCFullYear();
 		}
 	} else {
@@ -405,7 +404,6 @@ const performYearTriggerDataFetch = debounce(async () => {
 }, 500);
 
 async function performMonthTriggerDataFetch() {
-console.log("selected month:", selectedMonth.value);
 	if (selectedViewType.value === "month") {
 		triggerDataFetch();
 	}

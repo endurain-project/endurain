@@ -11,16 +11,16 @@
 		<div class="mt-3 mb-3" v-if="isLoading">
 			<LoadingComponent />
 		</div>
-		<div class="mt-3 mb-3" v-else-if="activity && ((authStore.isAuthenticated && authStore.user.id === activity.user_id) || (activity.hide_map === false && authStore.isAuthenticated === false))">
+		<div class="mt-3 mb-3" v-else-if="activity && ((authStore.isAuthenticated && authStore.user.id === activity.user_id) || (authStore.isAuthenticated && authStore.user.id !== activity.user_id && activity.hide_map === false) || (!authStore.isAuthenticated && activity.hide_map === false))">
 			<ActivityMapComponent :activity="activity" :source="'activity'"/>
 		</div>
 		
 		<!-- gear zone -->
-		<hr class="mb-2 mt-2" v-if="activity && authStore.isAuthenticated">
+		<hr class="mb-2 mt-2" v-if="activity && ((authStore.isAuthenticated && authStore.user.id === activity.user_id) || (authStore.isAuthenticated && authStore.user.id !== activity.user_id && activity.hide_gear === false))">
 		<div class="mt-3 mb-3" v-if="isLoading && authStore.isAuthenticated">
 			<LoadingComponent />
 		</div>
-		<div class="d-flex justify-content-between align-items-center" v-else-if="activity && authStore.isAuthenticated">
+		<div class="d-flex justify-content-between align-items-center" v-else-if="activity && ((authStore.isAuthenticated && authStore.user.id === activity.user_id) || (authStore.isAuthenticated && authStore.user.id !== activity.user_id && activity.hide_gear === false))">
 			<p class="pt-2">
 				<span class="fw-lighter">
 					{{ $t("activityView.labelGear") }}
@@ -189,6 +189,9 @@ export default {
 			activity.value.hide_elevation = data.hide_elevation;
 			activity.value.hide_speed = data.hide_speed;
 			activity.value.hide_pace = data.hide_pace;
+			activity.value.hide_laps = data.hide_laps;
+			activity.value.hide_workout_sets_steps = data.hide_workout_sets_steps;
+			activity.value.hide_gear = data.hide_gear;
 		}
 
 		onMounted(async () => {
@@ -340,7 +343,6 @@ export default {
 			}
 
 			isLoading.value = false;
-			console.log("Activity loaded:", activity.value);
 			if (authStore.user.id === activity.value.user_id) {
 				alertPrivacyMessage.value = t("activityView.alertPrivacyMessage");
 			}

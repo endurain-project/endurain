@@ -328,17 +328,19 @@ def parse_activity(
             if user_privacy_settings.default_activity_visibility is not None
             else 0
         ),
-        hide_start_time=user_privacy_settings.hide_activity_start_time
-        or False,
+        hide_start_time=user_privacy_settings.hide_activity_start_time or False,
         hide_location=user_privacy_settings.hide_activity_location or False,
         hide_map=user_privacy_settings.hide_activity_map or False,
         hide_hr=user_privacy_settings.hide_activity_hr or False,
         hide_power=user_privacy_settings.hide_activity_power or False,
         hide_cadence=user_privacy_settings.hide_activity_cadence or False,
-        hide_elevation=user_privacy_settings.hide_activity_elevation
-        or False,
+        hide_elevation=user_privacy_settings.hide_activity_elevation or False,
         hide_speed=user_privacy_settings.hide_activity_speed or False,
         hide_pace=user_privacy_settings.hide_activity_pace or False,
+        hide_laps=user_privacy_settings.hide_activity_laps or False,
+        hide_workout_sets_steps=user_privacy_settings.hide_activity_workout_sets_steps
+        or False,
+        hide_gear=user_privacy_settings.hide_activity_gear or False,
     )
 
     # Fetch and process activity laps

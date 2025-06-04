@@ -176,6 +176,21 @@ class Activity(Base):
         nullable=False,
         comment="Hide activity pace",
     )
+    hide_laps = Column(
+        Boolean,
+        nullable=False,
+        comment="Hide activity laps",
+    )
+    hide_workout_sets_steps = Column(
+        Boolean,
+        nullable=False,
+        comment="Hide activity workout sets and steps",
+    )
+    hide_gear = Column(
+        Boolean,
+        nullable=False,
+        comment="Hide activity gear",
+    )
 
     # Define a relationship to the User model
     user = relationship("User", back_populates="activities")

@@ -47,6 +47,9 @@ class Activity(BaseModel):
     hide_elevation: bool | None = None
     hide_speed: bool | None = None
     hide_pace: bool | None = None
+    hide_laps: bool | None = None
+    hide_workout_sets_steps: bool | None = None
+    hide_gear: bool | None = None
 
     class Config:
         orm_mode = True
@@ -79,3 +82,6 @@ class ActivityEdit(BaseModel):
     hide_elevation: bool | None = None
     hide_speed: bool | None = None
     hide_pace: bool | None = None
+    hide_laps: bool | None = None
+    hide_workout_sets_steps: bool | None = None
+    hide_gear: bool | None = None

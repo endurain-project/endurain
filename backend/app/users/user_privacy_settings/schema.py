@@ -14,6 +14,9 @@ class UsersPrivacySettings(BaseModel):
     hide_activity_elevation: bool | None = None
     hide_activity_speed: bool | None = None
     hide_activity_pace: bool | None = None
+    hide_activity_laps: bool | None = None
+    hide_activity_workout_sets_steps: bool | None = None
+    hide_activity_gear: bool | None = None
 
     class Config:
         from_attributes = True

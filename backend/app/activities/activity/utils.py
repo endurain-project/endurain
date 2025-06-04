@@ -224,6 +224,9 @@ def transform_schema_activity_to_model_activity(
         hide_elevation=activity.hide_elevation,
         hide_speed=activity.hide_speed,
         hide_pace=activity.hide_pace,
+        hide_laps=activity.hide_laps,
+        hide_workout_sets_steps=activity.hide_workout_sets_steps,
+        hide_gear=activity.hide_gear,
     )
 
     return new_activity

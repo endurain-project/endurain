@@ -79,6 +79,24 @@ class UsersPrivacySettings(Base):
         default=False,
         comment="Hide activity pace",
     )
+    hide_activity_laps = Column(
+        Boolean,
+        nullable=False,
+        default=False,
+        comment="Hide activity laps",
+    )
+    hide_activity_workout_sets_steps = Column(
+        Boolean,
+        nullable=False,
+        default=False,
+        comment="Hide activity workout sets and steps",
+    )
+    hide_activity_gear = Column(
+        Boolean,
+        nullable=False,
+        default=False,
+        comment="Hide activity gear",
+    )
 
 
     # Define a relationship to the User model

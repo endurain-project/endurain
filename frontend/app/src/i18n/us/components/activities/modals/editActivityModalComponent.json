@@ -45,6 +45,9 @@
     "modalEditActivityHideElevationLabel": "Hide elevation",
     "modalEditActivityHideSpeedLabel": "Hide speed",
     "modalEditActivityHidePaceLabel": "Hide pace",
+    "modalEditActivityHideLapsLabel": "Hide laps",
+    "modalEditActivityHideWorkoutSetsStepsLabel": "Hide workout sets/steps",
+    "modalEditActivityHideGearLabel": "Hide gear",
     "successActivityEdit": "Activity edited successfully",
     "errorActivityEdit": "Error editing activity"
 }

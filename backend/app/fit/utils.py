@@ -179,6 +179,10 @@ def create_activity_objects(
                     or False,
                     hide_speed=user_privacy_settings.hide_activity_speed or False,
                     hide_pace=user_privacy_settings.hide_activity_pace or False,
+                    hide_laps=user_privacy_settings.hide_activity_laps or False,
+                    hide_workout_sets_steps=user_privacy_settings.hide_activity_workout_sets_steps
+                    or False,
+                    hide_gear=user_privacy_settings.hide_activity_gear or False,
                 ),
                 "is_elevation_set": session_record["is_elevation_set"],
                 "ele_waypoints": session_record["ele_waypoints"],
