@@ -46,7 +46,7 @@
                         <font-awesome-icon :icon="['fas', 'user']" v-if="searchSelectValue == 1" />
                         <!-- icons for activities -->
                         <font-awesome-icon :icon="['fas', 'person-running']" v-if="searchSelectValue == 2 && [1, 2, 3].includes(Number(result.activity_type))" class="ms-1" />
-                        <font-awesome-icon :icon="['fas', 'person-biking']" v-if="searchSelectValue == 2 && [4, 5, 6, 7].includes(Number(result.activity_type))" />
+                        <font-awesome-icon :icon="['fas', 'person-biking']" v-if="searchSelectValue == 2 && [4, 5, 6, 7, 27].includes(Number(result.activity_type))" />
                         <font-awesome-icon :icon="['fas', 'person-swimming']" v-if="searchSelectValue == 2 && [8, 9].includes(Number(result.activity_type))" />
                         <font-awesome-icon :icon="['fas', 'dumbbell']" v-if="searchSelectValue == 2 && [10, 19, 20].includes(Number(result.activity_type))" />
                         <font-awesome-icon :icon="['fas', 'person-walking']" v-if="searchSelectValue == 2 && [11].includes(Number(result.activity_type))" class="ms-1 me-1" />
@@ -55,6 +55,7 @@
                         <font-awesome-icon :icon="['fas', 'hands-praying']" v-if="searchSelectValue == 2 && [14].includes(Number(result.activity_type))" />
                         <font-awesome-icon :icon="['fas', 'person-person-skiing']" v-if="searchSelectValue == 2 && [15].includes(Number(result.activity_type))" />
                         <font-awesome-icon :icon="['fas', 'person-hands-snowboarding']" v-if="searchSelectValue == 2 && [16].includes(Number(result.activity_type))" />
+                        <font-awesome-icon :icon="['fas', 'repeat']" v-if="searchSelectValue == 2 && [18].includes(Number(result.activity_type))" />
                         <font-awesome-icon :icon="['fas', 'table-tennis-paddle-ball']" v-if="searchSelectValue == 2 && [21, 22, 23, 24, 25, 26].includes(Number(result.activity_type))" />
                         <!-- icons for gears -->
                         <font-awesome-icon :icon="['fas', 'bicycle']" v-if="searchSelectValue == 3 && [1].includes(Number(result.gear_type))" />
