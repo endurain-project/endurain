@@ -36,6 +36,18 @@
     "modalEditActivityVisibilityOption0": "Openbaar",
     "modalEditActivityVisibilityOption1": "Volgers",
     "modalEditActivityVisibilityOption2": "Privé",
+    "modalEditActivityHideStartTimeLabel": "Hide start time",
+    "modalEditActivityHideLocationLabel": "Hide location",
+    "modalEditActivityHideMapLabel": "Hide map",
+    "modalEditActivityHideHrLabel": "Hide heart rate",
+    "modalEditActivityHidePowerLabel": "Hide power",
+    "modalEditActivityHideCadenceLabel": "Hide cadence",
+    "modalEditActivityHideElevationLabel": "Hide elevation",
+    "modalEditActivityHideSpeedLabel": "Hide speed",
+    "modalEditActivityHidePaceLabel": "Hide pace",
+    "modalEditActivityHideLapsLabel": "Hide laps",
+    "modalEditActivityHideWorkoutSetsStepsLabel": "Hide workout sets/steps",
+    "modalEditActivityHideGearLabel": "Hide gear",
     "successActivityEdit": "Activiteit succesvol bewerkt",
     "errorActivityEdit": "Fout bij bewerken activiteit"
 }

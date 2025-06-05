@@ -43,6 +43,18 @@
     "privacyOption1": "Públic",
     "privacyOption2": "Seguidors",
     "privacyOption3": "Privat",
+    "defaultActivityStartTime": "Hide activity start time",
+    "defaultActivityLocation": "Hide activity location",
+    "defaultActivityMap": "Hide activity map",
+    "defaultActivityHeartRate": "Hide activity heart rate",
+    "defaultActivityPower": "Hide activity power",
+    "defaultActivityCadence": "Hide activity cadence",
+    "defaultActivityElevation": "Hide activity elevation",
+    "defaultActivitySpeed": "Hide activity speed",
+    "defaultActivityPace": "Hide activity pace",
+    "defaultActivityLaps": "Hide activity laps",
+    "defaultActivitySetsSteps": "Hide activity sets/steps",
+    "defaultActivityGear": "Hide activity gear",
     "buttonChangeDefaultActivityVisibility": "Canviar visibilitat per defecte",
     "buttonChangeUserActivitiesVisibility": "Canviar visibilitat d'activitats",
     "changeUserActivitiesVisibilityModalVisibilityLabel": "Visibilitat",
@@ -52,5 +64,7 @@
     "errorUnableToGetGear": "No es pot obtenir equipament",
     "errorUnableToGetDefaultGear": "No es pot obtenir equipament per defecte",
     "successUpdateDefaultGear": "Equipament per defecte actualitzat",
-    "errorUpdateDefaultGear": "Error actualitzant equipament per defecte"
+    "errorUpdateDefaultGear": "Error actualitzant equipament per defecte",
+    "successUpdateUserPrivacySettings": "User privacy settings updated successfully",
+    "errorUpdateUserPrivacySettings": "Error updating user privacy settings"
 }

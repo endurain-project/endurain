@@ -7,7 +7,7 @@
     "bmiUnderweight": "Untergewicht",
     "bmiNormalWeight": "Normalgewicht",
     "bmiOverweight": "Übergewichtig",
-    "bmiObesityClass1": "Obesity (Class 1)",
-    "bmiObesityClass2": "Obesity (Class 2)",
+    "bmiObesityClass1": "Fettleibigkeit (Klasse 1)",
+    "bmiObesityClass2": "Fettleibigkeit (Klasse 2)",
     "bmiObesityClass3": "Fettleibigkeit (Klasse 3)"
 }

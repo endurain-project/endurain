@@ -1,5 +1,6 @@
 {
     "sessionExpired": "Sessão expirou",
+    "logoutSuccess": "A sessão foi encerrada com sucesso",
     "error401": "Nome de utilizador ou palavra-passe inválidos",
     "error403": "Não tem permissões para aceder a este recurso",
     "error500": "Não foi possível comunicar com o servidor. Tente novamente mais tarde",

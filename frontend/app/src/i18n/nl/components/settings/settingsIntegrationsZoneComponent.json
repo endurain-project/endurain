@@ -4,7 +4,7 @@
     "buttonConnect": "Verbinden",
     "buttonDropdownOptions": "Opties",
     "modalRetrieveActivitiesByDaysTitle": "Activiteiten ophalen per dag",
-    "modalRetrieveActivitiesByDateRangeTitle": "Activiteiten ophalen per datumbereik",
+    "modalRetrieveActivitiesByDateRangeTitle": "Retrieve activities by date range",
     "modalRetrieveActivitiesByDaysLabel": "Dagen",
     "modalRetrieveActivitiesByDaysPlaceholder": "Dagen",
     "modalRetrieveButton": "Ophalen",
@@ -45,7 +45,7 @@
     "errorMessageUnableToGetGarminConnectGear": "Kan geen Garmin Connect uitrusting krijgen",
     "loadingMessageRetrievingGarminConnectGear": "Ophalen van Garmin Connect uitrusting",
     "modalRetrieveHealthDataByDaysTitle": "Gezondheidsgegevens ophalen per dag",
-    "modalRetrieveHealthDataByDateRangeTitle": "Gezondheidsgegevens ophalen per datumbereik",
+    "modalRetrieveHealthDataByDateRangeTitle": "Retrieve health data by date range",
     "errorMessageUnableToGetGarminConnectHealthDataDays": "Unable to get Garmin Connect health data by days",
     "errorMessageUnableToGetGarminConnectHealthDataDateRange": "Unable to get Garmin Connect health data using date range",
     "loadingMessageRetrievingGarminConnectHealthData": "Ophalen van Garmin Connect gezondheidsgegevens"

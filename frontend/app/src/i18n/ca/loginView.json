@@ -1,5 +1,6 @@
 {
     "sessionExpired": "Sessió d'usuari expirada",
+    "logoutSuccess": "Deslogat correctament",
     "error401": "Nom d'usuari o contrasenya incorrectes",
     "error403": "No teniu permís per accedir a aquest recurs",
     "error500": "No s'ha pogut contactar amb el servidor. Intenta-ho de nou més tard",

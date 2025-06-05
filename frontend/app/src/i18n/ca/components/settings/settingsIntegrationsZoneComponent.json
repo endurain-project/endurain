@@ -45,7 +45,7 @@
     "errorMessageUnableToGetGarminConnectGear": "No es pot obtenir equipament de Garmin Connect",
     "loadingMessageRetrievingGarminConnectGear": "Obtenint equipament de Garmin Connect",
     "modalRetrieveHealthDataByDaysTitle": "Recupera dades de salut per dies",
-    "modalRetrieveHealthDataByDateRangeTitle": "Recupera dades de salut per dies",
+    "modalRetrieveHealthDataByDateRangeTitle": "Recupera dades de salut per rang de dates",
     "errorMessageUnableToGetGarminConnectHealthDataDays": "No es poden obtenir dades de salut de GC",
     "errorMessageUnableToGetGarminConnectHealthDataDateRange": "No es poden obtenir dades de salut de GC",
     "loadingMessageRetrievingGarminConnectHealthData": "Recuperant dades de salut de Garmin Connect"

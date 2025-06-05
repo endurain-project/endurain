@@ -1,6 +1,10 @@
 {
     "buttonBack": "Voltar",
     "buttonClose": "Fechar",
+    "true": "Verdade",
+    "false": "Falso",
+    "yes": "Sim",
+    "no": "Não",
     "languageOption1": "Inglês (EUA)",
     "languageOption2": "Catalão (CA)",
     "languageOption3": "Português (PT)",
@@ -49,4 +53,3 @@
     "startDateLabel": "Data de início",
     "endDateLabel": "Data de fim"
 }
-

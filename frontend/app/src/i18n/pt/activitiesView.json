@@ -5,7 +5,7 @@
   "filterLabelFromDate": "Data de início",
   "filterLabelToDate": "Data de fim",
   "filterLabelNameLocation": "Nome ou localização",
-  "filterPlaceholderNameLocation": "ex., Corrida da Manhã",
+  "filterPlaceholderNameLocation": "ex.: Corrida da manhã",
   "buttonClear": "Limpar",
   "buttonApply": "Aplicar",
   "errorFailedFetchActivityTypes": "Falha ao buscar tipos de atividades",

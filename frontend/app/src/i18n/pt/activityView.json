@@ -7,5 +7,6 @@
     "successMessageGearAdded": "Equipamento adicionado à atividade",
     "successMessageGearDeleted": "Equipamento eliminado da atividade",
     "errorMessageDeleteGear": "Erro ao eliminar equipamento da atividade",
-    "errorMessageActivityNotFound": "Atividade não encontrada"
+    "errorMessageActivityNotFound": "Atividade não encontrada",
+    "alertPrivacyMessage": "Tem informações ocultas nesta atividade. Pode vê-las, mas outros não."
 }

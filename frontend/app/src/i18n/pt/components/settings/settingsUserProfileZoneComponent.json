@@ -43,6 +43,18 @@
     "privacyOption1": "Público",
     "privacyOption2": "Seguidores",
     "privacyOption3": "Privado",
+    "defaultActivityStartTime": "Ocultar hora de início da atividade",
+    "defaultActivityLocation": "Ocultar local da atividade",
+    "defaultActivityMap": "Ocultar mapa da atividade",
+    "defaultActivityHeartRate": "Ocultar frequência cardíaca da atividade",
+    "defaultActivityPower": "Ocultar potência da atividade",
+    "defaultActivityCadence": "Ocultar cadência da atividade",
+    "defaultActivityElevation": "Ocultar elevação da atividade",
+    "defaultActivitySpeed": "Ocultar velocidade da atividade",
+    "defaultActivityPace": "Ocultar ritmo da atividade",
+    "defaultActivityLaps": "Ocultar voltas da atividade",
+    "defaultActivitySetsSteps": "Ocultar conjuntos/etapas de atividades",
+    "defaultActivityGear": "Ocultar equipamento da atividade",
     "buttonChangeDefaultActivityVisibility": "Alterar a visibilidade padrão",
     "buttonChangeUserActivitiesVisibility": "Alterar visibilidade das atividades",
     "changeUserActivitiesVisibilityModalVisibilityLabel": "Visibilidade",
@@ -52,5 +64,7 @@
     "errorUnableToGetGear": "Não foi possível obter equipamento",
     "errorUnableToGetDefaultGear": "Não foi possível obter equipamento padrão",
     "successUpdateDefaultGear": "Equipamento padrão atualizado com sucesso",
-    "errorUpdateDefaultGear": "Erro ao atualizar equipamento padrão"
+    "errorUpdateDefaultGear": "Erro ao atualizar equipamento padrão",
+    "successUpdateUserPrivacySettings": "Configurações de privacidade do utilizador atualizadas com sucesso",
+    "errorUpdateUserPrivacySettings": "Erro ao atualizar configurações de privacidade do utilizador"
 }

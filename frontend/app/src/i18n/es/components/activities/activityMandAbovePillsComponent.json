@@ -7,7 +7,7 @@
     "labelGraphPower": "Potencia",
     "labelGraphCadence": "Cadencia",
     "labelGraphElevation": "Altura",
-    "labelGraphVelocity": "Velocidad",
+    "labelGraphVelocity": "Speed",
     "labelGraphPace": "Ritmo",
     "labelDownsampling": "Datos reducidos a ~200 puntos",
     "errorMessageProcessingActivityStreams": "Error al procesar los flujos de actividad",
