@@ -36,6 +36,18 @@
     "modalEditActivityVisibilityOption0": "Públic",
     "modalEditActivityVisibilityOption1": "Seguidors",
     "modalEditActivityVisibilityOption2": "Privat",
+    "modalEditActivityHideStartTimeLabel": "Hide start time",
+    "modalEditActivityHideLocationLabel": "Hide location",
+    "modalEditActivityHideMapLabel": "Hide map",
+    "modalEditActivityHideHrLabel": "Hide heart rate",
+    "modalEditActivityHidePowerLabel": "Hide power",
+    "modalEditActivityHideCadenceLabel": "Hide cadence",
+    "modalEditActivityHideElevationLabel": "Hide elevation",
+    "modalEditActivityHideSpeedLabel": "Hide speed",
+    "modalEditActivityHidePaceLabel": "Hide pace",
+    "modalEditActivityHideLapsLabel": "Hide laps",
+    "modalEditActivityHideWorkoutSetsStepsLabel": "Hide workout sets/steps",
+    "modalEditActivityHideGearLabel": "Hide gear",
     "successActivityEdit": "Activitat editada correctament",
     "errorActivityEdit": "Error editant activitat"
 }
