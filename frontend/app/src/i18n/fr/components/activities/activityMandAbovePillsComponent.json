@@ -7,7 +7,7 @@
     "labelGraphPower": "Puissance",
     "labelGraphCadence": "Cadence",
     "labelGraphElevation": "Élévation",
-    "labelGraphVelocity": "Vitesse ",
+    "labelGraphVelocity": "Speed",
     "labelGraphPace": "Allure",
     "labelDownsampling": "Données abaissées à ~200 points",
     "errorMessageProcessingActivityStreams": "Erreur lors du traitement des flux d'activité",
