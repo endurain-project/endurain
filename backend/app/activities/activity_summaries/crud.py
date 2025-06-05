@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-from sqlalchemy import func, extract
+from sqlalchemy import func, extract, case
 from datetime import timedelta, date
 
 from typing import List
@@ -81,8 +81,20 @@ def get_weekly_summary(
     start_of_week = target_date - timedelta(days=target_date.weekday())
     end_of_week = start_of_week + timedelta(days=7)
 
+    # Database-agnostic ISO day of week calculation
+    # For PostgreSQL: extract('isodow') returns 1-7 (Mon-Sun)
+    # For MySQL: convert DAYOFWEEK (1=Sunday, 7=Saturday) to ISO format
+    engine_name = db.bind.dialect.name
+    if engine_name == 'postgresql':
+        iso_day_of_week = extract("isodow", Activity.start_time)
+    else:  # MySQL/MariaDB and others
+        iso_day_of_week = case(
+            (func.dayofweek(Activity.start_time) == 1, 7),  # Sunday -> 7
+            else_=func.dayofweek(Activity.start_time) - 1   # Mon-Sat -> 1-6
+        )
+
     query = db.query(
-        extract("isodow", Activity.start_time).label("day_of_week"),
+        iso_day_of_week.label("day_of_week"),
         func.coalesce(func.sum(Activity.distance), 0).label("total_distance"),
         func.coalesce(func.sum(Activity.total_timer_time), 0.0).label("total_duration"),
         func.coalesce(func.sum(Activity.elevation_gain), 0).label(
@@ -104,9 +116,7 @@ def get_weekly_summary(
         else:
             query = query.filter(Activity.id == -1)  # Force no results
 
-    query = query.group_by(extract("isodow", Activity.start_time)).order_by(
-        extract("isodow", Activity.start_time)
-    )
+    query = query.group_by(iso_day_of_week).order_by(iso_day_of_week)
 
     daily_results = query.all()
     breakdown = []
