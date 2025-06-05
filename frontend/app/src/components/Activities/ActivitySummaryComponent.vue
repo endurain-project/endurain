@@ -116,7 +116,7 @@
                     {{ $t("activitySummaryComponent.activityTime") }}
                 </span>
                 <br>
-                <span>{{ calculateTimeDifference(activity.start_time, activity.end_time) }}</span>
+                <span>{{ formatSecondsToMinutes(activity.total_elapsed_time) }}</span>
             </div>
             <div class="col border-start border-opacity-50">
                 <!-- elevation -->
@@ -228,7 +228,7 @@ import {
 import {
 	formatDateMed,
 	formatTime,
-	calculateTimeDifference,
+    formatSecondsToMinutes,
 } from "@/utils/dateTimeUtils";
 
 // Props

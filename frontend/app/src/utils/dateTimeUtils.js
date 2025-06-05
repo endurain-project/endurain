@@ -78,9 +78,9 @@ export function formatSecondsToMinutes(totalSeconds) {
   const formattedMinutes = minutes < 10 && hours > 0 ? `0${minutes}` : minutes;
 
   if (hours > 0) {
-    return `${hours}:${formattedMinutes}:${formattedSeconds}`;
+    return `${hours}h ${formattedMinutes}m ${formattedSeconds}s`;
   }
-  return `${minutes}:${formattedSeconds}`;
+  return `${minutes}m ${formattedSeconds}s`;
 }
 
 /**

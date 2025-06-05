@@ -132,6 +132,19 @@ def get_user_activities(
         for activity in activities:
             serialized_activities.append(activities_utils.serialize_activity(activity))
 
+            if activity.user_id != user_id:
+                if activity.hide_start_time:
+                    activity.start_time = None
+                    activity.end_time = None
+                if activity.hide_location:
+                    activity.city = None
+                    activity.town = None
+                    activity.country = None
+                if activity.hide_gear:
+                    activity.gear_id = None
+                    activity.strava_gear_id = None
+                    activity.garminconnect_gear_id = None
+
         # Return the activities
         return serialized_activities
 
@@ -169,6 +182,19 @@ def get_user_activities_by_user_id_and_garminconnect_gear_set(
         # Iterate and format the dates
         for activity in activities:
             activity = activities_utils.serialize_activity(activity)
+
+            if activity.user_id != user_id:
+                if activity.hide_start_time:
+                    activity.start_time = None
+                    activity.end_time = None
+                if activity.hide_location:
+                    activity.city = None
+                    activity.town = None
+                    activity.country = None
+                if activity.hide_gear:
+                    activity.gear_id = None
+                    activity.strava_gear_id = None
+                    activity.garminconnect_gear_id = None
 
         # Return the activities
         return activities
@@ -605,6 +631,18 @@ def get_user_activities_by_gear_id_and_user_id(user_id: int, gear_id: int, db: S
         # Iterate and format the dates
         for activity in activities:
             activity = activities_utils.serialize_activity(activity)
+            if activity.user_id != user_id:
+                if activity.hide_start_time:
+                    activity.start_time = None
+                    activity.end_time = None
+                if activity.hide_location:
+                    activity.city = None
+                    activity.town = None
+                    activity.country = None
+                if activity.hide_gear:
+                    activity.gear_id = None
+                    activity.strava_gear_id = None
+                    activity.garminconnect_gear_id = None
 
         # Return the activities
         return activities
@@ -644,6 +682,19 @@ def get_activity_by_id_from_user_id_or_has_visibility(
             return None
 
         activity = activities_utils.serialize_activity(activity)
+
+        if activity.user_id != user_id:
+            if activity.hide_start_time:
+                activity.start_time = None
+                activity.end_time = None
+            if activity.hide_location:
+                activity.city = None
+                activity.town = None
+                activity.country = None
+            if activity.hide_gear:
+                activity.gear_id = None
+                activity.strava_gear_id = None
+                activity.garminconnect_gear_id = None
 
         # Return the activities
         return activity
