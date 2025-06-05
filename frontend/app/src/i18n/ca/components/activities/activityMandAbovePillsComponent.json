@@ -7,7 +7,7 @@
     "labelGraphPower": "Potència",
     "labelGraphCadence": "Cadència",
     "labelGraphElevation": "Elevació",
-    "labelGraphVelocity": "Velocitat",
+    "labelGraphVelocity": "Speed",
     "labelGraphPace": "Ritme",
     "labelDownsampling": "Dades reduïdes a ~200 punts",
     "errorMessageProcessingActivityStreams": "Error processant activitats de carrera",
