@@ -242,7 +242,10 @@ def upgrade() -> None:
     op.add_column(
         "activities",
         sa.Column(
-            "hide_workout_sets_steps", sa.Boolean(), nullable=True, comment="Hide activity workout sets and steps"
+            "hide_workout_sets_steps",
+            sa.Boolean(),
+            nullable=True,
+            comment="Hide activity workout sets and steps",
         ),
     )
     op.add_column(
@@ -275,18 +278,43 @@ def upgrade() -> None:
     )
 
     # Update the new columns to be NOT NULL
-    op.alter_column("activities", "hide_start_time", nullable=False)
-    op.alter_column("activities", "hide_location", nullable=False)
-    op.alter_column("activities", "hide_map", nullable=False)
-    op.alter_column("activities", "hide_hr", nullable=False)
-    op.alter_column("activities", "hide_power", nullable=False)
-    op.alter_column("activities", "hide_cadence", nullable=False)
-    op.alter_column("activities", "hide_elevation", nullable=False)
-    op.alter_column("activities", "hide_speed", nullable=False)
-    op.alter_column("activities", "hide_pace", nullable=False)
-    op.alter_column("activities", "hide_laps", nullable=False)
-    op.alter_column("activities", "hide_workout_sets_steps", nullable=False)
-    op.alter_column("activities", "hide_gear", nullable=False)
+    op.alter_column(
+        "activities", "hide_start_time", existing_type=sa.Boolean(), nullable=False
+    )
+    op.alter_column(
+        "activities", "hide_location", existing_type=sa.Boolean(), nullable=False
+    )
+    op.alter_column(
+        "activities", "hide_map", existing_type=sa.Boolean(), nullable=False
+    )
+    op.alter_column("activities", "hide_hr", existing_type=sa.Boolean(), nullable=False)
+    op.alter_column(
+        "activities", "hide_power", existing_type=sa.Boolean(), nullable=False
+    )
+    op.alter_column(
+        "activities", "hide_cadence", existing_type=sa.Boolean(), nullable=False
+    )
+    op.alter_column(
+        "activities", "hide_elevation", existing_type=sa.Boolean(), nullable=False
+    )
+    op.alter_column(
+        "activities", "hide_speed", existing_type=sa.Boolean(), nullable=False
+    )
+    op.alter_column(
+        "activities", "hide_pace", existing_type=sa.Boolean(), nullable=False
+    )
+    op.alter_column(
+        "activities", "hide_laps", existing_type=sa.Boolean(), nullable=False
+    )
+    op.alter_column(
+        "activities",
+        "hide_workout_sets_steps",
+        existing_type=sa.Boolean(),
+        nullable=False,
+    )
+    op.alter_column(
+        "activities", "hide_gear", existing_type=sa.Boolean(), nullable=False
+    )
     # ### end Alembic commands ###
 
 
