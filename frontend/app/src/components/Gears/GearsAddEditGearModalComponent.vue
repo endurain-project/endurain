@@ -187,7 +187,7 @@ export default {
                 push.success(t("gearsAddEditGearModalComponent.successGearAdded"));
             } catch (error) {
                 // If there is an error, set the error message and show the error alert.
-				push.error(`${t("gearsAddEditGearModalComponent.errorGearAdded")} - ${error}`);
+				push.error(`${t("gearsAddEditGearModalComponent.errorGearAdd")} - ${error}`);
             } finally {
                 // Set the isLoadingNewGear variable to false.
                 emit("isLoadingNewGear", false);

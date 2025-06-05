@@ -25,7 +25,6 @@ class Gear(Base):
     )
     nickname = Column(
         String(length=250),
-        unique=True,
         index=True,
         nullable=False,
         comment="Gear nickname (May include spaces)",

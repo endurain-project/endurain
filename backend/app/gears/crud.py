@@ -337,6 +337,17 @@ def create_multiple_gears(gears: list[gears_schema.Gear], user_id: int, db: Sess
 
 def create_gear(gear: gears_schema.Gear, user_id: int, db: Session):
     try:
+        gear_check = get_gear_user_by_nickname(
+            user_id, gear.nickname, db
+        )
+
+        if gear_check is not None:
+            # If the gear already exists, raise an HTTPException with a 409 Conflict status code
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"Gear with nickname {gear.nickname} already exists for user {user_id}",
+            )
+
         new_gear = gears_utils.transform_schema_gear_to_model_gear(gear, user_id)
 
         # Add the gear to the database
@@ -348,6 +359,9 @@ def create_gear(gear: gears_schema.Gear, user_id: int, db: Session):
 
         # Return the gear
         return gear_serialized
+    except HTTPException as http_err:
+        # If an HTTPException is raised, re-raise it
+        raise http_err
     except IntegrityError as integrity_error:
         # Rollback the transaction
         db.rollback()
@@ -355,7 +369,7 @@ def create_gear(gear: gears_schema.Gear, user_id: int, db: Session):
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="Duplicate entry error. Check if nickname, strava_gear_id or garminconnect_gear_id are unique",
+            detail="Duplicate entry error. Check if strava_gear_id or garminconnect_gear_id are unique",
         ) from integrity_error
     except Exception as err:
         # Rollback the transaction
