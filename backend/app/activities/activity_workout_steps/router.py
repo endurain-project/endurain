@@ -28,10 +28,16 @@ async def read_activities_workout_steps_for_activity_all(
     check_scopes: Annotated[
         Callable, Security(session_security.check_scopes, scopes=["activities:read"])
     ],
+    token_user_id: Annotated[
+        int,
+        Depends(session_security.get_user_id_from_access_token),
+    ],
     db: Annotated[
         Session,
         Depends(core_database.get_db),
     ],
 ):
     # Get the activity laps from the database and return them
-    return activity_workout_steps_crud.get_activity_workout_steps(activity_id, db)
+    return activity_workout_steps_crud.get_activity_workout_steps(
+        activity_id, token_user_id, db
+    )

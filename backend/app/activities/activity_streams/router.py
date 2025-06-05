@@ -29,13 +29,17 @@ async def read_activities_streams_for_activity_all(
     check_scopes: Annotated[
         Callable, Security(session_security.check_scopes, scopes=["activities:read"])
     ],
+    token_user_id: Annotated[
+        int,
+        Depends(session_security.get_user_id_from_access_token),
+    ],
     db: Annotated[
         Session,
         Depends(core_database.get_db),
     ],
 ):
     # Get the activity streams from the database and return them
-    return activity_streams_crud.get_activity_streams(activity_id, db)
+    return activity_streams_crud.get_activity_streams(activity_id, token_user_id, db)
 
 
 @router.get(
@@ -54,6 +58,10 @@ async def read_activities_streams_for_activity_stream_type(
     check_scopes: Annotated[
         Callable, Security(session_security.check_scopes, scopes=["activities:read"])
     ],
+    token_user_id: Annotated[
+        int,
+        Depends(session_security.get_user_id_from_access_token),
+    ],
     db: Annotated[
         Session,
         Depends(core_database.get_db),
@@ -61,5 +69,5 @@ async def read_activities_streams_for_activity_stream_type(
 ):
     # Get the activity stream from the database and return them
     return activity_streams_crud.get_activity_stream_by_type(
-        activity_id, stream_type, db
+        activity_id, stream_type, token_user_id, db
     )

@@ -66,13 +66,13 @@
 		</div>
 
 		<!-- graphs -->
-		<hr class="mb-2 mt-2">
+		<hr class="mb-2 mt-2" v-if="activity && (activityActivityLaps && activityActivityLaps.length > 0 || activityActivityWorkoutSteps && activityActivityWorkoutSteps.length > 0 || activityActivitySets && activityActivitySets.length > 0)">
 
 		<!-- graphs and laps medium and above screens -->
 		<div class="d-none d-sm-block" v-if="isLoading">
 			<LoadingComponent />
 		</div>
-		<div class="d-none d-sm-block" v-else>
+		<div class="d-none d-sm-block" v-else-if="activity && (activityActivityLaps && activityActivityLaps.length > 0 || activityActivityWorkoutSteps && activityActivityWorkoutSteps.length > 0 || activityActivitySets && activityActivitySets.length > 0)">
 			<ActivityMandAbovePillsComponent :activity="activity" :activityActivityLaps="activityActivityLaps" :activityActivityWorkoutSteps="activityActivityWorkoutSteps" :activityActivityStreams="activityActivityStreams" :units="units" :activityActivityExerciseTitles="activityActivityExerciseTitles" :activityActivitySets="activityActivitySets" />
 		</div>
 
@@ -80,7 +80,7 @@
 		<div class="d-lg-none d-block" v-if="isLoading">
 			<LoadingComponent />
 		</div>
-		<div class="d-lg-none d-block" v-else>
+		<div class="d-lg-none d-block" v-else-if="activity && (activityActivityLaps && activityActivityLaps.length > 0 || activityActivityWorkoutSteps && activityActivityWorkoutSteps.length > 0 || activityActivitySets && activityActivitySets.length > 0)">
 			<ActivityBellowMPillsComponent :activity="activity" :activityActivityLaps="activityActivityLaps" :activityActivityWorkoutSteps="activityActivityWorkoutSteps" :activityActivityStreams="activityActivityStreams" :units="units" :activityActivityExerciseTitles="activityActivityExerciseTitles" :activityActivitySets="activityActivitySets" />
 		</div>
 

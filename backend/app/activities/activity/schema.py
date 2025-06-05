@@ -9,7 +9,7 @@ class Activity(BaseModel):
     name: str
     activity_type: int
     start_time: str | None = None
-    end_time: str
+    end_time: str | None = None
     timezone: str | None = None
     total_elapsed_time: float | None = None
     total_timer_time: float | None = None

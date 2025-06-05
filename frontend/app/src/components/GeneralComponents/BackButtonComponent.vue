@@ -1,8 +1,8 @@
 <template>
     <!-- back button -->
-    <div>
-        <br class="d-lg-none">
-        <button @click="goBack" type="button" class="w-100 btn btn-primary d-lg-none">{{ $t("generalItems.buttonBack") }}</button>
+    <div class="d-lg-none">
+        <br>
+        <button @click="goBack" type="button" class="w-100 btn btn-primary">{{ $t("generalItems.buttonBack") }}</button>
     </div>
 </template>
 

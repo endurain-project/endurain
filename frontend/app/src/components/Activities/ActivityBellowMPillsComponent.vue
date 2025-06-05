@@ -198,7 +198,7 @@
         </div>
 
         <!-- sets -->    
-        <ActivityWorkoutStepsComponent :activity="activity" :activityActivityWorkoutSteps="activityActivityWorkoutSteps" :units="units" :activityActivityExerciseTitles="activityActivityExerciseTitles" :activityActivitySets="activityActivitySets" />
+        <ActivityWorkoutStepsComponent :activity="activity" :activityActivityWorkoutSteps="activityActivityWorkoutSteps" :units="units" :activityActivityExerciseTitles="activityActivityExerciseTitles" :activityActivitySets="activityActivitySets" v-if="activityActivityWorkoutSteps && activityActivityWorkoutSteps.length > 0"/>
     </div>
 </template>
 
@@ -233,7 +233,7 @@ const props = defineProps({
 		required: true,
 	},
 	activityActivityStreams: {
-		type: Object,
+		type: [Object, null],
 		required: true,
 	},
 	units: {
@@ -266,19 +266,19 @@ onMounted(async () => {
 		if (props.activityActivityStreams && props.activityActivityStreams.length > 0) {
 			// Check if the activity has the streams
 			for (let i = 0; i < props.activityActivityStreams.length; i++) {
-				if (props.activityActivityStreams[i].stream_type === 1 && ((authStore.isAuthenticated && authStore.user.id === props.activity.user_id) || (authStore.isAuthenticated && authStore.user.id !== props.activity.user_id && props.activity.hide_hr === false) || (!authStore.isAuthenticated && props.activity.hide_hr === false))) {
+				if (props.activityActivityStreams[i].stream_type === 1) {
 					hrPresent.value = true;
 				}
-				if (props.activityActivityStreams[i].stream_type === 2 && ((authStore.isAuthenticated && authStore.user.id === props.activity.user_id) || (authStore.isAuthenticated && authStore.user.id !== props.activity.user_id && props.activity.hide_power === false) || (!authStore.isAuthenticated && props.activity.hide_power === false))) {
+				if (props.activityActivityStreams[i].stream_type === 2) {
 					powerPresent.value = true;
 				}
-				if (props.activityActivityStreams[i].stream_type === 3 && ((authStore.isAuthenticated && authStore.user.id === props.activity.user_id) || (authStore.isAuthenticated && authStore.user.id !== props.activity.user_id && props.activity.hide_cadence === false) || (!authStore.isAuthenticated && props.activity.hide_cadence === false))) {
+				if (props.activityActivityStreams[i].stream_type === 3) {
 					cadPresent.value = true;
 				}
-				if (props.activityActivityStreams[i].stream_type === 4 && ((authStore.isAuthenticated && authStore.user.id === props.activity.user_id) || (authStore.isAuthenticated && authStore.user.id !== props.activity.user_id && props.activity.hide_elevation === false) || (!authStore.isAuthenticated && props.activity.hide_elevation === false))) {
+				if (props.activityActivityStreams[i].stream_type === 4) {
 					elePresent.value = true;
 				}
-				if (props.activityActivityStreams[i].stream_type === 5 && ((authStore.isAuthenticated && authStore.user.id === props.activity.user_id) || (authStore.isAuthenticated && authStore.user.id !== props.activity.user_id && props.activity.hide_speed === false) || (!authStore.isAuthenticated && props.activity.hide_speed === false))) {
+				if (props.activityActivityStreams[i].stream_type === 5) {
 					if (
 						props.activity.activity_type === 4 ||
 						props.activity.activity_type === 5 ||
@@ -289,7 +289,7 @@ onMounted(async () => {
 						velPresent.value = true;
 					}
 				}
-				if (props.activityActivityStreams[i].stream_type === 6 && ((authStore.isAuthenticated && authStore.user.id === props.activity.user_id) || (authStore.isAuthenticated && authStore.user.id !== props.activity.user_id && props.activity.hide_pace === false) || (!authStore.isAuthenticated && props.activity.hide_pace === false))) {
+				if (props.activityActivityStreams[i].stream_type === 6) {
 					if (
 						props.activity.activity_type !== 4 &&
 						props.activity.activity_type !== 5 &&

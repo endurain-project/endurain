@@ -28,10 +28,14 @@ async def read_activities_sets_for_activity_all(
     check_scopes: Annotated[
         Callable, Security(session_security.check_scopes, scopes=["activities:read"])
     ],
+    token_user_id: Annotated[
+        int,
+        Depends(session_security.get_user_id_from_access_token),
+    ],
     db: Annotated[
         Session,
         Depends(core_database.get_db),
     ],
 ):
     # Get the activity sets from the database and return them
-    return activity_sets_crud.get_activity_sets(activity_id, db)
+    return activity_sets_crud.get_activity_sets(activity_id, token_user_id, db)
