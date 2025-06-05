@@ -43,6 +43,18 @@
     "privacyOption1": "Öffentlich",
     "privacyOption2": "Abonnenten",
     "privacyOption3": "Privat",
+    "defaultActivityStartTime": "Hide activity start time",
+    "defaultActivityLocation": "Hide activity location",
+    "defaultActivityMap": "Hide activity map",
+    "defaultActivityHeartRate": "Hide activity heart rate",
+    "defaultActivityPower": "Hide activity power",
+    "defaultActivityCadence": "Hide activity cadence",
+    "defaultActivityElevation": "Hide activity elevation",
+    "defaultActivitySpeed": "Hide activity speed",
+    "defaultActivityPace": "Hide activity pace",
+    "defaultActivityLaps": "Hide activity laps",
+    "defaultActivitySetsSteps": "Hide activity sets/steps",
+    "defaultActivityGear": "Hide activity gear",
     "buttonChangeDefaultActivityVisibility": "Standardsichtbarkeit ändern",
     "buttonChangeUserActivitiesVisibility": "Sichtbarkeit der Aktivitäten ändern",
     "changeUserActivitiesVisibilityModalVisibilityLabel": "Sichtbarkeit",
@@ -52,5 +64,7 @@
     "errorUnableToGetGear": "Ausrüstung konnte nicht abgerufen werden",
     "errorUnableToGetDefaultGear": "Standardausrüstung kann nicht abgerufen werden",
     "successUpdateDefaultGear": "Standardausrüstung erfolgreich aktualisiert",
-    "errorUpdateDefaultGear": "Fehler beim Aktualisieren der Standardausrüstung"
+    "errorUpdateDefaultGear": "Fehler beim Aktualisieren der Standardausrüstung",
+    "successUpdateUserPrivacySettings": "User privacy settings updated successfully",
+    "errorUpdateUserPrivacySettings": "Error updating user privacy settings"
 }
