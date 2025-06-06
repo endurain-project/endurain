@@ -8,5 +8,5 @@
     "successMessageGearDeleted": "Equipament esborat de l'activitat",
     "errorMessageDeleteGear": "Error esborrant equipament de l'activitat",
     "errorMessageActivityNotFound": "Activitat no trobada",
-    "alertPrivacyMessage": "You have hidden information in this activity. You can see it, but others cannot."
+    "alertPrivacyMessage": "Tens informació amagada en aquesta activitat. Tu la pots veure, però els altres no."
 }
