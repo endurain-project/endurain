@@ -52,9 +52,9 @@
     "defaultActivityElevation": "Amaga elevació de l'activitat",
     "defaultActivitySpeed": "Amaga velocitat de l'activitat",
     "defaultActivityPace": "Amaga ritme de l'activitat",
-    "defaultActivityLaps": "Hide activity laps",
-    "defaultActivitySetsSteps": "Hide activity sets/steps",
-    "defaultActivityGear": "Hide activity gear",
+    "defaultActivityLaps": "Amaga voltes de l'activitat",
+    "defaultActivitySetsSteps": "Amaga passes de l'actilitat",
+    "defaultActivityGear": "Amaga equipament de l'activitat",
     "buttonChangeDefaultActivityVisibility": "Canviar visibilitat per defecte",
     "buttonChangeUserActivitiesVisibility": "Canviar visibilitat d'activitats",
     "changeUserActivitiesVisibilityModalVisibilityLabel": "Visibilitat",
@@ -65,6 +65,6 @@
     "errorUnableToGetDefaultGear": "No es pot obtenir equipament per defecte",
     "successUpdateDefaultGear": "Equipament per defecte actualitzat",
     "errorUpdateDefaultGear": "Error actualitzant equipament per defecte",
-    "successUpdateUserPrivacySettings": "User privacy settings updated successfully",
-    "errorUpdateUserPrivacySettings": "Error updating user privacy settings"
+    "successUpdateUserPrivacySettings": "Configuració de privadesa actualitzada correctament",
+    "errorUpdateUserPrivacySettings": "Error en actualitzar la configuració de privadesa"
 }
