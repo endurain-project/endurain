@@ -35,7 +35,7 @@
 								<li><hr class="dropdown-divider"></li>
 								<li>
 									<!-- relink Strava -->
-									<a href="#" class="dropdown-item" role="button" @click="submitConnectStrava">{{ $t("settingsIntegrationsZone.buttonRelink") }}</a>
+									<a href="#" class="dropdown-item" role="button" data-bs-toggle="modal" data-bs-target="#retrieveStravaClientIdModal">{{ $t("settingsIntegrationsZone.buttonRelink") }}</a>
 								</li>
 								<li><hr class="dropdown-divider"></li>
 								<li>
