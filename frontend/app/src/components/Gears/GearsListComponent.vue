@@ -5,7 +5,7 @@
             <img src="/src/assets/avatar/running_shoe1.png" alt="running shoe avatar" width="55" height="55" class="rounded-circle" v-else-if="gear.gear_type == 2">
             <img src="/src/assets/avatar/wetsuit1.png" alt="wetsuit avatar" width="55" height="55" class="rounded-circle" v-else-if="gear.gear_type == 3">
             <img src="/src/assets/avatar/racquet1.png" alt="racquet avatar" width="55" height="55" class="rounded-circle" v-else-if="gear.gear_type == 4">
-            <img src="/src/assets/avatar/skis1.png" alt="ski avatar" width="55" height="55" class="rounded-circle" v-else-if="gear.gear_type == 5">
+            <img src="/src/assets/avatar/skis1.png" alt="skis avatar" width="55" height="55" class="rounded-circle" v-else-if="gear.gear_type == 5">
             <img src="/src/assets/avatar/snowboard1.png" alt="snowboard avatar" width="55" height="55" class="rounded-circle" v-else>
             <div class="ms-3">
                 <div class="fw-bold">
