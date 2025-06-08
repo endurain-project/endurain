@@ -1,4 +1,4 @@
-"""v0.13.0 migration
+"""v0.12.2 migration
 
 Revision ID: bd59252fe91f
 Revises: f2395550aab9
