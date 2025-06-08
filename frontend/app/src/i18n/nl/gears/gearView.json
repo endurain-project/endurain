@@ -9,6 +9,8 @@
     "gearTypeOption2": "Schoenen",
     "gearTypeOption3": "Wetsuit",
     "gearTypeOption4": "Raket",
+    "gearTypeOption5": "Skis",
+    "gearTypeOption6": "Snowboard",
     "gearFromStrava": "Strava",
     "gearFromGarminConnect": "Garmin Connect",
     "labelBrand": "Merk",
