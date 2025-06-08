@@ -9,6 +9,8 @@
     "gearTypeOption2": "Chaussures",
     "gearTypeOption3": "Combinaison",
     "gearTypeOption4": "Racquet",
+    "gearTypeOption5": "Skis",
+    "gearTypeOption6": "Snowboard",
     "gearFromStrava": "Strava",
     "gearFromGarminConnect": "Garmin Connect",
     "labelBrand": "Marque",
