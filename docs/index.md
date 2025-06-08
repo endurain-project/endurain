@@ -51,7 +51,7 @@ Endurain currently supports:
 - Garmin Connect integration for syncing activities, gear and body composition
 - Activity feeds and statistics (week/month)
 - Basic activity privacy settings
-- Gear tracking (wetsuits, bicycles, shoes, racquets)
+- Gear tracking (wetsuits, bicycles, shoes, racquets, skis, snowboards)
 - Default gear for activity types
 - User pages with stats and activity histories
 - Follower features (view activities)

@@ -38,8 +38,14 @@
                             <span class="ms-2 badge bg-primary-subtle border border-primary-subtle text-primary-emphasis align-middle" v-else-if="gear?.gear_type == 3">
                                 {{ $t("gearView.gearTypeOption3") }}
                             </span>
-                            <span class="ms-2 badge bg-primary-subtle border border-primary-subtle text-primary-emphasis align-middle" v-else>
+                            <span class="ms-2 badge bg-primary-subtle border border-primary-subtle text-primary-emphasis align-middle" v-else-if="gear?.gear_type == 4">
                                 {{ $t("gearView.gearTypeOption4") }}
+                            </span>
+                            <span class="ms-2 badge bg-primary-subtle border border-primary-subtle text-primary-emphasis align-middle" v-else-if="gear?.gear_type == 5">
+                                {{ $t("gearView.gearTypeOption5") }}
+                            </span>
+                            <span class="ms-2 badge bg-primary-subtle border border-primary-subtle text-primary-emphasis align-middle" v-else>
+                                {{ $t("gearView.gearTypeOption6") }}
                             </span>
                             <span class="ms-2 badge bg-primary-subtle border border-primary-subtle text-primary-emphasis align-middle" v-if="gear?.strava_gear_id">
                                 {{ $t("gearView.gearFromStrava") }}
