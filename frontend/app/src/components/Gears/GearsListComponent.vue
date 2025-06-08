@@ -2,9 +2,11 @@
     <li class="list-group-item d-flex justify-content-between px-0 bg-body-tertiary">
         <div class="d-flex align-items-center">
             <img src="/src/assets/avatar/bicycle1.png" alt="Bycicle avatar" width="55" height="55" class="rounded-circle" v-if="gear.gear_type == 1">
-            <img src="/src/assets/avatar/running_shoe1.png" alt="Bycicle avatar" width="55" height="55" class="rounded-circle" v-else-if="gear.gear_type == 2">
-            <img src="/src/assets/avatar/wetsuit1.png" alt="Bycicle avatar" width="55" height="55" class="rounded-circle" v-else-if="gear.gear_type == 3">
-            <img src="/src/assets/avatar/racquet1.png" alt="Bycicle avatar" width="55" height="55" class="rounded-circle" v-else>
+            <img src="/src/assets/avatar/running_shoe1.png" alt="running shoe avatar" width="55" height="55" class="rounded-circle" v-else-if="gear.gear_type == 2">
+            <img src="/src/assets/avatar/wetsuit1.png" alt="wetsuit avatar" width="55" height="55" class="rounded-circle" v-else-if="gear.gear_type == 3">
+            <img src="/src/assets/avatar/racquet1.png" alt="racquet avatar" width="55" height="55" class="rounded-circle" v-else-if="gear.gear_type == 4">
+            <img src="/src/assets/avatar/skis1.png" alt="skis avatar" width="55" height="55" class="rounded-circle" v-else-if="gear.gear_type == 5">
+            <img src="/src/assets/avatar/snowboard1.png" alt="snowboard avatar" width="55" height="55" class="rounded-circle" v-else>
             <div class="ms-3">
                 <div class="fw-bold">
                     <router-link :to="{ name: 'gear', params: { id: gear.id }}" class="link-body-emphasis link-underline-opacity-0 link-underline-opacity-100-hover">
@@ -15,7 +17,9 @@
                 <span v-if="gear.gear_type == 1">{{ $t("gearsListComponent.gearListTypeOption1") }}</span>
                 <span v-else-if="gear.gear_type == 2">{{ $t("gearsListComponent.gearListTypeOption2") }}</span>
                 <span v-else-if="gear.gear_type == 3">{{ $t("gearsListComponent.gearListTypeOption3") }}</span>
-                <span v-else>{{ $t("gearsListComponent.gearListTypeOption4") }}</span>
+                <span v-else-if="gear.gear_type == 4">{{ $t("gearsListComponent.gearListTypeOption4") }}</span>
+                <span v-else-if="gear.gear_type == 5">{{ $t("gearsListComponent.gearListTypeOption5") }}</span>
+                <span v-else>{{ $t("gearsListComponent.gearListTypeOption6") }}</span>
                 <br>
             </div>
         </div>

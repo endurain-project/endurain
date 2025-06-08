@@ -188,9 +188,11 @@ The table bellow details the activity types supported by Endurain:
 ## Supported gear types
 The table bellow details the gear types supported by Endurain:
 
-| Name | Value |
-| ---- | --- |
-| Bike | 1 |
-| Shoes | 2 |
-| Wetsuit | 3 |
-| Racquet | 4 |
+| Name      | Value |
+|-----------|-------|
+| Bike      | 1     |
+| Shoes     | 2     |
+| Wetsuit   | 3     |
+| Racquet   | 4     |
+| Ski       | 5     |
+| Snowboard | 6     |

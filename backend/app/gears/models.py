@@ -30,7 +30,7 @@ class Gear(Base):
         comment="Gear nickname (May include spaces)",
     )
     gear_type = Column(
-        Integer, nullable=False, comment="Gear type (1 - bike, 2 - shoes, 3 - wetsuit, 4 - racquet)"
+        Integer, nullable=False, comment="Gear type (1 - bike, 2 - shoes, 3 - wetsuit, 4 - racquet, 5 - skis, 6 - snowboard)"
     )
     user_id = Column(
         Integer,
@@ -118,4 +118,14 @@ class Gear(Base):
         "UsersDefaultGear",
         back_populates="tennis_gear",
         foreign_keys="[UsersDefaultGear.tennis_gear_id]",
+    )
+    users_default_skis_gear = relationship(
+        "UsersDefaultGear",
+        back_populates="skis_gear",
+        foreign_keys="[UsersDefaultGear.skis_gear_id]",
+    )
+    users_default_snowboard_gear = relationship(
+        "UsersDefaultGear",
+        back_populates="snowboard_gear",
+        foreign_keys="[UsersDefaultGear.snowboard_gear_id]",
     )

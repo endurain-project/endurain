@@ -15,6 +15,8 @@ class UserDefaultGear(BaseModel):
     walk_gear_id: int | None
     hike_gear_id: int | None
     tennis_gear_id: int | None
+    skis_gear_id: int | None
+    snowboard_gear_id: int | None
 
     class Config:
         orm_mode = True
