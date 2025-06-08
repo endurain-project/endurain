@@ -110,6 +110,7 @@
                     <div class="col-lg-4 col-md-12">
                         <h5>{{ $t("settingsUserProfileZone.subTitleShoeActivities") }}</h5>
                         <form>
+                            <!-- run zone -->
                             <label class="form-label" for="settingsUserProfileRunGearSelect">{{ $t("settingsUserProfileZone.subTitleRun") }}</label>
                             <select class="form-select" name="settingsUserProfileRunGearSelect" v-model="defaultRunGear" required>
                                 <option :value="null">{{ $t("settingsUserProfileZone.selectOptionNotDefined") }}</option>
@@ -117,6 +118,7 @@
                                     {{ gear.nickname }}
                                 </option>
                             </select>
+                            <!-- trail run zone -->
                             <label class="form-label" for="settingsUserProfileTrailRunGearSelect">{{ $t("settingsUserProfileZone.subTitleTrailRun") }}</label>
                             <select class="form-select" name="settingsUserProfileTrailRunGearSelect" v-model="defaultTrailRunGear" required>
                                 <option :value="null">{{ $t("settingsUserProfileZone.selectOptionNotDefined") }}</option>
@@ -124,6 +126,7 @@
                                     {{ gear.nickname }}
                                 </option>
                             </select>
+                            <!-- virtual run zone -->
                             <label class="form-label" for="settingsUserProfileVirtualRunGearSelect">{{ $t("settingsUserProfileZone.subTitleVirtualRun") }}</label>
                             <select class="form-select" name="settingsUserProfileVirtualRunGearSelect" v-model="defaultVirtualRunGear" required>
                                 <option :value="null">{{ $t("settingsUserProfileZone.selectOptionNotDefined") }}</option>
@@ -131,6 +134,7 @@
                                     {{ gear.nickname }}
                                 </option>
                             </select>
+                            <!-- walk zone -->
                             <label class="form-label" for="settingsUserProfileWalkGearSelect">{{ $t("settingsUserProfileZone.subTitleWalk") }}</label>
                             <select class="form-select" name="settingsUserProfileWalkGearSelect" v-model="defaultWalkGear" required>
                                 <option :value="null">{{ $t("settingsUserProfileZone.selectOptionNotDefined") }}</option>
@@ -138,6 +142,7 @@
                                     {{ gear.nickname }}
                                 </option>
                             </select>
+                            <!-- hike zone -->
                             <label class="form-label" for="settingsUserProfileHikeGearSelect">{{ $t("settingsUserProfileZone.subTitleHike") }}</label>
                             <select class="form-select" name="settingsUserProfileHikeGearSelect" v-model="defaultHikeGear" required>
                                 <option :value="null">{{ $t("settingsUserProfileZone.selectOptionNotDefined") }}</option>
@@ -150,6 +155,7 @@
                     <div class="col-lg-4 col-md-12">
                         <h5>{{ $t("settingsUserProfileZone.subTitleBikeActivities") }}</h5>
                         <form>
+                            <!-- bike ride zone -->
                             <label class="form-label" for="settingsUserProfileRideGearSelect">{{ $t("settingsUserProfileZone.subTitleBike") }}</label>
                             <select class="form-select" name="settingsUserProfileRideGearSelect" v-model="defaultRideGear" required>
                                 <option :value="null">{{ $t("settingsUserProfileZone.selectOptionNotDefined") }}</option>
@@ -157,6 +163,7 @@
                                     {{ gear.nickname }}
                                 </option>
                             </select>
+                            <!-- mountain bike ride zone -->
                             <label class="form-label" for="settingsUserProfileMTBRideGearSelect">{{ $t("settingsUserProfileZone.subTitleMTBBike") }}</label>
                             <select class="form-select" name="settingsUserProfileMTBRideGearSelect" v-model="defaultMTBRideGear" required>
                                 <option :value="null">{{ $t("settingsUserProfileZone.selectOptionNotDefined") }}</option>
@@ -164,6 +171,7 @@
                                     {{ gear.nickname }}
                                 </option>
                             </select>
+                            <!-- gravel ride zone -->
                             <label class="form-label" for="settingsUserProfileGravelRideGearSelect">{{ $t("settingsUserProfileZone.subTitleGravelBike") }}</label>
                             <select class="form-select" name="settingsUserProfileGravelRideGearSelect" v-model="defaultGravelRideGear" required>
                                 <option :value="null">{{ $t("settingsUserProfileZone.selectOptionNotDefined") }}</option>
@@ -171,6 +179,7 @@
                                     {{ gear.nickname }}
                                 </option>
                             </select>
+                            <!-- virtual ride zone -->
                             <label class="form-label" for="settingsUserProfileVirtualRideGearSelect">{{ $t("settingsUserProfileZone.subTitleVirtualBike") }}</label>
                             <select class="form-select" name="settingsUserProfileVirtualRideGearSelect" v-model="defaultVirtualRideGear" required>
                                 <option :value="null">{{ $t("settingsUserProfileZone.selectOptionNotDefined") }}</option>
@@ -183,6 +192,7 @@
                     <div class="col-lg-4 col-md-12">
                         <h5>{{ $t("settingsUserProfileZone.subTitleSwimActivities") }}</h5>
                         <form>
+                            <!-- open water swim zone -->
                             <label class="form-label" for="settingsUserProfileOWSGearSelect">{{ $t("settingsUserProfileZone.subTitleSwim") }}</label>
                             <select class="form-select" name="settingsUserProfileOWSGearSelect" v-model="defaultOWSGear" required>
                                 <option :value="null">{{ $t("settingsUserProfileZone.selectOptionNotDefined") }}</option>
@@ -195,10 +205,32 @@
                     <div class="col-lg-4 col-md-12 mt-md-2">
                         <h5>{{ $t("settingsUserProfileZone.subTitleRacquetActivities") }}</h5>
                         <form>
+                            <!-- racquet tennis zone -->
                             <label class="form-label" for="settingsUserProfileTennisGearSelect">{{ $t("settingsUserProfileZone.subTitleTennis") }}</label>
                             <select class="form-select" name="settingsUserProfileTennisGearSelect" v-model="defaultTennisGear" required>
                                 <option :value="null">{{ $t("settingsUserProfileZone.selectOptionNotDefined") }}</option>
                                 <option v-for="gear in racquetGear" :key="gear.id" :value="gear.id">
+                                    {{ gear.nickname }}
+                                </option>
+                            </select>
+                        </form>
+                    </div>
+                    <div class="col-lg-4 col-md-12 mt-md-2">
+                        <h5>{{ $t("settingsUserProfileZone.subTitleSnowActivities") }}</h5>
+                        <form>
+                            <!-- skis zone -->
+                            <label class="form-label" for="settingsUserProfileSkisGearSelect">{{ $t("settingsUserProfileZone.subTitleSkis") }}</label>
+                            <select class="form-select" name="settingsUserProfileSkisGearSelect" v-model="defaultSkisGear" required>
+                                <option :value="null">{{ $t("settingsUserProfileZone.selectOptionNotDefined") }}</option>
+                                <option v-for="gear in skisGear" :key="gear.id" :value="gear.id">
+                                    {{ gear.nickname }}
+                                </option>
+                            </select>
+                            <!-- snowboard zone -->
+                            <label class="form-label" for="settingsUserProfileSnowboardGearSelect">{{ $t("settingsUserProfileZone.subTitleSnowboard") }}</label>
+                            <select class="form-select" name="settingsUserProfileSnowboardGearSelect" v-model="defaultSnowboardGear" required>
+                                <option :value="null">{{ $t("settingsUserProfileZone.selectOptionNotDefined") }}</option>
+                                <option v-for="gear in snowboardGear" :key="gear.id" :value="gear.id">
                                     {{ gear.nickname }}
                                 </option>
                             </select>
@@ -383,6 +415,8 @@ const defaultGravelRideGear = ref(null);
 const defaultVirtualRideGear = ref(null);
 const defaultOWSGear = ref(null);
 const defaultTennisGear = ref(null);
+const defaultSkisGear = ref(null);
+const defaultSnowboardGear = ref(null);
 const visibilityOptionsForModal = ref([
 	{ id: 0, name: t("settingsUserProfileZone.privacyOption1") },
 	{ id: 1, name: t("settingsUserProfileZone.privacyOption2") },
@@ -439,6 +473,8 @@ async function updateDefaultGear() {
 		virtual_ride_gear_id: defaultVirtualRideGear.value,
 		ows_gear_id: defaultOWSGear.value,
 		tennis_gear_id: defaultTennisGear.value,
+        skis_gear_id: defaultSkisGear.value,
+        snowboard_gear_id: defaultSnowboardGear.value,
 	};
 	try {
 		// Update the default gear in the DB
@@ -540,6 +576,8 @@ onMounted(async () => {
 			defaultVirtualRideGear.value = defaultGear.value.virtual_ride_gear_id;
 			defaultOWSGear.value = defaultGear.value.ows_gear_id;
 			defaultTennisGear.value = defaultGear.value.tennis_gear_id;
+            defaultSkisGear.value = defaultGear.value.skis_gear_id;
+            defaultSnowboardGear.value = defaultGear.value.snowboard_gear_id;
 		} catch (error) {
 			// If there is an error, set the error message and show the error alert.
 			push.error(
@@ -572,6 +610,8 @@ watch(
 		defaultVirtualRideGear,
 		defaultOWSGear,
 		defaultTennisGear,
+        defaultSkisGear,
+        defaultSnowboardGear,
 	],
 	async () => {
 		if (!isMounted.value || isLoading.value) return;
