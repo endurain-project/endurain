@@ -2,7 +2,6 @@ import os
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from starlette.middleware.proxy_headers import ProxyHeadersMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from alembic.config import Config
@@ -84,9 +83,6 @@ def create_app() -> FastAPI:
             "url": core_config.LICENSE_URL,
         },
     )
-
-    if os.environ.get("BEHIND_PROXY", "").lower() == "true":
-        app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
 
     # Add CORS middleware to allow requests from the frontend
     origins = [
