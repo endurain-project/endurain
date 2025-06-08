@@ -369,6 +369,8 @@ const runGear = ref(null);
 const bikeGear = ref(null);
 const swimGear = ref(null);
 const racquetGear = ref(null);
+const skisGear = ref(null);
+const snowboardGear = ref(null);
 const defaultGear = ref(null);
 const defaultRunGear = ref(null);
 const defaultTrailRunGear = ref(null);
@@ -518,6 +520,12 @@ onMounted(async () => {
 		racquetGear.value = allGears.value.filter(
 			(gear) => gear.gear_type === 4,
 		);
+        skisGear.value = allGears.value.filter(
+            (gear) => gear.gear_type === 5,
+        );
+        snowboardGear.value = allGears.value.filter(
+            (gear) => gear.gear_type === 6,
+        );
 
 		try {
 			defaultGear.value = await userDefaultGear.getUserDefaultGear();

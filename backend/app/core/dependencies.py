@@ -11,7 +11,7 @@ def validate_id(id: int, min: int, message: str):
 
 
 def validate_type(type: int, min: int, max: id, message: str):
-    # Check if gear_type is between 1 and 3
+    # Check if gear_type is between min and max
     if not (min <= int(type) <= max):
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,

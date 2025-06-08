@@ -32,6 +32,9 @@
                     <option value="1">{{ $t("searchView.searchSelectGearType1") }}</option>
                     <option value="2">{{ $t("searchView.searchSelectGearType2") }}</option>
                     <option value="3">{{ $t("searchView.searchSelectGearType3") }}</option>
+                    <option value="4">{{ $t("searchView.searchSelectGearType4") }}</option>
+                    <option value="5">{{ $t("searchView.searchSelectGearType5") }}</option>
+                    <option value="6">{{ $t("searchView.searchSelectGearType6") }}</option>
                 </select>
                 <!-- Search area -->
                 <input type="text" class="form-control rounded" id="inputTextFieldToSearch"
@@ -59,6 +62,10 @@
                             v-if="searchSelectValue == 3 && [3].includes(Number(result.gear_type))" />
                         <font-awesome-icon :icon="['fas', 'table-tennis-paddle-ball']"
                             v-if="searchSelectValue == 3 && [4].includes(Number(result.gear_type))" />
+                        <font-awesome-icon :icon="['fas', 'person-skiing']"
+                            v-if="searchSelectValue == 3 && [5].includes(Number(result.gear_type))" />
+                        <font-awesome-icon :icon="['fas', 'person-snowboarding']"
+                            v-if="searchSelectValue == 3 && [6].includes(Number(result.gear_type))" />
                         <div class="ms-3">
                             <div class="fw-bold">
                                 <router-link :to="{ name: 'user', params: { id: result.id } }"
@@ -248,6 +255,14 @@ function updateSearchResultsBasedOnGearType() {
     } else if (searchSelectGearType.value === "3") {
         searchResults.value = searchResultsOriginal.value.filter((user) =>
             [3].includes(user.gear_type),
+        );
+    } else if (searchSelectGearType.value === "4") {
+        searchResults.value = searchResultsOriginal.value.filter((user) =>
+            [4].includes(user.gear_type),
+        );
+    } else if (searchSelectGearType.value === "5") {
+        searchResults.value = searchResultsOriginal.value.filter((user) =>
+            [5].includes(user.gear_type),
         );
     } else {
         searchResults.value = searchResultsOriginal.value;

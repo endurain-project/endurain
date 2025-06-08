@@ -17,7 +17,9 @@
                         <img src="/src/assets/avatar/bicycle1.png" alt="Bicycle avatar" width="180" height="180" class="rounded-circle" v-if="gear?.gear_type == 1">
                         <img src="/src/assets/avatar/running_shoe1.png" alt="Bicycle avatar" width="180" height="180" class="rounded-circle" v-else-if="gear?.gear_type == 2">
                         <img src="/src/assets/avatar/wetsuit1.png" alt="Bicycle avatar" width="180" height="180" class="rounded-circle" v-else-if="gear?.gear_type == 3">
-                        <img src="/src/assets/avatar/racquet1.png" alt="Bicycle avatar" width="180" height="180" class="rounded-circle" v-else>
+                        <img src="/src/assets/avatar/racquet1.png" alt="Bicycle avatar" width="180" height="180" class="rounded-circle" v-else-if="gear?.gear_type == 4">
+                        <img src="/src/assets/avatar/skis1.png" alt="Bicycle avatar" width="180" height="180" class="rounded-circle" v-else-if="gear?.gear_type == 5">
+                        <img src="/src/assets/avatar/snowboard1.png" alt="Bicycle avatar" width="180" height="180" class="rounded-circle" v-else>
                     </div>
                     <br>
                     <div class="vstack justify-content-center align-items-center d-flex">
