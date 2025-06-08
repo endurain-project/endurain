@@ -218,9 +218,17 @@
                     <div class="col-lg-4 col-md-12 mt-md-2">
                         <h5>{{ $t("settingsUserProfileZone.subTitleSnowActivities") }}</h5>
                         <form>
-                            <!-- skis zone -->
-                            <label class="form-label" for="settingsUserProfileSkisGearSelect">{{ $t("settingsUserProfileZone.subTitleSkis") }}</label>
-                            <select class="form-select" name="settingsUserProfileSkisGearSelect" v-model="defaultSkisGear" required>
+                            <!-- alpine sli zone -->
+                            <label class="form-label" for="settingsUserProfileAlpineSkiGearSelect">{{ $t("settingsUserProfileZone.subTitleAlpineSki") }}</label>
+                            <select class="form-select" name="settingsUserProfileAlpineSkiGearSelect" v-model="defaultAlpineSkiGear" required>
+                                <option :value="null">{{ $t("settingsUserProfileZone.selectOptionNotDefined") }}</option>
+                                <option v-for="gear in skisGear" :key="gear.id" :value="gear.id">
+                                    {{ gear.nickname }}
+                                </option>
+                            </select>
+                            <!-- nordic ski zone -->
+                            <label class="form-label" for="settingsUserProfileNordicSkiGearSelect">{{ $t("settingsUserProfileZone.subTitleNordicSki") }}</label>
+                            <select class="form-select" name="settingsUserProfileNordicSkiGearSelect" v-model="defaultNordicSkiGear" required>
                                 <option :value="null">{{ $t("settingsUserProfileZone.selectOptionNotDefined") }}</option>
                                 <option v-for="gear in skisGear" :key="gear.id" :value="gear.id">
                                     {{ gear.nickname }}
@@ -415,7 +423,8 @@ const defaultGravelRideGear = ref(null);
 const defaultVirtualRideGear = ref(null);
 const defaultOWSGear = ref(null);
 const defaultTennisGear = ref(null);
-const defaultSkisGear = ref(null);
+const defaultAlpineSkiGear = ref(null);
+const defaultNordicSkiGear = ref(null);
 const defaultSnowboardGear = ref(null);
 const visibilityOptionsForModal = ref([
 	{ id: 0, name: t("settingsUserProfileZone.privacyOption1") },
@@ -473,7 +482,8 @@ async function updateDefaultGear() {
 		virtual_ride_gear_id: defaultVirtualRideGear.value,
 		ows_gear_id: defaultOWSGear.value,
 		tennis_gear_id: defaultTennisGear.value,
-        skis_gear_id: defaultSkisGear.value,
+        alpine_ski_gear_id: defaultAlpineSkiGear.value,
+        nordic_ski_gear_id: defaultNordicSkiGear.value,
         snowboard_gear_id: defaultSnowboardGear.value,
 	};
 	try {
@@ -576,7 +586,8 @@ onMounted(async () => {
 			defaultVirtualRideGear.value = defaultGear.value.virtual_ride_gear_id;
 			defaultOWSGear.value = defaultGear.value.ows_gear_id;
 			defaultTennisGear.value = defaultGear.value.tennis_gear_id;
-            defaultSkisGear.value = defaultGear.value.skis_gear_id;
+            defaultAlpineSkiGear.value = defaultGear.value.alpine_ski_gear_id;
+            defaultNordicSkiGear.value = defaultGear.value.nordic_ski_gear_id;
             defaultSnowboardGear.value = defaultGear.value.snowboard_gear_id;
 		} catch (error) {
 			// If there is an error, set the error message and show the error alert.
@@ -610,7 +621,8 @@ watch(
 		defaultVirtualRideGear,
 		defaultOWSGear,
 		defaultTennisGear,
-        defaultSkisGear,
+        defaultAlpineSkiGear,
+        defaultNordicSkiGear,
         defaultSnowboardGear,
 	],
 	async () => {

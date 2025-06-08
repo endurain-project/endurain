@@ -32,8 +32,10 @@ def get_user_default_gear_by_activity_type(
             return user_default_gear.walk_gear_id
         elif activity_type == 12:
             return user_default_gear.hike_gear_id
-        elif activity_type == 15 or activity_type == 16:
-            return user_default_gear.skis_gear_id
+        elif activity_type == 15:
+            return user_default_gear.alpine_ski_gear_id
+        elif activity_type == 16:
+            return user_default_gear.nordic_ski_gear_id
         elif activity_type == 17:
             return user_default_gear.snowboard_gear_id
         elif activity_type == 21:

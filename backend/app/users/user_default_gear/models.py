@@ -91,12 +91,19 @@ class UsersDefaultGear(Base):
         index=True,
         comment="Gear ID that the default tennis activity type belongs",
     )
-    skis_gear_id = Column(
+    alpine_ski_gear_id = Column(
         Integer,
         ForeignKey("gear.id", ondelete="SET NULL"),
         nullable=True,
         index=True,
-        comment="Gear ID that the default skis activity type belongs",
+        comment="Gear ID that the default alpine ski activity type belongs",
+    )
+    nordic_ski_gear_id = Column(
+        Integer,
+        ForeignKey("gear.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+        comment="Gear ID that the default nordic ski activity type belongs",
     )
     snowboard_gear_id = Column(
         Integer,
@@ -121,5 +128,6 @@ class UsersDefaultGear(Base):
     walk_gear = relationship("Gear", foreign_keys=[walk_gear_id])
     hike_gear = relationship("Gear", foreign_keys=[hike_gear_id])
     tennis_gear = relationship("Gear", foreign_keys=[tennis_gear_id])
-    skis_gear = relationship("Gear", foreign_keys=[skis_gear_id])
+    alpine_ski_gear = relationship("Gear", foreign_keys=[alpine_ski_gear_id])
+    nordic_ski_gear = relationship("Gear", foreign_keys=[nordic_ski_gear_id])
     snowboard_gear = relationship("Gear", foreign_keys=[snowboard_gear_id])

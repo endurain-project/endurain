@@ -119,10 +119,15 @@ class Gear(Base):
         back_populates="tennis_gear",
         foreign_keys="[UsersDefaultGear.tennis_gear_id]",
     )
-    users_default_skis_gear = relationship(
+    users_default_alpine_ski_gear = relationship(
         "UsersDefaultGear",
-        back_populates="skis_gear",
-        foreign_keys="[UsersDefaultGear.skis_gear_id]",
+        back_populates="alpine_ski_gear",
+        foreign_keys="[UsersDefaultGear.alpine_ski_gear_id]",
+    )
+    users_default_nordic_ski_gear = relationship(
+        "UsersDefaultGear",
+        back_populates="nordic_ski_gear",
+        foreign_keys="[UsersDefaultGear.nordic_ski_gear_id]",
     )
     users_default_snowboard_gear = relationship(
         "UsersDefaultGear",
