@@ -29,9 +29,7 @@ def encrypt_token_fernet(token) -> str:
         cipher = create_fernet_cipher()
 
         # Convert to string if token is not already a string
-        if not token:
-            token = ""
-        elif not isinstance(token, str):
+        if not isinstance(token, str):
             token = str(token)
             
         # Encrypt the token
