@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "endurain"
-version = "0.12.2"
+version = "0.12.3"
 description = "Endurain API for the Endurain app"
 authors = ["João Vitória Silva <8648976+joaovitoriasilva@users.noreply.github.com>"]
 readme = "README.md"
@@ -37,6 +37,7 @@ psycopg = {extras = ["binary", "pool"], version = "^3.2.3"}
 poetry = "^2.0.0"
 user-agents = "^2.2.0"
 pydantic = {extras = ["email"], version = "^2.11.3"}
+garth = "^0.5.16"
 
 
 [build-system]
