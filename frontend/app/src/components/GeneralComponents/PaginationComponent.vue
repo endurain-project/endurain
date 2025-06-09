@@ -22,7 +22,7 @@
 <script setup>
 import { computed } from 'vue';
 
-defineProps({
+const props = defineProps({
     totalPages: {
         type: Number,
         required: true,
@@ -33,9 +33,7 @@ defineProps({
     },
 });
 
-const emit = defineEmits(['pageNumberChanged']);
-
-const props = defineProps(['totalPages', 'pageNumber']);
+const emit = defineEmits(["pageNumberChanged"]);
 
 const pagesToShow = computed(() => {
     const pages = [];
