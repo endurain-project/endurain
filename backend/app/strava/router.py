@@ -9,7 +9,7 @@ import session.security as session_security
 
 import users.user_integrations.crud as user_integrations_crud
 
-import gears.crud as gears_crud
+import gears.gear.crud as gears_crud
 
 import activities.activity.crud as activities_crud
 

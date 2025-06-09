@@ -1,8 +1,8 @@
 from sqlalchemy import func
 from urllib.parse import unquote
 
-import gears.models as gears_models
-import gears.schema as gears_schema
+import gears.gear.models as gears_models
+import gears.gear.schema as gears_schema
 
 
 def transform_schema_gear_to_model_gear(

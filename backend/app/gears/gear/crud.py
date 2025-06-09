@@ -4,9 +4,9 @@ from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from urllib.parse import unquote
 
-import gears.schema as gears_schema
-import gears.utils as gears_utils
-import gears.models as gears_models
+import gears.gear.schema as gears_schema
+import gears.gear.utils as gears_utils
+import gears.gear.models as gears_models
 
 import core.logger as core_logger
 

@@ -5,9 +5,9 @@ from sqlalchemy.orm import Session
 
 import session.security as session_security
 
-import gears.schema as gears_schema
-import gears.crud as gears_crud
-import gears.dependencies as gears_dependencies
+import gears.gear.schema as gears_schema
+import gears.gear.crud as gears_crud
+import gears.gear.dependencies as gears_dependencies
 
 import core.database as core_database
 

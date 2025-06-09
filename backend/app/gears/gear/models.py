@@ -4,7 +4,6 @@ from sqlalchemy import (
     String,
     DATETIME,
     ForeignKey,
-    Boolean,
     DECIMAL,
 )
 from sqlalchemy.orm import relationship
@@ -64,6 +63,14 @@ class Gear(Base):
     user = relationship("User", back_populates="gear")
     # Establish a one-to-many relationship with 'activities'
     activities = relationship("Activity", back_populates="gear")
+    # Establish a one-to-many relationship with 'gear_components'
+    #gear_components = relationship(
+    #    "GearComponents",
+    #    back_populates="gear",
+    #    cascade="all, delete-orphan",
+    #    foreign_keys="[GearComponents.gear_id]",
+    #)
+    # Establish a one-to-many relationship with 'users_default_gear'
     users_default_run_gear = relationship(
         "UsersDefaultGear",
         back_populates="run_gear",

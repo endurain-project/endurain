@@ -27,7 +27,7 @@ import users.user_privacy_settings.schema as users_privacy_settings_schema
 
 import users.user.crud as users_crud
 
-import gears.crud as gears_crud
+import gears.gear.crud as gears_crud
 
 import strava.utils as strava_utils
 

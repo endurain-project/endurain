@@ -20,7 +20,7 @@ import users.user_default_gear.utils as user_default_gear_utils
 
 import garmin.utils as garmin_utils
 
-import gears.crud as gears_crud
+import gears.gear.crud as gears_crud
 
 import users.user_privacy_settings.schema as users_privacy_settings_schema
 
