@@ -1,12 +1,14 @@
 <template>
-  	<h1>{{ t('summaryView.title') }}</h1>
-    <!-- Controls Section -->
-    <div class="p-3 mb-3 bg-body-tertiary border-0 rounded">
+	<h1>{{ t('summaryView.title') }}</h1>
+	<!-- Controls Section -->
+	<div class="p-3 mb-3 bg-body-tertiary border-0 rounded">
 		<div class="row align-items-end">
 			<!-- Activity Type Filter -->
 			<div class="col-md-3">
-				<label for="activityTypeFilter" class="form-label">{{ t('summaryView.filterLabelActivityType') }}</label>
-				<select id="activityTypeFilter" class="form-select" v-model="selectedActivityType" :disabled="isAnyLoading">
+				<label for="activityTypeFilter" class="form-label">{{ t('summaryView.filterLabelActivityType')
+					}}</label>
+				<select id="activityTypeFilter" class="form-select" v-model="selectedActivityType"
+					:disabled="isAnyLoading">
 					<option value="">{{ t('summaryView.filterOptionAllTypes') }}</option>
 					<option v-for="(name, id) in activityTypes" :key="id" :value="id">{{ name }}</option>
 				</select>
@@ -24,53 +26,57 @@
 			<!-- Week/month/year select -->
 			<div class="col-md-3" v-if="selectedViewType !== 'lifetime'">
 				<label :for="periodInputId" class="form-label">{{ periodLabel }}</label>
-				<input type="date" :id="periodInputId" class="form-control" v-if="selectedViewType === 'week'" v-model="selectedDate">
-				<input type="month" :id="periodInputId" class="form-control" v-else-if="selectedViewType === 'month'" v-model="selectedMonth">
-				<input type="number" :id="periodInputId" class="form-control" v-else-if="selectedViewType === 'year'" v-model="selectedYear" placeholder="YYYY" min="1900" :max="todayYear" @input="validateYear">
+				<input type="date" :id="periodInputId" class="form-control" v-if="selectedViewType === 'week'"
+					v-model="selectedDate">
+				<input type="month" :id="periodInputId" class="form-control" v-else-if="selectedViewType === 'month'"
+					v-model="selectedMonth">
+				<input type="number" :id="periodInputId" class="form-control" v-else-if="selectedViewType === 'year'"
+					v-model="selectedYear" placeholder="YYYY" min="1900" :max="todayYear" @input="validateYear">
 			</div>
 			<!-- Buttons -->
 			<div class="col-12 mt-3 d-flex justify-content-end gap-3" v-if="selectedViewType !== 'lifetime'">
-				<button 
-					class="btn btn-primary me-1" 
+				<button class="btn btn-primary me-1"
 					:disabled="isAnyLoading || (selectedViewType === 'year' && selectedYear === 1900) || (selectedViewType === 'month' && selectedMonth === '1900-01') || (selectedViewType === 'week' && selectedDate === '1900-01-01')"
-					@click="navigatePeriod(-1)"
-				>
+					@click="navigatePeriod(-1)">
 					<span v-if="isAnyLoading" class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>
 					<span role="status">{{ t('summaryView.buttonPreviousPeriod') }}</span>
 				</button>
-				<button 
-					class="btn btn-primary" 
+				<button class="btn btn-primary"
 					:disabled="isAnyLoading || (selectedViewType === 'year' && selectedYear === todayYear) || (selectedViewType === 'month' && selectedMonth === todayMonth) || (selectedViewType === 'week' && selectedDate === todayWeek)"
-					@click="navigatePeriod(1)"
-				>
+					@click="navigatePeriod(1)">
 					<span v-if="isAnyLoading" class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>
 					<span role="status">{{ t('summaryView.buttonNextPeriod') }}</span>
 				</button>
 			</div>
 		</div>
-    </div>
+	</div>
 
-    <!-- Summary Display Section -->
-    <div class="bg-body-tertiary border-0 rounded p-3">
+	<!-- Summary Display Section -->
+	<div class="bg-body-tertiary border-0 rounded p-3">
 		<h5>{{ t('summaryView.headerSummaryFor', { period: summaryPeriodText }) }}</h5>
 		<hr>
 		<LoadingComponent v-if="isLoading" />
 		<!-- New Highlighted Summary Totals Section -->
 		<div class="row row-gap-3 gap-0 justify-content-around" v-else-if="summaryData">
 			<div class="col-lg col-md-4 col-sm-6">
-				<ActivitiesSummaryTotalsSectionComponent :title="t('summaryView.metricTotalDistance')" :subTitle="formatRawDistance(summaryData.total_distance, authStore.user.units)" />
+				<ActivitiesSummaryTotalsSectionComponent :title="t('summaryView.metricTotalDistance')"
+					:subTitle="formatRawDistance(summaryData.total_distance, authStore.user.units)" />
 			</div>
 			<div class="col-lg col-md-4 col-sm-6">
-				<ActivitiesSummaryTotalsSectionComponent :title="t('summaryView.metricTotalDuration')" :subTitle="formatDuration(summaryData.total_duration)" />
+				<ActivitiesSummaryTotalsSectionComponent :title="t('summaryView.metricTotalDuration')"
+					:subTitle="formatDuration(summaryData.total_duration)" />
 			</div>
 			<div class="col-lg col-md-4 col-sm-6">
-				<ActivitiesSummaryTotalsSectionComponent :title="t('summaryView.metricTotalElevation')" :subTitle="formatElevation(summaryData.total_elevation_gain, authStore.user.units)" />
+				<ActivitiesSummaryTotalsSectionComponent :title="t('summaryView.metricTotalElevation')"
+					:subTitle="formatElevation(summaryData.total_elevation_gain, authStore.user.units)" />
 			</div>
 			<div class="col-lg col-md-6 col-sm-6">
-				<ActivitiesSummaryTotalsSectionComponent :title="t('summaryView.metricTotalCalories')" :subTitle="formatCalories(summaryData.total_calories)" />
+				<ActivitiesSummaryTotalsSectionComponent :title="t('summaryView.metricTotalCalories')"
+					:subTitle="formatCalories(summaryData.total_calories)" />
 			</div>
 			<div class="col-lg col-md-6 col-sm-6">
-				<ActivitiesSummaryTotalsSectionComponent :title="t('summaryView.metricTotalActivities')" :subTitle="String(summaryData.activity_count)" />
+				<ActivitiesSummaryTotalsSectionComponent :title="t('summaryView.metricTotalActivities')"
+					:subTitle="String(summaryData.activity_count)" />
 			</div>
 		</div>
 		<NoItemsFoundComponents :showShadow="false" v-else />
@@ -78,51 +84,34 @@
 		<h5 class="mt-3">{{ t('summaryView.headerBreakdown') }}</h5>
 		<hr>
 		<LoadingComponent v-if="isLoading" />
-		<ActivitiesSummaryBreakdownTableComponent 
-			:selectedViewType="selectedViewType" 
-			:summaryData="summaryData" 
-			:authStore="authStore" 
-			:selectedYear="selectedYear"
-			v-else-if="summaryData['activity_count'] > 0"
-		/>
+		<ActivitiesSummaryBreakdownTableComponent :selectedViewType="selectedViewType" :summaryData="summaryData"
+			:authStore="authStore" :selectedYear="selectedYear" v-else-if="summaryData['activity_count'] > 0" />
 		<NoItemsFoundComponents :showShadow="false" v-else />
 
-        <h5>{{ t('summaryView.headerTypeBreakdown') }}</h5>
-        <hr>
+		<h5>{{ t('summaryView.headerTypeBreakdown') }}</h5>
+		<hr>
 		<LoadingComponent v-if="isLoading" />
-		<ActivitiesTypeBreakdownTableComponent 
-			:typeBreakdownData="typeBreakdownData"
-			:authStore="authStore"
-			v-else-if="typeBreakdownData && !selectedActivityType"
-		/>
+		<ActivitiesTypeBreakdownTableComponent :typeBreakdownData="typeBreakdownData" :authStore="authStore"
+			v-else-if="typeBreakdownData && !selectedActivityType" />
 		<NoItemsFoundComponents :showShadow="false" v-else />
 	</div>
 
-    <!-- Activities in Period Section -->
-    <div class="mt-3" v-if="selectedViewType !== 'lifetime'">
+	<!-- Activities in Period Section -->
+	<div class="mt-3" v-if="selectedViewType !== 'lifetime'">
 		<LoadingComponent v-if="isLoadingActivities" />
 		<div v-else class="p-3 bg-body-tertiary rounded shadow-sm">
 			<h5>{{ t('summaryView.headerActivitiesInPeriod') }}</h5>
 			<hr>
 			<div v-if="activities && activities.length">
 				<LoadingComponent v-if="isLoading" />
-				<ActivitiesTableComponent
-					:activities="activities"
-					:sortBy="sortBy"
-					:sortOrder="sortOrder"
-					@sortChanged="handleSort"
-					v-else
-				/>
-				<PaginationComponent
-					v-if="userNumberActivities > 0"
-					:pageNumber="pageNumber"
-					:totalPages="totalPages"
-					@pageNumberChanged="setPageNumber"
-				/>
+				<ActivitiesTableComponent :activities="activities" :sortBy="sortBy" :sortOrder="sortOrder"
+					@sortChanged="handleSort" v-else />
+				<PaginationComponent v-if="userNumberActivities > 0" :pageNumber="pageNumber" :totalPages="totalPages"
+					@pageNumberChanged="setPageNumber" />
 			</div>
 			<NoItemsFoundComponents :showShadow="false" v-else />
 		</div>
-    </div>
+	</div>
 </template>
 
 <script setup>
@@ -436,46 +425,46 @@ onMounted(async () => {
 });
 
 const summaryPeriodText = computed(() => {
-    // Early return for lifetime view
-    if (selectedViewType.value === "lifetime") {
-        return t("summaryView.optionLifetime");
-    }
+	// Early return for lifetime view
+	if (selectedViewType.value === "lifetime") {
+		return t("summaryView.optionLifetime");
+	}
 
-    // Early return for loading state
-    if (isLoading.value) {
-        return t("generalItems.labelNotApplicable");
-    }
+	// Early return for loading state
+	if (isLoading.value) {
+		return t("generalItems.labelNotApplicable");
+	}
 
-    // Early return when no data and not loading
-    if (!summaryData.value) {
-        return t("summaryView.labelSelectPeriod");
-    }
+	// Early return when no data and not loading
+	if (!summaryData.value) {
+		return t("summaryView.labelSelectPeriod");
+	}
 
-    // Handle year view type
-    if (selectedViewType.value === "year") {
-        return t("summaryView.headerYear", { year: selectedYear.value });
-    }
+	// Handle year view type
+	if (selectedViewType.value === "year") {
+		return t("summaryView.headerYear", { year: selectedYear.value });
+	}
 
 	let date = new Date(selectedDate.value);
-    // Handle month view type
-    if (selectedViewType.value === "month") {
-        return date.toLocaleDateString(undefined, {
-            year: "numeric",
-            month: "long",
-            timeZone: "UTC",
-        });
-    }
+	// Handle month view type
+	if (selectedViewType.value === "month") {
+		return date.toLocaleDateString(undefined, {
+			year: "numeric",
+			month: "long",
+			timeZone: "UTC",
+		});
+	}
 
-    // Handle week view type
-    if (selectedViewType.value === "week") {
-        const weekStart = getWeekStartDate(date);
-        return t("summaryView.headerWeekStarting", {
-            date: formatDateISO(weekStart),
-        });
-    }
+	// Handle week view type
+	if (selectedViewType.value === "week") {
+		const weekStart = getWeekStartDate(date);
+		return t("summaryView.headerWeekStarting", {
+			date: formatDateISO(weekStart),
+		});
+	}
 
-    // Fallback
-    return t("summaryView.labelSelectPeriod");
+	// Fallback
+	return t("summaryView.labelSelectPeriod");
 });
 
 function handleSort(columnName) {
