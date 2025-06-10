@@ -166,7 +166,11 @@ def serialize_oauth1_token(token):
             "oauth_token_secret": core_cryptography.encrypt_token_fernet(
                 token.oauth_token_secret
             ),
-            "mfa_token": core_cryptography.encrypt_token_fernet(token.mfa_token),
+            "mfa_token": (
+                core_cryptography.encrypt_token_fernet(token.mfa_token)
+                if token.mfa_token
+                else None
+            ),
             "mfa_expiration_timestamp": (
                 token.mfa_expiration_timestamp.isoformat()
                 if token.mfa_expiration_timestamp
@@ -212,7 +216,11 @@ def deserialize_oauth1_token(data):
             oauth_token_secret=core_cryptography.decrypt_token_fernet(
                 data["oauth_token_secret"]
             ),
-            mfa_token=core_cryptography.decrypt_token_fernet(data.get("mfa_token")),
+            mfa_token=(
+                core_cryptography.decrypt_token_fernet(data.get("mfa_token"))
+                if data.get("mfa_token")
+                else None
+            ),
             mfa_expiration_timestamp=(
                 datetime.fromisoformat(data["mfa_expiration_timestamp"])
                 if data.get("mfa_expiration_timestamp")
