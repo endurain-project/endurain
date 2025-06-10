@@ -19,7 +19,7 @@ router = APIRouter()
     "",
     response_model=list[gears_schema.Gear] | None,
 )
-async def read_gear_id(
+async def read_gears(
     check_scopes: Annotated[
         Callable, Security(session_security.check_scopes, scopes=["gears:read"])
     ],

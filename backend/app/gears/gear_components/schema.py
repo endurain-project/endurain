@@ -1,7 +1,7 @@
 from pydantic import BaseModel
-from sqlalchemy import Enum
+import enum
 
-class GearComponentType(Enum):
+class GearComponentType(enum.Enum):
     BACK_TIRE = "back_tire"
     FRONT_TIRE = "front_tire"
     BACK_TUBE = "back_tube"
@@ -26,6 +26,7 @@ class GearComponentType(Enum):
 
 class GearComponents(BaseModel):
     id: int | None = None
+    user_id: int
     gear_id: int
     type: GearComponentType
     brand: str | None = None

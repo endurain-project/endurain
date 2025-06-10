@@ -21,6 +21,12 @@ class GearComponents(Base):
     __tablename__ = "gear_components"
 
     id = Column(Integer, primary_key=True)
+    user_id = Column(
+        Integer,
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        comment="User ID that the gear component belongs to",
+    )
     gear_id = Column(
         Integer,
         ForeignKey("gear.id", ondelete="SET NULL"),
@@ -70,4 +76,7 @@ class GearComponents(Base):
         comment="Purchase value of the gear component",
     )
 
+    # Define a relationship to the User model
+    user = relationship("User", back_populates="gear_components")
+    # Define a relationship to the Gear model
     gear = relationship("Gear", back_populates="gear_components")

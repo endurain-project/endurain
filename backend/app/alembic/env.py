@@ -13,6 +13,7 @@ import activities.activity_exercise_titles.models
 import activities.activity_workout_steps.models
 import followers.models
 import gears.gear.models
+import gears.gear_components.models
 import health_data.models
 import health_targets.models
 import migrations.models

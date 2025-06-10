@@ -95,6 +95,12 @@ class User(Base):
         back_populates="user",
         cascade="all, delete-orphan",
     )
+    # Define a relationship to GearComponents model
+    gear_components = relationship(
+        "GearComponents",
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
     # Establish a one-to-many relationship with 'activities'
     activities = relationship(
         "Activity",
