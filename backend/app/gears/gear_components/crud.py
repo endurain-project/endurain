@@ -42,3 +42,37 @@ def get_gear_components_user(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal Server Error",
         ) from err
+    
+
+def get_gear_components_user_by_gear_id(
+    user_id: int, gear_id: int, db: Session
+) -> list[gear_components_schema.GearComponents] | None:
+    try:
+        gear_components = (
+            db.query(gear_components_models.Gear)
+            .filter(
+                gear_components_models.Gear.user_id == user_id, gear_components_models.Gear.gear_id == gear_id
+            )
+            .first()
+        )
+
+        # Check if gear components is None and return None if it is
+        if gear_components is None:
+            return None
+
+        # Serialize the gear components
+        for g in gear_components:
+            g = gear_components_utils.serialize_gear_component(g)
+
+        # Return the gear components
+        return gear_components
+    except Exception as err:
+        # Log the exception
+        core_logger.print_to_log(
+            f"Error in get_gear_components_user_by_gear_id: {err}", "error", exc=err
+        )
+        # Raise an HTTPException with a 500 Internal Server Error status code
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal Server Error",
+        ) from err
