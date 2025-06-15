@@ -278,10 +278,10 @@ const { t } = useI18n();
 const isLoading = ref(true);
 const userActivity = ref(null);
 const hrZones = ref({
-    zone_1: 0,
-    zone_2: 0,
-    zone_3: 0,
-    zone_4: 0,
+    zone_1: {},
+    zone_2: {},
+    zone_3: {},
+    zone_4: {},
 });
 
 // Lifecycle
