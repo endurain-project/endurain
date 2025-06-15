@@ -8,6 +8,7 @@ class ActivityStreams(BaseModel):
     stream_type: int
     stream_waypoints: List[dict]
     strava_activity_stream_id: int | None = None
+    hr_zone_percentages: dict | None = None
 
     class Config:
         orm_mode = True

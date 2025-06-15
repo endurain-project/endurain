@@ -124,16 +124,16 @@ onMounted(async () => {
 	try {
 		if (props.activityActivityStreams && props.activityActivityStreams.length > 0) {
 			// Check if the activity has the streams
-			for (let i = 0; i < props.activityActivityStreams.length; i++) {
-				if (props.activityActivityStreams[i].stream_type === 1) {
+			for (const element of props.activityActivityStreams) {
+				if (element.stream_type === 1) {
 					hrPresent.value = true;
 					graphItems.value.push({ type: "hr", label: `${t("activityMandAbovePillsComponent.labelGraphHR")}` });
 				}
-				if (props.activityActivityStreams[i].stream_type === 2) {
+				if (element.stream_type === 2) {
 					powerPresent.value = true;
 					graphItems.value.push({ type: "power", label: `${t("activityMandAbovePillsComponent.labelGraphPower")}` });
 				}
-				if (props.activityActivityStreams[i].stream_type === 3) {
+				if (element.stream_type === 3) {
 					cadPresent.value = true;
 					// Label as "Stroke Rate" over "Cadence" for swimming activities
 					if (activityTypeIsSwimming(props.activity)) {
@@ -142,14 +142,14 @@ onMounted(async () => {
 						graphItems.value.push({ type: "cad", label: `${t("activityMandAbovePillsComponent.labelGraphCadence")}` });
 					}
 				}
-				if (props.activityActivityStreams[i].stream_type === 4) {
+				if (element.stream_type === 4) {
 					// Do not show elevation for swimming activities
 					if (!activityTypeIsSwimming(props.activity)) {
 						elePresent.value = true;
 						graphItems.value.push({ type: "ele", label: `${t("activityMandAbovePillsComponent.labelGraphElevation")}` });
 					}
 				}
-				if (props.activityActivityStreams[i].stream_type === 5) {
+				if (element.stream_type === 5) {
 					velPresent.value = true;
 					if (
 						props.activity.activity_type === 4 ||
@@ -161,7 +161,7 @@ onMounted(async () => {
 						graphItems.value.push({ type: "vel", label: `${t("activityMandAbovePillsComponent.labelGraphVelocity")}` });
 					}
 				}
-				if (props.activityActivityStreams[i].stream_type === 6) {
+				if (element.stream_type === 6) {
 					pacePresent.value = true;
 					if (
 						props.activity.activity_type !== 4 &&

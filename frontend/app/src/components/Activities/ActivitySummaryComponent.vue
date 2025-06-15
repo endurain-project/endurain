@@ -41,7 +41,9 @@
                         </span>
 
                         <!-- Display the date and time -->
-                        <span v-if="activity.start_time">{{ formatDateMed(activity.start_time) }} @ {{ formatTime(activity.start_time) }}</span>
+                        <span v-if="activity.start_time">
+                            {{ formatDateMed(activity.start_time) }} @ {{ formatTime(activity.start_time) }}
+                        </span>
                         <!-- Conditionally display city and country -->
                         <span v-if="activity.town || activity.city || activity.country">
                             - 
@@ -95,7 +97,7 @@
         <!-- Activity summary -->
         <div class="row mt-3 align-items-center text-start">
             <!-- distance -->
-            <div class="col" v-if="activity.activity_type != 10 && activity.activity_type != 14 && activity.activity_type != 18 && activity.activity_type != 19 && activity.activity_type != 20 && activity.activity_type != 21 && activity.activity_type != 22 && activity.activity_type != 23 && activity.activity_type != 24 && activity.activity_type != 25 && activity.activity_type != 26">
+            <div class="col border-start border-opacity-50" v-if="activity.activity_type != 10 && activity.activity_type != 14 && activity.activity_type != 18 && activity.activity_type != 19 && activity.activity_type != 20 && activity.activity_type != 21 && activity.activity_type != 22 && activity.activity_type != 23 && activity.activity_type != 24 && activity.activity_type != 25 && activity.activity_type != 26">
                 <span class="fw-lighter">
                     {{ $t("activitySummaryComponent.activityDistance") }}
                 </span>
@@ -116,7 +118,10 @@
                     {{ $t("activitySummaryComponent.activityTime") }}
                 </span>
                 <br>
-                <span>{{ formatSecondsToMinutes(activity.total_elapsed_time) }}</span>
+                <span>
+                    {{$t('activitySummaryComponent.activityMovingTime')}}: {{ formatSecondsToMinutes(activity.total_timer_time) }} <br>
+                    {{$t('activitySummaryComponent.activityTotalTime')}}: {{ formatSecondsToMinutes(activity.total_elapsed_time) }}
+                </span>
             </div>
             <div class="col border-start border-opacity-50">
                 <!-- elevation -->
@@ -135,19 +140,11 @@
                     <br>
                     {{ formatPace(activity, authStore.user.units) }}
                 </div>
-                <!-- avg_hr -->
-                <div v-else>
-                    <span class="fw-lighter">
-                    {{ $t("activitySummaryComponent.activityAvgHR") }}
-                    </span>
-                    <br>
-                    <span>{{ formatHr(activity.average_hr) }}</span>
-                </div>
             </div>
         </div>        
         <div class="row d-flex mt-3" v-if="source === 'activity' && activity.activity_type != 10 && activity.activity_type != 14 && activity.activity_type != 18 && activity.activity_type != 19 && activity.activity_type != 20 && activity.activity_type != 21 && activity.activity_type != 22 && activity.activity_type != 23 && activity.activity_type != 24 && activity.activity_type != 25 && activity.activity_type != 26">
             <!-- avg_power running and cycling activities-->
-            <div class="col" v-if="activity.activity_type == 1 || activity.activity_type == 2 || activity.activity_type == 3 || activity.activity_type == 4 || activity.activity_type == 5 || activity.activity_type == 6 || activity.activity_type == 7 || activity.activity_type == 27">
+            <div class="col border-start border-opacity-50" v-if="activity.activity_type == 1 || activity.activity_type == 2 || activity.activity_type == 3 || activity.activity_type == 4 || activity.activity_type == 5 || activity.activity_type == 6 || activity.activity_type == 7 || activity.activity_type == 27">
                 <span class="fw-lighter">
                     {{ $t("activitySummaryComponent.activityAvgPower") }}
                 </span>
@@ -191,6 +188,23 @@
                 </span>
                 <br>
                 <span>{{ formatCalories(activity.calories) }}</span>
+            </div>
+        </div>
+        <div class="row d-flex mt-3" v-if="source === 'activity' && activity.activity_type != 10 && activity.activity_type != 14 && activity.activity_type != 18 && activity.activity_type != 19 && activity.activity_type != 20 && activity.activity_type != 21 && activity.activity_type != 22 && activity.activity_type != 23 && activity.activity_type != 24 && activity.activity_type != 25 && activity.activity_type != 26">
+            <div class="col border-start border-opacity-50">
+                <!-- hr -->
+                <div>
+                    <span class="fw-lighter">
+                    {{ $t("activitySummaryComponent.activityHR") }}
+                    </span>
+                    <br>
+                    <span>{{ $t("activitySummaryComponent.activityAvgHR") }}: {{ formatHr(activity.average_hr) }}</span> <br>
+                    <span>{{ $t("activitySummaryComponent.activityMaxHR") }}: {{ formatHr(activity.max_hr) }}</span> <br><br>
+                    <span v-for="(value, zone, index) in hrZones" :key="zone"
+                          :style="{ color: getZoneColor(index) }">
+                      {{ $t("activitySummaryComponent.activityHRZone") }} {{ index + 1 }} ({{ value.hr }}) : {{ value.percent }}%<br>
+                    </span>
+                </div>
             </div>
         </div>
     </div>
@@ -237,6 +251,10 @@ const props = defineProps({
 		type: Object,
 		required: true,
 	},
+    activityActivityStreams: {
+		type: [Object, null],
+		required: true,
+	},
 	source: {
 		type: String,
 		required: true,
@@ -259,10 +277,18 @@ const { t } = useI18n();
 // Reactive data
 const isLoading = ref(true);
 const userActivity = ref(null);
+const hrZones = ref({
+    zone_1: 0,
+    zone_2: 0,
+    zone_3: 0,
+    zone_4: 0,
+});
 
 // Lifecycle
 onMounted(async () => {
 	try {
+        hrZones.value = props.activityActivityStreams.find(stream => stream.hr_zone_percentages).hr_zone_percentages || {};
+
         if (authStore.isAuthenticated) {
             userActivity.value = await users.getUserById(props.activity.user_id);
         } else {
@@ -296,5 +322,17 @@ async function submitDeleteActivity() {
 function updateActivityFieldsOnEdit(data) {
 	// Emit the activityEditedFields event to the parent component
 	emit("activityEditedFields", data);
+}
+
+function getZoneColor(index) {
+  // Example colors for 5 HR zones
+  const colors = [
+    '#1e90ff', // Zone 1: blue
+    '#28a745', // Zone 2: green
+    '#ffc107', // Zone 3: yellow
+    '#fd7e14', // Zone 4: orange
+    '#dc3545', // Zone 5: red
+  ];
+  return colors[index] || '#000';
 }
 </script>

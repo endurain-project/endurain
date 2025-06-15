@@ -3,7 +3,7 @@
 		<LoadingComponent v-if="isLoading"/>
 
 		<div v-else>
-			<ActivitySummaryComponent v-if="activity" :activity="activity" :source="'activity'" @activityEditedFields="updateActivityFieldsOnEdit" :units="units" />
+			<ActivitySummaryComponent v-if="activity" :activity="activity" :activityActivityStreams="activityActivityStreams" :source="'activity'" @activityEditedFields="updateActivityFieldsOnEdit" :units="units" />
 			<AlertComponent v-if="activity && activity.user_id === authStore.user.id && (activity.hide_start_time || activity.hide_location || activity.hide_map || activity.hide_hr || activity.hide_power || activity.hide_cadence || activity.hide_elevation || activity.hide_speed || activity.hide_pace || activity.hide_laps || activity.hide_workout_sets_steps || activity.hide_gear)" :message="alertPrivacyMessage" :dismissible="true" class="mt-2"/>
 		</div>
 
