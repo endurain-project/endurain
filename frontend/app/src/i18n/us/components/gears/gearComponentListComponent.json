@@ -1,0 +1,7 @@
+{
+    "gearListGearComponentIsInactiveBadge": "Inactive",
+    "gearListModalDeleteGearComponentTitle": "Delete gear component",
+    "gearListModalDeleteGearComponentBody": "Are you sure you want to delete gear component ",
+    "gearListGearDeleteSuccessMessage": "Gear component deleted successfully",
+    "gearListGearDeleteErrorMessage": "Error deleting gear component"
+}

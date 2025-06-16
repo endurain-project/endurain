@@ -49,8 +49,7 @@
                     <LoadingComponent v-if="isGearsUpdatingLoading" />
 
                     <!-- List gears -->
-                    <ul class="list-group list-group-flush" v-for="gear in userGears" :key="gear.id" :gear="gear"
-                        v-else>
+                    <ul class="list-group list-group-flush" v-for="gear in userGears" :key="gear.id" v-else>
                         <GearsListComponent :gear="gear" @editedGear="editGearList"
                             @gearDeleted="updateGearListOnDelete" />
                     </ul>

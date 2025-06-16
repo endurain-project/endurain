@@ -4,4 +4,7 @@ export const gearsComponents = {
     getGearComponentsByGearId(gearId) {
         return fetchGetRequest(`gears/components/gear_id/${gearId}`);
     },
+    deleteGearComponent(gearComponentId) {
+        return fetchDeleteRequest(`gears/components/${gearComponentId}`);
+    }
 };

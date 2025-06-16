@@ -15,6 +15,7 @@ import caUserDistanceStatsComponent from './ca/components/activities/userDistanc
 // Followers component
 import caFollowersListComponent from './ca/components/followers/followersListComponent.json';
 // Gears component
+import caGearComponentListComponent from './ca/components/gears/gearComponentListComponent.json';
 import caGearsAddEditGearModalComponent from './ca/components/gears/gearsAddEditGearModalComponent.json';
 import caGearsListComponent from './ca/components/gears/gearsListComponent.json';
 // Health components
@@ -73,6 +74,7 @@ import deUserDistanceStatsComponent from './de/components/activities/userDistanc
 // Followers component
 import deFollowersListComponent from './de/components/followers/followersListComponent.json';
 // Gears component
+import deGearComponentListComponent from './de/components/gears/gearComponentListComponent.json';
 import deGearsAddEditGearModalComponent from './de/components/gears/gearsAddEditGearModalComponent.json';
 import deGearsListComponent from './de/components/gears/gearsListComponent.json';
 // Health components
@@ -131,6 +133,7 @@ import esUserDistanceStatsComponent from './es/components/activities/userDistanc
 // Followers component
 import esFollowersListComponent from './es/components/followers/followersListComponent.json';
 // Gears component
+import esGearComponentListComponent from './es/components/gears/gearComponentListComponent.json';
 import esGearsAddEditGearModalComponent from './es/components/gears/gearsAddEditGearModalComponent.json';
 import esGearsListComponent from './es/components/gears/gearsListComponent.json';
 // Health components
@@ -190,6 +193,7 @@ import frUserDistanceStatsComponent from './fr/components/activities/userDistanc
 // Followers component
 import frFollowersListComponent from './fr/components/followers/followersListComponent.json';
 // Gears component
+import frGearComponentListComponent from './fr/components/gears/gearComponentListComponent.json';
 import frGearsAddEditGearModalComponent from './fr/components/gears/gearsAddEditGearModalComponent.json';
 import frGearsListComponent from './fr/components/gears/gearsListComponent.json';
 // Health components
@@ -249,6 +253,7 @@ import nlUserDistanceStatsComponent from './nl/components/activities/userDistanc
 // Followers component
 import nlFollowersListComponent from './nl/components/followers/followersListComponent.json';
 // Gears component
+import nlGearComponentListComponent from './nl/components/gears/gearComponentListComponent.json';
 import nlGearsAddEditGearModalComponent from './nl/components/gears/gearsAddEditGearModalComponent.json';
 import nlGearsListComponent from './nl/components/gears/gearsListComponent.json';
 // Health components
@@ -308,6 +313,7 @@ import ptUserDistanceStatsComponent from './pt/components/activities/userDistanc
 // Followers component
 import ptFollowersListComponent from './pt/components/followers/followersListComponent.json';
 // Gears component
+import ptGearComponentListComponent from './pt/components/gears/gearComponentListComponent.json';
 import ptGearsAddEditGearModalComponent from './pt/components/gears/gearsAddEditGearModalComponent.json';
 import ptGearsListComponent from './pt/components/gears/gearsListComponent.json';
 // Health components
@@ -366,6 +372,7 @@ import usUserDistanceStatsComponent from './us/components/activities/userDistanc
 // Followers component
 import usFollowersListComponent from './us/components/followers/followersListComponent.json';
 // Gears component
+import usGearComponentListComponent from './us/components/gears/gearComponentListComponent.json';
 import usGearsAddEditGearModalComponent from './us/components/gears/gearsAddEditGearModalComponent.json';
 import usGearsListComponent from './us/components/gears/gearsListComponent.json';
 // Health components
@@ -427,6 +434,7 @@ const messages = {
     // Followers component
     followersListComponent: caFollowersListComponent,
     // Gears component
+    gearComponentListComponent: caGearComponentListComponent,
     gearsAddEditGearModalComponent: caGearsAddEditGearModalComponent,
     gearsListComponent: caGearsListComponent,
     // Health components
@@ -485,6 +493,7 @@ const messages = {
     // Followers component
     followersListComponent: deFollowersListComponent,
     // Gears component
+    gearComponentListComponent: deGearComponentListComponent,
     gearsAddEditGearModalComponent: deGearsAddEditGearModalComponent,
     gearsListComponent: deGearsListComponent,
     // Health components
@@ -543,6 +552,7 @@ const messages = {
     // Followers component
     followersListComponent: esFollowersListComponent,
     // Gears component
+    gearComponentListComponent: esGearComponentListComponent,
     gearsAddEditGearModalComponent: esGearsAddEditGearModalComponent,
     gearsListComponent: esGearsListComponent,
     // Health components
@@ -601,6 +611,7 @@ const messages = {
     // Followers component
     followersListComponent: frFollowersListComponent,
     // Gears component
+    gearComponentListComponent: frGearComponentListComponent,
     gearsAddEditGearModalComponent: frGearsAddEditGearModalComponent,
     gearsListComponent: frGearsListComponent,
     // Health components
@@ -659,6 +670,7 @@ const messages = {
     // Followers component
     followersListComponent: nlFollowersListComponent,
     // Gears component
+    gearComponentListComponent: nlGearComponentListComponent,
     gearsAddEditGearModalComponent: nlGearsAddEditGearModalComponent,
     gearsListComponent: nlGearsListComponent,
     // Health components
@@ -717,6 +729,7 @@ const messages = {
     // Followers component
     followersListComponent: ptFollowersListComponent,
     // Gears component
+    gearComponentListComponent: ptGearComponentListComponent,
     gearsAddEditGearModalComponent: ptGearsAddEditGearModalComponent,
     gearsListComponent: ptGearsListComponent,
     // Health components
@@ -775,6 +788,7 @@ const messages = {
     // Followers component
     followersListComponent: usFollowersListComponent,
     // Gears component
+    gearComponentListComponent: usGearComponentListComponent,
     gearsAddEditGearModalComponent: usGearsAddEditGearModalComponent,
     gearsListComponent: usGearsListComponent,
     // Health components

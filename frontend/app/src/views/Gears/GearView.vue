@@ -87,7 +87,7 @@
                 </div>
             </div>
         </div>
-        <div class="col-lg-4">
+        <div class="col-lg-5">
             <div v-if="isLoading">
                 <LoadingComponent />
             </div>
@@ -96,7 +96,10 @@
 
                 <NoItemsFoundComponent :showShadow="false" v-if="!gearComponents || (gearComponents && gearComponents.length == 0)"/>
                 <div v-else>
-                    {{ gearComponents }}
+                    <!-- List gears -->
+                    <ul class="list-group list-group-flush" v-for="gearComponent in gearComponents" :key="gearComponent.id">
+                        <GearComponentListComponent :gearComponent="gearComponent" @gearComponentDeleted="updateGearComponentListOnDelete" />
+                    </ul>
                 </div>
             </div>
         </div>
@@ -145,6 +148,7 @@ import LoadingComponent from "@/components/GeneralComponents/LoadingComponent.vu
 import BackButtonComponent from "@/components/GeneralComponents/BackButtonComponent.vue";
 import ModalComponent from '@/components/Modals/ModalComponent.vue';
 import GearsAddEditGearModalComponent from "@/components/Gears/GearsAddEditGearModalComponent.vue";
+import GearComponentListComponent from "@/components/Gears/GearComponentListComponent.vue";
 import { gears } from "@/services/gearsService";
 import { gearsComponents } from "@/services/gearsComponentsService";
 import { activities } from "@/services/activitiesService";
@@ -172,6 +176,12 @@ async function submitDeleteGear() {
 
 function editGearList(editedGear) {
     gear.value = editedGear;
+}
+
+function updateGearComponentListOnDelete(gearComponentDeletedId) {
+    gearComponents.value = gearComponents.value.filter(
+        (gearComponent) => gearComponent.id !== gearComponentDeletedId,
+    );
 }
 
 onMounted(async () => {
