@@ -15,6 +15,7 @@ import activities.activity_streams.router as activity_streams_router
 import activities.activity_workout_steps.router as activity_workout_steps_router
 import activities.activity_summaries.router as activity_summaries_router
 import gears.gear.router as gears_router
+import gears.gear_components.router as gear_components_router
 import followers.router as followers_router
 import strava.router as strava_router
 import garmin.router as garmin_router
@@ -111,6 +112,12 @@ router.include_router(
     gears_router.router,
     prefix=core_config.ROOT_PATH + "/gears",
     tags=["gears"],
+    dependencies=[Depends(session_security.validate_access_token)],
+)
+router.include_router(
+    gear_components_router.router,
+    prefix=core_config.ROOT_PATH + "/gears/components",
+    tags=["gear_components"],
     dependencies=[Depends(session_security.validate_access_token)],
 )
 router.include_router(

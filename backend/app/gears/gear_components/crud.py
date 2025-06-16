@@ -17,8 +17,8 @@ def get_gear_components_user(
     try:
         # Get the gear components by user ID from the database
         gear_components = (
-            db.query(gear_components_models.Gear)
-            .filter(gear_components_models.Gear.user_id == user_id)
+            db.query(gear_components_models.GearComponents)
+            .filter(gear_components_models.GearComponents.user_id == user_id)
             .all()
         )
 
@@ -42,18 +42,19 @@ def get_gear_components_user(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal Server Error",
         ) from err
-    
+
 
 def get_gear_components_user_by_gear_id(
     user_id: int, gear_id: int, db: Session
 ) -> list[gear_components_schema.GearComponents] | None:
     try:
         gear_components = (
-            db.query(gear_components_models.Gear)
+            db.query(gear_components_models.GearComponents)
             .filter(
-                gear_components_models.Gear.user_id == user_id, gear_components_models.Gear.gear_id == gear_id
+                gear_components_models.GearComponents.user_id == user_id,
+                gear_components_models.GearComponents.gear_id == gear_id,
             )
-            .first()
+            .all()
         )
 
         # Check if gear components is None and return None if it is

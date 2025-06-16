@@ -87,7 +87,19 @@
                 </div>
             </div>
         </div>
-        
+        <div class="col-lg-4">
+            <div v-if="isLoading">
+                <LoadingComponent />
+            </div>
+            <div v-else class="bg-body-tertiary p-3 rounded shadow-sm">
+                <h5>{{ $t("gearView.titleComponents") }}</h5>
+
+                <NoItemsFoundComponent :showShadow="false" v-if="!gearComponents || (gearComponents && gearComponents.length == 0)"/>
+                <div v-else>
+                    {{ gearComponents }}
+                </div>
+            </div>
+        </div>
         <div class="col">
             <div v-if="isLoading">
                 <LoadingComponent />
@@ -102,7 +114,7 @@
                     </h6>
                 </div>
 
-                <NoItemsFoundComponent v-if="!gearActivities || (gearActivities && gearActivities.length == 0)"/>
+                <NoItemsFoundComponent :showShadow="false" v-if="!gearActivities || (gearActivities && gearActivities.length == 0)"/>
                 <div v-else>
                     <ul class="list-group list-group-flush" v-for="activity in gearActivities" :key="activity.id" :activity="activity">
                         <li class="vstack list-group-item d-flex justify-content-between bg-body-tertiary ps-0">
@@ -122,105 +134,76 @@
     <BackButtonComponent />
 </template>
 
-<script>
-// Importing the vue composition API
+<script setup>
 import { ref, onMounted } from "vue";
 import { useI18n } from "vue-i18n";
 import { useRoute, useRouter } from "vue-router";
-// Importing the stores
 import { useAuthStore } from "@/stores/authStore";
-// Import Notivue push
 import { push } from "notivue";
-// Importing the components
 import NoItemsFoundComponent from "@/components/GeneralComponents/NoItemsFoundComponents.vue";
 import LoadingComponent from "@/components/GeneralComponents/LoadingComponent.vue";
 import BackButtonComponent from "@/components/GeneralComponents/BackButtonComponent.vue";
 import ModalComponent from '@/components/Modals/ModalComponent.vue';
 import GearsAddEditGearModalComponent from "@/components/Gears/GearsAddEditGearModalComponent.vue";
-// Importing the services
 import { gears } from "@/services/gearsService";
+import { gearsComponents } from "@/services/gearsComponentsService";
 import { activities } from "@/services/activitiesService";
 import { formatDateMed, formatTime } from "@/utils/dateTimeUtils";
 import { kmToMiles } from "@/utils/unitsUtils";
 
-export default {
-	components: {
-		NoItemsFoundComponent,
-		LoadingComponent,
-		BackButtonComponent,
-        ModalComponent,
-        GearsAddEditGearModalComponent
-	},
-	setup() {
-		const { t } = useI18n();
-		const authStore = useAuthStore();
-		const route = useRoute();
-		const router = useRouter();
-		const isLoading = ref(true);
-		const gear = ref(null);
-		const gearActivities = ref([]);
-		const gearDistance = ref(0);
+const { t } = useI18n();
+const authStore = useAuthStore();
+const route = useRoute();
+const router = useRouter();
+const isLoading = ref(true);
+const gear = ref(null);
+const gearActivities = ref([]);
+const gearDistance = ref(0);
+const gearComponents = ref(null);
 
-		async function submitDeleteGear() {
-			try {
-				gear.value = await gears.deleteGear(route.params.id);
-				return router.push({ path: "/gears", query: { gearDeleted: "true" } });
-			} catch (error) {
-				push.error(`${t("gearView.errorGearDelete")} - ${error}`);
-			}
-		}
-        
-        function editGearList(editedGear) {
-            gear.value = editedGear;
-		}
+async function submitDeleteGear() {
+    try {
+        gear.value = await gears.deleteGear(route.params.id);
+        return router.push({ path: "/gears", query: { gearDeleted: "true" } });
+    } catch (error) {
+        push.error(`${t("gearView.errorGearDelete")} - ${error}`);
+    }
+}
 
-		onMounted(async () => {
-			try {
-				// Fetch the gear by its id.
-				gear.value = await gears.getGearById(route.params.id);
-				if (!gear.value) {
-					return router.push({
-						path: "/gears",
-						query: { gearFound: "false", id: route.params.id },
-					});
-				}
-				gearActivities.value = await activities.getUserActivitiesByGearId(
-					route.params.id,
-				);
-				if (gearActivities.value) {
-					for (const activity of gearActivities.value) {
-						gearDistance.value += activity.distance;
-					}
-					gearDistance.value = (gearDistance.value / 1000).toFixed(2);
-				}
-                gearDistance.value = Math.floor(Number(gearDistance.value) + gear.value.initial_kms);
-			} catch (error) {
-				if (error.toString().includes("422")) {
-					return router.push({
-						path: "/gears",
-						query: { gearFound: "false", id: route.params.id },
-					});
-				}
-				// If there is an error, set the error message and show the error alert.
-				push.error(`${t("gearView.errorFetchingGears")} - ${error}`);
-			}
+function editGearList(editedGear) {
+    gear.value = editedGear;
+}
 
-			isLoading.value = false;
-		});
+onMounted(async () => {
+    try {
+        gear.value = await gears.getGearById(route.params.id);
+        if (!gear.value) {
+            return router.push({
+                path: "/gears",
+                query: { gearFound: "false", id: route.params.id },
+            });
+        }
+        gearActivities.value = await activities.getUserActivitiesByGearId(
+            route.params.id,
+        );
+        if (gearActivities.value) {
+            for (const activity of gearActivities.value) {
+                gearDistance.value += activity.distance;
+            }
+            gearDistance.value = (gearDistance.value / 1000).toFixed(2);
+        }
+        gearDistance.value = Math.floor(Number(gearDistance.value) + gear.value.initial_kms);
 
-		return {
-            authStore,
-			isLoading,
-			gear,
-			gearActivities,
-			gearDistance,
-			t,
-			submitDeleteGear,
-            editGearList,
-			formatDateMed,
-			formatTime,
-            kmToMiles,
-		};
-	},
-};
+        gearComponents.value = await gearsComponents.getGearComponentsByGearId(route.params.id);
+    } catch (error) {
+        if (error.toString().includes("422")) {
+            return router.push({
+                path: "/gears",
+                query: { gearFound: "false", id: route.params.id },
+            });
+        }
+        push.error(`${t("gearView.errorFetchingGears")} - ${error}`);
+    }
+    isLoading.value = false;
+});
 </script>

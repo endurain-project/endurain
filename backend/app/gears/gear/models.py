@@ -2,7 +2,7 @@ from sqlalchemy import (
     Column,
     Integer,
     String,
-    DATETIME,
+    DateTime,
     ForeignKey,
     DECIMAL,
 )
@@ -38,10 +38,10 @@ class Gear(Base):
         comment="User ID that the gear belongs to",
     )
     created_at = Column(
-        DATETIME,
+        DateTime,
         nullable=False,
         default=func.now(),
-        comment="Gear creation date (DATETIME)",
+        comment="Gear creation date (DateTime)",
     )
     is_active = Column(
         Integer, nullable=False, comment="Is gear active (0 - not active, 1 - active)"

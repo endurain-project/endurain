@@ -17,6 +17,7 @@
     "labelModel": "Model",
     "labelDistance": "Distance",
     "labelDate": "Date",
+    "titleComponents": "Components",
     "title": "Gear activities",
     "subtitle": "(last 10 activities)",
     "successGearEdited": "Gear edited successfully",

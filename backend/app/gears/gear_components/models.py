@@ -2,11 +2,10 @@ from sqlalchemy import (
     Column,
     Integer,
     String,
-    DATETIME,
+    DateTime,
     ForeignKey,
     Boolean,
     DECIMAL,
-    Enum,
 )
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -30,14 +29,14 @@ class GearComponents(Base):
     gear_id = Column(
         Integer,
         ForeignKey("gear.id", ondelete="SET NULL"),
-        nullable=True,
+        nullable=False,
         index=True,
         comment="Gear ID associated with this component",
     )
     type = Column(
-        Enum(gear_components_schema.GearComponentType),
+        String(length=250),
         nullable=False,
-        comment="Type of gear component (enum)",
+        comment="Type of gear component",
     )
     brand = Column(
         String(length=250),
@@ -50,29 +49,27 @@ class GearComponents(Base):
         comment="Gear component model (May include spaces)",
     )
     purchase_date = Column(
-        DATETIME,
+        DateTime,
         nullable=False,
         default=func.now(),
-        comment="Gear component purchase date (DATETIME)",
+        comment="Gear component purchase date (DateTime)",
     )
     retired_date = Column(
-        DATETIME,
+        DateTime,
         nullable=True,
-        comment="Gear component retired date (DATETIME)",
+        comment="Gear component retired date (DateTime)",
     )
     is_active = Column(
         Boolean, nullable=False, default=False, comment="Is gear component active"
     )
     expected_kms = Column(
         DECIMAL(precision=11, scale=3),
-        nullable=False,
-        default=0,
+        nullable=True,
         comment="Expected kilometers of the gear component",
     )
     purchase_value = Column(
         DECIMAL(precision=11, scale=3),
-        nullable=False,
-        default=0,
+        nullable=True,
         comment="Purchase value of the gear component",
     )
 
