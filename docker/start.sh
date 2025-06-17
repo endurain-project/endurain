@@ -34,7 +34,7 @@ validate_id "$GID"
 echo_info_log "UID=$UID, GID=$GID"
 
 # List of directories (space-separated for POSIX shell)
-directories="/app/backend/logs /app/backend/user_images /app/backend/files /app/backend/server_images"
+directories="/app/backend/logs /app/backend/config"
 
 for dir in $directories; do
     adjust_folder_ownership "$dir"

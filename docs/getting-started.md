@@ -74,11 +74,8 @@ Docker image uses a non-root user, so ensure target folders are not owned by roo
 
 | Volume | Notes |
 | --- | --- |
-| `<local_path>/endurain/backend/files/bulk_import:/app/backend/files/bulk_import` | Necessary to enable bulk import of activities. Place here your activities files |
-| `<local_path>/endurain/backend/files/processed:/app/backend/files/processed` | Necessary for processed original files persistence on container image updates |
-| `<local_path>/endurain/backend/user_images:/app/backend/user_images` | Necessary for user image persistence on container image updates |
-| `<local_path>/endurain/backend/server_images:/app/backend/server_images` | Necessary for server image persistence on container image updates |
 | `<local_path>/endurain/backend/logs:/app/backend/logs` | Log files for the backend |
+| `<local_path>/endurain/backend/config:/app/backend/config` | Necessary for image and activity files persistence on docker image update |
 
 ## Bulk import and file upload
 

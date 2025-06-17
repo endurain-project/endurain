@@ -9,6 +9,7 @@ aux_scripts/.garminconnect
 backend/app/__pycache__/
 backend/app/*/__pycache__/
 backend/app/*/*/__pycache__/
+backend/app/*/*/*/__pycache__/
 backend/app/*.pyc
 
 # Logs
@@ -17,24 +18,24 @@ backend/app/*.log
 backend/logs/*.log
 
 # server image folder images
-backend/app/server_images/*.jpeg
-backend/app/server_images/*.png
-backend/app/server_images/*.jpg
+backend/app/config/server_images/*.jpeg
+backend/app/config/server_images/*.png
+backend/app/config/server_images/*.jpg
 
 # user image folder images
-backend/app/user_images/*.jpeg
-backend/app/user_images/*.png
-backend/app/user_images/*.jpg
+backend/app/config/user_images/*.jpeg
+backend/app/config/user_images/*.png
+backend/app/config/user_images/*.jpg
 
 # gpx and fit files
-backend/app/files/*.gpx
-backend/app/files/*.zip
-backend/app/files/*.fit
-backend/app/files/bulk_import/*.gpx
-backend/app/files/bulk_import/*.fit
-backend/app/files/processed/*.gpx
-backend/app/files/processed/*.fit
-backend/files/
+backend/app/config/files/*.gpx
+backend/app/config/files/*.zip
+backend/app/config/files/*.fit
+backend/app/config/files/bulk_import/*.gpx
+backend/app/config/files/bulk_import/*.fit
+backend/app/config/files/processed/*.gpx
+backend/app/config/files/processed/*.fit
+backend/config/files/
 
 # Frontend
 frontend/app/img/users_img/*.*

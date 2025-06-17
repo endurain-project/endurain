@@ -58,7 +58,7 @@ def process_migration_3(db: Session):
                     # check if activity file exists
                     activity_fit_file_path = find_activity_fit_file(activity.id)
                     activity_gpx_file_path = os.path.join(
-                        "files/processed", f"{activity.id}.gpx"
+                        "config/files/processed", f"{activity.id}.gpx"
                     )
 
                     if (
@@ -128,7 +128,7 @@ def process_migration_3(db: Session):
 
 
 def find_activity_fit_file(activity_id):
-    processed_dir = "files/processed"
+    processed_dir = "config/files/processed"
 
     # Try single activity file first
     single_path = os.path.join(processed_dir, f"{activity_id}.fit")
@@ -167,7 +167,7 @@ def get_fit_file_from_garminconnect(activity: activities_schema.Activity, db: Se
     )
 
     # Save the zip file
-    output_file = f"files/{str(activity.garminconnect_activity_id)}.zip"
+    output_file = f"config/files/{str(activity.garminconnect_activity_id)}.zip"
 
     # Write the ZIP data to the output file
     with open(output_file, "wb") as fb:
@@ -179,7 +179,7 @@ def get_fit_file_from_garminconnect(activity: activities_schema.Activity, db: Se
     # Open the ZIP file
     with zipfile.ZipFile(output_file, "r") as zip_ref:
         # Extract all contents to the specified directory
-        zip_ref.extractall("files")
+        zip_ref.extractall("config/files")
         # Populate the array with file names
         extracted_files = zip_ref.namelist()
 
@@ -195,16 +195,16 @@ def get_fit_file_from_garminconnect(activity: activities_schema.Activity, db: Se
 
     try:
         # Define the directory where the processed files will be stored
-        processed_dir = "files/processed"
+        processed_dir = "config/files/processed"
 
         for file in extracted_files:
-            _, file_extension = os.path.splitext(f"files/{file}")
+            _, file_extension = os.path.splitext(f"config/files/{file}")
 
             # Define new file path with activity ID as filename
             new_file_name = f"{activity.id}{file_extension}"
 
             # Move the file to the processed directory
-            activities_utils.move_file(processed_dir, new_file_name, f"files/{file}")
+            activities_utils.move_file(processed_dir, new_file_name, f"config/files/{file}")
     except Exception as err:
         core_logger.print_to_log(
             f"Migration 3 - Failed to move activity {activity.id} file: {err}",
@@ -213,7 +213,7 @@ def get_fit_file_from_garminconnect(activity: activities_schema.Activity, db: Se
         )
 
     # check if activity file exists
-    return os.path.join("files/processed", f"{activity.id}.fit")
+    return os.path.join("config/files/processed", f"{activity.id}.fit")
 
 
 def process_fit_file(

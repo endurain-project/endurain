@@ -62,7 +62,7 @@ async def upload_login_photo(
 ):
     try:
         # Ensure the 'server_images' directory exists
-        upload_dir = "server_images"
+        upload_dir = "config/server_images"
         os.makedirs(upload_dir, exist_ok=True)
 
         # Build the full path with the name "login.png"
@@ -93,7 +93,7 @@ async def delete_login_photo(
 ):
     try:
         # Build the full path to the file
-        file_path = os.path.join("server_images", "login.png")
+        file_path = os.path.join("config/server_images", "login.png")
 
         # Check if the file exists
         if os.path.exists(file_path):

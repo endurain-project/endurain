@@ -343,7 +343,7 @@ def parse_and_store_activity_from_file(
                         f"File extension not supported: {file_extension}", "error"
                     )
                 # Define the directory where the processed files will be stored
-                processed_dir = "files/processed"
+                processed_dir = "config/files/processed"
 
                 # Define new file path with activity ID as filename
                 new_file_name = f"{idsToFileName}{file_extension}"
@@ -373,7 +373,7 @@ def parse_and_store_activity_from_uploaded_file(
 
     try:
         # Ensure the 'files' directory exists
-        upload_dir = "files"
+        upload_dir = "config/files"
         os.makedirs(upload_dir, exist_ok=True)
 
         # Build the full path where the file will be saved
@@ -447,7 +447,7 @@ def parse_and_store_activity_from_uploaded_file(
                 )
 
             # Define the directory where the processed files will be stored
-            processed_dir = "files/processed"
+            processed_dir = "config/files/processed"
 
             # Define new file path with activity ID as filename
             new_file_name = f"{idsToFileName}{file_extension}"

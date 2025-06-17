@@ -7,14 +7,14 @@ def return_frontend_index(path: str):
 
 
 def return_user_img_path(user_img: str):
-    file_path = "/app/backend/user_images/" + user_img
+    file_path = "/app/backend/config/user_images/" + user_img
     if not os.path.isfile(file_path):
         return None
     return FileResponse(file_path)
 
 
 def return_server_img_path(server_img: str):
-    file_path = "/app/backend/server_images/" + server_img
+    file_path = "/app/backend/config/server_images/" + server_img
     if not os.path.isfile(file_path):
         return None
     return FileResponse(file_path)

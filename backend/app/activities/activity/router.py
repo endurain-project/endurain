@@ -563,7 +563,7 @@ async def create_activity_with_bulk_import(
 ):
     try:
         # Ensure the 'bulk_import' directory exists
-        bulk_import_dir = "files/bulk_import"
+        bulk_import_dir = "config/files/bulk_import"
         os.makedirs(bulk_import_dir, exist_ok=True)
 
         # Iterate over each file in the 'bulk_import' directory
@@ -682,7 +682,7 @@ async def delete_activity(
     activities_crud.delete_activity(activity_id, db)
 
     # Define the search pattern using the file ID (e.g., '1.*')
-    pattern = f"files/processed/{activity_id}.*"
+    pattern = f"config/files/processed/{activity_id}.*"
 
     # Use glob to find files that match the pattern
     files_to_delete = glob.glob(pattern)
