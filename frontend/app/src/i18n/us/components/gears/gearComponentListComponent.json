@@ -1,7 +1,10 @@
 {
-    "gearListGearComponentIsInactiveBadge": "Inactive",
-    "gearListModalDeleteGearComponentTitle": "Delete gear component",
-    "gearListModalDeleteGearComponentBody": "Are you sure you want to delete gear component ",
-    "gearListGearDeleteSuccessMessage": "Gear component deleted successfully",
-    "gearListGearDeleteErrorMessage": "Error deleting gear component"
+    "gearComponentBackTire": "Back tire",
+    "gearComponentFrontTire": "Front tire",
+    "gearComponentOf": " of ",
+    "gearComponentListGearComponentIsInactiveBadge": "Inactive",
+    "gearComponentListModalDeleteGearComponentTitle": "Delete gear component",
+    "gearComponentListModalDeleteGearComponentBody": "Are you sure you want to delete gear component ",
+    "gearComponentListGearDeleteSuccessMessage": "Gear component deleted successfully",
+    "gearComponentListGearDeleteErrorMessage": "Error deleting gear component"
 }

@@ -64,6 +64,12 @@ class User(Base):
     is_active = Column(
         Integer, nullable=False, comment="Is user active (1 - active, 2 - not active)"
     )
+    currency = Column(
+        Integer,
+        nullable=False,
+        default=1,
+        comment="User currency (one digit)(1 - euro, 2 - dollar, 3 - pound)",
+    )
 
     # Define a relationship to UsersSessions model
     users_sessions = relationship(

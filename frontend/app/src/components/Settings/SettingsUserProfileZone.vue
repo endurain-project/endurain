@@ -7,7 +7,7 @@
                     <div class="flex justify-center items-center">
                         <div class="justify-content-center align-items-center d-flex">
                             <div class="text-center">
-                                <UserAvatarComponent :user="authStore.user" :width=180 :height=180 />
+                                <UserAvatarComponent :user="authStore.user" :width=220 :height=220 />
                                 <h2>{{ authStore.user.name }}</h2>
                                 <span>@{{ authStore.user.username }}</span>
                             </div>
@@ -67,6 +67,14 @@
                         <b>{{ $t("settingsUserProfileZone.unitsLabel") }}: </b>
                         <span v-if="Number(authStore?.user?.units) === 1">{{ $t("settingsUserProfileZone.unitsOption1") }}</span>
                         <span v-else>{{ $t("settingsUserProfileZone.unitsOption2") }}</span>
+                    </p>
+                    <!-- user currency -->
+                    <p>
+                        <font-awesome-icon :icon="['fas', 'coins']" class="me-2"/>
+                        <b>{{ $t("settingsUserProfileZone.currencyLabel") }}: </b>
+                        <span v-if="Number(authStore?.user?.currency) === 1">{{ $t("generalItems.currencyEuro") }}</span>
+                        <span v-else-if="Number(authStore?.user?.currency) === 2">{{ $t("generalItems.currencyDollar") }}</span>
+                        <span v-else>{{ $t("generalItems.currencyPound") }}</span>
                     </p>
                     <!-- user height -->
                     <p>

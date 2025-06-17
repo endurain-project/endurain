@@ -98,7 +98,7 @@
                 <div v-else>
                     <!-- List gears -->
                     <ul class="list-group list-group-flush" v-for="gearComponent in gearComponents" :key="gearComponent.id">
-                        <GearComponentListComponent :gearComponent="gearComponent" @gearComponentDeleted="updateGearComponentListOnDelete" />
+                        <GearComponentListComponent :gearActivities="gearActivities" :gearComponent="gearComponent" @gearComponentDeleted="updateGearComponentListOnDelete" />
                     </ul>
                 </div>
             </div>
@@ -124,7 +124,7 @@
                             <router-link :to="{ name: 'activity', params: { id: activity.id }}" class="link-body-emphasis link-underline-opacity-0 link-underline-opacity-100-hover">
                                 {{ activity.name}}
                             </router-link>
-                            <span><strong>{{ $t("gearView.labelDate") }}:</strong> {{ formatDateMed(activity.start_time) }} @ {{ formatTime(activity.start_time) }}</span>
+                            <span>{{ formatDateMed(activity.start_time) }} @ {{ formatTime(activity.start_time) }}</span>
                         </li>
                     </ul>
                 </div>

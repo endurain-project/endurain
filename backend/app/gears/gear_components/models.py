@@ -40,12 +40,12 @@ class GearComponents(Base):
     )
     brand = Column(
         String(length=250),
-        nullable=True,
+        nullable=False,
         comment="Gear component brand (May include spaces)",
     )
     model = Column(
         String(length=250),
-        nullable=True,
+        nullable=False,
         comment="Gear component model (May include spaces)",
     )
     purchase_date = Column(

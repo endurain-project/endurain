@@ -26,6 +26,7 @@
     "addEditUserModalUnitsLabel": "Units",
     "addEditUserModalUnitsOption1": "Metric",
     "addEditUserModalUnitsOption2": "Imperial",
+    "addEditUserModalCurrencyLabel": "Currency",
     "addEditUserModalHeightLabel": "Height",
     "addEditUserModalHeightPlaceholder": "Height",
     "addEditUserModalFeetValidationLabel": "Invalid height. Please enter a valid height in feet.",

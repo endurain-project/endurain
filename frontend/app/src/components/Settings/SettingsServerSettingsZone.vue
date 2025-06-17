@@ -1,11 +1,28 @@
 <template>
     <div class="col">
         <form class="bg-body-tertiary rounded p-3 shadow-sm">
+            <h4>{{ $t("settingsServerSettingsZoneComponent.defaultsTitle") }}</h4>
             <!-- Units -->
-            <h4>{{ $t("settingsServerSettingsZoneComponent.unitsLabel") }}</h4>
+            <label>{{ $t("settingsServerSettingsZoneComponent.unitsLabel") }}</label>
             <select class="form-select" name="serverSettingsUnits" v-model="units" required>
                 <option value="1">{{ $t("settingsServerSettingsZoneComponent.unitsMetric") }}</option>
                 <option value="2">{{ $t("settingsServerSettingsZoneComponent.unitsImperial") }}</option>
+            </select>
+            <!-- Currency -->
+            <label class="mt-1">{{ $t("settingsServerSettingsZoneComponent.currencyLabel") }}</label>
+            <select class="form-select" name="serverSettingsCurrency" v-model="currency" required>
+                <option value="1">{{ $t("generalItems.currencyEuro") }}</option>
+                <option value="2">{{ $t("generalItems.currencyDollar") }}</option>
+                <option value="3">{{ $t("generalItems.currencyPound") }}</option>
+            </select>
+            <!-- Num records per list -->
+            <label class="mt-1">{{ $t("settingsServerSettingsZoneComponent.numRecordsLabel") }}</label>
+            <select class="form-select" name="serverSettingsNumRecordsPerPage" v-model="numRecordsPerPage" required>
+                <option value=5>5</option>
+                <option value=10>10</option>
+                <option value=25>25</option>
+                <option value=50>50</option>
+                <option value=100>100</option>
             </select>
             <hr>
             <!-- Public shareable links -->
@@ -83,129 +100,73 @@
     </div>
 </template>
 
-<script>
+<script setup>
 import { ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
-// Import stores
 import { useServerSettingsStore } from "@/stores/serverSettingsStore";
-// Import services
 import { serverSettings } from "@/services/serverSettingsService";
-// Import Notivue push
 import { push } from "notivue";
-// Importing the components
-import LoadingComponent from "@/components/GeneralComponents/LoadingComponent.vue";
-import NoItemsFoundComponent from "@/components/GeneralComponents/NoItemsFoundComponents.vue";
-import UsersListComponent from "@/components/Settings/SettingsUsersZone/UsersListComponent.vue";
-import UsersAddEditUserModalComponent from "@/components/Settings/SettingsUsersZone/UsersAddEditUserModalComponent.vue";
 import ModalComponent from "@/components/Modals/ModalComponent.vue";
 
-export default {
-	components: {
-		LoadingComponent,
-		NoItemsFoundComponent,
-		UsersListComponent,
-		UsersAddEditUserModalComponent,
-        ModalComponent,
-	},
-	setup() {
-		const { t } = useI18n();
-		const isLoading = ref(true);
-        const serverSettingsStore = useServerSettingsStore();
-        const units = ref(serverSettingsStore.serverSettings.units);
-        const publicShareableLinks = ref(serverSettingsStore.serverSettings.public_shareable_links);
-        const publicShareableLinksUserInfo = ref(serverSettingsStore.serverSettings.public_shareable_links_user_info);
-        const loginPhotoSet = ref(serverSettingsStore.serverSettings.login_photo_set);
+const { t } = useI18n();
+const serverSettingsStore = useServerSettingsStore();
+const units = ref(serverSettingsStore.serverSettings.units);
+const currency = ref(serverSettingsStore.serverSettings.currency);
+const numRecordsPerPage = ref(serverSettingsStore.serverSettings.num_records_per_page);
+const publicShareableLinks = ref(serverSettingsStore.serverSettings.public_shareable_links);
+const publicShareableLinksUserInfo = ref(serverSettingsStore.serverSettings.public_shareable_links_user_info);
+const loginPhotoSet = ref(serverSettingsStore.serverSettings.login_photo_set);
 
-        async function updateServerSettings() {
-            const data = {
-                id: 1,
-                units: units.value,
-                public_shareable_links: publicShareableLinks.value,
-                public_shareable_links_user_info: publicShareableLinksUserInfo.value,
-                login_photo_set: loginPhotoSet.value,
-            };
-            try {
-                // Update the server settings in the DB
-                await serverSettings.editServerSettings(data);
+async function updateServerSettings() {
+    const data = {
+        id: 1,
+        units: units.value,
+        currency: currency.value,
+        num_records_per_page: numRecordsPerPage.value,
+        public_shareable_links: publicShareableLinks.value,
+        public_shareable_links_user_info: publicShareableLinksUserInfo.value,
+        login_photo_set: loginPhotoSet.value,
+    };
+    try {
+        await serverSettings.editServerSettings(data);
+        serverSettingsStore.setServerSettings(data);
+        push.success(t("settingsServerSettingsZoneComponent.successUpdateServerSettings"));
+    } catch (error) {
+        push.error(t("settingsServerSettingsZoneComponent.errorUpdateServerSettings"));
+    }
+}
 
-                // Update the server settings in the store
-                serverSettingsStore.setServerSettings(data);
-
-                push.success(t("settingsServerSettingsZoneComponent.successUpdateServerSettings"));
-            } catch (error) {
-                push.error(t("settingsServerSettingsZoneComponent.errorUpdateServerSettings"));
-            }
-        }
-
-        const submitUploadFileForm = async () => {
-			// Set the loading message
-			const notification = push.promise(t("settingsServerSettingsZoneComponent.processingPhotoUpload"));
-
-			// Get the file input
-			const fileInput = document.querySelector('input[type="file"]');
-
-			// If there is a file, create the form data and upload the file
-			if (fileInput.files[0]) {
-				// Create the form data
-				const formData = new FormData();
-				formData.append("file", fileInput.files[0]);
-				try {
-					// Upload the file
-					await serverSettings.uploadLoginPhotoFile(formData);
-					// Set the login photo set to true
-                    loginPhotoSet.value = true;
-
-                    // Update the server settings in the store and DB
-                    await updateServerSettings();
-
-					// Set the success message
-					notification.resolve(t("settingsServerSettingsZoneComponent.successPhotoUpload"));
-
-					// Clear the file input
-					fileInput.value = "";
-				} catch (error) {
-					// Set the error message
-					notification.reject(`${error}`);
-				}
-			}
-		};
-
-        const submitDeleteLoginPhoto = async () => {
-            // Set the loading message
-            const notification = push.promise(t("settingsServerSettingsZoneComponent.processingPhotoDelete"));
-
-            try {
-                // Delete the login photo
-                await serverSettings.deleteLoginPhotoFile();
-                // Set the login photo set to false
-                loginPhotoSet.value = false;
-
-                // Update the server settings in the store and DB
-                await updateServerSettings();
-
-                // Set the success message
-                notification.resolve(t("settingsServerSettingsZoneComponent.successPhotoDelete"));
-            } catch (error) {
-                // Set the error message
-                notification.reject(`${error}`);
-            }
-        };
-
-        // watchers
-        watch([units, publicShareableLinks, publicShareableLinksUserInfo], async () => {
+const submitUploadFileForm = async () => {
+    const notification = push.promise(t("settingsServerSettingsZoneComponent.processingPhotoUpload"));
+    const fileInput = document.querySelector('input[type="file"]');
+    if (fileInput.files[0]) {
+        const formData = new FormData();
+        formData.append("file", fileInput.files[0]);
+        try {
+            await serverSettings.uploadLoginPhotoFile(formData);
+            loginPhotoSet.value = true;
             await updateServerSettings();
-        }, { immediate: false });
-
-        return {
-			t,
-			isLoading,
-            units,
-            publicShareableLinks,
-            publicShareableLinksUserInfo,
-            loginPhotoSet,
-            submitUploadFileForm,
-            submitDeleteLoginPhoto,
-		};
-	},
+            notification.resolve(t("settingsServerSettingsZoneComponent.successPhotoUpload"));
+            fileInput.value = "";
+        } catch (error) {
+            notification.reject(`${error}`);
+        }
+    }
 };
+
+const submitDeleteLoginPhoto = async () => {
+    const notification = push.promise(t("settingsServerSettingsZoneComponent.processingPhotoDelete"));
+    try {
+        await serverSettings.deleteLoginPhotoFile();
+        loginPhotoSet.value = false;
+        await updateServerSettings();
+        notification.resolve(t("settingsServerSettingsZoneComponent.successPhotoDelete"));
+    } catch (error) {
+        notification.reject(`${error}`);
+    }
+};
+
+watch([units, currency, numRecordsPerPage, publicShareableLinks, publicShareableLinksUserInfo], async () => {
+    await updateServerSettings();
+}, { immediate: false });
 </script>
