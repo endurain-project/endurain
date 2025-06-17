@@ -73,13 +73,13 @@ def upgrade() -> None:
         ),
         sa.Column(
             "expected_kms",
-            sa.DECIMAL(precision=11, scale=3),
+            sa.DECIMAL(precision=11, scale=2),
             nullable=True,
             comment="Expected kilometers of the gear component",
         ),
         sa.Column(
             "purchase_value",
-            sa.DECIMAL(precision=11, scale=3),
+            sa.DECIMAL(precision=11, scale=2),
             nullable=True,
             comment="Purchase value of the gear component",
         ),
