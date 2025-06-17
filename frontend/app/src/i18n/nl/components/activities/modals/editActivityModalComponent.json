@@ -46,8 +46,8 @@
     "modalEditActivityHideSpeedLabel": "Verberg snelheid",
     "modalEditActivityHidePaceLabel": "Verberg tempo",
     "modalEditActivityHideLapsLabel": "Verberg rondes",
-    "modalEditActivityHideWorkoutSetsStepsLabel": "Hide workout sets/steps",
-    "modalEditActivityHideGearLabel": "Hide gear",
+    "modalEditActivityHideWorkoutSetsStepsLabel": "Verberg sets / stappen",
+    "modalEditActivityHideGearLabel": "Verberg uitrusting",
     "successActivityEdit": "Activiteit succesvol bewerkt",
     "errorActivityEdit": "Fout bij bewerken activiteit"
 }
