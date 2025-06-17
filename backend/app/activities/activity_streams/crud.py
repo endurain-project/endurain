@@ -313,7 +313,7 @@ def get_public_activity_stream_by_type(activity_id: int, stream_type: int, db: S
             return None
 
         # Return the activity stream
-        return activity_stream
+        return transform_activity_streams(activity_stream, activity, db)
     except Exception as err:
         # Log the exception
         core_logger.print_to_log(

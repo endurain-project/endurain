@@ -200,10 +200,14 @@
                     <br>
                     <span>{{ $t("activitySummaryComponent.activityAvgHR") }}: {{ formatHr(activity.average_hr) }}</span> <br>
                     <span>{{ $t("activitySummaryComponent.activityMaxHR") }}: {{ formatHr(activity.max_hr) }}</span> <br><br>
-                    <span v-for="(value, zone, index) in hrZones" :key="zone"
-                          :style="{ color: getZoneColor(index) }">
-                      {{ $t("activitySummaryComponent.activityHRZone") }} {{ index + 1 }} ({{ value.hr }}) : {{ value.percent }}%<br>
-                    </span>
+                    <BarChartComponent
+                      v-if="Object.values(hrZones).length > 0"
+                      :labels="getHrBarChartData().labels"
+                      :values="getHrBarChartData().values"
+                      :barColors="getHrBarChartData().barColors"
+                      :datalabelsFormatter="(value) => `${Math.round(value)}%`"
+                      :title="$t('activitySummaryComponent.activityHRZone')"
+                    />
                 </div>
             </div>
         </div>
@@ -224,6 +228,7 @@ import LoadingComponent from "@/components/GeneralComponents/LoadingComponent.vu
 import UserAvatarComponent from "@/components/Users/UserAvatarComponent.vue";
 import EditActivityModalComponent from "@/components/Activities/Modals/EditActivityModalComponent.vue";
 import ModalComponent from "@/components/Modals/ModalComponent.vue";
+import BarChartComponent from '@/components/GeneralComponents/BarChartComponent.vue';
 // Importing the services
 import { users } from "@/services/usersService";
 import { activities } from "@/services/activitiesService";
@@ -335,5 +340,15 @@ function getZoneColor(index) {
     '#dc3545', // Zone 5: red
   ];
   return colors[index] || '#000';
+}
+
+function getHrBarChartData() {
+  const zones = Object.values(hrZones.value);
+  return {
+    labels: zones.map((z, i) => `${t('activitySummaryComponent.activityHRZone')} ${i + 1} (${z.hr || ''})`),
+    // values: zones.map(z => `${z.percent ?? 0}%`),
+    values: zones.map(z => z.percent ?? 0),
+    barColors: zones.map((_, i) => getZoneColor(i)),
+  };
 }
 </script>
