@@ -7,7 +7,7 @@
     "labelGraphPower": "Vermogen",
     "labelGraphCadence": "Cadans",
     "labelGraphElevation": "Hoogte",
-    "labelGraphVelocity": "Speed",
+    "labelGraphVelocity": "Snelheid",
     "labelGraphPace": "Tempo",
     "labelDownsampling": "Gegevens teruggeschaald naar ~200 punten",
     "errorMessageProcessingActivityStreams": "Fout bij verwerken activiteit streams",
