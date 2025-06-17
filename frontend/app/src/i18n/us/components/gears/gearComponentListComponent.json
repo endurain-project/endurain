@@ -1,6 +1,8 @@
 {
     "gearComponentBackTire": "Back tire",
     "gearComponentFrontTire": "Front tire",
+    "gearComponentCassette": "Cassette",
+    "gearComponentChain": "Chain",
     "gearComponentOf": " of ",
     "gearComponentListGearComponentIsInactiveBadge": "Inactive",
     "gearComponentListModalDeleteGearComponentTitle": "Delete gear component",
