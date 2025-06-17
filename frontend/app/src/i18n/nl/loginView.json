@@ -1,6 +1,6 @@
 {
     "sessionExpired": "Gebruikerssessie verlopen",
-    "logoutSuccess": "You have been successfully logged out",
+    "logoutSuccess": "Je bent succesvol uitgelogd",
     "error401": "Gebruikersnaam of wachtwoord ongeldig",
     "error403": "U bent niet gemachtigd voor toegang tot deze bron",
     "error500": "Het was niet mogelijk om verbinding te maken met de server. Probeer het later opnieuw",
