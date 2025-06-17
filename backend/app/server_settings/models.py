@@ -39,7 +39,7 @@ class ServerSettings(Base):
     num_records_per_page = Column(
         Integer,
         nullable=False,
-        default=5,
+        default=25,
         comment="Number of records per page in lists",
     )
 

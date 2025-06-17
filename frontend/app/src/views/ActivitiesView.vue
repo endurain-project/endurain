@@ -62,6 +62,7 @@ import { useI18n } from "vue-i18n";
 import { debounce } from "lodash";
 import { push } from "notivue";
 import { useAuthStore } from "@/stores/authStore";
+import { useServerSettingsStore } from "@/stores/serverSettingsStore";
 import { activities as activitiesService } from "@/services/activitiesService";
 import ActivitiesTableComponent from "@/components/Activities/ActivitiesTableComponent.vue";
 import PaginationComponent from "@/components/GeneralComponents/PaginationComponent.vue";
@@ -69,12 +70,13 @@ import LoadingComponent from "@/components/GeneralComponents/LoadingComponent.vu
 import NoItemsFoundComponents from "@/components/GeneralComponents/NoItemsFoundComponents.vue";
 
 const { t } = useI18n();
+const serverSettingsStore = useServerSettingsStore();
 const authStore = useAuthStore();
 const activityTypes = ref([]);
 const activities = ref([]);
 const userNumberActivities = ref(0);
 const pageNumber = ref(1);
-const numRecords = 20;
+const numRecords = serverSettingsStore.serverSettings.num_records_per_page || 25;
 const totalPages = ref(1);
 const isLoading = ref(true);
 

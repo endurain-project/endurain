@@ -72,15 +72,17 @@ import UsersListComponent from "@/components/Settings/SettingsUsersZone/UsersLis
 import PaginationComponent from "@/components/GeneralComponents/PaginationComponent.vue";
 import UsersAddEditUserModalComponent from "@/components/Settings/SettingsUsersZone/UsersAddEditUserModalComponent.vue";
 import { users } from "@/services/usersService";
+import { useServerSettingsStore } from "@/stores/serverSettingsStore";
 
 const { t } = useI18n();
+const serverSettingsStore = useServerSettingsStore();
 const isLoading = ref(true);
 const isUsersUpdatingLoading = ref(false);
 const isLoadingNewUser = ref(false);
 const usersArray = ref([]);
 const usersNumber = ref(0);
 const pageNumber = ref(1);
-const numRecords = 5;
+const numRecords = serverSettingsStore.serverSettings.num_records_per_page || 25;
 const totalPages = ref(1);
 const searchUsername = ref("");
 

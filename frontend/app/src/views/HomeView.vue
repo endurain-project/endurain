@@ -128,12 +128,13 @@
 }
 </style>
 
-<script>
-import { ref, onMounted, onUnmounted, watchEffect, computed } from "vue";
+<script setup>
+import { ref, onMounted, onUnmounted } from "vue";
 import { useI18n } from "vue-i18n";
 import { useRoute } from "vue-router";
 // Import the stores
 import { useAuthStore } from "@/stores/authStore";
+import { useServerSettingsStore } from "@/stores/serverSettingsStore";
 // Import the services
 import { activities } from "@/services/activitiesService";
 import { followers } from "@/services/followersService";
@@ -147,242 +148,215 @@ import ActivityMapComponent from "@/components/Activities/ActivityMapComponent.v
 import LoadingComponent from "@/components/GeneralComponents/LoadingComponent.vue";
 import UserAvatarComponent from "@/components/Users/UserAvatarComponent.vue";
 
-//import { Modal } from 'bootstrap';
+const route = useRoute();
+const authStore = useAuthStore();
+const serverSettingsStore = useServerSettingsStore();
+const selectedActivityView = ref("userActivities");
+const isLoading = ref(true);
+const thisWeekDistances = ref([]);
+const thisMonthDistances = ref([]);
+const userNumberOfActivities = ref(0);
+const userActivities = ref([]);
+const followedUserActivities = ref([]);
+const pageNumberUserActivities = ref(1);
+const numRecords = serverSettingsStore.serverSettings.num_records_per_page || 25;
+const userHasMoreActivities = ref(true);
+const { t } = useI18n();
 
-export default {
-	components: {
-		UserDistanceStatsComponent,
-		NoItemsFoundComponent,
-		ActivitySummaryComponent,
-		ActivityMapComponent,
-		LoadingComponent,
-		UserAvatarComponent,
-	},
-	setup() {
-		const route = useRoute();
-		const authStore = useAuthStore();
-		const selectedActivityView = ref("userActivities");
-		const isLoading = ref(true);
-		const thisWeekDistances = ref([]);
-		const thisMonthDistances = ref([]);
-		const userNumberOfActivities = ref(0);
-		const userActivities = ref([]);
-		const followedUserActivities = ref([]);
-		const pageNumberUserActivities = ref(1);
-		const numRecords = 5;
-		const userHasMoreActivities = ref(true);
-		const { t } = useI18n();
+async function fetchUserStars() {
+	try {
+		thisWeekDistances.value = await activities.getUserThisWeekStats(
+			authStore.user.id,
+		);
+		thisMonthDistances.value = await activities.getUserThisMonthStats(
+			authStore.user.id,
+		);
+	} catch (error) {
+		// Set the error message
+		push.error(`${t("homeView.errorFetchingUserStats")} - ${error}`);
+	}
+}
 
-		async function fetchUserStars() {
-			try {
-				thisWeekDistances.value = await activities.getUserThisWeekStats(
-					authStore.user.id,
-				);
-				thisMonthDistances.value = await activities.getUserThisMonthStats(
-					authStore.user.id,
-				);
-			} catch (error) {
-				// Set the error message
-				push.error(`${t("homeView.errorFetchingUserStats")} - ${error}`);
+async function fetchMoreActivities() {
+	// If the component is already loading or there are no more activities, return
+	if (isLoading.value || !userHasMoreActivities.value) return;
+
+	try {
+		// Add 1 to the page number
+		pageNumberUserActivities.value++;
+
+		// Fetch the activities
+		const newActivities = await activities.getUserActivitiesWithPagination(
+			authStore.user.id,
+			pageNumberUserActivities.value,
+			numRecords,
+		);
+
+		if (newActivities?.length) {
+			if (!userActivities.value) {
+				userActivities.value = [];
 			}
+			userActivities.value = [...userActivities.value, ...newActivities];
+
+			// Check if we've reached the end
+			userHasMoreActivities.value = newActivities.length === numRecords;
+		} else {
+			userHasMoreActivities.value = false;
 		}
+	} catch (error) {
+		// Set the error message
+		push.error(`${t("homeView.errorFetchingUserActivities")} - ${error}`);
+	}
+}
 
-		async function fetchMoreActivities() {
-			// If the component is already loading or there are no more activities, return
-			if (isLoading.value || !userHasMoreActivities.value) return;
+const handleScroll = () => {
+	// Get scroll position and page height more reliably
+	const scrollPosition = window.scrollY + window.innerHeight;
+	const totalHeight = document.documentElement.scrollHeight;
 
-			try {
-				// Add 1 to the page number
-				pageNumberUserActivities.value++;
-
-				// Fetch the activities
-				const newActivities = await activities.getUserActivitiesWithPagination(
-					authStore.user.id,
-					pageNumberUserActivities.value,
-					numRecords,
-				);
-
-				if (newActivities?.length) {
-					if (!userActivities.value) {
-						userActivities.value = [];
-					}
-					userActivities.value = [...userActivities.value, ...newActivities];
-
-					// Check if we've reached the end
-					userHasMoreActivities.value = newActivities.length === numRecords;
-				} else {
-					userHasMoreActivities.value = false;
-				}
-			} catch (error) {
-				// Set the error message
-				push.error(`${t("homeView.errorFetchingUserActivities")} - ${error}`);
-			}
-		}
-
-		const handleScroll = () => {
-			// Get scroll position and page height more reliably
-			const scrollPosition = window.scrollY + window.innerHeight;
-			const totalHeight = document.documentElement.scrollHeight;
-
-			// Trigger load when within 100px of bottom
-			if (totalHeight - scrollPosition < 100) {
-				fetchMoreActivities();
-			}
-		};
-
-		const submitUploadFileForm = async () => {
-			// Set the loading message
-			const notification = push.promise(t("homeView.processingActivity"));
-
-			// Get the file input
-			const fileInput = document.querySelector('input[type="file"]');
-
-			// If there is a file, create the form data and upload the file
-			if (fileInput.files[0]) {
-				// Create the form data
-				const formData = new FormData();
-				formData.append("file", fileInput.files[0]);
-				try {
-					// Upload the file
-					const createdActivities =
-						await activities.uploadActivityFile(formData);
-					// Fetch the new user activity
-					if (!userActivities.value) {
-						userActivities.value = [];
-					}
-					for (const createdActivity of createdActivities) {
-						userActivities.value.unshift(createdActivity);
-					}
-
-					// Set the success message
-					notification.resolve(t("homeView.successActivityAdded"));
-
-					// Clear the file input
-					fileInput.value = "";
-
-					// Fetch the user stats
-					fetchUserStars();
-
-					// Fetch the user activities and user activities number
-					userNumberOfActivities.value++;
-				} catch (error) {
-					// Set the error message
-					notification.reject(`${error}`);
-				}
-			}
-		};
-
-		async function refreshActivities() {
-			// Set the loading message
-			const notification = push.promise(t("homeView.refreshingActivities"));
-
-			try {
-				// Get the user activities
-				const newActivities = await activities.getActivityRefresh();
-
-				// If userActivities is not defined, do it
-				if (!userActivities.value) {
-					userActivities.value = [];
-				}
-
-				// Iterate over the new activities and add them to the user activities
-				if (newActivities) {
-					for (const newActivity of newActivities) {
-						userActivities.value.unshift(newActivity);
-					}
-				}
-
-				// Set the success message
-				notification.resolve(t("homeView.successActivitiesRefreshed"));
-
-				// Fetch the user stats
-				fetchUserStars();
-
-				// Set the user number of activities
-				userNumberOfActivities.value += newActivities.length;
-			} catch (error) {
-				// Set the error message
-				notification.reject(`${error}`);
-			}
-		}
-
-		function updateActivitiesOnDelete(activityId) {
-			// Filter out the deleted activity from userActivities
-			userActivities.value = userActivities.value.filter(
-				(activity) => activity.id !== activityId,
-			);
-			// Set the activityDeleted value to true and show the success alert.
-			push.success(t("homeView.successActivityDeleted"));
-		}
-
-		onMounted(async () => {
-			if (route.query.activityFound === "false") {
-				// Set the activityFound value to false and show the error alert.
-				push.error(t("homeView.errorActivityNotFound"));
-			}
-
-			if (route.query.activityDeleted === "true") {
-				updateActivitiesOnDelete(Number(route.query.activityId));
-			}
-
-			// Add the scroll event listener
-			window.addEventListener("scroll", handleScroll);
-
-			try {
-				// Fetch the user stats
-				fetchUserStars();
-
-				// Fetch the user activities and user activities number
-				userNumberOfActivities.value =
-					await activities.getUserNumberOfActivities();
-
-				// Fetch the initial user activities response (contains activities array and total_count)
-				userActivities.value = await activities.getUserActivitiesWithPagination(
-					authStore.user.id,
-					pageNumberUserActivities.value,
-					numRecords,
-				);
-
-				//followedUserActivities.value =
-				//	await activities.getUserFollowersActivitiesWithPagination(
-				//		authStore.user.id,
-				//		pageNumberUserActivities,
-				//		numRecords,
-				//	);
-
-				// If the number of activities is greater than the page number times the number of records, there are no more activities
-				if (
-					pageNumberUserActivities.value * numRecords >=
-					userNumberOfActivities.value
-				) {
-					userHasMoreActivities.value = false;
-				}
-			} catch (error) {
-				// Set the error message
-				push.error(`${t("homeView.errorFetchingUserActivities")} - ${error}`);
-			}
-
-			isLoading.value = false;
-		});
-
-		onUnmounted(() => {
-			// Remove the scroll event listener
-			window.removeEventListener("scroll", handleScroll);
-		});
-
-		return {
-			authStore,
-			selectedActivityView,
-			isLoading,
-			thisWeekDistances,
-			thisMonthDistances,
-			userActivities,
-			followedUserActivities,
-			submitUploadFileForm,
-			t,
-			refreshActivities,
-			updateActivitiesOnDelete,
-		};
-	},
+	// Trigger load when within 100px of bottom
+	if (totalHeight - scrollPosition < 100) {
+		fetchMoreActivities();
+	}
 };
+
+const submitUploadFileForm = async () => {
+	// Set the loading message
+	const notification = push.promise(t("homeView.processingActivity"));
+
+	// Get the file input
+	const fileInput = document.querySelector('input[type="file"]');
+
+	// If there is a file, create the form data and upload the file
+	if (fileInput.files[0]) {
+		// Create the form data
+		const formData = new FormData();
+		formData.append("file", fileInput.files[0]);
+		try {
+			// Upload the file
+			const createdActivities =
+				await activities.uploadActivityFile(formData);
+			// Fetch the new user activity
+			if (!userActivities.value) {
+				userActivities.value = [];
+			}
+			for (const createdActivity of createdActivities) {
+				userActivities.value.unshift(createdActivity);
+			}
+
+			// Set the success message
+			notification.resolve(t("homeView.successActivityAdded"));
+
+			// Clear the file input
+			fileInput.value = "";
+
+			// Fetch the user stats
+			fetchUserStars();
+
+			// Fetch the user activities and user activities number
+			userNumberOfActivities.value++;
+		} catch (error) {
+			// Set the error message
+			notification.reject(`${error}`);
+		}
+	}
+};
+
+async function refreshActivities() {
+	// Set the loading message
+	const notification = push.promise(t("homeView.refreshingActivities"));
+
+	try {
+		// Get the user activities
+		const newActivities = await activities.getActivityRefresh();
+
+		// If userActivities is not defined, do it
+		if (!userActivities.value) {
+			userActivities.value = [];
+		}
+
+		// Iterate over the new activities and add them to the user activities
+		if (newActivities) {
+			for (const newActivity of newActivities) {
+				userActivities.value.unshift(newActivity);
+			}
+		}
+
+		// Set the success message
+		notification.resolve(t("homeView.successActivitiesRefreshed"));
+
+		// Fetch the user stats
+		fetchUserStars();
+
+		// Set the user number of activities
+		userNumberOfActivities.value += newActivities.length;
+	} catch (error) {
+		// Set the error message
+		notification.reject(`${error}`);
+	}
+}
+
+function updateActivitiesOnDelete(activityId) {
+	// Filter out the deleted activity from userActivities
+	userActivities.value = userActivities.value.filter(
+		(activity) => activity.id !== activityId,
+	);
+	// Set the activityDeleted value to true and show the success alert.
+	push.success(t("homeView.successActivityDeleted"));
+}
+
+onMounted(async () => {
+	if (route.query.activityFound === "false") {
+		// Set the activityFound value to false and show the error alert.
+		push.error(t("homeView.errorActivityNotFound"));
+	}
+
+	if (route.query.activityDeleted === "true") {
+		updateActivitiesOnDelete(Number(route.query.activityId));
+	}
+
+	// Add the scroll event listener
+	window.addEventListener("scroll", handleScroll);
+
+	try {
+		// Fetch the user stats
+		fetchUserStars();
+
+		// Fetch the user activities and user activities number
+		userNumberOfActivities.value =
+			await activities.getUserNumberOfActivities();
+
+		// Fetch the initial user activities response (contains activities array and total_count)
+		userActivities.value = await activities.getUserActivitiesWithPagination(
+			authStore.user.id,
+			pageNumberUserActivities.value,
+			numRecords,
+		);
+
+		//followedUserActivities.value =
+		//	await activities.getUserFollowersActivitiesWithPagination(
+		//		authStore.user.id,
+		//		pageNumberUserActivities,
+		//		numRecords,
+		//	);
+
+		// If the number of activities is greater than the page number times the number of records, there are no more activities
+		if (
+			pageNumberUserActivities.value * numRecords >=
+			userNumberOfActivities.value
+		) {
+			userHasMoreActivities.value = false;
+		}
+	} catch (error) {
+		// Set the error message
+		push.error(`${t("homeView.errorFetchingUserActivities")} - ${error}`);
+	}
+
+	isLoading.value = false;
+});
+
+onUnmounted(() => {
+	// Remove the scroll event listener
+	window.removeEventListener("scroll", handleScroll);
+});
 </script>

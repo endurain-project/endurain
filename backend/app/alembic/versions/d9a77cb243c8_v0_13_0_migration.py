@@ -112,7 +112,7 @@ def upgrade() -> None:
     op.execute(
         """
         UPDATE server_settings
-        SET currency = 1, num_records_per_page = 5
+        SET currency = 1, num_records_per_page = 25
         WHERE id = 1;
     """
     )

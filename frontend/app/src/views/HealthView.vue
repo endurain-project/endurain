@@ -16,194 +16,132 @@
     <BackButtonComponent />
 </template>
 
-<script>
+<script setup>
 import { ref, onMounted, watch } from "vue";
 import { useI18n } from "vue-i18n";
-// Import Notivue push
 import { push } from "notivue";
-// Importing the components
 import HealthSideBarComponent from "../components/Health/HealthSideBarComponent.vue";
 import HealthDashboardZone from "../components/Health/HealthDashboardZoneComponent.vue";
 import HealthWeightZone from "../components/Health/HealthWeightZone.vue";
 import BackButtonComponent from "@/components/GeneralComponents/BackButtonComponent.vue";
 import LoadingComponent from "@/components/GeneralComponents/LoadingComponent.vue";
-// Importing the services
 import { health_data } from "@/services/health_dataService";
 import { health_targets } from "@/services/health_targetsService";
+import { useServerSettingsStore } from "@/stores/serverSettingsStore";
 
-export default {
-	components: {
-		HealthSideBarComponent,
-		HealthDashboardZone,
-		HealthWeightZone,
-		BackButtonComponent,
-		LoadingComponent,
-	},
-	setup() {
-		const { t } = useI18n();
-		const activeSection = ref("dashboard");
-		const isLoading = ref(true);
-		const isHealthDataUpdatingLoading = ref(true);
-		const userHealthDataNumber = ref(0);
-		const userHealthData = ref([]);
-		const userHealthDataPagination = ref([]);
-		const userHealthTargets = ref(null);
-		const pageNumber = ref(1);
-		const totalPages = ref(1);
-		const numRecords = 5;
+const { t } = useI18n();
+const serverSettingsStore = useServerSettingsStore();
+const activeSection = ref("dashboard");
+const isLoading = ref(true);
+const isHealthDataUpdatingLoading = ref(true);
+const userHealthDataNumber = ref(0);
+const userHealthData = ref([]);
+const userHealthDataPagination = ref([]);
+const userHealthTargets = ref(null);
+const pageNumber = ref(1);
+const totalPages = ref(1);
+const numRecords = serverSettingsStore.serverSettings.num_records_per_page || 25;
 
-		function updateActiveSection(section) {
-			// Update the active section.
-			activeSection.value = section;
+function updateActiveSection(section) {
+    activeSection.value = section;
+    if (pageNumber.value !== 1) {
+        pageNumber.value = 1;
+        updateHealthData();
+    }
+}
 
-			if (pageNumber.value !== 1) {
-				pageNumber.value = 1;
-				updateHealthData();
-			}
-		}
+async function updateHealthData() {
+    try {
+        isHealthDataUpdatingLoading.value = true;
+        userHealthDataPagination.value = await health_data.getUserHealthDataWithPagination(
+            pageNumber.value,
+            numRecords,
+        );
+        isHealthDataUpdatingLoading.value = false;
+    } catch (error) {
+        push.error(`${t("healthView.errorFetchingHealthData")} - ${error}`);
+    }
+}
 
-		async function updateHealthData() {
-			try {
-				// Set the loading variable to true.
-				isHealthDataUpdatingLoading.value = true;
+async function fetchHealthData() {
+    try {
+        userHealthDataNumber.value = await health_data.getUserHealthDataNumber();
+        userHealthData.value = await health_data.getUserHealthData();
+        await updateHealthData();
+        totalPages.value = Math.ceil(userHealthDataNumber.value / numRecords);
+    } catch (error) {
+        push.error(`${t("healthView.errorFetchingHealthData")} - ${error}`);
+    }
+}
 
-				// Fetch the health_data with pagination.
-				userHealthDataPagination.value =
-					await health_data.getUserHealthDataWithPagination(
-						pageNumber.value,
-						numRecords,
-					);
+async function fetchHealthTargets() {
+    try {
+        userHealthTargets.value = await health_targets.getUserHealthTargets();
+    } catch (error) {
+        push.error(`${t("healthView.errorFetchingHealthTargets")} - ${error}`);
+    }
+}
 
-				// Set the loading variable to false.
-				isHealthDataUpdatingLoading.value = false;
-			} catch (error) {
-				// If there is an error, set the error message and show the error alert.
-				push.error(`${t("healthView.errorFetchingHealthData")} - ${error}`);
-			}
-		}
+function updateWeightListAdded(createdWeight) {
+    const updateOrAdd = (array, newEntry) => {
+        const index = array.findIndex((item) => item.id === newEntry.id);
+        if (index !== -1) {
+            array[index] = newEntry;
+        } else {
+            array.unshift(newEntry);
+        }
+    };
+    if (userHealthDataPagination.value) {
+        updateOrAdd(userHealthDataPagination.value, createdWeight);
+    } else {
+        userHealthDataPagination.value = [createdWeight];
+    }
+    if (userHealthData.value) {
+        updateOrAdd(userHealthData.value, createdWeight);
+    } else {
+        userHealthData.value = [createdWeight];
+    }
+    userHealthDataNumber.value = userHealthData.value.length;
+}
 
-		async function fetchHealthData() {
-			try {
-				// Get the total number of user health_data.
-				userHealthDataNumber.value =
-					await health_data.getUserHealthDataNumber();
+function updateWeightListDeleted(deletedWeight) {
+    for (const data of userHealthDataPagination.value) {
+        if (data.id === deletedWeight) {
+            data.weight = null;
+        }
+    }
+    for (const data of userHealthData.value) {
+        if (data.id === deletedWeight) {
+            data.weight = null;
+        }
+    }
+}
 
-				// Fetch the health_data
-				userHealthData.value = await health_data.getUserHealthData();
+function updateWeightListEdited(editedWeight) {
+    for (const data of userHealthDataPagination.value) {
+        if (data.id === editedWeight.id) {
+            data.weight = editedWeight.weight;
+            data.created_at = editedWeight.created_at;
+        }
+    }
+    for (const data of userHealthData.value) {
+        if (data.id === editedWeight.id) {
+            data.weight = editedWeight.weight;
+            data.created_at = editedWeight.created_at;
+        }
+    }
+}
 
-				// Fetch the health_data with pagination.
-				await updateHealthData();
+function setPageNumber(page) {
+    pageNumber.value = page;
+}
 
-				// Update total pages
-				totalPages.value = Math.ceil(userHealthDataNumber.value / numRecords);
-			} catch (error) {
-				// If there is an error, set the error message and show the error alert.
-				push.error(`${t("healthView.errorFetchingHealthData")} - ${error}`);
-			}
-		}
+watch(pageNumber, updateHealthData, { immediate: false });
 
-		async function fetchHealthTargets() {
-			try {
-				// Fetch the health_targets
-				userHealthTargets.value = await health_targets.getUserHealthTargets();
-			} catch (error) {
-				// If there is an error, set the error message and show the error alert.
-				push.error(`${t("healthView.errorFetchingHealthTargets")} - ${error}`);
-			}
-		}
-
-		function updateWeightListAdded(createdWeight) {
-			// Function to update or add an entry in the array
-			const updateOrAdd = (array, newEntry) => {
-				const index = array.findIndex((item) => item.id === newEntry.id);
-				if (index !== -1) {
-					// Update existing entry
-					array[index] = newEntry;
-				} else {
-					// Add new entry
-					array.unshift(newEntry);
-				}
-			};
-
-			// Check and update both arrays
-			if (userHealthDataPagination.value) {
-				updateOrAdd(userHealthDataPagination.value, createdWeight);
-			} else {
-				userHealthDataPagination.value = [createdWeight];
-			}
-
-			if (userHealthData.value) {
-				updateOrAdd(userHealthData.value, createdWeight);
-			} else {
-				userHealthData.value = [createdWeight];
-			}
-
-			userHealthDataNumber.value = userHealthData.value.length; // Update the count
-		}
-
-		function updateWeightListDeleted(deletedWeight) {
-			// Update the weight in the userHealthDataPagination and userHealthData arrays.
-			for (const data of userHealthDataPagination.value) {
-				if (data.id === deletedWeight) {
-					data.weight = null;
-				}
-			}
-			for (const data of userHealthData.value) {
-				if (data.id === deletedWeight) {
-					data.weight = null;
-				}
-			}
-		}
-
-		function updateWeightListEdited(editedWeight) {
-			// Update the weight in the userHealthDataPagination and userHealthData arrays.
-			for (const data of userHealthDataPagination.value) {
-				if (data.id === editedWeight.id) {
-					data.weight = editedWeight.weight;
-					data.created_at = editedWeight.created_at;
-				}
-			}
-			for (const data of userHealthData.value) {
-				if (data.id === editedWeight.id) {
-					data.weight = editedWeight.weight;
-					data.created_at = editedWeight.created_at;
-				}
-			}
-		}
-
-		function setPageNumber(page) {
-			// Set the page number.
-			pageNumber.value = page;
-		}
-
-		// Watch the page number variable.
-		watch(pageNumber, updateHealthData, { immediate: false });
-
-		onMounted(async () => {
-			// Fetch health_data and health_targets
-			await fetchHealthData();
-			await fetchHealthTargets();
-
-			// Set the isLoading variables to false.
-			isHealthDataUpdatingLoading.value = false;
-			isLoading.value = false;
-		});
-
-		return {
-			activeSection,
-			isLoading,
-			isHealthDataUpdatingLoading,
-			userHealthDataPagination,
-			userHealthData,
-			userHealthTargets,
-			pageNumber,
-			totalPages,
-			updateActiveSection,
-			updateWeightListAdded,
-			updateWeightListDeleted,
-			updateWeightListEdited,
-			setPageNumber,
-		};
-	},
-};
+onMounted(async () => {
+    await fetchHealthData();
+    await fetchHealthTargets();
+    isHealthDataUpdatingLoading.value = false;
+    isLoading.value = false;
+});
 </script>
