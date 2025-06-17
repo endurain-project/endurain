@@ -76,6 +76,22 @@ export function getGearComponentAvatar(type) {
 		"crankset": "/src/assets/avatar/gearComponents/crankset1.png",
 		"cassette": "/src/assets/avatar/gearComponents/cassette1.png",
 		"chain": "/src/assets/avatar/gearComponents/chain1.png",
+		"front_shifter": "/src/assets/avatar/gearComponents/shifter1.png",
+		"front_derailleur": "/src/assets/avatar/gearComponents/frontDerailleur1.png",
+		"front_shifter": "/src/assets/avatar/gearComponents/shifter1.png",
+		"front_derailleur": "/src/assets/avatar/gearComponents/rearDerailleur1.png",
+		"bottom_bracket": "/src/assets/avatar/gearComponents/bottomBracket1.png",
+		"bottle_cage": "/src/assets/avatar/gearComponents/bottleCage1.png",
+		"handlebar": "/src/assets/avatar/gearComponents/handlebar1.png",
+		"headset": "/src/assets/avatar/gearComponents/headset1.png",
+		"computer_mount": "/src/assets/avatar/gearComponents/computerMount1.png",
+		"handlebar_tape": "/src/assets/avatar/gearComponents/handlebarTape1.png",
+		"grips": "/src/assets/avatar/gearComponents/grips1.png",
+		"stem": "/src/assets/avatar/gearComponents/stem1.png",
+		"seatpost": "/src/assets/avatar/gearComponents/seatpost1.png",
+		"saddle": "/src/assets/avatar/gearComponents/saddle1.png",
+		"fork": "/src/assets/avatar/gearComponents/fork1.png",
+		"frame": "/src/assets/avatar/gearComponents/frame1.png",
 	};
 
 	return avatarMap[type];
