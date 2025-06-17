@@ -196,7 +196,6 @@ def get_activity_stream_by_type(activity_id: int, stream_type: int, token_user_i
         ) from err
 
 def transform_activity_streams(activity_stream, activity, db):
-    print("Transforming activity stream")
     """
     Transform the activity stream based on the stream type.
     """
@@ -206,25 +205,21 @@ def transform_activity_streams(activity_stream, activity, db):
         return activity_stream
 
 def transform_activity_streams_hr(activity_stream, activity, db):
-    print("Transforming HR activity stream")
     """
     Transform the activity stream for heart rate.
     Calculate the percentage of time spent in each HR zone using numpy for performance.
     """
     detail_user = users_crud.get_user_by_id(activity.user_id, db)
-    print(f"Detail user: {detail_user}")
     if not detail_user or not detail_user.birthdate:
         return activity_stream
     year = int(detail_user.birthdate.split("-")[0])
     current_year = datetime.datetime.now().year
     max_heart_rate = 220 - (current_year - year)
-    print(f"Max heart rate: {max_heart_rate}")
 
     zone_1 = max_heart_rate * 0.5
     zone_2 = max_heart_rate * 0.6
     zone_3 = max_heart_rate * 0.7
     zone_4 = max_heart_rate * 0.8
-    print(f"Heart rate zones: {zone_1}, {zone_2}, {zone_3}, {zone_4}")
 
     waypoints = activity_stream.stream_waypoints
     if not waypoints or not isinstance(waypoints, list):
@@ -233,7 +228,6 @@ def transform_activity_streams_hr(activity_stream, activity, db):
     hr_values = np.array([wp.get("hr") for wp in waypoints if wp.get("hr") is not None])
 
     total = len(hr_values)
-    print(f"Total HR values: {total}")
 
     if total == 0:
         return activity_stream
@@ -262,8 +256,6 @@ def transform_activity_streams_hr(activity_stream, activity, db):
         "zone_4": {"percent": zone_percentages[3], "hr": zone_hr["zone_4"]},
         "zone_5": {"percent": zone_percentages[4], "hr": zone_hr["zone_5"]},
     }
-
-    print(f"HR zone percentages: {activity_stream.hr_zone_percentages}")
 
     return activity_stream
 

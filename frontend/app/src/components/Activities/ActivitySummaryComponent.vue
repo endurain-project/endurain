@@ -282,6 +282,7 @@ const hrZones = ref({
     zone_2: {},
     zone_3: {},
     zone_4: {},
+    zone_5: {},
 });
 
 // Lifecycle
