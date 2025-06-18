@@ -54,6 +54,30 @@ async def read_gear_components_gear_id(
     )
 
 
+@router.post(
+    "",
+    response_model=gears_components_schema.GearComponents,
+    status_code=201,
+)
+async def create_gear_component(
+    gear_component: gears_components_schema.GearComponents,
+    check_scopes: Annotated[
+        Callable, Security(session_security.check_scopes, scopes=["gears:write"])
+    ],
+    token_user_id: Annotated[
+        int, Depends(session_security.get_user_id_from_access_token)
+    ],
+    db: Annotated[
+        Session,
+        Depends(core_database.get_db),
+    ],
+):
+    # Create the gear component and return it
+    return gears_components_crud.create_gear_component(
+        gear_component, token_user_id, db
+    )
+
+
 @router.delete("/{gear_component_id}")
 async def delete_component_gear(
     gear_component_id: int,

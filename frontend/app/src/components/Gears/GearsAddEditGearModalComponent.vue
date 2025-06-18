@@ -199,9 +199,9 @@ async function submitAddGearForm() {
         // add the gear in the database
         const createdGear = await gears.createGear(data);
         // set the form values to default
-        newEditGearBrand.value = '';
-        newEditGearModel.value = '';
-        newEditGearNickname.value = '';
+        newEditGearBrand.value = "";
+        newEditGearModel.value = "";
+        newEditGearNickname.value = "";
         newEditGearType.value = 1;
         newEditGearCreatedDate.value = new Date().toISOString().split('T')[0];
         newEditGearIsActive.value = 1;

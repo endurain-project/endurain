@@ -55,7 +55,7 @@ class GearComponents(BaseModel):
     model: str
     purchase_date: str
     retired_date: str | None = None
-    is_active: bool
+    is_active: bool | None = None
     expected_kms: int | None = None
     purchase_value: float | None = None
 

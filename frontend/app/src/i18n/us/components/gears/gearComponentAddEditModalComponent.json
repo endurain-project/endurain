@@ -6,5 +6,8 @@
     "addEditGearComponentModalAddModelLabel": "Model",
     "addEditGearComponentModalAddPurchaseDateLabel": "Purchase date",
     "addEditGearComponentModalAddEditExpectedDistanceLabel": "Expected distance",
-    "addEditGearComponentModalAddPurchaseValueLabel": "Purchase value"
+    "addEditGearComponentModalAddPurchaseValueLabel": "Purchase value",
+    "successGearComponentAdded": "Gear component added successfully",
+    "successGearComponentEdited": "Gear component edited successfully",
+    "errorGearComponentAdd": "Error adding gear component"
 }

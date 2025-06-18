@@ -25,7 +25,7 @@
             </span>
 
             <!-- delete gear button -->
-            <a class="btn btn-link btn-lg link-body-emphasis d-none d-sm-inline" href="#" role="button"
+            <a class="btn btn-link btn-lg link-body-emphasis" href="#" role="button"
                 data-bs-toggle="modal"
                 :data-bs-target="`#deleteGearComponentModal${gearComponent.id}`"><font-awesome-icon
                     :icon="['fas', 'fa-trash-can']" /></a>

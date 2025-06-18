@@ -52,7 +52,9 @@
                         <div class="input-group">
                             <input class="form-control" type="number" name="gearComponentExpectedDistanceAddEdit"
                                 :placeholder='$t("gearComponentAddEditModalComponent.addEditGearComponentModalAddEditExpectedDistanceLabel")'
-                                v-model="newEditGearComponentExpectedDistance" min="0" max="100000" step="1">
+                                v-model="newEditGearComponentExpectedDistanceKms" min="0" max="100000" step="1">
+                            <span class="input-group-text" v-if="authStore.user.units === 1">{{ $t("generalItems.unitsKm") }}</span>
+                            <span class="input-group-text" v-else>{{ $t("generalItems.unitsMiles") }}</span>
                         </div>
                         <!-- purchase value -->
                         <label for="gearComponentPurchaseValueAddEdit"><b>{{ $t("gearComponentAddEditModalComponent.addEditGearComponentModalAddPurchaseValueLabel") }}</b></label>
@@ -60,6 +62,9 @@
                             <input class="form-control" type="number" name="addEditGearComponentModalAddEditPurchaseValueLabel"
                                 :placeholder='$t("gearComponentAddEditModalComponent.addEditGearComponentModalAddPurchaseValueLabel")'
                                 v-model="newEditGearComponentPurchaseValue" min="0" max="100000" step="0.01" inputmode="decimal">
+                            <span class="input-group-text" v-if="authStore.user.currency === 1">{{ $t("generalItems.currencyEuroSymbol") }}</span>
+                            <span class="input-group-text" v-else-if="authStore.user.currency === 2">{{ $t("generalItems.currencyDollarSymbol") }}</span>
+                            <span class="input-group-text" v-else>{{ $t("generalItems.currencyPoundSymbol") }}</span>
                         </div>
 
                         <p>* {{ $t("generalItems.requiredField") }}</p>
@@ -86,9 +91,11 @@
 <script setup>
 import { ref, onMounted } from "vue";
 import { useI18n } from "vue-i18n";
+import { push } from "notivue";
+import { useAuthStore } from "@/stores/authStore";
 import { GEAR_BIKE_COMPONENT_TYPES, getGearBikeComponentType } from "@/utils/gearComponentsUtils";
-
-const { t } = useI18n();
+import { kmToMiles, milesToKm } from "@/utils/unitsUtils";
+import { gearsComponents } from "@/services/gearsComponentsService";
 
 const props = defineProps({
     action: {
@@ -104,18 +111,24 @@ const props = defineProps({
         required: false,
     },
 });
+const emit = defineEmits(["isLoadingNewGearComponent", "createdGearComponent", "editedGearComponent"]);
 
+const authStore = useAuthStore();
+const { t } = useI18n();
 const newEditGearComponentType = ref("back_break_oil");
 const editGearComponentModalId = ref("");
-const newEditGearComponentUserId = ref(props.gear.user_id);
-const newEditGearComponentGearId = ref(props.gear.id);
+const newEditGearComponentUserId = ref(null);
+const newEditGearComponentGearId = ref(null);
 const newEditGearComponentBrand = ref(null);
 const newEditGearComponentModel = ref(null);
 const newEditGearComponentPurchaseDate = ref(new Date().toISOString().split('T')[0]);
-const newEditGearComponentExpectedDistance = ref(null);
+const newEditGearComponentExpectedDistanceKms = ref(null);
+const newEditGearComponentExpectedDistanceMiles = ref(null);
 const newEditGearComponentPurchaseValue = ref(null);
 
 onMounted(() => {
+    newEditGearComponentUserId.value = props.gear.user_id;
+    newEditGearComponentGearId.value = props.gear.id;
     if (props.gearComponent) {
         if (props.action === 'edit') {
             editGearComponentModalId.value = `editGearComponentModal${props.gearComponent.id}`;
@@ -124,9 +137,73 @@ onMounted(() => {
         newEditGearComponentBrand.value = props.gearComponent.brand;
         newEditGearComponentModel.value = props.gearComponent.model;
         newEditGearComponentPurchaseDate.value = props.gearComponent.purchase_date;
-        newEditGearComponentExpectedDistance.value = props.gearComponent.expected_kms || null;
+        newEditGearComponentExpectedDistanceKms.value = props.gearComponent.expected_kms || null;
+        if (props.gearComponent.expected_kms && props.gearComponent.expected_kms !== 0) {
+            newEditGearComponentExpectedDistanceMiles.value = kmToMiles(props.gearComponent.expected_kms);
+        }
         newEditGearComponentPurchaseValue.value = props.gearComponent.purchase_value || null;
     }
 });
+
+async function submitAddGearComponentForm() {
+    emit("isLoadingNewGearComponent", true);
+    try {
+        console.log("Submitting add gear component form");
+        const data = {
+            user_id: newEditGearComponentUserId.value,
+            gear_id: newEditGearComponentGearId.value,
+            type: newEditGearComponentType.value,
+            brand: newEditGearComponentBrand.value,
+            model: newEditGearComponentModel.value,
+            purchase_date: newEditGearComponentPurchaseDate.value,
+            expected_kms: newEditGearComponentExpectedDistanceKms.value * 1000,
+            purchase_value: newEditGearComponentPurchaseValue.value,
+        };
+        // add the gear component in the database
+        const createdGearComponent = await gearsComponents.createGearComponent(data);
+        // set the form values to default
+        newEditGearComponentType.value = null;
+        newEditGearComponentBrand.value = null;
+        newEditGearComponentModel.value = null;
+        newEditGearComponentPurchaseDate.value = new Date().toISOString().split('T')[0];
+        newEditGearComponentExpectedDistanceKms.value = null;
+        newEditGearComponentExpectedDistanceMiles.value = null;
+        newEditGearComponentPurchaseValue.value = null;
+        // set the loading variable to false
+        emit("isLoadingNewGearComponent", false);
+        // emit the created gear component
+        emit("createdGearComponent", createdGearComponent);
+        // show success message
+        push.success(t("gearComponentAddEditModalComponent.successGearComponentAdded"));
+    } catch (error) {
+        // if there is an error, show toast with error message
+        push.error(`${t("gearComponentAddEditModalComponent.errorGearComponentAdd")} - ${error}`);
+    } finally {
+        // set the loading variable to false
+        emit("isLoadingNewGearComponent", false);
+    }
+}
+
+function handleSubmit() {
+    if (Number(authStore?.user?.units) === 1) {
+        if ((props.gearComponent && newEditGearComponentExpectedDistanceKms.value !== props.gearComponent.expected_kms) || props.action === 'add') {
+            newEditGearComponentExpectedDistanceMiles.value = kmToMiles(newEditGearComponentExpectedDistanceKms.value);
+        }
+    } else {
+        if (props.action === 'add') {
+            newEditGearComponentExpectedDistanceKms.value = milesToKm(newEditGearComponentExpectedDistanceMiles.value);
+        } else {
+            const miles = kmToMiles(props.gearComponent.expected_kms);
+            if (miles !== newEditGearComponentExpectedDistanceMiles.value) {
+                newEditGearComponentExpectedDistanceKms.value = milesToKm(newEditGearComponentExpectedDistanceMiles.value);
+            }
+        }
+    }
+    if (props.action === 'add') {
+        submitAddGearComponentForm();
+    } else {
+        submitEditGearComponentForm();
+    }
+}
 
 </script>

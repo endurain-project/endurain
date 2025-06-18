@@ -109,6 +109,49 @@ def get_gear_components_user_by_gear_id(
         ) from err
 
 
+def create_gear_component(
+    gear_component: gear_components_schema.GearComponents, user_id: int, db: Session
+):
+    try:
+        new_gear_component = gear_components_models.GearComponents(
+            user_id=gear_component.user_id,
+            gear_id=gear_component.gear_id,
+            type=gear_component.type,
+            brand=gear_component.brand,
+            model=gear_component.model,
+            purchase_date=gear_component.purchase_date,
+            is_active=True,
+            expected_kms=gear_component.expected_kms,
+            purchase_value=gear_component.purchase_value,
+        )
+
+        # Add the gear component to the database
+        db.add(new_gear_component)
+        db.commit()
+        db.refresh(new_gear_component)
+
+        gear_component_serialized = gear_components_utils.serialize_gear_component(
+            new_gear_component
+        )
+
+        # Return the gear component
+        return gear_component_serialized
+    except Exception as err:
+        # Rollback the transaction
+        db.rollback()
+
+        # Log the exception
+        core_logger.print_to_log(
+            f"Error in create_gear_component: {err}", "error", exc=err
+        )
+
+        # Raise an HTTPException with a 500 Internal Server Error status code
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal Server Error",
+        ) from err
+
+
 def delete_gear_component(user_id: int, gear_component_id: int, db: Session):
     try:
         # Delete the gear component

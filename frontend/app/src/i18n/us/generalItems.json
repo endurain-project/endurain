@@ -53,6 +53,9 @@
     "startDateLabel": "Start date",
     "endDateLabel": "End date",
     "currencyEuro": "Euro",
+    "currencyEuroSymbol": "€",
     "currencyDollar": "US Dollar",
-    "currencyPound": "British Pound"
+    "currencyDollarSymbol": "$",
+    "currencyPound": "British Pound",
+    "currencyPoundSymbol": "£"
 }
