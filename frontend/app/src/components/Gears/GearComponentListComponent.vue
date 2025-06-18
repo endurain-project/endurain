@@ -1,14 +1,14 @@
 <template>
     <li class="list-group-item d-flex justify-content-between px-0 bg-body-tertiary">
         <div class="d-flex align-items-center">
-            <img :src="getGearComponentAvatar(gearComponent.type)" alt="snowboard avatar" width="55" height="55"
-                class="rounded-circle">
+            <img :src="getGearBikeComponentAvatar(gearComponent.type)" alt="snowboard avatar" width="55" height="55"
+                class="rounded-circle" v-if="gear.gear_type === 1">
             <div class="ms-3">
                 <div class="fw-bold">
                     <span v-if="gearComponent.brand">{{ gearComponent.brand }}</span>
                     <span class="ms-1" v-if="gearComponent.model">{{ gearComponent.model }}</span>
                 </div>
-                <span>{{ getGearComponentType(gearComponent.type, t) }}</span>
+                <span>{{ getGearBikeComponentType(gearComponent.type, t) }}</span>
                 <span> @ {{ gearComponent.purchase_date }}</span>
                 <span v-if="gearComponent.purchase_value"> - {{ gearComponent.purchase_value }}€ </span>
                 <br>
@@ -48,10 +48,13 @@ import { gearsComponents } from '@/services/gearsComponentsService';
 import { push } from "notivue";
 import { formatDistanceRaw } from "@/utils/activityUtils";
 import { useAuthStore } from "@/stores/authStore";
-import { getGearComponentType, getGearComponentAvatar } from "@/utils/gearComponentsUtils";
+import { getGearBikeComponentType, getGearBikeComponentAvatar } from "@/utils/gearComponentsUtils";
 import ModalComponent from "@/components/Modals/ModalComponent.vue";
-
 const props = defineProps({
+    gear: {
+        type: Object,
+        required: true,
+    },
     gearComponent: {
         type: Object,
         required: true,

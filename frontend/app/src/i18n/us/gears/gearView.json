@@ -1,4 +1,5 @@
 {
+    "buttonAddComponent": "Add component",
     "buttonEditGear": "Edit gear",
     "buttonDeleteGear": "Delete gear",
     "modalDeleteGearBody1": "Are you sure you want to delete gear",

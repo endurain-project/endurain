@@ -15,6 +15,7 @@ import caUserDistanceStatsComponent from './ca/components/activities/userDistanc
 // Followers component
 import caFollowersListComponent from './ca/components/followers/followersListComponent.json';
 // Gears component
+import caGearComponentAddEditModalComponent from './ca/components/gears/gearComponentAddEditModalComponent.json';
 import caGearComponentListComponent from './ca/components/gears/gearComponentListComponent.json';
 import caGearsAddEditGearModalComponent from './ca/components/gears/gearsAddEditGearModalComponent.json';
 import caGearsListComponent from './ca/components/gears/gearsListComponent.json';
@@ -74,6 +75,7 @@ import deUserDistanceStatsComponent from './de/components/activities/userDistanc
 // Followers component
 import deFollowersListComponent from './de/components/followers/followersListComponent.json';
 // Gears component
+import deGearComponentAddEditModalComponent from './de/components/gears/gearComponentAddEditModalComponent.json';
 import deGearComponentListComponent from './de/components/gears/gearComponentListComponent.json';
 import deGearsAddEditGearModalComponent from './de/components/gears/gearsAddEditGearModalComponent.json';
 import deGearsListComponent from './de/components/gears/gearsListComponent.json';
@@ -133,6 +135,7 @@ import esUserDistanceStatsComponent from './es/components/activities/userDistanc
 // Followers component
 import esFollowersListComponent from './es/components/followers/followersListComponent.json';
 // Gears component
+import esGearComponentAddEditModalComponent from './es/components/gears/gearComponentAddEditModalComponent.json';
 import esGearComponentListComponent from './es/components/gears/gearComponentListComponent.json';
 import esGearsAddEditGearModalComponent from './es/components/gears/gearsAddEditGearModalComponent.json';
 import esGearsListComponent from './es/components/gears/gearsListComponent.json';
@@ -193,6 +196,7 @@ import frUserDistanceStatsComponent from './fr/components/activities/userDistanc
 // Followers component
 import frFollowersListComponent from './fr/components/followers/followersListComponent.json';
 // Gears component
+import frGearComponentAddEditModalComponent from './fr/components/gears/gearComponentAddEditModalComponent.json';
 import frGearComponentListComponent from './fr/components/gears/gearComponentListComponent.json';
 import frGearsAddEditGearModalComponent from './fr/components/gears/gearsAddEditGearModalComponent.json';
 import frGearsListComponent from './fr/components/gears/gearsListComponent.json';
@@ -253,6 +257,7 @@ import nlUserDistanceStatsComponent from './nl/components/activities/userDistanc
 // Followers component
 import nlFollowersListComponent from './nl/components/followers/followersListComponent.json';
 // Gears component
+import nlGearComponentAddEditModalComponent from './nl/components/gears/gearComponentAddEditModalComponent.json';
 import nlGearComponentListComponent from './nl/components/gears/gearComponentListComponent.json';
 import nlGearsAddEditGearModalComponent from './nl/components/gears/gearsAddEditGearModalComponent.json';
 import nlGearsListComponent from './nl/components/gears/gearsListComponent.json';
@@ -313,6 +318,7 @@ import ptUserDistanceStatsComponent from './pt/components/activities/userDistanc
 // Followers component
 import ptFollowersListComponent from './pt/components/followers/followersListComponent.json';
 // Gears component
+import ptGearComponentAddEditModalComponent from './pt/components/gears/gearComponentAddEditModalComponent.json';
 import ptGearComponentListComponent from './pt/components/gears/gearComponentListComponent.json';
 import ptGearsAddEditGearModalComponent from './pt/components/gears/gearsAddEditGearModalComponent.json';
 import ptGearsListComponent from './pt/components/gears/gearsListComponent.json';
@@ -372,6 +378,7 @@ import usUserDistanceStatsComponent from './us/components/activities/userDistanc
 // Followers component
 import usFollowersListComponent from './us/components/followers/followersListComponent.json';
 // Gears component
+import usGearComponentAddEditModalComponent from './us/components/gears/gearComponentAddEditModalComponent.json';
 import usGearComponentListComponent from './us/components/gears/gearComponentListComponent.json';
 import usGearsAddEditGearModalComponent from './us/components/gears/gearsAddEditGearModalComponent.json';
 import usGearsListComponent from './us/components/gears/gearsListComponent.json';
@@ -434,6 +441,7 @@ const messages = {
     // Followers component
     followersListComponent: caFollowersListComponent,
     // Gears component
+    gearComponentAddEditModalComponent: caGearComponentAddEditModalComponent,
     gearComponentListComponent: caGearComponentListComponent,
     gearsAddEditGearModalComponent: caGearsAddEditGearModalComponent,
     gearsListComponent: caGearsListComponent,
@@ -493,6 +501,7 @@ const messages = {
     // Followers component
     followersListComponent: deFollowersListComponent,
     // Gears component
+    gearComponentAddEditModalComponent: deGearComponentAddEditModalComponent,
     gearComponentListComponent: deGearComponentListComponent,
     gearsAddEditGearModalComponent: deGearsAddEditGearModalComponent,
     gearsListComponent: deGearsListComponent,
@@ -552,6 +561,7 @@ const messages = {
     // Followers component
     followersListComponent: esFollowersListComponent,
     // Gears component
+    gearComponentAddEditModalComponent: esGearComponentAddEditModalComponent,
     gearComponentListComponent: esGearComponentListComponent,
     gearsAddEditGearModalComponent: esGearsAddEditGearModalComponent,
     gearsListComponent: esGearsListComponent,
@@ -611,6 +621,7 @@ const messages = {
     // Followers component
     followersListComponent: frFollowersListComponent,
     // Gears component
+    gearComponentAddEditModalComponent: frGearComponentAddEditModalComponent,
     gearComponentListComponent: frGearComponentListComponent,
     gearsAddEditGearModalComponent: frGearsAddEditGearModalComponent,
     gearsListComponent: frGearsListComponent,
@@ -670,6 +681,7 @@ const messages = {
     // Followers component
     followersListComponent: nlFollowersListComponent,
     // Gears component
+    gearComponentAddEditModalComponent: nlGearComponentAddEditModalComponent,
     gearComponentListComponent: nlGearComponentListComponent,
     gearsAddEditGearModalComponent: nlGearsAddEditGearModalComponent,
     gearsListComponent: nlGearsListComponent,
@@ -729,6 +741,7 @@ const messages = {
     // Followers component
     followersListComponent: ptFollowersListComponent,
     // Gears component
+    gearComponentAddEditModalComponent: ptGearComponentAddEditModalComponent,
     gearComponentListComponent: ptGearComponentListComponent,
     gearsAddEditGearModalComponent: ptGearsAddEditGearModalComponent,
     gearsListComponent: ptGearsListComponent,
@@ -788,6 +801,7 @@ const messages = {
     // Followers component
     followersListComponent: usFollowersListComponent,
     // Gears component
+    gearComponentAddEditModalComponent: usGearComponentAddEditModalComponent,
     gearComponentListComponent: usGearComponentListComponent,
     gearsAddEditGearModalComponent: usGearsAddEditGearModalComponent,
     gearsListComponent: usGearsListComponent,

@@ -1,0 +1,10 @@
+{
+    "addEditGearComponentModalAddTitle": "Add gear component",
+    "addEditGearComponentModalEditTitle": "Edit gear component",
+    "addEditGearComponentModalAddTypeLabel": "Type",
+    "addEditGearComponentModalAddBrandLabel": "Brand",
+    "addEditGearComponentModalAddModelLabel": "Model",
+    "addEditGearComponentModalAddPurchaseDateLabel": "Purchase date",
+    "addEditGearComponentModalAddEditExpectedDistanceLabel": "Expected distance",
+    "addEditGearComponentModalAddPurchaseValueLabel": "Purchase value"
+}

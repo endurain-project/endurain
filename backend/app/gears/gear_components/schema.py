@@ -1,48 +1,48 @@
 from pydantic import BaseModel
 
 GEAR_COMPONENT_TYPES = [
-    "back_tire",
-    "front_tire",
-    "back_tube",
-    "front_tube",
-    "back_wheel_valve",
-    "front_wheel_valve",
-    "back_tubeless_sealant",
-    "front_tubeless_sealant",
-    "back_wheel",
-    "front_wheel",
-    "back_break_rotor",
-    "front_break_rotor",
-    "back_break_pads",
-    "front_break_pads",
     "back_break_oil",
-    "front_break_oil",
-    "crank_left_power_meter",
-    "crank_right_power_meter",
-    "crankset_power_meter",
-    "pedals_left_power_meter",
-    "pedals_right_power_meter",
-    "pedals_power_meter",
-    "pedals",
-    "crankset",
-    "cassette",
-    "chain",
-    "front_shifter",
-    "front_derailleur",
-    "rear_shifter",
-    "rear_derailleur",
+    "back_break_pads",
+    "back_break_rotor",
+    "back_tire",
+    "back_tube",
+    "back_tubeless_sealant",
+    "back_wheel",
+    "back_wheel_valve",
     "bottom_bracket",
     "bottle_cage",
-    "handlebar",
-    "headset",
+    "cassette",
+    "chain",
     "computer_mount",
-    "handlebar_tape",
-    "grips",
-    "stem",
-    "seatpost",
-    "saddle",
+    "crank_left_power_meter",
+    "crank_right_power_meter",
+    "crankset",
+    "crankset_power_meter",
     "fork",
     "frame",
+    "front_break_oil",
+    "front_break_pads",
+    "front_break_rotor",
+    "front_derailleur",
+    "front_shifter",
+    "front_tire",
+    "front_tube",
+    "front_tubeless_sealant",
+    "front_wheel",
+    "front_wheel_valve",
+    "grips",
+    "handlebar",
+    "handlebar_tape",
+    "headset",
+    "pedals",
+    "pedals_left_power_meter",
+    "pedals_power_meter",
+    "pedals_right_power_meter",
+    "rear_derailleur",
+    "rear_shifter",
+    "saddle",
+    "seatpost",
+    "stem",
 ]
 
 
@@ -51,14 +51,13 @@ class GearComponents(BaseModel):
     user_id: int
     gear_id: int
     type: str
-    brand: str | None = None
-    model: str | None = None
+    brand: str
+    model: str
     purchase_date: str
     retired_date: str | None = None
-    is_active: int | None = None
-    expected_kms: float | None = None
+    is_active: bool
+    expected_kms: int | None = None
     purchase_value: float | None = None
 
     class Config:
         orm_mode = True
-        use_enum_values = True

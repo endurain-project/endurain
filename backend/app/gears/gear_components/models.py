@@ -63,7 +63,7 @@ class GearComponents(Base):
         Boolean, nullable=False, default=False, comment="Is gear component active"
     )
     expected_kms = Column(
-        DECIMAL(precision=11, scale=2),
+        Integer,
         nullable=True,
         comment="Expected kilometers of the gear component",
     )

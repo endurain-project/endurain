@@ -57,8 +57,18 @@
                             </span>
                         </div>
                     </div>
+                    <!-- add component zone -->
+                    <button type="button" class="mt-2 w-100 btn btn-primary" data-bs-toggle="modal" data-bs-target="#addGearComponentModal">
+                        {{ $t("gearView.buttonAddComponent") }}
+                    </button>
+
+                    <!-- add component modal -->
+                    <GearComponentAddEditModalComponent :action="'add'" :gear="gear"/>
+
+                    <hr>
+
                     <!-- edit gear zone -->
-                    <button type="button" class="mt-2 w-100 btn btn-primary" data-bs-toggle="modal" :data-bs-target="`#editGearModal${gear?.id}`">
+                    <button type="button" class="w-100 btn btn-primary" data-bs-toggle="modal" :data-bs-target="`#editGearModal${gear?.id}`">
                         {{ $t("gearView.buttonEditGear") }}
                     </button>
 
@@ -71,6 +81,8 @@
 
                     <!-- Modal delete gear -->
                     <ModalComponent modalId="deleteGearModal" :title="t('gearView.buttonDeleteGear')" :body="`${t('gearView.modalDeleteGearBody1')} <b>${gear?.nickname}</b>?<br>${t('gearView.modalDeleteGearBody2')}`" :actionButtonType="`danger`" :actionButtonText="t('gearView.buttonDeleteGear')" @submitAction="submitDeleteGear"/>
+
+                    <hr>
 
                     <!-- details  -->
                     <div class="vstack align-items-center">
@@ -98,7 +110,7 @@
                 <div v-else>
                     <!-- List gears -->
                     <ul class="list-group list-group-flush" v-for="gearComponent in gearComponents" :key="gearComponent.id">
-                        <GearComponentListComponent :gearActivities="gearActivities" :gearComponent="gearComponent" @gearComponentDeleted="updateGearComponentListOnDelete" />
+                        <GearComponentListComponent :gear="gear" :gearActivities="gearActivities" :gearComponent="gearComponent" @gearComponentDeleted="updateGearComponentListOnDelete" />
                     </ul>
                 </div>
             </div>
@@ -149,6 +161,7 @@ import BackButtonComponent from "@/components/GeneralComponents/BackButtonCompon
 import ModalComponent from '@/components/Modals/ModalComponent.vue';
 import GearsAddEditGearModalComponent from "@/components/Gears/GearsAddEditGearModalComponent.vue";
 import GearComponentListComponent from "@/components/Gears/GearComponentListComponent.vue";
+import GearComponentAddEditModalComponent from "@/components/Gears/GearComponentAddEditModalComponent.vue";
 import { gears } from "@/services/gearsService";
 import { gearsComponents } from "@/services/gearsComponentsService";
 import { activities } from "@/services/activitiesService";
