@@ -1,11 +1,3 @@
-# Getting started
-
----
-
-## Default Credentials
-
-- **Username:** admin  
-- **Password:** admin
 
 ## Docker Deployment
 
