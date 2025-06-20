@@ -17,7 +17,7 @@
                     <div class="modal-body">
                         <!-- gear component type -->
                         <label for="gearComponentTypeAddEdit"><b>* {{
-                            $t("gearComponentAddEditModalComponent.addEditGearComponentModalAddTypeLabel")
+                            $t("gearComponentAddEditModalComponent.addEditGearComponentModalAddEditTypeLabel")
                                 }}</b></label>
                         <select class="form-select" name="gearComponentTypeAddEdit" v-model="newEditGearComponentType"
                             required>
@@ -27,21 +27,21 @@
                         </select>
                         <!-- brand fields -->
                         <label for="gearComponentBrandAddEdit"><b>* {{
-                            $t("gearComponentAddEditModalComponent.addEditGearComponentModalAddBrandLabel")
+                            $t("gearComponentAddEditModalComponent.addEditGearComponentModalAddEditBrandLabel")
                                 }}</b></label>
                         <input class="form-control" type="text" name="gearComponentBrandAddEdit"
-                            :placeholder='$t("gearComponentAddEditModalComponent.addEditGearComponentModalAddBrandLabel")'
+                            :placeholder='$t("gearComponentAddEditModalComponent.addEditGearComponentModalAddEditBrandLabel")'
                             v-model="newEditGearComponentBrand" maxlength="250">
                         <!-- model fields -->
                         <label for="gearComponentModelAddEdit"><b>* {{
-                            $t("gearComponentAddEditModalComponent.addEditGearComponentModalAddModelLabel")
+                            $t("gearComponentAddEditModalComponent.addEditGearComponentModalAddEditModelLabel")
                                 }}</b></label>
                         <input class="form-control" type="text" name="gearComponentModelAddEdit"
-                            :placeholder='$t("gearComponentAddEditModalComponent.addEditGearComponentModalAddModelLabel")'
+                            :placeholder='$t("gearComponentAddEditModalComponent.addEditGearComponentModalAddEditModelLabel")'
                             v-model="newEditGearComponentModel" maxlength="250">
                         <!-- purchase date fields -->
                         <label for="gearComponentPurchaseDateAddEdit"><b>* {{
-                            $t("gearComponentAddEditModalComponent.addEditGearComponentModalAddPurchaseDateLabel")
+                            $t("gearComponentAddEditModalComponent.addEditGearComponentModalAddEditPurchaseDateLabel")
                                 }}</b></label>
                         <input class="form-control" type="date" name="gearComponentPurchaseDateAddEdit"
                             v-model="newEditGearComponentPurchaseDate" required>
@@ -57,14 +57,32 @@
                             <span class="input-group-text" v-else>{{ $t("generalItems.unitsMiles") }}</span>
                         </div>
                         <!-- purchase value -->
-                        <label for="gearComponentPurchaseValueAddEdit"><b>{{ $t("gearComponentAddEditModalComponent.addEditGearComponentModalAddPurchaseValueLabel") }}</b></label>
+                        <label for="gearComponentPurchaseValueAddEdit"><b>{{ $t("gearComponentAddEditModalComponent.addEditGearComponentModalAddEditPurchaseValueLabel") }}</b></label>
                         <div class="input-group">
                             <input class="form-control" type="number" name="addEditGearComponentModalAddEditPurchaseValueLabel"
-                                :placeholder='$t("gearComponentAddEditModalComponent.addEditGearComponentModalAddPurchaseValueLabel")'
+                                :placeholder='$t("gearComponentAddEditModalComponent.addEditGearComponentModalAddEditPurchaseValueLabel")'
                                 v-model="newEditGearComponentPurchaseValue" min="0" max="100000" step="0.01" inputmode="decimal">
                             <span class="input-group-text" v-if="authStore.user.currency === 1">{{ $t("generalItems.currencyEuroSymbol") }}</span>
                             <span class="input-group-text" v-else-if="authStore.user.currency === 2">{{ $t("generalItems.currencyDollarSymbol") }}</span>
                             <span class="input-group-text" v-else>{{ $t("generalItems.currencyPoundSymbol") }}</span>
+                        </div>
+                        <!-- retired rate -->
+                         <div v-if="action === 'edit'">
+                            <label for="gearComponentRetiredDateAddEdit"><b>* {{
+                                $t("gearComponentAddEditModalComponent.addEditGearComponentModalAddEditRetiredDateLabel")
+                                    }}</b></label>
+                            <input class="form-control" type="date" name="gearComponentRetiredDateAddEdit"
+                                v-model="newEditGearComponentRetiredDate" required>
+                         </div>
+                         <!-- is active -->
+                        <div v-if="action === 'edit'">
+                            <label for="gearComponentIsActiveAddEdit"><b>* {{
+                                $t("gearComponentAddEditModalComponent.addEditGearComponentModalAddEditIsActiveLabel") }}</b></label>
+                            <select class="form-select" name="gearComponentIsActiveAddEdit" v-model="newEditGearComponentIsActive"
+                                required>
+                                <option :value="true">{{ $t("generalItems.yes") }}</option>
+                                <option :value="false">{{ $t("generalItems.no") }}</option>
+                            </select>
                         </div>
 
                         <p>* {{ $t("generalItems.requiredField") }}</p>
@@ -125,6 +143,8 @@ const newEditGearComponentPurchaseDate = ref(new Date().toISOString().split('T')
 const newEditGearComponentExpectedDistanceKms = ref(null);
 const newEditGearComponentExpectedDistanceMiles = ref(null);
 const newEditGearComponentPurchaseValue = ref(null);
+const newEditGearComponentRetiredDate = ref(null);
+const newEditGearComponentIsActive = ref(true);
 
 onMounted(() => {
     newEditGearComponentUserId.value = props.gear.user_id;
@@ -142,6 +162,8 @@ onMounted(() => {
             newEditGearComponentExpectedDistanceMiles.value = kmToMiles(props.gearComponent.expected_kms);
         }
         newEditGearComponentPurchaseValue.value = props.gearComponent.purchase_value || null;
+        newEditGearComponentRetiredDate.value = props.gearComponent.retired_date || null;
+        newEditGearComponentIsActive.value = props.gearComponent.is_active || true;
     }
 });
 
@@ -182,6 +204,10 @@ async function submitAddGearComponentForm() {
         // set the loading variable to false
         emit("isLoadingNewGearComponent", false);
     }
+}
+
+async function submitEditGearComponentForm() {
+
 }
 
 function handleSubmit() {

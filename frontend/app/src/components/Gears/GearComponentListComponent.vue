@@ -24,13 +24,20 @@
                     $t("gearComponentListComponent.gearComponentListGearComponentIsInactiveBadge") }}
             </span>
 
-            <!-- delete gear button -->
+            <!-- edit gear component button -->
+            <a class="btn btn-link btn-lg link-body-emphasis d-none d-sm-inline" href="#" role="button"
+                data-bs-toggle="modal" :data-bs-target="`#editGearComponentModal${gearComponent.id}`"><font-awesome-icon
+                    :icon="['fas', 'fa-pen-to-square']" /></a>
+
+            <GearComponentAddEditModalComponent :action="'edit'" :gear="gear" :gearComponent="gearComponent" @editedGear="editGearList" />
+
+            <!-- delete gear component button -->
             <a class="btn btn-link btn-lg link-body-emphasis" href="#" role="button"
                 data-bs-toggle="modal"
                 :data-bs-target="`#deleteGearComponentModal${gearComponent.id}`"><font-awesome-icon
                     :icon="['fas', 'fa-trash-can']" /></a>
 
-            <!-- delete gear modal -->
+            <!-- delete gear component modal -->
             <ModalComponent :modalId="`deleteGearComponentModal${gearComponent.id}`"
                 :title="t('gearComponentListComponent.gearComponentListModalDeleteGearComponentTitle')"
                 :body="`${t('gearComponentListComponent.gearComponentListModalDeleteGearComponentBody')}<b>${gearComponent.id}</b>?`"
@@ -50,6 +57,7 @@ import { formatDistanceRaw } from "@/utils/activityUtils";
 import { useAuthStore } from "@/stores/authStore";
 import { getGearBikeComponentType, getGearBikeComponentAvatar } from "@/utils/gearComponentsUtils";
 import ModalComponent from "@/components/Modals/ModalComponent.vue";
+import GearComponentAddEditModalComponent from "@/components/Gears/GearComponentAddEditModalComponent.vue";
 const props = defineProps({
     gear: {
         type: Object,
