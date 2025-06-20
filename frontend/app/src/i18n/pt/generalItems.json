@@ -51,5 +51,7 @@
     "labelRest": "Descanso",
     "labelStrokeRateInSpm": "Velocidade de braçada em spm",
     "startDateLabel": "Data de início",
-    "endDateLabel": "Data de fim"
+    "endDateLabel": "Data de fim",
+    "cancel": "Annuler",
+    "loading": "Chargement"
 }
