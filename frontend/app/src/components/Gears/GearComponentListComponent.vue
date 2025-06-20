@@ -1,9 +1,9 @@
 <template>
     <li class="list-group-item d-flex justify-content-between px-0 bg-body-tertiary">
-        <div class="d-flex align-items-center">
+        <div class="d-flex align-items-center flex-grow-1">
             <img :src="getGearBikeComponentAvatar(gearComponent.type)" alt="snowboard avatar" width="55" height="55"
                 class="rounded-circle" v-if="gear.gear_type === 1">
-            <div class="ms-3">
+            <div class="ms-3 flex-grow-1">
                 <div class="fw-bold">
                     <span v-if="gearComponent.brand">{{ gearComponent.brand }}</span>
                     <span class="ms-1" v-if="gearComponent.model">{{ gearComponent.model }}</span>
@@ -15,27 +15,34 @@
                 <span v-if="gearComponent.expected_kms">{{ formatDistanceRaw(gearComponentDistance,
                     authStore.user.units) }}{{ t('gearComponentListComponent.gearComponentOf') }}{{ formatDistanceRaw(gearComponent.expected_kms, authStore.user.units)
                     }}</span>
+                <div class="progress" role="progressbar" aria-label="Gear component usage vs expected" :aria-valuenow="gearComponentDistancePercentage" aria-valuemin="0" aria-valuemax="100">
+                    <div class="progress-bar" :style="{ width: gearComponentDistancePercentage + '%' }">{{ gearComponentDistancePercentage }}%</div>
+                </div>
             </div>
         </div>
         <div>
-            <span
-                class="badge bg-danger-subtle border border-danger-subtle text-danger-emphasis align-middle d-none d-md-inline me-4"
-                v-if="gearComponent.is_active == 0">{{
-                    $t("gearComponentListComponent.gearComponentListGearComponentIsInactiveBadge") }}
+            <!-- Button group for edit and delete -->
+            <span class="d-flex">
+                <!-- edit gear component button -->
+                <a class="btn btn-link btn-lg link-body-emphasis" href="#" role="button"
+                    data-bs-toggle="modal" :data-bs-target="`#editGearComponentModal${gearComponent.id}`"><font-awesome-icon
+                        :icon="['fas', 'fa-pen-to-square']" /></a>
+
+                <!-- delete gear component button -->
+                <a class="btn btn-link btn-lg link-body-emphasis" href="#" role="button"
+                    data-bs-toggle="modal"
+                    :data-bs-target="`#deleteGearComponentModal${gearComponent.id}`"><font-awesome-icon
+                        :icon="['fas', 'fa-trash-can']" /></a>
             </span>
+            
+            <div v-if="gearComponent.is_active == 0" class="d-flex justify-content-end">
+                <span class="badge bg-danger-subtle border border-danger-subtle text-danger-emphasis">
+                    {{ $t("gearComponentListComponent.gearComponentListGearComponentIsInactiveBadge") }}
+                </span>
+            </div>
 
-            <!-- edit gear component button -->
-            <a class="btn btn-link btn-lg link-body-emphasis d-none d-sm-inline" href="#" role="button"
-                data-bs-toggle="modal" :data-bs-target="`#editGearComponentModal${gearComponent.id}`"><font-awesome-icon
-                    :icon="['fas', 'fa-pen-to-square']" /></a>
-
-            <GearComponentAddEditModalComponent :action="'edit'" :gear="gear" :gearComponent="gearComponent" @editedGear="editGearList" />
-
-            <!-- delete gear component button -->
-            <a class="btn btn-link btn-lg link-body-emphasis" href="#" role="button"
-                data-bs-toggle="modal"
-                :data-bs-target="`#deleteGearComponentModal${gearComponent.id}`"><font-awesome-icon
-                    :icon="['fas', 'fa-trash-can']" /></a>
+            <!-- edit gear component modal -->
+            <GearComponentAddEditModalComponent :action="'edit'" :gear="gear" :gearComponent="gearComponent" />
 
             <!-- delete gear component modal -->
             <ModalComponent :modalId="`deleteGearComponentModal${gearComponent.id}`"
@@ -76,6 +83,7 @@ const props = defineProps({
 const { t } = useI18n();
 const authStore = useAuthStore();
 const gearComponentDistance = ref(0);
+const gearComponentDistancePercentage = ref(0);
 
 const emit = defineEmits(["gearComponentDeleted"]);
 
@@ -102,6 +110,9 @@ onMounted(() => {
                 gearComponentDistance.value += Number(activity.distance) || 0;
             }
         });
+        gearComponentDistancePercentage.value = Math.round(
+            (gearComponentDistance.value / props.gearComponent.expected_kms) * 100
+        );
     }
 });
 </script>
