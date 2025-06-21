@@ -47,7 +47,7 @@
             <!-- delete gear component modal -->
             <ModalComponent :modalId="`deleteGearComponentModal${gearComponent.id}`"
                 :title="t('gearComponentListComponent.gearComponentListModalDeleteGearComponentTitle')"
-                :body="`${t('gearComponentListComponent.gearComponentListModalDeleteGearComponentBody')}<b>${gearComponent.id}</b>?`"
+                :body="`${t('gearComponentListComponent.gearComponentListModalDeleteGearComponentBody')}<b>${gearComponent.brand} ${gearComponent.model}</b>?`"
                 :actionButtonType="`danger`"
                 :actionButtonText="t('gearComponentListComponent.gearComponentListModalDeleteGearComponentTitle')"
                 @submitAction="submitDeleteGearComponent" />
