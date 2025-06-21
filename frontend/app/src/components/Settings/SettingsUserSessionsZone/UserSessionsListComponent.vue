@@ -1,5 +1,5 @@
 <template>
-    <li class="list-group-item mb-1">
+    <li class="list-group-item bg-body-tertiary rounded border-0">
         <div class="d-flex justify-content-between">
             <div class="d-flex align-items-center">
                 <font-awesome-icon :icon="['fab', 'linux']" v-if="session.operating_system == 'Linux'" size="2x"/>

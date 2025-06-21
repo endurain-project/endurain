@@ -13,7 +13,7 @@
                 <span v-if="gearComponent.purchase_value"> - {{ gearComponent.purchase_value }}€ </span>
                 <br>
                 <span v-if="gearComponent.expected_kms">{{ formatDistanceRaw(gearComponentDistance,
-                    authStore.user.units) }}{{ t('gearComponentListComponent.gearComponentOf') }}{{ formatDistanceRaw(gearComponent.expected_kms, authStore.user.units)
+                    authStore.user.units, true, false) }}{{ t('gearComponentListComponent.gearComponentOf') }}{{ formatDistanceRaw(gearComponent.expected_kms, authStore.user.units)
                     }}</span>
                 <div class="progress" role="progressbar" aria-label="Gear component usage vs expected" :aria-valuenow="gearComponentDistancePercentage" aria-valuemin="0" aria-valuemax="100">
                     <div class="progress-bar" :style="{ width: gearComponentDistancePercentage + '%' }">{{ gearComponentDistancePercentage }}%</div>

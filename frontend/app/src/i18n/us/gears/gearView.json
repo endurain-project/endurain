@@ -19,7 +19,6 @@
     "labelDistance": "Distance",
     "titleComponents": "Components",
     "title": "Activities",
-    "subtitle": "(last 10 activities)",
     "successGearEdited": "Gear edited successfully",
     "errorGearDelete": "Error deleting gear",
     "errorFetchingGears": "Error fetching gears"

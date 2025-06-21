@@ -660,6 +660,59 @@ def get_user_activities_by_gear_id_and_user_id(user_id: int, gear_id: int, db: S
         ) from err
 
 
+def get_user_activities_by_gear_id_and_user_id_with_pagination(
+    user_id: int, gear_id: int, page_number: int, num_records: int, db: Session
+):
+    try:
+        # Get the activities from the database
+        activities = (
+            db.query(activities_models.Activity)
+            .filter(
+                activities_models.Activity.user_id == user_id,
+                activities_models.Activity.gear_id == gear_id,
+            )
+            .order_by(desc(activities_models.Activity.start_time))
+            .offset((page_number - 1) * num_records)
+            .limit(num_records)
+            .all()
+        )
+
+        # Check if there are activities if not return None
+        if not activities:
+            return None
+
+        # Iterate and format the dates
+        for activity in activities:
+            activity = activities_utils.serialize_activity(activity)
+            if activity.user_id != user_id:
+                if activity.hide_start_time:
+                    activity.start_time = None
+                    activity.end_time = None
+                if activity.hide_location:
+                    activity.city = None
+                    activity.town = None
+                    activity.country = None
+                if activity.hide_gear:
+                    activity.gear_id = None
+                    activity.strava_gear_id = None
+                    activity.garminconnect_gear_id = None
+
+        # Return the activities
+        return activities
+    except Exception as err:
+        # Log the exception
+        core_logger.print_to_log(
+            f"Error in get_user_activities_by_gear_id_and_user_id_with_pagination: {err}",
+            "error",
+            exc=err,
+        )
+        # Raise an HTTPException with a 500 Internal Server Error status code
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal Server Error",
+        ) from err
+
+
 def get_activity_by_id_from_user_id_or_has_visibility(
     activity_id: int, user_id: int, db: Session
 ):

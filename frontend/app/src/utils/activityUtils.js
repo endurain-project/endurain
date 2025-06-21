@@ -318,7 +318,7 @@ export function formatDistance(activity, unitSystem, lap = null) {
  * @param {boolean} [round=true] - Whether to round the result to the nearest integer.
  * @returns {string} The formatted distance string with the appropriate unit.
  */
-export function formatDistanceRaw(distance, unitSystem, round = true) {
+export function formatDistanceRaw(distance, unitSystem, round = true, units = true) {
 	let value = Number(unitSystem) === 1 ? metersToKm(distance) : metersToMiles(distance);
 	if (round) {
 		value = Math.round(value);
@@ -326,7 +326,10 @@ export function formatDistanceRaw(distance, unitSystem, round = true) {
 	// Format with space as thousands separator for better readability
 	let formatted = value.toLocaleString('en-US', { useGrouping: true, maximumFractionDigits: 0 }).replace(/,/g, ' ');
 	const unit = Number(unitSystem) === 1 ? i18n.global.t("generalItems.unitsKm") : i18n.global.t("generalItems.unitsMiles");
-	return `${formatted} ${unit}`;
+	if (units) {
+		return `${formatted} ${unit}`;
+	}
+	return formatted;
 }
 
 /**

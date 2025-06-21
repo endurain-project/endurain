@@ -104,7 +104,10 @@
                 <LoadingComponent />
             </div>
             <div v-else class="bg-body-tertiary p-3 rounded shadow-sm">
-                <h5>{{ $t("gearView.titleComponents") }}</h5>
+                <div class="hstack align-items-baseline">
+                    <h5>{{ $t("gearView.titleComponents") }}</h5>
+                    <span class="mb-1 ms-1">({{ gearComponents.length }})</span>
+                </div>
 
                 <NoItemsFoundComponent :showShadow="false" v-if="!gearComponents || (gearComponents && gearComponents.length == 0)"/>
                 <div v-else>
@@ -124,25 +127,32 @@
                     <h5>
                         {{ $t("gearView.title") }}
                     </h5>
-                    <h6 class="ms-1">
-                        {{ $t("gearView.subtitle") }}
-                    </h6>
+                    <span class="mb-1 ms-1">({{ gearActivitiesWithPagination.length }}{{
+                            $t("generalItems.ofWithSpaces") }}{{ gearActivitiesNumber }})</span>
                 </div>
 
-                <NoItemsFoundComponent :showShadow="false" v-if="!gearActivities || (gearActivities && gearActivities.length == 0)"/>
+                <div v-if="isLoadingGearActivities">
+                    <LoadingComponent />
+                </div>
                 <div v-else>
-                    <ul class="list-group list-group-flush" v-for="activity in gearActivities" :key="activity.id" :activity="activity">
-                        <li class="vstack list-group-item d-flex justify-content-between bg-body-tertiary ps-0">
-                            <router-link :to="{ name: 'activity', params: { id: activity.id }}" class="link-body-emphasis link-underline-opacity-0 link-underline-opacity-100-hover">
-                                {{ activity.name}}
-                            </router-link>
-                            <span>{{ formatDateMed(activity.start_time) }} @ {{ formatTime(activity.start_time) }}</span>
-                        </li>
-                    </ul>
+                    <NoItemsFoundComponent :showShadow="false" v-if="!gearActivitiesWithPagination || (gearActivitiesWithPagination && gearActivitiesWithPagination.length == 0)"/>
+                    <div v-else>
+                        <ul class="list-group list-group-flush mb-1" v-for="activity in gearActivitiesWithPagination" :key="activity.id" :activity="activity">
+                            <li class="vstack list-group-item d-flex justify-content-between bg-body-tertiary ps-0">
+                                <router-link :to="{ name: 'activity', params: { id: activity.id }}" class="link-body-emphasis link-underline-opacity-0 link-underline-opacity-100-hover">
+                                    {{ activity.name}}
+                                </router-link>
+                                <span>{{ formatDateMed(activity.start_time) }} @ {{ formatTime(activity.start_time) }}</span>
+                            </li>
+                        </ul>
+
+                        <!-- pagination area -->
+                        <PaginationComponent :totalPages="totalPages" :pageNumber="pageNumber"
+                            @pageNumberChanged="setPageNumber" />
+                    </div>
                 </div>
             </div>
         </div>
-
     </div>
    
     <!-- back button -->
@@ -150,10 +160,11 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from "vue";
+import { ref, onMounted, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { useRoute, useRouter } from "vue-router";
 import { useAuthStore } from "@/stores/authStore";
+import { useServerSettingsStore } from "@/stores/serverSettingsStore";
 import { push } from "notivue";
 import NoItemsFoundComponent from "@/components/GeneralComponents/NoItemsFoundComponents.vue";
 import LoadingComponent from "@/components/GeneralComponents/LoadingComponent.vue";
@@ -162,6 +173,7 @@ import ModalComponent from '@/components/Modals/ModalComponent.vue';
 import GearsAddEditGearModalComponent from "@/components/Gears/GearsAddEditGearModalComponent.vue";
 import GearComponentListComponent from "@/components/Gears/GearComponentListComponent.vue";
 import GearComponentAddEditModalComponent from "@/components/Gears/GearComponentAddEditModalComponent.vue";
+import PaginationComponent from '@/components/GeneralComponents/PaginationComponent.vue';
 import { gears } from "@/services/gearsService";
 import { gearsComponents } from "@/services/gearsComponentsService";
 import { activities } from "@/services/activitiesService";
@@ -170,10 +182,17 @@ import { kmToMiles } from "@/utils/unitsUtils";
 
 const { t } = useI18n();
 const authStore = useAuthStore();
+const serverSettingsStore = useServerSettingsStore();
 const route = useRoute();
 const router = useRouter();
 const isLoading = ref(true);
+const isLoadingGearActivities = ref(true);
+const pageNumber = ref(1);
+const totalPages = ref(1);
+const numRecords = serverSettingsStore.serverSettings.num_records_per_page || 25;
 const gear = ref(null);
+const gearActivitiesNumber = ref(0);
+const gearActivitiesWithPagination = ref([]);
 const gearActivities = ref([]);
 const gearDistance = ref(0);
 const gearComponents = ref(null);
@@ -197,6 +216,32 @@ function updateGearComponentListOnDelete(gearComponentDeletedId) {
     );
 }
 
+function setPageNumber(page) {
+    // Set the page number.
+    pageNumber.value = page;
+}
+
+async function updateGearActivities() {
+    try {
+        isLoadingGearActivities.value = true;
+        gearActivities.value = await activities.getUserActivitiesByGearId(
+            route.params.id
+        );
+        gearActivitiesNumber.value = await activities.getUserActivitiesByGearIdNumber(
+            route.params.id
+        );
+        gearActivitiesWithPagination.value = await activities.getUserActivitiesByGearIdWithPagination(
+            route.params.id, pageNumber.value, numRecords
+        );
+        // Update total pages
+        totalPages.value = Math.ceil(gearActivitiesNumber.value / numRecords);
+    } catch (error) {
+        push.error(`${t("gearView.errorFetchingGears")} - ${error}`);
+    } finally {
+        isLoadingGearActivities.value = false;
+    }
+}
+
 onMounted(async () => {
     try {
         gear.value = await gears.getGearById(route.params.id);
@@ -206,9 +251,7 @@ onMounted(async () => {
                 query: { gearFound: "false", id: route.params.id },
             });
         }
-        gearActivities.value = await activities.getUserActivitiesByGearId(
-            route.params.id,
-        );
+        await updateGearActivities();
         if (gearActivities.value) {
             for (const activity of gearActivities.value) {
                 gearDistance.value += activity.distance;
@@ -229,4 +272,7 @@ onMounted(async () => {
     }
     isLoading.value = false;
 });
+
+// Watch the page number variable.
+watch(pageNumber, updateGearActivities, { immediate: false });
 </script>

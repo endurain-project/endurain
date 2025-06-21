@@ -7,8 +7,6 @@
     "gearListTypeOption5": "Skis",
     "gearListTypeOption6": "Snowboard",
     "gearListGearIsInactiveBadge": "Inactive",
-    "gearListGearFromStrava": "Strava",
-    "gearListGearFromGarminConnect": "Garmin Connect",
     "gearListModalDeleteGearTitle": "Delete gear",
     "gearListModalDeleteGearBody": "Are you sure you want to delete gear ",
     "gearListGearDeleteSuccessMessage": "Gear deleted successfully",

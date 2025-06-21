@@ -210,7 +210,7 @@ async def read_activities_user_activities_this_month_number(
 
 
 @router.get(
-    "/user/gear/{gear_id}",
+    "/gear/{gear_id}",
     response_model=list[activities_schema.Activity] | None,
 )
 async def read_activities_gear_activities(
@@ -231,6 +231,61 @@ async def read_activities_gear_activities(
     # Get the activities for the gear
     return activities_crud.get_user_activities_by_gear_id_and_user_id(
         token_user_id, gear_id, db
+    )
+
+
+@router.get(
+    "/gear/{gear_id}/number",
+    response_model=int,
+)
+async def read_activities_gear_activities_number(
+    gear_id: int,
+    validate_gear_id: Annotated[Callable, Depends(gears_dependencies.validate_gear_id)],
+    check_scopes: Annotated[
+        Callable, Security(session_security.check_scopes, scopes=["activities:read"])
+    ],
+    token_user_id: Annotated[
+        Callable,
+        Depends(session_security.get_user_id_from_access_token),
+    ],
+    db: Annotated[
+        Session,
+        Depends(core_database.get_db),
+    ],
+):
+    # Get the number of activities for the gear
+    return len(activities_crud.get_user_activities_by_gear_id_and_user_id(
+        token_user_id, gear_id, db)
+    )
+
+
+@router.get(
+    "/gear/{gear_id}/page_number/{page_number}/num_records/{num_records}",
+    response_model=list[activities_schema.Activity] | None,
+)
+async def read_activities_gear_activities_with_pagination(
+    gear_id: int,
+    validate_gear_id: Annotated[Callable, Depends(gears_dependencies.validate_gear_id)],
+    page_number: int,
+    num_records: int,
+    validate_pagination_values: Annotated[
+        Callable, Depends(core_dependencies.validate_pagination_values)
+    ],
+    check_scopes: Annotated[
+        Callable, Security(session_security.check_scopes, scopes=["activities:read"])
+    ],
+    token_user_id: Annotated[
+        Callable,
+        Depends(session_security.get_user_id_from_access_token),
+    ],
+    db: Annotated[
+        Session,
+        Depends(core_database.get_db),
+    ],
+):
+    # Get the activities for the gear with pagination
+    return activities_crud.get_user_activities_by_gear_id_and_user_id_with_pagination(
+        token_user_id, gear_id, page_number, num_records, db
     )
 
 

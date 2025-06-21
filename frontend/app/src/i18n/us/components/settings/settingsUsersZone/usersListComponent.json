@@ -3,7 +3,6 @@
     "userListAccessTypeOption2": "Administrator",
     "userListUserIsMeBadge": "Me",
     "userListUserIsAdminBadge": "Admin",
-    "userListUserIsActiveBadge": "Active",
     "userListUserIsInactiveBadge": "Inactive",
     "userEditErrorMessage": "Error editing user",
     "modalDeleteUserTitle": "Delete user",
