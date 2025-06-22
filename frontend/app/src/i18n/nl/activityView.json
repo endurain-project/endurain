@@ -8,5 +8,5 @@
     "successMessageGearDeleted": "Uitrusting verwijderd uit activiteit",
     "errorMessageDeleteGear": "Fout bij verwijderen van uitrusting uit activiteit",
     "errorMessageActivityNotFound": "Activiteit niet gevonden",
-    "alertPrivacyMessage": "You have hidden information in this activity. You can see it, but others cannot."
+    "alertPrivacyMessage": "U hebt verborge informatie in deze activiteit. U kunt het zien, maar anderen niet."
 }

@@ -49,7 +49,7 @@
     "labelPaceInMin100yd": "Ritme in min/100yd",
     "labelLaps": "Laps",
     "labelRest": "Rest",
-    "labelStrokeRateInSpm": "Stroke rate in spm",
-    "startDateLabel": "Start date",
-    "endDateLabel": "End date"
+    "labelStrokeRateInSpm": "slagsnelheid in spm",
+    "startDateLabel": "Start datum",
+    "endDateLabel": "Eind datum"
 }
