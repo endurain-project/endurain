@@ -92,6 +92,18 @@ async def edit_gear_component(
         Depends(core_database.get_db),
     ],
 ):
+    if (
+        hasattr(gear_component, "retired_date")
+        and hasattr(gear_component, "purchase_date")
+        and gear_component.retired_date is not None
+        and gear_component.purchase_date is not None
+        and gear_component.retired_date <= gear_component.purchase_date
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Retired date must be after purchase date",
+        )
+    
     # Get the gear component by id
     gear_component_db = gears_components_crud.get_gear_component_by_id(
         gear_component.id, db
