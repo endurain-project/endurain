@@ -2,12 +2,15 @@ import { fetchGetRequest, fetchPostRequest, fetchPutRequest, fetchDeleteRequest 
 
 export const gearsComponents = {
     getGearComponentsByGearId(gearId) {
-        return fetchGetRequest(`gears/components/gear_id/${gearId}`);
+        return fetchGetRequest(`gear_components/gear_id/${gearId}`);
     },
     createGearComponent(data) {
-        return fetchPostRequest('gears/components', data)
+        return fetchPostRequest('gear_components', data)
+    },
+    editGearComponent(data) {
+        return fetchPutRequest('gear_components', data);
     },
     deleteGearComponent(gearComponentId) {
-        return fetchDeleteRequest(`gears/components/${gearComponentId}`);
+        return fetchDeleteRequest(`gear_components/${gearComponentId}`);
     }
 };

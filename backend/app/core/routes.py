@@ -74,37 +74,37 @@ router.include_router(
 )
 router.include_router(
     activity_exercise_titles_router.router,
-    prefix=core_config.ROOT_PATH + "/activities/exercise_titles",
+    prefix=core_config.ROOT_PATH + "/activities_exercise_titles",
     tags=["activity_exercise_titles"],
     dependencies=[Depends(session_security.validate_access_token)],
 )
 router.include_router(
     activity_laps_router.router,
-    prefix=core_config.ROOT_PATH + "/activities/laps",
+    prefix=core_config.ROOT_PATH + "/activities_laps",
     tags=["activity_laps"],
     dependencies=[Depends(session_security.validate_access_token)],
 )
 router.include_router(
     activity_sets_router.router,
-    prefix=core_config.ROOT_PATH + "/activities/sets",
+    prefix=core_config.ROOT_PATH + "/activities_sets",
     tags=["activity_sets"],
     dependencies=[Depends(session_security.validate_access_token)],
 )
 router.include_router(
     activity_streams_router.router,
-    prefix=core_config.ROOT_PATH + "/activities/streams",
+    prefix=core_config.ROOT_PATH + "/activities_streams",
     tags=["activity_streams"],
     dependencies=[Depends(session_security.validate_access_token)],
 )
 router.include_router(
     activity_workout_steps_router.router,
-    prefix=core_config.ROOT_PATH + "/activities/workout_steps",
+    prefix=core_config.ROOT_PATH + "/activities_workout_steps",
     tags=["activity_workout_steps"],
     dependencies=[Depends(session_security.validate_access_token)],
 )
 router.include_router(
     activity_summaries_router.router,
-    prefix=core_config.ROOT_PATH + "/activities/summaries",
+    prefix=core_config.ROOT_PATH + "/activities_summaries",
     tags=["summaries"],
     dependencies=[Depends(session_security.validate_access_token)],
 )
@@ -116,7 +116,7 @@ router.include_router(
 )
 router.include_router(
     gear_components_router.router,
-    prefix=core_config.ROOT_PATH + "/gears/components",
+    prefix=core_config.ROOT_PATH + "/gear_components",
     tags=["gear_components"],
     dependencies=[Depends(session_security.validate_access_token)],
 )
@@ -181,27 +181,27 @@ router.include_router(
 )
 router.include_router(
     activity_exercise_titles_public_router.router,
-    prefix=core_config.ROOT_PATH + "/public/activities/exercise_titles",
+    prefix=core_config.ROOT_PATH + "/public/activities_exercise_titles",
     tags=["public_activity_exercise_titles"],
 )
 router.include_router(
     activity_laps_public_router.router,
-    prefix=core_config.ROOT_PATH + "/public/activities/laps",
+    prefix=core_config.ROOT_PATH + "/public/activities_laps",
     tags=["public_activities_laps"],
 )
 router.include_router(
     activity_sets_public_router.router,
-    prefix=core_config.ROOT_PATH + "/public/activities/sets",
+    prefix=core_config.ROOT_PATH + "/public/activities_sets",
     tags=["public_activity_sets"],
 )
 router.include_router(
     activity_streams_public_router.router,
-    prefix=core_config.ROOT_PATH + "/public/activities/streams",
+    prefix=core_config.ROOT_PATH + "/public/activities_streams",
     tags=["public_activity_streams"],
 )
 router.include_router(
     activity_workout_steps_public_router.router,
-    prefix=core_config.ROOT_PATH + "/public/activities/workout_steps",
+    prefix=core_config.ROOT_PATH + "/public/activities_workout_steps",
     tags=["public_activity_workout_steps"],
 )
 router.include_router(

@@ -152,6 +152,52 @@ def create_gear_component(
         ) from err
 
 
+def edit_gear_component(
+    gear_component: gear_components_schema.GearComponents, db: Session
+):
+    try:
+        # Get the gear component from the database
+        db_gear_component = (
+            db.query(gear_components_models.GearComponents)
+            .filter(gear_components_models.GearComponents.id == gear_component.id)
+            .first()
+        )
+
+        if db_gear_component is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Gear component not found",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
+        # Dictionary of the fields to update if they are not None
+        gear_component_data = gear_component.model_dump(exclude_unset=True)
+        # Iterate over the fields and update the db_user dynamically
+        for key, value in gear_component_data.items():
+            setattr(db_gear_component, key, value)
+
+        # Commit the transaction
+        db.commit()
+
+        return db_gear_component
+    except HTTPException as http_err:
+        raise http_err
+    except Exception as err:
+        # Rollback the transaction
+        db.rollback()
+
+        # Log the exception
+        core_logger.print_to_log(
+            f"Error in edit_gear_component: {err}", "error", exc=err
+        )
+
+        # Raise an HTTPException with a 500 Internal Server Error status code
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal Server Error: {err}",
+        ) from err
+
+
 def delete_gear_component(user_id: int, gear_component_id: int, db: Session):
     try:
         # Delete the gear component

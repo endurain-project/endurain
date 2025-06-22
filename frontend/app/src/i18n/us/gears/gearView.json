@@ -18,6 +18,7 @@
     "labelModel": "Model",
     "labelDistance": "Distance",
     "titleComponents": "Components",
+    "showInactiveComponents": "Show inactive",
     "title": "Activities",
     "successGearEdited": "Gear edited successfully",
     "errorGearDelete": "Error deleting gear",

@@ -15,6 +15,7 @@
                 <span v-if="gearComponent.expected_kms">{{ formatDistanceRaw(gearComponentDistance,
                     authStore.user.units, true, false) }}{{ t('gearComponentListComponent.gearComponentOf') }}{{ formatDistanceRaw(gearComponent.expected_kms, authStore.user.units)
                     }}</span>
+                <span v-if="gearComponent.retired_date"> @ {{ gearComponent.retired_date }}</span>
                 <div class="progress" role="progressbar" aria-label="Gear component usage vs expected" :aria-valuenow="gearComponentDistancePercentage" aria-valuemin="0" aria-valuemax="100">
                     <div class="progress-bar" :style="{ width: gearComponentDistancePercentage + '%' }">{{ gearComponentDistancePercentage }}%</div>
                 </div>
@@ -42,7 +43,7 @@
             </div>
 
             <!-- edit gear component modal -->
-            <GearComponentAddEditModalComponent :action="'edit'" :gear="gear" :gearComponent="gearComponent" />
+            <GearComponentAddEditModalComponent :action="'edit'" :gear="gear" :gearComponent="gearComponent" @editedGearComponent="editGearComponentList" />
 
             <!-- delete gear component modal -->
             <ModalComponent :modalId="`deleteGearComponentModal${gearComponent.id}`"
@@ -85,7 +86,7 @@ const authStore = useAuthStore();
 const gearComponentDistance = ref(0);
 const gearComponentDistancePercentage = ref(0);
 
-const emit = defineEmits(["gearComponentDeleted"]);
+const emit = defineEmits(["gearComponentDeleted", "editedGearComponent"]);
 
 async function submitDeleteGearComponent() {
     try {
@@ -99,20 +100,30 @@ async function submitDeleteGearComponent() {
     }
 }
 
-onMounted(() => {
+function editGearComponentList(editedGearComponent) {
+    updateGearComponentDistance(editedGearComponent);
+    emit("editedGearComponent", editedGearComponent);
+}
+
+function updateGearComponentDistance(gearComponent) {
+    gearComponentDistance.value = 0;
     if (props.gearActivities && props.gearActivities && props.gearActivities.length > 0) {
         props.gearActivities.forEach(activity => {
             if (
                 activity.start_time &&
-                props.gearComponent.purchase_date &&
-                new Date(activity.start_time) > new Date(props.gearComponent.purchase_date)
+                gearComponent.purchase_date &&
+                new Date(activity.start_time) > new Date(gearComponent.purchase_date)
             ) {
                 gearComponentDistance.value += Number(activity.distance) || 0;
             }
         });
         gearComponentDistancePercentage.value = Math.round(
-            (gearComponentDistance.value / props.gearComponent.expected_kms) * 100
+            (gearComponentDistance.value / gearComponent.expected_kms) * 100
         );
     }
+}
+
+onMounted(() => {
+    updateGearComponentDistance(props.gearComponent);
 });
 </script>

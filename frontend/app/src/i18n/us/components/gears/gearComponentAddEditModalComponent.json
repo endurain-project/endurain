@@ -11,5 +11,8 @@
     "addEditGearComponentModalAddEditIsActiveLabel": "Is active",
     "successGearComponentAdded": "Gear component added successfully",
     "successGearComponentEdited": "Gear component edited successfully",
-    "errorGearComponentAdd": "Error adding gear component"
+    "errorGearComponentAdd": "Error adding gear component",
+    "gearComponentListGearEditSuccessMessage": "Gear component edited successfully",
+    "gearComponentListGearEditErrorMessage": "Error editing gear component",
+    "retiredDateAfterPurchaseDateError": "Retired date must be after purchase date"
 }

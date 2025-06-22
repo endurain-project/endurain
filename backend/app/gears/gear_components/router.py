@@ -78,6 +78,45 @@ async def create_gear_component(
     )
 
 
+@router.put("")
+async def edit_gear_component(
+    gear_component: gears_components_schema.GearComponents,
+    check_scopes: Annotated[
+        Callable, Security(session_security.check_scopes, scopes=["gears:write"])
+    ],
+    token_user_id: Annotated[
+        int, Depends(session_security.get_user_id_from_access_token)
+    ],
+    db: Annotated[
+        Session,
+        Depends(core_database.get_db),
+    ],
+):
+    # Get the gear component by id
+    gear_component_db = gears_components_crud.get_gear_component_by_id(
+        gear_component.id, db
+    )
+
+    # Check if gear component is None and raise an HTTPException if it is
+    if gear_component_db is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Gear component ID {gear_component.id} not found",
+        )
+
+    if gear_component_db.user_id != token_user_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Gear component ID {gear_component.id} does not belong to user {token_user_id}",
+        )
+
+    # Edit the gear component
+    gears_components_crud.edit_gear_component(gear_component, db)
+
+    # Return success message
+    return {"detail": f"Gear component ID {gear_component.id} edited successfully"}
+
+
 @router.delete("/{gear_component_id}")
 async def delete_component_gear(
     gear_component_id: int,

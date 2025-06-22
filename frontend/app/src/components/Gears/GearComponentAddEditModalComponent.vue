@@ -68,18 +68,17 @@
                         </div>
                         <!-- retired rate -->
                          <div v-if="action === 'edit'">
-                            <label for="gearComponentRetiredDateAddEdit"><b>* {{
+                            <label for="gearComponentRetiredDateAddEdit"><b>{{
                                 $t("gearComponentAddEditModalComponent.addEditGearComponentModalAddEditRetiredDateLabel")
                                     }}</b></label>
                             <input class="form-control" type="date" name="gearComponentRetiredDateAddEdit"
-                                v-model="newEditGearComponentRetiredDate" required>
+                                v-model="newEditGearComponentRetiredDate">
                          </div>
                          <!-- is active -->
                         <div v-if="action === 'edit'">
                             <label for="gearComponentIsActiveAddEdit"><b>* {{
                                 $t("gearComponentAddEditModalComponent.addEditGearComponentModalAddEditIsActiveLabel") }}</b></label>
-                            <select class="form-select" name="gearComponentIsActiveAddEdit" v-model="newEditGearComponentIsActive"
-                                required>
+                            <select class="form-select" name="gearComponentIsActiveAddEdit" :disabled="newEditGearComponentRetiredDate" v-model="newEditGearComponentIsActive" required>
                                 <option :value="true">{{ $t("generalItems.yes") }}</option>
                                 <option :value="false">{{ $t("generalItems.no") }}</option>
                             </select>
@@ -107,7 +106,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from "vue";
+import { ref, onMounted, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { push } from "notivue";
 import { useAuthStore } from "@/stores/authStore";
@@ -157,20 +156,28 @@ onMounted(() => {
         newEditGearComponentBrand.value = props.gearComponent.brand;
         newEditGearComponentModel.value = props.gearComponent.model;
         newEditGearComponentPurchaseDate.value = props.gearComponent.purchase_date;
-        newEditGearComponentExpectedDistanceKms.value = props.gearComponent.expected_kms || null;
+        newEditGearComponentExpectedDistanceKms.value = props.gearComponent.expected_kms / 1000;
         if (props.gearComponent.expected_kms && props.gearComponent.expected_kms !== 0) {
-            newEditGearComponentExpectedDistanceMiles.value = kmToMiles(props.gearComponent.expected_kms);
+            newEditGearComponentExpectedDistanceMiles.value = kmToMiles(props.gearComponent.expected_kms / 1000);
         }
-        newEditGearComponentPurchaseValue.value = props.gearComponent.purchase_value || null;
-        newEditGearComponentRetiredDate.value = props.gearComponent.retired_date || null;
-        newEditGearComponentIsActive.value = props.gearComponent.is_active || true;
+        newEditGearComponentPurchaseValue.value = props.gearComponent.purchase_value
+        newEditGearComponentRetiredDate.value = props.gearComponent.retired_date;
+        newEditGearComponentIsActive.value = props.gearComponent.is_active;
     }
 });
+
+function updateIsActiveBasedOnRetiredDate() {
+    if (newEditGearComponentRetiredDate.value && newEditGearComponentRetiredDate.value !== "") {
+        newEditGearComponentIsActive.value = false;
+    } else {
+        newEditGearComponentRetiredDate.value = null;
+        newEditGearComponentIsActive.value = true;
+    }
+}
 
 async function submitAddGearComponentForm() {
     emit("isLoadingNewGearComponent", true);
     try {
-        console.log("Submitting add gear component form");
         const data = {
             user_id: newEditGearComponentUserId.value,
             gear_id: newEditGearComponentGearId.value,
@@ -207,23 +214,46 @@ async function submitAddGearComponentForm() {
 }
 
 async function submitEditGearComponentForm() {
-
+    try {
+        const data = {
+            id: props.gearComponent.id,
+            user_id: newEditGearComponentUserId.value,
+            gear_id: newEditGearComponentGearId.value,
+            type: newEditGearComponentType.value,
+            brand: newEditGearComponentBrand.value,
+            model: newEditGearComponentModel.value,
+            purchase_date: newEditGearComponentPurchaseDate.value,
+            retired_date: newEditGearComponentRetiredDate.value ? newEditGearComponentRetiredDate.value : null,
+            is_active: newEditGearComponentIsActive.value,
+            expected_kms: newEditGearComponentExpectedDistanceKms.value * 1000,
+            purchase_value: newEditGearComponentPurchaseValue.value,
+        };
+        // change the gear component in the database
+        await gearsComponents.editGearComponent(data);
+        // emit the edited gear component
+        emit("editedGearComponent", data);
+        // show success message
+        push.success(t("gearComponentAddEditModalComponent.gearComponentListGearEditSuccessMessage"));
+    } catch (error) {
+        push.error(`${t("gearComponentAddEditModalComponent.gearComponentListGearEditErrorMessage")} - ${error}`);
+    }
 }
 
 function handleSubmit() {
+    // Validation: retired_date must be after purchase_date if set
+    if (
+        newEditGearComponentRetiredDate.value &&
+        newEditGearComponentPurchaseDate.value &&
+        new Date(newEditGearComponentRetiredDate.value) < new Date(newEditGearComponentPurchaseDate.value)
+    ) {
+        push.error(t("gearComponentAddEditModalComponent.retiredDateAfterPurchaseDateError"));
+        return;
+    }
+
     if (Number(authStore?.user?.units) === 1) {
-        if ((props.gearComponent && newEditGearComponentExpectedDistanceKms.value !== props.gearComponent.expected_kms) || props.action === 'add') {
-            newEditGearComponentExpectedDistanceMiles.value = kmToMiles(newEditGearComponentExpectedDistanceKms.value);
-        }
+        newEditGearComponentExpectedDistanceMiles.value = kmToMiles(newEditGearComponentExpectedDistanceKms.value);
     } else {
-        if (props.action === 'add') {
-            newEditGearComponentExpectedDistanceKms.value = milesToKm(newEditGearComponentExpectedDistanceMiles.value);
-        } else {
-            const miles = kmToMiles(props.gearComponent.expected_kms);
-            if (miles !== newEditGearComponentExpectedDistanceMiles.value) {
-                newEditGearComponentExpectedDistanceKms.value = milesToKm(newEditGearComponentExpectedDistanceMiles.value);
-            }
-        }
+        newEditGearComponentExpectedDistanceKms.value = milesToKm(newEditGearComponentExpectedDistanceMiles.value);
     }
     if (props.action === 'add') {
         submitAddGearComponentForm();
@@ -232,4 +262,6 @@ function handleSubmit() {
     }
 }
 
+// Watch the page number variable.
+watch(newEditGearComponentRetiredDate, updateIsActiveBasedOnRetiredDate, { immediate: false });
 </script>
