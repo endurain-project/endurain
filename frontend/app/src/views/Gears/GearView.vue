@@ -144,7 +144,8 @@
                 <div class="hstack align-items-baseline justify-content-between">
                     <div class="d-flex align-items-baseline">
                         <h5>{{ $t("gearView.titleComponents") }}</h5>
-                        <span class="mb-1 ms-1">({{ gearComponents.length }})</span>
+                        <span class="mb-1 ms-1" v-if="gearComponentsShowInactive">({{ gearComponents.length }})</span>
+                        <span class="mb-1 ms-1" v-else>({{ gearComponentsActive.length }})</span>
                     </div>
                     <div class="dropdown">
                         <button class="btn btn-link link-body-emphasis dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
