@@ -1,8 +1,8 @@
 {
     "buttonBack": "Terug",
     "buttonClose": "Sluiten",
-    "true": "True",
-    "false": "False",
+    "true": "Waar",
+    "false": "Fout",
     "yes": "Ja",
     "no": "Nee",
     "languageOption1": "Engels (VS)",
@@ -49,7 +49,7 @@
     "labelPaceInMin100yd": "Ritme in min/100yd",
     "labelLaps": "Rondes",
     "labelRest": "Rust",
-    "labelStrokeRateInSpm": "Stroke rate in spm",
+    "labelStrokeRateInSpm": "Slagsnelheid in spm",
     "startDateLabel": "Startdatum",
     "endDateLabel": "Einddatum"
 }
