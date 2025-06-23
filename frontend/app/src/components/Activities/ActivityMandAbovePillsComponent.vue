@@ -57,6 +57,10 @@
 						<ActivityStreamsLineChartComponent :activity="activity" :graphSelection="graphSelection"
 							:activityStreams="activityActivityStreams"
 							v-if="graphSelection === 'pace' && pacePresent" />
+						<BarChartComponent v-if="Object.values(hrZones).length > 0 && graphSelection === 'hrZones' && hrPresent" :labels="getHrBarChartData().labels"
+                        :values="getHrBarChartData().values" :barColors="getHrBarChartData().barColors"
+                        :datalabelsFormatter="(value) => `${Math.round(value)}%`"
+                        :title="$t('activityMandAbovePillsComponent.labelHRZones')" />
 					</div>
 				</div>
 			</div>
@@ -85,6 +89,7 @@ import { useI18n } from "vue-i18n";
 import ActivityLapsComponent from "@/components/Activities/ActivityLapsComponent.vue";
 import ActivityStreamsLineChartComponent from "@/components/Activities/ActivityStreamsLineChartComponent.vue";
 import ActivityWorkoutStepsComponent from "@/components/Activities/ActivityWorkoutStepsComponent.vue";
+import BarChartComponent from '@/components/GeneralComponents/BarChartComponent.vue';
 import { activityTypeIsSwimming } from "@/utils/activityUtils";
 import { useAuthStore } from "@/stores/authStore";
 // Import Notivue push
@@ -135,6 +140,13 @@ const elePresent = ref(false);
 const cadPresent = ref(false);
 const velPresent = ref(false);
 const pacePresent = ref(false);
+const hrZones = ref({
+    zone_1: {},
+    zone_2: {},
+    zone_3: {},
+    zone_4: {},
+    zone_5: {},
+});
 
 // Methods
 function selectGraph(type) {
@@ -197,6 +209,13 @@ onMounted(async () => {
 				}
 			}
 		}
+		if (props.activityActivityStreams && props.activityActivityStreams.length > 0) {
+			hrZones.value = props.activityActivityStreams.find(stream => stream.hr_zone_percentages).hr_zone_percentages || {};
+			if (Object.keys(hrZones.value).length > 0) {
+				hrPresent.value = true;
+				graphItems.value.push({ type: "hrZones", label: `${t("activityMandAbovePillsComponent.labelHRZones")}` });
+			}
+		}
 		if (graphItems.value.length > 0) {
 			graphSelection.value = graphItems.value[0].type;
 		}
@@ -207,4 +226,26 @@ onMounted(async () => {
 		);
 	}
 });
+
+function getZoneColor(index) {
+    // Example colors for 5 HR zones
+    const colors = [
+        '#1e90ff', // Zone 1: blue
+        '#28a745', // Zone 2: green
+        '#ffc107', // Zone 3: yellow
+        '#fd7e14', // Zone 4: orange
+        '#dc3545', // Zone 5: red
+    ];
+    return colors[index] || '#000';
+}
+
+function getHrBarChartData() {
+    const zones = Object.values(hrZones.value);
+    return {
+        labels: zones.map((z, i) => `${t('activityMandAbovePillsComponent.labelGraphHRZone')} ${i + 1} (${z.hr || ''})`),
+        // values: zones.map(z => `${z.percent ?? 0}%`),
+        values: zones.map(z => z.percent ?? 0),
+        barColors: zones.map((_, i) => getZoneColor(i)),
+    };
+}
 </script>

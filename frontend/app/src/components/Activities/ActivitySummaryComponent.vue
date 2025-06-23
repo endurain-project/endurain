@@ -118,7 +118,7 @@
         <!-- Activity summary -->
         <div class="row mt-3 align-items-center text-start">
             <!-- distance -->
-            <div class="col border-start border-opacity-50"
+            <div class="col"
                 v-if="activity.activity_type != 10 && activity.activity_type != 14 && activity.activity_type != 18 && activity.activity_type != 19 && activity.activity_type != 20 && activity.activity_type != 21 && activity.activity_type != 22 && activity.activity_type != 23 && activity.activity_type != 24 && activity.activity_type != 25 && activity.activity_type != 26">
                 <span class="fw-lighter">
                     {{ $t("activitySummaryComponent.activityDistance") }}
@@ -140,19 +140,14 @@
                     {{ $t("activitySummaryComponent.activityTime") }}
                 </span>
                 <br>
-                <span>
-                    {{ $t('activitySummaryComponent.activityMovingTime') }}: {{
-                        formatSecondsToMinutes(activity.total_timer_time) }} <br>
-                    {{ $t('activitySummaryComponent.activityTotalTime') }}: {{
-                        formatSecondsToMinutes(activity.total_elapsed_time) }}
-                </span>
+                <span>{{ formatSecondsToMinutes(activity.total_elapsed_time) }}</span>
             </div>
             <div class="col border-start border-opacity-50">
                 <!-- elevation -->
                 <div
                     v-if="activity.activity_type != 1 && activity.activity_type != 2 && activity.activity_type != 3 && activity.activity_type != 8 && activity.activity_type != 9 && activity.activity_type != 10 && activity.activity_type != 13 && activity.activity_type != 14 && activity.activity_type != 18 && activity.activity_type != 19 && activity.activity_type != 20 && activity.activity_type != 21 && activity.activity_type != 22 && activity.activity_type != 23 && activity.activity_type != 24 && activity.activity_type != 25 && activity.activity_type != 26">
                     <span class="fw-lighter">
-                        {{ $t("activitySummaryComponent.activityElevationGain") }}
+                        {{ $t("activitySummaryComponent.activityEleGain") }}
                     </span>
                     <br>
                     <span>{{ formatElevation(activity.elevation_gain, authStore.user.units) }}</span>
@@ -166,12 +161,20 @@
                     <br>
                     {{ formatPace(activity, authStore.user.units) }}
                 </div>
+                <!-- avg_hr -->
+                <div v-else>
+                    <span class="fw-lighter">
+                    {{ $t("activitySummaryComponent.activityAvgHR") }}
+                    </span>
+                    <br>
+                    <span>{{ formatHr(activity.average_hr) }}</span>
+                </div>
             </div>
         </div>
         <div class="row d-flex mt-3"
             v-if="source === 'activity' && activity.activity_type != 10 && activity.activity_type != 14 && activity.activity_type != 18 && activity.activity_type != 19 && activity.activity_type != 20 && activity.activity_type != 21 && activity.activity_type != 22 && activity.activity_type != 23 && activity.activity_type != 24 && activity.activity_type != 25 && activity.activity_type != 26">
             <!-- avg_power running and cycling activities-->
-            <div class="col border-start border-opacity-50"
+            <div class="col"
                 v-if="activity.activity_type == 1 || activity.activity_type == 2 || activity.activity_type == 3 || activity.activity_type == 4 || activity.activity_type == 5 || activity.activity_type == 6 || activity.activity_type == 7 || activity.activity_type == 27">
                 <span class="fw-lighter">
                     {{ $t("activitySummaryComponent.activityAvgPower") }}
@@ -222,26 +225,6 @@
                 <span>{{ formatCalories(activity.calories) }}</span>
             </div>
         </div>
-        <div class="row d-flex mt-3"
-            v-if="source === 'activity' && activity.activity_type != 10 && activity.activity_type != 14 && activity.activity_type != 18 && activity.activity_type != 19 && activity.activity_type != 20 && activity.activity_type != 21 && activity.activity_type != 22 && activity.activity_type != 23 && activity.activity_type != 24 && activity.activity_type != 25 && activity.activity_type != 26">
-            <div class="col border-start border-opacity-50">
-                <!-- hr -->
-                <div>
-                    <span class="fw-lighter">
-                        {{ $t("activitySummaryComponent.activityHR") }}
-                    </span>
-                    <br>
-                    <span>{{ $t("activitySummaryComponent.activityAvgHR") }}: {{ formatHr(activity.average_hr) }}</span>
-                    <br>
-                    <span>{{ $t("activitySummaryComponent.activityMaxHR") }}: {{ formatHr(activity.max_hr) }}</span>
-                    <br><br>
-                    <BarChartComponent v-if="Object.values(hrZones).length > 0" :labels="getHrBarChartData().labels"
-                        :values="getHrBarChartData().values" :barColors="getHrBarChartData().barColors"
-                        :datalabelsFormatter="(value) => `${Math.round(value)}%`"
-                        :title="$t('activitySummaryComponent.activityHRZone')" />
-                </div>
-            </div>
-        </div>
     </div>
 </template>
 
@@ -287,10 +270,6 @@ const props = defineProps({
         type: Object,
         required: true,
     },
-    activityActivityStreams: {
-        type: [Object, null],
-        required: false,
-    },
     source: {
         type: String,
         required: true,
@@ -313,21 +292,10 @@ const { t } = useI18n();
 // Reactive data
 const isLoading = ref(true);
 const userActivity = ref(null);
-const hrZones = ref({
-    zone_1: {},
-    zone_2: {},
-    zone_3: {},
-    zone_4: {},
-    zone_5: {},
-});
 
 // Lifecycle
 onMounted(async () => {
     try {
-        if (props.activityActivityStreams && props.activityActivityStreams.length > 0) {
-            hrZones.value = props.activityActivityStreams.find(stream => stream.hr_zone_percentages).hr_zone_percentages || {};
-        }
-
         if (authStore.isAuthenticated) {
             userActivity.value = await users.getUserById(props.activity.user_id);
         } else {
@@ -361,27 +329,5 @@ async function submitDeleteActivity() {
 function updateActivityFieldsOnEdit(data) {
     // Emit the activityEditedFields event to the parent component
     emit("activityEditedFields", data);
-}
-
-function getZoneColor(index) {
-    // Example colors for 5 HR zones
-    const colors = [
-        '#1e90ff', // Zone 1: blue
-        '#28a745', // Zone 2: green
-        '#ffc107', // Zone 3: yellow
-        '#fd7e14', // Zone 4: orange
-        '#dc3545', // Zone 5: red
-    ];
-    return colors[index] || '#000';
-}
-
-function getHrBarChartData() {
-    const zones = Object.values(hrZones.value);
-    return {
-        labels: zones.map((z, i) => `${t('activitySummaryComponent.activityHRZone')} ${i + 1} (${z.hr || ''})`),
-        // values: zones.map(z => `${z.percent ?? 0}%`),
-        values: zones.map(z => z.percent ?? 0),
-        barColors: zones.map((_, i) => getZoneColor(i)),
-    };
 }
 </script>

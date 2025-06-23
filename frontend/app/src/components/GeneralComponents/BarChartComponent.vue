@@ -59,7 +59,7 @@ function renderChart() {
             plugins: {
                 legend: { display: false },
                 title: {
-                    display: !!props.title,
+                    display: props.title,
                     text: props.title
                 },
                 tooltip: { enabled: false },
@@ -69,11 +69,8 @@ function renderChart() {
                     },
                     borderRadius: 4,
                     color: 'white',
-                    font: {
-                        weight: 'bold'
-                    },
-                    align: 'start', // Align datalabels to the start of the bar
-                    anchor: 'start', // Anchor datalabels to the start of the bar
+                    align: 'end', // Align datalabels to the end of the bar
+                    anchor: 'end', // Anchor datalabels to the end of the bar
                     formatter: props.datalabelsFormatter || undefined,
                     padding: 6
                 }
