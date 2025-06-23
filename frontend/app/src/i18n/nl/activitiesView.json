@@ -1,11 +1,11 @@
 {
   "title": "Activiteiten",
   "filterLabelType": "Type",
-  "filterOptionAllTypes": "Alle types",
+  "filterOptionAllTypes": "Alle typen",
   "filterLabelFromDate": "Vanaf datum",
   "filterLabelToDate": "Tot datum",
   "filterLabelNameLocation": "Naam of locatie",
-  "filterPlaceholderNameLocation": "V.b., Ochtend loop",
+  "filterPlaceholderNameLocation": "bijv.: Ochtendloop",
   "buttonClear": "Wissen",
   "buttonApply": "Toepassen",
   "errorFailedFetchActivityTypes": "Kon activiteitstypes niet ophalen",
