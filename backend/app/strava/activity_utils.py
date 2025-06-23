@@ -646,8 +646,12 @@ def fetch_and_process_activity_laps(
                 "total_elapsed_time": lap.elapsed_time,
                 "total_timer_time": lap.moving_time,
                 "total_distance": lap.distance,
-                "avg_heart_rate": round(lap.average_heartrate) if lap.average_heartrate else None,
-                "max_heart_rate": round(lap.max_heartrate) if lap.max_heartrate else None,
+                "avg_heart_rate": (
+                    round(lap.average_heartrate) if lap.average_heartrate else None
+                ),
+                "max_heart_rate": (
+                    round(lap.max_heartrate) if lap.max_heartrate else None
+                ),
                 "avg_cadence": round(cad_avg) if cad_stream else None,
                 "max_cadence": round(cad_max) if cad_stream else None,
                 "avg_power": round(power_avg) if power_stream else None,

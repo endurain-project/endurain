@@ -1,59 +1,81 @@
 <template>
-    <ul class="nav nav-pills mb-3 mt-3 justify-content-center" id="pills-tab" role="tablist">
-        <li class="nav-item" role="presentation" v-if="graphItems && graphItems.length > 0">
-            <button class="nav-link link-body-emphasis" :class="{ active: graphItems || graphItems.length > 0 }" id="pills-graphs-tab" data-bs-toggle="pill" data-bs-target="#pills-graphs" type="button" role="tab" aria-controls="pills-graphs" :aria-selected="graphItems && graphItems.length > 0 ? true : false">
-                {{ $t("activityMandAbovePillsComponent.labelPillGraphs") }}
-            </button>
-        </li>
-        <li class="nav-item" role="presentation" v-if="activityActivityLaps && activityActivityLaps.length > 0">
-            <button class="nav-link link-body-emphasis" :class="{ active: !graphItems || graphItems.length === 0 }" id="pills-laps-tab" data-bs-toggle="pill" data-bs-target="#pills-laps" type="button" role="tab" aria-controls="pills-laps" :aria-selected="!graphItems || graphItems.length === 0 ? 'true' : 'false'">
-                {{ $t("activityMandAbovePillsComponent.labelPillLaps") }}
-            </button>
-        </li>
-		<li class="nav-item" role="presentation" v-if="activityActivityWorkoutSteps && activityActivityWorkoutSteps.length > 0">
-            <button class="nav-link link-body-emphasis" id="pills-workout-steps-tab" data-bs-toggle="pill" data-bs-target="#pills-workout-steps" type="button" role="tab" aria-controls="pills-workout-steps" aria-selected="false">
-                {{ $t("activityMandAbovePillsComponent.labelPillWorkoutSets") }}
-            </button>
-        </li>
-    </ul>
+	<ul class="nav nav-pills mb-3 mt-3 justify-content-center" id="pills-tab" role="tablist">
+		<li class="nav-item" role="presentation" v-if="graphItems && graphItems.length > 0">
+			<button class="nav-link link-body-emphasis" :class="{ active: graphItems || graphItems.length > 0 }"
+				id="pills-graphs-tab" data-bs-toggle="pill" data-bs-target="#pills-graphs" type="button" role="tab"
+				aria-controls="pills-graphs" :aria-selected="graphItems && graphItems.length > 0 ? true : false">
+				{{ $t("activityMandAbovePillsComponent.labelPillGraphs") }}
+			</button>
+		</li>
+		<li class="nav-item" role="presentation" v-if="activityActivityLaps && activityActivityLaps.length > 0">
+			<button class="nav-link link-body-emphasis" :class="{ active: !graphItems || graphItems.length === 0 }"
+				id="pills-laps-tab" data-bs-toggle="pill" data-bs-target="#pills-laps" type="button" role="tab"
+				aria-controls="pills-laps" :aria-selected="!graphItems || graphItems.length === 0 ? 'true' : 'false'">
+				{{ $t("activityMandAbovePillsComponent.labelPillLaps") }}
+			</button>
+		</li>
+		<li class="nav-item" role="presentation"
+			v-if="activityActivityWorkoutSteps && activityActivityWorkoutSteps.length > 0">
+			<button class="nav-link link-body-emphasis" id="pills-workout-steps-tab" data-bs-toggle="pill"
+				data-bs-target="#pills-workout-steps" type="button" role="tab" aria-controls="pills-workout-steps"
+				aria-selected="false">
+				{{ $t("activityMandAbovePillsComponent.labelPillWorkoutSets") }}
+			</button>
+		</li>
+	</ul>
 
-    <div class="tab-content" id="pills-tabContent">
-        <div class="tab-pane fade show" :class="{ active: graphItems || graphItems.length > 0 }" id="pills-graphs" role="tabpanel" aria-labelledby="pills-graphs-tab" tabindex="0" v-if="graphItems && graphItems.length > 0">
-            <div class="row">
-                <div class="col-md-2">
-                    <p>{{ $t("activityMandAbovePillsComponent.labelGraph") }}</p>
-                    <ul class="nav nav-pills flex-column mb-auto" id="sidebarLineGraph">
-                        <li class="nav-item" v-for="item in graphItems" :key="item.type">
-                            <a href="javascript:void(0);" class="nav-link text-secondary"
-                            :class="{ 'active text-white': graphSelection === item.type }"
-                            @click="selectGraph(item.type)">
-                                {{ item.label }}
-                            </a>
-                        </li>
-                    </ul>
-                    <p class="mt-2">{{ $t("activityMandAbovePillsComponent.labelDownsampling") }}</p>
-                </div>
-                <div class="col">
-                    <div if="activity">
-                        <ActivityStreamsLineChartComponent :activity="activity" :graphSelection="graphSelection" :activityStreams="activityActivityStreams" v-if="graphSelection === 'hr' && hrPresent"/>
-                        <ActivityStreamsLineChartComponent :activity="activity" :graphSelection="graphSelection" :activityStreams="activityActivityStreams" v-if="graphSelection === 'power' && powerPresent"/>
-                        <ActivityStreamsLineChartComponent :activity="activity" :graphSelection="graphSelection" :activityStreams="activityActivityStreams" v-if="graphSelection === 'cad' && cadPresent"/>
-                        <ActivityStreamsLineChartComponent :activity="activity" :graphSelection="graphSelection" :activityStreams="activityActivityStreams" v-if="graphSelection === 'ele' && elePresent"/>
-                        <ActivityStreamsLineChartComponent :activity="activity" :graphSelection="graphSelection" :activityStreams="activityActivityStreams" v-if="graphSelection === 'vel' && velPresent"/>
-                        <ActivityStreamsLineChartComponent :activity="activity" :graphSelection="graphSelection" :activityStreams="activityActivityStreams" v-if="graphSelection === 'pace' && pacePresent"/>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="tab-pane fade" :class="{ 'show active': !graphItems || graphItems.length === 0 }" id="pills-laps" role="tabpanel" aria-labelledby="pills-laps-tab" tabindex="1" v-if="activityActivityLaps && activityActivityLaps.length > 0">
-            <ActivityLapsComponent :activity="activity" :activityActivityLaps="activityActivityLaps" :units="units" />
-        </div>
-
-		<div class="tab-pane fade" id="pills-workout-steps" role="tabpanel" aria-labelledby="pills-workout-steps-tab" tabindex="2" v-if="activityActivityWorkoutSteps && activityActivityWorkoutSteps.length > 0">
-			<ActivityWorkoutStepsComponent :activity="activity" :activityActivityWorkoutSteps="activityActivityWorkoutSteps" :units="units" :activityActivityExerciseTitles="activityActivityExerciseTitles" :activityActivitySets="activityActivitySets" />
+	<div class="tab-content" id="pills-tabContent">
+		<div class="tab-pane fade show" :class="{ active: graphItems || graphItems.length > 0 }" id="pills-graphs"
+			role="tabpanel" aria-labelledby="pills-graphs-tab" tabindex="0" v-if="graphItems && graphItems.length > 0">
+			<div class="row">
+				<div class="col-md-2">
+					<p>{{ $t("activityMandAbovePillsComponent.labelGraph") }}</p>
+					<ul class="nav nav-pills flex-column mb-auto" id="sidebarLineGraph">
+						<li class="nav-item" v-for="item in graphItems" :key="item.type">
+							<a href="javascript:void(0);" class="nav-link text-secondary"
+								:class="{ 'active text-white': graphSelection === item.type }"
+								@click="selectGraph(item.type)">
+								{{ item.label }}
+							</a>
+						</li>
+					</ul>
+					<p class="mt-2">{{ $t("activityMandAbovePillsComponent.labelDownsampling") }}</p>
+				</div>
+				<div class="col">
+					<div if="activity">
+						<ActivityStreamsLineChartComponent :activity="activity" :graphSelection="graphSelection"
+							:activityStreams="activityActivityStreams" v-if="graphSelection === 'hr' && hrPresent" />
+						<ActivityStreamsLineChartComponent :activity="activity" :graphSelection="graphSelection"
+							:activityStreams="activityActivityStreams"
+							v-if="graphSelection === 'power' && powerPresent" />
+						<ActivityStreamsLineChartComponent :activity="activity" :graphSelection="graphSelection"
+							:activityStreams="activityActivityStreams" v-if="graphSelection === 'cad' && cadPresent" />
+						<ActivityStreamsLineChartComponent :activity="activity" :graphSelection="graphSelection"
+							:activityStreams="activityActivityStreams" v-if="graphSelection === 'ele' && elePresent" />
+						<ActivityStreamsLineChartComponent :activity="activity" :graphSelection="graphSelection"
+							:activityStreams="activityActivityStreams" v-if="graphSelection === 'vel' && velPresent" />
+						<ActivityStreamsLineChartComponent :activity="activity" :graphSelection="graphSelection"
+							:activityStreams="activityActivityStreams"
+							v-if="graphSelection === 'pace' && pacePresent" />
+					</div>
+				</div>
+			</div>
 		</div>
-    </div>
+
+		<div class="tab-pane fade" :class="{ 'show active': !graphItems || graphItems.length === 0 }" id="pills-laps"
+			role="tabpanel" aria-labelledby="pills-laps-tab" tabindex="1"
+			v-if="activityActivityLaps && activityActivityLaps.length > 0">
+			<ActivityLapsComponent :activity="activity" :activityActivityLaps="activityActivityLaps" :units="units" />
+		</div>
+
+		<div class="tab-pane fade" id="pills-workout-steps" role="tabpanel" aria-labelledby="pills-workout-steps-tab"
+			tabindex="2" v-if="activityActivityWorkoutSteps && activityActivityWorkoutSteps.length > 0">
+			<ActivityWorkoutStepsComponent :activity="activity"
+				:activityActivityWorkoutSteps="activityActivityWorkoutSteps" :units="units"
+				:activityActivityExerciseTitles="activityActivityExerciseTitles"
+				:activityActivitySets="activityActivitySets" />
+		</div>
+	</div>
 </template>
 
 <script setup>

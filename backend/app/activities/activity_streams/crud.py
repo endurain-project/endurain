@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 import numpy as np
 import datetime
 
+import activities.activity_streams.constants as activity_streams_constants
 import activities.activity_streams.schema as activity_streams_schema
 import activities.activity_streams.models as activity_streams_models
 
@@ -16,14 +17,12 @@ import users.user.crud as users_crud
 
 import core.logger as core_logger
 
-import activities.activity_streams.constants as stream_constants
 
-
-def get_activity_streams(activity_id: int, token_user_id: int, db: Session):
+def get_activity_streams(
+    activity_id: int, token_user_id: int, db: Session
+) -> list[activity_streams_schema.ActivityStreams] | None:
     try:
-        activity = activity_crud.get_activity_by_id(
-            activity_id, db
-        )
+        activity = activity_crud.get_activity_by_id(activity_id, db)
 
         if not activity:
             # If the activity does not exist, return None
@@ -48,20 +47,52 @@ def get_activity_streams(activity_id: int, token_user_id: int, db: Session):
 
         if not user_is_owner:
             activity_streams = [
-                stream for stream in activity_streams
+                stream
+                for stream in activity_streams
                 if not (
-                    (activity.hide_hr and stream.stream_type == stream_constants.STREAM_TYPE_HR) or
-                    (activity.hide_power and stream.stream_type == stream_constants.STREAM_TYPE_POWER) or
-                    (activity.hide_cadence and stream.stream_type == stream_constants.STREAM_TYPE_CADENCE) or
-                    (activity.hide_elevation and stream.stream_type == stream_constants.STREAM_TYPE_ELEVATION) or
-                    (activity.hide_speed and stream.stream_type == stream_constants.STREAM_TYPE_SPEED) or
-                    (activity.hide_pace and stream.stream_type == stream_constants.STREAM_TYPE_PACE) or
-                    (activity.hide_map and stream.stream_type == stream_constants.STREAM_TYPE_MAP)
+                    (
+                        activity.hide_hr
+                        and stream.stream_type
+                        == activity_streams_constants.STREAM_TYPE_HR
+                    )
+                    or (
+                        activity.hide_power
+                        and stream.stream_type
+                        == activity_streams_constants.STREAM_TYPE_POWER
+                    )
+                    or (
+                        activity.hide_cadence
+                        and stream.stream_type
+                        == activity_streams_constants.STREAM_TYPE_CADENCE
+                    )
+                    or (
+                        activity.hide_elevation
+                        and stream.stream_type
+                        == activity_streams_constants.STREAM_TYPE_ELEVATION
+                    )
+                    or (
+                        activity.hide_speed
+                        and stream.stream_type
+                        == activity_streams_constants.STREAM_TYPE_SPEED
+                    )
+                    or (
+                        activity.hide_pace
+                        and stream.stream_type
+                        == activity_streams_constants.STREAM_TYPE_PACE
+                    )
+                    or (
+                        activity.hide_map
+                        and stream.stream_type
+                        == activity_streams_constants.STREAM_TYPE_MAP
+                    )
                 )
             ]
 
         # Return the activity streams
-        return [transform_activity_streams(stream, activity, db) for stream in activity_streams]
+        return [
+            transform_activity_streams(stream, activity, db)
+            for stream in activity_streams
+        ]
     except Exception as err:
         # Log the exception
         core_logger.print_to_log(
@@ -82,10 +113,8 @@ def get_public_activity_streams(activity_id: int, db: Session):
         # Return None if public sharable links are disabled
         if not server_settings or not server_settings.public_shareable_links:
             return None
-        
-        activity = activity_crud.get_activity_by_id_if_is_public(
-            activity_id, db
-        )
+
+        activity = activity_crud.get_activity_by_id_if_is_public(activity_id, db)
 
         if not activity:
             # If the activity does not exist, return None
@@ -110,22 +139,52 @@ def get_public_activity_streams(activity_id: int, db: Session):
         # Check if there are activity streams, if not return None
         if not activity_streams:
             return None
-        
+
         activity_streams = [
-            stream for stream in activity_streams
+            stream
+            for stream in activity_streams
             if not (
-                (activity.hide_hr and stream.stream_type == stream_constants.STREAM_TYPE_HR) or
-                (activity.hide_power and stream.stream_type == stream_constants.STREAM_TYPE_POWER) or
-                (activity.hide_cadence and stream.stream_type == stream_constants.STREAM_TYPE_CADENCE) or
-                (activity.hide_elevation and stream.stream_type == stream_constants.STREAM_TYPE_ELEVATION) or
-                (activity.hide_speed and stream.stream_type == stream_constants.STREAM_TYPE_SPEED) or
-                (activity.hide_pace and stream.stream_type == stream_constants.STREAM_TYPE_PACE) or
-                (activity.hide_map and stream.stream_type == stream_constants.STREAM_TYPE_MAP)
+                (
+                    activity.hide_hr
+                    and stream.stream_type == activity_streams_constants.STREAM_TYPE_HR
+                )
+                or (
+                    activity.hide_power
+                    and stream.stream_type
+                    == activity_streams_constants.STREAM_TYPE_POWER
+                )
+                or (
+                    activity.hide_cadence
+                    and stream.stream_type
+                    == activity_streams_constants.STREAM_TYPE_CADENCE
+                )
+                or (
+                    activity.hide_elevation
+                    and stream.stream_type
+                    == activity_streams_constants.STREAM_TYPE_ELEVATION
+                )
+                or (
+                    activity.hide_speed
+                    and stream.stream_type
+                    == activity_streams_constants.STREAM_TYPE_SPEED
+                )
+                or (
+                    activity.hide_pace
+                    and stream.stream_type
+                    == activity_streams_constants.STREAM_TYPE_PACE
+                )
+                or (
+                    activity.hide_map
+                    and stream.stream_type == activity_streams_constants.STREAM_TYPE_MAP
+                )
             )
         ]
 
         # Return the activity streams
-        return [transform_activity_streams(stream, activity, db) for stream in activity_streams]
+        return [
+            transform_activity_streams(stream, activity, db)
+            for stream in activity_streams
+        ]
     except Exception as err:
         # Log the exception
         core_logger.print_to_log(
@@ -138,16 +197,16 @@ def get_public_activity_streams(activity_id: int, db: Session):
         ) from err
 
 
-def get_activity_stream_by_type(activity_id: int, stream_type: int, token_user_id: int, db: Session):
+def get_activity_stream_by_type(
+    activity_id: int, stream_type: int, token_user_id: int, db: Session
+):
     try:
-        activity = activity_crud.get_activity_by_id(
-            activity_id, db
-        )
+        activity = activity_crud.get_activity_by_id(activity_id, db)
 
         if not activity:
             # If the activity does not exist, return None
             return None
-        
+
         # Get the activity stream from the database
         activity_stream = (
             db.query(activity_streams_models.ActivityStreams)
@@ -161,25 +220,53 @@ def get_activity_stream_by_type(activity_id: int, stream_type: int, token_user_i
         # Check if there are activity stream if not return None
         if not activity_stream:
             return None
-        
+
         user_is_owner = True
         if token_user_id != activity.user_id:
             user_is_owner = False
 
         if not user_is_owner:
-            if activity.hide_hr and activity_stream.stream_type == stream_constants.STREAM_TYPE_HR:
+            if (
+                activity.hide_hr
+                and activity_stream.stream_type
+                == activity_streams_constants.STREAM_TYPE_HR
+            ):
                 return None
-            if activity.hide_power and activity_stream.stream_type == stream_constants.STREAM_TYPE_POWER:
+            if (
+                activity.hide_power
+                and activity_stream.stream_type
+                == activity_streams_constants.STREAM_TYPE_POWER
+            ):
                 return None
-            if activity.hide_cadence and activity_stream.stream_type == stream_constants.STREAM_TYPE_CADENCE:
+            if (
+                activity.hide_cadence
+                and activity_stream.stream_type
+                == activity_streams_constants.STREAM_TYPE_CADENCE
+            ):
                 return None
-            if activity.hide_elevation and activity_stream.stream_type == stream_constants.STREAM_TYPE_ELEVATION:
+            if (
+                activity.hide_elevation
+                and activity_stream.stream_type
+                == activity_streams_constants.STREAM_TYPE_ELEVATION
+            ):
                 return None
-            if activity.hide_speed and activity_stream.stream_type == stream_constants.STREAM_TYPE_SPEED:
+            if (
+                activity.hide_speed
+                and activity_stream.stream_type
+                == activity_streams_constants.STREAM_TYPE_SPEED
+            ):
                 return None
-            if activity.hide_pace and activity_stream.stream_type == stream_constants.STREAM_TYPE_PACE:
+            if (
+                activity.hide_pace
+                and activity_stream.stream_type
+                == activity_streams_constants.STREAM_TYPE_PACE
+            ):
                 return None
-            if activity.hide_map and activity_stream.stream_type == stream_constants.STREAM_TYPE_MAP:
+            if (
+                activity.hide_map
+                and activity_stream.stream_type
+                == activity_streams_constants.STREAM_TYPE_MAP
+            ):
                 return None
 
         # Return the activity stream
@@ -195,43 +282,72 @@ def get_activity_stream_by_type(activity_id: int, stream_type: int, token_user_i
             detail="Internal Server Error",
         ) from err
 
+
 def transform_activity_streams(activity_stream, activity, db):
     """
-    Transform the activity stream based on the stream type.
+    Transforms an activity stream based on its stream type.
+    If the stream type of the given activity_stream is heart rate (HR), this function delegates
+    the transformation to the `transform_activity_streams_hr` function. Otherwise, it returns
+    the activity_stream unchanged.
+    Args:
+        activity_stream: The activity stream object to be transformed.
+        activity: The activity object associated with the stream.
+        db: The database session or connection object.
+    Returns:
+        The transformed activity stream if the stream type is HR, otherwise the original activity_stream.
     """
-    if activity_stream.stream_type == stream_constants.STREAM_TYPE_HR:
+    if activity_stream.stream_type == activity_streams_constants.STREAM_TYPE_HR:
         return transform_activity_streams_hr(activity_stream, activity, db)
-    else:
-        return activity_stream
+
+    return activity_stream
+
 
 def transform_activity_streams_hr(activity_stream, activity, db):
     """
-    Transform the activity stream for heart rate.
-    Calculate the percentage of time spent in each HR zone using numpy for performance.
+    Transforms an activity stream by calculating the percentage of time spent in each heart rate zone based on user details.
+    Args:
+        activity_stream: The activity stream object containing waypoints with heart rate data.
+        activity: The activity object associated with the stream, used to retrieve the user ID.
+        db: The database session or connection used to fetch user details.
+    Returns:
+        The activity stream object with an added 'hr_zone_percentages' attribute, which contains the percentage of time spent in each heart rate zone and their respective HR boundaries. If waypoints or user details are missing, returns the original activity stream unchanged.
+    Notes:
+        - Heart rate zones are calculated using the formula: max_heart_rate = 220 - age.
+        - The function expects waypoints to be a list of dicts with an "hr" key.
+        - If no valid heart rate data is present, the activity stream is returned as is.
     """
+    # Check if the activity stream has waypoints
+    waypoints = activity_stream.stream_waypoints
+    if not waypoints or not isinstance(waypoints, list):
+        # If there are no waypoints, return the activity stream as is
+        return activity_stream
+
+    # Get the user details to calculate heart rate zones
     detail_user = users_crud.get_user_by_id(activity.user_id, db)
     if not detail_user or not detail_user.birthdate:
+        # If user details are not available or birthdate is missing, return the activity stream as is
         return activity_stream
+
+    # Calculate the maximum heart rate based on the user's birthdate
     year = int(detail_user.birthdate.split("-")[0])
     current_year = datetime.datetime.now().year
     max_heart_rate = 220 - (current_year - year)
 
+    # Calculate heart rate zones based on the maximum heart rate
     zone_1 = max_heart_rate * 0.5
     zone_2 = max_heart_rate * 0.6
     zone_3 = max_heart_rate * 0.7
     zone_4 = max_heart_rate * 0.8
 
-    waypoints = activity_stream.stream_waypoints
-    if not waypoints or not isinstance(waypoints, list):
-        return activity_stream
-    
+    # Extract heart rate values from waypoints
     hr_values = np.array([wp.get("hr") for wp in waypoints if wp.get("hr") is not None])
 
+    # If there are no valid heart rate values, return the activity stream as is
     total = len(hr_values)
-
     if total == 0:
         return activity_stream
-    
+
+    # Calculate the percentage of time spent in each heart rate zone
     zone_counts = [
         np.sum(hr_values < zone_1),
         np.sum((hr_values >= zone_1) & (hr_values < zone_2)),
@@ -259,6 +375,7 @@ def transform_activity_streams_hr(activity_stream, activity, db):
 
     return activity_stream
 
+
 def get_public_activity_stream_by_type(activity_id: int, stream_type: int, db: Session):
     try:
         # Check if public sharable links are enabled in server settings
@@ -267,10 +384,8 @@ def get_public_activity_stream_by_type(activity_id: int, stream_type: int, db: S
         # Return None if public sharable links are disabled
         if not server_settings or not server_settings.public_shareable_links:
             return None
-        
-        activity = activity_crud.get_activity_by_id_if_is_public(
-            activity_id, db
-        )
+
+        activity = activity_crud.get_activity_by_id_if_is_public(activity_id, db)
 
         if not activity:
             # If the activity does not exist, return None
@@ -296,20 +411,47 @@ def get_public_activity_stream_by_type(activity_id: int, stream_type: int, db: S
         # Check if there is an activity stream; if not, return None
         if not activity_stream:
             return None
-        
-        if activity.hide_hr and activity_stream.stream_type == stream_constants.STREAM_TYPE_HR:
+
+        if (
+            activity.hide_hr
+            and activity_stream.stream_type == activity_streams_constants.STREAM_TYPE_HR
+        ):
             return None
-        if activity.hide_power and activity_stream.stream_type == stream_constants.STREAM_TYPE_POWER:
+        if (
+            activity.hide_power
+            and activity_stream.stream_type
+            == activity_streams_constants.STREAM_TYPE_POWER
+        ):
             return None
-        if activity.hide_cadence and activity_stream.stream_type == stream_constants.STREAM_TYPE_CADENCE:
+        if (
+            activity.hide_cadence
+            and activity_stream.stream_type
+            == activity_streams_constants.STREAM_TYPE_CADENCE
+        ):
             return None
-        if activity.hide_elevation and activity_stream.stream_type == stream_constants.STREAM_TYPE_ELEVATION:
+        if (
+            activity.hide_elevation
+            and activity_stream.stream_type
+            == activity_streams_constants.STREAM_TYPE_ELEVATION
+        ):
             return None
-        if activity.hide_speed and activity_stream.stream_type == stream_constants.STREAM_TYPE_SPEED:
+        if (
+            activity.hide_speed
+            and activity_stream.stream_type
+            == activity_streams_constants.STREAM_TYPE_SPEED
+        ):
             return None
-        if activity.hide_pace and activity_stream.stream_type == stream_constants.STREAM_TYPE_PACE:
+        if (
+            activity.hide_pace
+            and activity_stream.stream_type
+            == activity_streams_constants.STREAM_TYPE_PACE
+        ):
             return None
-        if activity.hide_map and activity_stream.stream_type == stream_constants.STREAM_TYPE_MAP:
+        if (
+            activity.hide_map
+            and activity_stream.stream_type
+            == activity_streams_constants.STREAM_TYPE_MAP
+        ):
             return None
 
         # Return the activity stream
