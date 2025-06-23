@@ -35,8 +35,8 @@
     "garminConnectIntegrationTitle": "Garmin Connect",
     "garminConnectIntegrationBody": "Garmin Connect is een gezondheidsplatform en fitness voor gebruikers van Garmin apparaten",
     "loadingMessageRetrievingGarminConnectActivities": "Ophalen van Garmin Connect activiteiten",
-    "errorMessageUnableToGetGarminConnectActivitiesDays": "Kon Garmin Connect activiteiten niet ophalen voor dag",
-    "errorMessageUnableToGetGarminConnectActivitiesDataRange": "Kon Garmin Connect activiteiten niet ophalen voor dag interval",
+    "errorMessageUnableToGetGarminConnectActivitiesDays": "Kon Garmin Connect activiteiten niet ophalen voor dagen",
+    "errorMessageUnableToGetGarminConnectActivitiesDataRange": "Kon Garmin Connect activiteiten niet ophalen voor data interval",
     "modalUnlinkGarminConnectTitle": "Garmin verbinding ontkoppelen",
     "modalUnlinkGarminConnectBody": "Weet u zeker dat u uw Garmin Connect account wilt ontkoppelen?",
     "processingMessageUnlinkGarminConnect": "Garmin Connect account ontkoppelen...",
@@ -46,7 +46,7 @@
     "loadingMessageRetrievingGarminConnectGear": "Ophalen van Garmin Connect uitrusting",
     "modalRetrieveHealthDataByDaysTitle": "Gezondheidsgegevens ophalen per dag",
     "modalRetrieveHealthDataByDateRangeTitle": "Gezondheidsgegevens ophalen per dag interval",
-    "errorMessageUnableToGetGarminConnectHealthDataDays": "Kon Garmin Connect gezondheidsgegevens niet ophalen voor dag",
-    "errorMessageUnableToGetGarminConnectHealthDataDateRange": "Kon Garmin Connect gezondheidsgegevens niet ophalen voor dag interval",
+    "errorMessageUnableToGetGarminConnectHealthDataDays": "Kon Garmin Connect gezondheidsgegevens niet ophalen voor dagen",
+    "errorMessageUnableToGetGarminConnectHealthDataDateRange": "Kon Garmin Connect gezondheidsgegevens niet ophalen voor data interval",
     "loadingMessageRetrievingGarminConnectHealthData": "Ophalen van Garmin Connect gezondheidsgegevens"
 }
