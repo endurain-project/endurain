@@ -76,7 +76,7 @@ Environment variable  | How to set it |
 | FERNET_KEY |Run `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"` on a terminal to get a secret or go to [https://fernetkeygen.com](https://fernetkeygen.com). Example output is `7NfMMRSCWcoNDSjqBX8WoYH9nTFk1VdQOdZY13po53Y=` |
 | GEOCODES_MAPS_API | <a href="https://geocode.maps.co/">Geocode maps</a> offers a free plan consisting of 1 Request/Second. Registration necessary. |
 | TZ | Timezone definition. Insert your timezone. List of available time zones [here](https://en.wikipedia.org/wiki/List_of_tz_database_time_zones). Format `Europe/Lisbon` expected |
-| ENDURAIN_HOST | https://endurain.yourdomain.com) |
+| ENDURAIN_HOST | https://endurain.yourdomain.com |
 | BEHIND_PROXY | Change to true if behind reverse proxy |
 | POSTGRES_DB | Postgres name for the database. |
 | POSTGRES_USER | Postgres user for the database. |
@@ -104,7 +104,7 @@ If you do not get any errors, continue to next step.
 
 ### Visit the site
 
-* Visit the site insecurly on http://<IP-OF-YOUR-SERVER>:8080
+* Visit the site insecurly on http://`IP-OF-YOUR-SERVER`:8080
 * We still can not login to the site, because the `ENDURAIN_HOST` doesn't match our local URL.
 
 ##  Configure Caddy as reverse proxy and get SSL cert from letsencrypt
