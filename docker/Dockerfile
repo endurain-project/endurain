@@ -62,21 +62,7 @@ RUN set -eux; \
 # Define environment variables
 ENV UID=1000 \
     GID=1000 \
-    TZ="UTC" \
-    DB_TYPE="postgres" \
-    DB_HOST="postgres" \
-    DB_PORT=5432 \
-    DB_USER="endurain" \
-    DB_DATABASE="endurain" \
-    ALGORITHM="HS256" \
-    ACCESS_TOKEN_EXPIRE_MINUTES=15 \
-    REFRESH_TOKEN_EXPIRE_DAYS=7 \
-    JAEGER_ENABLED="false" \
-    JAEGER_HOST="jaeger" \
-    JAEGER_PROTOCOL="http" \
-    JAGGER_PORT=4317 \
-    BEHIND_PROXY=false \
-    ENVIRONMENT="production"
+    BEHIND_PROXY=false
 
 # Set the working directory to /app/frontend
 WORKDIR /app/frontend

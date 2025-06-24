@@ -26,6 +26,8 @@ import users.user_privacy_settings.schema as users_privacy_settings_schema
 
 import core.logger as core_logger
 
+import core.config as core_config
+
 
 def create_activity_objects(
     sessions_records: dict,
@@ -38,7 +40,7 @@ def create_activity_objects(
     try:
         # Create an instance of TimezoneFinder
         tf = TimezoneFinder()
-        timezone = os.environ.get("TZ")
+        timezone = core_config.TZ
 
         # Define variables
         gear_id = None

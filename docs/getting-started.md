@@ -39,7 +39,7 @@ Environment variable  | Default value | Optional | Notes |
 | JAEGER_ENABLED | false | Yes | N/A |
 | JAEGER_PROTOCOL | http | Yes | N/A |
 | JAEGER_HOST | jaeger | Yes | N/A |
-| JAGGER_PORT | 4317 | Yes | N/A |
+| JAEGER_PORT | 4317 | Yes | N/A |
 | BEHIND_PROXY | false | Yes | Change to true if behind reverse proxy |
 | ENVIRONMENT | production | Yes | "production" and "development" allowed. "development" allows connections from localhost:8080 and localhost:5173 at the CORS level |
 
