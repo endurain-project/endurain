@@ -1,9 +1,12 @@
+import gzip
 import os
 import shutil
+from pathlib import Path
+from tempfile import NamedTemporaryFile
+
 import requests
 import statistics
 from geopy.distance import geodesic
-import numpy as np
 from zoneinfo import ZoneInfo
 
 from fastapi import HTTPException, status, UploadFile
@@ -167,6 +170,8 @@ ACTIVITY_NAME_TO_ID.update(
     }
 )
 
+PROCESSED_DIR = "files/processed"
+
 
 def transform_schema_activity_to_model_activity(
     activity: activities_schema.Activity,
@@ -252,6 +257,30 @@ def serialize_activity(activity: activities_schema.Activity):
 
     return activity
 
+def handle_gzipped_file(
+    file_path: str,
+) -> tuple[str, str]:
+    """Handle gzipped files by extracting the inner file and returning its path and extension.
+    The gzipped file is moved to the processed directory after extraction.
+    Args:
+        file_path: the path to the gzipped file, e.g. "files/activity_1234567890.fit.gz"
+    Returns: A tuple containing the path to the temporary file and the inner file extension.
+    """
+    path = Path(file_path)
+
+    inner_filename = path.stem # eg "activity_1234567890.fit"
+    inner_file_extension = Path(inner_filename).suffix # eg ".gz"
+
+    with gzip.open(path) as gzipped_file:
+        with NamedTemporaryFile(suffix=inner_filename, delete=False) as temp_file:
+            temp_file.write(gzipped_file.read())
+            temp_file.flush()
+            core_logger.print_to_log_and_console(f"Decompressed {path} with inner type {inner_file_extension} to {temp_file.name}")
+
+            move_file(PROCESSED_DIR, path.name, str(path))
+
+            return temp_file.name, inner_file_extension
+
 
 def parse_and_store_activity_from_file(
     token_user_id: int,
@@ -268,93 +297,92 @@ def parse_and_store_activity_from_file(
         if from_garmin:
             garmin_connect_activity_id = os.path.basename(file_path).split("_")[0]
 
-        # Open the file and process it
-        with open(file_path, "rb"):
-            user = users_crud.get_user_by_id(token_user_id, db)
-            if user is None:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail="User not found",
-                )
-
-            user_privacy_settings = (
-                users_privacy_settings_crud.get_user_privacy_settings_by_user_id(
-                    user.id, db
-                )
+        user = users_crud.get_user_by_id(token_user_id, db)
+        if user is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found",
             )
 
-            # Parse the file
-            parsed_info = parse_file(
-                token_user_id,
-                user_privacy_settings,
-                file_extension,
-                file_path,
-                db,
+        user_privacy_settings = (
+            users_privacy_settings_crud.get_user_privacy_settings_by_user_id(
+                user.id, db
             )
+        )
 
-            if parsed_info is not None:
-                created_activities = []
-                idsToFileName = ""
-                if file_extension.lower() == ".gpx":
-                    # Store the activity in the database
-                    created_activity = store_activity(parsed_info, db)
-                    created_activities.append(created_activity)
-                    idsToFileName = idsToFileName + str(created_activity.id)
-                elif file_extension.lower() == ".fit":
-                    # Split the records by activity (check for multiple activities in the file)
-                    split_records_by_activity = fit_utils.split_records_by_activity(
-                        parsed_info
+        if file_extension.lower() == ".gz":
+            file_path, file_extension = handle_gzipped_file(file_path)
+
+        # Parse the file
+        parsed_info = parse_file(
+            token_user_id,
+            user_privacy_settings,
+            file_extension,
+            file_path,
+            db,
+        )
+
+        if parsed_info is not None:
+            created_activities = []
+            idsToFileName = ""
+            if file_extension.lower() == ".gpx":
+                # Store the activity in the database
+                created_activity = store_activity(parsed_info, db)
+                created_activities.append(created_activity)
+                idsToFileName = idsToFileName + str(created_activity.id)
+            elif file_extension.lower() == ".fit":
+                # Split the records by activity (check for multiple activities in the file)
+                split_records_by_activity = fit_utils.split_records_by_activity(
+                    parsed_info
+                )
+
+                # Create activity objects for each activity in the file
+                if from_garmin:
+                    created_activities_objects = fit_utils.create_activity_objects(
+                        split_records_by_activity,
+                        token_user_id,
+                        user_privacy_settings,
+                        int(garmin_connect_activity_id),
+                        garminconnect_gear,
+                        db,
                     )
-
-                    # Create activity objects for each activity in the file
-                    if from_garmin:
-                        created_activities_objects = fit_utils.create_activity_objects(
-                            split_records_by_activity,
-                            token_user_id,
-                            user_privacy_settings,
-                            int(garmin_connect_activity_id),
-                            garminconnect_gear,
-                            db,
-                        )
-                    else:
-                        created_activities_objects = fit_utils.create_activity_objects(
-                            split_records_by_activity,
-                            token_user_id,
-                            user_privacy_settings,
-                            None,
-                            None,
-                            db,
-                        )
-
-                    for activity in created_activities_objects:
-                        # Store the activity in the database
-                        created_activity = store_activity(activity, db)
-                        created_activities.append(created_activity)
-
-                    for index, activity in enumerate(created_activities):
-                        idsToFileName += str(activity.id)  # Add the id to the string
-                        # Add an underscore if it's not the last item
-                        if index < len(created_activities) - 1:
-                            idsToFileName += (
-                                "_"  # Add an underscore if it's not the last item
-                            )
                 else:
-                    core_logger.print_to_log_and_console(
-                        f"File extension not supported: {file_extension}", "error"
+                    created_activities_objects = fit_utils.create_activity_objects(
+                        split_records_by_activity,
+                        token_user_id,
+                        user_privacy_settings,
+                        None,
+                        None,
+                        db,
                     )
-                # Define the directory where the processed files will be stored
-                processed_dir = "files/processed"
 
-                # Define new file path with activity ID as filename
-                new_file_name = f"{idsToFileName}{file_extension}"
+                for activity in created_activities_objects:
+                    # Store the activity in the database
+                    created_activity = store_activity(activity, db)
+                    created_activities.append(created_activity)
 
-                # Move the file to the processed directory
-                move_file(processed_dir, new_file_name, file_path)
-
-                # Return the created activity
-                return created_activities
+                for index, activity in enumerate(created_activities):
+                    idsToFileName += str(activity.id)  # Add the id to the string
+                    # Add an underscore if it's not the last item
+                    if index < len(created_activities) - 1:
+                        idsToFileName += (
+                            "_"  # Add an underscore if it's not the last item
+                        )
             else:
-                return None
+                core_logger.print_to_log_and_console(
+                    f"File extension not supported: {file_extension}", "error"
+                )
+
+            # Define new file path with activity ID as filename
+            new_file_name = f"{idsToFileName}{file_extension}"
+
+            # Move the file to the processed directory
+            move_file(PROCESSED_DIR, new_file_name, file_path)
+
+            # Return the created activity
+            return created_activities
+        else:
+            return None
     except HTTPException as http_err:
         raise http_err
     except Exception as err:
@@ -395,6 +423,9 @@ def parse_and_store_activity_from_uploaded_file(
                 user.id, db
             )
         )
+
+        if file_extension.lower() == ".gz":
+            file_path, file_extension = handle_gzipped_file(file_path)
 
         # Parse the file
         parsed_info = parse_file(
