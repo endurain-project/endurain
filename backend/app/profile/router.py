@@ -385,6 +385,11 @@ async def export_profile_data(
             )
 
         # 5) User info JSON
+        user_dict = sqlalchemy_obj_to_dict(user)
+        zipf.writestr(
+            "data/user.json",
+            json.dumps(user_dict, default=str),
+        )
         user_default_gear = user_default_gear_crud.get_user_default_gear_by_user_id(
             token_user_id, db
         )

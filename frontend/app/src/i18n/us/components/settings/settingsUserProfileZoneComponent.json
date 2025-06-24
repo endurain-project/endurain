@@ -71,6 +71,7 @@
     "errorUpdateDefaultGear": "Error updating default gear",
     "successUpdateUserPrivacySettings": "User privacy settings updated successfully",
     "errorUpdateUserPrivacySettings": "Error updating user privacy settings",
+    "titleExportData": "Export and import data",
     "buttonExportData": "Export data",
     "buttonImportData": "Import data",
     "modalImportTitle": "Import backup file",
