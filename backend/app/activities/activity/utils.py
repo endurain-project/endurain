@@ -477,14 +477,11 @@ def parse_and_store_activity_from_uploaded_file(
                     f"File extension not supported: {file_extension}", "error"
                 )
 
-            # Define the directory where the processed files will be stored
-            processed_dir = "files/processed"
-
             # Define new file path with activity ID as filename
             new_file_name = f"{idsToFileName}{file_extension}"
 
             # Move the file to the processed directory
-            move_file(processed_dir, new_file_name, file_path)
+            move_file(PROCESSED_DIR, new_file_name, file_path)
 
             for activity in created_activities:
                 # Serialize the activity
