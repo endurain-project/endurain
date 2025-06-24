@@ -8,7 +8,7 @@ import health_targets.schema as health_targets_schema
 import core.logger as core_logger
 
 
-def get_user_health_targets(user_id: int, db: Session):
+def get_health_targets_by_user_id(user_id: int, db: Session):
     try:
         # Get the health_targets from the database
         health_targets = (
@@ -26,7 +26,7 @@ def get_user_health_targets(user_id: int, db: Session):
 
     except Exception as err:
         # Log the exception
-        core_logger.print_to_log(f"Error in get_user_health_targets: {err}", "error", exc=err)
+        core_logger.print_to_log(f"Error in get_health_targets_by_user_id: {err}", "error", exc=err)
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

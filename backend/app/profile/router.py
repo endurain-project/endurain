@@ -2,13 +2,13 @@ import os
 import json
 import csv
 
-from io import BytesIO, StringIO
-from pathlib import Path
-from zipfile import ZipFile
+from io import BytesIO
+import zipfile
 
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
 import users.user.schema as users_schema
@@ -16,6 +16,8 @@ import users.user.crud as users_crud
 import users.user.utils as users_utils
 
 import users.user_integrations.crud as user_integrations_crud
+
+import users.user_default_gear.crud as user_default_gear_crud
 
 import users.user_privacy_settings.crud as users_privacy_settings_crud
 import users.user_privacy_settings.schema as users_privacy_settings_schema
@@ -25,21 +27,28 @@ import session.crud as session_crud
 
 import core.database as core_database
 
-import users.user_privacy_settings.crud as users_privacy_settings_crud
-import users.user_privacy_settings.schema as users_privacy_settings_schema
-
 import activities.activity.crud as activities_crud
+
+import activities.activity_laps.crud as activity_laps_crud
+
+import activities.activity_sets.crud as activity_sets_crud
+
+import activities.activity_streams.crud as activity_streams_crud
+
+import activities.activity_workout_steps.crud as activity_workout_steps_crud
+
+import activities.activity_exercise_titles.crud as activity_exercise_titles_crud
+
+import gears.crud as gear_crud
+
 import health_data.crud as health_crud
 
-PROCESSED_DIR = os.getenv("PROCESSED_DIR", "files/processed")
+import health_targets.crud as health_targets_crud
+
+PROCESSED_DIR = "files/processed"
 
 # Define the API router
 router = APIRouter()
-
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
-PROCESSED_DIR = PROJECT_ROOT / "files" / "processed"
-PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
-PROCESSED_DIR = str(PROCESSED_DIR)
 
 
 @router.get("", response_model=users_schema.UserMe)
@@ -60,7 +69,7 @@ async def read_users_me(
     if user is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Could not validate credentials (user not found)",
+            detail="User not found",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
@@ -233,47 +242,188 @@ async def delete_profile_session(
     # Delete the session from the database
     return session_crud.delete_session(session_id, token_user_id, db)
 
+
 @router.get("/export")
-async def export_user_data(
-    token_user_id: int = Depends(session_security.get_user_id_from_access_token),
-    db: Session = Depends(core_database.get_db),
+async def export_profile_data(
+    token_user_id: Annotated[
+        int,
+        Depends(session_security.get_user_id_from_access_token),
+    ],
+    db: Annotated[
+        Session,
+        Depends(core_database.get_db),
+    ],
 ):
-    # Verify user
-    if not users_crud.get_user_by_id(token_user_id, db):
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "User not found")
+    def sqlalchemy_obj_to_dict(obj):
+        if hasattr(obj, "__table__"):
+            return {c.name: getattr(obj, c.name) for c in obj.__table__.columns}
+        return obj
+
+    # Get the user from the database
+    user = users_crud.get_user_by_id(token_user_id, db)
+
+    # If the user does not exist raise the exception
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
 
     buf = BytesIO()
-    with ZipFile(buf, "w") as zipf:
+    with zipfile.ZipFile(buf, "w") as zipf:
+        user_activities = activities_crud.get_user_activities(token_user_id, db)
+
         # 1) GPX/FIT track files
-        user_dir = os.path.join(PROCESSED_DIR, str(token_user_id))
-        if os.path.isdir(user_dir):
-            for fname in os.listdir(user_dir):
-                if fname.lower().endswith((".gpx", ".fit")):
-                    zipf.write(os.path.join(user_dir, fname), arcname=f"tracks/{fname}")
+        if user_activities:
+            for root, _, files in os.walk(PROCESSED_DIR):
+                for file in files:
+                    file_id, ext = os.path.splitext(file)
+                    print(
+                        f"Processing file: {file} with ID: {file_id} and extension: {ext}"
+                    )
+                    if any(str(activity.id) == file_id for activity in user_activities):
+                        print(f"Adding file: {file} to zip")
+                        file_path = os.path.join(root, file)
+                        # Add file to the zip archive with relative path
+                        arcname = os.path.relpath(file_path, PROCESSED_DIR)
+                        zipf.write(file_path, arcname)
 
-        # 2) Activities JSON
-        acts = activities_crud.get_user_activities(token_user_id, db) or []
-        zipf.writestr("data/activities.json", json.dumps(acts, default=str))
+        # 2) Activities info plus laps, sets, streams, steps, exercise_titles JSON
+        if user_activities:
+            laps = []
+            sets = []
+            streams = []
+            steps = []
+            exercise_titles = []
+            for activity in user_activities:
+                # laps
+                activity_laps = activity_laps_crud.get_activity_laps(
+                    activity.id, token_user_id, db
+                )
+                if activity_laps:
+                    laps.extend(activity_laps)
+                # sets
+                activity_sets = activity_sets_crud.get_activity_sets(
+                    activity.id, token_user_id, db
+                )
+                if activity_sets:
+                    sets.extend(activity_sets)
+                # streams
+                activity_streams = activity_streams_crud.get_activity_streams(
+                    activity.id, token_user_id, db
+                )
+                if activity_streams:
+                    streams.extend(activity_streams)
+                # steps
+                activity_workout_steps = (
+                    activity_workout_steps_crud.get_activity_workout_steps(
+                        activity.id, token_user_id, db
+                    )
+                )
+                if activity_workout_steps:
+                    steps.extend(activity_workout_steps)
+            # exercise titles
+            exercise_titles = (
+                activity_exercise_titles_crud.get_activity_exercise_titles(db)
+            )
+            # Write activities and related data to JSON files in the zip
+            activities_dicts = [sqlalchemy_obj_to_dict(a) for a in user_activities]
+            zipf.writestr(
+                "data/activities.json", json.dumps(activities_dicts, default=str)
+            )
+            if laps:
+                laps_dicts = [sqlalchemy_obj_to_dict(l) for l in laps]
+                zipf.writestr(
+                    "data/activity_laps.json", json.dumps(laps_dicts, default=str)
+                )
+            if sets:
+                sets_dicts = [sqlalchemy_obj_to_dict(s) for s in sets]
+                zipf.writestr(
+                    "data/activity_sets.json", json.dumps(sets_dicts, default=str)
+                )
+            if streams:
+                streams_dicts = [sqlalchemy_obj_to_dict(s) for s in streams]
+                zipf.writestr(
+                    "data/activity_streams.json", json.dumps(streams_dicts, default=str)
+                )
+            if steps:
+                steps_dicts = [sqlalchemy_obj_to_dict(s) for s in steps]
+                zipf.writestr(
+                    "data/activity_workout_steps.json",
+                    json.dumps(steps_dicts, default=str),
+                )
+            if exercise_titles:
+                exercise_titles_dicts = [
+                    sqlalchemy_obj_to_dict(e) for e in exercise_titles
+                ]
+                zipf.writestr(
+                    "data/activity_exercise_titles.json",
+                    json.dumps(exercise_titles_dicts, default=str),
+                )
 
-        # 3) Health CSV
-        entries = health_crud.get_all_health_data_by_user_id(token_user_id, db) or []
-        if entries:
-            sio = StringIO()
-            # take non-private fields from the first model instance
-            fieldnames = [k for k in entries[0].__dict__ if not k.startswith("_")]
-            writer = csv.DictWriter(sio, fieldnames=fieldnames)
-            writer.writeheader()
-            for e in entries:
-                writer.writerow({k: getattr(e, k) for k in fieldnames})
-            zipf.writestr("data/health.csv", sio.getvalue())
+        # 3) Gear CSV
+        gears = gear_crud.get_gear_user(token_user_id, db)
+        if gears:
+            gears_dicts = [sqlalchemy_obj_to_dict(g) for g in gears]
+            zipf.writestr("data/gears.json", json.dumps(gears_dicts, default=str))
+
+        # 4) Health data CSV
+        health_data = health_crud.get_all_health_data_by_user_id(token_user_id, db)
+        health_targets = health_targets_crud.get_health_targets_by_user_id(
+            token_user_id, db
+        )
+        if health_data:
+            health_data_dicts = [sqlalchemy_obj_to_dict(h) for h in health_data]
+            zipf.writestr(
+                "data/health_data.json", json.dumps(health_data_dicts, default=str)
+            )
+        if health_targets:
+            health_target_dicts = sqlalchemy_obj_to_dict(health_targets)
+            zipf.writestr(
+                "data/health_targets.json", json.dumps(health_target_dicts, default=str)
+            )
+
+        # 5) User info JSON
+        user_default_gear = user_default_gear_crud.get_user_default_gear_by_user_id(
+            token_user_id, db
+        )
+        if user_default_gear:
+            user_default_gear_dict = sqlalchemy_obj_to_dict(user_default_gear)
+            zipf.writestr(
+                "data/user_default_gear.json",
+                json.dumps(user_default_gear_dict, default=str),
+            )
+        user_integrations = user_integrations_crud.get_user_integrations_by_user_id(
+            token_user_id, db
+        )
+        if user_integrations:
+            user_integrations_dict = sqlalchemy_obj_to_dict(user_integrations)
+            zipf.writestr(
+                "data/user_integrations.json",
+                json.dumps(user_integrations_dict, default=str),
+            )
+        user_privacy_settings = (
+            users_privacy_settings_crud.get_user_privacy_settings_by_user_id(
+                token_user_id, db
+            )
+        )
+        if user_privacy_settings:
+            user_privacy_settings_dict = sqlalchemy_obj_to_dict(user_privacy_settings)
+            zipf.writestr(
+                "data/user_privacy_settings.json",
+                json.dumps(user_privacy_settings_dict, default=str),
+            )
 
     buf.seek(0)
+    headers = {
+        "Content-Disposition": f"attachment; filename=user_{token_user_id}_export.zip",
+        "Content-Length": str(len(buf.getvalue())),
+    }
     return StreamingResponse(
         buf,
         media_type="application/zip",
-        headers={
-            "Content-Disposition": f'attachment; filename="user_{token_user_id}_export.zip"'
-        },
+        headers=headers,
     )
 
 
