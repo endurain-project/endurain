@@ -297,6 +297,9 @@ def parse_and_store_activity_from_file(
         if from_garmin:
             garmin_connect_activity_id = os.path.basename(file_path).split("_")[0]
 
+        if file_extension.lower() == ".gz":
+            file_path, file_extension = handle_gzipped_file(file_path)
+
         user = users_crud.get_user_by_id(token_user_id, db)
         if user is None:
             raise HTTPException(
@@ -309,9 +312,6 @@ def parse_and_store_activity_from_file(
                 user.id, db
             )
         )
-
-        if file_extension.lower() == ".gz":
-            file_path, file_extension = handle_gzipped_file(file_path)
 
         # Parse the file
         parsed_info = parse_file(
@@ -411,6 +411,9 @@ def parse_and_store_activity_from_uploaded_file(
         with open(file_path, "wb") as save_file:
             save_file.write(file.file.read())
 
+        if file_extension.lower() == ".gz":
+            file_path, file_extension = handle_gzipped_file(file_path)
+
         user = users_crud.get_user_by_id(token_user_id, db)
         if user is None:
             raise HTTPException(
@@ -423,9 +426,6 @@ def parse_and_store_activity_from_uploaded_file(
                 user.id, db
             )
         )
-
-        if file_extension.lower() == ".gz":
-            file_path, file_extension = handle_gzipped_file(file_path)
 
         # Parse the file
         parsed_info = parse_file(
