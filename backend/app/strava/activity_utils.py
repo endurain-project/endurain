@@ -1,5 +1,3 @@
-import os
-
 from fastapi import HTTPException, status
 from datetime import datetime, timedelta, timezone
 from sqlalchemy.orm import Session
@@ -8,6 +6,7 @@ from stravalib.exc import AccessUnauthorized
 from timezonefinder import TimezoneFinder
 
 import core.logger as core_logger
+import core.config as core_config
 
 import activities.activity.schema as activities_schema
 import activities.activity.crud as activities_crud
@@ -131,7 +130,7 @@ def parse_activity(
 ) -> dict:
     # Create an instance of TimezoneFinder
     tf = TimezoneFinder()
-    timezone = os.environ.get("TZ")
+    timezone = core_config.TZ
 
     # Get the detailed activity
     try:

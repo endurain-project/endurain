@@ -19,30 +19,14 @@ validate_id() {
     esac
 }
 
-adjust_folder_ownership() {
-    if [ -d "$1" ]; then
-        chown -R "$UID:$GID" "$1"
-        echo_info_log "Ownership adjusted for $1"
-    else
-        echo_info_log "Directory $1 does not exist, skipping."
-    fi
-}
-
 validate_id "$UID"
 validate_id "$GID"
 
 echo_info_log "UID=$UID, GID=$GID"
 
-# List of directories (space-separated for POSIX shell)
-directories="/app/backend/logs /app/backend/user_images /app/backend/files /app/backend/server_images"
-
-for dir in $directories; do
-    adjust_folder_ownership "$dir"
-done
-
 if [ -n "$ENDURAIN_HOST" ]; then
-    echo_info_log "Substituting MY_APP_ENDURAIN_HOST with $ENDURAIN_HOST"
-    find /app/frontend/dist -type f \( -name '*.js' -o -name '*.css' \) -exec sed -i "s|MY_APP_ENDURAIN_HOST|$ENDURAIN_HOST|g" {} +
+    echo "window.env = { ENDURAIN_HOST: \"$ENDURAIN_HOST\" };" > /app/frontend/dist/env.js
+    echo_info_log "Runtime env.js written with ENDURAIN_HOST=$ENDURAIN_HOST"
 fi
 
 echo_info_log "Starting FastAPI with BEHIND_PROXY=$BEHIND_PROXY"

@@ -11,6 +11,7 @@ import migrations.crud as migrations_crud
 import health_data.crud as health_data_crud
 
 import core.logger as core_logger
+import core.config as core_config
 
 
 def process_migration_2(db: Session):
@@ -47,7 +48,7 @@ def process_migration_2(db: Session):
                     )
                     continue
 
-                timezone = os.environ.get("TZ")
+                timezone = core_config.TZ
 
                 # Get activity stream
                 try:

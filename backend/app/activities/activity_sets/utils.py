@@ -7,6 +7,8 @@ import activities.activity_sets.schema as activity_sets_schema
 
 import activities.activity.schema as activities_schema
 
+import core.config as core_config
+
 def serialize_activity_set(activity: activities_schema.Activity, activity_set: activity_sets_schema.ActivitySets):
     def make_aware_and_format(dt, timezone):
         if isinstance(dt, str):
@@ -18,7 +20,7 @@ def serialize_activity_set(activity: activities_schema.Activity, activity_set: a
     timezone = (
         ZoneInfo(activity.timezone)
         if activity.timezone
-        else ZoneInfo(os.environ.get("TZ"))
+        else ZoneInfo(core_config.TZ)
     )
 
     activity_set.start_time = make_aware_and_format(activity_set.start_time, timezone)
