@@ -45,6 +45,7 @@ def format_user_birthdate(user):
 async def save_user_image(user_id: int, file: UploadFile, db: Session):
     try:
         upload_dir = "config/user_images"
+        user_photo_path_dir = "user_images"
         os.makedirs(upload_dir, exist_ok=True)
 
         # Get file extension
@@ -52,11 +53,12 @@ async def save_user_image(user_id: int, file: UploadFile, db: Session):
         filename = f"{user_id}{file_extension}"
 
         file_path_to_save = os.path.join(upload_dir, filename)
+        user_photo_path = os.path.join(user_photo_path_dir, filename)
 
         with open(file_path_to_save, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
 
-        return users_crud.edit_user_photo_path(user_id, file_path_to_save, db)
+        return users_crud.edit_user_photo_path(user_id, user_photo_path, db)
     except Exception as err:
         # Log the exception
         core_logger.print_to_log(f"Error in save_user_image: {err}", "error", exc=err)
