@@ -168,9 +168,7 @@ The same is the case for Postgres. Check for breaking changes in release notes o
 You should implement backup strategy for the following directories:
 
 ```
-/opt/endurain/app/user_images
-/opt/endurain/app/files/bulk_import
-/opt/endurain/app/files/processed
+/opt/endurain/app/config
 /opt/endurain/app/logs
 ```
 
