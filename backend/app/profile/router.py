@@ -330,28 +330,28 @@ async def export_profile_data(
             # Write activities and related data to JSON files in the zip
             activities_dicts = [sqlalchemy_obj_to_dict(a) for a in user_activities]
             zipf.writestr(
-                "data/activities.json", json.dumps(activities_dicts, default=str)
+                "data/activities.json", json.dumps(activities_dicts, default=str, ensure_ascii=False)
             )
             if laps:
                 laps_dicts = [sqlalchemy_obj_to_dict(l) for l in laps]
                 zipf.writestr(
-                    "data/activity_laps.json", json.dumps(laps_dicts, default=str)
+                    "data/activity_laps.json", json.dumps(laps_dicts, default=str, ensure_ascii=False)
                 )
             if sets:
                 sets_dicts = [sqlalchemy_obj_to_dict(s) for s in sets]
                 zipf.writestr(
-                    "data/activity_sets.json", json.dumps(sets_dicts, default=str)
+                    "data/activity_sets.json", json.dumps(sets_dicts, default=str, ensure_ascii=False)
                 )
             if streams:
                 streams_dicts = [sqlalchemy_obj_to_dict(s) for s in streams]
                 zipf.writestr(
-                    "data/activity_streams.json", json.dumps(streams_dicts, default=str)
+                    "data/activity_streams.json", json.dumps(streams_dicts, default=str, ensure_ascii=False)
                 )
             if steps:
                 steps_dicts = [sqlalchemy_obj_to_dict(s) for s in steps]
                 zipf.writestr(
                     "data/activity_workout_steps.json",
-                    json.dumps(steps_dicts, default=str),
+                    json.dumps(steps_dicts, default=str, ensure_ascii=False),
                 )
             if exercise_titles:
                 exercise_titles_dicts = [
@@ -359,14 +359,14 @@ async def export_profile_data(
                 ]
                 zipf.writestr(
                     "data/activity_exercise_titles.json",
-                    json.dumps(exercise_titles_dicts, default=str),
+                    json.dumps(exercise_titles_dicts, default=str, ensure_ascii=False),
                 )
 
         # 3) Gear CSV
         gears = gear_crud.get_gear_user(token_user_id, db)
         if gears:
             gears_dicts = [sqlalchemy_obj_to_dict(g) for g in gears]
-            zipf.writestr("data/gears.json", json.dumps(gears_dicts, default=str))
+            zipf.writestr("data/gears.json", json.dumps(gears_dicts, default=str, ensure_ascii=False))
 
         # 4) Health data CSV
         health_data = health_crud.get_all_health_data_by_user_id(token_user_id, db)
@@ -376,19 +376,19 @@ async def export_profile_data(
         if health_data:
             health_data_dicts = [sqlalchemy_obj_to_dict(h) for h in health_data]
             zipf.writestr(
-                "data/health_data.json", json.dumps(health_data_dicts, default=str)
+                "data/health_data.json", json.dumps(health_data_dicts, default=str, ensure_ascii=False)
             )
         if health_targets:
             health_target_dicts = sqlalchemy_obj_to_dict(health_targets)
             zipf.writestr(
-                "data/health_targets.json", json.dumps(health_target_dicts, default=str)
+                "data/health_targets.json", json.dumps(health_target_dicts, default=str, ensure_ascii=False)
             )
 
         # 5) User info JSON
         user_dict = sqlalchemy_obj_to_dict(user)
         zipf.writestr(
             "data/user.json",
-            json.dumps(user_dict, default=str),
+            json.dumps(user_dict, default=str, ensure_ascii=False),
         )
         user_default_gear = user_default_gear_crud.get_user_default_gear_by_user_id(
             token_user_id, db
@@ -397,7 +397,7 @@ async def export_profile_data(
             user_default_gear_dict = sqlalchemy_obj_to_dict(user_default_gear)
             zipf.writestr(
                 "data/user_default_gear.json",
-                json.dumps(user_default_gear_dict, default=str),
+                json.dumps(user_default_gear_dict, default=str, ensure_ascii=False),
             )
         user_integrations = user_integrations_crud.get_user_integrations_by_user_id(
             token_user_id, db
@@ -406,7 +406,7 @@ async def export_profile_data(
             user_integrations_dict = sqlalchemy_obj_to_dict(user_integrations)
             zipf.writestr(
                 "data/user_integrations.json",
-                json.dumps(user_integrations_dict, default=str),
+                json.dumps(user_integrations_dict, default=str, ensure_ascii=False),
             )
         user_privacy_settings = (
             users_privacy_settings_crud.get_user_privacy_settings_by_user_id(
@@ -417,7 +417,7 @@ async def export_profile_data(
             user_privacy_settings_dict = sqlalchemy_obj_to_dict(user_privacy_settings)
             zipf.writestr(
                 "data/user_privacy_settings.json",
-                json.dumps(user_privacy_settings_dict, default=str),
+                json.dumps(user_privacy_settings_dict, default=str, ensure_ascii=False),
             )
 
     buf.seek(0)
