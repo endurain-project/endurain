@@ -58,7 +58,7 @@
                     <!-- Modal add login photo -->
                     <ModalComponentUploadFile modalId="addLoginPhotoModal"
                         :title="$t('settingsServerSettingsZoneComponent.loginPhotoLabel')"
-                        :fileFieldLabel="$t('settingsServerSettingsZoneComponent.logonPhotoAddLabel') + ' ' + $t('settingsServerSettingsZoneComponent.logonPhotoAddDetailsLabel')"
+                        :fileFieldLabel="$t('settingsServerSettingsZoneComponent.logonPhotoAddLabel')"
                         filesAccepted=".png" actionButtonType="success"
                         :actionButtonText="$t('settingsServerSettingsZoneComponent.loginPhotoLabel')"
                         @fileToEmitAction="submitUploadFileForm" />
