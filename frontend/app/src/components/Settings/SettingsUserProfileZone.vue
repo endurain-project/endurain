@@ -528,14 +528,14 @@
 				<div class="row">
 					<div class="col d-flex gap-3">
 						<button class="btn btn-primary w-50" :disabled="loadingExport" @click="handleExport">
-							<font-awesome-icon :icon="['fas', 'file-export']" class="me-1" />
+							<font-awesome-icon :icon="['fas', 'download']" class="me-1" />
 							<span v-if="loadingExport">{{ $t('generalItems.loading') }}...</span>
 							<span v-else>{{ $t('settingsUserProfileZone.buttonExportData') }}</span>
 						</button>
 
 						<button class="btn btn-primary w-50" data-bs-toggle="modal" data-bs-target="#importDataModal"
 							:disabled="loadingImport">
-							<font-awesome-icon :icon="['fas', 'file-import']" class="me-1" />
+							<font-awesome-icon :icon="['fas', 'upload']" />
 							{{ $t('settingsUserProfileZone.buttonImportData') }}
 						</button>
 					</div>
@@ -833,17 +833,19 @@ function formatFileSize(bytes) {
 }
 
 async function handleExport() {
+	const notification = push.promise(t("settingsUserProfileZone.exportLoading"));
 	loadingExport.value = true
 	try {
 		const blob = await profile.exportData()
 		const url = URL.createObjectURL(blob)
 		const a = document.createElement('a')
 		a.href = url
-		a.download = `health_backup_${new Date().toISOString()}.zip`
+		a.download = `user_${authStore.user.id}_${new Date().toISOString().slice(0, 16).replace(':', '-')}_export.zip`
 		a.click()
 		URL.revokeObjectURL(url)
-	} catch (e) {
-		push.error(t('settingsUserProfileZone.exportError', { error: e.message }))
+		notification.resolve(t("settingsUserProfileZone.exportSuccess"));
+	} catch (error) {
+		notification.reject(`${t('settingsUserProfileZone.errorUnableToGetGear')} - ${error}`);
 	} finally {
 		loadingExport.value = false
 	}
