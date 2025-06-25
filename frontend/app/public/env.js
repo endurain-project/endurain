@@ -1,3 +1,3 @@
 window.env = {
-  ENDURAIN_HOST: "my-test"
+  ENDURAIN_HOST: "http://localhost:8080"
 };
