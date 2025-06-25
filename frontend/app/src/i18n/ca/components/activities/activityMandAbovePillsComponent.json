@@ -4,11 +4,13 @@
     "labelPillWorkoutSets": "Sets",
     "labelGraph": "Gràfics d'Activitat",
     "labelGraphHR": "Freqüència cardíaca",
+    "labelHRZones": "Heart rate zones",
     "labelGraphPower": "Potència",
     "labelGraphCadence": "Cadència",
     "labelGraphElevation": "Elevació",
     "labelGraphVelocity": "Velocitat",
     "labelGraphPace": "Ritme",
+    "labelGraphHRZone": "Zone",
     "labelDownsampling": "Dades reduïdes a ~200 punts",
     "errorMessageProcessingActivityStreams": "Error processant activitats de carrera",
     "labelGraphStrokeRate": "Freqüència batecs"
