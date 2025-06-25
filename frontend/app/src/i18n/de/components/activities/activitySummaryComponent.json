@@ -12,6 +12,7 @@
     "activityTime": "Zeit",
     "activityPace": "Tempo",
     "activityAvgHR": "Durchschn. Herzfrequenz",
+    "activityMaxHR": "Max HR",
     "activityAvgPower": "Avg power",
     "activityAvgSpeed": "Avg speed",
     "activityEleGain": "Ele gain",
