@@ -65,7 +65,7 @@ export default {
 		const serverSettingsStore = useServerSettingsStore();
 		const showPassword = ref(false);
 		const loginPhotoUrl = serverSettingsStore.serverSettings.login_photo_set
-			? `${import.meta.env.VITE_ENDURAIN_HOST}/server_images/login.png`
+			? `${window.env.ENDURAIN_HOST}/server_images/login.png`
 			: null;
 
 		// Toggle password visibility

@@ -1,9 +1,9 @@
 import os
 
 # JWT Token constants
-JWT_ALGORITHM = os.environ.get("ALGORITHM")
-JWT_ACCESS_TOKEN_EXPIRE_MINUTES = int(os.environ.get("ACCESS_TOKEN_EXPIRE_MINUTES"))
-JWT_REFRESH_TOKEN_EXPIRE_DAYS = int(os.environ.get("REFRESH_TOKEN_EXPIRE_DAYS"))
+JWT_ALGORITHM = os.environ.get("ALGORITHM", "HS256")
+JWT_ACCESS_TOKEN_EXPIRE_MINUTES = int(os.environ.get("ACCESS_TOKEN_EXPIRE_MINUTES", "15"))
+JWT_REFRESH_TOKEN_EXPIRE_DAYS = int(os.environ.get("REFRESH_TOKEN_EXPIRE_DAYS", "7"))
 JWT_SECRET_KEY = os.environ.get("SECRET_KEY")
 
 # Scopes definition

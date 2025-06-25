@@ -12,7 +12,7 @@ export const strava = {
         return fetchPutRequest('strava/client', data);
     },
     linkStrava(state, stravaClientId) {
-        let redirectUri = `${import.meta.env.VITE_ENDURAIN_HOST}`;
+        let redirectUri = `${window.env.ENDURAIN_HOST}`;
         redirectUri = encodeURIComponent(redirectUri);
         const scope = 'read,read_all,profile:read_all,activity:read,activity:read_all';
 

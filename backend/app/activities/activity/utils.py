@@ -164,6 +164,7 @@ ACTIVITY_NAME_TO_ID.update(
         "racquetball": 25,
         "pickleball": 26,
         "commuting_ride": 27,
+        "indoor_ride": 28,
     }
 )
 
@@ -641,7 +642,7 @@ def calculate_activity_distances(activities: list[activities_schema.Activity]):
         for activity in activities:
             if activity.activity_type in [1, 2, 3]:
                 run += activity.distance
-            elif activity.activity_type in [4, 5, 6, 7, 27]:
+            elif activity.activity_type in [4, 5, 6, 7, 27, 28]:
                 bike += activity.distance
             elif activity.activity_type in [8, 9]:
                 swim += activity.distance

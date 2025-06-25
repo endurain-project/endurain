@@ -1,5 +1,3 @@
-import os
-
 from fastapi import HTTPException, status
 from datetime import datetime, timedelta, timezone
 from sqlalchemy.orm import Session
@@ -8,6 +6,7 @@ from stravalib.exc import AccessUnauthorized
 from timezonefinder import TimezoneFinder
 
 import core.logger as core_logger
+import core.config as core_config
 
 import activities.activity.schema as activities_schema
 import activities.activity.crud as activities_crud
@@ -131,7 +130,7 @@ def parse_activity(
 ) -> dict:
     # Create an instance of TimezoneFinder
     tf = TimezoneFinder()
-    timezone = os.environ.get("TZ")
+    timezone = core_config.TZ
 
     # Get the detailed activity
     try:
@@ -646,8 +645,12 @@ def fetch_and_process_activity_laps(
                 "total_elapsed_time": lap.elapsed_time,
                 "total_timer_time": lap.moving_time,
                 "total_distance": lap.distance,
-                "avg_heart_rate": round(lap.average_heartrate),
-                "max_heart_rate": round(lap.max_heartrate),
+                "avg_heart_rate": (
+                    round(lap.average_heartrate) if lap.average_heartrate else None
+                ),
+                "max_heart_rate": (
+                    round(lap.max_heartrate) if lap.max_heartrate else None
+                ),
                 "avg_cadence": round(cad_avg) if cad_stream else None,
                 "max_cadence": round(cad_max) if cad_stream else None,
                 "avg_power": round(power_avg) if power_stream else None,

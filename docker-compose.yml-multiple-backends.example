@@ -1,0 +1,109 @@
+services:
+  endurain:
+    container_name: endurain
+    image: ghcr.io/joaovitoriasilva/endurain:latest
+    environment:
+      # Read the Getting Started section on https://docs.endurain.com for all available env variables
+      - TZ=Europe/Lisbon
+      - DB_PASSWORD=changeme
+      - SECRET_KEY=chnageme # openssl rand -hex 32
+      - FERNET_KEY=changeme # https://fernetkeygen.com or python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+      - GEOCODES_MAPS_API=changeme
+      - ENDURAIN_HOST=http://localhost:8080 # host or local ip (example: http://192.168.1.10:8080 or https://endurain.com), default is http://localhost:8080
+    volumes:
+    #  - <local_path>/endurain/backend/app:/app/backend # Configure volume if you want to edit the code locally by cloning the repo
+      - <local_path>/endurain/backend/user_images:/app/backend/user_images # necessary for user image persistence on container image updates
+      - <local_path>/endurain/backend/files/bulk_import:/app/backend/files/bulk_import # necessary to enable bulk import of activities. Place here your activities files
+      - <local_path>/endurain/backend/files/processed:/app/backend/files/processed # necessary for processed original files persistence on container image updates
+      - <local_path>/endurain/backend/logs:/app/backend/logs # log files for the backend
+    ports:
+      - "8080:8080" # Endurain port, change per your needs
+    depends_on:
+      postgres: # mariadb or postgres
+        condition: service_healthy # remove this line when using mariadb
+      jaeger: {} # optional
+    restart: unless-stopped
+  
+  # mysql mariadb logic
+  mariadb:
+    image: mariadb:latest
+    container_name: mariadb
+    environment:
+      - MYSQL_ROOT_PASSWORD=changeme
+      - MYSQL_DATABASE=endurain
+      - MYSQL_USER=endurain
+      - MYSQL_PASSWORD=changeme
+    ports:
+      - "3306:3306"
+    volumes:
+      - <local_path>/mariadb:/var/lib/mysql
+    restart: unless-stopped
+
+  # postgres logic
+  postgres:
+    image: postgres:latest
+    container_name: postgres
+    environment:
+      - POSTGRES_PASSWORD=changeme
+      - POSTGRES_DB=endurain
+      - POSTGRES_USER=endurain
+      - PGDATA=/var/lib/postgresql/data/pgdata
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U endurain"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - <local_path>/postgres:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  # Jaeger for opentelemetry - optional
+  # Jaeger is not enabled by default. If you do not need it or want it, you can remove this container
+  jaeger:
+    container_name: jaeger
+    image: jaegertracing/all-in-one:latest
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Europe/Lisbon
+      - COLLECTOR_ZIPKIN_HOST_PORT=:9411
+    ports:
+      - 6831:6831/udp
+      - 6832:6832/udp
+      - 5778:5778
+      - 16686:16686
+      - 4317:4317
+      - 4318:4318
+      - 14250:14250
+      - 14268:14268
+      - 14269:14269
+      - 9411:9411
+    restart: unless-stopped
+
+# adminer for DB manipulation - optional
+  adminer:
+    container_name: adminer
+    image: adminer
+    ports:
+      - 8081:8080
+    restart: unless-stopped
+
+# phpmyadmin for DB manipulation - optional
+  phpmyadmin:
+    container_name: phpmyadmin
+    image: phpmyadmin
+    ports:
+      - 81:80
+    environment:
+      - PMA_HOST=mariadb
+      - PMA_ARBITRARY=1
+    depends_on:
+      - mariadb
+    restart: unless-stopped
+
+networks:
+  default:
+    external: true
+    name: endurain_network

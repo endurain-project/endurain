@@ -19,7 +19,7 @@
     "subTitleElevation": "Hoogte",
     "labelElevationGain": "Stijging",
     "labelElevationLoss": "Daling",
-    "subTitleStrokeRate": "Stroke rate",
-    "labelAvgStrokeRate": "Avg stroke rate",
-    "labelMaxStrokeRate": "Max stroke rate"
+    "subTitleStrokeRate": "Slagsnelheid",
+    "labelAvgStrokeRate": "Gem slagsnelheid",
+    "labelMaxStrokeRate": "Max slagsnelheid"
 }

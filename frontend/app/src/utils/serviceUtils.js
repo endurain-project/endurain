@@ -3,8 +3,8 @@ import { useAuthStore } from '@/stores/authStore'
 
 let refreshTokenPromise = null
 
-export const API_URL = `${import.meta.env.VITE_ENDURAIN_HOST}/api/v1/`
-export const FRONTEND_URL = `${import.meta.env.VITE_ENDURAIN_HOST}/`
+export const API_URL = `${window.env.ENDURAIN_HOST}/api/v1/`
+export const FRONTEND_URL = `${window.env.ENDURAIN_HOST}/`
 
 async function fetchWithRetry(url, options) {
   // Add CSRF token to headers for state-changing requests

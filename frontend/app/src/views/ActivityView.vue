@@ -29,7 +29,7 @@
 				<span v-if="activity.activity_type === 1 || activity.activity_type === 2 || activity.activity_type === 3">
 					<font-awesome-icon :icon="['fas', 'person-running']" />
 				</span>
-				<span v-else-if="activity.activity_type === 4 || activity.activity_type === 5 || activity.activity_type === 6 || activity.activity_type === 7 || activity.activity_type === 27">
+				<span v-else-if="activity.activity_type === 4 || activity.activity_type === 5 || activity.activity_type === 6 || activity.activity_type === 7 || activity.activity_type === 27 || activity.activity_type === 28">
 					<font-awesome-icon :icon="['fas', 'fa-person-biking']" />
 				</span>
 				<span v-else-if="activity.activity_type === 8 || activity.activity_type === 9">

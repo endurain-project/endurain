@@ -154,7 +154,7 @@ export function activityTypeIsRunning(activity) {
  * @returns {boolean} True if the type of the activity is cycling, false otherwise.
  */
 export function activityTypeIsCycling(activity) {
-	return activity.activity_type === 4 || activity.activity_type === 5 || activity.activity_type === 6 || activity.activity_type === 7 || activity.activity_type === 27;
+	return activity.activity_type === 4 || activity.activity_type === 5 || activity.activity_type === 6 || activity.activity_type === 7 || activity.activity_type === 27 || activity.activity_type === 28;
 }
 
 /**
@@ -232,7 +232,8 @@ export function formatAverageSpeed(
 			activity.activity_type === 5 ||
 			activity.activity_type === 6 ||
 			activity.activity_type === 7 ||
-			activity.activity_type === 27
+			activity.activity_type === 27 ||
+			activity.activity_type === 28
 		) {
 			if (units) {
 				return `${formatAverageSpeedImperial(speed)} ${i18n.global.t("generalItems.unitsKmH")}`;
@@ -246,7 +247,8 @@ export function formatAverageSpeed(
 		activity.activity_type === 5 ||
 		activity.activity_type === 6 ||
 		activity.activity_type === 7 ||
-		activity.activity_type === 27
+		activity.activity_type === 27 ||
+		activity.activity_type === 28
 	) {
 		if (units) {
 			return `${formatAverageSpeedMetric(speed)} ${i18n.global.t("generalItems.unitsMph")}`;
@@ -401,6 +403,7 @@ export function getIcon(typeId) {
 		25: ["fas", "table-tennis-paddle-ball"],
 		26: ["fas", "table-tennis-paddle-ball"],
 		27: ["fas", "person-biking"],
+		28: ["fas", "person-biking"],
 	};
 
 	return iconMap[typeId] || ["fas", "dumbbell"];
