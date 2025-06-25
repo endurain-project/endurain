@@ -26,6 +26,8 @@ import users.user_privacy_settings.schema as users_privacy_settings_schema
 
 import core.logger as core_logger
 
+import core.config as core_config
+
 
 def create_activity_objects(
     sessions_records: dict,
@@ -38,7 +40,7 @@ def create_activity_objects(
     try:
         # Create an instance of TimezoneFinder
         tf = TimezoneFinder()
-        timezone = os.environ.get("TZ")
+        timezone = core_config.TZ
 
         # Define variables
         gear_id = None
@@ -767,6 +769,8 @@ def parse_frame_session(frame):
             activity_type = "virtual_ride"
         elif activity_type == "cycling" and sub_sport == "commuting":
             activity_type = "commuting_ride"
+        elif activity_type == "cycling" and sub_sport == "indoor_cycling":
+            activity_type = "indoor_ride"
         else:
             activity_type = sub_sport
 
@@ -1080,15 +1084,13 @@ def calculate_pace(distance, total_timer_time, activity_type, split_summary):
     if distance:
         if activity_type != "lap_swimming":
             return total_timer_time, total_timer_time / distance
-        else:
-            time_active = 0
-            for split in split_summary:
-                if split["split_type"] != 4:
-                    time_active += split["total_timer_time"]
+        time_active = 0
+        for split in split_summary:
+            if split["split_type"] != 4:
+                time_active += split["total_timer_time"]
 
-            return time_active, time_active / distance
-    else:
-        return total_timer_time, 0
+        return time_active, time_active / distance
+    return total_timer_time, 0
 
 
 def find_timezone_name(offset_seconds, reference_date):

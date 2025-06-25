@@ -2,6 +2,17 @@ import logging
 
 
 def setup_main_logger():
+    """
+    Sets up the main application logger and attaches a file handler to it, as well as to the Alembic and APScheduler loggers.
+
+    The logger writes log messages to 'logs/app.log' with a specific format and log level.
+    - The main logger ('main_logger') is set to DEBUG level.
+    - The Alembic logger ('alembic') and APScheduler logger ('apscheduler') are set to INFO level.
+    - All three loggers share the same file handler and formatter.
+
+    Returns:
+        logging.Logger: The configured main logger instance.
+    """
     main_logger = logging.getLogger("main_logger")
     main_logger.setLevel(logging.DEBUG)
 
@@ -29,21 +40,65 @@ def setup_main_logger():
 
 
 def get_main_logger():
+    """
+    Returns the main logger instance for the application.
+
+    This function retrieves a logger named "main_logger" using Python's standard logging module.
+    It can be used throughout the application to log messages under a consistent logger name.
+
+    Returns:
+        logging.Logger: The logger instance named "main_logger".
+    """
     return logging.getLogger("main_logger")
 
 
-def print_to_log(message: str, type: str = "info", exc: Exception = None):
+def print_to_log(message: str, log_level: str = "info", exc: Exception = None):
+    """
+    Logs a message at the specified log level using the main logger.
+
+    Args:
+        message (str): The message to log.
+        log_level (str, optional): The log level to use ('info', 'error', 'warning', 'debug'). Defaults to "info".
+        exc (Exception, optional): An exception instance to include in the log if log_level is "error". Defaults to None.
+
+    Notes:
+        - If log_level is "error" and exc is provided, exception information will be included in the log.
+    """
     main_logger = get_main_logger()
-    if type == "info":
+    if log_level == "info":
         main_logger.info(message)
-    elif type == "error":
+    elif log_level == "error":
         main_logger.error(message, exc_info=exc is not None)
-    elif type == "warning":
+    elif log_level == "warning":
         main_logger.warning(message)
-    elif type == "debug":
+    elif log_level == "debug":
         main_logger.debug(message)
 
 
-def print_to_log_and_console(message: str, type: str = "info", exc: Exception = None):
-    print_to_log(message, type, exc)
-    print(message)
+def print_to_log_and_console(
+    message: str, log_level: str = "info", exc: Exception = None
+):
+    """
+    Logs a message to both the main logger and the console.
+
+    This function temporarily adds a console handler to the main logger, logs the provided message at the specified log level (optionally including exception information), and then removes the console handler to ensure subsequent logs are not printed to the console.
+
+    Args:
+        message (str): The message to log.
+        log_level (str, optional): The logging level to use (e.g., "info", "warning", "error"). Defaults to "info".
+        exc (Exception, optional): An exception to include in the log entry. Defaults to None.
+    """
+    main_logger = get_main_logger()
+
+    # Create a temporary console handler
+    console_handler = logging.StreamHandler()
+    console_formatter = logging.Formatter("%(levelname)s:     %(message)s")
+    console_handler.setFormatter(console_formatter)
+
+    # Add console handler temporarily
+    main_logger.addHandler(console_handler)
+
+    print_to_log(message, log_level, exc)
+
+    # Remove console handler so future logs only go to file
+    main_logger.removeHandler(console_handler)

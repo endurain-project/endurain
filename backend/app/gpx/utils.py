@@ -1,6 +1,4 @@
 import gpxpy
-import gpxpy.gpx
-import os
 from geopy.distance import geodesic
 from timezonefinder import TimezoneFinder
 from sqlalchemy.orm import Session
@@ -16,6 +14,7 @@ import users.user_default_gear.utils as user_default_gear_utils
 import users.user_privacy_settings.schema as users_privacy_settings_schema
 
 import core.logger as core_logger
+import core.config as core_config
 
 
 def parse_gpx_file(
@@ -27,7 +26,7 @@ def parse_gpx_file(
     try:
         # Create an instance of TimezoneFinder
         tf = TimezoneFinder()
-        timezone = os.environ.get("TZ")
+        timezone = core_config.TZ
 
         # Initialize default values for various variables
         activity_type = "Workout"

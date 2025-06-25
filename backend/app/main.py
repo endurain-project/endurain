@@ -119,6 +119,8 @@ def create_app() -> FastAPI:
 
     return app
 
+# Silence stravalib token warnings
+os.environ["SILENCE_TOKEN_WARNINGS"] = "TRUE"
 
 # Create the FastAPI application
 app = create_app()
