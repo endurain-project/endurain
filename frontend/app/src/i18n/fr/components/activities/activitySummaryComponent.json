@@ -12,6 +12,7 @@
     "activityTime": "Temps",
     "activityPace": "Allure",
     "activityAvgHR": "FC moyenne",
+    "activityMaxHR": "Max HR",
     "activityAvgPower": "Avg power",
     "activityAvgSpeed": "Avg speed",
     "activityEleGain": "Ele gain",
