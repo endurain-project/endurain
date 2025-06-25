@@ -10,73 +10,66 @@
             <hr>
             <!-- Public shareable links -->
             <h4 class="mt-4">{{ $t("settingsServerSettingsZoneComponent.publicShareableLinksLabel") }}</h4>
-            <label class="form-label" for="serverSettingsPublicShareableLinksEnabledSelect">{{ $t("settingsServerSettingsZoneComponent.publicShareableLinksEnabledLabel") }}</label>
-            <select class="form-select" name="serverSettingsPublicShareableLinksEnabledSelect" v-model="publicShareableLinks" required>
+            <label class="form-label" for="serverSettingsPublicShareableLinksEnabledSelect">{{
+                $t("settingsServerSettingsZoneComponent.publicShareableLinksEnabledLabel") }}</label>
+            <select class="form-select" name="serverSettingsPublicShareableLinksEnabledSelect"
+                v-model="publicShareableLinks" required>
                 <option value="false">{{ $t("settingsServerSettingsZoneComponent.publicShareableLinksFalse") }}</option>
                 <option value="true">{{ $t("settingsServerSettingsZoneComponent.publicShareableLinksTrue") }}</option>
             </select>
             <div class="alert alert-warning mt-2" role="alert">
                 <font-awesome-icon :icon="['fas', 'triangle-exclamation']" />
-                <span class="ms-2">{{ $t("settingsServerSettingsZoneComponent.serverSettingsPublicShareableLinksEnabledWarningAlert") }}</span>
+                <span class="ms-2">{{
+                    $t("settingsServerSettingsZoneComponent.serverSettingsPublicShareableLinksEnabledWarningAlert")
+                    }}</span>
             </div>
             <!-- Public shareable user info -->
-            <label class="form-label" for="serverSettingsPublicShareableLinksShowUserInfo">{{ $t("settingsServerSettingsZoneComponent.publicShareableLinksShowUserInfoLabel") }}</label>
-            <select class="form-select" name="serverSettingsPublicShareableLinksShowUserInfo" v-model="publicShareableLinksUserInfo" required>
+            <label class="form-label" for="serverSettingsPublicShareableLinksShowUserInfo">{{
+                $t("settingsServerSettingsZoneComponent.publicShareableLinksShowUserInfoLabel") }}</label>
+            <select class="form-select" name="serverSettingsPublicShareableLinksShowUserInfo"
+                v-model="publicShareableLinksUserInfo" required>
                 <option value="false">{{ $t("settingsServerSettingsZoneComponent.publicShareableLinksFalse") }}</option>
                 <option value="true">{{ $t("settingsServerSettingsZoneComponent.publicShareableLinksTrue") }}</option>
             </select>
             <div class="alert alert-warning mt-2" role="alert">
                 <font-awesome-icon :icon="['fas', 'triangle-exclamation']" />
-                <span class="ms-2">{{ $t("settingsServerSettingsZoneComponent.serverSettingsPublicShareableLinksShowUserWarningAlert") }}</span>
+                <span class="ms-2">{{
+                    $t("settingsServerSettingsZoneComponent.serverSettingsPublicShareableLinksShowUserWarningAlert")
+                    }}</span>
             </div>
             <hr>
             <!-- Login photo set -->
             <h4 class="mt-4">{{ $t("settingsServerSettingsZoneComponent.photosLabel") }}</h4>
             <div class="row">
                 <div class="col">
-                    <label class="form-label" for="serverSettingsLoginPhotoLabel">{{ $t("settingsServerSettingsZoneComponent.loginPhotoLabel") }}</label>
-                    <!-- add activity button -->
-                    <a class="w-100 btn btn-primary shadow-sm" href="#" role="button" data-bs-toggle="modal" data-bs-target="#addLoginPhotoModal" v-if="!loginPhotoSet">
+                    <label class="form-label" for="serverSettingsLoginPhotoLabel">{{
+                        $t("settingsServerSettingsZoneComponent.loginPhotoLabel") }}</label>
+                    <!-- add login photo button -->
+                    <a class="w-100 btn btn-primary shadow-sm" href="#" role="button" data-bs-toggle="modal"
+                        data-bs-target="#addLoginPhotoModal" v-if="!loginPhotoSet">
                         {{ $t("settingsServerSettingsZoneComponent.buttonAddPhoto") }}
                     </a>
 
                     <!-- Delete login photo section -->
-                    <a class="w-100 btn btn-danger" href="#" role="button" data-bs-toggle="modal" data-bs-target="#deleteLoginPhotoModal" v-else>{{ $t("settingsServerSettingsZoneComponent.buttonDeleteLoginPhoto") }}</a>
-
-                    <!-- Modal delete login photo -->
-                    <ModalComponent modalId="deleteLoginPhotoModal" :title="t('settingsServerSettingsZoneComponent.buttonDeleteLoginPhoto')" :body="`${t('settingsServerSettingsZoneComponent.modalDeleteLoginPhotoBody')}`" actionButtonType="danger" :actionButtonText="t('settingsServerSettingsZoneComponent.buttonDeleteLoginPhoto')" @submitAction="submitDeleteLoginPhoto"/>
+                    <a class="w-100 btn btn-danger" href="#" role="button" data-bs-toggle="modal"
+                        data-bs-target="#deleteLoginPhotoModal" v-else>{{
+                            $t("settingsServerSettingsZoneComponent.buttonDeleteLoginPhoto") }}</a>
 
                     <!-- Modal add login photo -->
-                    <div class="modal fade" id="addLoginPhotoModal" tabindex="-1" aria-labelledby="addLoginPhotoModalLabel" aria-hidden="true">
-                        <div class="modal-dialog">
-                            <div class="modal-content">
-                                <div class="modal-header">
-                                    <h1 class="modal-title fs-5" id="addLoginPhotoModal">
-                                        {{ $t("settingsServerSettingsZoneComponent.loginPhotoLabel") }}
-                                    </h1>
-                                    <!--<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>-->
-                                </div>
-                                <form @submit.prevent="submitUploadFileForm">
-                                    <div class="modal-body">
-                                        <!-- date fields -->
-                                        <label for="loginPhotoAdd"><b>* {{ $t("settingsServerSettingsZoneComponent.logonPhotoAddLabel") }}</b></label>
-                                        <br>
-                                        <span>{{ $t("settingsServerSettingsZoneComponent.logonPhotoAddDetailsLabel") }}</span>
-                                        <input class="form-control mt-1 mb-1" type="file" name="loginPhotoAdd" accept=".png" required>
-                                        <p>* {{ $t("generalItems.requiredField") }}</p>
-                                    </div>
-                                    <div class="modal-footer">
-                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                                        {{ $t("generalItems.buttonClose") }}
-                                        </button>
-                                        <button type="submit" class="btn btn-success" data-bs-dismiss="modal">
-                                        {{ $t("settingsServerSettingsZoneComponent.buttonAddPhoto") }}
-                                        </button>
-                                    </div>
-                                </form>
-                            </div>
-                        </div>
-                    </div>
+                    <ModalComponentUploadFile modalId="addLoginPhotoModal"
+                        :title="$t('settingsServerSettingsZoneComponent.loginPhotoLabel')"
+                        :fileFieldLabel="$t('settingsServerSettingsZoneComponent.logonPhotoAddLabel') + ' ' + $t('settingsServerSettingsZoneComponent.logonPhotoAddDetailsLabel')"
+                        filesAccepted=".png" actionButtonType="success"
+                        :actionButtonText="$t('settingsServerSettingsZoneComponent.loginPhotoLabel')"
+                        @fileToEmitAction="submitUploadFileForm" />
+
+                    <!-- Modal delete login photo -->
+                    <ModalComponent modalId="deleteLoginPhotoModal"
+                        :title="t('settingsServerSettingsZoneComponent.buttonDeleteLoginPhoto')"
+                        :body="`${t('settingsServerSettingsZoneComponent.modalDeleteLoginPhotoBody')}`"
+                        actionButtonType="danger"
+                        :actionButtonText="t('settingsServerSettingsZoneComponent.buttonDeleteLoginPhoto')"
+                        @submitAction="submitDeleteLoginPhoto" />
                 </div>
             </div>
         </form>
@@ -98,18 +91,20 @@ import NoItemsFoundComponent from "@/components/GeneralComponents/NoItemsFoundCo
 import UsersListComponent from "@/components/Settings/SettingsUsersZone/UsersListComponent.vue";
 import UsersAddEditUserModalComponent from "@/components/Settings/SettingsUsersZone/UsersAddEditUserModalComponent.vue";
 import ModalComponent from "@/components/Modals/ModalComponent.vue";
+import ModalComponentUploadFile from "@/components/Modals/ModalComponentUploadFile.vue"
 
 export default {
-	components: {
-		LoadingComponent,
-		NoItemsFoundComponent,
-		UsersListComponent,
-		UsersAddEditUserModalComponent,
+    components: {
+        LoadingComponent,
+        NoItemsFoundComponent,
+        UsersListComponent,
+        UsersAddEditUserModalComponent,
         ModalComponent,
-	},
-	setup() {
-		const { t } = useI18n();
-		const isLoading = ref(true);
+        ModalComponentUploadFile,
+    },
+    setup() {
+        const { t } = useI18n();
+        const isLoading = ref(true);
         const serverSettingsStore = useServerSettingsStore();
         const units = ref(serverSettingsStore.serverSettings.units);
         const publicShareableLinks = ref(serverSettingsStore.serverSettings.public_shareable_links);
@@ -137,38 +132,32 @@ export default {
             }
         }
 
-        const submitUploadFileForm = async () => {
-			// Set the loading message
-			const notification = push.promise(t("settingsServerSettingsZoneComponent.processingPhotoUpload"));
+        const submitUploadFileForm = async (file) => {
+            // Set the loading message
+            const notification = push.promise(t("settingsServerSettingsZoneComponent.processingPhotoUpload"));
 
-			// Get the file input
-			const fileInput = document.querySelector('input[type="file"]');
-
-			// If there is a file, create the form data and upload the file
-			if (fileInput.files[0]) {
-				// Create the form data
-				const formData = new FormData();
-				formData.append("file", fileInput.files[0]);
-				try {
-					// Upload the file
-					await serverSettings.uploadLoginPhotoFile(formData);
-					// Set the login photo set to true
+            // If there is a file, create the form data and upload the file
+            if (file) {
+                // Create the form data
+                const formData = new FormData();
+                formData.append("file", file);
+                try {
+                    // Upload the file
+                    await serverSettings.uploadLoginPhotoFile(formData);
+                    // Set the login photo set to true
                     loginPhotoSet.value = true;
 
                     // Update the server settings in the store and DB
                     await updateServerSettings();
 
-					// Set the success message
-					notification.resolve(t("settingsServerSettingsZoneComponent.successPhotoUpload"));
-
-					// Clear the file input
-					fileInput.value = "";
-				} catch (error) {
-					// Set the error message
-					notification.reject(`${error}`);
-				}
-			}
-		};
+                    // Set the success message
+                    notification.resolve(t("settingsServerSettingsZoneComponent.successPhotoUpload"));
+                } catch (error) {
+                    // Set the error message
+                    notification.reject(`${error}`);
+                }
+            }
+        };
 
         const submitDeleteLoginPhoto = async () => {
             // Set the loading message
@@ -197,15 +186,15 @@ export default {
         }, { immediate: false });
 
         return {
-			t,
-			isLoading,
+            t,
+            isLoading,
             units,
             publicShareableLinks,
             publicShareableLinksUserInfo,
             loginPhotoSet,
             submitUploadFileForm,
             submitDeleteLoginPhoto,
-		};
-	},
+        };
+    },
 };
 </script>
