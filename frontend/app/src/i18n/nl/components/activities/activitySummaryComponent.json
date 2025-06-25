@@ -12,6 +12,7 @@
     "activityTime": "Tijd",
     "activityPace": "Tempo",
     "activityAvgHR": "Gem. HR",
+    "activityMaxHR": "Max HR",
     "activityAvgPower": "Avg power",
     "activityAvgSpeed": "Avg speed",
     "activityEleGain": "Ele gain",
