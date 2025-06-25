@@ -315,7 +315,8 @@ onMounted(async () => {
                         props.activity.activity_type === 5 ||
                         props.activity.activity_type === 6 ||
                         props.activity.activity_type === 7 ||
-                        props.activity.activity_type === 27
+                        props.activity.activity_type === 27 ||
+                        props.activity.activity_type === 28
                     ) {
                         velPresent.value = true;
                     }
@@ -326,7 +327,8 @@ onMounted(async () => {
                         props.activity.activity_type !== 5 &&
                         props.activity.activity_type !== 6 &&
                         props.activity.activity_type !== 7 &&
-                        props.activity.activity_type !== 27
+                        props.activity.activity_type !== 27 &&
+                        props.activity.activity_type !== 28
                     ) {
                         pacePresent.value = true;
                     }

@@ -175,7 +175,7 @@
             v-if="source === 'activity' && activity.activity_type != 10 && activity.activity_type != 14 && activity.activity_type != 18 && activity.activity_type != 19 && activity.activity_type != 20 && activity.activity_type != 21 && activity.activity_type != 22 && activity.activity_type != 23 && activity.activity_type != 24 && activity.activity_type != 25 && activity.activity_type != 26">
             <!-- avg_power running and cycling activities-->
             <div class="col"
-                v-if="activity.activity_type == 1 || activity.activity_type == 2 || activity.activity_type == 3 || activity.activity_type == 4 || activity.activity_type == 5 || activity.activity_type == 6 || activity.activity_type == 7 || activity.activity_type == 27">
+                v-if="activity.activity_type == 1 || activity.activity_type == 2 || activity.activity_type == 3 || activity.activity_type == 4 || activity.activity_type == 5 || activity.activity_type == 6 || activity.activity_type == 7 || activity.activity_type == 27 || activity.activity_type == 28">
                 <span class="fw-lighter">
                     {{ $t("activitySummaryComponent.activityAvgPower") }}
                 </span>
@@ -184,7 +184,7 @@
             </div>
             <!-- avg_hr not running and cycling activities-->
             <div class="col"
-                v-if="activity.activity_type != 1 && activity.activity_type != 2 && activity.activity_type != 3 && activity.activity_type != 4 && activity.activity_type != 5 && activity.activity_type != 6 && activity.activity_type != 7 && activity.activity_type != 27">
+                v-if="activity.activity_type != 1 && activity.activity_type != 2 && activity.activity_type != 3 && activity.activity_type != 4 && activity.activity_type != 5 && activity.activity_type != 6 && activity.activity_type != 7 && activity.activity_type != 27 && activity.activity_type != 28">
                 <span class="fw-lighter">
                     {{ $t("activitySummaryComponent.activityAvgHR") }}
                 </span>
@@ -193,7 +193,7 @@
             </div>
             <!-- max_hr not running and cycling activities-->
             <div class="col border-start border-opacity-50"
-                v-if="activity.activity_type != 1 && activity.activity_type != 2 && activity.activity_type != 3 && activity.activity_type != 4 && activity.activity_type != 5 && activity.activity_type != 6 && activity.activity_type != 7 && activity.activity_type != 27">
+                v-if="activity.activity_type != 1 && activity.activity_type != 2 && activity.activity_type != 3 && activity.activity_type != 4 && activity.activity_type != 5 && activity.activity_type != 6 && activity.activity_type != 7 && activity.activity_type != 27 && activity.activity_type != 28">
                 <span class="fw-lighter">
                     {{ $t("activitySummaryComponent.activityMaxHR") }}
                 </span>
@@ -209,7 +209,7 @@
             </div>
             <!-- avg_speed cycling activities -->
             <div class="col border-start border-opacity-50"
-                v-if="activity.activity_type == 4 || activity.activity_type == 5 || activity.activity_type == 6 || activity.activity_type == 7 || activity.activity_type == 27">
+                v-if="activity.activity_type == 4 || activity.activity_type == 5 || activity.activity_type == 6 || activity.activity_type == 7 || activity.activity_type == 27 || activity.activity_type == 28">
                 <span class="fw-lighter">
                     {{ $t("activitySummaryComponent.activityAvgSpeed") }}
                 </span>

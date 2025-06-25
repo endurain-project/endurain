@@ -3,11 +3,11 @@
 set -e
 
 echo_info_log() {
-    echo "INFO: $1"
+    echo "INFO:     $1"
 }
 
 echo_error_log() {
-    echo "ERROR: $1" >&2
+    echo "ERROR:     $1" >&2
 }
 
 validate_id() {

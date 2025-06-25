@@ -193,7 +193,8 @@ onMounted(async () => {
 						props.activity.activity_type === 5 ||
 						props.activity.activity_type === 6 ||
 						props.activity.activity_type === 7 ||
-						props.activity.activity_type === 27
+						props.activity.activity_type === 27 ||
+						props.activity.activity_type === 28
 					) {
 						graphItems.value.push({ type: "vel", label: `${t("activityMandAbovePillsComponent.labelGraphVelocity")}` });
 					}
@@ -205,7 +206,8 @@ onMounted(async () => {
 						props.activity.activity_type !== 5 &&
 						props.activity.activity_type !== 6 &&
 						props.activity.activity_type !== 7 &&
-						props.activity.activity_type !== 27
+						props.activity.activity_type !== 27 &&
+						props.activity.activity_type !== 28
 					) {
 						graphItems.value.push({ type: "pace", label: `${t("activityMandAbovePillsComponent.labelGraphPace")}` });
 					}

@@ -9,7 +9,7 @@ from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 
 def setup_tracing(app):
     # Check if Jaeger tracing is enabled using the 'JAEGER_ENABLED' environment variable
-    if os.environ.get("JAEGER_ENABLED", "true") == "true":
+    if os.environ.get("JAEGER_ENABLED", "false") == "true":
         # Configure OpenTelemetry with a specified service name
         trace.set_tracer_provider(
             TracerProvider(resource=Resource.create({"service.name": "backend_api"}))
