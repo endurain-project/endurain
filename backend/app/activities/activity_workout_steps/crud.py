@@ -1,6 +1,7 @@
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
+import activities.activity.schema as activities_schema
 import activities.activity.models as activity_models
 import activities.activity.crud as activity_crud
 
@@ -51,6 +52,60 @@ def get_activity_workout_steps(activity_id: int, token_user_id: int, db: Session
             f"Error in get_activity_workout_steps: {err}", "error", exc=err
         )
         # Raise an HTTPException with a 500 Internal Server Error status code
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal Server Error",
+        ) from err
+    
+
+def get_activities_workout_steps(
+    activity_ids: list[int], 
+    token_user_id: int, 
+    db: Session, 
+    activities: list[activities_schema.Activity] = None
+):
+    try:
+        if not activity_ids:
+            return []
+
+        if not activities:
+            activities = (
+                db.query(activity_models.Activity)
+                .filter(activity_models.Activity.id.in_(activity_ids))
+                .all()
+            )
+
+        if not activities:
+            return []
+
+        # Build a map: activity_id -> activity
+        activity_map = {activity.id: activity for activity in activities}
+
+        # Determine which activity IDs the user is allowed to view steps for
+        allowed_ids = [
+            activity.id for activity in activities
+            if activity.user_id == token_user_id or not activity.hide_workout_sets_steps
+        ]
+
+        if not allowed_ids:
+            return []
+
+        # Fetch workout steps for allowed activities
+        workout_steps = (
+            db.query(activity_workout_steps_models.ActivityWorkoutSteps)
+            .filter(activity_workout_steps_models.ActivityWorkoutSteps.activity_id.in_(allowed_ids))
+            .all()
+        )
+
+        if not workout_steps:
+            return []
+
+        return workout_steps
+
+    except Exception as err:
+        core_logger.print_to_log(
+            f"Error in get_activities_workout_steps: {err}", "error", exc=err
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal Server Error",

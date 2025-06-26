@@ -76,13 +76,10 @@
     "buttonImportData": "Import data",
     "modalImportTitle": "Import backup file",
     "modalImportBody": "Select the .zip file you previously exported to restore your data.",
-    "importSuccess": "Import completed: {tracks} tracks, {activities} activities, {health_entries} health entries.",
-    "importError": "Error importing data: {error}",
     "exportLoading": "Exporting data, this may take a few minutes...",
     "exportSuccess": "Export completed successfully",
-    "exportError": "Error exporting data: {error}",
-    "selectFileLabel": "Select file",
-    "fileFormatHelp": "Only .zip files are supported",
-    "selectedFile": "Selected file",
-    "importingData": "Importing data"
+    "exportError": "Error exporting data",
+    "importLoading": "Importing data, this may take a few minutes...",
+    "importSuccess": "Import completed",
+    "importError": "Error importing data"
 }

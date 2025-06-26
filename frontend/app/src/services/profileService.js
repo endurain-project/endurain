@@ -37,7 +37,10 @@ export const profile = {
   exportData() {
     return fetchGetRequest('profile/export', { responseType: 'blob' })
   },
-  importData(formData) {
+  importData(file) {
+    const formData = new FormData()
+    formData.append('file', file)
+
     return fetchPostFileRequest('profile/import', formData)
   }
 }

@@ -529,15 +529,16 @@
 				<div class="row">
 					<div class="col d-flex gap-3">
 						<button class="btn btn-primary w-50" :disabled="loadingExport" @click="handleExport">
-							<font-awesome-icon :icon="['fas', 'download']" class="me-1" />
-							<span v-if="loadingExport">{{ $t('generalItems.loading') }}...</span>
-							<span v-else>{{ $t('settingsUserProfileZone.buttonExportData') }}</span>
+							<font-awesome-icon :icon="['fas', 'download']" class="me-1" v-if="!loadingExport" />
+							<span class="spinner-border spinner-border-sm me-1" aria-hidden="true" v-else></span>
+							<span>{{ $t('settingsUserProfileZone.buttonExportData') }}</span>
 						</button>
 
 						<button class="btn btn-primary w-50" data-bs-toggle="modal" data-bs-target="#importDataModal"
 							:disabled="loadingImport">
-							<font-awesome-icon :icon="['fas', 'upload']" />
-							{{ $t('settingsUserProfileZone.buttonImportData') }}
+							<font-awesome-icon :icon="['fas', 'upload']" class="me-1" v-if="!loadingImport" />
+							<span class="spinner-border spinner-border-sm me-1" aria-hidden="true" v-else></span>
+							<span>{{ $t('settingsUserProfileZone.buttonImportData') }}</span>
 						</button>
 					</div>
 				</div>
@@ -622,8 +623,6 @@ const activityGear = ref(authStore.user.hide_activity_gear)
 
 const loadingExport = ref(false)
 const loadingImport = ref(false)
-const importFile = ref(null)
-const fileInput = ref(null)
 
 async function submitDeleteUserPhoto() {
 	try {
@@ -728,6 +727,38 @@ async function updateUserPrivacySettings() {
 	}
 }
 
+async function uploadImportFile(file) {
+	const notification = push.promise(t("settingsUserProfileZone.importLoading"));
+	loadingImport.value = true
+	try {
+		await profile.importData(file)
+		notification.resolve(t("settingsUserProfileZone.importSuccess"));
+	} catch (error) {
+		notification.reject(`${t('settingsUserProfileZone.importError')} - ${error}`);
+	} finally {
+		loadingImport.value = false
+	}
+}
+
+async function handleExport() {
+	const notification = push.promise(t("settingsUserProfileZone.exportLoading"));
+	loadingExport.value = true
+	try {
+		const blob = await profile.exportData()
+		const url = URL.createObjectURL(blob)
+		const a = document.createElement('a')
+		a.href = url
+		a.download = `user_${authStore.user.id}_${new Date().toISOString().slice(0, 16).replace(':', '-')}_export.zip`
+		a.click()
+		URL.revokeObjectURL(url)
+		notification.resolve(t("settingsUserProfileZone.exportSuccess"));
+	} catch (error) {
+		notification.reject(`${t('settingsUserProfileZone.exportError')} - ${error}`);
+	} finally {
+		loadingExport.value = false
+	}
+}
+
 onMounted(async () => {
 	isLoading.value = true
 	try {
@@ -768,89 +799,6 @@ onMounted(async () => {
 		isMounted.value = true
 	}
 })
-
-async function uploadImportFile() {
-	if (!importFile.value) return
-	console.log('Uploading file:', importFile.value.name)
-	loadingImport.value = true
-	const form = new FormData()
-	form.append('file', importFile.value)
-	try {
-		const payload = await profile.importData(form)
-		push.success(t('settingsUserProfileZone.importSuccess', payload.imported))
-		// Clear the file and reset input
-		importFile.value = null
-		if (fileInput.value) {
-			fileInput.value.value = ''
-		}
-		// Close modal
-		const modal = document.getElementById('importDataModal')
-		if (modal) {
-			const bootstrapModal = bootstrap.Modal.getInstance(modal)
-			if (bootstrapModal) {
-				bootstrapModal.hide()
-			}
-		}
-	} catch (e) {
-		push.error(t('settingsUserProfileZone.importError', { error: e.message }))
-	} finally {
-		loadingImport.value = false
-	}
-}
-
-function handleModalShown() {
-	// Ensure focus is properly managed when modal opens
-	nextTick(() => {
-		const modal = document.getElementById('importDataModal')
-		if (modal) {
-			modal.removeAttribute('aria-hidden')
-		}
-	})
-}
-
-function handleModalHidden() {
-	// Clear file when modal is closed
-	importFile.value = null
-	if (fileInput.value) {
-		fileInput.value.value = ''
-	}
-}
-
-onMounted(() => {
-	// Set up modal event listeners
-	const modal = document.getElementById('importDataModal')
-	if (modal) {
-		modal.addEventListener('shown.bs.modal', handleModalShown)
-		modal.addEventListener('hidden.bs.modal', handleModalHidden)
-	}
-})
-
-function formatFileSize(bytes) {
-	if (bytes === 0) return '0 Bytes'
-	const k = 1024
-	const sizes = ['Bytes', 'KB', 'MB', 'GB']
-	const i = Math.floor(Math.log(bytes) / Math.log(k))
-	return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
-}
-
-async function handleExport() {
-	const notification = push.promise(t("settingsUserProfileZone.exportLoading"));
-	loadingExport.value = true
-	try {
-		const blob = await profile.exportData()
-		const url = URL.createObjectURL(blob)
-		const a = document.createElement('a')
-		a.href = url
-		a.download = `user_${authStore.user.id}_${new Date().toISOString().slice(0, 16).replace(':', '-')}_export.zip`
-		a.click()
-		URL.revokeObjectURL(url)
-		notification.resolve(t("settingsUserProfileZone.exportSuccess"));
-	} catch (error) {
-		notification.reject(`${t('settingsUserProfileZone.errorUnableToGetGear')} - ${error}`);
-	} finally {
-		loadingExport.value = false
-	}
-}
 
 // watchers
 watch(

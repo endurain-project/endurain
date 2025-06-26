@@ -10,7 +10,10 @@ export const serverSettings = {
     editServerSettings(data) {
         return fetchPutRequest('server_settings', data);
     },
-    uploadLoginPhotoFile(formData) {
+    uploadLoginPhotoFile(file) {
+        const formData = new FormData()
+        formData.append('file', file)
+
         return fetchPostFileRequest('server_settings/upload/login', formData);
     },
     deleteLoginPhotoFile() {
