@@ -36,6 +36,7 @@ import gpx.utils as gpx_utils
 import fit.utils as fit_utils
 
 import core.logger as core_logger
+import core.config as core_config
 
 # Global Activity Type Mappings (ID to Name)
 ACTIVITY_ID_TO_NAME = {
@@ -344,7 +345,7 @@ def parse_and_store_activity_from_file(
                         f"File extension not supported: {file_extension}", "error"
                     )
                 # Define the directory where the processed files will be stored
-                processed_dir = "files/processed"
+                processed_dir = core_config.FILES_PROCESSED_DIR
 
                 # Define new file path with activity ID as filename
                 new_file_name = f"{idsToFileName}{file_extension}"
@@ -374,7 +375,7 @@ def parse_and_store_activity_from_uploaded_file(
 
     try:
         # Ensure the 'files' directory exists
-        upload_dir = "files"
+        upload_dir = core_config.FILES_DIR
         os.makedirs(upload_dir, exist_ok=True)
 
         # Build the full path where the file will be saved
@@ -448,7 +449,7 @@ def parse_and_store_activity_from_uploaded_file(
                 )
 
             # Define the directory where the processed files will be stored
-            processed_dir = "files/processed"
+            processed_dir = core_config.FILES_PROCESSED_DIR
 
             # Define new file path with activity ID as filename
             new_file_name = f"{idsToFileName}{file_extension}"

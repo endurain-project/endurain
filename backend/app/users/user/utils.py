@@ -12,6 +12,7 @@ import users.user.crud as users_crud
 import users.user.schema as users_schema
 
 import core.logger as core_logger
+import core.config as core_config
 
 
 def check_user_is_active(user: users_schema.User) -> None:
@@ -25,7 +26,7 @@ def check_user_is_active(user: users_schema.User) -> None:
 
 def delete_user_photo_filesystem(user_id: int):
     # Define the pattern to match files with the specified name regardless of the extension
-    folder = "user_images"
+    folder = core_config.USER_IMAGES_DIR
     file = f"{user_id}.*"
 
     # Find all files matching the pattern
@@ -44,7 +45,7 @@ def format_user_birthdate(user):
 
 async def save_user_image(user_id: int, file: UploadFile, db: Session):
     try:
-        upload_dir = "user_images"
+        upload_dir = core_config.USER_IMAGES_DIR
         os.makedirs(upload_dir, exist_ok=True)
 
         # Get file extension

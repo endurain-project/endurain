@@ -524,7 +524,8 @@
 			<!-- Import / Export Buttons -->
 			<hr />
 			<div>
-				<h4 class="mt-4">{{ $t('settingsUserProfileZone.titleExportData') }}</h4>
+				<h4 class="mt-4">{{ $t('settingsUserProfileZone.titleExportData') }}{{ $t('generalItems.betaTag') }}
+				</h4>
 				<div class="row">
 					<div class="col d-flex gap-3">
 						<button class="btn btn-primary w-50" :disabled="loadingExport" @click="handleExport">

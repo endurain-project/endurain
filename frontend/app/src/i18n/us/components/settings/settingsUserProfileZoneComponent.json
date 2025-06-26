@@ -78,7 +78,7 @@
     "modalImportBody": "Select the .zip file you previously exported to restore your data.",
     "importSuccess": "Import completed: {tracks} tracks, {activities} activities, {health_entries} health entries.",
     "importError": "Error importing data: {error}",
-    "exportLoading": "Exporting data...",
+    "exportLoading": "Exporting data, this may take a few minutes...",
     "exportSuccess": "Export completed successfully",
     "exportError": "Error exporting data: {error}",
     "selectFileLabel": "Select file",
