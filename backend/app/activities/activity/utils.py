@@ -33,6 +33,7 @@ import activities.activity_streams.schema as activity_streams_schema
 import activities.activity_workout_steps.crud as activity_workout_steps_crud
 
 import gpx.utils as gpx_utils
+import tcx.utils as tcx_utils
 import fit.utils as fit_utils
 
 import core.logger as core_logger
@@ -296,7 +297,7 @@ def parse_and_store_activity_from_file(
             if parsed_info is not None:
                 created_activities = []
                 idsToFileName = ""
-                if file_extension.lower() == ".gpx":
+                if file_extension.lower() in (".gpx", ".tcx",):
                     # Store the activity in the database
                     created_activity = store_activity(parsed_info, db)
                     created_activities.append(created_activity)
@@ -409,7 +410,7 @@ def parse_and_store_activity_from_uploaded_file(
         if parsed_info is not None:
             created_activities = []
             idsToFileName = ""
-            if file_extension.lower() == ".gpx":
+            if file_extension.lower() in (".gpx", '.tcx'):
                 # Store the activity in the database
                 created_activity = store_activity(parsed_info, db)
                 created_activities.append(created_activity)
@@ -518,6 +519,10 @@ def parse_file(
                     token_user_id,
                     user_privacy_settings,
                     db,
+                )
+            elif file_extension.lower() == '.tcx':
+                parsed_info = tcx_utils.parse_tcx_file(
+                    filename, token_user_id, user_privacy_settings, db,
                 )
             elif file_extension.lower() == ".fit":
                 # Parse the FIT file
