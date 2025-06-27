@@ -496,7 +496,7 @@ def create_activity_streams(
         db.rollback()
 
         # Log the exception
-        core_logger(f"Error in create_activity_streams: {err}", "error", exc=err)
+        core_logger.print_to_log_and_console(f"Error in create_activity_streams: {err}", "error", exc=err)
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
