@@ -236,7 +236,7 @@ export function formatAverageSpeed(
 			activity.activity_type === 28
 		) {
 			if (units) {
-				return `${formatAverageSpeedImperial(speed)} ${i18n.global.t("generalItems.unitsKmH")}`;
+				return `${formatAverageSpeedMetric(speed)} ${i18n.global.t("generalItems.unitsKmH")}`;
 			}
 			return `${formatAverageSpeedMetric(speed)}`;
 		}
@@ -251,7 +251,7 @@ export function formatAverageSpeed(
 		activity.activity_type === 28
 	) {
 		if (units) {
-			return `${formatAverageSpeedMetric(speed)} ${i18n.global.t("generalItems.unitsMph")}`;
+			return `${formatAverageSpeedImperial(speed)} ${i18n.global.t("generalItems.unitsMph")}`;
 		}
 		return `${formatAverageSpeedImperial(speed)}`;
 	}

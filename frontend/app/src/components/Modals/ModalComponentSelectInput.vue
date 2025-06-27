@@ -24,52 +24,45 @@
     </div>
 </template>
 
-<script>
-import { ref} from 'vue';
+<script setup>
+import { ref } from 'vue';
 
-export default {
-    props: {
-        modalId: {
-            type: String,
-            required: true,
-        },
-        title: {
-            type: String,
-            required: true,
-        },
-        selectFieldLabel: {
-            type: String,
-            required: true,
-        },
-        selectOptions: {
-            type: Array,
-            required: true,
-        },
-        selectCurrentOption: {
-            type: Number,
-            required: true,
-        },
-        actionButtonType: {
-            type: String,
-            required: true,
-        },
-        actionButtonText: {
-            type: String,
-            required: true,
-        },
+const props = defineProps({
+    modalId: {
+        type: String,
+        required: true,
     },
-    emits: ['optionToEmitAction'],
-    setup(props, { emit }) {
-        const optionToEmit = ref(props.selectCurrentOption);
-
-        function submitAction() {
-            emit('optionToEmitAction', optionToEmit.value);
-        }
-
-        return {
-            optionToEmit,
-            submitAction,
-        };
+    title: {
+        type: String,
+        required: true,
     },
-};
+    selectFieldLabel: {
+        type: String,
+        required: true,
+    },
+    selectOptions: {
+        type: Array,
+        required: true,
+    },
+    selectCurrentOption: {
+        type: Number,
+        required: true,
+    },
+    actionButtonType: {
+        type: String,
+        required: true,
+    },
+    actionButtonText: {
+        type: String,
+        required: true,
+    },
+});
+
+const emit = defineEmits(['optionToEmitAction']);
+
+const optionToEmit = ref(props.selectCurrentOption);
+
+function submitAction() {
+    emit('optionToEmitAction', optionToEmit.value);
+}
 </script>

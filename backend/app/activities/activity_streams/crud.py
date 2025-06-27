@@ -8,8 +8,8 @@ import activities.activity_streams.schema as activity_streams_schema
 import activities.activity_streams.models as activity_streams_models
 
 import activities.activity.crud as activity_crud
-
-import activities.activity.models as activities_models
+import activities.activity.models as activity_models
+import activities.activity.schema as activities_schema
 
 import server_settings.crud as server_settings_crud
 
@@ -105,6 +105,68 @@ def get_activity_streams(
         ) from err
 
 
+def get_activities_streams(
+    activity_ids: list[int],
+    token_user_id: int,
+    db: Session,
+    activities: list[activities_schema.Activity] = None,
+) -> list[activity_streams_schema.ActivityStreams]:
+    try:
+        if not activity_ids:
+            return []
+
+        if not activities:
+            activities = (
+                db.query(activity_models.Activity)
+                .filter(activity_models.Activity.id.in_(activity_ids))
+                .all()
+            )
+
+        if not activities:
+            return []
+
+        # Map: activity_id -> activity
+        activity_map = {activity.id: activity for activity in activities}
+
+        # Filter out hidden sets for activities the user doesn't own
+        allowed_ids = [
+            activity.id
+            for activity in activities
+            if activity.user_id == token_user_id
+        ]
+
+        if not allowed_ids:
+            return []
+
+        # Fetch all streams for the given activity IDs
+        all_streams = (
+            db.query(activity_streams_models.ActivityStreams)
+            .filter(
+                activity_streams_models.ActivityStreams.activity_id.in_(allowed_ids)
+            )
+            .all()
+        )
+
+        if not all_streams:
+            return []
+
+
+        # Transform all allowed streams
+        return [
+            transform_activity_streams(stream, activity_map[stream.activity_id], db)
+            for stream in all_streams
+        ]
+
+    except Exception as err:
+        core_logger.print_to_log(
+            f"Error in get_activities_streams: {err}", "error", exc=err
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal Server Error",
+        ) from err
+
+
 def get_public_activity_streams(activity_id: int, db: Session):
     try:
         # Check if public sharable links are enabled in server settings
@@ -124,14 +186,14 @@ def get_public_activity_streams(activity_id: int, db: Session):
         activity_streams = (
             db.query(activity_streams_models.ActivityStreams)
             .join(
-                activities_models.Activity,
-                activities_models.Activity.id
+                activity_models.Activity,
+                activity_models.Activity.id
                 == activity_streams_models.ActivityStreams.activity_id,
             )
             .filter(
                 activity_streams_models.ActivityStreams.activity_id == activity_id,
-                activities_models.Activity.visibility == 0,
-                activities_models.Activity.id == activity_id,
+                activity_models.Activity.visibility == 0,
+                activity_models.Activity.id == activity_id,
             )
             .all()
         )
@@ -395,15 +457,15 @@ def get_public_activity_stream_by_type(activity_id: int, stream_type: int, db: S
         activity_stream = (
             db.query(activity_streams_models.ActivityStreams)
             .join(
-                activities_models.Activity,
-                activities_models.Activity.id
+                activity_models.Activity,
+                activity_models.Activity.id
                 == activity_streams_models.ActivityStreams.activity_id,
             )
             .filter(
                 activity_streams_models.ActivityStreams.activity_id == activity_id,
                 activity_streams_models.ActivityStreams.stream_type == stream_type,
-                activities_models.Activity.visibility == 0,
-                activities_models.Activity.id == activity_id,
+                activity_models.Activity.visibility == 0,
+                activity_models.Activity.id == activity_id,
             )
             .first()
         )

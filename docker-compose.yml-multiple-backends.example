@@ -13,8 +13,8 @@ services:
     volumes:
     #  - <local_path>/endurain/backend/app:/app/backend # Configure volume if you want to edit the code locally by cloning the repo
       - <local_path>/endurain/backend/user_images:/app/backend/user_images # necessary for user image persistence on container image updates
-      - <local_path>/endurain/backend/files/bulk_import:/app/backend/files/bulk_import # necessary to enable bulk import of activities. Place here your activities files
-      - <local_path>/endurain/backend/files/processed:/app/backend/files/processed # necessary for processed original files persistence on container image updates
+      - <local_path>/endurain/backend/server_images:/app/backend/server_images # necessary for server image persistence on container image updates
+      - <local_path>/endurain/backend/files:/app/backend/files # necessary for files persistence on container image updates
       - <local_path>/endurain/backend/logs:/app/backend/logs # log files for the backend
     ports:
       - "8080:8080" # Endurain port, change per your needs
