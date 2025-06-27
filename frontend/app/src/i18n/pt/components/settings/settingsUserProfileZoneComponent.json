@@ -70,5 +70,16 @@
     "successUpdateDefaultGear": "Equipamento padrão atualizado com sucesso",
     "errorUpdateDefaultGear": "Erro ao atualizar equipamento padrão",
     "successUpdateUserPrivacySettings": "Configurações de privacidade do utilizador atualizadas com sucesso",
-    "errorUpdateUserPrivacySettings": "Erro ao atualizar configurações de privacidade do utilizador"
+    "errorUpdateUserPrivacySettings": "Erro ao atualizar configurações de privacidade do utilizador",
+    "titleExportData": "Export and import data",
+    "buttonExportData": "Export data",
+    "buttonImportData": "Import data",
+    "modalImportTitle": "Import backup file",
+    "modalImportBody": "Select the .zip file you previously exported to restore your data.",
+    "exportLoading": "Exporting data, this may take a few minutes...",
+    "exportSuccess": "Export completed successfully",
+    "exportError": "Error exporting data",
+    "importLoading": "Importing data, this may take a few minutes...",
+    "importSuccess": "Import completed",
+    "importError": "Error importing data"
 }
