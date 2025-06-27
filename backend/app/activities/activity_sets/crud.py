@@ -183,7 +183,7 @@ def get_public_activity_sets(activity_id: int, db: Session):
 
 
 def create_activity_sets(
-    activity_sets: list[activity_sets_schema.ActivitySets],
+    activity_sets: list,
     activity_id: int,
     db: Session,
 ):
@@ -192,21 +192,39 @@ def create_activity_sets(
         sets = []
 
         # Iterate over the list of ActivitySets objects
-        for set in activity_sets:
-            # Create an ActivitySets object
-            db_stream = activity_sets_models.ActivitySets(
+        for activity_set in activity_sets:
+            # Check if it's a Pydantic model (has attributes instead of being subscriptable)
+            if hasattr(activity_set, '__fields__'):  # Pydantic model
+                duration = activity_set.duration
+                repetitions = activity_set.repetitions
+                weight = activity_set.weight
+                set_type = activity_set.set_type
+                start_time = activity_set.start_time
+                category = activity_set.category if activity_set.category else None
+                category_subtype = activity_set.category_subtype if activity_set.category_subtype else None
+            else:  # Assume it's a tuple/list
+                duration = activity_set[0]
+                repetitions = activity_set[1]
+                weight = activity_set[2]
+                set_type = activity_set[3]
+                start_time = activity_set[4]
+                category = activity_set[5][0] if activity_set[5] else None
+                category_subtype = activity_set[6][0] if activity_set[6] else None
+
+            # Create a new ActivitySets object
+            db_activity_set = activity_sets_models.ActivitySets(
                 activity_id=activity_id,
-                duration=set[0],
-                repetitions=set[1],
-                weight=set[2],
-                set_type=set[3],
-                start_time=set[4],
-                category=set[5][0] if set[5] else None,
-                category_subtype=(set[6][0] if set[6] else None),
+                duration=duration,
+                repetitions=repetitions,
+                weight=weight,
+                set_type=set_type,
+                start_time=start_time,
+                category=category,
+                category_subtype=category_subtype,
             )
 
             # Append the object to the list
-            sets.append(db_stream)
+            sets.append(db_activity_set)
 
         # Bulk insert the list of ActivitySets objects
         db.bulk_save_objects(sets)
