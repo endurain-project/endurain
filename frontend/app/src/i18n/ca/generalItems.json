@@ -52,7 +52,7 @@
     "labelStrokeRateInSpm": "Freqüència batecs en spm",
     "startDateLabel": "Data inici",
     "endDateLabel": "Data fi",
-    "cancel": "Cancel",
-    "loading": "Loading",
+    "cancel": "Cancel·lar",
+    "loading": "Carregant",
     "betaTag": " (Beta)"
 }
