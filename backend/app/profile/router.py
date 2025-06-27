@@ -640,12 +640,14 @@ async def import_profile_data(
                 for gear_data in results["gears_data"]:
                     # ensure gear has the correct user_id on import
                     gear_data["user_id"] = token_user_id
+                    # ensure gear has the correct id on import
+                    original_id = gear_data.get("id")
                     gear_data.pop("id", None)
                     # convert gear data to Gear schema
                     gear = gear_schema.Gear(**gear_data)
                     # create gear
                     new_gear = gear_crud.create_gear(gear, token_user_id, db)
-                    gears_id_mapping[gear.id] = new_gear.id
+                    gears_id_mapping[original_id] = new_gear.id
                     counts["gears"] += 1
 
             # b) import user JSONs
@@ -700,10 +702,7 @@ async def import_profile_data(
                     ]
 
                     for field in gear_fields:
-                        old_gear_id = getattr(current_user_default_gear, field, None)
-                        print(
-                            f"Field: {field}, old_gear_id: {old_gear_id}, gears_id_mapping[old_gear_id]: {gears_id_mapping[old_gear_id]}"
-                        )
+                        old_gear_id = results["user_default_gear_data"][0].get(field)
                         if old_gear_id in gears_id_mapping:
                             results["user_default_gear_data"][0][field] = (
                                 gears_id_mapping[old_gear_id]

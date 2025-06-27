@@ -164,7 +164,7 @@
                 <!-- avg_hr -->
                 <div v-else>
                     <span class="fw-lighter">
-                    {{ $t("activitySummaryComponent.activityAvgHR") }}
+                        {{ $t("activitySummaryComponent.activityAvgHR") }}
                     </span>
                     <br>
                     <span>{{ formatHr(activity.average_hr) }}</span>
