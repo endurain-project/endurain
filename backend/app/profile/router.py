@@ -754,8 +754,8 @@ async def import_profile_data(
                     ] = current_user_privacy_settings.id
                     # ensure user privacy settings has the correct user_id on import
                     results["user_privacy_settings_data"][0]["user_id"] = token_user_id
-                    # convert user integrations data to UsersIntegrations schema
-                    user_privacy_settings = users_integrations_schema.UsersIntegrations(
+                    # convert user integrations data to UsersPrivacySettings schema
+                    user_privacy_settings = users_privacy_settings_schema.UsersPrivacySettings(
                         **results["user_privacy_settings_data"][0]
                     )
                     # create or update user privacy settings
