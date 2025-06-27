@@ -70,5 +70,17 @@
     "successUpdateDefaultGear": "Equipament per defecte actualitzat",
     "errorUpdateDefaultGear": "Error actualitzant equipament per defecte",
     "successUpdateUserPrivacySettings": "Configuració de privadesa actualitzada correctament",
-    "errorUpdateUserPrivacySettings": "Error en actualitzar la configuració de privadesa"
+    "errorUpdateUserPrivacySettings": "Error en actualitzar la configuració de privadesa",
+    "titleExportData": "Export and import data",
+    "labelPasswordDisclaimer": "User password is not included in the import/export process. After import, update your password on security section.",
+    "buttonExportData": "Export data",
+    "buttonImportData": "Import data",
+    "modalImportTitle": "Import backup file",
+    "modalImportBody": "Select the .zip file you previously exported to restore your data.",
+    "exportLoading": "Exporting data, this may take a few minutes...",
+    "exportSuccess": "Export completed successfully",
+    "exportError": "Error exporting data",
+    "importLoading": "Importing data, this may take a few minutes...",
+    "importSuccess": "Import completed",
+    "importError": "Error importing data"
 }

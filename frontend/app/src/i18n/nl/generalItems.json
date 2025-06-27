@@ -51,5 +51,8 @@
     "labelRest": "Rust",
     "labelStrokeRateInSpm": "Slagsnelheid in spm",
     "startDateLabel": "Startdatum",
-    "endDateLabel": "Einddatum"
+    "endDateLabel": "Einddatum",
+    "cancel": "Cancel",
+    "loading": "Loading",
+    "betaTag": " (Beta)"
 }
