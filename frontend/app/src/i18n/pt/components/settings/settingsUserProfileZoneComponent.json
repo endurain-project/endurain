@@ -72,6 +72,7 @@
     "successUpdateUserPrivacySettings": "Configurações de privacidade do utilizador atualizadas com sucesso",
     "errorUpdateUserPrivacySettings": "Erro ao atualizar configurações de privacidade do utilizador",
     "titleExportData": "Export and import data",
+    "labelPasswordDisclaimer": "User password is not included in the import/export process. After import, update your password on security section.",
     "buttonExportData": "Export data",
     "buttonImportData": "Import data",
     "modalImportTitle": "Import backup file",
