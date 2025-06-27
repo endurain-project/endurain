@@ -51,5 +51,8 @@
     "labelRest": "Descans",
     "labelStrokeRateInSpm": "Freqüència batecs en spm",
     "startDateLabel": "Data inici",
-    "endDateLabel": "Data fi"
+    "endDateLabel": "Data fi",
+    "cancel": "Cancel",
+    "loading": "Loading",
+    "betaTag": " (Beta)"
 }
