@@ -526,7 +526,8 @@
 			<div>
 				<h4 class="mt-4">{{ $t('settingsUserProfileZone.titleExportData') }}{{ $t('generalItems.betaTag') }}
 				</h4>
-				<div class="row">
+				<span>{{ $t('settingsUserProfileZone.labelPasswordDisclaimer') }}</span>
+				<div class="row mt-3">
 					<div class="col d-flex gap-3">
 						<button class="btn btn-primary w-50" :disabled="loadingExport" @click="handleExport">
 							<font-awesome-icon :icon="['fas', 'download']" class="me-1" v-if="!loadingExport" />
@@ -732,6 +733,12 @@ async function uploadImportFile(file) {
 	loadingImport.value = true
 	try {
 		await profile.importData(file)
+
+		// Get logged user information
+		const userProfile = await profile.getProfileInfo();
+
+		// Store the user in the auth store
+		authStore.setUser(userProfile, authStore.session_id, locale);
 		notification.resolve(t("settingsUserProfileZone.importSuccess"));
 	} catch (error) {
 		notification.reject(`${t('settingsUserProfileZone.importError')} - ${error}`);

@@ -462,11 +462,7 @@ async def export_profile_data(
             for root, _, files in os.walk(core_config.FILES_PROCESSED_DIR):
                 for file in files:
                     file_id, ext = os.path.splitext(file)
-                    print(
-                        f"Processing file: {file} with ID: {file_id} and extension: {ext}"
-                    )
                     if any(str(activity.id) == file_id for activity in user_activities):
-                        print(f"Adding file: {file} to zip")
                         counts["activity_files"] += 1
                         file_path = os.path.join(root, file)
                         # Add file to the zip archive with relative path
@@ -525,11 +521,7 @@ async def export_profile_data(
         for root, _, files in os.walk(core_config.USER_IMAGES_DIR):
             for file in files:
                 file_id, ext = os.path.splitext(file)
-                print(
-                    f"Processing file: {file} with ID: {file_id} and extension: {ext}"
-                )
                 if str(user.id) == file_id:
-                    print(f"Adding user image: {file} to zip")
                     counts["user_images"] += 1
                     file_path = os.path.join(root, file)
                     # Add user image to the zip archive with relative path
@@ -589,6 +581,27 @@ async def import_profile_data(
     token_user_id: int = Depends(session_security.get_user_id_from_access_token),
     db: Session = Depends(core_database.get_db),
 ):
+    """
+    Imports user profile data from a provided .zip file, updating or creating user-related records in the database.
+    This endpoint expects a .zip file containing JSON and media files representing user profile data, activities, health data, and associated files. It processes and imports the following data types:
+    - Gears
+    - User profile
+    - User default gear
+    - User integrations
+    - User privacy settings
+    - Activities and their related laps, sets, streams, workout steps, and exercise titles
+    - Health data and health targets
+    - User images and activity files (e.g., .gpx, .fit)
+    All imported data is associated with the authenticated user (token_user_id). The function ensures that IDs and user associations are correctly mapped to avoid conflicts. Media files are saved to the appropriate directories.
+    Args:
+        file (UploadFile): The uploaded .zip file containing the profile data.
+        token_user_id (int): The ID of the authenticated user, extracted from the access token.
+        db (Session): The database session dependency.
+    Returns:
+        dict: A summary of the import operation, including counts of imported items.
+    Raises:
+        HTTPException: If the uploaded file is not a .zip or if any error occurs during import.
+    """
     if not file.filename.lower().endswith(".zip"):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -960,7 +973,8 @@ async def import_profile_data(
                     counts["activity_files"] += 1
 
         return {"detail": "Import completed", "imported": counts}
-
+    except HTTPException as http_err:
+        raise http_err
     except Exception as err:
         core_logger.print_to_log(
             f"Error in import_profile_data: {err}", "error", exc=err
