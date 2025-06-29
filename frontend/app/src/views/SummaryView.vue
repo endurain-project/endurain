@@ -168,8 +168,15 @@ const selectedViewType = ref("week");
 const selectedActivityType = ref("");
 const activityTypes = ref([]);
 const initialDate = new Date();
-const selectedDate = ref(formatDateISO(getWeekStartDate(initialDate)));
-const todayWeek = selectedDate.value;
+
+// Get user's first day of week preference, default to Sunday (0) if not set
+const userFirstDayOfWeek = computed(() => {
+	return authStore.user.first_day_of_week || 0;
+});
+
+// Initialize selectedDate using user's first day preference
+const selectedDate = ref(formatDateISO(getWeekStartDate(initialDate, userFirstDayOfWeek.value)));
+const todayWeek = computed(() => formatDateISO(getWeekStartDate(new Date(), userFirstDayOfWeek.value)));
 const todayMonth = formatDateToMonthString(initialDate);
 const todayYear = initialDate.getFullYear();
 const selectedYear = ref(todayYear);
@@ -322,6 +329,7 @@ async function fetchActivities() {
 		selectedDate.value,
 		selectedYear.value,
 		selectedActivityType.value,
+		userFirstDayOfWeek.value, // Pass user's first day preference
 	);
 
 	try {
@@ -359,6 +367,7 @@ async function fetchSummaryData() {
 			selectedViewType.value,
 			selectedDate.value,
 			selectedYear.value,
+			userFirstDayOfWeek.value, // Pass user's first day preference
 		);
 
 		const activityTypeName = selectedActivityType.value

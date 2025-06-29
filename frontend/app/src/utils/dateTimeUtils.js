@@ -84,22 +84,37 @@ export function formatSecondsToMinutes(totalSeconds) {
 }
 
 /**
- * Gets the start date (Monday) of the week for a given date object, in UTC.
- * @param {Date} date - The input data object.
- * @returns {Date} - The data object for the Monday of that week (UTC).
+ * Gets the start date of the week for a given date object, respecting the specified first day of week, in UTC.
+ * @param {Date} date - The input date object.
+ * @param {number} firstDayOfWeek - The first day of week (0 = Sunday, 1 = Monday, etc.).
+ * @returns {Date} - The date object for the start of that week (UTC).
  */
-export function getWeekStartDate(date) {
-  return DateTime.fromJSDate(date, { zone: 'utc' }).startOf('week').toJSDate();
+export function getWeekStartDate(date, firstDayOfWeek = 0) {
+  const dt = DateTime.fromJSDate(date, { zone: 'utc' });
+  
+  // Get the current day of the week (1 = Monday, 7 = Sunday in Luxon)
+  const currentDayOfWeek = dt.weekday;
+  
+  // Convert firstDayOfWeek parameter to Luxon format
+  // 0 (Sunday) -> 7, 1 (Monday) -> 1, 2 (Tuesday) -> 2, etc.
+  const luxonFirstDayOfWeek = firstDayOfWeek === 0 ? 7 : firstDayOfWeek;
+  
+  // Calculate days to subtract to get to the start of the week
+  let daysToSubtract = (currentDayOfWeek - luxonFirstDayOfWeek + 7) % 7;
+  
+  return dt.minus({ days: daysToSubtract }).toJSDate();
 }
 
 /**
  * Gets the end date (start of next week) for a given JavaScript Date object's week, in UTC.
  * This means it's the first day of the next week, making the range exclusive for the end date.
  * @param {Date} jsDate - The input JavaScript Date object.
+ * @param {number} firstDayOfWeek - The first day of week (0 = Sunday, 1 = Monday, etc.).
  * @returns {Date} - The JavaScript Date object for the start of the next week (UTC).
  */
-export function getWeekEndDate(jsDate) {
-  return DateTime.fromJSDate(jsDate, { zone: 'utc' }).startOf('week').plus({ days: 7 }).toJSDate();
+export function getWeekEndDate(jsDate, firstDayOfWeek = 0) {
+  const weekStart = getWeekStartDate(jsDate, firstDayOfWeek);
+  return DateTime.fromJSDate(weekStart, { zone: 'utc' }).plus({ days: 7 }).toJSDate();
 }
 
 /**
@@ -121,6 +136,18 @@ export function getMonthEndDate(jsDate) {
   return DateTime.fromJSDate(jsDate, { zone: 'utc' }).startOf('month').plus({ months: 1 }).toJSDate();
 }
 
+/**
+ * Navigates to the previous or next week based on the specified first day of week.
+ * @param {Date} currentDate - The current date.
+ * @param {number} direction - Direction to navigate (-1 for previous, 1 for next).
+ * @param {number} firstDayOfWeek - The first day of week (0 = Sunday, 1 = Monday, etc.).
+ * @returns {Date} - The new date after navigation.
+ */
+export function navigateWeek(currentDate, direction, firstDayOfWeek = 0) {
+  return DateTime.fromJSDate(currentDate, { zone: 'utc' })
+    .plus({ days: 7 * direction })
+    .toJSDate();
+}
 
 /**
  * Formats a Date object into a string with the format "YYYY-MM".
@@ -133,7 +160,6 @@ export function formatDateToMonthString(date) {
   let month = String(date.getMonth() + 1).padStart(2, '0');
   return `${year}-${month}`;
 }
-
 
 /**
  * Formats a Date object into an ISO date string (YYYY-MM-DD).
