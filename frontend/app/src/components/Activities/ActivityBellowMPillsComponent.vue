@@ -284,13 +284,7 @@ const cadPresent = ref(false);
 const velPresent = ref(false);
 const pacePresent = ref(false);
 const formattedPace = ref(null);
-const hrZones = ref({
-    zone_1: {},
-    zone_2: {},
-    zone_3: {},
-    zone_4: {},
-    zone_5: {},
-});
+const hrZones = ref({});
 
 onMounted(async () => {
     try {
@@ -299,6 +293,8 @@ onMounted(async () => {
             for (let i = 0; i < props.activityActivityStreams.length; i++) {
                 if (props.activityActivityStreams[i].stream_type === 1) {
                     hrPresent.value = true;
+					// If HR zones are present, add them to the hrZones object
+                    hrZones.value = props.activityActivityStreams.find(stream => stream.hr_zone_percentages).hr_zone_percentages || {};
                 }
                 if (props.activityActivityStreams[i].stream_type === 2) {
                     powerPresent.value = true;
@@ -323,10 +319,6 @@ onMounted(async () => {
                         pacePresent.value = true;
                     }
                 }
-            }
-            hrZones.value = props.activityActivityStreams.find(stream => stream.hr_zone_percentages).hr_zone_percentages || {};
-            if (Object.keys(hrZones.value).length > 0) {
-                hrPresent.value = true;
             }
         }
     } catch (error) {

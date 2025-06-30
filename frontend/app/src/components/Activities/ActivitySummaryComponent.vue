@@ -119,7 +119,7 @@
         <div class="row mt-3 align-items-center text-start">
             <!-- distance -->
             <div class="col"
-                v-if="activity.activity_type != 10 && activity.activity_type != 14 && activity.activity_type != 18 && activity.activity_type != 19 && activity.activity_type != 20 && activity.activity_type != 21 && activity.activity_type != 22 && activity.activity_type != 23 && activity.activity_type != 24 && activity.activity_type != 25 && activity.activity_type != 26">
+                v-if="activity.activity_type != 10 && activity.activity_type != 14 && activity.activity_type != 18 && activity.activity_type != 19 && activity.activity_type != 20 && activityTypeNotRacquet(activity)">
                 <span class="fw-lighter">
                     {{ $t("activitySummaryComponent.activityDistance") }}
                 </span>
@@ -145,7 +145,7 @@
             <div class="col border-start border-opacity-50">
                 <!-- elevation -->
                 <div
-                    v-if="activity.activity_type != 1 && activity.activity_type != 2 && activity.activity_type != 3 && activity.activity_type != 8 && activity.activity_type != 9 && activity.activity_type != 10 && activity.activity_type != 13 && activity.activity_type != 14 && activity.activity_type != 18 && activity.activity_type != 19 && activity.activity_type != 20 && activity.activity_type != 21 && activity.activity_type != 22 && activity.activity_type != 23 && activity.activity_type != 24 && activity.activity_type != 25 && activity.activity_type != 26">
+                    v-if="activityTypeNotRunning(activity) && activityTypeNotSwimming(activity) && activity.activity_type != 10 && activity.activity_type != 13 && activity.activity_type != 14 && activity.activity_type != 18 && activity.activity_type != 19 && activity.activity_type != 20 && activityTypeNotRacquet(activity)">
                     <span class="fw-lighter">
                         {{ $t("activitySummaryComponent.activityEleGain") }}
                     </span>
@@ -154,7 +154,7 @@
                 </div>
                 <!-- pace -->
                 <div
-                    v-else-if="activity.activity_type != 10 && activity.activity_type != 14 && activity.activity_type != 18 && activity.activity_type != 19 && activity.activity_type != 20 && activity.activity_type != 21 && activity.activity_type != 22 && activity.activity_type != 23 && activity.activity_type != 24 && activity.activity_type != 25 && activity.activity_type != 26">
+                    v-else-if="activity.activity_type != 10 && activity.activity_type != 14 && activity.activity_type != 18 && activity.activity_type != 19 && activity.activity_type != 20 && activityTypeNotRacquet(activity)">
                     <span class="fw-lighter">
                         {{ $t("activitySummaryComponent.activityPace") }}
                     </span>
@@ -172,7 +172,7 @@
             </div>
         </div>
         <div class="row d-flex mt-3"
-            v-if="source === 'activity' && activity.activity_type != 10 && activity.activity_type != 14 && activity.activity_type != 18 && activity.activity_type != 19 && activity.activity_type != 20 && activity.activity_type != 21 && activity.activity_type != 22 && activity.activity_type != 23 && activity.activity_type != 24 && activity.activity_type != 25 && activity.activity_type != 26">
+            v-if="source === 'activity' && activity.activity_type != 10 && activity.activity_type != 14 && activity.activity_type != 18 && activity.activity_type != 19 && activity.activity_type != 20 && activityTypeNotRacquet(activity)">
             <!-- avg_power running and cycling activities-->
             <div class="col"
                 v-if="activityTypeIsCycling(activity) || activityTypeIsRunning(activity)">
@@ -256,10 +256,12 @@ import {
     formatLocation,
     formatAverageSpeed,
     formatPower,
+    activityTypeNotSwimming,
     activityTypeIsCycling,
     activityTypeNotCycling,
     activityTypeIsRunning,
     activityTypeNotRunning,
+    activityTypeNotRacquet,
 } from "@/utils/activityUtils";
 import {
     formatDateMed,

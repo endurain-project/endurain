@@ -139,6 +139,17 @@ export function activityTypeIsSwimming(activity) {
 }
 
 /**
+ * Checks if the activity type is not a swimming-related activity.
+ *
+ * @param {Object} activity - The activity object to check.
+ * @param {number} activity.activity_type - The type identifier of the activity.
+ * @returns {boolean} Returns true if the activity is not swimming-related (types 8, or 9), otherwise false.
+ */
+export function activityTypeNotSwimming(activity) {
+	return activity.activity_type !== 8 && activity.activity_type !== 9;
+}
+
+/**
  * Checks if the activity type is a running activity.
  *
  * @param {object} activity - The activity object.
@@ -205,6 +216,17 @@ export function activityTypeIsRacquet(activity) {
 }
 
 /**
+ * Determines if the given activity is not a racquet-related activity.
+ *
+ * @param {Object} activity - The activity object to check.
+ * @param {number} activity.activity_type - The type identifier of the activity.
+ * @returns {boolean} Returns true if the activity is not racquet-related (types 21, 22, 23, 24, 25, or 26), otherwise false.
+ */
+export function activityTypeNotRacquet(activity) {
+	return activity.activity_type !== 21 && activity.activity_type !== 22 && activity.activity_type !== 23 && activity.activity_type !== 24 && activity.activity_type !== 25 && activity.activity_type !== 26;
+}
+
+/**
  * Formats the pace of an activity based on its type and the specified unit system.
  *
  * @param {Object} activity - The activity object containing pace and activity_type.
@@ -263,24 +285,21 @@ export function formatAverageSpeed(
 		activity.average_speed < 0
 	)
 		return i18n.global.t("generalItems.labelNoData");
-	if (Number(unitSystem) === 1) {
-		if (
-			activityTypeIsCycling(activity)
-		) {
+
+	if (
+		activityTypeIsCycling(activity)
+	) {
+		if (Number(unitSystem) === 1) {
 			if (units) {
 				return `${formatAverageSpeedMetric(speed)} ${i18n.global.t("generalItems.unitsKmH")}`;
 			}
 			return `${formatAverageSpeedMetric(speed)}`;
+		} else {
+			if (units) {
+				return `${formatAverageSpeedImperial(speed)} ${i18n.global.t("generalItems.unitsMph")}`;
+			}
+			return `${formatAverageSpeedImperial(speed)}`;
 		}
-		return i18n.global.t("generalItems.labelNoData");
-	}
-	if (
-		activityTypeIsCycling(activity)
-	) {
-		if (units) {
-			return `${formatAverageSpeedImperial(speed)} ${i18n.global.t("generalItems.unitsMph")}`;
-		}
-		return `${formatAverageSpeedImperial(speed)}`;
 	}
 	return i18n.global.t("generalItems.labelNoData");
 }
