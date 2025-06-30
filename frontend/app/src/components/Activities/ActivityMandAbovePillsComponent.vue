@@ -93,7 +93,7 @@ import ActivityLapsComponent from "@/components/Activities/ActivityLapsComponent
 import ActivityStreamsLineChartComponent from "@/components/Activities/ActivityStreamsLineChartComponent.vue";
 import ActivityWorkoutStepsComponent from "@/components/Activities/ActivityWorkoutStepsComponent.vue";
 import BarChartComponent from '@/components/GeneralComponents/BarChartComponent.vue';
-import { activityTypeIsSwimming } from "@/utils/activityUtils";
+import { activityTypeIsCycling, activityTypeNotCycling, activityTypeIsSwimming } from "@/utils/activityUtils";
 // Import Notivue push
 import { push } from "notivue";
 // Import the utils
@@ -189,12 +189,7 @@ onMounted(async () => {
 				if (element.stream_type === 5) {
 					velPresent.value = true;
 					if (
-						props.activity.activity_type === 4 ||
-						props.activity.activity_type === 5 ||
-						props.activity.activity_type === 6 ||
-						props.activity.activity_type === 7 ||
-						props.activity.activity_type === 27 ||
-						props.activity.activity_type === 28
+						activityTypeIsCycling(props.activity)
 					) {
 						graphItems.value.push({ type: "vel", label: `${t("activityMandAbovePillsComponent.labelGraphVelocity")}` });
 					}
@@ -202,12 +197,7 @@ onMounted(async () => {
 				if (element.stream_type === 6) {
 					pacePresent.value = true;
 					if (
-						props.activity.activity_type !== 4 &&
-						props.activity.activity_type !== 5 &&
-						props.activity.activity_type !== 6 &&
-						props.activity.activity_type !== 7 &&
-						props.activity.activity_type !== 27 &&
-						props.activity.activity_type !== 28
+						activityTypeNotCycling(props.activity)
 					) {
 						graphItems.value.push({ type: "pace", label: `${t("activityMandAbovePillsComponent.labelGraphPace")}` });
 					}

@@ -146,6 +146,16 @@ export function activityTypeIsSwimming(activity) {
 export function activityTypeIsRunning(activity) {
 	return activity.activity_type === 1 || activity.activity_type === 2 || activity.activity_type === 3;
 }
+/**
+ * Checks if the activity type is not a running-related activity.
+ *
+ * @param {Object} activity - The activity object to check.
+ * @param {number} activity.activity_type - The type identifier of the activity.
+ * @returns {boolean} Returns true if the activity is not running-related (types 1,2, or 3), otherwise false.
+ */
+export function activityTypeNotRunning(activity) {
+	return activity.activity_type !== 1 && activity.activity_type !== 2 && activity.activity_type === 3;
+}
 
 /**
  * Checks if the activity type is a running activity.
@@ -154,7 +164,19 @@ export function activityTypeIsRunning(activity) {
  * @returns {boolean} True if the type of the activity is cycling, false otherwise.
  */
 export function activityTypeIsCycling(activity) {
-	return activity.activity_type === 4 || activity.activity_type === 5 || activity.activity_type === 6 || activity.activity_type === 7 || activity.activity_type === 27 || activity.activity_type === 28;
+	return activity.activity_type === 4 || activity.activity_type === 5 || activity.activity_type === 6 || activity.activity_type === 7 || activity.activity_type === 27 || activity.activity_type === 28 || activity.activity_type === 29;
+}
+
+
+/**
+ * Determines if the given activity is not a cycling-related activity.
+ *
+ * @param {Object} activity - The activity object to check.
+ * @param {number} activity.activity_type - The type identifier of the activity.
+ * @returns {boolean} Returns true if the activity is not cycling-related (types 4, 5, 6, 7, 27, 28, or 29), otherwise false.
+ */
+export function activityTypeNotCycling(activity) {
+	return activity.activity_type !== 4 && activity.activity_type !== 5 && activity.activity_type !== 6 && activity.activity_type !== 7 && activity.activity_type !== 27 && activity.activity_type !== 28 && activity.activity_type !== 29;
 }
 
 /**
@@ -228,12 +250,7 @@ export function formatAverageSpeed(
 		return i18n.global.t("generalItems.labelNoData");
 	if (Number(unitSystem) === 1) {
 		if (
-			activity.activity_type === 4 ||
-			activity.activity_type === 5 ||
-			activity.activity_type === 6 ||
-			activity.activity_type === 7 ||
-			activity.activity_type === 27 ||
-			activity.activity_type === 28
+			activityTypeIsCycling(activity)
 		) {
 			if (units) {
 				return `${formatAverageSpeedMetric(speed)} ${i18n.global.t("generalItems.unitsKmH")}`;
@@ -243,12 +260,7 @@ export function formatAverageSpeed(
 		return i18n.global.t("generalItems.labelNoData");
 	}
 	if (
-		activity.activity_type === 4 ||
-		activity.activity_type === 5 ||
-		activity.activity_type === 6 ||
-		activity.activity_type === 7 ||
-		activity.activity_type === 27 ||
-		activity.activity_type === 28
+		activityTypeIsCycling(activity)
 	) {
 		if (units) {
 			return `${formatAverageSpeedImperial(speed)} ${i18n.global.t("generalItems.unitsMph")}`;
@@ -404,6 +416,7 @@ export function getIcon(typeId) {
 		26: ["fas", "table-tennis-paddle-ball"],
 		27: ["fas", "person-biking"],
 		28: ["fas", "person-biking"],
+		29: ["fas", "person-biking"],
 	};
 
 	return iconMap[typeId] || ["fas", "dumbbell"];

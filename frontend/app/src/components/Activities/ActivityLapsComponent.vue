@@ -7,7 +7,7 @@
                     <th v-if="hasIntensity">{{ $t("activityLapsComponent.labelLapIntensity") }}</th>
                     <th>{{ $t("activityLapsComponent.labelLapDistance") }}</th>
                     <th>{{ $t("activityLapsComponent.labelLapTime") }}</th>
-                    <th v-if="activity.activity_type === 4 || activity.activity_type === 5 || activity.activity_type === 6 || activity.activity_type === 7 || activity.activity_type === 27 || activity.activity_type === 28">{{ $t("activityLapsComponent.labelLapSpeed") }}</th>
+                    <th v-if="activityTypeIsCycling(activity)">{{ $t("activityLapsComponent.labelLapSpeed") }}</th>
                     <th v-else>{{ $t("activityLapsComponent.labelLapPace") }}</th>
                     <!-- Do not show elevation for swimming activities -->
                     <th v-if="!activityTypeIsSwimming(activity)">{{ $t("activityLapsComponent.labelLapElevation") }}</th>
@@ -22,7 +22,7 @@
                     <td v-if="hasIntensity">{{ lap.intensity ?? $t("generalItems.labelNoData") }}</td>
                     <td>{{ lap.formattedDistance }}</td>
                     <td>{{ lap.lapSecondsToMinutes }}</td>
-                    <td v-if="activity.activity_type === 4 || activity.activity_type === 5 || activity.activity_type === 6 || activity.activity_type === 7 || activity.activity_type === 27 || activity.activity_type === 28">{{ lap.formattedSpeedFull }}</td>
+                    <td v-if="activityTypeIsCycling(activity)">{{ lap.formattedSpeedFull }}</td>
                     <td v-else>{{ lap.formattedPaceFull }}</td>
 					<td v-if="!activityTypeIsSwimming(activity)">{{ lap.formattedElevationFull }}</td>
                     <td v-if="activityTypeIsSwimming(activity)">{{ lap.avg_cadence }}</td>
@@ -44,10 +44,10 @@
             <thead>
                 <tr>
                     <th scope="col" style="width: 5%;">#</th>
-                    <th scope="col" style="width: 15%;" v-if="activity.activity_type === 4 || activity.activity_type === 5 || activity.activity_type === 6 || activity.activity_type === 7 || activity.activity_type === 27 || activity.activity_type === 28">{{ $t("activityLapsComponent.labelLapSpeed") }}</th>
+                    <th scope="col" style="width: 15%;" v-if="activityTypeIsCycling(activity)">{{ $t("activityLapsComponent.labelLapSpeed") }}</th>
                     <th scope="col" style="width: 15%;" v-else>{{ $t("activityLapsComponent.labelLapPace") }}</th>
                     <th scope="col" style="width: auto;">&nbsp;</th>
-                    <th scope="col" style="width: 10%;" v-if="!activityTypeIsSwimming(activity) && activity.activity_type !== 13">{{ $t("activityLapsComponent.labelLapElev") }}</th>
+                    <th scope="col" style="width: 10%;" v-if="!activityTypeIsSwimming(activity) && activity !== 13">{{ $t("activityLapsComponent.labelLapElev") }}</th>
                     <th scope="col" style="width: 10%;" v-if="activityTypeIsSwimming(activity)">{{ $t("activityLapsComponent.labelLapSR") }}</th>
                     <th scope="col" style="width: 10%;">{{ $t("activityLapsComponent.labelLapHR") }}</th>
                 </tr>
@@ -55,7 +55,7 @@
             <tbody>
                 <tr v-for="(lap, index) in normalizedLaps" :key="index">
                     <td>{{ index + 1 }}</td>
-                    <td v-if="activity.activity_type === 4 || activity.activity_type === 5 || activity.activity_type === 6 || activity.activity_type === 7 || activity.activity_type === 27 || activity.activity_type === 28">{{ lap.formattedSpeed }}</td>
+                    <td v-if="activityTypeIsCycling(activity)">{{ lap.formattedSpeed }}</td>
                     <td v-else>{{ lap.formattedPace }}</td>
                     <td>
                         <div class="progress" role="progressbar" aria-label="Basic example" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
@@ -92,6 +92,7 @@ import {
 	formatElevation,
 	formatPace,
     formatAverageSpeed,
+    activityTypeIsCycling,
     activityTypeIsSwimming,
 } from "@/utils/activityUtils";
 

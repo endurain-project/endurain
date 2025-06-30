@@ -66,7 +66,9 @@ ACTIVITY_ID_TO_NAME = {
     24: "Squash",
     25: "Racquetball",
     26: "Pickleball",
-    27: "Commuting ride",  # Added based on define_activity_type
+    27: "Commuting ride",
+    28: "Indoor ride",
+    29: "Mixed surface ride"  # Added based on define_activity_type
     # Add other mappings as needed based on the full list in define_activity_type comments if required
     # "AlpineSki",
     # "BackcountrySki",
@@ -166,6 +168,7 @@ ACTIVITY_NAME_TO_ID.update(
         "pickleball": 26,
         "commuting_ride": 27,
         "indoor_ride": 28,
+        "mixed_surface_ride": 29,
     }
 )
 
@@ -643,7 +646,7 @@ def calculate_activity_distances(activities: list[activities_schema.Activity]):
         for activity in activities:
             if activity.activity_type in [1, 2, 3]:
                 run += activity.distance
-            elif activity.activity_type in [4, 5, 6, 7, 27, 28]:
+            elif activity.activity_type in [4, 5, 6, 7, 27, 28, 29]:
                 bike += activity.distance
             elif activity.activity_type in [8, 9]:
                 swim += activity.distance

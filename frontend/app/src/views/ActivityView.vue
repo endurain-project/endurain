@@ -26,13 +26,13 @@
 					{{ $t("activityView.labelGear") }}
 				</span>
 				<br>
-				<span v-if="activity.activity_type === 1 || activity.activity_type === 2 || activity.activity_type === 3">
+				<span v-if="activityTypeIsRunning(activity)">
 					<font-awesome-icon :icon="['fas', 'person-running']" />
 				</span>
-				<span v-else-if="activity.activity_type === 4 || activity.activity_type === 5 || activity.activity_type === 6 || activity.activity_type === 7 || activity.activity_type === 27 || activity.activity_type === 28">
+				<span v-else-if="activityTypeIsCycling(activity)">
 					<font-awesome-icon :icon="['fas', 'fa-person-biking']" />
 				</span>
-				<span v-else-if="activity.activity_type === 8 || activity.activity_type === 9">
+				<span v-else-if="activityTypeIsSwimming(activity)">
 					<font-awesome-icon :icon="['fas', 'fa-person-swimming']" />
 				</span>
 				<span v-else-if="activity.activity_type === 21 || activity.activity_type === 22 || activity.activity_type === 23 || activity.activity_type === 24 || activity.activity_type === 25 || activity.activity_type === 26">
@@ -116,6 +116,8 @@ import { activityLaps } from "@/services/activityLapsService";
 import { activityWorkoutSteps } from "@/services/activityWorkoutStepsService";
 import { activityExerciseTitles } from "@/services/activityExerciseTitlesService";
 import { activitySets } from "@/services/activitySetsService";
+// Importing the utils
+import { activityTypeIsCycling, activityTypeIsRunning, activityTypeIsSwimming } from "@/utils/activityUtils";
 
 export default {
 	components: {

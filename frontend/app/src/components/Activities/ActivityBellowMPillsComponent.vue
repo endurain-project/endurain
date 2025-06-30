@@ -237,7 +237,7 @@ import BarChartComponent from '@/components/GeneralComponents/BarChartComponent.
 import { push } from "notivue";
 // Import the utils
 import { getHrBarChartData } from "@/utils/chartUtils";
-import { formatPaceMetric, formatPaceImperial, formatPaceSwimMetric, formatPaceSwimImperial, formatAverageSpeedMetric, formatAverageSpeedImperial, activityTypeIsSwimming } from "@/utils/activityUtils";
+import { formatPaceMetric, formatPaceImperial, formatPaceSwimMetric, formatPaceSwimImperial, formatAverageSpeedMetric, formatAverageSpeedImperial, activityTypeIsCycling, activityTypeNotCycling, activityTypeIsSwimming } from "@/utils/activityUtils";
 import { formatSecondsToMinutes } from "@/utils/dateTimeUtils";
 import {
     metersToFeet,
@@ -311,24 +311,14 @@ onMounted(async () => {
                 }
                 if (props.activityActivityStreams[i].stream_type === 5) {
                     if (
-                        props.activity.activity_type === 4 ||
-                        props.activity.activity_type === 5 ||
-                        props.activity.activity_type === 6 ||
-                        props.activity.activity_type === 7 ||
-                        props.activity.activity_type === 27 ||
-                        props.activity.activity_type === 28
+                        activityTypeIsCycling(props.activity)
                     ) {
                         velPresent.value = true;
                     }
                 }
                 if (props.activityActivityStreams[i].stream_type === 6) {
                     if (
-                        props.activity.activity_type !== 4 &&
-                        props.activity.activity_type !== 5 &&
-                        props.activity.activity_type !== 6 &&
-                        props.activity.activity_type !== 7 &&
-                        props.activity.activity_type !== 27 &&
-                        props.activity.activity_type !== 28
+                        activityTypeNotCycling(props.activity)
                     ) {
                         pacePresent.value = true;
                     }
