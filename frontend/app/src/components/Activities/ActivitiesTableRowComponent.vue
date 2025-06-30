@@ -70,6 +70,7 @@ export default {
             formatAverageSpeed,
 			t,
 			authStore,
+            activityTypeIsCycling,
 		};
 	},
 };
