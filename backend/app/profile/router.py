@@ -10,7 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, UploadFile
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
-import gears.schema as gear_schema
+import gears.gear.schema as gear_schema
 
 import users.user.schema as users_schema
 import users.user.crud as users_crud
@@ -50,7 +50,7 @@ import activities.activity_workout_steps.schema as activity_workout_steps_schema
 import activities.activity_exercise_titles.crud as activity_exercise_titles_crud
 import activities.activity_exercise_titles.schema as activity_exercise_titles_schema
 
-import gears.crud as gear_crud
+import gears.gear.crud as gear_crud
 
 import health_data.crud as health_data_crud
 import health_data.schema as health_data_schema

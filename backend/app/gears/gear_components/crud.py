@@ -1,8 +1,5 @@
 from fastapi import HTTPException, status
-from sqlalchemy import func
 from sqlalchemy.orm import Session
-from sqlalchemy.exc import IntegrityError
-from urllib.parse import unquote
 
 import gears.gear_components.schema as gear_components_schema
 import gears.gear_components.utils as gear_components_utils

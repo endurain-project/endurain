@@ -11,11 +11,11 @@ ROOT_PATH = "/api/v1"
 FRONTEND_DIR = "/app/frontend/dist"
 ENVIRONMENT = os.getenv("ENVIRONMENT", "production")
 TZ = os.getenv("TZ", "UTC")
-USER_IMAGES_DIR = "user_images"
-SERVER_IMAGES_DIR = "server_images"
-FILES_DIR = "files"
-FILES_PROCESSED_DIR = "files/processed"
-FILES_BULK_IMPORT_DIR = "files/bulk_import"
+USER_IMAGES_DIR = "config/user_images"
+SERVER_IMAGES_DIR = "config/server_images"
+FILES_DIR = "config/files"
+FILES_PROCESSED_DIR = "config/files/processed"
+FILES_BULK_IMPORT_DIR = "config/files/bulk_import"
 
 
 def check_required_env_vars():

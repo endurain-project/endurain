@@ -38,7 +38,7 @@
                 <font-awesome-icon :icon="['fas', 'triangle-exclamation']" />
                 <span class="ms-2">{{
                     $t("settingsServerSettingsZoneComponent.serverSettingsPublicShareableLinksEnabledWarningAlert")
-                    }}</span>
+                }}</span>
             </div>
             <!-- Public shareable user info -->
             <label class="form-label" for="serverSettingsPublicShareableLinksShowUserInfo">{{
@@ -52,7 +52,7 @@
                 <font-awesome-icon :icon="['fas', 'triangle-exclamation']" />
                 <span class="ms-2">{{
                     $t("settingsServerSettingsZoneComponent.serverSettingsPublicShareableLinksShowUserWarningAlert")
-                    }}</span>
+                }}</span>
             </div>
             <hr>
             <!-- Login photo set -->

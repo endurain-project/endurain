@@ -109,15 +109,22 @@ def create_app() -> FastAPI:
     app.include_router(api_router)
 
     # Add a route to serve the user images
-    app.mount(f"/{core_config.USER_IMAGES_DIR}", StaticFiles(directory=core_config.USER_IMAGES_DIR), name="user_images")
     app.mount(
-        f"/{core_config.SERVER_IMAGES_DIR}", StaticFiles(directory=core_config.SERVER_IMAGES_DIR), name="server_images"
+        f"/{core_config.USER_IMAGES_DIR}",
+        StaticFiles(directory=core_config.USER_IMAGES_DIR),
+        name="user_images",
+    )
+    app.mount(
+        f"/{core_config.SERVER_IMAGES_DIR}",
+        StaticFiles(directory=core_config.SERVER_IMAGES_DIR),
+        name="server_images",
     )
     app.mount(
         "/", StaticFiles(directory=core_config.FRONTEND_DIR, html=True), name="frontend"
     )
 
     return app
+
 
 # Silence stravalib token warnings
 os.environ["SILENCE_TOKEN_WARNINGS"] = "TRUE"
