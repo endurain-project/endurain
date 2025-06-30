@@ -79,12 +79,8 @@
     </div>
 </template>
 
-<script>
+<script setup>
 import { computed } from "vue";
-// Importing the components
-import LoadingComponent from "@/components/GeneralComponents/LoadingComponent.vue";
-// Importing the stores
-import { useAuthStore } from "@/stores/authStore";
 // Importing the utils
 import { formatSecondsToMinutes } from "@/utils/dateTimeUtils";
 import {
@@ -96,92 +92,80 @@ import {
     activityTypeIsSwimming,
 } from "@/utils/activityUtils";
 
-export default {
-	components: {
-		LoadingComponent,
-	},
-	props: {
-		activity: {
-			type: Object,
-			required: true,
-		},
-		activityActivityLaps: {
-			type: [Object, null],
-			required: true,
-		},
-		units: {
-			type: Number,
-			required: true,
-		},
-	},
-	setup(props) {
-		const authStore = useAuthStore();
-		const normalizedLaps = computed(() => {
-			if (
-				!props.activityActivityLaps ||
-				props.activityActivityLaps.length === 0
-			) {
-				return [];
-			}
+// Define props
+const props = defineProps({
+    activity: {
+        type: Object,
+        required: true,
+    },
+    activityActivityLaps: {
+        type: [Object, null],
+        required: true,
+    },
+    units: {
+        type: Number,
+        required: true,
+    },
+});
 
-			// Extract all enhanced_avg_pace values
-			const laps = props.activityActivityLaps;
-			const enhancedAvgPaces = laps.map((lap) => lap.enhanced_avg_pace);
+const normalizedLaps = computed(() => {
+    if (
+        !props.activityActivityLaps ||
+        props.activityActivityLaps.length === 0
+    ) {
+        return [];
+    }
 
-			// Find the fastest pace (smallest value)
-			const fastestPace = Math.min(...enhancedAvgPaces.filter(pace => pace !== null && pace > 0));
+    // Extract all enhanced_avg_pace values
+    const laps = props.activityActivityLaps;
+    const enhancedAvgPaces = laps.map((lap) => lap.enhanced_avg_pace);
 
-            // Work out whether each lap is a rest (swim activities only)
-            const lapsWithRest = laps.map(lap => {
-                const swimIsRest = activityTypeIsSwimming(props.activity)
-                    && (lap.total_distance === 0 || lap.total_distance === null);
-                return {
-                    ...lap,
-                    swimIsRest: swimIsRest,
-                };
-            });
-            // Assume that 2 rests in a row is an error/drills
-            for (let i = 0; i < lapsWithRest.length - 1; i++) {
-                if (lapsWithRest[i].swimIsRest === true && lapsWithRest[i + 1].swimIsRest === true) {
-                    lapsWithRest[i + 1].swimIsRest = false;
-                }
-            }
+    // Find the fastest pace (smallest value)
+    const fastestPace = Math.min(...enhancedAvgPaces.filter(pace => pace !== null && pace > 0));
 
-			// Normalize each lap's pace relative to the fastest
-			return lapsWithRest.map((lap) => {
-				const normalizedScore = (fastestPace / lap.enhanced_avg_pace) * 100;
-				const formattedPace = formatPace(props.activity, authStore.user.units, lap, false, lap.swimIsRest);
-				const formattedPaceFull = formatPace(props.activity, authStore.user.units, lap, true, lap.swimIsRest);
-				const formattedDistance = formatDistance(props.activity, authStore.user.units, lap);
-				const formattedElevation = formatElevation(lap.total_ascent, authStore.user.units, false);
-				const formattedElevationFull = formatElevation(lap.total_ascent, authStore.user.units);
-				const formattedSpeed = formatAverageSpeed(props.activity, authStore.user.units, lap, false);
-				const formattedSpeedFull = formatAverageSpeed(props.activity, authStore.user.units, lap);
+    // Work out whether each lap is a rest (swim activities only)
+    const lapsWithRest = laps.map(lap => {
+        const swimIsRest = activityTypeIsSwimming(props.activity)
+            && (lap.total_distance === 0 || lap.total_distance === null);
+        return {
+            ...lap,
+            swimIsRest: swimIsRest,
+        };
+    });
+    // Assume that 2 rests in a row is an error/drills
+    for (let i = 0; i < lapsWithRest.length - 1; i++) {
+        if (lapsWithRest[i].swimIsRest === true && lapsWithRest[i + 1].swimIsRest === true) {
+            lapsWithRest[i + 1].swimIsRest = false;
+        }
+    }
 
-				return {
-					...lap,
-					normalizedScore: Math.min(Math.max(normalizedScore, 0), 100), // Clamp between 0 and 100
-					formattedPace: formattedPace,
-					formattedPaceFull: formattedPaceFull,
-					lapSecondsToMinutes: formatSecondsToMinutes(lap.total_elapsed_time),
-                    formattedDistance: formattedDistance,
-                    formattedElevation: formattedElevation,
-                    formattedElevationFull: formattedElevationFull,
-                    formattedSpeedFull: formattedSpeedFull,
-                    formattedSpeed: formattedSpeed,
-				};
-			});
-		});
-        
-        const hasIntensity = computed(() => {
-            return normalizedLaps.value.some(lap => lap.intensity !== null);
-        });
+    // Normalize each lap's pace relative to the fastest
+    return lapsWithRest.map((lap) => {
+        const normalizedScore = (fastestPace / lap.enhanced_avg_pace) * 100;
+        const formattedPace = formatPace(props.activity, props.units, lap, false, lap.swimIsRest);
+        const formattedPaceFull = formatPace(props.activity, props.units, lap, true, lap.swimIsRest);
+        const formattedDistance = formatDistance(props.activity, props.units, lap);
+        const formattedElevation = formatElevation(lap.total_ascent, props.units, false);
+        const formattedElevationFull = formatElevation(lap.total_ascent, props.units);
+        const formattedSpeed = formatAverageSpeed(props.activity, props.units, lap, false);
+        const formattedSpeedFull = formatAverageSpeed(props.activity, props.units, lap);
 
-		return {
-			normalizedLaps,
-            hasIntensity,
-            activityTypeIsSwimming,
-		};
-	},
-};
+        return {
+            ...lap,
+            normalizedScore: Math.min(Math.max(normalizedScore, 0), 100), // Clamp between 0 and 100
+            formattedPace: formattedPace,
+            formattedPaceFull: formattedPaceFull,
+            lapSecondsToMinutes: formatSecondsToMinutes(lap.total_elapsed_time),
+            formattedDistance: formattedDistance,
+            formattedElevation: formattedElevation,
+            formattedElevationFull: formattedElevationFull,
+            formattedSpeedFull: formattedSpeedFull,
+            formattedSpeed: formattedSpeed,
+        };
+    });
+});
+
+const hasIntensity = computed(() => {
+    return normalizedLaps.value.some(lap => lap.intensity !== null);
+});
 </script>

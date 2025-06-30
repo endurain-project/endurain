@@ -131,6 +131,7 @@ export function formatAverageSpeedImperial(speed) {
  * Checks if the activity type is a swimming activity.
  *
  * @param {object} activity - The activity object.
+ * @param {number} activity.activity_type - The type identifier of the activity.
  * @returns {boolean} True if the type of the activity is swimming (Indoor or Outdoor), false otherwise.
  */
 export function activityTypeIsSwimming(activity) {
@@ -141,6 +142,7 @@ export function activityTypeIsSwimming(activity) {
  * Checks if the activity type is a running activity.
  *
  * @param {object} activity - The activity object.
+ * @param {number} activity.activity_type - The type identifier of the activity.
  * @returns {boolean} True if the type of the activity is running, false otherwise.
  */
 export function activityTypeIsRunning(activity) {
@@ -161,6 +163,7 @@ export function activityTypeNotRunning(activity) {
  * Checks if the activity type is a running activity.
  *
  * @param {object} activity - The activity object.
+ * @param {number} activity.activity_type - The type identifier of the activity.
  * @returns {boolean} True if the type of the activity is cycling, false otherwise.
  */
 export function activityTypeIsCycling(activity) {
@@ -183,10 +186,22 @@ export function activityTypeNotCycling(activity) {
  * Checks if the activity type is a running activity.
  *
  * @param {object} activity - The activity object.
+ * @param {number} activity.activity_type - The type identifier of the activity.
  * @returns {boolean} True if the type of the activity is walking, false otherwise.
  */
 export function activityTypeIsWalking(activity) {
 	return activity.activity_type === 11 || activity.activity_type === 12;
+}
+
+/**
+ * Checks if the activity type is a racquet based activity.
+ *
+ * @param {object} activity - The activity object.
+ * @param {number} activity.activity_type - The type identifier of the activity.
+ * @returns {boolean} True if the type of the activity is racquet based, false otherwise.
+ */
+export function activityTypeIsRacquet(activity) {
+	return activity.activity_type === 21 || activity.activity_type === 22 || activity.activity_type === 23 || activity.activity_type === 24 || activity.activity_type === 25 || activity.activity_type === 26;
 }
 
 /**
