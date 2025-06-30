@@ -6,7 +6,7 @@ def parse_tcx_file(file, user_id, user_privacy_settings, db):
     tcx_file = tcxreader.TCXReader().read(file)
     trackpoints = tcx_file.trackpoints_to_dict()
 
-    lat_lon_waypoints = [{'time': trackpoint['time'],
+    lat_lon_waypoints = [{'time': trackpoint['time'].strftime("%Y-%m-%dT%H:%M:%S"),
                           'lat': trackpoint['latitude'],
                           'lon': trackpoint['longitude']}
                          for trackpoint in trackpoints]
