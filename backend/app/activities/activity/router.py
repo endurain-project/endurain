@@ -11,6 +11,7 @@ import activities.activity.utils as activities_utils
 import core.database as core_database
 import core.dependencies as core_dependencies
 import core.logger as core_logger
+import core.config as core_config
 import gears.gear.dependencies as gears_dependencies
 import session.security as session_security
 import users.user.dependencies as users_dependencies
@@ -494,11 +495,13 @@ async def read_activities_user_activities_refresh(
     )
 
     # Get the garmin activities for the user for the last 24h
-    garmin_activities = garmin_activity_utils.get_user_garminconnect_activities_by_dates(
-        start_date=datetime.now(timezone.utc) - timedelta(days=1),
-        end_date=datetime.now(timezone.utc),
-        user_id=token_user_id,
-        db=db,
+    garmin_activities = (
+        garmin_activity_utils.get_user_garminconnect_activities_by_dates(
+            start_date=datetime.now(timezone.utc) - timedelta(days=1),
+            end_date=datetime.now(timezone.utc),
+            user_id=token_user_id,
+            db=db,
+        )
     )
 
     # Extend the activities to the list
@@ -618,7 +621,7 @@ async def create_activity_with_bulk_import(
 ):
     try:
         # Ensure the 'bulk_import' directory exists
-        bulk_import_dir = "config/files/bulk_import"
+        bulk_import_dir = core_config.FILES_BULK_IMPORT_DIR
         os.makedirs(bulk_import_dir, exist_ok=True)
 
         # Iterate over each file in the 'bulk_import' directory
@@ -737,7 +740,7 @@ async def delete_activity(
     activities_crud.delete_activity(activity_id, db)
 
     # Define the search pattern using the file ID (e.g., '1.*')
-    pattern = f"config/files/processed/{activity_id}.*"
+    pattern = f"{core_config.FILES_PROCESSED_DIR}/{activity_id}.*"
 
     # Use glob to find files that match the pattern
     files_to_delete = glob.glob(pattern)

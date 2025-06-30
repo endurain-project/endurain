@@ -35,7 +35,7 @@ Lets use `/opt/endurain/` as the root directory for our project.
 sudo mkdir /opt/endurain
 sudo chown 1000:1000 /opt/endurain
 mkdir -p \
-  /opt/endurain/app/{user_images,files/{bulk_import,processed},logs} \
+  /opt/endurain/app/{config,logs} \
   /opt/endurain/postgres
 ```
 

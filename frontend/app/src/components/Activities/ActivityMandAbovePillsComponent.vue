@@ -93,7 +93,7 @@ import ActivityLapsComponent from "@/components/Activities/ActivityLapsComponent
 import ActivityStreamsLineChartComponent from "@/components/Activities/ActivityStreamsLineChartComponent.vue";
 import ActivityWorkoutStepsComponent from "@/components/Activities/ActivityWorkoutStepsComponent.vue";
 import BarChartComponent from '@/components/GeneralComponents/BarChartComponent.vue';
-import { activityTypeIsSwimming } from "@/utils/activityUtils";
+import { activityTypeIsCycling, activityTypeNotCycling, activityTypeIsSwimming } from "@/utils/activityUtils";
 // Import Notivue push
 import { push } from "notivue";
 // Import the utils
@@ -143,13 +143,7 @@ const elePresent = ref(false);
 const cadPresent = ref(false);
 const velPresent = ref(false);
 const pacePresent = ref(false);
-const hrZones = ref({
-	zone_1: {},
-	zone_2: {},
-	zone_3: {},
-	zone_4: {},
-	zone_5: {},
-});
+const hrZones = ref({});
 
 // Methods
 function selectGraph(type) {
@@ -165,6 +159,12 @@ onMounted(async () => {
 				if (element.stream_type === 1) {
 					hrPresent.value = true;
 					graphItems.value.push({ type: "hr", label: `${t("activityMandAbovePillsComponent.labelGraphHR")}` });
+					// If HR zones are present, add them to the hrZones object
+					hrZones.value = props.activityActivityStreams.find(stream => stream.hr_zone_percentages).hr_zone_percentages || {};
+					if (Object.keys(hrZones.value).length > 0) {
+						hrPresent.value = true;
+						graphItems.value.push({ type: "hrZones", label: `${t("activityMandAbovePillsComponent.labelHRZones")}` });
+					}
 				}
 				if (element.stream_type === 2) {
 					powerPresent.value = true;
@@ -189,12 +189,7 @@ onMounted(async () => {
 				if (element.stream_type === 5) {
 					velPresent.value = true;
 					if (
-						props.activity.activity_type === 4 ||
-						props.activity.activity_type === 5 ||
-						props.activity.activity_type === 6 ||
-						props.activity.activity_type === 7 ||
-						props.activity.activity_type === 27 ||
-						props.activity.activity_type === 28
+						activityTypeIsCycling(props.activity)
 					) {
 						graphItems.value.push({ type: "vel", label: `${t("activityMandAbovePillsComponent.labelGraphVelocity")}` });
 					}
@@ -202,12 +197,7 @@ onMounted(async () => {
 				if (element.stream_type === 6) {
 					pacePresent.value = true;
 					if (
-						props.activity.activity_type !== 4 &&
-						props.activity.activity_type !== 5 &&
-						props.activity.activity_type !== 6 &&
-						props.activity.activity_type !== 7 &&
-						props.activity.activity_type !== 27 &&
-						props.activity.activity_type !== 28
+						activityTypeNotCycling(props.activity)
 					) {
 						graphItems.value.push({ type: "pace", label: `${t("activityMandAbovePillsComponent.labelGraphPace")}` });
 					}

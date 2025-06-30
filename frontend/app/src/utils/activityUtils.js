@@ -131,6 +131,7 @@ export function formatAverageSpeedImperial(speed) {
  * Checks if the activity type is a swimming activity.
  *
  * @param {object} activity - The activity object.
+ * @param {number} activity.activity_type - The type identifier of the activity.
  * @returns {boolean} True if the type of the activity is swimming (Indoor or Outdoor), false otherwise.
  */
 export function activityTypeIsSwimming(activity) {
@@ -138,33 +139,91 @@ export function activityTypeIsSwimming(activity) {
 }
 
 /**
+ * Checks if the activity type is not a swimming-related activity.
+ *
+ * @param {Object} activity - The activity object to check.
+ * @param {number} activity.activity_type - The type identifier of the activity.
+ * @returns {boolean} Returns true if the activity is not swimming-related (types 8, or 9), otherwise false.
+ */
+export function activityTypeNotSwimming(activity) {
+	return activity.activity_type !== 8 && activity.activity_type !== 9;
+}
+
+/**
  * Checks if the activity type is a running activity.
  *
  * @param {object} activity - The activity object.
+ * @param {number} activity.activity_type - The type identifier of the activity.
  * @returns {boolean} True if the type of the activity is running, false otherwise.
  */
 export function activityTypeIsRunning(activity) {
 	return activity.activity_type === 1 || activity.activity_type === 2 || activity.activity_type === 3;
 }
-
 /**
- * Checks if the activity type is a running activity.
+ * Checks if the activity type is not a running-related activity.
  *
- * @param {object} activity - The activity object.
- * @returns {boolean} True if the type of the activity is cycling, false otherwise.
+ * @param {Object} activity - The activity object to check.
+ * @param {number} activity.activity_type - The type identifier of the activity.
+ * @returns {boolean} Returns true if the activity is not running-related (types 1,2, or 3), otherwise false.
  */
-export function activityTypeIsCycling(activity) {
-	return activity.activity_type === 4 || activity.activity_type === 5 || activity.activity_type === 6 || activity.activity_type === 7 || activity.activity_type === 27 || activity.activity_type === 28;
+export function activityTypeNotRunning(activity) {
+	return activity.activity_type !== 1 && activity.activity_type !== 2 && activity.activity_type === 3;
 }
 
 /**
  * Checks if the activity type is a running activity.
  *
  * @param {object} activity - The activity object.
+ * @param {number} activity.activity_type - The type identifier of the activity.
+ * @returns {boolean} True if the type of the activity is cycling, false otherwise.
+ */
+export function activityTypeIsCycling(activity) {
+	return activity.activity_type === 4 || activity.activity_type === 5 || activity.activity_type === 6 || activity.activity_type === 7 || activity.activity_type === 27 || activity.activity_type === 28 || activity.activity_type === 29;
+}
+
+
+/**
+ * Determines if the given activity is not a cycling-related activity.
+ *
+ * @param {Object} activity - The activity object to check.
+ * @param {number} activity.activity_type - The type identifier of the activity.
+ * @returns {boolean} Returns true if the activity is not cycling-related (types 4, 5, 6, 7, 27, 28, or 29), otherwise false.
+ */
+export function activityTypeNotCycling(activity) {
+	return activity.activity_type !== 4 && activity.activity_type !== 5 && activity.activity_type !== 6 && activity.activity_type !== 7 && activity.activity_type !== 27 && activity.activity_type !== 28 && activity.activity_type !== 29;
+}
+
+/**
+ * Checks if the activity type is a running activity.
+ *
+ * @param {object} activity - The activity object.
+ * @param {number} activity.activity_type - The type identifier of the activity.
  * @returns {boolean} True if the type of the activity is walking, false otherwise.
  */
 export function activityTypeIsWalking(activity) {
 	return activity.activity_type === 11 || activity.activity_type === 12;
+}
+
+/**
+ * Checks if the activity type is a racquet based activity.
+ *
+ * @param {object} activity - The activity object.
+ * @param {number} activity.activity_type - The type identifier of the activity.
+ * @returns {boolean} True if the type of the activity is racquet based, false otherwise.
+ */
+export function activityTypeIsRacquet(activity) {
+	return activity.activity_type === 21 || activity.activity_type === 22 || activity.activity_type === 23 || activity.activity_type === 24 || activity.activity_type === 25 || activity.activity_type === 26;
+}
+
+/**
+ * Determines if the given activity is not a racquet-related activity.
+ *
+ * @param {Object} activity - The activity object to check.
+ * @param {number} activity.activity_type - The type identifier of the activity.
+ * @returns {boolean} Returns true if the activity is not racquet-related (types 21, 22, 23, 24, 25, or 26), otherwise false.
+ */
+export function activityTypeNotRacquet(activity) {
+	return activity.activity_type !== 21 && activity.activity_type !== 22 && activity.activity_type !== 23 && activity.activity_type !== 24 && activity.activity_type !== 25 && activity.activity_type !== 26;
 }
 
 /**
@@ -226,34 +285,21 @@ export function formatAverageSpeed(
 		activity.average_speed < 0
 	)
 		return i18n.global.t("generalItems.labelNoData");
-	if (Number(unitSystem) === 1) {
-		if (
-			activity.activity_type === 4 ||
-			activity.activity_type === 5 ||
-			activity.activity_type === 6 ||
-			activity.activity_type === 7 ||
-			activity.activity_type === 27 ||
-			activity.activity_type === 28
-		) {
+
+	if (
+		activityTypeIsCycling(activity)
+	) {
+		if (Number(unitSystem) === 1) {
 			if (units) {
-				return `${formatAverageSpeedImperial(speed)} ${i18n.global.t("generalItems.unitsKmH")}`;
+				return `${formatAverageSpeedMetric(speed)} ${i18n.global.t("generalItems.unitsKmH")}`;
 			}
 			return `${formatAverageSpeedMetric(speed)}`;
+		} else {
+			if (units) {
+				return `${formatAverageSpeedImperial(speed)} ${i18n.global.t("generalItems.unitsMph")}`;
+			}
+			return `${formatAverageSpeedImperial(speed)}`;
 		}
-		return i18n.global.t("generalItems.labelNoData");
-	}
-	if (
-		activity.activity_type === 4 ||
-		activity.activity_type === 5 ||
-		activity.activity_type === 6 ||
-		activity.activity_type === 7 ||
-		activity.activity_type === 27 ||
-		activity.activity_type === 28
-	) {
-		if (units) {
-			return `${formatAverageSpeedMetric(speed)} ${i18n.global.t("generalItems.unitsMph")}`;
-		}
-		return `${formatAverageSpeedImperial(speed)}`;
 	}
 	return i18n.global.t("generalItems.labelNoData");
 }
@@ -428,6 +474,7 @@ export function getIcon(typeId) {
 		26: ["fas", "table-tennis-paddle-ball"],
 		27: ["fas", "person-biking"],
 		28: ["fas", "person-biking"],
+		29: ["fas", "person-biking"],
 	};
 
 	return iconMap[typeId] || ["fas", "dumbbell"];

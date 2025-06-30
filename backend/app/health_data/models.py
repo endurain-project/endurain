@@ -24,7 +24,6 @@ class HealthData(Base):
     date = Column(
         Date,
         nullable=False,
-        unique=True,
         comment="Health data creation date (date)",
     )
     weight = Column(

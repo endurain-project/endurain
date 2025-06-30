@@ -32,4 +32,4 @@ async def read_health_data_all_pagination(
     ],
 ):
     # Get the health_targets from the database
-    return health_targets_crud.get_user_health_targets(token_user_id, db)
+    return health_targets_crud.get_health_targets_by_user_id(token_user_id, db)

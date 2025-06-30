@@ -393,3 +393,53 @@ def unlink_garminconnect_account(user_id: int, db: Session):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal Server Error",
         ) from err
+
+
+def edit_user_integrations(
+    user_integrations: user_integrations_schema.UsersIntegrations,
+    user_id: int,
+    db: Session,
+):
+    try:
+        # Get the user integrations from the database
+        db_user_integrations = (
+            db.query(user_integrations_models.UsersIntegrations)
+            .filter(
+                user_integrations_models.UsersIntegrations.user_id == user_id,
+            )
+            .first()
+        )
+
+        if db_user_integrations is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User integrations not found",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
+        # Dictionary of the fields to update if they are not None
+        user_integrations_data = user_integrations.model_dump(exclude_unset=True)
+        # Iterate over the fields and update the db_user dynamically
+        for key, value in user_integrations_data.items():
+            setattr(db_user_integrations, key, value)
+
+        # Commit the transaction
+        db.commit()
+
+        return db_user_integrations
+    except HTTPException as http_err:
+        raise http_err
+    except Exception as err:
+        # Rollback the transaction
+        db.rollback()
+
+        # Log the exception
+        core_logger.print_to_log(
+            f"Error in edit_user_integrations: {err}", "error", exc=err
+        )
+
+        # Raise an HTTPException with a 500 Internal Server Error status code
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal Server Error: {err}",
+        ) from err

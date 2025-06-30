@@ -51,5 +51,8 @@
     "labelRest": "Rest",
     "labelStrokeRateInSpm": "Stroke rate in spm",
     "startDateLabel": "Startdatum",
-    "endDateLabel": "Enddatum"
+    "endDateLabel": "Enddatum",
+    "cancel": "Cancel",
+    "loading": "Loading",
+    "betaTag": " (Beta)"
 }

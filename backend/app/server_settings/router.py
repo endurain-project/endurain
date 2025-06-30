@@ -11,6 +11,7 @@ import session.security as session_security
 
 import core.database as core_database
 import core.logger as core_logger
+import core.config as core_config
 
 # Define the API router
 router = APIRouter()
@@ -60,7 +61,7 @@ async def upload_login_photo(
 ):
     try:
         # Ensure the 'server_images' directory exists
-        upload_dir = "config/server_images"
+        upload_dir = core_config.SERVER_IMAGES_DIR
         os.makedirs(upload_dir, exist_ok=True)
 
         # Build the full path with the name "login.png"
@@ -91,7 +92,7 @@ async def delete_login_photo(
 ):
     try:
         # Build the full path to the file
-        file_path = os.path.join("config/server_images", "login.png")
+        file_path = os.path.join(core_config.SERVER_IMAGES_DIR, "login.png")
 
         # Check if the file exists
         if os.path.exists(file_path):

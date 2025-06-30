@@ -1,11 +1,12 @@
 import os
 import zipfile
 
-from datetime import datetime, timedelta, date, timezone
+from datetime import datetime, timedelta, timezone
 import garminconnect
 from sqlalchemy.orm import Session
 
 import core.logger as core_logger
+import core.config as core_config
 
 import garmin.utils as garmin_utils
 
@@ -75,7 +76,7 @@ def fetch_and_process_activities_by_dates(
             activity_id, dl_fmt=garminconnect_client.ActivityDownloadFormat.ORIGINAL
         )
         # Save the zip file
-        output_file = f"config/files/{str(activity_id)}.zip"
+        output_file = f"{core_config.FILES_DIR}/{str(activity_id)}.zip"
 
         # Write the ZIP data to the output file
         with open(output_file, "wb") as fb:
@@ -87,7 +88,7 @@ def fetch_and_process_activities_by_dates(
         # Open the ZIP file
         with zipfile.ZipFile(output_file, "r") as zip_ref:
             # Extract all contents to the specified directory
-            zip_ref.extractall("config/files")
+            zip_ref.extractall(core_config.FILES_DIR)
             # Populate the array with file names
             extracted_files = zip_ref.namelist()
 
@@ -100,7 +101,7 @@ def fetch_and_process_activities_by_dates(
 
         for file_path_suffix in extracted_files:
             # Parse and store the activity from the extracted file
-            full_file_path = os.path.join("config/files", file_path_suffix)
+            full_file_path = os.path.join(core_config.FILES_DIR, file_path_suffix)
 
             parsed_activities.extend(
                 activities_utils.parse_and_store_activity_from_file(

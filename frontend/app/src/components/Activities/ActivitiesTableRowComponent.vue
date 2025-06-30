@@ -15,7 +15,7 @@
         <span v-if="activity.activity_type === 1 || activity.activity_type === 2 || activity.activity_type === 3 || activity.activity_type === 8 || activity.activity_type === 9 || activity.activity_type === 11 || activity.activity_type === 12 || activity.activity_type === 13">
             {{ formatPace(activity, authStore.user.units) }}
         </span>
-        <span v-else-if="activity.activity_type === 4 || activity.activity_type === 5 || activity.activity_type === 6 || activity.activity_type === 7 || activity.activity_type === 27 || activity.activity_type === 28">
+        <span v-else-if="activityTypeIsCycling(activity)">
             {{ formatAverageSpeed(activity, authStore.user.units) }}
         </span>
         <span v-else>
@@ -43,6 +43,7 @@ import {
 	getIcon,
 	formatLocation,
     formatAverageSpeed,
+    activityTypeIsCycling,
 } from "@/utils/activityUtils";
 
 export default {
