@@ -23,6 +23,8 @@ import strava.utils as strava_utils
 
 from core.routes import router as api_router
 
+from app.users.user_first_day_of_week.router import router as user_first_day_of_week_router
+
 
 def startup_event():
     core_logger.print_to_log_and_console(
@@ -107,6 +109,13 @@ def create_app() -> FastAPI:
 
     # Router files
     app.include_router(api_router)
+    
+    # Add a route to register the new user first day of week router
+    app.include_router(
+        user_first_day_of_week_router,
+        prefix="/api/v1",
+        tags=["users", "preferences"]
+    )
 
     # Add a route to serve the user images
     app.mount("/user_images", StaticFiles(directory="user_images"), name="user_images")
