@@ -29,7 +29,9 @@ class Gear(Base):
         comment="Gear nickname (May include spaces)",
     )
     gear_type = Column(
-        Integer, nullable=False, comment="Gear type (1 - bike, 2 - shoes, 3 - wetsuit, 4 - racquet, 5 - skis, 6 - snowboard)"
+        Integer,
+        nullable=False,
+        comment="Gear type (1 - bike, 2 - shoes, 3 - wetsuit, 4 - racquet, 5 - skis, 6 - snowboard)",
     )
     user_id = Column(
         Integer,

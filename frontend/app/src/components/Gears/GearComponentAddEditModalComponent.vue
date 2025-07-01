@@ -21,8 +21,17 @@
                                 }}</b></label>
                         <select class="form-select" name="gearComponentTypeAddEdit" v-model="newEditGearComponentType"
                             required>
-                            <option v-for="type in GEAR_BIKE_COMPONENT_TYPES" :key="type" :value="type">
+                            <option v-for="type in GEAR_BIKE_COMPONENT_TYPES" :key="type" :value="type"
+                                v-if="gear.gear_type === 1">
                                 {{ getGearBikeComponentType(type, t) }}
+                            </option>
+                            <option v-for="type in GEAR_SHOES_COMPONENT_TYPES" :key="type" :value="type"
+                                v-if="gear.gear_type === 2">
+                                {{ getGearShoesComponentType(type, t) }}
+                            </option>
+                            <option v-for="type in GEAR_RACQUET_COMPONENT_TYPES" :key="type" :value="type"
+                                v-if="gear.gear_type === 4">
+                                {{ getGearRacquetComponentType(type, t) }}
                             </option>
                         </select>
                         <!-- brand fields -->
@@ -53,32 +62,42 @@
                             <input class="form-control" type="number" name="gearComponentExpectedDistanceAddEdit"
                                 :placeholder='$t("gearComponentAddEditModalComponent.addEditGearComponentModalAddEditExpectedDistanceLabel")'
                                 v-model="newEditGearComponentExpectedDistanceKms" min="0" max="100000" step="1">
-                            <span class="input-group-text" v-if="authStore.user.units === 1">{{ $t("generalItems.unitsKm") }}</span>
+                            <span class="input-group-text" v-if="authStore.user.units === 1">{{
+                                $t("generalItems.unitsKm") }}</span>
                             <span class="input-group-text" v-else>{{ $t("generalItems.unitsMiles") }}</span>
                         </div>
                         <!-- purchase value -->
-                        <label for="gearComponentPurchaseValueAddEdit"><b>{{ $t("gearComponentAddEditModalComponent.addEditGearComponentModalAddEditPurchaseValueLabel") }}</b></label>
+                        <label for="gearComponentPurchaseValueAddEdit"><b>{{
+                            $t("gearComponentAddEditModalComponent.addEditGearComponentModalAddEditPurchaseValueLabel")
+                                }}</b></label>
                         <div class="input-group">
-                            <input class="form-control" type="number" name="addEditGearComponentModalAddEditPurchaseValueLabel"
+                            <input class="form-control" type="number"
+                                name="addEditGearComponentModalAddEditPurchaseValueLabel"
                                 :placeholder='$t("gearComponentAddEditModalComponent.addEditGearComponentModalAddEditPurchaseValueLabel")'
-                                v-model="newEditGearComponentPurchaseValue" min="0" max="100000" step="0.01" inputmode="decimal">
-                            <span class="input-group-text" v-if="authStore.user.currency === 1">{{ $t("generalItems.currencyEuroSymbol") }}</span>
-                            <span class="input-group-text" v-else-if="authStore.user.currency === 2">{{ $t("generalItems.currencyDollarSymbol") }}</span>
+                                v-model="newEditGearComponentPurchaseValue" min="0" max="100000" step="0.01"
+                                inputmode="decimal">
+                            <span class="input-group-text" v-if="authStore.user.currency === 1">{{
+                                $t("generalItems.currencyEuroSymbol") }}</span>
+                            <span class="input-group-text" v-else-if="authStore.user.currency === 2">{{
+                                $t("generalItems.currencyDollarSymbol") }}</span>
                             <span class="input-group-text" v-else>{{ $t("generalItems.currencyPoundSymbol") }}</span>
                         </div>
                         <!-- retired rate -->
-                         <div v-if="action === 'edit'">
+                        <div v-if="action === 'edit'">
                             <label for="gearComponentRetiredDateAddEdit"><b>{{
                                 $t("gearComponentAddEditModalComponent.addEditGearComponentModalAddEditRetiredDateLabel")
                                     }}</b></label>
                             <input class="form-control" type="date" name="gearComponentRetiredDateAddEdit"
                                 v-model="newEditGearComponentRetiredDate">
-                         </div>
-                         <!-- is active -->
+                        </div>
+                        <!-- is active -->
                         <div v-if="action === 'edit'">
                             <label for="gearComponentIsActiveAddEdit"><b>* {{
-                                $t("gearComponentAddEditModalComponent.addEditGearComponentModalAddEditIsActiveLabel") }}</b></label>
-                            <select class="form-select" name="gearComponentIsActiveAddEdit" :disabled="newEditGearComponentRetiredDate" v-model="newEditGearComponentIsActive" required>
+                                $t("gearComponentAddEditModalComponent.addEditGearComponentModalAddEditIsActiveLabel")
+                                    }}</b></label>
+                            <select class="form-select" name="gearComponentIsActiveAddEdit"
+                                :disabled="newEditGearComponentRetiredDate" v-model="newEditGearComponentIsActive"
+                                required>
                                 <option :value="true">{{ $t("generalItems.yes") }}</option>
                                 <option :value="false">{{ $t("generalItems.no") }}</option>
                             </select>
@@ -110,7 +129,7 @@ import { ref, onMounted, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { push } from "notivue";
 import { useAuthStore } from "@/stores/authStore";
-import { GEAR_BIKE_COMPONENT_TYPES, getGearBikeComponentType } from "@/utils/gearComponentsUtils";
+import { GEAR_BIKE_COMPONENT_TYPES, getGearBikeComponentType, GEAR_SHOES_COMPONENT_TYPES, getGearShoesComponentType, GEAR_RACQUET_COMPONENT_TYPES, getGearRacquetComponentType } from "@/utils/gearComponentsUtils";
 import { kmToMiles, milesToKm } from "@/utils/unitsUtils";
 import { gearsComponents } from "@/services/gearsComponentsService";
 
@@ -163,6 +182,14 @@ onMounted(() => {
         newEditGearComponentPurchaseValue.value = props.gearComponent.purchase_value
         newEditGearComponentRetiredDate.value = props.gearComponent.retired_date;
         newEditGearComponentIsActive.value = props.gearComponent.is_active;
+    } else {
+        if (props.gear.gear_type === 1) {
+            newEditGearComponentType.value = "back_break_oil";
+        } else if (props.gear.gear_type === 2) {
+            newEditGearComponentType.value = "cleats";
+        } else if (props.gear.gear_type === 4) {
+            newEditGearComponentType.value = "basegrip";
+        }
     }
 });
 
@@ -191,7 +218,13 @@ async function submitAddGearComponentForm() {
         // add the gear component in the database
         const createdGearComponent = await gearsComponents.createGearComponent(data);
         // set the form values to default
-        newEditGearComponentType.value = null;
+        if (props.gear.gear_type === 1) {
+            newEditGearComponentType.value = "back_break_oil";
+        } else if (props.gear.gear_type === 2) {
+            newEditGearComponentType.value = "cleats";
+        } else if (props.gear.gear_type === 4) {
+            newEditGearComponentType.value = "basegrip";
+        }
         newEditGearComponentBrand.value = null;
         newEditGearComponentModel.value = null;
         newEditGearComponentPurchaseDate.value = new Date().toISOString().split('T')[0];

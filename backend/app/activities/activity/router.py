@@ -255,9 +255,12 @@ async def read_activities_gear_activities_number(
     ],
 ):
     # Get the number of activities for the gear
-    return len(activities_crud.get_user_activities_by_gear_id_and_user_id(
-        token_user_id, gear_id, db)
+    activities = activities_crud.get_user_activities_by_gear_id_and_user_id(
+        token_user_id, gear_id, db
     )
+    if activities is None:
+        return 0
+    return len(activities)
 
 
 @router.get(

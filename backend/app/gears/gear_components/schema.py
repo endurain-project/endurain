@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 
-GEAR_COMPONENT_TYPES = [
+BIKE_COMPONENT_TYPES = [
     "back_break_oil",
     "back_break_pads",
     "back_break_rotor",
@@ -47,8 +47,38 @@ GEAR_COMPONENT_TYPES = [
     "stem",
 ]
 
+SHOES_COMPONENT_TYPES = [
+    "cleats",
+    "insoles",
+    "laces",
+]
+
+RACQUET_COMPONENT_TYPES = [
+    "basegrip",
+    "bumpers",
+    "grommets",
+    "overgrip",
+    "strings",
+]
+
 
 class GearComponents(BaseModel):
+    """
+    Represents a gear component associated with a user and gear.
+
+    Attributes:
+        id (int | None): Unique identifier for the gear component.
+        user_id (int): Identifier of the user who owns the component.
+        gear_id (int): Identifier of the gear to which the component belongs.
+        type (str): Type/category of the gear component (e.g., chain, tire).
+        brand (str): Brand of the gear component.
+        model (str): Model name or number of the gear component.
+        purchase_date (str): Date when the component was purchased (ISO format recommended).
+        retired_date (str | None): Date when the component was retired, if applicable.
+        is_active (bool | None): Indicates if the component is currently active.
+        expected_kms (int | None): Expected kilometers the component should last.
+        purchase_value (float | None): Purchase value of the component.
+    """
     id: int | None = None
     user_id: int
     gear_id: int

@@ -64,6 +64,9 @@ async def create_gear_component(
     check_scopes: Annotated[
         Callable, Security(session_security.check_scopes, scopes=["gears:write"])
     ],
+    verify_gear_type: Annotated[
+        Callable, Security(gears_components_dependencies.validate_gear_component_type)
+    ],
     token_user_id: Annotated[
         int, Depends(session_security.get_user_id_from_access_token)
     ],
@@ -103,7 +106,7 @@ async def edit_gear_component(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Retired date must be after purchase date",
         )
-    
+
     # Get the gear component by id
     gear_component_db = gears_components_crud.get_gear_component_by_id(
         gear_component.id, db

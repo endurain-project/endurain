@@ -1,8 +1,15 @@
-from fastapi import HTTPException, status
+from typing import Annotated, Callable
+
+from sqlalchemy.orm import Session
+from fastapi import Depends, HTTPException, status
+
+import core.database as core_database
 
 import core.dependencies as core_dependencies
 
-import gears.gear_components.schema as gear_components_schema
+import gears.gear.crud as gears_crud
+
+import gears.gear_components.schema as gears_components_schema
 
 
 def validate_gear_component_id(gear_component_id: int):
@@ -24,21 +31,38 @@ def validate_gear_component_id(gear_component_id: int):
     )
 
 
-def validate_gear_component_type(gear_component_type: str):
-    """
-    Validates that the provided gear component type is within the allowed types.
+def validate_gear_component_type(
+    gear_component: gears_components_schema.GearComponents,
+    db: Annotated[
+        Session,
+        Depends(core_database.get_db),
+    ],
+):
+    gear = gears_crud.get_gear_user_by_id(
+        gear_component.user_id, gear_component.gear_id, db
+    )
 
-    Args:
-        gear_component_type (str): The type of the gear component to validate.
-
-    Raises:
-        HTTPException: If the gear component type is not valid, raises an HTTP 422 error.
-    """
-    if (
-        gear_component_type not in gear_components_schema.GEAR_COMPONENT_TYPES
-        and gear_component_type is not None
-    ):
+    if gear is None:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="Invalid gear component type field",
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Gear not found",
         )
+
+    gear_type_to_component_types = {
+        1: gears_components_schema.BIKE_COMPONENT_TYPES,
+        2: gears_components_schema.SHOES_COMPONENT_TYPES,
+        4: gears_components_schema.RACQUET_COMPONENT_TYPES,
+    }
+
+    if gear.gear_type in gear_type_to_component_types:
+        valid_types = gear_type_to_component_types[gear.gear_type]
+        if gear_component.type not in valid_types:
+            gear_type_names = {
+                1: "bike",
+                2: "shoes",
+                4: "racquet",
+            }
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"Invalid gear component type for {gear_type_names[gear.gear_type]}",
+            )
