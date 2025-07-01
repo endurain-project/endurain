@@ -35,7 +35,7 @@ Lets use `/opt/endurain/` as the root directory for our project.
 sudo mkdir /opt/endurain
 sudo chown 1000:1000 /opt/endurain
 mkdir -p \
-  /opt/endurain/app/{user_images,server_images,files,logs} \
+  /opt/endurain/backend/{user_images,server_images,files,logs} \
   /opt/endurain/postgres
 ```
 
@@ -53,12 +53,12 @@ Splitting up the setup like this make it easy to handle updates to the container
 To make it as easy as possible for selfhoster to get up and running examples of docker-compose.yml and .env is on the git repo. Here are links to the files on the repo:
 
 * [docker-compose.yml.example](https://raw.githubusercontent.com/joaovitoriasilva/endurain/refs/heads/master/docker-compose.yml.example)
-* [.env.example](https://raw.githubusercontent.com/joaovitoriasilva/endurain/refs/heads/master/env.example)
+* [.env.example](https://raw.githubusercontent.com/joaovitoriasilva/endurain/refs/heads/master/.env.example)
 
 ```bash
 cd /opt/endurain
 wget https://raw.githubusercontent.com/joaovitoriasilva/endurain/refs/heads/master/docker-compose.yml.example
-wget https://raw.githubusercontent.com/joaovitoriasilva/endurain/refs/heads/master/env.example
+wget https://raw.githubusercontent.com/joaovitoriasilva/endurain/refs/heads/master/.env.example
 
 mv docker-compose.yml.example docker-compose.yml
 mv .env.example .env
@@ -168,10 +168,10 @@ The same is the case for Postgres. Check for breaking changes in release notes o
 You should implement backup strategy for the following directories:
 
 ```
-/opt/endurain/app/user_images
-/opt/endurain/app/server_images
-/opt/endurain/app/files
-/opt/endurain/app/logs
+/opt/endurain/backend/user_images
+/opt/endurain/backend/server_images
+/opt/endurain/backend/files
+/opt/endurain/backend/logs
 ```
 
 You also need to backup your postgres database. It is not good practice to just backup the volume `/opt/endurain/postgres` this might be corrupted if  the database is in the middle of a wright when the database goes down.
