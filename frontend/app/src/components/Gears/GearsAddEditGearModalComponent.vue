@@ -83,6 +83,22 @@
                             <input class="form-control" type="number" step="0.1" name="gearInitialMilesAddEdit"
                                 v-model="newEditGearInitialMiles" required>
                         </div>
+                        <!-- purchase value -->
+                        <label for="gearPurchaseValueAddEdit"><b>{{
+                            $t("gearsAddEditGearModalComponent.addEditGearModalAddEditPurchaseValueLabel")
+                                }}</b></label>
+                        <div class="input-group">
+                            <input class="form-control" type="number"
+                                name="gearPurchaseValueAddEdit"
+                                :placeholder='$t("gearsAddEditGearModalComponent.addEditGearModalAddEditPurchaseValueLabel")'
+                                v-model="newEditGearPurchaseValue" min="0" max="100000" step="0.01"
+                                inputmode="decimal">
+                            <span class="input-group-text" v-if="authStore.user.currency === 1">{{
+                                $t("generalItems.currencyEuroSymbol") }}</span>
+                            <span class="input-group-text" v-else-if="authStore.user.currency === 2">{{
+                                $t("generalItems.currencyDollarSymbol") }}</span>
+                            <span class="input-group-text" v-else>{{ $t("generalItems.currencyPoundSymbol") }}</span>
+                        </div>
 
                         <p>* {{ $t("generalItems.requiredField") }}</p>
                     </div>
@@ -136,6 +152,7 @@ const newEditGearCreatedDate = ref(new Date().toISOString().split('T')[0]);
 const newEditGearIsActive = ref(1);
 const newEditGearInitialKms = ref(0);
 const newEditGearInitialMiles = ref(0);
+const newEditGearPurchaseValue = ref(0);
 const isNicknameExists = ref(true);
 
 const validateNicknameExists = debounce(async () => {
@@ -181,6 +198,7 @@ onMounted(() => {
         if (props.gear.initial_kms && props.gear.initial_kms !== 0) {
             newEditGearInitialMiles.value = kmToMiles(props.gear.initial_kms);
         }
+        newEditGearPurchaseValue.value = props.gear.purchase_value;
     }
 });
 
@@ -195,6 +213,7 @@ async function submitAddGearForm() {
             created_at: newEditGearCreatedDate.value,
             is_active: newEditGearIsActive.value,
             initial_kms: newEditGearInitialKms.value,
+            purchase_value: newEditGearPurchaseValue.value,
         };
         // add the gear in the database
         const createdGear = await gears.createGear(data);
@@ -207,6 +226,7 @@ async function submitAddGearForm() {
         newEditGearIsActive.value = 1;
         newEditGearInitialKms.value = 0;
         newEditGearInitialMiles.value = 0;
+        newEditGearPurchaseValue.value = 0;
         // set the loading variable to false
         emit("isLoadingNewGear", false);
         // emit the created gear
@@ -233,6 +253,7 @@ async function submitEditGearForm() {
             created_at: newEditGearCreatedDate.value,
             is_active: newEditGearIsActive.value,
             initial_kms: newEditGearInitialKms.value,
+            purchase_value: newEditGearPurchaseValue.value,
         };
         // change the gear in the database
         await gears.editGear(props.gear.id, data);

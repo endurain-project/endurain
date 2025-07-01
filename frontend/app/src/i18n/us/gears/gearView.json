@@ -16,6 +16,8 @@
     "gearFromGarminConnect": "Garmin Connect",
     "labelBrand": "Brand",
     "labelModel": "Model",
+    "labelPurchaseValue": "Purchase value",
+    "labelTotalCost": "Total cost",
     "labelDistance": "Distance",
     "titleComponents": "Components",
     "showInactiveComponents": "Show inactive",

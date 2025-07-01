@@ -203,11 +203,6 @@ onMounted(async () => {
 					}
 				}
 			}
-			hrZones.value = props.activityActivityStreams.find(stream => stream.hr_zone_percentages).hr_zone_percentages || {};
-			if (Object.keys(hrZones.value).length > 0) {
-				hrPresent.value = true;
-				graphItems.value.push({ type: "hrZones", label: `${t("activityMandAbovePillsComponent.labelHRZones")}` });
-			}
 		}
 		if (graphItems.value.length > 0) {
 			graphSelection.value = graphItems.value[0].type;

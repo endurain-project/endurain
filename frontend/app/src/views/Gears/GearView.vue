@@ -59,8 +59,7 @@
                     </div>
                     <!-- add component zone -->
                     <button type="button" class="mt-2 w-100 btn btn-primary" data-bs-toggle="modal"
-                        data-bs-target="#addGearComponentModal" 
-                        :disabled="![1, 2, 4].includes(gear?.gear_type)">
+                        data-bs-target="#addGearComponentModal" :disabled="![1, 2, 4].includes(gear?.gear_type)">
                         {{ $t("gearView.buttonAddComponent") }}
                     </button>
 
@@ -107,6 +106,24 @@
                             gear?.brand }}</span>
                         <span class="mt-2" v-if="gear?.model"><strong>{{ $t("gearView.labelModel") }}:</strong> {{
                             gear?.model }}</span>
+                        <div class="mt-2" v-if="gear?.purchase_value">
+                            <span class="me-1"><strong>{{ $t("gearView.labelPurchaseValue") }}:</strong> {{
+                                gear?.purchase_value }}</span>
+                            <span v-if="authStore.user.currency === 1">{{
+                                $t("generalItems.currencyEuroSymbol") }}</span>
+                            <span v-else-if="authStore.user.currency === 2">{{
+                                $t("generalItems.currencyDollarSymbol") }}</span>
+                            <span v-else>{{ $t("generalItems.currencyPoundSymbol") }}</span>
+                        </div>
+                        <div class="mt-2">
+                            <span class="me-1"><strong>{{ $t("gearView.labelTotalCost") }}:</strong> {{
+                                gearTotalValue }}</span>
+                            <span v-if="authStore.user.currency === 1">{{
+                                $t("generalItems.currencyEuroSymbol") }}</span>
+                            <span v-else-if="authStore.user.currency === 2">{{
+                                $t("generalItems.currencyDollarSymbol") }}</span>
+                            <span v-else>{{ $t("generalItems.currencyPoundSymbol") }}</span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -155,7 +172,8 @@
                         v-for="gearComponent in (gearComponentsShowInactive ? gearComponents : gearComponentsActive)"
                         :key="gearComponent.id">
                         <GearComponentListComponent :gear="gear" :gearActivities="gearActivities"
-                            :gearComponent="gearComponent" @createdGearComponent="addGearComponentList" @editedGearComponent="editGearComponentList"
+                            :gearComponent="gearComponent" @createdGearComponent="addGearComponentList"
+                            @editedGearComponent="editGearComponentList"
                             @gearComponentDeleted="updateGearComponentListOnDelete" />
                     </ul>
                 </div>
@@ -171,7 +189,7 @@
                         {{ $t("gearView.title") }}
                     </h5>
                     <span class="mb-1 ms-1" v-if="gearActivitiesWithPagination">({{ gearActivitiesWithPagination.length
-                        }}{{
+                    }}{{
                             $t("generalItems.ofWithSpaces") }}{{ gearActivitiesNumber }})</span>
                 </div>
 
@@ -190,7 +208,7 @@
                                     {{ activity.name }}
                                 </router-link>
                                 <span>{{ formatDateMed(activity.start_time) }} @ {{ formatTime(activity.start_time)
-                                }}</span>
+                                    }}</span>
                             </li>
                         </ul>
 
@@ -247,6 +265,8 @@ const gearDistance = ref(0);
 const gearComponents = ref(null);
 const gearComponentsActive = ref(null);
 const gearComponentsShowInactive = ref(false);
+const gearComponentsTotalValue = ref(0);
+const gearTotalValue = ref(0);
 
 async function submitDeleteGear() {
     try {
@@ -273,18 +293,21 @@ function setIsLoadingNewGearComponent(state) {
 function addGearComponentList(createdGearComponent) {
     gearComponents.value.unshift(createdGearComponent);
     updateGearComponentsActive();
+    updateTotalCosts();
 }
 
 function editGearComponentList(editedGearComponent) {
     const index = gearComponents.value.findIndex((gearComponent) => gearComponent.id === editedGearComponent.id);
     gearComponents.value[index] = editedGearComponent;
     updateGearComponentsActive();
+    updateTotalCosts();
 }
 
 function updateGearComponentListOnDelete(gearComponentDeletedId) {
     gearComponents.value = gearComponents.value.filter(
         (gearComponent) => gearComponent.id !== gearComponentDeletedId,
     );
+    updateTotalCosts();
 }
 
 async function updateGearActivities() {
@@ -312,6 +335,21 @@ function updateGearComponentsActive() {
     gearComponentsActive.value = gearComponents.value.filter(
         (gearComponent) => gearComponent.is_active === true
     );
+    updateTotalCosts();
+}
+
+function updateTotalCosts() {
+    gearComponentsTotalValue.value = 0;
+    for (const gearComponent of gearComponents.value) {
+        if (gearComponent.purchase_value) {
+            gearComponentsTotalValue.value += gearComponent.purchase_value;
+        }
+    }
+    if (!gear.value.purchase_value) {
+        gearTotalValue.value = gearComponentsTotalValue.value;
+        return;
+    }
+    gearTotalValue.value = gear.value.purchase_value + gearComponentsTotalValue.value;
 }
 
 onMounted(async () => {
@@ -334,6 +372,7 @@ onMounted(async () => {
 
         gearComponents.value = await gearsComponents.getGearComponentsByGearId(route.params.id);
         updateGearComponentsActive();
+        updateTotalCosts();
     } catch (error) {
         if (error.toString().includes("422")) {
             return router.push({

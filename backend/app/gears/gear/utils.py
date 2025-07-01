@@ -29,6 +29,7 @@ def transform_schema_gear_to_model_gear(
         created_at=created_date,
         is_active=gear.is_active,
         initial_kms=gear.initial_kms,
+        purchase_value=gear.purchase_value,
         strava_gear_id=gear.strava_gear_id,
         garminconnect_gear_id=gear.garminconnect_gear_id,
     )

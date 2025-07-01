@@ -73,7 +73,7 @@ def upgrade() -> None:
         ),
         sa.Column(
             "expected_kms",
-            sa.DECIMAL(precision=11, scale=2),
+            sa.Integer(),
             nullable=True,
             comment="Expected kilometers of the gear component",
         ),
@@ -89,6 +89,24 @@ def upgrade() -> None:
     )
     op.create_index(
         op.f("ix_gear_components_gear_id"), "gear_components", ["gear_id"], unique=False
+    )
+    # Add new column to gear table
+    op.add_column(
+        "gear",
+        sa.Column(
+            "purchase_value",
+            sa.DECIMAL(precision=11, scale=2),
+            nullable=True,
+            comment="Gear purchase value",
+        ),
+    )
+    op.alter_column(
+        "gear",
+        "initial_kms",
+        existing_type=sa.DECIMAL(precision=11, scale=3),
+        type_=sa.DECIMAL(precision=11, scale=2),
+        existing_comment="Initial kilometers of the gear",
+        existing_nullable=False,
     )
     # Add new columns to server_settings table
     op.add_column(
@@ -177,6 +195,15 @@ def downgrade() -> None:
         existing_comment="Units (one digit)(1 - metric, 2 - imperial)",
         existing_nullable=False,
     )
+    op.alter_column(
+        "gear",
+        "initial_kms",
+        existing_type=sa.DECIMAL(precision=11, scale=2),
+        type_=sa.DECIMAL(precision=11, scale=3),
+        existing_comment="Initial kilometers of the gear",
+        existing_nullable=False,
+    )
+    op.drop_column("gear", "purchase_value")
     op.drop_column("server_settings", "currency")
     op.drop_column("server_settings", "num_records_per_page")
     op.drop_column("users", "currency")
