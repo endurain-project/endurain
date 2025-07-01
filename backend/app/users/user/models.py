@@ -143,3 +143,10 @@ class User(Base):
         back_populates="user",
         cascade="all, delete-orphan",
     )
+
+    # Establish a one-to-many relationship with 'notifications'
+    notifications = relationship(
+        "Notification",
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )

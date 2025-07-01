@@ -198,3 +198,76 @@ The table bellow details the gear types supported by Endurain:
 | Racquet   | 4     |
 | Ski       | 5     |
 | Snowboard | 6     |
+
+
+## Supported bike component gear types
+The table bellow details the bike gear component types supported by Endurain:
+
+| Value                       |
+|-----------------------------|
+| back_break_oil              |
+| back_break_pads             |
+| back_break_rotor            |
+| back_tire                   |
+| back_tube                   |
+| back_tubeless_sealant       |
+| back_tubeless_rim_tape      |
+| back_wheel                  |
+| back_wheel_valve            |
+| bottom_bracket              |
+| bottle_cage                 |
+| cassette                    |
+| chain                       |
+| computer_mount              |
+| crank_left_power_meter      |
+| crank_right_power_meter     |
+| crankset                    |
+| crankset_power_meter        |
+| fork                        |
+| frame                       |
+| front_break_oil             |
+| front_break_pads            |
+| front_break_rotor           |
+| front_derailleur            |
+| front_shifter               |
+| front_tire                  |
+| front_tube                  |
+| front_tubeless_sealant      |
+| front_tubeless_rim_tape     |
+| front_wheel                 |
+| front_wheel_valve           |
+| grips                       |
+| handlebar                   |
+| handlebar_tape              |
+| headset                     |
+| pedals                      |
+| pedals_left_power_meter     |
+| pedals_power_meter          |
+| pedals_right_power_meter    |
+| rear_derailleur             |
+| rear_shifter                |
+| saddle                      |
+| seatpost                    |
+| stem                        |
+
+
+## Supported shoes component gear types
+The table bellow details the shoes component gear types supported by Endurain:
+
+| Value                       |
+|-----------------------------|
+| cleats                      |
+| insoles                     |
+| laces                       |
+
+
+## Supported racquet component gear types
+The table bellow details the racquet component gear types supported by Endurain:
+
+| Value                       |
+|-----------------------------|
+| basegrip                    |
+| bumpers                     |
+| grommets                    |
+| overgrip                    |
+| strings                     |
