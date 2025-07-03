@@ -1,4 +1,5 @@
 from datetime import date, datetime  # Added date
+from typing import Optional
 from urllib.parse import unquote
 
 import activities.activity.models as activities_models
@@ -764,7 +765,7 @@ def get_activity_by_id_if_is_public(activity_id: int, db: Session):
         ) from err
 
 
-def get_activity_by_id(activity_id: int, db: Session) -> activities_schema.Activity:
+def get_activity_by_id(activity_id: int, db: Session) -> Optional[activities_schema.Activity]:
     try:
         # Get the activities from the database
         activity = (

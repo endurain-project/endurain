@@ -2,6 +2,8 @@
 Parsing logic for TCX files. Tested specifically with the TCX files produced
 by the Polar Flow application.
 """
+from collections import defaultdict
+
 import tcxreader
 import activities.activity.schema as activities_schema
 
@@ -16,11 +18,20 @@ def parse_tcx_file(file, user_id, user_privacy_settings, db):
                          for trackpoint in trackpoints]
     distance = tcx_file.distance
 
+    # TCX files as exported by Polar Flow are not very precise about the activity
+    # Swimming activities are called "Other" for example
+    # There also is no distinction between mountain bike rides and other types of cycling
+    # The best we can do is default to Running, and try to build up a more extensive mapping here
+    activity_types_mapping = defaultdict(lambda: 1)
+    activity_types_mapping["Running"] = 1
+    activity_types_mapping["Biking"] = 4
+    activity_type_mapped = activity_types_mapping
+
     activity = activities_schema.Activity(
         user_id=user_id,
         name=tcx_file.activity_type,
         distance=round(distance) if distance else 0,
-        activity_type=1,
+        activity_type=activity_type_mapped,
         start_time=tcx_file.start_time.strftime("%Y-%m-%dT%H:%M:%S"),
         end_time=tcx_file.end_time.strftime("%Y-%m-%dT%H:%M:%S"),
         total_elapsed_time=(tcx_file.end_time - tcx_file.start_time).total_seconds(),
