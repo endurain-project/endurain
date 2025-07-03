@@ -1,3 +1,6 @@
+"""
+Parsing logic for TCX files. Tested specifically with the TCX files produced by the Polar Flow application.
+"""
 import tcxreader
 import activities.activity.schema as activities_schema
 
@@ -44,12 +47,25 @@ def parse_tcx_file(file, user_id, user_privacy_settings, db):
         "end_position_long": lap.trackpoints[-1].longitude,
     } for lap in tcx_file.laps]
 
-    hr_waypoints = []
+    hr_waypoints = [{'time': trackpoint['time'].strftime("%Y-%m-%dT%H:%M:%S"),
+                     'hr': trackpoint['hr_value']}
+                    for trackpoint in trackpoints
+                    if 'hr_value' in trackpoint]
     vel_waypoints = []
     pace_waypoints = []
-    cad_waypoints = []
-    ele_waypoints = []
-    power_waypoints = []
+    cad_waypoints = [{'time': trackpoint['time'].strftime("%Y-%m-%dT%H:%M:%S"),
+                      'cad': trackpoint['cadence']}
+                     for trackpoint in trackpoints
+                     if 'cadence' in trackpoint]
+    ele_waypoints = [{'time': trackpoint['time'].strftime("%Y-%m-%dT%H:%M:%S"),
+                      'ele': trackpoint['elevation']}
+                     for trackpoint in trackpoints
+                     if 'elevation' in trackpoint]
+    power_waypoints = [{'time': trackpoint['time'].strftime("%Y-%m-%dT%H:%M:%S"),
+                        'power': trackpoint.tpx_ext['Watts']}
+                       for trackpoint in trackpoints
+                       if hasattr(trackpoint, 'tpx_ext')
+                       and 'Watts' in trackpoint.tpx_ext]
 
     return {
         "activity": activity,
