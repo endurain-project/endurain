@@ -1,5 +1,6 @@
 """
-Parsing logic for TCX files. Tested specifically with the TCX files produced by the Polar Flow application.
+Parsing logic for TCX files. Tested specifically with the TCX files produced
+by the Polar Flow application.
 """
 import tcxreader
 import activities.activity.schema as activities_schema
@@ -51,8 +52,6 @@ def parse_tcx_file(file, user_id, user_privacy_settings, db):
                      'hr': trackpoint['hr_value']}
                     for trackpoint in trackpoints
                     if 'hr_value' in trackpoint]
-    vel_waypoints = []
-    pace_waypoints = []
     cad_waypoints = [{'time': trackpoint['time'].strftime("%Y-%m-%dT%H:%M:%S"),
                       'cad': trackpoint['cadence']}
                      for trackpoint in trackpoints
@@ -66,6 +65,11 @@ def parse_tcx_file(file, user_id, user_privacy_settings, db):
                        for trackpoint in trackpoints
                        if hasattr(trackpoint, 'tpx_ext')
                        and 'Watts' in trackpoint.tpx_ext]
+
+    # Velocity and pace aren't included in the files I tested with
+    # Keeping the empty lists here as a placeholder
+    vel_waypoints = []
+    pace_waypoints = []
 
     return {
         "activity": activity,
