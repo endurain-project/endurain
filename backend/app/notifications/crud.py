@@ -56,7 +56,7 @@ def get_user_notification_by_id(
         ) from err
 
 
-def get_users_notifications(
+def get_user_notifications(
     user_id: int, db: Session
 ) -> list[notifications_schema.Notification] | None:
     """
@@ -103,7 +103,7 @@ def get_users_notifications(
         ) from err
 
 
-def get_users_notifications_with_pagination(
+def get_user_notifications_with_pagination(
     user_id: int, db: Session, page_number: int = 1, num_records: int = 5
 ) -> list[notifications_schema.Notification] | None:
     """

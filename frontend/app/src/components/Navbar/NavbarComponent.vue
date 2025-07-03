@@ -23,12 +23,35 @@
 				<!-- Navigation middle -->
 				<div class="navbar-nav mx-auto" v-if="authStore.isAuthenticated">
 					<!-- if is logged in show activities button -->
-					<router-link :to="{ name: 'activities' }" class="nav-link link-body-emphasis">
-						<font-awesome-icon :icon="['fas', 'fa-person-running']" />
-						<span class="ms-1">
-							{{ $t('navbarComponent.activities') }}
-						</span>
-					</router-link>
+					<li class="nav-item dropdown">
+						<a class="nav-link dropdown-toggle link-body-emphasis" href="#" role="button" data-bs-toggle="dropdown"
+							aria-expanded="false">
+							<font-awesome-icon :icon="['fas', 'fa-person-running']" />
+							<span class="ms-1">
+								{{ $t('navbarComponent.activities') }}
+							</span>
+						</a>
+						<ul class="dropdown-menu">
+							<li>
+								<!-- Activities list link -->
+								<router-link :to="{ name: 'activities' }" class="dropdown-item link-body-emphasis">
+									<font-awesome-icon :icon="['fas', 'fa-list']" />
+									<span class="ms-2">
+										{{ $t('navbarComponent.activitiesList') }}
+									</span>
+								</router-link>
+							</li>
+							<li>
+								<!-- Summary link -->
+								<router-link :to="{ name: 'summary' }" class="dropdown-item link-body-emphasis">
+									<font-awesome-icon :icon="['fas', 'fa-calendar-alt']" />
+									<span class="ms-2">
+										{{ $t('navbarComponent.summary') }}
+									</span>
+								</router-link>
+							</li>
+						</ul>
+					</li>
 					<!-- if is logged in show gears button -->
 					<router-link :to="{ name: 'gears' }" class="nav-link link-body-emphasis">
 						<font-awesome-icon :icon="['fas', 'fa-bicycle']" />
@@ -43,17 +66,14 @@
 							{{ $t('navbarComponent.health') }}
 						</span>
 					</router-link>
-					<!-- Summary link -->
-					<router-link :to="{ name: 'summary' }" class="nav-link link-body-emphasis">
-						<font-awesome-icon :icon="['fas', 'fa-calendar-alt']" />
-						<span class="ms-1">
-							{{ $t('navbarComponent.summary') }}
-						</span>
-					</router-link>
 				</div>
 
 				<!-- Navigation end -->
 				<div class="navbar-nav ms-auto" v-if="authStore.isAuthenticated">
+					<NavbarNotificationsComponent />
+
+					<NavbarPipeComponent />
+
 					<NavbarLanguageSwitcherComponent />
 
 					<NavbarThemeSwitcherComponent />
@@ -113,6 +133,7 @@ import UserAvatarComponent from '@/components/Users/UserAvatarComponent.vue'
 import NavbarPipeComponent from '@/components/Navbar/NavbarPipeComponent.vue'
 import NavbarThemeSwitcherComponent from '@/components/Navbar/NavbarThemeSwitcherComponent.vue'
 import NavbarLanguageSwitcherComponent from '@/components/Navbar/NavbarLanguageSwitcherComponent.vue'
+import NavbarNotificationsComponent from '@/components/Navbar/NavbarNotificationsComponent.vue'
 
 // Composables
 const router = useRouter()

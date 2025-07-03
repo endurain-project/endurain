@@ -123,7 +123,10 @@ router.include_router(
     notifications_router.router,
     prefix=core_config.ROOT_PATH + "/notifications",
     tags=["notifications"],
-    dependencies=[Depends(session_security.validate_access_token)],
+    dependencies=[
+        Depends(session_security.validate_access_token),
+        Security(session_security.check_scopes, scopes=["profile"]),
+    ],
 )
 router.include_router(
     profile_router.router,

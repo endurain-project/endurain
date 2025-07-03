@@ -7,7 +7,6 @@ from sqlalchemy import (
     DateTime,
 )
 from sqlalchemy.orm import relationship
-from sqlalchemy.dialects.mysql import JSON
 from core.database import Base
 
 

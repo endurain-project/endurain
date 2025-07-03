@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, JSON
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from core.database import Base
@@ -14,7 +14,16 @@ class Notification(Base):
         nullable=False,
         comment="User ID that the gear belongs to",
     )
-    message = Column(String, nullable=False, comment="Notification message")
+    type = Column(
+        Integer,
+        nullable=False,
+        comment="Notification type",
+    )
+    options = Column(
+        JSON,
+        nullable=True,
+        comment="Notification options (JSON)",
+    )
     read = Column(
         Boolean,
         default=False,
