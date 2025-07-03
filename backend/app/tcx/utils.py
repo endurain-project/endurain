@@ -25,7 +25,7 @@ def parse_tcx_file(file, user_id, user_privacy_settings, db):
     activity_types_mapping = defaultdict(lambda: 1)
     activity_types_mapping["Running"] = 1
     activity_types_mapping["Biking"] = 4
-    activity_type_mapped = activity_types_mapping
+    activity_type_mapped = activity_types_mapping[tcx_file.activity_type]
 
     activity = activities_schema.Activity(
         user_id=user_id,
