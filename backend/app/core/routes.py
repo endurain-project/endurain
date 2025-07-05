@@ -20,6 +20,7 @@ import strava.router as strava_router
 import garmin.router as garmin_router
 import health_data.router as health_data_router
 import health_targets.router as health_targets_router
+import users.user_goals.router as user_goals_router
 import server_settings.router as server_settings_router
 import websocket.router as websocket_router
 
@@ -143,6 +144,12 @@ router.include_router(
     health_targets_router.router,
     prefix=core_config.ROOT_PATH + "/health_targets",
     tags=["health_targets"],
+    dependencies=[Depends(session_security.validate_access_token)],
+)
+router.include_router(
+    user_goals_router.router,
+    prefix=core_config.ROOT_PATH + "/goals",
+    tags=["goals"],
     dependencies=[Depends(session_security.validate_access_token)],
 )
 router.include_router(

@@ -131,3 +131,10 @@ class User(Base):
         back_populates="user",
         cascade="all, delete-orphan",
     )
+
+    # Establish a one-to-many relationship with 'user_goals'
+    goals = relationship(
+        "UserGoal",
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
