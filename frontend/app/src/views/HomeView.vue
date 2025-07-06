@@ -23,8 +23,10 @@
 					<div v-if="isLoading">
 						<LoadingComponent />
 					</div>
-					<UserDistanceStatsComponent :thisWeekDistances="thisWeekDistances"
-						:thisMonthDistances="thisMonthDistances" v-else />
+					<UserDistanceStatsComponent 
+						:thisWeekDistances="thisWeekDistances"
+						:thisMonthDistances="thisMonthDistances" 
+						:user-goals="userGoals" v-else />
 				</div>
 
 				<!-- add activity and refresh buttons -->
@@ -119,6 +121,7 @@ import { useRoute } from "vue-router";
 import { useAuthStore } from "@/stores/authStore";
 // Import the services
 import { activities } from "@/services/activitiesService";
+import {userGoals, userGoals as userGoalsService} from "@/services/userGoalsService";
 import { followers } from "@/services/followersService";
 // Import Notivue push
 import { push } from "notivue";
@@ -150,6 +153,7 @@ export default {
 		const isLoading = ref(true);
 		const thisWeekDistances = ref([]);
 		const thisMonthDistances = ref([]);
+		const userGoals = ref([]);
 		const userNumberOfActivities = ref(0);
 		const userActivities = ref([]);
 		const followedUserActivities = ref([]);
@@ -166,6 +170,7 @@ export default {
 				thisMonthDistances.value = await activities.getUserThisMonthStats(
 					authStore.user.id,
 				);
+				userGoals.value = await userGoalsService.getUserGoals();
 			} catch (error) {
 				// Set the error message
 				push.error(`${t("homeView.errorFetchingUserStats")} - ${error}`);
@@ -355,6 +360,7 @@ export default {
 			isLoading,
 			thisWeekDistances,
 			thisMonthDistances,
+			userGoals,
 			userActivities,
 			followedUserActivities,
 			submitUploadFileForm,

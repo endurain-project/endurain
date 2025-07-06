@@ -1,3 +1,14 @@
+<style>
+	.goal-target {
+		color: grey;
+	}
+
+	.goal-progress {
+		font-weight: bold;
+		font-size: x-large;
+	}
+</style>
+
 <template>
     <div class="">
 		<div class="text-center">
@@ -147,6 +158,73 @@
 				</span>
             </div>
 		</div>
+
+		<hr>
+
+        <div class="row mt-3 text-center" v-for="goal in goals">
+			<div class="text-center" style="margin-bottom: 10px;">
+				<span>
+					{{ $t("userDistanceStats.progressGoalTitle") }} {{ $t(goal.interval_intl_key) }}
+				</span>
+			</div>
+            <!-- progress goal -->
+            <div class="col">
+				<font-awesome-icon :icon=goal.icon size="2x"/>
+				<br>
+
+				<!-- distance -->
+				<div class="row">
+					<div v-if="goal.goal_distance">
+						<span class="goal-progress">
+							{{ goal.total_distance }}
+							<span v-if="Number(authStore?.user?.units) === 1">
+							<span>
+								{{ $t("generalItems.unitsKm") }}
+							</span>
+						</span>
+						</span>
+						
+						/
+						<span class="goal-target">
+							{{ goal.goal_distance }}
+							<span v-if="Number(authStore?.user?.units) === 1">
+							<span>
+								{{ $t("generalItems.unitsKm") }}
+							</span>
+						</span>
+						</span>
+						
+					</div>
+				</div>
+
+				<!-- calories -->
+				<div class="row">
+					<div v-if="goal.goal_calories">
+						<span class="goal-progress">{{ goal.total_calories }}</span>
+						/
+						<span class="goal-target">{{ goal.total_calories }}</span>
+					</div>
+				</div>
+				
+				<!-- duration -->
+				<div class="row">
+					<div v-if="goal.goal_duration">
+						<span class="goal-progress">{{ goal.total_duration }}</span>
+						/
+						<span class="goal-target">{{ goal.goal_duration }}</span>
+					</div>
+				</div>
+				
+				<!-- elevation -->
+				<div class="row">
+					<div v-if="goal.goal_elevation">
+						{{ goal.total_elevation }}
+						/
+						{{ goal.goal_elevation }}
+					</div>
+				</div>
+            </div>
+        </div>
     </div>
 </template>
 
@@ -156,6 +234,9 @@ import { computed } from "vue";
 import { useI18n } from 'vue-i18n';
 import { useAuthStore } from "@/stores/authStore";
 import { metersToKm, metersToMiles, metersToYards, kmToMeters } from "@/utils/unitsUtils";
+import { userGoals } from "@/services/userGoalsService";
+import {getIcon, formatCalories, formatDuration} from '@/utils/activityUtils'
+import {startCase} from '@/utils/genericUtils'
 
 export default {
 	props: {
@@ -167,15 +248,20 @@ export default {
 			type: Object,
 			required: true,
 		},
+		userGoals: {
+			type: Object,
+			required: true
+		}
 	},
 	setup(props) {
 		const authStore = useAuthStore();
         const { t } = useI18n();
+		const convertDistanceMetersToKmsOrMiles = (distance) => 
+			Number(authStore.user.units) === 1 ? metersToKm(distance) : metersToMiles(distance);
+		const convertDistanceMetersToYards = (distance) => 
+			Number(authStore.user.units) === 1 ? metersToKm(distance) : metersToYards(distance);
+		
 		const getTopThreeActivities = (distances) => {
-			const convertDistanceMetersToKmsOrMiles = (distance) => 
-				Number(authStore.user.units) === 1 ? metersToKm(distance) : metersToMiles(distance);
-			const convertDistanceMetersToYards = (distance) => 
-				Number(authStore.user.units) === 1 ? metersToKm(distance) : metersToYards(distance);
 
 			const activities = [
 				{
@@ -240,7 +326,19 @@ export default {
 		const thisMonth = computed(() =>
 			getTopThreeActivities(props.thisMonthDistances),
 		);
+		const goals = computed(() => props.userGoals?.map(goal => ({
+			...goal,
+			icon: getIcon(goal.activity_type),
+			interval_intl_key: `userDistanceStats.progressGoalInterval${startCase(goal.interval)}`,
+			goal_distance: convertDistanceMetersToKmsOrMiles(goal.goal_distance),
+			total_distance: convertDistanceMetersToKmsOrMiles(goal.total_distance),
 
+			total_calories: formatCalories(goal.total_calories),
+			goal_calories: formatCalories(goal.goal_calories),
+
+			total_duration: formatDuration(goal.total_duration),
+			goal_duration: formatDuration(goal.goal_duration),
+		})))
 		return {
 			authStore,
 			metersToKm,
@@ -248,6 +346,7 @@ export default {
 			metersToYards,
 			thisWeek,
 			thisMonth,
+			goals,
 			kmToMeters,
 		};
 	},

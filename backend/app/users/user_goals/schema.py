@@ -37,15 +37,24 @@ class UserGoalBase(BaseModel):
 class UserGoalProgress(BaseModel):
     goal_id: int
     activity_type: int
+    activity_type_name: str
     interval: str
     start_date: str
     end_date: str
+    #total
     total_actitivies: Optional[int] = 0
     total_duration: Optional[int] = 0
     total_distance: Optional[int] = 0
     total_elevation: Optional[int] = 0
     total_calories: Optional[int] = 0
     total_steps: Optional[int] = 0
+    #goal
+    goal_duration: Optional[int] = 0
+    goal_distance: Optional[int] = 0
+    goal_elevation: Optional[int] = 0
+    goal_calories: Optional[int] = 0
+    goal_steps: Optional[int] = 0
+    goal_count: Optional[int] = 0
 
 class UserGoal(UserGoalBase):
     id: int

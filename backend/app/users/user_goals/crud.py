@@ -4,6 +4,7 @@ from sqlalchemy.exc import IntegrityError
 from typing import List, Optional
 from datetime import datetime, timedelta
 
+from activities.activity.utils import ACTIVITY_ID_TO_NAME
 
 import users.user_goals.schema as user_goals_schema
 import users.user_goals.models as user_goals_models
@@ -228,14 +229,17 @@ def calculate_goal_progress_by_activity_type(
             return user_goals_schema.UserGoalProgress(
                 goal_id=goal.id,
                 activity_type=goal.activity_type,
+                activity_type_name=ACTIVITY_ID_TO_NAME[goal.activity_type] if goal.activity_type else None,
                 interval=goal.interval,
                 start_date=start_date.strftime("%Y-%m-%d"),
                 end_date=end_date.strftime("%Y-%m-%d"),
-                total_actitivies=0,
-                total_duration=0,
-                total_distance=0,
-                total_elevation=0,
-                total_calories=0,
+
+                goal_duration=goal.goal_duration,
+                goal_distance=goal.goal_distance,
+                goal_elevation=goal.goal_elevation,
+                goal_calories=goal.goal_calories,
+                goal_steps=goal.goal_steps,
+                goal_count=goal.goal_count
             )
 
         total_duration = sum(activity.total_elapsed_time or 0 for activity in activities)
@@ -246,14 +250,23 @@ def calculate_goal_progress_by_activity_type(
         return user_goals_schema.UserGoalProgress(
             goal_id=goal.id,
             activity_type=goal.activity_type,
+            activity_type_name=ACTIVITY_ID_TO_NAME[goal.activity_type] if goal.activity_type else None, 
             interval=goal.interval,
             start_date=start_date.strftime("%Y-%m-%d"),
             end_date=end_date.strftime("%Y-%m-%d"),
+            
             total_actitivies=len(activities),
             total_duration=total_duration,
             total_distance=total_distance,
             total_elevation=total_elevation,
             total_calories=total_calories,
+
+            goal_duration=goal.goal_duration,
+            goal_distance=goal.goal_distance,
+            goal_elevation=goal.goal_elevation,
+            goal_calories=goal.goal_calories,
+            goal_steps=goal.goal_steps,
+            goal_count=goal.goal_count
         )
 
     except HTTPException as http_err:

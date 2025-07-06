@@ -162,7 +162,7 @@ def get_token_user_id(token: Annotated[str, Depends(oauth2_scheme)]) -> int:
             f"Error retrieving user ID from token: {err}",
             "error",
             exc=err,
-            context={"token": "[REDACTED]"},
+            # context={"token": "[REDACTED]"},
         )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
