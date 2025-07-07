@@ -134,6 +134,12 @@ class Activity(Base):
     garminconnect_gear_id = Column(
         String(length=45), nullable=True, comment="Garmin Connect gear ID"
     )
+    is_hidden = Column(
+        Boolean,
+        nullable=False,
+        default=False,
+        comment="Indicates if the activity is hidden (e.g., duplicate activity waiting to be reviewed by the user)",
+    )
     hide_start_time = Column(
         Boolean,
         nullable=False,
