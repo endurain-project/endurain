@@ -17,9 +17,16 @@
                 {{ $t("navbarBottomMobileComponent.health") }}
             </router-link>
             <router-link :to="{ name: 'notifications' }" class="nav-link link-body-emphasis">
-                <font-awesome-icon :icon="['fas', 'fa-bell']" />
+                <span class="position-relative">
+                    <font-awesome-icon :icon="['fas', 'fa-bell']" />
+                    <span
+                        class="position-absolute top-0 start-100 translate-middle p-1 bg-danger border border-light rounded-circle"
+                        v-if="notificationsNotRead > 0">
+                        <span class="visually-hidden">{{ notificationsNotRead }}</span>
+                    </span>
+                </span>
                 <br />
-                {{ $t('navbarBottomMobileComponent.notifications') }}
+                {{ $t('navbarBottomMobileComponent.alerts') }}
             </router-link>
             <router-link :to="{ name: 'menu' }" class="nav-link link-body-emphasis">
                 <font-awesome-icon :icon="['fas', 'bars']" />
@@ -32,9 +39,14 @@
 </template>
 
 <script setup>
+import { ref, onMounted, watch } from "vue";
 import { useAuthStore } from "@/stores/authStore";
 import FooterComponent from "@/components/FooterComponent.vue";
 
-// Composables
+const notificationsNotRead = ref(12);
 const authStore = useAuthStore();
+
+onMounted(async () => {
+    
+});
 </script>

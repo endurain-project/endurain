@@ -155,14 +155,13 @@ def get_user_notifications_with_pagination(
 
 
 def create_notification(
-    notification: notifications_schema.Notification, user_id: int, db: Session
+    notification: notifications_schema.Notification, db: Session
 ):
     """
     Creates a new notification for a specified user and saves it to the database.
 
     Args:
         notification (notifications_schema.Notification): The notification data to be created.
-        user_id (int): The ID of the user to whom the notification belongs.
         db (Session): The SQLAlchemy database session.
 
     Returns:
@@ -173,9 +172,10 @@ def create_notification(
     """
     try:
         new_notification = notifications_models.Notification(
-            user_id=user_id,
-            message=notification.message,
-            read=notification.read,
+            user_id=notification.user_id,
+            type=notification.type,
+            options=notification.options,
+            read=False,
             created_at=func.now(),
         )
 

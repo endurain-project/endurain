@@ -2,9 +2,9 @@
     <div class="nav-item dropdown d-none d-lg-block">
         <!-- toggle -->
         <a class="nav-link link-body-emphasis dropdown-toggle" role="button" data-bs-toggle="dropdown"
-            aria-expanded="false">
+            aria-expanded="false" @click="showDropdown = true">
             <span class="position-relative">
-                <font-awesome-icon :icon="['fas', 'bell']" />
+                <font-awesome-icon :icon="['fas', 'fa-bell']" />
                 <span
                     class="position-absolute top-0 start-100 translate-middle p-1 bg-danger border border-light rounded-circle"
                     v-if="notificationsNotRead > 0">
@@ -14,15 +14,22 @@
         </a>
 
         <!-- dropdown menu -->
-        <ul class="dropdown-menu dropdown-menu-end" style="width: 300px;">
-            <li v-for="(notification, idx) in notificationsWithPagination" :key="notification.id" :class="{
-                'border-bottom': totalPages > pageNumber || idx < notificationsWithPagination.length - 1
-            }">
-                <NewActivityNotificationComponent :notification="notification" v-if="notification.type === 1" />
-            </li>
-            <li v-if="totalPages > 1 && totalPages > pageNumber">
-                <a class="dropdown-item" @click="setPageNumber">Load more...</a>
-            </li>
+        <ul class="dropdown-menu dropdown-menu-end bg-body-tertiary" style="width: 400px;">
+            <div v-if="isLoading">
+                <LoadingComponent />
+            </div>
+            <div v-else>
+                <li v-for="(notification, idx) in notificationsWithPagination" :key="notification.id" :class="{
+                    'border-bottom': totalPages > pageNumber || idx < notificationsWithPagination.length - 1
+                }">
+                    <NewActivityNotificationComponent :notification="notification" :showDropdown="showDropdown"
+                        v-if="notification.type === 1" @notificationRead="markNotificationAsRead"/>
+                </li>
+                <li v-if="totalPages > 1 && totalPages > pageNumber">
+                    <a class="dropdown-item" @click="setPageNumber">Load more...</a>
+                </li>
+                <NoItemsFoundComponents :showShadow="false" v-if="notificationsNumber === 0" />
+            </div>
         </ul>
     </div>
 </template>
@@ -34,7 +41,11 @@ import { notifications } from "@/services/notificationsService";
 import { useServerSettingsStore } from "@/stores/serverSettingsStore";
 
 import NewActivityNotificationComponent from "@/components/Notifications/NewActivityNotificationComponent.vue";
+import NoItemsFoundComponents from "@/components/GeneralComponents/NoItemsFoundComponents.vue";
+import LoadingComponent from "@/components/GeneralComponents/LoadingComponent.vue";
 
+const isLoading = ref(true);
+const showDropdown = ref(false);
 const serverSettingsStore = useServerSettingsStore();
 const notificationsWithPagination = ref([]);
 const notificationsNotRead = ref(0);
@@ -75,9 +86,20 @@ function setPageNumber() {
     pageNumber.value += 1;
 }
 
+function markNotificationAsRead(notificationId) {
+    // Decrease the number of notifications not read.
+    notificationsNotRead.value--;
+    // Find the notification and mark it as read.
+    const notification = notificationsWithPagination.value.find(n => n.id === notificationId);
+    if (notification) {
+        notification.read = true;
+    }
+}
+
 onMounted(async () => {
     await fetchNotificationsNumber();
     await fetchNotifications();
+    isLoading.value = false;
 });
 
 // Watch the page number variable.

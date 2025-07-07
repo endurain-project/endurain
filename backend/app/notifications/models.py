@@ -7,7 +7,7 @@ from core.database import Base
 class Notification(Base):
     __tablename__ = "notifications"
 
-    id = Column(Integer, primary_key=True)
+    id = Column(Integer, primary_key=True, autoincrement=True)
     user_id = Column(
         Integer,
         ForeignKey("users.id", ondelete="CASCADE"),

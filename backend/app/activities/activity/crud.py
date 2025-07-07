@@ -5,6 +5,9 @@ import activities.activity.models as activities_models
 import activities.activity.schema as activities_schema
 import activities.activity.utils as activities_utils
 import core.logger as core_logger
+import notifications.constants as notifications_constants
+import notifications.crud as notifications_crud
+import notifications.schema as notifications_schema
 import server_settings.crud as server_settings_crud
 from fastapi import HTTPException, status
 from pydantic import BaseModel
@@ -1034,6 +1037,16 @@ def create_activity(
 
         activity.id = new_activity.id
         activity.created_at = new_activity.created_at
+
+        # Create a notification for the new activity
+        new_notification = notifications_crud.create_notification(
+            notifications_schema.Notification(
+                user_id=new_activity.user_id,
+                type=notifications_constants.TYPE_NEW_ACTIVITY,
+                options={"activity_id": new_activity.id},
+            ),
+            db,
+        )
 
         # Return the activity
         return activity
