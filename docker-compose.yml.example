@@ -5,10 +5,10 @@ services:
     env_file:
       - .env
     volumes:
-      - /opt/endurain/app/user_images:/app/backend/user_images # necessary for user image persistence on container image updates
-      - /opt/endurain/app/files/bulk_import:/app/backend/files/bulk_import # necessary to enable bulk import of activities. Place here your activities files
-      - /opt/endurain/app/files/processed:/app/backend/files/processed # necessary for processed original files persistence on container image updates
-      - /opt/endurain/app/logs:/app/backend/logs # log files for the backend
+      - /opt/endurain/backend/user_images:/app/backend/user_images # necessary for user image persistence on container image updates
+      - /opt/endurain/backend/server_images:/app/backend/server_images # necessary for server image persistence on container image updates
+      - /opt/endurain/backend/files:/app/backend/files # necessary for files persistence on container image updates
+      - /opt/endurain/backend/logs:/app/backend/logs # log files for the backend
     ports:
       - "8080:8080"
     depends_on:

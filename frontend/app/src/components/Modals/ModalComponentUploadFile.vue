@@ -7,10 +7,10 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    <!-- number field -->
-                    <label for="numberToEmit"><b>* {{ numberFieldLabel }}</b></label>
-                    <input class="form-control" type="number" name="numberToEmit" :placeholder="`${numberFieldLabel}`"
-                        v-model="numberToEmit" required>
+                    <!-- file field -->
+                    <label for="fileToEmit"><b>* {{ fileFieldLabel }}</b></label>
+                    <input class="form-control" type="file" name="fileToEmit" :placeholder="`${fileFieldLabel}`" :accept="filesAccepted"
+                        required>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{
@@ -25,8 +25,6 @@
 </template>
 
 <script setup>
-import { ref } from 'vue';
-
 const props = defineProps({
     modalId: {
         type: String,
@@ -36,13 +34,13 @@ const props = defineProps({
         type: String,
         required: true,
     },
-    numberFieldLabel: {
+    fileFieldLabel: {
         type: String,
         required: true,
     },
-    numberDefaultValue: {
-        type: Number,
-        default: 7,
+    filesAccepted: {
+        type: String,
+        required: true,
     },
     actionButtonType: {
         type: String,
@@ -54,11 +52,14 @@ const props = defineProps({
     },
 });
 
-const emit = defineEmits(['numberToEmitAction']);
-
-const numberToEmit = ref(props.numberDefaultValue);
+const emit = defineEmits(['fileToEmitAction']);
 
 function submitAction() {
-    emit('numberToEmitAction', numberToEmit.value);
+    const fileInput = document.querySelector(`#${props.modalId} input[name="fileToEmit"]`);
+    const file = fileInput?.files[0];
+    if (file) {
+        emit('fileToEmitAction', file);
+        fileInput.value = '';
+    }
 }
 </script>

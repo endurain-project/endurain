@@ -37,6 +37,7 @@ import tcx.utils as tcx_utils
 import fit.utils as fit_utils
 
 import core.logger as core_logger
+import core.config as core_config
 
 # Global Activity Type Mappings (ID to Name)
 ACTIVITY_ID_TO_NAME = {
@@ -66,7 +67,9 @@ ACTIVITY_ID_TO_NAME = {
     24: "Squash",
     25: "Racquetball",
     26: "Pickleball",
-    27: "Commuting ride",  # Added based on define_activity_type
+    27: "Commuting ride",
+    28: "Indoor ride",
+    29: "Mixed surface ride"  # Added based on define_activity_type
     # Add other mappings as needed based on the full list in define_activity_type comments if required
     # "AlpineSki",
     # "BackcountrySki",
@@ -166,6 +169,7 @@ ACTIVITY_NAME_TO_ID.update(
         "pickleball": 26,
         "commuting_ride": 27,
         "indoor_ride": 28,
+        "mixed_surface_ride": 29,
     }
 )
 
@@ -345,7 +349,7 @@ def parse_and_store_activity_from_file(
                         f"File extension not supported: {file_extension}", "error"
                     )
                 # Define the directory where the processed files will be stored
-                processed_dir = "files/processed"
+                processed_dir = core_config.FILES_PROCESSED_DIR
 
                 # Define new file path with activity ID as filename
                 new_file_name = f"{idsToFileName}{file_extension}"
@@ -375,7 +379,7 @@ def parse_and_store_activity_from_uploaded_file(
 
     try:
         # Ensure the 'files' directory exists
-        upload_dir = "files"
+        upload_dir = core_config.FILES_DIR
         os.makedirs(upload_dir, exist_ok=True)
 
         # Build the full path where the file will be saved
@@ -449,7 +453,7 @@ def parse_and_store_activity_from_uploaded_file(
                 )
 
             # Define the directory where the processed files will be stored
-            processed_dir = "files/processed"
+            processed_dir = core_config.FILES_PROCESSED_DIR
 
             # Define new file path with activity ID as filename
             new_file_name = f"{idsToFileName}{file_extension}"
@@ -647,7 +651,7 @@ def calculate_activity_distances(activities: list[activities_schema.Activity]):
         for activity in activities:
             if activity.activity_type in [1, 2, 3]:
                 run += activity.distance
-            elif activity.activity_type in [4, 5, 6, 7, 27, 28]:
+            elif activity.activity_type in [4, 5, 6, 7, 27, 28, 29]:
                 bike += activity.distance
             elif activity.activity_type in [8, 9]:
                 swim += activity.distance

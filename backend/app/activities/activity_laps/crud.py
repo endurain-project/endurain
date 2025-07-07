@@ -1,6 +1,7 @@
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
+import activities.activity.schema as activities_schema
 import activities.activity.models as activity_models
 import activities.activity.crud as activity_crud
 
@@ -15,9 +16,7 @@ import core.logger as core_logger
 
 def get_activity_laps(activity_id: int, token_user_id: int, db: Session):
     try:
-        activity = activity_crud.get_activity_by_id(
-            activity_id, db
-        )
+        activity = activity_crud.get_activity_by_id(activity_id, db)
 
         if not activity:
             # If the activity does not exist, return None
@@ -30,7 +29,7 @@ def get_activity_laps(activity_id: int, token_user_id: int, db: Session):
         if not user_is_owner and activity.hide_laps:
             # If the user is not the owner and laps are hidden, return None
             return None
-        
+
         # Get the activity laps from the database
         activity_laps = (
             db.query(activity_laps_models.ActivityLaps)
@@ -60,20 +59,82 @@ def get_activity_laps(activity_id: int, token_user_id: int, db: Session):
         ) from err
 
 
+def get_activities_laps(
+    activity_ids: list[int],
+    token_user_id: int,
+    db: Session,
+    activities: list[activities_schema.Activity] = None,
+):
+    try:
+        if not activity_ids:
+            return []
+
+        if not activities:
+            # Fetch all activities at once
+            activities = (
+                db.query(activity_models.Activity)
+                .filter(activity_models.Activity.id.in_(activity_ids))
+                .all()
+            )
+
+        if not activities:
+            return []
+
+        # Build a map of activity_id -> activity
+        activity_map = {activity.id: activity for activity in activities}
+
+        # Filter out hidden laps for activities the user doesn't own
+        allowed_ids = [
+            activity.id
+            for activity in activities
+            if activity.user_id == token_user_id
+        ]
+
+        if not allowed_ids:
+            return []
+
+        # Fetch all laps for allowed activities
+        activity_laps = (
+            db.query(activity_laps_models.ActivityLaps)
+            .filter(activity_laps_models.ActivityLaps.activity_id.in_(allowed_ids))
+            .all()
+        )
+
+        if not activity_laps:
+            return []
+
+        # Serialize each lap
+        serialized_laps = [
+            activity_laps_utils.serialize_activity_lap(
+                activity_map[lap.activity_id], lap
+            )
+            for lap in activity_laps
+        ]
+
+        return serialized_laps
+
+    except Exception as err:
+        core_logger.print_to_log(
+            f"Error in get_activities_laps: {err}", "error", exc=err
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal Server Error",
+        ) from err
+
+
 def get_public_activity_laps(activity_id: int, db: Session):
     try:
-        activity = activity_crud.get_activity_by_id(
-            activity_id, db
-        )
+        activity = activity_crud.get_activity_by_id(activity_id, db)
 
         if not activity:
             # If the activity does not exist, return None
             return None
-        
+
         if activity.hide_laps:
             # If the user is not the owner and laps are hidden, return None
             return None
-        
+
         # Check if public sharable links are enabled in server settings
         server_settings = server_settings_crud.get_server_settings(db)
 

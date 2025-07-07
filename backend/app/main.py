@@ -109,9 +109,9 @@ def create_app() -> FastAPI:
     app.include_router(api_router)
 
     # Add a route to serve the user images
-    app.mount("/user_images", StaticFiles(directory="user_images"), name="user_images")
+    app.mount("/user_images", StaticFiles(directory=core_config.USER_IMAGES_DIR), name="user_images")
     app.mount(
-        "/server_images", StaticFiles(directory="server_images"), name="server_images"
+        "/server_images", StaticFiles(directory=core_config.SERVER_IMAGES_DIR), name="server_images"
     )
     app.mount(
         "/", StaticFiles(directory=core_config.FRONTEND_DIR, html=True), name="frontend"

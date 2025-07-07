@@ -35,7 +35,7 @@ Lets use `/opt/endurain/` as the root directory for our project.
 sudo mkdir /opt/endurain
 sudo chown 1000:1000 /opt/endurain
 mkdir -p \
-  /opt/endurain/app/{user_images,files/{bulk_import,processed},logs} \
+  /opt/endurain/app/{user_images,server_images,files,logs} \
   /opt/endurain/postgres
 ```
 
@@ -169,8 +169,8 @@ You should implement backup strategy for the following directories:
 
 ```
 /opt/endurain/app/user_images
-/opt/endurain/app/files/bulk_import
-/opt/endurain/app/files/processed
+/opt/endurain/app/server_images
+/opt/endurain/app/files
 /opt/endurain/app/logs
 ```
 

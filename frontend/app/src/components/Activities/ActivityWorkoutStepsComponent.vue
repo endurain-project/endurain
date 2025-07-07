@@ -114,8 +114,8 @@ import { ref, computed } from "vue";
 // Importing the components
 import LoadingComponent from "@/components/GeneralComponents/LoadingComponent.vue";
 import { formatSecondsToMinutes } from "@/utils/dateTimeUtils";
-import { formatPaceMetric, formatPaceImperial, formatPaceSwimMetric, formatPaceSwimImperial, formatAverageSpeedMetric, formatAverageSpeedImperial } from "@/utils/activityUtils";
-import { metersToKm, metersToMiles, metersToYards, metersToFeet } from "@/utils/unitsUtils";
+import { formatPaceMetric } from "@/utils/activityUtils";
+import { metersToKm } from "@/utils/unitsUtils";
 
 export default {
 	components: {

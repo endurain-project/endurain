@@ -3,7 +3,7 @@ import os
 import core.logger as core_logger
 
 # Constant related to version
-API_VERSION = "v0.12.4"
+API_VERSION = "v0.12.7"
 LICENSE_NAME = "GNU Affero General Public License v3.0 or later"
 LICENSE_IDENTIFIER = "AGPL-3.0-or-later"
 LICENSE_URL = "https://spdx.org/licenses/AGPL-3.0-or-later.html"
@@ -11,6 +11,11 @@ ROOT_PATH = "/api/v1"
 FRONTEND_DIR = "/app/frontend/dist"
 ENVIRONMENT = os.getenv("ENVIRONMENT", "production")
 TZ = os.getenv("TZ", "UTC")
+USER_IMAGES_DIR = "user_images"
+SERVER_IMAGES_DIR = "server_images"
+FILES_DIR = "files"
+FILES_PROCESSED_DIR = "files/processed"
+FILES_BULK_IMPORT_DIR = "files/bulk_import"
 
 
 def check_required_env_vars():

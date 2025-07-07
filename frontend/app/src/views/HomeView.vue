@@ -13,8 +13,9 @@
 							<UserAvatarComponent :user="authStore.user" :width=120 :height=120 />
 						</div>
 						<div class="text-center mt-3 fw-bold" v-if="authStore.user.id">
-							<router-link :to="{ name: 'user', params: { id: authStore.user.id }}" class="link-body-emphasis link-underline-opacity-0 link-underline-opacity-100-hover">
-								{{ authStore.user.name}}
+							<router-link :to="{ name: 'user', params: { id: authStore.user.id } }"
+								class="link-body-emphasis link-underline-opacity-0 link-underline-opacity-100-hover">
+								{{ authStore.user.name }}
 							</router-link>
 						</div>
 					</div>
@@ -22,17 +23,20 @@
 					<div v-if="isLoading">
 						<LoadingComponent />
 					</div>
-					<UserDistanceStatsComponent :thisWeekDistances="thisWeekDistances" :thisMonthDistances="thisMonthDistances" v-else />
+					<UserDistanceStatsComponent :thisWeekDistances="thisWeekDistances"
+						:thisMonthDistances="thisMonthDistances" v-else />
 				</div>
 
 				<!-- add activity and refresh buttons -->
 				<div class="row mb-3">
 					<div class="col">
-						<a class="w-100 btn btn-primary shadow-sm" href="#" role="button" data-bs-toggle="modal" data-bs-target="#addActivityModal">
+						<a class="w-100 btn btn-primary shadow-sm" href="#" role="button" data-bs-toggle="modal"
+							data-bs-target="#addActivityModal">
 							{{ $t("homeView.buttonAddActivity") }}
 						</a>
 					</div>
-					<div class="col-auto" v-if="authStore.user.is_strava_linked == 1 || authStore.user.is_garminconnect_linked == 1">
+					<div class="col-auto"
+						v-if="authStore.user.is_strava_linked == 1 || authStore.user.is_garminconnect_linked == 1">
 						<a class="w-100 btn btn-primary shadow-sm" href="#" role="button" @click="refreshActivities">
 							<font-awesome-icon :icon="['fas', 'arrows-rotate']" />
 						</a>
@@ -41,40 +45,16 @@
 			</div>
 
 			<!-- Modal add actvity -->
-			<div class="modal fade" id="addActivityModal" tabindex="-1" aria-labelledby="addActivityModalLabel" aria-hidden="true">
-				<div class="modal-dialog">
-					<div class="modal-content">
-						<div class="modal-header">
-							<h1 class="modal-title fs-5" id="addActivityModalLabel">
-								{{ $t("homeView.buttonAddActivity") }}
-							</h1>
-							<!--<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>-->
-						</div>
-						<form @submit.prevent="submitUploadFileForm">
-							<div class="modal-body">
-								<!-- date fields -->
-								<label for="activityGpxFileAdd"><b>* {{ $t("homeView.fieldLabelUploadGPXFile") }}</b></label>
-								<input class="form-control mt-1 mb-1" type="file" name="activityGpxFileAdd" accept=".gpx,.fit,.tcx" required>
-								<p>* {{ $t("generalItems.requiredField") }}</p>
-							</div>
-							<div class="modal-footer">
-								<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-								{{ $t("generalItems.buttonClose") }}
-								</button>
-								<button type="submit" class="btn btn-success" data-bs-dismiss="modal">
-								{{ $t("homeView.buttonAddActivity") }}
-								</button>
-							</div>
-						</form>
-					</div>
-				</div>
-			</div>
+			<ModalComponentUploadFile modalId="addActivityModal" :title="$t('homeView.buttonAddActivity')"
+				:fileFieldLabel="$t('homeView.fieldLabelUploadGPXFile')" filesAccepted=".gpx,.fit,.tcx"
+				actionButtonType="success" :actionButtonText="$t('homeView.buttonAddActivity')"
+				@fileToEmitAction="submitUploadFileForm" />
 		</div>
 		<!-- activities zone -->
 		<div class="col">
 
-		<!-- radio button -->
-		<!-- <div class="btn-group mb-3 d-flex" role="group"  aria-label="Activities radio toggle button group"> -->
+			<!-- radio button -->
+			<!-- <div class="btn-group mb-3 d-flex" role="group"  aria-label="Activities radio toggle button group"> -->
 			<!-- user activities -->
 			<!-- <input type="radio" class="btn-check" name="btnradio" id="btnRadioUserActivities" autocomplete="off" value="userActivities" v-model="selectedActivityView">
 			<label class="btn btn-outline-primary w-100" for="btnRadioUserActivities">{{ $t("homeView.radioUserActivities") }}</label> -->
@@ -83,37 +63,39 @@
 			<label class="btn btn-outline-primary w-100" for="btnRadioFollowersActivities">{{ $t("homeView.radioFollowerActivities") }}</label>
 		</div> -->
 
-		<!-- user activities -->
-		<div id="userActivitiesDiv" v-show="selectedActivityView === 'userActivities'">
-			<div v-if="isLoading">
-				<LoadingComponent />
-			</div>
-			<div v-else>
-				<!-- Checking if userActivities is loaded and has length -->
-				<div v-if="userActivities && userActivities.length">
-					<!-- Iterating over userActivities to display them -->
-					<div class="card mb-3 bg-body-tertiary border-0 shadow-sm" v-for="activity in userActivities" :key="activity.id">
-						<div class="card-body">
-							<ActivitySummaryComponent :activity="activity" :source="'home'" @activityDeleted="updateActivitiesOnDelete" :units="authStore.user.units"/>
+			<!-- user activities -->
+			<div id="userActivitiesDiv" v-show="selectedActivityView === 'userActivities'">
+				<div v-if="isLoading">
+					<LoadingComponent />
+				</div>
+				<div v-else>
+					<!-- Checking if userActivities is loaded and has length -->
+					<div v-if="userActivities && userActivities.length">
+						<!-- Iterating over userActivities to display them -->
+						<div class="card mb-3 bg-body-tertiary border-0 shadow-sm" v-for="activity in userActivities"
+							:key="activity.id">
+							<div class="card-body">
+								<ActivitySummaryComponent :activity="activity" :source="'home'"
+									@activityDeleted="updateActivitiesOnDelete" :units="authStore.user.units" />
+							</div>
+							<ActivityMapComponent class="mx-3 mb-3" :activity="activity" :source="'home'" />
 						</div>
-						<ActivityMapComponent class="mx-3 mb-3" :activity="activity" :source="'home'"/>
 					</div>
+					<!-- Displaying a message or component when there are no activities -->
+					<NoItemsFoundComponent v-else />
 				</div>
-				<!-- Displaying a message or component when there are no activities -->
-				<NoItemsFoundComponent v-else />
 			</div>
-		</div>
 
-		<!-- user followers activities -->
-		<div id="followersActivitiesDiv" v-show="selectedActivityView === 'followersActivities'">
-			<div v-if="isLoading">
-				<LoadingComponent />
-			</div>
-			<div v-else>
-				<div v-if="followedUserActivities && followedUserActivities.length">
-
+			<!-- user followers activities -->
+			<div id="followersActivitiesDiv" v-show="selectedActivityView === 'followersActivities'">
+				<div v-if="isLoading">
+					<LoadingComponent />
 				</div>
-				<NoItemsFoundComponent v-else />
+				<div v-else>
+					<div v-if="followedUserActivities && followedUserActivities.length">
+
+					</div>
+					<NoItemsFoundComponent v-else />
 				</div>
 			</div>
 		</div>
@@ -122,9 +104,10 @@
 
 <style scoped>
 .sticky-sidebar {
-    position: sticky;
-    top: 20px; /* Adjust based on your layout */
-    z-index: 1000;
+	position: sticky;
+	top: 20px;
+	/* Adjust based on your layout */
+	z-index: 1000;
 }
 </style>
 
@@ -146,6 +129,7 @@ import ActivitySummaryComponent from "@/components/Activities/ActivitySummaryCom
 import ActivityMapComponent from "@/components/Activities/ActivityMapComponent.vue";
 import LoadingComponent from "@/components/GeneralComponents/LoadingComponent.vue";
 import UserAvatarComponent from "@/components/Users/UserAvatarComponent.vue";
+import ModalComponentUploadFile from "@/components/Modals/ModalComponentUploadFile.vue";
 
 //import { Modal } from 'bootstrap';
 
@@ -157,6 +141,7 @@ export default {
 		ActivityMapComponent,
 		LoadingComponent,
 		UserAvatarComponent,
+		ModalComponentUploadFile,
 	},
 	setup() {
 		const route = useRoute();
@@ -230,18 +215,15 @@ export default {
 			}
 		};
 
-		const submitUploadFileForm = async () => {
+		const submitUploadFileForm = async (file) => {
 			// Set the loading message
 			const notification = push.promise(t("homeView.processingActivity"));
 
-			// Get the file input
-			const fileInput = document.querySelector('input[type="file"]');
-
 			// If there is a file, create the form data and upload the file
-			if (fileInput.files[0]) {
+			if (file) {
 				// Create the form data
 				const formData = new FormData();
-				formData.append("file", fileInput.files[0]);
+				formData.append("file", file);
 				try {
 					// Upload the file
 					const createdActivities =
@@ -256,9 +238,6 @@ export default {
 
 					// Set the success message
 					notification.resolve(t("homeView.successActivityAdded"));
-
-					// Clear the file input
-					fileInput.value = "";
 
 					// Fetch the user stats
 					fetchUserStars();
