@@ -27,5 +27,6 @@
     "pickleball": "Pickleball",
     "commutingRide": "Commuting ride",
     "indoorRide": "Indoor ride",
-    "mixedSurfaceRide": "Mixed surface ride"
+    "mixedSurfaceRide": "Mixed surface ride",
+    "labelWorkout": " workout"
 }

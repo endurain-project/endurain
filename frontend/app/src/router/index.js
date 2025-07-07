@@ -65,6 +65,11 @@ const router = createRouter({
 			component: () => import("../views/MenuMobileView.vue"),
 		},
 		{
+			path: "/notifications",
+			name: "notifications",
+			component: () => import("../views/NotificationsView.vue"),
+		},
+		{
 			path: "/strava/callback",
 			name: "strava-callback",
 			component: () => import("../views/Strava/StravaCallbackView.vue"),

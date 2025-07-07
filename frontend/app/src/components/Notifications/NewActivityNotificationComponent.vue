@@ -1,6 +1,6 @@
 <template>
     <router-link class="dropdown-item link-body-emphasis text-wrap"
-        :to="{ name: 'activity', params: { id: notification.options['activity_id'] } }" @click="handleClick">
+        :to="{ name: 'activity', params: { id: notification.options['activity_id'] } }">
         <span><b>{{ $t('newActivityNotificationComponent.newActivityTitle') }}</b></span>
         <br>
         <span class="fw-lighter">
@@ -20,8 +20,4 @@ const props = defineProps({
         required: true
     }
 });
-
-function handleClick(event) {
-    // Your custom logic here
-}
 </script>

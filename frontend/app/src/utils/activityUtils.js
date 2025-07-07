@@ -107,9 +107,9 @@ export function formatName(activity, t) {
 		if (activity.town || activity.city) {
 			// If the activity has a town or city, append it to the label
 			const location = activity.town || activity.city;
-			return `${translation} - ${location}`;
+			return `${translation}${t("activityItems.labelWorkout")} - ${location}`;
 		}
-		return translation;
+		return `${translation}${t("activityItems.labelWorkout")}`;
 	}
 	return "Workout"; // Default label for activities not in the map
 }

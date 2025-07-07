@@ -6,12 +6,6 @@
                 <br>
                 {{ $t("navbarBottomMobileComponent.home") }}
             </router-link>
-            <router-link :to="{ name: 'activities' }" class="nav-link link-body-emphasis">
-                <!-- Corrected route name -->
-                <font-awesome-icon :icon="['fas', 'fa-person-running']" />
-                <br />
-                {{ $t('navbarBottomMobileComponent.activities') }}
-            </router-link>
             <router-link :to="{ name: 'gears' }" class="nav-link link-body-emphasis">
                 <font-awesome-icon :icon="['fas', 'fa-bicycle']" />
                 <br>
@@ -21,6 +15,11 @@
                 <font-awesome-icon :icon="['fas', 'fa-heart']" />
                 <br>
                 {{ $t("navbarBottomMobileComponent.health") }}
+            </router-link>
+            <router-link :to="{ name: 'notifications' }" class="nav-link link-body-emphasis">
+                <font-awesome-icon :icon="['fas', 'fa-bell']" />
+                <br />
+                {{ $t('navbarBottomMobileComponent.notifications') }}
             </router-link>
             <router-link :to="{ name: 'menu' }" class="nav-link link-body-emphasis">
                 <font-awesome-icon :icon="['fas', 'bars']" />
