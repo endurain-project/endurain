@@ -2,8 +2,8 @@ import os
 import shutil
 import requests
 import statistics
+import time
 from geopy.distance import geodesic
-import numpy as np
 from zoneinfo import ZoneInfo
 
 from fastapi import HTTPException, status, UploadFile
@@ -679,23 +679,32 @@ def location_based_on_coordinates(latitude, longitude) -> dict | None:
     if latitude is None or longitude is None:
         return None
 
-    if os.environ.get("GEOCODES_MAPS_API") == "changeme":
+    if core_config.GEOCODES_MAPS_API == "changeme":
         return None
 
     # Create a dictionary with the parameters for the request
     url_params = {
         "lat": latitude,
         "lon": longitude,
-        "api_key": os.environ.get("GEOCODES_MAPS_API"),
+        "api_key": core_config.GEOCODES_MAPS_API,
     }
 
     # Create the URL for the request
     url = f"https://geocode.maps.co/reverse?{urlencode(url_params)}"
 
+    # Throttle requests according to configured rate limit
+    if core_config.GEOCODES_MIN_INTERVAL > 0:
+        with core_config.GEOCODES_LOCK:
+            now = time.monotonic()
+            interval = core_config.GEOCODES_MIN_INTERVAL - (now - core_config.GEOCODES_LAST_CALL)
+            if interval > 0:
+                time.sleep(interval)
+            core_config.GEOCODES_LAST_CALL = time.monotonic()
+
     # Make the request and get the response
     try:
         # Make the request and get the response
-        response = requests.get(url)
+        response = requests.get(url, timeout=10)
         response.raise_for_status()
 
         # Get the data from the response
@@ -715,19 +724,19 @@ def location_based_on_coordinates(latitude, longitude) -> dict | None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=f"Error in location_based_on_coordinates: {str(err)}",
-        )
+        ) from err
 
 
-def append_if_not_none(waypoint_list, time, value, key):
+def append_if_not_none(waypoint_list, waypoint_time, value, key):
     if value is not None:
-        waypoint_list.append({"time": time, key: value})
+        waypoint_list.append({"time": waypoint_time, key: value})
 
 
 def calculate_instant_speed(
-    prev_time, time, latitude, longitude, prev_latitude, prev_longitude
+    prev_time, waypoint_time, latitude, longitude, prev_latitude, prev_longitude
 ):
     # Convert the time strings to datetime objects
-    time_calc = datetime.fromisoformat(time.strftime("%Y-%m-%dT%H:%M:%S"))
+    time_calc = datetime.fromisoformat(waypoint_time.strftime("%Y-%m-%dT%H:%M:%S"))
 
     # If prev_time is None, return a default value
     if prev_time is None:

@@ -119,7 +119,9 @@ def create_activity_objects(
             np_power = session_record["session"]["np"]
             if np_power is None:
                 if session_record["is_power_set"]:
-                    np_power = activities_utils.calculate_np(session_record["power_waypoints"])
+                    np_power = activities_utils.calculate_np(
+                        session_record["power_waypoints"]
+                    )
                     print(np_power)
 
             parsed_activity = {
@@ -527,9 +529,6 @@ def parse_fit_file(file: str, db: Session) -> dict:
                                 city = location_data["city"]
                                 town = location_data["town"]
                                 country = location_data["country"]
-
-                            # Wait for 1 second (for geocoding API rate limiting)
-                            timelib.sleep(1)
 
                         # Initialize the session dictionary with parsed data
                         session_data = {

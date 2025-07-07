@@ -1,4 +1,5 @@
 import os
+import threading
 
 import core.logger as core_logger
 
@@ -16,6 +17,20 @@ SERVER_IMAGES_DIR = "config/server_images"
 FILES_DIR = "config/files"
 FILES_PROCESSED_DIR = "config/files/processed"
 FILES_BULK_IMPORT_DIR = "config/files/bulk_import"
+GEOCODES_MAPS_API = os.getenv("GEOCODES_MAPS_API", "changeme")
+try:
+    GEOCODES_MAPS_RATE_LIMIT = float(os.getenv("GEOCODES_MAPS_RATE_LIMIT", "1"))
+except ValueError:
+    core_logger.print_to_log_and_console(
+        "Invalid GEOCODES_MAPS_RATE_LIMIT value, expected an int; defaulting to 1.0",
+        "warning",
+    )
+    GEOCODES_MAPS_RATE_LIMIT = 1.0
+GEOCODES_MIN_INTERVAL = (
+    1.0 / GEOCODES_MAPS_RATE_LIMIT if GEOCODES_MAPS_RATE_LIMIT > 0 else 0
+)
+GEOCODES_LOCK = threading.Lock()
+GEOCODES_LAST_CALL = 0.0
 
 
 def check_required_env_vars():
@@ -24,10 +39,11 @@ def check_required_env_vars():
         "SECRET_KEY",
         "FERNET_KEY",
         "ENDURAIN_HOST",
-        "GEOCODES_MAPS_API",
     ]
 
     for var in required_env_vars:
         if var not in os.environ:
-            core_logger.print_to_log_and_console(f"Missing required environment variable: {var}", "error")
+            core_logger.print_to_log_and_console(
+                f"Missing required environment variable: {var}", "error"
+            )
             raise EnvironmentError(f"Missing required environment variable: {var}")
