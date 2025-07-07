@@ -32,6 +32,11 @@ class Activity(Base):
         nullable=True,
         comment="Activity description (May include spaces)",
     )
+    private_notes = Column(
+        String(length=2500),
+        nullable=True,
+        comment="Activity private notes (May include spaces)",
+    )
     distance = Column(Integer, nullable=False, comment="Distance in meters")
     activity_type = Column(
         Integer,

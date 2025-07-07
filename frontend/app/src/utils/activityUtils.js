@@ -11,6 +11,109 @@ import {
 	formatSecondsToMinutes,
 } from "@/utils/dateTimeUtils"; // Import date/time utils
 
+
+/**
+ * An array of numeric identifiers representing different activity types.
+ * Each number corresponds to a specific activity type used within the application.
+ * @type {number[]}
+ */
+const ACTIVITY_TYPES = [
+	1,
+	2,
+	3,
+	4,
+	5,
+	6,
+	7,
+	8,
+	9,
+	10,
+	11,
+	12,
+	13,
+	14,
+	15,
+	16,
+	17,
+	18,
+	19,
+	20,
+	21,
+	22,
+	23,
+	24,
+	25,
+	26,
+	27,
+	28,
+	29,
+]
+
+/**
+ * Maps activity type IDs to functions that return localized activity labels.
+ *
+ * @type {Object<number, function(function(string): string): string>}
+ * Each key is an activity type ID (number).
+ * Each value is a function that takes a translation function `t` and returns the localized label string.
+ *
+ * Example usage:
+ *   const label = activityLabelMap[1](t); // Returns the localized label for "run"
+ */
+const activityLabelMap = {
+	1: t => t("activityItems.run"),
+	2: t => t("activityItems.trailRun"),
+	3: t => t("activityItems.virtualRun"),
+	4: t => t("activityItems.ride"),
+	5: t => t("activityItems.gravelRide"),
+	6: t => t("activityItems.mtbRide"),
+	7: t => t("activityItems.virtualRide"),
+	8: t => t("activityItems.lapSwimming"),
+	9: t => t("activityItems.openWaterSwimming"),
+	10: t => t("activityItems.workout"),
+	11: t => t("activityItems.walk"),
+	12: t => t("activityItems.hike"),
+	13: t => t("activityItems.rowing"),
+	14: t => t("activityItems.yoga"),
+	15: t => t("activityItems.alpineSki"),
+	16: t => t("activityItems.nordicSki"),
+	17: t => t("activityItems.snowboard"),
+	18: t => t("activityItems.transition"),
+	19: t => t("activityItems.strengthTraining"),
+	20: t => t("activityItems.crossfit"),
+	21: t => t("activityItems.tennis"),
+	22: t => t("activityItems.tableTennis"),
+	23: t => t("activityItems.badminton"),
+	24: t => t("activityItems.squash"),
+	25: t => t("activityItems.racquetball"),
+	26: t => t("activityItems.pickleball"),
+	27: t => t("activityItems.commutingRide"),
+	28: t => t("activityItems.indoorRide"),
+	29: t => t("activityItems.mixedSurfaceRide"),
+};
+
+/**
+ * Formats the name of an activity, optionally appending its location.
+ *
+ * @param {Object} activity - The activity object containing details about the activity.
+ * @param {string} activity.activity_type - The type of the activity.
+ * @param {string} [activity.town] - The town where the activity took place (optional).
+ * @param {string} [activity.city] - The city where the activity took place (optional).
+ * @param {Function} t - The translation function.
+ * @returns {string} The formatted activity name, including location if available, or "Workout" as a default.
+ */
+export function formatName(activity, t) {
+	if (ACTIVITY_TYPES.includes(activity.activity_type)) {
+		const translation = activityLabelMap[activity.activity_type](t);
+		if (activity.town || activity.city) {
+			// If the activity has a town or city, append it to the label
+			const location = activity.town || activity.city;
+			return `${translation} - ${location}`;
+		}
+		return translation;
+	}
+	return "Workout"; // Default label for activities not in the map
+}
+
 /**
  * Formats a given pace in meters per minute to a string representation in minutes per kilometer.
  *

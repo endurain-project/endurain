@@ -187,6 +187,7 @@ def transform_schema_activity_to_model_activity(
     new_activity = activities_models.Activity(
         user_id=activity.user_id,
         description=activity.description,
+        private_notes=activity.private_notes,
         distance=activity.distance,
         name=activity.name,
         activity_type=activity.activity_type,

@@ -5,6 +5,7 @@ class Activity(BaseModel):
     id: int | None = None
     user_id: int | None = None
     description: str | None = None
+    private_notes: str | None = None
     distance: int
     name: str
     activity_type: int

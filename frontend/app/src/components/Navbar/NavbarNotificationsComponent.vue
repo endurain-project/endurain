@@ -14,8 +14,10 @@
         </a>
 
         <!-- dropdown menu -->
-        <ul class="dropdown-menu">
-            <li v-for="notification in notificationsWithPagination" :key="notification.id">
+        <ul class="dropdown-menu dropdown-menu-end" style="width: 300px;">
+            <li v-for="(notification, idx) in notificationsWithPagination" :key="notification.id" :class="{
+                'border-bottom': totalPages > pageNumber || idx < notificationsWithPagination.length - 1
+            }">
                 <NewActivityNotificationComponent :notification="notification" v-if="notification.type === 1" />
             </li>
             <li v-if="totalPages > 1 && totalPages > pageNumber">
@@ -31,7 +33,7 @@ import { ref, onMounted, watch } from "vue";
 import { notifications } from "@/services/notificationsService";
 import { useServerSettingsStore } from "@/stores/serverSettingsStore";
 
-import NewActivityNotificationComponent from "./Notifications/NewActivityNotificationComponent.vue";
+import NewActivityNotificationComponent from "@/components/Notifications/NewActivityNotificationComponent.vue";
 
 const serverSettingsStore = useServerSettingsStore();
 const notificationsWithPagination = ref([]);

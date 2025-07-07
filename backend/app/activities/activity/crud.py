@@ -339,6 +339,7 @@ def get_user_activities_with_pagination(
         if activities:
             for activity in activities:
                 if not user_is_owner:
+                    activity.private_notes = None
                     if activity.hide_start_time:
                         activity.start_time = None
                         activity.end_time = None
@@ -425,6 +426,7 @@ def get_user_activities_per_timeframe(
             activity = activities_utils.serialize_activity(activity)
 
             if not user_is_owner:
+                activity.private_notes = None
                 if activity.hide_start_time:
                     activity.start_time = None
                     activity.end_time = None
@@ -479,6 +481,7 @@ def get_user_following_activities_per_timeframe(
 
         for activity in activities:
             activity = activities_utils.serialize_activity(activity)
+            activity.private_notes = None
             if activity.hide_start_time:
                 activity.start_time = None
                 activity.end_time = None
@@ -541,6 +544,7 @@ def get_user_following_activities_with_pagination(
         # Iterate and format the dates
         for activity in activities:
             activity = activities_utils.serialize_activity(activity)
+            activity.private_notes = None
             if activity.hide_start_time:
                 activity.start_time = None
                 activity.end_time = None
@@ -632,6 +636,7 @@ def get_user_activities_by_gear_id_and_user_id(user_id: int, gear_id: int, db: S
         for activity in activities:
             activity = activities_utils.serialize_activity(activity)
             if activity.user_id != user_id:
+                activity.private_notes = None
                 if activity.hide_start_time:
                     activity.start_time = None
                     activity.end_time = None
@@ -685,6 +690,7 @@ def get_user_activities_by_gear_id_and_user_id_with_pagination(
         for activity in activities:
             activity = activities_utils.serialize_activity(activity)
             if activity.user_id != user_id:
+                activity.private_notes = None
                 if activity.hide_start_time:
                     activity.start_time = None
                     activity.end_time = None
@@ -737,6 +743,7 @@ def get_activity_by_id_from_user_id_or_has_visibility(
         activity = activities_utils.serialize_activity(activity)
 
         if activity.user_id != user_id:
+            activity.private_notes = None
             if activity.hide_start_time:
                 activity.start_time = None
                 activity.end_time = None
@@ -791,6 +798,7 @@ def get_activity_by_id_if_is_public(activity_id: int, db: Session):
 
         activity = activities_utils.serialize_activity(activity)
 
+        activity.private_notes = None
         if activity.hide_start_time:
             activity.start_time = None
             activity.end_time = None
@@ -982,6 +990,19 @@ def get_activities_if_contains_name(name: str, user_id: int, db: Session):
         # Iterate and format the dates
         for activity in activities:
             activity = activities_utils.serialize_activity(activity)
+            if activity.user_id != user_id:
+                activity.private_notes = None
+                if activity.hide_start_time:
+                    activity.start_time = None
+                    activity.end_time = None
+                if activity.hide_location:
+                    activity.city = None
+                    activity.town = None
+                    activity.country = None
+                if activity.hide_gear:
+                    activity.gear_id = None
+                    activity.strava_gear_id = None
+                    activity.garminconnect_gear_id = None
 
         # Return the activities
         return activities

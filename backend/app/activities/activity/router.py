@@ -683,7 +683,7 @@ async def edit_activity(
 @router.put(
     "/visibility/{visibility}",
 )
-async def edit_activity(
+async def edit_activity_visibility(
     visibility: int,
     validate_visibility: Annotated[
         Callable, Depends(activities_dependencies.validate_visibility)

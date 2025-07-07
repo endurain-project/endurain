@@ -12,7 +12,8 @@
                         <router-link :to="{ name: 'activity', params: { id: activity.id } }"
                             class="link-body-emphasis link-underline-opacity-0 link-underline-opacity-100-hover"
                             v-if="source === 'home'">
-                            {{ activity.name }}
+                            <span v-if="activity.name === 'Workout'">{{ formatName(activity, t) }}</span>
+                            <span v-else>{{ activity.name }}</span>
                         </router-link>
                         <span v-if="userActivity">
                             <router-link :to="{ name: 'user', params: { id: userActivity.id } }"
@@ -109,11 +110,19 @@
 
         <!-- Activity title -->
         <h1 class="mt-3" v-if="source === 'activity'">
-            {{ activity.name }}
+            <span v-if="activity.name === 'Workout'">{{ formatName(activity, t) }}</span>
+            <span v-else>{{ activity.name }}</span>
         </h1>
 
         <!-- Activity description -->
         <p v-if="activity.description">{{ activity.description }}</p>
+
+        <div v-if="activity.private_notes">
+            <h6 class="text-body-secondary">
+                {{ $t("activitySummaryComponent.privateNotes") }}
+            </h6>
+            <p>{{ activity.private_notes }}</p>
+        </div>
 
         <!-- Activity summary -->
         <div class="row mt-3 align-items-center text-start">
@@ -145,7 +154,7 @@
             <div class="col border-start border-opacity-50">
                 <!-- elevation -->
                 <div
-                    v-if="activityTypeNotRunning(activity) && activityTypeNotSwimming(activity) && activity.activity_type != 10 && activity.activity_type != 13 && activity.activity_type != 14 && activity.activity_type != 18 && activity.activity_type != 19 && activity.activity_type != 20 && activityTypeNotRacquet(activity)">
+                    v-if="activityTypeIsCycling(activity)">
                     <span class="fw-lighter">
                         {{ $t("activitySummaryComponent.activityEleGain") }}
                     </span>
@@ -263,6 +272,7 @@ import {
     activityTypeIsRunning,
     activityTypeNotRunning,
     activityTypeNotRacquet,
+    formatName,
 } from "@/utils/activityUtils";
 import {
     formatDateMed,
