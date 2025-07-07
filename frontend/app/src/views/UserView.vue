@@ -58,7 +58,11 @@
                 <div v-if="isLoading">
                     <LoadingComponent />
                 </div>
-                <UserDistanceStatsComponent :thisWeekDistances="thisWeekDistances" :thisMonthDistances="thisMonthDistances" v-else/>
+                <UserDistanceStatsComponent 
+                    :thisWeekDistances="thisWeekDistances" 
+                    :thisMonthDistances="thisMonthDistances" 
+                    :userGoals="userGoals"
+                    v-else/>
             </div>
         </div>
     </div>
@@ -214,6 +218,7 @@ import { useAuthStore } from '@/stores/authStore';
 import { users } from '@/services/usersService';
 import { activities } from '@/services/activitiesService';
 import { followers } from '@/services/followersService';
+import {userGoals, userGoals as userGoalsService} from "@/services/userGoalsService";
 // Import Notivue push
 import { push } from 'notivue'
 // Importing the components
@@ -244,6 +249,7 @@ export default {
         const authStore = useAuthStore();
         const route = useRoute();
         const userProfile = ref(null);
+        const userGoals = ref([]);
         const thisWeekDistances = ref([]);
         const thisMonthDistances = ref([]);
         const thisMonthNumberOfActivities = ref(0);
@@ -268,6 +274,7 @@ export default {
             try {
                 thisWeekDistances.value = await activities.getUserThisWeekStats(authStore.user.id);
                 thisMonthDistances.value = await activities.getUserThisMonthStats(authStore.user.id);
+                userGoals.value = await userGoalsService.getUserGoals();
             } catch (error) {
                 // Set the error message
                 push.error(`${t('userView.errorFetchingUserStats')} - ${error}`)
@@ -489,6 +496,7 @@ export default {
             followingCountAccepted,
             followersAll,
             followingAll,
+            userGoals,
             thisWeekDistances,
             thisMonthDistances,
             t,

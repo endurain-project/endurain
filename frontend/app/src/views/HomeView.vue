@@ -121,7 +121,7 @@ import { useRoute } from "vue-router";
 import { useAuthStore } from "@/stores/authStore";
 // Import the services
 import { activities } from "@/services/activitiesService";
-import {userGoals, userGoals as userGoalsService} from "@/services/userGoalsService";
+import {userGoals as userGoalsService} from "@/services/userGoalsService";
 import { followers } from "@/services/followersService";
 // Import Notivue push
 import { push } from "notivue";

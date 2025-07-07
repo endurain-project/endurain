@@ -508,3 +508,8 @@ export function formatRawDistance(meters, unitSystem) {
 	const unitLabel = Number(unitSystem) === 1 ? i18n.global.t("generalItems.unitsKm") : i18n.global.t("generalItems.unitsMiles");
 	return `${formattedValue} ${unitLabel}`;
 }
+
+export const convertDistanceMetersToKmsOrMiles = (distance, useMeter = true) => 
+			useMeter ? metersToKm(distance) : metersToMiles(distance);
+export const convertDistanceMetersToYards = (distance) => 
+			useMeter ? metersToKm(distance) : metersToYards(distance);

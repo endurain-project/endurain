@@ -326,19 +326,7 @@ export default {
 		const thisMonth = computed(() =>
 			getTopThreeActivities(props.thisMonthDistances),
 		);
-		const goals = computed(() => props.userGoals?.map(goal => ({
-			...goal,
-			icon: getIcon(goal.activity_type),
-			interval_intl_key: `userDistanceStats.progressGoalInterval${startCase(goal.interval)}`,
-			goal_distance: convertDistanceMetersToKmsOrMiles(goal.goal_distance),
-			total_distance: convertDistanceMetersToKmsOrMiles(goal.total_distance),
-
-			total_calories: formatCalories(goal.total_calories),
-			goal_calories: formatCalories(goal.goal_calories),
-
-			total_duration: formatDuration(goal.total_duration),
-			goal_duration: formatDuration(goal.goal_duration),
-		})))
+		const goals = computed(() => props.userGoals)
 		return {
 			authStore,
 			metersToKm,

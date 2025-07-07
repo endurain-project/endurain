@@ -1,8 +1,5 @@
 {
     "thisWeekDistancesTitle": "Week top 3",
     "thisMonthDistancesTitle": "Month top 3",
-    "progressGoalTitle": "Progress Goal",
-    "progressGoalIntervalWeekly": "Weekly",
-    "progressGoalIntervalMonthly": "Monthly",
-    "progressGoalIntervalYearly": "Yearly"
+    "progressGoalTitle": "Progress Goal"
 }
