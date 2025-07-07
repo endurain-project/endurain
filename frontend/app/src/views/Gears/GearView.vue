@@ -102,6 +102,12 @@
                                 $t("generalItems.unitsKm") }}</span>
                             <span v-else> {{ kmToMiles(gearDistance) }} {{ $t("generalItems.unitsMiles") }}</span>
                         </span>
+                        <span v-else>
+                            <strong>
+                                {{ $t("gearView.labelTime") }}:
+                            </strong>
+                            <span>{{ formatSecondsToMinutes(gearTime) }}</span>
+                        </span>
                         <span class="mt-2" v-if="gear?.brand"><strong>{{ $t("gearView.labelBrand") }}:</strong> {{
                             gear?.brand }}</span>
                         <span class="mt-2" v-if="gear?.model"><strong>{{ $t("gearView.labelModel") }}:</strong> {{
@@ -189,7 +195,7 @@
                         {{ $t("gearView.title") }}
                     </h5>
                     <span class="mb-1 ms-1" v-if="gearActivitiesWithPagination">({{ gearActivitiesWithPagination.length
-                    }}{{
+                        }}{{
                             $t("generalItems.ofWithSpaces") }}{{ gearActivitiesNumber }})</span>
                 </div>
 
@@ -205,10 +211,11 @@
                             <li class="vstack list-group-item d-flex justify-content-between bg-body-tertiary ps-0">
                                 <router-link :to="{ name: 'activity', params: { id: activity.id } }"
                                     class="link-body-emphasis link-underline-opacity-0 link-underline-opacity-100-hover">
-                                    {{ activity.name }}
+                                    <span v-if="activity.name === 'Workout'">{{ formatName(activity, t) }}</span>
+                                    <span v-else>{{ activity.name }}</span>
                                 </router-link>
                                 <span>{{ formatDateMed(activity.start_time) }} @ {{ formatTime(activity.start_time)
-                                    }}</span>
+                                }}</span>
                             </li>
                         </ul>
 
@@ -243,8 +250,9 @@ import PaginationComponent from '@/components/GeneralComponents/PaginationCompon
 import { gears } from "@/services/gearsService";
 import { gearsComponents } from "@/services/gearsComponentsService";
 import { activities } from "@/services/activitiesService";
-import { formatDateMed, formatTime } from "@/utils/dateTimeUtils";
+import { formatDateMed, formatTime, formatSecondsToMinutes } from "@/utils/dateTimeUtils";
 import { kmToMiles } from "@/utils/unitsUtils";
+import { formatName } from "@/utils/activityUtils";
 
 const { t } = useI18n();
 const authStore = useAuthStore();
@@ -262,6 +270,7 @@ const gearActivitiesNumber = ref(0);
 const gearActivitiesWithPagination = ref([]);
 const gearActivities = ref([]);
 const gearDistance = ref(0);
+const gearTime = ref(0);
 const gearComponents = ref(null);
 const gearComponentsActive = ref(null);
 const gearComponentsShowInactive = ref(false);
@@ -279,6 +288,7 @@ async function submitDeleteGear() {
 
 function editGearList(editedGear) {
     gear.value = editedGear;
+    updateTotalCosts();
 }
 
 function setPageNumber(page) {
@@ -365,6 +375,7 @@ onMounted(async () => {
         if (gearActivities.value) {
             for (const activity of gearActivities.value) {
                 gearDistance.value += activity.distance;
+                gearTime.value += activity.total_timer_time || 0;
             }
             gearDistance.value = (gearDistance.value / 1000).toFixed(2);
         }

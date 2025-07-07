@@ -55,16 +55,30 @@
                         <input class="form-control" type="date" name="gearComponentPurchaseDateAddEdit"
                             v-model="newEditGearComponentPurchaseDate" required>
                         <!-- expected distance -->
-                        <label for="gearComponentExpectedDistanceAddEdit"><b>{{
-                            $t("gearComponentAddEditModalComponent.addEditGearComponentModalAddEditExpectedDistanceLabel")
-                                }}</b></label>
-                        <div class="input-group">
-                            <input class="form-control" type="number" name="gearComponentExpectedDistanceAddEdit"
-                                :placeholder='$t("gearComponentAddEditModalComponent.addEditGearComponentModalAddEditExpectedDistanceLabel")'
-                                v-model="newEditGearComponentExpectedDistanceKms" min="0" max="100000" step="1">
-                            <span class="input-group-text" v-if="authStore.user.units === 1">{{
-                                $t("generalItems.unitsKm") }}</span>
-                            <span class="input-group-text" v-else>{{ $t("generalItems.unitsMiles") }}</span>
+                        <div v-if="gear.gear_type !== 4">
+                            <label for="gearComponentExpectedDistanceAddEdit"><b>{{
+                                $t("gearComponentAddEditModalComponent.addEditGearComponentModalAddEditExpectedDistanceLabel")
+                                    }}</b></label>
+                            <div class="input-group">
+                                <input class="form-control" type="number" name="gearComponentExpectedDistanceAddEdit"
+                                    :placeholder='$t("gearComponentAddEditModalComponent.addEditGearComponentModalAddEditExpectedDistanceLabel")'
+                                    v-model="newEditGearComponentExpectedDistanceKms" min="0" max="100000" step="1">
+                                <span class="input-group-text" v-if="authStore.user.units === 1">{{
+                                    $t("generalItems.unitsKm") }}</span>
+                                <span class="input-group-text" v-else>{{ $t("generalItems.unitsMiles") }}</span>
+                            </div>
+                        </div>
+                        <!-- expected time -->
+                        <div v-if="gear.gear_type === 4">
+                            <label for="gearComponentExpectedTimeAddEdit"><b>{{
+                                $t("gearComponentAddEditModalComponent.addEditGearComponentModalAddEditExpectedTimeLabel")
+                                    }}</b></label>
+                            <div class="input-group">
+                                <input class="form-control" type="number" name="gearComponentExpectedTimeAddEdit"
+                                    :placeholder='$t("gearComponentAddEditModalComponent.addEditGearComponentModalAddEditExpectedTimeLabel")'
+                                    v-model="newEditGearComponentExpectedTime" min="0" max="100000" step="1">
+                                <span class="input-group-text">h</span>
+                            </div>
                         </div>
                         <!-- purchase value -->
                         <label for="gearComponentPurchaseValueAddEdit"><b>{{
@@ -160,6 +174,7 @@ const newEditGearComponentModel = ref(null);
 const newEditGearComponentPurchaseDate = ref(new Date().toISOString().split('T')[0]);
 const newEditGearComponentExpectedDistanceKms = ref(null);
 const newEditGearComponentExpectedDistanceMiles = ref(null);
+const newEditGearComponentExpectedTime = ref(null);
 const newEditGearComponentPurchaseValue = ref(null);
 const newEditGearComponentRetiredDate = ref(null);
 const newEditGearComponentIsActive = ref(true);
@@ -175,9 +190,13 @@ onMounted(() => {
         newEditGearComponentBrand.value = props.gearComponent.brand;
         newEditGearComponentModel.value = props.gearComponent.model;
         newEditGearComponentPurchaseDate.value = props.gearComponent.purchase_date;
-        newEditGearComponentExpectedDistanceKms.value = props.gearComponent.expected_kms / 1000;
-        if (props.gearComponent.expected_kms && props.gearComponent.expected_kms !== 0) {
-            newEditGearComponentExpectedDistanceMiles.value = kmToMiles(props.gearComponent.expected_kms / 1000);
+        if (props.gear.gear_type !== 4) {
+            newEditGearComponentExpectedDistanceKms.value = props.gearComponent.expected_kms / 1000;
+            if (props.gearComponent.expected_kms && props.gearComponent.expected_kms !== 0) {
+                newEditGearComponentExpectedDistanceMiles.value = kmToMiles(props.gearComponent.expected_kms / 1000);
+            }
+        } else {
+            newEditGearComponentExpectedTime.value = props.gearComponent.expected_kms / 3600;
         }
         newEditGearComponentPurchaseValue.value = props.gearComponent.purchase_value
         newEditGearComponentRetiredDate.value = props.gearComponent.retired_date;
@@ -205,6 +224,12 @@ function updateIsActiveBasedOnRetiredDate() {
 async function submitAddGearComponentForm() {
     emit("isLoadingNewGearComponent", true);
     try {
+        let expected_kms = null;
+        if (props.gear.gear_type !== 4) {
+            expected_kms = newEditGearComponentExpectedDistanceKms.value * 1000;
+        } else {
+            expected_kms = newEditGearComponentExpectedTime.value * 3600;
+        }
         const data = {
             user_id: newEditGearComponentUserId.value,
             gear_id: newEditGearComponentGearId.value,
@@ -212,7 +237,7 @@ async function submitAddGearComponentForm() {
             brand: newEditGearComponentBrand.value,
             model: newEditGearComponentModel.value,
             purchase_date: newEditGearComponentPurchaseDate.value,
-            expected_kms: newEditGearComponentExpectedDistanceKms.value * 1000,
+            expected_kms: expected_kms,
             purchase_value: newEditGearComponentPurchaseValue.value,
         };
         // add the gear component in the database
@@ -230,6 +255,7 @@ async function submitAddGearComponentForm() {
         newEditGearComponentPurchaseDate.value = new Date().toISOString().split('T')[0];
         newEditGearComponentExpectedDistanceKms.value = null;
         newEditGearComponentExpectedDistanceMiles.value = null;
+        newEditGearComponentExpectedTime.value = null;
         newEditGearComponentPurchaseValue.value = null;
         // set the loading variable to false
         emit("isLoadingNewGearComponent", false);
@@ -248,6 +274,12 @@ async function submitAddGearComponentForm() {
 
 async function submitEditGearComponentForm() {
     try {
+        let expected_kms = null;
+        if (props.gear.gear_type !== 4) {
+            expected_kms = newEditGearComponentExpectedDistanceKms.value * 1000;
+        } else {
+            expected_kms = newEditGearComponentExpectedTime.value * 3600;
+        }
         const data = {
             id: props.gearComponent.id,
             user_id: newEditGearComponentUserId.value,
@@ -258,7 +290,7 @@ async function submitEditGearComponentForm() {
             purchase_date: newEditGearComponentPurchaseDate.value,
             retired_date: newEditGearComponentRetiredDate.value ? newEditGearComponentRetiredDate.value : null,
             is_active: newEditGearComponentIsActive.value,
-            expected_kms: newEditGearComponentExpectedDistanceKms.value * 1000,
+            expected_kms: expected_kms,
             purchase_value: newEditGearComponentPurchaseValue.value,
         };
         // change the gear component in the database

@@ -1,12 +1,12 @@
 <template>
     <li class="list-group-item d-flex justify-content-between px-0 bg-body-tertiary">
         <div class="d-flex align-items-center flex-grow-1">
-            <img :src="getGearBikeComponentAvatar(gearComponent.type)" alt="Gear component bike avatar" width="55" height="55"
-                class="rounded-circle" v-if="gear.gear_type === 1">
-            <img :src="getGearShoesComponentAvatar(gearComponent.type)" alt="Gear component shoes avatar" width="55" height="55"
-                class="rounded-circle" v-if="gear.gear_type === 2">
-            <img :src="getGearRacquetComponentAvatar(gearComponent.type)" alt="Gear component racquet avatar" width="55" height="55"
-                class="rounded-circle" v-if="gear.gear_type === 4">
+            <img :src="getGearBikeComponentAvatar(gearComponent.type)" alt="Gear component bike avatar" width="55"
+                height="55" class="rounded-circle" v-if="gear.gear_type === 1">
+            <img :src="getGearShoesComponentAvatar(gearComponent.type)" alt="Gear component shoes avatar" width="55"
+                height="55" class="rounded-circle" v-if="gear.gear_type === 2">
+            <img :src="getGearRacquetComponentAvatar(gearComponent.type)" alt="Gear component racquet avatar" width="55"
+                height="55" class="rounded-circle" v-if="gear.gear_type === 4">
             <div class="ms-3 flex-grow-1">
                 <div class="fw-bold">
                     <span v-if="gearComponent.brand">{{ gearComponent.brand }}</span>
@@ -18,15 +18,26 @@
                 <span> @ {{ gearComponent.purchase_date }}</span>
                 <span v-if="gearComponent.purchase_value"> - {{ gearComponent.purchase_value }}€ </span>
                 <br>
-                <span v-if="gearComponent.expected_kms">{{ formatDistanceRaw(gearComponentDistance,
-                    authStore.user.units, true, false) }}{{ t('gearComponentListComponent.gearComponentOf') }}{{
+                <span v-if="gearComponent.expected_kms && gear.gear_type !== 4">{{
+                    formatDistanceRaw(gearComponentDistance,
+                        authStore.user.units, true, false) }}{{ t('gearComponentListComponent.gearComponentOf') }}{{
                         formatDistanceRaw(gearComponent.expected_kms, authStore.user.units)
                     }}</span>
+                <span v-if="gearComponent.expected_kms && gear.gear_type === 4">{{
+                    formatSecondsToOnlyHours(gearComponentTime) }}{{ t('gearComponentListComponent.gearComponentOf')
+                    }}{{
+                        formatSecondsToOnlyHours(gearComponent.expected_kms)
+                    }}</span>
                 <span v-if="gearComponent.retired_date"> @ {{ gearComponent.retired_date }}</span>
-                <div class="progress" role="progressbar" aria-label="Gear component usage vs expected"
+                <div v-if="gearComponent.expected_kms && gear.gear_type !== 4" class="progress" role="progressbar" aria-label="Gear component usage vs expected"
                     :aria-valuenow="gearComponentDistancePercentage" aria-valuemin="0" aria-valuemax="100">
                     <div class="progress-bar" :style="{ width: gearComponentDistancePercentage + '%' }">{{
                         gearComponentDistancePercentage }}%</div>
+                </div>
+                <div v-if="gearComponent.expected_kms && gear.gear_type === 4" class="progress" role="progressbar" aria-label="Gear component usage vs expected"
+                    :aria-valuenow="gearComponentTimePercentage" aria-valuemin="0" aria-valuemax="100">
+                    <div class="progress-bar" :style="{ width: gearComponentTimePercentage + '%' }">{{
+                        gearComponentTimePercentage }}%</div>
                 </div>
             </div>
         </div>
@@ -73,6 +84,7 @@ import { push } from "notivue";
 import { formatDistanceRaw } from "@/utils/activityUtils";
 import { useAuthStore } from "@/stores/authStore";
 import { getGearBikeComponentType, getGearBikeComponentAvatar, getGearShoesComponentType, getGearShoesComponentAvatar, getGearRacquetComponentType, getGearRacquetComponentAvatar } from "@/utils/gearComponentsUtils";
+import { formatSecondsToOnlyHours } from "@/utils/dateTimeUtils";
 import ModalComponent from "@/components/Modals/ModalComponent.vue";
 import GearComponentAddEditModalComponent from "@/components/Gears/GearComponentAddEditModalComponent.vue";
 
@@ -94,7 +106,9 @@ const props = defineProps({
 const { t } = useI18n();
 const authStore = useAuthStore();
 const gearComponentDistance = ref(0);
+const gearComponentTime = ref(0);
 const gearComponentDistancePercentage = ref(0);
+const gearComponentTimePercentage = ref(0);
 
 const emit = defineEmits(["gearComponentDeleted", "editedGearComponent"]);
 
@@ -117,6 +131,7 @@ function editGearComponentList(editedGearComponent) {
 
 function updateGearComponentDistance(gearComponent) {
     gearComponentDistance.value = 0;
+    gearComponentTime.value = 0;
     if (props.gearActivities && props.gearActivities && props.gearActivities.length > 0) {
         props.gearActivities.forEach(activity => {
             if (
@@ -125,10 +140,14 @@ function updateGearComponentDistance(gearComponent) {
                 new Date(activity.start_time) > new Date(gearComponent.purchase_date)
             ) {
                 gearComponentDistance.value += Number(activity.distance) || 0;
+                gearComponentTime.value += Number(activity.total_timer_time) || 0;
             }
         });
         gearComponentDistancePercentage.value = Math.round(
             (gearComponentDistance.value / gearComponent.expected_kms) * 100
+        );
+        gearComponentTimePercentage.value = Math.round(
+            (gearComponentTime.value / gearComponent.expected_kms) * 100
         );
     }
 }

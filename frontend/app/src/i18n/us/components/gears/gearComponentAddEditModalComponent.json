@@ -6,6 +6,7 @@
     "addEditGearComponentModalAddEditModelLabel": "Model",
     "addEditGearComponentModalAddEditPurchaseDateLabel": "Purchase date",
     "addEditGearComponentModalAddEditExpectedDistanceLabel": "Expected distance",
+    "addEditGearComponentModalAddEditExpectedTimeLabel": "Expected time",
     "addEditGearComponentModalAddEditPurchaseValueLabel": "Purchase value",
     "addEditGearComponentModalAddEditRetiredDateLabel": "Retired date",
     "addEditGearComponentModalAddEditIsActiveLabel": "Is active",

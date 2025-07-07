@@ -21,7 +21,7 @@ export function formatDateMed(dateString) {
   // Return the formatted date string respecting browser's locale
   return date.toLocaleString(DateTime.DATE_MED);
 }
-  
+
 
 /**
  * Formats a given date string into a time string.
@@ -35,7 +35,7 @@ export function formatTime(dateString) {
   // Return the formatted time string, respecting the browser's locale
   return date.toLocaleString(DateTime.TIME_SIMPLE);
 }
-  
+
 /**
  * Calculates the time difference between two given timestamps.
  *
@@ -81,6 +81,21 @@ export function formatSecondsToMinutes(totalSeconds) {
     return `${hours}h ${formattedMinutes}m ${formattedSeconds}s`;
   }
   return `${minutes}m ${formattedSeconds}s`;
+}
+
+/**
+ * Converts a total number of seconds to the equivalent whole hours.
+ *
+ * @param {number} totalSeconds - The total number of seconds to convert.
+ * @returns {number} The number of whole hours represented by the input seconds. Returns 0 if less than one hour.
+ */
+export function formatSecondsToOnlyHours(totalSeconds) {
+  const hours = Math.floor(totalSeconds / 3600);
+
+  if (hours > 0) {
+    return `${hours}h`;
+  }
+  return 0
 }
 
 /**
@@ -142,9 +157,9 @@ export function formatDateToMonthString(date) {
  * @returns {string} The formatted date string in ISO format.
  */
 export function formatDateISO(date) {
-    let year = date.getFullYear();
-    let month = String(date.getMonth() + 1).padStart(2, '0');
-    let day = String(date.getDate()).padStart(2, '0');
-    
-    return `${year}-${month}-${day}`;
+  let year = date.getFullYear();
+  let month = String(date.getMonth() + 1).padStart(2, '0');
+  let day = String(date.getDate()).padStart(2, '0');
+
+  return `${year}-${month}-${day}`;
 }
