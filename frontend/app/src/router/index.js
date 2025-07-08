@@ -35,6 +35,16 @@ const router = createRouter({
 			component: () => import('../views/ActivitiesView.vue'),
 		},
 		{
+			path: '/segments',
+			name: 'segments',
+			component: () => import('../views/Segments/SegmentsView.vue'),
+		},
+		{
+			path: '/segment',
+			name: 'segment',
+			component: () => import('../views/Segments/SegmentView.vue'),
+		},
+		{
 			path: '/summary',
 			name: 'summary',
 			component: () => import('../views/SummaryView.vue'),

@@ -359,6 +359,7 @@ import usEditActivityModalComponent from './us/components/activities/modals/edit
 import usActivityBellowMPillsComponent from './us/components/activities/activityBellowMPillsComponent.json';
 import usActivityLapsComponent from './us/components/activities/activityLapsComponent.json';
 import usActivityMandAbovePillsComponent from './us/components/activities/activityMandAbovePillsComponent.json';
+import usActivitySegmentsComponent from './us/components/activities/activitySegmentsComponent.json';
 import usActivitySummaryComponent from './us/components/activities/activitySummaryComponent.json';
 import usActivityWorkoutStepsComponent from './us/components/activities/activityWorkoutStepsComponent.json';
 import usActivitiesTableComponent from './us/components/activities/activitiesTableComponent.json'; // Added import
@@ -410,6 +411,7 @@ import usSearchView from './us/searchView.json';
 import usSettingsView from './us/settingsView.json';
 import usUserView from './us/userView.json';
 import usSummaryView from './us/summaryView.json';
+import ActivitySegmentsComponent from '@/components/Activities/ActivitySegmentsComponent.vue';
 
 // Constructing the messages structure
 const messages = {
@@ -768,6 +770,7 @@ const messages = {
     activityBellowMPillsComponent: usActivityBellowMPillsComponent,
     activityLapsComponent: usActivityLapsComponent,
     activityMandAbovePillsComponent: usActivityMandAbovePillsComponent,
+    activitySegmentsComponent: usActivitySegmentsComponent,
     activitySummaryComponent: usActivitySummaryComponent,
     activityWorkoutStepsComponent: usActivityWorkoutStepsComponent,
     activitiesTableComponent: usActivitiesTableComponent, // Added key
