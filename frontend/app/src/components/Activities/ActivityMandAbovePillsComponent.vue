@@ -22,11 +22,11 @@
 				{{ $t("activityMandAbovePillsComponent.labelPillWorkoutSets") }}
 			</button>
 		</li>
-		<li class="nav-item" role="presentation">
-			<button class="nav-link link-body-emphasis" id="pills-workout-steps-tab" data-bs-toggle="pill"
-				data-bs-target="#pills-workout-steps" type="button" role="tab" aria-controls="pills-workout-steps"
+		<li class="nav-item" role="presentation" v-if="activityStreamLatLng">
+			<button class="nav-link link-body-emphasis" id="pills-segments-tab" data-bs-toggle="pill"
+				data-bs-target="#pills-segments" type="button" role="tab" aria-controls="pills-segments"
 				aria-selected="false">
-				aoue{{ $t("activityMandAbovePillsComponent.labelPillSegments") }}
+				{{ $t("activityMandAbovePillsComponent.labelPillSegments") }}
 			</button>
 		</li>
 	</ul>
@@ -82,7 +82,9 @@
 			<ActivityLapsComponent :activity="activity" :activityActivityLaps="activityActivityLaps" :units="units" />
 		</div>
 
-        <div class="tab-pane fade" :class="{ 'show active': !graphItems || graphItems.length === 0 || !activityActivityLaps || activityActivityLaps.length == 0 }" id="pills-segments" role="tabpanel" aria-labelledby="pills-segments-tab" tabindex="2" v-if="activityStreamLatLng">
+        <div class="tab-pane fade" :class="{ 'show active': !graphItems || graphItems.length === 0 || !activityActivityLaps || activityActivityLaps.length == 0 }" 
+			id="pills-segments" role="tabpanel" aria-labelledby="pills-segments-tab" tabindex="2" 
+			v-if="activityStreamLatLng">
 			<ActivitySegmentsComponent :activity="activity" />
         </div>
 
@@ -107,8 +109,11 @@ import { activityStreams } from '@/services/activityStreams';
 import { push } from "notivue";
 // Import the utils
 import { getHrBarChartData } from "@/utils/chartUtils";
+// Importing the stores
+import { useAuthStore } from "@/stores/authStore";
 
 // Props
+const authStore = useAuthStore();
 const activityStreamLatLng = ref(null);
 const props = defineProps({
 	activity: {
