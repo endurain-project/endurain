@@ -16,7 +16,9 @@ class Segment(Base):
     id = Column(
         Integer,
         primary_key=True,
-        autoincrement=True
+        autoincrement=True,
+        nullable=False,
+        comment="ID for the segment"
         )
 
     user_id = Column(

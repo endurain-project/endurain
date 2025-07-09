@@ -78,6 +78,7 @@ import { useAuthStore } from "@/stores/authStore";
 import { push } from "notivue";
 import { useI18n } from "vue-i18n";
 import L from 'leaflet';
+import { polyline } from 'leaflet';
 //const { t } = useI18n();
 
 export default {
@@ -102,8 +103,9 @@ export default {
         async submitSegment(){
             try {
                 const gates = [];
-                this.segmentPolylinePoints.forEach(latlng => {
-                    gates.push([latlng.lat, latlng.lng])
+                this.segmentPolylines.forEach(polyline => {
+                    const latlngs = polyline.getLatLngs();
+                    gates.push([[latlngs[0].lat, latlngs[0].lng],[latlngs[1].lat, latlngs[1].lng]]);
                 });
 
                 const data = {
@@ -111,7 +113,6 @@ export default {
                     activity_type: this.activity.activity_type,
                     splits: gates,
                 };
-                console.log(data);
                 const submittedSegment = await segments.createSegment(data);
             } catch (error){
                 //push.error(`${t("activitySegmentsComponent.errorSubmitSegment")} - ${error}`);
