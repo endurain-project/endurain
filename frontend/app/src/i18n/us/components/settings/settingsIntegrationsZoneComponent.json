@@ -28,7 +28,7 @@
     "modalUnlinkStravaTitle": "Unlink Strava",
     "modalUnlinkStravaBody": "Are you sure you want to unlink your Strava account? Unlinking your Strava account will remove all your Strava activities and gear from Endurain.",
     "bulkImportIntegrationTitle": "Bulk import",
-    "bulkImportIntegrationBody": "Bulk import activities from files stored in the bulk_import folder",
+    "bulkImportIntegrationBody": "Bulk import activities from files stored in the files/bulk_import folder",
     "buttonBulkImport": "Import",
     "errorMessageUnableToImportActivities": "An error occurred while importing activities",
     "loadingMessageBulkImport": "Importing activities",
