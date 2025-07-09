@@ -202,7 +202,7 @@
 					<div v-if="goal.goal_calories">
 						<span class="goal-progress">{{ goal.total_calories }}</span>
 						/
-						<span class="goal-target">{{ goal.total_calories }}</span>
+						<span class="goal-target">{{ goal.goal_calories }}</span>
 					</div>
 				</div>
 				

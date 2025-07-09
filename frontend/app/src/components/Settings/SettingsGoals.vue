@@ -152,6 +152,7 @@
                 if (!existingGoal.id) {
                     userGoalService.createGoal(newValues).then((data) => {
                         // Add the new goal to the local state
+                        existingGoal.id = data.id;
                         push.success(t('settingsGoalsComponent.goalUpdated'));
                     }).catch((error) => {
                         push.error(`${t('settingsGoalsComponent.errorUpdatingGoal')} - ${error}`);
