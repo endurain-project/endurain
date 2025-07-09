@@ -22,6 +22,9 @@
 
         <!-- Include the SettingsIntegrationsZone -->
         <SettingsIntegrationsZone v-if="activeSection === 'integrations'" />
+
+        <!-- Include the SettingsGoals -->
+        <SettingGoals v-if="activeSection === 'myGoals'" /> 
     </div>
     <!-- back button -->
     <BackButtonComponent />
@@ -46,6 +49,7 @@ import SettingsUserProfileZone from '../components/Settings/SettingsUserProfileZ
 import SettingsSecurityZone from '../components/Settings/SettingsSecurityZone.vue';
 import SettingsIntegrationsZone from '../components/Settings/SettingsIntegrationsZone.vue';
 import BackButtonComponent from '@/components/GeneralComponents/BackButtonComponent.vue';
+import SettingGoals from '../components/Settings/SettingsGoals.vue';
 
 export default {
     components: {
@@ -57,6 +61,7 @@ export default {
         SettingsSecurityZone,
         SettingsIntegrationsZone,
         BackButtonComponent,
+        SettingGoals
     },
     setup () {
         const authStore = useAuthStore();

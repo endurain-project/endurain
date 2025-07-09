@@ -392,6 +392,7 @@ import usUsersListComponent from './us/components/settings/settingsUsersZone/use
 import usUsersPasswordRequirementsComponent from './us/components/settings/settingsUsersZone/usersPasswordRequirementsComponent.json';
 import usUserSessionsListComponent from './us/components/settings/settingsUserSessionsZone/userSessionsListComponent.json';
 import usSettingsServerSettingsZoneComponent from './us/components/settings/settingsServerSettingsZoneComponent.json';
+import usSettingsGoalsComponent from './us/components/settings/settingsGoals.json'
 // General components
 import usNoItemsFoundComponent from './us/components/noItemsFoundComponent.json';
 // General translations
@@ -801,6 +802,7 @@ const messages = {
     usersPasswordRequirementsComponent: usUsersPasswordRequirementsComponent,
     userSessionsListComponent: usUserSessionsListComponent,
     settingsServerSettingsZoneComponent: usSettingsServerSettingsZoneComponent,
+    settingsGoalsComponent: usSettingsGoalsComponent,
     // General components
     noItemsFoundComponent: usNoItemsFoundComponent,
     // General translations

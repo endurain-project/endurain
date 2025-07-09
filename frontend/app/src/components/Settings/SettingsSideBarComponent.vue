@@ -27,6 +27,12 @@
                 </a>
             </li>
             <li class="nav-item">
+                <a href="#" class="nav-link link-body-emphasis" :class="{ active: activeSection === 'myGoals' }" @click.prevent="changeActive('myGoals')">
+                    <font-awesome-icon :icon="['fas', 'fa-check-double']" />
+                    <span class="ms-1">{{ $t("settingsSideBar.myGoals") }}</span>
+                </a>
+            </li>
+            <li class="nav-item">
                 <a href="#" class="nav-link link-body-emphasis" :class="{ active: activeSection === 'security' }" @click.prevent="changeActive('security')">
                     <font-awesome-icon :icon="['fas', 'fa-shield']" />
                     <span class="ms-1">{{ $t("settingsSideBar.securitySection") }}</span>

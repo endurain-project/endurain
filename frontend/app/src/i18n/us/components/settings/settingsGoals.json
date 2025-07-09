@@ -1,0 +1,5 @@
+{
+    "addNewGoal": "Add New Goal",
+    "goalTitle": "Goal {index}",
+    "deleteGoalConfirm": "Are you sure you want to delete this goal?"
+}
