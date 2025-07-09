@@ -532,7 +532,8 @@ def parse_file(
                     status_code=status.HTTP_406_NOT_ACCEPTABLE,
                     detail="File extension not supported. Supported file extensions are .gpx and .fit",
                 )
-
+                #raise HTTPException(status_code=406, detail="File extension not supported. Supported file extensions are .gpx and .fit")
+                return None  # Can't return parsed info if we haven't parsed anything
             return parsed_info
         else:
             return None
