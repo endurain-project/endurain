@@ -78,7 +78,7 @@ Docker image uses a non-root user, so ensure target folders are not owned by roo
 ## Bulk import and file upload
 
 To perform a bulk import:
-- Place .fit and/or .gpx files into the files/bulk_import folder. 
+- Place .fit and/or .gpx files into the files/bulk_import folder. Create the folder if needed.
 - In the "Settings" menu select "Integrations".
 - Click "Import" next to "Bulk Import".
 
