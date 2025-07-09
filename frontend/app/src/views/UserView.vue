@@ -274,7 +274,7 @@ export default {
             try {
                 thisWeekDistances.value = await activities.getUserThisWeekStats(authStore.user.id);
                 thisMonthDistances.value = await activities.getUserThisMonthStats(authStore.user.id);
-                userGoals.value = await userGoalsService.getUserGoals();
+                userGoals.value = await userGoalsService.getUserGoalResults();
             } catch (error) {
                 // Set the error message
                 push.error(`${t('userView.errorFetchingUserStats')} - ${error}`)

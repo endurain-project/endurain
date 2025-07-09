@@ -1,5 +1,9 @@
 {
     "addNewGoal": "Add New Goal",
     "goalTitle": "Goal {index}",
-    "deleteGoalConfirm": "Are you sure you want to delete this goal?"
+    "deleteGoalConfirm": "Are you sure you want to delete this goal?",
+    "errorFetchingGoals": "Error fetching goals",
+    "goalUpdated": "Goal updated successfully",
+    "errorUpdatingGoal": "Error updating goal",
+    "goalDeleted": "Goal deleted successfully"
 }

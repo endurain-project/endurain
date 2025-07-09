@@ -170,7 +170,7 @@ export default {
 				thisMonthDistances.value = await activities.getUserThisMonthStats(
 					authStore.user.id,
 				);
-				userGoals.value = await userGoalsService.getUserGoals();
+				userGoals.value = await userGoalsService.getUserGoalResults();
 			} catch (error) {
 				// Set the error message
 				push.error(`${t("homeView.errorFetchingUserStats")} - ${error}`);

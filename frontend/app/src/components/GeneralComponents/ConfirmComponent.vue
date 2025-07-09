@@ -121,7 +121,6 @@ const handleButtonClick = (button) => {
 }
 
 const show = () => {
-    console.log('Showing modal', bootstrapModal)
   if (bootstrapModal) {
     bootstrapModal.show()
   }

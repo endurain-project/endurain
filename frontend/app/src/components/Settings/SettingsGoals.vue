@@ -1,6 +1,7 @@
     <template>
         <ConfirmComponent 
-            ref="confirmComponent" 
+            ref="confirmComponent"
+            @confirm="deleteGoalAction"
             :title="$t('settingsGoalsComponent.deleteGoalConfirm')"  />
         <div class="col">
             <div class="bg-body-tertiary rounded p-3 shadow-sm">
@@ -12,29 +13,58 @@
                 </button>                           
                 <div v-for="(goal, index) in goals" class="mt-3">
                     <div class="card mb-2">
-                        <di v class="card-header d-flex justify-content-between align-items-center">
+                        <div class="card-header d-flex justify-content-between align-items-center">
                             <h5 class="card-title">{{ $t("settingsGoalsComponent.goalTitle", {index: index + 1}) }}</h5>
                             <button class="btn btn-danger" @click="deleteGoal(index)">
                                 <font-awesome-icon :icon="['fas', 'fa-trash']" />
                             </button>
-                        </di>
+                        </div>
                         <div class="card-body">
                             <h5 class="card-title">{{ goal.title }}</h5>
-                            <form>
+                            <form :id="`form-goal-${index}`" @submit.prevent="updateGoal(index, goal)">
                                 <div class="mb-3">
-                                    <label for="exampleInputEmail1" class="form-label">Activity Type</label>
-                                    <select class="form-select" aria-label="Default select example">
-                                        <option selected>Open this select menu</option>
-                                        <option value="1">One</option>
-                                        <option value="2">Two</option>
-                                        <option value="3">Three</option>
+                                    <label for="exampleInputEmail1" class="form-label">Interval</label>
+                                    <select class="form-select" aria-label="Interval" id="interval" name="interval">
+                                        <option 
+                                            v-for="(value, key) in goalIntervalList"
+                                            :selected="key == goal.interval" 
+                                            :value="key">
+                                            {{t(value)}}
+                                        </option>
                                     </select>
                                 </div>
                                 <div class="mb-3">
-                                    <label for="exampleInputPassword1" class="form-label">Password</label>
-                                    <input type="password" class="form-control" id="exampleInputPassword1">
+                                    <label for="exampleInputEmail1" class="form-label">Activity Type</label>
+                                    <select class="form-select" aria-label="activity type" name="activity_type" id="activity_type">
+                                        <option 
+                                            v-for="(value, key) in activityList"
+                                            :selected="key == goal.activity_type" 
+                                            :value="key">
+                                            {{value}}
+                                        </option>
+                                    </select>
                                 </div>
-                                <button type="submit" class="btn btn-primary">Submit</button>
+                                <div class="mb-3">
+                                    <label for="goal_calories" class="form-label">Calories</label>
+                                    <input type="number" class="form-control" id="goal_calories" name="goal_calories" :value="goal.goal_calories" >
+                                </div>
+                                <div class="mb-3">
+                                    <label for="goal_count" class="form-label">Activities</label>
+                                    <input type="number" class="form-control" id="goal_count" name="goal_count" :value="goal.goal_count" >
+                                </div>
+                                <div class="mb-3">
+                                    <label for="goal_distance" class="form-label">Distance</label>
+                                    <input type="number" class="form-control" id="goal_distance" name="goal_distance" :value="goal.goal_distance" >
+                                </div>
+                                <div class="mb-3">
+                                    <label for="goal_duration" class="form-label">Duration</label>
+                                    <input type="number" class="form-control" id="goal_duration" name="goal_duration" :value="goal.goal_duration" >
+                                </div>
+                                <div class="mb-3">
+                                    <label for="goal_elevation" class="form-label">Elevation</label>
+                                    <input type="number" class="form-control" id="goal_elevation" name="goal_elevation" :value="goal.goal_elevation" >
+                                </div>
+                                <button type="submit" class="btn btn-primary">Save</button>
                             </form>
                         </div>
                     </div>
@@ -50,7 +80,9 @@
     import { push } from "notivue";
 
     import ConfirmComponent from '@/components/GeneralComponents/ConfirmComponent.vue';
-    import {activityList} from '@/utils/activityUtils';
+    import {activityList, goalIntervalList} from '@/utils/activityUtils';
+
+    import { userGoals as userGoalService } from '@/services/userGoalsService';
 
     export default {
         components: {
@@ -63,7 +95,14 @@
             // Setup logic can go here if needed
 
             const goals = ref([]);
+            const selectedGoalToDeleteIndex = ref(null);
             const confirmComponent = ref(null);
+
+            userGoalService.getUserGoals().then((data) => {
+                goals.value = data;
+            }).catch((error) => {
+                push.error(`${t('settingsGoalsComponent.errorFetchingGoals')} - ${error}`);
+            });
 
             const addGoal = () => {
                 // Logic to add a new goal
@@ -73,11 +112,60 @@
             };
 
             const deleteGoal = (index) => {
-                console.log(confirmComponent.value.show)
-                // confirmComponent.value.show();
+                confirmComponent.value.show();
+                selectedGoalToDeleteIndex.value = index;
+            };
 
-                // Logic to delete a goal
-                // goals.value.splice(index, 1);
+            const deleteGoalAction = () => {
+                const index = selectedGoalToDeleteIndex.value
+                const goalToDelete = goals.value[index];
+
+                if (!goalToDelete.id) {
+                    goals.value.splice(index, 1);
+                    return;
+                }
+
+                userGoalService.deleteGoal(goalToDelete.id).then(() => {
+                    // Remove the goal from the local state
+                    goals.value.splice(index, 1);
+                    push.success(t('settingsGoalsComponent.goalDeleted'));
+                }).catch((error) => {
+                    push.error(`${t('settingsGoalsComponent.errorUpdatingGoal')} - ${error}`);
+                });
+            };
+
+            const updateGoal = (index, updatedGoal) => {
+                const existingGoal = goals.value[index];
+
+                const form = document.getElementById(`form-goal-${index}`)
+                const newValues = Object.keys(Object.fromEntries(new FormData(form)))
+                    .reduce((acc, key) => {
+                        acc[key] = form[key].value;
+
+                        if (acc[key].match(/^\d+$/g)) {
+                            acc[key] = parseInt(acc[key]);
+                        }
+
+                        return acc;
+                    }, {});
+
+                if (!existingGoal.id) {
+                    userGoalService.createGoal(newValues).then((data) => {
+                        // Add the new goal to the local state
+                        push.success(t('settingsGoalsComponent.goalUpdated'));
+                    }).catch((error) => {
+                        push.error(`${t('settingsGoalsComponent.errorUpdatingGoal')} - ${error}`);
+                    });
+                    return;
+                }
+
+                userGoalService.updateGoal(existingGoal.id, {...existingGoal, ...newValues}).then((data) => {
+                    // Update the goal in the local state
+                    goals.value[index] = data;
+                    push.success(t('settingsGoalsComponent.goalUpdated'));
+                }).catch((error) => {
+                    push.error(`${t('settingsGoalsComponent.errorUpdatingGoal')} - ${error}`);
+                });
             };
 
             return {
@@ -87,10 +175,13 @@
                 goals,
                 confirmComponent,
                 activityList,
+                goalIntervalList,
 
                 // Methods
                 addGoal,
-                deleteGoal
+                deleteGoal,
+                updateGoal,
+                deleteGoalAction
             }
         },
     };

@@ -6,7 +6,7 @@ import {useAuthStore} from '@/stores/authStore';
 const authStore = useAuthStore();
 
 export const userGoals = {
-    getUserGoals() {
+    getUserGoalResults() {
         return fetchGetRequest('goals/results')
             .then(response => {
                 return response.map(goal => ({
@@ -24,5 +24,17 @@ export const userGoals = {
                     goal_duration: formatDuration(goal.goal_duration),
                 }));
             })
+    },
+    getUserGoals() {
+        return fetchGetRequest('goals');            
+    },
+    createGoal(data) {
+        return fetchPostRequest('goals', data);
+    },
+    updateGoal(goal_id, data) {
+        return fetchPutRequest(`goals/${goal_id}`, data);
+    },
+    deleteGoal(goal_id) {
+        return fetchDeleteRequest(`goals/${goal_id}`);
     }
 }

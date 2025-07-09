@@ -489,6 +489,12 @@ export const activityList = {
     29: "Mixed surface ride"
 }
 
+export const goalIntervalList = {
+	monthly: "summaryView.optionMonthly",
+	weekly: "summaryView.optionWeekly",
+	daily: "summaryView.optionDaily",
+}
+
 /**
  * Formats the location of an activity into a readable string.
  *
