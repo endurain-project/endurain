@@ -5,7 +5,7 @@ by the Polar Flow application.
 from collections import defaultdict
 
 import tcxreader
-import activities.activity.schema as activities_schema
+# import activities.activity.schema as activities_schema
 
 
 def parse_tcx_file(file, user_id, user_privacy_settings, db):
@@ -71,10 +71,11 @@ def parse_tcx_file(file, user_id, user_privacy_settings, db):
                       'ele': trackpoint['elevation']}
                      for trackpoint in trackpoints
                      if 'elevation' in trackpoint]
-    power_waypoints = [{'time': trackpoint['time'].strftime("%Y-%m-%dT%H:%M:%S"),
-                        'power': trackpoint['Watts']}
-                       for trackpoint in trackpoints
-                       if 'Watts' in trackpoint]
+    power_waypoints = [{'time': trackpoint.time.strftime("%Y-%m-%dT%H:%M:%S"),
+                        'power': trackpoint.tpx_ext['Watts']}
+                       for trackpoint in tcx_file.trackpoints
+                       if hasattr(trackpoint, 'tpx_ext')
+                       and 'Watts' in trackpoint.tpx_ext]
 
     # Velocity and pace aren't included in the files I tested with
     # Keeping the empty lists here as a placeholder
