@@ -16,7 +16,7 @@ SERVER_IMAGES_DIR = "server_images"
 FILES_DIR = "files"
 FILES_PROCESSED_DIR = "files/processed"
 FILES_BULK_IMPORT_DIR = "files/bulk_import"
-
+SUPPORTED_FILE_FORMATS = [".fit", ".gpx"]  # used to screen bulk import files
 
 def check_required_env_vars():
     required_env_vars = [
