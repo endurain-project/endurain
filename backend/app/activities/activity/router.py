@@ -569,9 +569,19 @@ async def create_activity_with_bulk_import(
         bulk_import_dir = core_config.FILES_BULK_IMPORT_DIR
         os.makedirs(bulk_import_dir, exist_ok=True)
 
+        # Grab list of supported file formats
+        supported_file_formats = core_config.SUPPORTED_FILE_FORMATS
+
         # Iterate over each file in the 'bulk_import' directory
         for filename in os.listdir(bulk_import_dir):
             file_path = os.path.join(bulk_import_dir, filename)
+
+            # Check if file is one we can process
+            _, file_extension = os.path.splitext(file_path)
+            if file_extension not in supported_file_formats:
+                core_logger.print_to_log_and_console(f"Skipping file {file_path} due to not having a supported file extension. Supported extensions are: {supported_file_formats}.")
+                # Might be good to notify the user, but background tasks cannot raise HTTPExceptions
+                continue
 
             if os.path.isfile(file_path):
                 # Log the file being processed
