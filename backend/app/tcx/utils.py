@@ -72,10 +72,9 @@ def parse_tcx_file(file, user_id, user_privacy_settings, db):
                      for trackpoint in trackpoints
                      if 'elevation' in trackpoint]
     power_waypoints = [{'time': trackpoint['time'].strftime("%Y-%m-%dT%H:%M:%S"),
-                        'power': trackpoint.tpx_ext['Watts']}
+                        'power': trackpoint['Watts']}
                        for trackpoint in trackpoints
-                       if hasattr(trackpoint, 'tpx_ext')
-                       and 'Watts' in trackpoint.tpx_ext]
+                       if 'Watts' in trackpoint]
 
     # Velocity and pace aren't included in the files I tested with
     # Keeping the empty lists here as a placeholder
