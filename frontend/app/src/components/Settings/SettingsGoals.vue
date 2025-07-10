@@ -47,22 +47,37 @@
                                 <div class="mb-3">
                                     <label for="goal_calories" class="form-label">Calories</label>
                                     <input type="number" class="form-control" id="goal_calories" name="goal_calories" :value="goal.goal_calories" >
+                                    <div class="form-text">
+                                        {{ $t("settingsGoalsComponent.goalCaloriesDescription") }}
+                                    </div>
                                 </div>
                                 <div class="mb-3">
                                     <label for="goal_count" class="form-label">Activities</label>
                                     <input type="number" class="form-control" id="goal_count" name="goal_count" :value="goal.goal_count" >
+                                    <div class="form-text">
+                                        {{ $t("settingsGoalsComponent.goalActivitiesDescription") }}
+                                    </div>
                                 </div>
                                 <div class="mb-3">
                                     <label for="goal_distance" class="form-label">Distance</label>
                                     <input type="number" class="form-control" id="goal_distance" name="goal_distance" :value="goal.goal_distance" >
+                                    <div class="form-text">
+                                        {{ $t("settingsGoalsComponent.goalDistanceDescription") }}
+                                    </div>
                                 </div>
                                 <div class="mb-3">
                                     <label for="goal_duration" class="form-label">Duration</label>
-                                    <input type="number" class="form-control" id="goal_duration" name="goal_duration" :value="goal.goal_duration" >
+                                    <input type="text" class="form-control" id="goal_duration" name="goal_duration" :value="goal.goal_duration" >
+                                    <div class="form-text">
+                                        {{ $t("settingsGoalsComponent.goalDurationDescription") }}
+                                    </div>
                                 </div>
                                 <div class="mb-3">
                                     <label for="goal_elevation" class="form-label">Elevation</label>
                                     <input type="number" class="form-control" id="goal_elevation" name="goal_elevation" :value="goal.goal_elevation" >
+                                    <div class="form-text">
+                                        {{ $t("settingsGoalsComponent.goalElevationDescription") }}
+                                    </div>
                                 </div>
                                 <button type="submit" class="btn btn-primary">Save</button>
                             </form>
@@ -78,6 +93,8 @@
     import { useI18n } from "vue-i18n";
     import { ref } from 'vue';
     import { push } from "notivue";
+    import parseDuration from 'parse-duration'
+
 
     import ConfirmComponent from '@/components/GeneralComponents/ConfirmComponent.vue';
     import {activityList, goalIntervalList} from '@/utils/activityUtils';
@@ -144,6 +161,10 @@
 
                         if (acc[key].match(/^\d+$/g)) {
                             acc[key] = parseInt(acc[key]);
+                        }
+
+                        if (key === 'goal_duration') {
+                            acc[key] = parseDuration(acc[key]) / 1000; // Convert to seconds
                         }
 
                         return acc;

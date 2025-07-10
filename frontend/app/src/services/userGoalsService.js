@@ -2,6 +2,8 @@ import { fetchGetRequest, fetchPostRequest, fetchPutRequest, fetchDeleteRequest,
 import {getIcon, formatCalories, formatDuration, convertDistanceMetersToKmsOrMiles, convertDistanceMetersToYards} from '@/utils/activityUtils'
 import { startCase } from '@/utils/genericUtils';
 import {useAuthStore} from '@/stores/authStore';
+import prettyMilliseconds from 'pretty-ms';
+
 
 const authStore = useAuthStore();
 
@@ -26,13 +28,25 @@ export const userGoals = {
             })
     },
     getUserGoals() {
-        return fetchGetRequest('goals');            
+        return fetchGetRequest('goals')
+        .then(response => {
+            return response.map(goal => ({
+                ...goal,
+                goal_duration: prettyMilliseconds(goal.goal_duration * 1000)
+            }))
+        });            
     },
     createGoal(data) {
         return fetchPostRequest('goals', data);
     },
     updateGoal(goal_id, data) {
-        return fetchPutRequest(`goals/${goal_id}`, data);
+        return fetchPutRequest(`goals/${goal_id}`, data)
+            .then(response => {
+                return {
+                    ...response,
+                    goal_duration: prettyMilliseconds(response.goal_duration * 1000)
+                };
+            });
     },
     deleteGoal(goal_id) {
         return fetchDeleteRequest(`goals/${goal_id}`);
