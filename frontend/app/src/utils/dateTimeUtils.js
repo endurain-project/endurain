@@ -1,176 +1,298 @@
+import { describe, it, expect } from 'vitest';
 import { DateTime } from 'luxon';
+import {
+  getWeekStartDate,
+  getWeekEndDate,
+  navigateWeek,
+  formatDateISO
+} from '@/utils/dateUtils';
 
-/**
- * Formats a date string into a localized date format.
- *
- * @param {string} dateString - The date string to be formatted.
- * @returns {string} The formatted date string.
- */
-export function formatDateShort(dateString) {
-  // Create a DateTime object from the date string
-  const date = DateTime.fromISO(dateString, { setZone: true });
-
-  // Return the formatted date string respecting browser's locale
-  return date.toLocaleString(DateTime.DATE_SHORT);
-}
-
-export function formatDateMed(dateString) {
-  // Create a DateTime object from the date string
-  const date = DateTime.fromISO(dateString, { setZone: true });
-
-  // Return the formatted date string respecting browser's locale
-  return date.toLocaleString(DateTime.DATE_MED);
-}
+describe('Date Utils - Week Navigation and Boundaries', () => {
   
+  describe('getWeekStartDate', () => {
+    it('should return Sunday as start of week when firstDayOfWeek is 0 (Sunday)', () => {
+      // Test with Wednesday, March 15, 2025
+      const inputDate = new Date(2025, 2, 15); // March 15, 2025 (Wednesday)
+      const result = getWeekStartDate(inputDate, 0);
+      
+      // Expected: Sunday, March 12, 2025
+      expect(formatDateISO(result)).toBe('2025-03-12');
+    });
 
-/**
- * Formats a given date string into a time string.
- * @param {string} dateString - The date string to be formatted.
- * @returns {string} The formatted time string.
- */
-export function formatTime(dateString) {
-  // Create a DateTime object from the date string and preserve its time zone offset
-  const date = DateTime.fromISO(dateString, { setZone: true });
+    it('should return Monday as start of week when firstDayOfWeek is 1 (Monday)', () => {
+      // Test with Wednesday, March 15, 2025
+      const inputDate = new Date(2025, 2, 15); // March 15, 2025 (Wednesday)
+      const result = getWeekStartDate(inputDate, 1);
+      
+      // Expected: Monday, March 13, 2025
+      expect(formatDateISO(result)).toBe('2025-03-13');
+    });
 
-  // Return the formatted time string, respecting the browser's locale
-  return date.toLocaleString(DateTime.TIME_SIMPLE);
-}
-  
-/**
- * Calculates the time difference between two given timestamps.
- *
- * @param {string} startTime - The start timestamp.
- * @param {string} endTime - The end timestamp.
- * @returns {string} The formatted time difference.
- */
-export function calculateTimeDifference(startTime, endTime) {
-  // Create new Date objects from the timestamps
-  const startDateTime = new Date(startTime);
-  const endDateTime = new Date(endTime);
-  const interval = new Date(endDateTime - startDateTime);
+    it('should return Tuesday as start of week when firstDayOfWeek is 2 (Tuesday)', () => {
+      // Test with Wednesday, March 15, 2025
+      const inputDate = new Date(2025, 2, 15); // March 15, 2025 (Wednesday)
+      const result = getWeekStartDate(inputDate, 2);
+      
+      // Expected: Tuesday, March 14, 2025
+      expect(formatDateISO(result)).toBe('2025-03-14');
+    });
 
-  // Get the hours, minutes, and seconds from the interval
-  const hours = interval.getUTCHours();
-  const minutes = interval.getUTCMinutes();
-  const seconds = interval.getUTCSeconds();
+    it('should handle edge case when input date is already the first day of week', () => {
+      // Test with Sunday when firstDayOfWeek is 0
+      const inputDate = new Date(2025, 2, 12); // March 12, 2025 (Sunday)
+      const result = getWeekStartDate(inputDate, 0);
+      
+      // Expected: Same Sunday
+      expect(formatDateISO(result)).toBe('2025-03-12');
+    });
 
-  // Return the formatted time difference
-  if (hours < 1) {
-    // If the difference is less than an hour, return the minutes and seconds
-    return `${minutes}m ${seconds}s`;
-  }
-  // If the difference is greater than an hour, return the hours and minutes
-  return `${hours}h ${minutes}m`;
-}
+    it('should handle edge case when input date is already the first day of week (Monday)', () => {
+      // Test with Monday when firstDayOfWeek is 1
+      const inputDate = new Date(2025, 2, 13); // March 13, 2025 (Monday)
+      const result = getWeekStartDate(inputDate, 1);
+      
+      // Expected: Same Monday
+      expect(formatDateISO(result)).toBe('2025-03-13');
+    });
 
-/**
- * Converts a given number of seconds into a minutes:seconds format.
- *
- * @param {number} totalSeconds - The total number of seconds.
- * @returns {string} The formatted time string in minutes:seconds.
- */
-export function formatSecondsToMinutes(totalSeconds) {
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const seconds = Math.floor(totalSeconds % 60);
+    it('should handle month boundaries correctly', () => {
+      // Test with first day of month when week started in previous month
+      const inputDate = new Date(2025, 3, 1); // April 1, 2025 (Saturday)
+      const result = getWeekStartDate(inputDate, 0); // Sunday start
+      
+      // Expected: Sunday, March 26, 2025
+      expect(formatDateISO(result)).toBe('2025-03-26');
+    });
 
-  const formattedSeconds = seconds < 10 ? `0${seconds}` : seconds;
-  const formattedMinutes = minutes < 10 && hours > 0 ? `0${minutes}` : minutes;
+    it('should handle year boundaries correctly', () => {
+      // Test with first day of year when week started in previous year
+      const inputDate = new Date(2025, 0, 1); // January 1, 2025 (Sunday)
+      const result = getWeekStartDate(inputDate, 1); // Monday start
+      
+      // Expected: Monday, December 26, 2025
+      expect(formatDateISO(result)).toBe('2025-12-26');
+    });
+  });
 
-  if (hours > 0) {
-    return `${hours}h ${formattedMinutes}m ${formattedSeconds}s`;
-  }
-  return `${minutes}m ${formattedSeconds}s`;
-}
+  describe('getWeekEndDate', () => {
+    it('should return start of next week when firstDayOfWeek is 0 (Sunday)', () => {
+      // Test with Wednesday, March 15, 2025
+      const inputDate = new Date(2025, 2, 15); // March 15, 2025 (Wednesday)
+      const result = getWeekEndDate(inputDate, 0);
+      
+      // Expected: Sunday, March 19, 2025 (start of next week)
+      expect(formatDateISO(result)).toBe('2025-03-19');
+    });
 
-/**
- * Gets the start date of the week for a given date object, respecting the specified first day of week, in UTC.
- * @param {Date} date - The input date object.
- * @param {number} firstDayOfWeek - The first day of week (0 = Sunday, 1 = Monday, etc.).
- * @returns {Date} - The date object for the start of that week (UTC).
- */
-export function getWeekStartDate(date, firstDayOfWeek = 0) {
-  const dt = DateTime.fromJSDate(date, { zone: 'utc' });
-  
-  // Get the current day of the week (1 = Monday, 7 = Sunday in Luxon)
-  const currentDayOfWeek = dt.weekday;
-  
-  // Convert firstDayOfWeek parameter to Luxon format
-  // 0 (Sunday) -> 7, 1 (Monday) -> 1, 2 (Tuesday) -> 2, etc.
-  const luxonFirstDayOfWeek = firstDayOfWeek === 0 ? 7 : firstDayOfWeek;
-  
-  // Calculate days to subtract to get to the start of the week
-  let daysToSubtract = (currentDayOfWeek - luxonFirstDayOfWeek + 7) % 7;
-  
-  return dt.minus({ days: daysToSubtract }).toJSDate();
-}
+    it('should return start of next week when firstDayOfWeek is 1 (Monday)', () => {
+      // Test with Wednesday, March 15, 2025
+      const inputDate = new Date(2025, 2, 15); // March 15, 2025 (Wednesday)
+      const result = getWeekEndDate(inputDate, 1);
+      
+      // Expected: Monday, March 20, 2025 (start of next week)
+      expect(formatDateISO(result)).toBe('2025-03-20');
+    });
 
-/**
- * Gets the end date (start of next week) for a given JavaScript Date object's week, in UTC.
- * This means it's the first day of the next week, making the range exclusive for the end date.
- * @param {Date} jsDate - The input JavaScript Date object.
- * @param {number} firstDayOfWeek - The first day of week (0 = Sunday, 1 = Monday, etc.).
- * @returns {Date} - The JavaScript Date object for the start of the next week (UTC).
- */
-export function getWeekEndDate(jsDate, firstDayOfWeek = 0) {
-  const weekStart = getWeekStartDate(jsDate, firstDayOfWeek);
-  return DateTime.fromJSDate(weekStart, { zone: 'utc' }).plus({ days: 7 }).toJSDate();
-}
+    it('should handle month boundaries correctly', () => {
+      // Test with last day of month
+      const inputDate = new Date(2025, 2, 31); // March 31, 2025 (Friday)
+      const result = getWeekEndDate(inputDate, 0); // Sunday start
+      
+      // Expected: Sunday, April 2, 2025
+      expect(formatDateISO(result)).toBe('2025-04-02');
+    });
 
-/**
- * Gets the start date (1st) of the month for a given JavaScript Date object, in UTC.
- * @param {Date} jsDate - The input JavaScript Date object.
- * @returns {Date} - The JavaScript Date object for the first day of that month (UTC).
- */
-export function getMonthStartDate(jsDate) {
-  return DateTime.fromJSDate(jsDate, { zone: 'utc' }).startOf('month').toJSDate();
-}
+    it('should handle year boundaries correctly', () => {
+      // Test with last day of year
+      const inputDate = new Date(2025, 11, 31); // December 31, 2025 (Sunday)
+      const result = getWeekEndDate(inputDate, 1); // Monday start
+      
+      // Expected: Monday, January 1, 2025
+      expect(formatDateISO(result)).toBe('2025-01-01');
+    });
+  });
 
-/**
- * Gets the end date (start of next month) for a given JavaScript Date object's month, in UTC.
- * This means it's the first day of the next month, making the range exclusive for the end date.
- * @param {Date} jsDate - The input JavaScript Date object.
- * @returns {Date} - The JavaScript Date object for the start of the next month (UTC).
- */
-export function getMonthEndDate(jsDate) {
-  return DateTime.fromJSDate(jsDate, { zone: 'utc' }).startOf('month').plus({ months: 1 }).toJSDate();
-}
+  describe('navigateWeek', () => {
+    const testDate = new Date(2025, 2, 15); // March 15, 2025 (Wednesday)
 
-/**
- * Navigates to the previous or next week based on the specified first day of week.
- * @param {Date} currentDate - The current date.
- * @param {number} direction - Direction to navigate (-1 for previous, 1 for next).
- * @param {number} firstDayOfWeek - The first day of week (0 = Sunday, 1 = Monday, etc.).
- * @returns {Date} - The new date after navigation.
- */
-export function navigateWeek(currentDate, direction, firstDayOfWeek = 0) {
- const dateTime = DateTime.fromJSDate(currentDate, { zone: 'utc' });
-  const startOfWeek = dateTime.startOf('week').plus({ days: firstDayOfWeek });
-  return startOfWeek.plus({ days: 7 * direction }).toJSDate();
-}
+    describe('Forward navigation (direction = 1)', () => {
+      it('should navigate to next week with Sunday start', () => {
+        const result = navigateWeek(testDate, 1, 0);
+        
+        // Expected: Sunday, March 19, 2025 (start of next week)
+        expect(formatDateISO(result)).toBe('2025-03-19');
+      });
 
-/**
- * Formats a Date object into a string with the format "YYYY-MM".
- *
- * @param {Date} date - The date to format.
- * @returns {string} The formatted date string in "YYYY-MM" format.
- */
-export function formatDateToMonthString(date) {
-  let year = date.getFullYear();
-  let month = String(date.getMonth() + 1).padStart(2, '0');
-  return `${year}-${month}`;
-}
+      it('should navigate to next week with Monday start', () => {
+        const result = navigateWeek(testDate, 1, 1);
+        
+        // Expected: Monday, March 20, 2025 (start of next week)
+        expect(formatDateISO(result)).toBe('2025-03-20');
+      });
 
-/**
- * Formats a Date object into an ISO date string (YYYY-MM-DD).
- *
- * @param {Date} date - The date to format.
- * @returns {string} The formatted date string in ISO format.
- */
-export function formatDateISO(date) {
-    let year = date.getFullYear();
-    let month = String(date.getMonth() + 1).padStart(2, '0');
-    let day = String(date.getDate()).padStart(2, '0');
-    
-    return `${year}-${month}-${day}`;
-}
+      it('should navigate to next week with Tuesday start', () => {
+        const result = navigateWeek(testDate, 1, 2);
+        
+        // Expected: Tuesday, March 21, 2025 (start of next week)
+        expect(formatDateISO(result)).toBe('2025-03-21');
+      });
+
+      it('should handle multiple weeks forward', () => {
+        const result = navigateWeek(testDate, 3, 0); // 3 weeks forward
+        
+        // Expected: Sunday, April 2, 2025
+        expect(formatDateISO(result)).toBe('2025-04-02');
+      });
+    });
+
+    describe('Backward navigation (direction = -1)', () => {
+      it('should navigate to previous week with Sunday start', () => {
+        const result = navigateWeek(testDate, -1, 0);
+        
+        // Expected: Sunday, March 5, 2025 (start of previous week)
+        expect(formatDateISO(result)).toBe('2025-03-05');
+      });
+
+      it('should navigate to previous week with Monday start', () => {
+        const result = navigateWeek(testDate, -1, 1);
+        
+        // Expected: Monday, March 6, 2025 (start of previous week)
+        expect(formatDateISO(result)).toBe('2025-03-06');
+      });
+
+      it('should navigate to previous week with Tuesday start', () => {
+        const result = navigateWeek(testDate, -1, 2);
+        
+        // Expected: Tuesday, March 7, 2025 (start of previous week)
+        expect(formatDateISO(result)).toBe('2025-03-07');
+      });
+
+      it('should handle multiple weeks backward', () => {
+        const result = navigateWeek(testDate, -3, 0); // 3 weeks backward
+        
+        // Expected: Sunday, February 26, 2025
+        expect(formatDateISO(result)).toBe('2025-02-26');
+      });
+    });
+
+    describe('Edge cases', () => {
+      it('should handle month boundaries when navigating forward', () => {
+        const lastDayOfMonth = new Date(2025, 2, 31); // March 31, 2025
+        const result = navigateWeek(lastDayOfMonth, 1, 0);
+        
+        // Should navigate to next week in April
+        expect(result.getMonth()).toBe(3); // April
+      });
+
+      it('should handle month boundaries when navigating backward', () => {
+        const firstDayOfMonth = new Date(2025, 3, 1); // April 1, 2025
+        const result = navigateWeek(firstDayOfMonth, -1, 0);
+        
+        // Should navigate to previous week in March
+        expect(result.getMonth()).toBe(2); // March
+      });
+
+      it('should handle year boundaries when navigating forward', () => {
+        const endOfYear = new Date(2025, 11, 31); // December 31, 2025
+        const result = navigateWeek(endOfYear, 1, 0);
+        
+        // Should navigate to next week in January 2025
+        expect(result.getFullYear()).toBe(2025);
+        expect(result.getMonth()).toBe(0); // January
+      });
+
+      it('should handle year boundaries when navigating backward', () => {
+        const startOfYear = new Date(2025, 0, 1); // January 1, 2025
+        const result = navigateWeek(startOfYear, -1, 0);
+        
+        // Should navigate to previous week in December 2025
+        expect(result.getFullYear()).toBe(2025);
+        expect(result.getMonth()).toBe(11); // December
+      });
+
+      it('should handle leap year correctly', () => {
+        const leapYearDate = new Date(2025, 1, 29); // February 29, 2025 (leap year)
+        const result = navigateWeek(leapYearDate, 1, 0);
+        
+        // Should navigate to next week in March
+        expect(result.getMonth()).toBe(2); // March
+      });
+    });
+
+    describe('All days of week as firstDayOfWeek', () => {
+      const testCases = [
+        { firstDay: 0, name: 'Sunday' },
+        { firstDay: 1, name: 'Monday' },
+        { firstDay: 2, name: 'Tuesday' },
+        { firstDay: 3, name: 'Wednesday' },
+        { firstDay: 4, name: 'Thursday' },
+        { firstDay: 5, name: 'Friday' },
+        { firstDay: 6, name: 'Saturday' }
+      ];
+
+      testCases.forEach(({ firstDay, name }) => {
+        it(`should handle ${name} as first day of week`, () => {
+          const result = navigateWeek(testDate, 1, firstDay);
+          
+          // Verify the result is a valid date
+          expect(result).toBeInstanceOf(Date);
+          expect(result.getTime()).toBeGreaterThan(testDate.getTime());
+        });
+      });
+    });
+
+    describe('Zero direction (no navigation)', () => {
+      it('should return start of current week when direction is 0', () => {
+        const result = navigateWeek(testDate, 0, 0);
+        
+        // Should return start of current week (Sunday)
+        expect(formatDateISO(result)).toBe('2025-03-12');
+      });
+
+      it('should return start of current week with Monday start when direction is 0', () => {
+        const result = navigateWeek(testDate, 0, 1);
+        
+        // Should return start of current week (Monday)
+        expect(formatDateISO(result)).toBe('2025-03-13');
+      });
+    });
+  });
+
+  describe('Integration tests - Week boundaries consistency', () => {
+    it('should maintain consistency between getWeekStartDate and navigateWeek', () => {
+      const testDate = new Date(2025, 2, 15); // March 15, 2025
+      const firstDayOfWeek = 1; // Monday
+      
+      const weekStart = getWeekStartDate(testDate, firstDayOfWeek);
+      const navigatedWeek = navigateWeek(testDate, 0, firstDayOfWeek);
+      
+      expect(formatDateISO(weekStart)).toBe(formatDateISO(navigatedWeek));
+    });
+
+    it('should maintain consistency between getWeekEndDate and navigateWeek', () => {
+      const testDate = new Date(2025, 2, 15); // March 15, 2025
+      const firstDayOfWeek = 0; // Sunday
+      
+      const weekEnd = getWeekEndDate(testDate, firstDayOfWeek);
+      const nextWeekStart = navigateWeek(testDate, 1, firstDayOfWeek);
+      
+      expect(formatDateISO(weekEnd)).toBe(formatDateISO(nextWeekStart));
+    });
+
+    it('should maintain 7-day intervals when navigating weeks', () => {
+      const testDate = new Date(2025, 2, 15); // March 15, 2025
+      const firstDayOfWeek = 1; // Monday
+      
+      const currentWeek = navigateWeek(testDate, 0, firstDayOfWeek);
+      const nextWeek = navigateWeek(testDate, 1, firstDayOfWeek);
+      const prevWeek = navigateWeek(testDate, -1, firstDayOfWeek);
+      
+      // Check that intervals are exactly 7 days
+      const daysBetweenNext = (nextWeek.getTime() - currentWeek.getTime()) / (1000 * 60 * 60 * 24);
+      const daysBetweenPrev = (currentWeek.getTime() - prevWeek.getTime()) / (1000 * 60 * 60 * 24);
+      
+      expect(daysBetweenNext).toBe(7);
+      expect(daysBetweenPrev).toBe(7);
+    });
+  });
+});

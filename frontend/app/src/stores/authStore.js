@@ -3,6 +3,7 @@ import { defineStore } from 'pinia';
 import { API_URL } from "@/utils/serviceUtils";
 // Importing the services for the login
 import { session } from '@/services/sessionService';
+import { userFirstDayOfWeekService } from '@/services/userFirstDayOfWeekService';
 
 export const useAuthStore = defineStore('auth', {
     state: () => ({
@@ -135,9 +136,20 @@ export const useAuthStore = defineStore('auth', {
 
             this.setLocale(language, locale);
         },
-        setFirstDayOfWeek(dayOfWeek) {
-            this.user.first_day_of_week = dayOfWeek;
-            localStorage.setItem('user', JSON.stringify(this.user));
+        async setFirstDayOfWeek(dayOfWeek) {
+            try {
+              
+                await userFirstDayOfWeekService.updateUserFirstDayOfWeek(dayOfWeek);
+                
+                
+                this.user.first_day_of_week = dayOfWeek;
+                localStorage.setItem('user', JSON.stringify(this.user));
+                
+                console.log('First day of week updated successfully');
+            } catch (error) {
+                console.error('Failed to update first day of week:', error);
+                throw error;
+            }
         },
         setLocale(language, locale) {
             if (locale) {
