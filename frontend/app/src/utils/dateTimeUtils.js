@@ -144,9 +144,9 @@ export function getMonthEndDate(jsDate) {
  * @returns {Date} - The new date after navigation.
  */
 export function navigateWeek(currentDate, direction, firstDayOfWeek = 0) {
-  return DateTime.fromJSDate(currentDate, { zone: 'utc' })
-    .plus({ days: 7 * direction })
-    .toJSDate();
+ const dateTime = DateTime.fromJSDate(currentDate, { zone: 'utc' });
+  const startOfWeek = dateTime.startOf('week').plus({ days: firstDayOfWeek });
+  return startOfWeek.plus({ days: 7 * direction }).toJSDate();
 }
 
 /**
