@@ -81,8 +81,8 @@ def parse_gpx_file(
             if gpx.tracks:
                 # Iterate over tracks in the GPX file
                 for track in gpx.tracks:
-                    # Set activity name and type if available
-                    activity_name = track.name if track.name else "Workout"
+                    # Set activity name, description, and type if available
+                    activity_name = track.name if track.name else gpx.name if gpx.name else "Workout"
                     activity_type = track.type if track.type else "Workout"
 
                     if track.segments:
