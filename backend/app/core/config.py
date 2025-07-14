@@ -31,7 +31,7 @@ GEOCODES_MIN_INTERVAL = (
 )
 GEOCODES_LOCK = threading.Lock()
 GEOCODES_LAST_CALL = 0.0
-
+SUPPORTED_FILE_FORMATS = [".fit", ".gpx"]  # used to screen bulk import files
 
 def check_required_env_vars():
     required_env_vars = [
