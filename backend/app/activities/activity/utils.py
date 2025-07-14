@@ -35,6 +35,7 @@ import activities.activity_workout_steps.crud as activity_workout_steps_crud
 import websocket.schema as websocket_schema
 
 import gpx.utils as gpx_utils
+import tcx.utils as tcx_utils
 import fit.utils as fit_utils
 
 import core.logger as core_logger
@@ -305,7 +306,7 @@ async def parse_and_store_activity_from_file(
             if parsed_info is not None:
                 created_activities = []
                 idsToFileName = ""
-                if file_extension.lower() == ".gpx":
+                if file_extension.lower() in (".gpx", ".tcx",):
                     # Store the activity in the database
                     created_activity = await store_activity(
                         parsed_info, websocket_manager, db
@@ -427,7 +428,7 @@ async def parse_and_store_activity_from_uploaded_file(
         if parsed_info is not None:
             created_activities = []
             idsToFileName = ""
-            if file_extension.lower() == ".gpx":
+            if file_extension.lower() in (".gpx", '.tcx'):
                 # Store the activity in the database
                 created_activity = await store_activity(
                     parsed_info, websocket_manager, db
@@ -541,6 +542,10 @@ def parse_file(
                     user_privacy_settings,
                     db,
                 )
+            elif file_extension.lower() == '.tcx':
+                parsed_info = tcx_utils.parse_tcx_file(
+                    filename, token_user_id, user_privacy_settings, db,
+                )
             elif file_extension.lower() == ".fit":
                 # Parse the FIT file
                 parsed_info = fit_utils.parse_fit_file(filename, db)
@@ -548,7 +553,7 @@ def parse_file(
                 # file extension not supported raise an HTTPException with a 406 Not Acceptable status code
                 raise HTTPException(
                     status_code=status.HTTP_406_NOT_ACCEPTABLE,
-                    detail="File extension not supported. Supported file extensions are .gpx and .fit",
+                    detail="File extension not supported. Supported file extensions are .gpx, .fit and .tcx",
                 )
                 return None  # Can't return parsed info if we haven't parsed anything
             return parsed_info

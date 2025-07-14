@@ -1,6 +1,7 @@
 # General
 docker-compose.yml
 .vscode/
+.env
 
 # aux folder
 aux_scripts/.garminconnect
@@ -63,7 +64,7 @@ frontend/app/cypress/screenshots/
 # Editor directories and files
 frontend/app/.vscode/*
 frontend/app/!.vscode/extensions.json
-frontend/app/.idea
+.idea
 frontend/app/*.suo
 frontend/app/*.ntvs*
 frontend/app/*.njsproj

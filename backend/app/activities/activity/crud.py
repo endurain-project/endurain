@@ -838,7 +838,7 @@ def get_activity_by_id_if_is_public(activity_id: int, db: Session):
         ) from err
 
 
-def get_activity_by_id(activity_id: int, db: Session) -> activities_schema.Activity:
+def get_activity_by_id(activity_id: int, db: Session) -> activities_schema.Activity | None:
     try:
         # Get the activities from the database
         activity = (
