@@ -46,6 +46,7 @@ def parse_gpx_file(
         avg_speed = None
         max_speed = None
         activity_name = "Workout"
+        activity_description = None
         process_one_time_fields = 0
         gear_id = None
 
@@ -81,8 +82,9 @@ def parse_gpx_file(
             if gpx.tracks:
                 # Iterate over tracks in the GPX file
                 for track in gpx.tracks:
-                    # Set activity name and type if available
-                    activity_name = track.name if track.name else "Workout"
+                    # Set activity name, description, and type if available
+                    activity_name = track.name if track.name else gpx.name if gpx.name else "Workout"
+                    activity_description = track.description if track.description else gpx.description if gpx.description else None 
                     activity_type = track.type if track.type else "Workout"
 
                     if track.segments:
@@ -286,6 +288,7 @@ def parse_gpx_file(
         activity = activities_schema.Activity(
             user_id=user_id,
             name=activity_name,
+            description=activity_description,
             distance=round(distance) if distance else 0,
             activity_type=activity_type,
             start_time=first_waypoint_time.strftime("%Y-%m-%dT%H:%M:%S"),
