@@ -17,6 +17,7 @@ import session.security as session_security
 import users.user.dependencies as users_dependencies
 import garmin.activity_utils as garmin_activity_utils
 import strava.activity_utils as strava_activity_utils
+import websocket.schema as websocket_schema
 from fastapi import (
     APIRouter,
     BackgroundTasks,
@@ -486,23 +487,29 @@ async def read_activities_user_activities_refresh(
         Session,
         Depends(core_database.get_db),
     ],
+    websocket_manager: Annotated[
+        websocket_schema.WebSocketManager,
+        Depends(websocket_schema.get_websocket_manager),
+    ],
 ):
     # Set the activities to empty list
     activities = []
 
     # Get the strava activities for the user for the last 24h
-    strava_activities = strava_activity_utils.get_user_strava_activities_by_days(
+    strava_activities = await strava_activity_utils.get_user_strava_activities_by_days(
         (datetime.now(timezone.utc) - timedelta(days=1)).strftime("%Y-%m-%dT%H:%M:%S"),
         token_user_id,
+        websocket_manager,
         db,
     )
 
     # Get the garmin activities for the user for the last 24h
     garmin_activities = (
-        garmin_activity_utils.get_user_garminconnect_activities_by_dates(
+        await garmin_activity_utils.get_user_garminconnect_activities_by_dates(
             start_date=datetime.now(timezone.utc) - timedelta(days=1),
             end_date=datetime.now(timezone.utc),
             user_id=token_user_id,
+            websocket_manager=websocket_manager,
             db=db,
         )
     )
@@ -585,6 +592,10 @@ async def create_activity_with_uploaded_file(
     check_scopes: Annotated[
         Callable, Security(session_security.check_scopes, scopes=["activities:write"])
     ],
+    websocket_manager: Annotated[
+        websocket_schema.WebSocketManager,
+        Depends(websocket_schema.get_websocket_manager),
+    ],
     db: Annotated[
         Session,
         Depends(core_database.get_db),
@@ -592,8 +603,8 @@ async def create_activity_with_uploaded_file(
 ):
     try:
         # Return activity/activities
-        return activities_utils.parse_and_store_activity_from_uploaded_file(
-            token_user_id, file, db
+        return await activities_utils.parse_and_store_activity_from_uploaded_file(
+            token_user_id, file, websocket_manager, db
         )
     except Exception as err:
         # Log the exception
@@ -620,6 +631,10 @@ async def create_activity_with_bulk_import(
         Session,
         Depends(core_database.get_db),
     ],
+    websocket_manager: Annotated[
+        websocket_schema.WebSocketManager,
+        Depends(websocket_schema.get_websocket_manager),
+    ],
     background_tasks: BackgroundTasks,
 ):
     try:
@@ -639,6 +654,7 @@ async def create_activity_with_bulk_import(
                     activities_utils.parse_and_store_activity_from_file,
                     token_user_id,
                     file_path,
+                    websocket_manager,
                     db,
                 )
 

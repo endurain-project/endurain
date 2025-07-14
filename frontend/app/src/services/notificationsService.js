@@ -1,6 +1,9 @@
 import { fetchGetRequest, fetchPutRequest } from '@/utils/serviceUtils';
 
 export const notifications = {
+    getUserNotificationByID(notificationId) {
+        return fetchGetRequest(`notifications/${notificationId}`);
+    },
     getUserNotificationsNumber() {
         return fetchGetRequest('notifications/number');
     },

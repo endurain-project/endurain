@@ -16,14 +16,17 @@ import activities.activity.crud as activities_crud
 
 import users.user.crud as users_crud
 
+import websocket.schema as websocket_schema
+
 from core.database import SessionLocal
 
 
-def fetch_and_process_activities_by_dates(
+async def fetch_and_process_activities_by_dates(
     garminconnect_client: garminconnect.Garmin,
     start_date: datetime,
     end_date: datetime,
     user_id: int,
+    websocket_manager: websocket_schema.WebSocketManager,
     db: Session,
 ) -> list[activities_schema.Activity] | None:
     try:
@@ -104,9 +107,10 @@ def fetch_and_process_activities_by_dates(
             full_file_path = os.path.join(core_config.FILES_DIR, file_path_suffix)
 
             parsed_activities.extend(
-                activities_utils.parse_and_store_activity_from_file(
+                await activities_utils.parse_and_store_activity_from_file(
                     user_id,
                     full_file_path,
+                    websocket_manager,
                     db,
                     True,
                     activity_gear,
@@ -118,9 +122,10 @@ def fetch_and_process_activities_by_dates(
     return parsed_activities if parsed_activities else None
 
 
-def retrieve_garminconnect_users_activities_for_days(days: int):
+async def retrieve_garminconnect_users_activities_for_days(days: int):
     # Create a new database session
     db = SessionLocal()
+    websocket_manager = websocket_schema.get_websocket_manager()
 
     try:
         # Get all users
@@ -133,10 +138,11 @@ def retrieve_garminconnect_users_activities_for_days(days: int):
         # Iterate through all users
         for user in users:
             try:
-                get_user_garminconnect_activities_by_dates(
+                await get_user_garminconnect_activities_by_dates(
                     calculated_start_date,
                     calculated_end_date,
                     user.id,
+                    websocket_manager,
                     db,
                 )
             except Exception as err:
@@ -186,10 +192,11 @@ def get_user_garminconnect_client(user_id: int, db: Session):
         return None
 
 
-def get_user_garminconnect_activities_by_dates(
+async def get_user_garminconnect_activities_by_dates(
     start_date: datetime,
     end_date: datetime,
     user_id: int,
+    websocket_manager: websocket_schema.WebSocketManager,
     db: Session,
 ) -> list[activities_schema.Activity] | None:
     try:
@@ -198,8 +205,8 @@ def get_user_garminconnect_activities_by_dates(
 
         if garminconnect_client is not None:
             # Fetch Garmin Connect activities for the specified date range
-            garminconnect_activities_processed = fetch_and_process_activities_by_dates(
-                garminconnect_client, start_date, end_date, user_id, db
+            garminconnect_activities_processed = await fetch_and_process_activities_by_dates(
+                garminconnect_client, start_date, end_date, user_id, websocket_manager, db
             )
 
             # Log the start of the activities processing

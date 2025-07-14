@@ -38,6 +38,7 @@
     "modalEditActivityVisibilityOption0": "Public",
     "modalEditActivityVisibilityOption1": "Followers",
     "modalEditActivityVisibilityOption2": "Private",
+    "modalEditActivityIsHiddenLabel": "Is hidden",
     "modalEditActivityHideStartTimeLabel": "Hide start time",
     "modalEditActivityHideLocationLabel": "Hide location",
     "modalEditActivityHideMapLabel": "Hide map",

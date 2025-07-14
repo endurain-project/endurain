@@ -24,7 +24,7 @@ import strava.utils as strava_utils
 from core.routes import router as api_router
 
 
-def startup_event():
+async def startup_event():
     core_logger.print_to_log_and_console(
         f"Backend startup event - {core_config.API_VERSION}"
     )
@@ -51,8 +51,8 @@ def startup_event():
     core_logger.print_to_log_and_console(
         "Retrieving last day activities from Garmin Connect and Strava on startup"
     )
-    garmin_activity_utils.retrieve_garminconnect_users_activities_for_days(1)
-    strava_activity_utils.retrieve_strava_users_activities_for_days(1, True)
+    await garmin_activity_utils.retrieve_garminconnect_users_activities_for_days(1)
+    await strava_activity_utils.retrieve_strava_users_activities_for_days(1, True)
 
     # Retrieve last day body composition from Garmin Connect
     core_logger.print_to_log_and_console(

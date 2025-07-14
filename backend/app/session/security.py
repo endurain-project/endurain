@@ -214,7 +214,7 @@ def create_token(data: dict) -> str:
     return jwt.encode(
         {"alg": session_constants.JWT_ALGORITHM},
         data.copy(),
-        session_constants.JWT_SECRET_KEY,
+        OctKey.import_key(session_constants.JWT_SECRET_KEY),
     )
 
 

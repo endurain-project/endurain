@@ -4,6 +4,7 @@
     "fieldLabelUploadGPXFile": "Upload .gpx or .fit file",
     "radioUserActivities": "My activities",
     "radioFollowerActivities": "Followers activities",
+    "pillIsHidden": "Hidden",
     "successActivityAdded": "Activity added successfully",
     "errorActivityAdded": "Error adding activity",
     "refreshingActivities": "Refreshing activities from linked services",

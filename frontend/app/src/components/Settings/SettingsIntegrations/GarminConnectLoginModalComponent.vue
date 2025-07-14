@@ -45,7 +45,7 @@
     </div>
 </template>
 
-<script>
+<script setup>
 import { ref, onMounted } from "vue";
 import { useI18n } from "vue-i18n";
 // Importing the stores
@@ -58,98 +58,78 @@ import { garminConnect } from "@/services/garminConnectService";
 import { removeActiveModal, resetBodyStylesIfNoActiveModals } from "@/utils/modalUtils";
 // Importing the bootstrap modal
 import Modal from 'bootstrap/js/src/modal';
-// Importing the components
-import LoadingComponent from '@/components/GeneralComponents/LoadingComponent.vue';
 
-export default {
-	components: {
-        LoadingComponent,
-    },
-	setup() {
-		const authStore = useAuthStore();
-        authStore.user_websocket.onmessage = (event) => {
-            const data = JSON.parse(event.data);
-            if (data && data.message === "MFA_REQUIRED") {
-                mfaRequired.value = true;
-            }
-        };
-		const { locale, t } = useI18n();
-		const garminConnectUsername = ref("");
-		const garminConnectPassword = ref("");
-        const mfaRequired = ref(false);
-        const mfaCode = ref("");
-        const garminConnectAuthModal = ref(null); // Ref for the modal element
-        const loadingLogin = ref(false);
-        const loadingLoginWithMfa = ref(false);
+const authStore = useAuthStore();
+const { locale, t } = useI18n();
+const garminConnectUsername = ref("");
+const garminConnectPassword = ref("");
+const mfaRequired = ref(false);
+const mfaCode = ref("");
+const garminConnectAuthModal = ref(null); // Ref for the modal element
+const loadingLogin = ref(false);
+const loadingLoginWithMfa = ref(false);
 
-        let modalInstance = null; // Holds the modal instance
+let modalInstance = null; // Holds the modal instance
 
-        // Initialize the modal instance on mount
-        onMounted(() => {
-            if (garminConnectAuthModal.value) {
-                modalInstance = new Modal(garminConnectAuthModal.value);
-            }
-        });
-
-		async function submitConnectGarminConnect() {
-            loadingLogin.value = true;
-            // Set the loading message
-            const notification = push.promise(t('garminConnectLoginModalComponent.processingMessageLinkGarminConnect'));
-			try {
-				const data = {
-                    username: garminConnectUsername.value,
-                    password: garminConnectPassword.value,
-                }; 
-				await garminConnect.linkGarminConnect(data);
-
-                // Set the user object with the is_garminconnect_linked property set to 1.
-                const user = authStore.user;
-                user.is_garminconnect_linked = 1;
-                authStore.setUser(user, locale);
-
-				// Show success message
-				notification.resolve(t("garminConnectLoginModalComponent.successMessageLinkGarminConnect"));
-			} catch (error) {
-				// If there is an error, show the error alert.
-				notification.reject(
-					`${t("garminConnectLoginModalComponent.errorMessageUnableToLinkGarminConnect")} - ${error}`,
-				);
-			}
-            finally {
-                // Remove any remaining modal backdrops
-                removeActiveModal(modalInstance);
-
-                // Reset body overflow to restore scrolling
-                resetBodyStylesIfNoActiveModals();
-
-                // reset variables
-                mfaRequired.value = false;
-                mfaCode.value = "";
-                loadingLogin.value = false;
-                loadingLoginWithMfa.value = false;
-            }
-		}
-
-        async function submitMfaCode() {
-            const data = {
-                mfa_code: mfaCode.value,
-            };
-            await garminConnect.mfaGarminConnect(data);
-            loadingLoginWithMfa.value = true;
-        }
-
-		return {
-			t,
-			garminConnectUsername,
-			garminConnectPassword,
-			submitConnectGarminConnect,
-            mfaRequired,
-            mfaCode,
-            submitMfaCode,
-            garminConnectAuthModal,
-            loadingLogin,
-            loadingLoginWithMfa,
-		};
-	},
+// Set up websocket message handler
+authStore.user_websocket.onmessage = (event) => {
+    const data = JSON.parse(event.data);
+    if (data && data.message === "MFA_REQUIRED") {
+        mfaRequired.value = true;
+    }
 };
+
+// Initialize the modal instance on mount
+onMounted(() => {
+    if (garminConnectAuthModal.value) {
+        modalInstance = new Modal(garminConnectAuthModal.value);
+    }
+});
+
+async function submitConnectGarminConnect() {
+    loadingLogin.value = true;
+    // Set the loading message
+    const notification = push.promise(t('garminConnectLoginModalComponent.processingMessageLinkGarminConnect'));
+    try {
+        const data = {
+            username: garminConnectUsername.value,
+            password: garminConnectPassword.value,
+        }; 
+        await garminConnect.linkGarminConnect(data);
+
+        // Set the user object with the is_garminconnect_linked property set to 1.
+        const user = authStore.user;
+        user.is_garminconnect_linked = 1;
+        authStore.setUser(user, locale);
+
+        // Show success message
+        notification.resolve(t("garminConnectLoginModalComponent.successMessageLinkGarminConnect"));
+    } catch (error) {
+        // If there is an error, show the error alert.
+        notification.reject(
+            `${t("garminConnectLoginModalComponent.errorMessageUnableToLinkGarminConnect")} - ${error}`,
+        );
+    }
+    finally {
+        // Remove any remaining modal backdrops
+        removeActiveModal(modalInstance);
+
+        // Reset body overflow to restore scrolling
+        resetBodyStylesIfNoActiveModals();
+
+        // reset variables
+        mfaRequired.value = false;
+        mfaCode.value = "";
+        loadingLogin.value = false;
+        loadingLoginWithMfa.value = false;
+    }
+}
+
+async function submitMfaCode() {
+    const data = {
+        mfa_code: mfaCode.value,
+    };
+    await garminConnect.mfaGarminConnect(data);
+    loadingLoginWithMfa.value = true;
+}
 </script>

@@ -32,6 +32,8 @@ import activities.activity_streams.schema as activity_streams_schema
 
 import activities.activity_workout_steps.crud as activity_workout_steps_crud
 
+import websocket.schema as websocket_schema
+
 import gpx.utils as gpx_utils
 import fit.utils as fit_utils
 
@@ -68,7 +70,7 @@ ACTIVITY_ID_TO_NAME = {
     26: "Pickleball",
     27: "Commuting ride",
     28: "Indoor ride",
-    29: "Mixed surface ride"  # Added based on define_activity_type
+    29: "Mixed surface ride",  # Added based on define_activity_type
     # Add other mappings as needed based on the full list in define_activity_type comments if required
     # "AlpineSki",
     # "BackcountrySki",
@@ -260,9 +262,10 @@ def serialize_activity(activity: activities_schema.Activity):
     return activity
 
 
-def parse_and_store_activity_from_file(
+async def parse_and_store_activity_from_file(
     token_user_id: int,
     file_path: str,
+    websocket_manager: websocket_schema.WebSocketManager,
     db: Session,
     from_garmin: bool = False,
     garminconnect_gear: dict = None,
@@ -304,7 +307,9 @@ def parse_and_store_activity_from_file(
                 idsToFileName = ""
                 if file_extension.lower() == ".gpx":
                     # Store the activity in the database
-                    created_activity = store_activity(parsed_info, db)
+                    created_activity = await store_activity(
+                        parsed_info, websocket_manager, db
+                    )
                     created_activities.append(created_activity)
                     idsToFileName = idsToFileName + str(created_activity.id)
                 elif file_extension.lower() == ".fit":
@@ -335,7 +340,9 @@ def parse_and_store_activity_from_file(
 
                     for activity in created_activities_objects:
                         # Store the activity in the database
-                        created_activity = store_activity(activity, db)
+                        created_activity = await store_activity(
+                            activity, websocket_manager, db
+                        )
                         created_activities.append(created_activity)
 
                     for index, activity in enumerate(created_activities):
@@ -367,12 +374,17 @@ def parse_and_store_activity_from_file(
     except Exception as err:
         # Log the exception
         core_logger.print_to_log(
-            f"Error in parse_and_store_activity_from_file - {str(err)}", "error"
+            f"Error in parse_and_store_activity_from_file - {str(err)}",
+            "error",
+            exc=err,
         )
 
 
-def parse_and_store_activity_from_uploaded_file(
-    token_user_id: int, file: UploadFile, db: Session
+async def parse_and_store_activity_from_uploaded_file(
+    token_user_id: int,
+    file: UploadFile,
+    websocket_manager: websocket_schema.WebSocketManager,
+    db: Session,
 ):
 
     # Get file extension
@@ -417,7 +429,9 @@ def parse_and_store_activity_from_uploaded_file(
             idsToFileName = ""
             if file_extension.lower() == ".gpx":
                 # Store the activity in the database
-                created_activity = store_activity(parsed_info, db)
+                created_activity = await store_activity(
+                    parsed_info, websocket_manager, db
+                )
                 created_activities.append(created_activity)
                 idsToFileName = idsToFileName + str(created_activity.id)
             elif file_extension.lower() == ".fit":
@@ -438,7 +452,9 @@ def parse_and_store_activity_from_uploaded_file(
 
                 for activity in created_activities_objects:
                     # Store the activity in the database
-                    created_activity = store_activity(activity, db)
+                    created_activity = await store_activity(
+                        activity, websocket_manager, db
+                    )
                     created_activities.append(created_activity)
 
                 for index, activity in enumerate(created_activities):
@@ -550,9 +566,13 @@ def parse_file(
         ) from err
 
 
-def store_activity(parsed_info: dict, db: Session):
+async def store_activity(
+    parsed_info: dict, websocket_manager: websocket_schema.WebSocketManager, db: Session
+):
     # create the activity in the database
-    created_activity = activities_crud.create_activity(parsed_info["activity"], db)
+    created_activity = await activities_crud.create_activity(
+        parsed_info["activity"], websocket_manager, db
+    )
 
     # Check if created_activity is None
     if created_activity is None:
@@ -697,7 +717,9 @@ def location_based_on_coordinates(latitude, longitude) -> dict | None:
     if core_config.GEOCODES_MIN_INTERVAL > 0:
         with core_config.GEOCODES_LOCK:
             now = time.monotonic()
-            interval = core_config.GEOCODES_MIN_INTERVAL - (now - core_config.GEOCODES_LAST_CALL)
+            interval = core_config.GEOCODES_MIN_INTERVAL - (
+                now - core_config.GEOCODES_LAST_CALL
+            )
             if interval > 0:
                 time.sleep(interval)
             core_config.GEOCODES_LAST_CALL = time.monotonic()
@@ -843,11 +865,11 @@ def calculate_pace(distance, first_waypoint_time, last_waypoint_time):
     return pace_seconds_per_meter
 
 
-def calculate_avg_and_max(data, type):
+def calculate_avg_and_max(data, stream_type):
     try:
         # Get the values from the data
         values = [
-            float(waypoint[type]) for waypoint in data if waypoint.get(type) is not None
+            float(waypoint[stream_type]) for waypoint in data if waypoint.get(stream_type) is not None
         ]
     except (ValueError, KeyError):
         # If there are no valid values, return 0

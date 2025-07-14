@@ -251,7 +251,6 @@ import LoadingComponent from "@/components/GeneralComponents/LoadingComponent.vu
 import UserAvatarComponent from "@/components/Users/UserAvatarComponent.vue";
 import EditActivityModalComponent from "@/components/Activities/Modals/EditActivityModalComponent.vue";
 import ModalComponent from "@/components/Modals/ModalComponent.vue";
-import BarChartComponent from '@/components/GeneralComponents/BarChartComponent.vue';
 // Importing the services
 import { users } from "@/services/usersService";
 import { activities } from "@/services/activitiesService";

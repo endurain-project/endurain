@@ -107,6 +107,15 @@
                             <option value="2">{{ $t("editActivityModalComponent.modalEditActivityVisibilityOption2") }}
                             </option>
                         </select>
+                        <!-- is_hidden fields-->
+                        <label for="activityIsHiddenEdit"><b>* {{
+                            $t("editActivityModalComponent.modalEditActivityIsHiddenLabel") }}</b></label>
+                        <select class="form-select" name="activityIsHiddenEdit" v-model="editActivityIsHidden"
+                            required>
+                            <option :value="true">{{ $t("generalItems.yes") }}</option>
+                            <option :value="false">{{ $t("generalItems.no") }}</option>
+                        </select>
+                        <hr>
                         <!-- hide start time fields -->
                         <label for="activityHideStartTimeEdit"><b>* {{
                             $t("editActivityModalComponent.modalEditActivityHideStartTimeLabel") }}</b></label>
@@ -248,6 +257,8 @@ const editActivityDescription = ref(props.activity.description);
 const editActivityName = ref(props.activity.name);
 const editActivityType = ref(props.activity.activity_type);
 const editActivityVisibility = ref(props.activity.visibility);
+const editActivityIsHidden = ref(props.activity.is_hidden);
+// Hide fields
 const editActivityHideStartTime = ref(props.activity.hide_start_time);
 const editActivityHideLocation = ref(props.activity.hide_location);
 const editActivityHideMap = ref(props.activity.hide_map);
@@ -269,6 +280,7 @@ async function submitEditActivityForm() {
             name: editActivityName.value,
             activity_type: editActivityType.value,
             visibility: editActivityVisibility.value,
+            is_hidden: editActivityIsHidden.value,
             hide_start_time: editActivityHideStartTime.value,
             hide_location: editActivityHideLocation.value,
             hide_map: editActivityHideMap.value,

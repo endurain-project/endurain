@@ -1,9 +1,12 @@
 <template>
     <ul class="list-group list-group-flush">
-        <li class="list-group-item" v-for="(notification, idx) in notificationsWithPagination" :key="notification.id" :class="{
-            'border-bottom': totalPages > pageNumber || idx < notificationsWithPagination.length - 1
-        }">
+        <li class="list-group-item" v-for="(notification, idx) in notificationsWithPagination" :key="notification.id"
+            :class="{
+                'border-bottom': totalPages > pageNumber || idx < notificationsWithPagination.length - 1
+            }">
             <NewActivityNotificationComponent :notification="notification" v-if="notification.type === 1" />
+            <NewActivityDuplicateStartTimeNotificationComponent :notification="notification"
+                v-else-if="notification.type === 2" />
         </li>
         <li class="list-group-item" v-if="totalPages > 1 && totalPages > pageNumber">
             <a class="dropdown-item" @click="setPageNumber">Load more...</a>
@@ -18,6 +21,7 @@ import { notifications } from "@/services/notificationsService";
 import { useServerSettingsStore } from "@/stores/serverSettingsStore";
 
 import NewActivityNotificationComponent from "@/components/Notifications/NewActivityNotificationComponent.vue";
+import NewActivityDuplicateStartTimeNotificationComponent from "@/components/Notifications/NewActivityDuplicateStartTimeNotificationComponent.vue";
 
 const serverSettingsStore = useServerSettingsStore();
 const notificationsWithPagination = ref([]);

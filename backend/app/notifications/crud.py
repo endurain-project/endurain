@@ -127,6 +127,7 @@ def get_user_notifications_with_pagination(
         notifications = (
             db.query(notifications_models.Notification)
             .filter(notifications_models.Notification.user_id == user_id)
+            .order_by(notifications_models.Notification.created_at.desc())
             .offset((page_number - 1) * num_records)
             .limit(num_records)
             .all()
@@ -154,9 +155,7 @@ def get_user_notifications_with_pagination(
         ) from err
 
 
-def create_notification(
-    notification: notifications_schema.Notification, db: Session
-):
+def create_notification(notification: notifications_schema.Notification, db: Session):
     """
     Creates a new notification for a specified user and saves it to the database.
 
@@ -184,8 +183,11 @@ def create_notification(
         db.commit()
         db.refresh(new_notification)
 
+        notification.id = new_notification.id
+        notification.created_at = new_notification.created_at
+
         notification_serialized = notifications_utils.serialize_notification(
-            new_notification
+            notification
         )
 
         # Return the notification

@@ -29,6 +29,8 @@ import caHealthWeightZoneComponent from './ca/components/health/healthWeightZone
 import caNavbarBottomMobileComponent from './ca/components/navbar/navbarBottomMobileComponent.json';
 import caNavbarComponent from './ca/components/navbar/navbarComponent.json';
 // Import notifications
+import caNavbarNotificationsComponent from './ca/components/notifications/navbarNotificationsComponent.json';
+import caNewActivityDuplicateStartTimeNotificationComponent from './ca/components/notifications/newActivityDuplicateStartTimeNotificationComponent.json';
 import caNewActivityNotificationComponent from './ca/components/notifications/newActivityNotificationComponent.json';
 // Settings components
 import caSettingsSideBarComponent from './ca/components/settings/settingsSideBarComponent.json';
@@ -92,6 +94,8 @@ import deHealthWeightZoneComponent from './de/components/health/healthWeightZone
 import deNavbarBottomMobileComponent from './de/components/navbar/navbarBottomMobileComponent.json';
 import deNavbarComponent from './de/components/navbar/navbarComponent.json';
 // Import notifications
+import deNavbarNotificationsComponent from './de/components/notifications/navbarNotificationsComponent.json';
+import deNewActivityDuplicateStartTimeNotificationComponent from './de/components/notifications/newActivityDuplicateStartTimeNotificationComponent.json';
 import deNewActivityNotificationComponent from './de/components/notifications/newActivityNotificationComponent.json';
 // Settings components
 import deSettingsSideBarComponent from './de/components/settings/settingsSideBarComponent.json';
@@ -155,6 +159,8 @@ import esHealthWeightZoneComponent from './es/components/health/healthWeightZone
 import esNavbarBottomMobileComponent from './es/components/navbar/navbarBottomMobileComponent.json';
 import esNavbarComponent from './es/components/navbar/navbarComponent.json';
 // Import notifications
+import esNavbarNotificationsComponent from './es/components/notifications/navbarNotificationsComponent.json';
+import esNewActivityDuplicateStartTimeNotificationComponent from './es/components/notifications/newActivityDuplicateStartTimeNotificationComponent.json';
 import esNewActivityNotificationComponent from './es/components/notifications/newActivityNotificationComponent.json';
 // Settings components
 import esSettingsSideBarComponent from './es/components/settings/settingsSideBarComponent.json';
@@ -219,6 +225,8 @@ import frHealthWeightZoneComponent from './fr/components/health/healthWeightZone
 import frNavbarBottomMobileComponent from './fr/components/navbar/navbarBottomMobileComponent.json';
 import frNavbarComponent from './fr/components/navbar/navbarComponent.json';
 // Import notifications
+import frNavbarNotificationsComponent from './fr/components/notifications/navbarNotificationsComponent.json';
+import frNewActivityDuplicateStartTimeNotificationComponent from './fr/components/notifications/newActivityDuplicateStartTimeNotificationComponent.json';
 import frNewActivityNotificationComponent from './fr/components/notifications/newActivityNotificationComponent.json';
 // Settings components
 import frSettingsSideBarComponent from './fr/components/settings/settingsSideBarComponent.json';
@@ -283,6 +291,8 @@ import nlHealthWeightZoneComponent from './nl/components/health/healthWeightZone
 import nlNavbarBottomMobileComponent from './nl/components/navbar/navbarBottomMobileComponent.json';
 import nlNavbarComponent from './nl/components/navbar/navbarComponent.json';
 // Import notifications
+import nlNavbarNotificationsComponent from './nl/components/notifications/navbarNotificationsComponent.json';
+import nlNewActivityDuplicateStartTimeNotificationComponent from './nl/components/notifications/newActivityDuplicateStartTimeNotificationComponent.json';
 import nlNewActivityNotificationComponent from './nl/components/notifications/newActivityNotificationComponent.json';
 // Settings components
 import nlSettingsSideBarComponent from './nl/components/settings/settingsSideBarComponent.json';
@@ -347,6 +357,8 @@ import ptHealthWeightZoneComponent from './pt/components/health/healthWeightZone
 import ptNavbarBottomMobileComponent from './pt/components/navbar/navbarBottomMobileComponent.json';
 import ptNavbarComponent from './pt/components/navbar/navbarComponent.json';
 // Import notifications
+import ptNavbarNotificationsComponent from './pt/components/notifications/navbarNotificationsComponent.json';
+import ptNewActivityDuplicateStartTimeNotificationComponent from './pt/components/notifications/newActivityDuplicateStartTimeNotificationComponent.json';
 import ptNewActivityNotificationComponent from './pt/components/notifications/newActivityNotificationComponent.json';
 // Settings components
 import ptSettingsSideBarComponent from './pt/components/settings/settingsSideBarComponent.json';
@@ -410,6 +422,8 @@ import usHealthWeightZoneComponent from './us/components/health/healthWeightZone
 import usNavbarBottomMobileComponent from './us/components/navbar/navbarBottomMobileComponent.json';
 import usNavbarComponent from './us/components/navbar/navbarComponent.json';
 // Import notifications
+import usNavbarNotificationsComponent from './us/components/notifications/navbarNotificationsComponent.json';
+import usNewActivityDuplicateStartTimeNotificationComponent from './us/components/notifications/newActivityDuplicateStartTimeNotificationComponent.json';
 import usNewActivityNotificationComponent from './us/components/notifications/newActivityNotificationComponent.json';
 // Settings components
 import usSettingsSideBarComponent from './us/components/settings/settingsSideBarComponent.json';
@@ -476,6 +490,8 @@ const messages = {
 		navbarBottomMobileComponent: caNavbarBottomMobileComponent,
 		navbarComponent: caNavbarComponent,
 		// Notifications components
+		navbarNotificationsComponent: caNavbarNotificationsComponent,
+		newActivityDuplicateStartTimeNotificationComponent: caNewActivityDuplicateStartTimeNotificationComponent,
 		newActivityNotificationComponent: caNewActivityNotificationComponent,
 		// Settings components
 		settingsSideBar: caSettingsSideBarComponent,
@@ -539,6 +555,8 @@ const messages = {
 		navbarBottomMobileComponent: deNavbarBottomMobileComponent,
 		navbarComponent: deNavbarComponent,
 		// Notifications components
+		navbarNotificationsComponent: deNavbarNotificationsComponent,
+		newActivityDuplicateStartTimeNotificationComponent: deNewActivityDuplicateStartTimeNotificationComponent,
 		newActivityNotificationComponent: deNewActivityNotificationComponent,
 		// Settings components
 		settingsSideBar: deSettingsSideBarComponent,
@@ -602,6 +620,8 @@ const messages = {
 		navbarBottomMobileComponent: esNavbarBottomMobileComponent,
 		navbarComponent: esNavbarComponent,
 		// Notifications components
+		navbarNotificationsComponent: esNavbarNotificationsComponent,
+		newActivityDuplicateStartTimeNotificationComponent: esNewActivityDuplicateStartTimeNotificationComponent,
 		newActivityNotificationComponent: esNewActivityNotificationComponent,
 		// Settings components
 		settingsSideBar: esSettingsSideBarComponent,
@@ -665,6 +685,8 @@ const messages = {
 		navbarBottomMobileComponent: frNavbarBottomMobileComponent,
 		navbarComponent: frNavbarComponent,
 		// Notifications components
+		navbarNotificationsComponent: frNavbarNotificationsComponent,
+		newActivityDuplicateStartTimeNotificationComponent: frNewActivityDuplicateStartTimeNotificationComponent,
 		newActivityNotificationComponent: frNewActivityNotificationComponent,
 		// Settings components
 		settingsSideBar: frSettingsSideBarComponent,
@@ -728,6 +750,8 @@ const messages = {
 		navbarBottomMobileComponent: nlNavbarBottomMobileComponent,
 		navbarComponent: nlNavbarComponent,
 		// Notifications components
+		navbarNotificationsComponent: nlNavbarNotificationsComponent,
+		newActivityDuplicateStartTimeNotificationComponent: nlNewActivityDuplicateStartTimeNotificationComponent,
 		newActivityNotificationComponent: nlNewActivityNotificationComponent,
 		// Settings components
 		settingsSideBar: nlSettingsSideBarComponent,
@@ -791,6 +815,8 @@ const messages = {
 		navbarBottomMobileComponent: ptNavbarBottomMobileComponent,
 		navbarComponent: ptNavbarComponent,
 		// Notifications components
+		navbarNotificationsComponent: ptNavbarNotificationsComponent,
+		newActivityDuplicateStartTimeNotificationComponent: ptNewActivityDuplicateStartTimeNotificationComponent,
 		newActivityNotificationComponent: ptNewActivityNotificationComponent,
 		// Settings components
 		settingsSideBar: ptSettingsSideBarComponent,
@@ -853,6 +879,8 @@ const messages = {
 		navbarBottomMobileComponent: usNavbarBottomMobileComponent,
 		navbarComponent: usNavbarComponent,
 		// Notifications components
+		navbarNotificationsComponent: usNavbarNotificationsComponent,
+		newActivityDuplicateStartTimeNotificationComponent: usNewActivityDuplicateStartTimeNotificationComponent,
 		newActivityNotificationComponent: usNewActivityNotificationComponent,
 		// Settings components
 		settingsSideBar: usSettingsSideBarComponent,

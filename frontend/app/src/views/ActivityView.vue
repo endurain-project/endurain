@@ -6,6 +6,9 @@
 			<ActivitySummaryComponent v-if="activity" :activity="activity" :source="'activity'"
 				@activityEditedFields="updateActivityFieldsOnEdit" :units="units" />
 			<AlertComponent
+				v-if="activity && activity.user_id === authStore.user.id && activity.is_hidden"
+				:message="isHiddenMessage" :dismissible="true" :type="'warning'" class="mt-2" />
+			<AlertComponent
 				v-if="activity && activity.user_id === authStore.user.id && (activity.hide_start_time || activity.hide_location || activity.hide_map || activity.hide_hr || activity.hide_power || activity.hide_cadence || activity.hide_elevation || activity.hide_speed || activity.hide_pace || activity.hide_laps || activity.hide_workout_sets_steps || activity.hide_gear)"
 				:message="alertPrivacyMessage" :dismissible="true" class="mt-2" />
 		</div>
@@ -164,6 +167,7 @@ const units = ref(1);
 const activityActivityExerciseTitles = ref([]);
 const activityActivitySets = ref([]);
 const alertPrivacyMessage = ref(null);
+const isHiddenMessage = ref(null);
 
 async function submitDeleteGearFromActivity() {
 	try {
@@ -349,6 +353,7 @@ onMounted(async () => {
 	isLoading.value = false;
 	if (authStore.user.id === activity.value.user_id) {
 		alertPrivacyMessage.value = t("activityView.alertPrivacyMessage");
+		isHiddenMessage.value = t("activityView.isHiddenMessage");
 	}
 });
 </script>

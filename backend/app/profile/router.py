@@ -58,6 +58,8 @@ import health_data.schema as health_data_schema
 import health_targets.crud as health_targets_crud
 import health_targets.schema as health_targets_schema
 
+import websocket.schema as websocket_schema
+
 # Define the API router
 router = APIRouter()
 
@@ -578,8 +580,15 @@ async def export_profile_data(
 @router.post("/import")
 async def import_profile_data(
     file: UploadFile,
-    token_user_id: int = Depends(session_security.get_user_id_from_access_token),
-    db: Session = Depends(core_database.get_db),
+    token_user_id: Annotated[
+        int,
+        Depends(session_security.get_user_id_from_access_token),
+    ],
+    db: Annotated[Session, Depends(core_database.get_db)],
+    websocket_manager: Annotated[
+        websocket_schema.WebSocketManager,
+        Depends(websocket_schema.get_websocket_manager),
+    ],
 ):
     """
     Imports user profile data from a provided .zip file, updating or creating user-related records in the database.
@@ -655,7 +664,7 @@ async def import_profile_data(
                     results[varname] = json.loads(zipf.read(filename))
                 else:
                     results[varname] = []
-            
+
             # a) import gears JSON
             if results["gears_data"]:
                 for gear_data in results["gears_data"]:
@@ -802,7 +811,9 @@ async def import_profile_data(
                 # convert activity data to Activity schema
                 activity = activity_schema.Activity(**activity_data)
                 # create activity
-                new_activity = activities_crud.create_activity(activity, db)
+                new_activity = await activities_crud.create_activity(
+                    activity, websocket_manager, db
+                )
                 activities_id_mapping[original_activity_id] = new_activity.id
                 counts["activities"] += 1
 
@@ -841,9 +852,7 @@ async def import_profile_data(
                         set_activity = activity_sets_schema.ActivitySets(**activity_set)
                         # add the set to the sets list
                         sets.append(set_activity)
-                    activity_sets_crud.create_activity_sets(
-                        sets, new_activity.id, db
-                    )
+                    activity_sets_crud.create_activity_sets(sets, new_activity.id, db)
                     counts["activity_sets"] += len(sets)
 
                 # create streams for the activity if available
@@ -859,9 +868,7 @@ async def import_profile_data(
                         stream_data.pop("id", None)
                         stream_data["activity_id"] = new_activity.id
                         # convert activity data to ActivityStreams schema
-                        stream = activity_streams_schema.ActivityStreams(
-                            **stream_data
-                        )
+                        stream = activity_streams_schema.ActivityStreams(**stream_data)
                         # add the stream to the streams list
                         streams.append(stream)
                     activity_streams_crud.create_activity_streams(streams, db)
@@ -908,9 +915,11 @@ async def import_profile_data(
                         )
                         # add the title to the titles list
                         titles.append(title)
-                    activity_exercise_titles_crud.create_activity_exercise_titles(titles, db)
+                    activity_exercise_titles_crud.create_activity_exercise_titles(
+                        titles, db
+                    )
                     counts["activity_exercise_titles"] += len(titles)
-            
+
             # d) import health CSV
             if results["health_data_data"]:
                 # ensure health data has the correct user_id on import

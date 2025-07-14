@@ -22,6 +22,8 @@ import core.cryptography as core_cryptography
 import core.logger as core_logger
 import core.database as core_database
 
+import websocket.schema as websocket_schema
+
 # Define the API router
 router = APIRouter()
 
@@ -112,6 +114,10 @@ async def strava_retrieve_activities_days(
         int,
         Depends(session_security.get_user_id_from_access_token),
     ],
+    websocket_manager: Annotated[
+        websocket_schema.WebSocketManager,
+        Depends(websocket_schema.get_websocket_manager),
+    ],
     # db: Annotated[Session, Depends(core_database.get_db)],
     background_tasks: BackgroundTasks,
 ):
@@ -122,6 +128,7 @@ async def strava_retrieve_activities_days(
             "%Y-%m-%dT%H:%M:%S"
         ),
         token_user_id,
+        websocket_manager,
     )
 
     # Return success message and status code 202

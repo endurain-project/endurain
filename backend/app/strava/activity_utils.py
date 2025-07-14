@@ -30,14 +30,17 @@ import gears.gear.crud as gears_crud
 
 import strava.utils as strava_utils
 
+import websocket.schema as websocket_schema
+
 from core.database import SessionLocal
 
 
-def fetch_and_process_activities(
+async def fetch_and_process_activities(
     strava_client: Client,
     start_date: datetime,
     user_id: int,
     user_integrations: user_integrations_schema.UsersIntegrations,
+    websocket_manager: websocket_schema.WebSocketManager,
     db: Session,
     is_startup: bool = False,
 ) -> int:
@@ -59,7 +62,7 @@ def fetch_and_process_activities(
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Strava authentication failed. Please reconnect your Strava account.",
-            )
+            ) from auth_err
         # Return 0 to indicate no activities were processed
         return 0
     except HTTPException as http_err:
@@ -76,7 +79,7 @@ def fetch_and_process_activities(
             raise HTTPException(
                 status_code=status.HTTP_424_FAILED_DEPENDENCY,
                 detail="Not able to fetch Strava activities",
-            )
+            ) from err
         # Return 0 to indicate no activities were processed
         return 0
 
@@ -106,12 +109,13 @@ def fetch_and_process_activities(
     # Process the activities
     for activity in strava_activities:
         processed_activities.append(
-            process_activity(
+            await process_activity(
                 activity,
                 user_id,
                 user_privacy_settings,
                 strava_client,
                 user_integrations,
+                websocket_manager,
                 db,
             )
         )
@@ -358,11 +362,17 @@ def parse_activity(
     }
 
 
-def save_activity_streams_laps(
-    activity: activities_schema.Activity, stream_data: list, laps: dict, db: Session
+async def save_activity_streams_laps(
+    activity: activities_schema.Activity,
+    stream_data: list,
+    laps: dict,
+    websocket_manager: websocket_schema.WebSocketManager,
+    db: Session,
 ) -> activities_schema.Activity:
     # Create the activity and get the ID
-    created_activity = activities_crud.create_activity(activity, db)
+    created_activity = await activities_crud.create_activity(
+        activity, websocket_manager, db
+    )
 
     if stream_data is not None:
         # Create the empty array of activity streams
@@ -392,12 +402,13 @@ def save_activity_streams_laps(
     return created_activity
 
 
-def process_activity(
+async def process_activity(
     activity,
     user_id: int,
     user_privacy_settings: users_privacy_settings_schema.UsersPrivacySettings,
     strava_client: Client,
     user_integrations: user_integrations_schema.UsersIntegrations,
+    websocket_manager: websocket_schema.WebSocketManager,
     db: Session,
 ):
     # Get the activity by Strava ID from the user
@@ -423,10 +434,11 @@ def process_activity(
     )
 
     # Save the activity and streams to the database
-    return save_activity_streams_laps(
+    return await save_activity_streams_laps(
         parsed_activity["activity_to_store"],
         parsed_activity["stream_data"],
         parsed_activity["laps"],
+        websocket_manager,
         db,
     )
 
@@ -677,7 +689,9 @@ def fetch_and_process_activity_laps(
     return laps_processed
 
 
-def retrieve_strava_users_activities_for_days(days: int, is_startup: bool = False):
+async def retrieve_strava_users_activities_for_days(
+    days: int, is_startup: bool = False
+):
     # Create a new database session
     db = SessionLocal()
 
@@ -689,11 +703,12 @@ def retrieve_strava_users_activities_for_days(days: int, is_startup: bool = Fals
         if users:
             for user in users:
                 try:
-                    get_user_strava_activities_by_days(
+                    await get_user_strava_activities_by_days(
                         (datetime.now(timezone.utc) - timedelta(days=days)).strftime(
                             "%Y-%m-%dT%H:%M:%S"
                         ),
                         user.id,
+                        None,
                         None,
                         is_startup,
                     )
@@ -749,14 +764,22 @@ def retrieve_strava_users_activities_for_days(days: int, is_startup: bool = Fals
             db.close()
 
 
-def get_user_strava_activities_by_days(
-    start_date: datetime, user_id: int, db: Session = None, is_startup: bool = False
+async def get_user_strava_activities_by_days(
+    start_date: datetime,
+    user_id: int,
+    websocket_manager: websocket_schema.WebSocketManager = None,
+    db: Session = None,
+    is_startup: bool = False,
 ) -> list[activities_schema.Activity] | None:
     close_session = False
     if db is None:
         # Create a new database session
         db = SessionLocal()
         close_session = True
+
+    if websocket_manager is None:
+        # Get the websocket manager instance
+        websocket_manager = websocket_schema.get_websocket_manager()
 
     try:
         # Get the user integrations by user ID
@@ -778,8 +801,14 @@ def get_user_strava_activities_by_days(
 
         try:
             # Fetch Strava activities after the specified start date
-            strava_activities_processed = fetch_and_process_activities(
-                strava_client, start_date, user_id, user_integrations, db, is_startup
+            strava_activities_processed = await fetch_and_process_activities(
+                strava_client,
+                start_date,
+                user_id,
+                user_integrations,
+                websocket_manager,
+                db,
+                is_startup,
             )
 
             # Log an informational event for tracing

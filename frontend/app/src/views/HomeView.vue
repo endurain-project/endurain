@@ -72,9 +72,12 @@
 					<!-- Checking if userActivities is loaded and has length -->
 					<div v-if="userActivities && userActivities.length">
 						<!-- Iterating over userActivities to display them -->
-						<div class="card mb-3 bg-body-tertiary border-0 shadow-sm" v-for="activity in userActivities"
-							:key="activity.id">
+						<div class="card mb-3 bg-body-tertiary shadow-sm"
+							:class="{ 'border-0': !activity.is_hidden, 'border border-warning border-2': activity.is_hidden }"
+							v-for="activity in userActivities" :key="activity.id">
 							<div class="card-body">
+								<span class="badge rounded-pill text-bg-warning mb-3" v-if="activity.is_hidden">{{
+									$t("homeView.pillIsHidden") }}</span>
 								<ActivitySummaryComponent :activity="activity" :source="'home'"
 									@activityDeleted="updateActivitiesOnDelete" :units="authStore.user.units" />
 							</div>

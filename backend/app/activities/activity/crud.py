@@ -1,14 +1,18 @@
-from datetime import date, datetime  # Added date
+from datetime import date, datetime
 from urllib.parse import unquote
 
 import activities.activity.models as activities_models
 import activities.activity.schema as activities_schema
 import activities.activity.utils as activities_utils
+
 import core.logger as core_logger
-import notifications.constants as notifications_constants
-import notifications.crud as notifications_crud
-import notifications.schema as notifications_schema
+
+import notifications.utils as notifications_utils
+
 import server_settings.crud as server_settings_crud
+
+import websocket.schema as websocket_schema
+
 from fastapi import HTTPException, status
 from pydantic import BaseModel
 from sqlalchemy import and_, desc, func, or_
@@ -244,7 +248,7 @@ def get_user_activities_with_pagination(
 
         # Base query
         query = db.query(activities_models.Activity).filter(
-            activities_models.Activity.user_id == user_id
+            activities_models.Activity.user_id == user_id,
         )
 
         # Apply filters
@@ -474,6 +478,8 @@ def get_user_following_activities_per_timeframe(
                 ),
                 func.date(activities_models.Activity.start_time) >= start,
                 func.date(activities_models.Activity.start_time) <= end,
+                activities_models.Activity.is_hidden.is_(False),
+                activities_models.Activity.strava_activity_id.is_(None),
             )
             .order_by(desc(activities_models.Activity.start_time))
         ).all()
@@ -532,6 +538,8 @@ def get_user_following_activities_with_pagination(
                     activities_models.Follower.is_accepted,
                 ),
                 activities_models.Activity.visibility.in_([0, 1]),
+                activities_models.Activity.is_hidden.is_(False),
+                activities_models.Activity.strava_activity_id.is_(None),
             )
             .order_by(desc(activities_models.Activity.start_time))
             .offset((page_number - 1) * num_records)
@@ -592,6 +600,8 @@ def get_user_following_activities(user_id, db):
                     activities_models.Follower.is_accepted,
                 ),
                 activities_models.Activity.visibility.in_([0, 1]),
+                activities_models.Activity.is_hidden.is_(False),
+                activities_models.Activity.strava_activity_id.is_(None),
             )
             .all()
         )
@@ -861,6 +871,44 @@ def get_activity_by_id(activity_id: int, db: Session) -> activities_schema.Activ
         ) from err
 
 
+def get_activity_by_start_time(
+    start_time: str | datetime, user_id: int, db: Session
+) -> activities_schema.Activity | None:
+    try:
+        if isinstance(start_time, str):
+            start_time = datetime.strptime(start_time, "%Y-%m-%dT%H:%M:%S")
+        # Get the activities from the database
+        activity = (
+            db.query(activities_models.Activity)
+            .filter(
+                activities_models.Activity.user_id == user_id,
+                activities_models.Activity.start_time == start_time,
+            )
+            .first()
+        )
+
+        # Check if there are activities if not return None
+        if not activity:
+            return None
+
+        if not isinstance(activity.start_time, str):
+            activity = activities_utils.serialize_activity(activity)
+
+        # Return the activities
+        return activity
+
+    except Exception as err:
+        # Log the exception
+        core_logger.print_to_log(
+            f"Error in get_activity_by_start_time: {err}", "error", exc=err
+        )
+        # Raise an HTTPException with a 500 Internal Server Error status code
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal Server Error",
+        ) from err
+
+
 def get_activity_by_id_from_user_id(
     activity_id: int, user_id: int, db: Session
 ) -> activities_schema.Activity:
@@ -1021,10 +1069,20 @@ def get_activities_if_contains_name(name: str, user_id: int, db: Session):
         ) from err
 
 
-def create_activity(
-    activity: activities_schema.Activity, db: Session
+async def create_activity(
+    activity: activities_schema.Activity,
+    websocket_manager: websocket_schema.WebSocketManager,
+    db: Session,
 ) -> activities_schema.Activity:
     try:
+        # Check if already is an activity created with the same start time
+        activity_start_time_exists = get_activity_by_start_time(
+            activity.start_time, activity.user_id, db
+        )
+
+        if activity_start_time_exists:
+            activity.is_hidden = True
+
         # Create a new activity
         new_activity = activities_utils.transform_schema_activity_to_model_activity(
             activity
@@ -1039,14 +1097,14 @@ def create_activity(
         activity.created_at = new_activity.created_at
 
         # Create a notification for the new activity
-        new_notification = notifications_crud.create_notification(
-            notifications_schema.Notification(
-                user_id=new_activity.user_id,
-                type=notifications_constants.TYPE_NEW_ACTIVITY,
-                options={"activity_id": new_activity.id},
-            ),
-            db,
-        )
+        if activity_start_time_exists:
+            await notifications_utils.create_new_duplicate_start_time_activity_notification(
+                activity.user_id, new_activity.id, websocket_manager
+            )
+        else:
+            await notifications_utils.create_new_activity_notification(
+                activity.user_id, new_activity.id, websocket_manager
+            )
 
         # Return the activity
         return activity
