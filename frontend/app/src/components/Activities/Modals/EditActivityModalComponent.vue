@@ -94,6 +94,9 @@
                             </option>
                             <option value="26">{{ $t("editActivityModalComponent.modalEditActivityTypeOption26") }}
                             </option>
+                            <hr>
+                            <option value="30">{{ $t("editActivityModalComponent.modalEditActivityTypeOption30") }}
+                            </option>
                         </select>
                         <!-- visibility fields -->
                         <label for="activityVisibilityEdit"><b>* {{
