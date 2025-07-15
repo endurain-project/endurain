@@ -136,6 +136,7 @@ ACTIVITY_NAME_TO_ID.update(
         "trailrun": 2,
         "virtualrun": 3,
         "cycling": 4,
+        "biking": 4,
         "road": 4,
         "gravelride": 5,
         "gravel_cycling": 5,

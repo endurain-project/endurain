@@ -5,6 +5,7 @@ by the Polar Flow application.
 
 from collections import defaultdict
 from timezonefinder import TimezoneFinder
+from datetime import datetime
 
 import tcxreader
 import activities.activity.schema as activities_schema
@@ -53,9 +54,29 @@ def parse_tcx_file(file, user_id, user_privacy_settings, db):
             "start_position_long": lap.trackpoints[0].longitude,
             "end_position_lat": lap.trackpoints[-1].latitude,
             "end_position_long": lap.trackpoints[-1].longitude,
+            "total_elapsed_time": (
+                (lap.end_time - lap.start_time).total_seconds()
+                if lap.start_time and lap.end_time
+                else None
+            ),
+            "total_timer_time": (
+                (lap.end_time - lap.start_time).total_seconds()
+                if lap.start_time and lap.end_time
+                else None
+            ),
+            "total_distance": round(lap.distance) if lap.distance else None,
+            "avg_heart_rate": round(lap.hr_avg) if lap.hr_avg else None,
+            "max_heart_rate": round(lap.hr_max) if lap.hr_max else None,
+            "avg_cadence": round(lap.cadence_avg) if lap.cadence_avg else None,
+            "max_cadence": round(lap.cadence_max) if lap.cadence_max else None,
+            "total_ascent": round(lap.ascent) if lap.ascent else None,
+            "total_descent": round(lap.descent) if lap.descent else None,
         }
         for lap in tcx_file.laps
+        if lap.start_time is not None
     ]
+
+    print(laps)
 
     lat_lon_waypoints = [
         {
@@ -118,15 +139,13 @@ def parse_tcx_file(file, user_id, user_privacy_settings, db):
         timestamp = time.strftime("%Y-%m-%dT%H:%M:%S")
 
         # Calculate instant speed, pace, and update waypoint arrays
-        instant_speed = (
-            activities_utils.calculate_instant_speed(
-                last_waypoint_time,
-                time,
-                latitude,
-                longitude,
-                prev_latitude,
-                prev_longitude,
-            )
+        instant_speed = activities_utils.calculate_instant_speed(
+            last_waypoint_time,
+            time,
+            latitude,
+            longitude,
+            prev_latitude,
+            prev_longitude,
         )
 
         # Calculate instance pace
