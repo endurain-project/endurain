@@ -40,7 +40,7 @@ class Segment(Base):
         nullable=False,
         comment="Activity type")
 
-    splits = Column(
+    gates = Column(
         JSON,
         nullable=False,
         doc="Store gates data"

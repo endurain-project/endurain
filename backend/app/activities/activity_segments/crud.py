@@ -1,6 +1,7 @@
 from datetime import date, datetime  # Added date
 from urllib.parse import unquote
 
+import activities.activity_streams.crud as streams_crud
 import activities.activity_segments.schema as segments_schema
 import activities.activity_segments.utils as segments_utils
 import activities.activity_segments.models as segments_models
@@ -11,17 +12,16 @@ from pydantic import BaseModel
 from sqlalchemy import and_, desc, func, or_
 from sqlalchemy.orm import Session, joinedload
 
-def get_all_segments(db: Session):
+def get_all_segments(user_id: int, db: Session):
     try:
         # Get the segments from the database
-        segments = db.query(segments_models.Segment).all()
+        segments = db.query(segments_models.Segment).filter(
+            segments_models.Segment.user_id == user_id
+            ).all()
 
         # Check if there are segments if not return None
         if not segments:
             return None
-
-        for segment in segments:
-            segment = segments_utils.serialize_segment(segment)
 
         # Return the segments
         return segments
@@ -37,51 +37,33 @@ def get_all_segments(db: Session):
             detail="Internal Server Error",
         ) from err
 
-def get_all_segments_no_serialize(db: Session):
-    try:
-        # Get the segments from the database
-        segments = db.query(segments_models.Segment).all()
-
-        # Check if there are segments if not return None
-        if not segments:
-            return None
-
-        # Return the segments
-        return segments
-
-    except Exception as err:
-        # Log the exception
-        core_logger.print_to_log(
-            f"Error in get_all_segments_no_serialize: {err}", "error", exc=err
-        )
-        # Raise an HTTPException with a 500 Internal Server Error status code
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Internal Server Error",
-        ) from err
-
-def get_all_segments_by_activity_id(
-        activity_id: int, db: Session
+def get_activity_segments(
+        activity_id: int, user_id: int, db: Session
 ):
-    try:
-        # Get the segments from the database
-        segments = (
-            db.query(segments_models.Segment)
-            .filter(
-                segments_models.Segment.activity_id == activity_id,
-            )
-            .all()
-        )
+    core_logger.print_to_log(f"Getting segments for activity {activity_id}")
 
+    # Returns the segments which correspond to the activity
+    try:
+        # Get the activity stream containing the GPS track from the database that corresponds to the activity_id
+        stream = streams_crud.get_activity_stream_by_type(activity_id, 7, user_id, db)
+        # Check if there is a GPS stream if not return None
+        if not stream:
+            return None
+
+        # Get the segments from the database
+        segments = get_all_segments(user_id, db)
         # Check if there are segments if not return None
         if not segments:
             return None
-
+        
+        # Check for correspondence with returned segments
+        corresponding_segments = []
         for segment in segments:
-            segment = segments_utils.serialize_segment(segment)
-
+            if segments_utils.gps_trace_pass_all_gates(stream, segment):
+                corresponding_segments.append(segment)
+        
         # Return the segments
-        return segments
+        return corresponding_segments
     except Exception as err:
         # Log the exception
         core_logger.print_to_log(

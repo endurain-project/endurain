@@ -111,7 +111,7 @@ export default {
                 const data = {
                     name: this.segmentName,
                     activity_type: this.activity.activity_type,
-                    splits: gates,
+                    gates: gates,
                 };
                 const submittedSegment = await segments.createSegment(data);
             } catch (error){

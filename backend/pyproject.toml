@@ -38,7 +38,7 @@ poetry = "^2.0.0"
 user-agents = "^2.2.0"
 pydantic = {extras = ["email"], version = "^2.11.3"}
 garth = "^0.5.16"
-
+shapely = "^2.1.1"
 
 [build-system]
 requires = ["poetry-core"]

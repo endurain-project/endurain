@@ -11,6 +11,7 @@ import activities.activity_streams.models
 import activities.activity_sets.models
 import activities.activity_exercise_titles.models
 import activities.activity_workout_steps.models
+import activities.activity_segments.models
 import followers.models
 import gears.models
 import health_data.models

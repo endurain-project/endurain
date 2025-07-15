@@ -6,7 +6,7 @@ class Segment(BaseModel):
     user_id: int | None = None
     name: str | None = None
     activity_type: int | None = None
-    splits: List[List] | None = None
+    gates: List[List] | None = None
 
     class Config:
         orm_mode=True
