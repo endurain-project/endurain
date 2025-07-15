@@ -40,6 +40,8 @@ def parse_tcx_file(file, user_id, user_privacy_settings, db):
     vel_waypoints = []
     pace_waypoints = []
 
+    laps = []
+
     activity_type = activities_utils.define_activity_type(tcx_file.activity_type)
 
     if gear_id is None:
@@ -47,36 +49,79 @@ def parse_tcx_file(file, user_id, user_privacy_settings, db):
             user_id, activity_type, db
         )
 
-    laps = [
-        {
-            "start_time": lap.start_time,
-            "start_position_lat": lap.trackpoints[0].latitude,
-            "start_position_long": lap.trackpoints[0].longitude,
-            "end_position_lat": lap.trackpoints[-1].latitude,
-            "end_position_long": lap.trackpoints[-1].longitude,
-            "total_elapsed_time": (
-                (lap.end_time - lap.start_time).total_seconds()
-                if lap.start_time and lap.end_time
-                else None
-            ),
-            "total_timer_time": (
-                (lap.end_time - lap.start_time).total_seconds()
-                if lap.start_time and lap.end_time
-                else None
-            ),
-            "total_distance": round(lap.distance) if lap.distance else None,
-            "avg_heart_rate": round(lap.hr_avg) if lap.hr_avg else None,
-            "max_heart_rate": round(lap.hr_max) if lap.hr_max else None,
-            "avg_cadence": round(lap.cadence_avg) if lap.cadence_avg else None,
-            "max_cadence": round(lap.cadence_max) if lap.cadence_max else None,
-            "total_ascent": round(lap.ascent) if lap.ascent else None,
-            "total_descent": round(lap.descent) if lap.descent else None,
-        }
-        for lap in tcx_file.laps
-        if lap.start_time is not None
-    ]
+    for lap in tcx_file.laps:
+        if lap.start_time is None:
+            continue
 
-    print(laps)
+        lap_power_waypoints = []
+        lap_avg_power = None
+        lap_max_power = None
+        lap_np = None
+
+        for trackpoint in lap.trackpoints:
+            if hasattr(trackpoint, "tpx_ext") and "Watts" in trackpoint.tpx_ext:
+                lap_power_waypoints.append(
+                    {
+                        "time": trackpoint.time.strftime("%Y-%m-%dT%H:%M:%S"),
+                        "power": trackpoint.tpx_ext["Watts"],
+                    }
+                )
+
+        if lap_power_waypoints:
+            lap_avg_power, lap_max_power = activities_utils.calculate_avg_and_max(
+                lap_power_waypoints, "power"
+            )
+
+            # Calculate normalised power
+            lap_np = activities_utils.calculate_np(lap_power_waypoints)
+
+        print(lap.tpx_ext_stats)
+
+        laps.append(
+            {
+                "start_time": lap.start_time,
+                "start_position_lat": lap.trackpoints[0].latitude,
+                "start_position_long": lap.trackpoints[0].longitude,
+                "end_position_lat": lap.trackpoints[-1].latitude,
+                "end_position_long": lap.trackpoints[-1].longitude,
+                "total_elapsed_time": (
+                    (lap.end_time - lap.start_time).total_seconds()
+                    if lap.start_time and lap.end_time
+                    else None
+                ),
+                "total_timer_time": (
+                    (lap.end_time - lap.start_time).total_seconds()
+                    if lap.start_time and lap.end_time
+                    else None
+                ),
+                "total_distance": round(lap.distance) if lap.distance else None,
+                "total_calories": round(lap.calories) if lap.calories else None,
+                "avg_heart_rate": round(lap.hr_avg) if lap.hr_avg else None,
+                "max_heart_rate": round(lap.hr_max) if lap.hr_max else None,
+                "avg_cadence": round(lap.cadence_avg) if lap.cadence_avg else None,
+                "max_cadence": round(lap.cadence_max) if lap.cadence_max else None,
+                "avg_power": round(lap_avg_power) if lap_avg_power else None,
+                "max_power": round(lap_max_power) if lap_max_power else None,
+                "total_ascent": round(lap.ascent) if lap.ascent else None,
+                "total_descent": round(lap.descent) if lap.descent else None,
+                "normalized_power": round(lap_np) if lap_np else None,
+                "enhanced_avg_pace": (
+                    1 / lap.avg_speed if lap.avg_speed != 0 and lap.avg_speed else None
+                ),
+                "enhanced_avg_speed": lap.avg_speed if lap.avg_speed else None,
+                "enhanced_max_pace": (
+                    1 / lap.tpx_ext_stats["Speed"]["max"]
+                    if lap.tpx_ext_stats["Speed"]["max"] != 0
+                    and lap.tpx_ext_stats["Speed"]["max"]
+                    else None
+                ),
+                "enhanced_max_speed": (
+                    lap.tpx_ext_stats["Speed"]["max"]
+                    if lap.tpx_ext_stats["Speed"]["max"]
+                    else None
+                ),
+            }
+        )
 
     lat_lon_waypoints = [
         {
