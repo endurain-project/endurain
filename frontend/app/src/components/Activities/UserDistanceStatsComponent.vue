@@ -234,9 +234,6 @@ import { computed } from "vue";
 import { useI18n } from 'vue-i18n';
 import { useAuthStore } from "@/stores/authStore";
 import { metersToKm, metersToMiles, metersToYards, kmToMeters } from "@/utils/unitsUtils";
-import { userGoals } from "@/services/userGoalsService";
-import {getIcon, formatCalories, formatDuration} from '@/utils/activityUtils'
-import {startCase} from '@/utils/genericUtils'
 
 export default {
 	props: {

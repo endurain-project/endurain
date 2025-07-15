@@ -42,7 +42,7 @@ class UserGoalProgress(BaseModel):
     start_date: str
     end_date: str
     #total
-    total_actitivies: Optional[int] = 0
+    total_activities: Optional[int] = 0
     total_duration: Optional[int] = 0
     total_distance: Optional[int] = 0
     total_elevation: Optional[int] = 0

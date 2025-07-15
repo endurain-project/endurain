@@ -255,7 +255,7 @@ def calculate_goal_progress_by_activity_type(
             start_date=start_date.strftime("%Y-%m-%d"),
             end_date=end_date.strftime("%Y-%m-%d"),
             
-            total_actitivies=len(activities),
+            total_activities=len(activities),
             total_duration=total_duration,
             total_distance=total_distance,
             total_elevation=total_elevation,
@@ -322,6 +322,9 @@ def get_start_end_date_by_interval(
     elif interval == "monthly":
         start_date = date_obj.replace(day=1)
         end_date = (start_date + timedelta(days=31)).replace(day=1) - timedelta(seconds=1)  # Last day of the month
+    elif interval == "daily":
+        start_date = date_obj.replace(hour=0, minute=0, second=0, microsecond=0)
+        end_date = date_obj + timedelta(hours=23, minutes=59, seconds=59)
     else:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

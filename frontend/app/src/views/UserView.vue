@@ -218,7 +218,7 @@ import { useAuthStore } from '@/stores/authStore';
 import { users } from '@/services/usersService';
 import { activities } from '@/services/activitiesService';
 import { followers } from '@/services/followersService';
-import {userGoals, userGoals as userGoalsService} from "@/services/userGoalsService";
+import {userGoals as userGoalsService} from "@/services/userGoalsService";
 // Import Notivue push
 import { push } from 'notivue'
 // Importing the components

@@ -550,5 +550,5 @@ export function formatRawDistance(meters, unitSystem) {
 
 export const convertDistanceMetersToKmsOrMiles = (distance, useMeter = true) => 
 			useMeter ? metersToKm(distance) : metersToMiles(distance);
-export const convertDistanceMetersToYards = (distance) => 
+export const convertDistanceMetersToYards = (distance, useMeter = true) => 
 			useMeter ? metersToKm(distance) : metersToYards(distance);

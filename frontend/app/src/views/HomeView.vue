@@ -26,7 +26,7 @@
 					<UserDistanceStatsComponent 
 						:thisWeekDistances="thisWeekDistances"
 						:thisMonthDistances="thisMonthDistances" 
-						:user-goals="userGoals" v-else />
+						:userGoals="userGoals" v-else />
 				</div>
 
 				<!-- add activity and refresh buttons -->
