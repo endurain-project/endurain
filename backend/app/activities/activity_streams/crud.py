@@ -130,9 +130,7 @@ def get_activities_streams(
 
         # Filter out hidden sets for activities the user doesn't own
         allowed_ids = [
-            activity.id
-            for activity in activities
-            if activity.user_id == token_user_id
+            activity.id for activity in activities if activity.user_id == token_user_id
         ]
 
         if not allowed_ids:
@@ -149,7 +147,6 @@ def get_activities_streams(
 
         if not all_streams:
             return []
-
 
         # Transform all allowed streams
         return [
@@ -402,7 +399,9 @@ def transform_activity_streams_hr(activity_stream, activity, db):
     zone_4 = max_heart_rate * 0.8
 
     # Extract heart rate values from waypoints
-    hr_values = np.array([wp.get("hr") for wp in waypoints if wp.get("hr") is not None])
+    hr_values = np.array(
+        [float(wp.get("hr")) for wp in waypoints if wp.get("hr") is not None]
+    )
 
     # If there are no valid heart rate values, return the activity stream as is
     total = len(hr_values)
@@ -558,7 +557,9 @@ def create_activity_streams(
         db.rollback()
 
         # Log the exception
-        core_logger.print_to_log_and_console(f"Error in create_activity_streams: {err}", "error", exc=err)
+        core_logger.print_to_log_and_console(
+            f"Error in create_activity_streams: {err}", "error", exc=err
+        )
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

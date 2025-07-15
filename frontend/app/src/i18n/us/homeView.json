@@ -1,7 +1,7 @@
 {
     "title": "Endurain",
     "buttonAddActivity": "Add Activity",
-    "fieldLabelUploadGPXFile": "Upload .gpx, .fit or .tcx file",
+    "fieldLabelUploadFileType": "Upload .gpx, .fit or .tcx file",
     "radioUserActivities": "My activities",
     "radioFollowerActivities": "Followers activities",
     "pillIsHidden": "Hidden",

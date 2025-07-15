@@ -1,7 +1,7 @@
 {
     "title": "Resistencia",
     "buttonAddActivity": "Agregar Actividad",
-    "fieldLabelUploadGPXFile": "Subir archivo .gpx o .fit",
+    "fieldLabelUploadFileType": "Subir archivo .gpx o .fit",
     "radioUserActivities": "Mis actividades",
     "radioFollowerActivities": "Actividades de seguidores",
     "successActivityAdded": "Actividad agregada correctamente",

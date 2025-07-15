@@ -1,7 +1,7 @@
 {
     "title": "Endurain",
     "buttonAddActivity": "Adicionar atividade",
-    "fieldLabelUploadGPXFile": "Carregar ficheiro .gpx ou .fit",
+    "fieldLabelUploadFileType": "Carregar ficheiro .gpx ou .fit",
     "radioUserActivities": "Minhas atividades",
     "radioFollowerActivities": "Atividades de seguidores",
     "successActivityAdded": "Atividade adicionada com sucesso",

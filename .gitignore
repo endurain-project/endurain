@@ -32,10 +32,13 @@ backend/app/config/user_images/*.jpg
 backend/app/config/files/*.gpx
 backend/app/config/files/*.zip
 backend/app/config/files/*.fit
+backend/app/config/files/*.tcx
 backend/app/config/files/bulk_import/*.gpx
 backend/app/config/files/bulk_import/*.fit
+backend/app/config/files/bulk_import/*.tcx
 backend/app/config/files/processed/*.gpx
 backend/app/config/files/processed/*.fit
+backend/app/config/files/processed/*.tcx
 backend/config/files/
 
 # Frontend

@@ -46,7 +46,7 @@
 
 			<!-- Modal add actvity -->
 			<ModalComponentUploadFile modalId="addActivityModal" :title="$t('homeView.buttonAddActivity')"
-				:fileFieldLabel="$t('homeView.fieldLabelUploadGPXFile')" filesAccepted=".gpx,.fit,.tcx"
+				:fileFieldLabel="$t('homeView.fieldLabelUploadFileType')" filesAccepted=".gpx,.fit,.tcx"
 				actionButtonType="success" :actionButtonText="$t('homeView.buttonAddActivity')"
 				@fileToEmitAction="submitUploadFileForm" />
 		</div>
