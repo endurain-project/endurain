@@ -81,6 +81,15 @@
                     <ul class="dropdown-menu">
                         <li v-if="source === 'activity'">
                             <a class="dropdown-item" href="#" data-bs-toggle="modal"
+                                data-bs-target="#addActivityMediaModal">
+                                {{ $t("activitySummaryComponent.buttonAddActivityMedia") }}
+                            </a>
+                        </li>
+                        <li v-if="source === 'activity'">
+                            <hr class="dropdown-divider">
+                        </li>
+                        <li v-if="source === 'activity'">
+                            <a class="dropdown-item" href="#" data-bs-toggle="modal"
                                 data-bs-target="#editActivityModal">
                                 {{ $t("activitySummaryComponent.buttonEditActivity") }}
                             </a>
@@ -98,6 +107,14 @@
                 </div>
             </div>
         </div>
+
+        <!-- Modal add media -->
+        <ModalComponentUploadFile modalId="addActivityMediaModal"
+            :title="$t('activitySummaryComponent.modalAddMediaTitle')"
+            :fileFieldLabel="$t('activitySummaryComponent.modalAddMediaBody')"
+            filesAccepted=".png, .jpg, .jpeg" actionButtonType="success"
+            :actionButtonText="$t('activitySummaryComponent.modalAddMediaTitle')"
+            @fileToEmitAction="submitUploadMediaForm" />
 
         <!-- Modal edit activity -->
         <EditActivityModalComponent :activity="activity" @activityEditedFields="updateActivityFieldsOnEdit" />
@@ -249,11 +266,13 @@ import { push } from "notivue";
 // Importing the components
 import LoadingComponent from "@/components/GeneralComponents/LoadingComponent.vue";
 import UserAvatarComponent from "@/components/Users/UserAvatarComponent.vue";
+import ModalComponentUploadFile from "@/components/Modals/ModalComponentUploadFile.vue";
 import EditActivityModalComponent from "@/components/Activities/Modals/EditActivityModalComponent.vue";
 import ModalComponent from "@/components/Modals/ModalComponent.vue";
 // Importing the services
 import { users } from "@/services/usersService";
 import { activities } from "@/services/activitiesService";
+import { activityMedia } from "@/services/activityMediaService";
 // Importing the utils
 import {
     formatDistance,
@@ -295,7 +314,7 @@ const props = defineProps({
 });
 
 // Emits
-const emit = defineEmits(["activityEditedFields", "activityDeleted"]);
+const emit = defineEmits(["activityEditedFields", "activityDeleted", "activityNewActivityMedia"]);
 
 // Composables
 const router = useRouter();
@@ -344,4 +363,25 @@ function updateActivityFieldsOnEdit(data) {
     // Emit the activityEditedFields event to the parent component
     emit("activityEditedFields", data);
 }
+
+const submitUploadMediaForm = async (file) => {
+    // Set the loading message
+    const notification = push.promise(t("activitySummaryComponent.processingMediaUpload"));
+
+    // If there is a file, create the form data and upload the file
+    if (file) {
+        try {
+            // Upload the file
+            const newActivityMedia = await activityMedia.uploadActivityMediaFile(props.activity.id, file);
+            
+            emit("activityNewActivityMedia", newActivityMedia);
+
+            // Set the success message
+            notification.resolve(t("activitySummaryComponent.successMediaUpload"));
+        } catch (error) {
+            // Set the error message
+            notification.reject(`${t("activitySummaryComponent.errorMediaUpload")} - ${error}`);
+        }
+    }
+};
 </script>

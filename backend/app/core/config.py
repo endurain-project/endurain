@@ -12,6 +12,7 @@ ROOT_PATH = "/api/v1"
 FRONTEND_DIR = "/app/frontend/dist"
 ENVIRONMENT = os.getenv("ENVIRONMENT", "production")
 TZ = os.getenv("TZ", "UTC")
+ACTIVITY_MEDIA_DIR = "config/activity_media"
 USER_IMAGES_DIR = "config/user_images"
 SERVER_IMAGES_DIR = "config/server_images"
 FILES_DIR = "config/files"
@@ -31,7 +32,7 @@ GEOCODES_MIN_INTERVAL = (
 )
 GEOCODES_LOCK = threading.Lock()
 GEOCODES_LAST_CALL = 0.0
-SUPPORTED_FILE_FORMATS = [".fit", ".gpx"]  # used to screen bulk import files
+SUPPORTED_FILE_FORMATS = [".fit", ".gpx", ".tcx", ".gz"]  # used to screen bulk import files
 
 def check_required_env_vars():
     required_env_vars = [

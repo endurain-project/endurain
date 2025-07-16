@@ -21,7 +21,9 @@ class ActivityMedia(Base):
         index=True,
         comment="Activity ID that the activity media belongs",
     )
-    media_path = Column(String(length=250), nullable=True, comment="Media path")
+    media_path = Column(
+        String(length=250), nullable=True, unique=True, comment="Media path"
+    )
     media_type = Column(
         Integer,
         nullable=False,

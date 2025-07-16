@@ -316,6 +316,12 @@ def upgrade() -> None:
         ["activity_id"],
         unique=False,
     )
+    op.create_index(
+        op.f("ix_activity_media_activity_media_path"),
+        "activity_media",
+        ["media_path"],
+        unique=True,
+    )
     # ### end Alembic commands ###
 
 

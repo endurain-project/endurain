@@ -150,106 +150,101 @@
     </div>
 </template>
 
-<script>
+<script setup>
 // Importing the stores
 import { computed } from "vue";
 import { useI18n } from 'vue-i18n';
 import { useAuthStore } from "@/stores/authStore";
 import { metersToKm, metersToMiles, metersToYards, kmToMeters } from "@/utils/unitsUtils";
 
-export default {
-	props: {
-		thisWeekDistances: {
-			type: Object,
-			required: true,
-		},
-		thisMonthDistances: {
-			type: Object,
-			required: true,
-		},
+const props = defineProps({
+	thisWeekDistances: {
+		type: Object,
+		required: true,
 	},
-	setup(props) {
-		const authStore = useAuthStore();
-        const { t } = useI18n();
-		const getTopThreeActivities = (distances) => {
-			const convertDistanceMetersToKmsOrMiles = (distance) => 
-				Number(authStore.user.units) === 1 ? metersToKm(distance) : metersToMiles(distance);
-			const convertDistanceMetersToYards = (distance) => 
-				Number(authStore.user.units) === 1 ? metersToKm(distance) : metersToYards(distance);
-
-			const activities = [
-				{
-					name: "run",
-					icon: "person-running",
-					useMeters: false,
-					distance: convertDistanceMetersToKmsOrMiles(distances.run),
-				},
-				{
-					name: "bike",
-					icon: "person-biking",
-					useMeters: false,
-					distance: convertDistanceMetersToKmsOrMiles(distances.bike),
-				},
-				{
-					name: "swim",
-					icon: "person-swimming",
-					useMeters: true,
-					distance: convertDistanceMetersToYards(distances.swim),
-				},
-				{
-					name: "walk",
-					icon: "person-walking",
-					useMeters: false,
-					distance: convertDistanceMetersToKmsOrMiles(distances.walk),
-				},
-				{
-					name: "hike",
-					icon: "person-hiking",
-					useMeters: false,
-					distance: convertDistanceMetersToKmsOrMiles(distances.hike),
-				},
-				{
-					name: "rowing",
-					icon: "sailboat",
-					useMeters: false,
-					distance: convertDistanceMetersToKmsOrMiles(distances.rowing),
-				},
-				{
-					name: "snow_ski",
-					icon: "person-skiing",
-					useMeters: false,
-					distance: convertDistanceMetersToKmsOrMiles(distances.ski),
-				},
-				{
-					name: "snowboard",
-					icon: "person-snowboarding",
-					useMeters: false,
-					distance: convertDistanceMetersToKmsOrMiles(distances.snowboard),
-				},
-			];
-			// Sort activities by distance
-			const sortedActivities = activities.sort(
-				(a, b) => b.distance - a.distance,
-			);
-			// Return top 3 activities
-			return sortedActivities.slice(0, 3);
-		};
-		const thisWeek = computed(() =>
-			getTopThreeActivities(props.thisWeekDistances),
-		);
-		const thisMonth = computed(() =>
-			getTopThreeActivities(props.thisMonthDistances),
-		);
-
-		return {
-			authStore,
-			metersToKm,
-			metersToMiles,
-			metersToYards,
-			thisWeek,
-			thisMonth,
-			kmToMeters,
-		};
+	thisMonthDistances: {
+		type: Object,
+		required: true,
 	},
+});
+
+const authStore = useAuthStore();
+const { t } = useI18n();
+
+const getTopThreeActivities = (distances) => {
+	const convertDistanceMetersToKmsOrMiles = (distance) => 
+		Number(authStore.user.units) === 1 ? metersToKm(distance) : metersToMiles(distance);
+	const convertDistanceMetersToYards = (distance) => 
+		Number(authStore.user.units) === 1 ? metersToKm(distance) : metersToYards(distance);
+
+	const activities = [
+		{
+			name: "run",
+			icon: "person-running",
+			useMeters: false,
+			distance: convertDistanceMetersToKmsOrMiles(distances.run),
+		},
+		{
+			name: "bike",
+			icon: "person-biking",
+			useMeters: false,
+			distance: convertDistanceMetersToKmsOrMiles(distances.bike),
+		},
+		{
+			name: "swim",
+			icon: "person-swimming",
+			useMeters: true,
+			distance: convertDistanceMetersToYards(distances.swim),
+		},
+		{
+			name: "walk",
+			icon: "person-walking",
+			useMeters: false,
+			distance: convertDistanceMetersToKmsOrMiles(distances.walk),
+		},
+		{
+			name: "hike",
+			icon: "person-hiking",
+			useMeters: false,
+			distance: convertDistanceMetersToKmsOrMiles(distances.hike),
+		},
+		{
+			name: "rowing",
+			icon: "sailboat",
+			useMeters: false,
+			distance: convertDistanceMetersToKmsOrMiles(distances.rowing),
+		},
+		{
+			name: "snow_ski",
+			icon: "person-skiing",
+			useMeters: false,
+			distance: convertDistanceMetersToKmsOrMiles(distances.ski),
+		},
+		{
+			name: "snowboard",
+			icon: "person-snowboarding",
+			useMeters: false,
+			distance: convertDistanceMetersToKmsOrMiles(distances.snowboard),
+		},
+		{
+			name: "windsurf",
+			icon: "wind",
+			useMeters: false,
+			distance: convertDistanceMetersToKmsOrMiles(distances.windsurf),
+		},
+	];
+	// Sort activities by distance
+	const sortedActivities = activities.sort(
+		(a, b) => b.distance - a.distance,
+	);
+	// Return top 3 activities
+	return sortedActivities.slice(0, 3);
 };
+
+const thisWeek = computed(() =>
+	getTopThreeActivities(props.thisWeekDistances),
+);
+const thisMonth = computed(() =>
+	getTopThreeActivities(props.thisMonthDistances),
+);
 </script>

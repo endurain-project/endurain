@@ -1,12 +1,12 @@
 <template>
-	<div class="bg-body-tertiary rounded p-3 shadow-sm" :class="{ 'border border-warning border-2': activity?.is_hidden }">
+	<div class="bg-body-tertiary rounded p-3 shadow-sm"
+		:class="{ 'border border-warning border-2': activity?.is_hidden }">
 		<LoadingComponent v-if="isLoading" />
 
 		<div v-else>
 			<ActivitySummaryComponent v-if="activity" :activity="activity" :source="'activity'"
 				@activityEditedFields="updateActivityFieldsOnEdit" :units="units" />
-			<AlertComponent
-				v-if="activity && activity.user_id === authStore.user.id && activity.is_hidden"
+			<AlertComponent v-if="activity && activity.user_id === authStore.user.id && activity.is_hidden"
 				:message="isHiddenMessage" :dismissible="true" :type="'warning'" class="mt-2" />
 			<AlertComponent
 				v-if="activity && activity.user_id === authStore.user.id && (activity.hide_start_time || activity.hide_location || activity.hide_map || activity.hide_hr || activity.hide_power || activity.hide_cadence || activity.hide_elevation || activity.hide_speed || activity.hide_pace || activity.hide_laps || activity.hide_workout_sets_steps || activity.hide_gear)"
@@ -19,7 +19,7 @@
 		</div>
 		<div class="mt-3 mb-3"
 			v-else-if="activity && ((authStore.isAuthenticated && authStore.user.id === activity.user_id) || (authStore.isAuthenticated && authStore.user.id !== activity.user_id && activity.hide_map === false) || (!authStore.isAuthenticated && activity.hide_map === false))">
-			<ActivityMapComponent :activity="activity" :source="'activity'" />
+			<ActivityMapComponent :activity="activity" :activityActivityMedia="activityActivityMedia" :source="'activity'" />
 		</div>
 
 		<!-- gear zone -->
@@ -48,8 +48,7 @@
 					v-else-if="activity.activity_type === 21 || activity.activity_type === 22 || activity.activity_type === 23 || activity.activity_type === 24 || activity.activity_type === 25 || activity.activity_type === 26">
 					<font-awesome-icon :icon="['fas', 'fa-table-tennis-paddle-ball']" />
 				</span>
-				<span
-					v-else-if="activityTypeIsWindsurf(activity)">
+				<span v-else-if="activityTypeIsWindsurf(activity)">
 					<font-awesome-icon :icon="['fas', 'wind']" />
 				</span>
 				<span class="ms-2" v-if="activity.gear_id && gear">{{ gear.nickname }}</span>
@@ -151,6 +150,7 @@ import { activityLaps } from "@/services/activityLapsService";
 import { activityWorkoutSteps } from "@/services/activityWorkoutStepsService";
 import { activityExerciseTitles } from "@/services/activityExerciseTitlesService";
 import { activitySets } from "@/services/activitySetsService";
+import { activityMedia } from "@/services/activityMediaService";
 // Importing the utils
 import { activityTypeIsCycling, activityTypeIsRunning, activityTypeIsWalking, activityTypeIsSwimming, activityTypeIsRacquet, activityTypeIsWindsurf } from "@/utils/activityUtils";
 
@@ -167,6 +167,7 @@ const gearId = ref(null);
 const activityActivityStreams = ref([]);
 const activityActivityLaps = ref([]);
 const activityActivityWorkoutSteps = ref([]);
+const activityActivityMedia = ref([]);
 const units = ref(1);
 const activityActivityExerciseTitles = ref([]);
 const activityActivitySets = ref([]);
@@ -280,6 +281,11 @@ onMounted(async () => {
 			activityActivitySets.value = await activitySets.getActivitySetsByActivityId(
 				route.params.id,
 			);
+
+			// Get the activity media by activity id
+			activityActivityMedia.value = await activityMedia.getUserActivityMediaByActivityId(
+				route.params.id,
+			);
 		} else {
 			// Set the units
 			units.value = serverSettingsStore.serverSettings.units;
@@ -342,8 +348,8 @@ onMounted(async () => {
 							) {
 								gearsByType.value = await gears.getGearFromType(7);
 							}
-						} 
-					} 
+						}
+					}
 				}
 			}
 		}

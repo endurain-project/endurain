@@ -13,5 +13,6 @@
     "processingActivity": "Processing activity",
     "successActivityDeleted": "Activity deleted successfully",
     "errorFetchingUserStats": "Error fetching user stats",
-    "errorFetchingUserActivities": "Error fetching user activities"
+    "errorFetchingUserActivities": "Error fetching user activities",
+    "errorFetchingMedia": "Error fetching media for activity"
 }

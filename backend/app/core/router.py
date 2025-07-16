@@ -65,6 +65,24 @@ def server_img_return(
     return path
 
 
+@router.get("/activity_media/{media}", include_in_schema=False)
+def activity_media_return(
+    media: str,
+):
+    # Get the server image path
+    path = core_utils.return_activity_media_path(media)
+
+    # If the path is None, raise a 404 error
+    if path is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Activity media not found",
+        )
+
+    # Return the activity media path
+    return path
+
+
 @router.get("/{path:path}", include_in_schema=False)
 def frontend_not_found(
     path: str,

@@ -7,6 +7,7 @@ import activities.activity_exercise_titles.router as activity_exercise_titles_ro
 import activities.activity_exercise_titles.public_router as activity_exercise_titles_public_router
 import activities.activity_laps.router as activity_laps_router
 import activities.activity_laps.public_router as activity_laps_public_router
+import activities.activity_media.router as activity_media_router
 import activities.activity_sets.router as activity_sets_router
 import activities.activity_sets.public_router as activity_sets_public_router
 import activities.activity_streams.router as activity_streams_router
@@ -54,6 +55,12 @@ router.include_router(
     activity_laps_router.router,
     prefix=core_config.ROOT_PATH + "/activities_laps",
     tags=["activity_laps"],
+    dependencies=[Depends(session_security.validate_access_token)],
+)
+router.include_router(
+    activity_media_router.router,
+    prefix=core_config.ROOT_PATH + "/activities_media",
+    tags=["activity_media"],
     dependencies=[Depends(session_security.validate_access_token)],
 )
 router.include_router(

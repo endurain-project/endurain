@@ -28,6 +28,11 @@ backend/app/config/user_images/*.jpeg
 backend/app/config/user_images/*.png
 backend/app/config/user_images/*.jpg
 
+# activity media folder images
+backend/app/config/activity_media/*.jpeg
+backend/app/config/activity_media/*.png
+backend/app/config/activity_media/*.jpg
+
 # gpx and fit files
 backend/app/config/files/*.gpx
 backend/app/config/files/*.zip

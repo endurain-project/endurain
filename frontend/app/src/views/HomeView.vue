@@ -81,7 +81,7 @@
 								<ActivitySummaryComponent :activity="activity" :source="'home'"
 									@activityDeleted="updateActivitiesOnDelete" :units="authStore.user.units" />
 							</div>
-							<ActivityMapComponent class="mx-3 mb-3" :activity="activity" :source="'home'" />
+							<ActivityMapComponent class="mx-3 mb-3" :activity="activity" :activityActivityMedia="activityMediaMap[activity.id]" :source="'home'" />
 						</div>
 					</div>
 					<!-- Displaying a message or component when there are no activities -->
@@ -124,6 +124,7 @@ import { useServerSettingsStore } from "@/stores/serverSettingsStore";
 // Import the services
 import { activities } from "@/services/activitiesService";
 import { followers } from "@/services/followersService";
+import { activityMedia } from "@/services/activityMediaService";
 // Import Notivue push
 import { push } from "notivue";
 // Importing the components
@@ -144,11 +145,21 @@ const thisWeekDistances = ref([]);
 const thisMonthDistances = ref([]);
 const userNumberOfActivities = ref(0);
 const userActivities = ref([]);
+const activityMediaMap = ref({});
 const followedUserActivities = ref([]);
 const pageNumberUserActivities = ref(1);
 const numRecords = serverSettingsStore.serverSettings.num_records_per_page || 25;
 const userHasMoreActivities = ref(true);
 const { t } = useI18n();
+
+async function fetchActivityMedia(activityId) {
+	try {
+		return await activityMedia.getUserActivityMediaByActivityId(activityId);
+	} catch (error) {
+		push.error(`${t("homeView.errorFetchingMedia")}: ${activityId} - ${error}`);
+		return [];
+	}
+}
 
 async function fetchUserStars() {
 	try {
@@ -184,6 +195,11 @@ async function fetchMoreActivities() {
 				userActivities.value = [];
 			}
 			userActivities.value = [...userActivities.value, ...newActivities];
+
+			// Fetch media for each new activity
+			for (const activity of newActivities) {
+				activityMediaMap.value[activity.id] = await fetchActivityMedia(activity.id);
+			}
 
 			// Check if we've reached the end
 			userHasMoreActivities.value = newActivities.length === numRecords;
@@ -226,6 +242,8 @@ const submitUploadFileForm = async (file) => {
 			}
 			for (const createdActivity of createdActivities) {
 				userActivities.value.unshift(createdActivity);
+				// Fetch media for the new activity
+				activityMediaMap.value[createdActivity.id] = await fetchActivityMedia(createdActivity.id);
 			}
 
 			// Set the success message
@@ -260,6 +278,8 @@ async function refreshActivities() {
 		if (newActivities) {
 			for (const newActivity of newActivities) {
 				userActivities.value.unshift(newActivity);
+				// Fetch media for the new activity
+				activityMediaMap.value[newActivity.id] = await fetchActivityMedia(newActivity.id);
 			}
 		}
 
@@ -313,6 +333,13 @@ onMounted(async () => {
 			pageNumberUserActivities.value,
 			numRecords,
 		);
+
+		// Fetch media for initial activities
+		if (userActivities.value?.length) {
+			for (const activity of userActivities.value) {
+				activityMediaMap.value[activity.id] = await fetchActivityMedia(activity.id);
+			}
+		}
 
 		//followedUserActivities.value =
 		//	await activities.getUserFollowersActivitiesWithPagination(
