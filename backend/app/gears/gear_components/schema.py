@@ -77,6 +77,10 @@ WINDSURF_COMPONENT_TYPES = [
     "impact_vest",
     "lifeguard_vest",
     "helmet",
+    "wing",
+    "front_foil",
+    "stabilizer",
+    "fuselage",
 ]
 
 

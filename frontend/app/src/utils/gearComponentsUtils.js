@@ -198,6 +198,10 @@ export const GEAR_WINDSURF_COMPONENT_TYPES = [
     "impact_vest",
     "lifeguard_vest",
     "helmet",
+	"wing",
+    "front_foil",
+    "stabilizer",
+    "fuselage",
 ]
 
 const windsurfTypeLabelMap = {
@@ -214,8 +218,12 @@ const windsurfTypeLabelMap = {
 	"rigging_lines": t => t("gearComponentListComponent.gearComponentRiggingLines"),
 	"footpad": t => t("gearComponentListComponent.gearComponentFootpad"),
 	"impact_vest": t => t("gearComponentListComponent.gearComponentImpactVest"),
-	"impact_vest": t => t("gearComponentListComponent.gearComponentLifeguardVest"),
+	"lifeguard_vest": t => t("gearComponentListComponent.gearComponentLifeguardVest"),
 	"helmet": t => t("gearComponentListComponent.gearComponentHelmet"),
+	"wing": t => t("gearComponentListComponent.gearComponentWing"),
+	"front_foil": t => t("gearComponentListComponent.gearComponentFrontFoil"),
+	"stabilizer": t => t("gearComponentListComponent.gearComponentStabilizer"),
+	"fuselage": t => t("gearComponentListComponent.gearComponentFuselage"),
 };
 
 const windsurfTypeAvatarMap = {
@@ -232,8 +240,12 @@ const windsurfTypeAvatarMap = {
 	"rigging_lines": "/src/assets/avatar/gearComponents/riggingLines1.png",
 	"footpad": "/src/assets/avatar/gearComponents/footpad1.png",
 	"impact_vest": "/src/assets/avatar/gearComponents/impactVest1.png",
-	"impact_vest": "/src/assets/avatar/gearComponents/lifeguardVest1.png",
+	"lifeguard_vest": "/src/assets/avatar/gearComponents/lifeguardVest1.png",
 	"helmet": "/src/assets/avatar/gearComponents/helmet1.png",
+	"wing": "/src/assets/avatar/gearComponents/wing1.png",
+	"front_foil": "/src/assets/avatar/gearComponents/frontFoil1.png",
+	"stabilizer": "/src/assets/avatar/gearComponents/stabilizer1.png",
+	"fuselage": "/src/assets/avatar/gearComponents/fuselage1.png",
 };
 
 export function getGearBikeComponentType(type, t) {

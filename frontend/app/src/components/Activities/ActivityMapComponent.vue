@@ -5,7 +5,19 @@
     </div>
     <div v-else>
         <div v-if="hasGalleryItems">
-            <div id="activityGallery" class="carousel slide">
+            <div id="activityGallery" class="carousel slide position-relative">
+                <div class="carousel-indicators position-absolute" style="z-index: 1030;">
+                    <!-- Map indicator -->
+                    <button v-if="activityStreamLatLng" type="button" data-bs-target="#activityGallery"
+                        data-bs-slide-to="0" class="active" aria-current="true" aria-label="Map"></button>
+                    <!-- Media indicators -->
+                    <button v-for="(mediaItem, idx) in activityActivityMedia" :key="`indicator-${mediaItem.id || idx}`"
+                        type="button" data-bs-target="#activityGallery"
+                        :data-bs-slide-to="activityStreamLatLng ? idx + 1 : idx"
+                        :class="{ active: !activityStreamLatLng && idx === 0 }"
+                        :aria-current="!activityStreamLatLng && idx === 0 ? 'true' : 'false'"
+                        :aria-label="`Media ${idx + 1}`"></button>
+                </div>
                 <div class="carousel-inner">
                     <!-- Map as first item -->
                     <div v-if="activityStreamLatLng" class="carousel-item active">
@@ -16,20 +28,35 @@
                     </div>
                     <!-- Media items -->
                     <div v-for="(mediaItem, idx) in activityActivityMedia" :key="mediaItem.id || idx"
-                        class="carousel-item" :class="{ active: !activityStreamLatLng && idx === 0 }"
+                        class="carousel-item position-relative" :class="{ active: !activityStreamLatLng && idx === 0 }"
                         :style="{ height: source === 'home' ? '300px' : '500px' }">
                         <img :src="`${endurainHost}${mediaItem.media_path.split('/').slice(1).join('/')}`"
                             class="d-block w-100 rounded" alt="Activity media"
                             :style="{ height: source === 'home' ? '300px' : '500px', objectFit: 'contain' }" />
+                        <!-- Delete button for media -->
+                        <button data-bs-toggle="modal" :data-bs-target="`#deleteMediaModal${mediaItem.id}`"
+                            class="btn  position-absolute bottom-0 end-0 m-3" style="z-index: 1040;"
+                            v-if="source === 'activity'">
+                            <font-awesome-icon :icon="['fas', 'trash']" />
+                        </button>
+
+                        <!-- Modal for deleting gear from activity -->
+                        <ModalComponent :modalId="`deleteMediaModal${mediaItem.id}`"
+                            :title="t('activityMapComponent.modalMediaDeleteTitle')"
+                            :body="`${t('activityMapComponent.modalMediaDeleteBody1')}${mediaItem.id}${t('activityMapComponent.modalMediaDeleteBody2')}${mediaItem.media_path.split('/').slice(-1).join('/')}?`"
+                            actionButtonType="danger"
+                            :actionButtonText="t('activityMapComponent.modalMediaDeleteTitle')"
+                            :valueToEmit="mediaItem.id" :emitValue="true"
+                            @submitAction="submitDeleteMediaFromActivity" />
                     </div>
                 </div>
-                <button class="carousel-control-prev" type="button" data-bs-target="#activityGallery"
-                    data-bs-slide="prev">
+                <button class="carousel-control-prev position-absolute" type="button" data-bs-target="#activityGallery"
+                    data-bs-slide="prev" style="z-index: 1030;">
                     <span class="carousel-control-prev-icon" aria-hidden="true"></span>
                     <span class="visually-hidden">Previous</span>
                 </button>
-                <button class="carousel-control-next" type="button" data-bs-target="#activityGallery"
-                    data-bs-slide="next">
+                <button class="carousel-control-next position-absolute" type="button" data-bs-target="#activityGallery"
+                    data-bs-slide="next" style="z-index: 1030;">
                     <span class="carousel-control-next-icon" aria-hidden="true"></span>
                     <span class="visually-hidden">Next</span>
                 </button>
@@ -44,10 +71,17 @@
 
 <script setup>
 import { ref, computed, onMounted, watchEffect, nextTick } from 'vue';
+import { useI18n } from "vue-i18n";
 import { activityStreams } from '@/services/activityStreams';
 import LoadingComponent from '@/components/GeneralComponents/LoadingComponent.vue';
+import ModalComponent from '../Modals/ModalComponent.vue';
 import L from 'leaflet';
 import { useAuthStore } from "@/stores/authStore";
+// Import Notivue push
+import { push } from "notivue";
+
+// Emit definition
+const emit = defineEmits(['delete-media']);
 
 // Props declaration
 const props = defineProps({
@@ -65,6 +99,7 @@ const props = defineProps({
     }
 });
 
+const { t } = useI18n();
 const authStore = useAuthStore();
 const isLoading = ref(true);
 const activityStreamLatLng = ref(null);
@@ -85,7 +120,9 @@ onMounted(async () => {
             activityStreamLatLng.value = await activityStreams.getPublicActivitySteamByStreamTypeByActivityId(props.activity.id, 7);
         }
     } catch (error) {
-        console.error("Failed to fetch activity details:", error);
+        push.error(
+            `${t("activityMapComponent.errorFetchingActivityStream")} - ${error}`,
+        );
     } finally {
         isLoading.value = false;
         nextTick(() => {
@@ -101,6 +138,10 @@ onMounted(async () => {
 watchEffect(() => {
     // Empty watchEffect, kept for potential future use
 });
+
+const submitDeleteMediaFromActivity = (mediaId) => {
+    console.log("Media ID to delete:", mediaId);
+};
 
 const initMap = () => {
     if (!activityMap.value) return;

@@ -5,10 +5,9 @@ from typing import Annotated, Callable
 from fastapi import APIRouter, Depends, Security, UploadFile
 from sqlalchemy.orm import Session
 
-import activities.activity_media.schema as activity_media_schema
+import activities.activity_media.dependencies as activities_media_dependencies
 import activities.activity_media.crud as activity_media_crud
-
-import activities.activity.dependencies as activities_dependencies
+import activities.activity_media.schema as activity_media_schema
 
 import session.security as session_security
 
@@ -87,3 +86,27 @@ async def upload_media(
 
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise err
+    
+
+@router.delete(
+    "/activity_media/{media_id}",
+)
+async def delete_activity_media(
+    media_id: int,
+    validate_id: Annotated[
+        Callable, Depends(activities_media_dependencies.validate_media_id)
+    ],
+    check_scopes: Annotated[
+        Callable, Security(session_security.check_scopes, scopes=["activities:write"])
+    ],
+    token_user_id: Annotated[
+        int,
+        Depends(session_security.get_user_id_from_access_token),
+    ],
+    db: Annotated[
+        Session,
+        Depends(core_database.get_db),
+    ],
+):
+    # Delete the activity media from the database
+    activity_media_crud.delete_activity_media(media_id, token_user_id, db)

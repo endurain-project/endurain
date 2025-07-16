@@ -44,6 +44,14 @@ const props = defineProps({
         type: String,
         required: true,
     },
+    valueToEmit: {
+        type: [Number, String],
+        default: null,
+    },
+    emitValue: {
+        type: Boolean,
+        default: false,
+    }
 });
 
 // Define emits
@@ -51,6 +59,10 @@ const emit = defineEmits(['submitAction']);
 
 // Methods
 function submitAction() {
-    emit('submitAction', true);
+    if (props.emitValue) {
+        emit('submitAction', props.valueToEmit);
+    } else {
+        emit('submitAction', true);
+    }
 }
 </script>
