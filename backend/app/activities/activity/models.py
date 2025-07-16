@@ -236,3 +236,10 @@ class Activity(Base):
         back_populates="activity",
         cascade="all, delete-orphan",
     )
+
+    # Establish a one-to-many relationship with 'activity_media'
+    activity_media = relationship(
+        "ActivityMedia",
+        back_populates="activity",
+        cascade="all, delete-orphan",
+    )

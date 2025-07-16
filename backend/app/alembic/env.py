@@ -9,6 +9,7 @@ from alembic import context
 import activities.activity.models
 import activities.activity_exercise_titles.models
 import activities.activity_laps.models
+import activities.activity_media.models
 import activities.activity_sets.models
 import activities.activity_streams.models
 import activities.activity_workout_steps.models
