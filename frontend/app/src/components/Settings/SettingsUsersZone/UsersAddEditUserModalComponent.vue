@@ -169,6 +169,20 @@
                             <option value="es">{{ $t("generalItems.languageOption7") }}</option>
                             <option value="us">{{ $t("generalItems.languageOption1") }}</option>
                         </select>
+                        <!-- first day of the week fields -->
+                        <label for="userFirstDayOfWeekAddEdit"><b>* {{
+                            $t("usersAddEditUserModalComponent.addEditUserModalUserFirstDayOfWeekLabel")
+                                }}</b></label>
+                        <select class="form-select" name="userFirstDayOfWeekAddEdit"
+                            v-model="newEditUserFirstDayOfWeek" required>
+                            <option :value="0">{{ $t("generalItems.firstDayOfWeekOption0") }}</option>
+                            <option :value="1">{{ $t("generalItems.firstDayOfWeekOption1") }}</option>
+                            <option :value="2">{{ $t("generalItems.firstDayOfWeekOption2") }}</option>
+                            <option :value="3">{{ $t("generalItems.firstDayOfWeekOption3") }}</option>
+                            <option :value="4">{{ $t("generalItems.firstDayOfWeekOption4") }}</option>
+                            <option :value="5">{{ $t("generalItems.firstDayOfWeekOption5") }}</option>
+                            <option :value="6">{{ $t("generalItems.firstDayOfWeekOption6") }}</option>
+                        </select>
                         <!-- access type fields -->
                         <div v-if="action != 'profile'">
                             <label for="userTypeAddEdit"><b>* {{
@@ -255,6 +269,7 @@ const newEditUserCurrency = ref(serverSettingsStore.serverSettings.currency);
 const newEditUserHeightCms = ref(null);
 const newEditUserHeightFeet = ref(null);
 const newEditUserHeightInches = ref(null);
+const newEditUserFirstDayOfWeek = ref(1);
 const isFeetValid = computed(() => newEditUserHeightFeet.value >= 0 && newEditUserHeightFeet.value <= 10);
 const isInchesValid = computed(() => newEditUserHeightInches.value >= 0 && newEditUserHeightInches.value <= 11);
 const newEditUserPreferredLanguage = ref("us");
@@ -291,6 +306,7 @@ if (props.user) {
     newEditUserCurrency.value = props.user.currency;
     newEditUserHeightCms.value = props.user.height;
     newEditUserPreferredLanguage.value = props.user.preferred_language;
+    newEditUserFirstDayOfWeek.value = props.user.first_day_of_week;
     newEditUserAccessType.value = props.user.access_type;
     newEditUserIsActive.value = props.user.is_active;
     newEditUserPhotoPath.value = props.user.photo_path;
@@ -390,6 +406,7 @@ async function submitAddUserForm() {
                 height: newEditUserHeightCms.value,
                 access_type: newEditUserAccessType.value,
                 photo_path: null,
+                first_day_of_week: newEditUserFirstDayOfWeek.value,
                 is_active: newEditUserIsActive.value,
                 password: newUserPassword.value,
             };
@@ -426,6 +443,7 @@ async function submitEditUserForm() {
             currency: newEditUserCurrency.value,
             height: newEditUserHeightCms.value,
             preferred_language: newEditUserPreferredLanguage.value,
+            first_day_of_week: newEditUserFirstDayOfWeek.value,
             access_type: newEditUserAccessType.value,
             photo_path: newEditUserPhotoPath.value,
             is_active: newEditUserIsActive.value,

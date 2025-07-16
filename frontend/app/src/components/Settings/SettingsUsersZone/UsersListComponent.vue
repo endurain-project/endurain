@@ -19,7 +19,7 @@
 					class="badge bg-warning-subtle border border-warning-subtle text-warning-emphasis me-2 d-none d-sm-inline"
 					v-if="user.access_type == 2">{{ $t("usersListComponent.userListUserIsAdminBadge") }}</span>
 				<span class="badge bg-danger-subtle border border-danger-subtle text-danger-emphasis d-none d-sm-inline"
-					v-else>{{ $t("usersListComponent.userListUserIsInactiveBadge") }}</span>
+					v-if="user.is_active == 2">{{ $t("usersListComponent.userListUserIsInactiveBadge") }}</span>
 
 				<!-- button toggle user details -->
 				<a class="btn btn-link btn-lg link-body-emphasis" data-bs-toggle="collapse"

@@ -32,6 +32,7 @@
     "addEditUserModalFeetValidationLabel": "Invalid height. Please enter a valid height in feet.",
     "addEditUserModalInchesValidationLabel": "Invalid height. Please enter a valid height in inches.",
     "addEditUserModalUserPreferredLanguageLabel": "Preferred language",
+    "addEditUserModalUserFirstDayOfWeekLabel": "First day of week",
     "addEditUserModalUserTypeLabel": "Access type",
     "addEditUserModalUserTypeOption1": "Regular user",
     "addEditUserModalUserTypeOption2": "Administrator",
