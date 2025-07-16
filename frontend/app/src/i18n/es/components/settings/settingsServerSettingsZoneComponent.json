@@ -1,7 +1,10 @@
 {
+    "defaultsTitle": "Defaults",
     "unitsLabel": "Unidades por defecto",
     "unitsMetric": "Métrica",
     "unitsImperial": "Imperial",
+    "currencyLabel": "Default currency",
+    "numRecordsLabel": "Number of records per page",
     "publicShareableLinksLabel": "Enlace público para compartir",
     "publicShareableLinksEnabledLabel": "Habilitado",
     "publicShareableLinksTrue": "Verdadero",
