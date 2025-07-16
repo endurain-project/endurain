@@ -3,7 +3,6 @@ import { defineStore } from 'pinia';
 import { API_URL } from "@/utils/serviceUtils";
 // Importing the services for the login
 import { session } from '@/services/sessionService';
-import { userFirstDayOfWeekService } from '@/services/userFirstDayOfWeekService';
 
 export const useAuthStore = defineStore('auth', {
     state: () => ({
@@ -21,6 +20,7 @@ export const useAuthStore = defineStore('auth', {
             access_type: null,
             photo_path: '',
             is_active: null,
+            first_day_of_week: 0,
             is_strava_linked: null,
             is_garminconnect_linked: null,
             default_activity_visibility: 0,
@@ -36,8 +36,6 @@ export const useAuthStore = defineStore('auth', {
             hide_activity_laps: false,
             hide_activity_workout_sets_steps: false,
             hide_activity_gear: false,
-            // Add the new first_day_of_week preference
-            first_day_of_week: 0, // 0 = Sunday, 1 = Monday, 2 = Tuesday, etc.
         },
         isAuthenticated: false,
         user_websocket: null,
@@ -89,6 +87,7 @@ export const useAuthStore = defineStore('auth', {
                 access_type: null,
                 photo_path: '',
                 is_active: null,
+                first_day_of_week: 0,
                 is_strava_linked: null,
                 is_garminconnect_linked: null,
                 default_activity_visibility: 0,
@@ -104,7 +103,6 @@ export const useAuthStore = defineStore('auth', {
                 hide_activity_laps: false,
                 hide_activity_workout_sets_steps: false,
                 hide_activity_gear: false,
-                first_day_of_week: 0, // Reset to Sunday default
             };
             if (this.user_websocket && this.user_websocket.readyState === WebSocket.OPEN) {
                 this.user_websocket.close();
@@ -120,10 +118,6 @@ export const useAuthStore = defineStore('auth', {
             const storedUser = localStorage.getItem('user');
             if (storedUser) {
                 this.user = JSON.parse(storedUser);
-                // Ensure first_day_of_week exists for backward compatibility
-                if (this.user.first_day_of_week === undefined) {
-                    this.user.first_day_of_week = 0; // Default to Sunday
-                }
                 this.isAuthenticated = true;
                 this.setLocale(this.user.preferred_language, locale);
                 this.setUserWebsocket();
@@ -135,21 +129,6 @@ export const useAuthStore = defineStore('auth', {
             localStorage.setItem('user', JSON.stringify(this.user));
 
             this.setLocale(language, locale);
-        },
-        async setFirstDayOfWeek(dayOfWeek) {
-            try {
-              
-                await userFirstDayOfWeekService.updateUserFirstDayOfWeek(dayOfWeek);
-                
-                
-                this.user.first_day_of_week = dayOfWeek;
-                localStorage.setItem('user', JSON.stringify(this.user));
-                
-                console.log('First day of week updated successfully');
-            } catch (error) {
-                console.error('Failed to update first day of week:', error);
-                throw error;
-            }
         },
         setLocale(language, locale) {
             if (locale) {
