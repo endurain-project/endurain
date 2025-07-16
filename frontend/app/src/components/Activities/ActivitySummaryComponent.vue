@@ -135,10 +135,12 @@
         <p v-if="activity.description">{{ activity.description }}</p>
 
         <div v-if="activity.private_notes">
+            <hr>
             <h6 class="text-body-secondary">
                 {{ $t("activitySummaryComponent.privateNotes") }}
             </h6>
             <p>{{ activity.private_notes }}</p>
+            <hr>
         </div>
 
         <!-- Activity summary -->
@@ -373,6 +375,7 @@ const submitUploadMediaForm = async (file) => {
         try {
             // Upload the file
             const newActivityMedia = await activityMedia.uploadActivityMediaFile(props.activity.id, file);
+            console.log("New activity media uploaded:", newActivityMedia);
             
             emit("activityNewActivityMedia", newActivityMedia);
 

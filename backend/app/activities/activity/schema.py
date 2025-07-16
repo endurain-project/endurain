@@ -71,6 +71,7 @@ class ActivityDistances(BaseModel):
 class ActivityEdit(BaseModel):
     id: int
     description: str | None = None
+    private_notes: str | None = None
     name: str
     activity_type: int
     visibility: int | None = None

@@ -23,6 +23,12 @@
                         <input class="form-control" type="text" name="activityDescriptionEdit"
                             :placeholder='$t("editActivityModalComponent.modalEditActivityDescriptionPlaceholder")'
                             maxlength="2500" v-model="editActivityDescription">
+                        <!-- private_notes fields -->
+                        <label for="activityPrivateNotesEdit"><b>{{
+                            $t("editActivityModalComponent.modalEditActivityPrivateNotesLabel") }}</b></label>
+                        <input class="form-control" type="text" name="activityPrivateNotesEdit"
+                            :placeholder='$t("editActivityModalComponent.modalEditActivityPrivateNotesPlaceholder")'
+                            maxlength="2500" v-model="editActivityPrivateNotes">
                         <!-- type fields -->
                         <label for="activityTypeEdit"><b>* {{
                             $t("editActivityModalComponent.modalEditActivityTypeLabel") }}</b></label>
@@ -257,6 +263,7 @@ const emit = defineEmits(["activityEditedFields"]);
 // Setup
 const { t } = useI18n();
 const editActivityDescription = ref(props.activity.description);
+const editActivityPrivateNotes = ref(props.activity.private_notes);
 const editActivityName = ref(props.activity.name);
 const editActivityType = ref(props.activity.activity_type);
 const editActivityVisibility = ref(props.activity.visibility);
@@ -280,6 +287,7 @@ async function submitEditActivityForm() {
         const data = {
             id: props.activity.id,
             description: editActivityDescription.value,
+            private_notes: editActivityPrivateNotes.value,
             name: editActivityName.value,
             activity_type: editActivityType.value,
             visibility: editActivityVisibility.value,

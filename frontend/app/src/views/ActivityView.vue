@@ -5,7 +5,7 @@
 
 		<div v-else>
 			<ActivitySummaryComponent v-if="activity" :activity="activity" :source="'activity'"
-				@activityEditedFields="updateActivityFieldsOnEdit" :units="units" />
+				@activityEditedFields="updateActivityFieldsOnEdit" @activityNewActivityMedia="addMediaToActivity" :units="units" />
 			<AlertComponent v-if="activity && activity.user_id === authStore.user.id && activity.is_hidden"
 				:message="isHiddenMessage" :dismissible="true" :type="'warning'" class="mt-2" />
 			<AlertComponent
@@ -204,6 +204,7 @@ function updateActivityFieldsOnEdit(data) {
 	// Update the activity fields
 	activity.value.name = data.name;
 	activity.value.description = data.description;
+	activity.value.private_notes = data.private_notes;
 	activity.value.activity_type = data.activity_type;
 	activity.value.visibility = data.visibility;
 	activity.value.hide_start_time = data.hide_start_time;
@@ -218,6 +219,14 @@ function updateActivityFieldsOnEdit(data) {
 	activity.value.hide_laps = data.hide_laps;
 	activity.value.hide_workout_sets_steps = data.hide_workout_sets_steps;
 	activity.value.hide_gear = data.hide_gear;
+}
+
+function addMediaToActivity(media) {
+	// Add the media to the activity
+	if (!Array.isArray(activityActivityMedia.value)) {
+		activityActivityMedia.value = [];
+	}
+	activityActivityMedia.value.unshift(media);
 }
 
 onMounted(async () => {

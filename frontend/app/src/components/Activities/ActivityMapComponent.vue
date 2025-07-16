@@ -5,7 +5,7 @@
     </div>
     <div v-else>
         <div v-if="hasGalleryItems">
-            <div id="activityGallery" class="carousel slide" data-bs-ride="carousel">
+            <div id="activityGallery" class="carousel slide">
                 <div class="carousel-inner">
                     <!-- Map as first item -->
                     <div v-if="activityStreamLatLng" class="carousel-item active">
@@ -40,10 +40,6 @@
             <div ref="activityMap" class="map rounded w-100" style="height: 500px;" v-if="source === 'activity'"></div>
         </div>
     </div>
-    <!--<div v-else-if="activityStreamLatLng">
-        <div ref="activityMap" class="map rounded" style="height: 300px;" v-if="source === 'home'"></div>
-        <div ref="activityMap" class="map rounded" style="height: 500px;" v-if="source === 'activity'"></div>
-    </div>-->
 </template>
 
 <script setup>
@@ -79,7 +75,6 @@ const hasGalleryItems = computed(() => {
     }
     return !!activityStreamLatLng.value || (Array.isArray(props.activityActivityMedia) && props.activityActivityMedia.length > 0);
 });
-console.log(hasGalleryItems.value)
 const endurainHost = `${window.env.ENDURAIN_HOST}/`;
 
 onMounted(async () => {
