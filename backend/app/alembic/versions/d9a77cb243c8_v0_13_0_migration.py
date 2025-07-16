@@ -299,7 +299,7 @@ def upgrade() -> None:
             "activity_id",
             sa.Integer(),
             nullable=False,
-            comment="Activity ID that the activity lap belongs",
+            comment="Activity ID that the activity media belongs",
         ),
         sa.Column(
             "media_path", sa.String(length=250), nullable=True, comment="Media path"
