@@ -67,7 +67,7 @@ class User(Base):
     first_day_of_week = Column(
         Integer,
         nullable=False,
-        default=0,
+        default=1,
         comment="User first day of week (0 - Sunday, 1 - Monday, etc.)",
     )
     currency = Column(
