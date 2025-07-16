@@ -1,9 +1,10 @@
 {
     "title": "Endurain",
     "buttonAddActivity": "Aktivität hinzufügen",
-    "fieldLabelUploadGPXFile": ".gpx oder .fit Datei hochladen",
+    "fieldLabelUploadFileType": ".gpx oder .fit Datei hochladen",
     "radioUserActivities": "Meine Aktivitäten",
     "radioFollowerActivities": "Follower Aktivitäten",
+    "pillIsHidden": "Hidden",
     "successActivityAdded": "Aktivität erfolgreich hinzugefügt",
     "errorActivityAdded": "Fehler beim Hinzufügen der Aktivität",
     "refreshingActivities": "Aktivitäten von verlinkten Services aktualisieren",
@@ -12,5 +13,6 @@
     "processingActivity": "Verarbeite Aktivität",
     "successActivityDeleted": "Die Aktivität wurde erfolgreich gelöscht",
     "errorFetchingUserStats": "Fehler beim Abrufen der Benutzerstatistiken",
-    "errorFetchingUserActivities": "Fehler beim Abrufen der Benutzeraktivitäten"
+    "errorFetchingUserActivities": "Fehler beim Abrufen der Benutzeraktivitäten",
+    "errorFetchingMedia": "Error fetching media for activity"
 }
