@@ -1,10 +1,8 @@
 {
-    "userListAccessTypeLabel": "Tipus d'accés: ",
     "userListAccessTypeOption1": "Usuari normal",
     "userListAccessTypeOption2": "Administrador",
     "userListUserIsMeBadge": "Jo",
     "userListUserIsAdminBadge": "Admin",
-    "userListUserIsActiveBadge": "Actiu",
     "userListUserIsInactiveBadge": "Inactiu",
     "userEditErrorMessage": "Error editant usuari",
     "modalDeleteUserTitle": "Esborra usuari",
