@@ -148,3 +148,8 @@ class Gear(Base):
         back_populates="snowboard_gear",
         foreign_keys="[UsersDefaultGear.snowboard_gear_id]",
     )
+    users_default_windsurf_gear = relationship(
+        "UsersDefaultGear",
+        back_populates="windsurf_gear",
+        foreign_keys="[UsersDefaultGear.windsurf_gear_id]",
+    )

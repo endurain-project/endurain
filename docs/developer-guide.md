@@ -147,7 +147,7 @@ The API is reachable under `/api/v1`. Below are some example endpoints. All endp
 | ---- | --- | -------------------- |
 | **Authorize** | `/token` |  `FORM` with the fields `username` and `password`. This will be sent in clear text, use of HTTPS is highly recommended |
 | **Refresh Token** | `/refresh` | header `Authorization Bearer: <Refresh Token>`  |
-| **Activity Upload** | `/activities/create/upload` | .gpx or .fit file |
+| **Activity Upload** | `/activities/create/upload` | .gpx, .tcx, .gz or .fit file |
 | **Set Weight** | `/health/weight` | JSON {'weight': <number>, 'created_at': `yyyy-MM-dd`} |
 
 

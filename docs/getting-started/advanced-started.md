@@ -77,7 +77,7 @@ Docker image uses a non-root user, so ensure target folders are not owned by roo
 ## Bulk import and file upload
 
 To perform a bulk import:
-- Place .fit and/or .gpx files into the files/bulk_import folder. Create the folder if needed.
+- Place .fit, .tcx, .gz and/or .gpx files into the files/bulk_import folder. Create the folder if needed.
 - In the "Settings" menu select "Integrations".
 - Click "Import" next to "Bulk Import".
 
@@ -86,7 +86,7 @@ meters in distance and elevation gain. Some notes:
 
 - After the files are processed, the files are moved to the processed folder
 - GEOCODES API has a limit of 1 Request/Second on the free plan, so if you have a large number of files, it might not be possible to import all in the same action
-- The bulk import currently only imports data present in the .fit or .gpx files - no metadata or other media are imported.
+- The bulk import currently only imports data present in the .fit, .tcx or .gpx files - no metadata or other media are imported.
 
 ## Image personalization
 

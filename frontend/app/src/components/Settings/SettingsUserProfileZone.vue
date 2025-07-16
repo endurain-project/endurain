@@ -283,7 +283,7 @@
 						</form>
 					</div>
 					<div class="col-lg-4 col-md-12">
-						<h5>{{ $t('settingsUserProfileZone.subTitleSwimActivities') }}</h5>
+						<h5>{{ $t('settingsUserProfileZone.subTitleWaterActivities') }}</h5>
 						<form>
 							<!-- open water swim zone -->
 							<label class="form-label" for="settingsUserProfileOWSGearSelect">{{
@@ -295,6 +295,19 @@
 									{{ $t('settingsUserProfileZone.selectOptionNotDefined') }}
 								</option>
 								<option v-for="gear in swimGear" :key="gear.id" :value="gear.id">
+									{{ gear.nickname }}
+								</option>
+							</select>
+							<!-- windsurf zone -->
+							<label class="form-label" for="settingsUserProfileWindsurfGearSelect">{{
+								$t('settingsUserProfileZone.subTitleWindsurf')
+							}}</label>
+							<select class="form-select" name="settingsUserProfileWindsurfGearSelect" v-model="defaultWindsurfGear"
+								required>
+								<option :value="null">
+									{{ $t('settingsUserProfileZone.selectOptionNotDefined') }}
+								</option>
+								<option v-for="gear in windsurfGear" :key="gear.id" :value="gear.id">
 									{{ gear.nickname }}
 								</option>
 							</select>
@@ -321,7 +334,7 @@
 					<div class="col-lg-4 col-md-12 mt-md-2">
 						<h5>{{ $t('settingsUserProfileZone.subTitleSnowActivities') }}</h5>
 						<form>
-							<!-- alpine sli zone -->
+							<!-- alpine ski zone -->
 							<label class="form-label" for="settingsUserProfileAlpineSkiGearSelect">{{
 								$t('settingsUserProfileZone.subTitleAlpineSki')
 							}}</label>
@@ -594,6 +607,7 @@ const runGear = ref(null)
 const bikeGear = ref(null)
 const swimGear = ref(null)
 const racquetGear = ref(null)
+const windsurfGear = ref(null)
 const skisGear = ref(null)
 const snowboardGear = ref(null)
 const defaultGear = ref(null)
@@ -611,6 +625,7 @@ const defaultTennisGear = ref(null)
 const defaultAlpineSkiGear = ref(null)
 const defaultNordicSkiGear = ref(null)
 const defaultSnowboardGear = ref(null)
+const defaultWindsurfGear = ref(null)
 const visibilityOptionsForModal = ref([
 	{ id: 0, name: t('settingsUserProfileZone.privacyOption1') },
 	{ id: 1, name: t('settingsUserProfileZone.privacyOption2') },
@@ -670,7 +685,8 @@ async function updateDefaultGear() {
 		tennis_gear_id: defaultTennisGear.value,
 		alpine_ski_gear_id: defaultAlpineSkiGear.value,
 		nordic_ski_gear_id: defaultNordicSkiGear.value,
-		snowboard_gear_id: defaultSnowboardGear.value
+		snowboard_gear_id: defaultSnowboardGear.value,
+		windsurf_gear_id: defaultWindsurfGear.value
 	}
 	try {
 		// Update the default gear in the DB
@@ -784,6 +800,7 @@ onMounted(async () => {
 		racquetGear.value = allGears.value.filter((gear) => gear.gear_type === 4)
 		skisGear.value = allGears.value.filter((gear) => gear.gear_type === 5)
 		snowboardGear.value = allGears.value.filter((gear) => gear.gear_type === 6)
+		windsurfGear.value = allGears.value.filter((gear) => gear.gear_type === 7)
 
 		try {
 			defaultGear.value = await userDefaultGear.getUserDefaultGear()
@@ -801,6 +818,7 @@ onMounted(async () => {
 			defaultAlpineSkiGear.value = defaultGear.value.alpine_ski_gear_id
 			defaultNordicSkiGear.value = defaultGear.value.nordic_ski_gear_id
 			defaultSnowboardGear.value = defaultGear.value.snowboard_gear_id
+			defaultWindsurfGear.value = defaultGear.value.windsurf_gear_id
 		} catch (error) {
 			// If there is an error, set the error message and show the error alert.
 			push.error(`${t('settingsUserProfileZone.errorUnableToGetDefaultGear')} - ${error}`)
@@ -831,7 +849,8 @@ watch(
 		defaultTennisGear,
 		defaultAlpineSkiGear,
 		defaultNordicSkiGear,
-		defaultSnowboardGear
+		defaultSnowboardGear,
+		defaultWindsurfGear
 	],
 	async () => {
 		if (!isMounted.value || isLoading.value) return
