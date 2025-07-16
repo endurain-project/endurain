@@ -7,6 +7,8 @@
                 height="55" class="rounded-circle" v-if="gear.gear_type === 2">
             <img :src="getGearRacquetComponentAvatar(gearComponent.type)" alt="Gear component racquet avatar" width="55"
                 height="55" class="rounded-circle" v-if="gear.gear_type === 4">
+            <img :src="getGearWindsurfComponentAvatar(gearComponent.type)" alt="Gear component windsurf avatar" width="55"
+                height="55" class="rounded-circle" v-if="gear.gear_type === 7">
             <div class="ms-3 flex-grow-1">
                 <div class="fw-bold">
                     <span v-if="gearComponent.brand">{{ gearComponent.brand }}</span>
@@ -15,6 +17,7 @@
                 <span v-if="gear.gear_type === 1">{{ getGearBikeComponentType(gearComponent.type, t) }}</span>
                 <span v-if="gear.gear_type === 2">{{ getGearShoesComponentType(gearComponent.type, t) }}</span>
                 <span v-if="gear.gear_type === 4">{{ getGearRacquetComponentType(gearComponent.type, t) }}</span>
+                <span v-if="gear.gear_type === 7">{{ getGearWindsurfComponentType(gearComponent.type, t) }}</span>
                 <span> @ {{ gearComponent.purchase_date }}</span>
                 <span v-if="gearComponent.purchase_value"> - {{ gearComponent.purchase_value }}€ </span>
                 <br>
@@ -83,7 +86,7 @@ import { gearsComponents } from '@/services/gearsComponentsService';
 import { push } from "notivue";
 import { formatDistanceRaw } from "@/utils/activityUtils";
 import { useAuthStore } from "@/stores/authStore";
-import { getGearBikeComponentType, getGearBikeComponentAvatar, getGearShoesComponentType, getGearShoesComponentAvatar, getGearRacquetComponentType, getGearRacquetComponentAvatar } from "@/utils/gearComponentsUtils";
+import { getGearBikeComponentType, getGearBikeComponentAvatar, getGearShoesComponentType, getGearShoesComponentAvatar, getGearRacquetComponentType, getGearRacquetComponentAvatar, getGearWindsurfComponentType, getGearWindsurfComponentAvatar } from "@/utils/gearComponentsUtils";
 import { formatSecondsToOnlyHours } from "@/utils/dateTimeUtils";
 import ModalComponent from "@/components/Modals/ModalComponent.vue";
 import GearComponentAddEditModalComponent from "@/components/Gears/GearComponentAddEditModalComponent.vue";

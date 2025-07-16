@@ -182,6 +182,60 @@ const racquetTypeAvatarMap = {
 	"strings": "/src/assets/avatar/gearComponents/strings1.png",
 };
 
+export const GEAR_WINDSURF_COMPONENT_TYPES = [
+    "sail",
+    "board",
+    "mast",
+    "boom",
+    "mast_extension",
+    "mast_base",
+    "mast_universal_joint",
+    "fin",
+    "footstraps",
+    "harness_lines",
+    "rigging_lines",
+    "footpad",
+    "impact_vest",
+    "lifeguard_vest",
+    "helmet",
+]
+
+const windsurfTypeLabelMap = {
+	"sail": t => t("gearComponentListComponent.gearComponentSail"),
+	"board": t => t("gearComponentListComponent.gearComponentBoard"),
+	"mast": t => t("gearComponentListComponent.gearComponentMast"),
+	"boom": t => t("gearComponentListComponent.gearComponentBoom"),
+	"mast_extension": t => t("gearComponentListComponent.gearComponentMastExtension"),
+	"mast_base": t => t("gearComponentListComponent.gearComponentMastBase"),
+	"mast_universal_joint": t => t("gearComponentListComponent.gearComponentMastUniversalJoint"),
+	"fin": t => t("gearComponentListComponent.gearComponentFin"),
+	"footstraps": t => t("gearComponentListComponent.gearComponentFootstraps"),
+	"harness_lines": t => t("gearComponentListComponent.gearComponentHarnessLines"),
+	"rigging_lines": t => t("gearComponentListComponent.gearComponentRiggingLines"),
+	"footpad": t => t("gearComponentListComponent.gearComponentFootpad"),
+	"impact_vest": t => t("gearComponentListComponent.gearComponentImpactVest"),
+	"impact_vest": t => t("gearComponentListComponent.gearComponentLifeguardVest"),
+	"helmet": t => t("gearComponentListComponent.gearComponentHelmet"),
+};
+
+const windsurfTypeAvatarMap = {
+	"sail": "/src/assets/avatar/gearComponents/windsurfSail1.png",
+	"board": "/src/assets/avatar/gearComponents/windsurfBoard1.png",
+	"mast": "/src/assets/avatar/gearComponents/windsurfMast1.png",
+	"boom": "/src/assets/avatar/gearComponents/windsurfBoom1.png",
+	"mast_extension": "/src/assets/avatar/gearComponents/windsurfMastExtension1.png",
+	"mast_base": "/src/assets/avatar/gearComponents/windsurfMastBase1.png",
+	"mast_universal_joint": "/src/assets/avatar/gearComponents/windsurfMastUniversalJoint1.png",
+	"fin": "/src/assets/avatar/gearComponents/fin1.png",
+	"footstraps": "/src/assets/avatar/gearComponents/footstrap1.png",
+	"harness_lines": "/src/assets/avatar/gearComponents/harnessLines1.png",
+	"rigging_lines": "/src/assets/avatar/gearComponents/riggingLines1.png",
+	"footpad": "/src/assets/avatar/gearComponents/footpad1.png",
+	"impact_vest": "/src/assets/avatar/gearComponents/impactVest1.png",
+	"impact_vest": "/src/assets/avatar/gearComponents/lifeguardVest1.png",
+	"helmet": "/src/assets/avatar/gearComponents/helmet1.png",
+};
+
 export function getGearBikeComponentType(type, t) {
 	if (GEAR_BIKE_COMPONENT_TYPES.includes(type)) {
 		return bikeTypeLabelMap[type] ? bikeTypeLabelMap[type](t) : type;
@@ -220,6 +274,20 @@ export function getGearRacquetComponentType(type, t) {
 export function getGearRacquetComponentAvatar(type) {
 	if (GEAR_RACQUET_COMPONENT_TYPES.includes(type)) {
 		return racquetTypeAvatarMap[type] || "";
+	}
+	return "";
+}
+
+export function getGearWindsurfComponentType(type, t) {
+	if (GEAR_WINDSURF_COMPONENT_TYPES.includes(type)) {
+		return windsurfTypeLabelMap[type] ? windsurfTypeLabelMap[type](t) : type;
+	}
+	return type;
+}
+
+export function getGearWindsurfComponentAvatar(type) {
+	if (GEAR_WINDSURF_COMPONENT_TYPES.includes(type)) {
+		return windsurfTypeAvatarMap[type] || "";
 	}
 	return "";
 }

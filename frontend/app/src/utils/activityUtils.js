@@ -272,7 +272,7 @@ export function activityTypeIsRunning(activity) {
  * @returns {boolean} Returns true if the activity is not running-related (types 1,2, or 3), otherwise false.
  */
 export function activityTypeNotRunning(activity) {
-	return activity.activity_type !== 1 && activity.activity_type !== 2 && activity.activity_type === 3;
+	return activity.activity_type !== 1 && activity.activity_type !== 2 && activity.activity_type !== 3;
 }
 
 /**
@@ -332,6 +332,50 @@ export function activityTypeNotRacquet(activity) {
 }
 
 /**
+ * Checks if the given activity is of type Windsurf.
+ *
+ * @param {Object} activity - The activity object to check.
+ * @param {number} activity.activity_type - The type identifier of the activity.
+ * @returns {boolean} Returns true if the activity type is Windsurf (30), otherwise false.
+ */
+export function activityTypeIsWindsurf(activity) {
+	return activity.activity_type === 30;
+}
+
+/**
+ * Checks if the activity type is not windsurf (activity_type !== 30).
+ *
+ * @param {Object} activity - The activity object to check.
+ * @param {number} activity.activity_type - The type of the activity.
+ * @returns {boolean} Returns true if the activity type is not windsurf, false otherwise.
+ */
+export function activityTypeNotWindsurf(activity) {
+	return activity.activity_type !== 30;
+}
+
+/**
+ * Checks if the given activity is of type Rowing.
+ *
+ * @param {Object} activity - The activity object to check.
+ * @param {number} activity.activity_type - The type identifier of the activity.
+ * @returns {boolean} Returns true if the activity type is rowing (13), otherwise false.
+ */
+export function activityTypeIsRowing(activity) {
+	return activity.activity_type === 13;
+}
+
+/**
+ * Checks if the activity type is not rowing (activity_type !== 13).
+ *
+ * @param {Object} activity - The activity object to check.
+ * @param {number} activity.activity_type - The type of the activity.
+ * @returns {boolean} Returns true if the activity type is not rowing, false otherwise.
+ */
+export function activityTypeNotRowing(activity) {
+	return activity.activity_type !== 13;
+}
+
+/**
  * Formats the pace of an activity based on its type and the specified unit system.
  *
  * @param {Object} activity - The activity object containing pace and activity_type.
@@ -351,7 +395,8 @@ export function formatPace(activity, unitSystem, lap = null, units = true, isRes
 	}
 	if (
 		activityTypeIsSwimming(activity) ||
-		activity.activity_type === 13
+		activityTypeIsRowing(activity) ||
+		activityTypeIsWindsurf(activity)
 	) {
 		if (Number(unitSystem) === 1) {
 			return formatPaceSwimMetric(pace, units);

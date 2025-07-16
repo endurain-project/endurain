@@ -33,6 +33,10 @@
                                 v-if="gear.gear_type === 4">
                                 {{ getGearRacquetComponentType(type, t) }}
                             </option>
+                            <option v-for="type in GEAR_WINDSURF_COMPONENT_TYPES" :key="type" :value="type"
+                                v-if="gear.gear_type === 7">
+                                {{ getGearWindsurfComponentType(type, t) }}
+                            </option>
                         </select>
                         <!-- brand fields -->
                         <label for="gearComponentBrandAddEdit"><b>* {{
@@ -143,7 +147,7 @@ import { ref, onMounted, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { push } from "notivue";
 import { useAuthStore } from "@/stores/authStore";
-import { GEAR_BIKE_COMPONENT_TYPES, getGearBikeComponentType, GEAR_SHOES_COMPONENT_TYPES, getGearShoesComponentType, GEAR_RACQUET_COMPONENT_TYPES, getGearRacquetComponentType } from "@/utils/gearComponentsUtils";
+import { GEAR_BIKE_COMPONENT_TYPES, getGearBikeComponentType, GEAR_SHOES_COMPONENT_TYPES, getGearShoesComponentType, GEAR_RACQUET_COMPONENT_TYPES, getGearRacquetComponentType, GEAR_WINDSURF_COMPONENT_TYPES, getGearWindsurfComponentType } from "@/utils/gearComponentsUtils";
 import { kmToMiles, milesToKm } from "@/utils/unitsUtils";
 import { gearsComponents } from "@/services/gearsComponentsService";
 
@@ -208,6 +212,8 @@ onMounted(() => {
             newEditGearComponentType.value = "cleats";
         } else if (props.gear.gear_type === 4) {
             newEditGearComponentType.value = "basegrip";
+        } else if (props.gear.gear_type === 7) {
+            newEditGearComponentType.value = "sail";
         }
     }
 });
@@ -249,6 +255,8 @@ async function submitAddGearComponentForm() {
             newEditGearComponentType.value = "cleats";
         } else if (props.gear.gear_type === 4) {
             newEditGearComponentType.value = "basegrip";
+        } else if (props.gear.gear_type === 7) {
+            newEditGearComponentType.value = "sail";
         }
         newEditGearComponentBrand.value = null;
         newEditGearComponentModel.value = null;

@@ -31,7 +31,7 @@ class Gear(Base):
     gear_type = Column(
         Integer,
         nullable=False,
-        comment="Gear type (1 - bike, 2 - shoes, 3 - wetsuit, 4 - racquet, 5 - skis, 6 - snowboard)",
+        comment="Gear type (1 - bike, 2 - shoes, 3 - wetsuit, 4 - racquet, 5 - skis, 6 - snowboard, 7 - windsurf)",
     )
     user_id = Column(
         Integer,

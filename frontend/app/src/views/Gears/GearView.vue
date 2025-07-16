@@ -25,6 +25,8 @@
                         <img src="/src/assets/avatar/skis1.png" alt="Ski avatar" width="180" height="180"
                             class="rounded-circle" v-else-if="gear?.gear_type == 5">
                         <img src="/src/assets/avatar/snowboard1.png" alt="Snowboard avatar" width="180" height="180"
+                            class="rounded-circle" v-else-if="gear?.gear_type == 6">
+                        <img src="/src/assets/avatar/windsurf1.png" alt="Windsurf avatar" width="180" height="180"
                             class="rounded-circle" v-else>
                     </div>
                     <br>
@@ -43,8 +45,8 @@
                             </span>
                             <span
                                 class="ms-2 badge bg-primary-subtle border border-primary-subtle text-primary-emphasis align-middle">
-                                {{ $t(`gearView.gearTypeOption${gear?.gear_type >= 1 && gear?.gear_type <= 6 ?
-                                    gear?.gear_type : 6}`) }} </span>
+                                {{ $t(`gearView.gearTypeOption${gear?.gear_type >= 1 && gear?.gear_type <= 7 ?
+                                    gear?.gear_type : 7}`) }} </span>
                                     <span
                                         class="ms-2 badge bg-primary-subtle border border-primary-subtle text-primary-emphasis align-middle"
                                         v-if="gear?.strava_gear_id">
@@ -59,7 +61,7 @@
                     </div>
                     <!-- add component zone -->
                     <button type="button" class="mt-2 w-100 btn btn-primary" data-bs-toggle="modal"
-                        data-bs-target="#addGearComponentModal" :disabled="![1, 2, 4].includes(gear?.gear_type)">
+                        data-bs-target="#addGearComponentModal" :disabled="![1, 2, 4, 7].includes(gear?.gear_type)">
                         {{ $t("gearView.buttonAddComponent") }}{{ $t("generalItems.betaTag") }}
                     </button>
 

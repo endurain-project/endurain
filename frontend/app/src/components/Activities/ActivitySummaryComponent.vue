@@ -265,7 +265,6 @@ import {
     formatLocation,
     formatAverageSpeed,
     formatPower,
-    activityTypeNotSwimming,
     activityTypeIsCycling,
     activityTypeNotCycling,
     activityTypeIsRunning,

@@ -61,6 +61,24 @@ RACQUET_COMPONENT_TYPES = [
     "strings",
 ]
 
+WINDSURF_COMPONENT_TYPES = [
+    "sail",
+    "board",
+    "mast",
+    "boom",
+    "mast_extension",
+    "mast_base",
+    "mast_universal_joint",
+    "fin",
+    "footstraps",
+    "harness_lines",
+    "rigging_lines",
+    "footpad",
+    "impact_vest",
+    "lifeguard_vest",
+    "helmet",
+]
+
 
 class GearComponents(BaseModel):
     """

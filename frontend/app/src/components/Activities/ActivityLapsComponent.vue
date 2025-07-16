@@ -62,7 +62,7 @@
                             <div class="progress-bar" :style="{ width: lap.normalizedScore + '%' }"></div>
                         </div>
                     </td>
-                    <td v-if="!activityTypeIsSwimming(activity) && activity.activity_type !== 13">{{ lap.formattedElevation }}</td>
+                    <td v-if="!activityTypeIsSwimming(activity) && activityTypeNotRowing(activity)">{{ lap.formattedElevation }}</td>
                     <td v-if="activityTypeIsSwimming(activity)">{{ lap.avg_cadence }}</td>
 					<td>
 						<span v-if="lap.avg_heart_rate">
@@ -90,6 +90,7 @@ import {
     formatAverageSpeed,
     activityTypeIsCycling,
     activityTypeIsSwimming,
+    activityTypeNotRowing,
 } from "@/utils/activityUtils";
 
 // Define props

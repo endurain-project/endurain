@@ -38,6 +38,17 @@ def validate_gear_component_type(
         Depends(core_database.get_db),
     ],
 ):
+    """
+    Validates that the gear component type is appropriate for the specified gear.
+
+    Args:
+        gear_component (gears_components_schema.GearComponents): The gear component to validate, containing user_id, gear_id, and type.
+        db (Session): Database session dependency.
+
+    Raises:
+        HTTPException: If the gear is not found for the user and gear_id.
+        HTTPException: If the gear component type is not valid for the gear's type.
+    """
     gear = gears_crud.get_gear_user_by_id(
         gear_component.user_id, gear_component.gear_id, db
     )
@@ -52,6 +63,7 @@ def validate_gear_component_type(
         1: gears_components_schema.BIKE_COMPONENT_TYPES,
         2: gears_components_schema.SHOES_COMPONENT_TYPES,
         4: gears_components_schema.RACQUET_COMPONENT_TYPES,
+        7: gears_components_schema.WINDSURF_COMPONENT_TYPES,
     }
 
     if gear.gear_type in gear_type_to_component_types:
@@ -61,6 +73,7 @@ def validate_gear_component_type(
                 1: "bike",
                 2: "shoes",
                 4: "racquet",
+                7: "windsurf",
             }
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,

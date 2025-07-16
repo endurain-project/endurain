@@ -21,10 +21,10 @@ def validate_gear_type(gear_type: int):
         gear_type (int): The type of gear to validate.
 
     Raises:
-        ValueError: If gear_type is not between 1 and 6 (inclusive).
+        ValueError: If gear_type is not between 1 and 7 (inclusive).
 
     Returns:
         None
     """
-    # Check if gear type is within 1 and 6
-    core_dependencies.validate_type(type=gear_type, min=1, max=6, message="Invalid gear type")
+    # Check if gear type is within 1 and 7
+    core_dependencies.validate_type(type=gear_type, min=1, max=7, message="Invalid gear type")

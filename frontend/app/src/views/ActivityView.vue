@@ -48,6 +48,10 @@
 					v-else-if="activity.activity_type === 21 || activity.activity_type === 22 || activity.activity_type === 23 || activity.activity_type === 24 || activity.activity_type === 25 || activity.activity_type === 26">
 					<font-awesome-icon :icon="['fas', 'fa-table-tennis-paddle-ball']" />
 				</span>
+				<span
+					v-else-if="activityTypeIsWindsurf(activity)">
+					<font-awesome-icon :icon="['fas', 'wind']" />
+				</span>
 				<span class="ms-2" v-if="activity.gear_id && gear">{{ gear.nickname }}</span>
 				<span class="ms-2" v-else>{{ $t("activityView.labelGearNotSet") }}</span>
 			</p>
@@ -148,7 +152,7 @@ import { activityWorkoutSteps } from "@/services/activityWorkoutStepsService";
 import { activityExerciseTitles } from "@/services/activityExerciseTitlesService";
 import { activitySets } from "@/services/activitySetsService";
 // Importing the utils
-import { activityTypeIsCycling, activityTypeIsRunning, activityTypeIsWalking, activityTypeIsSwimming, activityTypeIsRacquet } from "@/utils/activityUtils";
+import { activityTypeIsCycling, activityTypeIsRunning, activityTypeIsWalking, activityTypeIsSwimming, activityTypeIsRacquet, activityTypeIsWindsurf } from "@/utils/activityUtils";
 
 const { t } = useI18n();
 const authStore = useAuthStore();
@@ -332,8 +336,14 @@ onMounted(async () => {
 							activityTypeIsRacquet(activity.value)
 						) {
 							gearsByType.value = await gears.getGearFromType(4);
-						}
-					}
+						} else {
+							if (
+								activityTypeIsWindsurf(activity.value)
+							) {
+								gearsByType.value = await gears.getGearFromType(7);
+							}
+						} 
+					} 
 				}
 			}
 		}
