@@ -1,5 +1,9 @@
+import gzip
 import os
 import shutil
+from pathlib import Path
+from tempfile import NamedTemporaryFile
+
 import requests
 import statistics
 import time
@@ -266,6 +270,31 @@ def serialize_activity(activity: activities_schema.Activity):
 
     return activity
 
+def handle_gzipped_file(
+    file_path: str,
+) -> tuple[str, str]:
+    """Handle gzipped files by extracting the inner file and returning its path and extension.
+    The gzipped file is moved to the processed directory after extraction.
+    Args:
+        file_path: the path to the gzipped file, e.g. "files/activity_1234567890.fit.gz"
+    Returns: A tuple containing the path to the temporary file and the inner file extension.
+    """
+    path = Path(file_path)
+
+    inner_filename = path.stem # eg "activity_1234567890.fit"
+    inner_file_extension = Path(inner_filename).suffix # eg ".gz"
+
+    with gzip.open(path) as gzipped_file:
+        with NamedTemporaryFile(suffix=inner_filename, delete=False) as temp_file:
+            temp_file.write(gzipped_file.read())
+            temp_file.flush()
+            core_logger.print_to_log_and_console(f"Decompressed {path} with inner type {inner_file_extension} to {temp_file.name}")
+
+            move_file(core_config.FILES_PROCESSED_DIR, path.name, str(path))
+
+            return temp_file.name, inner_file_extension
+
+
 
 async def parse_and_store_activity_from_file(
     token_user_id: int,
@@ -282,6 +311,9 @@ async def parse_and_store_activity_from_file(
 
         if from_garmin:
             garmin_connect_activity_id = os.path.basename(file_path).split("_")[0]
+
+        if file_extension.lower() == ".gz":
+            file_path, file_extension = handle_gzipped_file(file_path)
 
         # Open the file and process it
         with open(file_path, "rb"):
@@ -406,6 +438,9 @@ async def parse_and_store_activity_from_uploaded_file(
         # Save the uploaded file in the 'files' directory
         with open(file_path, "wb") as save_file:
             save_file.write(file.file.read())
+
+        if file_extension.lower() == ".gz":
+            file_path, file_extension = handle_gzipped_file(file_path)
 
         user = users_crud.get_user_by_id(token_user_id, db)
         if user is None:
