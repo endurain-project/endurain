@@ -17,6 +17,7 @@
     "currencyLabel": "Currency",
     "heightLabel": "Height",
     "preferredLanguageLabel": "Preferred language",
+    "firstDayOfWeekLabel": "First day of week",
     "accessTypeLabel": "Access type",
     "accessTypeOption1": "Regular user",
     "accessTypeOption2": "Administrator",

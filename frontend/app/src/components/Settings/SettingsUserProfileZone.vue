@@ -7,7 +7,7 @@
 					<div class="flex justify-center items-center">
 						<div class="justify-content-center align-items-center d-flex">
 							<div class="text-center">
-								<UserAvatarComponent :user="authStore.user" :width="220" :height="220" />
+								<UserAvatarComponent :user="authStore.user" :width="260" :height="260" />
 								<h2>{{ authStore.user.name }}</h2>
 								<span>@{{ authStore.user.username }}</span>
 							</div>
@@ -137,6 +137,32 @@
 						}}</span>
 						<span v-if="authStore.user.preferred_language == 'us'">{{
 							$t('generalItems.languageOption1')
+						}}</span>
+					</p>
+					<!-- user first day of the week -->
+					<p>
+						<font-awesome-icon :icon="['fas', 'calendar-days']" class="me-2" />
+						<b>{{ $t('settingsUserProfileZone.firstDayOfWeekLabel') }}: </b>
+						<span v-if="authStore.user.first_day_of_week == 0">{{
+							$t('generalItems.firstDayOfWeekOption0')
+						}}</span>
+						<span v-if="authStore.user.first_day_of_week == 1">{{
+							$t('generalItems.firstDayOfWeekOption1')
+						}}</span>
+						<span v-if="authStore.user.first_day_of_week == 2">{{
+							$t('generalItems.firstDayOfWeekOption2')
+						}}</span>
+						<span v-if="authStore.user.first_day_of_week == 3">{{
+							$t('generalItems.firstDayOfWeekOption3')
+						}}</span>
+						<span v-if="authStore.user.first_day_of_week == 4">{{
+							$t('generalItems.firstDayOfWeekOption4')
+						}}</span>
+						<span v-if="authStore.user.first_day_of_week == 5">{{
+							$t('generalItems.firstDayOfWeekOption5')
+						}}</span>
+						<span v-if="authStore.user.first_day_of_week == 6">{{
+							$t('generalItems.firstDayOfWeekOption6')
 						}}</span>
 					</p>
 					<!-- user type -->
