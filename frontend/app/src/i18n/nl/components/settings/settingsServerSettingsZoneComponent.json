@@ -1,7 +1,10 @@
 {
+    "defaultsTitle": "Defaults",
     "unitsLabel": "Standaardeenheid",
     "unitsMetric": "Metrisch",
     "unitsImperial": "Imperiaal",
+    "currencyLabel": "Default currency",
+    "numRecordsLabel": "Number of records per page",
     "publicShareableLinksLabel": "Openbare link",
     "publicShareableLinksEnabledLabel": "Ingeschakeld",
     "publicShareableLinksTrue": "Waar",
