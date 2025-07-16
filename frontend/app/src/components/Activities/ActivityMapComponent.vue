@@ -62,7 +62,7 @@
                 </button>
             </div>
         </div>
-        <div v-else-if="activityStreamLatLng">
+        <div v-else-if="activityStreamLatLng && !hasGalleryItems">
             <div ref="activityMap" class="map rounded w-100" style="height: 300px;" v-if="source === 'home'"></div>
             <div ref="activityMap" class="map rounded w-100" style="height: 500px;" v-if="source === 'activity'"></div>
         </div>
@@ -70,7 +70,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watchEffect, nextTick } from 'vue';
+import { ref, computed, onMounted, nextTick, watch } from 'vue';
 import { useI18n } from "vue-i18n";
 import { activityStreams } from '@/services/activityStreams';
 import LoadingComponent from '@/components/GeneralComponents/LoadingComponent.vue';
@@ -79,9 +79,10 @@ import L from 'leaflet';
 import { useAuthStore } from "@/stores/authStore";
 // Import Notivue push
 import { push } from "notivue";
+import { activityMedia } from '@/services/activityMediaService';
 
 // Emit definition
-const emit = defineEmits(['delete-media']);
+const emit = defineEmits(['activityMediaDeleted']);
 
 // Props declaration
 const props = defineProps({
@@ -105,10 +106,7 @@ const isLoading = ref(true);
 const activityStreamLatLng = ref(null);
 const activityMap = ref(null);
 const hasGalleryItems = computed(() => {
-    if (!props.activityActivityMedia || !Array.isArray(props.activityActivityMedia) || props.activityActivityMedia.length === 0) {
-        return false;
-    }
-    return !!activityStreamLatLng.value || (Array.isArray(props.activityActivityMedia) && props.activityActivityMedia.length > 0);
+    return Array.isArray(props.activityActivityMedia) && props.activityActivityMedia.length > 0;
 });
 const endurainHost = `${window.env.ENDURAIN_HOST}/`;
 
@@ -135,12 +133,18 @@ onMounted(async () => {
     }
 });
 
-watchEffect(() => {
-    // Empty watchEffect, kept for potential future use
-});
+const submitDeleteMediaFromActivity = async (mediaId) => {
+    try {
+        await activityMedia.deleteActivityMedia(mediaId)
 
-const submitDeleteMediaFromActivity = (mediaId) => {
-    console.log("Media ID to delete:", mediaId);
+        emit('activityMediaDeleted', mediaId);
+
+        push.success(t("activityMapComponent.mediaDeletedSuccessfully"));
+    } catch (error) {
+        push.error(
+            `${t("activityMapComponent.errorDeletingMedia")} - ${error}`,
+        );
+    }
 };
 
 const initMap = () => {
@@ -179,4 +183,11 @@ const initMap = () => {
         }).addTo(map);
     }
 };
+
+watch(() => props.activityActivityMedia, async (newVal, oldVal) => {
+    await nextTick(); // wait for DOM to update with the new v-if block
+    if (activityStreamLatLng.value) {
+        initMap();
+    }
+}, { deep: true });
 </script>

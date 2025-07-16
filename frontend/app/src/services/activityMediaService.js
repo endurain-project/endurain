@@ -18,4 +18,7 @@ export const activityMedia = {
 
 		return fetchPostFileRequest(`activities_media/upload/activity_id/${activity_id}`, formData);
 	},
+	deleteActivityMedia(media_id) {
+		return fetchDeleteRequest(`activities_media/${media_id}`);
+	},
 }

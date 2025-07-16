@@ -1,3 +1,5 @@
+import os
+
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
@@ -93,6 +95,60 @@ def create_activity_media(activity_id: int, media_path: str, db: Session):
             f"Error in create_activity_media: {err}", "error", exc=err
         )
 
+        # Raise an HTTPException with a 500 Internal Server Error status code
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal Server Error",
+        ) from err
+
+
+def delete_activity_media(activity_media_id: int, token_user_id: int, db: Session):
+    try:
+        # Get the activity media from the database
+        activity_media = (
+            db.query(activity_media_models.ActivityMedia)
+            .filter(activity_media_models.ActivityMedia.id == activity_media_id)
+            .first()
+        )
+
+        if not activity_media:
+            # If the activity media does not exist, raise a 404 Not Found error
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Activity media not found",
+            )
+
+        activity = activity_crud.get_activity_by_id_from_user_id(
+            activity_media.activity_id, token_user_id, db
+        )
+
+        if not activity:
+            # If the activity does not exist, raise a 404 Not Found error
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Activity not found",
+            )
+
+        # Check if the user is the owner of the activity
+        if activity.user_id != token_user_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You do not have permission to delete this media",
+            )
+
+        # Delete the activity media from the database
+        db.delete(activity_media)
+        db.commit()
+
+        # Remove the media file from the filesystem
+        if os.path.exists(activity_media.media_path):
+            os.remove(activity_media.media_path)
+
+    except Exception as err:
+        # Log the exception
+        core_logger.print_to_log(
+            f"Error in delete_activity_media: {err}", "error", exc=err
+        )
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

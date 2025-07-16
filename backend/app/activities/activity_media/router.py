@@ -5,6 +5,8 @@ from typing import Annotated, Callable
 from fastapi import APIRouter, Depends, Security, UploadFile
 from sqlalchemy.orm import Session
 
+import activities.activity.dependencies as activities_dependencies
+
 import activities.activity_media.dependencies as activities_media_dependencies
 import activities.activity_media.crud as activity_media_crud
 import activities.activity_media.schema as activity_media_schema
@@ -89,7 +91,7 @@ async def upload_media(
     
 
 @router.delete(
-    "/activity_media/{media_id}",
+    "/{media_id}",
 )
 async def delete_activity_media(
     media_id: int,

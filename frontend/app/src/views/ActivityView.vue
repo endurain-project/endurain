@@ -19,7 +19,7 @@
 		</div>
 		<div class="mt-3 mb-3"
 			v-else-if="activity && ((authStore.isAuthenticated && authStore.user.id === activity.user_id) || (authStore.isAuthenticated && authStore.user.id !== activity.user_id && activity.hide_map === false) || (!authStore.isAuthenticated && activity.hide_map === false))">
-			<ActivityMapComponent :activity="activity" :activityActivityMedia="activityActivityMedia" :source="'activity'" />
+			<ActivityMapComponent :activity="activity" :activityActivityMedia="activityActivityMedia" :source="'activity'" @activityMediaDeleted="removeMediaFromActivity" />
 		</div>
 
 		<!-- gear zone -->
@@ -227,6 +227,13 @@ function addMediaToActivity(media) {
 		activityActivityMedia.value = [];
 	}
 	activityActivityMedia.value.unshift(media);
+}
+
+function removeMediaFromActivity(mediaId) {
+	// Remove the media from the activity
+	if (Array.isArray(activityActivityMedia.value)) {
+		activityActivityMedia.value = activityActivityMedia.value.filter(media => media.id !== mediaId);
+	}
 }
 
 onMounted(async () => {
