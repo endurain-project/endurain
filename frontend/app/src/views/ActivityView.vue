@@ -1,5 +1,5 @@
 <template>
-	<div class="bg-body-tertiary rounded p-3 shadow-sm">
+	<div class="bg-body-tertiary rounded p-3 shadow-sm" :class="{ 'border border-warning border-2': activity?.is_hidden }">
 		<LoadingComponent v-if="isLoading" />
 
 		<div v-else>
