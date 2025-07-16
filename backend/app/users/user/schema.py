@@ -26,6 +26,7 @@ class User(BaseModel):
     access_type: int
     photo_path: str | None = None
     is_active: int
+    first_day_of_week: int = 0
     currency: int
 
     class Config:

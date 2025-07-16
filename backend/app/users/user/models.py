@@ -64,6 +64,12 @@ class User(Base):
     is_active = Column(
         Integer, nullable=False, comment="Is user active (1 - active, 2 - not active)"
     )
+    first_day_of_week = Column(
+        Integer,
+        nullable=False,
+        default=0,
+        comment="User first day of week (0 - Sunday, 1 - Monday, etc.)",
+    )
     currency = Column(
         Integer,
         nullable=False,
