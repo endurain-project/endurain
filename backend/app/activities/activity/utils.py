@@ -175,6 +175,7 @@ ACTIVITY_NAME_TO_ID.update(
         "indoor_ride": 28,
         "mixed_surface_ride": 29,
         "windsurf": 30,
+        "windsurfing": 30,
     }
 )
 

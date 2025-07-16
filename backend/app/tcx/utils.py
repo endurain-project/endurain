@@ -75,8 +75,6 @@ def parse_tcx_file(file, user_id, user_privacy_settings, db):
             # Calculate normalised power
             lap_np = activities_utils.calculate_np(lap_power_waypoints)
 
-        print(lap.tpx_ext_stats)
-
         laps.append(
             {
                 "start_time": lap.start_time,
