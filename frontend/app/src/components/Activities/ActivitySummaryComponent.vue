@@ -90,7 +90,7 @@
                         </li>
                         <li>
                             <a class="dropdown-item" href="#" data-bs-toggle="modal"
-                                data-bs-target="#deleteActivityModal">
+                                :data-bs-target="`#deleteActivityModal${activity.id}`">
                                 {{ $t("activitySummaryComponent.buttonDeleteActivity") }}
                             </a>
                         </li>
@@ -103,7 +103,7 @@
         <EditActivityModalComponent :activity="activity" @activityEditedFields="updateActivityFieldsOnEdit" />
 
         <!-- Modal delete activity -->
-        <ModalComponent modalId="deleteActivityModal" :title="t('activitySummaryComponent.buttonDeleteActivity')"
+        <ModalComponent :modalId="`deleteActivityModal${activity.id}`" :title="t('activitySummaryComponent.buttonDeleteActivity')"
             :body="`${t('activitySummaryComponent.modalDeleteBody1')}<b>${activity.name}</b>?<br>${t('activitySummaryComponent.modalDeleteBody2')}`"
             :actionButtonType="`danger`" :actionButtonText="t('activitySummaryComponent.buttonDeleteActivity')"
             @submitAction="submitDeleteActivity" />
