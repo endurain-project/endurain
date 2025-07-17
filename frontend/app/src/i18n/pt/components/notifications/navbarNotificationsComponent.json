@@ -1,6 +1,6 @@
 {
-    "errorFetchingNotificationsPagination": "Error fetching notifications with pagination",
-    "errorFetchingNotificationsNumber": "Error fetching notifications number",
-    "errorFetchingNotificationById": "Error fetching notification by ID",
-    "errorFetchingMessageFromWebSocket": "Error fetching message from WebSocket"
+    "errorFetchingNotificationsPagination": "Erro ao obter notificações com paginação",
+    "errorFetchingNotificationsNumber": "Erro ao obter número de notificações",
+    "errorFetchingNotificationById": "Erro ao obter a notificação por ID",
+    "errorFetchingMessageFromWebSocket": "Erro ao obter mensagem do WebSocket"
 }
