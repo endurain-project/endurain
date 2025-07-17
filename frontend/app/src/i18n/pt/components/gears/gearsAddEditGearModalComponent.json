@@ -18,7 +18,7 @@
     "addEditGearModalAddIsActiveOption0": "Inativo",
     "addEditGearModalAddIsInitialKmsLabel": "Quilómetros iniciais",
     "addEditGearModalAddIsInitialMilesLabel": "Milhas iniciais",
-    "addEditGearModalAddEditPurchaseValueLabel": "Purchase value",
+    "addEditGearModalAddEditPurchaseValueLabel": "Valor de compra",
     "errorNicknameAlreadyExistsFeedback": "Alcunha já existe",
     "errorNotPossibleToGetGearByNickname": "Não foi possível obter o equipamento por alcunha para validação",
     "successGearAdded": "Equipamento adicionado com sucesso",
