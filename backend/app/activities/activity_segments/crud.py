@@ -12,12 +12,20 @@ from pydantic import BaseModel
 from sqlalchemy import and_, desc, func, or_
 from sqlalchemy.orm import Session, joinedload
 
-def get_all_segments(user_id: int, db: Session):
+def get_all_segments(user_id: int, activity_type: int|None, db: Session):
     try:
-        # Get the segments from the database
-        segments = db.query(segments_models.Segment).filter(
-            segments_models.Segment.user_id == user_id
-            ).all()
+        # Get the segments from the database, need to filter by user_id and activity_type.
+        # Activity type can be None, in which case we return all segments for the user.
+
+        if activity_type is None:
+            segments = db.query(segments_models.Segment).filter(
+                segments_models.Segment.user_id == user_id
+                ).all()
+        else:
+            segments = db.query(segments_models.Segment).filter(
+                segments_models.Segment.user_id == user_id,
+                segments_models.Segment.activity_type == activity_type
+                ).all()
 
         # Check if there are segments if not return None
         if not segments:
@@ -51,7 +59,9 @@ def get_activity_segments(
             return None
 
         # Get the segments from the database
-        segments = get_all_segments(user_id, db)
+        # TODO: Add filtering by activity_type
+        segments = get_all_segments(user_id, None, db)
+
         # Check if there are segments if not return None
         if not segments:
             return None

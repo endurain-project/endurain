@@ -1,18 +1,45 @@
 <template>
     <div v-if="mapVisible==false">
         <div>
-        Area for content if a Segment is active on the current map.<br>
-        Hide this area if we're adding a new segment.
+            <div class="card">
+                <div class="card-body">
+                    <div class="text-center" v-if="segmentsFollowed.length == 0">
+                        {{ $t("activitySegmentsComponent.activityNotFollowingDefinedSegments") }}
+                    </div>
+                    <div class="table-responsive d-none d-sm-block" ref="activitySegments" id="activitySegments" v-else>
+                        <table class="table table-borderless table-hover table-sm rounded text-center" v-if="segmentsFollowed.length > 0">
+                            <thead>
+                                <tr>
+                                    <th>{{ $t("activitySegmentsComponent.labelSegmentName") }}</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-for="segment in segmentsFollowed" :key="segment.id">
+                                    <td>
+                                        {{ segment.name }}
+                                        <div :ref="`segmentMapIcon-${segment.id}`" :id="`segmentMapIcon-${segment.id}`"></div>
+                                    </td>
+                                    <td></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
         </div>
         <div>
+            <br>
             <a class="w-100 btn btn-primary shadow-sm" role="button" @click="toggleSegmentAdd">
                 {{ $t("activitySegmentsComponent.buttonAddSegment") }}
             </a>
         </div>
     </div>
     <div>
-        <div style="cursor:crosshair" ref="mapContainer"></div>
-        <br>
+        <div>
+            <div style="cursor:crosshair" ref="mapContainer"></div>
+            <br>
+        </div>
     </div>
     <div v-if="mapVisible">
         <div>
@@ -71,22 +98,55 @@
 <script>
 import { ref, toRef, onMounted, watchEffect, nextTick, vModelCheckbox } from 'vue';
 import { activityStreams } from '@/services/activityStreams';
-import LoadingComponent from '@/components/GeneralComponents/LoadingComponent.vue';
 import { segments } from '@/services/activitySegmentsService';
 // Importing the stores
 import { useAuthStore } from "@/stores/authStore";
 import { push } from "notivue";
 import { useI18n } from "vue-i18n";
 import L from 'leaflet';
-import { polyline } from 'leaflet';
 //const { t } = useI18n();
 
 export default {
+    mounted() {
+        this.$nextTick(() => {
+                const observer = new ResizeObserver((entries, observer) => {
+                    for (let entry of entries) {
+                        if (entry.target === this.$refs.activitySegments) {
+                            // Check if the height of the div has changed
+                            this.onActivitySegmentsVisibleChange();
+                        }
+                    }
+                    // Call checkheight to ensure the height is checked after resize
+                    this.onActivitySegmentsVisibleChange();
+                });
+            setTimeout(() => {
+                observer.observe(this.$refs.activitySegments);
+            }, 1000);
+        });
+
+        // Fetch activity segments when the component is mounted
+        this.fetchActivitySegments();
+
+        // Watch for changes in segmentsFollowed and create segment icon maps
+        this.$watch('segmentsFollowed', (newValue, oldValue) => {
+            // Ensure the map is created after segmentsFollowed is populated
+            if (newValue.length > 0) {
+                this.segmentsFollowed.forEach(segment => {
+                    setTimeout(() => {
+                        // Ensure the map is rendered after the DOM is updated
+                        this.createSegmentIconMap(segment);
+                    }, 200);
+                });
+            }
+        });
+    },
     data() {
         return {
             map: null,
             mapVisible: false,
             activityStreamLatLng: null,
+            segmentsFollowed: [],
+            segmentsMaps: [],
             segmentPolylines: [],
             segmentPolylinePoints: [],
             markers: {},
@@ -100,6 +160,66 @@ export default {
         }
     },
     methods: {
+        onActivitySegmentsVisibleChange() {
+
+            for (let i = 0; i < this.segmentsMaps.length; i++) {
+                const segmentMap = this.segmentsMaps[i];
+                if (segmentMap) {
+                    segmentMap.invalidateSize();
+                }
+            }
+        },
+        async fetchActivitySegments() {
+            const authStore = useAuthStore();
+            try {
+                if (authStore.isAuthenticated) {
+                    this.segmentsFollowed = await segments.getActivitySegments(this.activity.id);
+                }
+            } catch (error) {
+                console.error("Failed to fetch activity segments:", error);
+            }
+        },
+        async createSegmentIconMap(segment) {
+
+    		const authStore = useAuthStore();
+            const activityStreamLatLng = ref(null);
+
+            if (authStore.isAuthenticated) {
+                activityStreamLatLng.value = await activityStreams.getActivitySteamByStreamTypeByActivityId(this.activity.id, 7);
+            } else {
+                activityStreamLatLng.value = await activityStreams.getPublicActivitySteamByStreamTypeByActivityId(this.activity.id, 7);
+            }
+
+            const waypoints = activityStreamLatLng.value.stream_waypoints;
+            const validWaypoints = waypoints.filter(waypoint => waypoint.lat && waypoint.lon);
+            const latlngs = validWaypoints.map(waypoint => [waypoint.lat, waypoint.lon]);
+
+            const mapCont = this.$refs[`segmentMapIcon-${segment.id}`][0];
+
+            mapCont.style.height = '200px';
+            mapCont.style.width = '100%';
+
+            const segmentIconMap = L.map(mapCont,
+            {
+                dragging: false,
+                touchZoom: false,
+                scrollWheelZoom: false,
+                zoomControl: false,
+            }).fitWorld();
+
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors'
+            }).addTo(segmentIconMap);
+
+            L.polyline(latlngs, { color: 'blue' }).addTo(segmentIconMap);
+
+            segmentIconMap.on('resize', () => {
+                // Ensure the map is properly sized after rendering
+                segmentIconMap.fitBounds(latlngs);
+            });
+
+            this.segmentsMaps.push(segmentIconMap);
+        },
         async submitSegment(){
             try {
                 const gates = [];
@@ -130,7 +250,8 @@ export default {
             delete this.markers[polyline._leaflet_id];
 
         },
-        async createMap(activity) {
+        async createAddSegmentMap(activity) {
+
     		const authStore = useAuthStore();
             const activityStreamLatLng = ref(null);
 
@@ -221,7 +342,7 @@ export default {
             if (this.mapVisible) {
                 this.$refs.mapContainer.style.height = '600px';
                 this.$refs.mapContainer.style.width = '100%';
-                await this.createMap(this.activity);
+                await this.createAddSegmentMap(this.activity);
                 this.map.invalidateSize();
             } else {
                 this.map.remove();

@@ -6,5 +6,8 @@
     "buttonCancelSegment": "Cancel",
     "buttonSubmitSegment": "Create Segment",
     "inputSegmentName": "Segment Name",
-    "errorSubmitSegment": "Error creating segment"
+    "errorSubmitSegment": "Error creating segment",
+    "activityNotFollowingDefinedSegments": "This activity does not follow any defined segments.",
+    "labelSegmentName": "Segment",
+    "labelTimings": "Timings"
 }

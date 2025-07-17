@@ -88,14 +88,26 @@ export default {
             }).addTo(map);
 
             L.polyline(latlngs, { color: 'blue' }).addTo(map);
+            // Fit map to polyline bounds
+            if (latlngs.length > 0) {
+                map.fitBounds(latlngs);
 
-            const boundpoints = [];
-            // Sequence of colors to differentiate between 
-            const segmentColors = ['teal', 'orange', 'pink', 'red', 'purple'];
-            var segmentColorIdx = 0;
+                // Add start and end markers
+                L.marker(latlngs[0], {
+                    icon: L.divIcon({ className: 'bg-success dot' })
+                }).addTo(map);
 
-            if (props.source == 'activity')
-            {
+                L.marker(latlngs[latlngs.length - 1], {
+                    icon: L.divIcon({ className: 'bg-danger dot' })
+                }).addTo(map);
+            }
+
+            if (props.source === 'activity') {
+                const boundpoints = [];
+                // Sequence of colors to differentiate between 
+                const segmentColors = ['teal', 'orange', 'pink', 'red', 'purple'];
+                var segmentColorIdx = 0;
+
                 const segmentArr = activitySegments.values
                 // Iterate through segments that have been returned for this gps trace
                 for (const segment in segmentArr) {
@@ -129,19 +141,6 @@ export default {
                 }
             }
 
-            // Fit map to polyline bounds
-            if (latlngs.length > 0) {
-                map.fitBounds(latlngs);
-
-                // Add start and end markers
-                L.marker(latlngs[0], {
-                    icon: L.divIcon({ className: 'bg-success dot' })
-                }).addTo(map);
-
-                L.marker(latlngs[latlngs.length - 1], {
-                    icon: L.divIcon({ className: 'bg-danger dot' })
-                }).addTo(map);
-            }
         };
 
         return {
