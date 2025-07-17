@@ -72,8 +72,8 @@
     "gearComponentFuselage": "Fuselagem",
     "gearComponentOf": " de ",
     "gearComponentListGearComponentIsInactiveBadge": "Inativo",
-    "gearComponentListModalDeleteGearComponentTitle": "Delete gear component",
-    "gearComponentListModalDeleteGearComponentBody": "Are you sure you want to delete gear component ",
-    "gearComponentListGearDeleteSuccessMessage": "Gear component deleted successfully",
-    "gearComponentListGearDeleteErrorMessage": "Error deleting gear component"
+    "gearComponentListModalDeleteGearComponentTitle": "Remover componente de equipamento",
+    "gearComponentListModalDeleteGearComponentBody": "Tem a certeza que deseja eliminar a componente de equipamento ",
+    "gearComponentListGearDeleteSuccessMessage": "Componente de equipamento eliminado com sucesso",
+    "gearComponentListGearDeleteErrorMessage": "Erro ao eliminar componente de equipamento"
 }
