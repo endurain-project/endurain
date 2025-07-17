@@ -4,7 +4,7 @@
     "fieldLabelUploadFileType": "Subir archivo .gpx o .fit",
     "radioUserActivities": "Mis actividades",
     "radioFollowerActivities": "Actividades de seguidores",
-    "pillIsHidden": "Hidden",
+    "pillIsHidden": "Oculto",
     "successActivityAdded": "Actividad agregada correctamente",
     "errorActivityAdded": "Error al añadir actividad",
     "refreshingActivities": "Actualizando las actividades de los servicios vinculados",
@@ -14,5 +14,5 @@
     "successActivityDeleted": "Actividad eliminada correctamente",
     "errorFetchingUserStats": "Error obteniendo las estadísticas del usuario",
     "errorFetchingUserActivities": "Error obteniendo las actividades del usuario",
-    "errorFetchingMedia": "Error fetching media for activity"
+    "errorFetchingMedia": "Error obteniendo medios para la actividad"
 }
