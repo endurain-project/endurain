@@ -93,10 +93,10 @@
 			v-if="activity && (activityActivityLaps && activityActivityLaps.length > 0 || activityActivityWorkoutSteps && activityActivityWorkoutSteps.length > 0 || activityActivitySets && activityActivitySets.length > 0)">
 
 		<!-- graphs and laps medium and above screens -->
-		<div class="d-none d-sm-block" v-if="isLoading">
+		<div class="d-none d-lg-block" v-if="isLoading">
 			<LoadingComponent />
 		</div>
-		<div class="d-none d-sm-block"
+		<div class="d-none d-lg-block"
 			v-else-if="activity && (activityActivityLaps && activityActivityLaps.length > 0 || activityActivityWorkoutSteps && activityActivityWorkoutSteps.length > 0 || activityActivitySets && activityActivitySets.length > 0)">
 			<ActivityMandAbovePillsComponent :activity="activity" :activityActivityLaps="activityActivityLaps"
 				:activityActivityWorkoutSteps="activityActivityWorkoutSteps"

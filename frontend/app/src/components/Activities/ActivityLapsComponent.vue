@@ -1,5 +1,5 @@
 <template>
-    <div class="table-responsive d-none d-sm-block">
+    <div class="table-responsive d-none d-lg-block">
         <table class="table table-borderless table-hover table-sm rounded text-center" :class="{ 'table-striped': activity.activity_type !== 8 }" style="--bs-table-bg: var(--bs-gray-850);">
             <thead>
                 <tr>
