@@ -2,6 +2,7 @@ import os
 import json
 
 from io import BytesIO
+import tempfile
 import zipfile
 
 from typing import Annotated
@@ -51,6 +52,8 @@ import activities.activity_exercise_titles.crud as activity_exercise_titles_crud
 import activities.activity_exercise_titles.schema as activity_exercise_titles_schema
 
 import gears.gear.crud as gear_crud
+
+import gears.gear_components.crud as gear_components_crud
 
 import health_data.crud as health_data_crud
 import health_data.schema as health_data_schema
@@ -386,7 +389,7 @@ async def export_profile_data(
         Converts a SQLAlchemy model instance into a dictionary mapping column names to their values.
 
         Args:
-            obj: The object to convert. If the object has a `__table__` attribute (i.e., is a SQLAlchemy model instance),
+            obj: The object to convert. If the object has a __table__ attribute (i.e., is a SQLAlchemy model instance),
                  its columns and corresponding values are extracted into a dictionary. Otherwise, the object is returned as is.
 
         Returns:
@@ -407,8 +410,8 @@ async def export_profile_data(
             ensure_ascii (bool, optional): Whether to escape non-ASCII characters in the output. Defaults to False.
 
         Notes:
-            - If `data` is falsy (e.g., None, empty), nothing is written.
-            - Uses `json.dumps` with `default=str` to handle non-serializable objects.
+            - If data is falsy (e.g., None, empty), nothing is written.
+            - Uses json.dumps with default=str to handle non-serializable objects.
         """
         if data:
             counts[filename.split("/")[-1].replace(".json", "")] = (
@@ -430,151 +433,224 @@ async def export_profile_data(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    buf = BytesIO()
-    with zipfile.ZipFile(
-        buf, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=6
-    ) as zipf:
-        counts = {
-            "activity_files": 0,
-            "activities": 0,
-            "activity_laps": 0,
-            "activity_sets": 0,
-            "activity_streams": 0,
-            "activity_workout_steps": 0,
-            "activity_exercise_titles": 0,
-            "gears": 0,
-            "health_data": 0,
-            "health_targets": 0,
-            "user_images": 0,
-            "user": 1,
-            "user_default_gear": 0,
-            "user_integrations": 0,
-            "user_privacy_settings": 0,
-        }
-        user_activities = activities_crud.get_user_activities(token_user_id, db)
-        laps = []
-        sets = []
-        streams = []
-        steps = []
-        exercise_titles = []
+    counts = {
+        "activity_media": 0,
+        "activity_files": 0,
+        "activities": 0,
+        "activity_laps": 0,
+        "activity_sets": 0,
+        "activity_streams": 0,
+        "activity_workout_steps": 0,
+        "activity_exercise_titles": 0,
+        "gears": 0,
+        "health_data": 0,
+        "health_targets": 0,
+        "user_images": 0,
+        "user": 1,
+        "user_default_gear": 0,
+        "user_integrations": 0,
+        "user_privacy_settings": 0,
+    }
 
-        # 1) GPX/FIT track files
-        if user_activities:
-            # Check if the user has activities files stored and added them to the zip
-            for root, _, files in os.walk(core_config.FILES_PROCESSED_DIR):
-                for file in files:
-                    file_id, ext = os.path.splitext(file)
-                    if any(str(activity.id) == file_id for activity in user_activities):
-                        counts["activity_files"] += 1
-                        file_path = os.path.join(root, file)
-                        # Add file to the zip archive with relative path
-                        arcname = os.path.relpath(
-                            file_path, core_config.FILES_PROCESSED_DIR
+    # Use a temporary file for the ZIP
+    def zipfile_generator():
+        """
+        Generates a ZIP archive containing a user's activities, media files, health data, gear information, and user profile data.
+
+        The ZIP file includes:
+            1. Activity track files (GPX/FIT) and associated media files.
+            2. Activity metadata (laps, sets, streams, workout steps, exercise titles) in JSON format.
+            3. Gear and gear components information in JSON format.
+            4. Health data and health targets in JSON format.
+            5. User profile information (excluding password) and user images.
+            6. User default gear, integrations, and privacy settings in JSON format.
+            7. A counts.json file with statistics about the included files.
+
+        The function streams the ZIP file in chunks for efficient memory usage.
+
+        Yields:
+            bytes: Chunks of the ZIP file (8192 bytes each).
+        """
+        with tempfile.NamedTemporaryFile(delete=True) as tmp:
+            with zipfile.ZipFile(
+                tmp, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=6
+            ) as zipf:
+                user_activities = activities_crud.get_user_activities(token_user_id, db)
+                laps = []
+                sets = []
+                streams = []
+                steps = []
+                exercise_titles = []
+
+                # 1) GPX/FIT track files
+                if user_activities:
+                    # Check if the user has activities files stored and added them to the zip
+                    for root, _, files in os.walk(core_config.FILES_PROCESSED_DIR):
+                        for file in files:
+                            file_id, ext = os.path.splitext(file)
+                            if any(
+                                str(activity.id) == file_id
+                                for activity in user_activities
+                            ):
+                                counts["activity_files"] += 1
+                                file_path = os.path.join(root, file)
+                                # Add file to the zip archive with relative path
+                                arcname = os.path.relpath(
+                                    file_path, core_config.FILES_PROCESSED_DIR
+                                )
+                                zipf.write(file_path, arcname)
+
+                    # Check if the user has activity media files stored and added them to the zip
+                    for root, _, files in os.walk(core_config.ACTIVITY_MEDIA_DIR):
+                        for file in files:
+                            file_id, ext = os.path.splitext(file)
+                            file_activity_id = file_id.split("_")[0]
+                            if any(
+                                str(activity.id) == file_activity_id
+                                for activity in user_activities
+                            ):
+                                counts["activity_media"] += 1
+                                file_path = os.path.join(root, file)
+                                # Add activity media to the zip archive with relative path
+                                arcname = os.path.relpath(
+                                    file_path, core_config.ACTIVITY_MEDIA_DIR
+                                )
+                                zipf.write(file_path, arcname)
+
+                    # 2) Activities info plus laps, sets, streams, steps, exercise_titles JSON
+                    # activities ids
+                    activity_ids = [activity.id for activity in user_activities]
+                    # laps
+                    laps.extend(
+                        activity_laps_crud.get_activities_laps(
+                            activity_ids, token_user_id, db, user_activities
                         )
-                        zipf.write(file_path, arcname)
-
-            # 2) Activities info plus laps, sets, streams, steps, exercise_titles JSON
-            # activities ids
-            activity_ids = [activity.id for activity in user_activities]
-            # laps
-            laps.extend(
-                activity_laps_crud.get_activities_laps(
-                    activity_ids, token_user_id, db, user_activities
+                    )
+                    # sets
+                    sets.extend(
+                        activity_sets_crud.get_activities_sets(
+                            activity_ids, token_user_id, db, user_activities
+                        )
+                    )
+                    # streams
+                    streams.extend(
+                        activity_streams_crud.get_activities_streams(
+                            activity_ids, token_user_id, db, user_activities
+                        )
+                    )
+                    steps.extend(
+                        activity_workout_steps_crud.get_activities_workout_steps(
+                            activity_ids, token_user_id, db, user_activities
+                        )
+                    )
+                # exercise titles
+                exercise_titles = (
+                    activity_exercise_titles_crud.get_activity_exercise_titles(db)
                 )
-            )
-            # sets
-            sets.extend(
-                activity_sets_crud.get_activities_sets(
-                    activity_ids, token_user_id, db, user_activities
+
+                # 3) Gears
+                gears = gear_crud.get_gear_user(token_user_id, db)
+
+                gear_components = gear_components_crud.get_gear_components_user(
+                    token_user_id, db
                 )
-            )
-            # streams
-            streams.extend(
-                activity_streams_crud.get_activities_streams(
-                    activity_ids, token_user_id, db, user_activities
+
+                # 4) Health data CSV
+                health_data = health_data_crud.get_all_health_data_by_user_id(
+                    token_user_id, db
                 )
-            )
-            # steps
-            steps.extend(
-                activity_workout_steps_crud.get_activities_workout_steps(
-                    activity_ids, token_user_id, db, user_activities
+                health_targets = health_targets_crud.get_health_targets_by_user_id(
+                    token_user_id, db
                 )
-            )
-            # exercise titles
-            exercise_titles = (
-                activity_exercise_titles_crud.get_activity_exercise_titles(db)
-            )
 
-        # 3) Gears
-        gears = gear_crud.get_gear_user(token_user_id, db)
+                # 5) User info JSON
+                user_dict = sqlalchemy_obj_to_dict(user)
+                user_dict.pop("password", None)
+                write_json_to_zip(zipf, "data/user.json", user_dict, counts)
 
-        # 4) Health data CSV
-        health_data = health_data_crud.get_all_health_data_by_user_id(token_user_id, db)
-        health_targets = health_targets_crud.get_health_targets_by_user_id(
-            token_user_id, db
-        )
+                # Check if the user has user images stored and added them to the zip
+                for root, _, files in os.walk(core_config.USER_IMAGES_DIR):
+                    for file in files:
+                        file_id, ext = os.path.splitext(file)
+                        if str(user.id) == file_id:
+                            counts["user_images"] += 1
+                            file_path = os.path.join(root, file)
+                            # Add user image to the zip archive with relative path
+                            arcname = os.path.relpath(
+                                file_path, core_config.USER_IMAGES_DIR
+                            )
+                            zipf.write(file_path, arcname)
 
-        # 5) User info JSON
-        user_dict = sqlalchemy_obj_to_dict(user)
-        user_dict.pop("password", None)
-        write_json_to_zip(zipf, "data/user.json", user_dict, counts)
+                user_default_gear = (
+                    user_default_gear_crud.get_user_default_gear_by_user_id(
+                        token_user_id, db
+                    )
+                )
+                user_integrations = (
+                    user_integrations_crud.get_user_integrations_by_user_id(
+                        token_user_id, db
+                    )
+                )
+                user_privacy_settings = (
+                    users_privacy_settings_crud.get_user_privacy_settings_by_user_id(
+                        token_user_id, db
+                    )
+                )
 
-        # Check if the user has user images stored and added them to the zip
-        for root, _, files in os.walk(core_config.USER_IMAGES_DIR):
-            for file in files:
-                file_id, ext = os.path.splitext(file)
-                if str(user.id) == file_id:
-                    counts["user_images"] += 1
-                    file_path = os.path.join(root, file)
-                    # Add user image to the zip archive with relative path
-                    arcname = os.path.relpath(file_path, core_config.USER_IMAGES_DIR)
-                    zipf.write(file_path, arcname)
+                # Write data to files
+                data_to_write = [
+                    (user_activities, "data/activities.json"),
+                    (laps, "data/activity_laps.json"),
+                    (sets, "data/activity_sets.json"),
+                    (streams, "data/activity_streams.json"),
+                    (steps, "data/activity_workout_steps.json"),
+                    (exercise_titles, "data/activity_exercise_titles.json"),
+                    (gears, "data/gears.json"),
+                    (gear_components, "data/gear_components.json"),
+                    (health_data, "data/health_data.json"),
+                    (health_targets, "data/health_targets.json"),
+                    (user_default_gear, "data/user_default_gear.json"),
+                    (user_integrations, "data/user_integrations.json"),
+                    (user_privacy_settings, "data/user_privacy_settings.json"),
+                    (counts, "counts.json"),
+                ]
+                for data, filename in data_to_write:
+                    if data:
+                        if not isinstance(data, (list, tuple)):
+                            data = [data]
+                        dicts = [sqlalchemy_obj_to_dict(item) for item in data]
+                        write_json_to_zip(zipf, filename, dicts, counts)
 
-        user_default_gear = user_default_gear_crud.get_user_default_gear_by_user_id(
-            token_user_id, db
-        )
-        user_integrations = user_integrations_crud.get_user_integrations_by_user_id(
-            token_user_id, db
-        )
-        user_privacy_settings = (
-            users_privacy_settings_crud.get_user_privacy_settings_by_user_id(
-                token_user_id, db
-            )
-        )
+            tmp.seek(0)
+            while True:
+                chunk = tmp.read(8192)
+                if not chunk:
+                    break
+                yield chunk
 
-        # Write data to files
-        data_to_write = [
-            (user_activities, "data/activities.json"),
-            (laps, "data/activity_laps.json"),
-            (sets, "data/activity_sets.json"),
-            (streams, "data/activity_streams.json"),
-            (steps, "data/activity_workout_steps.json"),
-            (exercise_titles, "data/activity_exercise_titles.json"),
-            (gears, "data/gears.json"),
-            (health_data, "data/health_data.json"),
-            (health_targets, "data/health_targets.json"),
-            (user_default_gear, "data/user_default_gear.json"),
-            (user_integrations, "data/user_integrations.json"),
-            (user_privacy_settings, "data/user_privacy_settings.json"),
-            (counts, "counts.json"),
-        ]
-        for data, filename in data_to_write:
-            if data:
-                if not isinstance(data, (list, tuple)):
-                    data = [data]
-                dicts = [sqlalchemy_obj_to_dict(item) for item in data]
-                write_json_to_zip(zipf, filename, dicts, counts)
-
-    buf.seek(0)
     headers = {
         "Content-Disposition": f"attachment; filename=user_{token_user_id}_export.zip",
-        "Content-Length": str(len(buf.getvalue())),
+        # Content-Length is omitted for streaming
     }
-    return StreamingResponse(
-        buf,
-        media_type="application/zip",
-        headers=headers,
-    )
+
+    try:
+        return StreamingResponse(
+            zipfile_generator(),
+            media_type="application/zip",
+            headers=headers,
+        )
+    except Exception as err:
+        # Log the exception
+        core_logger.print_to_log(
+            f"Error in export_profile_data when streaming the response: {err}",
+            "error",
+            exc=err,
+        )
+        # Raise an HTTPException with a 500 Internal Server Error status code
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal Server Error",
+        ) from err
 
 
 @router.post("/import")
