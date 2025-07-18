@@ -12,7 +12,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, watch } from 'vue';
 
 // Props definition
 const props = defineProps({
@@ -43,11 +43,18 @@ const altText = ref('User Avatar');
 const userPhotoUrl = ref("");
 const alignTopValue = ref(props.alignTop);
 
-// Lifecycle hooks
-onMounted(() => {
+function defineUrl() {
     if (props.user?.photo_path) {
         const pathWithoutConfig = props.user.photo_path.split("/").slice(1).join("/");
         userPhotoUrl.value = props.user.photo_path ? `${window.env.ENDURAIN_HOST}/${pathWithoutConfig}` : null;
     }
+}
+
+// Lifecycle hooks
+onMounted(() => {
+    defineUrl();
 });
+
+// Watch the user prop for changes.
+watch(() => props.user, defineUrl, { immediate: true });
 </script>
