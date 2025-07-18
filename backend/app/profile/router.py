@@ -494,9 +494,10 @@ async def export_profile_data(
                             ):
                                 counts["activity_files"] += 1
                                 file_path = os.path.join(root, file)
-                                # Add file to the zip archive with relative path
-                                arcname = os.path.relpath(
-                                    file_path, core_config.FILES_PROCESSED_DIR
+                                # Add file to the zip archive under activity_files/ folder
+                                arcname = os.path.join(
+                                    "activity_files",
+                                    os.path.relpath(file_path, core_config.FILES_PROCESSED_DIR)
                                 )
                                 zipf.write(file_path, arcname)
 
@@ -511,9 +512,10 @@ async def export_profile_data(
                             ):
                                 counts["activity_media"] += 1
                                 file_path = os.path.join(root, file)
-                                # Add activity media to the zip archive with relative path
-                                arcname = os.path.relpath(
-                                    file_path, core_config.ACTIVITY_MEDIA_DIR
+                                # Add file to the zip archive under activity_media/ folder
+                                arcname = os.path.join(
+                                    "activity_media",
+                                    os.path.relpath(file_path, core_config.ACTIVITY_MEDIA_DIR)
                                 )
                                 zipf.write(file_path, arcname)
 
@@ -575,9 +577,10 @@ async def export_profile_data(
                         if str(user.id) == file_id:
                             counts["user_images"] += 1
                             file_path = os.path.join(root, file)
-                            # Add user image to the zip archive with relative path
-                            arcname = os.path.relpath(
-                                file_path, core_config.USER_IMAGES_DIR
+                            # Add file to the zip archive under user_images/ folder
+                            arcname = os.path.join(
+                                "user_images",
+                                os.path.relpath(file_path, core_config.USER_IMAGES_DIR)
                             )
                             zipf.write(file_path, arcname)
 
