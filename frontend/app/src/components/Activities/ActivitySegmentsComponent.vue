@@ -16,7 +16,7 @@
                             </thead>
                             <tbody>
                                 <tr v-for="segment in segmentsFollowed" :key="segment.id">
-                                    <td>
+                                    <td align="center">
                                         {{ segment.name }}
                                         <div :ref="`segmentMapIcon-${segment.id}`" :id="`segmentMapIcon-${segment.id}`"></div>
                                     </td>
@@ -131,12 +131,7 @@ export default {
         this.$watch('segmentsFollowed', (newValue, oldValue) => {
             // Ensure the map is created after segmentsFollowed is populated
             if (newValue.length > 0) {
-                this.segmentsFollowed.forEach(segment => {
-                    setTimeout(() => {
-                        // Ensure the map is rendered after the DOM is updated
-                        this.createSegmentIconMap(segment);
-                    }, 200);
-                });
+                this.updateSegmentIconMaps(this.segmentsFollowed);
             }
         });
     },
@@ -160,6 +155,17 @@ export default {
         }
     },
     methods: {
+        updateSegmentIconMaps(segments) {
+            var segmentNumber = 0;
+            
+            segments.forEach(segment => {
+                setTimeout(() => {
+                    // Ensure the map is rendered after the DOM is updated
+                    this.createSegmentIconMap(segment, segmentNumber);
+                    segmentNumber++;
+                }, 200);
+            });
+        },
         onActivitySegmentsVisibleChange() {
 
             for (let i = 0; i < this.segmentsMaps.length; i++) {
@@ -179,7 +185,17 @@ export default {
                 console.error("Failed to fetch activity segments:", error);
             }
         },
-        async createSegmentIconMap(segment) {
+        async createSegmentIconMap(segment, segmentNumber) {
+            // Check if the ref for the segment map icon exists
+            if (!this.$refs[`segmentMapIcon-${segment.id}`]) {
+                console.warn(`No ref found for segmentMapIcon-${segment.id}`);
+                return;
+            }
+
+            // Ensure the map container is ready
+            await this.$nextTick();
+
+            // Fetch activity stream data
 
     		const authStore = useAuthStore();
             const activityStreamLatLng = ref(null);
@@ -197,25 +213,73 @@ export default {
             const mapCont = this.$refs[`segmentMapIcon-${segment.id}`][0];
 
             mapCont.style.height = '200px';
-            mapCont.style.width = '100%';
+            mapCont.style.width = '200px';
 
             const segmentIconMap = L.map(mapCont,
             {
                 dragging: false,
+                boxZoom: false,
                 touchZoom: false,
+                doubleClickZoom: false,
                 scrollWheelZoom: false,
                 zoomControl: false,
             }).fitWorld();
 
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                attribution: '© OpenStreetMap contributors'
+                attribution: '© OpenStreetMap'
             }).addTo(segmentIconMap);
 
-            L.polyline(latlngs, { color: 'blue' }).addTo(segmentIconMap);
+            L.polyline(latlngs, { 
+                color: 'blue',
+                weight: 2,
+                opacity: 0.2
+            }).addTo(segmentIconMap);
+
+            const boundpoints = [];
+            // Sequence of colors to differentiate between
+            // TODO: Centralize this array to a common place
+            const segmentColors = ['orange', 'purple', 'pink', 'red'];
+            const segmentColorIdx = segmentNumber % segmentColors.length;
+
+            var gateLabel = 1;
+            for (const gate of segment.gates) {
+                // Ensure gate is an array with two points
+                if (!Array.isArray(gate) || gate.length !== 2 || !Array.isArray(gate[0]) || !Array.isArray(gate[1]) || gate[0].length !== 2 || gate[1].length !== 2) {
+                    console.warn(`Invalid gate format for segment ${segment.id}:`, gate);
+                    continue;
+                }                
+                const gateLatLngs = [
+                    [gate[0][0], gate[0][1]],
+                    [gate[1][0], gate[1][1]]
+                ];
+                // Create a polyline for the gate
+                const polyline = L.polyline(gateLatLngs, {
+                    color: segmentColors[segmentColorIdx],
+                    weight: 4,
+                    opacity: 1
+                }).addTo(segmentIconMap);
+
+                // Create markers for the start and end of the gate
+                var label = L.marker(gateLatLngs[0]).addTo(segmentIconMap);
+                // Create a label with the gate sequence number on the map
+                label.setIcon(L.divIcon({
+                    className: 'leaflet-label',
+                    html: '<div style="background-color: white; border: 1px solid black; padding: 2px; border-radius: 5px; text-align: center;"><span style="color: black; font-size: 12px; font-weight: bold;">'+gateLabel+'</span></div>',
+                    iconSize: new L.Point(15, 15)
+                }));
+
+                boundpoints.push(gateLatLngs[0]);
+                boundpoints.push(gateLatLngs[1]);
+
+                gateLabel += 1;
+            }
+
+            // Add the segment polyline to the map
+            segmentIconMap.fitBounds(boundpoints);
 
             segmentIconMap.on('resize', () => {
                 // Ensure the map is properly sized after rendering
-                segmentIconMap.fitBounds(latlngs);
+                segmentIconMap.fitBounds(boundpoints);
             });
 
             this.segmentsMaps.push(segmentIconMap);
@@ -274,8 +338,7 @@ export default {
             }).fitWorld();
 
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                attribution: 'Map data &copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a>',
-                subdomains: ['a', 'b', 'c']
+                attribution: '© OpenStreetMap contributors'
             }).addTo(this.map);
 
             L.polyline(latlngs, { color: 'blue' }).addTo(this.map);
@@ -350,6 +413,8 @@ export default {
                 this.$refs.mapContainer.style.height = '0px';
                 this.segmentPolylines = [];
                 this.markers = {};
+                this.segmentsFollowed = [];
+                this.fetchActivitySegments();
             }
         }
     }

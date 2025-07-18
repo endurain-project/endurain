@@ -104,8 +104,9 @@ export default {
 
             if (props.source === 'activity') {
                 const boundpoints = [];
-                // Sequence of colors to differentiate between 
-                const segmentColors = ['teal', 'orange', 'pink', 'red', 'purple'];
+                // Sequence of colors to differentiate between
+                // TODO: Centralize this array to a common place
+                const segmentColors = ['orange', 'purple', 'pink', 'red'];
                 var segmentColorIdx = 0;
 
                 const segmentArr = activitySegments.values
@@ -122,17 +123,8 @@ export default {
                     }
                     // Iterate through the gates that have been defined for the segments
                     for (const gate in segmentArr[segment]['gates']) {
-                        // Increment the gate number as it's label. First gate is labelled as 1, second is 2 etc...
-                        var gateLabel = Number(gate) + 1;
                         // Draw the gate on the map
                         var gateLine = L.polyline(segmentArr[segment]['gates'][gate], { color: segmentColors[segmentColorIdx]}).addTo(map);
-                        // Create a marker with the gate sequence number on the map
-                        var label = L.marker(gateLine.getLatLngs()[0]).addTo(map);
-                        label.setIcon(L.divIcon({
-                            className: 'leaflet-label',
-                            html: '<div style="background-color: white; border: 1px solid black; padding: 2px; border-radius: 5px; text-align: center;"><span style="color: black; font-size: 12px; font-weight: bold;">'+gateLabel+'</span></div>',
-                            iconSize: new L.Point(15, 15)
-                        }));
                         // Add segment to a boundpoints array, in case we want to fit the map to the segment
                         // This is a helper for use in other areas. TODO: Remove from this area.
                         boundpoints.push(segmentArr[segment]['gates'][gate][0]);
