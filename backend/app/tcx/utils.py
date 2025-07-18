@@ -1,8 +1,3 @@
-"""
-Parsing logic for TCX files. Tested specifically with the TCX files produced
-by the Polar Flow application.
-"""
-
 from collections import defaultdict
 from timezonefinder import TimezoneFinder
 from datetime import datetime

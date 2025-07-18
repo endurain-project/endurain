@@ -19,32 +19,32 @@ backend/app/*.log
 backend/logs/*.log
 
 # server image folder images
-backend/app/config/server_images/*.jpeg
-backend/app/config/server_images/*.png
-backend/app/config/server_images/*.jpg
+backend/app/data/server_images/*.jpeg
+backend/app/data/server_images/*.png
+backend/app/data/server_images/*.jpg
 
 # user image folder images
-backend/app/config/user_images/*.jpeg
-backend/app/config/user_images/*.png
-backend/app/config/user_images/*.jpg
+backend/app/data/user_images/*.jpeg
+backend/app/data/user_images/*.png
+backend/app/data/user_images/*.jpg
 
 # activity media folder images
-backend/app/config/activity_media/*.jpeg
-backend/app/config/activity_media/*.png
-backend/app/config/activity_media/*.jpg
+backend/app/data/activity_media/*.jpeg
+backend/app/data/activity_media/*.png
+backend/app/data/activity_media/*.jpg
 
 # gpx and fit files
-backend/app/config/files/*.gpx
-backend/app/config/files/*.zip
-backend/app/config/files/*.fit
-backend/app/config/files/*.tcx
-backend/app/config/files/bulk_import/*.gpx
-backend/app/config/files/bulk_import/*.fit
-backend/app/config/files/bulk_import/*.tcx
-backend/app/config/files/processed/*.gpx
-backend/app/config/files/processed/*.fit
-backend/app/config/files/processed/*.tcx
-backend/config/files/
+backend/app/data/activity_files/*.gpx
+backend/app/data/activity_files/*.zip
+backend/app/data/activity_files/*.fit
+backend/app/data/activity_files/*.tcx
+backend/app/data/activity_files/bulk_import/*.gpx
+backend/app/data/activity_files/bulk_import/*.fit
+backend/app/data/activity_files/bulk_import/*.tcx
+backend/app/data/activity_files/processed/*.gpx
+backend/app/data/activity_files/processed/*.fit
+backend/app/data/activity_files/processed/*.tcx
+backend/data/activity_files/
 
 # Frontend
 frontend/app/img/users_img/*.*

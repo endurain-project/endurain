@@ -77,7 +77,7 @@ Docker image uses a non-root user, so ensure target folders are not owned by roo
 ## Bulk import and file upload
 
 To perform a bulk import:
-- Place .fit, .tcx, .gz and/or .gpx files into the files/bulk_import folder. Create the folder if needed.
+- Place .fit, .tcx, .gz and/or .gpx files into the activity_files/bulk_import folder. Create the folder if needed.
 - In the "Settings" menu select "Integrations".
 - Click "Import" next to "Bulk Import".
 
@@ -90,6 +90,6 @@ meters in distance and elevation gain. Some notes:
 
 ## Image personalization
 
-It is possible (v0.10.0 or higher) to personalize the login image in the login page. To do that, map the config/server_images directory for image persistence on container updates and:
+It is possible (v0.10.0 or higher) to personalize the login image in the login page. To do that, map the data/server_images directory for image persistence on container updates and:
  - Set the image in the server settings zone of the settings page
  - A square image is expected. Default one uses 1000px vs 1000px

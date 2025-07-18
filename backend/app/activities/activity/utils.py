@@ -276,7 +276,7 @@ def handle_gzipped_file(
     """Handle gzipped files by extracting the inner file and returning its path and extension.
     The gzipped file is moved to the processed directory after extraction.
     Args:
-        file_path: the path to the gzipped file, e.g. "files/activity_1234567890.fit.gz"
+        file_path: the path to the gzipped file, e.g. "activity_files/activity_1234567890.fit.gz"
     Returns: A tuple containing the path to the temporary file and the inner file extension.
     """
     path = Path(file_path)
