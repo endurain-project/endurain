@@ -11,8 +11,6 @@ from fastapi import APIRouter, Depends, HTTPException, status, UploadFile
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
-import gears.gear.schema as gear_schema
-
 import users.user.schema as users_schema
 import users.user.crud as users_crud
 import users.user.utils as users_utils
@@ -52,8 +50,10 @@ import activities.activity_exercise_titles.crud as activity_exercise_titles_crud
 import activities.activity_exercise_titles.schema as activity_exercise_titles_schema
 
 import gears.gear.crud as gear_crud
+import gears.gear.schema as gear_schema
 
 import gears.gear_components.crud as gear_components_crud
+import gears.gear_components.schema as gear_components_schema
 
 import health_data.crud as health_data_crud
 import health_data.schema as health_data_schema
@@ -670,6 +670,7 @@ async def import_profile_data(
     Imports user profile data from a provided .zip file, updating or creating user-related records in the database.
     This endpoint expects a .zip file containing JSON and media files representing user profile data, activities, health data, and associated files. It processes and imports the following data types:
     - Gears
+    - Gears components
     - User profile
     - User default gear
     - User integrations
@@ -703,6 +704,7 @@ async def import_profile_data(
         "activity_workout_steps": 0,
         "activity_exercise_titles": 0,
         "gears": 0,
+        "gear_components": 0,
         "health_data": 0,
         "health_targets": 0,
         "user_images": 0,
@@ -718,6 +720,7 @@ async def import_profile_data(
             file_list = set(zipf.namelist())
             file_map = {
                 "data/gears.json": "gears_data",
+                "data/gear_components.json": "gear_components_data",
                 "data/user.json": "user_data",
                 "data/user_default_gear.json": "user_default_gear_data",
                 "data/user_integrations.json": "user_integrations_data",
@@ -756,7 +759,31 @@ async def import_profile_data(
                     gears_id_mapping[original_id] = new_gear.id
                     counts["gears"] += 1
 
-            # b) import user JSONs
+            # b) import gear components JSON
+            if results["gear_components_data"]:
+                for gear_component_data in results["gear_components_data"]:
+                    # ensure gear component has the correct user_id and gear_id on import
+                    gear_component_data["user_id"] = token_user_id
+                    gear_component_data["gear_id"] = (
+                        gears_id_mapping.get(gear_component_data["gear_id"])
+                        if gear_component_data.get("gear_id") in gears_id_mapping
+                        else None
+                    )
+                    # ensure gear component has the correct id on import
+                    original_id = gear_component_data.get("id")
+                    gear_component_data.pop("id", None)
+                    # convert gear component data to GearComponents schema
+                    gear_component = gear_components_schema.GearComponents(
+                        **gear_component_data
+                    )
+                    # create gear component
+                    new_gear_component = gear_components_crud.create_gear_component(
+                        gear_component, token_user_id, db
+                    )
+                    gears_id_mapping[original_id] = new_gear_component.id
+                    counts["gear_components"] += 1
+
+            # c) import user JSONs
             if results["user_data"]:
                 # ensure user has the correct id on import
                 results["user_data"]["id"] = token_user_id
@@ -872,9 +899,9 @@ async def import_profile_data(
                     )
                     counts["user_privacy_settings"] += 1
 
-            # c) import activities JSONs
+            # d) import activities JSONs
             for activity_data in results["activities_data"]:
-                # ensure activity has the correct user_id on import
+                # ensure activity has the correct user_id and gear_id on import
                 activity_data["user_id"] = token_user_id
                 activity_data["gear_id"] = (
                     gears_id_mapping.get(activity_data["gear_id"])
@@ -996,7 +1023,7 @@ async def import_profile_data(
                     )
                     counts["activity_exercise_titles"] += len(titles)
 
-            # d) import health CSV
+            # e) import health CSV
             if results["health_data_data"]:
                 # ensure health data has the correct user_id on import
                 for health_data in results["health_data_data"]:
@@ -1009,7 +1036,7 @@ async def import_profile_data(
                     health_data_crud.create_health_data(token_user_id, data, db)
                     counts["health_data"] += 1
 
-            # e) import health targets JSON
+            # f) import health targets JSON
             if results["health_targets_data"]:
                 # ensure health targets has the correct user_id on import
                 for target_data in results["health_targets_data"]:
@@ -1029,7 +1056,7 @@ async def import_profile_data(
                     health_targets_crud.edit_health_target(target, token_user_id, db)
                     counts["health_targets"] += 1
 
-            # f) import user images and activity files if available to disk
+            # g) import user images and activity files if available to disk
             for file_l in file_list:
                 path = file_l.replace("\\", "/")
 
