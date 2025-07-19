@@ -69,7 +69,8 @@ def get_activity_segments(
         # Check for correspondence with returned segments
         corresponding_segments = []
         for segment in segments:
-            if segments_utils.gps_trace_pass_all_gates(stream, segment):
+            intersections = segments_utils.gps_trace_gate_intersections(stream, segment)            
+            if intersections is not None:
                 corresponding_segments.append(segment)
         
         # Return the segments

@@ -297,6 +297,7 @@ export default {
                     activity_type: this.activity.activity_type,
                     gates: gates,
                 };
+                this.toggleSegmentAdd();
                 const submittedSegment = await segments.createSegment(data);
             } catch (error){
                 //push.error(`${t("activitySegmentsComponent.errorSubmitSegment")} - ${error}`);
