@@ -9,5 +9,5 @@
     "errorMessageDeleteGear": "Error esborrant equipament de l'activitat",
     "errorMessageActivityNotFound": "Activitat no trobada",
     "alertPrivacyMessage": "Tens informació amagada en aquesta activitat. Tu la pots veure, però els altres no.",
-    "isHiddenMessage": "This activity is hidden. Probably because it is a duplicate or was hidden by the user."
+    "isHiddenMessage": "Activitat oculta. Probablement perquè és un duplicat o va ser ocultada per l'usuari."
 }
