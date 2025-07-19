@@ -28,7 +28,7 @@
     "modalUnlinkStravaTitle": "Desenllaça Strava",
     "modalUnlinkStravaBody": "Segur que vols desenllaçar el vostre compte de Strava? Si desenllaçeu el compte, s'eliminaran les activitats i equipament d'Endurain.",
     "bulkImportIntegrationTitle": "Importació massiva",
-    "bulkImportIntegrationBody": "Bulk import activities from files stored in the activity_files/bulk_import folder",
+    "bulkImportIntegrationBody": "Importació massiva d'activitats des de fitxers desats a la carpeta activity_files/bulk_import",
     "buttonBulkImport": "Importa",
     "errorMessageUnableToImportActivities": "Error al importar activitats",
     "loadingMessageBulkImport": "Important activitats",
