@@ -1,5 +1,9 @@
 from pydantic import BaseModel
-from typing import List
+from typing import List, Tuple
+
+class Intersection(BaseModel):
+    gate_ordered: List[int]
+    gps_point_index_ordered: List[Tuple[int, int]]
 
 class Segment(BaseModel):
     id: int | None = None

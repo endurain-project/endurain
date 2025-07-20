@@ -231,12 +231,17 @@ def gps_trace_gate_intersections(gps_trace: streams_models.ActivityStreams, segm
     core_logger.print_to_log(gate_ordered)
     core_logger.print_to_log("SUCCESS: GPS trace from activity {0} passes through {1}.".format(gps_trace.activity_id, segment.name.strip()))
 
-    return (
-        gate_ordered,
-        gps_point_index_ordered,
-        gps_point_ordered,
-        intersection_distance_ordered
-    )
+    # recast the gps_point_index_ordered to a list of tuples of int's
+    gps_point_index_ordered_int = [(int(x[0]), int(x[1])) for x in gps_point_index_ordered]
+
+    result = {
+        'gate_ordered': gate_ordered,
+        'gps_point_index_ordered': gps_point_index_ordered_int
+#        'gps_point_ordered': gps_point_ordered,
+#        'intersection_distance_ordered': intersection_distance_ordered
+    }
+
+    return result
 
 def transform_schema_segment_to_model_segment(
     segment: segments_schema.Segment,

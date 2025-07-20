@@ -45,6 +45,69 @@ def get_all_segments(user_id: int, activity_type: int|None, db: Session):
             detail="Internal Server Error",
         ) from err
 
+def get_segment_by_id(segment_id: int, user_id: int, db: Session):
+    core_logger.print_to_log(f"Getting segment with id {segment_id}")
+
+    try:
+        # Get the segment from the database
+        segment = db.query(segments_models.Segment).filter(
+            segments_models.Segment.id == segment_id,
+            segments_models.Segment.user_id == user_id
+        ).first()
+
+        # Check if the segment was found
+        if not segment:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Segment with id {segment_id} not found",
+            )
+
+        # Return the segment
+        return segment
+
+    except Exception as err:
+        # Log the exception
+        core_logger.print_to_log(f"Error in get_segment_by_id: {err}", "error", exc=err)
+        # Raise an HTTPException with a 500 Internal Server Error status code
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal Server Error",
+        ) from err
+
+def get_activity_segment_intersections(
+        activity_id: int, segment_id: int, user_id: int, db: Session
+):
+    core_logger.print_to_log(f"Getting intersections for activity {activity_id} and segment {segment_id}")
+
+    # Returns the segments which correspond to the activity
+    try:
+        # Get the activity stream containing the GPS track from the database that corresponds to the activity_id
+        stream = streams_crud.get_activity_stream_by_type(activity_id, 7, user_id, db)
+        segment = get_segment_by_id(segment_id, user_id, db)
+
+        # Check if there is a GPS stream if not return None
+        if not stream:
+            return None
+
+        # Get the intersections between the segment and the GPS track
+        intersections = segments_utils.gps_trace_gate_intersections(stream, segment)
+
+        # Return the intersections
+        return intersections
+
+    except Exception as err:
+        # Log the exception
+        core_logger.print_to_log(
+            f"Error in get_activity_segment_intersections: {err}",
+            "error",
+            exc=err,
+        )
+        # Raise an HTTPException with a 500 Internal Server Error status code
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal Server Error",
+        ) from err
+
 def get_activity_segments(
         activity_id: int, user_id: int, db: Session
 ):

@@ -96,13 +96,11 @@
 </template>
 
 <script>
-import { ref, toRef, onMounted, watchEffect, nextTick, vModelCheckbox } from 'vue';
+import { ref } from 'vue';
 import { activityStreams } from '@/services/activityStreams';
 import { segments } from '@/services/activitySegmentsService';
 // Importing the stores
 import { useAuthStore } from "@/stores/authStore";
-import { push } from "notivue";
-import { useI18n } from "vue-i18n";
 import L from 'leaflet';
 //const { t } = useI18n();
 
@@ -141,6 +139,7 @@ export default {
             mapVisible: false,
             activityStreamLatLng: null,
             segmentsFollowed: [],
+            intersections: [],
             segmentsMaps: [],
             segmentPolylines: [],
             segmentPolylinePoints: [],
@@ -180,6 +179,11 @@ export default {
             try {
                 if (authStore.isAuthenticated) {
                     this.segmentsFollowed = await segments.getActivitySegments(this.activity.id);
+                    for (const segment of this.segmentsFollowed) {
+                        this.intersections.push(
+                            await segments.getActivitySegmentIntersections(this.activity.id, segment.id)
+                        );
+                    }
                 }
             } catch (error) {
                 console.error("Failed to fetch activity segments:", error);
@@ -210,6 +214,13 @@ export default {
             const validWaypoints = waypoints.filter(waypoint => waypoint.lat && waypoint.lon);
             const latlngs = validWaypoints.map(waypoint => [waypoint.lat, waypoint.lon]);
 
+            const gpsPointIndexOrdered = this.intersections[segmentNumber].gps_point_index_ordered;
+            const firstWaypointIndex = gpsPointIndexOrdered[0][1];
+            const lastWaypointIndex = gpsPointIndexOrdered[gpsPointIndexOrdered.length - 1][0];
+
+            const segmentWaypoints = validWaypoints.slice(firstWaypointIndex, lastWaypointIndex + 1);
+            const segmentLatLngs = segmentWaypoints.map(waypoint => [waypoint.lat, waypoint.lon]);
+
             const mapCont = this.$refs[`segmentMapIcon-${segment.id}`][0];
 
             mapCont.style.height = '200px';
@@ -232,7 +243,7 @@ export default {
             L.polyline(latlngs, { 
                 color: 'blue',
                 weight: 2,
-                opacity: 0.2
+                opacity: 0.5
             }).addTo(segmentIconMap);
 
             const boundpoints = [];
@@ -240,6 +251,12 @@ export default {
             // TODO: Centralize this array to a common place
             const segmentColors = ['orange', 'purple', 'pink', 'red'];
             const segmentColorIdx = segmentNumber % segmentColors.length;
+
+            L.polyline(segmentLatLngs, { 
+                color: segmentColors[segmentColorIdx],
+                weight: 3,
+                opacity: 1
+            }).addTo(segmentIconMap);
 
             var gateLabel = 1;
             for (const gate of segment.gates) {
@@ -254,8 +271,8 @@ export default {
                 ];
                 // Create a polyline for the gate
                 const polyline = L.polyline(gateLatLngs, {
-                    color: segmentColors[segmentColorIdx],
-                    weight: 4,
+                    color: 'black',
+                    weight: 2,
                     opacity: 1
                 }).addTo(segmentIconMap);
 
@@ -275,11 +292,11 @@ export default {
             }
 
             // Add the segment polyline to the map
-            segmentIconMap.fitBounds(boundpoints);
+            segmentIconMap.fitBounds(segmentLatLngs);
 
             segmentIconMap.on('resize', () => {
                 // Ensure the map is properly sized after rendering
-                segmentIconMap.fitBounds(boundpoints);
+                segmentIconMap.fitBounds(segmentLatLngs);
             });
 
             this.segmentsMaps.push(segmentIconMap);
