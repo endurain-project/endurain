@@ -10,7 +10,7 @@ LICENSE_IDENTIFIER = "AGPL-3.0-or-later"
 LICENSE_URL = "https://spdx.org/licenses/AGPL-3.0-or-later.html"
 ROOT_PATH = "/api/v1"
 FRONTEND_DIR = "/app/frontend/dist"
-ENVIRONMENT = os.getenv("ENVIRONMENT", "production")
+ENVIRONMENT = os.getenv("ENVIRONMENT", "production").lower()
 TZ = os.getenv("TZ", "UTC")
 FILES_DIR = "data/activity_files"
 FILES_BULK_IMPORT_DIR = "data/activity_files/bulk_import"
@@ -18,6 +18,9 @@ FILES_PROCESSED_DIR = "data/activity_files/processed"
 ACTIVITY_MEDIA_DIR = "data/activity_media"
 USER_IMAGES_DIR = "data/user_images"
 SERVER_IMAGES_DIR = "data/server_images"
+REVERSE_GEO_PROVIDER = os.getenv("REVERSE_GEO_PROVIDER", "geocode").lower()
+PHOTON_API_HOST = os.getenv("PHOTON_API_HOST", "photon.komoot.io").lower()
+PHOTON_API_USE_HTTPS = (os.getenv("PHOTON_API_USE_HTTPS", "true").lower() == "true", "true")
 GEOCODES_MAPS_API = os.getenv("GEOCODES_MAPS_API", "changeme")
 try:
     GEOCODES_MAPS_RATE_LIMIT = float(os.getenv("GEOCODES_MAPS_RATE_LIMIT", "1"))
@@ -32,7 +35,13 @@ GEOCODES_MIN_INTERVAL = (
 )
 GEOCODES_LOCK = threading.Lock()
 GEOCODES_LAST_CALL = 0.0
-SUPPORTED_FILE_FORMATS = [".fit", ".gpx", ".tcx", ".gz"]  # used to screen bulk import files
+SUPPORTED_FILE_FORMATS = [
+    ".fit",
+    ".gpx",
+    ".tcx",
+    ".gz",
+]  # used to screen bulk import files
+
 
 def check_required_env_vars():
     required_env_vars = [

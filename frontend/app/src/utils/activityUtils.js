@@ -642,17 +642,17 @@ export function getIcon(typeId) {
  * it returns a localized "Not Applicable" label.
  */
 export function formatLocation(activity) {
-	const { town, city, country } = activity;
+	const { city, town, country } = activity;
 
-	if (!town && !city && !country) {
+	if (!city && !town && !country) {
 		return i18n.global.t("generalItems.labelNoData");
 	}
 
 	const locationParts = [];
-	if (town) {
-		locationParts.push(town);
-	} else if (city) {
+	if (city) {
 		locationParts.push(city);
+	} else if (town) {
+		locationParts.push(town);
 	}
 
 	if (country) {

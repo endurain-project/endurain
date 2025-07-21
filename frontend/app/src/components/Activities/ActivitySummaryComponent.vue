@@ -54,7 +54,7 @@
                             {{ formatDateMed(activity.start_time) }} @ {{ formatTime(activity.start_time) }}
                         </span>
                         <!-- Conditionally display city and country -->
-                        <span v-if="activity.town || activity.city || activity.country">
+                        <span v-if="activity.city || activity.town || activity.country">
                             -
                             <span>{{ formatLocation(activity) }}</span>
                         </span>

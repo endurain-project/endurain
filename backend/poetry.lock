@@ -557,14 +557,14 @@ dev = ["PyTest", "PyTest-Cov", "bump2version (<1)", "setuptools", "tox"]
 
 [[package]]
 name = "distlib"
-version = "0.3.9"
+version = "0.4.0"
 description = "Distribution utilities"
 optional = false
 python-versions = "*"
 groups = ["main"]
 files = [
-    {file = "distlib-0.3.9-py2.py3-none-any.whl", hash = "sha256:47f8c22fd27c27e25a65601af709b38e4f0a45ea4fc2e710f65755fa8caaaf87"},
-    {file = "distlib-0.3.9.tar.gz", hash = "sha256:a60f20dea646b8a33f3e7772f74dc0b2d0772d2837ee1342a00645c81edf9403"},
+    {file = "distlib-0.4.0-py2.py3-none-any.whl", hash = "sha256:9659f7d87e46584a30b5780e43ac7a2143098441670ff0a49d5f9034c54a6c16"},
+    {file = "distlib-0.4.0.tar.gz", hash = "sha256:feec40075be03a04501a973d81f633735b4b69f98b05450592310c0f401a4e0d"},
 ]
 
 [[package]]
@@ -753,6 +753,18 @@ files = [
 
 [package.extras]
 docs = ["sphinx", "sphinx-rtd-theme"]
+
+[[package]]
+name = "flatbuffers"
+version = "25.2.10"
+description = "The FlatBuffers serialization format for Python"
+optional = false
+python-versions = "*"
+groups = ["main"]
+files = [
+    {file = "flatbuffers-25.2.10-py2.py3-none-any.whl", hash = "sha256:ebba5f4d5ea615af3f7fd70fc310636fbb2bbd1f566ac0a23d98dd412de50051"},
+    {file = "flatbuffers-25.2.10.tar.gz", hash = "sha256:97e451377a41262f8d9bd4295cc836133415cc03d8cb966410a4af92eb00d26e"},
+]
 
 [[package]]
 name = "flexcache"
@@ -2664,35 +2676,30 @@ files = [
 
 [[package]]
 name = "timezonefinder"
-version = "6.5.9"
+version = "6.6.3"
 description = "python package for finding the timezone of any point on earth (coordinates) offline"
 optional = false
-python-versions = "<4,>=3.8"
+python-versions = "<4,>=3.9"
 groups = ["main"]
 files = [
-    {file = "timezonefinder-6.5.9-cp310-cp310-manylinux_2_17_x86_64.manylinux_2_5_x86_64.manylinux1_x86_64.manylinux2014_x86_64.whl", hash = "sha256:52d5a4a8fc96990f72d9d3d48297e789217f67689d3178c9ff8ea3ab57125e3b"},
-    {file = "timezonefinder-6.5.9-cp310-cp310-musllinux_1_1_x86_64.whl", hash = "sha256:7a84ad5afb02ca1b536481cee05a8f2d5d7dd4818f73cd780acd03aa3cc033c9"},
-    {file = "timezonefinder-6.5.9-cp311-cp311-manylinux_2_17_x86_64.manylinux_2_5_x86_64.manylinux1_x86_64.manylinux2014_x86_64.whl", hash = "sha256:643535f76436b13216ed1c3b69c6ed8f793253810916ca6bef3b8e0cf3084fef"},
-    {file = "timezonefinder-6.5.9-cp311-cp311-musllinux_1_1_x86_64.whl", hash = "sha256:4fa18e4b3f3ac1469bc50031700bc9696477cbf40953bdcbdec7bef20f3200d0"},
-    {file = "timezonefinder-6.5.9-cp312-cp312-manylinux_2_17_x86_64.manylinux_2_5_x86_64.manylinux1_x86_64.manylinux2014_x86_64.whl", hash = "sha256:3e9a0caf638f43b6dd9980731d1424500c7a6a5048db808aad7032560df5c663"},
-    {file = "timezonefinder-6.5.9-cp312-cp312-musllinux_1_1_x86_64.whl", hash = "sha256:c5347c4a73b40af4867a2946a5172ec68b644e7036888b9b5a0e568499bfc0f3"},
-    {file = "timezonefinder-6.5.9-cp313-cp313-manylinux_2_17_x86_64.manylinux_2_5_x86_64.manylinux1_x86_64.manylinux2014_x86_64.whl", hash = "sha256:a7d1f30b550c24598459643285ef0f5469524ad7a32dd854199e7a2a463600ff"},
-    {file = "timezonefinder-6.5.9-cp313-cp313-musllinux_1_1_x86_64.whl", hash = "sha256:4f36877ad3a988f329cbd3f04f7cadc56dce073ad4a7bda7397f46ac2a61f9a4"},
-    {file = "timezonefinder-6.5.9-cp38-cp38-manylinux_2_17_x86_64.manylinux_2_5_x86_64.manylinux1_x86_64.manylinux2014_x86_64.whl", hash = "sha256:f7af80ceac094932c07750d384539f6c4397c7b1bcbbb51dc9d5a90a65ad1df4"},
-    {file = "timezonefinder-6.5.9-cp38-cp38-musllinux_1_1_x86_64.whl", hash = "sha256:2e402d54b6442c5203e0dfb3c6d1b4c96371d4e71ca86c99a35589ca0c90f5db"},
-    {file = "timezonefinder-6.5.9-cp39-cp39-manylinux_2_17_x86_64.manylinux_2_5_x86_64.manylinux1_x86_64.manylinux2014_x86_64.whl", hash = "sha256:9ee6ad1719ae5769f5218facf5ceb25cc16a188e4b1a7baa2c7baf53cfd8568a"},
-    {file = "timezonefinder-6.5.9-cp39-cp39-musllinux_1_1_x86_64.whl", hash = "sha256:c1ed4828b27b38ec454b0d82458fd35f7a7039f9a640afce51338c1c91a56a27"},
-    {file = "timezonefinder-6.5.9.tar.gz", hash = "sha256:0d84c792a499fd098a35c701c3e3293423ba8d45c81b3eecd7c7cb72c7f1f415"},
+    {file = "timezonefinder-6.6.3-cp310-cp310-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:e5904ddb1db42db58cafb6b8b76088e5e4685e24373a0b6d79e4a564de48cf81"},
+    {file = "timezonefinder-6.6.3-cp310-cp310-musllinux_1_1_x86_64.whl", hash = "sha256:643e5e2944c1b8562c325b4692c8568046c1f4d81df96926ecb49fc66e9dc935"},
+    {file = "timezonefinder-6.6.3-cp311-cp311-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:4fc31c175f6982cd201ae20b3c5daf86b90a979e77d28e6b407d6f23e959cf5a"},
+    {file = "timezonefinder-6.6.3-cp311-cp311-musllinux_1_1_x86_64.whl", hash = "sha256:73f0f25a14663e9dae1586791da6178bccfd7753651e3cf9c68415823c806db6"},
+    {file = "timezonefinder-6.6.3-cp312-cp312-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:44601e225c00040119b6b970c42720f19088259abcd81e5c703dafe9bed4e81d"},
+    {file = "timezonefinder-6.6.3-cp312-cp312-musllinux_1_1_x86_64.whl", hash = "sha256:a9a81b9eeb57947a5e19e25f44b2dbd34e6e206cfa8bdf87297ec5afa938ee08"},
+    {file = "timezonefinder-6.6.3-cp313-cp313-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:0d5bab1715b4960b70d735624be2e7517d4f374c7db48a779039849d3594bc15"},
+    {file = "timezonefinder-6.6.3-cp313-cp313-musllinux_1_1_x86_64.whl", hash = "sha256:5b4683ece7ea812b8cfdc0fd718f4510968e136bf58508261597227795228c1a"},
+    {file = "timezonefinder-6.6.3-cp39-cp39-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:c6823f7448b678357fed67781471b3b9234839b6a9b78dc7ceba3a39f1d476fa"},
+    {file = "timezonefinder-6.6.3-cp39-cp39-musllinux_1_1_x86_64.whl", hash = "sha256:822983e2d26c9aec43609511b0adf23dc002fb8fe44e8d0dadd8d4f4160de05b"},
+    {file = "timezonefinder-6.6.3.tar.gz", hash = "sha256:f942afeeb70cdc68dfa06161abec1c98812c13011084ce560741ad5c2db1dad3"},
 ]
 
 [package.dependencies]
 cffi = ">=1.15.1,<2"
+flatbuffers = ">=25.2.10"
 h3 = ">4"
 numpy = {version = ">=1.23,<3", markers = "python_version >= \"3.9\""}
-
-[package.extras]
-numba = ["numba (>=0.56,<1)", "numba (>=0.59,<1)"]
-pytz = ["pytz (>=2022.7.1)"]
 
 [[package]]
 name = "tomlkit"
@@ -2873,14 +2880,14 @@ standard = ["colorama (>=0.4)", "httptools (>=0.6.3)", "python-dotenv (>=0.13)",
 
 [[package]]
 name = "virtualenv"
-version = "20.31.2"
+version = "20.32.0"
 description = "Virtual Python Environment builder"
 optional = false
 python-versions = ">=3.8"
 groups = ["main"]
 files = [
-    {file = "virtualenv-20.31.2-py3-none-any.whl", hash = "sha256:36efd0d9650ee985f0cad72065001e66d49a6f24eb44d98980f630686243cf11"},
-    {file = "virtualenv-20.31.2.tar.gz", hash = "sha256:e10c0a9d02835e592521be48b332b6caee6887f332c111aa79a09b9e79efc2af"},
+    {file = "virtualenv-20.32.0-py3-none-any.whl", hash = "sha256:2c310aecb62e5aa1b06103ed7c2977b81e042695de2697d01017ff0f1034af56"},
+    {file = "virtualenv-20.32.0.tar.gz", hash = "sha256:886bf75cadfdc964674e6e33eb74d787dff31ca314ceace03ca5810620f4ecf0"},
 ]
 
 [package.dependencies]

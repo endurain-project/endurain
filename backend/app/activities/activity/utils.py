@@ -761,21 +761,47 @@ def calculate_activity_distances(activities: list[activities_schema.Activity]):
 
 
 def location_based_on_coordinates(latitude, longitude) -> dict | None:
+    # Check if latitude and longitude are provided
     if latitude is None or longitude is None:
-        return None
-
-    if core_config.GEOCODES_MAPS_API == "changeme":
-        return None
+        return {
+            "city": None,
+            "town": None,
+            "country": None,
+        }
 
     # Create a dictionary with the parameters for the request
-    url_params = {
-        "lat": latitude,
-        "lon": longitude,
-        "api_key": core_config.GEOCODES_MAPS_API,
-    }
-
-    # Create the URL for the request
-    url = f"https://geocode.maps.co/reverse?{urlencode(url_params)}"
+    if core_config.REVERSE_GEO_PROVIDER == "geocode":
+        # Check if the API key is set
+        if core_config.GEOCODES_MAPS_API == "changeme":
+            return {
+                "city": None,
+                "town": None,
+                "country": None,
+            }
+        # Create the URL for the request
+        url_params = {
+            "lat": latitude,
+            "lon": longitude,
+            "api_key": core_config.GEOCODES_MAPS_API,
+        }
+        url = f"https://geocode.maps.co/reverse?{urlencode(url_params)}"
+    elif core_config.REVERSE_GEO_PROVIDER == "photon":
+        # Create the URL for the request
+        url_params = {
+            "lat": latitude,
+            "lon": longitude,
+        }
+        protocol = "https"
+        if not core_config.PHOTON_API_USE_HTTPS:
+            protocol = "http"
+        url = f"{protocol}://{core_config.PHOTON_API_HOST}/reverse?{urlencode(url_params)}"
+    else:
+        # If no provider is set, return None
+        return {
+            "city": None,
+            "town": None,
+            "country": None,
+        }
 
     # Throttle requests according to configured rate limit
     if core_config.GEOCODES_MIN_INTERVAL > 0:
@@ -794,13 +820,25 @@ def location_based_on_coordinates(latitude, longitude) -> dict | None:
         response = requests.get(url, timeout=10)
         response.raise_for_status()
 
-        # Get the data from the response
-        data = response.json().get("address", {})
+        if core_config.REVERSE_GEO_PROVIDER == "geocode":
+            # Get the data from the response
+            data = response.json().get("address", {})
+            # Return the location based on the coordinates
+            # Note: 'town' is used for district in Geocode API
+            return {
+                "city": data.get("city"),
+                "town": data.get("town"),
+                "country": data.get("country"),
+            }
 
-        # Return the data
+        # Get the data from the response
+        data_root = response.json().get("features", [])
+        data = data_root[0].get("properties", {}) if data_root else {}
+        # Return the location based on the coordinates
+        # Note: 'district' is used for city and 'city' is used for town in Photon API
         return {
-            "city": data.get("city"),
-            "town": data.get("town"),
+            "city": data.get("district"),
+            "town": data.get("city"),
             "country": data.get("country"),
         }
     except requests.exceptions.RequestException as err:
