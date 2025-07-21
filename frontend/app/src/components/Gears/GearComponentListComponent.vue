@@ -7,8 +7,8 @@
                 height="55" class="rounded-circle" v-if="gear.gear_type === 2">
             <img :src="getGearRacquetComponentAvatar(gearComponent.type)" alt="Gear component racquet avatar" width="55"
                 height="55" class="rounded-circle" v-if="gear.gear_type === 4">
-            <img :src="getGearWindsurfComponentAvatar(gearComponent.type)" alt="Gear component windsurf avatar" width="55"
-                height="55" class="rounded-circle" v-if="gear.gear_type === 7">
+            <img :src="getGearWindsurfComponentAvatar(gearComponent.type)" alt="Gear component windsurf avatar"
+                width="55" height="55" class="rounded-circle" v-if="gear.gear_type === 7">
             <div class="ms-3 flex-grow-1">
                 <div class="fw-bold">
                     <span v-if="gearComponent.brand">{{ gearComponent.brand }}</span>
@@ -32,13 +32,15 @@
                         formatSecondsToOnlyHours(gearComponent.expected_kms)
                     }}</span>
                 <span v-if="gearComponent.retired_date"> @ {{ gearComponent.retired_date }}</span>
-                <div v-if="gearComponent.expected_kms && gear.gear_type !== 4" class="progress" role="progressbar" aria-label="Gear component usage vs expected"
-                    :aria-valuenow="gearComponentDistancePercentage" aria-valuemin="0" aria-valuemax="100">
+                <div v-if="gearComponent.expected_kms && gear.gear_type !== 4" class="progress" role="progressbar"
+                    aria-label="Gear component usage vs expected" :aria-valuenow="gearComponentDistancePercentage"
+                    aria-valuemin="0" aria-valuemax="100">
                     <div class="progress-bar" :style="{ width: gearComponentDistancePercentage + '%' }">{{
                         gearComponentDistancePercentage }}%</div>
                 </div>
-                <div v-if="gearComponent.expected_kms && gear.gear_type === 4" class="progress" role="progressbar" aria-label="Gear component usage vs expected"
-                    :aria-valuenow="gearComponentTimePercentage" aria-valuemin="0" aria-valuemax="100">
+                <div v-if="gearComponent.expected_kms && gear.gear_type === 4" class="progress" role="progressbar"
+                    aria-label="Gear component usage vs expected" :aria-valuenow="gearComponentTimePercentage"
+                    aria-valuemin="0" aria-valuemax="100">
                     <div class="progress-bar" :style="{ width: gearComponentTimePercentage + '%' }">{{
                         gearComponentTimePercentage }}%</div>
                 </div>
@@ -140,7 +142,11 @@ function updateGearComponentDistance(gearComponent) {
             if (
                 activity.start_time &&
                 gearComponent.purchase_date &&
-                new Date(activity.start_time) > new Date(gearComponent.purchase_date)
+                new Date(activity.start_time) >= new Date(gearComponent.purchase_date) &&
+                (
+                    gearComponent.retired_date === null || 
+                    new Date(activity.start_time).toISOString().slice(0, 10) <= new Date(gearComponent.retired_date).toISOString().slice(0, 10)
+                )
             ) {
                 gearComponentDistance.value += Number(activity.distance) || 0;
                 gearComponentTime.value += Number(activity.total_timer_time) || 0;
