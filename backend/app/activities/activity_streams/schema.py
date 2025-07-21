@@ -14,6 +14,7 @@ class ActivityStreams(BaseModel):
         strava_activity_stream_id (int | None): Identifier for the corresponding Strava activity stream (optional).
         hr_zone_percentages (dict | None): Heart rate zone percentages for the activity (optional).
     """
+
     id: int | None = None
     activity_id: int
     stream_type: int
@@ -21,11 +22,4 @@ class ActivityStreams(BaseModel):
     strava_activity_stream_id: int | None = None
     hr_zone_percentages: dict | None = None
 
-    class Config:
-        """
-        Pydantic configuration class enabling ORM mode for model serialization.
-
-        Attributes:
-            orm_mode (bool): When set to True, allows Pydantic models to read data from ORM objects.
-        """
-        orm_mode = True
+    model_config = {"from_attributes": True}

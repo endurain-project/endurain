@@ -54,14 +54,14 @@
 		<div class="col">
 
 			<!-- radio button -->
-			<!-- <div class="btn-group mb-3 d-flex" role="group"  aria-label="Activities radio toggle button group"> -->
-			<!-- user activities -->
-			<!-- <input type="radio" class="btn-check" name="btnradio" id="btnRadioUserActivities" autocomplete="off" value="userActivities" v-model="selectedActivityView">
-			<label class="btn btn-outline-primary w-100" for="btnRadioUserActivities">{{ $t("homeView.radioUserActivities") }}</label> -->
-			<!-- user followers activities -->
-			<!-- <input type="radio" class="btn-check" name="btnradio" id="btnRadioFollowersActivities" autocomplete="off" value="followersActivities" v-model="selectedActivityView">
-			<label class="btn btn-outline-primary w-100" for="btnRadioFollowersActivities">{{ $t("homeView.radioFollowerActivities") }}</label>
-		</div> -->
+			<div class="btn-group mb-3 d-flex" role="group"  aria-label="Activities radio toggle button group">
+				<!-- user activities -->
+				<input type="radio" class="btn-check" name="btnradio" id="btnRadioUserActivities" autocomplete="off" value="userActivities" v-model="selectedActivityView">
+				<label class="btn btn-outline-primary w-100" for="btnRadioUserActivities">{{ $t("homeView.radioUserActivities") }}</label>
+				<!-- user followers activities -->
+				<input type="radio" class="btn-check" name="btnradio" id="btnRadioFollowersActivities" autocomplete="off" value="followersActivities" v-model="selectedActivityView">
+				<label class="btn btn-outline-primary w-100" for="btnRadioFollowersActivities">{{ $t("homeView.radioFollowerActivities") }}</label>
+			</div>
 
 			<!-- user activities -->
 			<div id="userActivitiesDiv" v-show="selectedActivityView === 'userActivities'">
@@ -81,7 +81,7 @@
 								<ActivitySummaryComponent :activity="activity" :source="'home'"
 									@activityDeleted="updateActivitiesOnDelete" :units="authStore.user.units" />
 							</div>
-							<ActivityMapComponent class="mx-3 mb-3" :activity="activity" :activityActivityMedia="activityMediaMap[activity.id]" :source="'home'" />
+							<ActivityMapComponent class="mx-3 mb-3" :key="selectedActivityView + '-' + activity.id" :activity="activity" :activityActivityMedia="activityMediaMap[activity.id]" :source="'home'" />
 						</div>
 					</div>
 					<!-- Displaying a message or component when there are no activities -->
@@ -96,7 +96,13 @@
 				</div>
 				<div v-else>
 					<div v-if="followedUserActivities && followedUserActivities.length">
-
+						<div class="card mb-3 bg-body-tertiary shadow-sm border-0"
+							v-for="activity in followedUserActivities" :key="activity.id">
+							<div class="card-body">
+								<ActivitySummaryComponent :activity="activity" :source="'home'" :units="authStore.user.units" />
+							</div>
+							<ActivityMapComponent class="mx-3 mb-3" :key="selectedActivityView + '-' + activity.id" :activity="activity" :activityActivityMedia="activityMediaMap[activity.id]" :source="'home'" />
+						</div>
 					</div>
 					<NoItemsFoundComponent v-else />
 				</div>
@@ -123,7 +129,6 @@ import { useAuthStore } from "@/stores/authStore";
 import { useServerSettingsStore } from "@/stores/serverSettingsStore";
 // Import the services
 import { activities } from "@/services/activitiesService";
-import { followers } from "@/services/followersService";
 import { activityMedia } from "@/services/activityMediaService";
 // Import Notivue push
 import { push } from "notivue";
@@ -341,12 +346,14 @@ onMounted(async () => {
 			}
 		}
 
-		//followedUserActivities.value =
-		//	await activities.getUserFollowersActivitiesWithPagination(
-		//		authStore.user.id,
-		//		pageNumberUserActivities,
-		//		numRecords,
-		//	);
+		followedUserActivities.value =
+			await activities.getUserFollowersActivitiesWithPagination(
+				authStore.user.id,
+				pageNumberUserActivities.value,
+				numRecords,
+			);
+
+		console.log("followedUserActivities", followedUserActivities.value);
 
 		// If the number of activities is greater than the page number times the number of records, there are no more activities
 		if (

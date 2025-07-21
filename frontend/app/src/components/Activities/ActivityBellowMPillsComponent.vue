@@ -294,7 +294,8 @@ onMounted(async () => {
                 if (props.activityActivityStreams[i].stream_type === 1) {
                     hrPresent.value = true;
                     // If HR zones are present, add them to the hrZones object
-                    hrZones.value = props.activityActivityStreams.find(stream => stream.hr_zone_percentages).hr_zone_percentages || {};
+                    const hrStream = props.activityActivityStreams.find(stream => stream.hr_zone_percentages);
+                    hrZones.value = hrStream && hrStream.hr_zone_percentages ? hrStream.hr_zone_percentages : {};
                 }
                 if (props.activityActivityStreams[i].stream_type === 2) {
                     powerPresent.value = true;

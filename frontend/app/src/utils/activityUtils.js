@@ -106,7 +106,7 @@ const activityLabelMap = {
  * @returns {string} The formatted activity name, including location if available, or "Workout" as a default.
  */
 export function formatName(activity, t) {
-	if (ACTIVITY_TYPES.includes(activity.activity_type)) {
+	if (ACTIVITY_TYPES.includes(activity.activity_type) && activity.activity_type !== 10) {
 		const translation = activityLabelMap[activity.activity_type](t);
 		if (activity.town || activity.city) {
 			// If the activity has a town or city, append it to the label

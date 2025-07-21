@@ -70,7 +70,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, nextTick, watch } from 'vue';
+import { ref, computed, onMounted, nextTick, watch, onUnmounted } from 'vue';
 import { useI18n } from "vue-i18n";
 import { activityStreams } from '@/services/activityStreams';
 import LoadingComponent from '@/components/GeneralComponents/LoadingComponent.vue';
@@ -105,6 +105,7 @@ const authStore = useAuthStore();
 const isLoading = ref(true);
 const activityStreamLatLng = ref(null);
 const activityMap = ref(null);
+const leafletMap = ref(null);
 const hasGalleryItems = computed(() => {
     return Array.isArray(props.activityActivityMedia) && props.activityActivityMedia.length > 0;
 });
@@ -133,6 +134,13 @@ onMounted(async () => {
     }
 });
 
+onUnmounted(() => {
+    if (leafletMap.value) {
+        leafletMap.value.remove();
+        leafletMap.value = null;
+    }
+});
+
 const submitDeleteMediaFromActivity = async (mediaId) => {
     try {
         await activityMedia.deleteActivityMedia(mediaId)
@@ -151,12 +159,16 @@ const initMap = () => {
     if (!activityMap.value) return;
 
     const waypoints = activityStreamLatLng.value.stream_waypoints;
-
     const validWaypoints = waypoints.filter(waypoint => waypoint.lat && waypoint.lon);
-
     const latlngs = validWaypoints.map(waypoint => [waypoint.lat, waypoint.lon]);
 
-    const map = L.map(activityMap.value, {
+    // Destroy previous map instance if exists
+    if (leafletMap.value) {
+        leafletMap.value.remove();
+        leafletMap.value = null;
+    }
+
+    leafletMap.value = L.map(activityMap.value, {
         dragging: props.source === 'activity', // Enable if 'activity', disable if 'home'
         touchZoom: props.source === 'activity', // Enable if 'activity', disable if 'home'
         scrollWheelZoom: props.source === 'activity', // Enable if 'activity', disable if 'home'
@@ -165,22 +177,22 @@ const initMap = () => {
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '© OpenStreetMap contributors'
-    }).addTo(map);
+    }).addTo(leafletMap.value);
 
-    L.polyline(latlngs, { color: 'blue' }).addTo(map);
+    L.polyline(latlngs, { color: 'blue' }).addTo(leafletMap.value);
 
     // Fit map to polyline bounds
     if (latlngs.length > 0) {
-        map.fitBounds(latlngs);
+        leafletMap.value.fitBounds(latlngs);
 
         // Add start and end markers
         L.marker(latlngs[0], {
             icon: L.divIcon({ className: 'bg-success dot' })
-        }).addTo(map);
+        }).addTo(leafletMap.value);
 
         L.marker(latlngs[latlngs.length - 1], {
             icon: L.divIcon({ className: 'bg-danger dot' })
-        }).addTo(map);
+        }).addTo(leafletMap.value);
     }
 };
 

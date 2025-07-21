@@ -24,9 +24,6 @@ class Notification(BaseModel):
     read: bool = False
     created_at: str | None = None
 
-    class Config:
-        """
-        Pydantic configuration class to enable ORM mode, allowing models to be created from ORM objects.
-        """
-
-        orm_mode = True
+    model_config = {
+        "from_attributes": True
+    }

@@ -9,16 +9,9 @@
                 <UserAvatarComponent :user="userActivity" :width=55 :height=55 />
                 <div class="ms-3 me-3">
                     <div class="fw-bold">
-                        <router-link :to="{ name: 'activity', params: { id: activity.id } }"
-                            class="link-body-emphasis link-underline-opacity-0 link-underline-opacity-100-hover"
-                            v-if="source === 'home'">
-                            <span v-if="activity.name === 'Workout'">{{ formatName(activity, t) }}</span>
-                            <span v-else>{{ activity.name }}</span>
-                        </router-link>
                         <span v-if="userActivity">
                             <router-link :to="{ name: 'user', params: { id: userActivity.id } }"
-                                class="link-body-emphasis link-underline-opacity-0 link-underline-opacity-100-hover"
-                                v-if="source === 'activity'">
+                                class="link-body-emphasis link-underline-opacity-0 link-underline-opacity-100-hover">
                                 {{ userActivity.name }}
                             </router-link>
                         </span>
@@ -126,6 +119,14 @@
             @submitAction="submitDeleteActivity" />
 
         <!-- Activity title -->
+        <h5 class="mt-3" v-if="source === 'home'">
+            <router-link :to="{ name: 'activity', params: { id: activity.id } }"
+                class="link-body-emphasis link-underline-opacity-0 link-underline-opacity-100-hover">
+                <span v-if="activity.name === 'Workout'">{{ formatName(activity, t) }}</span>
+                <span v-else>{{ activity.name }}</span>
+            </router-link>
+
+        </h5>
         <h1 class="mt-3" v-if="source === 'activity'">
             <span v-if="activity.name === 'Workout'">{{ formatName(activity, t) }}</span>
             <span v-else>{{ activity.name }}</span>
