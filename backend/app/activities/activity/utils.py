@@ -208,7 +208,11 @@ def transform_schema_activity_to_model_activity(
         end_time=activity.end_time,
         timezone=activity.timezone,
         total_elapsed_time=activity.total_elapsed_time,
-        total_timer_time=activity.total_timer_time,
+        total_timer_time=(
+            activity.total_timer_time
+            if activity.total_timer_time is not None
+            else activity.total_elapsed_time
+        ),
         city=activity.city,
         town=activity.town,
         country=activity.country,
@@ -275,6 +279,7 @@ def serialize_activity(activity: activities_schema.Activity):
 
     return activity
 
+
 def handle_gzipped_file(
     file_path: str,
 ) -> tuple[str, str]:
@@ -286,19 +291,20 @@ def handle_gzipped_file(
     """
     path = Path(file_path)
 
-    inner_filename = path.stem # eg "activity_1234567890.fit"
-    inner_file_extension = Path(inner_filename).suffix # eg ".gz"
+    inner_filename = path.stem  # eg "activity_1234567890.fit"
+    inner_file_extension = Path(inner_filename).suffix  # eg ".gz"
 
     with gzip.open(path) as gzipped_file:
         with NamedTemporaryFile(suffix=inner_filename, delete=False) as temp_file:
             temp_file.write(gzipped_file.read())
             temp_file.flush()
-            core_logger.print_to_log_and_console(f"Decompressed {path} with inner type {inner_file_extension} to {temp_file.name}")
+            core_logger.print_to_log_and_console(
+                f"Decompressed {path} with inner type {inner_file_extension} to {temp_file.name}"
+            )
 
             move_file(core_config.FILES_PROCESSED_DIR, path.name, str(path))
 
             return temp_file.name, inner_file_extension
-
 
 
 async def parse_and_store_activity_from_file(
@@ -347,7 +353,10 @@ async def parse_and_store_activity_from_file(
             if parsed_info is not None:
                 created_activities = []
                 idsToFileName = ""
-                if file_extension.lower() in (".gpx", ".tcx",):
+                if file_extension.lower() in (
+                    ".gpx",
+                    ".tcx",
+                ):
                     # Store the activity in the database
                     created_activity = await store_activity(
                         parsed_info, websocket_manager, db
@@ -472,7 +481,7 @@ async def parse_and_store_activity_from_uploaded_file(
         if parsed_info is not None:
             created_activities = []
             idsToFileName = ""
-            if file_extension.lower() in (".gpx", '.tcx'):
+            if file_extension.lower() in (".gpx", ".tcx"):
                 # Store the activity in the database
                 created_activity = await store_activity(
                     parsed_info, websocket_manager, db
@@ -586,9 +595,12 @@ def parse_file(
                     user_privacy_settings,
                     db,
                 )
-            elif file_extension.lower() == '.tcx':
+            elif file_extension.lower() == ".tcx":
                 parsed_info = tcx_utils.parse_tcx_file(
-                    filename, token_user_id, user_privacy_settings, db,
+                    filename,
+                    token_user_id,
+                    user_privacy_settings,
+                    db,
                 )
             elif file_extension.lower() == ".fit":
                 # Parse the FIT file
@@ -921,7 +933,9 @@ def calculate_avg_and_max(data, stream_type):
     try:
         # Get the values from the data
         values = [
-            float(waypoint[stream_type]) for waypoint in data if waypoint.get(stream_type) is not None
+            float(waypoint[stream_type])
+            for waypoint in data
+            if waypoint.get(stream_type) is not None
         ]
     except (ValueError, KeyError):
         # If there are no valid values, return 0
