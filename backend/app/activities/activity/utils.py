@@ -841,7 +841,7 @@ def location_based_on_coordinates(latitude, longitude) -> dict | None:
             "town": data.get("city"),
             "country": data.get("country"),
         }
-    except requests.exceptions.RequestException as err:
+    except Exception as err:
         # Log the error
         core_logger.print_to_log_and_console(
             f"Error in location_based_on_coordinates - {str(err)}", "error"
