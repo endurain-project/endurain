@@ -10,5 +10,6 @@ class ServerSettings(BaseModel):
     currency: int
     num_records_per_page: int
 
-    class Config:
-        orm_mode = True
+    model_config = {
+        "from_attributes": True
+    }

@@ -12,7 +12,7 @@
     <td class="d-none d-md-table-cell">{{ formatDuration(activity.total_timer_time) }}</td>
     <td class="d-none d-md-table-cell">{{ formatDistance(activity, authStore.user.units) }}</td>
     <td class="d-none d-md-table-cell">
-        <span v-if="activityTypeIsRunning(activity) || activityTypeIsSwimming(activity) || activity.activity_type === 11 || activity.activity_type === 12 || activityTypeIsRowing(activity)">
+        <span v-if="activityTypeIsRunning(activity) || activityTypeIsSwimming(activity) || activityTypeIsWalking(activity) || activityTypeIsRowing(activity)">
             {{ formatPace(activity, authStore.user.units) }}
         </span>
         <span v-else-if="activityTypeIsCycling(activity)">
@@ -42,6 +42,7 @@ import {
 	getIcon,
 	formatLocation,
     formatAverageSpeed,
+    activityTypeIsWalking,
     activityTypeIsCycling,
     activityTypeIsRunning,
     activityTypeIsSwimming,

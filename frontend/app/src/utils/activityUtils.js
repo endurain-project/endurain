@@ -48,6 +48,7 @@ const ACTIVITY_TYPES = [
 	28,
 	29,
 	30,
+	31,
 ]
 
 /**
@@ -91,6 +92,7 @@ const activityLabelMap = {
 	28: t => t("activityItems.indoorRide"),
 	29: t => t("activityItems.mixedSurfaceRide"),
 	30: t => t("activityItems.windsurf"),
+	31: t => t("activityItems.indoorWalk"),
 };
 
 /**
@@ -306,7 +308,7 @@ export function activityTypeNotCycling(activity) {
  * @returns {boolean} True if the type of the activity is walking, false otherwise.
  */
 export function activityTypeIsWalking(activity) {
-	return activity.activity_type === 11 || activity.activity_type === 12;
+	return activity.activity_type === 11 || activity.activity_type === 12 || activity.activity_type === 31;
 }
 
 /**
@@ -626,6 +628,7 @@ export function getIcon(typeId) {
 		28: ["fas", "person-biking"],
 		29: ["fas", "person-biking"],
 		30: ["fas", "wind"],
+		31: ["fas", "person-walking"],
 	};
 
 	return iconMap[typeId] || ["fas", "dumbbell"];

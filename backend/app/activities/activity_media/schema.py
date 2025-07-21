@@ -7,5 +7,6 @@ class ActivityMedia(BaseModel):
     media_path: str
     media_type: int
 
-    class Config:
-        orm_mode = True
+    model_config = {
+        "from_attributes": True
+    }

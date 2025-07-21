@@ -61,6 +61,57 @@ def get_activity_media(activity_id: int, token_user_id: int, db: Session):
         ) from err
 
 
+def get_activities_media(
+    activity_ids: list[int],
+    token_user_id: int,
+    db: Session,
+    activities: list[activities_schema.Activity] = None,
+):
+    try:
+        if not activity_ids:
+            return []
+
+        if not activities:
+            # Fetch all activities at once
+            activities = (
+                db.query(activity_models.Activity)
+                .filter(activity_models.Activity.id.in_(activity_ids))
+                .all()
+            )
+
+        if not activities:
+            return []
+
+        # Filter out hidden media for activities the user doesn't own
+        allowed_ids = [
+            activity.id for activity in activities if activity.user_id == token_user_id
+        ]
+
+        if not allowed_ids:
+            return []
+
+        # Fetch all media for allowed activities
+        activity_media = (
+            db.query(activity_media_models.ActivityMedia)
+            .filter(activity_media_models.ActivityMedia.activity_id.in_(allowed_ids))
+            .all()
+        )
+
+        if not activity_media:
+            return []
+
+        return activity_media
+
+    except Exception as err:
+        core_logger.print_to_log(
+            f"Error in get_activities_media: {err}", "error", exc=err
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal Server Error",
+        ) from err
+
+
 def create_activity_media(activity_id: int, media_path: str, db: Session):
     try:
         # Create a new activity_media
@@ -93,6 +144,51 @@ def create_activity_media(activity_id: int, media_path: str, db: Session):
         # Log the exception
         core_logger.print_to_log(
             f"Error in create_activity_media: {err}", "error", exc=err
+        )
+
+        # Raise an HTTPException with a 500 Internal Server Error status code
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal Server Error",
+        ) from err
+
+
+def create_activity_medias(
+    activity_media: list[activity_media_schema.ActivityMedia],
+    activity_id: int,
+    db: Session,
+):
+    try:
+        # Create a list to store the ActivityMedia objects
+        media = []
+
+        # Iterate over the list of ActivityMedia objects
+        for media_item in activity_media:
+            # Create an ActivityMedia object
+            db_media = activity_media_models.ActivityMedia(
+                activity_id=activity_id,
+                **{
+                    key: getattr(media_item, key)
+                    for key in [
+                        "media_path",
+                        "media_type",
+                    ]
+                },
+            )
+
+            # Append the object to the list
+            media.append(db_media)
+
+        # Bulk insert the list of ActivityMedia objects
+        db.bulk_save_objects(media)
+        db.commit()
+    except Exception as err:
+        # Rollback the transaction
+        db.rollback()
+
+        # Log the exception
+        core_logger.print_to_log(
+            f"Error in create_activity_medias: {err}", "error", exc=err
         )
 
         # Raise an HTTPException with a 500 Internal Server Error status code

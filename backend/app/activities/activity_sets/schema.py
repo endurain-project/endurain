@@ -12,5 +12,6 @@ class ActivitySets(BaseModel):
     category: int | None
     category_subtype: int | None
 
-    class Config:
-        orm_mode = True
+    model_config = {
+        "from_attributes": True
+    }

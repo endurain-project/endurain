@@ -7,5 +7,6 @@ class ActivityExerciseTitles(BaseModel):
     exercise_name: int
     wkt_step_name: str
 
-    class Config:
-        orm_mode = True
+    model_config = {
+        "from_attributes": True
+    }

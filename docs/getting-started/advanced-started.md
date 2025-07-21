@@ -72,7 +72,7 @@ Docker image uses a non-root user, so ensure target folders are not owned by roo
 | Volume | Notes |
 | --- | --- |
 | `<local_path>/endurain/backend/logs:/app/backend/logs` | Log files for the backend |
-| `<local_path>/endurain/backend/config:/app/backend/config` | Necessary for image and activity files persistence on docker image update |
+| `<local_path>/endurain/backend/data:/app/backend/data` | Necessary for image and activity files persistence on docker image update |
 
 ## Bulk import and file upload
 

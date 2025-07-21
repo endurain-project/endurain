@@ -41,5 +41,6 @@ class ActivityLaps(BaseModel):
     avg_vertical_ratio: float | None = None
     avg_step_length: float | None = None
 
-    class Config:
-        orm_mode = True
+    model_config = {
+        "from_attributes": True
+    }

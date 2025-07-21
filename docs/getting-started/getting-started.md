@@ -35,7 +35,7 @@ Lets use `/opt/endurain/` as the root directory for our project.
 sudo mkdir /opt/endurain
 sudo chown 1000:1000 /opt/endurain
 mkdir -p \
-  /opt/endurain/app/{config,logs} \
+  /opt/endurain/app/{data,logs} \
   /opt/endurain/postgres
 ```
 
@@ -168,7 +168,7 @@ The same is the case for Postgres. Check for breaking changes in release notes o
 You should implement backup strategy for the following directories:
 
 ```
-/opt/endurain/app/config
+/opt/endurain/app/data
 /opt/endurain/app/logs
 ```
 

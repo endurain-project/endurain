@@ -14,5 +14,6 @@ class Gear(BaseModel):
     strava_gear_id: str | None = None
     garminconnect_gear_id: str | None = None
 
-    class Config:
-        orm_mode = True
+    model_config = {
+        "from_attributes": True
+    }

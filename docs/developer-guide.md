@@ -170,6 +170,7 @@ The table bellow details the activity types supported by Endurain:
 | Open water swimming | 9 |
 | General workout | 10 |
 | Walk | 11 |
+| Indoor walk | 31 |
 | Hike | 12 |
 | Rowing | 13 |
 | Yoga | 14 |
@@ -272,3 +273,29 @@ The table bellow details the racquet component gear types supported by Endurain:
 | grommets                    |
 | overgrip                    |
 | strings                     |
+
+
+## Supported windsurf component gear types
+The table bellow details the windsurf component gear types supported by Endurain:
+
+| Value                       |
+|-----------------------------|
+| sail                        |
+| board                       |
+| mast                        |
+| boom                        |
+| mast_extension              |
+| mast_base                   |
+| mast_universal_joint        |
+| fin                         |
+| footstraps                  |
+| harness_lines               |
+| rigging_lines               |
+| footpad                     |
+| impact_vest                 |
+| lifeguard_vest              |
+| helmet                      |
+| wing                        |
+| front_foil                  |
+| stabilizer                  |
+| fuselage                    |

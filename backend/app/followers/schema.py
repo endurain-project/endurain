@@ -6,5 +6,6 @@ class Follower(BaseModel):
     following_id: int
     is_accepted: bool
 
-    class Config:
-        orm_mode = True
+    model_config = {
+        "from_attributes": True
+    }

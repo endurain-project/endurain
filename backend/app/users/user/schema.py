@@ -29,8 +29,9 @@ class User(BaseModel):
     first_day_of_week: int = 1
     currency: int
 
-    class Config:
-        orm_mode = True
+    model_config = {
+        "from_attributes": True
+    }
 
 
 class UserCreate(User):

@@ -113,5 +113,6 @@ class GearComponents(BaseModel):
     expected_kms: int | None = None
     purchase_value: float | None = None
 
-    class Config:
-        orm_mode = True
+    model_config = {
+        "from_attributes": True
+    }

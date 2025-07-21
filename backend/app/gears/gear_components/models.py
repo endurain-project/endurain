@@ -28,7 +28,7 @@ class GearComponents(Base):
     )
     gear_id = Column(
         Integer,
-        ForeignKey("gear.id", ondelete="SET NULL"),
+        ForeignKey("gear.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
         comment="Gear ID associated with this component",

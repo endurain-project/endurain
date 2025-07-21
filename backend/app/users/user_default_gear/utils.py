@@ -28,7 +28,7 @@ def get_user_default_gear_by_activity_type(
             return user_default_gear.virtual_ride_gear_id
         elif activity_type == 9:
             return user_default_gear.ows_gear_id
-        elif activity_type == 11:
+        elif activity_type == 11 or activity_type == 31:
             return user_default_gear.walk_gear_id
         elif activity_type == 12:
             return user_default_gear.hike_gear_id

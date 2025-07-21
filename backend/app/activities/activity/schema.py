@@ -39,6 +39,7 @@ class Activity(BaseModel):
     strava_activity_id: int | None = None
     garminconnect_activity_id: int | None = None
     garminconnect_gear_id: str | None = None
+    import_info: dict | None = None
     is_hidden: bool = False
     hide_start_time: bool | None = None
     hide_location: bool | None = None
@@ -52,9 +53,12 @@ class Activity(BaseModel):
     hide_laps: bool | None = None
     hide_workout_sets_steps: bool | None = None
     hide_gear: bool | None = None
+    tracker_manufacturer: str | None = None
+    tracker_model: str | None = None
 
-    class Config:
-        orm_mode = True
+    model_config = {
+        "from_attributes": True
+    }
 
 
 class ActivityDistances(BaseModel):

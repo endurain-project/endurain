@@ -77,6 +77,7 @@ ACTIVITY_ID_TO_NAME = {
     28: "Indoor ride",
     29: "Mixed surface ride",
     30: "Windsurf",
+    31: "Indoor walking",
     # Add other mappings as needed based on the full list in define_activity_type comments if required
     # "AlpineSki",
     # "BackcountrySki",
@@ -180,6 +181,7 @@ ACTIVITY_NAME_TO_ID.update(
         "mixed_surface_ride": 29,
         "windsurf": 30,
         "windsurfing": 30,
+        "indoor_walking": 31,
     }
 )
 
@@ -232,6 +234,7 @@ def transform_schema_activity_to_model_activity(
         strava_activity_id=activity.strava_activity_id,
         garminconnect_activity_id=activity.garminconnect_activity_id,
         garminconnect_gear_id=activity.garminconnect_gear_id,
+        import_info=activity.import_info,
         is_hidden=activity.is_hidden if activity.is_hidden is not None else False,
         hide_start_time=activity.hide_start_time,
         hide_location=activity.hide_location,
@@ -245,6 +248,8 @@ def transform_schema_activity_to_model_activity(
         hide_laps=activity.hide_laps,
         hide_workout_sets_steps=activity.hide_workout_sets_steps,
         hide_gear=activity.hide_gear,
+        tracker_manufacturer=activity.tracker_manufacturer,
+        tracker_model=activity.tracker_model,
     )
 
     return new_activity
@@ -716,7 +721,7 @@ def calculate_activity_distances(activities: list[activities_schema.Activity]):
                 bike += activity.distance
             elif activity.activity_type in [8, 9]:
                 swim += activity.distance
-            elif activity.activity_type in [11]:
+            elif activity.activity_type in [11, 31]:
                 walk += activity.distance
             elif activity.activity_type in [12]:
                 hike += activity.distance

@@ -6,5 +6,6 @@ class HealthTargets(BaseModel):
     user_id: int | None = None
     weight: float | None = None
 
-    class Config:
-        orm_mode = True
+    model_config = {
+        "from_attributes": True
+    }

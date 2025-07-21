@@ -1073,6 +1073,7 @@ async def create_activity(
     activity: activities_schema.Activity,
     websocket_manager: websocket_schema.WebSocketManager,
     db: Session,
+    create_notification: bool = True,
 ) -> activities_schema.Activity:
     try:
         # Check if already is an activity created with the same start time
@@ -1097,14 +1098,15 @@ async def create_activity(
         activity.created_at = new_activity.created_at
 
         # Create a notification for the new activity
-        if activity_start_time_exists:
-            await notifications_utils.create_new_duplicate_start_time_activity_notification(
-                activity.user_id, new_activity.id, websocket_manager
-            )
-        else:
-            await notifications_utils.create_new_activity_notification(
-                activity.user_id, new_activity.id, websocket_manager
-            )
+        if create_notification and websocket_manager:
+            if activity_start_time_exists:
+                await notifications_utils.create_new_duplicate_start_time_activity_notification(
+                    activity.user_id, new_activity.id, websocket_manager
+                )
+            else:
+                await notifications_utils.create_new_activity_notification(
+                    activity.user_id, new_activity.id, websocket_manager
+                )
 
         # Return the activity
         return activity
