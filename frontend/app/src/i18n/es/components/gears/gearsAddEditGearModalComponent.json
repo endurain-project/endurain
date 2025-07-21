@@ -18,7 +18,7 @@
     "addEditGearModalAddIsActiveOption0": "Inactivo",
     "addEditGearModalAddIsInitialKmsLabel": "Kms iniciales",
     "addEditGearModalAddIsInitialMilesLabel": "Millas iniciales",
-    "addEditGearModalAddEditPurchaseValueLabel": "Purchase value",
+    "addEditGearModalAddEditPurchaseValueLabel": "Valor de compra",
     "errorNicknameAlreadyExistsFeedback": "El nombre de usuario ya existe",
     "errorNotPossibleToGetGearByNickname": "No ha sido posible obtener el equipamiento por apodo para la validación",
     "successGearAdded": "Equipo añadido correctamente",

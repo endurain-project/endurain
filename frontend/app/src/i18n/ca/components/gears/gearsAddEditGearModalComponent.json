@@ -18,7 +18,7 @@
     "addEditGearModalAddIsActiveOption0": "Inactiu",
     "addEditGearModalAddIsInitialKmsLabel": "Kms inicials",
     "addEditGearModalAddIsInitialMilesLabel": "Milles inicials",
-    "addEditGearModalAddEditPurchaseValueLabel": "Purchase value",
+    "addEditGearModalAddEditPurchaseValueLabel": "Valor de compra",
     "errorNicknameAlreadyExistsFeedback": "L’àlies ja existeix",
     "errorNotPossibleToGetGearByNickname": "No ha estat possible obtenir l'equip per sobrenom per a la validació",
     "successGearAdded": "Equipament afegit correctament",

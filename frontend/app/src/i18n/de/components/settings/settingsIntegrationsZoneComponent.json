@@ -28,7 +28,7 @@
     "modalUnlinkStravaTitle": "Strava entfernen",
     "modalUnlinkStravaBody": "Bist du dir sicher, dass du die Verknüpfung deines Strava-Kontos aufheben möchtest? Wenn du dein Strava-Konto aufhebst, werden alle deine Strava-Aktivitäten und Ausrüstungen aus Endurain entfernt.",
     "bulkImportIntegrationTitle": "Massenimport",
-    "bulkImportIntegrationBody": "Massenimport von Aktivitäten aus Dateien, die im bulk_import-Ordner gespeichert sind",
+    "bulkImportIntegrationBody": "Bulk import activities from files stored in the activity_files/bulk_import folder",
     "buttonBulkImport": "Importieren",
     "errorMessageUnableToImportActivities": "Fehler beim Importieren der Aktivitäten",
     "loadingMessageBulkImport": "Importiere Aktivitäten",

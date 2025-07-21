@@ -1,10 +1,10 @@
 {
-    "defaultsTitle": "Defaults",
+    "defaultsTitle": "Predeterminados",
     "unitsLabel": "Unidades por defecto",
     "unitsMetric": "Métrica",
     "unitsImperial": "Imperial",
-    "currencyLabel": "Default currency",
-    "numRecordsLabel": "Number of records per page",
+    "currencyLabel": "Moneda predeterminada",
+    "numRecordsLabel": "Número de registros por página",
     "publicShareableLinksLabel": "Enlace público para compartir",
     "publicShareableLinksEnabledLabel": "Habilitado",
     "publicShareableLinksTrue": "Verdadero",

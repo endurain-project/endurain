@@ -9,5 +9,5 @@
     "errorMessageDeleteGear": "Error al eliminar el equipo de la actividad",
     "errorMessageActivityNotFound": "Actividad no encontrada",
     "alertPrivacyMessage": "Tienes información oculta en esta actividad. Puedes verla, pero otros no.",
-    "isHiddenMessage": "This activity is hidden. Probably because it is a duplicate or was hidden by the user."
+    "isHiddenMessage": "Esta actividad está oculta. Probablemente porque es un duplicado o fue ocultada por el usuario."
 }
