@@ -20,7 +20,7 @@ USER_IMAGES_DIR = "data/user_images"
 SERVER_IMAGES_DIR = "data/server_images"
 REVERSE_GEO_PROVIDER = os.getenv("REVERSE_GEO_PROVIDER", "geocode").lower()
 PHOTON_API_HOST = os.getenv("PHOTON_API_HOST", "photon.komoot.io").lower()
-PHOTON_API_USE_HTTPS = (os.getenv("PHOTON_API_USE_HTTPS", "true").lower() == "true", "true")
+PHOTON_API_USE_HTTPS = os.getenv("PHOTON_API_USE_HTTPS", "true").lower() == "true"
 GEOCODES_MAPS_API = os.getenv("GEOCODES_MAPS_API", "changeme")
 try:
     GEOCODES_MAPS_RATE_LIMIT = float(os.getenv("GEOCODES_MAPS_RATE_LIMIT", "1"))
