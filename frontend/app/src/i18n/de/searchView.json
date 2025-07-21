@@ -23,6 +23,7 @@
     "searchSelectGearType4": "Racquet",
     "searchSelectGearType5": "Skis",
     "searchSelectGearType6": "Snowboard",
+    "searchSelectGearType7": "Windsurf",
     "resultIsInactiveBadge": "Inactive",
     "searchInputPlaceholder": "Search text",
     "errorFetchingUserWithUsernameContains": "Error fetching user with username contains logic",
