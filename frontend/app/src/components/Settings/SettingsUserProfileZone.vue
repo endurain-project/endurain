@@ -89,14 +89,16 @@
 						}}</span>
 						<span v-else>{{ $t('settingsUserProfileZone.unitsOption2') }}</span>
 					</p>
-                    <!-- user currency -->
-                    <p>
-                        <font-awesome-icon :icon="['fas', 'coins']" class="me-2"/>
-                        <b>{{ $t("settingsUserProfileZone.currencyLabel") }}: </b>
-                        <span v-if="Number(authStore?.user?.currency) === 1">{{ $t("generalItems.currencyEuro") }}</span>
-                        <span v-else-if="Number(authStore?.user?.currency) === 2">{{ $t("generalItems.currencyDollar") }}</span>
-                        <span v-else>{{ $t("generalItems.currencyPound") }}</span>
-                    </p>
+					<!-- user currency -->
+					<p>
+						<font-awesome-icon :icon="['fas', 'coins']" class="me-2" />
+						<b>{{ $t("settingsUserProfileZone.currencyLabel") }}: </b>
+						<span v-if="Number(authStore?.user?.currency) === 1">{{ $t("generalItems.currencyEuro")
+							}}</span>
+						<span v-else-if="Number(authStore?.user?.currency) === 2">{{ $t("generalItems.currencyDollar")
+							}}</span>
+						<span v-else>{{ $t("generalItems.currencyPound") }}</span>
+					</p>
 					<!-- user height -->
 					<p>
 						<font-awesome-icon :icon="['fas', 'person-arrow-up-from-line']" class="me-2" />
@@ -328,8 +330,8 @@
 							<label class="form-label" for="settingsUserProfileWindsurfGearSelect">{{
 								$t('settingsUserProfileZone.subTitleWindsurf')
 							}}</label>
-							<select class="form-select" name="settingsUserProfileWindsurfGearSelect" v-model="defaultWindsurfGear"
-								required>
+							<select class="form-select" name="settingsUserProfileWindsurfGearSelect"
+								v-model="defaultWindsurfGear" required>
 								<option :value="null">
 									{{ $t('settingsUserProfileZone.selectOptionNotDefined') }}
 								</option>
@@ -789,6 +791,10 @@ async function uploadImportFile(file) {
 
 		// Store the user in the auth store
 		authStore.setUser(userProfile, authStore.session_id, locale);
+
+		// Get default gear for the user
+		await getDefaultGear();
+
 		notification.resolve(t("settingsUserProfileZone.importSuccess"));
 	} catch (error) {
 		notification.reject(`${t('settingsUserProfileZone.importError')} - ${error}`);
@@ -816,6 +822,30 @@ async function handleExport() {
 	}
 }
 
+async function getDefaultGear() {
+	try {
+		defaultGear.value = await userDefaultGear.getUserDefaultGear()
+		defaultRunGear.value = defaultGear.value.run_gear_id
+		defaultTrailRunGear.value = defaultGear.value.trail_run_gear_id
+		defaultVirtualRunGear.value = defaultGear.value.virtual_run_gear_id
+		defaultWalkGear.value = defaultGear.value.walk_gear_id
+		defaultHikeGear.value = defaultGear.value.hike_gear_id
+		defaultRideGear.value = defaultGear.value.ride_gear_id
+		defaultMTBRideGear.value = defaultGear.value.mtb_ride_gear_id
+		defaultGravelRideGear.value = defaultGear.value.gravel_ride_gear_id
+		defaultVirtualRideGear.value = defaultGear.value.virtual_ride_gear_id
+		defaultOWSGear.value = defaultGear.value.ows_gear_id
+		defaultTennisGear.value = defaultGear.value.tennis_gear_id
+		defaultAlpineSkiGear.value = defaultGear.value.alpine_ski_gear_id
+		defaultNordicSkiGear.value = defaultGear.value.nordic_ski_gear_id
+		defaultSnowboardGear.value = defaultGear.value.snowboard_gear_id
+		defaultWindsurfGear.value = defaultGear.value.windsurf_gear_id
+	} catch (error) {
+		// If there is an error, set the error message and show the error alert.
+		push.error(`${t('settingsUserProfileZone.errorUnableToGetDefaultGear')} - ${error}`)
+	}
+}
+
 onMounted(async () => {
 	isLoading.value = true
 	try {
@@ -828,27 +858,8 @@ onMounted(async () => {
 		snowboardGear.value = allGears.value.filter((gear) => gear.gear_type === 6)
 		windsurfGear.value = allGears.value.filter((gear) => gear.gear_type === 7)
 
-		try {
-			defaultGear.value = await userDefaultGear.getUserDefaultGear()
-			defaultRunGear.value = defaultGear.value.run_gear_id
-			defaultTrailRunGear.value = defaultGear.value.trail_run_gear_id
-			defaultVirtualRunGear.value = defaultGear.value.virtual_run_gear_id
-			defaultWalkGear.value = defaultGear.value.walk_gear_id
-			defaultHikeGear.value = defaultGear.value.hike_gear_id
-			defaultRideGear.value = defaultGear.value.ride_gear_id
-			defaultMTBRideGear.value = defaultGear.value.mtb_ride_gear_id
-			defaultGravelRideGear.value = defaultGear.value.gravel_ride_gear_id
-			defaultVirtualRideGear.value = defaultGear.value.virtual_ride_gear_id
-			defaultOWSGear.value = defaultGear.value.ows_gear_id
-			defaultTennisGear.value = defaultGear.value.tennis_gear_id
-			defaultAlpineSkiGear.value = defaultGear.value.alpine_ski_gear_id
-			defaultNordicSkiGear.value = defaultGear.value.nordic_ski_gear_id
-			defaultSnowboardGear.value = defaultGear.value.snowboard_gear_id
-			defaultWindsurfGear.value = defaultGear.value.windsurf_gear_id
-		} catch (error) {
-			// If there is an error, set the error message and show the error alert.
-			push.error(`${t('settingsUserProfileZone.errorUnableToGetDefaultGear')} - ${error}`)
-		}
+		// Get default gear for the user
+		await getDefaultGear();
 	} catch (error) {
 		// If there is an error, set the error message and show the error alert.
 		push.error(`${t('settingsUserProfileZone.errorUnableToGetGear')} - ${error}`)
