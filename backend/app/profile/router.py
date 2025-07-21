@@ -1038,8 +1038,9 @@ async def import_profile_data(
                         old_path = media_data.get("media_path", None)
                         if old_path:
                             # Extract the part after the underscore
-                            filename = old_path.split("_", 1)[1]
-                            media_data["media_path"] = f"data/activity_media/{new_activity.id}_{filename}"
+                            filename = old_path.split("/")[-1]
+                            suffix = filename.split("_", 1)[1]
+                            media_data["media_path"] = f"{core_config.ACTIVITY_MEDIA_DIR}/{new_activity.id}_{suffix}"
                         # convert activity data to ActivityMedia schema
                         media_item = activity_media_schema.ActivityMedia(**media_data)
                         # add the media item to the media list
