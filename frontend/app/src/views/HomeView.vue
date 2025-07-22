@@ -353,8 +353,6 @@ onMounted(async () => {
 				numRecords,
 			);
 
-		console.log("followedUserActivities", followedUserActivities.value);
-
 		// If the number of activities is greater than the page number times the number of records, there are no more activities
 		if (
 			pageNumberUserActivities.value * numRecords >=

@@ -376,7 +376,6 @@ const submitUploadMediaForm = async (file) => {
         try {
             // Upload the file
             const newActivityMedia = await activityMedia.uploadActivityMediaFile(props.activity.id, file);
-            console.log("New activity media uploaded:", newActivityMedia);
             
             emit("activityNewActivityMedia", newActivityMedia);
 
