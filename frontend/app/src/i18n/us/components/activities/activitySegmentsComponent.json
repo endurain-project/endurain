@@ -9,5 +9,8 @@
     "errorSubmitSegment": "Error creating segment",
     "activityNotFollowingDefinedSegments": "This activity does not follow any defined segments.",
     "labelSegmentName": "Segment",
-    "labelTimings": "Timings"
+    "labelTimings": "Timings",
+    "labelGate": "Gate",
+    "labelLap": "Lap",
+    "labelFinish": "Finish"
 }

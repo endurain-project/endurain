@@ -25,13 +25,13 @@
                                             <table class="table table-borderless table-hover table-sm rounded text-center" v-if="intersections[idx] && intersections[idx].gate_times">
                                             <thead>
                                                 <tr>
-                                                <th>Gate</th>
-                                                <th v-for="(lap, lapIdx) in intersections[idx].sub_segment_times" :key="lapIdx">Lap {{ lapIdx + 1 }}</th>
+                                                <th>{{ $t("activitySegmentsComponent.labelGate") }}</th>
+                                                <th v-for="(lap, lapIdx) in intersections[idx].sub_segment_times" :key="lapIdx">{{ $t("activitySegmentsComponent.labelLap") }} {{ lapIdx + 1 }}</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
                                                 <tr v-for="gateIdx in intersections[idx].sub_segment_times[0]?.length" :key="gateIdx" @mouseover="highlightGate(idx, intersections[idx].sub_segment_times[0][gateIdx-1][0])" @mouseout="unhighlightGate(idx, intersections[idx].sub_segment_times[0][gateIdx-1][0])">
-                                                <td>{{ (gateIdx === intersections[idx].sub_segment_times[0].length)? 'Finish' : intersections[idx].sub_segment_times[0][gateIdx-1][0] }}</td>
+                                                <td>{{ (gateIdx === intersections[idx].sub_segment_times[0].length)? $t("activitySegmentsComponent.labelFinish") : intersections[idx].sub_segment_times[0][gateIdx-1][0] }}</td>
                                                 <td v-for="(lap, lapIdx) in intersections[idx].sub_segment_times" :key="lapIdx">
                                                     {{ formatSecondsToTime(lap[gateIdx - 1][1]) }}
                                                 </td>
