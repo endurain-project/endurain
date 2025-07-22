@@ -14,6 +14,8 @@ import session.security as session_security
 
 import core.database as core_database
 
+import websocket.schema as websocket_schema
+
 # Define the API router
 router = APIRouter()
 
@@ -204,13 +206,19 @@ async def create_follow(
     check_scopes: Annotated[
         Callable, Security(session_security.check_scopes, scopes=["profile"])
     ],
+    websocket_manager: Annotated[
+        websocket_schema.WebSocketManager,
+        Depends(websocket_schema.get_websocket_manager),
+    ],
     db: Annotated[
         Session,
         Depends(core_database.get_db),
     ],
 ):
     # Create the follower and return it
-    return followers_crud.create_follower(token_user_id, target_user_id, db)
+    return await followers_crud.create_follower(
+        token_user_id, target_user_id, websocket_manager, db
+    )
 
 
 @router.put(
@@ -230,16 +238,22 @@ async def accept_follow(
     check_scopes: Annotated[
         Callable, Security(session_security.check_scopes, scopes=["profile"])
     ],
+    websocket_manager: Annotated[
+        websocket_schema.WebSocketManager,
+        Depends(websocket_schema.get_websocket_manager),
+    ],
     db: Annotated[
         Session,
         Depends(core_database.get_db),
     ],
 ):
     # Accept the follower
-    followers_crud.accept_follower(token_user_id, target_user_id, db)
+    await followers_crud.accept_follower(
+        token_user_id, target_user_id, websocket_manager, db
+    )
 
     # Return success message
-    return {"detail": "Follower record accepted successfully"}
+    return {"detail": "Follower accepted successfully"}
 
 
 @router.delete(

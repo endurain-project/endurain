@@ -27,6 +27,12 @@
                     <NewActivityDuplicateStartTimeNotificationComponent :notification="notification"
                         :showDropdown="showDropdown" v-else-if="notification.type === 2"
                         @notificationRead="markNotificationAsRead" />
+                    <NewFollowerRequestNotificationComponent :notification="notification"
+                        :showDropdown="showDropdown" v-else-if="notification.type === 11"
+                        @notificationRead="markNotificationAsRead" />
+                    <NewAcceptedRequestNotificationComponent :notification="notification"
+                        :showDropdown="showDropdown" v-else-if="notification.type === 12"
+                        @notificationRead="markNotificationAsRead" />
                 </li>
                 <li v-if="totalPages > 1 && totalPages > pageNumber">
                     <a class="dropdown-item" @click="setPageNumber">Load more...</a>
@@ -46,8 +52,10 @@ import { notifications } from "@/services/notificationsService";
 import { useServerSettingsStore } from "@/stores/serverSettingsStore";
 import { useAuthStore } from "@/stores/authStore";
 
+import NewAcceptedRequestNotificationComponent from "@/components/Notifications/NewAcceptedRequestNotificationComponent.vue";
 import NewActivityNotificationComponent from "@/components/Notifications/NewActivityNotificationComponent.vue";
 import NewActivityDuplicateStartTimeNotificationComponent from "@/components/Notifications/NewActivityDuplicateStartTimeNotificationComponent.vue";
+import NewFollowerRequestNotificationComponent from "@/components/Notifications/NewFollowerRequestNotificationComponent.vue";
 import NoItemsFoundComponents from "@/components/GeneralComponents/NoItemsFoundComponents.vue";
 import LoadingComponent from "@/components/GeneralComponents/LoadingComponent.vue";
 
@@ -135,7 +143,7 @@ onMounted(async () => {
         authStore.user_websocket.onmessage = async (event) => {
             try {
                 const data = JSON.parse(event.data);
-                if (data && (data.message === "NEW_ACTIVITY_NOTIFICATION" || data.message === "NEW_DUPLICATE_ACTIVITY_START_TIME_NOTIFICATION")) {
+                if (data && (data.message === "NEW_ACTIVITY_NOTIFICATION" || data.message === "NEW_DUPLICATE_ACTIVITY_START_TIME_NOTIFICATION" || data.message === "NEW_FOLLOWER_REQUEST_NOTIFICATION" || data.message === "NEW_FOLLOWER_REQUEST_ACCEPTED_NOTIFICATION")) {
                     await fetchNotificationById(data.notification_id);
                 }
             } catch (error) {

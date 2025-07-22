@@ -7,6 +7,10 @@ import followers.models as followers_models
 
 import core.logger as core_logger
 
+import notifications.utils as notifications_utils
+
+import websocket.schema as websocket_schema
+
 
 def get_all_followers_by_user_id(user_id: int, db: Session):
     try:
@@ -25,7 +29,9 @@ def get_all_followers_by_user_id(user_id: int, db: Session):
         return followers
     except Exception as err:
         # Log the exception
-        core_logger.print_to_log(f"Error in get_all_followers_by_user_id: {err}", "error", exc=err)
+        core_logger.print_to_log(
+            f"Error in get_all_followers_by_user_id: {err}", "error", exc=err
+        )
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -53,7 +59,9 @@ def get_accepted_followers_by_user_id(user_id: int, db: Session):
         return followers
     except Exception as err:
         # Log the exception
-        core_logger.print_to_log(f"Error in get_accepted_followers_by_user_id: {err}", "error", exc=err)
+        core_logger.print_to_log(
+            f"Error in get_accepted_followers_by_user_id: {err}", "error", exc=err
+        )
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -78,7 +86,9 @@ def get_all_following_by_user_id(user_id: int, db: Session):
         return followings
     except Exception as err:
         # Log the exception
-        core_logger.print_to_log(f"Error in get_all_following_by_user_id: {err}", "error", exc=err)
+        core_logger.print_to_log(
+            f"Error in get_all_following_by_user_id: {err}", "error", exc=err
+        )
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -106,7 +116,9 @@ def get_accepted_following_by_user_id(user_id: int, db: Session):
         return followings
     except Exception as err:
         # Log the exception
-        core_logger.print_to_log(f"Error in get_accepted_following_by_user_id: {err}", "error", exc=err)
+        core_logger.print_to_log(
+            f"Error in get_accepted_following_by_user_id: {err}", "error", exc=err
+        )
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -136,7 +148,11 @@ def get_follower_for_user_id_and_target_user_id(
         return follower
     except Exception as err:
         # Log the exception
-        core_logger.print_to_log(f"Error in get_follower_for_user_id_and_target_user_id: {err}", "error", exc=err)
+        core_logger.print_to_log(
+            f"Error in get_follower_for_user_id_and_target_user_id: {err}",
+            "error",
+            exc=err,
+        )
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -144,7 +160,12 @@ def get_follower_for_user_id_and_target_user_id(
         ) from err
 
 
-def create_follower(user_id: int, target_user_id: int, db: Session):
+async def create_follower(
+    user_id: int,
+    target_user_id: int,
+    websocket_manager: websocket_schema.WebSocketManager,
+    db: Session,
+):
     try:
         # Create a new follow relationship
         new_follow = followers_models.Follower(
@@ -154,6 +175,11 @@ def create_follower(user_id: int, target_user_id: int, db: Session):
         # Add the new follow relationship to the database
         db.add(new_follow)
         db.commit()
+
+        if websocket_manager:
+            await notifications_utils.create_new_follower_request_notification(
+                user_id, target_user_id, websocket_manager, db
+            )
 
         # Return the gear
         return new_follow
@@ -171,7 +197,12 @@ def create_follower(user_id: int, target_user_id: int, db: Session):
         ) from err
 
 
-def accept_follower(user_id: int, target_user_id: int, db: Session):
+async def accept_follower(
+    user_id: int,
+    target_user_id: int,
+    websocket_manager: websocket_schema.WebSocketManager,
+    db: Session,
+):
     try:
         # Get the follower record
         accept_follow = (
@@ -196,6 +227,11 @@ def accept_follower(user_id: int, target_user_id: int, db: Session):
 
         # Commit the transaction
         db.commit()
+
+        if websocket_manager:
+            await notifications_utils.create_accepted_follower_request_notification(
+                user_id, target_user_id, websocket_manager, db
+            )
     except HTTPException as http_err:
         raise http_err
     except Exception as err:

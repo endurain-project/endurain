@@ -31,8 +31,10 @@ import caNavbarBottomMobileComponent from './ca/components/navbar/navbarBottomMo
 import caNavbarComponent from './ca/components/navbar/navbarComponent.json';
 // Import notifications
 import caNavbarNotificationsComponent from './ca/components/notifications/navbarNotificationsComponent.json';
+import caNewAcceptedRequestNotificationComponent from './ca/components/notifications/newAcceptedRequestNotificationComponent.json';
 import caNewActivityDuplicateStartTimeNotificationComponent from './ca/components/notifications/newActivityDuplicateStartTimeNotificationComponent.json';
 import caNewActivityNotificationComponent from './ca/components/notifications/newActivityNotificationComponent.json';
+import caNewFollowerRequestNotificationComponent from './ca/components/notifications/newFollowerRequestNotificationComponent.json';
 // Settings components
 import caSettingsSideBarComponent from './ca/components/settings/settingsSideBarComponent.json';
 import caSettingsUsersZoneComponent from './ca/components/settings/settingsUsersZoneComponent.json';
@@ -97,8 +99,10 @@ import deNavbarBottomMobileComponent from './de/components/navbar/navbarBottomMo
 import deNavbarComponent from './de/components/navbar/navbarComponent.json';
 // Import notifications
 import deNavbarNotificationsComponent from './de/components/notifications/navbarNotificationsComponent.json';
+import deNewAcceptedRequestNotificationComponent from './de/components/notifications/newAcceptedRequestNotificationComponent.json';
 import deNewActivityDuplicateStartTimeNotificationComponent from './de/components/notifications/newActivityDuplicateStartTimeNotificationComponent.json';
 import deNewActivityNotificationComponent from './de/components/notifications/newActivityNotificationComponent.json';
+import deNewFollowerRequestNotificationComponent from './de/components/notifications/newFollowerRequestNotificationComponent.json';
 // Settings components
 import deSettingsSideBarComponent from './de/components/settings/settingsSideBarComponent.json';
 import deSettingsUsersZoneComponent from './de/components/settings/settingsUsersZoneComponent.json';
@@ -163,8 +167,10 @@ import esNavbarBottomMobileComponent from './es/components/navbar/navbarBottomMo
 import esNavbarComponent from './es/components/navbar/navbarComponent.json';
 // Import notifications
 import esNavbarNotificationsComponent from './es/components/notifications/navbarNotificationsComponent.json';
+import esNewAcceptedRequestNotificationComponent from './es/components/notifications/newAcceptedRequestNotificationComponent.json';
 import esNewActivityDuplicateStartTimeNotificationComponent from './es/components/notifications/newActivityDuplicateStartTimeNotificationComponent.json';
 import esNewActivityNotificationComponent from './es/components/notifications/newActivityNotificationComponent.json';
+import esNewFollowerRequestNotificationComponent from './es/components/notifications/newFollowerRequestNotificationComponent.json';
 // Settings components
 import esSettingsSideBarComponent from './es/components/settings/settingsSideBarComponent.json';
 import esSettingsUsersZoneComponent from './es/components/settings/settingsUsersZoneComponent.json';
@@ -230,8 +236,10 @@ import frNavbarBottomMobileComponent from './fr/components/navbar/navbarBottomMo
 import frNavbarComponent from './fr/components/navbar/navbarComponent.json';
 // Import notifications
 import frNavbarNotificationsComponent from './fr/components/notifications/navbarNotificationsComponent.json';
+import frNewAcceptedRequestNotificationComponent from './fr/components/notifications/newAcceptedRequestNotificationComponent.json';
 import frNewActivityDuplicateStartTimeNotificationComponent from './fr/components/notifications/newActivityDuplicateStartTimeNotificationComponent.json';
 import frNewActivityNotificationComponent from './fr/components/notifications/newActivityNotificationComponent.json';
+import frNewFollowerRequestNotificationComponent from './fr/components/notifications/newFollowerRequestNotificationComponent.json';
 // Settings components
 import frSettingsSideBarComponent from './fr/components/settings/settingsSideBarComponent.json';
 import frSettingsUsersZoneComponent from './fr/components/settings/settingsUsersZoneComponent.json';
@@ -297,8 +305,10 @@ import nlNavbarBottomMobileComponent from './nl/components/navbar/navbarBottomMo
 import nlNavbarComponent from './nl/components/navbar/navbarComponent.json';
 // Import notifications
 import nlNavbarNotificationsComponent from './nl/components/notifications/navbarNotificationsComponent.json';
+import nlNewAcceptedRequestNotificationComponent from './nl/components/notifications/newAcceptedRequestNotificationComponent.json';
 import nlNewActivityDuplicateStartTimeNotificationComponent from './nl/components/notifications/newActivityDuplicateStartTimeNotificationComponent.json';
 import nlNewActivityNotificationComponent from './nl/components/notifications/newActivityNotificationComponent.json';
+import nlNewFollowerRequestNotificationComponent from './nl/components/notifications/newFollowerRequestNotificationComponent.json';
 // Settings components
 import nlSettingsSideBarComponent from './nl/components/settings/settingsSideBarComponent.json';
 import nlSettingsUsersZoneComponent from './nl/components/settings/settingsUsersZoneComponent.json';
@@ -364,8 +374,10 @@ import ptNavbarBottomMobileComponent from './pt/components/navbar/navbarBottomMo
 import ptNavbarComponent from './pt/components/navbar/navbarComponent.json';
 // Import notifications
 import ptNavbarNotificationsComponent from './pt/components/notifications/navbarNotificationsComponent.json';
+import ptNewAcceptedRequestNotificationComponent from './pt/components/notifications/newAcceptedRequestNotificationComponent.json';
 import ptNewActivityDuplicateStartTimeNotificationComponent from './pt/components/notifications/newActivityDuplicateStartTimeNotificationComponent.json';
 import ptNewActivityNotificationComponent from './pt/components/notifications/newActivityNotificationComponent.json';
+import ptNewFollowerRequestNotificationComponent from './pt/components/notifications/newFollowerRequestNotificationComponent.json';
 // Settings components
 import ptSettingsSideBarComponent from './pt/components/settings/settingsSideBarComponent.json';
 import ptSettingsUsersZoneComponent from './pt/components/settings/settingsUsersZoneComponent.json';
@@ -430,8 +442,10 @@ import usNavbarBottomMobileComponent from './us/components/navbar/navbarBottomMo
 import usNavbarComponent from './us/components/navbar/navbarComponent.json';
 // Import notifications
 import usNavbarNotificationsComponent from './us/components/notifications/navbarNotificationsComponent.json';
+import usNewAcceptedRequestNotificationComponent from './us/components/notifications/newAcceptedRequestNotificationComponent.json';
 import usNewActivityDuplicateStartTimeNotificationComponent from './us/components/notifications/newActivityDuplicateStartTimeNotificationComponent.json';
 import usNewActivityNotificationComponent from './us/components/notifications/newActivityNotificationComponent.json';
+import usNewFollowerRequestNotificationComponent from './us/components/notifications/newFollowerRequestNotificationComponent.json';
 // Settings components
 import usSettingsSideBarComponent from './us/components/settings/settingsSideBarComponent.json';
 import usSettingsUsersZoneComponent from './us/components/settings/settingsUsersZoneComponent.json';
@@ -499,8 +513,10 @@ const messages = {
 		navbarComponent: caNavbarComponent,
 		// Notifications components
 		navbarNotificationsComponent: caNavbarNotificationsComponent,
+		newAcceptedRequestNotificationComponent: caNewAcceptedRequestNotificationComponent,
 		newActivityDuplicateStartTimeNotificationComponent: caNewActivityDuplicateStartTimeNotificationComponent,
 		newActivityNotificationComponent: caNewActivityNotificationComponent,
+		newFollowerRequestNotificationComponent: caNewFollowerRequestNotificationComponent,
 		// Settings components
 		settingsSideBar: caSettingsSideBarComponent,
 		settingsUsersZone: caSettingsUsersZoneComponent,
@@ -565,8 +581,10 @@ const messages = {
 		navbarComponent: deNavbarComponent,
 		// Notifications components
 		navbarNotificationsComponent: deNavbarNotificationsComponent,
+		newAcceptedRequestNotificationComponent: deNewAcceptedRequestNotificationComponent,
 		newActivityDuplicateStartTimeNotificationComponent: deNewActivityDuplicateStartTimeNotificationComponent,
 		newActivityNotificationComponent: deNewActivityNotificationComponent,
+		newFollowerRequestNotificationComponent: deNewFollowerRequestNotificationComponent,
 		// Settings components
 		settingsSideBar: deSettingsSideBarComponent,
 		settingsUsersZone: deSettingsUsersZoneComponent,
@@ -631,8 +649,10 @@ const messages = {
 		navbarComponent: esNavbarComponent,
 		// Notifications components
 		navbarNotificationsComponent: esNavbarNotificationsComponent,
+		newAcceptedRequestNotificationComponent: esNewAcceptedRequestNotificationComponent,
 		newActivityDuplicateStartTimeNotificationComponent: esNewActivityDuplicateStartTimeNotificationComponent,
 		newActivityNotificationComponent: esNewActivityNotificationComponent,
+		newFollowerRequestNotificationComponent: esNewFollowerRequestNotificationComponent,
 		// Settings components
 		settingsSideBar: esSettingsSideBarComponent,
 		settingsUsersZone: esSettingsUsersZoneComponent,
@@ -697,8 +717,10 @@ const messages = {
 		navbarComponent: frNavbarComponent,
 		// Notifications components
 		navbarNotificationsComponent: frNavbarNotificationsComponent,
+		newAcceptedRequestNotificationComponent: frNewAcceptedRequestNotificationComponent,
 		newActivityDuplicateStartTimeNotificationComponent: frNewActivityDuplicateStartTimeNotificationComponent,
 		newActivityNotificationComponent: frNewActivityNotificationComponent,
+		newFollowerRequestNotificationComponent: frNewFollowerRequestNotificationComponent,
 		// Settings components
 		settingsSideBar: frSettingsSideBarComponent,
 		settingsUsersZone: frSettingsUsersZoneComponent,
@@ -763,8 +785,10 @@ const messages = {
 		navbarComponent: nlNavbarComponent,
 		// Notifications components
 		navbarNotificationsComponent: nlNavbarNotificationsComponent,
+		newAcceptedRequestNotificationComponent: nlNewAcceptedRequestNotificationComponent,
 		newActivityDuplicateStartTimeNotificationComponent: nlNewActivityDuplicateStartTimeNotificationComponent,
 		newActivityNotificationComponent: nlNewActivityNotificationComponent,
+		newFollowerRequestNotificationComponent: nlNewFollowerRequestNotificationComponent,
 		// Settings components
 		settingsSideBar: nlSettingsSideBarComponent,
 		settingsUsersZone: nlSettingsUsersZoneComponent,
@@ -829,8 +853,10 @@ const messages = {
 		navbarComponent: ptNavbarComponent,
 		// Notifications components
 		navbarNotificationsComponent: ptNavbarNotificationsComponent,
+		newAcceptedRequestNotificationComponent: ptNewAcceptedRequestNotificationComponent,
 		newActivityDuplicateStartTimeNotificationComponent: ptNewActivityDuplicateStartTimeNotificationComponent,
 		newActivityNotificationComponent: ptNewActivityNotificationComponent,
+		newFollowerRequestNotificationComponent: ptNewFollowerRequestNotificationComponent,
 		// Settings components
 		settingsSideBar: ptSettingsSideBarComponent,
 		settingsUsersZone: ptSettingsUsersZoneComponent,
@@ -857,6 +883,7 @@ const messages = {
 		gearView: ptGearView,
 		stravaCallbackView: ptStravaCallbackView,
 		activityView: ptActivityView,
+		activityItems: ptActivityItems,
 		activitiesView: ptActivitiesView,
 		healthView: ptHealthView,
 		notFound: ptNotFoundView,
@@ -894,8 +921,10 @@ const messages = {
 		navbarComponent: usNavbarComponent,
 		// Notifications components
 		navbarNotificationsComponent: usNavbarNotificationsComponent,
+		newAcceptedRequestNotificationComponent: usNewAcceptedRequestNotificationComponent,
 		newActivityDuplicateStartTimeNotificationComponent: usNewActivityDuplicateStartTimeNotificationComponent,
 		newActivityNotificationComponent: usNewActivityNotificationComponent,
+		newFollowerRequestNotificationComponent: usNewFollowerRequestNotificationComponent,
 		// Settings components
 		settingsSideBar: usSettingsSideBarComponent,
 		settingsUsersZone: usSettingsUsersZoneComponent,

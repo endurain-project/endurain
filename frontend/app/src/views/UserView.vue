@@ -204,7 +204,7 @@
     <BackButtonComponent />
 </template>
 
-<script>
+<script setup>
 import { ref, onMounted, computed, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { useI18n } from 'vue-i18n';
@@ -227,284 +227,251 @@ import BackButtonComponent from '@/components/GeneralComponents/BackButtonCompon
 import UserAvatarComponent from '@/components/Users/UserAvatarComponent.vue';
 import ModalComponent from "@/components/Modals/ModalComponent.vue";
 
-export default {
-    components: {
-        UserDistanceStatsComponent,
-        NoItemsFoundComponent,
-        LoadingComponent,
-        ActivitySummaryComponent,
-        ActivityMapComponent,
-        FollowersListComponent,
-        BackButtonComponent,
-        UserAvatarComponent,
-        ModalComponent,
-    },
-    setup () {
-        const { t } = useI18n();
-        const authStore = useAuthStore();
-        const route = useRoute();
-        const userProfile = ref(null);
-        const thisWeekDistances = ref([]);
-        const thisMonthDistances = ref([]);
-        const thisMonthNumberOfActivities = ref(0);
-        const followersCountAccepted = ref(0);
-        const followingCountAccepted = ref(0);
-        const followersAll = ref([]);
-        const followingAll = ref([]);
-        const isLoading = ref(true);
-        const isActivitiesLoading = ref(true);
-        const week = ref(0);
-        const totalWeeks = 50;
-        const weekRange = 1;
-        const visibleWeeks = computed(() => {
-            const start = Math.max(1, week.value - weekRange);
-            const end = Math.min(totalWeeks, week.value + weekRange);
-            return Array.from({ length: end - start + 1 }, (_, i) => i + start);
-        });
-        const userWeekActivities = ref([]);
-        const userFollowState = ref(null);
+const { t } = useI18n();
+const authStore = useAuthStore();
+const route = useRoute();
+const userProfile = ref(null);
+const thisWeekDistances = ref([]);
+const thisMonthDistances = ref([]);
+const thisMonthNumberOfActivities = ref(0);
+const followersCountAccepted = ref(0);
+const followingCountAccepted = ref(0);
+const followersAll = ref([]);
+const followingAll = ref([]);
+const isLoading = ref(true);
+const isActivitiesLoading = ref(true);
+const week = ref(0);
+const totalWeeks = 50;
+const weekRange = 1;
+const visibleWeeks = computed(() => {
+    const start = Math.max(1, week.value - weekRange);
+    const end = Math.min(totalWeeks, week.value + weekRange);
+    return Array.from({ length: end - start + 1 }, (_, i) => i + start);
+});
+const userWeekActivities = ref([]);
+const userFollowState = ref(null);
 
-        async function fetchUserStars() {
-            try {
-                thisWeekDistances.value = await activities.getUserThisWeekStats(authStore.user.id);
-                thisMonthDistances.value = await activities.getUserThisMonthStats(authStore.user.id);
-            } catch (error) {
-                // Set the error message
-                push.error(`${t('userView.errorFetchingUserStats')} - ${error}`)
-            }
+async function fetchUserStars() {
+    try {
+        thisWeekDistances.value = await activities.getUserThisWeekStats(authStore.user.id);
+        thisMonthDistances.value = await activities.getUserThisMonthStats(authStore.user.id);
+    } catch (error) {
+        // Set the error message
+        push.error(`${t('userView.errorFetchingUserStats')} - ${error}`)
+    }
+}
+
+async function fetchUserFollowers() {
+    try {
+        // Fetch the user followers and following count
+        followersCountAccepted.value = await followers.getUserFollowingCountAccepted(route.params.id);
+        followingCountAccepted.value = await followers.getUserFollowersCountAccepted(route.params.id);
+
+        // Fetch the user followers and following accepted count
+        if (Number(route.params.id) === authStore.user.id) {
+            // Fetch the user followers and following
+            followersAll.value = await followers.getUserFollowingAll(authStore.user.id);
+            followingAll.value = await followers.getUserFollowersAll(authStore.user.id);
+        } else {
+            // Fetch the user followers and following
+            followersAll.value = await followers.getUserFollowersAll(authStore.user.id);
+            followingAll.value = await followers.getUserFollowingAll(authStore.user.id);
+        }
+    } catch (error) {
+        // Set the error message
+        push.error(`${t('userView.errorFetchingUserFollowers')} - ${error}`)
+    }
+}
+
+const fetchData = async () => {
+    isLoading.value = true;
+    isActivitiesLoading.value = true;
+    week.value = 0;
+    try {
+        // Fetch the user profile
+        userProfile.value = await users.getUserById(route.params.id);
+
+        // Fetch the user stats
+        await fetchUserStars();
+
+        // Fetch the user number of activities for this month
+        thisMonthNumberOfActivities.value = await activities.getUserThisMonthActivitiesNumber(route.params.id);
+
+        await fetchUserFollowers();
+
+        // Fetch the user week activities
+        userWeekActivities.value = await activities.getUserWeekActivities(route.params.id, week.value);
+
+        // Fetch the user follow state
+        if (Number(route.params.id) !== authStore.user.id) {
+            userFollowState.value = await followers.getUserFollowState(authStore.user.id, route.params.id);
+        }
+    } catch (error) {
+        push.error(`${t('userView.errorFetchingUserActivities')} - ${error}`)
+    }
+    isLoading.value = false;
+    isActivitiesLoading.value = false;
+};
+
+onMounted(async () => {
+    await fetchData();
+    if (route.query.tab === "followers") {
+        // Get the followers tab button element and click it
+        const followersTabButton = document.getElementById("pills-followers-tab");
+        if (followersTabButton) {
+            followersTabButton.click();
+        }
+    }
+});
+
+watch(() => route.params.id, fetchData);
+
+function formatDateRange(weekNumber) {
+    const today = new Date();
+    const currentDay = today.getDay();
+    const daysToMonday = currentDay === 0 ? -6 : 1 - currentDay;  // Adjusting for when Sunday is day 0
+
+    const startOfWeek = new Date(today);
+    startOfWeek.setDate(today.getDate() + daysToMonday - (weekNumber * 7));
+
+    const endOfWeek = new Date(startOfWeek);
+    endOfWeek.setDate(startOfWeek.getDate() + 6);  // Set to Sunday of the same week
+
+    const format = (date) => `${date.getDate().toString().padStart(2, '0')}/${(date.getMonth() + 1).toString().padStart(2, '0')}`;
+
+    return `${format(startOfWeek)}-${format(endOfWeek)}`;
+}
+
+async function setWeek(newWeek, event) {
+    isActivitiesLoading.value = true;
+    event.preventDefault();
+    week.value = newWeek;
+
+    try{
+        userWeekActivities.value = await activities.getUserWeekActivities(userProfile.value.id, week.value);
+    } catch (error) {
+        // Set the error message
+        push.error(`${t('userView.errorFetchingUserActivities')} - ${error}`)
+    } finally {
+        isActivitiesLoading.value = false;
+    }
+}
+
+function updateFollowingList(deletedFollowingId) {
+    // will get the follower to remove
+    const auxFollower = followersAll.value.find(follower => follower.following_id === deletedFollowingId);
+
+    // if the follower is accepted, will decrease the count
+    if (auxFollower.is_accepted) {
+        followingCountAccepted.value -= 1;
+    }
+
+    // will remove the follower from the list
+    followersAll.value = followersAll.value.filter(follower => follower.following_id !== deletedFollowingId);
+    push.success(t('userView.successFollowingDeleted'))
+}
+
+function updateFollowerList(deletedFollowerId){
+    if (authStore.user.id !== userProfile.value.id) {
+        // will get the following to remove
+        const auxFollowing = followingAll.value.find(follower => follower.following_id === deletedFollowerId);
+        
+        // if the following is accepted, will decrease the count
+        if (auxFollowing.is_accepted) {
+            followingCountAccepted.value -= 1;
         }
 
-        async function fetchUserFollowers() {
-            try {
-                // Fetch the user followers and following count
-                followersCountAccepted.value = await followers.getUserFollowingCountAccepted(route.params.id);
-                followingCountAccepted.value = await followers.getUserFollowersCountAccepted(route.params.id);
-
-                // Fetch the user followers and following accepted count
-                if (Number(route.params.id) === authStore.user.id) {
-                    // Fetch the user followers and following
-                    followersAll.value = await followers.getUserFollowingAll(authStore.user.id);
-                    followingAll.value = await followers.getUserFollowersAll(authStore.user.id);
-                } else {
-                    // Fetch the user followers and following
-                    followersAll.value = await followers.getUserFollowersAll(authStore.user.id);
-                    followingAll.value = await followers.getUserFollowingAll(authStore.user.id);
-                }
-            } catch (error) {
-                // Set the error message
-                push.error(`${t('userView.errorFetchingUserFollowers')} - ${error}`)
-            }
+        // will remove the following from the list
+        followingAll.value = followingAll.value.filter(follower => follower.following_id !== deletedFollowerId);
+        push.success(t('userView.successFollowerDeleted'))
+    }else{
+        // will get the following to remove
+        const auxFollowing = followingAll.value.find(follower => follower.follower_id === deletedFollowerId);
+        
+        // if the following is accepted, will decrease the count
+        if (auxFollowing.is_accepted) {
+            followersCountAccepted.value -= 1;
         }
 
-        const fetchData = async () => {
-            isLoading.value = true;
-            isActivitiesLoading.value = true;
-            week.value = 0;
-            try {
-                // Fetch the user profile
-                userProfile.value = await users.getUserById(route.params.id);
+        // will remove the following from the list
+        followingAll.value = followingAll.value.filter(follower => follower.follower_id !== deletedFollowerId);
+        push.success(t('userView.successFollowerDeleted'))
 
-                // Fetch the user stats
-                await fetchUserStars();
+    }
+}
 
-                // Fetch the user number of activities for this month
-                thisMonthNumberOfActivities.value = await activities.getUserThisMonthActivitiesNumber(route.params.id);
-
-                await fetchUserFollowers();
-
-                // Fetch the user week activities
-                userWeekActivities.value = await activities.getUserWeekActivities(route.params.id, week.value);
-
-                // Fetch the user follow state
-                if (Number(route.params.id) !== authStore.user.id) {
-                    userFollowState.value = await followers.getUserFollowState(authStore.user.id, route.params.id);
-                }
-            } catch (error) {
-                push.error(`${t('userView.errorFetchingUserActivities')} - ${error}`)
-            }
-            isLoading.value = false;
-            isActivitiesLoading.value = false;
-        };
-
-        onMounted(fetchData);
-
-        watch(() => route.params.id, fetchData);
-
-        function formatDateRange(weekNumber) {
-            const today = new Date();
-            const currentDay = today.getDay();
-            const daysToMonday = currentDay === 0 ? -6 : 1 - currentDay;  // Adjusting for when Sunday is day 0
-
-            const startOfWeek = new Date(today);
-            startOfWeek.setDate(today.getDate() + daysToMonday - (weekNumber * 7));
-
-            const endOfWeek = new Date(startOfWeek);
-            endOfWeek.setDate(startOfWeek.getDate() + 6);  // Set to Sunday of the same week
-
-            const format = (date) => `${date.getDate().toString().padStart(2, '0')}/${(date.getMonth() + 1).toString().padStart(2, '0')}`;
-
-            return `${format(startOfWeek)}-${format(endOfWeek)}`;
+function updateFollowerListWithAccepted(acceptedFollowerId){
+    // will get the following to change the is_accepted
+    followingAll.value = followingAll.value.map(follower => {
+        if (follower.follower_id === acceptedFollowerId) {
+            follower.is_accepted = true;
         }
+        return follower;
+    });
 
-        async function setWeek(newWeek, event) {
-            isActivitiesLoading.value = true;
-            event.preventDefault();
-            week.value = newWeek;
+    // will increase the count
+    followersCountAccepted.value += 1;
 
-            try{
-                userWeekActivities.value = await activities.getUserWeekActivities(userProfile.value.id, week.value);
-            } catch (error) {
-                // Set the error message
-                push.error(`${t('userView.errorFetchingUserActivities')} - ${error}`)
-            } finally {
-                isActivitiesLoading.value = false;
-            }
-        }
+    // Set the success message
+    push.success(t('userView.successFollowerAccepted'))
+}
 
-        function updateFollowingList(deletedFollowingId) {
-            // will get the follower to remove
-            const auxFollower = followersAll.value.find(follower => follower.following_id === deletedFollowingId);
+async function submitFollowUser() {
+    try{
+        // Create the user follow
+        const newfollower = await followers.createUserFollowsSpecificUser(userProfile.value.id);
 
-            // if the follower is accepted, will decrease the count
-            if (auxFollower.is_accepted) {
-                followingCountAccepted.value -= 1;
-            }
+        // Add the user to the following list
+        followingAll.value.unshift(newfollower);
 
-            // will remove the follower from the list
-            followersAll.value = followersAll.value.filter(follower => follower.following_id !== deletedFollowingId);
-            push.success(t('userView.successFollowingDeleted'))
-        }
+        // Set the follower state
+        userFollowState.value = 0;
 
-        function updateFollowerList(deletedFollowerId){
-            if (authStore.user.id !== userProfile.value.id) {
-                // will get the following to remove
-                const auxFollowing = followingAll.value.find(follower => follower.following_id === deletedFollowerId);
-                
-                // if the following is accepted, will decrease the count
-                if (auxFollowing.is_accepted) {
-                    followingCountAccepted.value -= 1;
-                }
+        // Set the success message
+        push.success(t('userView.successFollowRequestSent'))
+    } catch (error) {
+        // Set the error message
+        push.error(`${t('user.errorUnableToSendFollow')} - ${error}`)
+    }
+}
 
-                // will remove the following from the list
-                followingAll.value = followingAll.value.filter(follower => follower.following_id !== deletedFollowerId);
-                push.success(t('userView.successFollowerDeleted'))
-            }else{
-                // will get the following to remove
-                const auxFollowing = followingAll.value.find(follower => follower.follower_id === deletedFollowerId);
-                
-                // if the following is accepted, will decrease the count
-                if (auxFollowing.is_accepted) {
-                    followersCountAccepted.value -= 1;
-                }
+async function unfollowUser(){ 
+    // Delete the user follow
+    await followers.deleteUserFollower(userProfile.value.id);
 
-                // will remove the following from the list
-                followingAll.value = followingAll.value.filter(follower => follower.follower_id !== deletedFollowerId);
-                push.success(t('userView.successFollowerDeleted'))
+    // Remove the user from the following list
+    followingAll.value = followingAll.value.filter(follower => follower.following_id !== userProfile.value.id);
 
-            }
-        }
+    // Decrease the following count
+    userFollowState.value = null;
+}
 
-        function updateFollowerListWithAccepted(acceptedFollowerId){
-            // will get the following to change the is_accepted
-            followingAll.value = followingAll.value.map(follower => {
-                if (follower.follower_id === acceptedFollowerId) {
-                    follower.is_accepted = true;
-                }
-                return follower;
-            });
+async function submitCancelFollowUser() {
+    try {
+        // Call the unfollowUser function
+        await unfollowUser();
 
-            // will increase the count
-            followersCountAccepted.value += 1;
+        // Set the success message
+        push.success(t('userView.successFollowRequestCancelled'))
+    } catch (error) {
+        // Set the error message
+        push.error(`${t('userView.errorUnableToSendFollow')} - ${error}`)
+    }
+}
 
-            // Set the success message
-            push.success(t('userView.successFollowerAccepted'))
-        }
+async function submitUnfollowUser() {
+    try {
+        // Call the unfollowUser function
+        await unfollowUser();
 
-        async function submitFollowUser() {
-            try{
-                // Create the user follow
-                const newfollower = await followers.createUserFollowsSpecificUser(userProfile.value.id);
+        // Decrease the following count
+        followingCountAccepted.value -= 1;
 
-                // Add the user to the following list
-                followingAll.value.unshift(newfollower);
-
-                // Set the follower state
-                userFollowState.value = 0;
-
-                // Set the success message
-                push.success(t('userView.successFollowRequestSent'))
-            } catch (error) {
-                // Set the error message
-                push.error(`${t('user.errorUnableToSendFollow')} - ${error}`)
-            }
-        }
-
-        async function unfollowUser(){ 
-            // Delete the user follow
-            await followers.deleteUserFollower(userProfile.value.id);
-
-            // Remove the user from the following list
-            followingAll.value = followingAll.value.filter(follower => follower.following_id !== userProfile.value.id);
-
-            // Decrease the following count
-            userFollowState.value = null;
-        }
-
-        async function submitCancelFollowUser() {
-            try {
-                // Call the unfollowUser function
-                await unfollowUser();
-
-                // Set the success message
-                push.success(t('userView.successFollowRequestCancelled'))
-            } catch (error) {
-                // Set the error message
-                push.error(`${t('userView.errorUnableToSendFollow')} - ${error}`)
-            }
-        }
-
-        async function submitUnfollowUser() {
-            try {
-                // Call the unfollowUser function
-                await unfollowUser();
-
-                // Decrease the following count
-                followingCountAccepted.value -= 1;
-
-                // Set the success message
-                push.success(t('userView.successUserUnfollowed'))
-            } catch (error) {
-                // Set the error message
-                push.error(`${t('userView.errorUnableToUnfollow')} - ${error}`)
-            }
-        }
-
-        return {
-            isLoading,
-            isActivitiesLoading,
-            authStore,
-            userProfile,
-            thisMonthNumberOfActivities,
-            followersCountAccepted,
-            followingCountAccepted,
-            followersAll,
-            followingAll,
-            thisWeekDistances,
-            thisMonthDistances,
-            t,
-            week,
-            formatDateRange,
-            setWeek,
-            visibleWeeks,
-            userWeekActivities,
-            userFollowState,
-            updateFollowingList,
-            updateFollowerList,
-            updateFollowerListWithAccepted,
-            submitFollowUser,
-            submitCancelFollowUser,
-            submitUnfollowUser,
-        };
-    },
-};  
+        // Set the success message
+        push.success(t('userView.successUserUnfollowed'))
+    } catch (error) {
+        // Set the error message
+        push.error(`${t('userView.errorUnableToUnfollow')} - ${error}`)
+    }
+}
 </script>
