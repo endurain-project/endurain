@@ -83,7 +83,7 @@ def upgrade() -> None:
             nullable=True,
             comment="Purchase value of the gear component",
         ),
-        sa.ForeignKeyConstraint(["gear_id"], ["gear.id"], ondelete="SET NULL"),
+        sa.ForeignKeyConstraint(["gear_id"], ["gear.id"], ondelete="CASCADE"),
         sa.ForeignKeyConstraint(["user_id"], ["users.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),
     )
