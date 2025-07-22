@@ -1,3 +1,67 @@
+// Import all component images
+// Bike component images
+import diskBreakOil1 from '@/assets/avatar/gearComponents/diskBreakOil1.png';
+import diskBreakPads1 from '@/assets/avatar/gearComponents/diskBreakPads1.png';
+import diskBreakRotor1 from '@/assets/avatar/gearComponents/diskBreakRotor1.png';
+import tire1 from '@/assets/avatar/gearComponents/tire1.png';
+import tube1 from '@/assets/avatar/gearComponents/tube1.png';
+import tubelessRimTape1 from '@/assets/avatar/gearComponents/tubelessRimTape1.png';
+import tubelessSealant1 from '@/assets/avatar/gearComponents/tubelessSealant1.png';
+import wheel1 from '@/assets/avatar/gearComponents/wheel1.png';
+import wheelValve1 from '@/assets/avatar/gearComponents/wheelValve1.png';
+import bottomBracket1 from '@/assets/avatar/gearComponents/bottomBracket1.png';
+import bottleCage1 from '@/assets/avatar/gearComponents/bottleCage1.png';
+import cassette1 from '@/assets/avatar/gearComponents/cassette1.png';
+import chain1 from '@/assets/avatar/gearComponents/chain1.png';
+import computerMount1 from '@/assets/avatar/gearComponents/computerMount1.png';
+import crankPowerMeter1 from '@/assets/avatar/gearComponents/crankPowerMeter1.png';
+import crankset1 from '@/assets/avatar/gearComponents/crankset1.png';
+import fork1 from '@/assets/avatar/gearComponents/fork1.png';
+import frame1 from '@/assets/avatar/gearComponents/frame1.png';
+import frontDerailleur1 from '@/assets/avatar/gearComponents/frontDerailleur1.png';
+import shifter1 from '@/assets/avatar/gearComponents/shifter1.png';
+import grips1 from '@/assets/avatar/gearComponents/grips1.png';
+import handlebar1 from '@/assets/avatar/gearComponents/handlebar1.png';
+import handlebarTape1 from '@/assets/avatar/gearComponents/handlebarTape1.png';
+import headset1 from '@/assets/avatar/gearComponents/headset1.png';
+import pedals1 from '@/assets/avatar/gearComponents/pedals1.png';
+import pedalPowerMeter1 from '@/assets/avatar/gearComponents/pedalPowerMeter1.png';
+import rearDerailleur1 from '@/assets/avatar/gearComponents/rearDerailleur1.png';
+import saddle1 from '@/assets/avatar/gearComponents/saddle1.png';
+import seatpost1 from '@/assets/avatar/gearComponents/seatpost1.png';
+import stem1 from '@/assets/avatar/gearComponents/stem1.png';
+
+// Shoes component images
+import cleats1 from '@/assets/avatar/gearComponents/cleats1.png';
+import insoles1 from '@/assets/avatar/gearComponents/insoles1.png';
+import laces1 from '@/assets/avatar/gearComponents/laces1.png';
+
+// Racquet component images
+import bumpers1 from '@/assets/avatar/gearComponents/bumpers1.png';
+import grommets1 from '@/assets/avatar/gearComponents/grommets1.png';
+import strings1 from '@/assets/avatar/gearComponents/strings1.png';
+
+// Windsurf component images
+import windsurfSail1 from '@/assets/avatar/gearComponents/windsurfSail1.png';
+import windsurfBoard1 from '@/assets/avatar/gearComponents/windsurfBoard1.png';
+import windsurfMast1 from '@/assets/avatar/gearComponents/windsurfMast1.png';
+import windsurfBoom1 from '@/assets/avatar/gearComponents/windsurfBoom1.png';
+import windsurfMastExtension1 from '@/assets/avatar/gearComponents/windsurfMastExtension1.png';
+import windsurfMastBase1 from '@/assets/avatar/gearComponents/windsurfMastBase1.png';
+import windsurfMastUniversalJoint1 from '@/assets/avatar/gearComponents/windsurfMastUniversalJoint1.png';
+import fin1 from '@/assets/avatar/gearComponents/fin1.png';
+import footstrap1 from '@/assets/avatar/gearComponents/footstrap1.png';
+import harnessLines1 from '@/assets/avatar/gearComponents/harnessLines1.png';
+import riggingLines1 from '@/assets/avatar/gearComponents/riggingLines1.png';
+import footpad1 from '@/assets/avatar/gearComponents/footpad1.png';
+import impactVest1 from '@/assets/avatar/gearComponents/impactVest1.png';
+import lifeguardVest1 from '@/assets/avatar/gearComponents/lifeguardVest1.png';
+import helmet1 from '@/assets/avatar/gearComponents/helmet1.png';
+import wing1 from '@/assets/avatar/gearComponents/wing1.png';
+import frontFoil1 from '@/assets/avatar/gearComponents/frontFoil1.png';
+import stabilizer1 from '@/assets/avatar/gearComponents/stabilizer1.png';
+import fuselage1 from '@/assets/avatar/gearComponents/fuselage1.png';
+
 export const GEAR_BIKE_COMPONENT_TYPES = [
 	"back_break_oil",
 	"back_break_pads",
@@ -93,56 +157,56 @@ const bikeTypeLabelMap = {
 };
 
 const bikeTypeAvatarMap = {
-	"back_break_oil": "/src/assets/avatar/gearComponents/backBreakOil1.png",
-	"back_break_pads": "/src/assets/avatar/gearComponents/backBreakPads1.png",
-	"back_break_rotor": "/src/assets/avatar/gearComponents/diskBreakRotor1.png",
-	"back_tire": "/src/assets/avatar/gearComponents/tire1.png",
-	"back_tube": "/src/assets/avatar/gearComponents/tube1.png",
-	"back_tubeless_rim_tape": "/src/assets/avatar/gearComponents/tubelessRimTape1.png",
-	"back_tubeless_sealant": "/src/assets/avatar/gearComponents/tubelessSealant1.png",
-	"back_wheel": "/src/assets/avatar/gearComponents/wheel1.png",
-	"back_wheel_valve": "/src/assets/avatar/gearComponents/wheelValve1.png",
-	"bottom_bracket": "/src/assets/avatar/gearComponents/bottomBracket1.png",
-	"bottle_cage": "/src/assets/avatar/gearComponents/bottleCage1.png",
-	"cassette": "/src/assets/avatar/gearComponents/cassette1.png",
-	"chain": "/src/assets/avatar/gearComponents/chain1.png",
-	"computer_mount": "/src/assets/avatar/gearComponents/computerMount1.png",
-	"crank_left_power_meter": "/src/assets/avatar/gearComponents/crankPowerMeter1.png",
-	"crank_right_power_meter": "/src/assets/avatar/gearComponents/crankPowerMeter1.png",
-	"crankset": "/src/assets/avatar/gearComponents/crankset1.png",
-	"crankset_power_meter": "/src/assets/avatar/gearComponents/crankPowerMeter1.png",
-	"fork": "/src/assets/avatar/gearComponents/fork1.png",
-	"frame": "/src/assets/avatar/gearComponents/frame1.png",
-	"front_break_oil": "/src/assets/avatar/gearComponents/backBreakOil1.png",
-	"front_break_pads": "/src/assets/avatar/gearComponents/backBreakPads1.png",
-	"front_break_rotor": "/src/assets/avatar/gearComponents/diskBreakRotor1.png",
-	"front_derailleur": "/src/assets/avatar/gearComponents/frontDerailleur1.png",
-	"front_shifter": "/src/assets/avatar/gearComponents/shifter1.png",
-	"front_tire": "/src/assets/avatar/gearComponents/tire1.png",
-	"front_tube": "/src/assets/avatar/gearComponents/tube1.png",
-	"front_tubeless_rim_tape": "/src/assets/avatar/gearComponents/tubelessRimTape1.png",
-	"front_tubeless_sealant": "/src/assets/avatar/gearComponents/tubelessSealant1.png",
-	"front_wheel": "/src/assets/avatar/gearComponents/wheel1.png",
-	"front_wheel_valve": "/src/assets/avatar/gearComponents/wheelValve1.png",
-	"grips": "/src/assets/avatar/gearComponents/grips1.png",
-	"handlebar": "/src/assets/avatar/gearComponents/handlebar1.png",
-	"handlebar_tape": "/src/assets/avatar/gearComponents/handlebarTape1.png",
-	"headset": "/src/assets/avatar/gearComponents/headset1.png",
-	"pedals": "/src/assets/avatar/gearComponents/pedals1.png",
-	"pedals_left_power_meter": "/src/assets/avatar/gearComponents/pedalPowerMeter1.png",
-	"pedals_power_meter": "/src/assets/avatar/gearComponents/pedalPowerMeter1.png",
-	"pedals_right_power_meter": "/src/assets/avatar/gearComponents/pedalPowerMeter1.png",
-	"rear_derailleur": "/src/assets/avatar/gearComponents/rearDerailleur1.png",
-	"rear_shifter": "/src/assets/avatar/gearComponents/shifter1.png",
-	"saddle": "/src/assets/avatar/gearComponents/saddle1.png",
-	"seatpost": "/src/assets/avatar/gearComponents/seatpost1.png",
-	"stem": "/src/assets/avatar/gearComponents/stem1.png",
+	"back_break_oil": diskBreakOil1,
+	"back_break_pads": diskBreakPads1,
+	"back_break_rotor": diskBreakRotor1,
+	"back_tire": tire1,
+	"back_tube": tube1,
+	"back_tubeless_rim_tape": tubelessRimTape1,
+	"back_tubeless_sealant": tubelessSealant1,
+	"back_wheel": wheel1,
+	"back_wheel_valve": wheelValve1,
+	"bottom_bracket": bottomBracket1,
+	"bottle_cage": bottleCage1,
+	"cassette": cassette1,
+	"chain": chain1,
+	"computer_mount": computerMount1,
+	"crank_left_power_meter": crankPowerMeter1,
+	"crank_right_power_meter": crankPowerMeter1,
+	"crankset": crankset1,
+	"crankset_power_meter": crankPowerMeter1,
+	"fork": fork1,
+	"frame": frame1,
+	"front_break_oil": diskBreakOil1,
+	"front_break_pads": diskBreakPads1,
+	"front_break_rotor": diskBreakRotor1,
+	"front_derailleur": frontDerailleur1,
+	"front_shifter": shifter1,
+	"front_tire": tire1,
+	"front_tube": tube1,
+	"front_tubeless_rim_tape": tubelessRimTape1,
+	"front_tubeless_sealant": tubelessSealant1,
+	"front_wheel": wheel1,
+	"front_wheel_valve": wheelValve1,
+	"grips": grips1,
+	"handlebar": handlebar1,
+	"handlebar_tape": handlebarTape1,
+	"headset": headset1,
+	"pedals": pedals1,
+	"pedals_left_power_meter": pedalPowerMeter1,
+	"pedals_power_meter": pedalPowerMeter1,
+	"pedals_right_power_meter": pedalPowerMeter1,
+	"rear_derailleur": rearDerailleur1,
+	"rear_shifter": shifter1,
+	"saddle": saddle1,
+	"seatpost": seatpost1,
+	"stem": stem1,
 };
 
 export const GEAR_SHOES_COMPONENT_TYPES = [
-    "cleats",
-    "insoles",
-    "laces",
+	"cleats",
+	"insoles",
+	"laces",
 ]
 
 const shoesTypeLabelMap = {
@@ -152,18 +216,18 @@ const shoesTypeLabelMap = {
 };
 
 const shoesTypeAvatarMap = {
-	"cleats": "/src/assets/avatar/gearComponents/cleats1.png",
-	"insoles": "/src/assets/avatar/gearComponents/insoles1.png",
-	"laces": "/src/assets/avatar/gearComponents/laces1.png",
+	"cleats": cleats1,
+	"insoles": insoles1,
+	"laces": laces1,
 };
 
 
 export const GEAR_RACQUET_COMPONENT_TYPES = [
-    "basegrip",
-    "bumpers",
-    "grommets",
-    "overgrip",
-    "strings",
+	"basegrip",
+	"bumpers",
+	"grommets",
+	"overgrip",
+	"strings",
 ]
 
 const racquetTypeLabelMap = {
@@ -175,33 +239,33 @@ const racquetTypeLabelMap = {
 };
 
 const racquetTypeAvatarMap = {
-	"basegrip": "/src/assets/avatar/gearComponents/tubelessRimTape1.png",
-	"bumpers": "/src/assets/avatar/gearComponents/bumpers1.png",
-	"grommets": "/src/assets/avatar/gearComponents/grommets1.png",
-	"overgrip": "/src/assets/avatar/gearComponents/handlebarTape1.png",
-	"strings": "/src/assets/avatar/gearComponents/strings1.png",
+	"basegrip": tubelessRimTape1, // Reusing tubelessRimTape1
+	"bumpers": bumpers1,
+	"grommets": grommets1,
+	"overgrip": handlebarTape1, // Reusing handlebarTape1
+	"strings": strings1,
 };
 
 export const GEAR_WINDSURF_COMPONENT_TYPES = [
-    "sail",
-    "board",
-    "mast",
-    "boom",
-    "mast_extension",
-    "mast_base",
-    "mast_universal_joint",
-    "fin",
-    "footstraps",
-    "harness_lines",
-    "rigging_lines",
-    "footpad",
-    "impact_vest",
-    "lifeguard_vest",
-    "helmet",
+	"sail",
+	"board",
+	"mast",
+	"boom",
+	"mast_extension",
+	"mast_base",
+	"mast_universal_joint",
+	"fin",
+	"footstraps",
+	"harness_lines",
+	"rigging_lines",
+	"footpad",
+	"impact_vest",
+	"lifeguard_vest",
+	"helmet",
 	"wing",
-    "front_foil",
-    "stabilizer",
-    "fuselage",
+	"front_foil",
+	"stabilizer",
+	"fuselage",
 ]
 
 const windsurfTypeLabelMap = {
@@ -227,25 +291,25 @@ const windsurfTypeLabelMap = {
 };
 
 const windsurfTypeAvatarMap = {
-	"sail": "/src/assets/avatar/gearComponents/windsurfSail1.png",
-	"board": "/src/assets/avatar/gearComponents/windsurfBoard1.png",
-	"mast": "/src/assets/avatar/gearComponents/windsurfMast1.png",
-	"boom": "/src/assets/avatar/gearComponents/windsurfBoom1.png",
-	"mast_extension": "/src/assets/avatar/gearComponents/windsurfMastExtension1.png",
-	"mast_base": "/src/assets/avatar/gearComponents/windsurfMastBase1.png",
-	"mast_universal_joint": "/src/assets/avatar/gearComponents/windsurfMastUniversalJoint1.png",
-	"fin": "/src/assets/avatar/gearComponents/fin1.png",
-	"footstraps": "/src/assets/avatar/gearComponents/footstrap1.png",
-	"harness_lines": "/src/assets/avatar/gearComponents/harnessLines1.png",
-	"rigging_lines": "/src/assets/avatar/gearComponents/riggingLines1.png",
-	"footpad": "/src/assets/avatar/gearComponents/footpad1.png",
-	"impact_vest": "/src/assets/avatar/gearComponents/impactVest1.png",
-	"lifeguard_vest": "/src/assets/avatar/gearComponents/lifeguardVest1.png",
-	"helmet": "/src/assets/avatar/gearComponents/helmet1.png",
-	"wing": "/src/assets/avatar/gearComponents/wing1.png",
-	"front_foil": "/src/assets/avatar/gearComponents/frontFoil1.png",
-	"stabilizer": "/src/assets/avatar/gearComponents/stabilizer1.png",
-	"fuselage": "/src/assets/avatar/gearComponents/fuselage1.png",
+	"sail": windsurfSail1,
+	"board": windsurfBoard1,
+	"mast": windsurfMast1,
+	"boom": windsurfBoom1,
+	"mast_extension": windsurfMastExtension1,
+	"mast_base": windsurfMastBase1,
+	"mast_universal_joint": windsurfMastUniversalJoint1,
+	"fin": fin1,
+	"footstraps": footstrap1,
+	"harness_lines": harnessLines1,
+	"rigging_lines": riggingLines1,
+	"footpad": footpad1,
+	"impact_vest": impactVest1,
+	"lifeguard_vest": lifeguardVest1,
+	"helmet": helmet1,
+	"wing": wing1,
+	"front_foil": frontFoil1,
+	"stabilizer": stabilizer1,
+	"fuselage": fuselage1,
 };
 
 export function getGearBikeComponentType(type, t) {
