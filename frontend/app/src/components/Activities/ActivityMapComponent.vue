@@ -12,7 +12,6 @@
 <script>
 import { ref, onMounted, watchEffect, nextTick } from 'vue';
 import { activityStreams } from '@/services/activityStreams';
-import { segments } from '@/services/activitySegmentsService';
 import LoadingComponent from '@/components/GeneralComponents/LoadingComponent.vue';
 import L from 'leaflet';
 // Importing the stores
@@ -36,16 +35,12 @@ export default {
 		const authStore = useAuthStore();
         const isLoading = ref(true);
         const activityStreamLatLng = ref(null);
-        const activitySegments = [ref(null)];
         const activityMap = ref(null);
 
         onMounted(async () => {
             try {
                 if (authStore.isAuthenticated) {
                     activityStreamLatLng.value = await activityStreams.getActivitySteamByStreamTypeByActivityId(props.activity.id, 7);
-                    if (props.source == 'activity') {
-                        activitySegments.values = await segments.getActivitySegments (props.activity.id);
-                    }
                 } else {
                     activityStreamLatLng.value = await activityStreams.getPublicActivitySteamByStreamTypeByActivityId(props.activity.id, 7);
                 }
@@ -88,6 +83,7 @@ export default {
             }).addTo(map);
 
             L.polyline(latlngs, { color: 'blue' }).addTo(map);
+
             // Fit map to polyline bounds
             if (latlngs.length > 0) {
                 map.fitBounds(latlngs);
@@ -101,38 +97,6 @@ export default {
                     icon: L.divIcon({ className: 'bg-danger dot' })
                 }).addTo(map);
             }
-
-            if (props.source === 'activity') {
-                const boundpoints = [];
-                // Sequence of colors to differentiate between
-                // TODO: Centralize this array to a common place
-                const segmentColors = ['orange', 'purple', 'pink', 'red'];
-                var segmentColorIdx = 0;
-
-                const segmentArr = activitySegments.values
-                // Iterate through segments that have been returned for this gps trace
-                for (const segment in segmentArr) {
-                    // Set the color of the map annotations
-                    if (segment == 0) {
-                        segmentColorIdx = 0;
-                    } else {
-                        segmentColorIdx += 1;
-                        if (segmentColorIdx > segmentColors.length - 1) {
-                            segmentColorIdx = 0;
-                        }
-                    }
-                    // Iterate through the gates that have been defined for the segments
-                    for (const gate in segmentArr[segment]['gates']) {
-                        // Draw the gate on the map
-                        var gateLine = L.polyline(segmentArr[segment]['gates'][gate], { color: segmentColors[segmentColorIdx]}).addTo(map);
-                        // Add segment to a boundpoints array, in case we want to fit the map to the segment
-                        // This is a helper for use in other areas. TODO: Remove from this area.
-                        boundpoints.push(segmentArr[segment]['gates'][gate][0]);
-                        boundpoints.push(segmentArr[segment]['gates'][gate][1]);
-                    }
-                }
-            }
-
         };
 
         return {
