@@ -39,14 +39,65 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch } from "vue";
+import { ref, onMounted, onUnmounted, watch } from "vue";
+import { useI18n } from "vue-i18n";
+import { push } from "notivue";
+
+import { notifications } from "@/services/notificationsService";
+import { useServerSettingsStore } from "@/stores/serverSettingsStore";
 import { useAuthStore } from "@/stores/authStore";
+
 import FooterComponent from "@/components/FooterComponent.vue";
 
-const notificationsNotRead = ref(12);
+const { t } = useI18n();
+const isLoading = ref(true);
+const serverSettingsStore = useServerSettingsStore();
 const authStore = useAuthStore();
+const notificationsWithPagination = ref([]);
+const notificationsNotRead = ref(0);
+const pageNumber = ref(1);
+const numRecords = serverSettingsStore.serverSettings.num_records_per_page || 25;
+
+async function fetchNotifications() {
+    try {
+        const newNotifications = await notifications.getUserNotificationsWithPagination(pageNumber.value, numRecords);
+        notificationsWithPagination.value.push(...newNotifications);
+
+        notificationsNotRead.value = 0;
+        if (notificationsWithPagination.value.length > 0) {
+            for (const notification of notificationsWithPagination.value) {
+                if (!notification.read) {
+                    notificationsNotRead.value++;
+                }
+            }
+        }
+    } catch (error) {
+        push.error(`${t("navbarNotificationsComponent.errorFetchingNotificationsPagination")} - ${error}`);
+    }
+}
 
 onMounted(async () => {
-    
+    if (authStore.user_websocket) {
+        authStore.user_websocket.on
+        // Set up websocket message handler
+        authStore.user_websocket.onmessage = async (event) => {
+            try {
+                const data = JSON.parse(event.data);
+                if (data && (data.message === "NEW_ACTIVITY_NOTIFICATION" || data.message === "NEW_DUPLICATE_ACTIVITY_START_TIME_NOTIFICATION" || data.message === "NEW_FOLLOWER_REQUEST_NOTIFICATION" || data.message === "NEW_FOLLOWER_REQUEST_ACCEPTED_NOTIFICATION")) {
+                    await fetchNotificationById(data.notification_id);
+                }
+            } catch (error) {
+                push.error(`${t("navbarNotificationsComponent.errorFetchingMessageFromWebSocket")} - ${error}`);
+            }
+        };
+    }
+    await fetchNotifications();
+    isLoading.value = false;
+});
+
+onUnmounted(() => {
+    if (authStore.user_websocket && authStore.user_websocket.onmessage) {
+        authStore.user_websocket.onmessage = null;
+    }
 });
 </script>
