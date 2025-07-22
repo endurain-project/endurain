@@ -15,12 +15,31 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                <tr v-for="segment in segmentsFollowed" :key="segment.id">
+                                <tr v-for="(segment, idx) in segmentsFollowed" :key="segment.id">
                                     <td align="center">
                                         {{ segment.name }}
                                         <div :ref="`segmentMapIcon-${segment.id}`" :id="`segmentMapIcon-${segment.id}`"></div>
                                     </td>
-                                    <td></td>
+                                    <td>
+                                        <div class="table-responsive d-none d-sm-block align-items-center justify-content-center">
+                                            <table class="table table-borderless table-hover table-sm rounded text-center" v-if="intersections[idx] && intersections[idx].gate_times">
+                                            <thead>
+                                                <tr>
+                                                <th>Gate</th>
+                                                <th v-for="(lap, lapIdx) in intersections[idx].sub_segment_times" :key="lapIdx">Lap {{ lapIdx + 1 }}</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <tr v-for="gateIdx in intersections[idx].sub_segment_times[0]?.length" :key="gateIdx" @mouseover="highlightGate(idx, intersections[idx].sub_segment_times[0][gateIdx-1][0])" @mouseout="unhighlightGate(idx, intersections[idx].sub_segment_times[0][gateIdx-1][0])">
+                                                <td>{{ (gateIdx === intersections[idx].sub_segment_times[0].length)? 'Finish' : intersections[idx].sub_segment_times[0][gateIdx-1][0] }}</td>
+                                                <td v-for="(lap, lapIdx) in intersections[idx].sub_segment_times" :key="lapIdx">
+                                                    {{ formatSecondsToTime(lap[gateIdx - 1][1]) }}
+                                                </td>
+                                                </tr>
+                                            </tbody>
+                                            </table>
+                                        </div>
+                                    </td>
                                 </tr>
                             </tbody>
                         </table>
@@ -118,20 +137,17 @@ export default {
                     this.onActivitySegmentsVisibleChange();
                 });
             setTimeout(() => {
-                observer.observe(this.$refs.activitySegments);
-            }, 1000);
+                const el = this.$refs.activitySegments;
+                if (el && el instanceof Element) {
+                    observer.observe(el);
+                } else {
+                    console.warn("activitySegments ref is not a valid Element");
+                }
+            }, 5000);
         });
 
         // Fetch activity segments when the component is mounted
         this.fetchActivitySegments();
-
-        // Watch for changes in segmentsFollowed and create segment icon maps
-        this.$watch('segmentsFollowed', (newValue, oldValue) => {
-            // Ensure the map is created after segmentsFollowed is populated
-            if (newValue.length > 0) {
-                this.updateSegmentIconMaps(this.segmentsFollowed);
-            }
-        });
     },
     data() {
         return {
@@ -154,6 +170,54 @@ export default {
         }
     },
     methods: {
+        highlightGate(segmentIdx, gateIdx) {
+            // Find the map for this segment
+            const segmentMap = this.segmentsMaps[segmentIdx];
+            if (!segmentMap || !segmentMap._gateLabels || !segmentMap._gateLabels[gateIdx]) return;
+            const label = segmentMap._gateLabels[gateIdx];
+
+            if (gateIdx === segmentMap._gateLabels.length - 1) {
+                label.setIcon(L.divIcon({ className: 'bg-danger border border-dark rounded-circle', iconSize: [16, 16] }));
+            }
+            else {
+                label.setIcon(L.divIcon({
+                    className: 'leaflet-label',
+                    html: `<div style="background-color: white; border: 1px solid black; padding: 2px; border-radius: 5px; text-align: center;">
+                            <span style="color: black; font-size: 12px; font-weight: bold;">${gateIdx}</span>
+                        </div>`,
+                    iconSize: new L.Point(15, 15)
+                }));
+            }
+        },
+        unhighlightGate(segmentIdx, gateIdx) {
+            const segmentMap = this.segmentsMaps[segmentIdx];
+            if (!segmentMap || !segmentMap._gateLabels || !segmentMap._gateLabels[gateIdx]) return;
+            const label = segmentMap._gateLabels[gateIdx];
+            // Set normal
+            if (gateIdx === segmentMap._gateLabels.length - 1) {
+                label.setIcon(L.divIcon({ className: 'bg-danger dot' }));
+            }
+            else {
+                label.setIcon(L.divIcon({
+                    className: 'leaflet-label',
+                    html: `<div style="background-color: white; border: 1px solid black; padding: 2px; border-radius: 5px; text-align: center;">
+                            <span style="color: black; font-size: 12px;">${gateIdx}</span>
+                        </div>`,
+                    iconSize: new L.Point(15, 15)
+                }));            
+            }
+        },
+        formatSecondsToTime(seconds) {
+            if (isNaN(seconds)) return '';
+            const hours = Math.floor(seconds / 3600);
+            const minutes = Math.floor((seconds % 3600) / 60);
+            const secs = (seconds % 60).toFixed(2);
+            if (hours > 0) {
+                return `${hours}h ${minutes.toString().padStart(2, '0')}m ${secs.toString().padStart(5, '0')}s`;
+            } else {
+                return `${minutes}m ${secs.toString().padStart(5, '0')}s`;
+            }
+        },        
         updateSegmentIconMaps(segments) {
             var segmentNumber = 0;
             
@@ -185,6 +249,7 @@ export default {
                         );
                     }
                 }
+                this.updateSegmentIconMaps(this.segmentsFollowed);
             } catch (error) {
                 console.error("Failed to fetch activity segments:", error);
             }
@@ -193,6 +258,12 @@ export default {
             // Check if the ref for the segment map icon exists
             if (!this.$refs[`segmentMapIcon-${segment.id}`]) {
                 console.warn(`No ref found for segmentMapIcon-${segment.id}`);
+                return;
+            }
+
+            // Ensure intersection data exists for this segment
+            if (!this.intersections[segmentNumber]) {
+                console.warn(`No intersection data for segmentNumber ${segmentNumber}`);
                 return;
             }
 
@@ -246,47 +317,75 @@ export default {
                 opacity: 0.5
             }).addTo(segmentIconMap);
 
-            const boundpoints = [];
             // Sequence of colors to differentiate between
             // TODO: Centralize this array to a common place
             const segmentColors = ['orange', 'purple', 'pink', 'red'];
             const segmentColorIdx = segmentNumber % segmentColors.length;
 
             L.polyline(segmentLatLngs, { 
-                color: segmentColors[segmentColorIdx],
+                color: 'blue',
                 weight: 3,
                 opacity: 1
             }).addTo(segmentIconMap);
 
-            var gateLabel = 1;
+            if (!segmentIconMap._gateLabels) segmentIconMap._gateLabels = [];
+
+            var gateLabel = 0;
             for (const gate of segment.gates) {
                 // Ensure gate is an array with two points
                 if (!Array.isArray(gate) || gate.length !== 2 || !Array.isArray(gate[0]) || !Array.isArray(gate[1]) || gate[0].length !== 2 || gate[1].length !== 2) {
                     console.warn(`Invalid gate format for segment ${segment.id}:`, gate);
                     continue;
-                }                
+                }
+
                 const gateLatLngs = [
                     [gate[0][0], gate[0][1]],
                     [gate[1][0], gate[1][1]]
                 ];
-                // Create a polyline for the gate
-                const polyline = L.polyline(gateLatLngs, {
-                    color: 'black',
-                    weight: 2,
-                    opacity: 1
-                }).addTo(segmentIconMap);
 
-                // Create markers for the start and end of the gate
-                var label = L.marker(gateLatLngs[0]).addTo(segmentIconMap);
                 // Create a label with the gate sequence number on the map
-                label.setIcon(L.divIcon({
-                    className: 'leaflet-label',
-                    html: '<div style="background-color: white; border: 1px solid black; padding: 2px; border-radius: 5px; text-align: center;"><span style="color: black; font-size: 12px; font-weight: bold;">'+gateLabel+'</span></div>',
-                    iconSize: new L.Point(15, 15)
-                }));
+                if (gateLabel == 0) {
+                    const midGateLatLng = [
+                        (gateLatLngs[0][0] + gateLatLngs[1][0]) / 2,
+                        (gateLatLngs[0][1] + gateLatLngs[1][1]) / 2
+                    ];
 
-                boundpoints.push(gateLatLngs[0]);
-                boundpoints.push(gateLatLngs[1]);
+                    const label = L.marker(midGateLatLng, {
+                        icon: L.divIcon({ className: 'bg-success dot' })
+                    }).addTo(segmentIconMap);
+                    segmentIconMap._gateLabels.push(label);
+
+                }
+                else if (gateLabel == segment.gates.length - 1) {
+                    const midGateLatLng = [
+                        (gateLatLngs[0][0] + gateLatLngs[1][0]) / 2,
+                        (gateLatLngs[0][1] + gateLatLngs[1][1]) / 2
+                    ];
+
+                    const label = L.marker(midGateLatLng, {
+                        icon: L.divIcon({ className: 'bg-danger dot' })
+                    }).addTo(segmentIconMap);
+                    segmentIconMap._gateLabels.push(label);
+                }
+                else {
+                    // Create a polyline for the gate
+                    const polyline = L.polyline(gateLatLngs, {
+                        color: 'black',
+                        weight: 2,
+                        opacity: 1
+                    }).addTo(segmentIconMap);
+
+                    // Create markers for the start and end of the gate
+                    const label = L.marker(gateLatLngs[0]).addTo(segmentIconMap);
+                    label.setIcon(L.divIcon({
+                        className: 'leaflet-label',
+                        html: `<div style="background-color: white; border: 1px solid black; padding: 2px; border-radius: 5px; text-align: center;">
+                                <span style="color: black; font-size: 12px;">${gateLabel}</span>
+                            </div>`,
+                        iconSize: new L.Point(15, 15)
+                    }));
+                    segmentIconMap._gateLabels.push(label);
+                }
 
                 gateLabel += 1;
             }

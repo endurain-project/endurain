@@ -1,63 +1,32 @@
 import activities.activity_segments.schema as segments_schema
-import activities.activity_segments.utils as segments_utils
 import activities.activity_segments.models as segments_models
 import activities.activity_streams.models as streams_models
 from shapely.geometry import Point, LineString, MultiPoint
-from shapely.strtree import STRtree
+from datetime import datetime
 import core.logger as core_logger
 
-def split_consecutive_sequences(sequence: list) -> list:
-    """
-    Splits a list of consecutive integers into chunks.
-    For example, [1, 2, 3, 5, 6] will be split into [[1, 2, 3], [5, 6]].
-    """
-    sequence = sorted(sequence)
-
-    chunks = []
-    current_chunk = [sequence[0]]
-
-    for i in range(1, len(sequence)):
-        if sequence[i] == sequence[i - 1] + 1:
-            current_chunk.append(sequence[i])
-        else:
-            chunks.append(current_chunk)
-            current_chunk = [sequence[i]]
-
-    chunks.append(current_chunk)
-    return chunks    
-
 def distance_between_points(point1: Point, point2: Point) -> float:
-    """
-    Returns the distance between two points.
-    """
+    # Returns the distance between two points.
     return ((point1.x - point2.x) ** 2 + (point1.y - point2.y) ** 2) ** 0.5
 
-def adjacent_points(points: list, intersection: Point) -> list:
-    """
-    Returns a list of points that are adjacent to the intersection point.
-    """
-    for i in range(len(points)-1):
-        current_point = Point(points[i])
-        next_point = Point(points[i + 1])
-        min_distance = float('inf')
-
-        # the distance between the intersection point and the current point
-        distance = distance_between_points(current_point, intersection)
-
-        # the distance between the intersection point and the next point
-        distance_next = distance_between_points(next_point, intersection)
-
-        # If the intersection point is to the left of the current point and to the right of the next point,
-        # or if the intersection point is to the right of the current point and to the left of the next point,
-        # update the minimum distance and the closest points
-        if (intersection.x < current_point.x and intersection.x > next_point.x) or (intersection.x > current_point.x and intersection.x < next_point.x):
-            if distance + distance_next < min_distance:
-                min_distance = distance + distance_next
-                closest_points = [current_point, next_point]
-                intersection_distance = [distance_between_points(current_point, intersection), distance_between_points(next_point, intersection)]
-                intersection_index = [i, i + 1]
-
-    return intersection_index, closest_points, intersection_distance
+def find_repeating_pattern(lst):
+    n = len(lst)
+    for size in range(1, n // 2 + 1):
+        pattern = lst[:size]
+        # Build what the list would look like if the pattern repeated
+        repeated = (pattern * (n // size + 1))[:n]
+        if repeated == lst:
+            return pattern
+        # If not a perfect repeat, check for partial repeats
+        # Find all occurrences of the pattern in the list
+        matches = True
+        for i in range(0, n, size):
+            if lst[i:i+size] != pattern[:min(size, n-i)]:
+                matches = False
+                break
+        if matches:
+            return pattern
+    return None
 
 def gps_trace_gate_intersections(gps_trace: streams_models.ActivityStreams, segment: segments_models.Segment):
     # Takes a GPS Trace and checks that it passes through each gate
@@ -65,101 +34,56 @@ def gps_trace_gate_intersections(gps_trace: streams_models.ActivityStreams, segm
     # Returns null if the GPS trace does not pass through all gates
     # otherwise returns a sequence of intersections with each gate
 
-    # This is a check to ensure that the gps trace is not None
-    if gps_trace is None:
-        core_logger.print_to_log("GPS trace is None.")
+    # Check for a valid GPS trace and segment
+    if gps_trace is None or gps_trace.stream_waypoints is None or len(gps_trace.stream_waypoints) < 2:
+        core_logger.print_to_log("Invalid GPS trace.")
         return None
-    # Ensure gps trace is more than 1 point long
-    if gps_trace.stream_waypoints is None or len(gps_trace.stream_waypoints) < 2:
-        core_logger.print_to_log("GPS trace is too short to check gates.")
-        return None
-    # Ensure one or more gates
     if segment is None or len(segment.gates) == 0:
         core_logger.print_to_log("No gates provided.")
         return None
 
     # Create a spatial tree of the GPS trace
-    gps_points = []
-    for point in gps_trace.stream_waypoints:
-        gps_points.append(Point(point['lat'], point['lon']))
-
-    tree = STRtree(gps_points)
-
-    core_logger.print_to_log("Checking if activity stream {0} passes through {1}.".format(gps_trace.activity_id, segment.name.strip()))
-    # Check if GPS trace passes through all the gates
+    #gps_points = []
+    #for point in gps_trace.stream_waypoints:
+    #    gps_points.append(Point(point['lat'], point['lon']))
+    gps_points = [Point(pt['lat'], pt['lon']) for pt in gps_trace.stream_waypoints]
+    core_logger.print_to_log(f"Checking if activity stream {gps_trace.activity_id} passes through {segment.name.strip()}.")
 
     segment_intersections = {}
-    gate_index = 0
-    for gate in segment.gates:
-        # Check if the gate intersects with the GPS trace
-        gps_point_index_intersections = []
-        gps_point_intersections = []
-        chunk_index_intersections = []
-        chunk_line_intersections = []
-        chunk_intersection_distance = []
-
+    # Iterate through each gate in the segment
+    for gate_index, gate in enumerate(segment.gates):
         gateline = LineString([gate[0], gate[1]])
 
-        potential_intersection = tree.query(gateline, predicate='dwithin', distance=0.0005)  # 0.0005 degrees is approximately 55 meters at the equator
+        gps_point_index_intersections = []
+        gps_point_intersections = []
+        intersection_distance = []
+        intersection_array = []
 
-        if len(potential_intersection) == 0:
-            # GPS trace did not pass through the gate
-            core_logger.print_to_log("FAIL: GPS trace did not pass through gate, due to no potential intersections detected.")
-            return None
+        found = False
+        # Check if the GPS trace intersects with the gate line, including consecutive points to obtain all intersections
+        for i in range(len(gps_points) - 1):
+            seg = LineString([gps_points[i], gps_points[i+1]])
+            if seg.intersects(gateline):
+                intersection = seg.intersection(gateline)
+                # Store intersection info as needed
+                gps_point_index_intersections.append((i, i + 1))
+                gps_point_intersections.append((gps_trace.stream_waypoints[i], gps_trace.stream_waypoints[i + 1]))
+                intersection_distance.append([distance_between_points(gps_points[i], intersection), distance_between_points(gps_points[i + 1], intersection)])
+                intersection_array.append(intersection)
 
-        # potential_intersection is a list of points that are within the bounding box of the gate line
-        # We need to check if any of these points actually intersect with the gate line
-
-        potential_intersection_chunks = split_consecutive_sequences(potential_intersection)
-
-        chunk_passes = False
-        for chunk in potential_intersection_chunks:
-            # At least one chukk needs to pass through the gate line
-            # Chunk needs to be at least 2 points long to form a line
-            if len(chunk) > 2:
-                # Convert chunk of points to a LineString
-                chunk_line = LineString(gps_points[chunk[0]:chunk[-1] + 1])
-                # Check if the chunk intersects with the gate line
-                if chunk_line.intersects(gateline):
-                    chunk_passes = True
-                    intersection = chunk_line.intersection(gateline)
-                    coords = chunk_line.coords
-
-                    if type(intersection) == Point:
-                        intersection_index, intersection_points, intersection_distance = adjacent_points(coords, intersection)
-
-                        gps_point_index_intersections.append((chunk[0] + intersection_index[0], chunk[0] + intersection_index[1]))
-                        gps_point_intersections.append((gps_trace.stream_waypoints[chunk[0] + intersection_index[0]], gps_trace.stream_waypoints[chunk[0] + intersection_index[1]]))
-                        chunk_index_intersections.append(intersection_points)
-                        chunk_line_intersections.append(intersection)
-                        chunk_intersection_distance.append(intersection_distance)
-
-                    if type(intersection) == MultiPoint:
-                        for geom in intersection.geoms:
-                            for point in geom.coords:
-                                intersection_index, intersection_points, intersection_distance = adjacent_points(coords, Point(point))
-
-                                gps_point_index_intersections.append((chunk[0] + intersection_index[0], chunk[0] + intersection_index[1]))
-                                gps_point_intersections.append((gps_trace.stream_waypoints[chunk[0] + intersection_index[0]], gps_trace.stream_waypoints[chunk[0] + intersection_index[1]]))
-                                chunk_index_intersections.append(intersection_points)
-                                chunk_line_intersections.append(intersection)
-                                chunk_intersection_distance.append(intersection_distance)
-
-        if not chunk_passes:
-            core_logger.print_to_log("FAIL: No chunk intercepted with the gate line. Therefore GPS trace did not pass through gate.")
-            return None
-
-        # If we reach here, the GPS trace passed through the gate
+                found = True
+        if not found:
+            core_logger.print_to_log(f"FAIL: GPS trace did not pass through gate {gate_index}.")
+            return None   # Check if GPS trace passes through all the gates
+        
+        # Store the intersections for this gate
         segment_intersections[gate_index] = {
             'gate': gate,
             'gps_point_index_intersections': gps_point_index_intersections,
             'gps_point_intersections': gps_point_intersections,
-            'chunk_index_intersections': chunk_index_intersections,
-            'chunk_line_intersections': chunk_line_intersections,
-            'chunk_intersection_distance': chunk_intersection_distance
+            'intersection': intersection_array,
+            'intersection_distance': intersection_distance
         }
-
-        gate_index += 1
 
     intersection_list = []
     for (gate_index, intersections) in segment_intersections.items():
@@ -168,7 +92,7 @@ def gps_trace_gate_intersections(gps_trace: streams_models.ActivityStreams, segm
             intersection_list.append((gate_index, 
                                       intersections['gps_point_index_intersections'][i], 
                                       intersections['gps_point_intersections'][i], 
-                                      intersections['chunk_intersection_distance'][i]))
+                                      intersections['intersection_distance'][i]))
 
     intersection_list_sorted = sorted(intersection_list, key=lambda x: x[1][0])
     #core_logger.print_to_log(intersection_list)
@@ -197,11 +121,11 @@ def gps_trace_gate_intersections(gps_trace: streams_models.ActivityStreams, segm
 
     # Trim the gate_ordered list to the first instance of the first gate and the last instance of the last gate
     for i in range(len(gate_ordered)):
-        if gate_ordered[i] == first_gate:
+        if gate_ordered[i] == first_gate and gate_ordered[i+1] != first_gate:
             first_gate = i
             break
     for i in range(len(gate_ordered) - 1, -1, -1):
-        if gate_ordered[i] == last_gate:
+        if gate_ordered[i] == last_gate and gate_ordered[i-1] != last_gate:
             last_gate = i
             break
     gate_ordered = gate_ordered[first_gate:last_gate + 1]
@@ -211,11 +135,6 @@ def gps_trace_gate_intersections(gps_trace: streams_models.ActivityStreams, segm
 
     # Gates don't need to be passed in sequential order, but they must be passed through in order across the entire trace
     # Check that gates are passed through in order
-
-    #core_logger.print_to_log("After trimming:")
-    #core_logger.print_to_log(gate_ordered)
-    #core_logger.print_to_log("Last gate number: {0}".format(len(segment.gates) - 1))
-
     current_gate_index = 0
     for i in range(len(gate_ordered)):
         if gate_ordered[i] == current_gate_index:
@@ -231,14 +150,92 @@ def gps_trace_gate_intersections(gps_trace: streams_models.ActivityStreams, segm
     core_logger.print_to_log(gate_ordered)
     core_logger.print_to_log("SUCCESS: GPS trace from activity {0} passes through {1}.".format(gps_trace.activity_id, segment.name.strip()))
 
-    # recast the gps_point_index_ordered to a list of tuples of int's
-    gps_point_index_ordered_int = [(int(x[0]), int(x[1])) for x in gps_point_index_ordered]
+    mode = 'linear' # or 'laps'
+
+    # Check for repeating patterns in the gates
+    laps = find_repeating_pattern(gate_ordered)
+    first_gate = 0
+    last_gate = len(segment.gates) - 1
+    if laps is not None:
+        # Trim laps to the first instance of the first gate and the last instance of the last gate
+        for i in range(len(laps)):
+            if laps[i] == first_gate and laps[i+1] != first_gate:
+                first_gate = i
+                break
+        for i in range(len(laps) - 1, -1, -1):
+            if laps[i] == last_gate and laps[i-1] != last_gate:
+                last_gate = i
+                break
+        laps = laps[first_gate:last_gate + 1]
+        if len(laps) > 1:
+            mode = 'laps'
+            core_logger.print_to_log(f"Found repeating pattern in gates: {laps}.")
+
+    # Calculate the time for each gate and segment
+    gate_times = []
+    segment_times = []
+    sub_segment_times = []
+    if mode == 'linear':
+        times = []
+        sub_segment_time = []
+        first_gate_time = None
+        for i in range(len(gps_point_index_ordered)):
+            # Get the time of the first GPS point in the pair
+            gps_point_1 = gps_trace.stream_waypoints[gps_point_index_ordered[i][0]]
+            gps_point_2 = gps_trace.stream_waypoints[gps_point_index_ordered[i][1]]
+            gate_time_1 = datetime.fromisoformat(gps_point_1['time'])
+            gate_time_2 = datetime.fromisoformat(gps_point_2['time'])
+            delta_time = gate_time_2 - gate_time_1
+            gate_time = gate_time_1 + delta_time * intersection_distance_ordered[i][0] / (intersection_distance_ordered[i][0] + intersection_distance_ordered[i][1])
+            if first_gate_time is None:
+                first_gate_time = gate_time
+            else:
+                sub_segment_time.append((gate_ordered[i], (gate_time - first_gate_time).total_seconds()))
+            core_logger.print_to_log(f"Gate {gate_ordered[i]} passed at {gate_time.isoformat()}")
+            times.append((gate_ordered[i], gate_time.isoformat()))
+        segment_time = ((datetime.fromisoformat(times[len(times)-1][1]) - datetime.fromisoformat(times[0][1])).total_seconds())
+        gate_times.append(times)
+        segment_times.append(segment_time)
+        sub_segment_times.append(sub_segment_time)
+        core_logger.print_to_log(f"Total time for segment {segment.name.strip()} is {segment_time}.")
+    if mode == 'laps':
+        # Calculate the time for each lap
+        lap_number = 1
+        for i in range(len(gps_point_index_ordered)-len(laps)+1):
+            if gate_ordered[i:i+len(laps)] == laps:
+                # This is a lap
+                core_logger.print_to_log(f"Lap {lap_number} completed.")
+                lap_times = []
+                sub_segment_time = []
+                first_gate_time = None
+                for j in range(len(laps)):
+                    gps_point_1 = gps_trace.stream_waypoints[gps_point_index_ordered[i+j][0]]
+                    gps_point_2 = gps_trace.stream_waypoints[gps_point_index_ordered[i+j][1]]
+                    gate_time_1 = datetime.fromisoformat(gps_point_1['time'])
+                    gate_time_2 = datetime.fromisoformat(gps_point_2['time'])
+                    delta_time = gate_time_2 - gate_time_1
+                    gate_time = gate_time_1 + delta_time * intersection_distance_ordered[i+j][0] / (intersection_distance_ordered[i+j][0] + intersection_distance_ordered[i+j][1])
+                    if first_gate_time is None:
+                        first_gate_time = gate_time
+                    else:
+                        sub_segment_time.append((gate_ordered[i+j], (gate_time - first_gate_time).total_seconds()))
+                    core_logger.print_to_log(f"Gate {gate_ordered[i+j]} passed at {gate_time.isoformat()}")
+                    lap_times.append((gate_ordered[i+j], gate_time.isoformat()))
+                gate_times.append(lap_times)
+                segment_time = ((datetime.fromisoformat(lap_times[len(lap_times)-1][1]) - datetime.fromisoformat(lap_times[0][1])).total_seconds())
+                core_logger.print_to_log(f"Total time for lap {lap_number} of segment {segment.name.strip()} is {segment_time}.")
+                # Append the segment time to the list
+                segment_times.append(segment_time)
+                sub_segment_times.append(sub_segment_time)
+                lap_number += 1
 
     result = {
+        'segment_name': segment.name.strip(),
         'gate_ordered': gate_ordered,
-        'gps_point_index_ordered': gps_point_index_ordered_int
-#        'gps_point_ordered': gps_point_ordered,
-#        'intersection_distance_ordered': intersection_distance_ordered
+        'gps_point_index_ordered': gps_point_index_ordered,
+        'sub_segment_times': sub_segment_times if len(sub_segment_times) > 0 else None,
+        'segment_times': segment_times if len(segment_times) > 0 else None,
+        'gate_times': gate_times if len(gate_times) > 0 else None,
     }
 
     return result
