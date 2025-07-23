@@ -1,50 +1,51 @@
 <template>
     <div v-if="mapVisible==false">
         <div>
-            <div class="card">
-                <div class="card-body">
-                    <div class="text-center" v-if="segmentsFollowed.length == 0">
-                        {{ $t("activitySegmentsComponent.activityNotFollowingDefinedSegments") }}
-                    </div>
-                    <div class="table-responsive d-none d-sm-block" ref="activitySegments" id="activitySegments" v-else>
-                        <table class="table table-borderless table-hover table-sm rounded text-center" v-if="segmentsFollowed.length > 0">
-                            <thead>
-                                <tr>
-                                    <th>{{ $t("activitySegmentsComponent.labelSegmentName") }}</th>
-                                    <th></th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr v-for="(segment, idx) in segmentsFollowed" :key="segment.id">
-                                    <td align="center">
-                                        {{ segment.name }}
-                                        <div :ref="`segmentMapIcon-${segment.id}`" :id="`segmentMapIcon-${segment.id}`"></div>
-                                    </td>
-                                    <td>
-                                        <div class="table-responsive d-none d-sm-block align-items-center justify-content-center">
-                                            <table class="table table-borderless table-hover table-sm rounded text-center" v-if="intersections[idx] && intersections[idx].gate_times">
-                                            <thead>
-                                                <tr>
-                                                <th>{{ $t("activitySegmentsComponent.labelGate") }}</th>
-                                                <th v-for="(lap, lapIdx) in intersections[idx].sub_segment_times" :key="lapIdx">{{ $t("activitySegmentsComponent.labelLap") }} {{ lapIdx + 1 }}</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                <tr v-for="gateIdx in intersections[idx].sub_segment_times[0]?.length" :key="gateIdx" @mouseover="highlightGate(segment.id, intersections[idx].sub_segment_times[0][gateIdx-1][0])" @mouseout="unhighlightGate(segment.id, intersections[idx].sub_segment_times[0][gateIdx-1][0])">
-                                                <td>{{ (gateIdx === intersections[idx].sub_segment_times[0].length)? $t("activitySegmentsComponent.labelFinish") : intersections[idx].sub_segment_times[0][gateIdx-1][0] }}</td>
-                                                <td v-for="(lap, lapIdx) in intersections[idx].sub_segment_times" :key="lapIdx">
-                                                    {{ formatSecondsToTime(lap[gateIdx - 1][1]) }}
-                                                </td>
-                                                </tr>
-                                            </tbody>
+            <div class="text-center" v-if="segmentsFollowed.length == 0">
+                {{ $t("activitySegmentsComponent.activityNotFollowingDefinedSegments") }}
+            </div>
+            <div class="container-fluid d-flex justify-content-center align-items-stretch" ref="activitySegments" id="activitySegments" v-else>
+                <table v-if="segmentsFollowed.length > 0">
+                    <tbody>
+                        <tr v-for="(segment, idx) in segmentsFollowed" :key="segment.id">
+                            <td>
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th class="text-center m-10" colspan="3"><strong> {{ segment.name }}</strong></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td class="m-10">
+                                            <div :ref="`segmentMapIcon-${segment.id}`" :id="`segmentMapIcon-${segment.id}`"></div>
+                                        </td>
+                                        <td class="m-10">&nbsp;</td>
+                                        <td class="m-10">
+                                            <table class="table w-100 table-borderless table-hover table-sm rounded text-center" :class="{ 'table-striped': segment.activity_type !== 8 }" style="--bs-table-bg: var(--bs-gray-850);" v-if="intersections[idx] && intersections[idx].gate_times">
+                                                <thead>
+                                                    <tr>
+                                                        <th>{{ $t("activitySegmentsComponent.labelGate") }}</th>
+                                                        <th v-for="(lap, lapIdx) in intersections[idx].sub_segment_times" :key="lapIdx">{{ $t("activitySegmentsComponent.labelLap") + " " + (lapIdx + 1) }}</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody class="table-group-divider">
+                                                    <tr v-for="gateIdx in intersections[idx].sub_segment_times[0]?.length" :key="gateIdx" @mouseover="highlightGate(segment.id, intersections[idx].sub_segment_times[0][gateIdx-1][0])" @mouseout="unhighlightGate(segment.id, intersections[idx].sub_segment_times[0][gateIdx-1][0])">
+                                                        <td>{{ (gateIdx === intersections[idx].sub_segment_times[0].length)? $t("activitySegmentsComponent.labelFinish") : intersections[idx].sub_segment_times[0][gateIdx-1][0] }}</td>
+                                                        <td v-for="(lap, lapIdx) in intersections[idx].sub_segment_times" :key="lapIdx">
+                                                            {{ formatSecondsToTime(lap[gateIdx - 1][1]) }} <br>
+                                                        </td>
+                                                    </tr>
+                                                </tbody>
                                             </table>
-                                        </div>
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
         </div>
         <div>
@@ -62,51 +63,47 @@
     </div>
     <div v-if="mapVisible">
         <div>
-            <div class="card">
-                <div class="card-body">
-                    <div class="text-center">
-                        {{ $t("activitySegmentsComponent.addSegmentDirections") }}
+            <div class="text-center">
+                {{ $t("activitySegmentsComponent.addSegmentDirections") }}
+            </div>
+            <div class="row row-gap-3">
+                <div class="col">
+                    <form @submit.prevent="submitSegment">
+                    <div class="row">&nbsp;</div>
+                    <div class="row">
+                        <div class="col">{{ $t("activitySegmentsComponent.inputSegmentName") }}</div>
+                        <div class="col"><input class="form-control me-2" type="text" id="segmentName" v-model="segmentName"></div>
                     </div>
-                    <div class="row row-gap-3">
+                    <div class="row">&nbsp;</div>
+                    <div class="row">
                         <div class="col">
-                            <form @submit.prevent="submitSegment">
-                            <div class="row">&nbsp;</div>
-                            <div class="row">
-                                <div class="col">{{ $t("activitySegmentsComponent.inputSegmentName") }}</div>
-                                <div class="col"><input class="form-control me-2" type="text" id="segmentName" v-model="segmentName"></div>
-                            </div>
-                            <div class="row">&nbsp;</div>
-                            <div class="row">
-                                <div class="col">
-                                    <button type="submit" class="btn btn-primary" name="submitSegment">
-                                        {{ $t("activitySegmentsComponent.buttonSubmitSegment") }}
-                                    </button>
-                                </div>
-                                <div class="col">
-                                    <a class="w-100 btn btn-primary shadow-sm" role="button" @click="toggleSegmentAdd">
-                                        {{ $t("activitySegmentsComponent.buttonCancelSegment") }}
-                                    </a>
-                                </div>
-                            </div>
-                            </form>                    
+                            <button type="submit" class="btn btn-primary" name="submitSegment">
+                                {{ $t("activitySegmentsComponent.buttonSubmitSegment") }}
+                            </button>
                         </div>
-                        <div class="col table-responsive d-none d-sm-block">
-                            <div class="row">&nbsp;</div>
-                            <div class="row">
-                                <table class="table table-borderless table-hover table-sm rounded text-center" v-if="segmentPolylines.length > 0">
-                                    <tbody>
-                                        <tr v-for="(polyline, index) in segmentPolylines" :key="index">
-                                            <td>Gate {{ index + 1 }}</td>
-                                            <td>
-                                                <a class="w-100 btn btn-primary shadow-sm" role="button" @click="deleteSegment(index)">
-                                                    {{ $t("activitySegmentsComponent.buttonDeleteSegment") }}
-                                                </a>
-                                            </td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </div>
+                        <div class="col">
+                            <a class="w-100 btn btn-primary shadow-sm" role="button" @click="toggleSegmentAdd">
+                                {{ $t("activitySegmentsComponent.buttonCancelSegment") }}
+                            </a>
                         </div>
+                    </div>
+                    </form>                    
+                </div>
+                <div class="col table-responsive d-none d-sm-block">
+                    <div class="row">&nbsp;</div>
+                    <div class="row">
+                        <table class="table table-borderless table-hover table-sm rounded text-center" v-if="segmentPolylines.length > 0">
+                            <tbody>
+                                <tr v-for="(polyline, index) in segmentPolylines" :key="index">
+                                    <td>Gate {{ index + 1 }}</td>
+                                    <td>
+                                        <a class="w-100 btn btn-primary shadow-sm" role="button" @click="deleteSegment(index)">
+                                            {{ $t("activitySegmentsComponent.buttonDeleteSegment") }}
+                                        </a>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>
@@ -211,11 +208,13 @@ export default {
             if (isNaN(seconds)) return '';
             const hours = Math.floor(seconds / 3600);
             const minutes = Math.floor((seconds % 3600) / 60);
-            const secs = (seconds % 60).toFixed(2);
+            const secs = (seconds % 60).toFixed(1);
             if (hours > 0) {
-                return `${hours}h ${minutes.toString().padStart(2, '0')}m ${secs.toString().padStart(5, '0')}s`;
+                // If hours are present, show them
+                return `${hours}h ${minutes.toString().padStart(2, '0')}m ${secs.toString().padStart(4, '0')}s`;
             } else {
-                return `${minutes}m ${secs.toString().padStart(5, '0')}s`;
+                // If no hours, just show minutes and seconds
+                return `${minutes}m ${secs.toString().padStart(4, '0')}s`;
             }
         },        
         updateSegmentIconMaps(segments) {

@@ -1,6 +1,5 @@
 {
     "addSegmentDirections": "Select points to create gates. Gates need to be created in the sequence of travel through the segment.",
-    "tableHeaderSegment": "Segment",
     "buttonAddSegment": "Add Segment",
     "buttonDeleteSegment": "Delete",
     "buttonCancelSegment": "Cancel",
