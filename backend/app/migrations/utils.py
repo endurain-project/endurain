@@ -4,6 +4,7 @@ import migrations.crud as migrations_crud
 import migrations.migration_1 as migrations_migration_1
 import migrations.migration_2 as migrations_migration_2
 import migrations.migration_3 as migrations_migration_3
+import migrations.migration_4 as migrations_migration_4
 
 import core.logger as core_logger
 
@@ -29,3 +30,7 @@ def check_migrations_not_executed(db: Session):
             if migration.id == 3:
                 # Execute the migration
                 migrations_migration_3.process_migration_3(db)
+
+            if migration.id == 4:
+                # Execute the migration
+                migrations_migration_4.process_migration_4(db)

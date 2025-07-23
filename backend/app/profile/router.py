@@ -2,6 +2,7 @@ import os
 import json
 
 from io import BytesIO
+import tempfile
 import zipfile
 
 from typing import Annotated
@@ -9,8 +10,6 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
-
-import gears.schema as gear_schema
 
 import users.user.schema as users_schema
 import users.user.crud as users_crud
@@ -38,6 +37,9 @@ import activities.activity.schema as activity_schema
 import activities.activity_laps.crud as activity_laps_crud
 import activities.activity_laps.schema as activity_laps_schema
 
+import activities.activity_media.crud as activity_media_crud
+import activities.activity_media.schema as activity_media_schema
+
 import activities.activity_sets.crud as activity_sets_crud
 import activities.activity_sets.schema as activity_sets_schema
 
@@ -50,13 +52,19 @@ import activities.activity_workout_steps.schema as activity_workout_steps_schema
 import activities.activity_exercise_titles.crud as activity_exercise_titles_crud
 import activities.activity_exercise_titles.schema as activity_exercise_titles_schema
 
-import gears.crud as gear_crud
+import gears.gear.crud as gear_crud
+import gears.gear.schema as gear_schema
+
+import gears.gear_components.crud as gear_components_crud
+import gears.gear_components.schema as gear_components_schema
 
 import health_data.crud as health_data_crud
 import health_data.schema as health_data_schema
 
 import health_targets.crud as health_targets_crud
 import health_targets.schema as health_targets_schema
+
+import websocket.schema as websocket_schema
 
 # Define the API router
 router = APIRouter()
@@ -384,7 +392,7 @@ async def export_profile_data(
         Converts a SQLAlchemy model instance into a dictionary mapping column names to their values.
 
         Args:
-            obj: The object to convert. If the object has a `__table__` attribute (i.e., is a SQLAlchemy model instance),
+            obj: The object to convert. If the object has a __table__ attribute (i.e., is a SQLAlchemy model instance),
                  its columns and corresponding values are extracted into a dictionary. Otherwise, the object is returned as is.
 
         Returns:
@@ -405,8 +413,8 @@ async def export_profile_data(
             ensure_ascii (bool, optional): Whether to escape non-ASCII characters in the output. Defaults to False.
 
         Notes:
-            - If `data` is falsy (e.g., None, empty), nothing is written.
-            - Uses `json.dumps` with `default=str` to handle non-serializable objects.
+            - If data is falsy (e.g., None, empty), nothing is written.
+            - Uses json.dumps with default=str to handle non-serializable objects.
         """
         if data:
             counts[filename.split("/")[-1].replace(".json", "")] = (
@@ -428,170 +436,267 @@ async def export_profile_data(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    buf = BytesIO()
-    with zipfile.ZipFile(
-        buf, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=6
-    ) as zipf:
-        counts = {
-            "activity_files": 0,
-            "activities": 0,
-            "activity_laps": 0,
-            "activity_sets": 0,
-            "activity_streams": 0,
-            "activity_workout_steps": 0,
-            "activity_exercise_titles": 0,
-            "gears": 0,
-            "health_data": 0,
-            "health_targets": 0,
-            "user_images": 0,
-            "user": 1,
-            "user_default_gear": 0,
-            "user_integrations": 0,
-            "user_privacy_settings": 0,
-        }
-        user_activities = activities_crud.get_user_activities(token_user_id, db)
-        laps = []
-        sets = []
-        streams = []
-        steps = []
-        exercise_titles = []
+    counts = {
+        "media": 0,
+        "activity_files": 0,
+        "activities": 0,
+        "activity_laps": 0,
+        "activity_sets": 0,
+        "activity_streams": 0,
+        "activity_workout_steps": 0,
+        "activity_media": 0,
+        "activity_exercise_titles": 0,
+        "gears": 0,
+        "gear_components": 0,
+        "health_data": 0,
+        "health_targets": 0,
+        "user_images": 0,
+        "user": 1,
+        "user_default_gear": 0,
+        "user_integrations": 0,
+        "user_privacy_settings": 0,
+    }
 
-        # 1) GPX/FIT track files
-        if user_activities:
-            # Check if the user has activities files stored and added them to the zip
-            for root, _, files in os.walk(core_config.FILES_PROCESSED_DIR):
-                for file in files:
-                    file_id, ext = os.path.splitext(file)
-                    if any(str(activity.id) == file_id for activity in user_activities):
-                        counts["activity_files"] += 1
-                        file_path = os.path.join(root, file)
-                        # Add file to the zip archive with relative path
-                        arcname = os.path.relpath(
-                            file_path, core_config.FILES_PROCESSED_DIR
+    # Use a temporary file for the ZIP
+    def zipfile_generator():
+        """
+        Generates a ZIP archive containing a user's activities, media files, health data, gear information, and user profile data.
+
+        The ZIP file includes:
+            1. Activity track files (GPX/FIT) and associated media files.
+            2. Activity metadata (laps, sets, streams, workout steps, exercise titles) in JSON format.
+            3. Gear and gear components information in JSON format.
+            4. Health data and health targets in JSON format.
+            5. User profile information (excluding password) and user images.
+            6. User default gear, integrations, and privacy settings in JSON format.
+            7. A counts.json file with statistics about the included files.
+
+        The function streams the ZIP file in chunks for efficient memory usage.
+
+        Yields:
+            bytes: Chunks of the ZIP file (8192 bytes each).
+        """
+        with tempfile.NamedTemporaryFile(delete=True) as tmp:
+            with zipfile.ZipFile(
+                tmp, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=6
+            ) as zipf:
+                user_activities = activities_crud.get_user_activities(token_user_id, db)
+                laps = []
+                sets = []
+                streams = []
+                steps = []
+                exercise_titles = []
+                media = []
+
+                # 1) GPX/FIT track files
+                if user_activities:
+                    # Check if the user has activities files stored and added them to the zip
+                    for root, _, files in os.walk(core_config.FILES_PROCESSED_DIR):
+                        for file in files:
+                            file_id, ext = os.path.splitext(file)
+                            if any(
+                                str(activity.id) == file_id
+                                for activity in user_activities
+                            ):
+                                counts["activity_files"] += 1
+                                file_path = os.path.join(root, file)
+                                # Add file to the zip archive under activity_files/ folder
+                                arcname = os.path.join(
+                                    "activity_files",
+                                    os.path.relpath(
+                                        file_path, core_config.FILES_PROCESSED_DIR
+                                    ),
+                                )
+                                zipf.write(file_path, arcname)
+
+                    # Check if the user has activity media files stored and added them to the zip
+                    for root, _, files in os.walk(core_config.ACTIVITY_MEDIA_DIR):
+                        for file in files:
+                            file_id, ext = os.path.splitext(file)
+                            file_activity_id = file_id.split("_")[0]
+                            if any(
+                                str(activity.id) == file_activity_id
+                                for activity in user_activities
+                            ):
+                                counts["media"] += 1
+                                file_path = os.path.join(root, file)
+                                # Add file to the zip archive under activity_media/ folder
+                                arcname = os.path.join(
+                                    "activity_media",
+                                    os.path.relpath(
+                                        file_path, core_config.ACTIVITY_MEDIA_DIR
+                                    ),
+                                )
+                                zipf.write(file_path, arcname)
+
+                    # 2) Activities info plus laps, sets, streams, steps, exercise_titles JSON
+                    # activities ids
+                    activity_ids = [activity.id for activity in user_activities]
+                    # laps
+                    laps.extend(
+                        activity_laps_crud.get_activities_laps(
+                            activity_ids, token_user_id, db, user_activities
                         )
-                        zipf.write(file_path, arcname)
-
-            # 2) Activities info plus laps, sets, streams, steps, exercise_titles JSON
-            # activities ids
-            activity_ids = [activity.id for activity in user_activities]
-            # laps
-            laps.extend(
-                activity_laps_crud.get_activities_laps(
-                    activity_ids, token_user_id, db, user_activities
+                    )
+                    # sets
+                    sets.extend(
+                        activity_sets_crud.get_activities_sets(
+                            activity_ids, token_user_id, db, user_activities
+                        )
+                    )
+                    # streams
+                    streams.extend(
+                        activity_streams_crud.get_activities_streams(
+                            activity_ids, token_user_id, db, user_activities
+                        )
+                    )
+                    steps.extend(
+                        activity_workout_steps_crud.get_activities_workout_steps(
+                            activity_ids, token_user_id, db, user_activities
+                        )
+                    )
+                    media.extend(
+                        activity_media_crud.get_activities_media(
+                            activity_ids, token_user_id, db, user_activities
+                        )
+                    )
+                # exercise titles
+                exercise_titles = (
+                    activity_exercise_titles_crud.get_activity_exercise_titles(db)
                 )
-            )
-            # sets
-            sets.extend(
-                activity_sets_crud.get_activities_sets(
-                    activity_ids, token_user_id, db, user_activities
+
+                # 3) Gears
+                gears = gear_crud.get_gear_user(token_user_id, db)
+
+                gear_components = gear_components_crud.get_gear_components_user(
+                    token_user_id, db
                 )
-            )
-            # streams
-            streams.extend(
-                activity_streams_crud.get_activities_streams(
-                    activity_ids, token_user_id, db, user_activities
+
+                # 4) Health data CSV
+                health_data = health_data_crud.get_all_health_data_by_user_id(
+                    token_user_id, db
                 )
-            )
-            # steps
-            steps.extend(
-                activity_workout_steps_crud.get_activities_workout_steps(
-                    activity_ids, token_user_id, db, user_activities
+                health_targets = health_targets_crud.get_health_targets_by_user_id(
+                    token_user_id, db
                 )
-            )
-            # exercise titles
-            exercise_titles = (
-                activity_exercise_titles_crud.get_activity_exercise_titles(db)
-            )
 
-        # 3) Gears
-        gears = gear_crud.get_gear_user(token_user_id, db)
+                # 5) User info JSON
+                user_dict = sqlalchemy_obj_to_dict(user)
+                user_dict.pop("password", None)
+                write_json_to_zip(zipf, "data/user.json", user_dict, counts)
 
-        # 4) Health data CSV
-        health_data = health_data_crud.get_all_health_data_by_user_id(token_user_id, db)
-        health_targets = health_targets_crud.get_health_targets_by_user_id(
-            token_user_id, db
-        )
+                # Check if the user has user images stored and added them to the zip
+                for root, _, files in os.walk(core_config.USER_IMAGES_DIR):
+                    for file in files:
+                        file_id, ext = os.path.splitext(file)
+                        if str(user.id) == file_id:
+                            counts["user_images"] += 1
+                            file_path = os.path.join(root, file)
+                            # Add file to the zip archive under user_images/ folder
+                            arcname = os.path.join(
+                                "user_images",
+                                os.path.relpath(file_path, core_config.USER_IMAGES_DIR),
+                            )
+                            zipf.write(file_path, arcname)
 
-        # 5) User info JSON
-        user_dict = sqlalchemy_obj_to_dict(user)
-        user_dict.pop("password", None)
-        write_json_to_zip(zipf, "data/user.json", user_dict, counts)
+                user_default_gear = (
+                    user_default_gear_crud.get_user_default_gear_by_user_id(
+                        token_user_id, db
+                    )
+                )
+                user_integrations = (
+                    user_integrations_crud.get_user_integrations_by_user_id(
+                        token_user_id, db
+                    )
+                )
+                user_privacy_settings = (
+                    users_privacy_settings_crud.get_user_privacy_settings_by_user_id(
+                        token_user_id, db
+                    )
+                )
 
-        # Check if the user has user images stored and added them to the zip
-        for root, _, files in os.walk(core_config.USER_IMAGES_DIR):
-            for file in files:
-                file_id, ext = os.path.splitext(file)
-                if str(user.id) == file_id:
-                    counts["user_images"] += 1
-                    file_path = os.path.join(root, file)
-                    # Add user image to the zip archive with relative path
-                    arcname = os.path.relpath(file_path, core_config.USER_IMAGES_DIR)
-                    zipf.write(file_path, arcname)
+                # Write data to files
+                data_to_write = [
+                    (user_activities, "data/activities.json"),
+                    (laps, "data/activity_laps.json"),
+                    (sets, "data/activity_sets.json"),
+                    (streams, "data/activity_streams.json"),
+                    (steps, "data/activity_workout_steps.json"),
+                    (media, "data/activity_media.json"),
+                    (exercise_titles, "data/activity_exercise_titles.json"),
+                    (gears, "data/gears.json"),
+                    (gear_components, "data/gear_components.json"),
+                    (health_data, "data/health_data.json"),
+                    (health_targets, "data/health_targets.json"),
+                    (user_default_gear, "data/user_default_gear.json"),
+                    (user_integrations, "data/user_integrations.json"),
+                    (user_privacy_settings, "data/user_privacy_settings.json"),
+                    (counts, "counts.json"),
+                ]
+                for data, filename in data_to_write:
+                    if data:
+                        if not isinstance(data, (list, tuple)):
+                            data = [data]
+                        dicts = [sqlalchemy_obj_to_dict(item) for item in data]
+                        write_json_to_zip(zipf, filename, dicts, counts)
 
-        user_default_gear = user_default_gear_crud.get_user_default_gear_by_user_id(
-            token_user_id, db
-        )
-        user_integrations = user_integrations_crud.get_user_integrations_by_user_id(
-            token_user_id, db
-        )
-        user_privacy_settings = (
-            users_privacy_settings_crud.get_user_privacy_settings_by_user_id(
-                token_user_id, db
-            )
-        )
+            tmp.seek(0)
+            while True:
+                chunk = tmp.read(8192)
+                if not chunk:
+                    break
+                yield chunk
 
-        # Write data to files
-        data_to_write = [
-            (user_activities, "data/activities.json"),
-            (laps, "data/activity_laps.json"),
-            (sets, "data/activity_sets.json"),
-            (streams, "data/activity_streams.json"),
-            (steps, "data/activity_workout_steps.json"),
-            (exercise_titles, "data/activity_exercise_titles.json"),
-            (gears, "data/gears.json"),
-            (health_data, "data/health_data.json"),
-            (health_targets, "data/health_targets.json"),
-            (user_default_gear, "data/user_default_gear.json"),
-            (user_integrations, "data/user_integrations.json"),
-            (user_privacy_settings, "data/user_privacy_settings.json"),
-            (counts, "counts.json"),
-        ]
-        for data, filename in data_to_write:
-            if data:
-                if not isinstance(data, (list, tuple)):
-                    data = [data]
-                dicts = [sqlalchemy_obj_to_dict(item) for item in data]
-                write_json_to_zip(zipf, filename, dicts, counts)
-
-    buf.seek(0)
     headers = {
         "Content-Disposition": f"attachment; filename=user_{token_user_id}_export.zip",
-        "Content-Length": str(len(buf.getvalue())),
+        # Content-Length is omitted for streaming
     }
-    return StreamingResponse(
-        buf,
-        media_type="application/zip",
-        headers=headers,
-    )
+
+    try:
+        return StreamingResponse(
+            zipfile_generator(),
+            media_type="application/zip",
+            headers=headers,
+        )
+    except Exception as err:
+        # Log the exception
+        core_logger.print_to_log(
+            f"Error in export_profile_data when streaming the response: {err}",
+            "error",
+            exc=err,
+        )
+        # Raise an HTTPException with a 500 Internal Server Error status code
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal Server Error",
+        ) from err
 
 
 @router.post("/import")
 async def import_profile_data(
     file: UploadFile,
-    token_user_id: int = Depends(session_security.get_user_id_from_access_token),
-    db: Session = Depends(core_database.get_db),
+    token_user_id: Annotated[
+        int,
+        Depends(session_security.get_user_id_from_access_token),
+    ],
+    db: Annotated[Session, Depends(core_database.get_db)],
+    websocket_manager: Annotated[
+        websocket_schema.WebSocketManager,
+        Depends(websocket_schema.get_websocket_manager),
+    ],
 ):
     """
     Imports user profile data from a provided .zip file, updating or creating user-related records in the database.
     This endpoint expects a .zip file containing JSON and media files representing user profile data, activities, health data, and associated files. It processes and imports the following data types:
     - Gears
+    - Gears components
     - User profile
     - User default gear
     - User integrations
     - User privacy settings
-    - Activities and their related laps, sets, streams, workout steps, and exercise titles
+    - Activities and their related laps, sets, streams, workout steps, media and exercise titles
     - Health data and health targets
-    - User images and activity files (e.g., .gpx, .fit)
+    - User images, activity media and activity files (e.g., .gpx, .fit)
     All imported data is associated with the authenticated user (token_user_id). The function ensures that IDs and user associations are correctly mapped to avoid conflicts. Media files are saved to the appropriate directories.
     Args:
         file (UploadFile): The uploaded .zip file containing the profile data.
@@ -610,14 +715,17 @@ async def import_profile_data(
         )
 
     counts = {
+        "media": 0,
         "activity_files": 0,
         "activities": 0,
         "activity_laps": 0,
         "activity_sets": 0,
         "activity_streams": 0,
         "activity_workout_steps": 0,
+        "activity_media": 0,
         "activity_exercise_titles": 0,
         "gears": 0,
+        "gear_components": 0,
         "health_data": 0,
         "health_targets": 0,
         "user_images": 0,
@@ -633,6 +741,7 @@ async def import_profile_data(
             file_list = set(zipf.namelist())
             file_map = {
                 "data/gears.json": "gears_data",
+                "data/gear_components.json": "gear_components_data",
                 "data/user.json": "user_data",
                 "data/user_default_gear.json": "user_default_gear_data",
                 "data/user_integrations.json": "user_integrations_data",
@@ -642,6 +751,7 @@ async def import_profile_data(
                 "data/activity_sets.json": "activity_sets_data",
                 "data/activity_streams.json": "activity_streams_data",
                 "data/activity_workout_steps.json": "activity_workout_steps_data",
+                "data/activity_media.json": "activity_media",
                 "data/activity_exercise_titles.json": "activity_exercise_titles_data",
                 "data/health_data.json": "health_data_data",
                 "data/health_targets.json": "health_targets_data",
@@ -655,7 +765,7 @@ async def import_profile_data(
                     results[varname] = json.loads(zipf.read(filename))
                 else:
                     results[varname] = []
-            
+
             # a) import gears JSON
             if results["gears_data"]:
                 for gear_data in results["gears_data"]:
@@ -671,19 +781,43 @@ async def import_profile_data(
                     gears_id_mapping[original_id] = new_gear.id
                     counts["gears"] += 1
 
-            # b) import user JSONs
+            # b) import gear components JSON
+            if results["gear_components_data"]:
+                for gear_component_data in results["gear_components_data"]:
+                    # ensure gear component has the correct user_id and gear_id on import
+                    gear_component_data["user_id"] = token_user_id
+                    gear_component_data["gear_id"] = (
+                        gears_id_mapping.get(gear_component_data["gear_id"])
+                        if gear_component_data.get("gear_id") in gears_id_mapping
+                        else None
+                    )
+                    # ensure gear component has the correct id on import
+                    original_id = gear_component_data.get("id")
+                    gear_component_data.pop("id", None)
+                    # convert gear component data to GearComponents schema
+                    gear_component = gear_components_schema.GearComponents(
+                        **gear_component_data
+                    )
+                    # create gear component
+                    new_gear_component = gear_components_crud.create_gear_component(
+                        gear_component, token_user_id, db
+                    )
+                    gears_id_mapping[original_id] = new_gear_component.id
+                    counts["gear_components"] += 1
+
+            # c) import user JSONs
             if results["user_data"]:
                 # ensure user has the correct id on import
                 results["user_data"]["id"] = token_user_id
                 # Split and replace only the filename part
                 photo_path = results["user_data"].get("photo_path")
                 if isinstance(photo_path, str) and photo_path.startswith(
-                    "user_images/"
+                    "data/user_images/"
                 ):
                     extension = photo_path.split(".")[-1]
                     results["user_data"][
                         "photo_path"
-                    ] = f"user_images/{token_user_id}.{extension}"
+                    ] = f"data/user_images/{token_user_id}.{extension}"
                 # convert user data to User schema
                 user = users_schema.User(**results["user_data"])
                 # Update user
@@ -787,9 +921,9 @@ async def import_profile_data(
                     )
                     counts["user_privacy_settings"] += 1
 
-            # c) import activities JSONs
+            # d) import activities JSONs
             for activity_data in results["activities_data"]:
-                # ensure activity has the correct user_id on import
+                # ensure activity has the correct user_id and gear_id on import
                 activity_data["user_id"] = token_user_id
                 activity_data["gear_id"] = (
                     gears_id_mapping.get(activity_data["gear_id"])
@@ -802,7 +936,9 @@ async def import_profile_data(
                 # convert activity data to Activity schema
                 activity = activity_schema.Activity(**activity_data)
                 # create activity
-                new_activity = activities_crud.create_activity(activity, db)
+                new_activity = await activities_crud.create_activity(
+                    activity, websocket_manager, db, False
+                )
                 activities_id_mapping[original_activity_id] = new_activity.id
                 counts["activities"] += 1
 
@@ -841,9 +977,7 @@ async def import_profile_data(
                         set_activity = activity_sets_schema.ActivitySets(**activity_set)
                         # add the set to the sets list
                         sets.append(set_activity)
-                    activity_sets_crud.create_activity_sets(
-                        sets, new_activity.id, db
-                    )
+                    activity_sets_crud.create_activity_sets(sets, new_activity.id, db)
                     counts["activity_sets"] += len(sets)
 
                 # create streams for the activity if available
@@ -859,9 +993,7 @@ async def import_profile_data(
                         stream_data.pop("id", None)
                         stream_data["activity_id"] = new_activity.id
                         # convert activity data to ActivityStreams schema
-                        stream = activity_streams_schema.ActivityStreams(
-                            **stream_data
-                        )
+                        stream = activity_streams_schema.ActivityStreams(**stream_data)
                         # add the stream to the streams list
                         streams.append(stream)
                     activity_streams_crud.create_activity_streams(streams, db)
@@ -890,6 +1022,34 @@ async def import_profile_data(
                     )
                     counts["activity_workout_steps"] += len(steps)
 
+                # create media for the activity if available
+                if results["activity_media"]:
+                    media = []
+                    media_for_activity = [
+                        media_item
+                        for media_item in results["activity_media"]
+                        if media_item.get("activity_id") == original_activity_id
+                    ]
+                    for media_data in media_for_activity:
+                        # Remove the id field to avoid conflicts during import
+                        media_data.pop("id", None)
+                        media_data["activity_id"] = new_activity.id
+                        # Update the media_path
+                        old_path = media_data.get("media_path", None)
+                        if old_path:
+                            # Extract the part after the underscore
+                            filename = old_path.split("/")[-1]
+                            suffix = filename.split("_", 1)[1]
+                            media_data["media_path"] = f"{core_config.ACTIVITY_MEDIA_DIR}/{new_activity.id}_{suffix}"
+                        # convert activity data to ActivityMedia schema
+                        media_item = activity_media_schema.ActivityMedia(**media_data)
+                        # add the media item to the media list
+                        media.append(media_item)
+                    activity_media_crud.create_activity_medias(
+                        media, new_activity.id, db
+                    )
+                    counts["activity_media"] += len(media)
+
                 # create exercise titles for the activity if available
                 if results["activity_exercise_titles_data"]:
                     titles = []
@@ -908,10 +1068,12 @@ async def import_profile_data(
                         )
                         # add the title to the titles list
                         titles.append(title)
-                    activity_exercise_titles_crud.create_activity_exercise_titles(titles, db)
+                    activity_exercise_titles_crud.create_activity_exercise_titles(
+                        titles, db
+                    )
                     counts["activity_exercise_titles"] += len(titles)
-            
-            # d) import health CSV
+
+            # e) import health CSV
             if results["health_data_data"]:
                 # ensure health data has the correct user_id on import
                 for health_data in results["health_data_data"]:
@@ -924,7 +1086,7 @@ async def import_profile_data(
                     health_data_crud.create_health_data(token_user_id, data, db)
                     counts["health_data"] += 1
 
-            # e) import health targets JSON
+            # f) import health targets JSON
             if results["health_targets_data"]:
                 # ensure health targets has the correct user_id on import
                 for target_data in results["health_targets_data"]:
@@ -944,19 +1106,25 @@ async def import_profile_data(
                     health_targets_crud.edit_health_target(target, token_user_id, db)
                     counts["health_targets"] += 1
 
-            # f) import user images and activity files if available to disk
+            # g) import user images and activity files if available to disk
             for file_l in file_list:
                 path = file_l.replace("\\", "/")
 
-                if path.lower().endswith((".png", ".jpg", ".jpeg")):
+                # import user image if available
+                if path.lower().endswith((".png", ".jpg", ".jpeg")) and path.startswith(
+                    "user_images/"
+                ):
+                    # Check if the user image is for the current user
                     ext = os.path.splitext(path)[1]
                     new_file_name = f"{token_user_id}{ext}"
                     user_img = os.path.join(core_config.USER_IMAGES_DIR, new_file_name)
                     with open(user_img, "wb") as f:
                         f.write(zipf.read(file_l))
                     counts["user_images"] += 1
-
-                elif path.lower().endswith((".gpx", ".fit")):
+                # import activity files if available
+                elif path.lower().endswith(
+                    (".gpx", ".fit", ".tcx")
+                ) and path.startswith("activity_files/"):
                     file_id = os.path.splitext(os.path.basename(path))[0]
                     ext = os.path.splitext(path)[1]
                     new_id = activities_id_mapping.get(file_id)
@@ -971,6 +1139,35 @@ async def import_profile_data(
                     with open(activity_file_path, "wb") as f:
                         f.write(zipf.read(file_l))
                     counts["activity_files"] += 1
+                # import activity media if available
+                elif path.lower().endswith(
+                    (".png", ".jpg", ".jpeg")
+                ) and path.startswith("activity_media/"):
+                    # Extract the original filename and split into ID and suffix
+                    file_name = os.path.basename(path)  # e.g. "1098_thumbnail.png"
+                    base_name, ext = os.path.splitext(
+                        file_name
+                    )  # base_name="1098_thumbnail", ext=".png"
+                    orig_id, suffix = base_name.split(
+                        "_", 1
+                    )  # orig_id="1098", suffix="thumbnail"
+                    # Look up the new activity ID
+                    new_id = activities_id_mapping.get(orig_id)
+                    if new_id is None:
+                        # no mapping for this activity → skip
+                        continue
+                    # Build the new filename and full path
+                    new_file_name = (
+                        f"{new_id}_{suffix}{ext}"  # e.g. "4321_thumbnail.png"
+                    )
+                    activity_media_path = os.path.join(
+                        core_config.ACTIVITY_MEDIA_DIR, new_file_name
+                    )
+                    # Extract & write out
+                    with open(activity_media_path, "wb") as f:
+                        f.write(zipf.read(file_l))
+                    # Increment your counter
+                    counts["media"] += 1
 
         return {"detail": "Import completed", "imported": counts}
     except HTTPException as http_err:

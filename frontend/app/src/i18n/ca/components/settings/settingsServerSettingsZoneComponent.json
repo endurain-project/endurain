@@ -1,7 +1,10 @@
 {
+    "defaultsTitle": "Per defecte",
     "unitsLabel": "Unitats per defecte",
     "unitsMetric": "Mètrica",
     "unitsImperial": "Imperial",
+    "currencyLabel": "Divisa defecte",
+    "numRecordsLabel": "Número d'items per pàgina",
     "publicShareableLinksLabel": "Enllaços publics compartibles",
     "publicShareableLinksEnabledLabel": "Habilitat",
     "publicShareableLinksTrue": "Cert",

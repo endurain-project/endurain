@@ -15,6 +15,15 @@
         <ul class="navbar-nav bg-body-tertiary rounded shadow-sm mt-3">
             <li class="nav-item">
                 <router-link
+                    :to="{ name: 'activities' }"
+                    class="nav-link link-body-emphasis w-100 py-3 fs-5"
+                >
+                    <font-awesome-icon :icon="['fas', 'fa-person-running']" />
+                    <span class="ms-1">{{ $t('navbarComponent.activities') }}</span>
+                </router-link>
+            </li>
+            <li class="nav-item">
+                <router-link
                     :to="{ name: 'summary' }"
                     class="nav-link link-body-emphasis w-100 py-3 fs-5"
                 >

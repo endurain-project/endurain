@@ -29,7 +29,7 @@
 Endurain is a self-hosted fitness tracking service designed to give users full control over their data and hosting environment. Built with:
 
 - **Frontend:** Vue.js, Notivue and Bootstrap CSS
-- **Backend:** Python FastAPI, Alembic, SQLAlchemy, stravalib and python-garminconnect for Strava and Garmin Connect integration, gpxpy and fitdecode for .gpx and .fit file import respectively 
+- **Backend:** Python FastAPI, Alembic, SQLAlchemy, stravalib and python-garminconnect for Strava and Garmin Connect integration, gpxpy, tcxreader and fitdecode for .gpx, .tcx and .fit file import respectively 
 - **Database:** MariaDB or PostgreSQL for efficient data management
 - **Observability:** Jaeger for basic tracing and monitoring
 
@@ -46,12 +46,13 @@ If you have any recommendations or insights on improving any aspect of Endurain,
 Endurain currently supports:
 
 - Multi-user functionality with admin and user profiles adaptable interfaces
-- Activity import via manual or bulk upload (.gpx and .fit files. .fit files are preferred)
+- Activity import via manual or bulk upload (.gpx, .tcx and .fit files. .fit files are preferred)
 - Strava integration for syncing activities and gear
 - Garmin Connect integration for syncing activities, gear and body composition
 - Activity feeds and statistics (week/month)
 - Basic activity privacy settings
 - Gear tracking (wetsuits, bicycles, shoes, racquets, skis, snowboards)
+- Gear component tracking (e.g., track when components like bike chains need replacing)
 - Default gear for activity types
 - User pages with stats and activity histories
 - Follower features (view activities)
@@ -60,15 +61,14 @@ Endurain currently supports:
 - Dark/light theme switcher
 - Third-party app support
 - Weight logging
+- Notification system
 
 ## Planned Features
 
 Upcoming features (in no particular order):
 
 - Live tracking
-- Gear component tracking (e.g., track when components like bike chains need replacing)
 - Activity comments and likes
-- Notification system
 - Potential ActivityPub integration
 
 ## Sponsors
@@ -96,7 +96,7 @@ Currently supported in:
  - French (FR) [@gwenvador](https://github.com/gwenvador)
  - Dutch (NL) [@woutvanderaa](https://github.com/woutvanderaa)
  - Portuguese (PT)
- - Spanish (ES) [@rgmelkor](https://github.com/rgmelkor)
+ - Spanish (ES) [@rgmelkor](https://github.com/rgmelkor) and [@tinchodin](https://github.com/tinchodin)
  - English (US)
 
 ## Star History

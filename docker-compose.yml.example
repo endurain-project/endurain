@@ -5,10 +5,9 @@ services:
     env_file:
       - .env
     volumes:
-      - /opt/endurain/backend/user_images:/app/backend/user_images # necessary for user image persistence on container image updates
-      - /opt/endurain/backend/server_images:/app/backend/server_images # necessary for server image persistence on container image updates
-      - /opt/endurain/backend/files:/app/backend/files # necessary for files persistence on container image updates
-      - /opt/endurain/backend/logs:/app/backend/logs # log files for the backend
+    #  - <local_path>/endurain/backend/app:/app/backend # Configure volume if you want to edit the code locally by cloning the repo
+      - <local_path>/endurain/backend/data:/app/backend/data # necessary for activity files, user images and server images persistence on container image updates
+      - <local_path>/endurain/backend/logs:/app/backend/logs # log files for the backend
     ports:
       - "8080:8080"
     depends_on:

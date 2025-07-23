@@ -14,13 +14,17 @@ Endurain provides a Docker image for simplified deployment. To get started, chec
 ## Supported Environment Variables
 Table below shows supported environment variables. Variables marked with optional "No" should be set to avoid errors.
 
-Environment variable  | Default value | Optional | Notes |
+| Environment variable  | Default value | Optional | Notes |
 | --- | --- | --- | --- |
 | UID | 1000 | Yes | User ID for mounted volumes. Default is 1000 |
 | GID | 1000 | Yes | Group ID for mounted volumes. Default is 1000 |
 | TZ | UTC | Yes | Timezone definition. Useful for TZ calculation for activities that do not have coordinates associated, like indoor swim or weight training. If not specified UTC will be used. List of available time zones [here](https://en.wikipedia.org/wiki/List_of_tz_database_time_zones). Format `Europe/Lisbon` expected |
 | ENDURAIN_HOST | No default set | `No` | Required for internal communication and Strava. For Strava https must be used. Host or local ip (example: http://192.168.1.10:8080 or https://endurain.com) |
-| GEOCODES_MAPS_API | No default set | `No` | <a href="https://geocode.maps.co/">Geocode maps</a> offers a free plan consisting of 1 Request/Second. Registration necessary. |
+| REVERSE_GEO_PROVIDER | geocode | Yes | Defines reverse geo provider. Expects <a href="https://geocode.maps.co/">geocode</a> or photon. photon can be the <a href="https://photon.komoot.io">SaaS by komoot</a> or a self hosted version like a <a href="https://github.com/rtuszik/photon-docker">self hosted version</a> |
+| PHOTON_API_HOST | photon.komoot.io | Yes | API host for photon. By default it uses the <a href="https://photon.komoot.io">SaaS by komoot</a> |
+| PHOTON_API_USE_HTTPS | true | Yes | Protocol used by photon. By default uses HTTPS to be inline with what <a href="https://photon.komoot.io">SaaS by komoot</a> expects |
+| GEOCODES_MAPS_API | changeme | Yes | <a href="https://geocode.maps.co/">Geocode maps</a> offers a free plan consisting of 1 Request/Second. Registration necessary. |
+| GEOCODES_MAPS_RATE_LIMIT | 1 | yes | Change this if you have a paid Geocode maps tier | 
 | DB_TYPE | postgres | Yes | mariadb or postgres |
 | DB_HOST | postgres | Yes | mariadb or postgres |
 | DB_PORT | 5432 | Yes | 3306 or 5432 |
@@ -70,21 +74,25 @@ Docker image uses a non-root user, so ensure target folders are not owned by roo
 
 | Volume | Notes |
 | --- | --- |
-| `<local_path>/endurain/backend/files/processed:/app/backend/files` | Necessary for files persistence on container image updates |
-| `<local_path>/endurain/backend/user_images:/app/backend/user_images` | Necessary for user image persistence on container image updates |
-| `<local_path>/endurain/backend/server_images:/app/backend/server_images` | Necessary for server image persistence on container image updates |
 | `<local_path>/endurain/backend/logs:/app/backend/logs` | Log files for the backend |
+| `<local_path>/endurain/backend/data:/app/backend/data` | Necessary for image and activity files persistence on docker image update |
 
 ## Bulk import and file upload
 
-.fit files are preferred. I noticed that Strava/Garmin Connect process of converting .fit to .gpx introduces additional data to the activity file leading to minor variances in the data, like for example additional meters in distance and elevation gain.
-Some notes:
+To perform a bulk import:
+- Place .fit, .tcx, .gz and/or .gpx files into the activity_files/bulk_import folder. Create the folder if needed.
+- In the "Settings" menu select "Integrations".
+- Click "Import" next to "Bulk Import".
+
+.fit files are preferred. I noticed that Strava/Garmin Connect process of converting .fit to .gpx introduces additional data to the activity file leading to minor variances in the data, like for example additional 
+meters in distance and elevation gain. Some notes:
 
 - After the files are processed, the files are moved to the processed folder
 - GEOCODES API has a limit of 1 Request/Second on the free plan, so if you have a large number of files, it might not be possible to import all in the same action
+- The bulk import currently only imports data present in the .fit, .tcx or .gpx files - no metadata or other media are imported.
 
 ## Image personalization
 
-It is possible (v0.10.0 or higher) to personalize the login image in the login page. To do that, map the server_images directory for image persistence on container updates and:
+It is possible (v0.10.0 or higher) to personalize the login image in the login page. To do that, map the data/server_images directory for image persistence on container updates and:
  - Set the image in the server settings zone of the settings page
  - A square image is expected. Default one uses 1000px vs 1000px

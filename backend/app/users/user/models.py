@@ -64,6 +64,18 @@ class User(Base):
     is_active = Column(
         Integer, nullable=False, comment="Is user active (1 - active, 2 - not active)"
     )
+    first_day_of_week = Column(
+        Integer,
+        nullable=False,
+        default=1,
+        comment="User first day of week (0 - Sunday, 1 - Monday, etc.)",
+    )
+    currency = Column(
+        Integer,
+        nullable=False,
+        default=1,
+        comment="User currency (one digit)(1 - euro, 2 - dollar, 3 - pound)",
+    )
 
     # Define a relationship to UsersSessions model
     users_sessions = relationship(
@@ -92,6 +104,12 @@ class User(Base):
     # Define a relationship to Gear model
     gear = relationship(
         "Gear",
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
+    # Define a relationship to GearComponents model
+    gear_components = relationship(
+        "GearComponents",
         back_populates="user",
         cascade="all, delete-orphan",
     )
@@ -128,6 +146,13 @@ class User(Base):
     # Establish a one-to-many relationship with 'health_targets'
     health_targets = relationship(
         "HealthTargets",
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
+
+    # Establish a one-to-many relationship with 'notifications'
+    notifications = relationship(
+        "Notification",
         back_populates="user",
         cascade="all, delete-orphan",
     )

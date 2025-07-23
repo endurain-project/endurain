@@ -1,16 +1,18 @@
 {
     "title": "Resistencia",
     "buttonAddActivity": "Agregar Actividad",
-    "fieldLabelUploadGPXFile": "Subir archivo .gpx o .fit",
+    "fieldLabelUploadFileType": "Subir archivo .gpx o .fit",
     "radioUserActivities": "Mis actividades",
     "radioFollowerActivities": "Actividades de seguidores",
+    "pillIsHidden": "Oculto",
     "successActivityAdded": "Actividad agregada correctamente",
     "errorActivityAdded": "Error al añadir actividad",
-    "refreshingActivities": "Refreshing activities from linked services",
-    "successActivitiesRefreshed": "Activities refreshed successfully",
+    "refreshingActivities": "Actualizando las actividades de los servicios vinculados",
+    "successActivitiesRefreshed": "Actividades actualizadas con éxito",
     "errorActivityNotFound": "Actividad no encontrada",
     "processingActivity": "Procesando actividad",
     "successActivityDeleted": "Actividad eliminada correctamente",
     "errorFetchingUserStats": "Error obteniendo las estadísticas del usuario",
-    "errorFetchingUserActivities": "Error obteniendo las actividades del usuario"
+    "errorFetchingUserActivities": "Error obteniendo las actividades del usuario",
+    "errorFetchingMedia": "Error obteniendo medios para la actividad"
 }

@@ -12,11 +12,12 @@ import core.database as core_database
 import core.dependencies as core_dependencies
 import core.logger as core_logger
 import core.config as core_config
-import gears.dependencies as gears_dependencies
+import gears.gear.dependencies as gears_dependencies
 import session.security as session_security
 import users.user.dependencies as users_dependencies
 import garmin.activity_utils as garmin_activity_utils
 import strava.activity_utils as strava_activity_utils
+import websocket.schema as websocket_schema
 from fastapi import (
     APIRouter,
     BackgroundTasks,
@@ -211,7 +212,7 @@ async def read_activities_user_activities_this_month_number(
 
 
 @router.get(
-    "/user/gear/{gear_id}",
+    "/gear/{gear_id}",
     response_model=list[activities_schema.Activity] | None,
 )
 async def read_activities_gear_activities(
@@ -232,6 +233,64 @@ async def read_activities_gear_activities(
     # Get the activities for the gear
     return activities_crud.get_user_activities_by_gear_id_and_user_id(
         token_user_id, gear_id, db
+    )
+
+
+@router.get(
+    "/gear/{gear_id}/number",
+    response_model=int,
+)
+async def read_activities_gear_activities_number(
+    gear_id: int,
+    validate_gear_id: Annotated[Callable, Depends(gears_dependencies.validate_gear_id)],
+    check_scopes: Annotated[
+        Callable, Security(session_security.check_scopes, scopes=["activities:read"])
+    ],
+    token_user_id: Annotated[
+        Callable,
+        Depends(session_security.get_user_id_from_access_token),
+    ],
+    db: Annotated[
+        Session,
+        Depends(core_database.get_db),
+    ],
+):
+    # Get the number of activities for the gear
+    activities = activities_crud.get_user_activities_by_gear_id_and_user_id(
+        token_user_id, gear_id, db
+    )
+    if activities is None:
+        return 0
+    return len(activities)
+
+
+@router.get(
+    "/gear/{gear_id}/page_number/{page_number}/num_records/{num_records}",
+    response_model=list[activities_schema.Activity] | None,
+)
+async def read_activities_gear_activities_with_pagination(
+    gear_id: int,
+    validate_gear_id: Annotated[Callable, Depends(gears_dependencies.validate_gear_id)],
+    page_number: int,
+    num_records: int,
+    validate_pagination_values: Annotated[
+        Callable, Depends(core_dependencies.validate_pagination_values)
+    ],
+    check_scopes: Annotated[
+        Callable, Security(session_security.check_scopes, scopes=["activities:read"])
+    ],
+    token_user_id: Annotated[
+        Callable,
+        Depends(session_security.get_user_id_from_access_token),
+    ],
+    db: Annotated[
+        Session,
+        Depends(core_database.get_db),
+    ],
+):
+    # Get the activities for the gear with pagination
+    return activities_crud.get_user_activities_by_gear_id_and_user_id_with_pagination(
+        token_user_id, gear_id, page_number, num_records, db
     )
 
 
@@ -428,23 +487,29 @@ async def read_activities_user_activities_refresh(
         Session,
         Depends(core_database.get_db),
     ],
+    websocket_manager: Annotated[
+        websocket_schema.WebSocketManager,
+        Depends(websocket_schema.get_websocket_manager),
+    ],
 ):
     # Set the activities to empty list
     activities = []
 
     # Get the strava activities for the user for the last 24h
-    strava_activities = strava_activity_utils.get_user_strava_activities_by_days(
+    strava_activities = await strava_activity_utils.get_user_strava_activities_by_days(
         (datetime.now(timezone.utc) - timedelta(days=1)).strftime("%Y-%m-%dT%H:%M:%S"),
         token_user_id,
+        websocket_manager,
         db,
     )
 
     # Get the garmin activities for the user for the last 24h
     garmin_activities = (
-        garmin_activity_utils.get_user_garminconnect_activities_by_dates(
+        await garmin_activity_utils.get_user_garminconnect_activities_by_dates(
             start_date=datetime.now(timezone.utc) - timedelta(days=1),
             end_date=datetime.now(timezone.utc),
             user_id=token_user_id,
+            websocket_manager=websocket_manager,
             db=db,
         )
     )
@@ -527,6 +592,10 @@ async def create_activity_with_uploaded_file(
     check_scopes: Annotated[
         Callable, Security(session_security.check_scopes, scopes=["activities:write"])
     ],
+    websocket_manager: Annotated[
+        websocket_schema.WebSocketManager,
+        Depends(websocket_schema.get_websocket_manager),
+    ],
     db: Annotated[
         Session,
         Depends(core_database.get_db),
@@ -534,8 +603,8 @@ async def create_activity_with_uploaded_file(
 ):
     try:
         # Return activity/activities
-        return activities_utils.parse_and_store_activity_from_uploaded_file(
-            token_user_id, file, db
+        return await activities_utils.parse_and_store_activity_from_uploaded_file(
+            token_user_id, file, websocket_manager, db
         )
     except Exception as err:
         # Log the exception
@@ -562,6 +631,10 @@ async def create_activity_with_bulk_import(
         Session,
         Depends(core_database.get_db),
     ],
+    websocket_manager: Annotated[
+        websocket_schema.WebSocketManager,
+        Depends(websocket_schema.get_websocket_manager),
+    ],
     background_tasks: BackgroundTasks,
 ):
     try:
@@ -569,9 +642,19 @@ async def create_activity_with_bulk_import(
         bulk_import_dir = core_config.FILES_BULK_IMPORT_DIR
         os.makedirs(bulk_import_dir, exist_ok=True)
 
+        # Grab list of supported file formats
+        supported_file_formats = core_config.SUPPORTED_FILE_FORMATS
+
         # Iterate over each file in the 'bulk_import' directory
         for filename in os.listdir(bulk_import_dir):
             file_path = os.path.join(bulk_import_dir, filename)
+
+            # Check if file is one we can process
+            _, file_extension = os.path.splitext(file_path)
+            if file_extension not in supported_file_formats:
+                core_logger.print_to_log_and_console(f"Skipping file {file_path} due to not having a supported file extension. Supported extensions are: {supported_file_formats}.")
+                # Might be good to notify the user, but background tasks cannot raise HTTPExceptions
+                continue
 
             if os.path.isfile(file_path):
                 # Log the file being processed
@@ -581,6 +664,7 @@ async def create_activity_with_bulk_import(
                     activities_utils.parse_and_store_activity_from_file,
                     token_user_id,
                     file_path,
+                    websocket_manager,
                     db,
                 )
 
@@ -625,7 +709,7 @@ async def edit_activity(
 @router.put(
     "/visibility/{visibility}",
 )
-async def edit_activity(
+async def edit_activity_visibility(
     visibility: int,
     validate_visibility: Annotated[
         Callable, Depends(activities_dependencies.validate_visibility)

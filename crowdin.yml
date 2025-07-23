@@ -21,6 +21,8 @@ files:
     translation: /frontend/app/src/i18n/%two_letters_code%/components/health/healthWeightZone/%original_file_name%
   - source: /frontend/app/src/i18n/us/components/navbar/*.json
     translation: /frontend/app/src/i18n/%two_letters_code%/components/navbar/%original_file_name%
+  - source: /frontend/app/src/i18n/us/components/notifications/*.json
+    translation: /frontend/app/src/i18n/%two_letters_code%/components/notifications/%original_file_name%
   - source: /frontend/app/src/i18n/us/components/settings/*.json
     translation: /frontend/app/src/i18n/%two_letters_code%/components/settings/%original_file_name%
   - source: /frontend/app/src/i18n/us/components/settings/settingsGeneralZone/*.json

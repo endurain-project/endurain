@@ -1,11 +1,28 @@
 <template>
     <div class="col">
         <form class="bg-body-tertiary rounded p-3 shadow-sm">
+            <h4>{{ $t("settingsServerSettingsZoneComponent.defaultsTitle") }}</h4>
             <!-- Units -->
-            <h4>{{ $t("settingsServerSettingsZoneComponent.unitsLabel") }}</h4>
+            <label>{{ $t("settingsServerSettingsZoneComponent.unitsLabel") }}</label>
             <select class="form-select" name="serverSettingsUnits" v-model="units" required>
                 <option value="1">{{ $t("settingsServerSettingsZoneComponent.unitsMetric") }}</option>
                 <option value="2">{{ $t("settingsServerSettingsZoneComponent.unitsImperial") }}</option>
+            </select>
+            <!-- Currency -->
+            <label class="mt-1">{{ $t("settingsServerSettingsZoneComponent.currencyLabel") }}</label>
+            <select class="form-select" name="serverSettingsCurrency" v-model="currency" required>
+                <option value="1">{{ $t("generalItems.currencyEuro") }}</option>
+                <option value="2">{{ $t("generalItems.currencyDollar") }}</option>
+                <option value="3">{{ $t("generalItems.currencyPound") }}</option>
+            </select>
+            <!-- Num records per list -->
+            <label class="mt-1">{{ $t("settingsServerSettingsZoneComponent.numRecordsLabel") }}</label>
+            <select class="form-select" name="serverSettingsNumRecordsPerPage" v-model="numRecordsPerPage" required>
+                <option value=5>5</option>
+                <option value=10>10</option>
+                <option value=25>25</option>
+                <option value=50>50</option>
+                <option value=100>100</option>
             </select>
             <hr>
             <!-- Public shareable links -->
@@ -21,7 +38,7 @@
                 <font-awesome-icon :icon="['fas', 'triangle-exclamation']" />
                 <span class="ms-2">{{
                     $t("settingsServerSettingsZoneComponent.serverSettingsPublicShareableLinksEnabledWarningAlert")
-                    }}</span>
+                }}</span>
             </div>
             <!-- Public shareable user info -->
             <label class="form-label" for="serverSettingsPublicShareableLinksShowUserInfo">{{
@@ -35,7 +52,7 @@
                 <font-awesome-icon :icon="['fas', 'triangle-exclamation']" />
                 <span class="ms-2">{{
                     $t("settingsServerSettingsZoneComponent.serverSettingsPublicShareableLinksShowUserWarningAlert")
-                    }}</span>
+                }}</span>
             </div>
             <hr>
             <!-- Login photo set -->
@@ -79,24 +96,17 @@
 <script setup>
 import { ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
-// Import stores
 import { useServerSettingsStore } from "@/stores/serverSettingsStore";
-// Import services
 import { serverSettings } from "@/services/serverSettingsService";
-// Import Notivue push
 import { push } from "notivue";
-// Importing the components
-import LoadingComponent from "@/components/GeneralComponents/LoadingComponent.vue";
-import NoItemsFoundComponent from "@/components/GeneralComponents/NoItemsFoundComponents.vue";
-import UsersListComponent from "@/components/Settings/SettingsUsersZone/UsersListComponent.vue";
-import UsersAddEditUserModalComponent from "@/components/Settings/SettingsUsersZone/UsersAddEditUserModalComponent.vue";
 import ModalComponent from "@/components/Modals/ModalComponent.vue";
 import ModalComponentUploadFile from "@/components/Modals/ModalComponentUploadFile.vue"
 
 const { t } = useI18n();
-const isLoading = ref(true);
 const serverSettingsStore = useServerSettingsStore();
 const units = ref(serverSettingsStore.serverSettings.units);
+const currency = ref(serverSettingsStore.serverSettings.currency);
+const numRecordsPerPage = ref(serverSettingsStore.serverSettings.num_records_per_page);
 const publicShareableLinks = ref(serverSettingsStore.serverSettings.public_shareable_links);
 const publicShareableLinksUserInfo = ref(serverSettingsStore.serverSettings.public_shareable_links_user_info);
 const loginPhotoSet = ref(serverSettingsStore.serverSettings.login_photo_set);
@@ -105,6 +115,8 @@ async function updateServerSettings() {
     const data = {
         id: 1,
         units: units.value,
+        currency: currency.value,
+        num_records_per_page: numRecordsPerPage.value,
         public_shareable_links: publicShareableLinks.value,
         public_shareable_links_user_info: publicShareableLinksUserInfo.value,
         login_photo_set: loginPhotoSet.value,
@@ -167,8 +179,7 @@ const submitDeleteLoginPhoto = async () => {
     }
 };
 
-// watchers
-watch([units, publicShareableLinks, publicShareableLinksUserInfo], async () => {
+watch([units, currency, numRecordsPerPage, publicShareableLinks, publicShareableLinksUserInfo], async () => {
     await updateServerSettings();
 }, { immediate: false });
 </script>

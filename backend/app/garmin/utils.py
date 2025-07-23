@@ -17,6 +17,7 @@ import users.user_integrations.schema as user_integrations_schema
 import users.user_integrations.crud as user_integrations_crud
 
 import websocket.schema as websocket_schema
+import websocket.utils as websocket_utils
 
 import garmin.schema as garmin_schema
 
@@ -43,15 +44,11 @@ async def get_mfa(
 async def notify_frontend_mfa_required(
     user_id: int, websocket_manager: websocket_schema.WebSocketManager
 ):
-    # Check if the user has an active WebSocket connection
-    websocket = websocket_manager.get_connection(user_id)
-    if websocket:
-        await websocket.send_json({"message": "MFA_REQUIRED", "user_id": user_id})
-    else:
-        raise HTTPException(
-            status_code=400,
-            detail=f"No active WebSocket connection for user {user_id}",
-        )
+    try:
+        json_data = {"message": "MFA_REQUIRED", "user_id": user_id}
+        await websocket_utils.notify_frontend(user_id, websocket_manager, json_data)
+    except HTTPException as http_err:
+        raise http_err
 
 
 async def link_garminconnect(
@@ -110,17 +107,17 @@ async def link_garminconnect(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="There was an authentication error using Garmin Connect. Check credentials.",
-        )
+        ) from err
     except garminconnect.GarminConnectTooManyRequestsError as err:
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail="Too many requests to Garmin Connect",
-        )
+        ) from err
     except TypeError as err:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect MFA code",
-        )
+        ) from err
     except Exception as err:
         core_logger.print_to_log_and_console(
             f"Internal server error while linking Garmin Connect: {err}",
@@ -130,7 +127,7 @@ async def link_garminconnect(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal server error while linking Garmin Connect",
-        )
+        ) from err
     finally:
         if mfa_codes.has_code(user_id):
             mfa_codes.delete_code(user_id)

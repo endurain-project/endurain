@@ -12,9 +12,7 @@ services:
       - ENDURAIN_HOST=http://localhost:8080 # host or local ip (example: http://192.168.1.10:8080 or https://endurain.com), default is http://localhost:8080
     volumes:
     #  - <local_path>/endurain/backend/app:/app/backend # Configure volume if you want to edit the code locally by cloning the repo
-      - <local_path>/endurain/backend/user_images:/app/backend/user_images # necessary for user image persistence on container image updates
-      - <local_path>/endurain/backend/server_images:/app/backend/server_images # necessary for server image persistence on container image updates
-      - <local_path>/endurain/backend/files:/app/backend/files # necessary for files persistence on container image updates
+      - <local_path>/endurain/backend/data:/app/backend/data # necessary for activity files, user images and server images persistence on container image updates
       - <local_path>/endurain/backend/logs:/app/backend/logs # log files for the backend
     ports:
       - "8080:8080" # Endurain port, change per your needs

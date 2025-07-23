@@ -1,14 +1,14 @@
 {
-  "title": "Activities",
+  "title": "Activités",
   "filterLabelType": "Type",
-  "filterOptionAllTypes": "All types",
-  "filterLabelFromDate": "From date",
-  "filterLabelToDate": "To date",
-  "filterLabelNameLocation": "Name or location",
-  "filterPlaceholderNameLocation": "e.g., Morning run",
-  "buttonClear": "Clear",
-  "buttonApply": "Apply",
-  "errorFailedFetchActivityTypes": "Failed to fetch activity types",
-  "errorUpdatingActivities": "Failed to updated activities",
-  "errorFetchingActivities": "Failed to fetch user activities"
+  "filterOptionAllTypes": "Tous les types",
+  "filterLabelFromDate": "À partir du",
+  "filterLabelToDate": "Jusqu'au",
+  "filterLabelNameLocation": "Nom ou lieu",
+  "filterPlaceholderNameLocation": "par exemple : course matinale",
+  "buttonClear": "Effacer",
+  "buttonApply": "Appliquer",
+  "errorFailedFetchActivityTypes": "Impossible de récupérer les types d'activité",
+  "errorUpdatingActivities": "Échec de la mise à jour des activités",
+  "errorFetchingActivities": "Échec de la récupération des activités de l'utilisateur"
 }

@@ -186,7 +186,8 @@ onMounted(async () => {
 					hrPresent.value = true;
 					graphItems.value.push({ type: "hr", label: `${t("activityMandAbovePillsComponent.labelGraphHR")}` });
 					// If HR zones are present, add them to the hrZones object
-					hrZones.value = props.activityActivityStreams.find(stream => stream.hr_zone_percentages).hr_zone_percentages || {};
+					const hrStream = props.activityActivityStreams.find(stream => stream.hr_zone_percentages);
+					hrZones.value = hrStream && hrStream.hr_zone_percentages ? hrStream.hr_zone_percentages : {};
 					if (Object.keys(hrZones.value).length > 0) {
 						hrPresent.value = true;
 						graphItems.value.push({ type: "hrZones", label: `${t("activityMandAbovePillsComponent.labelHRZones")}` });

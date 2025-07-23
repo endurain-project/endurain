@@ -1,9 +1,13 @@
+import gzip
 import os
 import shutil
+from pathlib import Path
+from tempfile import NamedTemporaryFile
+
 import requests
 import statistics
+import time
 from geopy.distance import geodesic
-import numpy as np
 from zoneinfo import ZoneInfo
 
 from fastapi import HTTPException, status, UploadFile
@@ -32,7 +36,10 @@ import activities.activity_streams.schema as activity_streams_schema
 
 import activities.activity_workout_steps.crud as activity_workout_steps_crud
 
+import websocket.schema as websocket_schema
+
 import gpx.utils as gpx_utils
+import tcx.utils as tcx_utils
 import fit.utils as fit_utils
 
 import core.logger as core_logger
@@ -68,7 +75,9 @@ ACTIVITY_ID_TO_NAME = {
     26: "Pickleball",
     27: "Commuting ride",
     28: "Indoor ride",
-    29: "Mixed surface ride"  # Added based on define_activity_type
+    29: "Mixed surface ride",
+    30: "Windsurf",
+    31: "Indoor walking",
     # Add other mappings as needed based on the full list in define_activity_type comments if required
     # "AlpineSki",
     # "BackcountrySki",
@@ -132,6 +141,7 @@ ACTIVITY_NAME_TO_ID.update(
         "trailrun": 2,
         "virtualrun": 3,
         "cycling": 4,
+        "biking": 4,
         "road": 4,
         "gravelride": 5,
         "gravel_cycling": 5,
@@ -169,6 +179,9 @@ ACTIVITY_NAME_TO_ID.update(
         "commuting_ride": 27,
         "indoor_ride": 28,
         "mixed_surface_ride": 29,
+        "windsurf": 30,
+        "windsurfing": 30,
+        "indoor_walking": 31,
     }
 )
 
@@ -187,6 +200,7 @@ def transform_schema_activity_to_model_activity(
     new_activity = activities_models.Activity(
         user_id=activity.user_id,
         description=activity.description,
+        private_notes=activity.private_notes,
         distance=activity.distance,
         name=activity.name,
         activity_type=activity.activity_type,
@@ -194,7 +208,11 @@ def transform_schema_activity_to_model_activity(
         end_time=activity.end_time,
         timezone=activity.timezone,
         total_elapsed_time=activity.total_elapsed_time,
-        total_timer_time=activity.total_timer_time,
+        total_timer_time=(
+            activity.total_timer_time
+            if activity.total_timer_time is not None
+            else activity.total_elapsed_time
+        ),
         city=activity.city,
         town=activity.town,
         country=activity.country,
@@ -220,6 +238,8 @@ def transform_schema_activity_to_model_activity(
         strava_activity_id=activity.strava_activity_id,
         garminconnect_activity_id=activity.garminconnect_activity_id,
         garminconnect_gear_id=activity.garminconnect_gear_id,
+        import_info=activity.import_info,
+        is_hidden=activity.is_hidden if activity.is_hidden is not None else False,
         hide_start_time=activity.hide_start_time,
         hide_location=activity.hide_location,
         hide_map=activity.hide_map,
@@ -232,6 +252,8 @@ def transform_schema_activity_to_model_activity(
         hide_laps=activity.hide_laps,
         hide_workout_sets_steps=activity.hide_workout_sets_steps,
         hide_gear=activity.hide_gear,
+        tracker_manufacturer=activity.tracker_manufacturer,
+        tracker_model=activity.tracker_model,
     )
 
     return new_activity
@@ -258,9 +280,37 @@ def serialize_activity(activity: activities_schema.Activity):
     return activity
 
 
-def parse_and_store_activity_from_file(
+def handle_gzipped_file(
+    file_path: str,
+) -> tuple[str, str]:
+    """Handle gzipped files by extracting the inner file and returning its path and extension.
+    The gzipped file is moved to the processed directory after extraction.
+    Args:
+        file_path: the path to the gzipped file, e.g. "activity_files/activity_1234567890.fit.gz"
+    Returns: A tuple containing the path to the temporary file and the inner file extension.
+    """
+    path = Path(file_path)
+
+    inner_filename = path.stem  # eg "activity_1234567890.fit"
+    inner_file_extension = Path(inner_filename).suffix  # eg ".gz"
+
+    with gzip.open(path) as gzipped_file:
+        with NamedTemporaryFile(suffix=inner_filename, delete=False) as temp_file:
+            temp_file.write(gzipped_file.read())
+            temp_file.flush()
+            core_logger.print_to_log_and_console(
+                f"Decompressed {path} with inner type {inner_file_extension} to {temp_file.name}"
+            )
+
+            move_file(core_config.FILES_PROCESSED_DIR, path.name, str(path))
+
+            return temp_file.name, inner_file_extension
+
+
+async def parse_and_store_activity_from_file(
     token_user_id: int,
     file_path: str,
+    websocket_manager: websocket_schema.WebSocketManager,
     db: Session,
     from_garmin: bool = False,
     garminconnect_gear: dict = None,
@@ -272,6 +322,9 @@ def parse_and_store_activity_from_file(
 
         if from_garmin:
             garmin_connect_activity_id = os.path.basename(file_path).split("_")[0]
+
+        if file_extension.lower() == ".gz":
+            file_path, file_extension = handle_gzipped_file(file_path)
 
         # Open the file and process it
         with open(file_path, "rb"):
@@ -300,9 +353,14 @@ def parse_and_store_activity_from_file(
             if parsed_info is not None:
                 created_activities = []
                 idsToFileName = ""
-                if file_extension.lower() == ".gpx":
+                if file_extension.lower() in (
+                    ".gpx",
+                    ".tcx",
+                ):
                     # Store the activity in the database
-                    created_activity = store_activity(parsed_info, db)
+                    created_activity = await store_activity(
+                        parsed_info, websocket_manager, db
+                    )
                     created_activities.append(created_activity)
                     idsToFileName = idsToFileName + str(created_activity.id)
                 elif file_extension.lower() == ".fit":
@@ -333,7 +391,9 @@ def parse_and_store_activity_from_file(
 
                     for activity in created_activities_objects:
                         # Store the activity in the database
-                        created_activity = store_activity(activity, db)
+                        created_activity = await store_activity(
+                            activity, websocket_manager, db
+                        )
                         created_activities.append(created_activity)
 
                     for index, activity in enumerate(created_activities):
@@ -365,12 +425,17 @@ def parse_and_store_activity_from_file(
     except Exception as err:
         # Log the exception
         core_logger.print_to_log(
-            f"Error in parse_and_store_activity_from_file - {str(err)}", "error"
+            f"Error in parse_and_store_activity_from_file - {str(err)}",
+            "error",
+            exc=err,
         )
 
 
-def parse_and_store_activity_from_uploaded_file(
-    token_user_id: int, file: UploadFile, db: Session
+async def parse_and_store_activity_from_uploaded_file(
+    token_user_id: int,
+    file: UploadFile,
+    websocket_manager: websocket_schema.WebSocketManager,
+    db: Session,
 ):
 
     # Get file extension
@@ -387,6 +452,9 @@ def parse_and_store_activity_from_uploaded_file(
         # Save the uploaded file in the 'files' directory
         with open(file_path, "wb") as save_file:
             save_file.write(file.file.read())
+
+        if file_extension.lower() == ".gz":
+            file_path, file_extension = handle_gzipped_file(file_path)
 
         user = users_crud.get_user_by_id(token_user_id, db)
         if user is None:
@@ -413,9 +481,11 @@ def parse_and_store_activity_from_uploaded_file(
         if parsed_info is not None:
             created_activities = []
             idsToFileName = ""
-            if file_extension.lower() == ".gpx":
+            if file_extension.lower() in (".gpx", ".tcx"):
                 # Store the activity in the database
-                created_activity = store_activity(parsed_info, db)
+                created_activity = await store_activity(
+                    parsed_info, websocket_manager, db
+                )
                 created_activities.append(created_activity)
                 idsToFileName = idsToFileName + str(created_activity.id)
             elif file_extension.lower() == ".fit":
@@ -436,7 +506,9 @@ def parse_and_store_activity_from_uploaded_file(
 
                 for activity in created_activities_objects:
                     # Store the activity in the database
-                    created_activity = store_activity(activity, db)
+                    created_activity = await store_activity(
+                        activity, websocket_manager, db
+                    )
                     created_activities.append(created_activity)
 
                 for index, activity in enumerate(created_activities):
@@ -523,6 +595,13 @@ def parse_file(
                     user_privacy_settings,
                     db,
                 )
+            elif file_extension.lower() == ".tcx":
+                parsed_info = tcx_utils.parse_tcx_file(
+                    filename,
+                    token_user_id,
+                    user_privacy_settings,
+                    db,
+                )
             elif file_extension.lower() == ".fit":
                 # Parse the FIT file
                 parsed_info = fit_utils.parse_fit_file(filename, db)
@@ -530,9 +609,9 @@ def parse_file(
                 # file extension not supported raise an HTTPException with a 406 Not Acceptable status code
                 raise HTTPException(
                     status_code=status.HTTP_406_NOT_ACCEPTABLE,
-                    detail="File extension not supported. Supported file extensions are .gpx and .fit",
+                    detail="File extension not supported. Supported file extensions are .gpx, .fit and .tcx",
                 )
-
+                return None  # Can't return parsed info if we haven't parsed anything
             return parsed_info
         else:
             return None
@@ -548,9 +627,13 @@ def parse_file(
         ) from err
 
 
-def store_activity(parsed_info: dict, db: Session):
+async def store_activity(
+    parsed_info: dict, websocket_manager: websocket_schema.WebSocketManager, db: Session
+):
     # create the activity in the database
-    created_activity = activities_crud.create_activity(parsed_info["activity"], db)
+    created_activity = await activities_crud.create_activity(
+        parsed_info["activity"], websocket_manager, db
+    )
 
     # Check if created_activity is None
     if created_activity is None:
@@ -639,7 +722,7 @@ def parse_activity_streams_from_file(parsed_info: dict, activity_id: int):
 
 def calculate_activity_distances(activities: list[activities_schema.Activity]):
     # Initialize the distances
-    run = bike = swim = walk = hike = rowing = snow_ski = snowboard = 0.0
+    run = bike = swim = walk = hike = rowing = snow_ski = snowboard = windsurf = 0.0
 
     if activities is not None:
         # Calculate the distances
@@ -650,7 +733,7 @@ def calculate_activity_distances(activities: list[activities_schema.Activity]):
                 bike += activity.distance
             elif activity.activity_type in [8, 9]:
                 swim += activity.distance
-            elif activity.activity_type in [11]:
+            elif activity.activity_type in [11, 31]:
                 walk += activity.distance
             elif activity.activity_type in [12]:
                 hike += activity.distance
@@ -660,6 +743,8 @@ def calculate_activity_distances(activities: list[activities_schema.Activity]):
                 snow_ski += activity.distance
             elif activity.activity_type in [17]:
                 snowboard += activity.distance
+            elif activity.activity_type in [30]:
+                windsurf += activity.distance
 
     # Return the distances
     return activities_schema.ActivityDistances(
@@ -671,42 +756,92 @@ def calculate_activity_distances(activities: list[activities_schema.Activity]):
         rowing=rowing,
         snow_ski=snow_ski,
         snowboard=snowboard,
+        windsurf=windsurf,
     )
 
 
 def location_based_on_coordinates(latitude, longitude) -> dict | None:
+    # Check if latitude and longitude are provided
     if latitude is None or longitude is None:
-        return None
-
-    if os.environ.get("GEOCODES_MAPS_API") == "changeme":
-        return None
+        return {
+            "city": None,
+            "town": None,
+            "country": None,
+        }
 
     # Create a dictionary with the parameters for the request
-    url_params = {
-        "lat": latitude,
-        "lon": longitude,
-        "api_key": os.environ.get("GEOCODES_MAPS_API"),
-    }
+    if core_config.REVERSE_GEO_PROVIDER == "geocode":
+        # Check if the API key is set
+        if core_config.GEOCODES_MAPS_API == "changeme":
+            return {
+                "city": None,
+                "town": None,
+                "country": None,
+            }
+        # Create the URL for the request
+        url_params = {
+            "lat": latitude,
+            "lon": longitude,
+            "api_key": core_config.GEOCODES_MAPS_API,
+        }
+        url = f"https://geocode.maps.co/reverse?{urlencode(url_params)}"
+    elif core_config.REVERSE_GEO_PROVIDER == "photon":
+        # Create the URL for the request
+        url_params = {
+            "lat": latitude,
+            "lon": longitude,
+        }
+        protocol = "https"
+        if not core_config.PHOTON_API_USE_HTTPS:
+            protocol = "http"
+        url = f"{protocol}://{core_config.PHOTON_API_HOST}/reverse?{urlencode(url_params)}"
+    else:
+        # If no provider is set, return None
+        return {
+            "city": None,
+            "town": None,
+            "country": None,
+        }
 
-    # Create the URL for the request
-    url = f"https://geocode.maps.co/reverse?{urlencode(url_params)}"
+    # Throttle requests according to configured rate limit
+    if core_config.GEOCODES_MIN_INTERVAL > 0:
+        with core_config.GEOCODES_LOCK:
+            now = time.monotonic()
+            interval = core_config.GEOCODES_MIN_INTERVAL - (
+                now - core_config.GEOCODES_LAST_CALL
+            )
+            if interval > 0:
+                time.sleep(interval)
+            core_config.GEOCODES_LAST_CALL = time.monotonic()
 
     # Make the request and get the response
     try:
         # Make the request and get the response
-        response = requests.get(url)
+        response = requests.get(url, timeout=10)
         response.raise_for_status()
 
-        # Get the data from the response
-        data = response.json().get("address", {})
+        if core_config.REVERSE_GEO_PROVIDER == "geocode":
+            # Get the data from the response
+            data = response.json().get("address", {})
+            # Return the location based on the coordinates
+            # Note: 'town' is used for district in Geocode API
+            return {
+                "city": data.get("city"),
+                "town": data.get("town"),
+                "country": data.get("country"),
+            }
 
-        # Return the data
+        # Get the data from the response
+        data_root = response.json().get("features", [])
+        data = data_root[0].get("properties", {}) if data_root else {}
+        # Return the location based on the coordinates
+        # Note: 'district' is used for city and 'city' is used for town in Photon API
         return {
-            "city": data.get("city"),
-            "town": data.get("town"),
+            "city": data.get("district"),
+            "town": data.get("city"),
             "country": data.get("country"),
         }
-    except requests.exceptions.RequestException as err:
+    except Exception as err:
         # Log the error
         core_logger.print_to_log_and_console(
             f"Error in location_based_on_coordinates - {str(err)}", "error"
@@ -714,19 +849,19 @@ def location_based_on_coordinates(latitude, longitude) -> dict | None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=f"Error in location_based_on_coordinates: {str(err)}",
-        )
+        ) from err
 
 
-def append_if_not_none(waypoint_list, time, value, key):
+def append_if_not_none(waypoint_list, waypoint_time, value, key):
     if value is not None:
-        waypoint_list.append({"time": time, key: value})
+        waypoint_list.append({"time": waypoint_time, key: value})
 
 
 def calculate_instant_speed(
-    prev_time, time, latitude, longitude, prev_latitude, prev_longitude
+    prev_time, waypoint_time, latitude, longitude, prev_latitude, prev_longitude
 ):
     # Convert the time strings to datetime objects
-    time_calc = datetime.fromisoformat(time.strftime("%Y-%m-%dT%H:%M:%S"))
+    time_calc = datetime.fromisoformat(waypoint_time.strftime("%Y-%m-%dT%H:%M:%S"))
 
     # If prev_time is None, return a default value
     if prev_time is None:
@@ -832,11 +967,13 @@ def calculate_pace(distance, first_waypoint_time, last_waypoint_time):
     return pace_seconds_per_meter
 
 
-def calculate_avg_and_max(data, type):
+def calculate_avg_and_max(data, stream_type):
     try:
         # Get the values from the data
         values = [
-            float(waypoint[type]) for waypoint in data if waypoint.get(type) is not None
+            float(waypoint[stream_type])
+            for waypoint in data
+            if waypoint.get(stream_type) is not None
         ]
     except (ValueError, KeyError):
         # If there are no valid values, return 0

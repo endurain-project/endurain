@@ -63,10 +63,10 @@
                 </span>
                 <span>
                     <span v-if="activity.max_speed && Number(units) === 1"><b>{{
-                            formatAverageSpeedMetric(activity.max_speed) }}{{ ' ' + $t("generalItems.unitsKmH")
+                        formatAverageSpeedMetric(activity.max_speed) }}{{ ' ' + $t("generalItems.unitsKmH")
                             }}</b></span>
                     <span v-else-if="activity.max_speed && Number(units) === 2"><b>{{
-                            formatAverageSpeedImperial(activity.max_speed) }}{{ ' ' + $t("generalItems.unitsMph")
+                        formatAverageSpeedImperial(activity.max_speed) }}{{ ' ' + $t("generalItems.unitsMph")
                             }}</b></span>
                 </span>
             </div>
@@ -237,7 +237,7 @@ import BarChartComponent from '@/components/GeneralComponents/BarChartComponent.
 import { push } from "notivue";
 // Import the utils
 import { getHrBarChartData } from "@/utils/chartUtils";
-import { formatPaceMetric, formatPaceImperial, formatPaceSwimMetric, formatPaceSwimImperial, formatAverageSpeedMetric, formatAverageSpeedImperial, activityTypeIsCycling, activityTypeNotCycling, activityTypeIsSwimming } from "@/utils/activityUtils";
+import { formatPaceMetric, formatPaceImperial, formatPaceSwimMetric, formatPaceSwimImperial, formatAverageSpeedMetric, formatAverageSpeedImperial, activityTypeIsCycling, activityTypeNotCycling, activityTypeIsSwimming, activityTypeIsRowing } from "@/utils/activityUtils";
 import { formatSecondsToMinutes } from "@/utils/dateTimeUtils";
 import {
     metersToFeet,
@@ -293,8 +293,9 @@ onMounted(async () => {
             for (let i = 0; i < props.activityActivityStreams.length; i++) {
                 if (props.activityActivityStreams[i].stream_type === 1) {
                     hrPresent.value = true;
-					// If HR zones are present, add them to the hrZones object
-                    hrZones.value = props.activityActivityStreams.find(stream => stream.hr_zone_percentages).hr_zone_percentages || {};
+                    // If HR zones are present, add them to the hrZones object
+                    const hrStream = props.activityActivityStreams.find(stream => stream.hr_zone_percentages);
+                    hrZones.value = hrStream && hrStream.hr_zone_percentages ? hrStream.hr_zone_percentages : {};
                 }
                 if (props.activityActivityStreams[i].stream_type === 2) {
                     powerPresent.value = true;
@@ -331,7 +332,7 @@ onMounted(async () => {
     try {
         if (
             activityTypeIsSwimming(props.activity) ||
-            props.activity.activity_type === 13
+            activityTypeIsRowing(props.activity)
         ) {
             if (Number(props.units) === 1) {
                 formattedPace.value = computed(() => formatPaceSwimMetric(props.activity.pace));

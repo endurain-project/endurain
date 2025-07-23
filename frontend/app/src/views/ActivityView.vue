@@ -1,10 +1,13 @@
 <template>
-	<div class="bg-body-tertiary rounded p-3 shadow-sm">
+	<div class="bg-body-tertiary rounded p-3 shadow-sm"
+		:class="{ 'border border-warning border-2': activity?.is_hidden }">
 		<LoadingComponent v-if="isLoading" />
 
 		<div v-else>
 			<ActivitySummaryComponent v-if="activity" :activity="activity" :source="'activity'"
-				@activityEditedFields="updateActivityFieldsOnEdit" :units="units" />
+				@activityEditedFields="updateActivityFieldsOnEdit" @activityNewActivityMedia="addMediaToActivity" :units="units" />
+			<AlertComponent v-if="activity && activity.user_id === authStore.user.id && activity.is_hidden"
+				:message="isHiddenMessage" :dismissible="true" :type="'warning'" class="mt-2" />
 			<AlertComponent
 				v-if="activity && activity.user_id === authStore.user.id && (activity.hide_start_time || activity.hide_location || activity.hide_map || activity.hide_hr || activity.hide_power || activity.hide_cadence || activity.hide_elevation || activity.hide_speed || activity.hide_pace || activity.hide_laps || activity.hide_workout_sets_steps || activity.hide_gear)"
 				:message="alertPrivacyMessage" :dismissible="true" class="mt-2" />
@@ -16,7 +19,7 @@
 		</div>
 		<div class="mt-3 mb-3"
 			v-else-if="activity && ((authStore.isAuthenticated && authStore.user.id === activity.user_id) || (authStore.isAuthenticated && authStore.user.id !== activity.user_id && activity.hide_map === false) || (!authStore.isAuthenticated && activity.hide_map === false))">
-			<ActivityMapComponent :activity="activity" :source="'activity'" />
+			<ActivityMapComponent :activity="activity" :activityActivityMedia="activityActivityMedia" :source="'activity'" @activityMediaDeleted="removeMediaFromActivity" />
 		</div>
 
 		<!-- gear zone -->
@@ -44,6 +47,9 @@
 				<span
 					v-else-if="activity.activity_type === 21 || activity.activity_type === 22 || activity.activity_type === 23 || activity.activity_type === 24 || activity.activity_type === 25 || activity.activity_type === 26">
 					<font-awesome-icon :icon="['fas', 'fa-table-tennis-paddle-ball']" />
+				</span>
+				<span v-else-if="activityTypeIsWindsurf(activity)">
+					<font-awesome-icon :icon="['fas', 'wind']" />
 				</span>
 				<span class="ms-2" v-if="activity.gear_id && gear">{{ gear.nickname }}</span>
 				<span class="ms-2" v-else>{{ $t("activityView.labelGearNotSet") }}</span>
@@ -87,10 +93,10 @@
 			v-if="activity && (activityActivityLaps && activityActivityLaps.length > 0 || activityActivityWorkoutSteps && activityActivityWorkoutSteps.length > 0 || activityActivitySets && activityActivitySets.length > 0)">
 
 		<!-- graphs and laps medium and above screens -->
-		<div class="d-none d-sm-block" v-if="isLoading">
+		<div class="d-none d-lg-block" v-if="isLoading">
 			<LoadingComponent />
 		</div>
-		<div class="d-none d-sm-block"
+		<div class="d-none d-lg-block"
 			v-else-if="activity && (activityActivityLaps && activityActivityLaps.length > 0 || activityActivityWorkoutSteps && activityActivityWorkoutSteps.length > 0 || activityActivitySets && activityActivitySets.length > 0)">
 			<ActivityMandAbovePillsComponent :activity="activity" :activityActivityLaps="activityActivityLaps"
 				:activityActivityWorkoutSteps="activityActivityWorkoutSteps"
@@ -144,8 +150,9 @@ import { activityLaps } from "@/services/activityLapsService";
 import { activityWorkoutSteps } from "@/services/activityWorkoutStepsService";
 import { activityExerciseTitles } from "@/services/activityExerciseTitlesService";
 import { activitySets } from "@/services/activitySetsService";
+import { activityMedia } from "@/services/activityMediaService";
 // Importing the utils
-import { activityTypeIsCycling, activityTypeIsRunning, activityTypeIsWalking, activityTypeIsSwimming, activityTypeIsRacquet } from "@/utils/activityUtils";
+import { activityTypeIsCycling, activityTypeIsRunning, activityTypeIsWalking, activityTypeIsSwimming, activityTypeIsRacquet, activityTypeIsWindsurf } from "@/utils/activityUtils";
 
 const { t } = useI18n();
 const authStore = useAuthStore();
@@ -160,10 +167,12 @@ const gearId = ref(null);
 const activityActivityStreams = ref([]);
 const activityActivityLaps = ref([]);
 const activityActivityWorkoutSteps = ref([]);
+const activityActivityMedia = ref([]);
 const units = ref(1);
 const activityActivityExerciseTitles = ref([]);
 const activityActivitySets = ref([]);
 const alertPrivacyMessage = ref(null);
+const isHiddenMessage = ref(null);
 
 async function submitDeleteGearFromActivity() {
 	try {
@@ -195,6 +204,7 @@ function updateActivityFieldsOnEdit(data) {
 	// Update the activity fields
 	activity.value.name = data.name;
 	activity.value.description = data.description;
+	activity.value.private_notes = data.private_notes;
 	activity.value.activity_type = data.activity_type;
 	activity.value.visibility = data.visibility;
 	activity.value.hide_start_time = data.hide_start_time;
@@ -209,6 +219,21 @@ function updateActivityFieldsOnEdit(data) {
 	activity.value.hide_laps = data.hide_laps;
 	activity.value.hide_workout_sets_steps = data.hide_workout_sets_steps;
 	activity.value.hide_gear = data.hide_gear;
+}
+
+function addMediaToActivity(media) {
+	// Add the media to the activity
+	if (!Array.isArray(activityActivityMedia.value)) {
+		activityActivityMedia.value = [];
+	}
+	activityActivityMedia.value.unshift(media);
+}
+
+function removeMediaFromActivity(mediaId) {
+	// Remove the media from the activity
+	if (Array.isArray(activityActivityMedia.value)) {
+		activityActivityMedia.value = activityActivityMedia.value.filter(media => media.id !== mediaId);
+	}
 }
 
 onMounted(async () => {
@@ -272,6 +297,11 @@ onMounted(async () => {
 			activityActivitySets.value = await activitySets.getActivitySetsByActivityId(
 				route.params.id,
 			);
+
+			// Get the activity media by activity id
+			activityActivityMedia.value = await activityMedia.getUserActivityMediaByActivityId(
+				route.params.id,
+			);
 		} else {
 			// Set the units
 			units.value = serverSettingsStore.serverSettings.units;
@@ -328,6 +358,12 @@ onMounted(async () => {
 							activityTypeIsRacquet(activity.value)
 						) {
 							gearsByType.value = await gears.getGearFromType(4);
+						} else {
+							if (
+								activityTypeIsWindsurf(activity.value)
+							) {
+								gearsByType.value = await gears.getGearFromType(7);
+							}
 						}
 					}
 				}
@@ -349,6 +385,7 @@ onMounted(async () => {
 	isLoading.value = false;
 	if (authStore.user.id === activity.value.user_id) {
 		alertPrivacyMessage.value = t("activityView.alertPrivacyMessage");
+		isHiddenMessage.value = t("activityView.isHiddenMessage");
 	}
 });
 </script>

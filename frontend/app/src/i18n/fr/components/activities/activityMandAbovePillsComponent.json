@@ -1,18 +1,18 @@
 {
     "labelPillGraphs": "Graphiques",
-    "labelPillLaps": "Intervalle",
+    "labelPillLaps": "Intervalles",
     "labelPillWorkoutSets": "Ensembles",
     "labelPillSegments": "Segments",
     "labelGraph": "Graphiques des données d'activité",
     "labelGraphHR": "Fréquence cardiaque",
-    "labelHRZones": "Heart rate zones",
+    "labelHRZones": "Zone de fréquence cardiaque",
     "labelGraphPower": "Puissance",
     "labelGraphCadence": "Cadence",
-    "labelGraphElevation": "Élévation",
-    "labelGraphVelocity": "Speed",
+    "labelGraphElevation": "Altitude",
+    "labelGraphVelocity": "Vitesse",
     "labelGraphPace": "Allure",
     "labelGraphHRZone": "Zone",
-    "labelDownsampling": "Données abaissées à ~200 points",
+    "labelDownsampling": "Données sous-échantillonnées à ~200 points",
     "errorMessageProcessingActivityStreams": "Erreur lors du traitement des flux d'activité",
     "labelGraphStrokeRate": "Stroke rate"
 }

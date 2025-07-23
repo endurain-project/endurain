@@ -214,7 +214,7 @@ def create_token(data: dict) -> str:
     return jwt.encode(
         {"alg": session_constants.JWT_ALGORITHM},
         data.copy(),
-        session_constants.JWT_SECRET_KEY,
+        OctKey.import_key(session_constants.JWT_SECRET_KEY),
     )
 
 
@@ -367,14 +367,9 @@ def check_scopes(
             )
     except HTTPException as http_err:
         core_logger.print_to_log(
-            f"Scope validation failed: {http_err.detail}",
+            f"Scope validation failed: {http_err}",
             "error",
             exc=http_err,
-            context={
-                "scopes": scopes,
-                "required_scopes": security_scopes.scopes,
-                "missing_scopes": missing_scopes,
-            },
         )
         raise http_err
     except Exception as err:

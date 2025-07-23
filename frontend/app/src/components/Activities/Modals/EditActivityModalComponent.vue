@@ -23,6 +23,12 @@
                         <input class="form-control" type="text" name="activityDescriptionEdit"
                             :placeholder='$t("editActivityModalComponent.modalEditActivityDescriptionPlaceholder")'
                             maxlength="2500" v-model="editActivityDescription">
+                        <!-- private_notes fields -->
+                        <label for="activityPrivateNotesEdit"><b>{{
+                            $t("editActivityModalComponent.modalEditActivityPrivateNotesLabel") }}</b></label>
+                        <input class="form-control" type="text" name="activityPrivateNotesEdit"
+                            :placeholder='$t("editActivityModalComponent.modalEditActivityPrivateNotesPlaceholder")'
+                            maxlength="2500" v-model="editActivityPrivateNotes">
                         <!-- type fields -->
                         <label for="activityTypeEdit"><b>* {{
                             $t("editActivityModalComponent.modalEditActivityTypeLabel") }}</b></label>
@@ -66,6 +72,8 @@
                             <hr>
                             <option value="11">{{ $t("editActivityModalComponent.modalEditActivityTypeOption11") }}
                             </option>
+                            <option value="31">{{ $t("editActivityModalComponent.modalEditActivityTypeOption31") }}
+                            </option>
                             <option value="12">{{ $t("editActivityModalComponent.modalEditActivityTypeOption12") }}
                             </option>
                             <hr>
@@ -94,6 +102,9 @@
                             </option>
                             <option value="26">{{ $t("editActivityModalComponent.modalEditActivityTypeOption26") }}
                             </option>
+                            <hr>
+                            <option value="30">{{ $t("editActivityModalComponent.modalEditActivityTypeOption30") }}
+                            </option>
                         </select>
                         <!-- visibility fields -->
                         <label for="activityVisibilityEdit"><b>* {{
@@ -107,6 +118,15 @@
                             <option value="2">{{ $t("editActivityModalComponent.modalEditActivityVisibilityOption2") }}
                             </option>
                         </select>
+                        <!-- is_hidden fields-->
+                        <label for="activityIsHiddenEdit"><b>* {{
+                            $t("editActivityModalComponent.modalEditActivityIsHiddenLabel") }}</b></label>
+                        <select class="form-select" name="activityIsHiddenEdit" v-model="editActivityIsHidden"
+                            required>
+                            <option :value="true">{{ $t("generalItems.yes") }}</option>
+                            <option :value="false">{{ $t("generalItems.no") }}</option>
+                        </select>
+                        <hr>
                         <!-- hide start time fields -->
                         <label for="activityHideStartTimeEdit"><b>* {{
                             $t("editActivityModalComponent.modalEditActivityHideStartTimeLabel") }}</b></label>
@@ -245,9 +265,12 @@ const emit = defineEmits(["activityEditedFields"]);
 // Setup
 const { t } = useI18n();
 const editActivityDescription = ref(props.activity.description);
+const editActivityPrivateNotes = ref(props.activity.private_notes);
 const editActivityName = ref(props.activity.name);
 const editActivityType = ref(props.activity.activity_type);
 const editActivityVisibility = ref(props.activity.visibility);
+const editActivityIsHidden = ref(props.activity.is_hidden);
+// Hide fields
 const editActivityHideStartTime = ref(props.activity.hide_start_time);
 const editActivityHideLocation = ref(props.activity.hide_location);
 const editActivityHideMap = ref(props.activity.hide_map);
@@ -266,9 +289,11 @@ async function submitEditActivityForm() {
         const data = {
             id: props.activity.id,
             description: editActivityDescription.value,
+            private_notes: editActivityPrivateNotes.value,
             name: editActivityName.value,
             activity_type: editActivityType.value,
             visibility: editActivityVisibility.value,
+            is_hidden: editActivityIsHidden.value,
             hide_start_time: editActivityHideStartTime.value,
             hide_location: editActivityHideLocation.value,
             hide_map: editActivityHideMap.value,

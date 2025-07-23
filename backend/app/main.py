@@ -24,7 +24,7 @@ import strava.utils as strava_utils
 from core.routes import router as api_router
 
 
-def startup_event():
+async def startup_event():
     core_logger.print_to_log_and_console(
         f"Backend startup event - {core_config.API_VERSION}"
     )
@@ -51,8 +51,8 @@ def startup_event():
     core_logger.print_to_log_and_console(
         "Retrieving last day activities from Garmin Connect and Strava on startup"
     )
-    garmin_activity_utils.retrieve_garminconnect_users_activities_for_days(1)
-    strava_activity_utils.retrieve_strava_users_activities_for_days(1, True)
+    await garmin_activity_utils.retrieve_garminconnect_users_activities_for_days(1)
+    await strava_activity_utils.retrieve_strava_users_activities_for_days(1, True)
 
     # Retrieve last day body composition from Garmin Connect
     core_logger.print_to_log_and_console(
@@ -109,15 +109,27 @@ def create_app() -> FastAPI:
     app.include_router(api_router)
 
     # Add a route to serve the user images
-    app.mount("/user_images", StaticFiles(directory=core_config.USER_IMAGES_DIR), name="user_images")
     app.mount(
-        "/server_images", StaticFiles(directory=core_config.SERVER_IMAGES_DIR), name="server_images"
+        f"/{core_config.USER_IMAGES_DIR}",
+        StaticFiles(directory=core_config.USER_IMAGES_DIR),
+        name="user_images",
+    )
+    app.mount(
+        f"/{core_config.SERVER_IMAGES_DIR}",
+        StaticFiles(directory=core_config.SERVER_IMAGES_DIR),
+        name="server_images",
+    )
+    app.mount(
+        f"/{core_config.ACTIVITY_MEDIA_DIR}",
+        StaticFiles(directory=core_config.ACTIVITY_MEDIA_DIR),
+        name="activity_media",
     )
     app.mount(
         "/", StaticFiles(directory=core_config.FRONTEND_DIR, html=True), name="frontend"
     )
 
     return app
+
 
 # Silence stravalib token warnings
 os.environ["SILENCE_TOKEN_WARNINGS"] = "TRUE"

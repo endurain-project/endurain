@@ -12,7 +12,7 @@
     <td class="d-none d-md-table-cell">{{ formatDuration(activity.total_timer_time) }}</td>
     <td class="d-none d-md-table-cell">{{ formatDistance(activity, authStore.user.units) }}</td>
     <td class="d-none d-md-table-cell">
-        <span v-if="activity.activity_type === 1 || activity.activity_type === 2 || activity.activity_type === 3 || activity.activity_type === 8 || activity.activity_type === 9 || activity.activity_type === 11 || activity.activity_type === 12 || activity.activity_type === 13">
+        <span v-if="activityTypeIsRunning(activity) || activityTypeIsSwimming(activity) || activityTypeIsWalking(activity) || activityTypeIsRowing(activity)">
             {{ formatPace(activity, authStore.user.units) }}
         </span>
         <span v-else-if="activityTypeIsCycling(activity)">
@@ -27,8 +27,7 @@
     <td class="d-none d-md-table-cell">{{ formatHr(activity.average_hr) }}</td>
 </template>
 
-<script>
-import { useI18n } from "vue-i18n";
+<script setup>
 // Importing the stores
 import { useAuthStore } from "@/stores/authStore";
 // Importing the utils
@@ -43,35 +42,20 @@ import {
 	getIcon,
 	formatLocation,
     formatAverageSpeed,
+    activityTypeIsWalking,
     activityTypeIsCycling,
+    activityTypeIsRunning,
+    activityTypeIsSwimming,
+    activityTypeIsRowing,
 } from "@/utils/activityUtils";
 
-export default {
-	props: {
-		activity: {
-			type: Object,
-			required: true,
-		},
-	},
-	setup(props) {
-		const { t } = useI18n();
-		const authStore = useAuthStore();
+// Define props
+const props = defineProps({
+    activity: {
+        type: Object,
+        required: true,
+    }
+});
 
-		return {
-            formatDuration,
-            formatDateTime,
-            formatDistance,
-            formatElevation,
-            formatPace,
-            formatHr,
-            formatCalories,
-            getIcon,
-            formatLocation,
-            formatAverageSpeed,
-			t,
-			authStore,
-            activityTypeIsCycling,
-		};
-	},
-};
+const authStore = useAuthStore();
 </script>

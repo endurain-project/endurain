@@ -24,6 +24,7 @@
                     <option value="9">{{ $t("searchView.searchSelectActivityType9") }}</option>
                     <option value="10">{{ $t("searchView.searchSelectActivityType10") }}</option>
                     <option value="11">{{ $t("searchView.searchSelectActivityType11") }}</option>
+                    <option value="12">{{ $t("searchView.searchSelectActivityType12") }}</option>
                 </select>
                 <!-- Gear type area -->
                 <select id="inputSelectGearTypeToSearch" class="form-select rounded me-1" v-model="searchSelectGearType"
@@ -35,6 +36,7 @@
                     <option value="4">{{ $t("searchView.searchSelectGearType4") }}</option>
                     <option value="5">{{ $t("searchView.searchSelectGearType5") }}</option>
                     <option value="6">{{ $t("searchView.searchSelectGearType6") }}</option>
+                    <option value="7">{{ $t("searchView.searchSelectGearType7") }}</option>
                 </select>
                 <!-- Search area -->
                 <input type="text" class="form-control rounded" id="inputTextFieldToSearch"
@@ -52,7 +54,7 @@
                         <!-- icon for user -->
                         <font-awesome-icon :icon="['fas', 'user']" v-if="searchSelectValue == 1" />
                         <!-- icons for activities -->
-                        <font-awesome-icon class="ms-1" :icon="getIcon(result.activity_type)" />
+                        <font-awesome-icon class="ms-1" :icon="getIcon(result.activity_type)" v-if="searchSelectValue == 2" />
                         <!-- icons for gears -->
                         <font-awesome-icon :icon="['fas', 'bicycle']"
                             v-if="searchSelectValue == 3 && [1].includes(Number(result.gear_type))" />
@@ -66,6 +68,8 @@
                             v-if="searchSelectValue == 3 && [5].includes(Number(result.gear_type))" />
                         <font-awesome-icon :icon="['fas', 'person-snowboarding']"
                             v-if="searchSelectValue == 3 && [6].includes(Number(result.gear_type))" />
+                        <font-awesome-icon :icon="['fas', 'wind']"
+                            v-if="searchSelectValue == 3 && [7].includes(Number(result.gear_type))" />
                         <div class="ms-3">
                             <div class="fw-bold">
                                 <router-link :to="{ name: 'user', params: { id: result.id } }"
@@ -200,7 +204,7 @@ function updateSearchResultsBasedOnActivityType() {
         );
     } else if (searchSelectActivityType.value === "2") {
         searchResults.value = searchResultsOriginal.value.filter((user) =>
-            [4, 5, 6, 7, 27, , 29].includes(user.activity_type),
+            [4, 5, 6, 7, 27, 28, 29].includes(user.activity_type),
         );
     } else if (searchSelectActivityType.value === "3") {
         searchResults.value = searchResultsOriginal.value.filter((user) =>
@@ -212,7 +216,7 @@ function updateSearchResultsBasedOnActivityType() {
         );
     } else if (searchSelectActivityType.value === "5") {
         searchResults.value = searchResultsOriginal.value.filter((user) =>
-            [11].includes(user.activity_type),
+            [11, 31].includes(user.activity_type),
         );
     } else if (searchSelectActivityType.value === "6") {
         searchResults.value = searchResultsOriginal.value.filter((user) =>
@@ -237,6 +241,10 @@ function updateSearchResultsBasedOnActivityType() {
     } else if (searchSelectActivityType.value === "11") {
         searchResults.value = searchResultsOriginal.value.filter((user) =>
             [21, 22, 23, 24, 25, 26].includes(user.activity_type),
+        );
+    } else if (searchSelectActivityType.value === "12") {
+        searchResults.value = searchResultsOriginal.value.filter((user) =>
+            [30].includes(user.activity_type),
         );
     } else {
         searchResults.value = searchResultsOriginal.value;
@@ -263,6 +271,14 @@ function updateSearchResultsBasedOnGearType() {
     } else if (searchSelectGearType.value === "5") {
         searchResults.value = searchResultsOriginal.value.filter((user) =>
             [5].includes(user.gear_type),
+        );
+    } else if (searchSelectGearType.value === "6") {
+        searchResults.value = searchResultsOriginal.value.filter((user) =>
+            [6].includes(user.gear_type),
+        );
+    } else if (searchSelectGearType.value === "7") {
+        searchResults.value = searchResultsOriginal.value.filter((user) =>
+            [7].includes(user.gear_type),
         );
     } else {
         searchResults.value = searchResultsOriginal.value;

@@ -3,9 +3,9 @@ from sqlalchemy import (
     Integer,
     ForeignKey,
     BigInteger,
+    JSON,
 )
 from sqlalchemy.orm import relationship
-from sqlalchemy.dialects.mysql import JSON
 from core.database import Base
 
 class ActivityStreams(Base):
@@ -24,7 +24,7 @@ class ActivityStreams(Base):
         nullable=False,
         comment="Stream type (1 - HR, 2 - Power, 3 - Cadence, 4 - Elevation, 5 - Velocity, 6 - Pace, 7 - lat/lon)",
     )
-    stream_waypoints = Column(JSON, nullable=False, doc="Store waypoints data")
+    stream_waypoints = Column(JSON, nullable=False, comment="Store waypoints data")
     strava_activity_stream_id = Column(
         BigInteger, nullable=True, comment="Strava activity stream ID"
     )

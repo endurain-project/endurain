@@ -19,7 +19,7 @@ import users.user_default_gear.utils as user_default_gear_utils
 
 import garmin.utils as garmin_utils
 
-import gears.crud as gears_crud
+import gears.gear.crud as gears_crud
 
 import users.user_privacy_settings.schema as users_privacy_settings_schema
 
@@ -73,19 +73,6 @@ def create_activity_objects(
                     session_record["session"]["activity_type"]
                 )
 
-                # Set the activity name based on the activity type
-                activity_name = (
-                    activities_utils.set_activity_name_based_on_activity_type(
-                        activity_type
-                    )
-                )
-
-                location_fields = ["city", "town"]
-                for field in location_fields:
-                    if session_record["session"].get(field):
-                        activity_name += f" - {session_record['session'][field]}"
-                        break
-
                 if gear_id is None:
                     gear_id = (
                         user_default_gear_utils.get_user_default_gear_by_activity_type(
@@ -119,6 +106,24 @@ def create_activity_objects(
                             session_record["time_offset"],
                             session_record["session"]["first_waypoint_time"],
                         )
+
+            avg_power = session_record["session"]["avg_power"]
+            max_power = session_record["session"]["max_power"]
+            if avg_power is None:
+                if session_record["is_power_set"]:
+                    avg_power, max_power = activities_utils.calculate_avg_and_max(
+                        session_record["power_waypoints"], "power"
+                    )
+                    print(avg_power, max_power)
+
+            np_power = session_record["session"]["np"]
+            if np_power is None:
+                if session_record["is_power_set"]:
+                    np_power = activities_utils.calculate_np(
+                        session_record["power_waypoints"]
+                    )
+                    print(np_power)
+
             parsed_activity = {
                 # Create an Activity object with parsed data
                 "activity": activities_schema.Activity(
@@ -147,9 +152,9 @@ def create_activity_objects(
                     pace=pace,
                     average_speed=session_record["session"]["avg_speed"],
                     max_speed=session_record["session"]["max_speed"],
-                    average_power=session_record["session"]["avg_power"],
-                    max_power=session_record["session"]["max_power"],
-                    normalized_power=session_record["session"]["np"],
+                    average_power=round(avg_power) if avg_power else None,
+                    max_power=round(max_power) if max_power else None,
+                    normalized_power=round(np_power) if np_power else None,
                     average_hr=session_record["session"]["avg_hr"],
                     max_hr=session_record["session"]["max_hr"],
                     average_cad=session_record["session"]["avg_cadence"],
@@ -524,9 +529,6 @@ def parse_fit_file(file: str, db: Session) -> dict:
                                 city = location_data["city"]
                                 town = location_data["town"]
                                 country = location_data["country"]
-
-                            # Wait for 1 second (for geocoding API rate limiting)
-                            timelib.sleep(1)
 
                         # Initialize the session dictionary with parsed data
                         session_data = {

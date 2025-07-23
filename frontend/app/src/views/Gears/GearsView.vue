@@ -49,8 +49,7 @@
                     <LoadingComponent v-if="isGearsUpdatingLoading" />
 
                     <!-- List gears -->
-                    <ul class="list-group list-group-flush" v-for="gear in userGears" :key="gear.id" :gear="gear"
-                        v-else>
+                    <ul class="list-group list-group-flush" v-for="gear in userGears" :key="gear.id" v-else>
                         <GearsListComponent :gear="gear" @editedGear="editGearList"
                             @gearDeleted="updateGearListOnDelete" />
                     </ul>
@@ -87,8 +86,11 @@ import GearsAddEditUserModalComponent from '@/components/Gears/GearsAddEditGearM
 import GearsListComponent from '@/components/Gears/GearsListComponent.vue';
 // Importing the services
 import { gears } from '@/services/gearsService';
+// Importing the stores
+import { useServerSettingsStore } from "@/stores/serverSettingsStore";
 
 const { t } = useI18n();
+const serverSettingsStore = useServerSettingsStore();
 const route = useRoute();
 const isLoading = ref(true);
 const isGearsUpdatingLoading = ref(true);
@@ -97,7 +99,7 @@ const userGears = ref([]);
 const userGearsNumber = ref(0);
 const pageNumber = ref(1);
 const totalPages = ref(1);
-const numRecords = 5;
+const numRecords = serverSettingsStore.serverSettings.num_records_per_page || 25;
 const searchNickname = ref('');
 
 const performSearch = debounce(async () => {

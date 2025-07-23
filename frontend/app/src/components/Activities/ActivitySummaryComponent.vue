@@ -9,15 +9,9 @@
                 <UserAvatarComponent :user="userActivity" :width=55 :height=55 />
                 <div class="ms-3 me-3">
                     <div class="fw-bold">
-                        <router-link :to="{ name: 'activity', params: { id: activity.id } }"
-                            class="link-body-emphasis link-underline-opacity-0 link-underline-opacity-100-hover"
-                            v-if="source === 'home'">
-                            {{ activity.name }}
-                        </router-link>
                         <span v-if="userActivity">
                             <router-link :to="{ name: 'user', params: { id: userActivity.id } }"
-                                class="link-body-emphasis link-underline-opacity-0 link-underline-opacity-100-hover"
-                                v-if="source === 'activity'">
+                                class="link-body-emphasis link-underline-opacity-0 link-underline-opacity-100-hover">
                                 {{ userActivity.name }}
                             </router-link>
                         </span>
@@ -53,7 +47,7 @@
                             {{ formatDateMed(activity.start_time) }} @ {{ formatTime(activity.start_time) }}
                         </span>
                         <!-- Conditionally display city and country -->
-                        <span v-if="activity.town || activity.city || activity.country">
+                        <span v-if="activity.city || activity.town || activity.country">
                             -
                             <span>{{ formatLocation(activity) }}</span>
                         </span>
@@ -80,6 +74,15 @@
                     <ul class="dropdown-menu">
                         <li v-if="source === 'activity'">
                             <a class="dropdown-item" href="#" data-bs-toggle="modal"
+                                data-bs-target="#addActivityMediaModal">
+                                {{ $t("activitySummaryComponent.buttonAddActivityMedia") }}
+                            </a>
+                        </li>
+                        <li v-if="source === 'activity'">
+                            <hr class="dropdown-divider">
+                        </li>
+                        <li v-if="source === 'activity'">
+                            <a class="dropdown-item" href="#" data-bs-toggle="modal"
                                 data-bs-target="#editActivityModal">
                                 {{ $t("activitySummaryComponent.buttonEditActivity") }}
                             </a>
@@ -89,7 +92,7 @@
                         </li>
                         <li>
                             <a class="dropdown-item" href="#" data-bs-toggle="modal"
-                                data-bs-target="#deleteActivityModal">
+                                :data-bs-target="`#deleteActivityModal${activity.id}`">
                                 {{ $t("activitySummaryComponent.buttonDeleteActivity") }}
                             </a>
                         </li>
@@ -98,22 +101,48 @@
             </div>
         </div>
 
+        <!-- Modal add media -->
+        <ModalComponentUploadFile modalId="addActivityMediaModal"
+            :title="$t('activitySummaryComponent.modalAddMediaTitle')"
+            :fileFieldLabel="$t('activitySummaryComponent.modalAddMediaBody')"
+            filesAccepted=".png, .jpg, .jpeg" actionButtonType="success"
+            :actionButtonText="$t('activitySummaryComponent.modalAddMediaTitle')"
+            @fileToEmitAction="submitUploadMediaForm" />
+
         <!-- Modal edit activity -->
         <EditActivityModalComponent :activity="activity" @activityEditedFields="updateActivityFieldsOnEdit" />
 
         <!-- Modal delete activity -->
-        <ModalComponent modalId="deleteActivityModal" :title="t('activitySummaryComponent.buttonDeleteActivity')"
+        <ModalComponent :modalId="`deleteActivityModal${activity.id}`" :title="t('activitySummaryComponent.buttonDeleteActivity')"
             :body="`${t('activitySummaryComponent.modalDeleteBody1')}<b>${activity.name}</b>?<br>${t('activitySummaryComponent.modalDeleteBody2')}`"
             :actionButtonType="`danger`" :actionButtonText="t('activitySummaryComponent.buttonDeleteActivity')"
             @submitAction="submitDeleteActivity" />
 
         <!-- Activity title -->
+        <h5 class="mt-3" v-if="source === 'home'">
+            <router-link :to="{ name: 'activity', params: { id: activity.id } }"
+                class="link-body-emphasis link-underline-opacity-0 link-underline-opacity-100-hover">
+                <span v-if="activity.name === 'Workout'">{{ formatName(activity, t) }}</span>
+                <span v-else>{{ activity.name }}</span>
+            </router-link>
+
+        </h5>
         <h1 class="mt-3" v-if="source === 'activity'">
-            {{ activity.name }}
+            <span v-if="activity.name === 'Workout'">{{ formatName(activity, t) }}</span>
+            <span v-else>{{ activity.name }}</span>
         </h1>
 
         <!-- Activity description -->
         <p v-if="activity.description">{{ activity.description }}</p>
+
+        <div v-if="activity.private_notes">
+            <hr>
+            <h6 class="text-body-secondary">
+                {{ $t("activitySummaryComponent.privateNotes") }}
+            </h6>
+            <p>{{ activity.private_notes }}</p>
+            <hr>
+        </div>
 
         <!-- Activity summary -->
         <div class="row mt-3 align-items-center text-start">
@@ -145,7 +174,7 @@
             <div class="col border-start border-opacity-50">
                 <!-- elevation -->
                 <div
-                    v-if="activityTypeNotRunning(activity) && activityTypeNotSwimming(activity) && activity.activity_type != 10 && activity.activity_type != 13 && activity.activity_type != 14 && activity.activity_type != 18 && activity.activity_type != 19 && activity.activity_type != 20 && activityTypeNotRacquet(activity)">
+                    v-if="activityTypeIsCycling(activity)">
                     <span class="fw-lighter">
                         {{ $t("activitySummaryComponent.activityEleGain") }}
                     </span>
@@ -240,11 +269,13 @@ import { push } from "notivue";
 // Importing the components
 import LoadingComponent from "@/components/GeneralComponents/LoadingComponent.vue";
 import UserAvatarComponent from "@/components/Users/UserAvatarComponent.vue";
+import ModalComponentUploadFile from "@/components/Modals/ModalComponentUploadFile.vue";
 import EditActivityModalComponent from "@/components/Activities/Modals/EditActivityModalComponent.vue";
 import ModalComponent from "@/components/Modals/ModalComponent.vue";
 // Importing the services
 import { users } from "@/services/usersService";
 import { activities } from "@/services/activitiesService";
+import { activityMedia } from "@/services/activityMediaService";
 // Importing the utils
 import {
     formatDistance,
@@ -256,12 +287,12 @@ import {
     formatLocation,
     formatAverageSpeed,
     formatPower,
-    activityTypeNotSwimming,
     activityTypeIsCycling,
     activityTypeNotCycling,
     activityTypeIsRunning,
     activityTypeNotRunning,
     activityTypeNotRacquet,
+    formatName,
 } from "@/utils/activityUtils";
 import {
     formatDateMed,
@@ -286,7 +317,7 @@ const props = defineProps({
 });
 
 // Emits
-const emit = defineEmits(["activityEditedFields", "activityDeleted"]);
+const emit = defineEmits(["activityEditedFields", "activityDeleted", "activityNewActivityMedia"]);
 
 // Composables
 const router = useRouter();
@@ -335,4 +366,25 @@ function updateActivityFieldsOnEdit(data) {
     // Emit the activityEditedFields event to the parent component
     emit("activityEditedFields", data);
 }
+
+const submitUploadMediaForm = async (file) => {
+    // Set the loading message
+    const notification = push.promise(t("activitySummaryComponent.processingMediaUpload"));
+
+    // If there is a file, create the form data and upload the file
+    if (file) {
+        try {
+            // Upload the file
+            const newActivityMedia = await activityMedia.uploadActivityMediaFile(props.activity.id, file);
+            
+            emit("activityNewActivityMedia", newActivityMedia);
+
+            // Set the success message
+            notification.resolve(t("activitySummaryComponent.successMediaUpload"));
+        } catch (error) {
+            // Set the error message
+            notification.reject(`${t("activitySummaryComponent.errorMediaUpload")} - ${error}`);
+        }
+    }
+};
 </script>

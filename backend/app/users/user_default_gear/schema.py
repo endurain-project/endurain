@@ -18,6 +18,8 @@ class UserDefaultGear(BaseModel):
     alpine_ski_gear_id: int | None
     nordic_ski_gear_id: int | None
     snowboard_gear_id: int | None
+    windsurf_gear_id: int | None
 
-    class Config:
-        orm_mode = True
+    model_config = {
+        "from_attributes": True
+    }

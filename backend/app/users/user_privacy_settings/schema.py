@@ -18,5 +18,6 @@ class UsersPrivacySettings(BaseModel):
     hide_activity_workout_sets_steps: bool | None = None
     hide_activity_gear: bool | None = None
 
-    class Config:
-        from_attributes = True
+    model_config = {
+        "from_attributes": True
+    }

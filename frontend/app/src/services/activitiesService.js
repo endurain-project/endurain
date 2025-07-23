@@ -22,7 +22,15 @@ export const activities = {
 		return fetchGetRequest(`activities/user/${user_id}/thismonth/number`);
 	},
 	getUserActivitiesByGearId(gear_id) {
-		return fetchGetRequest(`activities/user/gear/${gear_id}`);
+		return fetchGetRequest(`activities/gear/${gear_id}`);
+	},
+	getUserActivitiesByGearIdNumber(gear_id) {
+		return fetchGetRequest(`activities/gear/${gear_id}/number`);
+	},
+	getUserActivitiesByGearIdWithPagination(gear_id, pageNumber, numRecords) {
+		return fetchGetRequest(
+			`activities/gear/${gear_id}/page_number/${pageNumber}/num_records/${numRecords}`,
+		);
 	},
 	getUserNumberOfActivities(filters = {}) {
 		let baseUrl = "activities/number";

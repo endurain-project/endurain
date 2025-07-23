@@ -17,5 +17,6 @@ class ActivityWorkoutSteps(BaseModel):
     weight_display_unit: str | None = None
     secondary_target_value: str | None = None
 
-    class Config:
-        orm_mode = True
+    model_config = {
+        "from_attributes": True
+    }

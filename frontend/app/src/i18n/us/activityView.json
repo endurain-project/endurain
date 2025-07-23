@@ -8,6 +8,6 @@
     "successMessageGearDeleted": "Gear deleted from activity",
     "errorMessageDeleteGear": "Error deleting gear from activity",
     "errorMessageActivityNotFound": "Activity not found",
-    "alertPrivacyMessage": "You have hidden information in this activity. You can see it, but others cannot."
-
+    "alertPrivacyMessage": "You have hidden information in this activity. You can see it, but others cannot.",
+    "isHiddenMessage": "This activity is hidden. Probably because it is a duplicate or was hidden by the user."
 }

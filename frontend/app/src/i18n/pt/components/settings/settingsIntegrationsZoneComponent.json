@@ -28,7 +28,7 @@
     "modalUnlinkStravaTitle": "Desassociar Strava",
     "modalUnlinkStravaBody": "Tem certeza que deseja desassociar a sua conta Strava? Desassociar a sua conta Strava irá remover todas as suas atividades e equipamentos do Strava do Endurain.",
     "bulkImportIntegrationTitle": "Importação em massa",
-    "bulkImportIntegrationBody": "Importação em massa de ficheiros guardados na diretoria bulk_import",
+    "bulkImportIntegrationBody": "Importação em massa de ficheiros guardados na diretoria activity_files/bulk_import",
     "buttonBulkImport": "Importar",
     "errorMessageUnableToImportActivities": "Ocorreu um erro ao importar as atividades",
     "loadingMessageBulkImport": "A importar atividades",

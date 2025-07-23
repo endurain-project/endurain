@@ -20,3 +20,10 @@ def return_server_img_path(server_img: str):
     if not os.path.isfile(file_path):
         return None
     return FileResponse(file_path)
+
+
+def return_activity_media_path(media: str):
+    file_path = f"/app/backend/{core_config.ACTIVITY_MEDIA_DIR}/" + media
+    if not os.path.isfile(file_path):
+        return None
+    return FileResponse(file_path)

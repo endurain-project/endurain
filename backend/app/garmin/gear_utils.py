@@ -5,8 +5,8 @@ import core.logger as core_logger
 
 import garmin.utils as garmin_utils
 
-import gears.schema as gears_schema
-import gears.crud as gears_crud
+import gears.gear.schema as gears_schema
+import gears.gear.crud as gears_crud
 
 import activities.activity.schema as activities_schema
 import activities.activity.crud as activities_crud

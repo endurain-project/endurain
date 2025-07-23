@@ -112,6 +112,13 @@ class UsersDefaultGear(Base):
         index=True,
         comment="Gear ID that the default snowboard activity type belongs",
     )
+    windsurf_gear_id = Column(
+        Integer,
+        ForeignKey("gear.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+        comment="Gear ID that the default windsurf activity type belongs",
+    )
 
     # Define a relationship to the User model
     user = relationship("User", back_populates="users_default_gear")
@@ -131,3 +138,4 @@ class UsersDefaultGear(Base):
     alpine_ski_gear = relationship("Gear", foreign_keys=[alpine_ski_gear_id])
     nordic_ski_gear = relationship("Gear", foreign_keys=[nordic_ski_gear_id])
     snowboard_gear = relationship("Gear", foreign_keys=[snowboard_gear_id])
+    windsurf_gear = relationship("Gear", foreign_keys=[windsurf_gear_id])

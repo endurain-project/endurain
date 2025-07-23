@@ -15,5 +15,6 @@ class UsersIntegrations(BaseModel):
     garminconnect_oauth2: dict | None = None
     garminconnect_sync_gear: bool
 
-    class Config:
-        from_attributes = True
+    model_config = {
+        "from_attributes": True
+    }

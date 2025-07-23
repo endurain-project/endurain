@@ -84,6 +84,10 @@ async def garminconnect_retrieve_activities_days(
         Depends(session_security.get_user_id_from_access_token),
     ],
     db: Annotated[Session, Depends(core_database.get_db)],
+    websocket_manager: Annotated[
+        websocket_schema.WebSocketManager,
+        Depends(websocket_schema.get_websocket_manager),
+    ],
     background_tasks: BackgroundTasks,
 ):
     start_datetime = datetime.combine(start_date, datetime.min.time(), tzinfo=timezone.utc)
@@ -95,6 +99,7 @@ async def garminconnect_retrieve_activities_days(
         start_datetime,
         end_datetime,
         token_user_id,
+        websocket_manager,
         db,
     )
 

@@ -16,5 +16,6 @@ class HealthData(BaseModel):
     #metabolic_age: float | None = None
     garminconnect_body_composition_id: str | None = None
 
-    class Config:
-        orm_mode = True
+    model_config = {
+        "from_attributes": True
+    }

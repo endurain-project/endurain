@@ -11,6 +11,113 @@ import {
 	formatSecondsToMinutes,
 } from "@/utils/dateTimeUtils"; // Import date/time utils
 
+
+/**
+ * An array of numeric identifiers representing different activity types.
+ * Each number corresponds to a specific activity type used within the application.
+ * @type {number[]}
+ */
+const ACTIVITY_TYPES = [
+	1,
+	2,
+	3,
+	4,
+	5,
+	6,
+	7,
+	8,
+	9,
+	10,
+	11,
+	12,
+	13,
+	14,
+	15,
+	16,
+	17,
+	18,
+	19,
+	20,
+	21,
+	22,
+	23,
+	24,
+	25,
+	26,
+	27,
+	28,
+	29,
+	30,
+	31,
+]
+
+/**
+ * Maps activity type IDs to functions that return localized activity labels.
+ *
+ * @type {Object<number, function(function(string): string): string>}
+ * Each key is an activity type ID (number).
+ * Each value is a function that takes a translation function `t` and returns the localized label string.
+ *
+ * Example usage:
+ *   const label = activityLabelMap[1](t); // Returns the localized label for "run"
+ */
+const activityLabelMap = {
+	1: t => t("activityItems.run"),
+	2: t => t("activityItems.trailRun"),
+	3: t => t("activityItems.virtualRun"),
+	4: t => t("activityItems.ride"),
+	5: t => t("activityItems.gravelRide"),
+	6: t => t("activityItems.mtbRide"),
+	7: t => t("activityItems.virtualRide"),
+	8: t => t("activityItems.lapSwimming"),
+	9: t => t("activityItems.openWaterSwimming"),
+	10: t => t("activityItems.workout"),
+	11: t => t("activityItems.walk"),
+	12: t => t("activityItems.hike"),
+	13: t => t("activityItems.rowing"),
+	14: t => t("activityItems.yoga"),
+	15: t => t("activityItems.alpineSki"),
+	16: t => t("activityItems.nordicSki"),
+	17: t => t("activityItems.snowboard"),
+	18: t => t("activityItems.transition"),
+	19: t => t("activityItems.strengthTraining"),
+	20: t => t("activityItems.crossfit"),
+	21: t => t("activityItems.tennis"),
+	22: t => t("activityItems.tableTennis"),
+	23: t => t("activityItems.badminton"),
+	24: t => t("activityItems.squash"),
+	25: t => t("activityItems.racquetball"),
+	26: t => t("activityItems.pickleball"),
+	27: t => t("activityItems.commutingRide"),
+	28: t => t("activityItems.indoorRide"),
+	29: t => t("activityItems.mixedSurfaceRide"),
+	30: t => t("activityItems.windsurf"),
+	31: t => t("activityItems.indoorWalk"),
+};
+
+/**
+ * Formats the name of an activity, optionally appending its location.
+ *
+ * @param {Object} activity - The activity object containing details about the activity.
+ * @param {string} activity.activity_type - The type of the activity.
+ * @param {string} [activity.town] - The town where the activity took place (optional).
+ * @param {string} [activity.city] - The city where the activity took place (optional).
+ * @param {Function} t - The translation function.
+ * @returns {string} The formatted activity name, including location if available, or "Workout" as a default.
+ */
+export function formatName(activity, t) {
+	if (ACTIVITY_TYPES.includes(activity.activity_type) && activity.activity_type !== 10) {
+		const translation = activityLabelMap[activity.activity_type](t);
+		if (activity.town || activity.city) {
+			// If the activity has a town or city, append it to the label
+			const location = activity.town || activity.city;
+			return `${translation}${t("activityItems.labelWorkout")} - ${location}`;
+		}
+		return `${translation}${t("activityItems.labelWorkout")}`;
+	}
+	return "Workout"; // Default label for activities not in the map
+}
+
 /**
  * Formats a given pace in meters per minute to a string representation in minutes per kilometer.
  *
@@ -167,7 +274,7 @@ export function activityTypeIsRunning(activity) {
  * @returns {boolean} Returns true if the activity is not running-related (types 1,2, or 3), otherwise false.
  */
 export function activityTypeNotRunning(activity) {
-	return activity.activity_type !== 1 && activity.activity_type !== 2 && activity.activity_type === 3;
+	return activity.activity_type !== 1 && activity.activity_type !== 2 && activity.activity_type !== 3;
 }
 
 /**
@@ -201,7 +308,7 @@ export function activityTypeNotCycling(activity) {
  * @returns {boolean} True if the type of the activity is walking, false otherwise.
  */
 export function activityTypeIsWalking(activity) {
-	return activity.activity_type === 11 || activity.activity_type === 12;
+	return activity.activity_type === 11 || activity.activity_type === 12 || activity.activity_type === 31;
 }
 
 /**
@@ -227,6 +334,50 @@ export function activityTypeNotRacquet(activity) {
 }
 
 /**
+ * Checks if the given activity is of type Windsurf.
+ *
+ * @param {Object} activity - The activity object to check.
+ * @param {number} activity.activity_type - The type identifier of the activity.
+ * @returns {boolean} Returns true if the activity type is Windsurf (30), otherwise false.
+ */
+export function activityTypeIsWindsurf(activity) {
+	return activity.activity_type === 30;
+}
+
+/**
+ * Checks if the activity type is not windsurf (activity_type !== 30).
+ *
+ * @param {Object} activity - The activity object to check.
+ * @param {number} activity.activity_type - The type of the activity.
+ * @returns {boolean} Returns true if the activity type is not windsurf, false otherwise.
+ */
+export function activityTypeNotWindsurf(activity) {
+	return activity.activity_type !== 30;
+}
+
+/**
+ * Checks if the given activity is of type Rowing.
+ *
+ * @param {Object} activity - The activity object to check.
+ * @param {number} activity.activity_type - The type identifier of the activity.
+ * @returns {boolean} Returns true if the activity type is rowing (13), otherwise false.
+ */
+export function activityTypeIsRowing(activity) {
+	return activity.activity_type === 13;
+}
+
+/**
+ * Checks if the activity type is not rowing (activity_type !== 13).
+ *
+ * @param {Object} activity - The activity object to check.
+ * @param {number} activity.activity_type - The type of the activity.
+ * @returns {boolean} Returns true if the activity type is not rowing, false otherwise.
+ */
+export function activityTypeNotRowing(activity) {
+	return activity.activity_type !== 13;
+}
+
+/**
  * Formats the pace of an activity based on its type and the specified unit system.
  *
  * @param {Object} activity - The activity object containing pace and activity_type.
@@ -246,7 +397,8 @@ export function formatPace(activity, unitSystem, lap = null, units = true, isRes
 	}
 	if (
 		activityTypeIsSwimming(activity) ||
-		activity.activity_type === 13
+		activityTypeIsRowing(activity) ||
+		activityTypeIsWindsurf(activity)
 	) {
 		if (Number(unitSystem) === 1) {
 			return formatPaceSwimMetric(pace, units);
@@ -356,6 +508,30 @@ export function formatDistance(activity, unitSystem, lap = null) {
 	return `${metersToYards(distance)} ${i18n.global.t("generalItems.unitsYards")}`;
 }
 
+
+/**
+ * Formats a distance value in meters to either kilometers or miles, based on the unit system.
+ * The result is rounded (optionally) and formatted with spaces as thousands separators.
+ *
+ * @param {number} distance - The distance in meters to format.
+ * @param {number} unitSystem - The unit system to use (1 for kilometers, otherwise miles).
+ * @param {boolean} [round=true] - Whether to round the result to the nearest integer.
+ * @returns {string} The formatted distance string with the appropriate unit.
+ */
+export function formatDistanceRaw(distance, unitSystem, round = true, units = true) {
+	let value = Number(unitSystem) === 1 ? metersToKm(distance) : metersToMiles(distance);
+	if (round) {
+		value = Math.round(value);
+	}
+	// Format with space as thousands separator for better readability
+	let formatted = value.toLocaleString('en-US', { useGrouping: true, maximumFractionDigits: 0 }).replace(/,/g, ' ');
+	const unit = Number(unitSystem) === 1 ? i18n.global.t("generalItems.unitsKm") : i18n.global.t("generalItems.unitsMiles");
+	if (units) {
+		return `${formatted} ${unit}`;
+	}
+	return formatted;
+}
+
 /**
  * Formats the heart rate (hr) into a user-friendly string.
  *
@@ -451,6 +627,8 @@ export function getIcon(typeId) {
 		27: ["fas", "person-biking"],
 		28: ["fas", "person-biking"],
 		29: ["fas", "person-biking"],
+		30: ["fas", "wind"],
+		31: ["fas", "person-walking"],
 	};
 
 	return iconMap[typeId] || ["fas", "dumbbell"];
@@ -464,17 +642,17 @@ export function getIcon(typeId) {
  * it returns a localized "Not Applicable" label.
  */
 export function formatLocation(activity) {
-	const { town, city, country } = activity;
+	const { city, town, country } = activity;
 
-	if (!town && !city && !country) {
+	if (!city && !town && !country) {
 		return i18n.global.t("generalItems.labelNoData");
 	}
 
 	const locationParts = [];
-	if (town) {
-		locationParts.push(town);
-	} else if (city) {
+	if (city) {
 		locationParts.push(city);
+	} else if (town) {
+		locationParts.push(town);
 	}
 
 	if (country) {

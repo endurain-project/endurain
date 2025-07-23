@@ -1,10 +1,8 @@
 {
-    "userListAccessTypeLabel": "Type d'accès : ",
     "userListAccessTypeOption1": "Utilisateur standard",
     "userListAccessTypeOption2": "Administrateur",
     "userListUserIsMeBadge": "Moi",
     "userListUserIsAdminBadge": "Administrateur",
-    "userListUserIsActiveBadge": "Actif",
     "userListUserIsInactiveBadge": "Inactif",
     "userEditErrorMessage": "Erreur lors de la modification de l'utilisateur",
     "modalDeleteUserTitle": "Supprimer l’utilisateur",

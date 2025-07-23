@@ -120,6 +120,7 @@ import { useI18n } from "vue-i18n";
 // import lodash
 import { debounce } from "lodash";
 import { useAuthStore } from "@/stores/authStore";
+import { useServerSettingsStore } from "@/stores/serverSettingsStore";
 import { summaryService } from "@/services/summaryService";
 import { activities as activitiesService } from "@/services/activitiesService";
 // Import Notivue push
@@ -162,14 +163,15 @@ import { buildSummaryParams, buildActivityFilters } from "@/utils/summaryUtils";
 
 const { t } = useI18n();
 const authStore = useAuthStore();
+const serverSettingsStore = useServerSettingsStore();
 
 // Filter and View State
 const selectedViewType = ref("week");
 const selectedActivityType = ref("");
 const activityTypes = ref([]);
 const initialDate = new Date();
-const selectedDate = ref(formatDateISO(getWeekStartDate(initialDate)));
-const todayWeek = selectedDate.value;
+const selectedDate = ref(formatDateISO(getWeekStartDate(initialDate, authStore.user.first_day_of_week)));
+const todayWeek = computed(() => formatDateISO(getWeekStartDate(new Date(), authStore.user.first_day_of_week)));
 const todayMonth = formatDateToMonthString(initialDate);
 const todayYear = initialDate.getFullYear();
 const selectedYear = ref(todayYear);
@@ -182,7 +184,7 @@ const activities = ref([]);
 const userNumberActivities = ref(0);
 const pageNumber = ref(1);
 const totalPages = ref(1);
-const numRecords = 20;
+const numRecords = serverSettingsStore.serverSettings.num_records_per_page || 25;
 
 // Loading State
 const isLoading = ref(true);

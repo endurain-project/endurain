@@ -1,0 +1,6 @@
+{
+    "errorFetchingNotificationsPagination": "Erro ao obter notificações com paginação",
+    "errorFetchingNotificationsNumber": "Erro ao obter número de notificações",
+    "errorFetchingNotificationById": "Erro ao obter a notificação por ID",
+    "errorFetchingMessageFromWebSocket": "Erro ao obter mensagem do WebSocket"
+}

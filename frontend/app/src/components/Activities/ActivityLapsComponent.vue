@@ -1,5 +1,5 @@
 <template>
-    <div class="table-responsive d-none d-sm-block">
+    <div class="table-responsive d-none d-lg-block">
         <table class="table table-borderless table-hover table-sm rounded text-center" :class="{ 'table-striped': activity.activity_type !== 8 }" style="--bs-table-bg: var(--bs-gray-850);">
             <thead>
                 <tr>
@@ -62,7 +62,7 @@
                             <div class="progress-bar" :style="{ width: lap.normalizedScore + '%' }"></div>
                         </div>
                     </td>
-                    <td v-if="!activityTypeIsSwimming(activity) && activity.activity_type !== 13">{{ lap.formattedElevation }}</td>
+                    <td v-if="!activityTypeIsSwimming(activity) && activityTypeNotRowing(activity)">{{ lap.formattedElevation }}</td>
                     <td v-if="activityTypeIsSwimming(activity)">{{ lap.avg_cadence }}</td>
 					<td>
 						<span v-if="lap.avg_heart_rate">
@@ -90,6 +90,7 @@ import {
     formatAverageSpeed,
     activityTypeIsCycling,
     activityTypeIsSwimming,
+    activityTypeNotRowing,
 } from "@/utils/activityUtils";
 
 // Define props

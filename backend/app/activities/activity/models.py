@@ -7,6 +7,7 @@ from sqlalchemy import (
     DECIMAL,
     BigInteger,
     Boolean,
+    JSON,
 )
 from sqlalchemy.orm import relationship
 from core.database import Base
@@ -31,6 +32,11 @@ class Activity(Base):
         String(length=2500),
         nullable=True,
         comment="Activity description (May include spaces)",
+    )
+    private_notes = Column(
+        String(length=2500),
+        nullable=True,
+        comment="Activity private notes (May include spaces)",
     )
     distance = Column(Integer, nullable=False, comment="Distance in meters")
     activity_type = Column(
@@ -129,6 +135,15 @@ class Activity(Base):
     garminconnect_gear_id = Column(
         String(length=45), nullable=True, comment="Garmin Connect gear ID"
     )
+    import_info = Column(
+        JSON, default=None, nullable=True, doc="Additional import information"
+    )
+    is_hidden = Column(
+        Boolean,
+        nullable=False,
+        default=False,
+        comment="Indicates if the activity is hidden (e.g., duplicate activity waiting to be reviewed by the user)",
+    )
     hide_start_time = Column(
         Boolean,
         nullable=False,
@@ -191,6 +206,16 @@ class Activity(Base):
         nullable=False,
         comment="Hide activity gear",
     )
+    tracker_manufacturer = Column(
+        String(length=250),
+        nullable=True,
+        comment="Tracker manufacturer (e.g., Garmin, Suunto, Polar)",
+    )
+    tracker_model = Column(
+        String(length=250),
+        nullable=True,
+        comment="Tracker model (e.g., Forerunner 245, Ambit3 Peak, Vantage V2)",
+    )
 
     # Define a relationship to the User model
     user = relationship("User", back_populates="activities")
@@ -222,6 +247,13 @@ class Activity(Base):
     # Establish a one-to-many relationship with 'activity_workout_steps'
     activity_workout_steps = relationship(
         "ActivityWorkoutSteps",
+        back_populates="activity",
+        cascade="all, delete-orphan",
+    )
+
+    # Establish a one-to-many relationship with 'activity_media'
+    activity_media = relationship(
+        "ActivityMedia",
         back_populates="activity",
         cascade="all, delete-orphan",
     )

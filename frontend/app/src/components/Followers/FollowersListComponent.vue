@@ -26,7 +26,7 @@
         <a class="ms-2 btn btn-link btn-lg link-body-emphasis" href="#" role="button" data-bs-toggle="modal" :data-bs-target="`#deleteFollowingModal${userFollower.id}`" v-if="type == 1 && authStore.user.id == idFromParam"><font-awesome-icon :icon="['fas', 'fa-trash']" /></a>
         
         <!-- delete following modal -->
-        <ModalComponent :modalId="`deleteFollowingModal${userFollower.id}`" :title="t('followersListComponent.followingModalTitle')" :body="`${t('followersListComponent.gearListModalDeleteGearBody')}<b>${userFollower.name}</b>?`" :actionButtonType="`danger`" :actionButtonText="t('followersListComponent.followingModalTitle')" @submitAction="submitDeleteFollowing"/>
+        <ModalComponent :modalId="`deleteFollowingModal${userFollower.id}`" :title="t('followersListComponent.followingModalTitle')" :body="`${t('followersListComponent.followingModalBody')}<b>${userFollower.name}</b>?`" :actionButtonType="`danger`" :actionButtonText="t('followersListComponent.followingModalTitle')" @submitAction="submitDeleteFollowing"/>
 
         <!-- delete follower zone  -->
         <a class="ms-2 btn btn-link btn-lg link-body-emphasis" href="#" role="button" data-bs-toggle="modal" :data-bs-target="`#deleteFollowerModal${userFollower.id}`" v-if="type != 1 && authStore.user.id == idFromParam && follower.is_accepted == 1"><font-awesome-icon :icon="['fas', 'fa-trash']" /></a>

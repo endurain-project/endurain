@@ -147,7 +147,7 @@ The API is reachable under `/api/v1`. Below are some example endpoints. All endp
 | ---- | --- | -------------------- |
 | **Authorize** | `/token` |  `FORM` with the fields `username` and `password`. This will be sent in clear text, use of HTTPS is highly recommended |
 | **Refresh Token** | `/refresh` | header `Authorization Bearer: <Refresh Token>`  |
-| **Activity Upload** | `/activities/create/upload` | .gpx or .fit file |
+| **Activity Upload** | `/activities/create/upload` | .gpx, .tcx, .gz or .fit file |
 | **Set Weight** | `/health/weight` | JSON {'weight': <number>, 'created_at': `yyyy-MM-dd`} |
 
 
@@ -170,6 +170,7 @@ The table bellow details the activity types supported by Endurain:
 | Open water swimming | 9 |
 | General workout | 10 |
 | Walk | 11 |
+| Indoor walk | 31 |
 | Hike | 12 |
 | Rowing | 13 |
 | Yoga | 14 |
@@ -185,6 +186,7 @@ The table bellow details the activity types supported by Endurain:
 | Squash | 24 |
 | Racquetball | 25 |
 | Pickleball | 26 |
+| Windsurf | 30 |
 
 
 ## Supported gear types
@@ -198,3 +200,102 @@ The table bellow details the gear types supported by Endurain:
 | Racquet   | 4     |
 | Ski       | 5     |
 | Snowboard | 6     |
+
+
+## Supported bike component gear types
+The table bellow details the bike gear component types supported by Endurain:
+
+| Value                       |
+|-----------------------------|
+| back_break_oil              |
+| back_break_pads             |
+| back_break_rotor            |
+| back_tire                   |
+| back_tube                   |
+| back_tubeless_sealant       |
+| back_tubeless_rim_tape      |
+| back_wheel                  |
+| back_wheel_valve            |
+| bottom_bracket              |
+| bottle_cage                 |
+| cassette                    |
+| chain                       |
+| computer_mount              |
+| crank_left_power_meter      |
+| crank_right_power_meter     |
+| crankset                    |
+| crankset_power_meter        |
+| fork                        |
+| frame                       |
+| front_break_oil             |
+| front_break_pads            |
+| front_break_rotor           |
+| front_derailleur            |
+| front_shifter               |
+| front_tire                  |
+| front_tube                  |
+| front_tubeless_sealant      |
+| front_tubeless_rim_tape     |
+| front_wheel                 |
+| front_wheel_valve           |
+| grips                       |
+| handlebar                   |
+| handlebar_tape              |
+| headset                     |
+| pedals                      |
+| pedals_left_power_meter     |
+| pedals_power_meter          |
+| pedals_right_power_meter    |
+| rear_derailleur             |
+| rear_shifter                |
+| saddle                      |
+| seatpost                    |
+| stem                        |
+
+
+## Supported shoes component gear types
+The table bellow details the shoes component gear types supported by Endurain:
+
+| Value                       |
+|-----------------------------|
+| cleats                      |
+| insoles                     |
+| laces                       |
+
+
+## Supported racquet component gear types
+The table bellow details the racquet component gear types supported by Endurain:
+
+| Value                       |
+|-----------------------------|
+| basegrip                    |
+| bumpers                     |
+| grommets                    |
+| overgrip                    |
+| strings                     |
+
+
+## Supported windsurf component gear types
+The table bellow details the windsurf component gear types supported by Endurain:
+
+| Value                       |
+|-----------------------------|
+| sail                        |
+| board                       |
+| mast                        |
+| boom                        |
+| mast_extension              |
+| mast_base                   |
+| mast_universal_joint        |
+| fin                         |
+| footstraps                  |
+| harness_lines               |
+| rigging_lines               |
+| footpad                     |
+| impact_vest                 |
+| lifeguard_vest              |
+| helmet                      |
+| wing                        |
+| front_foil                  |
+| stabilizer                  |
+| fuselage                    |

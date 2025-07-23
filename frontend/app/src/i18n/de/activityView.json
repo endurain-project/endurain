@@ -8,5 +8,6 @@
     "successMessageGearDeleted": "Ausrüstung von Aktivität gelöscht",
     "errorMessageDeleteGear": "Fehler beim Löschen der Ausrüstung aus der Aktivität",
     "errorMessageActivityNotFound": "Aktivität nicht gefunden",
-    "alertPrivacyMessage": "You have hidden information in this activity. You can see it, but others cannot."
+    "alertPrivacyMessage": "You have hidden information in this activity. You can see it, but others cannot.",
+    "isHiddenMessage": "This activity is hidden. Probably because it is a duplicate or was hidden by the user."
 }

@@ -35,7 +35,7 @@ Lets use `/opt/endurain/` as the root directory for our project.
 sudo mkdir /opt/endurain
 sudo chown 1000:1000 /opt/endurain
 mkdir -p \
-  /opt/endurain/backend/{user_images,server_images,files,logs} \
+  /opt/endurain/app/{data,logs} \
   /opt/endurain/postgres
 ```
 
@@ -168,10 +168,8 @@ The same is the case for Postgres. Check for breaking changes in release notes o
 You should implement backup strategy for the following directories:
 
 ```
-/opt/endurain/backend/user_images
-/opt/endurain/backend/server_images
-/opt/endurain/backend/files
-/opt/endurain/backend/logs
+/opt/endurain/app/data
+/opt/endurain/app/logs
 ```
 
 You also need to backup your postgres database. It is not good practice to just backup the volume `/opt/endurain/postgres` this might be corrupted if  the database is in the middle of a wright when the database goes down.
