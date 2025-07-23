@@ -1099,7 +1099,7 @@ async def create_activity(
         activity.created_at = new_activity.created_at
 
         # Create a notification for the new activity
-        if create_notification and websocket_manager:
+        if create_notification:
             if activity_start_time_exists:
                 await notifications_utils.create_new_duplicate_start_time_activity_notification(
                     activity.user_id, new_activity.id, websocket_manager

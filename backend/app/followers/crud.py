@@ -175,11 +175,10 @@ async def create_follower(
         # Add the new follow relationship to the database
         db.add(new_follow)
         db.commit()
-
-        if websocket_manager:
-            await notifications_utils.create_new_follower_request_notification(
-                user_id, target_user_id, websocket_manager, db
-            )
+        
+        await notifications_utils.create_new_follower_request_notification(
+            user_id, target_user_id, websocket_manager, db
+        )
 
         # Return the gear
         return new_follow
@@ -227,11 +226,10 @@ async def accept_follower(
 
         # Commit the transaction
         db.commit()
-
-        if websocket_manager:
-            await notifications_utils.create_accepted_follower_request_notification(
-                user_id, target_user_id, websocket_manager, db
-            )
+        
+        await notifications_utils.create_accepted_follower_request_notification(
+            user_id, target_user_id, websocket_manager, db
+        )
     except HTTPException as http_err:
         raise http_err
     except Exception as err:
