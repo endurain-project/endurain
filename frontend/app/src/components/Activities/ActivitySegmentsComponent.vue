@@ -179,7 +179,7 @@ export default {
             else {
                 label.setIcon(L.divIcon({
                     className: 'leaflet-label',
-                    html: `<div style="background-color: white; border: 1px solid black; padding: 2px; border-radius: 5px; text-align: center;">
+                    html: `<div style="background-color: yellow; border: 1px solid black; padding: 2px; border-radius: 5px; text-align: center;">
                             <span style="color: black; font-size: 12px; font-weight: bold;">${gateIdx}</span>
                         </div>`,
                     iconSize: new L.Point(15, 15)
