@@ -68,6 +68,7 @@ def check_required_dirs():
         DATA_DIR,
         USER_IMAGES_DIR,
         SERVER_IMAGES_DIR,
+        ACTIVITY_MEDIA_DIR,
         FILES_DIR,
         FILES_PROCESSED_DIR,
         FILES_BULK_IMPORT_DIR,
