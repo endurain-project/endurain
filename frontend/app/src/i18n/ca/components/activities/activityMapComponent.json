@@ -2,7 +2,7 @@
     "modalMediaDeleteTitle": "Esborra mèdia",
     "modalMediaDeleteBody1": "Segur que vols esborrar media amb ID ",
     "modalMediaDeleteBody2": " i nom ",
-    "errorFetchingActivityStream": "Error fetching activity stream data",
-    "mediaDeletedSuccessfully": "Media deleted successfully",
-    "errorDeletingMedia": "Error deleting media"
+    "errorFetchingActivityStream": "Error obtenint dades del flux d'activitats",
+    "mediaDeletedSuccessfully": "Multimèdia esborrat correctament",
+    "errorDeletingMedia": "Error esborrant multimèdia"
 }

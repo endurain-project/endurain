@@ -23,6 +23,7 @@
     "searchSelectGearType4": "Raquette",
     "searchSelectGearType5": "Skis",
     "searchSelectGearType6": "Snowboard",
+    "searchSelectGearType7": "Windsurf",
     "resultIsInactiveBadge": "Inactif",
     "searchInputPlaceholder": "Rechercher le texte",
     "errorFetchingUserWithUsernameContains": "Erreur lors de la récupération de l'utilisateur avec le nom d'utilisateur",
