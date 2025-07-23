@@ -54,7 +54,6 @@ def check_required_env_vars():
         "SECRET_KEY",
         "FERNET_KEY",
         "ENDURAIN_HOST",
-        "GEOCODES_MAPS_API",
     ]
 
     for var in required_env_vars:
