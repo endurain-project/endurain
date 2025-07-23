@@ -23,8 +23,10 @@
 					<div v-if="isLoading">
 						<LoadingComponent />
 					</div>
-					<UserDistanceStatsComponent :thisWeekDistances="thisWeekDistances"
-						:thisMonthDistances="thisMonthDistances" v-else />
+					<UserDistanceStatsComponent 
+						:thisWeekDistances="thisWeekDistances"
+						:thisMonthDistances="thisMonthDistances" 
+						:userGoals="userGoals" v-else />
 				</div>
 
 				<!-- add activity and refresh buttons -->
@@ -129,6 +131,7 @@ import { useAuthStore } from "@/stores/authStore";
 import { useServerSettingsStore } from "@/stores/serverSettingsStore";
 // Import the services
 import { activities } from "@/services/activitiesService";
+import {userGoals as userGoalsService} from "@/services/userGoalsService";
 import { activityMedia } from "@/services/activityMediaService";
 // Import Notivue push
 import { push } from "notivue";
@@ -148,6 +151,7 @@ const selectedActivityView = ref("userActivities");
 const isLoading = ref(true);
 const thisWeekDistances = ref([]);
 const thisMonthDistances = ref([]);
+const userGoals = ref([]);
 const userNumberOfActivities = ref(0);
 const userActivities = ref([]);
 const activityMediaMap = ref({});
@@ -174,6 +178,7 @@ async function fetchUserStars() {
 		thisMonthDistances.value = await activities.getUserThisMonthStats(
 			authStore.user.id,
 		);
+		userGoals.value = await userGoalsService.getUserGoalResults();
 	} catch (error) {
 		// Set the error message
 		push.error(`${t("homeView.errorFetchingUserStats")} - ${error}`);

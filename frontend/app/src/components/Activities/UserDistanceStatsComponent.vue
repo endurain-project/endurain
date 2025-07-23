@@ -1,3 +1,14 @@
+<style>
+	.goal-target {
+		color: grey;
+	}
+
+	.goal-progress {
+		font-weight: bold;
+		font-size: x-large;
+	}
+</style>
+
 <template>
     <div class="">
 		<div class="text-center">
@@ -147,6 +158,73 @@
 				</span>
             </div>
 		</div>
+
+		<hr>
+
+        <div class="row mt-3 text-center" v-for="goal in userGoals">
+			<div class="text-center" style="margin-bottom: 10px;">
+				<span>
+					{{ $t("userDistanceStats.progressGoalTitle") }} {{ $t(goal.interval_intl_key) }}
+				</span>
+			</div>
+            <!-- progress goal -->
+            <div class="col">
+				<font-awesome-icon :icon=goal.icon size="2x"/>
+				<br>
+
+				<!-- distance -->
+				<div class="row">
+					<div v-if="goal.goal_distance">
+						<span class="goal-progress">
+							{{ goal.total_distance }}
+							<span v-if="Number(authStore?.user?.units) === 1">
+							<span>
+								{{ $t("generalItems.unitsKm") }}
+							</span>
+						</span>
+						</span>
+						
+						/
+						<span class="goal-target">
+							{{ goal.goal_distance }}
+							<span v-if="Number(authStore?.user?.units) === 1">
+							<span>
+								{{ $t("generalItems.unitsKm") }}
+							</span>
+						</span>
+						</span>
+						
+					</div>
+				</div>
+
+				<!-- calories -->
+				<div class="row">
+					<div v-if="goal.goal_calories">
+						<span class="goal-progress">{{ goal.total_calories }}</span>
+						/
+						<span class="goal-target">{{ goal.goal_calories }}</span>
+					</div>
+				</div>
+				
+				<!-- duration -->
+				<div class="row">
+					<div v-if="goal.goal_duration">
+						<span class="goal-progress">{{ goal.total_duration }}</span>
+						/
+						<span class="goal-target">{{ goal.goal_duration }}</span>
+					</div>
+				</div>
+				
+				<!-- elevation -->
+				<div class="row">
+					<div v-if="goal.goal_elevation">
+						{{ goal.total_elevation }}
+						/
+						{{ goal.goal_elevation }}
+					</div>
+				</div>
+            </div>
+        </div>
     </div>
 </template>
 
@@ -166,16 +244,21 @@ const props = defineProps({
 		type: Object,
 		required: true,
 	},
+	userGoals: {
+		type: Object,
+		required: true
+	},
 });
 
 const authStore = useAuthStore();
 const { t } = useI18n();
 
+const convertDistanceMetersToKmsOrMiles = (distance) => 
+	Number(authStore.user.units) === 1 ? metersToKm(distance) : metersToMiles(distance);
+const convertDistanceMetersToYards = (distance) => 
+	Number(authStore.user.units) === 1 ? metersToKm(distance) : metersToYards(distance);
+
 const getTopThreeActivities = (distances) => {
-	const convertDistanceMetersToKmsOrMiles = (distance) => 
-		Number(authStore.user.units) === 1 ? metersToKm(distance) : metersToMiles(distance);
-	const convertDistanceMetersToYards = (distance) => 
-		Number(authStore.user.units) === 1 ? metersToKm(distance) : metersToYards(distance);
 
 	const activities = [
 		{

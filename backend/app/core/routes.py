@@ -23,6 +23,7 @@ import gears.gear.router as gears_router
 import gears.gear_components.router as gear_components_router
 import health_data.router as health_data_router
 import health_targets.router as health_targets_router
+import users.user_goals.router as user_goals_router
 import notifications.router as notifications_router
 import profile.router as profile_router
 import server_settings.public_router as server_settings_public_router
@@ -124,6 +125,12 @@ router.include_router(
     health_targets_router.router,
     prefix=core_config.ROOT_PATH + "/health_targets",
     tags=["health_targets"],
+    dependencies=[Depends(session_security.validate_access_token)],
+)
+router.include_router(
+    user_goals_router.router,
+    prefix=core_config.ROOT_PATH + "/goals",
+    tags=["goals"],
     dependencies=[Depends(session_security.validate_access_token)],
 )
 router.include_router(

@@ -634,6 +634,45 @@ export function getIcon(typeId) {
 	return iconMap[typeId] || ["fas", "dumbbell"];
 }
 
+// TODO: use i18n ?
+export const activityList = {
+	1: "Run",
+    2: "Trail run",
+    3: "Virtual run",
+    4: "Ride",
+    5: "Gravel ride",
+    6: "MTB ride",
+    7: "Virtual ride",
+    8: "Lap swimming",
+    9: "Open water swimming",
+    10: "Workout",
+    11: "Walk",
+    12: "Hike",
+    13: "Rowing",
+    14: "Yoga",
+    15: "Alpine ski",
+    16: "Nordic ski",
+    17: "Snowboard",
+    18: "Transition",
+    19: "Strength training",
+    20: "Crossfit",
+    21: "Tennis",
+    22: "TableTennis",
+    23: "Badminton",
+    24: "Squash",
+    25: "Racquetball",
+    26: "Pickleball",
+    27: "Commuting ride",
+    28: "Indoor ride",
+    29: "Mixed surface ride"
+}
+
+export const goalIntervalList = {
+	monthly: "summaryView.optionMonthly",
+	weekly: "summaryView.optionWeekly",
+	daily: "summaryView.optionDaily",
+}
+
 /**
  * Formats the location of an activity into a readable string.
  *
@@ -686,3 +725,8 @@ export function formatRawDistance(meters, unitSystem) {
 	const unitLabel = Number(unitSystem) === 1 ? i18n.global.t("generalItems.unitsKm") : i18n.global.t("generalItems.unitsMiles");
 	return `${formattedValue} ${unitLabel}`;
 }
+
+export const convertDistanceMetersToKmsOrMiles = (distance, useMeter = true) => 
+			useMeter ? metersToKm(distance) : metersToMiles(distance);
+export const convertDistanceMetersToYards = (distance, useMeter = true) => 
+			useMeter ? metersToKm(distance) : metersToYards(distance);

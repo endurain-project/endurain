@@ -1,0 +1,16 @@
+{
+    "addNewGoal": "Add New Goal",
+    "goalTitle": "Goal {index}",
+    "deleteGoalConfirm": "Are you sure you want to delete this goal?",
+    "errorFetchingGoals": "Error fetching goals",
+    "goalUpdated": "Goal updated successfully",
+    "errorUpdatingGoal": "Error updating goal",
+    "goalDeleted": "Goal deleted successfully",
+    "goalIntervalDescription": "Interval (e.g., daily, weekly, monthly)",
+    "goalActivityTypeDescription": "Type of activity (e.g., running, cycling)",
+    "goalCaloriesDescription": "Total calories to burn",
+    "goalActivitiesDescription": "Total number of activities",
+    "goalDistanceDescription": "Distance to cover (in m)",
+    "goalDurationDescription": "Total duration (e.g. 1h 30m, 2h 15m, etc.)",
+    "goalElevationDescription": "Total elevation gain (in m)"
+}

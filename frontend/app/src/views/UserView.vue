@@ -58,7 +58,11 @@
                 <div v-if="isLoading">
                     <LoadingComponent />
                 </div>
-                <UserDistanceStatsComponent :thisWeekDistances="thisWeekDistances" :thisMonthDistances="thisMonthDistances" v-else/>
+                <UserDistanceStatsComponent 
+                    :thisWeekDistances="thisWeekDistances" 
+                    :thisMonthDistances="thisMonthDistances" 
+                    :userGoals="userGoals"
+                    v-else/>
             </div>
         </div>
     </div>
@@ -214,6 +218,7 @@ import { useAuthStore } from '@/stores/authStore';
 import { users } from '@/services/usersService';
 import { activities } from '@/services/activitiesService';
 import { followers } from '@/services/followersService';
+import { userGoals as userGoalsService } from "@/services/userGoalsService";
 // Import Notivue push
 import { push } from 'notivue'
 // Importing the components
@@ -233,6 +238,7 @@ const route = useRoute();
 const userProfile = ref(null);
 const thisWeekDistances = ref([]);
 const thisMonthDistances = ref([]);
+const userGoals = ref([]);
 const thisMonthNumberOfActivities = ref(0);
 const followersCountAccepted = ref(0);
 const followingCountAccepted = ref(0);
@@ -255,6 +261,7 @@ async function fetchUserStars() {
     try {
         thisWeekDistances.value = await activities.getUserThisWeekStats(authStore.user.id);
         thisMonthDistances.value = await activities.getUserThisMonthStats(authStore.user.id);
+        userGoals.value = await userGoalsService.getUserGoalResults();
     } catch (error) {
         // Set the error message
         push.error(`${t('userView.errorFetchingUserStats')} - ${error}`)
