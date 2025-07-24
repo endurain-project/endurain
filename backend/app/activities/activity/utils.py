@@ -847,7 +847,7 @@ def location_based_on_coordinates(latitude, longitude) -> dict | None:
             f"Error in location_based_on_coordinates - {str(err)}", "error"
         )
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
+            status_code=status.HTTP_424_FAILED_DEPENDENCY,
             detail=f"Error in location_based_on_coordinates: {str(err)}",
         ) from err
 

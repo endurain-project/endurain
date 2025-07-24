@@ -80,7 +80,7 @@ async def link_garminconnect(
 
         if not garmin.garth.oauth1_token:
             raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
+                status_code=status.HTTP_424_FAILED_DEPENDENCY,
                 detail="Incorrect Garmin Connect credentials",
                 headers={"WWW-Authenticate": "Bearer"},
             )
@@ -105,7 +105,7 @@ async def link_garminconnect(
             err,
         )
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
+            status_code=status.HTTP_424_FAILED_DEPENDENCY,
             detail="There was an authentication error using Garmin Connect. Check credentials.",
         ) from err
     except garminconnect.GarminConnectTooManyRequestsError as err:
@@ -115,7 +115,7 @@ async def link_garminconnect(
         ) from err
     except TypeError as err:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
+            status_code=status.HTTP_424_FAILED_DEPENDENCY,
             detail="Incorrect MFA code",
         ) from err
     except Exception as err:

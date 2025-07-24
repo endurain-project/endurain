@@ -101,7 +101,7 @@ async def refresh_token(
     # Check if the session was found
     if session is None:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
+            status_code=status.HTTP_404_NOT_FOUND,
             detail="Session not found",
             headers={"WWW-Authenticate": "Bearer"},
         )
