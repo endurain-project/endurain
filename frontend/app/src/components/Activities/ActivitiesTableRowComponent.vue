@@ -4,7 +4,8 @@
     </td>
     <td>
         <router-link :to="{ name: 'activity', params: { id: activity.id } }" class="link-body-emphasis link-underline-opacity-0 link-underline-opacity-100-hover">
-            {{ formatName(activity, t) }}
+            <span v-if="activity.name === 'Workout'">{{ formatName(activity, t) }}</span>
+            <span v-else>{{ activity.name }}</span>
         </router-link>
     </td>
     <td>{{ formatLocation(activity) }}</td>
