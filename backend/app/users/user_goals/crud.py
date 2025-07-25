@@ -1,15 +1,12 @@
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
-from typing import List, Optional
-from datetime import datetime, timedelta
-
-from activities.activity.utils import ACTIVITY_ID_TO_NAME
+from typing import List
+from datetime import datetime
 
 import users.user_goals.schema as user_goals_schema
 import users.user_goals.models as user_goals_models
-
-import activities.activity.models as activity_models
+import users.user_goals.utils as user_goals_utils
 
 import core.logger as core_logger
 
@@ -83,7 +80,8 @@ def calculate_user_goals(
             return None
 
         return [
-            calculate_goal_progress_by_activity_type(db, goal, date) for goal in goals
+            user_goals_utils.calculate_goal_progress_by_activity_type(goal, date, db)
+            for goal in goals
         ]
     except HTTPException as http_err:
         raise http_err
@@ -228,6 +226,20 @@ def update_user_goal(
 
 
 def delete_user_goal(user_id: int, goal_id: int, db: Session):
+    """
+    Deletes a user goal from the database for a given user and goal ID.
+
+    Args:
+        user_id (int): The ID of the user whose goal is to be deleted.
+        goal_id (int): The ID of the goal to be deleted.
+        db (Session): The SQLAlchemy database session.
+
+    Returns:
+        dict: A message indicating successful deletion.
+
+    Raises:
+        HTTPException: If the user goal is not found (404) or if an internal server error occurs (500).
+    """
     try:
         db_user_goal = (
             db.query(user_goals_models.UserGoal)
@@ -256,135 +268,3 @@ def delete_user_goal(user_id: int, goal_id: int, db: Session):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal Server Error",
         ) from err
-
-
-def calculate_goal_progress_by_activity_type(
-    db: Session, goal: user_goals_models.UserGoal, date: str
-) -> user_goals_schema.UserGoalProgress:
-    """Calculate goal progress for a specific activity type"""
-    try:
-        activities = get_activities_by_interval(db, goal, date)
-        start_date, end_date = get_start_end_date_by_interval(goal.interval, date)
-
-        if not activities:
-            return user_goals_schema.UserGoalProgress(
-                goal_id=goal.id,
-                activity_type=goal.activity_type,
-                activity_type_name=(
-                    ACTIVITY_ID_TO_NAME[goal.activity_type]
-                    if goal.activity_type
-                    else None
-                ),
-                interval=goal.interval,
-                start_date=start_date.strftime("%Y-%m-%d"),
-                end_date=end_date.strftime("%Y-%m-%d"),
-                goal_duration=goal.goal_duration,
-                goal_distance=goal.goal_distance,
-                goal_elevation=goal.goal_elevation,
-                goal_calories=goal.goal_calories,
-                goal_steps=goal.goal_steps,
-                goal_count=goal.goal_count,
-            )
-
-        total_duration = sum(
-            activity.total_elapsed_time or 0 for activity in activities
-        )
-        total_distance = sum(activity.distance or 0 for activity in activities)
-        total_elevation = sum(activity.elevation_gain or 0 for activity in activities)
-        total_calories = sum(activity.calories or 0 for activity in activities)
-
-        return user_goals_schema.UserGoalProgress(
-            goal_id=goal.id,
-            activity_type=goal.activity_type,
-            activity_type_name=(
-                ACTIVITY_ID_TO_NAME[goal.activity_type] if goal.activity_type else None
-            ),
-            interval=goal.interval,
-            start_date=start_date.strftime("%Y-%m-%d"),
-            end_date=end_date.strftime("%Y-%m-%d"),
-            total_activities=len(activities),
-            total_duration=total_duration,
-            total_distance=total_distance,
-            total_elevation=total_elevation,
-            total_calories=total_calories,
-            goal_duration=goal.goal_duration,
-            goal_distance=goal.goal_distance,
-            goal_elevation=goal.goal_elevation,
-            goal_calories=goal.goal_calories,
-            goal_steps=goal.goal_steps,
-            goal_count=goal.goal_count,
-        )
-
-    except HTTPException as http_err:
-        raise http_err
-    except Exception as err:
-        # Log the exception
-        core_logger.print_to_log(
-            f"Error in calculate_goal_progress_by_activity_type: {err}",
-            "error",
-            exc=err,
-        )
-        # Raise an HTTPException with a 500 Internal Server Error status code
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Internal Server Error",
-        ) from err
-
-
-def get_activities_by_interval(
-    db: Session, goal: user_goals_models.UserGoal, date: str
-) -> List[activity_models.Activity]:
-    """Get activities filtered by goal interval"""
-
-    try:
-        start_date, end_date = get_start_end_date_by_interval(goal.interval, date)
-
-        return (
-            db.query(activity_models.Activity)
-            .filter(
-                activity_models.Activity.user_id == goal.user_id,
-                activity_models.Activity.activity_type == goal.activity_type,
-                activity_models.Activity.start_time >= start_date,
-                activity_models.Activity.start_time <= end_date,
-            )
-            .all()
-        )
-    except HTTPException as http_err:
-        raise http_err
-    except Exception as err:
-        # Log the exception
-        core_logger.print_to_log(
-            f"Error in get_activities_by_interval: {err}", "error", exc=err
-        )
-        # Raise an HTTPException with a 500 Internal Server Error status code
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Internal Server Error",
-        ) from err
-
-
-def get_start_end_date_by_interval(
-    interval: str, date: str
-) -> tuple[datetime, datetime]:
-    """Get start and end dates based on the interval"""
-    date_obj = datetime.strptime(date, "%Y-%m-%d")
-
-    if interval == "weekly":
-        start_date = date_obj - timedelta(days=date_obj.weekday())  # Monday
-        end_date = start_date + timedelta(
-            days=6, hours=23, minutes=59, seconds=59
-        )  # Sunday
-    elif interval == "monthly":
-        start_date = date_obj.replace(day=1)
-        end_date = (start_date + timedelta(days=31)).replace(day=1) - timedelta(
-            seconds=1
-        )  # Last day of the month
-    elif interval == "daily":
-        start_date = date_obj.replace(hour=0, minute=0, second=0, microsecond=0)
-        end_date = date_obj + timedelta(hours=23, minutes=59, seconds=59)
-    else:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid interval specified"
-        )
-
-    return start_date, end_date

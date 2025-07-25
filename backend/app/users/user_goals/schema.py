@@ -12,12 +12,12 @@ goal_value_error = ValueError("Goal values must be non-negative")
 class UserGoalBase(BaseModel):
     interval: str
     activity_type: int
-    goal_duration: Optional[int] = 0
-    goal_distance: Optional[int] = 0
-    goal_elevation: Optional[int] = 0
-    goal_calories: Optional[int] = 0
-    goal_steps: Optional[int] = 0
-    goal_count: Optional[int] = 0
+    goal_duration: int | None = 0
+    goal_distance: int | None = 0
+    goal_elevation: int | None = 0
+    goal_calories: int | None = 0
+    goal_steps: int | None = 0
+    goal_count: int | None = 0
 
     @field_validator("interval")
     def validate_interval(cls, value):
