@@ -131,7 +131,7 @@ import { useAuthStore } from "@/stores/authStore";
 import { useServerSettingsStore } from "@/stores/serverSettingsStore";
 // Import the services
 import { activities } from "@/services/activitiesService";
-import {userGoals as userGoalsService} from "@/services/userGoalsService";
+import { userGoals as userGoalsService } from "@/services/userGoalsService";
 import { activityMedia } from "@/services/activityMediaService";
 // Import Notivue push
 import { push } from "notivue";
