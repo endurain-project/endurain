@@ -94,9 +94,9 @@
 						<font-awesome-icon :icon="['fas', 'coins']" class="me-2" />
 						<b>{{ $t("settingsUserProfileZone.currencyLabel") }}: </b>
 						<span v-if="Number(authStore?.user?.currency) === 1">{{ $t("generalItems.currencyEuro")
-							}}</span>
+						}}</span>
 						<span v-else-if="Number(authStore?.user?.currency) === 2">{{ $t("generalItems.currencyDollar")
-							}}</span>
+						}}</span>
 						<span v-else>{{ $t("generalItems.currencyPound") }}</span>
 					</p>
 					<!-- user height -->
@@ -636,6 +636,7 @@ const bikeGear = ref(null)
 const swimGear = ref(null)
 const racquetGear = ref(null)
 const windsurfGear = ref(null)
+const waterSportsBoardGear = ref(null)
 const skisGear = ref(null)
 const snowboardGear = ref(null)
 const defaultGear = ref(null)
@@ -857,6 +858,7 @@ onMounted(async () => {
 		skisGear.value = allGears.value.filter((gear) => gear.gear_type === 5)
 		snowboardGear.value = allGears.value.filter((gear) => gear.gear_type === 6)
 		windsurfGear.value = allGears.value.filter((gear) => gear.gear_type === 7)
+		waterSportsBoardGear.value = allGears.value.filter((gear) => gear.gear_type === 8)
 
 		// Get default gear for the user
 		await getDefaultGear();

@@ -105,6 +105,10 @@
                             <hr>
                             <option value="30">{{ $t("editActivityModalComponent.modalEditActivityTypeOption30") }}
                             </option>
+                            <option value="32">{{ $t("editActivityModalComponent.modalEditActivityTypeOption32") }}
+                            </option>
+                            <option value="33">{{ $t("editActivityModalComponent.modalEditActivityTypeOption33") }}
+                            </option>
                         </select>
                         <!-- visibility fields -->
                         <label for="activityVisibilityEdit"><b>* {{

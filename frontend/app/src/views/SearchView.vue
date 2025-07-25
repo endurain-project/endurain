@@ -25,6 +25,8 @@
                     <option value="10">{{ $t("searchView.searchSelectActivityType10") }}</option>
                     <option value="11">{{ $t("searchView.searchSelectActivityType11") }}</option>
                     <option value="12">{{ $t("searchView.searchSelectActivityType12") }}</option>
+                    <option value="13">{{ $t("searchView.searchSelectActivityType13") }}</option>
+                    <option value="14">{{ $t("searchView.searchSelectActivityType14") }}</option>
                 </select>
                 <!-- Gear type area -->
                 <select id="inputSelectGearTypeToSearch" class="form-select rounded me-1" v-model="searchSelectGearType"
@@ -37,6 +39,7 @@
                     <option value="5">{{ $t("searchView.searchSelectGearType5") }}</option>
                     <option value="6">{{ $t("searchView.searchSelectGearType6") }}</option>
                     <option value="7">{{ $t("searchView.searchSelectGearType7") }}</option>
+                    <option value="8">{{ $t("searchView.searchSelectGearType8") }}</option>
                 </select>
                 <!-- Search area -->
                 <input type="text" class="form-control rounded" id="inputTextFieldToSearch"
@@ -70,6 +73,8 @@
                             v-if="searchSelectValue == 3 && [6].includes(Number(result.gear_type))" />
                         <font-awesome-icon :icon="['fas', 'wind']"
                             v-if="searchSelectValue == 3 && [7].includes(Number(result.gear_type))" />
+                        <font-awesome-icon :icon="['fas', 'person-snowboarding']"
+                            v-if="searchSelectValue == 3 && [8].includes(Number(result.gear_type))" />
                         <div class="ms-3">
                             <div class="fw-bold">
                                 <router-link :to="{ name: 'user', params: { id: result.id } }"
@@ -246,6 +251,14 @@ function updateSearchResultsBasedOnActivityType() {
         searchResults.value = searchResultsOriginal.value.filter((user) =>
             [30].includes(user.activity_type),
         );
+    } else if (searchSelectActivityType.value === "13") {
+        searchResults.value = searchResultsOriginal.value.filter((user) =>
+            [32].includes(user.activity_type),
+        );
+    } else if (searchSelectActivityType.value === "14") {
+        searchResults.value = searchResultsOriginal.value.filter((user) =>
+            [33].includes(user.activity_type),
+        );
     } else {
         searchResults.value = searchResultsOriginal.value;
     }
@@ -279,6 +292,10 @@ function updateSearchResultsBasedOnGearType() {
     } else if (searchSelectGearType.value === "7") {
         searchResults.value = searchResultsOriginal.value.filter((user) =>
             [7].includes(user.gear_type),
+        );
+    } else if (searchSelectGearType.value === "8") {
+        searchResults.value = searchResultsOriginal.value.filter((user) =>
+            [8].includes(user.gear_type),
         );
     } else {
         searchResults.value = searchResultsOriginal.value;

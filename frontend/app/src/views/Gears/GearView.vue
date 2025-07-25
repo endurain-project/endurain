@@ -27,6 +27,8 @@
                         <img src="/src/assets/avatar/snowboard1.png" alt="Snowboard avatar" width="180" height="180"
                             class="rounded-circle" v-else-if="gear?.gear_type == 6">
                         <img src="/src/assets/avatar/windsurf1.png" alt="Windsurf avatar" width="180" height="180"
+                            class="rounded-circle" v-else-if="gear?.gear_type == 7">
+                        <img src="/src/assets/avatar/waterSportsBoard1.png" alt="Water sports board avatar" width="180" height="180"
                             class="rounded-circle" v-else>
                     </div>
                     <br>
@@ -45,8 +47,8 @@
                             </span>
                             <span
                                 class="ms-2 badge bg-primary-subtle border border-primary-subtle text-primary-emphasis align-middle">
-                                {{ $t(`gearView.gearTypeOption${gear?.gear_type >= 1 && gear?.gear_type <= 7 ?
-                                    gear?.gear_type : 7}`) }} </span>
+                                {{ $t(`gearView.gearTypeOption${gear?.gear_type >= 1 && gear?.gear_type <= 8 ?
+                                    gear?.gear_type : 8}`) }} </span>
                                     <span
                                         class="ms-2 badge bg-primary-subtle border border-primary-subtle text-primary-emphasis align-middle"
                                         v-if="gear?.strava_gear_id">

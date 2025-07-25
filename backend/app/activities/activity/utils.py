@@ -78,6 +78,8 @@ ACTIVITY_ID_TO_NAME = {
     29: "Mixed surface ride",
     30: "Windsurf",
     31: "Indoor walking",
+    32: "Stand up paddling",
+    33: "Surf",
     # Add other mappings as needed based on the full list in define_activity_type comments if required
     # "AlpineSki",
     # "BackcountrySki",
@@ -182,6 +184,9 @@ ACTIVITY_NAME_TO_ID.update(
         "windsurf": 30,
         "windsurfing": 30,
         "indoor_walking": 31,
+        "stand_up_paddleboarding": 32,
+        "StandUpPaddling": 32,
+        "Surfing": 33,
     }
 )
 
@@ -722,7 +727,9 @@ def parse_activity_streams_from_file(parsed_info: dict, activity_id: int):
 
 def calculate_activity_distances(activities: list[activities_schema.Activity]):
     # Initialize the distances
-    run = bike = swim = walk = hike = rowing = snow_ski = snowboard = windsurf = 0.0
+    run = bike = swim = walk = hike = rowing = snow_ski = snowboard = windsurf = (
+        stand_up_paddleboarding
+    ) = surfing = 0.0
 
     if activities is not None:
         # Calculate the distances
@@ -745,6 +752,10 @@ def calculate_activity_distances(activities: list[activities_schema.Activity]):
                 snowboard += activity.distance
             elif activity.activity_type in [30]:
                 windsurf += activity.distance
+            elif activity.activity_type in [32]:
+                stand_up_paddleboarding += activity.distance
+            elif activity.activity_type in [33]:
+                surfing += activity.distance
 
     # Return the distances
     return activities_schema.ActivityDistances(

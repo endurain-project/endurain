@@ -187,19 +187,23 @@ The table bellow details the activity types supported by Endurain:
 | Racquetball | 25 |
 | Pickleball | 26 |
 | Windsurf | 30 |
+| Stand up paddling | 32 |
+| Surf | 33 |
 
 
 ## Supported gear types
 The table bellow details the gear types supported by Endurain:
 
-| Name      | Value |
-|-----------|-------|
-| Bike      | 1     |
-| Shoes     | 2     |
-| Wetsuit   | 3     |
-| Racquet   | 4     |
-| Ski       | 5     |
-| Snowboard | 6     |
+| Name               | Value | Notes                                   |
+|--------------------|-------|-----------------------------------------|
+| Bike               | 1     | N/A                                     |
+| Shoes              | 2     | N/A                                     |
+| Wetsuit            | 3     | N/A                                     |
+| Racquet            | 4     | N/A                                     |
+| Ski                | 5     | N/A                                     |
+| Snowboard          | 6     | N/A                                     |
+| Windsurf           | 7     | N/A                                     |
+| Water sports board | 8     | Example: stand up paddle and surf board |
 
 
 ## Supported bike component gear types
