@@ -40,7 +40,8 @@
 									}}</a>
 
 							<!-- Modal edit user -->
-							<UsersAddEditUserModalComponent :action="'profile'" :user="authStore.user" />
+							<UsersAddEditUserModalComponent :action="'profile'" :user="authStore.user"
+								@userPhotoDeleted="submitDeleteUserPhoto" />
 						</div>
 					</div>
 				</div>

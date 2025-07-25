@@ -45,8 +45,9 @@ const alignTopValue = ref(props.alignTop);
 
 function defineUrl() {
     if (props.user?.photo_path) {
-        const pathWithoutConfig = props.user.photo_path.split("/").slice(1).join("/");
+        const pathWithoutConfig = props.user.photo_path.split("/").slice(4).join("/");
         userPhotoUrl.value = props.user.photo_path ? `${window.env.ENDURAIN_HOST}/${pathWithoutConfig}` : null;
+        console.log("User photo URL defined:", userPhotoUrl.value);
     }
 }
 

@@ -53,7 +53,7 @@ async def save_user_image(user_id: int, file: UploadFile, db: Session):
         filename = f"{user_id}{file_extension}"
 
         file_path_to_save = os.path.join(upload_dir, filename)
-        url_path_to_save = os.path.join(core_config.USER_IMAGES_URL_PATH, filename)
+        url_path_to_save = os.path.join(core_config.USER_IMAGES_DIR, filename)
 
         with open(file_path_to_save, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)

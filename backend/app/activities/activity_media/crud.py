@@ -11,9 +11,28 @@ import activities.activity.crud as activity_crud
 import activities.activity_media.models as activity_media_models
 import activities.activity_media.schema as activity_media_schema
 
-import server_settings.crud as server_settings_crud
-
 import core.logger as core_logger
+
+
+def get_all_activity_media(db: Session):
+    try:
+        # Fetch all activity media from the database
+        activity_media = db.query(activity_media_models.ActivityMedia).all()
+
+        if not activity_media:
+            return []
+
+        return activity_media
+    except Exception as err:
+        # Log the exception
+        core_logger.print_to_log(
+            f"Error in get_all_activity_media: {err}", "error", exc=err
+        )
+        # Raise an HTTPException with a 500 Internal Server Error status code
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal Server Error",
+        ) from err
 
 
 def get_activity_media(activity_id: int, token_user_id: int, db: Session):
@@ -196,6 +215,40 @@ def create_activity_medias(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal Server Error",
         ) from err
+
+
+def edit_activity_media_media_path(
+    activity_media_id: int, media_path: str, db: Session
+):
+    try:
+        # Get the user from the database
+        db_activity_media = (
+            db.query(activity_media_models.ActivityMedia).filter(activity_media_models.ActivityMedia.id == activity_media_id).first()
+        )
+
+        # Update the user
+        db_activity_media.media_path = media_path
+
+        # Commit the transaction
+        db.commit()
+
+        # Return the media path
+        return media_path
+    except Exception as err:
+        # Rollback the transaction
+        db.rollback()
+
+        # Log the exception
+        core_logger.print_to_log(
+            f"Error in edit_activity_media_media_path: {err}", "error", exc=err
+        )
+
+        # Raise an HTTPException with a 500 Internal Server Error status code
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal Server Error",
+        ) from err
+
 
 
 def delete_activity_media(activity_media_id: int, token_user_id: int, db: Session):
