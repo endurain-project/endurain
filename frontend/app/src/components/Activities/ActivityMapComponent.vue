@@ -30,7 +30,7 @@
                     <div v-for="(mediaItem, idx) in activityActivityMedia" :key="mediaItem.id || idx"
                         class="carousel-item position-relative" :class="{ active: !activityStreamLatLng && idx === 0 }"
                         :style="{ height: source === 'home' ? '300px' : '500px' }">
-                        <img :src="`${endurainHost}${mediaItem.media_path.split('/').slice(1).join('/')}`"
+                        <img :src="`${endurainHost}${mediaItem.media_path.split('/').slice(4).join('/')}`"
                             class="d-block w-100 rounded" alt="Activity media"
                             :style="{ height: source === 'home' ? '300px' : '500px', objectFit: 'contain' }" />
                         <!-- Delete button for media -->
