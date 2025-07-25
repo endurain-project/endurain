@@ -381,9 +381,12 @@ async function handleFileChange(event) {
 
 async function submitDeleteUserPhoto() {
     try {
-        await users.deleteUserPhoto(props.user.id);
         emit("userPhotoDeleted", props.user.id);
-        push.success(t("usersAddEditUserModalComponent.addEditUserModalSuccessDeleteUserPhoto"));
+
+        if (props.action === 'edit') {
+            await users.deleteUserPhoto(props.user.id);
+            push.success(t("usersAddEditUserModalComponent.addEditUserModalSuccessDeleteUserPhoto"));
+        }
     } catch (error) {
         push.error(`${t("usersAddEditUserModalComponent.addEditUserModalErrorDeleteUserPhoto")} - ${error}`);
     }
@@ -455,6 +458,7 @@ async function submitEditUserForm() {
                 } else {
                     data.photo_path = await users.uploadImage(newEditUserPhotoFile.value, data.id);
                 }
+                console.log(data.photo_path)
             } catch (error) {
                 push.error(`${t("usersAddEditUserModalComponent.addEditUserModalErrorUploadingUserPhoto")} - ${error}`);
             }

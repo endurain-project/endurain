@@ -49,6 +49,8 @@ const ACTIVITY_TYPES = [
 	29,
 	30,
 	31,
+	32,
+	33,
 ]
 
 /**
@@ -93,6 +95,8 @@ const activityLabelMap = {
 	29: t => t("activityItems.mixedSurfaceRide"),
 	30: t => t("activityItems.windsurf"),
 	31: t => t("activityItems.indoorWalk"),
+	32: t => t("activityItems.standUpPaddling"),
+	33: t => t("activityItems.surf"),
 };
 
 /**
@@ -629,6 +633,8 @@ export function getIcon(typeId) {
 		29: ["fas", "person-biking"],
 		30: ["fas", "wind"],
 		31: ["fas", "person-walking"],
+		32: ["fas", "person-snowboarding"],
+		33: ["fas", "person-snowboarding"],
 	};
 
 	return iconMap[typeId] || ["fas", "dumbbell"];

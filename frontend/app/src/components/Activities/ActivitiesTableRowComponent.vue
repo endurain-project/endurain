@@ -4,7 +4,8 @@
     </td>
     <td>
         <router-link :to="{ name: 'activity', params: { id: activity.id } }" class="link-body-emphasis link-underline-opacity-0 link-underline-opacity-100-hover">
-            {{ activity.name }}
+            <span v-if="activity.name === 'Workout'">{{ formatName(activity, t) }}</span>
+            <span v-else>{{ activity.name }}</span>
         </router-link>
     </td>
     <td>{{ formatLocation(activity) }}</td>
@@ -30,6 +31,7 @@
 <script setup>
 // Importing the stores
 import { useAuthStore } from "@/stores/authStore";
+import { useI18n } from "vue-i18n";
 // Importing the utils
 import {
 	formatDuration,
@@ -47,6 +49,7 @@ import {
     activityTypeIsRunning,
     activityTypeIsSwimming,
     activityTypeIsRowing,
+    formatName,
 } from "@/utils/activityUtils";
 
 // Define props
@@ -58,4 +61,5 @@ const props = defineProps({
 });
 
 const authStore = useAuthStore();
+const { t } = useI18n();
 </script>

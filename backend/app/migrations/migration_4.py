@@ -8,7 +8,7 @@ import core.logger as core_logger
 
 
 def process_migration_4(db: Session):
-    core_logger.print_to_log("Started migration 4")
+    core_logger.print_to_log_and_console("Started migration 4")
 
     users_processed_with_no_errors = True
 
@@ -23,7 +23,7 @@ def process_migration_4(db: Session):
 
                 user_crud.edit_user_photo_path(user.id, user.photo_path, db)
             except Exception as err:
-                core_logger.print_to_log(
+                core_logger.print_to_log_and_console(
                     f"Migration 4 - Error processing user {user.id}: {err}",
                     "error",
                     exc=err,
@@ -36,16 +36,16 @@ def process_migration_4(db: Session):
         try:
             migrations_crud.set_migration_as_executed(4, db)
         except Exception as err:
-            core_logger.print_to_log(
+            core_logger.print_to_log_and_console(
                 f"Migration 4 - Failed to set migration as executed: {err}",
                 "error",
                 exc=err,
             )
             return
     else:
-        core_logger.print_to_log(
+        core_logger.print_to_log_and_console(
             "Migration 4 failed to process all users. Will try again later.",
             "error",
         )
 
-    core_logger.print_to_log("Finished migration 4")
+    core_logger.print_to_log_and_console("Finished migration 4")

@@ -308,6 +308,11 @@ def edit_user(user_id: int, user: users_schema.User, db: Session):
 
         height_before = db_user.height
 
+        # If the user photo path is different, delete the user photo in the filesystem
+        if db_user.photo_path != user.photo_path:
+            # Delete the user photo in the filesystem
+            users_utils.delete_user_photo_filesystem(db_user.id)
+
         # Dictionary of the fields to update if they are not None
         user_data = user.model_dump(exclude_unset=True)
         # Iterate over the fields and update the db_user dynamically

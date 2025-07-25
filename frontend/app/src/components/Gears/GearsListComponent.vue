@@ -14,6 +14,8 @@
             <img src="/src/assets/avatar/snowboard1.png" alt="snowboard avatar" width="55" height="55"
                 class="rounded-circle" v-else-if="gear.gear_type == 6">
             <img src="/src/assets/avatar/windsurf1.png" alt="windsurf avatar" width="55" height="55"
+                class="rounded-circle" v-else-if="gear.gear_type == 7">
+            <img src="/src/assets/avatar/waterSportsBoard1.png" alt="water sports board avatar" width="55" height="55"
                 class="rounded-circle" v-else>
             <div class="ms-3">
                 <div class="fw-bold">
@@ -29,7 +31,8 @@
                 <span v-else-if="gear.gear_type == 4">{{ $t("gearsListComponent.gearListTypeOption4") }}</span>
                 <span v-else-if="gear.gear_type == 5">{{ $t("gearsListComponent.gearListTypeOption5") }}</span>
                 <span v-else-if="gear.gear_type == 6">{{ $t("gearsListComponent.gearListTypeOption6") }}</span>
-                <span v-else>{{ $t("gearsListComponent.gearListTypeOption7") }}</span>
+                <span v-else-if="gear.gear_type == 7">{{ $t("gearsListComponent.gearListTypeOption7") }}</span>
+                <span v-else>{{ $t("gearsListComponent.gearListTypeOption8") }}</span>
                 <br>
             </div>
         </div>

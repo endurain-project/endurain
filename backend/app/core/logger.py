@@ -1,5 +1,6 @@
 import logging
 
+import core.config as core_config
 
 def setup_main_logger():
     """
@@ -16,7 +17,7 @@ def setup_main_logger():
     main_logger = logging.getLogger("main_logger")
     main_logger.setLevel(logging.DEBUG)
 
-    file_handler = logging.FileHandler("logs/app.log")
+    file_handler = logging.FileHandler(f"{core_config.LOGS_DIR}/app.log")
     file_handler.setLevel(logging.DEBUG)
 
     formatter = logging.Formatter(

@@ -149,6 +149,14 @@ def parse_gpx_file(
                                             )
                                             if cad_element is not None:
                                                 cadence = cad_element.text
+
+                                            # OpenTracks extension
+                                            if hr_element is None and cad_element is None:
+                                                for child in extension:
+                                                    if child.tag.endswith("hr"):
+                                                        heart_rate = child.text
+                                                    elif child.tag.endswith("cad"):
+                                                        cadence = child.text
                                         elif extension.tag.endswith("power"):
                                             # Extract 'power' value
                                             power = extension.text

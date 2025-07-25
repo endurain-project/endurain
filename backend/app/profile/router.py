@@ -104,7 +104,7 @@ async def read_users_me(
     # If the user does not exist raise the exception
     if user is None:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
+            status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found",
             headers={"WWW-Authenticate": "Bearer"},
         )
@@ -115,7 +115,7 @@ async def read_users_me(
 
     if user_integrations is None:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
+            status_code=status.HTTP_404_NOT_FOUND,
             detail="Could not validate credentials (user integrations not found)",
             headers={"WWW-Authenticate": "Bearer"},
         )
@@ -129,7 +129,7 @@ async def read_users_me(
 
     if user_privacy_settings is None:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
+            status_code=status.HTTP_404_NOT_FOUND,
             detail="Could not validate credentials (user privacy settings not found)",
             headers={"WWW-Authenticate": "Bearer"},
         )

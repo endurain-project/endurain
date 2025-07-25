@@ -14,14 +14,14 @@ import core.logger as core_logger
 
 
 def process_migration_1(db: Session):
-    core_logger.print_to_log("Started migration 1")
+    core_logger.print_to_log_and_console("Started migration 1")
 
     activities_processed_with_no_errors = True
 
     try:
         activities = activities_crud.get_all_activities(db)
     except Exception as err:
-        core_logger.print_to_log(
+        core_logger.print_to_log_and_console(
             f"Migration 1 - Error fetching activities: {err}", "error", exc=err
         )
         return
@@ -58,7 +58,7 @@ def process_migration_1(db: Session):
                         activity.id, db
                     )
                 except Exception as err:
-                    core_logger.print_to_log(
+                    core_logger.print_to_log_and_console(
                         f"Migration 1 - Failed to fetch streams for activity {activity.id}: {err}",
                         "warning",
                         exc=err,
@@ -115,12 +115,12 @@ def process_migration_1(db: Session):
 
                 # Update the activity in the database
                 activities_crud.edit_activity(activity.user_id, activity, db)
-                core_logger.print_to_log(
+                core_logger.print_to_log_and_console(
                     f"Migration 1 - Processed activity: {activity.id} - {activity.name}"
                 )
             except Exception as err:
                 activities_processed_with_no_errors = False
-                core_logger.print_to_log(
+                core_logger.print_to_log_and_console(
                     f"Migration 1 - Failed to process activity {activity.id}: {err}",
                     "error",
                     exc=err,
@@ -131,16 +131,16 @@ def process_migration_1(db: Session):
         try:
             migrations_crud.set_migration_as_executed(1, db)
         except Exception as err:
-            core_logger.print_to_log(
+            core_logger.print_to_log_and_console(
                 f"Migration 1 - Failed to set migration as executed: {err}",
                 "error",
                 exc=err,
             )
             return
     else:
-        core_logger.print_to_log(
+        core_logger.print_to_log_and_console(
             "Migration 1 failed to process all activities. Will try again later.",
             "error",
         )
 
-    core_logger.print_to_log("Finished migration 1")
+    core_logger.print_to_log_and_console("Finished migration 1")

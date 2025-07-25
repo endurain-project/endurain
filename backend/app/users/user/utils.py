@@ -53,11 +53,12 @@ async def save_user_image(user_id: int, file: UploadFile, db: Session):
         filename = f"{user_id}{file_extension}"
 
         file_path_to_save = os.path.join(upload_dir, filename)
+        url_path_to_save = os.path.join(core_config.USER_IMAGES_DIR, filename)
 
         with open(file_path_to_save, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
 
-        return users_crud.edit_user_photo_path(user_id, file_path_to_save, db)
+        return users_crud.edit_user_photo_path(user_id, url_path_to_save, db)
     except Exception as err:
         # Log the exception
         core_logger.print_to_log(f"Error in save_user_image: {err}", "error", exc=err)
