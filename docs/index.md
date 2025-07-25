@@ -52,6 +52,7 @@ Endurain currently supports:
 - Activity feeds and statistics (week/month)
 - Basic activity privacy settings
 - Gear tracking (wetsuits, bicycles, shoes, racquets, skis, snowboards)
+- Gear component tracking (e.g., track when components like bike chains need replacing)
 - Default gear for activity types
 - User pages with stats and activity histories
 - Follower features (view activities)
@@ -60,15 +61,14 @@ Endurain currently supports:
 - Dark/light theme switcher
 - Third-party app support
 - Weight logging
+- Notification system
 
 ## Planned Features
 
 Upcoming features (in no particular order):
 
 - Live tracking
-- Gear component tracking (e.g., track when components like bike chains need replacing)
 - Activity comments and likes
-- Notification system
 - Potential ActivityPub integration
 
 ## Sponsors
@@ -96,7 +96,7 @@ Currently supported in:
  - French (FR) [@gwenvador](https://github.com/gwenvador)
  - Dutch (NL) [@woutvanderaa](https://github.com/woutvanderaa)
  - Portuguese (PT)
- - Spanish (ES) [@rgmelkor](https://github.com/rgmelkor)
+ - Spanish (ES) [@rgmelkor](https://github.com/rgmelkor) and [@tinchodin](https://github.com/tinchodin)
  - English (US)
 
 ## Star History

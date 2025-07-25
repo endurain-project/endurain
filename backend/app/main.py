@@ -134,11 +134,14 @@ def create_app() -> FastAPI:
 # Silence stravalib token warnings
 os.environ["SILENCE_TOKEN_WARNINGS"] = "TRUE"
 
-# Create the FastAPI application
-app = create_app()
-
 # Check for required environment variables
 core_config.check_required_env_vars()
+
+# Check for required directories
+core_config.check_required_dirs()
+
+# Create the FastAPI application
+app = create_app()
 
 # Create logggers
 core_logger.setup_main_logger()
