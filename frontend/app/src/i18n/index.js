@@ -386,6 +386,7 @@ import ptSettingsLanguageSwitcherComponent from './pt/components/settings/settin
 import ptSettingsUserProfileZoneComponent from './pt/components/settings/settingsUserProfileZoneComponent.json';
 import ptSettingsSecurityZoneComponent from './pt/components/settings/settingsSecurityZoneComponent.json';
 import ptSettingsIntegrationsZoneComponent from './pt/components/settings/settingsIntegrationsZoneComponent.json';
+import usSettingsImportZoneComponent from './us/components/settings/settingsImportZoneComponent.json';
 import ptGarminConnectLoginModalComponent from './pt/components/settings/settingsIntegrationsZone/garminConnectLoginModalComponent.json';
 import ptUsersAddEditUserModalComponent from './pt/components/settings/settingsUsersZone/usersAddEditUserModalComponent.json';
 import ptUsersChangeUserPasswordModalComponent from './pt/components/settings/settingsUsersZone/usersChangeUserPasswordModalComponent.json';
@@ -933,6 +934,7 @@ const messages = {
 		settingsUserProfileZone: usSettingsUserProfileZoneComponent,
 		settingsSecurityZone: usSettingsSecurityZoneComponent,
 		settingsIntegrationsZone: usSettingsIntegrationsZoneComponent,
+		settingsImportZone: usSettingsImportZoneComponent,
 		garminConnectLoginModalComponent: usGarminConnectLoginModalComponent,
 		usersAddEditUserModalComponent: usUsersAddEditUserModalComponent,
 		usersChangeUserPasswordModalComponent: usUsersChangeUserPasswordModalComponent,
