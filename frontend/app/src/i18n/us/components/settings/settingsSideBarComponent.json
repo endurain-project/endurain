@@ -4,5 +4,6 @@
     "generalSection": "General",
     "myProfileSection": "My Profile",
     "securitySection": "Security",
-    "integrationsSection": "Integrations"
+    "integrationsSection": "Integrations",
+     "importSection": "Import"
 }
