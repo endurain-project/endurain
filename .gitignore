@@ -91,3 +91,8 @@ memory-bank/
 
 # local postgres
 postgres/
+
+# Perkins scripts
+cycle-docker.sh 
+build-new-image.sh 
+
