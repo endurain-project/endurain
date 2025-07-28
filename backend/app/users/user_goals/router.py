@@ -1,7 +1,7 @@
-from typing import Annotated, List
+from typing import Annotated, List, Callable
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, Callable
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 import users.user_goals.dependencies as user_goals_dependencies

@@ -203,6 +203,8 @@ def create_activity_sets(
                 category = activity_set.category if activity_set.category else None
                 category_subtype = activity_set.category_subtype if activity_set.category_subtype else None
             else:  # Assume it's a tuple/list
+                print("activity_set[5]:", activity_set[5])
+                print("activity_set[5][0]:", activity_set[5][0] if activity_set[5] else None)
                 duration = activity_set[0]
                 repetitions = activity_set[1]
                 weight = activity_set[2]
