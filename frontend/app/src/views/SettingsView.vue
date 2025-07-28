@@ -22,6 +22,9 @@
 
         <!-- Include the SettingsIntegrationsZone -->
         <SettingsIntegrationsZone v-if="activeSection === 'integrations'" />
+
+        <!-- Include the SettingsIntegrationsZone -->
+        <SettingsImportZone v-if="activeSection === 'import'" />
     </div>
     <!-- back button -->
     <BackButtonComponent />
@@ -45,6 +48,7 @@ import SettingsGeneralZone from '../components/Settings/SettingsGeneralZone.vue'
 import SettingsUserProfileZone from '../components/Settings/SettingsUserProfileZone.vue';
 import SettingsSecurityZone from '../components/Settings/SettingsSecurityZone.vue';
 import SettingsIntegrationsZone from '../components/Settings/SettingsIntegrationsZone.vue';
+import SettingsImportZone from '../components/Settings/SettingsImportZone.vue';
 import BackButtonComponent from '@/components/GeneralComponents/BackButtonComponent.vue';
 
 export default {
@@ -56,6 +60,7 @@ export default {
         SettingsUserProfileZone,
         SettingsSecurityZone,
         SettingsIntegrationsZone,
+        SettingsImportZone,
         BackButtonComponent,
     },
     setup () {
