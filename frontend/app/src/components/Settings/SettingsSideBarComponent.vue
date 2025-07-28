@@ -38,6 +38,12 @@
                     <span class="ms-1">{{ $t("settingsSideBar.integrationsSection") }}</span>
                 </a>
             </li>
+            <li class="nav-item">
+                <a href="#" class="nav-link link-body-emphasis" :class="{ active: activeSection === 'import' }" @click.prevent="changeActive('import')">
+                    <font-awesome-icon :icon="['fas', 'fa-puzzle-piece']" />
+                    <span class="ms-1">{{ $t("settingsSideBar.importSection") }}</span>
+                </a>
+            </li>
         </ul>
     </div>
 </template>
