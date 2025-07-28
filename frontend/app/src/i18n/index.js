@@ -425,6 +425,8 @@ import usActivitySummaryComponent from './us/components/activities/activitySumma
 import usActivityWorkoutStepsComponent from './us/components/activities/activityWorkoutStepsComponent.json';
 import usActivitiesTableComponent from './us/components/activities/activitiesTableComponent.json';
 import usUserDistanceStatsComponent from './us/components/activities/userDistanceStatsComponent.json';
+// Segments component
+import usSegmentsTableComponent from './us/components/segments/segmentsTableComponent.json';
 // Followers component
 import usFollowersListComponent from './us/components/followers/followersListComponent.json';
 // Gears component
@@ -481,7 +483,8 @@ import usSearchView from './us/searchView.json';
 import usSettingsView from './us/settingsView.json';
 import usUserView from './us/userView.json';
 import usSummaryView from './us/summaryView.json';
-import ActivitySegmentsComponent from '@/components/Activities/ActivitySegmentsComponent.vue';
+import usSegmentsView from './us/segmentsView.json';
+import { segments } from '@/services/activitySegmentsService';
 
 // Constructing the messages structure
 const messages = {
@@ -906,6 +909,8 @@ const messages = {
 		activityWorkoutStepsComponent: usActivityWorkoutStepsComponent,
 		activitiesTableComponent: usActivitiesTableComponent,
 		userDistanceStats: usUserDistanceStatsComponent,
+		// Segments component
+		segmentsTableComponent: usSegmentsTableComponent,
 		// Followers component
 		followersListComponent: usFollowersListComponent,
 		// Gears component
@@ -962,6 +967,7 @@ const messages = {
 		settingsView: usSettingsView,
 		userView: usUserView,
 		summaryView: usSummaryView,
+		segmentsView: usSegmentsView,
 	},
 };
 

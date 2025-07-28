@@ -49,6 +49,13 @@
 										{{ $t('navbarComponent.summary') }}
 									</span>
 								</router-link>
+								<!-- Segments link -->
+								 <router-link :to="{ name: 'segments' }" class="dropdown-item link-body-emphasis">
+									<font-awesome-icon :icon="['fas', 'fa-route']" />
+									<span class="ms-2">
+										{{ $t('navbarComponent.segments') }}
+									</span>
+								</router-link>
 							</li>
 						</ul>
 					</li>

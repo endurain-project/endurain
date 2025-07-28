@@ -21,6 +21,7 @@ from sqlalchemy import func
 import activities.activity.schema as activities_schema
 import activities.activity.crud as activities_crud
 import activities.activity.models as activities_models
+import activities.activity_segments.crud as segments_crud
 
 import users.user.crud as users_crud
 
@@ -656,6 +657,14 @@ async def store_activity(
     if activity_streams is not None:
         # Create activity streams in the database
         activity_streams_crud.create_activity_streams(activity_streams, db)
+
+    if activity_streams is not None:
+        # Add add to segments cache if gps trace passes through defined segments
+        for stream in activity_streams:
+            if stream.stream_type == 7:
+                segments_crud.add_activity_segments_from_imported_activity(
+                    parsed_info["activity"], stream, db
+                )
 
     if parsed_info.get("laps") is not None:
         # Create activity laps in the database

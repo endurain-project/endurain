@@ -1,0 +1,7 @@
+{
+    "headerType": "Type",
+    "headerName": "Segment",
+    "headerLocation": "Location",
+    "headerNumActivities": "Times completed",
+    "headerLastActivity": "Last activity"
+}

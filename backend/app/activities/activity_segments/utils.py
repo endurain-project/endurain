@@ -1,9 +1,28 @@
 import activities.activity_segments.schema as segments_schema
 import activities.activity_segments.models as segments_models
 import activities.activity_streams.models as streams_models
+import activities.activity.crud as activity_crud
 from shapely.geometry import Point, LineString, MultiPoint
 from datetime import datetime
+from zoneinfo import ZoneInfo
 import core.logger as core_logger
+import os
+
+def date_convert_timezone(date: datetime, timezone: str):
+    def make_aware_and_format(dt, timezone):
+        if isinstance(dt, str):
+            dt = datetime.fromisoformat(dt)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=ZoneInfo("UTC"))
+        return dt.astimezone(timezone).strftime("%Y-%m-%dT%H:%M:%S")
+
+    timezone = (
+        ZoneInfo(timezone)
+        if timezone
+        else ZoneInfo(os.environ.get("TZ", "UTC"))
+    )
+
+    return make_aware_and_format(date, timezone)
 
 def distance_between_points(point1: Point, point2: Point) -> float:
     # Returns the distance between two points.
@@ -28,7 +47,7 @@ def find_repeating_pattern(lst):
             return pattern
     return None
 
-def gps_trace_gate_intersections(gps_trace: streams_models.ActivityStreams, segment: segments_models.Segment):
+def gps_trace_gate_intersections(gps_trace: streams_models.ActivityStreams, segment: segments_models.Segments):
     # Takes a GPS Trace and checks that it passes through each gate
 
     # Returns null if the GPS trace does not pass through all gates
@@ -241,17 +260,19 @@ def gps_trace_gate_intersections(gps_trace: streams_models.ActivityStreams, segm
     return result
 
 def transform_schema_segment_to_model_segment(
-    segment: segments_schema.Segment,
+    segment: segments_schema.Segments,
     user_id: int,
-) -> segments_models.Segment:
+) -> segments_models.Segments:
     
     # Create a new segment object
-    new_segment = segments_models.Segment(
+    new_segment = segments_models.Segments(
         name=segment.name,
         user_id=user_id,
         activity_type=segment.activity_type,
         gates=segment.gates,
+        town=segment.town,
+        city=segment.city,
+        country=segment.country
     )
 
     return new_segment
-    

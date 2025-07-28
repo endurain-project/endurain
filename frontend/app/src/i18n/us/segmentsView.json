@@ -1,0 +1,12 @@
+{
+    "title": "Segments",
+    "filterLabelType": "Type",
+    "filterOptionAllTypes": "All types",
+    "filterLabelNameLocation": "Name or location",
+    "filterPlaceholderNameLocation": "e.g., Morning run",
+    "buttonClear": "Clear",
+    "buttonApply": "Apply",
+    "errorFailedFetchActivityTypes": "Failed to fetch activity types for segments",
+    "errorUpdatingSegments": "Failed to updated segments",
+    "errorFetchingSegments": "Failed to fetch user segments"
+}

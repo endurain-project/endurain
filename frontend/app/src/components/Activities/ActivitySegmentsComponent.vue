@@ -2,7 +2,7 @@
     <div v-if="mapVisible==false">
         <div>
             <div class="text-center" v-if="segmentsFollowed.length == 0">
-                {{ $t("activitySegmentsComponent.activityNotFollowingDefinedSegments") }}
+            	<NoItemsFoundComponents v-if="segmentsFollowed.length == 0"/>
             </div>
             <div class="container-fluid d-flex justify-content-center align-items-stretch" ref="activitySegments" id="activitySegments" v-else>
                 <table v-if="segmentsFollowed.length > 0">
@@ -20,9 +20,9 @@
                                         <td class="m-10">
                                             <div :ref="`segmentMapIcon-${segment.id}`" :id="`segmentMapIcon-${segment.id}`"></div>
                                         </td>
-                                        <td class="m-10">&nbsp;</td>
+                                        <td>&nbsp;</td>
                                         <td class="m-10">
-                                            <table class="table w-100 table-borderless table-hover table-sm rounded text-center" :class="{ 'table-striped': segment.activity_type !== 8 }" style="--bs-table-bg: var(--bs-gray-850);" v-if="intersections[idx] && intersections[idx].gate_times">
+                                            <table class="table w-100 table-borderless table-hover table-sm rounded text-center" :class="{ 'table-striped': segment.activity_type !== 8 }" style="--bs-table-bg: var(--bs-gray-850);" v-if="intersections[idx] && intersections[idx].sub_segment_times">
                                                 <thead>
                                                     <tr>
                                                         <th>{{ $t("activitySegmentsComponent.labelGate") }}</th>
@@ -69,12 +69,22 @@
             <div class="row row-gap-3">
                 <div class="col">
                     <form @submit.prevent="submitSegment">
-                    <div class="row">&nbsp;</div>
-                    <div class="row">
+                    <div class="row my-3">
                         <div class="col">{{ $t("activitySegmentsComponent.inputSegmentName") }}</div>
                         <div class="col"><input class="form-control me-2" type="text" id="segmentName" v-model="segmentName"></div>
                     </div>
-                    <div class="row">&nbsp;</div>
+                    <div class="row my-2">
+                        <div class="col">{{ $t("activitySegmentsComponent.inputSegmentTown") }}</div>
+                        <div class="col"><input class="form-control me-2" type="text" id="segmentTown" v-model="segmentTown"></div>
+                    </div>
+                    <div class="row my-2">
+                        <div class="col">{{ $t("activitySegmentsComponent.inputSegmentCity") }}</div>
+                        <div class="col"><input class="form-control me-2" type="text" id="segmentCity" v-model="segmentCity"></div>
+                    </div>
+                    <div class="row my-2">
+                        <div class="col">{{ $t("activitySegmentsComponent.inputSegmentCountry") }}</div>
+                        <div class="col"><input class="form-control me-2" type="text" id="segmentCountry" v-model="segmentCountry"></div>
+                    </div>
                     <div class="row">
                         <div class="col">
                             <button type="submit" class="btn btn-primary" name="submitSegment">
@@ -117,10 +127,14 @@ import { activityStreams } from '@/services/activityStreams';
 import { segments } from '@/services/activitySegmentsService';
 // Importing the stores
 import { useAuthStore } from "@/stores/authStore";
+import NoItemsFoundComponents from "@/components/GeneralComponents/NoItemsFoundComponents.vue";
 import L from 'leaflet';
 //const { t } = useI18n();
 
 export default {
+    components: {
+        NoItemsFoundComponents
+    },
     mounted() {
         this.$nextTick(() => {
                 const observer = new ResizeObserver((entries, observer) => {
@@ -138,9 +152,9 @@ export default {
                 if (el && el instanceof Element) {
                     observer.observe(el);
                 } else {
-                    console.warn("activitySegments ref is not a valid Element");
+                    //console.warn("activitySegments ref is not a valid Element");
                 }
-            }, 5000);
+            }, 2000);
         });
 
         // Fetch activity segments when the component is mounted
@@ -158,6 +172,9 @@ export default {
             segmentPolylinePoints: [],
             markers: {},
             segmentName: '',
+            segmentTown: this.activity.town,
+            segmentCity: this.activity.city,
+            segmentCountry: this.activity.country,
         }
     },
     props: {
@@ -402,6 +419,7 @@ export default {
         async submitSegment(){
             try {
                 const gates = [];
+                // Obtain and store each gate from the polyline map object to the gates array
                 this.segmentPolylines.forEach(polyline => {
                     const latlngs = polyline.getLatLngs();
                     gates.push([[latlngs[0].lat, latlngs[0].lng],[latlngs[1].lat, latlngs[1].lng]]);
@@ -409,9 +427,13 @@ export default {
 
                 const data = {
                     name: this.segmentName,
+                    town: this.segmentTown,
+                    city: this.segmentCity,
+                    country: this.segmentCountry,
                     activity_type: this.activity.activity_type,
                     gates: gates,
                 };
+                console.info(data)
                 this.toggleSegmentAdd();
                 const submittedSegment = await segments.createSegment(data);
             } catch (error){
