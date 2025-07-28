@@ -271,3 +271,120 @@ async def delete_gear(
 
     # Return success message
     return {"detail": f"Gear ID {gear_id} deleted successfully"}
+
+
+@router.post(
+    "/stravabikesimport",
+)
+async def import_bikes_from_Strava_CSV(
+    token_user_id: Annotated[
+        int,
+        Depends(session_security.get_user_id_from_access_token),
+    ],
+    db: Annotated[
+        Session,
+        Depends(core_database.get_db),
+    ],
+    background_tasks: BackgroundTasks,
+):
+    import_time_iso = datetime.today().date().strftime('%Y-%m-%d')
+    #print("import time is: ", import_time_iso) # Testing code
+    try:
+        core_logger.print_to_log_and_console(f"Entering import_bikes_from_Strava_CSV backend function")
+        bulk_import_dir = core_config.FILES_BULK_IMPORT_DIR
+
+        # Hard coding file for now
+        # Possibly have a version that prompts user for a file.
+        bikesfilename = "bikes.csv"
+
+        # Get file and parse it
+        bikes_dict = {}  # format: "Bike Name" from the Strava CSV is used as the key, which then holds a dictionary that is based on the Strava bike gear CSV file's data
+        bikes_file_path = os.path.join(bulk_import_dir, bikesfilename)
+        try:
+            if os.path.isfile(bikes_file_path):
+                  core_logger.print_to_log_and_console(f"bikes.csv file exists in bulk_import directory. Starting to process file.")
+                  with open(bikes_file_path, "r") as bike_file:
+                      bikes_csv = csv.DictReader(bike_file)
+                      for row in bikes_csv:    # Must process CSV file object while file is still open.
+                          # Example row: {'Bike Name': 'Ox', 'Bike Brand': 'Bianchi', 'Bike Model': 'Advantage', 'Bike Default Sport Types': 'Ride'}
+                          #print("Full row is", row) # Testing code
+                          bikes_dict[row["Bike Name"]] = row
+                          #print("Dicinotary row is: ", bikes_dict[row["Bike Name"]])  # Testing code
+                          #print("Bike brand is: ", bikes_dict[row["Bike Name"]]["Bike Brand"]) # Testing code
+                  core_logger.print_to_log_and_console(f"Strava bike gear csv file parsed and gear dictionary created. File was {len(bikes_dict)} rows long, ignoring header row.")
+            else:
+                  core_logger.print_to_log_and_console(f"No bikes.csv file located.")
+                  return None # Nothing to return - no file.
+        except:
+            # TO DO: RAISE ERROR HERE?
+            core_logger.print_to_log_and_console(f"Error attempting to open bikes.csv file.")
+            return None # Nothing to return - error parsing file.
+
+        # Endurain gear schema defined in /backend/app/gears/schema.py
+        # Relevant functions
+             # Existing gear for user: gears.crud: get_gear_user(user_id: int, db: Session) -> list[gears_schema.Gear] | None:
+             # Gear lookup by Strava ID: gears.crud: get_gear_by_strava_id_from_user_id(    gear_strava_id: str, user_id: int, db: Session) -> gears_schema.Gear | None:
+             # Gear create: gears.crud: create_gear(gear: gears_schema.Gear, user_id: int, db: Session):
+             # Gear edit: edit_gear(gear_id: int, gear: gears_schema.Gear, db: Session):
+        #print("Getting user gear list") # Testing code
+        user_gear_list = gears_crud.get_gear_user(token_user_id, db)
+        #print("Gotten user gear list") # Testing code
+        #core_logger.print_to_log_and_console(f"User's gear list: {user_gear_list}") # Testing code
+        if user_gear_list is None:
+             #User has no gear - we can just add our own straight up.
+             users_existing_gear_nicknames = None
+             core_logger.print_to_log_and_console(f"User has no existing gear.  Adding all Strava bikes.") # Testing code
+        else:
+             #User has gear - we need to check for duplicates.  Currently checking by nickname.
+             core_logger.print_to_log_and_console(f"User has some existing gear. Will only import bikes that are not already present (by checking for nicknames).") # Testing code
+             users_existing_gear_nicknames = []
+             for item in user_gear_list:
+                  #print("Gear item: ", item) # Testing code
+                  #print("ID: ", item.id) # Testing code
+                  #print("Brand: ", item.brand) # Testing code
+                  #print("Model: ", item.model) # Testing code
+                  #print("Nickname: ", item.nickname) # Testing code
+                  #print("Gear type: ", item.gear_type) # Testing code
+                  #print("User: ", item.user_id) # Testing code
+                  #print("Created at: ", item.created_at) # Testing code
+                  #print("is_active: ", item.is_active) # Testing code
+                  #print("strava ID: ", item.strava_gear_id) # Testing code
+                  #print("Gear item listing done.") # Testing code
+                  users_existing_gear_nicknames.append(item.nickname)
+        #print("User existing gear list is: ", users_existing_gear_nicknames) # Testing code
+        for bike in bikes_dict:  # bike here is the nickname of the bike from Strava (the index of our bikes_dict)
+             core_logger.print_to_log_and_console(f"In bikes_dict iterator.  Current bike is - {bike}") # Testing code.
+             #print("In bikes_dict iterator - bike brand is: ", bikes_dict[bike]["Bike Brand"]) # Testing code
+             if bike in users_existing_gear_nicknames:
+                   core_logger.print_to_log_and_console(f"Bike - {bike} - found in existing user gear (nicknames matched).  Skipping import.")
+             else:
+                   core_logger.print_to_log_and_console(f"Bike - {bike} - not found in existing user gear. Importing.")
+                   # Note - hard-coding gear type of bike to be gear_type of 1 here
+                   #    There seems to be no single-point list of gear type in the code.
+                   #    Best list appears to be at /frontend/app/src/components/Gears/GearsListComponent.vue
+                   # Strava does not export its internal gear ID, so we do not have that information.
+                   # Strava does not export the active / inactive state of the bike, so listing all as active (as we need a status).
+                   new_gear = gears_schema.Gear(
+                         user_id = token_user_id,
+                         brand = bikes_dict[bike]["Bike Brand"],
+                         model = bikes_dict[bike]["Bike Model"],
+                         nickname = bike,
+                         gear_type = 1,
+                         created_at = import_time_iso,
+                         is_active = True,
+                         strava_gear_id = None
+                        )
+                   gears_crud.create_gear(new_gear, token_user_id, db)
+                   core_logger.print_to_log_and_console(f"Bike - {bike} - has been imported.")
+        # Return a success message
+        return {"Gear import successful."}
+    except Exception as err:
+        # Log the exception
+        core_logger.print_to_log_and_console(
+            f"Error in import_bikes_from_Strava_CSV: {err}", "error"
+        )
+        # Raise an HTTPException with a 500 Internal Server Error status code
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal Server Error",
+        ) from err
