@@ -305,6 +305,9 @@ async def import_bikes_from_Strava_CSV(
                       bikes_csv = csv.DictReader(bike_file)
                       for row in bikes_csv:    # Must process CSV file object while file is still open.
                           # Example row: {'Bike Name': 'Ox', 'Bike Brand': 'Bianchi', 'Bike Model': 'Advantage', 'Bike Default Sport Types': 'Ride'}
+                          if ('Bike Name' not in row) or ('Bike Brand' not in row) or ('Bike Model' not in row): 
+                              core_logger.print_to_log_and_console("Aborting bikes import: Proper headers not found in bikes.csv.  File should have 'Bike Name', 'Bike Brand', and 'Bike Model'.")
+                              return None
                           bikes_dict[row["Bike Name"]] = row
                   core_logger.print_to_log_and_console(f"Strava bike gear csv file parsed and gear dictionary created. File was {len(bikes_dict)} rows long, ignoring header row.")
             else:
