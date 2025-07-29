@@ -103,6 +103,8 @@ To perform an import of bikes:
 - Click "Bikes Import" next to "Strava import".
 - Status messages about the import, including why any gear was not imported, can be found in the logs.
 
+Ensure the file is named "bikes.csv" and has a header row with at least the fields 'Bike Name', 'Bike Brand', and 'Bike Model'.
+
 Please report any problems observed with bike imports on GitHub.
 
 ## Image personalization
