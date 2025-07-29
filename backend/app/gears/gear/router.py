@@ -288,18 +288,16 @@ async def import_bikes_from_Strava_CSV(
     background_tasks: BackgroundTasks,
 ):
     import_time_iso = datetime.today().date().strftime('%Y-%m-%d')
-    #print("import time is: ", import_time_iso) # Testing code
     try:
-        core_logger.print_to_log_and_console(f"Entering import_bikes_from_Strava_CSV backend function")
+        core_logger.print_to_log("Entering bike importing function")
         bulk_import_dir = core_config.FILES_BULK_IMPORT_DIR
 
-        # Hard coding file for now
-        # Possibly have a version that prompts user for a file.
+        # Hard coding filename for now (this is the filename Strava uses)
         bikesfilename = "bikes.csv"
 
         # Get file and parse it
-        bikes_dict = {}  # format: "Bike Name" from the Strava CSV is used as the key, which then holds a dictionary that is based on the Strava bike gear CSV file's data
         bikes_file_path = os.path.join(bulk_import_dir, bikesfilename)
+        bikes_dict = {}  # format: "Bike Name" from the Strava CSV is used as the key, which then holds a dictionary that is based on the Strava bike gear CSV file's data
         try:
             if os.path.isfile(bikes_file_path):
                   core_logger.print_to_log_and_console(f"bikes.csv file exists in bulk_import directory. Starting to process file.")
