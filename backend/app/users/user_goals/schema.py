@@ -1,6 +1,5 @@
 from pydantic import BaseModel, field_validator
 from activities.activity.utils import ACTIVITY_ID_TO_NAME
-from typing import Optional
 
 allowed_intervals = ["daily", "weekly", "monthly"]
 allowed_intervals_not_found_error = ValueError(
