@@ -42,7 +42,7 @@
 	</div>
 </template>
 
-<script>
+<script setup>
 import { ref } from "vue";
 import { useI18n } from "vue-i18n";
 // Import Notivue push
@@ -57,47 +57,30 @@ import ModalComponent from "@/components/Modals/ModalComponent.vue";
 import ModalComponentNumberAndStringInput from "@/components/Modals/ModalComponentNumberAndStringInput.vue";
 import ModalComponentNumberInput from "@/components/Modals/ModalComponentNumberInput.vue";
 import ModalComponentDateRangeInput from "@/components/Modals/ModalComponentDateRangeInput.vue";
-export default {
-	components: {
-		ModalComponent,
-		ModalComponentNumberAndStringInput,
-		ModalComponentNumberInput,
-		ModalComponentDateRangeInput,
-		//GarminConnectLoginModalComponent,
-	},
-	setup() {
-		const authStore = useAuthStore();
-		const { locale, t } = useI18n();
-		async function submitBulkImport() {
-			try {
-				await activities.bulkImportActivities();
-				// Show the loading alert.
-				push.info(t("settingsImportZone.loadingMessageBulkImport"));
-			} catch (error) {
-				// If there is an error, show the error alert.
-				push.error(
-					`${t("settingsImportZone.errorMessageUnableToImportActivities")} - ${error}`,
-				);
-			}
-		}
-		async function submitStravaBikesImport() {
-			try {
-				await gears.stravaBikesImport();
-				// Show the loading alert.
-				push.info(t("settingsImportZone.loadingMessageStravaBikesImport"));
-			} catch (error) {
-				// If there is an error, show the error alert.
-				push.error(
-					`${t("settingsImportZone.errorMessageUnableToImportBikes")} - ${error}`,
-				);
-			}
-		}
-		return {
-			authStore,
-			t,
-			submitBulkImport,
-			submitStravaBikesImport,
-		};
-	},
-};
+const authStore = useAuthStore();
+const { locale, t } = useI18n();
+async function submitBulkImport() {
+	try {
+		await activities.bulkImportActivities();
+		// Show the loading alert.
+		push.info(t("settingsImportZone.loadingMessageBulkImport"));
+	} catch (error) {
+		// If there is an error, show the error alert.
+		push.error(
+			`${t("settingsImportZone.errorMessageUnableToImportActivities")} - ${error}`,
+		);
+	}
+}
+async function submitStravaBikesImport() {
+	try {
+		await gears.stravaBikesImport();
+		// Show the loading alert.
+		push.info(t("settingsImportZone.loadingMessageStravaBikesImport"));
+	} catch (error) {
+		// If there is an error, show the error alert.
+		push.error(
+			`${t("settingsImportZone.errorMessageUnableToImportBikes")} - ${error}`,
+		);
+	}
+}
 </script>
