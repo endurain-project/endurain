@@ -8,8 +8,23 @@ from sqlalchemy.orm import relationship
 from core.database import Base
 
 
-# Data model for users_goals table using SQLAlchemy's ORM
 class UserGoal(Base):
+    """
+    Represents a user's activity goal within the application.
+
+    Attributes:
+        id (int): Primary key for the user goal.
+        user_id (int): Foreign key referencing the user to whom the goal belongs.
+        activity_type (int): Type of activity for which the goal is set.
+        interval (str): Interval for the goal (e.g., 'daily', 'weekly', 'monthly').
+        goal_duration (int): Target duration for the goal in hours.
+        goal_distance (int): Target distance for the goal in meters.
+        goal_elevation (int): Target elevation gain for the goal in meters.
+        goal_calories (int): Target calories to burn for the goal in kcal.
+        goal_steps (int): Target number of steps for the goal.
+        goal_count (int): Target count of activities for the goal.
+        user (User): Relationship to the User model, representing the goal's owner.
+    """
     __tablename__ = "users_goals"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
