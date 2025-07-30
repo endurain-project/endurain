@@ -9,10 +9,15 @@ Welcome to the guide for getting started on hosting your own production instance
 * Open FW rules to your server on port 443 and 80. (trough NAT if you are running ipv4)
 * A computer/server with enough disk space for your activity files.
 * API key from [geocode.maps.co](https://geocode.maps.co/) (free, but need to register).
+* A Linux distro that has `docker compose` cli, and `caddy` in the repositories.
+
 
 ## Installing docker and Caddy reverse proxy
 
-We use apt to do this
+Note:
+If you have a old-ish distro (Ubuntu 22.04 and older) you need to add the repos for caddy and docker. Read how to do it for [docker](https://docs.docker.com/compose/install/linux/), and [caddy](https://caddyserver.com/docs/install#debian-ubuntu-raspbian). Fore newer distroes (Debian 13 and Ubuntu 24.04 you do not have to do this step).
+
+We use apt to do this:
 
 ```
 sudo apt update -y
@@ -35,7 +40,7 @@ Lets use `/opt/endurain/` as the root directory for our project.
 sudo mkdir /opt/endurain
 sudo chown 1000:1000 /opt/endurain
 mkdir -p \
-  /opt/endurain/app/{data,logs} \
+  /opt/endurain/backend/{data,logs} \
   /opt/endurain/postgres
 ```
 
@@ -149,7 +154,7 @@ You should now be able to access your site on endurain.yourdomain.com
 * Take a backup of your files and db.
 * Check for new releases of the container image [here](https://github.com/joaovitoriasilva/endurain). Read release notes carefully for breaking changes.
 * Log on your server and run:
-* Inside `/opt/endurain/docker-compose.yml`, change out the version tag (the version after `:`)
+* Inside `/opt/endurain/docker-compose.yml`, change out the version tag (the version after `:`). If you are running `:latest` tag on the docker image, you do not have to edit anything in the docker-compose.yml file. 
 
 
 ```bash
