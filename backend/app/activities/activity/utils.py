@@ -321,6 +321,8 @@ async def parse_and_store_activity_from_file(
     garminconnect_gear: dict = None,
 ):
     try:
+        core_logger.print_to_log_and_console(f"Bulk file import: Beginning processing of {file_path}")
+
         # Get file extension
         _, file_extension = os.path.splitext(file_path)
         garmin_connect_activity_id = None
@@ -409,9 +411,8 @@ async def parse_and_store_activity_from_file(
                                 "_"  # Add an underscore if it's not the last item
                             )
                 else:
-                    core_logger.print_to_log_and_console(
-                        f"File extension not supported: {file_extension}", "error"
-                    )
+                     # Should no longer get here due to screening of extensions in router.py, but why not.
+                    core_logger.print_to_log_and_console(f"File extension not supported: {file_extension}", "error")
                 # Define the directory where the processed files will be stored
                 processed_dir = core_config.FILES_PROCESSED_DIR
 
@@ -420,21 +421,22 @@ async def parse_and_store_activity_from_file(
 
                 # Move the file to the processed directory
                 move_file(processed_dir, new_file_name, file_path)
+                core_logger.print_to_log_and_console(f"Bulk file import: File successfully processed and moved. {file_path} - has become {new_file_name}")
 
                 # Return the created activity
                 return created_activities
             else:
                 return None
-    except HTTPException as http_err:
-        raise http_err
+    #except HTTPException as http_err:
+        # This is causing a crash on the back end when the try fails.  Looks like we cannot raise an http exception in a background task.
+        #raise http_err
     except Exception as err:
         # Log the exception
         core_logger.print_to_log(
-            f"Error in parse_and_store_activity_from_file - {str(err)}",
+            f"Bulk file import: Error while parsing {file_path} in parse_and_store_activity_from_file - {str(err)}",
             "error",
             exc=err,
         )
-
 
 async def parse_and_store_activity_from_uploaded_file(
     token_user_id: int,
