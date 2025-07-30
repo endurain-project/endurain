@@ -85,7 +85,9 @@ def process_migration_3(db: Session):
                         )
                     # if exists, process it
                     else:
-                        if activity_fit_file_path is not None and os.path.exists(activity_fit_file_path):
+                        if activity_fit_file_path is not None and os.path.exists(
+                            activity_fit_file_path
+                        ):
                             # Process the .fit file
                             process_fit_file(
                                 activity,
@@ -298,7 +300,9 @@ def process_activity_using_streams(activity: activities_schema.Activity, db: Ses
     )
 
     try:
-        streams = activity_streams_crud.get_activity_streams(activity.id, db)
+        streams = activity_streams_crud.get_activity_streams(
+            activity.id, activity.user_id, db
+        )
         stream_map = {stream.stream_type: stream.stream_waypoints for stream in streams}
 
         laps = gpx_utils.generate_activity_laps(
@@ -358,7 +362,9 @@ def process_strava_activity(activity: activities_schema.Activity, db: Session):
         # Skip the activity if the user does not have a Strava account linked
         return False
 
-    activity_streams = activity_streams_crud.get_activity_streams(activity.user_id, db)
+    activity_streams = activity_streams_crud.get_activity_streams(
+        activity.id, activity.user_id, db
+    )
 
     # Create a dictionary from stream_type to waypoints
     stream_map = {
