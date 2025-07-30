@@ -63,15 +63,16 @@ def process_migration_3(db: Session):
                     )
 
                     if (
-                        not os.path.exists(activity_fit_file_path)
-                        and activity.garminconnect_activity_id is not None
-                    ):
+                        activity_fit_file_path is None
+                        or not os.path.exists(activity_fit_file_path)
+                    ) and activity.garminconnect_activity_id is not None:
                         get_fit_file_from_garminconnect(activity, db)
                         activity_fit_file_path = find_activity_fit_file(activity.id)
 
                     # if .gpx and .fit for activity do not exist, skip
-                    if not os.path.exists(
-                        activity_fit_file_path
+                    if (
+                        activity_fit_file_path is None
+                        or not os.path.exists(activity_fit_file_path)
                     ) and not os.path.exists(activity_gpx_file_path):
                         core_logger.print_to_log_and_console(
                             f"Migration 3 - Activity {activity.id} does not have a file. Will process it using activity streams.",
@@ -84,7 +85,7 @@ def process_migration_3(db: Session):
                         )
                     # if exists, process it
                     else:
-                        if os.path.exists(activity_fit_file_path):
+                        if activity_fit_file_path is not None and os.path.exists(activity_fit_file_path):
                             # Process the .fit file
                             process_fit_file(
                                 activity,
@@ -168,7 +169,9 @@ def get_fit_file_from_garminconnect(activity: activities_schema.Activity, db: Se
     )
 
     # Save the zip file
-    output_file = f"{core_config.FILES_DIR}/{str(activity.garminconnect_activity_id)}.zip"
+    output_file = (
+        f"{core_config.FILES_DIR}/{str(activity.garminconnect_activity_id)}.zip"
+    )
 
     # Write the ZIP data to the output file
     with open(output_file, "wb") as fb:
@@ -206,7 +209,9 @@ def get_fit_file_from_garminconnect(activity: activities_schema.Activity, db: Se
             new_file_name = f"{activity.id}{file_extension}"
 
             # Move the file to the processed directory
-            activities_utils.move_file(processed_dir, new_file_name, f"{files_dir}/{file}")
+            activities_utils.move_file(
+                processed_dir, new_file_name, f"{files_dir}/{file}"
+            )
     except Exception as err:
         core_logger.print_to_log_and_console(
             f"Migration 3 - Failed to move activity {activity.id} file: {err}",
@@ -467,4 +472,6 @@ def store_data_in_db(
     if sets_to_store:
         activity_sets_crud.create_activity_sets(sets_to_store, activity.id, db)
 
-    core_logger.print_to_log_and_console(f"Migration 3 - Activity {activity.id} processed.")
+    core_logger.print_to_log_and_console(
+        f"Migration 3 - Activity {activity.id} processed."
+    )
