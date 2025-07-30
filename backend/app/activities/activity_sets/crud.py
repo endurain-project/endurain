@@ -194,7 +194,7 @@ def create_activity_sets(
         # Iterate over the list of ActivitySets objects
         for activity_set in activity_sets:
             # Check if it's a Pydantic model (has attributes instead of being subscriptable)
-            if hasattr(activity_set, '__fields__'):  # Pydantic model
+            if hasattr(activity_set, '__fields__'):
                 duration = activity_set.duration
                 repetitions = activity_set.repetitions
                 weight = activity_set.weight
@@ -202,14 +202,14 @@ def create_activity_sets(
                 start_time = activity_set.start_time
                 category = activity_set.category if activity_set.category else None
                 category_subtype = activity_set.category_subtype if activity_set.category_subtype else None
-            else:  # Assume it's a tuple/list
+            else:
                 duration = activity_set[0]
                 repetitions = activity_set[1]
                 weight = activity_set[2]
                 set_type = activity_set[3]
                 start_time = activity_set[4]
-                category = activity_set[5][0] if activity_set[5] else None
-                category_subtype = activity_set[6][0] if activity_set[6] else None
+                category = activity_set[5] if activity_set[5] else None
+                category_subtype = activity_set[6] if activity_set[6] else None
 
             # Create a new ActivitySets object
             db_activity_set = activity_sets_models.ActivitySets(
