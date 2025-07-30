@@ -9,5 +9,5 @@
     "stravaImportIntegrationBody": "Import items from a Strava bulk export (BETA - use with caution)",
     "stravaImportbuttonBikes": "Bikes import",
     "loadingMessageStravaBikesImport": "Importing bikes",
-    "errorMessageUnableToImportBikes": "An error occurred while importing Stava bikes"
+    "errorMessageUnableToImportBikes": "An error occurred while importing Strava bikes"
 }
