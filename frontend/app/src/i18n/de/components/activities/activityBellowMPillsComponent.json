@@ -19,7 +19,7 @@
     "subTitleElevation": "Höhe",
     "labelElevationGain": "Höhengewinn",
     "labelElevationLoss": "Höhenverlust",
-    "subTitleStrokeRate": "Stroke rate",
-    "labelAvgStrokeRate": "Avg stroke rate",
-    "labelMaxStrokeRate": "Max stroke rate"
+    "subTitleStrokeRate": "Schlagzahl",
+    "labelAvgStrokeRate": "Durchschnittliche Schlagzahl",
+    "labelMaxStrokeRate": "Maximale Schlagzahl"
 }
