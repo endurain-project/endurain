@@ -23,7 +23,7 @@
         <!-- Include the SettingsIntegrationsZone -->
         <SettingsIntegrationsZone v-if="activeSection === 'integrations'" />
 
-        <!-- Include the SettingsIntegrationsZone -->
+        <!-- Include the SettingsImportZone -->
         <SettingsImportZone v-if="activeSection === 'import'" />
     </div>
     <!-- back button -->
