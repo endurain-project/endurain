@@ -4,6 +4,35 @@ from urllib.parse import unquote
 import gears.gear.models as gears_models
 import gears.gear.schema as gears_schema
 
+# Global gear type integer to gear name mapping (ID to name)
+GEAR_ID_TO_NAME = {
+    1: "bike",
+    2: "shoes",
+    3: "wetsuit",
+    4: "racquet",
+    5: "ski",
+    6: "snowboard",
+    7: "windsurf",
+    8: "water spoards board",
+}
+
+# Reverse gear type mapping, using the above-defined ID to name list to create a name to ID list
+GEAR_NAME_TO_ID = {name.lower(): id for id, name in GEAR_ID_TO_NAME.items()}
+
+# Space to add additional variations on gear names, for importing:
+GEAR_NAME_TO_ID.update(
+    {
+        "bikes": 1,
+        "bicycle": 1,
+        "shoe": 2,
+        "shoe": 2,
+        "racket": 4,
+        "skis": 5,
+        "wind surf board": 7,
+        "surf board": 8,
+        "paddle board": 8,
+    }
+)
 
 def transform_schema_gear_to_model_gear(
     gear: gears_schema.Gear, user_id: int
