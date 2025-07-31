@@ -16,7 +16,7 @@ GEAR_ID_TO_NAME = {
     8: "water spoards board",
 }
 
-# Reverse gear type mapping, using the above-defined ID to name list to create a name to ID list
+# Reverse gear type mapping, using the above-defined ID-to-name dictionary to create a name-to-ID dictionary
 GEAR_NAME_TO_ID = {name.lower(): id for id, name in GEAR_ID_TO_NAME.items()}
 
 # Space to add additional variations on gear names, for importing:
