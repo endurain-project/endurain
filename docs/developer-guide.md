@@ -152,7 +152,7 @@ The API is reachable under `/api/v1`. Below are some example endpoints. All endp
 
 
 ## Supported activity types
-The table bellow details the activity types supported by Endurain:
+The table bellow details the activity types supported by Endurain. These values are defined programatically in backend/app/activities/activity/utils.py.
 
 | Name | Value |
 | ---- | --- |
@@ -192,7 +192,7 @@ The table bellow details the activity types supported by Endurain:
 
 
 ## Supported gear types
-The table bellow details the gear types supported by Endurain:
+The table bellow details the gear types supported by Endurain.  These values are defined programatically in backend/app/gears/gear/utils.py.
 
 | Name               | Value | Notes                                   |
 |--------------------|-------|-----------------------------------------|
@@ -205,6 +205,7 @@ The table bellow details the gear types supported by Endurain:
 | Windsurf           | 7     | N/A                                     |
 | Water sports board | 8     | Example: stand up paddle and surf board |
 
+All gear component types are defined programatically in backend/app/gears/gear_components/schema.py. 
 
 ## Supported bike component gear types
 The table bellow details the bike gear component types supported by Endurain:
