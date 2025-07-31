@@ -112,7 +112,7 @@ def create_tokens(user: users_schema.User):
     refresh_token = session_security.create_token(
         data={
             "sub": user.id,
-            "scopes": "scopes",
+            "scopes": scopes,
             "exp": datetime.now(timezone.utc)
             + timedelta(days=session_constants.JWT_REFRESH_TOKEN_EXPIRE_DAYS),
         },
