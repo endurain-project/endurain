@@ -25,10 +25,11 @@ GEAR_NAME_TO_ID.update(
         "bikes": 1,
         "bicycle": 1,
         "shoe": 2,
-        "shoe": 2,
         "racket": 4,
         "skis": 5,
+        "wind surfboard": 7,
         "wind surf board": 7,
+        "surfboard": 8,
         "surf board": 8,
         "paddle board": 8,
     }
