@@ -21,6 +21,7 @@ FILES_DIR = os.getenv("FILES_DIR", f"{DATA_DIR}/activity_files")
 ACTIVITY_MEDIA_DIR = os.getenv("ACTIVITY_MEDIA_DIR", f"{DATA_DIR}/activity_media")
 FILES_PROCESSED_DIR = f"{FILES_DIR}/processed"
 FILES_BULK_IMPORT_DIR = f"{FILES_DIR}/bulk_import"
+FILES_BULK_IMPORT_IMPORT_ERRORS_DIR = f"{FILES_BULK_IMPORT_DIR}/import_errors"
 ENVIRONMENT = os.getenv("ENVIRONMENT", "production").lower()
 TZ = os.getenv("TZ", "UTC")
 REVERSE_GEO_PROVIDER = os.getenv("REVERSE_GEO_PROVIDER", "geocode").lower()
