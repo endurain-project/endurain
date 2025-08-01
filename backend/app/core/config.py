@@ -64,6 +64,7 @@ def check_required_env_vars():
             )
             raise EnvironmentError(f"Missing required environment variable: {var}")
 
+
 def check_required_dirs():
     required_dirs = [
         DATA_DIR,
@@ -73,6 +74,7 @@ def check_required_dirs():
         FILES_DIR,
         FILES_PROCESSED_DIR,
         FILES_BULK_IMPORT_DIR,
+        FILES_BULK_IMPORT_IMPORT_ERRORS_DIR,
         LOGS_DIR,
     ]
 
@@ -80,5 +82,9 @@ def check_required_dirs():
         if not os.path.exists(required_dir):
             os.mkdir(required_dir)
         elif not os.path.isdir(required_dir):
-            core_logger.print_to_log_and_console(f"Required directory is not a directory: {required_dir}", "error")
-            raise EnvironmentError(f"Required directory is not a directory: {required_dir}")
+            core_logger.print_to_log_and_console(
+                f"Required directory is not a directory: {required_dir}", "error"
+            )
+            raise EnvironmentError(
+                f"Required directory is not a directory: {required_dir}"
+            )
