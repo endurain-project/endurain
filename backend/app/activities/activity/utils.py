@@ -443,7 +443,7 @@ async def parse_and_store_activity_from_file(
             os.makedirs(error_file_dir, exist_ok=True)
             move_file(error_file_dir, os.path.basename(file_path), file_path)
             core_logger.print_to_log_and_console(f"Bulk file import: Due to import error, file {file_path} has been moved to {error_file_dir}")
-        except:
+        except Exception:
             core_logger.print_to_log_and_console(f"Bulk file import: Failed to move the error-producing file {file_path} to the import-error directory.")
 
 async def parse_and_store_activity_from_uploaded_file(
