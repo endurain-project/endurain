@@ -13,7 +13,7 @@ GEAR_ID_TO_NAME = {
     5: "ski",
     6: "snowboard",
     7: "windsurf",
-    8: "water spoards board",
+    8: "water_sports_board",
 }
 
 # Reverse gear type mapping, using the above-defined ID-to-name dictionary to create a name-to-ID dictionary
@@ -22,16 +22,18 @@ GEAR_NAME_TO_ID = {name.lower(): id for id, name in GEAR_ID_TO_NAME.items()}
 # Space to add additional variations on gear names, for importing:
 GEAR_NAME_TO_ID.update(
     {
-        "bikes": 1,
+        "bike": 1,
         "bicycle": 1,
-        "shoe": 2,
+        "shoes": 2,
         "racket": 4,
+        "racquet": 4,
+        "ski": 5,
         "skis": 5,
-        "wind surfboard": 7,
-        "wind surf board": 7,
-        "surfboard": 8,
-        "surf board": 8,
-        "paddle board": 8,
+        "snowboard": 6,
+        "windsurf": 7,
+        "water_sports_board": 8,
+        "surf_board": 8,
+        "stand_up_paddling_board": 8,
     }
 )
 

@@ -152,7 +152,7 @@ The API is reachable under `/api/v1`. Below are some example endpoints. All endp
 
 
 ## Supported activity types
-The table bellow details the activity types supported by Endurain. These values are defined programatically in backend/app/activities/activity/utils.py.
+The table bellow details the activity types supported by Endurain.
 
 | Name | Value |
 | ---- | --- |
@@ -192,20 +192,19 @@ The table bellow details the activity types supported by Endurain. These values 
 
 
 ## Supported gear types
-The table bellow details the gear types supported by Endurain.  These values are defined programatically in backend/app/gears/gear/utils.py.
+The table bellow details the gear types supported by Endurain.
 
 | Name               | Value | Notes                                   |
 |--------------------|-------|-----------------------------------------|
-| Bike               | 1     | N/A                                     |
-| Shoes              | 2     | N/A                                     |
-| Wetsuit            | 3     | N/A                                     |
-| Racquet            | 4     | N/A                                     |
-| Ski                | 5     | N/A                                     |
-| Snowboard          | 6     | N/A                                     |
-| Windsurf           | 7     | N/A                                     |
-| Water sports board | 8     | Example: stand up paddle and surf board |
+| bike               | 1     | N/A                                     |
+| shoes              | 2     | N/A                                     |
+| wetsuit            | 3     | N/A                                     |
+| racquet            | 4     | N/A                                     |
+| ski                | 5     | N/A                                     |
+| snowboard          | 6     | N/A                                     |
+| windsurf           | 7     | N/A                                     |
+| water_sports_board | 8     | Example: stand up paddle and surf board |
 
-All gear component types are defined programatically in backend/app/gears/gear_components/schema.py. 
 
 ## Supported bike component gear types
 The table bellow details the bike gear component types supported by Endurain:
