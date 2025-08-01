@@ -444,7 +444,7 @@ async def parse_and_store_activity_from_file(
             move_file(error_file_dir, os.path.basename(file_path), file_path)
             core_logger.print_to_log_and_console(f"Bulk file import: Due to import error, file {file_path} has been moved to {error_file_dir}")
         except:
-            core_logger.print_to_log_and_console(f"Bulk file import: Okay, we are having a bad day, boss. Moving the error-producing file {file_path} to the import-error directory failed.")
+            core_logger.print_to_log_and_console(f"Bulk file import: Failed to move the error-producing file {file_path} to the import-error directory.")
 
 async def parse_and_store_activity_from_uploaded_file(
     token_user_id: int,
