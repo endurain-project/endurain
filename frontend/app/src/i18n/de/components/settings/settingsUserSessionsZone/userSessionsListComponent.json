@@ -1,5 +1,5 @@
 {
-    "badgeCurrentSession": "Current Session",
-    "modalDeleteSessionTitle": "Delete Session",
-    "modalDeleteSessionBody": "Are you sure you want to delete session "
+    "badgeCurrentSession": "Aktuelle Sitzung",
+    "modalDeleteSessionTitle": "Sitzung löschen",
+    "modalDeleteSessionBody": "Bist du sicher, dass du die Sitzung löschen möchtest "
 }
