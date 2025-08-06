@@ -67,4 +67,13 @@ export const segments = {
 
         return fetchGetRequest(baseUrl);
     },
+    getActivitySegments(segmentId){
+        return fetchGetRequest(`segments/${segmentId}/intersections`)
+    },
+    getSegmentById(segmentId) {
+        return fetchGetRequest(`segments/${segmentId}`);
+    },
+    deleteSegment(segmentId) {
+        return fetchDeleteRequest(`segments/${segmentId}/delete`);
+    },
 };

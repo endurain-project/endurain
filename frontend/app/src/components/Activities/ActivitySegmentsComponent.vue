@@ -124,12 +124,15 @@
 <script>
 import { ref } from 'vue';
 import { activityStreams } from '@/services/activityStreams';
-import { segments } from '@/services/activitySegmentsService';
+import { activitySegments } from '@/services/activitySegmentsService';
 // Importing the stores
 import { useAuthStore } from "@/stores/authStore";
 import NoItemsFoundComponents from "@/components/GeneralComponents/NoItemsFoundComponents.vue";
 import L from 'leaflet';
 //const { t } = useI18n();
+import { 
+    formatSecondsToTime,
+ } from "@/utils/segmentUtils";
 
 export default {
     components: {
@@ -184,6 +187,9 @@ export default {
         }
     },
     methods: {
+        formatSecondsToTime(seconds) {
+            return formatSecondsToTime(seconds);
+        },
         highlightGate(segmentIdx, gateIdx) {
             // Find the map for this segment
             const segmentMap = this.segmentsMaps[segmentIdx];
@@ -221,19 +227,6 @@ export default {
                 }));            
             }
         },
-        formatSecondsToTime(seconds) {
-            if (isNaN(seconds)) return '';
-            const hours = Math.floor(seconds / 3600);
-            const minutes = Math.floor((seconds % 3600) / 60);
-            const secs = (seconds % 60).toFixed(1);
-            if (hours > 0) {
-                // If hours are present, show them
-                return `${hours}h ${minutes.toString().padStart(2, '0')}m ${secs.toString().padStart(4, '0')}s`;
-            } else {
-                // If no hours, just show minutes and seconds
-                return `${minutes}m ${secs.toString().padStart(4, '0')}s`;
-            }
-        },        
         updateSegmentIconMaps(segments) {
             var segmentNumber = 0;
             
@@ -258,10 +251,10 @@ export default {
             const authStore = useAuthStore();
             try {
                 if (authStore.isAuthenticated) {
-                    this.segmentsFollowed = await segments.getActivitySegments(this.activity.id);
+                    this.segmentsFollowed = await activitySegments.getActivitySegments(this.activity.id);
                     for (const segment of this.segmentsFollowed) {
                         this.intersections.push(
-                            await segments.getActivitySegmentIntersections(this.activity.id, segment.id)
+                            await activitySegments.getActivitySegmentIntersections(this.activity.id, segment.id)
                         );
                     }
                 }
@@ -435,7 +428,7 @@ export default {
                 };
                 console.info(data)
                 this.toggleSegmentAdd();
-                const submittedSegment = await segments.createSegment(data);
+                const submittedSegment = await activitySegments.createSegment(data);
             } catch (error){
                 //push.error(`${t("activitySegmentsComponent.errorSubmitSegment")} - ${error}`);
                 console.error(error);

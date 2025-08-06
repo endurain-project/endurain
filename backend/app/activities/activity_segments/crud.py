@@ -14,7 +14,7 @@ import core.logger as core_logger
 import server_settings.crud as server_settings_crud
 from fastapi import HTTPException, status
 from pydantic import BaseModel
-from sqlalchemy import func, or_
+from sqlalchemy import func, or_, asc
 from sqlalchemy.orm import Session
 
 def get_all_segments(user_id: int, activity_type: int|None, db: Session):
@@ -50,8 +50,7 @@ def get_all_segments(user_id: int, activity_type: int|None, db: Session):
             detail="Internal Server Error",
         ) from err
 
-def get_segment_by_id(segment_id: int, user_id: int, db: Session):
-    core_logger.print_to_log(f"Getting segment with id {segment_id}")
+def get_segment_by_id(segment_id: int, user_id: int, db: Session) -> segments_schema.Segments:
 
     try:
         # Get the segment from the database
@@ -67,8 +66,11 @@ def get_segment_by_id(segment_id: int, user_id: int, db: Session):
                 detail=f"Segment with id {segment_id} not found",
             )
 
+        # Translate to schema
+        schema_segment = segments_utils.transform_model_segment_to_schema_segment(segment)
+
         # Return the segment
-        return segment
+        return schema_segment
 
     except Exception as err:
         # Log the exception
@@ -79,39 +81,64 @@ def get_segment_by_id(segment_id: int, user_id: int, db: Session):
             detail="Internal Server Error",
         ) from err
 
-# def get_activity_segment_intersections(
-#         activity_id: int, segment_id: int, user_id: int, db: Session
-# ):
-#     core_logger.print_to_log(f"Getting intersections for activity {activity_id} and segment {segment_id}")
+def get_all_activity_segment_data_by_segment(
+        segment_id: int, user_id: int, db: Session
+) -> list[segments_schema.ActivitySegment] | None:
+    try:
+        activitySegmentResult = db.query(segments_models.ActivitySegment).filter_by(
+            segment_id=segment_id
+        ).order_by(
+            asc(segments_models.ActivitySegment.start_time)
+        ).all()
 
-#     # Returns the segments which correspond to the activity
-#     try:
-#         # Get the activity stream containing the GPS track from the database that corresponds to the activity_id
-#         stream = streams_crud.get_activity_stream_by_type(activity_id, 7, user_id, db)
-#         segment = get_segment_by_id(segment_id, user_id, db)
 
-#         # Check if there is a GPS stream if not return None
-#         if not stream:
-#             return None
+        if activitySegmentResult:
+            activity_segments = []
+            for activitySegment in activitySegmentResult:
 
-#         # Get the intersections between the segment and the GPS track
-#         intersections = segments_utils.gps_trace_gate_intersections(stream, segment)
+                activityStreamLatLon = streams_crud.get_activity_stream_by_type(
+                    activity_id=activitySegment.activity_id,
+                    stream_type=7,
+                    token_user_id=user_id,
+                    db=db)
+                
+                # Obtain timezone for the activity
+                timezone = activities_crud.get_activity_timezone(activitySegment.activity_id, db)
 
-#         # Return the intersections
-#         return intersections
-
-#     except Exception as err:
-#         # Log the exception
-#         core_logger.print_to_log(
-#             f"Error in get_activity_segment_intersections: {err}",
-#             "error",
-#             exc=err,
-#         )
-#         # Raise an HTTPException with a 500 Internal Server Error status code
-#         raise HTTPException(
-#             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-#             detail="Internal Server Error",
-#         ) from err
+                gps_point_indexes = []
+                for gps_point_index in activitySegment.gps_point_index_ordered:
+                    gps_point_indexes.append((gps_point_index[0], gps_point_index[1]))
+                sub_segment_times = []
+                for sub_segment_time in activitySegment.sub_segment_times:
+                    sub_segment_times.append((sub_segment_time[0], sub_segment_time[1]))
+                activity_segment = {
+                    "id": activitySegment.id,
+                    "activity_id": activitySegment.activity_id,
+                    "segment_id": activitySegment.segment_id,
+                    "segment_name": activitySegment.segment_name.strip(),
+                    "start_time": segments_utils.date_convert_timezone(activitySegment.start_time,timezone),
+                    "gate_ordered": activitySegment.gate_ordered,
+                    "gps_point_index_ordered": gps_point_indexes,
+                    "sub_segment_times": [sub_segment_times],
+                    "segment_times": [activitySegment.segment_times],
+                    "stream_latlon": activityStreamLatLon.stream_waypoints
+                }
+                activity_segments.append(activity_segment)
+            return activity_segments
+        else:
+            return None
+    except Exception as err:
+        # Log the exception
+        core_logger.print_to_log(
+            f"Error in get_all_activity_segment_data_by_segment: {err}",
+            "error",
+            exc=err,
+        )
+        # Raise an HTTPException with a 500 Internal Server Error status code
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal Server Error",
+        ) from err
 
 def get_activity_segments_data_for_activity_by_segment(
         activity_id: int, segment_id: int, user_id: int, db: Session
@@ -288,7 +315,7 @@ def add_activity_segments_from_imported_activity(activity: activities_models.Act
         if activity_stream.stream_type == 7:
             user_id = activity.user_id
             activity_type = activity.activity_type
-            user_segments = get_all_segments(user_id=user_id, activity_type=activity_type)            
+            user_segments = get_all_segments(user_id=user_id, activity_type=activity_type, db=db)
             if user_segments:
                 for segment in user_segments:
                     intersections = segments_utils.gps_trace_gate_intersections(
@@ -402,32 +429,40 @@ def get_all_user_activities_for_segment(
         user_id: int,
         db: Session
 ):
-    # Get all user activities that correspond with the segment
-    # Returns a tuple with the list of activity_id's and the datetime of the most recent activity
+    try:
+        # Get all user activities that correspond with the segment
+        # Returns a tuple with the list of activity_id's and the datetime of the most recent activity
 
-    user_activities = activities_crud.get_user_activities(user_id=user_id, db=db, activity_type=segment.activity_type)
+        user_activities = activities_crud.get_user_activities(user_id=user_id, db=db, activity_type=segment.activity_type)
 
-    activity_ids = []
-    activity_dates = []
-    for activity in user_activities:
-        activity_stream = streams_crud.get_activity_stream_by_type(
-            activity_id=activity.id,
-            stream_type=7,
-            token_user_id=user_id,
-            db=db,
-        )
-        if activity_stream:
-            intersections = segments_utils.gps_trace_gate_intersections(
-                activity_stream, segment
+        activity_ids = []
+        activity_dates = []
+        for activity in user_activities:
+            activity_stream = streams_crud.get_activity_stream_by_type(
+                activity_id=activity.id,
+                stream_type=7,
+                token_user_id=user_id,
+                db=db,
             )
-            if intersections:
-                activity_ids.append(activity.id)
-                activity_dates.append(activity.start_time)
-    activity_dates.sort()
+            if activity_stream:
+                intersections = segments_utils.gps_trace_gate_intersections(
+                    activity_stream, segment
+                )
+                if intersections:
+                    activity_ids.append(activity.id)
+                    activity_dates.append(activity.start_time)
+        activity_dates.sort()
 
-    return (activity_ids, activity_dates[-1])
+        return (activity_ids, activity_dates[-1])
+    except Exception as err:
+        # Log the exception
+        core_logger.print_to_log(f"Error in get_all_user_activities_for_segment: {err}", "error", exc=err)
+        # Raise an HTTPException with a 500 Internal Server Error status code
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal Server Error",
+        ) from err
     
-
 def create_segment(
     segment: segments_schema.Segments, user_id: int, db: Session
 ) -> segments_schema.Segments:
@@ -571,7 +606,6 @@ def get_user_segments_with_pagination(
     user_is_owner: bool = False,
 ) -> list[segments_models.Segments] | None:
     #core_logger.print_to_log(f"Getting segments for user {user_id} with pagination")
-    core_logger.print_to_log(sort_by)
     try:
         # Mapping from frontend sort keys to database model fields
         SORT_MAP = {

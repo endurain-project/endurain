@@ -1,6 +1,6 @@
 import { fetchGetRequest, fetchPostRequest, fetchPutRequest, fetchDeleteRequest } from '@/utils/serviceUtils';
 
-export const segments = {
+export const activitySegments = {
     createSegment(data) {
         return fetchPostRequest('segments', data);
     },

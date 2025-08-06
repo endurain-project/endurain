@@ -427,6 +427,9 @@ import usActivitiesTableComponent from './us/components/activities/activitiesTab
 import usUserDistanceStatsComponent from './us/components/activities/userDistanceStatsComponent.json';
 // Segments component
 import usSegmentsTableComponent from './us/components/segments/segmentsTableComponent.json';
+import usSegmentSummaryComponent from './us/components/segments/segmentSummaryComponent.json';
+import usSegmentDetailComponent from './us/components/segments/segmentDetailComponent.json';
+
 // Followers component
 import usFollowersListComponent from './us/components/followers/followersListComponent.json';
 // Gears component
@@ -484,7 +487,7 @@ import usSettingsView from './us/settingsView.json';
 import usUserView from './us/userView.json';
 import usSummaryView from './us/summaryView.json';
 import usSegmentsView from './us/segmentsView.json';
-import { segments } from '@/services/activitySegmentsService';
+import usSegmentView from './us/segmentView.json';
 
 // Constructing the messages structure
 const messages = {
@@ -911,6 +914,8 @@ const messages = {
 		userDistanceStats: usUserDistanceStatsComponent,
 		// Segments component
 		segmentsTableComponent: usSegmentsTableComponent,
+		segmentSummaryComponent: usSegmentSummaryComponent,
+		segmentDetailComponent: usSegmentDetailComponent,
 		// Followers component
 		followersListComponent: usFollowersListComponent,
 		// Gears component
@@ -968,6 +973,7 @@ const messages = {
 		userView: usUserView,
 		summaryView: usSummaryView,
 		segmentsView: usSegmentsView,
+		segmentView: usSegmentView,
 	},
 };
 

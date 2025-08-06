@@ -1,0 +1,12 @@
+{
+    "buttonDeleteSegment": "Delete",
+    "errorFetchingUserById": "Error fetching user by id",
+    "errorDeletingSegment": "Error deleting segment",
+    "fastestTimeCompleted": "Fastest time completed",
+    "lastTimeCompleted": "Last time completed",
+    "modalDeleteBody1": "Are you sure you want to delete segment ",
+    "modalDeleteBody2": "This action cannot be undone",
+    "numberOfCompletions": "Number of Completions",
+    "userNameHidden": "Hidden",
+    "visibilityPrivate": "Private"
+}

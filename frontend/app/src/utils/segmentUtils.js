@@ -35,3 +35,18 @@ export function formatSegmentLocation(segment_location) {
 
 	return locationParts.join(""); // Join without extra spaces, comma is handled above
 }
+
+export function formatSecondsToTime(seconds) {
+	if (isNaN(seconds)) return '';
+	const hours = Math.floor(seconds / 3600);
+	const minutes = Math.floor((seconds % 3600) / 60);
+	const secs = (seconds % 60).toFixed(1);
+	if (hours > 0) {
+		// If hours are present, show them
+		return `${hours}h ${minutes.toString().padStart(2, '0')}m ${secs.toString().padStart(4, '0')}s`;
+	} else {
+		// If no hours, just show minutes and seconds
+		return `${minutes}m ${secs.toString().padStart(4, '0')}s`;
+	}
+}
+

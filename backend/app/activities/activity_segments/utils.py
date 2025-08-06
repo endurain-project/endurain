@@ -259,6 +259,24 @@ def gps_trace_gate_intersections(gps_trace: streams_models.ActivityStreams, segm
 
     return result
 
+def transform_model_segment_to_schema_segment(
+        segment: segments_models.Segments
+) -> segments_schema.Segments:
+    
+    # Create a new segment object
+    new_segment = segments_schema.Segments(
+        id=segment.id,
+        user_id=segment.user_id,
+        name=segment.name.strip(),
+        activity_type=segment.activity_type,
+        gates=segment.gates,
+        city=segment.city,
+        town=segment.town,
+        country=segment.country,
+    )
+
+    return new_segment
+
 def transform_schema_segment_to_model_segment(
     segment: segments_schema.Segments,
     user_id: int,

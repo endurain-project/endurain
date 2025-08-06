@@ -1,9 +1,4 @@
-from typing import Annotated, Callable
-
-from fastapi import APIRouter, Depends, HTTPException, status, Security
-from sqlalchemy.orm import Session
-from pydantic import BaseModel
-from typing import List, Tuple
+from typing import Annotated, Callable, List
 
 import activities.activity_segments.schema as segments_schema
 import activities.activity_segments.models as segments_models
@@ -19,8 +14,14 @@ import session.security as session_security
 import users.user.dependencies as users_dependencies
 
 from fastapi import (
-    Query
+    APIRouter,
+    Depends,
+    HTTPException,
+    Security,
+    Query,
+    status,
     )
+from sqlalchemy.orm import Session
 
 # Define the API router
 router = APIRouter()
@@ -66,7 +67,25 @@ async def get_activity_segments(
 ):
     # Return segments that correspond to the specified activity
     return segments_crud.get_segments_from_activity_segments_by_activity(activity_id, user_id, db)
-    
+
+@router.get(
+        "/{segment_id}/intersections",
+        response_model=List[segments_schema.ActivitySegment] | None,
+)
+async def get_all_activity_segment_intersections(
+        segment_id: int,
+        check_scopes: Annotated[
+            Callable, Security(session_security.check_scopes, scopes=["segments:read"])
+        ],
+        user_id: Annotated[
+            int, Depends(session_security.get_user_id_from_access_token)
+        ],
+        db: Annotated[
+            Session,
+            Depends(core_database.get_db),
+        ],
+):
+    return segments_crud.get_all_activity_segment_data_by_segment(segment_id, user_id, db)
 
 @router.get(
     "/activity_id/{activity_id}/segment_id/{segment_id}/intersections",
@@ -208,3 +227,58 @@ async def read_segments_user_segments_number(
     # Return the number of segments
     return len(segments)
 
+@router.get(
+        "/{segment_id}",
+        response_model=segments_schema.Segments | None,
+)
+async def read_segments_segment_from_id(
+    segment_id: int,
+    check_scopes: Annotated[
+        Callable, Security(session_security.check_scopes, scopes=["segments:read"])
+    ],
+    user_id: Annotated[
+        int, Depends(session_security.get_user_id_from_access_token)
+    ],
+    db: Annotated[
+        Session,
+        Depends(core_database.get_db),
+    ],
+):
+    # Get the segment by id
+    return segments_crud.get_segment_by_id(segment_id=segment_id, user_id=user_id, db=db)
+
+@router.delete(
+    "/{segment_id}/delete",
+)
+async def delete_segment(
+    segment_id: int,
+    validate_segment_id: Annotated[
+        Callable, Depends(segments_dependencies.validate_segment_id)
+    ],
+    check_scopes: Annotated[
+        Callable, Security(session_security.check_scopes, scopes=["segments:write"])
+    ],
+    token_user_id: Annotated[
+        int,
+        Depends(session_security.get_user_id_from_access_token),
+    ],
+    db: Annotated[
+        Session,
+        Depends(core_database.get_db),
+    ],
+):
+    # Get the segment by id from user id
+    segment = segments_crud.get_segment_by_id(segment_id, token_user_id, db)
+
+    # Check if segment is None and raise an HTTPException with a 404 Not Found status code if it is
+    if segment is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Segment ID {segment_id} for user {token_user_id} not found",
+        )
+
+    # Delete the segment
+    segments_crud.delete_segment(segment_id, db)
+
+    # Return success message
+    return {"detail": f"Segment {segment_id} deleted successfully"}

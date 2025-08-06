@@ -12,6 +12,7 @@ class ActivitySegment(BaseModel):
     gps_point_index_ordered: List[Tuple[int, int]] | None = None
     sub_segment_times: List[list[Tuple[int,float]]] | None = None
     segment_times: List[float] | None = None
+    stream_latlon: List[dict] | None = None
 
     class Config:
         orm_mode = True
