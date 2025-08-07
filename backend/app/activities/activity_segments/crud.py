@@ -252,7 +252,8 @@ def get_segments_from_activity_segments_by_activity(activity_id: int, user_id: i
             ).all()
             for segment in segmentresult:
                 segment.name = segment.name.strip()
-            segments.append(segmentresult[0])
+            if not segmentresult[0] in segments:
+                segments.append(segmentresult[0])
         return segments
     except Exception as err:
         # Log the exception
@@ -280,13 +281,19 @@ def add_activity_segments_from_new_segment(segment: segments_models.Segments, us
                     intersections = segments_utils.gps_trace_gate_intersections(activity_stream, segment)
                     if intersections:
                         for i in range(len(intersections['segment_times'])):
+                            if len(intersections['segment_times']) > 1:
+                                gate_ordered = intersections['gate_ordered'][i]
+                                gps_point_index_ordered = intersections['gps_point_index_ordered'][i]
+                            else:
+                                gate_ordered = intersections['gate_ordered']
+                                gps_point_index_ordered = intersections['gps_point_index_ordered']
                             db_mapping = {
                                 'activity_id': activity.id,
                                 'segment_id': segment.id,
                                 'segment_name': segment.name.strip(),
                                 'start_time': intersections['gate_times'][0][0][1],
-                                'gate_ordered': intersections['gate_ordered'],
-                                'gps_point_index_ordered': intersections['gps_point_index_ordered'],
+                                'gate_ordered': gate_ordered,
+                                'gps_point_index_ordered': gps_point_index_ordered,
                                 'sub_segment_times': intersections['sub_segment_times'][i],
                                 'segment_times': intersections['segment_times'][i]
                                 }

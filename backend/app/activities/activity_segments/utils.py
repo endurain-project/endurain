@@ -28,24 +28,23 @@ def distance_between_points(point1: Point, point2: Point) -> float:
     # Returns the distance between two points.
     return ((point1.x - point2.x) ** 2 + (point1.y - point2.y) ** 2) ** 0.5
 
-def find_repeating_pattern(lst):
+def find_repeating_pattern_valid(lst):
     n = len(lst)
-    for size in range(1, n // 2 + 1):
-        pattern = lst[:size]
-        # Build what the list would look like if the pattern repeated
-        repeated = (pattern * (n // size + 1))[:n]
-        if repeated == lst:
-            return pattern
-        # If not a perfect repeat, check for partial repeats
-        # Find all occurrences of the pattern in the list
-        matches = True
-        for i in range(0, n, size):
-            if lst[i:i+size] != pattern[:min(size, n-i)]:
-                matches = False
-                break
-        if matches:
-            return pattern
-    return None
+    for size in range(2, n // 2 + 1):
+        for i in range(0, n - size):
+            pattern = lst[i:i+size]
+            # Check if pattern is valid
+            if pattern[0] == 0 and pattern[-1] == max(lst):
+                count = 0
+                for j in range(0, len(lst)-size+1):
+                    match = lst[j:j+size]
+                    if pattern == match:
+                        count += 1
+                if count > 1:
+                    return pattern
+                else:
+                    return None
+
 
 def gps_trace_gate_intersections(gps_trace: streams_models.ActivityStreams, segment: segments_models.Segments):
     # Takes a GPS Trace and checks that it passes through each gate
@@ -109,7 +108,7 @@ def gps_trace_gate_intersections(gps_trace: streams_models.ActivityStreams, segm
         #core_logger.print_to_log(intersections)
         for i in range(len(intersections['gps_point_index_intersections'])):
             intersection_list.append((gate_index, 
-                                      intersections['gps_point_index_intersections'][i], 
+                                      intersections['gps_point_index_intersections'][i],
                                       intersections['gps_point_intersections'][i], 
                                       intersections['intersection_distance'][i]))
 
@@ -172,7 +171,7 @@ def gps_trace_gate_intersections(gps_trace: streams_models.ActivityStreams, segm
     mode = 'linear' # or 'laps'
 
     # Check for repeating patterns in the gates
-    laps = find_repeating_pattern(gate_ordered)
+    laps = find_repeating_pattern_valid(gate_ordered)
     first_gate = 0
     last_gate = len(segment.gates) - 1
     if laps is not None:
@@ -195,6 +194,23 @@ def gps_trace_gate_intersections(gps_trace: streams_models.ActivityStreams, segm
     segment_times = []
     sub_segment_times = []
     if mode == 'linear':
+        # Validate segment in reverse (can't do this previously as it removes laps)
+        first_gate = None
+        last_gate = None
+        for i in range(len(gate_ordered)-1, -1, -1):
+            if gate_ordered[i] == last_gate:
+                if not last_gate:
+                    last_gate = i
+            if gate_ordered[i] == first_gate:
+                if not first_gate:
+                    first_gate = i
+
+        if (first_gate and last_gate):
+            gate_ordered = gate_ordered[first_gate:last_gate + 1]
+            gps_point_index_ordered = gps_point_index_ordered[first_gate:last_gate + 1]
+            gps_point_ordered = gps_point_ordered[first_gate:last_gate + 1]
+            intersection_distance_ordered = intersection_distance_ordered[first_gate:last_gate + 1]
+
         times = []
         sub_segment_time = []
         first_gate_time = None
@@ -220,6 +236,8 @@ def gps_trace_gate_intersections(gps_trace: streams_models.ActivityStreams, segm
     if mode == 'laps':
         # Calculate the time for each lap
         lap_number = 1
+        laps_gate_ordered = []
+        laps_gps_point_index_ordered = []
         for i in range(len(gps_point_index_ordered)-len(laps)+1):
             if gate_ordered[i:i+len(laps)] == laps:
                 # This is a lap
@@ -227,7 +245,11 @@ def gps_trace_gate_intersections(gps_trace: streams_models.ActivityStreams, segm
                 lap_times = []
                 sub_segment_time = []
                 first_gate_time = None
+                new_gate_ordered = []
+                new_gps_point_index_ordered = []
                 for j in range(len(laps)):
+                    new_gate_ordered.append(laps[j])
+                    new_gps_point_index_ordered.append(gps_point_index_ordered[i+j])
                     gps_point_1 = gps_trace.stream_waypoints[gps_point_index_ordered[i+j][0]]
                     gps_point_2 = gps_trace.stream_waypoints[gps_point_index_ordered[i+j][1]]
                     gate_time_1 = datetime.fromisoformat(gps_point_1['time'])
@@ -247,6 +269,10 @@ def gps_trace_gate_intersections(gps_trace: streams_models.ActivityStreams, segm
                 segment_times.append(segment_time)
                 sub_segment_times.append(sub_segment_time)
                 lap_number += 1
+                laps_gate_ordered.append(new_gate_ordered)
+                laps_gps_point_index_ordered.append(new_gps_point_index_ordered)
+        gate_ordered = laps_gate_ordered
+        gps_point_index_ordered = laps_gps_point_index_ordered
 
     result = {
         'segment_name': segment.name.strip(),
