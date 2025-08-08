@@ -12,7 +12,9 @@
                             <table>
                                 <thead>
                                     <tr>
-                                        <th class="text-center m-10" colspan="3"><strong> {{ segment.name }}</strong></th>
+                                        <th class="text-center m-10" colspan="3">
+                                            <router-link :to="{name: 'segment', params: {id: segment.id } }" class="link-body-emphasis link-underline-opacity-0 link-underline-opacity-100-hover">{{ segment.name }}</router-link>
+                                        </th>
                                     </tr>
                                 </thead>
                                 <tbody>

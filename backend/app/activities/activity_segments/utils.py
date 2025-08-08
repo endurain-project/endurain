@@ -194,22 +194,41 @@ def gps_trace_gate_intersections(gps_trace: streams_models.ActivityStreams, segm
     segment_times = []
     sub_segment_times = []
     if mode == 'linear':
+        # Look forward and find first gate and identify full gate sequence to first instance of last gate
+        first_gate_idx = None
+        last_gate_idx = None
+        curr_gate = first_gate
+        for i in range(len(gate_ordered)-1):
+            if gate_ordered[i] == curr_gate:
+                if curr_gate == first_gate:
+                    first_gate_idx = i
+                elif curr_gate == last_gate:
+                    last_gate_idx = i
+                curr_gate += 1
+                
+        if (first_gate_idx and last_gate_idx):
+            gate_ordered = gate_ordered[first_gate_idx:last_gate_idx + 1]
+            gps_point_index_ordered = gps_point_index_ordered[first_gate_idx:last_gate_idx + 1]
+            gps_point_ordered = gps_point_ordered[first_gate_idx:last_gate_idx + 1]
+            intersection_distance_ordered = intersection_distance_ordered[first_gate_idx:last_gate_idx + 1]
+
         # Validate segment in reverse (can't do this previously as it removes laps)
-        first_gate = None
-        last_gate = None
+        # Look for the last instance of the last gate, and the last instance of first gate
+        first_gate_idx = None
+        last_gate_idx = None
         for i in range(len(gate_ordered)-1, -1, -1):
             if gate_ordered[i] == last_gate:
-                if not last_gate:
-                    last_gate = i
+                if not last_gate_idx:
+                    last_gate_idx = i
             if gate_ordered[i] == first_gate:
-                if not first_gate:
-                    first_gate = i
+                if not first_gate_idx:
+                    first_gate_idx = i
 
-        if (first_gate and last_gate):
-            gate_ordered = gate_ordered[first_gate:last_gate + 1]
-            gps_point_index_ordered = gps_point_index_ordered[first_gate:last_gate + 1]
-            gps_point_ordered = gps_point_ordered[first_gate:last_gate + 1]
-            intersection_distance_ordered = intersection_distance_ordered[first_gate:last_gate + 1]
+        if (first_gate_idx and last_gate_idx):
+            gate_ordered = gate_ordered[first_gate_idx:last_gate_idx + 1]
+            gps_point_index_ordered = gps_point_index_ordered[first_gate_idx:last_gate_idx + 1]
+            gps_point_ordered = gps_point_ordered[first_gate_idx:last_gate_idx + 1]
+            intersection_distance_ordered = intersection_distance_ordered[first_gate_idx:last_gate_idx + 1]
 
         times = []
         sub_segment_time = []
