@@ -138,7 +138,7 @@ def gps_trace_gate_intersections(gps_trace: streams_models.ActivityStreams, segm
     last_gate = len(segment.gates) - 1
 
     # Trim the gate_ordered list to the first instance of the first gate and the last instance of the last gate
-    for i in range(len(gate_ordered)):
+    for i in range(len(gate_ordered) -1):
         if gate_ordered[i] == first_gate and gate_ordered[i+1] != first_gate:
             first_gate = i
             break
@@ -205,7 +205,7 @@ def gps_trace_gate_intersections(gps_trace: streams_models.ActivityStreams, segm
                 elif curr_gate == last_gate:
                     last_gate_idx = i
                 curr_gate += 1
-                
+
         if (first_gate_idx and last_gate_idx):
             gate_ordered = gate_ordered[first_gate_idx:last_gate_idx + 1]
             gps_point_index_ordered = gps_point_index_ordered[first_gate_idx:last_gate_idx + 1]
