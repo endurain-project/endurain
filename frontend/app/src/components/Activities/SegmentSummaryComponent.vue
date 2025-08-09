@@ -47,7 +47,7 @@
                         <!-- Add other options such as edit -->
 
                         <!-- Enable divider between other menu items
-                        <li v-if="source === 'activity'">
+                        <li>
                             <hr class="dropdown-divider">
                         </li>
                         -->
@@ -57,7 +57,7 @@
                                 {{ $t("segmentSummaryComponent.buttonRefreshSegment") }}
                             </a>
                         </li>
-                        <li v-if="source === 'activity'">
+                        <li>
                             <hr class="dropdown-divider">
                         </li>
                         <li>
@@ -104,7 +104,11 @@
                     {{ $t("segmentSummaryComponent.lastTimeCompleted") }}
                 </span>
                 <br>
-                <span>{{ formatDateTime(lTime[0]) }} - {{ formatSecondsToTime(lTime[1]) }}</span>
+                <span>
+                    <router-link :to="{ name: 'activity', params: { id: lTime[0] }}" class="link-body-emphasis link-underline-opacity-0 link_underline-opacity-100-hover">
+                    {{ formatDateTime(lTime[1]) }} - {{ formatSecondsToTime(lTime[2]) }}
+                    </router-link>
+                </span>
             </div>
             <!-- Fastest time -->
             <div class="col">
@@ -112,7 +116,11 @@
                     {{ $t("segmentSummaryComponent.fastestTimeCompleted") }}
                 </span>
                 <br>
-                <span>{{ formatDateTime(fTime[0]) }} - {{ formatSecondsToTime(fTime[1]) }}</span>
+                <span>
+                    <router-link :to="{ name: 'activity', params: { id: fTime[0] }}" class="link-body-emphasis link-underline-opacity-0 link_underline-opacity-100-hover">
+                    {{ formatDateTime(fTime[1]) }} - {{ formatSecondsToTime(fTime[2]) }}
+                    </router-link>
+                </span>
             </div>
         </div>
     </div>
@@ -176,30 +184,34 @@ const props = defineProps({
 function fastestTime() {
     var starttime = '1970-01-01T00:00:00';
     var segment_time = 999999.99;
+    var activity_number = null;
     props.activitySegments.forEach(item=> {
 
         if (segment_time > item.segment_times[0]) {
+            activity_number = item.activity_id;
             starttime = item.start_time;
             segment_time = item.segment_times[0];
         };
     });
-    return [starttime, segment_time];
+    return [activity_number, starttime, segment_time];
 }
 
 function lastTime() {
     var starttime = '1970-01-01T00:00:00';
     var segment_time = 0;
+    var activity_number = null;
     props.activitySegments.forEach(item=> {
 
         let prevTime = new Date(starttime);
         let itemTime = new Date(item.start_time);
 
         if (prevTime < itemTime) {
+            activity_number = item.activity_id;
             starttime = item.start_time;
             segment_time = item.segment_times[0];
         };
     });
-    return [starttime, segment_time];
+    return [activity_number, starttime, segment_time];
 }
 
 function numTimes() {
