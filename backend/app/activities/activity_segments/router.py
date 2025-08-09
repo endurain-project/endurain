@@ -247,6 +247,28 @@ async def read_segments_segment_from_id(
     # Get the segment by id
     return segments_crud.get_segment_by_id(segment_id=segment_id, user_id=user_id, db=db)
 
+@router.get(
+        "/{segment_id}/refresh"
+)
+async def refresh_segment_intersections(
+    segment_id: int,
+    validate_segment_id: Annotated[
+        Callable, Depends(segments_dependencies.validate_segment_id)
+    ],
+    check_scopes: Annotated[
+        Callable, Security(session_security.check_scopes, scopes=["segments:write"])
+    ],
+    token_user_id: Annotated[
+        int,
+        Depends(session_security.get_user_id_from_access_token),
+    ],
+    db: Annotated[
+        Session,
+        Depends(core_database.get_db),
+    ],
+):
+    return segments_crud.refresh_segment_intersections_by_id(segment_id=segment_id, user_id=token_user_id, db=db)
+
 @router.delete(
     "/{segment_id}/delete",
 )

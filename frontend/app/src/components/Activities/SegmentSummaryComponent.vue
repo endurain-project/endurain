@@ -51,7 +51,15 @@
                             <hr class="dropdown-divider">
                         </li>
                         -->
-
+                        <li>
+                            <a class="dropdown-item" href="#" data-bs-toggle="modal"
+                                :data-bs-target="`#refreshSegmentModal${segment.id}`">
+                                {{ $t("segmentSummaryComponent.buttonRefreshSegment") }}
+                            </a>
+                        </li>
+                        <li v-if="source === 'activity'">
+                            <hr class="dropdown-divider">
+                        </li>
                         <li>
                             <a class="dropdown-item" href="#" data-bs-toggle="modal"
                                 :data-bs-target="`#deleteSegmentModal${segment.id}`">
@@ -68,6 +76,12 @@
             :body="`${t('segmentSummaryComponent.modalDeleteBody1')}<b>${segment.name}</b>?<br>${t('segmentSummaryComponent.modalDeleteBody2')}`"
             :actionButtonType="`danger`" :actionButtonText="t('segmentSummaryComponent.buttonDeleteSegment')" 
             @submitAction="submitDeleteSegment" />
+
+        <!-- Modal refresh segment -->
+        <ModalComponent :modalId="`refreshSegmentModal${segment.id}`" :title="t('segmentSummaryComponent.buttonRefreshSegment')"
+            :body="`${t('segmentSummaryComponent.modalRefreshBody1')}<b>${segment.name}</b>?<br>${t('segmentSummaryComponent.modalRefreshBody2')}`"
+            :actionButtonType="`danger`" :actionButtonText="t('segmentSummaryComponent.buttonRefreshSegment')" 
+            @submitAction="submitRefreshSegment" />
 
         <!-- Segment title -->
         <h1 class="mt-3" v-if="source === 'segment'">
@@ -130,7 +144,7 @@ import {
  } from "@/utils/segmentUtils";
 
 // Emits
-const emit = defineEmits(["segmentDeleted"]);
+const emit = defineEmits(["segmentDeleted", "segmentRefreshed"]);
 
 // Composables
 const router = useRouter();
@@ -236,6 +250,14 @@ async function submitDeleteSegment(){
         emit("segmentDeleted", props.segment.id);
     } catch (error) {
         push.error(`${t("segmentSummaryComponent.errorDeletingSegment")} - ${error}`);
+    }
+}
+async function submitRefreshSegment(){
+    try {
+        userSegment.value = await segments.refreshSegment(props.segment.id);
+        emit("segmentRefreshed", props.segment.id);
+    } catch (error) {
+        push.error(`${t("segmentSummaryComponent.errorRefreshingSegment")} - ${error}`);
     }
 }
 

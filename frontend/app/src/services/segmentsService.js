@@ -76,4 +76,7 @@ export const segments = {
     deleteSegment(segmentId) {
         return fetchDeleteRequest(`segments/${segmentId}/delete`);
     },
+    refreshSegment(segmentId) {
+        return fetchGetRequest(`segments/${segmentId}/refresh`);
+    },
 };

@@ -363,6 +363,67 @@ def add_activity_segments_from_imported_activity(activity: activities_models.Act
             detail="Internal Server Error",
         ) from err
 
+def refresh_segment_intersections_by_id(
+        segment_id: int, user_id: int, db: Session
+) -> bool:
+    try:
+        update_segment_mappings = []
+        insert_segment_mappings = []
+
+        segment = get_segment_by_id(segment_id=segment_id, user_id=user_id, db=db)
+        activities = activities_crud.get_user_activities(user_id, db, segment.activity_type)
+        if activities:
+            for activity in activities:
+                activity_stream = streams_crud.get_activity_stream_by_type(activity.id, 7, user_id, db)
+                if activity_stream:
+                    intersections = segments_utils.gps_trace_gate_intersections(activity_stream, segment)
+                    if intersections:
+                        for i in range(len(intersections['segment_times'])):
+                            if len(intersections['segment_times']) > 1:
+                                gate_ordered = intersections['gate_ordered'][i]
+                                gps_point_index_ordered = intersections['gps_point_index_ordered'][i]
+                            else:
+                                gate_ordered = intersections['gate_ordered']
+                                gps_point_index_ordered = intersections['gps_point_index_ordered']
+                            db_mapping = {
+                                'activity_id': activity.id,
+                                'segment_id': segment.id,
+                                'segment_name': segment.name.strip(),
+                                'start_time': intersections['gate_times'][0][0][1],
+                                'gate_ordered': gate_ordered,
+                                'gps_point_index_ordered': gps_point_index_ordered,
+                                'sub_segment_times': intersections['sub_segment_times'][i],
+                                'segment_times': intersections['segment_times'][i]
+                                }
+                            # Check if there's an existing record and update it. If not, create a new record
+                            activitySegment = db.query(segments_models.ActivitySegment).filter_by(
+                                segment_id=segment_id,
+                                activity_id=activity.id
+                            ).first()
+                            if activitySegment:
+                                db_mapping['id'] = activitySegment.id
+                                update_segment_mappings.append(db_mapping)
+                            else:
+                                insert_segment_mappings.append(db_mapping)
+        if len(insert_segment_mappings) > 0:
+            db.bulk_insert_mappings(segments_models.ActivitySegment, insert_segment_mappings)
+            db.commit()
+        if len(update_segment_mappings) > 0:
+            db.bulk_update_mappings(segments_models.ActivitySegment, update_segment_mappings)
+            db.commit()
+        return True
+    except Exception as err:
+        # Rollback the transaction
+        db.rollback()
+
+        # Log the exception
+        core_logger.print_to_log(f"Error in refresh_segment_intersections_by_id: {err}", "error", exc=err)
+        # Raise an HTTPException with a 500 Internal Server Error status code
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal Server Error",
+        ) from err
+
 def get_all_user_segments_for_activity_stream(
         activity_stream,
         activity_type: int,
