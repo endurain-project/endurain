@@ -60,7 +60,7 @@ async def fetch_and_process_activities(
         # Attempt to refresh token or notify user about authentication issues
         if not is_startup:
             raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
+                status_code=status.HTTP_424_FAILED_DEPENDENCY,
                 detail="Strava authentication failed. Please reconnect your Strava account.",
             ) from auth_err
         # Return 0 to indicate no activities were processed

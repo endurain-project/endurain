@@ -91,7 +91,9 @@ onMounted(async () => {
             }
         };
     }
-    await fetchNotifications();
+    if (authStore.isAuthenticated) {
+        await fetchNotifications();
+    }
     isLoading.value = false;
 });
 

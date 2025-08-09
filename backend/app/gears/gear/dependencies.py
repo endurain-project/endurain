@@ -26,5 +26,5 @@ def validate_gear_type(gear_type: int):
     Returns:
         None
     """
-    # Check if gear type is within 1 and 7
-    core_dependencies.validate_type(type=gear_type, min=1, max=7, message="Invalid gear type")
+    # Check if gear type is within 1 and 8
+    core_dependencies.validate_type(type=gear_type, min=1, max=8, message="Invalid gear type")

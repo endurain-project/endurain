@@ -79,6 +79,8 @@ ACTIVITY_ID_TO_NAME = {
     29: "Mixed surface ride",
     30: "Windsurf",
     31: "Indoor walking",
+    32: "Stand up paddling",
+    33: "Surf",
     # Add other mappings as needed based on the full list in define_activity_type comments if required
     # "AlpineSki",
     # "BackcountrySki",
@@ -183,6 +185,9 @@ ACTIVITY_NAME_TO_ID.update(
         "windsurf": 30,
         "windsurfing": 30,
         "indoor_walking": 31,
+        "stand_up_paddleboarding": 32,
+        "StandUpPaddling": 32,
+        "Surfing": 33,
     }
 )
 
@@ -317,6 +322,8 @@ async def parse_and_store_activity_from_file(
     garminconnect_gear: dict = None,
 ):
     try:
+        core_logger.print_to_log_and_console(f"Bulk file import: Beginning processing of {file_path}")
+
         # Get file extension
         _, file_extension = os.path.splitext(file_path)
         garmin_connect_activity_id = None
@@ -405,9 +412,8 @@ async def parse_and_store_activity_from_file(
                                 "_"  # Add an underscore if it's not the last item
                             )
                 else:
-                    core_logger.print_to_log_and_console(
-                        f"File extension not supported: {file_extension}", "error"
-                    )
+                     # Should no longer get here due to screening of extensions in router.py, but why not.
+                    core_logger.print_to_log_and_console(f"File extension not supported: {file_extension}", "error")
                 # Define the directory where the processed files will be stored
                 processed_dir = core_config.FILES_PROCESSED_DIR
 
@@ -416,21 +422,30 @@ async def parse_and_store_activity_from_file(
 
                 # Move the file to the processed directory
                 move_file(processed_dir, new_file_name, file_path)
+                core_logger.print_to_log_and_console(f"Bulk file import: File successfully processed and moved. {file_path} - has become {new_file_name}")
 
                 # Return the created activity
                 return created_activities
             else:
                 return None
-    except HTTPException as http_err:
-        raise http_err
+    #except HTTPException as http_err:
+        # This is causing a crash on the back end when the try fails.  Looks like we cannot raise an http exception in a background task.
+        #raise http_err
     except Exception as err:
         # Log the exception
         core_logger.print_to_log(
-            f"Error in parse_and_store_activity_from_file - {str(err)}",
+            f"Bulk file import: Error while parsing {file_path} in parse_and_store_activity_from_file - {str(err)}",
             "error",
             exc=err,
         )
-
+        try:
+            # Move the exception-causing file to an import errors directory.
+            error_file_dir = core_config.FILES_BULK_IMPORT_IMPORT_ERRORS_DIR
+            os.makedirs(error_file_dir, exist_ok=True)
+            move_file(error_file_dir, os.path.basename(file_path), file_path)
+            core_logger.print_to_log_and_console(f"Bulk file import: Due to import error, file {file_path} has been moved to {error_file_dir}")
+        except Exception:
+            core_logger.print_to_log_and_console(f"Bulk file import: Failed to move the error-producing file {file_path} to the import-error directory.")
 
 async def parse_and_store_activity_from_uploaded_file(
     token_user_id: int,
@@ -731,7 +746,9 @@ def parse_activity_streams_from_file(parsed_info: dict, activity_id: int):
 
 def calculate_activity_distances(activities: list[activities_schema.Activity]):
     # Initialize the distances
-    run = bike = swim = walk = hike = rowing = snow_ski = snowboard = windsurf = 0.0
+    run = bike = swim = walk = hike = rowing = snow_ski = snowboard = windsurf = (
+        stand_up_paddleboarding
+    ) = surfing = 0.0
 
     if activities is not None:
         # Calculate the distances
@@ -754,6 +771,10 @@ def calculate_activity_distances(activities: list[activities_schema.Activity]):
                 snowboard += activity.distance
             elif activity.activity_type in [30]:
                 windsurf += activity.distance
+            elif activity.activity_type in [32]:
+                stand_up_paddleboarding += activity.distance
+            elif activity.activity_type in [33]:
+                surfing += activity.distance
 
     # Return the distances
     return activities_schema.ActivityDistances(
@@ -856,7 +877,7 @@ def location_based_on_coordinates(latitude, longitude) -> dict | None:
             f"Error in location_based_on_coordinates - {str(err)}", "error"
         )
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
+            status_code=status.HTTP_424_FAILED_DEPENDENCY,
             detail=f"Error in location_based_on_coordinates: {str(err)}",
         ) from err
 

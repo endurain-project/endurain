@@ -152,7 +152,7 @@ The API is reachable under `/api/v1`. Below are some example endpoints. All endp
 
 
 ## Supported activity types
-The table bellow details the activity types supported by Endurain:
+The table bellow details the activity types supported by Endurain.
 
 | Name | Value |
 | ---- | --- |
@@ -187,19 +187,23 @@ The table bellow details the activity types supported by Endurain:
 | Racquetball | 25 |
 | Pickleball | 26 |
 | Windsurf | 30 |
+| Stand up paddling | 32 |
+| Surf | 33 |
 
 
 ## Supported gear types
-The table bellow details the gear types supported by Endurain:
+The table bellow details the gear types supported by Endurain.
 
-| Name      | Value |
-|-----------|-------|
-| Bike      | 1     |
-| Shoes     | 2     |
-| Wetsuit   | 3     |
-| Racquet   | 4     |
-| Ski       | 5     |
-| Snowboard | 6     |
+| Name               | Value | Notes                                   |
+|--------------------|-------|-----------------------------------------|
+| bike               | 1     | N/A                                     |
+| shoes              | 2     | N/A                                     |
+| wetsuit            | 3     | N/A                                     |
+| racquet            | 4     | N/A                                     |
+| ski                | 5     | N/A                                     |
+| snowboard          | 6     | N/A                                     |
+| windsurf           | 7     | N/A                                     |
+| water_sports_board | 8     | Example: stand up paddle and surf board |
 
 
 ## Supported bike component gear types

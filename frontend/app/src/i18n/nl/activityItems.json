@@ -10,6 +10,7 @@
     "openWaterSwimming": "Open water swimming",
     "workout": "Workout",
     "walk": "Walk",
+    "indoorWalk": "Indoor walk",
     "hike": "Hike",
     "rowing": "Rowing",
     "yoga": "Yoga",
@@ -29,5 +30,7 @@
     "indoorRide": "Indoor ride",
     "mixedSurfaceRide": "Mixed surface ride",
     "windsurf": "Windsurf",
+    "standUpPaddling": "Stand up paddling",
+    "surf": "Surf",
     "labelWorkout": " workout"
 }

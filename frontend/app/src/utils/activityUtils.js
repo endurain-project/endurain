@@ -49,6 +49,8 @@ const ACTIVITY_TYPES = [
 	29,
 	30,
 	31,
+	32,
+	33,
 ]
 
 /**
@@ -93,6 +95,8 @@ const activityLabelMap = {
 	29: t => t("activityItems.mixedSurfaceRide"),
 	30: t => t("activityItems.windsurf"),
 	31: t => t("activityItems.indoorWalk"),
+	32: t => t("activityItems.standUpPaddling"),
+	33: t => t("activityItems.surf"),
 };
 
 /**
@@ -132,6 +136,12 @@ export function formatPaceMetric(pace, units = true) {
 	const minutes = Math.floor(pacePerKm);
 	const seconds = Math.round((pacePerKm - minutes) * 60);
 
+	// If rounding pushed us up to 60 seconds, roll over
+	if (seconds === 60) {
+		minutes += 1;
+		seconds = 0;
+	}
+
 	// Format the seconds
 	const formattedSeconds = seconds < 10 ? `0${seconds}` : seconds;
 
@@ -159,6 +169,12 @@ export function formatPaceImperial(pace, units = true) {
 	// Format the seconds
 	const formattedSeconds = seconds < 10 ? `0${seconds}` : seconds;
 
+	// Catch the rare “60 seconds” case and roll it into an extra minute
+	if (seconds === 60) {
+		minutes += 1;
+		seconds = 0;
+	}
+
 	// Return the formatted pace
 	if (units) {
 		return `${minutes}:${formattedSeconds} min/mi`;
@@ -183,6 +199,12 @@ export function formatPaceSwimMetric(pace, units = true) {
 	// Format the seconds
 	const formattedSeconds = seconds < 10 ? `0${seconds}` : seconds;
 
+	// Catch the rare “60 seconds” case and roll it into an extra minute
+	if (seconds === 60) {
+		minutes += 1;
+		seconds = 0;
+	}
+
 	// Return the formatted pace
 	if (units) {
 		return `${minutes}:${formattedSeconds} min/100m`;
@@ -206,6 +228,12 @@ export function formatPaceSwimImperial(pace, units = true) {
 
 	// Format the seconds
 	const formattedSeconds = seconds < 10 ? `0${seconds}` : seconds;
+
+	// Catch the rare “60 seconds” case and roll it into an extra minute
+	if (seconds === 60) {
+		minutes += 1;
+		seconds = 0;
+	}
 
 	// Return the formatted pace
 	if (units) {
@@ -629,6 +657,8 @@ export function getIcon(typeId) {
 		29: ["fas", "person-biking"],
 		30: ["fas", "wind"],
 		31: ["fas", "person-walking"],
+		32: ["fas", "person-snowboarding"],
+		33: ["fas", "person-snowboarding"],
 	};
 
 	return iconMap[typeId] || ["fas", "dumbbell"];

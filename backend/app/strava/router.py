@@ -91,7 +91,7 @@ async def strava_link(
 
         # Raise an HTTPException with appropriate status code
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
+            status_code=status.HTTP_424_FAILED_DEPENDENCY,
             detail=f"Unable to link Strava account: {err}",
         ) from err
 

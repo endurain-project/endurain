@@ -609,14 +609,14 @@ def get_user_following_activities(user_id, db):
         activities = (
             db.query(activities_models.Activity)
             .join(
-                activities_models.Follower,
-                activities_models.Follower.following_id
+                followers_models.Follower,
+                followers_models.Follower.following_id
                 == activities_models.Activity.user_id,
             )
             .filter(
                 and_(
-                    activities_models.Follower.follower_id == user_id,
-                    activities_models.Follower.is_accepted,
+                    followers_models.Follower.follower_id == user_id,
+                    followers_models.Follower.is_accepted,
                 ),
                 activities_models.Activity.visibility.in_([0, 1]),
                 activities_models.Activity.is_hidden.is_(False),
