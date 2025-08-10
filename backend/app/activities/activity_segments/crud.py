@@ -109,8 +109,10 @@ def get_all_activity_segment_data_by_segment(
                 for gps_point_index in activitySegment.gps_point_index_ordered:
                     gps_point_indexes.append((gps_point_index[0], gps_point_index[1]))
                 sub_segment_times = []
+                i = 0
                 for sub_segment_time in activitySegment.sub_segment_times:
-                    sub_segment_times.append((sub_segment_time[0], sub_segment_time[1]))
+                    sub_segment_times.append((activitySegment.gate_ordered[i], sub_segment_time))
+                    i+=1
                 activity_segment = {
                     "id": activitySegment.id,
                     "activity_id": activitySegment.activity_id,
@@ -163,8 +165,10 @@ def get_activity_segments_data_for_activity_by_segment(
                 for gps_point_index in record.gps_point_index_ordered:
                     gps_point_index_ordered.append((gps_point_index[0], gps_point_index[1]))
                 sub_segment_time = []
+                i = 0
                 for sub_segment in record.sub_segment_times:
-                    sub_segment_time.append((sub_segment[0], sub_segment[1]))
+                    sub_segment_time.append((gate_ordered[i], sub_segment))
+                    i+=1
                 sub_segment_times.append(sub_segment_time)
                 segment_times.append(float(record.segment_times))
 
@@ -270,8 +274,7 @@ def get_segments_from_activity_segments_by_activity(activity_id: int, user_id: i
 
 def add_activity_segments_from_new_segment(segment: segments_models.Segments, user_id: int, db: Session):
     try:
-        segment_mappings = []
-
+        insert_segment_mappings = []
         # Check if this segment is passed thorugh by all of the users activities
         activities = activities_crud.get_user_activities(user_id, db, segment.activity_type)
         if activities:
@@ -279,27 +282,14 @@ def add_activity_segments_from_new_segment(segment: segments_models.Segments, us
                 activity_stream = streams_crud.get_activity_stream_by_type(activity.id, 7, user_id, db)
                 if activity_stream:
                     intersections = segments_utils.gps_trace_gate_intersections(activity_stream, segment)
-                    if intersections:
-                        for i in range(len(intersections['segment_times'])):
-                            if len(intersections['segment_times']) > 1:
-                                gate_ordered = intersections['gate_ordered'][i]
-                                gps_point_index_ordered = intersections['gps_point_index_ordered'][i]
-                            else:
-                                gate_ordered = intersections['gate_ordered']
-                                gps_point_index_ordered = intersections['gps_point_index_ordered']
-                            db_mapping = {
-                                'activity_id': activity.id,
-                                'segment_id': segment.id,
-                                'segment_name': segment.name.strip(),
-                                'start_time': intersections['gate_times'][0][0][1],
-                                'gate_ordered': gate_ordered,
-                                'gps_point_index_ordered': gps_point_index_ordered,
-                                'sub_segment_times': intersections['sub_segment_times'][i],
-                                'segment_times': intersections['segment_times'][i]
-                                }
-                            segment_mappings.append(db_mapping)
-        if len(segment_mappings)>0:
-            db.bulk_insert_mappings(segments_models.ActivitySegment, segment_mappings)
+
+                    segment_mappings = segments_utils.intersections_to_db_mapping(intersections, activity, segment)
+                    if segment_mappings:
+                        for db_mapping in segment_mappings:
+                            insert_segment_mappings.append(db_mapping)
+
+        if len(insert_segment_mappings)>0:
+            db.bulk_insert_mappings(segments_models.ActivitySegment, insert_segment_mappings)
             db.commit()
     except Exception as err:
         # Rollback the transaction
@@ -316,7 +306,7 @@ def add_activity_segments_from_new_segment(segment: segments_models.Segments, us
 def add_activity_segments_from_imported_activity(activity: activities_models.Activity, activity_stream: streams_models.ActivityStreams, db: Session):
 
     try: 
-        segment_mappings = []
+        insert_segment_mappings = []
 
         # Check if this stream passes through any of the users segments
         if activity_stream.stream_type == 7:
@@ -325,31 +315,15 @@ def add_activity_segments_from_imported_activity(activity: activities_models.Act
             user_segments = get_all_segments(user_id=user_id, activity_type=activity_type, db=db)
             if user_segments:
                 for segment in user_segments:
-                    intersections = segments_utils.gps_trace_gate_intersections(
-                        activity_stream, segment
-                    )
+                    intersections = segments_utils.gps_trace_gate_intersections(activity_stream, segment)
 
-                    if intersections:
-                        for i in range(len(intersections['segment_times'])):
-                            if len(intersections['segment_times']) > 1:
-                                gate_ordered = intersections['gate_ordered'][i]
-                                gps_point_index_ordered = intersections['gps_point_index_ordered'][i]
-                            else:
-                                gate_ordered = intersections['gate_ordered']
-                                gps_point_index_ordered = intersections['gps_point_index_ordered']
-                            db_mapping = {
-                                'activity_id': activity.id,
-                                'segment_id': segment.id,
-                                'segment_name': segment.name.strip(),
-                                'start_time': intersections['gate_times'][0][0][1],
-                                'gate_ordered': gate_ordered,
-                                'gps_point_index_ordered': gps_point_index_ordered,
-                                'sub_segment_times': intersections['sub_segment_times'][i],
-                                'segment_times': intersections['segment_times'][i]
-                                }
-                            segment_mappings.append(db_mapping)
-        if len(segment_mappings)>0:
-            db.bulk_insert_mappings(segments_models.ActivitySegment, segment_mappings)
+                    segment_mappings = segments_utils.intersections_to_db_mapping(intersections, activity, segment)
+                    if segment_mappings:
+                        for db_mapping in segment_mappings:
+                            insert_segment_mappings.append(db_mapping)
+
+        if len(insert_segment_mappings)>0:
+            db.bulk_insert_mappings(segments_models.ActivitySegment, insert_segment_mappings)
             db.commit()
     except Exception as err:
         # Rollback the transaction
@@ -377,28 +351,16 @@ def refresh_segment_intersections_by_id(
                 activity_stream = streams_crud.get_activity_stream_by_type(activity.id, 7, user_id, db)
                 if activity_stream:
                     intersections = segments_utils.gps_trace_gate_intersections(activity_stream, segment)
-                    if intersections:
-                        for i in range(len(intersections['segment_times'])):
-                            if len(intersections['segment_times']) > 1:
-                                gate_ordered = intersections['gate_ordered'][i]
-                                gps_point_index_ordered = intersections['gps_point_index_ordered'][i]
-                            else:
-                                gate_ordered = intersections['gate_ordered']
-                                gps_point_index_ordered = intersections['gps_point_index_ordered']
-                            db_mapping = {
-                                'activity_id': activity.id,
-                                'segment_id': segment.id,
-                                'segment_name': segment.name.strip(),
-                                'start_time': intersections['gate_times'][0][0][1],
-                                'gate_ordered': gate_ordered,
-                                'gps_point_index_ordered': gps_point_index_ordered,
-                                'sub_segment_times': intersections['sub_segment_times'][i],
-                                'segment_times': intersections['segment_times'][i]
-                                }
+
+                    segment_mappings = segments_utils.intersections_to_db_mapping(intersections, activity, segment)
+
+                    if segment_mappings:
+                        for db_mapping in segment_mappings:
                             # Check if there's an existing record and update it. If not, create a new record
                             activitySegment = db.query(segments_models.ActivitySegment).filter_by(
-                                segment_id=segment_id,
-                                activity_id=activity.id
+                                segment_id=db_mapping['segment_id'],
+                                activity_id=db_mapping['activity_id'],
+                                lap_number=db_mapping['lap_number'],
                             ).first()
                             if activitySegment:
                                 db_mapping['id'] = activitySegment.id

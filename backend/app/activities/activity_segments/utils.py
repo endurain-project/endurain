@@ -1,12 +1,29 @@
 import activities.activity_segments.schema as segments_schema
 import activities.activity_segments.models as segments_models
 import activities.activity_streams.models as streams_models
+import activities.activity.models as activity_models
 import activities.activity.crud as activity_crud
 from shapely.geometry import Point, LineString, MultiPoint
 from datetime import datetime
 from zoneinfo import ZoneInfo
+from geopy.distance import geodesic
 import core.logger as core_logger
 import os
+
+def distance_between_points(point1: Point, point2: Point) -> float:
+    # Returns the distance between two points.
+    return geodesic((point1.x, point1.y), (point2.x, point2.y)).meters
+
+def calculate_distance(points):
+    distance = 0
+    prev_point = None
+    for point in points:
+        
+        if prev_point is not None:
+            distance += distance_between_points(prev_point, point)
+
+        prev_point = point
+    return distance
 
 def date_convert_timezone(date: datetime, timezone: str):
     def make_aware_and_format(dt, timezone):
@@ -23,10 +40,6 @@ def date_convert_timezone(date: datetime, timezone: str):
     )
 
     return make_aware_and_format(date, timezone)
-
-def distance_between_points(point1: Point, point2: Point) -> float:
-    # Returns the distance between two points.
-    return ((point1.x - point2.x) ** 2 + (point1.y - point2.y) ** 2) ** 0.5
 
 def find_repeating_pattern_valid(lst):
     n = len(lst)
@@ -45,12 +58,49 @@ def find_repeating_pattern_valid(lst):
                 else:
                     return None
 
+def intersections_to_db_mapping(intersections, 
+                                activity: activity_models.Activity, 
+                                segment: segments_models.Segments
+                                ):
+    segment_mappings = []
+    if intersections:
+        for i in range(len(intersections['segment_times'])):
+            if len(intersections['segment_times']) > 1:
+                gate_ordered = intersections['gate_ordered'][i]
+                gps_point_index_ordered = intersections['gps_point_index_ordered'][i]
+                sub_segment_distances = intersections['sub_segment_distances'][i]
+                lap_number = intersections['lap_number'][i]
+                start_time = intersections['gate_times'][i][0][1]
+            else:
+                gate_ordered = intersections['gate_ordered']
+                gps_point_index_ordered = intersections['gps_point_index_ordered']
+                sub_segment_distances = intersections['sub_segment_distances'][0]
+                lap_number = intersections['lap_number']
+                start_time = intersections['gate_times'][0][0][1]
+            db_mapping = {
+                'activity_id': activity.id,
+                'segment_id': segment.id,
+                'segment_name': segment.name.strip(),
+                'start_time': start_time,
+                'gate_ordered': gate_ordered,
+                'lap_number': lap_number,
+                'gps_point_index_ordered': gps_point_index_ordered,
+                'sub_segment_times': intersections['sub_segment_times'][i],
+                'sub_segment_distances': sub_segment_distances,
+                'segment_distance': round(intersections['segment_distance'][i]),
+                'segment_times': intersections['segment_times'][i]
+                }
+            segment_mappings.append(db_mapping)
+    return segment_mappings
+
+
 
 def gps_trace_gate_intersections(gps_trace: streams_models.ActivityStreams, segment: segments_models.Segments):
     # Takes a GPS Trace and checks that it passes through each gate
 
     # Returns null if the GPS trace does not pass through all gates
     # otherwise returns a sequence of intersections with each gate
+    core_logger.print_to_log(f"Checking if activity stream {gps_trace.activity_id} passes through {segment.name.strip()}.")
 
     # Check for a valid GPS trace and segment
     if gps_trace is None or gps_trace.stream_waypoints is None or len(gps_trace.stream_waypoints) < 2:
@@ -61,11 +111,7 @@ def gps_trace_gate_intersections(gps_trace: streams_models.ActivityStreams, segm
         return None
 
     # Create a spatial tree of the GPS trace
-    #gps_points = []
-    #for point in gps_trace.stream_waypoints:
-    #    gps_points.append(Point(point['lat'], point['lon']))
     gps_points = [Point(pt['lat'], pt['lon']) for pt in gps_trace.stream_waypoints]
-    core_logger.print_to_log(f"Checking if activity stream {gps_trace.activity_id} passes through {segment.name.strip()}.")
 
     segment_intersections = {}
     # Iterate through each gate in the segment
@@ -164,8 +210,8 @@ def gps_trace_gate_intersections(gps_trace: streams_models.ActivityStreams, segm
         core_logger.print_to_log("FAIL: GPS trace does not pass through gates in order.")
         return None
 
-    core_logger.print_to_log("GPS trace passes through gates in the following order:")
-    core_logger.print_to_log(gate_ordered)
+    # core_logger.print_to_log("GPS trace passes through gates in the following order:")
+    # core_logger.print_to_log(gate_ordered)
     core_logger.print_to_log("SUCCESS: GPS trace from activity {0} passes through {1}.".format(gps_trace.activity_id, segment.name.strip()))
 
     mode = 'linear' # or 'laps'
@@ -187,14 +233,17 @@ def gps_trace_gate_intersections(gps_trace: streams_models.ActivityStreams, segm
         laps = laps[first_gate:last_gate + 1]
         if len(laps) > 1:
             mode = 'laps'
-            core_logger.print_to_log(f"Found repeating pattern in gates: {laps}.")
+            # core_logger.print_to_log(f"Found repeating pattern in gates: {laps}.")
 
     # Calculate the time for each gate and segment
     gate_times = []
     segment_times = []
+    segment_distance = []
     sub_segment_times = []
+    sub_segment_distances = []
     if mode == 'linear':
         # Look forward and find first gate and identify full gate sequence to first instance of last gate
+        # (can't do this previously, as it removes laps)
         first_gate_idx = None
         last_gate_idx = None
         curr_gate = first_gate
@@ -232,6 +281,8 @@ def gps_trace_gate_intersections(gps_trace: streams_models.ActivityStreams, segm
 
         times = []
         sub_segment_time = []
+        sub_segment_distance = []
+        lap_number = 1
         first_gate_time = None
         for i in range(len(gps_point_index_ordered)):
             # Get the time of the first GPS point in the pair
@@ -244,25 +295,32 @@ def gps_trace_gate_intersections(gps_trace: streams_models.ActivityStreams, segm
             if first_gate_time is None:
                 first_gate_time = gate_time
             else:
-                sub_segment_time.append((gate_ordered[i], (gate_time - first_gate_time).total_seconds()))
-            core_logger.print_to_log(f"Gate {gate_ordered[i]} passed at {gate_time.isoformat()}")
+                sub_segment_time.append((gate_time - first_gate_time).total_seconds())
+
+                sub_segment_points = gps_points[gps_point_index_ordered[i-1][1]:gps_point_index_ordered[i][0]]
+                sub_segment_distance.append(calculate_distance(sub_segment_points))
+            #core_logger.print_to_log(f"Gate {gate_ordered[i]} passed at {gate_time.isoformat()}")
             times.append((gate_ordered[i], gate_time.isoformat()))
         segment_time = ((datetime.fromisoformat(times[len(times)-1][1]) - datetime.fromisoformat(times[0][1])).total_seconds())
         gate_times.append(times)
         segment_times.append(segment_time)
         sub_segment_times.append(sub_segment_time)
-        core_logger.print_to_log(f"Total time for segment {segment.name.strip()} is {segment_time}.")
+        sub_segment_distances.append(sub_segment_distance)
+        segment_distance.append(sum(sub_segment_distance))
+        # core_logger.print_to_log(f"Total time for segment {segment.name.strip()} is {segment_time}.")
     if mode == 'laps':
         # Calculate the time for each lap
-        lap_number = 1
+        lap_count = 1
         laps_gate_ordered = []
         laps_gps_point_index_ordered = []
+        lap_number = []
         for i in range(len(gps_point_index_ordered)-len(laps)+1):
             if gate_ordered[i:i+len(laps)] == laps:
                 # This is a lap
-                core_logger.print_to_log(f"Lap {lap_number} completed.")
+                # core_logger.print_to_log(f"Lap {lap_count} completed.")
                 lap_times = []
                 sub_segment_time = []
+                sub_segment_distance = []
                 first_gate_time = None
                 new_gate_ordered = []
                 new_gps_point_index_ordered = []
@@ -278,27 +336,36 @@ def gps_trace_gate_intersections(gps_trace: streams_models.ActivityStreams, segm
                     if first_gate_time is None:
                         first_gate_time = gate_time
                     else:
-                        sub_segment_time.append((gate_ordered[i+j], (gate_time - first_gate_time).total_seconds()))
-                    core_logger.print_to_log(f"Gate {gate_ordered[i+j]} passed at {gate_time.isoformat()}")
+                        sub_segment_time.append((gate_time - first_gate_time).total_seconds())
+
+                        sub_segment_points = gps_points[gps_point_index_ordered[i+j-1][1]:gps_point_index_ordered[i+j][0]]
+                        sub_segment_distance.append(calculate_distance(sub_segment_points))
+                    # core_logger.print_to_log(f"Gate {gate_ordered[i+j]} passed at {gate_time.isoformat()}")
                     lap_times.append((gate_ordered[i+j], gate_time.isoformat()))
                 gate_times.append(lap_times)
                 segment_time = ((datetime.fromisoformat(lap_times[len(lap_times)-1][1]) - datetime.fromisoformat(lap_times[0][1])).total_seconds())
-                core_logger.print_to_log(f"Total time for lap {lap_number} of segment {segment.name.strip()} is {segment_time}.")
+                # core_logger.print_to_log(f"Total time for lap {lap_number} of segment {segment.name.strip()} is {segment_time}.")
                 # Append the segment time to the list
                 segment_times.append(segment_time)
                 sub_segment_times.append(sub_segment_time)
-                lap_number += 1
+                sub_segment_distances.append(sub_segment_distance)
+                segment_distance.append(sum(sub_segment_distance))
                 laps_gate_ordered.append(new_gate_ordered)
                 laps_gps_point_index_ordered.append(new_gps_point_index_ordered)
+                lap_number.append(lap_count)
+                lap_count += 1
         gate_ordered = laps_gate_ordered
         gps_point_index_ordered = laps_gps_point_index_ordered
 
     result = {
         'segment_name': segment.name.strip(),
         'gate_ordered': gate_ordered,
+        'lap_number': lap_number,
         'gps_point_index_ordered': gps_point_index_ordered,
         'sub_segment_times': sub_segment_times if len(sub_segment_times) > 0 else None,
+        'sub_segment_distances': sub_segment_distances if len(sub_segment_distances) > 0 else None,
         'segment_times': segment_times if len(segment_times) > 0 else None,
+        'segment_distance': segment_distance if len(segment_distance) > 0 else None,
         'gate_times': gate_times if len(gate_times) > 0 else None,
     }
 

@@ -5,7 +5,8 @@ from sqlalchemy import (
     String,
     ForeignKey,
     JSON,
-    Numeric
+    Numeric,
+    DECIMAL
 )
 from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.mysql import JSON
@@ -93,6 +94,12 @@ class ActivitySegment(Base):
         comment="Segment ID that the ActivitySegment record belongs to"
     )
 
+    lap_number = Column(
+        Integer,
+        nullable=False,
+        comment="Lap number"
+    )
+
     segment_name = Column(
         String(length=250),
         nullable=True,
@@ -124,7 +131,45 @@ class ActivitySegment(Base):
     )
 
     segment_times = Column(
-        Numeric,
+        DECIMAL(precision=20, scale=10),
         nullable=False,
         comment="Time to complete this segment in seconds"
     )
+    segment_distance = Column(
+        Integer,
+        nullable=True,
+        comment="Segment distance in meters"
+    )
+
+    sub_segment_distances = Column(
+        JSON,
+        nullable=True,
+        comment="Sub-segment distances"
+    )
+
+    elevation_gain = Column(Integer, nullable=True, comment="Elevation gain in meters")
+    elevation_loss = Column(Integer, nullable=True, comment="Elevation loss in meters")
+    pace = Column(
+        DECIMAL(precision=20, scale=10),
+        nullable=True,
+        comment="Pace seconds per meter (s/m)",
+    )
+    average_speed = Column(
+        DECIMAL(precision=20, scale=10),
+        nullable=True,
+        comment="Average speed seconds per meter (s/m)",
+    )
+    max_speed = Column(
+        DECIMAL(precision=20, scale=10),
+        nullable=True,
+        comment="Max speed seconds per meter (s/m)",
+    )
+    average_power = Column(Integer, nullable=True, comment="Average power (watts)")
+    max_power = Column(Integer, nullable=True, comment="Max power (watts)")
+    normalized_power = Column(
+        Integer, nullable=True, comment="Normalized power (watts)"
+    )
+    average_hr = Column(Integer, nullable=True, comment="Average heart rate (bpm)")
+    max_hr = Column(Integer, nullable=True, comment="Max heart rate (bpm)")
+    average_cad = Column(Integer, nullable=True, comment="Average cadence (rpm)")
+    max_cad = Column(Integer, nullable=True, comment="Max cadence (rpm)")
