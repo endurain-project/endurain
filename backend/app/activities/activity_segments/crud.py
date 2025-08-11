@@ -122,7 +122,7 @@ def get_all_activity_segment_data_by_segment(
                     "gate_ordered": activitySegment.gate_ordered,
                     "gps_point_index_ordered": gps_point_indexes,
                     "sub_segment_times": [sub_segment_times],
-                    "segment_times": [activitySegment.segment_times],
+                    "segment_time": [activitySegment.segment_time],
                     "stream_latlon": activityStreamLatLon.stream_waypoints
                 }
                 activity_segments.append(activity_segment)
@@ -156,8 +156,7 @@ def get_activity_segments_data_for_activity_by_segment(
             gate_ordered = None
             gps_point_index_ordered = None
             sub_segment_times = []
-            segment_times = []
-            gate_times = []
+            segment_time = []
             for record in result:
                 segment_name = record.segment_name
                 gate_ordered = record.gate_ordered
@@ -170,7 +169,7 @@ def get_activity_segments_data_for_activity_by_segment(
                     sub_segment_time.append((gate_ordered[i], sub_segment))
                     i+=1
                 sub_segment_times.append(sub_segment_time)
-                segment_times.append(float(record.segment_times))
+                segment_time.append(float(record.segment_time))
 
             # Translate output to schema
             activity_segment_data = {
@@ -178,7 +177,7 @@ def get_activity_segments_data_for_activity_by_segment(
                 'gate_ordered': gate_ordered,
                 'gps_point_index_ordered': gps_point_index_ordered,
                 'sub_segment_times': sub_segment_times,
-                'segment_times': segment_times
+                'segment_times': segment_time
             }
 
             return activity_segment_data

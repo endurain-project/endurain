@@ -187,10 +187,10 @@ function fastestTime() {
     var activity_number = null;
     props.activitySegments.forEach(item=> {
 
-        if (segment_time > item.segment_times[0]) {
+        if (segment_time > item.segment_time[0]) {
             activity_number = item.activity_id;
             starttime = item.start_time;
-            segment_time = item.segment_times[0];
+            segment_time = item.segment_time[0];
         };
     });
     return [activity_number, starttime, segment_time];
@@ -208,7 +208,7 @@ function lastTime() {
         if (prevTime < itemTime) {
             activity_number = item.activity_id;
             starttime = item.start_time;
-            segment_time = item.segment_times[0];
+            segment_time = item.segment_time[0];
         };
     });
     return [activity_number, starttime, segment_time];

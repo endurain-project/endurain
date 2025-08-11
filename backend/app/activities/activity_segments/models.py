@@ -118,6 +118,12 @@ class ActivitySegment(Base):
         comment="Order by which gates were passed"
     )
 
+    gate_times = Column(
+        JSON,
+        nullable=True,
+        comment="Times when gates were passed"
+    )
+
     gps_point_index_ordered = Column(
         JSON,
         nullable=False,
@@ -127,10 +133,16 @@ class ActivitySegment(Base):
     sub_segment_times = Column(
         JSON,
         nullable=False,
-        comment="Sub-segment times tuple (gate, time in seconds)"
+        comment="Sub-segment times in seconds"
     )
 
-    segment_times = Column(
+    sub_segment_paces = Column(
+        JSON,
+        nullable=False,
+        comment="Sub-segment pace (s/m)"
+    )
+
+    segment_time = Column(
         DECIMAL(precision=20, scale=10),
         nullable=False,
         comment="Time to complete this segment in seconds"
@@ -149,7 +161,7 @@ class ActivitySegment(Base):
 
     elevation_gain = Column(Integer, nullable=True, comment="Elevation gain in meters")
     elevation_loss = Column(Integer, nullable=True, comment="Elevation loss in meters")
-    pace = Column(
+    segment_pace = Column(
         DECIMAL(precision=20, scale=10),
         nullable=True,
         comment="Pace seconds per meter (s/m)",
