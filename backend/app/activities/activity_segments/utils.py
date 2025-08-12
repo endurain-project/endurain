@@ -1,6 +1,7 @@
 import activities.activity_segments.schema as segments_schema
 import activities.activity_segments.models as segments_models
 import activities.activity_streams.models as streams_models
+import activities.activity_streams.crud as streams_crud
 import activities.activity.models as activity_models
 import activities.activity.crud as activity_crud
 import activities.activity.utils as activity_utils
@@ -8,7 +9,9 @@ from shapely.geometry import Point, LineString, MultiPoint
 from datetime import datetime
 from zoneinfo import ZoneInfo
 from geopy.distance import geodesic
+from sqlalchemy.orm import Session
 import core.logger as core_logger
+import statistics
 import os
 
 def distance_between_points(point1: Point, point2: Point) -> float:
@@ -74,6 +77,10 @@ def intersections_to_db_mapping(intersections,
                 'segment_distance': round(intersections['segment_distance'][i]),
                 'segment_time': intersections['segment_times'][i],
                 'segment_pace': intersections['segment_pace'][i],
+                'segment_avg_hr': intersections['segment_avg_hr'][i],
+                'segment_max_hr': intersections['segment_max_hr'][i],
+                'segment_ele_gain': intersections['segment_ele_gain'][i],
+                'segment_ele_loss': intersections['segment_ele_loss'][i],
                 'start_time': intersections['gate_times'][i][0],
                 'gate_ordered': intersections['gate_ordered'][i],
                 'lap_number': intersections['lap_number'][i],
@@ -89,7 +96,7 @@ def intersections_to_db_mapping(intersections,
 
 
 
-def gps_trace_gate_intersections(gps_trace: streams_models.ActivityStreams, segment: segments_models.Segments):
+def gps_trace_gate_intersections(gps_trace: streams_models.ActivityStreams, segment: segments_models.Segments, db: Session):
     # Takes a GPS Trace and checks that it passes through each gate
 
     # Returns null if the GPS trace does not pass through all gates
@@ -106,6 +113,22 @@ def gps_trace_gate_intersections(gps_trace: streams_models.ActivityStreams, segm
 
     # Create a spatial tree of the GPS trace
     gps_points = [Point(pt['lat'], pt['lon']) for pt in gps_trace.stream_waypoints]
+
+    # Retrieve other streams items that could be of interest
+    activity_streams = streams_crud.get_activity_streams(gps_trace.activity_id, segment.user_id, db)
+
+    hr_points = None
+    ele_stream = None
+
+    for stream in activity_streams:
+        if stream.stream_type == 1:
+            # Handle HR stream
+            hr = [pt['hr'] for pt in stream.stream_waypoints]
+            hr_points = hr[:-1] + [hr[-1]] * (len(gps_points) - len(hr))
+        elif stream.stream_type == 4:
+            # Handle Elevation stream
+            ele_stream = stream
+            ele = [pt['ele'] for pt in stream.stream_waypoints]
 
     segment_intersections = {}
     # Iterate through each gate in the segment
@@ -234,6 +257,10 @@ def gps_trace_gate_intersections(gps_trace: streams_models.ActivityStreams, segm
     segment_times = []
     segment_distance = []
     segment_paces = []
+    segment_avg_hr = []
+    segment_max_hr = []
+    segment_ele_gain = []
+    segment_ele_loss = []
     sub_segment_times = []
     sub_segment_distances = []
     sub_segment_paces = []
@@ -281,6 +308,8 @@ def gps_trace_gate_intersections(gps_trace: streams_models.ActivityStreams, segm
         gate_datetime = []
         lap_number = [1]
         first_gate_time = None
+        first_point_index = None
+        last_point_index = None
         for i in range(len(gps_point_index_ordered)):
             # Get the time of the first GPS point in the pair
             gps_point_1 = gps_trace.stream_waypoints[gps_point_index_ordered[i][0]]
@@ -292,6 +321,7 @@ def gps_trace_gate_intersections(gps_trace: streams_models.ActivityStreams, segm
             gate_datetime.append(gate_time.isoformat())
             if first_gate_time is None:
                 first_gate_time = gate_time
+                first_point_index = gps_point_index_ordered[i][1]
             else:
                 sub_segment_time.append((gate_time - first_gate_time).total_seconds())
 
@@ -299,9 +329,19 @@ def gps_trace_gate_intersections(gps_trace: streams_models.ActivityStreams, segm
                 distance = calculate_distance(sub_segment_points)
                 sub_segment_distance.append(distance)
                 sub_segment_pace.append(activity_utils.calculate_pace(distance, first_gate_time, gate_time))
+                last_point_index = gps_point_index_ordered[i][0]
         segment_time = ((datetime.fromisoformat(gate_datetime[-1]) - datetime.fromisoformat(gate_datetime[0])).total_seconds())
         distance = sum(sub_segment_distance)
         segment_pace = activity_utils.calculate_pace(distance, datetime.fromisoformat(gate_datetime[0]), datetime.fromisoformat(gate_datetime[-1]))
+        if hr_points:
+            segment_hr_points = hr_points[first_point_index:last_point_index]
+            segment_avg_hr.append(statistics.mean(segment_hr_points))
+            segment_max_hr.append(max(segment_hr_points))
+        if ele_stream:
+            segment_ele_waypoints = ele_stream.stream_waypoints[first_point_index:last_point_index]
+            ele_gain, ele_loss = activity_utils.compute_elevation_gain_and_loss(segment_ele_waypoints)
+            segment_ele_gain.append(ele_gain)
+            segment_ele_loss.append(ele_loss)
         segment_times.append(segment_time)
         segment_paces.append(segment_pace)
         sub_segment_times.append(sub_segment_time)
@@ -331,6 +371,8 @@ def gps_trace_gate_intersections(gps_trace: streams_models.ActivityStreams, segm
                 new_gate_ordered = []
                 new_gps_point_index_ordered = []
                 gate_datetime = []
+                first_point_index = None
+                last_point_index = None
                 for j in range(len(laps)):
                     new_gate_ordered.append(laps[j])
                     new_gps_point_index_ordered.append(gps_point_index_ordered[i+j])
@@ -343,6 +385,7 @@ def gps_trace_gate_intersections(gps_trace: streams_models.ActivityStreams, segm
                     gate_datetime.append(gate_time.isoformat())
                     if first_gate_time is None:
                         first_gate_time = gate_time
+                        first_point_index = gps_point_index_ordered[i+j][1]
                     else:
                         sub_segment_time.append((gate_time - first_gate_time).total_seconds())
 
@@ -350,9 +393,19 @@ def gps_trace_gate_intersections(gps_trace: streams_models.ActivityStreams, segm
                         distance = calculate_distance(sub_segment_points)
                         sub_segment_distance.append(distance)
                         sub_segment_pace.append(activity_utils.calculate_pace(distance, first_gate_time, gate_time))
+                        last_point_index = gps_point_index_ordered[i+j][0]
                 segment_time = (datetime.fromisoformat(gate_datetime[-1]) - datetime.fromisoformat(gate_datetime[0])).total_seconds()
                 distance = sum(sub_segment_distance)
                 segment_pace = activity_utils.calculate_pace(distance, datetime.fromisoformat(gate_datetime[0]), datetime.fromisoformat(gate_datetime[-1]))
+                if hr_points:
+                    segment_hr_points = hr_points[first_point_index:last_point_index]
+                    segment_avg_hr.append(statistics.mean(segment_hr_points))
+                    segment_max_hr.append(max(segment_hr_points))
+                if ele_stream:
+                    segment_ele_waypoints = ele_stream.stream_waypoints[first_point_index:last_point_index]
+                    ele_gain, ele_loss = activity_utils.compute_elevation_gain_and_loss(segment_ele_waypoints)
+                    segment_ele_gain.append(ele_gain)
+                    segment_ele_loss.append(ele_loss)
                 segment_times.append(segment_time)
                 sub_segment_times.append(sub_segment_time)
                 sub_segment_distances.append(sub_segment_distance)
@@ -378,6 +431,10 @@ def gps_trace_gate_intersections(gps_trace: streams_models.ActivityStreams, segm
         'segment_times': segment_times if len(segment_times) > 0 else None,
         'segment_distance': segment_distance if len(segment_distance) > 0 else None,
         'segment_pace': segment_paces if len(segment_paces) > 0 else None,
+        'segment_avg_hr': segment_avg_hr if len(segment_avg_hr) > 0 else None,
+        'segment_max_hr': segment_max_hr if len(segment_max_hr) > 0 else None,
+        'segment_ele_gain': segment_ele_gain if len(segment_ele_gain) > 0 else None,
+        'segment_ele_loss': segment_ele_loss if len(segment_ele_loss) > 0 else None,
         'gate_times': gate_times if len(gate_times) > 0 else None,
     }
 

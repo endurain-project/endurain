@@ -224,7 +224,7 @@ def get_activity_segments_from_calculation(
         # Check for correspondence with returned segments
         corresponding_segments = []
         for segment in segments:
-            intersections = segments_utils.gps_trace_gate_intersections(stream, segment)            
+            intersections = segments_utils.gps_trace_gate_intersections(stream, segment, db)            
             if intersections is not None:
                 corresponding_segments.append(segment)
         
@@ -280,7 +280,7 @@ def add_activity_segments_from_new_segment(segment: segments_models.Segments, us
             for activity in activities:
                 activity_stream = streams_crud.get_activity_stream_by_type(activity.id, 7, user_id, db)
                 if activity_stream:
-                    intersections = segments_utils.gps_trace_gate_intersections(activity_stream, segment)
+                    intersections = segments_utils.gps_trace_gate_intersections(activity_stream, segment, db)
 
                     segment_mappings = segments_utils.intersections_to_db_mapping(intersections, activity, segment)
                     if segment_mappings:
@@ -314,7 +314,7 @@ def add_activity_segments_from_imported_activity(activity: activities_models.Act
             user_segments = get_all_segments(user_id=user_id, activity_type=activity_type, db=db)
             if user_segments:
                 for segment in user_segments:
-                    intersections = segments_utils.gps_trace_gate_intersections(activity_stream, segment)
+                    intersections = segments_utils.gps_trace_gate_intersections(activity_stream, segment, db)
 
                     segment_mappings = segments_utils.intersections_to_db_mapping(intersections, activity, segment)
                     if segment_mappings:
@@ -349,7 +349,7 @@ def refresh_segment_intersections_by_id(
             for activity in activities:
                 activity_stream = streams_crud.get_activity_stream_by_type(activity.id, 7, user_id, db)
                 if activity_stream:
-                    intersections = segments_utils.gps_trace_gate_intersections(activity_stream, segment)
+                    intersections = segments_utils.gps_trace_gate_intersections(activity_stream, segment, db)
 
                     segment_mappings = segments_utils.intersections_to_db_mapping(intersections, activity, segment)
 
@@ -403,7 +403,7 @@ def get_all_user_segments_for_activity_stream(
 
             for segment in user_segments:
                 intersections = segments_utils.gps_trace_gate_intersections(
-                    activity_stream, segment
+                    activity_stream, segment, db
                 )
                 if intersections:
                     segment_ids.append(segment.id)
@@ -444,7 +444,7 @@ def get_all_user_segments_for_activity(
 
             for segment in user_segments:
                 intersections = segments_utils.gps_trace_gate_intersections(
-                    activity_stream, segment
+                    activity_stream, segment, db
                 )
                 if intersections:
                     segment_ids.append(segment.id)
@@ -481,7 +481,7 @@ def get_all_user_activities_for_segment(
             )
             if activity_stream:
                 intersections = segments_utils.gps_trace_gate_intersections(
-                    activity_stream, segment
+                    activity_stream, segment, db
                 )
                 if intersections:
                     activity_ids.append(activity.id)
