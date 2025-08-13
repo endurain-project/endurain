@@ -133,8 +133,8 @@ export function formatPaceMetric(pace, units = true) {
 	// Convert pace to seconds per kilometer
 	const pacePerKm = (pace * 1000) / 60;
 	// Calculate minutes and seconds
-	const minutes = Math.floor(pacePerKm);
-	const seconds = Math.round((pacePerKm - minutes) * 60);
+	var minutes = Math.floor(pacePerKm);
+	var seconds = Math.round((pacePerKm - minutes) * 60);
 
 	// If rounding pushed us up to 60 seconds, roll over
 	if (seconds === 60) {

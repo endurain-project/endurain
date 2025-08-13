@@ -7,7 +7,7 @@ export const activitySegments = {
     getActivitySegments(activityId) {
         return fetchGetRequest(`segments/activity_id/${activityId}/all`);
     },
-    getActivitySegmentIntersections(activityId, segmentId) {
-        return fetchGetRequest(`segments/activity_id/${activityId}/segment_id/${segmentId}/intersections`);
+    getActivitySegmentIntersections(activityId) {
+        return fetchGetRequest(`segments/activity_id/${activityId}/intersections`);
     }
 };

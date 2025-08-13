@@ -88,12 +88,11 @@ async def get_all_activity_segment_intersections(
     return segments_crud.get_all_activity_segment_data_by_segment(segment_id, user_id, db)
 
 @router.get(
-    "/activity_id/{activity_id}/segment_id/{segment_id}/intersections",
-    response_model=segments_schema.ActivitySegment | None,
+    "/activity_id/{activity_id}/intersections",
+    response_model=List[segments_schema.ActivitySegment] | None,
 )
 async def get_activity_segment_intersections(
         activity_id: int,
-        segment_id: int,
         check_scopes: Annotated[
             Callable, Security(session_security.check_scopes, scopes=["segments:read"])
         ],
@@ -106,7 +105,7 @@ async def get_activity_segment_intersections(
         ],
 ):
     # Return segments that correspond to the specified activity and segment
-    return segments_crud.get_activity_segments_data_for_activity_by_segment(activity_id, segment_id, user_id, db)
+    return segments_crud.get_activity_segments_data_for_activity_by_segment(activity_id, user_id, db)
 
 @router.get(
     "/user/{user_id}/page_number/{page_number}/num_records/{num_records}",

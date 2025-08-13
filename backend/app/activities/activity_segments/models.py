@@ -166,5 +166,5 @@ class ActivitySegment(Base):
         nullable=True,
         comment="Pace seconds per meter (s/m)",
     )
-    segment_avg_hr = Column(Integer, nullable=True, comment="Average heart rate (bpm)")
-    segment_max_hr = Column(Integer, nullable=True, comment="Max heart rate (bpm)")
+    segment_hr_avg = Column(Integer, nullable=True, comment="Average heart rate (bpm)")
+    segment_hr_max = Column(Integer, nullable=True, comment="Max heart rate (bpm)")

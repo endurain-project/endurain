@@ -92,7 +92,7 @@ const initChart = () => {
 
     props.activitySegments.forEach(completion => {
         labels.push(formatDate(completion.start_time));
-        segmentTimes.push(completion.segment_time[0]);
+        segmentTimes.push(completion.segment_time);
     });
 
     const datasets = [{

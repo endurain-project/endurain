@@ -89,38 +89,104 @@
         </h1>
 
         <!-- Segment summary -->
-        <div class="row mt-3 align-items-center text-start">
+        <div class="row mt-3 align-items-start text-start">
             <!-- Number of times completed -->
             <div class="col">
-                <span class="fw-lighter">
-                    {{ $t("segmentSummaryComponent.numberOfCompletions") }}
-                </span>
-                <br>
-                <span>{{ numTimes() }}</span>
+                <div class="row">
+                    <span class="fw-lighter">
+                        {{ $t("segmentSummaryComponent.numberOfCompletions") }}
+                    </span>
+                    <br/>
+                    <span>{{ numTimes() }}</span>
+                </div>
+                <div class="row">
+                    <span class="fw-lighter">
+                        {{ $t("segmentSummaryComponent.segmentLength") }}
+                    </span>
+                    <br/>
+                    <span>{{ formatDistance(avgDistance()) }}</span>
+                </div>
+                <div class="row">
+                    <span class="fw-lighter">
+                        {{ $t("segmentSummaryComponent.segmentEleGainLoss") }}
+                    </span>
+                    <br/>
+                    <span>{{ avgEleGain() }} m, {{ avgEleLoss() }} m</span>
+                </div>
             </div>
             <!-- Last time completed -->
             <div class="col">
-                <span class="fw-lighter">
-                    {{ $t("segmentSummaryComponent.lastTimeCompleted") }}
-                </span>
-                <br>
-                <span>
-                    <router-link :to="{ name: 'activity', params: { id: lTime[0] }}" class="link-body-emphasis link-underline-opacity-0 link_underline-opacity-100-hover">
-                    {{ formatDateTime(lTime[1]) }} - {{ formatSecondsToTime(lTime[2]) }}
-                    </router-link>
-                </span>
+                <div class="row">
+                    <span class="fw-lighter">
+                        {{ $t("segmentSummaryComponent.lastTimeCompleted") }}
+                    </span>
+                    <br>
+                    <span>
+                        <router-link :to="{ name: 'activity', params: { id: lTime[0] }}" class="link-body-emphasis link-underline-opacity-0 link_underline-opacity-100-hover">
+                        {{ formatDateTime(lTime[1]) }}
+                        </router-link>
+                    </span>
+                </div>
+                <div class="row">
+                    <span class="fw-lighter">
+                        {{ $t("segmentSummaryComponent.segmentTime") }}
+                    </span>
+                    <br/>
+                    <span>
+                        {{ formatSecondsToTime(lTime[2]) }}
+                    </span>
+                </div>
+                <div class="row">
+                    <span class="fw-lighter">
+                        {{ $t("segmentSummaryComponent.segmentSpeed") }}
+                    </span>
+                    <br/>
+                    <span>{{ formatSpeed(lTime[3], segment.activity_type, authStore.user.units) }}</span>
+                </div>
+                <div class="row">
+                    <span class="fw-lighter">
+                        {{ $t("segmentSummaryComponent.segmentHR") }}
+                    </span>
+                    <br/>
+                    <span>{{ lTime[4] }} bpm, {{ lTime[5] }} bpm</span>
+                </div>
             </div>
             <!-- Fastest time -->
             <div class="col">
-                <span class="fw-lighter">
-                    {{ $t("segmentSummaryComponent.fastestTimeCompleted") }}
-                </span>
-                <br>
-                <span>
-                    <router-link :to="{ name: 'activity', params: { id: fTime[0] }}" class="link-body-emphasis link-underline-opacity-0 link_underline-opacity-100-hover">
-                    {{ formatDateTime(fTime[1]) }} - {{ formatSecondsToTime(fTime[2]) }}
-                    </router-link>
-                </span>
+                <div class="row">
+                    <span class="fw-lighter">
+                        {{ $t("segmentSummaryComponent.fastestTimeCompleted") }}
+                    </span>
+                    <br>
+                    <span>
+                        <router-link :to="{ name: 'activity', params: { id: fTime[0] }}" class="link-body-emphasis link-underline-opacity-0 link_underline-opacity-100-hover">
+                        {{ formatDateTime(fTime[1]) }}
+                        </router-link>
+                    </span>
+                </div>
+                <div class="row">
+                    <span class="fw-lighter">
+                        {{ $t("segmentSummaryComponent.segmentTime") }}
+                    </span>
+                    <br/>
+                    <span>
+                        {{ formatSecondsToTime(fTime[2]) }}
+                    </span>
+                </div>
+                <div class="row">
+                    <span class="fw-lighter">
+                        {{ $t("segmentSummaryComponent.segmentSpeed") }}
+                    </span>
+                    <br/>
+                    <span>{{ formatSpeed(fTime[3], segment.activity_type, authStore.user.units) }}</span>
+                </div>
+                <div class="row">
+                    <span class="fw-lighter">
+                        {{ $t("segmentSummaryComponent.segmentHR") }}
+                    </span>
+                    <br/>
+                    <span>{{ fTime[4] }} bpm, {{ fTime[5] }} bpm</span>
+                </div>
             </div>
         </div>
     </div>
@@ -149,6 +215,8 @@ import {
 import { 
     formatSegmentLocation,
     formatSecondsToTime,
+    formatDistance,
+    formatSpeed,
  } from "@/utils/segmentUtils";
 
 // Emits
@@ -164,6 +232,7 @@ const isLoading = ref(true);
 const userSegment = ref(null);
 const lTime = ref(null);
 const fTime = ref(null);
+const avgLength = ref(null);
 
 // Props
 const props = defineProps({
@@ -185,21 +254,30 @@ function fastestTime() {
     var starttime = '1970-01-01T00:00:00';
     var segment_time = 999999.99;
     var activity_number = null;
+    var pace = null;
+    var avg_hr = null;
+    var max_hr = null;
     props.activitySegments.forEach(item=> {
 
-        if (segment_time > item.segment_time[0]) {
+        if (segment_time > item.segment_time) {
             activity_number = item.activity_id;
             starttime = item.start_time;
-            segment_time = item.segment_time[0];
+            segment_time = item.segment_time;
+            pace = item.segment_pace;
+            avg_hr = item.segment_hr_avg;
+            max_hr = item.segment_hr_max;
         };
     });
-    return [activity_number, starttime, segment_time];
+    return [activity_number, starttime, segment_time, pace, avg_hr, max_hr];
 }
 
 function lastTime() {
     var starttime = '1970-01-01T00:00:00';
     var segment_time = 0;
     var activity_number = null;
+    var pace = null;
+    var avg_hr = null;
+    var max_hr = null;
     props.activitySegments.forEach(item=> {
 
         let prevTime = new Date(starttime);
@@ -208,10 +286,43 @@ function lastTime() {
         if (prevTime < itemTime) {
             activity_number = item.activity_id;
             starttime = item.start_time;
-            segment_time = item.segment_time[0];
+            segment_time = item.segment_time;
+            pace = item.segment_pace;
+            avg_hr = item.segment_hr_avg;
+            max_hr = item.segment_hr_max;
         };
     });
-    return [activity_number, starttime, segment_time];
+    return [activity_number, starttime, segment_time, pace, avg_hr, max_hr];
+}
+
+function avgDistance() {
+    let count = 0;
+    let distance = 0;
+    props.activitySegments.forEach(item=> {
+        distance += item.segment_distance;
+        count++;
+    });
+    return Math.round(distance/count);
+}
+
+function avgEleGain() {
+    let count = 0;
+    let gain = 0;
+    props.activitySegments.forEach(item=> {
+        gain += item.segment_ele_gain;
+        count ++;
+    });
+    return Math.round(gain/count);
+}
+
+function avgEleLoss() {
+    let count = 0;
+    let loss = 0;
+    props.activitySegments.forEach(item=> {
+        loss += item.segment_ele_loss;
+        count ++;
+    });
+    return Math.round(loss/count);
 }
 
 function numTimes() {

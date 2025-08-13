@@ -10,8 +10,11 @@
     "inputSegmentCountry": "Country",
     "errorSubmitSegment": "Error creating segment",
     "labelSegmentName": "Segment",
-    "labelTimings": "Timings",
-    "labelGate": "Gate",
+    "labelStartTime": "Start time",
+    "labelInterval": "Interval",
+    "labelTimeElapsed": "Time elapsed",
+    "labelTimeInterval": "Interval time",
+    "labelSpeedPace": "Speed/Pace",
     "labelLap": "Lap",
     "labelFinish": "Finish"
 }

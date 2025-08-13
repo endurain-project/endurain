@@ -11,6 +11,11 @@
     "modalDeleteBody1": "Are you sure you want to delete segment ",
     "modalDeleteBody2": "This action cannot be undone",
     "numberOfCompletions": "Number of Completions",
+    "segmentEleGainLoss": "Elevation (gain, loss)",
+    "segmentHR": "Heart rate (avg, max)",
+    "segmentLength": "Distance",
+    "segmentSpeed": "Speed/Pace",
+    "segmentTime": "Time",
     "userNameHidden": "Hidden",
     "visibilityPrivate": "Private"
 }

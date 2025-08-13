@@ -1,4 +1,13 @@
 import i18n from "@/i18n";
+import Decimal from 'decimal.js';
+import {
+	formatAverageSpeedImperial,
+	formatAverageSpeedMetric,
+ } from "./activityUtils";
+
+export function activityTypeIsCycling(activity_type) {
+	return activity_type === 4 || activity_type === 5 || activity_type === 6 || activity_type === 7 || activity_type === 27 || activity_type === 28 || activity_type === 29;
+}
 
 /**
  * Formats the location of an activity into a readable string.
@@ -50,3 +59,45 @@ export function formatSecondsToTime(seconds) {
 	}
 }
 
+export function formatDistance(meters) {
+	if (isNaN(meters)) return '';
+	const kms = new Decimal(meters / 1000);
+	if (kms > 1) {
+		return `${kms.toDecimalPlaces(2)} km`;
+	} else {
+		return `${Math.round(meters)} m`;
+	}
+}
+
+export function formatSpeed(
+	pace,
+	activity_type,
+	unitSystem,
+	units = true,
+) {
+	let speed = pace;
+	if (
+		pace === null ||
+		pace === undefined ||
+		pace < 0
+	)
+		return i18n.global.t("generalItems.labelNoData");
+
+	if (
+		activityTypeIsCycling(activity_type)
+	) {
+		if (Number(unitSystem) === 1) {
+			if (units) {
+				return `${formatAverageSpeedMetric(1/speed)} ${i18n.global.t("generalItems.unitsKmH")}`;
+			}
+			return `${formatAverageSpeedMetric(1/speed)}`;
+		} else {
+			if (units) {
+				return `${formatAverageSpeedImperial(1/speed)} ${i18n.global.t("generalItems.unitsMph")}`;
+			}
+			return `${formatAverageSpeedImperial(1/speed)}`;
+		}
+	}
+	
+	return i18n.global.t("generalItems.labelNoData");
+}

@@ -14,7 +14,7 @@ import core.logger as core_logger
 import server_settings.crud as server_settings_crud
 from fastapi import HTTPException, status
 from pydantic import BaseModel
-from sqlalchemy import func, or_, asc
+from sqlalchemy import func, or_, asc, desc
 from sqlalchemy.orm import Session
 
 def get_all_segments(user_id: int, activity_type: int|None, db: Session):
@@ -101,29 +101,41 @@ def get_all_activity_segment_data_by_segment(
                     stream_type=7,
                     token_user_id=user_id,
                     db=db)
-                
+                activityStreamEle = streams_crud.get_activity_stream_by_type(
+                    activity_id=activitySegment.activity_id,
+                    stream_type=6,
+                    token_user_id=user_id,
+                    db=db)
                 # Obtain timezone for the activity
                 timezone = activities_crud.get_activity_timezone(activitySegment.activity_id, db)
 
                 gps_point_indexes = []
                 for gps_point_index in activitySegment.gps_point_index_ordered:
                     gps_point_indexes.append((gps_point_index[0], gps_point_index[1]))
-                sub_segment_times = []
-                i = 0
-                for sub_segment_time in activitySegment.sub_segment_times:
-                    sub_segment_times.append((activitySegment.gate_ordered[i], sub_segment_time))
-                    i+=1
+                gate_times = []
+                for item in activitySegment.gate_times:
+                    gate_times.append(segments_utils.date_convert_timezone(item, timezone))
                 activity_segment = {
                     "id": activitySegment.id,
                     "activity_id": activitySegment.activity_id,
                     "segment_id": activitySegment.segment_id,
+                    "lap_number": activitySegment.lap_number,
                     "segment_name": activitySegment.segment_name.strip(),
                     "start_time": segments_utils.date_convert_timezone(activitySegment.start_time,timezone),
+                    "segment_ele_gain": activitySegment.segment_ele_gain,
+                    "segment_ele_loss": activitySegment.segment_ele_loss,
+                    "segment_pace": activitySegment.segment_pace,
+                    "segment_hr_avg": activitySegment.segment_hr_avg,
+                    "segment_hr_max": activitySegment.segment_hr_max,
+                    "segment_distance": activitySegment.segment_distance,
+                    "segment_time": activitySegment.segment_time,
                     "gate_ordered": activitySegment.gate_ordered,
+                    "gate_times": gate_times,
                     "gps_point_index_ordered": gps_point_indexes,
-                    "sub_segment_times": [sub_segment_times],
-                    "segment_time": [activitySegment.segment_time],
-                    "stream_latlon": activityStreamLatLon.stream_waypoints
+                    "sub_segment_times": activitySegment.sub_segment_times,
+                    "sub_segment_paces": activitySegment.sub_segment_paces,
+                    "stream_latlon": activityStreamLatLon.stream_waypoints,
+                    "stream_ele": activityStreamEle.stream_waypoints
                 }
                 activity_segments.append(activity_segment)
             return activity_segments
@@ -143,44 +155,62 @@ def get_all_activity_segment_data_by_segment(
         ) from err
 
 def get_activity_segments_data_for_activity_by_segment(
-        activity_id: int, segment_id: int, user_id: int, db: Session
+        activity_id: int, user_id: int, db: Session
         ):
     try:
         # Query all activity segments results for specified activity and segments
-        result = db.query(segments_models.ActivitySegment).filter_by(
+        activitySegmentResult = db.query(segments_models.ActivitySegment).filter_by(
             activity_id=activity_id,
-            segment_id=segment_id
+        ).order_by(
+            desc(segments_models.ActivitySegment.segment_time)
         ).all()
-        if result:
-            segment_name = None
-            gate_ordered = None
-            gps_point_index_ordered = None
-            sub_segment_times = []
-            segment_time = []
-            for record in result:
-                segment_name = record.segment_name
-                gate_ordered = record.gate_ordered
-                gps_point_index_ordered = []
-                for gps_point_index in record.gps_point_index_ordered:
-                    gps_point_index_ordered.append((gps_point_index[0], gps_point_index[1]))
-                sub_segment_time = []
-                i = 0
-                for sub_segment in record.sub_segment_times:
-                    sub_segment_time.append((gate_ordered[i], sub_segment))
-                    i+=1
-                sub_segment_times.append(sub_segment_time)
-                segment_time.append(float(record.segment_time))
+        if activitySegmentResult:
+            activity_segments = []
+            for activitySegment in activitySegmentResult:
 
-            # Translate output to schema
-            activity_segment_data = {
-                'segment_name':  segment_name.strip(),
-                'gate_ordered': gate_ordered,
-                'gps_point_index_ordered': gps_point_index_ordered,
-                'sub_segment_times': sub_segment_times,
-                'segment_times': segment_time
-            }
+                activityStreamLatLon = streams_crud.get_activity_stream_by_type(
+                    activity_id=activitySegment.activity_id,
+                    stream_type=7,
+                    token_user_id=user_id,
+                    db=db)
+                activityStreamEle = streams_crud.get_activity_stream_by_type(
+                    activity_id=activitySegment.activity_id,
+                    stream_type=6,
+                    token_user_id=user_id,
+                    db=db)
+                # Obtain timezone for the activity
+                timezone = activities_crud.get_activity_timezone(activitySegment.activity_id, db)
 
-            return activity_segment_data
+                gps_point_indexes = []
+                for gps_point_index in activitySegment.gps_point_index_ordered:
+                    gps_point_indexes.append((gps_point_index[0], gps_point_index[1]))
+                gate_times = []
+                for item in activitySegment.gate_times:
+                    gate_times.append(segments_utils.date_convert_timezone(item, timezone))
+                activity_segment = {
+                    "id": activitySegment.id,
+                    "activity_id": activitySegment.activity_id,
+                    "segment_id": activitySegment.segment_id,
+                    "lap_number": activitySegment.lap_number,
+                    "segment_name": activitySegment.segment_name.strip(),
+                    "start_time": segments_utils.date_convert_timezone(activitySegment.start_time,timezone),
+                    "segment_ele_gain": activitySegment.segment_ele_gain,
+                    "segment_ele_loss": activitySegment.segment_ele_loss,
+                    "segment_pace": activitySegment.segment_pace,
+                    "segment_hr_avg": activitySegment.segment_hr_avg,
+                    "segment_hr_max": activitySegment.segment_hr_max,
+                    "segment_distance": activitySegment.segment_distance,
+                    "segment_time": activitySegment.segment_time,
+                    "gate_ordered": activitySegment.gate_ordered,
+                    "gate_times": gate_times,
+                    "gps_point_index_ordered": gps_point_indexes,
+                    "sub_segment_times": activitySegment.sub_segment_times,
+                    "sub_segment_paces": activitySegment.sub_segment_paces,
+                    "stream_latlon": activityStreamLatLon.stream_waypoints,
+                    "stream_ele": activityStreamEle.stream_waypoints
+                }
+                activity_segments.append(activity_segment)
+            return activity_segments
         else:
            return None
     except Exception as err:
