@@ -3,10 +3,26 @@ import Decimal from 'decimal.js';
 import {
 	formatAverageSpeedImperial,
 	formatAverageSpeedMetric,
+	formatPaceSwimImperial,
+	formatPaceSwimMetric,
+	formatPaceImperial,
+	formatPaceMetric
  } from "./activityUtils";
 
 export function activityTypeIsCycling(activity_type) {
 	return activity_type === 4 || activity_type === 5 || activity_type === 6 || activity_type === 7 || activity_type === 27 || activity_type === 28 || activity_type === 29;
+}
+
+export function activityTypeIsSwimming(activity_type) {
+	return activity_type === 8 || activity_type === 9;
+}
+
+export function activityTypeIsRowing(activity_type) {
+	return activity_type === 13;
+}
+
+export function activityTypeIsWindsurf(activity_type) {
+	return activity_type === 30;
 }
 
 /**
@@ -98,6 +114,21 @@ export function formatSpeed(
 			return `${formatAverageSpeedImperial(1/speed)}`;
 		}
 	}
+	else if(
+		activityTypeIsSwimming(activity_type) ||
+		activityTypeIsRowing(activity_type) ||
+		activityTypeIsWindsurf(activity_type)
+	)  {
+		if (Number(unitSystem) === 1) {
+			return formatPaceSwimMetric(pace, units);
+		}
+		return formatPaceSwimImperial(pace, units);
+	}
+	if (Number(unitSystem) === 1) {
+		return formatPaceMetric(pace, units);
+	}
+	return formatPaceImperial(pace, units);
+
 	
 	return i18n.global.t("generalItems.labelNoData");
 }
