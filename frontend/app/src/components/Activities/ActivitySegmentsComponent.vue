@@ -4,7 +4,7 @@
     </div>
     <div v-else>
         <div v-if="mapVisible==false">
-            <div>
+            <div v-if="intersections">
                 <div class="text-center" v-if="intersections.length == 0">
                     <NoItemsFoundComponents v-if="intersections.length == 0"/>
                 </div>
@@ -275,13 +275,15 @@ export default {
         },
         updateSegmentIconMaps() {
             let map_idx = 0
-            this.intersections.forEach(intersection => {
-                setTimeout(() => {
-                    // Ensure the map is rendered after the DOM is updated
-                    this.createSegmentIconMap(intersection, map_idx)
-                    map_idx++;
-                }, 200);
-            });
+            if (this.intersections) {
+                this.intersections.forEach(intersection => {
+                    setTimeout(() => {
+                        // Ensure the map is rendered after the DOM is updated
+                        this.createSegmentIconMap(intersection, map_idx)
+                        map_idx++;
+                    }, 200);
+                });
+            }
         },
         onActivitySegmentsVisibleChange() {
 
