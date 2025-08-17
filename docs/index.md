@@ -50,6 +50,7 @@ Endurain currently supports:
 - Strava integration for syncing activities and gear
 - Garmin Connect integration for syncing activities, gear and body composition
 - Activity feeds and statistics (week/month)
+- Segment definition and tracking
 - Basic activity privacy settings
 - Gear tracking (wetsuits, bicycles, shoes, racquets, skis, snowboards)
 - Gear component tracking (e.g., track when components like bike chains need replacing)
