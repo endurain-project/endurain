@@ -26,7 +26,7 @@ Table below shows supported environment variables. Variables marked with optiona
 | NOMINATIM_API_HOST | nominatim.openstreetmap.org | Yes | API host for Nominatim. By default it uses the <a href="https://nominatim.openstreetmap.org">SaaS</a> |
 | NOMINATIM_API_USE_HTTPS | true | Yes | Protocol used by Nominatim. By default uses HTTPS to be inline with what <a href="https://nominatim.openstreetmap.org">SaaS</a> expects |
 | GEOCODES_MAPS_API | changeme | Yes | <a href="https://geocode.maps.co/">Geocode maps</a> offers a free plan consisting of 1 Request/Second. Registration necessary. |
-| GEOCODES_MAPS_RATE_LIMIT | 1 | yes | Change this if you have a paid Geocode maps tier | 
+| GEOCODES_MAPS_RATE_LIMIT | 1 | Yes | Change this if you have a paid Geocode maps tier | 
 | DB_TYPE | postgres | Yes | mariadb or postgres |
 | DB_HOST | postgres | Yes | mariadb or postgres |
 | DB_PORT | 5432 | Yes | 3306 or 5432 |
