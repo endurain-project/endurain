@@ -51,6 +51,7 @@ const ACTIVITY_TYPES = [
 	31,
 	32,
 	33,
+	34,
 ]
 
 /**
@@ -97,6 +98,7 @@ const activityLabelMap = {
 	31: t => t("activityItems.indoorWalk"),
 	32: t => t("activityItems.standUpPaddling"),
 	33: t => t("activityItems.surf"),
+	34: t => t("activityItems.trackRun"),
 };
 
 /**
@@ -292,17 +294,17 @@ export function activityTypeNotSwimming(activity) {
  * @returns {boolean} True if the type of the activity is running, false otherwise.
  */
 export function activityTypeIsRunning(activity) {
-	return activity.activity_type === 1 || activity.activity_type === 2 || activity.activity_type === 3;
+	return activity.activity_type === 1 || activity.activity_type === 2 || activity.activity_type === 3 || activity.activity_type === 34;
 }
 /**
  * Checks if the activity type is not a running-related activity.
  *
  * @param {Object} activity - The activity object to check.
  * @param {number} activity.activity_type - The type identifier of the activity.
- * @returns {boolean} Returns true if the activity is not running-related (types 1,2, or 3), otherwise false.
+ * @returns {boolean} Returns true if the activity is not running-related (types 1,2,3 or 34), otherwise false.
  */
 export function activityTypeNotRunning(activity) {
-	return activity.activity_type !== 1 && activity.activity_type !== 2 && activity.activity_type !== 3;
+	return activity.activity_type !== 1 && activity.activity_type !== 2 && activity.activity_type !== 3 && activity.activity_type !== 34;
 }
 
 /**
@@ -659,6 +661,7 @@ export function getIcon(typeId) {
 		31: ["fas", "person-walking"],
 		32: ["fas", "person-snowboarding"],
 		33: ["fas", "person-snowboarding"],
+		34: ["fas", "person-running"], // Track run icon might be better if available
 	};
 
 	return iconMap[typeId] || ["fas", "dumbbell"];
