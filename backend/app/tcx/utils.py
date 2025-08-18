@@ -103,14 +103,14 @@ def parse_tcx_file(file, user_id, user_privacy_settings, db):
                 ),
                 "enhanced_avg_speed": lap.avg_speed if lap.avg_speed else None,
                 "enhanced_max_pace": (
-                    1 / lap.tpx_ext_stats["Speed"]["max"]
-                    if lap.tpx_ext_stats["Speed"]["max"] != 0
-                    and lap.tpx_ext_stats["Speed"]["max"]
+                    1 / lap.tpx_ext_stats.get("Speed", {}).get("max", 0)
+                    if lap.tpx_ext_stats.get("Speed", {}).get("max", 0) != 0
+                    and lap.tpx_ext_stats.get("Speed", {}).get("max", 0)
                     else None
                 ),
                 "enhanced_max_speed": (
-                    lap.tpx_ext_stats["Speed"]["max"]
-                    if lap.tpx_ext_stats["Speed"]["max"]
+                    lap.tpx_ext_stats.get("Speed", {}).get("max")
+                    if lap.tpx_ext_stats.get("Speed", {}).get("max")
                     else None
                 ),
             }
