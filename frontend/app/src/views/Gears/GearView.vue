@@ -219,7 +219,7 @@
                                     <span v-if="activity.name === 'Workout'">{{ formatName(activity, t) }}</span>
                                     <span v-else>{{ activity.name }}</span>
                                 </router-link>
-                                <span>{{ formatDateMed(activity.start_time) }} @ {{ formatTime(activity.start_time)
+                                <span>{{ formatDateMed(activity.start_time_tz_applied) }} @ {{ formatTime(activity.start_time_tz_applied)
                                 }}</span>
                             </li>
                         </ul>

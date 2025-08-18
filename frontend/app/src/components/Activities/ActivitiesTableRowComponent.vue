@@ -9,7 +9,7 @@
         </router-link>
     </td>
     <td>{{ formatLocation(activity) }}</td>
-    <td class="d-none d-md-table-cell">{{ formatDateTime(activity.start_time) }}</td>
+    <td class="d-none d-md-table-cell">{{ formatDateTime(activity.start_time_tz_applied) }}</td>
     <td class="d-none d-md-table-cell">{{ formatDuration(activity.total_timer_time) }}</td>
     <td class="d-none d-md-table-cell">{{ formatDistance(activity, authStore.user.units) }}</td>
     <td class="d-none d-md-table-cell">

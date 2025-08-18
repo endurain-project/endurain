@@ -140,12 +140,12 @@ function updateGearComponentDistance(gearComponent) {
     if (props.gearActivities && props.gearActivities && props.gearActivities.length > 0) {
         props.gearActivities.forEach(activity => {
             if (
-                activity.start_time &&
+                activity.start_time_tz_applied &&
                 gearComponent.purchase_date &&
-                new Date(activity.start_time) >= new Date(gearComponent.purchase_date) &&
+                new Date(activity.start_time_tz_applied) >= new Date(gearComponent.purchase_date) &&
                 (
                     gearComponent.retired_date === null || 
-                    new Date(activity.start_time).toISOString().slice(0, 10) <= new Date(gearComponent.retired_date).toISOString().slice(0, 10)
+                    new Date(activity.start_time_tz_applied).toISOString().slice(0, 10) <= new Date(gearComponent.retired_date).toISOString().slice(0, 10)
                 )
             ) {
                 gearComponentDistance.value += Number(activity.distance) || 0;

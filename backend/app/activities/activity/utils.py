@@ -278,9 +278,13 @@ def serialize_activity(activity: activities_schema.Activity):
         else ZoneInfo(os.environ.get("TZ", "UTC"))
     )
 
-    activity.start_time = make_aware_and_format(activity.start_time, timezone)
-    activity.end_time = make_aware_and_format(activity.end_time, timezone)
-    activity.created_at = make_aware_and_format(activity.created_at, timezone)
+    activity.start_time_tz_applied = make_aware_and_format(activity.start_time, timezone)
+    activity.end_time_tz_applied = make_aware_and_format(activity.end_time, timezone)
+    activity.created_at_tz_applied = make_aware_and_format(activity.created_at, timezone)
+
+    activity.start_time = (activity.start_time).astimezone(None).strftime("%Y-%m-%dT%H:%M:%S")
+    activity.end_time = (activity.end_time).astimezone(None).strftime("%Y-%m-%dT%H:%M:%S")
+    activity.created_at = (activity.created_at).astimezone(None).strftime("%Y-%m-%dT%H:%M:%S")
 
     return activity
 
