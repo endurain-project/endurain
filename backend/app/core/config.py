@@ -24,9 +24,11 @@ FILES_BULK_IMPORT_DIR = f"{FILES_DIR}/bulk_import"
 FILES_BULK_IMPORT_IMPORT_ERRORS_DIR = f"{FILES_BULK_IMPORT_DIR}/import_errors"
 ENVIRONMENT = os.getenv("ENVIRONMENT", "production").lower()
 TZ = os.getenv("TZ", "UTC")
-REVERSE_GEO_PROVIDER = os.getenv("REVERSE_GEO_PROVIDER", "geocode").lower()
+REVERSE_GEO_PROVIDER = os.getenv("REVERSE_GEO_PROVIDER", "nominatim").lower()
 PHOTON_API_HOST = os.getenv("PHOTON_API_HOST", "photon.komoot.io").lower()
 PHOTON_API_USE_HTTPS = os.getenv("PHOTON_API_USE_HTTPS", "true").lower() == "true"
+NOMINATIM_API_HOST = os.getenv("NOMINATIM_API_HOST", "nominatim.openstreetmap.org").lower()
+NOMINATIM_API_USE_HTTPS = os.getenv("NOMINATIM_API_USE_HTTPS", "true").lower() == "true"
 GEOCODES_MAPS_API = os.getenv("GEOCODES_MAPS_API", "changeme")
 try:
     GEOCODES_MAPS_RATE_LIMIT = float(os.getenv("GEOCODES_MAPS_RATE_LIMIT", "1"))

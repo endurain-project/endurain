@@ -326,7 +326,9 @@ async def parse_and_store_activity_from_file(
     garminconnect_gear: dict = None,
 ):
     try:
-        core_logger.print_to_log_and_console(f"Bulk file import: Beginning processing of {file_path}")
+        core_logger.print_to_log_and_console(
+            f"Bulk file import: Beginning processing of {file_path}"
+        )
 
         # Get file extension
         _, file_extension = os.path.splitext(file_path)
@@ -416,8 +418,10 @@ async def parse_and_store_activity_from_file(
                                 "_"  # Add an underscore if it's not the last item
                             )
                 else:
-                     # Should no longer get here due to screening of extensions in router.py, but why not.
-                    core_logger.print_to_log_and_console(f"File extension not supported: {file_extension}", "error")
+                    # Should no longer get here due to screening of extensions in router.py, but why not.
+                    core_logger.print_to_log_and_console(
+                        f"File extension not supported: {file_extension}", "error"
+                    )
                 # Define the directory where the processed files will be stored
                 processed_dir = core_config.FILES_PROCESSED_DIR
 
@@ -426,15 +430,17 @@ async def parse_and_store_activity_from_file(
 
                 # Move the file to the processed directory
                 move_file(processed_dir, new_file_name, file_path)
-                core_logger.print_to_log_and_console(f"Bulk file import: File successfully processed and moved. {file_path} - has become {new_file_name}")
+                core_logger.print_to_log_and_console(
+                    f"Bulk file import: File successfully processed and moved. {file_path} - has become {new_file_name}"
+                )
 
                 # Return the created activity
                 return created_activities
             else:
                 return None
-    #except HTTPException as http_err:
-        # This is causing a crash on the back end when the try fails.  Looks like we cannot raise an http exception in a background task.
-        #raise http_err
+    # except HTTPException as http_err:
+    # This is causing a crash on the back end when the try fails.  Looks like we cannot raise an http exception in a background task.
+    # raise http_err
     except Exception as err:
         # Log the exception
         core_logger.print_to_log(
@@ -447,9 +453,14 @@ async def parse_and_store_activity_from_file(
             error_file_dir = core_config.FILES_BULK_IMPORT_IMPORT_ERRORS_DIR
             os.makedirs(error_file_dir, exist_ok=True)
             move_file(error_file_dir, os.path.basename(file_path), file_path)
-            core_logger.print_to_log_and_console(f"Bulk file import: Due to import error, file {file_path} has been moved to {error_file_dir}")
+            core_logger.print_to_log_and_console(
+                f"Bulk file import: Due to import error, file {file_path} has been moved to {error_file_dir}"
+            )
         except Exception:
-            core_logger.print_to_log_and_console(f"Bulk file import: Failed to move the error-producing file {file_path} to the import-error directory.")
+            core_logger.print_to_log_and_console(
+                f"Bulk file import: Failed to move the error-producing file {file_path} to the import-error directory."
+            )
+
 
 async def parse_and_store_activity_from_uploaded_file(
     token_user_id: int,
@@ -796,7 +807,28 @@ def location_based_on_coordinates(latitude, longitude) -> dict | None:
         }
 
     # Create a dictionary with the parameters for the request
-    if core_config.REVERSE_GEO_PROVIDER == "geocode":
+    if core_config.REVERSE_GEO_PROVIDER == "nominatim":
+        # Create the URL for the request
+        url_params = {
+            "format": "jsonv2",
+            "lat": latitude,
+            "lon": longitude,
+        }
+        protocol = "https"
+        if not core_config.NOMINATIM_API_USE_HTTPS:
+            protocol = "http"
+        url = f"{protocol}://{core_config.NOMINATIM_API_HOST}/reverse?{urlencode(url_params)}"
+    elif core_config.REVERSE_GEO_PROVIDER == "photon":
+        # Create the URL for the request
+        url_params = {
+            "lat": latitude,
+            "lon": longitude,
+        }
+        protocol = "https"
+        if not core_config.PHOTON_API_USE_HTTPS:
+            protocol = "http"
+        url = f"{protocol}://{core_config.PHOTON_API_HOST}/reverse?{urlencode(url_params)}"
+    elif core_config.REVERSE_GEO_PROVIDER == "geocode":
         # Check if the API key is set
         if core_config.GEOCODES_MAPS_API == "changeme":
             return {
@@ -811,16 +843,6 @@ def location_based_on_coordinates(latitude, longitude) -> dict | None:
             "api_key": core_config.GEOCODES_MAPS_API,
         }
         url = f"https://geocode.maps.co/reverse?{urlencode(url_params)}"
-    elif core_config.REVERSE_GEO_PROVIDER == "photon":
-        # Create the URL for the request
-        url_params = {
-            "lat": latitude,
-            "lon": longitude,
-        }
-        protocol = "https"
-        if not core_config.PHOTON_API_USE_HTTPS:
-            protocol = "http"
-        url = f"{protocol}://{core_config.PHOTON_API_HOST}/reverse?{urlencode(url_params)}"
     else:
         # If no provider is set, return None
         return {
@@ -842,11 +864,15 @@ def location_based_on_coordinates(latitude, longitude) -> dict | None:
 
     # Make the request and get the response
     try:
+        headers = {"User-Agent": "Endurain"}
         # Make the request and get the response
-        response = requests.get(url, timeout=10)
+        response = requests.get(url, headers=headers, timeout=10)
         response.raise_for_status()
 
-        if core_config.REVERSE_GEO_PROVIDER == "geocode":
+        if (
+            core_config.REVERSE_GEO_PROVIDER == "geocode"
+            or core_config.REVERSE_GEO_PROVIDER == "nominatim"
+        ):
             # Get the data from the response
             data = response.json().get("address", {})
             # Return the location based on the coordinates
