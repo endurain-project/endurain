@@ -1,13 +1,13 @@
 {
     "subtitleChangePassword": "Passwort ändern",
-    "changeUserPasswordBodyLabel": "Change password for user ",
-    "changeUserPasswordPasswordLabel": "New password",
-    "changeUserPasswordPasswordConfirmationLabel": "Confirm new password",
-    "changeUserPasswordFeedbackLabel": "Password does not meet requirements",
-    "changeUserPasswordPasswordsDoNotMatchFeedbackLabel": "Passwords do not match",
-    "subtitleMySessions": "My sessions",
-    "userChangePasswordSuccessMessage": "Password changed successfully",
-    "userChangePasswordErrorMessage": "Error changing password",
-    "successDeleteSession": "Session deleted successfully",
-    "errorDeleteSession": "Error deleting session"
+    "changeUserPasswordBodyLabel": "Nutzerpasswort ändern ",
+    "changeUserPasswordPasswordLabel": "Neues Passwort",
+    "changeUserPasswordPasswordConfirmationLabel": "Neues Passwort bestätigen",
+    "changeUserPasswordFeedbackLabel": "Passwort erfüllt nicht die Anforderungen",
+    "changeUserPasswordPasswordsDoNotMatchFeedbackLabel": "Die Passwörter stimmen nicht überein",
+    "subtitleMySessions": "Meine Sitzungen",
+    "userChangePasswordSuccessMessage": "Passwort erfolgreich geändert",
+    "userChangePasswordErrorMessage": "Fehler beim ändern des Passwort",
+    "successDeleteSession": "Sitzung erfolgreich gelöscht",
+    "errorDeleteSession": "Fehler beim Löschen der Sitzung"
 }

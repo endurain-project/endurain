@@ -7,7 +7,7 @@
     "userEditErrorMessage": "Fehler beim Bearbeiten des Benutzers",
     "modalDeleteUserTitle": "Benutzer löschen",
     "modalDeleteUserBody": "Sicher, dass du Benutzer löschen möchtest ",
-    "userListUserSessionsTitle": "User sessions",
-    "userSessionDeleteSuccessMessage": "Session deleted successfully",
-    "userSessionDeleteErrorMessage": "Error deleting session"
+    "userListUserSessionsTitle": "Benutzer-Sitzungen",
+    "userSessionDeleteSuccessMessage": "Sitzung erfolgreich gelöscht",
+    "userSessionDeleteErrorMessage": "Fehler beim Löschen der Sitzung"
 }
