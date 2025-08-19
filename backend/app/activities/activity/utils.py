@@ -276,6 +276,11 @@ def serialize_activity(activity: activities_schema.Activity):
         if dt.tzinfo is None:
             dt = dt.replace(tzinfo=ZoneInfo("UTC"))
         return dt.astimezone(timezone).strftime("%Y-%m-%dT%H:%M:%S")
+    
+    def convert_to_datetime_if_string(dt):
+        if isinstance(dt, str):
+            return datetime.fromisoformat(dt)
+        return dt
 
     timezone = (
         ZoneInfo(activity.timezone)
@@ -287,9 +292,14 @@ def serialize_activity(activity: activities_schema.Activity):
     activity.end_time_tz_applied = make_aware_and_format(activity.end_time, timezone)
     activity.created_at_tz_applied = make_aware_and_format(activity.created_at, timezone)
 
-    activity.start_time = activity.start_time.astimezone(None).strftime("%Y-%m-%dT%H:%M:%S")
-    activity.end_time = activity.end_time.astimezone(None).strftime("%Y-%m-%dT%H:%M:%S")
-    activity.created_at = activity.created_at.astimezone(None).strftime("%Y-%m-%dT%H:%M:%S")
+    # Convert to datetime objects if they are strings before calling astimezone
+    start_time_dt = convert_to_datetime_if_string(activity.start_time)
+    end_time_dt = convert_to_datetime_if_string(activity.end_time)
+    created_at_dt = convert_to_datetime_if_string(activity.created_at)
+
+    activity.start_time = start_time_dt.astimezone(None).strftime("%Y-%m-%dT%H:%M:%S")
+    activity.end_time = end_time_dt.astimezone(None).strftime("%Y-%m-%dT%H:%M:%S")
+    activity.created_at = created_at_dt.astimezone(None).strftime("%Y-%m-%dT%H:%M:%S")
 
     return activity
 
