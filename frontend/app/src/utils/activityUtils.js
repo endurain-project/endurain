@@ -135,8 +135,8 @@ export function formatPaceMetric(pace, units = true) {
 	// Convert pace to seconds per kilometer
 	const pacePerKm = (pace * 1000) / 60;
 	// Calculate minutes and seconds
-	const minutes = Math.floor(pacePerKm);
-	const seconds = Math.round((pacePerKm - minutes) * 60);
+	let minutes = Math.floor(pacePerKm);
+	let seconds = Math.round((pacePerKm - minutes) * 60);
 
 	// If rounding pushed us up to 60 seconds, roll over
 	if (seconds === 60) {
@@ -165,8 +165,8 @@ export function formatPaceImperial(pace, units = true) {
 	// Convert pace to seconds per mile (1 mile = 1609.34 meters)
 	const pacePerMile = (pace * 1609.34) / 60;
 	// Calculate minutes and seconds
-	const minutes = Math.floor(pacePerMile);
-	const seconds = Math.round((pacePerMile - minutes) * 60);
+	let minutes = Math.floor(pacePerMile);
+	let seconds = Math.round((pacePerMile - minutes) * 60);
 
 	// Format the seconds
 	const formattedSeconds = seconds < 10 ? `0${seconds}` : seconds;
@@ -195,8 +195,8 @@ export function formatPaceSwimMetric(pace, units = true) {
 	// Convert pace to seconds per 100 meters
 	const pacePerKm = (pace * 100) / 60;
 	// Calculate minutes and seconds
-	const minutes = Math.floor(pacePerKm);
-	const seconds = Math.round((pacePerKm - minutes) * 60);
+	let minutes = Math.floor(pacePerKm);
+	let seconds = Math.round((pacePerKm - minutes) * 60);
 
 	// Format the seconds
 	const formattedSeconds = seconds < 10 ? `0${seconds}` : seconds;
@@ -225,8 +225,8 @@ export function formatPaceSwimImperial(pace, units = true) {
 	// Convert pace to seconds per 100 yards (1 yard = 0.9144 meters)
 	const pacePer100Yards = (pace * 100 * 0.9144) / 60;
 	// Calculate minutes and seconds
-	const minutes = Math.floor(pacePer100Yards);
-	const seconds = Math.round((pacePer100Yards - minutes) * 60);
+	let minutes = Math.floor(pacePer100Yards);
+	let seconds = Math.round((pacePer100Yards - minutes) * 60);
 
 	// Format the seconds
 	const formattedSeconds = seconds < 10 ? `0${seconds}` : seconds;
