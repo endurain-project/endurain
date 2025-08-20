@@ -51,6 +51,7 @@ const ACTIVITY_TYPES = [
 	31,
 	32,
 	33,
+	34,
 ]
 
 /**
@@ -97,6 +98,7 @@ const activityLabelMap = {
 	31: t => t("activityItems.indoorWalk"),
 	32: t => t("activityItems.standUpPaddling"),
 	33: t => t("activityItems.surf"),
+	34: t => t("activityItems.trackRun"),
 };
 
 /**
@@ -133,8 +135,14 @@ export function formatPaceMetric(pace, units = true) {
 	// Convert pace to seconds per kilometer
 	const pacePerKm = (pace * 1000) / 60;
 	// Calculate minutes and seconds
-	const minutes = Math.floor(pacePerKm);
-	const seconds = Math.round((pacePerKm - minutes) * 60);
+	let minutes = Math.floor(pacePerKm);
+	let seconds = Math.round((pacePerKm - minutes) * 60);
+
+	// If rounding pushed us up to 60 seconds, roll over
+	if (seconds === 60) {
+		minutes += 1;
+		seconds = 0;
+	}
 
 	// Format the seconds
 	const formattedSeconds = seconds < 10 ? `0${seconds}` : seconds;
@@ -157,11 +165,17 @@ export function formatPaceImperial(pace, units = true) {
 	// Convert pace to seconds per mile (1 mile = 1609.34 meters)
 	const pacePerMile = (pace * 1609.34) / 60;
 	// Calculate minutes and seconds
-	const minutes = Math.floor(pacePerMile);
-	const seconds = Math.round((pacePerMile - minutes) * 60);
+	let minutes = Math.floor(pacePerMile);
+	let seconds = Math.round((pacePerMile - minutes) * 60);
 
 	// Format the seconds
 	const formattedSeconds = seconds < 10 ? `0${seconds}` : seconds;
+
+	// Catch the rare “60 seconds” case and roll it into an extra minute
+	if (seconds === 60) {
+		minutes += 1;
+		seconds = 0;
+	}
 
 	// Return the formatted pace
 	if (units) {
@@ -181,11 +195,17 @@ export function formatPaceSwimMetric(pace, units = true) {
 	// Convert pace to seconds per 100 meters
 	const pacePerKm = (pace * 100) / 60;
 	// Calculate minutes and seconds
-	const minutes = Math.floor(pacePerKm);
-	const seconds = Math.round((pacePerKm - minutes) * 60);
+	let minutes = Math.floor(pacePerKm);
+	let seconds = Math.round((pacePerKm - minutes) * 60);
 
 	// Format the seconds
 	const formattedSeconds = seconds < 10 ? `0${seconds}` : seconds;
+
+	// Catch the rare “60 seconds” case and roll it into an extra minute
+	if (seconds === 60) {
+		minutes += 1;
+		seconds = 0;
+	}
 
 	// Return the formatted pace
 	if (units) {
@@ -205,11 +225,17 @@ export function formatPaceSwimImperial(pace, units = true) {
 	// Convert pace to seconds per 100 yards (1 yard = 0.9144 meters)
 	const pacePer100Yards = (pace * 100 * 0.9144) / 60;
 	// Calculate minutes and seconds
-	const minutes = Math.floor(pacePer100Yards);
-	const seconds = Math.round((pacePer100Yards - minutes) * 60);
+	let minutes = Math.floor(pacePer100Yards);
+	let seconds = Math.round((pacePer100Yards - minutes) * 60);
 
 	// Format the seconds
 	const formattedSeconds = seconds < 10 ? `0${seconds}` : seconds;
+
+	// Catch the rare “60 seconds” case and roll it into an extra minute
+	if (seconds === 60) {
+		minutes += 1;
+		seconds = 0;
+	}
 
 	// Return the formatted pace
 	if (units) {
@@ -268,17 +294,17 @@ export function activityTypeNotSwimming(activity) {
  * @returns {boolean} True if the type of the activity is running, false otherwise.
  */
 export function activityTypeIsRunning(activity) {
-	return activity.activity_type === 1 || activity.activity_type === 2 || activity.activity_type === 3;
+	return activity.activity_type === 1 || activity.activity_type === 2 || activity.activity_type === 3 || activity.activity_type === 34;
 }
 /**
  * Checks if the activity type is not a running-related activity.
  *
  * @param {Object} activity - The activity object to check.
  * @param {number} activity.activity_type - The type identifier of the activity.
- * @returns {boolean} Returns true if the activity is not running-related (types 1,2, or 3), otherwise false.
+ * @returns {boolean} Returns true if the activity is not running-related (types 1,2,3 or 34), otherwise false.
  */
 export function activityTypeNotRunning(activity) {
-	return activity.activity_type !== 1 && activity.activity_type !== 2 && activity.activity_type !== 3;
+	return activity.activity_type !== 1 && activity.activity_type !== 2 && activity.activity_type !== 3 && activity.activity_type !== 34;
 }
 
 /**
@@ -635,6 +661,7 @@ export function getIcon(typeId) {
 		31: ["fas", "person-walking"],
 		32: ["fas", "person-snowboarding"],
 		33: ["fas", "person-snowboarding"],
+		34: ["fas", "person-running"], // Track run icon might be better if available
 	};
 
 	return iconMap[typeId] || ["fas", "dumbbell"];

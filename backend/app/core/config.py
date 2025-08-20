@@ -21,11 +21,14 @@ FILES_DIR = os.getenv("FILES_DIR", f"{DATA_DIR}/activity_files")
 ACTIVITY_MEDIA_DIR = os.getenv("ACTIVITY_MEDIA_DIR", f"{DATA_DIR}/activity_media")
 FILES_PROCESSED_DIR = f"{FILES_DIR}/processed"
 FILES_BULK_IMPORT_DIR = f"{FILES_DIR}/bulk_import"
+FILES_BULK_IMPORT_IMPORT_ERRORS_DIR = f"{FILES_BULK_IMPORT_DIR}/import_errors"
 ENVIRONMENT = os.getenv("ENVIRONMENT", "production").lower()
 TZ = os.getenv("TZ", "UTC")
 REVERSE_GEO_PROVIDER = os.getenv("REVERSE_GEO_PROVIDER", "geocode").lower()
 PHOTON_API_HOST = os.getenv("PHOTON_API_HOST", "photon.komoot.io").lower()
 PHOTON_API_USE_HTTPS = os.getenv("PHOTON_API_USE_HTTPS", "true").lower() == "true"
+NOMINATIM_API_HOST = os.getenv("NOMINATIM_API_HOST", "nominatim.openstreetmap.org").lower()
+NOMINATIM_API_USE_HTTPS = os.getenv("NOMINATIM_API_USE_HTTPS", "true").lower() == "true"
 GEOCODES_MAPS_API = os.getenv("GEOCODES_MAPS_API", "changeme")
 try:
     GEOCODES_MAPS_RATE_LIMIT = float(os.getenv("GEOCODES_MAPS_RATE_LIMIT", "1"))
@@ -63,6 +66,7 @@ def check_required_env_vars():
             )
             raise EnvironmentError(f"Missing required environment variable: {var}")
 
+
 def check_required_dirs():
     required_dirs = [
         DATA_DIR,
@@ -72,6 +76,7 @@ def check_required_dirs():
         FILES_DIR,
         FILES_PROCESSED_DIR,
         FILES_BULK_IMPORT_DIR,
+        FILES_BULK_IMPORT_IMPORT_ERRORS_DIR,
         LOGS_DIR,
     ]
 
@@ -79,5 +84,9 @@ def check_required_dirs():
         if not os.path.exists(required_dir):
             os.mkdir(required_dir)
         elif not os.path.isdir(required_dir):
-            core_logger.print_to_log_and_console(f"Required directory is not a directory: {required_dir}", "error")
-            raise EnvironmentError(f"Required directory is not a directory: {required_dir}")
+            core_logger.print_to_log_and_console(
+                f"Required directory is not a directory: {required_dir}", "error"
+            )
+            raise EnvironmentError(
+                f"Required directory is not a directory: {required_dir}"
+            )

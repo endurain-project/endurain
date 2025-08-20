@@ -9,6 +9,6 @@
     "labelLapElev": "Höhe",
     "labelLapAvgHr": "Durchschnittliche Herzfrequenz",
     "labelLapHR": "HF",
-    "labelLapStrokeRate": "Stroke rate",
-    "labelLapSR": "SR"
+    "labelLapStrokeRate": "Schlagzahl",
+    "labelLapSR": "SZ"
 }

@@ -76,6 +76,26 @@ async function fetchNotifications() {
     }
 }
 
+async function fetchNotificationById(notificationId) {
+    // Fetch the notification by ID
+    try {
+        const newNotification = await notifications.getUserNotificationByID(notificationId);
+
+        if (newNotification) {
+            // Check if the notification is not already in the list
+            const existingNotification = notificationsWithPagination.value.find(n => n.id === notificationId);
+            if (!existingNotification) {
+                notificationsWithPagination.value.unshift(newNotification);
+                if (!newNotification.read) {
+                    notificationsNotRead.value++;
+                }
+            }
+        }
+    } catch (error) {
+        push.error(`${t("navbarNotificationsComponent.errorFetchingNotificationById")} - ${error}`);
+    }
+}
+
 onMounted(async () => {
     if (authStore.user_websocket) {
         authStore.user_websocket.on

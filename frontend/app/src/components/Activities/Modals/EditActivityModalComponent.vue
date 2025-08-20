@@ -37,6 +37,8 @@
                             </option>
                             <option value="2">{{ $t("editActivityModalComponent.modalEditActivityTypeOption2") }}
                             </option>
+                            <option value="34">{{ $t("editActivityModalComponent.modalEditActivityTypeOption34") }}
+                            </option>
                             <option value="3">{{ $t("editActivityModalComponent.modalEditActivityTypeOption3") }}
                             </option>
                             <hr>

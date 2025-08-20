@@ -11,7 +11,7 @@ import { useServerSettingsStore } from '@/stores/serverSettingsStore';
 import { Chart, registerables } from 'chart.js';
 Chart.register(...registerables);
 
-import { formatAverageSpeedMetric, formatAverageSpeedImperial, activityTypeIsSwimming } from "@/utils/activityUtils";
+import { formatAverageSpeedMetric, formatAverageSpeedImperial, activityTypeIsSwimming, activityTypeIsRunning } from "@/utils/activityUtils";
 import { metersToFeet, kmToMiles } from "@/utils/unitsUtils";
   
 export default {
@@ -101,7 +101,7 @@ export default {
                         if (paceData.pace === 0 || paceData.pace === null) {
                             data.push(0);
                         } else {
-                            if (props.activity.activity_type === 1 || props.activity.activity_type === 2 || props.activity.activity_type === 3) {
+                            if (activityTypeIsRunning(props.activity)) {
                                 if (Number(units.value) === 1) {
                                     data.push((paceData.pace * 1000) / 60);
                                 } else {
@@ -116,7 +116,7 @@ export default {
                             }
                         }
                     }
-                    if (props.activity.activity_type === 1 || props.activity.activity_type === 2 || props.activity.activity_type === 3) {
+                    if (activityTypeIsRunning(props.activity)) {
                         if (Number(units.value) === 1) {
                             label = t("generalItems.labelPaceInMinKm");
                         } else {
