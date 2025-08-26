@@ -10,6 +10,9 @@ export const session = {
     authenticateUser(formData) {
         return fetchPostFormUrlEncoded('token', formData);
     },
+    verifyMFAAndLogin(data) {
+        return fetchPostRequest('mfa/verify', data);
+    },
     logoutUser() {
         return fetchPostRequest('logout', null);
     },
