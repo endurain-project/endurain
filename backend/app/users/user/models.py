@@ -76,6 +76,17 @@ class User(Base):
         default=1,
         comment="User currency (one digit)(1 - euro, 2 - dollar, 3 - pound)",
     )
+    mfa_enabled = Column(
+        Integer,
+        nullable=False,
+        default=0,
+        comment="Whether MFA is enabled for this user (0 - disabled, 1 - enabled)",
+    )
+    mfa_secret = Column(
+        String(length=64),
+        nullable=True,
+        comment="User MFA secret for TOTP generation (encrypted at rest)",
+    )
 
     # Define a relationship to UsersSessions model
     users_sessions = relationship(

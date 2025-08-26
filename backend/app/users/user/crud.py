@@ -475,3 +475,47 @@ def delete_user(user_id: int, db: Session):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal Server Error",
         ) from err
+
+
+def enable_user_mfa(user_id: int, encrypted_secret: str, db: Session):
+    """Enable MFA for a user by setting the secret and enabling flag"""
+    try:
+        user = db.query(users_models.User).filter(users_models.User.id == user_id).first()
+        
+        if user:
+            user.mfa_enabled = 1
+            user.mfa_secret = encrypted_secret
+            db.commit()
+            db.refresh(user)
+            return user
+        
+        return None
+    except Exception as err:
+        db.rollback()
+        core_logger.print_to_log(f"Error in enable_user_mfa: {err}", "error", exc=err)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal Server Error",
+        ) from err
+
+
+def disable_user_mfa(user_id: int, db: Session):
+    """Disable MFA for a user by clearing the secret and flag"""
+    try:
+        user = db.query(users_models.User).filter(users_models.User.id == user_id).first()
+        
+        if user:
+            user.mfa_enabled = 0
+            user.mfa_secret = None
+            db.commit()
+            db.refresh(user)
+            return user
+        
+        return None
+    except Exception as err:
+        db.rollback()
+        core_logger.print_to_log(f"Error in disable_user_mfa: {err}", "error", exc=err)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal Server Error",
+        ) from err

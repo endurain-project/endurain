@@ -20,6 +20,51 @@ class UsersSessions(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
+
+class MFALoginRequest(BaseModel):
+    username: str
+    mfa_code: str
+
+
+class MFARequiredResponse(BaseModel):
+    mfa_required: bool = True
+    username: str
+    message: str = "MFA verification required"
+
+
+class PendingMFALogin:
+    """Store for pending MFA logins"""
+    def __init__(self):
+        self._store = {}
+
+    def add_pending_login(self, username: str, user_id: int):
+        self._store[username] = user_id
+
+    def get_pending_login(self, username: str):
+        return self._store.get(username)
+
+    def delete_pending_login(self, username: str):
+        if username in self._store:
+            del self._store[username]
+
+    def has_pending_login(self, username: str):
+        return username in self._store
+
+    def clear_all(self):
+        self._store.clear()
+
+
+def get_pending_mfa_store():
+    return pending_mfa_store
+
+
+pending_mfa_store = PendingMFALogin()
+
+
 class CSRFMiddleware(BaseHTTPMiddleware):
     def __init__(self, app):
         super().__init__(app)

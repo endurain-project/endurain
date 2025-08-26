@@ -16,9 +16,11 @@ import session.utils as session_utils
 import session.security as session_security
 import session.constants as session_constants
 import session.crud as session_crud
+import session.schema as session_schema
 
 import users.user.crud as users_crud
 import users.user.utils as users_utils
+import users.user.mfa_utils as user_mfa_utils
 
 import core.database as core_database
 
@@ -36,12 +38,41 @@ async def login_for_access_token(
         Depends(core_database.get_db),
     ],
     client_type: Annotated[str, Depends(session_security.header_client_type_scheme)],
+    pending_mfa_store: Annotated[
+        session_schema.PendingMFALogin, Depends(session_schema.get_pending_mfa_store)
+    ],
 ):
     user = session_utils.authenticate_user(form_data.username, form_data.password, db)
 
     # Check if the user is active
     users_utils.check_user_is_active(user)
 
+    # Check if MFA is enabled for this user
+    if user_mfa_utils.is_mfa_enabled_for_user(user.id, db):
+        # Store the user for pending MFA verification
+        pending_mfa_store.add_pending_login(form_data.username, user.id)
+        
+        # Return MFA required response
+        if client_type == "web":
+            response.status_code = status.HTTP_202_ACCEPTED
+            return session_schema.MFARequiredResponse(
+                mfa_required=True,
+                username=form_data.username,
+                message="MFA verification required"
+            )
+        elif client_type == "mobile":
+            return {
+                "mfa_required": True,
+                "username": form_data.username,
+                "message": "MFA verification required"
+            }
+    
+    # If no MFA required, proceed with normal login
+    return await complete_login(response, request, user, client_type, db)
+
+
+async def complete_login(response: Response, request: Request, user, client_type: str, db: Session):
+    """Complete the login process after authentication (and optionally MFA)"""
     # Create the tokens
     access_token, refresh_token, csrf_token = session_utils.create_tokens(user)
 
@@ -72,6 +103,54 @@ async def login_for_access_token(
             detail="Invalid client type",
             headers={"WWW-Authenticate": "Bearer"},
         )
+
+
+@router.post("/mfa/verify")
+async def verify_mfa_and_login(
+    response: Response,
+    request: Request,
+    mfa_request: session_schema.MFALoginRequest,
+    db: Annotated[
+        Session,
+        Depends(core_database.get_db),
+    ],
+    client_type: Annotated[str, Depends(session_security.header_client_type_scheme)],
+    pending_mfa_store: Annotated[
+        session_schema.PendingMFALogin, Depends(session_schema.get_pending_mfa_store)
+    ],
+):
+    # Check if there's a pending MFA login for this username
+    user_id = pending_mfa_store.get_pending_login(mfa_request.username)
+    if not user_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No pending MFA login found for this username"
+        )
+    
+    # Verify the MFA code
+    if not user_mfa_utils.verify_user_mfa(user_id, mfa_request.mfa_code, db):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid MFA code"
+        )
+    
+    # Get the user and complete login
+    user = users_crud.get_user_by_id(user_id, db)
+    if not user:
+        pending_mfa_store.delete_pending_login(mfa_request.username)
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+    
+    # Check if the user is still active
+    users_utils.check_user_is_active(user)
+    
+    # Clean up pending login
+    pending_mfa_store.delete_pending_login(mfa_request.username)
+    
+    # Complete the login
+    return await complete_login(response, request, user, client_type, db)
 
 
 @router.post("/refresh")

@@ -32,6 +32,7 @@ import session.security as session_security
 import strava.router as strava_router
 import users.user.router as users_router
 import users.user.public_router as users_public_router
+import users.user.mfa_router as users_mfa_router
 import users.user_default_gear.router as user_default_gear_router
 import websocket.router as websocket_router
 
@@ -173,6 +174,12 @@ router.include_router(
     users_router.router,
     prefix=core_config.ROOT_PATH + "/users",
     tags=["users"],
+    dependencies=[Depends(session_security.validate_access_token)],
+)
+router.include_router(
+    users_mfa_router.router,
+    prefix=core_config.ROOT_PATH + "/mfa",
+    tags=["mfa"],
     dependencies=[Depends(session_security.validate_access_token)],
 )
 router.include_router(
