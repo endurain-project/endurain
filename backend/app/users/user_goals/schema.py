@@ -1,58 +1,86 @@
-from pydantic import BaseModel, field_validator
-from activities.activity.utils import ACTIVITY_ID_TO_NAME
+from enum import Enum, IntEnum
+from typing import Annotated
+from pydantic import (
+    BaseModel,
+    model_validator,
+    ConfigDict,
+    StrictInt,
+    Field,
+)
+from pydantic_core import PydanticCustomError
 
-allowed_intervals = ["daily", "weekly", "monthly", "yearly"]
-allowed_intervals_not_found_error = ValueError(
-    f"Interval must be one of: {', '.join(allowed_intervals)}"
-)
-allowed_activity_types_not_found_error = ValueError(
-    "Activity type must be between 1 and 5"
-)
-allowed_goal_types_not_found_error = ValueError("Goal type must be between 1 and 6")
-goal_value_error = ValueError("Goal values must be non-negative")
+
+class Interval(str, Enum):
+    daily = "daily"
+    weekly = "weekly"
+    monthly = "monthly"
+    yearly = "yearly"
+
+
+class ActivityType(IntEnum):
+    run = 1
+    bike = 2
+    swim = 3
+    walk = 4
+    strength = 5
+
+
+class GoalType(IntEnum):
+    calories = 1
+    activities = 2
+    distance = 3
+    elevation = 4
+    duration = 5
+    steps = 6
+
+
+# goal_type -> field name
+TYPE_TO_FIELD = {
+    GoalType.calories: "goal_calories",
+    GoalType.activities: "goal_activities_number",
+    GoalType.distance: "goal_distance",
+    GoalType.elevation: "goal_elevation",
+    GoalType.duration: "goal_duration",
+    GoalType.steps: "goal_steps",
+}
+
+# Non-negative int helper; attach constraint at the field level
+NonNegInt = Annotated[int, Field(ge=0)]
 
 
 class UserGoalBase(BaseModel):
-    interval: str
-    activity_type: int
-    goal_type: int
-    goal_calories: int | None
-    goal_activities_number: int | None
-    goal_distance: int | None
-    goal_elevation: int | None
-    goal_duration: int | None
-    goal_steps: int | None
+    model_config = ConfigDict(extra="forbid", validate_assignment=True)
 
-    @field_validator("interval")
-    def validate_interval(cls, value):
-        if value not in allowed_intervals:
-            raise allowed_intervals_not_found_error
-        return value
+    interval: Interval
+    activity_type: ActivityType
+    goal_type: GoalType
 
-    @field_validator("activity_type")
-    def validate_activity_type(cls, value):
-        if value < 1 or value > 5:
-            raise allowed_activity_types_not_found_error
-        return value
+    goal_calories: NonNegInt | None = None
+    goal_activities_number: NonNegInt | None = None
+    goal_distance: NonNegInt | None = None
+    goal_elevation: NonNegInt | None = None
+    goal_duration: NonNegInt | None = None
+    goal_steps: NonNegInt | None = None
 
-    @field_validator("goal_type")
-    def validate_goal_type(cls, value):
-        if value < 1 or value > 6:
-            raise allowed_goal_types_not_found_error
-        return value
+    @model_validator(mode="after")
+    def ensure_correct_goal_field(self):
+        required_field = TYPE_TO_FIELD.get(self.goal_type)
+        if required_field is None:
+            return self
 
-    @field_validator(
-        "goal_calories",
-        "goal_activities_number",
-        "goal_distance",
-        "goal_elevation",
-        "goal_duration",
-        "goal_steps",
-    )
-    def validate_positive_values(cls, value):
-        if value is not None and value < 0:
-            raise goal_value_error
-        return value
+        if getattr(self, required_field) is None:
+            raise PydanticCustomError(
+                "missing_goal_value",
+                f"{required_field} is required when goal_type={self.goal_type.name}",
+            )
+
+        for name in TYPE_TO_FIELD.values():
+            if name != required_field and getattr(self, name) is not None:
+                raise PydanticCustomError(
+                    "exclusive_goal_value",
+                    f"Only {required_field} may be set when goal_type={self.goal_type.name}",
+                )
+        return self
 
 
 class UserGoalProgress(BaseModel):
@@ -79,7 +107,6 @@ class UserGoalProgress(BaseModel):
 
 
 class UserGoal(UserGoalBase):
-    id: int
-    user_id: int
-
-    model_config = {"from_attributes": True}
+    id: StrictInt
+    user_id: StrictInt
+    model_config = ConfigDict(from_attributes=True, extra="forbid")
