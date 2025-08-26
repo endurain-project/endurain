@@ -1,5 +1,7 @@
 {
-    "addNewGoal": "Add New Goal",
+    "addNewGoal": "Add new goal",
+    "labelNumberOfGoals1": "You have ",
+    "labelNumberOfGoals2": " goal(s) set:",
     "goalTitle": "Goal {index}",
     "deleteGoalConfirm": "Are you sure you want to delete this goal?",
     "errorFetchingGoals": "Error fetching goals",

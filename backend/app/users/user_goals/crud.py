@@ -139,14 +139,15 @@ def create_user_goal(
 
         db_user_goal = user_goals_models.UserGoal(
             user_id=user_id,
-            activity_type=user_goal.activity_type,
             interval=user_goal.interval,
-            goal_duration=user_goal.goal_duration,
+            activity_type=user_goal.activity_type,
+            goal_type=user_goal.goal_type,
+            goal_calories=user_goal.goal_calories,
+            goal_count=user_goal.goal_activities_number,
             goal_distance=user_goal.goal_distance,
             goal_elevation=user_goal.goal_elevation,
-            goal_calories=user_goal.goal_calories,
+            goal_duration=user_goal.goal_duration,
             goal_steps=user_goal.goal_steps,
-            goal_count=user_goal.goal_count,
         )
         db.add(db_user_goal)
         db.commit()

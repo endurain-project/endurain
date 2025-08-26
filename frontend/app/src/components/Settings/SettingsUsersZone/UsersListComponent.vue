@@ -24,7 +24,7 @@
 				<!-- button toggle user details -->
 				<a class="btn btn-link btn-lg link-body-emphasis" data-bs-toggle="collapse"
 					:href="`#collapseUserDetails${user.id}`" role="button" aria-expanded="false"
-					@click="showUserDetails()" aria-controls="`collapseUserDetails${user.id}`">
+					@click="showUserDetails()" :aria-controls="`collapseUserDetails${user.id}`">
 					<font-awesome-icon :icon="['fas', 'caret-down']" v-if="!userDetails" />
 					<font-awesome-icon :icon="['fas', 'caret-up']" v-else />
 				</a>
@@ -99,7 +99,6 @@ const props = defineProps({
 const emit = defineEmits(["userDeleted", "editedUser"]);
 const { t } = useI18n();
 const authStore = useAuthStore();
-const userProp = ref(props.user);
 const userDetails = ref(false);
 const userSessions = ref([]);
 const isLoading = ref(true);
@@ -115,16 +114,6 @@ async function submitDeleteUser() {
 
 function editUserList(editedUser) {
 	emit("editedUser", editedUser);
-}
-
-async function submitDeleteUserPhoto() {
-	try {
-		await users.deleteUserPhoto(props.user.id);
-		userProp.value.photo_path = null;
-		push.success(t("usersListComponent.userPhotoDeleteSuccessMessage"));
-	} catch (error) {
-		push.error(`${t("usersListComponent.userPhotoDeleteErrorMessage")} - ${error}`);
-	}
 }
 
 function showUserDetails() {

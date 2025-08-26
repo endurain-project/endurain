@@ -30,14 +30,14 @@
 							$t("settingsUsersZone.labelNumberOfUsers2") }}{{ usersArray.length }}{{
 								$t("settingsUsersZone.labelNumberOfUsers3") }}</span>
 
-						<!-- Displaying loading new gear if applicable -->
+						<!-- Displaying loading new user if applicable -->
 						<ul class="list-group list-group-flush" v-if="isLoadingNewUser">
 							<li class="list-group-item rounded">
 								<LoadingComponent />
 							</li>
 						</ul>
 
-						<!-- Displaying loading if gears are updating -->
+						<!-- Displaying loading if users are updating -->
 						<LoadingComponent v-if="isUsersUpdatingLoading" />
 
 						<!-- list zone -->

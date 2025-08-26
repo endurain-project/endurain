@@ -2,7 +2,6 @@ import { fetchGetRequest, fetchPostRequest, fetchPutRequest, fetchDeleteRequest,
 import { getIcon, formatCalories, formatDuration, convertDistanceMetersToKmsOrMiles, convertDistanceMetersToYards } from '@/utils/activityUtils'
 import { startCase } from '@/utils/genericUtils';
 import { useAuthStore } from '@/stores/authStore';
-import prettyMilliseconds from 'pretty-ms';
 
 
 const authStore = useAuthStore();
@@ -39,7 +38,7 @@ export const userGoals = {
                 }
                 return response.map(goal => ({
                     ...goal,
-                    goal_duration: prettyMilliseconds(goal.goal_duration * 1000)
+                    goal_duration: goal.goal_duration,
                 }))
             });
     },
@@ -51,7 +50,7 @@ export const userGoals = {
             .then(response => {
                 return {
                     ...response,
-                    goal_duration: prettyMilliseconds(response.goal_duration * 1000)
+                    goal_duration: response.goal_duration * 1000,
                 };
             });
     },

@@ -101,6 +101,30 @@ const activityLabelMap = {
 	34: t => t("activityItems.trackRun"),
 };
 
+
+/**
+ * Return a localized label for a given activity type.
+ *
+ * If the provided activity_type is present in the ACTIVITY_TYPES array, this
+ * function returns the result of calling the corresponding label generator
+ * from activityLabelMap with the translation function `t`. If the activity
+ * type is not recognized, it returns the default label "Workout".
+ *
+ * @param {string} activity_type - The activity type identifier to resolve.
+ * @param {Function} t - Translation function passed to label generators (e.g., i18n.t).
+ * @returns {string} Localized label for the activity type, or "Workout" if unknown.
+ *
+ * @see ACTIVITY_TYPES
+ * @see activityLabelMap
+ */
+export function activityTypeName(activity_type, t) {
+	if (ACTIVITY_TYPES.includes(activity_type)) {
+		return activityLabelMap[activity_type](t);
+	}
+	return "Workout";
+}
+
+
 /**
  * Formats the name of an activity, optionally appending its location.
  *
@@ -667,45 +691,6 @@ export function getIcon(typeId) {
 	return iconMap[typeId] || ["fas", "dumbbell"];
 }
 
-// TODO: use i18n ?
-export const activityList = {
-	1: "Run",
-    2: "Trail run",
-    3: "Virtual run",
-    4: "Ride",
-    5: "Gravel ride",
-    6: "MTB ride",
-    7: "Virtual ride",
-    8: "Lap swimming",
-    9: "Open water swimming",
-    10: "Workout",
-    11: "Walk",
-    12: "Hike",
-    13: "Rowing",
-    14: "Yoga",
-    15: "Alpine ski",
-    16: "Nordic ski",
-    17: "Snowboard",
-    18: "Transition",
-    19: "Strength training",
-    20: "Crossfit",
-    21: "Tennis",
-    22: "TableTennis",
-    23: "Badminton",
-    24: "Squash",
-    25: "Racquetball",
-    26: "Pickleball",
-    27: "Commuting ride",
-    28: "Indoor ride",
-    29: "Mixed surface ride"
-}
-
-export const goalIntervalList = {
-	monthly: "summaryView.optionMonthly",
-	weekly: "summaryView.optionWeekly",
-	daily: "summaryView.optionDaily",
-}
-
 /**
  * Formats the location of an activity into a readable string.
  *
@@ -759,7 +744,7 @@ export function formatRawDistance(meters, unitSystem) {
 	return `${formattedValue} ${unitLabel}`;
 }
 
-export const convertDistanceMetersToKmsOrMiles = (distance, useMeter = true) => 
-			useMeter ? metersToKm(distance) : metersToMiles(distance);
-export const convertDistanceMetersToYards = (distance, useMeter = true) => 
-			useMeter ? metersToKm(distance) : metersToYards(distance);
+export const convertDistanceMetersToKmsOrMiles = (distance, useMeter = true) =>
+	useMeter ? metersToKm(distance) : metersToMiles(distance);
+export const convertDistanceMetersToYards = (distance, useMeter = true) =>
+	useMeter ? metersToKm(distance) : metersToYards(distance);

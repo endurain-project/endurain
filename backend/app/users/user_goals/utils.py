@@ -39,21 +39,22 @@ def calculate_goal_progress_by_activity_type(
         if not activities:
             return user_goals_schema.UserGoalProgress(
                 goal_id=goal.id,
+                interval=goal.interval,
                 activity_type=goal.activity_type,
+                goal_type=goal.goal_type,
                 activity_type_name=(
                     ACTIVITY_ID_TO_NAME[goal.activity_type]
                     if goal.activity_type
                     else None
                 ),
-                interval=goal.interval,
                 start_date=start_date.strftime("%Y-%m-%d"),
                 end_date=end_date.strftime("%Y-%m-%d"),
-                goal_duration=goal.goal_duration,
+                goal_calories=goal.goal_calories,
+                goal_count=goal.goal_activities_number,
                 goal_distance=goal.goal_distance,
                 goal_elevation=goal.goal_elevation,
-                goal_calories=goal.goal_calories,
+                goal_duration=goal.goal_duration,
                 goal_steps=goal.goal_steps,
-                goal_count=goal.goal_count,
             )
 
         total_duration = sum(
@@ -65,24 +66,25 @@ def calculate_goal_progress_by_activity_type(
 
         return user_goals_schema.UserGoalProgress(
             goal_id=goal.id,
+            interval=goal.interval,
             activity_type=goal.activity_type,
+            goal_type=goal.goal_type,
             activity_type_name=(
                 ACTIVITY_ID_TO_NAME[goal.activity_type] if goal.activity_type else None
             ),
-            interval=goal.interval,
             start_date=start_date.strftime("%Y-%m-%d"),
             end_date=end_date.strftime("%Y-%m-%d"),
             total_activities=len(activities),
+            total_calories=total_calories,
             total_duration=total_duration,
             total_distance=total_distance,
             total_elevation=total_elevation,
-            total_calories=total_calories,
-            goal_duration=goal.goal_duration,
+            goal_calories=goal.goal_calories,
+            goal_count=goal.goal_activities_number,
             goal_distance=goal.goal_distance,
             goal_elevation=goal.goal_elevation,
-            goal_calories=goal.goal_calories,
+            goal_duration=goal.goal_duration,
             goal_steps=goal.goal_steps,
-            goal_count=goal.goal_count,
         )
 
     except HTTPException as http_err:
