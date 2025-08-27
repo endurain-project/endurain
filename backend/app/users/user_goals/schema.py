@@ -48,19 +48,20 @@ TYPE_TO_FIELD = {
 NonNegInt = Annotated[int, Field(ge=0)]
 
 
-class UserGoalBase(BaseModel):
-    model_config = ConfigDict(extra="forbid", validate_assignment=True)
-
+class UserGoal(BaseModel):
+    id: StrictInt | None
+    user_id: StrictInt | None
     interval: Interval
     activity_type: ActivityType
     goal_type: GoalType
-
     goal_calories: NonNegInt | None = None
     goal_activities_number: NonNegInt | None = None
     goal_distance: NonNegInt | None = None
     goal_elevation: NonNegInt | None = None
     goal_duration: NonNegInt | None = None
     goal_steps: NonNegInt | None = None
+
+    model_config = ConfigDict(from_attributes=True, extra="forbid", validate_assignment=True)
 
     @model_validator(mode="after")
     def ensure_correct_goal_field(self):
@@ -104,9 +105,3 @@ class UserGoalProgress(BaseModel):
     goal_calories: int | None = 0
     goal_steps: int | None = 0
     goal_count: int | None = 0
-
-
-class UserGoal(UserGoalBase):
-    id: StrictInt
-    user_id: StrictInt
-    model_config = ConfigDict(from_attributes=True, extra="forbid")

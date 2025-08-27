@@ -62,7 +62,7 @@ async def get_user_goals_results(
 
 @router.post("", response_model=user_goals_schema.UserGoal, status_code=201)
 async def create_user_goal(
-    user_goal: user_goals_schema.UserGoalBase,
+    user_goal: user_goals_schema.UserGoal,
     token_user_id: Annotated[
         int, Depends(session_security.get_user_id_from_access_token)
     ],
@@ -72,7 +72,7 @@ async def create_user_goal(
     Creates a new user goal for the authenticated user.
 
     Args:
-        user_goal (user_goals_schema.UserGoalBase): The data for the new user goal.
+        user_goal (user_goals_schema.UserGoal): The data for the new user goal.
         token_user_id (int): The ID of the user extracted from the access token.
         db (Session): The database session dependency.
 
@@ -89,7 +89,7 @@ async def create_user_goal(
 async def update_user_goal(
     goal_id: int,
     validate_id: Annotated[Callable, Depends(user_goals_dependencies.validate_goal_id)],
-    user_goal: user_goals_schema.UserGoalBase,
+    user_goal: user_goals_schema.UserGoal,
     token_user_id: Annotated[int, Depends(session_security.get_user_id_from_access_token)],
     db: Annotated[Session, Depends(core_database.get_db)],
 ):
@@ -99,7 +99,7 @@ async def update_user_goal(
     Args:
         goal_id (int): The ID of the goal to update.
         validate_id (Callable): Dependency that validates the goal ID.
-        user_goal (user_goals_schema.UserGoalBase): The updated goal data.
+        user_goal (user_goals_schema.UserGoal): The updated goal data.
         token_user_id (int): The user ID extracted from the access token.
         db (Session): Database session dependency.
 

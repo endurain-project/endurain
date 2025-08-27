@@ -21,8 +21,8 @@ class UserGoal(Base):
     )
     interval = Column(
         String(length=250),
-        nullable=True,
-        comment="Goal interval (e.g., 'daily', 'weekly', 'monthly')",
+        nullable=False,
+        comment="Goal interval (e.g., 'daily', 'weekly', 'monthly', 'yearly')",
     )
     activity_type = Column(
         Integer,
@@ -57,7 +57,7 @@ class UserGoal(Base):
     goal_duration = Column(
         Integer,
         nullable=True,
-        comment="Goal duration in hours (e.g., 10 for 10 hours)",
+        comment="Goal duration in seconds (e.g., 3600 for 1 hours)",
     )
     goal_steps = Column(
         Integer,

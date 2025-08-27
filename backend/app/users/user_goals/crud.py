@@ -99,7 +99,7 @@ def calculate_user_goals(
 
 
 def create_user_goal(
-    user_id: int, user_goal: user_goals_schema.UserGoalBase, db: Session
+    user_id: int, user_goal: user_goals_schema.UserGoal, db: Session
 ):
     """
     Creates a new user goal for a specific user, activity type, and interval.
@@ -110,7 +110,7 @@ def create_user_goal(
 
     Args:
         user_id (int): The ID of the user for whom the goal is being created.
-        user_goal (user_goals_schema.UserGoalBase): The goal data to be created.
+        user_goal (user_goals_schema.UserGoal): The goal data to be created.
         db (Session): The SQLAlchemy database session.
 
     Returns:
@@ -174,7 +174,7 @@ def create_user_goal(
 
 
 def update_user_goal(
-    user_id: int, goal_id: int, user_goal: user_goals_schema.UserGoalBase, db: Session
+    user_id: int, goal_id: int, user_goal: user_goals_schema.UserGoal, db: Session
 ):
     """
     Updates a user's goal in the database with the provided fields.
@@ -183,7 +183,7 @@ def update_user_goal(
         db (Session): SQLAlchemy database session.
         user_id (int): ID of the user whose goal is being updated.
         goal_id (int): ID of the goal to update.
-        user_goal (user_goals_schema.UserGoalBase): Schema containing fields to update.
+        user_goal (user_goals_schema.UserGoal): Schema containing fields to update.
 
     Returns:
         user_goals_models.UserGoal: The updated user goal object.
