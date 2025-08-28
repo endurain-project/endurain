@@ -52,6 +52,10 @@ function setIsLoadingNewGoal(state) {
 	isLoadingNewGoal.value = state;
 }
 
+function addGoalList(createdGoal) {
+	goalsArray.value.unshift(createdGoal);
+}
+
 onMounted(() => {
     userGoalService.getUserGoals().then((data) => {
         goalsArray.value = data;

@@ -98,9 +98,7 @@ def calculate_user_goals(
         ) from err
 
 
-def create_user_goal(
-    user_id: int, user_goal: user_goals_schema.UserGoal, db: Session
-):
+def create_user_goal(user_id: int, user_goal: user_goals_schema.UserGoalCreate, db: Session):
     """
     Creates a new user goal for a specific user, activity type, and interval.
 
@@ -110,11 +108,11 @@ def create_user_goal(
 
     Args:
         user_id (int): The ID of the user for whom the goal is being created.
-        user_goal (user_goals_schema.UserGoal): The goal data to be created.
+        user_goal (user_goals_schema.UserGoalCreate): The goal data to be created.
         db (Session): The SQLAlchemy database session.
 
     Returns:
-        user_goals_models.UserGoal: The newly created user goal object.
+        user_goals_models.UserGoalRead: The newly created user goal object.
 
     Raises:
         HTTPException: If a goal for the user, activity type, and interval already exists (409 Conflict),
@@ -125,16 +123,17 @@ def create_user_goal(
         existing_goals = (
             db.query(user_goals_models.UserGoal)
             .filter(user_goals_models.UserGoal.user_id == user_id)
-            .filter(user_goals_models.UserGoal.activity_type == user_goal.activity_type)
             .filter(user_goals_models.UserGoal.interval == user_goal.interval)
+            .filter(user_goals_models.UserGoal.activity_type == user_goal.activity_type)
+            .filter(user_goals_models.UserGoal.goal_type == user_goal.goal_type)
             .all()
         )
 
         if existing_goals:
-            # If there are existing goals for this user, activity type, and interval, raise an error
+            # If there are existing goals for this user, interval, activity type, and goal type, raise an error
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
-                detail="User already has a goal for this activity type and interval.",
+                detail="User already has a goal for this activity type, interval, and goal type.",
             )
 
         db_user_goal = user_goals_models.UserGoal(
@@ -143,7 +142,7 @@ def create_user_goal(
             activity_type=user_goal.activity_type,
             goal_type=user_goal.goal_type,
             goal_calories=user_goal.goal_calories,
-            goal_count=user_goal.goal_activities_number,
+            goal_activities_number=user_goal.goal_activities_number,
             goal_distance=user_goal.goal_distance,
             goal_elevation=user_goal.goal_elevation,
             goal_duration=user_goal.goal_duration,
@@ -155,14 +154,6 @@ def create_user_goal(
         return db_user_goal
     except HTTPException as http_err:
         raise http_err
-    except IntegrityError as err:
-        # Log the exception
-        core_logger.print_to_log(f"Error in create_user_goal: {err}", "error", exc=err)
-        # Raise an HTTPException with a 409 Conflict status code
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Goal already exists",
-        ) from err
     except Exception as err:
         # Log the exception
         core_logger.print_to_log(f"Error in create_user_goal: {err}", "error", exc=err)
@@ -174,7 +165,7 @@ def create_user_goal(
 
 
 def update_user_goal(
-    user_id: int, goal_id: int, user_goal: user_goals_schema.UserGoal, db: Session
+    user_id: int, goal_id: int, user_goal: user_goals_schema.UserGoalRead, db: Session
 ):
     """
     Updates a user's goal in the database with the provided fields.
@@ -183,10 +174,10 @@ def update_user_goal(
         db (Session): SQLAlchemy database session.
         user_id (int): ID of the user whose goal is being updated.
         goal_id (int): ID of the goal to update.
-        user_goal (user_goals_schema.UserGoal): Schema containing fields to update.
+        user_goal (user_goals_schema.UserGoalRead): Schema containing fields to update.
 
     Returns:
-        user_goals_models.UserGoal: The updated user goal object.
+        user_goals_models.UserGoalRead: The updated user goal object.
 
     Raises:
         HTTPException: If the user goal is not found (404) or if an internal error occurs (500).

@@ -25,5 +25,6 @@
     "addEditGoalModalDurationPlaceholder": "Target duration (ex: 1.5 equals 1h30m)",
     "addEditGoalModalStepsLabel": "Steps",
     "addEditGoalModalStepsPlaceholder": "Target steps",
+    "addEditGoalModalSuccessAddGoal": "Goal added successfully",
     "addEditGoalModalErrorAddGoal": "Error adding goal"
 }

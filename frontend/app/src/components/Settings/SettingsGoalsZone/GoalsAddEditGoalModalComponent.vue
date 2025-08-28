@@ -145,8 +145,12 @@
 <script setup>
 import { ref } from "vue";
 import { useI18n } from "vue-i18n";
+import { push } from "notivue";
+
 import { useAuthStore } from "@/stores/authStore";
 import { milesToKm } from "@/utils/unitsUtils";
+
+import { userGoals } from '@/services/userGoalsService';
 
 const props = defineProps({
     action: {
@@ -160,6 +164,7 @@ const props = defineProps({
 });
 const emit = defineEmits(["isLoadingNewGoal", "createdGoal", "editedGoal"]);
 
+const { t } = useI18n();
 const authStore = useAuthStore();
 const editGoalModalId = ref("");
 const newEditGoalInterval = ref("daily");
@@ -183,7 +188,21 @@ if (props.goal) {
 async function submitAddGoalForm() {
     emit("isLoadingNewGoal", true);
     try {
-
+        const data = {
+            interval: newEditGoalInterval.value,
+            activity_type: newEditGoalActivityType.value,
+            goal_type: newEditGoalType.value,
+            goal_calories: newEditGoalCalories.value,
+            goal_activities_number: newEditGoalActivitiesNumber.value,
+            goal_distance: newEditGoalDistanceMetric.value,
+            goal_elevation: newEditGoalElevationMetric.value,
+            goal_duration: newEditGoalDuration.value,
+            goal_steps: newEditGoalSteps.value,
+        };
+        const createdGoal = await userGoals.createGoal(data);
+        emit("isLoadingNewGoal", false);
+        emit("createdGoal", createdGoal);
+        push.success(t("goalsAddEditGoalModalComponent.addEditGoalModalSuccessAddGoal"));
     } catch (error) {
         push.error(`${t("goalsAddEditGoalModalComponent.addEditGoalModalErrorAddGoal")} - ${error}`);
     } finally {
