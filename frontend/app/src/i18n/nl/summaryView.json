@@ -38,6 +38,6 @@
   "headerTypeBreakdown": "Breakdown by type",
   "colActivityType": "Type",
   "headerYear": "Year {year}",
-  "headerWeekStarting": "Week of {date}",
+  "headerWeekStarting": "",
   "colYear": "Year"
 }
