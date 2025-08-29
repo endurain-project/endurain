@@ -67,7 +67,6 @@ def intersections_to_db_mapping(intersections,
                                 segment: segments_models.Segments
                                 ):
     segment_mappings = []
-#    core_logger.print_to_log(intersections)
     if intersections:
         for i in range(len(intersections['lap_number'])):
             db_mapping = {
@@ -91,7 +90,6 @@ def intersections_to_db_mapping(intersections,
                 'gate_times': intersections['gate_times'][i]
                 }
             segment_mappings.append(db_mapping)
-#    core_logger.print_to_log(segment_mappings)
     return segment_mappings
 
 
