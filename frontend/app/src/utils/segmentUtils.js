@@ -128,7 +128,4 @@ export function formatSpeed(
 		return formatPaceMetric(pace, units);
 	}
 	return formatPaceImperial(pace, units);
-
-	
-	return i18n.global.t("generalItems.labelNoData");
 }
