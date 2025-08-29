@@ -43,8 +43,8 @@
                         </span>
 
                         <!-- Display the date and time -->
-                        <span v-if="activity.start_time">
-                            {{ formatDateMed(activity.start_time) }} @ {{ formatTime(activity.start_time) }}
+                        <span v-if="activity.start_time_tz_applied">
+                            {{ formatDateMed(activity.start_time_tz_applied) }} @ {{ formatTime(activity.start_time_tz_applied) }}
                         </span>
                         <!-- Conditionally display city and country -->
                         <span v-if="activity.city || activity.town || activity.country">

@@ -158,6 +158,7 @@ The table bellow details the activity types supported by Endurain.
 | ---- | --- |
 | Run | 1 |
 | Trail run | 2 |
+| Track run | 34 |
 | Virtual run | 3 |
 | Road cycling | 4 |
 | Gravel cycling | 5 |

@@ -114,7 +114,6 @@ def create_activity_objects(
                     avg_power, max_power = activities_utils.calculate_avg_and_max(
                         session_record["power_waypoints"], "power"
                     )
-                    print(avg_power, max_power)
 
             np_power = session_record["session"]["np"]
             if np_power is None:
@@ -122,7 +121,6 @@ def create_activity_objects(
                     np_power = activities_utils.calculate_np(
                         session_record["power_waypoints"]
                     )
-                    print(np_power)
 
             parsed_activity = {
                 # Create an Activity object with parsed data

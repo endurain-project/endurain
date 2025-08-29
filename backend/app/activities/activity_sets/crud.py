@@ -208,8 +208,22 @@ def create_activity_sets(
                 weight = activity_set[2]
                 set_type = activity_set[3]
                 start_time = activity_set[4]
-                category = activity_set[5] if activity_set[5] else None
-                category_subtype = activity_set[6] if activity_set[6] else None
+                # Handle category - check if it's a tuple
+                if activity_set[5] is not None:
+                    if isinstance(activity_set[5], tuple):
+                        category = activity_set[5][0] if activity_set[5][0] is not None else None
+                    else:
+                        category = activity_set[5]
+                else:
+                    category = None
+                # Handle category_subtype - check if it's a tuple
+                if activity_set[6] is not None:
+                    if isinstance(activity_set[6], tuple):
+                        category_subtype = activity_set[6][0] if activity_set[6][0] is not None else None
+                    else:
+                        category_subtype = activity_set[6]
+                else:
+                    category_subtype = None
 
             # Create a new ActivitySets object
             db_activity_set = activity_sets_models.ActivitySets(
@@ -234,7 +248,7 @@ def create_activity_sets(
         db.rollback()
 
         # Log the exception
-        core_logger(f"Error in create_activity_sets: {err}", "error", exc=err)
+        core_logger.print_to_log(f"Error in create_activity_sets: {err}", "error", exc=err)
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
