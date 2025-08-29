@@ -604,7 +604,6 @@ def delete_segment(segment_id: int, db: Session):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal Server Error",
         ) from err
-    pass
 
 def get_user_segments(
         user_id: int,
