@@ -24,13 +24,13 @@
 					<th class="d-none d-md-table-cell" style="cursor: pointer; white-space: nowrap;" @click="changeSort('num_activities')">
 						<span class="d-flex align-items-center flex-nowrap">
 							{{ $t('segmentsTableComponent.headerNumActivities') }}
-							<font-awesome-icon :icon="sortIcon('start_time')" class="ms-1 opacity-75" />
+							<font-awesome-icon :icon="sortIcon('num_activities')" class="ms-1 opacity-75" />
 						</span>
 					</th>
 					<th class="d-none d-md-table-cell" style="cursor: pointer; white-space: nowrap;" @click="changeSort('most_recent_activity')">
 						<span class="d-flex align-items-center flex-nowrap">
 							{{ $t('segmentsTableComponent.headerLastActivity') }}
-							<font-awesome-icon :icon="sortIcon('start_time')" class="ms-1 opacity-75" />
+							<font-awesome-icon :icon="sortIcon('most_recent_activity')" class="ms-1 opacity-75" />
 						</span>
 					</th>
 				</tr>
