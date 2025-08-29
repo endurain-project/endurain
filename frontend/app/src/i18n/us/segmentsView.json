@@ -7,6 +7,6 @@
     "buttonClear": "Clear",
     "buttonApply": "Apply",
     "errorFailedFetchActivityTypes": "Failed to fetch activity types for segments",
-    "errorUpdatingSegments": "Failed to updated segments",
+    "errorUpdatingSegments": "Failed to update segments",
     "errorFetchingSegments": "Failed to fetch user segments"
 }
