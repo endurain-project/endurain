@@ -83,6 +83,12 @@ class User(Base):
         back_populates="user",
         cascade="all, delete-orphan",
     )
+    # Define a relationship to PasswordResetToken model
+    password_reset_tokens = relationship(
+        "PasswordResetToken",
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
     # Define a relationship to UsersIntegrations model
     users_integrations = relationship(
         "UsersIntegrations",

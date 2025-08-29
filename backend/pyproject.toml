@@ -39,6 +39,8 @@ poetry = "^2.0.0"
 user-agents = "^2.2.0"
 pydantic = {extras = ["email"], version = "^2.11.3"}
 garth = "^0.5.16"
+aiosmtplib = "^3.0.2"
+jinja2 = "^3.1.4"
 
 
 [build-system]

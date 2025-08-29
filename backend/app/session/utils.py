@@ -1,4 +1,6 @@
 import os
+import secrets
+import hashlib
 
 from datetime import datetime, timedelta, timezone
 from fastapi import (
@@ -19,6 +21,8 @@ import session.crud as session_crud
 
 import users.user.crud as users_crud
 import users.user.schema as users_schema
+
+import core.email as core_email
 
 
 def create_session_object(
@@ -228,3 +232,142 @@ def parse_user_agent(user_agent: str):
         "browser": browser,
         "browser_version": browser_version,
     }
+
+
+def generate_password_reset_token() -> tuple[str, str]:
+    """Generate a secure password reset token and its hash"""
+    # Generate a random 32-byte token
+    token = secrets.token_urlsafe(32)
+    
+    # Create a hash of the token for database storage
+    token_hash = hashlib.sha256(token.encode()).hexdigest()
+    
+    return token, token_hash
+
+
+def create_password_reset_token(user_id: int, db: Session) -> str:
+    """Create a password reset token for a user"""
+    # Generate token and hash
+    token, token_hash = generate_password_reset_token()
+    
+    # Create token object
+    reset_token = session_schema.PasswordResetToken(
+        id=str(uuid4()),
+        user_id=user_id,
+        token_hash=token_hash,
+        created_at=datetime.now(timezone.utc),
+        expires_at=datetime.now(timezone.utc) + timedelta(hours=1),  # 1 hour expiration
+        used=0
+    )
+    
+    # Save to database
+    session_crud.create_password_reset_token(reset_token, db)
+    
+    # Return the plain token (not the hash)
+    return token
+
+
+async def send_password_reset_email(email: str, db: Session) -> bool:
+    """Send password reset email to user"""
+    # Check if email service is configured
+    if not core_email.email_service.is_configured():
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Email service is not configured"
+        )
+    
+    # Find user by email
+    user = users_crud.get_user_by_email(email, db)
+    if not user:
+        # Don't reveal if email exists or not for security
+        return True
+    
+    # Check if user is active
+    if user.is_active != 1:
+        # Don't reveal if user is inactive for security
+        return True
+    
+    # Generate password reset token
+    token = create_password_reset_token(user.id, db)
+    
+    # Get frontend host
+    frontend_host = os.getenv("ENDURAIN_HOST", "http://localhost:3000")
+    
+    # Send email
+    success = await core_email.email_service.send_password_reset_email(
+        to_email=email,
+        user_name=user.name,
+        reset_token=token,
+        frontend_host=frontend_host
+    )
+    
+    return success
+
+
+def validate_password_reset_token(token: str, db: Session) -> tuple[bool, int | None]:
+    """Validate a password reset token and return user_id if valid"""
+    # Hash the provided token
+    token_hash = hashlib.sha256(token.encode()).hexdigest()
+    
+    # Find token by hash
+    # Note: We need to search by hash, but our current get_password_reset_token searches by id
+    # We need to modify the CRUD or create a new function
+    from sqlalchemy import and_
+    import session.models as session_models
+    
+    db_token = (
+        db.query(session_models.PasswordResetToken)
+        .filter(
+            and_(
+                session_models.PasswordResetToken.token_hash == token_hash,
+                session_models.PasswordResetToken.used == 0,
+                session_models.PasswordResetToken.expires_at > datetime.now(timezone.utc)
+            )
+        )
+        .first()
+    )
+    
+    if not db_token:
+        return False, None
+    
+    return True, db_token.user_id
+
+
+def use_password_reset_token(token: str, new_password: str, db: Session) -> bool:
+    """Use a password reset token to change password"""
+    # Validate token
+    is_valid, user_id = validate_password_reset_token(token, db)
+    if not is_valid or user_id is None:
+        return False
+    
+    # Hash the provided token to find the database record
+    token_hash = hashlib.sha256(token.encode()).hexdigest()
+    
+    # Find and mark token as used
+    from sqlalchemy import and_
+    import session.models as session_models
+    
+    db_token = (
+        db.query(session_models.PasswordResetToken)
+        .filter(
+            and_(
+                session_models.PasswordResetToken.token_hash == token_hash,
+                session_models.PasswordResetToken.used == 0
+            )
+        )
+        .first()
+    )
+    
+    if not db_token:
+        return False
+    
+    # Update user password
+    try:
+        users_crud.edit_user_password(user_id, new_password, db)
+        
+        # Mark token as used
+        session_crud.mark_password_reset_token_used(db_token.id, db)
+        
+        return True
+    except Exception:
+        return False
