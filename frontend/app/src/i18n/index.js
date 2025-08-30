@@ -50,8 +50,8 @@ import caUsersListComponent from './ca/components/settings/settingsUsersZone/use
 import caUsersPasswordRequirementsComponent from './ca/components/settings/settingsUsersZone/usersPasswordRequirementsComponent.json';
 import caUserSessionsListComponent from './ca/components/settings/settingsUserSessionsZone/userSessionsListComponent.json';
 import caSettingsServerSettingsZoneComponent from './ca/components/settings/settingsServerSettingsZoneComponent.json';
-import caGoalsListComponent from './ca/components/settings/SettingsGoalsZone/goalsListComponent.json';
-import caGoalsAddEditGoalModalComponent from './ca/components/settings/SettingsGoalsZone/goalsAddEditGoalModalComponent.json';
+import caGoalsListComponent from './ca/components/settings/settingsUserGoalsZone/goalsListComponent.json';
+import caGoalsAddEditGoalModalComponent from './ca/components/settings/settingsUserGoalsZone/goalsAddEditGoalModalComponent.json';
 // General components
 import caNoItemsFoundComponent from './ca/components/noItemsFoundComponent.json';
 // General translations
@@ -120,8 +120,8 @@ import deUsersListComponent from './de/components/settings/settingsUsersZone/use
 import deUsersPasswordRequirementsComponent from './de/components/settings/settingsUsersZone/usersPasswordRequirementsComponent.json';
 import deUserSessionsListComponent from './de/components/settings/settingsUserSessionsZone/userSessionsListComponent.json';
 import deSettingsServerSettingsZoneComponent from './de/components/settings/settingsServerSettingsZoneComponent.json';
-import deGoalsListComponent from './de/components/settings/SettingsGoalsZone/goalsListComponent.json';
-import deGoalsAddEditGoalModalComponent from './de/components/settings/SettingsGoalsZone/goalsAddEditGoalModalComponent.json';
+import deGoalsListComponent from './de/components/settings/settingsUserGoalsZone/goalsListComponent.json';
+import deGoalsAddEditGoalModalComponent from './de/components/settings/settingsUserGoalsZone/goalsAddEditGoalModalComponent.json';
 // General components
 import deNoItemsFoundComponent from './de/components/noItemsFoundComponent.json';
 // General translations
@@ -190,8 +190,8 @@ import esUsersListComponent from './es/components/settings/settingsUsersZone/use
 import esUsersPasswordRequirementsComponent from './es/components/settings/settingsUsersZone/usersPasswordRequirementsComponent.json';
 import esUserSessionsListComponent from './es/components/settings/settingsUserSessionsZone/userSessionsListComponent.json';
 import esSettingsServerSettingsZoneComponent from './es/components/settings/settingsServerSettingsZoneComponent.json';
-import esGoalsListComponent from './es/components/settings/SettingsGoalsZone/goalsListComponent.json';
-import esGoalsAddEditGoalModalComponent from './es/components/settings/SettingsGoalsZone/goalsAddEditGoalModalComponent.json';
+import esGoalsListComponent from './es/components/settings/settingsUserGoalsZone/goalsListComponent.json';
+import esGoalsAddEditGoalModalComponent from './es/components/settings/settingsUserGoalsZone/goalsAddEditGoalModalComponent.json';
 // General components
 import esNoItemsFoundComponent from './es/components/noItemsFoundComponent.json';
 // General translations
@@ -261,8 +261,8 @@ import frUsersListComponent from './fr/components/settings/settingsUsersZone/use
 import frUsersPasswordRequirementsComponent from './fr/components/settings/settingsUsersZone/usersPasswordRequirementsComponent.json';
 import frUserSessionsListComponent from './fr/components/settings/settingsUserSessionsZone/userSessionsListComponent.json';
 import frSettingsServerSettingsZoneComponent from './fr/components/settings/settingsServerSettingsZoneComponent.json';
-import frGoalsListComponent from './fr/components/settings/SettingsGoalsZone/goalsListComponent.json';
-import frGoalsAddEditGoalModalComponent from './fr/components/settings/SettingsGoalsZone/goalsAddEditGoalModalComponent.json';
+import frGoalsListComponent from './fr/components/settings/settingsUserGoalsZone/goalsListComponent.json';
+import frGoalsAddEditGoalModalComponent from './fr/components/settings/settingsUserGoalsZone/goalsAddEditGoalModalComponent.json';
 // General components
 import frNoItemsFoundComponent from './fr/components/noItemsFoundComponent.json';
 // General translations
@@ -332,8 +332,8 @@ import nlUsersListComponent from './nl/components/settings/settingsUsersZone/use
 import nlUsersPasswordRequirementsComponent from './nl/components/settings/settingsUsersZone/usersPasswordRequirementsComponent.json';
 import nlUserSessionsListComponent from './nl/components/settings/settingsUserSessionsZone/userSessionsListComponent.json';
 import nlSettingsServerSettingsZoneComponent from './nl/components/settings/settingsServerSettingsZoneComponent.json';
-import nlGoalsListComponent from './nl/components/settings/SettingsGoalsZone/goalsListComponent.json';
-import nlGoalsAddEditGoalModalComponent from './nl/components/settings/SettingsGoalsZone/goalsAddEditGoalModalComponent.json';
+import nlGoalsListComponent from './nl/components/settings/settingsUserGoalsZone/goalsListComponent.json';
+import nlGoalsAddEditGoalModalComponent from './nl/components/settings/settingsUserGoalsZone/goalsAddEditGoalModalComponent.json';
 // General components
 import nlNoItemsFoundComponent from './nl/components/noItemsFoundComponent.json';
 // General translations
@@ -403,8 +403,8 @@ import ptUsersListComponent from './pt/components/settings/settingsUsersZone/use
 import ptUsersPasswordRequirementsComponent from './pt/components/settings/settingsUsersZone/usersPasswordRequirementsComponent.json';
 import ptUserSessionsListComponent from './pt/components/settings/settingsUserSessionsZone/userSessionsListComponent.json';
 import ptSettingsServerSettingsZoneComponent from './pt/components/settings/settingsServerSettingsZoneComponent.json';
-import ptGoalsListComponent from './pt/components/settings/SettingsGoalsZone/goalsListComponent.json';
-import ptGoalsAddEditGoalModalComponent from './pt/components/settings/SettingsGoalsZone/goalsAddEditGoalModalComponent.json';
+import ptGoalsListComponent from './pt/components/settings/settingsUserGoalsZone/goalsListComponent.json';
+import ptGoalsAddEditGoalModalComponent from './pt/components/settings/settingsUserGoalsZone/goalsAddEditGoalModalComponent.json';
 // General components
 import ptNoItemsFoundComponent from './pt/components/noItemsFoundComponent.json';
 // General translations
@@ -473,9 +473,9 @@ import usUsersListComponent from './us/components/settings/settingsUsersZone/use
 import usUsersPasswordRequirementsComponent from './us/components/settings/settingsUsersZone/usersPasswordRequirementsComponent.json';
 import usUserSessionsListComponent from './us/components/settings/settingsUserSessionsZone/userSessionsListComponent.json';
 import usSettingsServerSettingsZoneComponent from './us/components/settings/settingsServerSettingsZoneComponent.json';
-import usSettingsGoalsZone from './us/components/settings/settingsGoals.json'
-import usGoalsListComponent from './us/components/settings/SettingsGoalsZone/goalsListComponent.json';
-import usGoalsAddEditGoalModalComponent from './us/components/settings/SettingsGoalsZone/goalsAddEditGoalModalComponent.json';
+import usSettingsUserGoalsZone from './us/components/settings/settingsUserGoals.json'
+import usGoalsListComponent from './us/components/settings/settingsUserGoalsZone/goalsListComponent.json';
+import usGoalsAddEditGoalModalComponent from './us/components/settings/settingsUserGoalsZone/goalsAddEditGoalModalComponent.json';
 // General components
 import usNoItemsFoundComponent from './us/components/noItemsFoundComponent.json';
 // General translations
@@ -967,7 +967,7 @@ const messages = {
 		usersPasswordRequirementsComponent: usUsersPasswordRequirementsComponent,
 		userSessionsListComponent: usUserSessionsListComponent,
 		settingsServerSettingsZoneComponent: usSettingsServerSettingsZoneComponent,
-		settingsGoalsZone: usSettingsGoalsZone,
+		settingsUserGoalsZone: usSettingsUserGoalsZone,
 		goalsListComponent: usGoalsListComponent,
 		goalsAddEditGoalModalComponent: usGoalsAddEditGoalModalComponent,
 		// General components

@@ -89,7 +89,7 @@ import { useI18n } from "vue-i18n";
 import { push } from "notivue";
 
 import ModalComponent from "@/components/Modals/ModalComponent.vue";
-import GoalsAddEditGoalModalComponent from "@/components/Settings/SettingsGoalsZone/GoalsAddEditGoalModalComponent.vue";
+import GoalsAddEditGoalModalComponent from "@/components/Settings/settingsUserGoalsZone/GoalsAddEditGoalModalComponent.vue";
 
 import { metersToKm, metersToMiles, metersToFeet } from "@/utils/unitsUtils";
 
