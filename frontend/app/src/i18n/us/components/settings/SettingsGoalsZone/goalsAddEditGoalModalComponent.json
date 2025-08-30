@@ -26,5 +26,7 @@
     "addEditGoalModalStepsLabel": "Steps",
     "addEditGoalModalStepsPlaceholder": "Target steps",
     "addEditGoalModalSuccessAddGoal": "Goal added successfully",
-    "addEditGoalModalErrorAddGoal": "Error adding goal"
+    "addEditGoalModalErrorAddGoal": "Error adding goal",
+    "addEditGoalModalSuccessEditGoal": "Goal edited successfully",
+    "addEditGoalModalErrorEditGoal": "Error editing goal"
 }

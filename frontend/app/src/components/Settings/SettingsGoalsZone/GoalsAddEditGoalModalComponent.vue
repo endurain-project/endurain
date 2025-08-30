@@ -8,7 +8,7 @@
                 <div class="modal-header">
                     <h1 class="modal-title fs-5" id="addGoalModal" v-if="action == 'add'">{{
                         $t("goalsAddEditGoalModalComponent.addEditGoalModalAddTitle") }}</h1>
-                    <h1 class="modal-title fs-5" :id='editUserModalId' v-else-if="action == 'edit'">{{
+                    <h1 class="modal-title fs-5" :id='editGoalModalId' v-else-if="action == 'edit'">{{
                         $t("goalsAddEditGoalModalComponent.addEditGoalModalEditTitle") }}</h1>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
@@ -40,32 +40,43 @@
                         <label for="goalTypeAddEdit"><b>* {{
                             $t("goalsAddEditGoalModalComponent.addEditGoalModalGoalTypeLabel")
                                 }}</b></label>
-                        <select class="form-select" name="goalTypeAddEdit" v-model="newEditGoalType"
-                            required>
-                            <option :value="1">{{ $t("goalsAddEditGoalModalComponent.addEditGoalModalCaloriesLabel") }}</option>
-                            <option :value="2">{{ $t("goalsAddEditGoalModalComponent.addEditGoalModalActivitiesNumberLabel") }}</option>
-                            <option :value="3">{{ $t("goalsAddEditGoalModalComponent.addEditGoalModalDistanceLabel") }}</option>
-                            <option :value="4">{{ $t("goalsAddEditGoalModalComponent.addEditGoalModalElevationLabel") }}</option>
-                            <option :value="5">{{ $t("goalsAddEditGoalModalComponent.addEditGoalModalDurationLabel") }}</option>
-                            <option :value="6">{{ $t("goalsAddEditGoalModalComponent.addEditGoalModalStepsLabel") }}</option>
+                        <select class="form-select" name="goalTypeAddEdit" v-model="newEditGoalType" required>
+                            <option :value="1">{{ $t("goalsAddEditGoalModalComponent.addEditGoalModalCaloriesLabel") }}
+                            </option>
+                            <option :value="2">{{
+                                $t("goalsAddEditGoalModalComponent.addEditGoalModalActivitiesNumberLabel") }}</option>
+                            <option :value="3">{{ $t("goalsAddEditGoalModalComponent.addEditGoalModalDistanceLabel") }}
+                            </option>
+                            <option :value="4">{{ $t("goalsAddEditGoalModalComponent.addEditGoalModalElevationLabel") }}
+                            </option>
+                            <option :value="5">{{ $t("goalsAddEditGoalModalComponent.addEditGoalModalDurationLabel") }}
+                            </option>
+                            <option :value="6">{{ $t("goalsAddEditGoalModalComponent.addEditGoalModalStepsLabel") }}
+                            </option>
                         </select>
                         <!-- calories fields -->
                         <div v-if="newEditGoalType === 1">
                             <label for="goalCaloriesAddEdit"><b>{{
                                 $t("goalsAddEditGoalModalComponent.addEditGoalModalCaloriesLabel") }}</b></label>
-                            <input class="form-control" type="number" name="goalCaloriesAddEdit" :placeholder='$t("goalsAddEditGoalModalComponent.addEditGoalModalCaloriesPlaceholder")' v-model="newEditGoalCalories">
+                            <input class="form-control" type="number" name="goalCaloriesAddEdit"
+                                :placeholder='$t("goalsAddEditGoalModalComponent.addEditGoalModalCaloriesPlaceholder")'
+                                v-model="newEditGoalCalories">
                         </div>
                         <!-- activities number fields -->
                         <div v-if="newEditGoalType === 2">
                             <label for="goalActivitiesNumberAddEdit"><b>{{
-                                $t("goalsAddEditGoalModalComponent.addEditGoalModalActivitiesNumberLabel") }}</b></label>
-                            <input class="form-control" type="number" name="goalActivitiesNumberAddEdit" :placeholder='$t("goalsAddEditGoalModalComponent.addEditGoalModalActivitiesNumberPlaceholder")' v-model="newEditGoalActivitiesNumber">
+                                $t("goalsAddEditGoalModalComponent.addEditGoalModalActivitiesNumberLabel")
+                                    }}</b></label>
+                            <input class="form-control" type="number" name="goalActivitiesNumberAddEdit"
+                                :placeholder='$t("goalsAddEditGoalModalComponent.addEditGoalModalActivitiesNumberPlaceholder")'
+                                v-model="newEditGoalActivitiesNumber">
                         </div>
                         <!-- distance fields -->
                         <div v-if="newEditGoalType === 3">
                             <div v-if="Number(authStore?.user?.units) === 1">
                                 <label for="goalDistanceMetricAddEdit"><b>{{
-                                    $t("goalsAddEditGoalModalComponent.addEditGoalModalDistanceLabel") }}</b></label>
+                                    $t("goalsAddEditGoalModalComponent.addEditGoalModalDistanceLabel")
+                                        }}</b></label>
                                 <div class="input-group">
                                     <input class="form-control" type="number" name="goalDistanceMetricAddEdit"
                                         :placeholder='$t("goalsAddEditGoalModalComponent.addEditGoalModalDistancePlaceholder")'
@@ -75,7 +86,8 @@
                             </div>
                             <div v-else>
                                 <label for="goalDistanceImperialAddEdit"><b>{{
-                                    $t("goalsAddEditGoalModalComponent.addEditGoalModalDistanceLabel") }}</b></label>
+                                    $t("goalsAddEditGoalModalComponent.addEditGoalModalDistanceLabel")
+                                        }}</b></label>
                                 <div class="input-group">
                                     <input class="form-control" type="number" name="goalDistanceImperialAddEdit"
                                         :placeholder='$t("goalsAddEditGoalModalComponent.addEditGoalModalDistancePlaceholder")'
@@ -88,7 +100,8 @@
                         <div v-if="newEditGoalType === 4">
                             <div v-if="Number(authStore?.user?.units) === 1">
                                 <label for="goalElevationMetricAddEdit"><b>{{
-                                    $t("goalsAddEditGoalModalComponent.addEditGoalModalElevationLabel") }}</b></label>
+                                    $t("goalsAddEditGoalModalComponent.addEditGoalModalElevationLabel")
+                                        }}</b></label>
                                 <div class="input-group">
                                     <input class="form-control" type="number" name="goalElevationMetricAddEdit"
                                         :placeholder='$t("goalsAddEditGoalModalComponent.addEditGoalModalElevationPlaceholder")'
@@ -98,7 +111,8 @@
                             </div>
                             <div v-else>
                                 <label for="goalElevationImperialAddEdit"><b>{{
-                                    $t("goalsAddEditGoalModalComponent.addEditGoalModalElevationLabel") }}</b></label>
+                                    $t("goalsAddEditGoalModalComponent.addEditGoalModalElevationLabel")
+                                        }}</b></label>
                                 <div class="input-group">
                                     <input class="form-control" type="number" name="goalElevationImperialAddEdit"
                                         :placeholder='$t("goalsAddEditGoalModalComponent.addEditGoalModalElevationPlaceholder")'
@@ -148,9 +162,9 @@ import { useI18n } from "vue-i18n";
 import { push } from "notivue";
 
 import { useAuthStore } from "@/stores/authStore";
-import { milesToKm } from "@/utils/unitsUtils";
+import { feetToMeters, milesToMeters, kmToMeters, metersToMiles, metersToFeet } from "@/utils/unitsUtils";
 
-import { userGoals } from '@/services/userGoalsService';
+import { userGoals as userGoalsService } from '@/services/userGoalsService';
 
 const props = defineProps({
     action: {
@@ -182,24 +196,56 @@ const newEditGoalSteps = ref(null);
 if (props.goal) {
     if (props.action === 'edit') {
         editGoalModalId.value = `editGoalModal${props.goal.id}`;
+        newEditGoalInterval.value = props.goal.interval;
+        newEditGoalActivityType.value = props.goal.activity_type;
+        newEditGoalType.value = props.goal.goal_type;
+        newEditGoalCalories.value = props.goal.goal_calories;
+        newEditGoalActivitiesNumber.value = props.goal.goal_activities_number;
+        newEditGoalDistanceMetric.value = props.goal.goal_distance;
+        newEditGoalDistanceImperial.value = metersToMiles(props.goal.goal_distance);
+        newEditGoalElevationMetric.value = props.goal.goal_elevation;
+        newEditGoalElevationImperial.value = metersToFeet(props.goal.goal_elevation);
+        newEditGoalDuration.value = props.goal.goal_duration;
+        newEditGoalSteps.value = props.goal.goal_steps;
     }
+}
+
+function setGoalObject() {
+    let distance = null;
+    let elevation = null;
+    if (Number(authStore?.user?.units) === 2) {
+        if (newEditGoalDistanceImperial.value) {
+            distance = milesToMeters(newEditGoalDistanceImperial.value);
+        }
+        if (newEditGoalElevationImperial.value) {
+            elevation = feetToMeters(newEditGoalElevationImperial.value);
+        }
+    } else if (Number(authStore?.user?.units) === 1) {
+        if (newEditGoalDistanceMetric.value) {
+            distance = kmToMeters(newEditGoalDistanceMetric.value);
+        }
+        if (newEditGoalElevationMetric.value) {
+            elevation = newEditGoalElevationMetric.value;
+        }
+    }
+    return {
+        interval: newEditGoalInterval.value,
+        activity_type: newEditGoalActivityType.value,
+        goal_type: newEditGoalType.value,
+        goal_calories: newEditGoalCalories.value,
+        goal_activities_number: newEditGoalActivitiesNumber.value,
+        goal_distance: distance,
+        goal_elevation: elevation,
+        goal_duration: newEditGoalDuration.value,
+        goal_steps: newEditGoalSteps.value,
+    };
 }
 
 async function submitAddGoalForm() {
     emit("isLoadingNewGoal", true);
+    const goalData = setGoalObject();
     try {
-        const data = {
-            interval: newEditGoalInterval.value,
-            activity_type: newEditGoalActivityType.value,
-            goal_type: newEditGoalType.value,
-            goal_calories: newEditGoalCalories.value,
-            goal_activities_number: newEditGoalActivitiesNumber.value,
-            goal_distance: newEditGoalDistanceMetric.value,
-            goal_elevation: newEditGoalElevationMetric.value,
-            goal_duration: newEditGoalDuration.value,
-            goal_steps: newEditGoalSteps.value,
-        };
-        const createdGoal = await userGoals.createGoal(data);
+        const createdGoal = await userGoalsService.createGoal(goalData);
         emit("isLoadingNewGoal", false);
         emit("createdGoal", createdGoal);
         push.success(t("goalsAddEditGoalModalComponent.addEditGoalModalSuccessAddGoal"));
@@ -211,15 +257,17 @@ async function submitAddGoalForm() {
 }
 
 async function submitEditGoalForm() {
-
+    const goalData = setGoalObject();
+    try {
+        const editedGoal = await userGoalsService.editGoal(props.goal.id, goalData);
+        emit("editedGoal", editedGoal);
+        push.success(t("goalsAddEditGoalModalComponent.addEditGoalModalSuccessEditGoal"));
+    } catch (error) {
+        push.error(`${t("goalsAddEditGoalModalComponent.addEditGoalModalErrorEditGoal")} - ${error}`);
+    }
 }
 
 function handleSubmit() {
-    if (Number(authStore?.user?.units) === 2 && newEditGoalDistanceImperial.value) {
-        newEditGoalDistanceMetric.value = milesToKm(newEditGoalDistanceImperial.value) * 1000;
-    }else if (Number(authStore?.user?.units) === 1 && newEditGoalDistanceMetric.value) {
-        newEditGoalDistanceMetric.value = newEditGoalDistanceMetric.value * 1000;
-    }
     if (props.action === 'add') {
         submitAddGoalForm();
     } else {

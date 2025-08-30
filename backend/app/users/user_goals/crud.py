@@ -219,37 +219,46 @@ def update_user_goal(
 
 def delete_user_goal(user_id: int, goal_id: int, db: Session):
     """
-    Deletes a user goal from the database for a given user and goal ID.
-
-    Args:
-        user_id (int): The ID of the user whose goal is to be deleted.
-        goal_id (int): The ID of the goal to be deleted.
-        db (Session): The SQLAlchemy database session.
-
+    Delete a user's goal from the database and commit the change.
+    Parameters:
+        user_id (int): ID of the user who owns the goal to delete.
+        goal_id (int): ID of the goal to delete.
+        db (Session): SQLAlchemy Session used to perform the delete and commit.
     Returns:
-        dict: A message indicating successful deletion.
-
+        None
+    Side effects:
+        - Deletes the matching UserGoal record from the database.
+        - Commits the transaction on success (db.commit()).
+        - Logs unexpected exceptions via core_logger.print_to_log.
     Raises:
-        HTTPException: If the user goal is not found (404) or if an internal server error occurs (500).
+        HTTPException: 404 Not Found if no UserGoal matches the provided user_id and goal_id.
+        HTTPException: 500 Internal Server Error for unexpected errors (these are logged before raising).
+        HTTPException: Re-raises any HTTPException caught internally.
+    Notes:
+        - The deletion is performed using a filtered Query.delete() call; the change is only persisted
+          after db.commit() succeeds.
+        - This function does not perform an explicit db.rollback() on failure; callers that manage
+          transactions should handle rollback as appropriate to avoid leaving the session in an inconsistent state.
     """
     try:
-        db_user_goal = (
+        # Delete the user goal
+        num_deleted = (
             db.query(user_goals_models.UserGoal)
             .filter(
                 user_goals_models.UserGoal.user_id == user_id,
                 user_goals_models.UserGoal.id == goal_id,
             )
-            .first()
+            .delete()
         )
 
-        if not db_user_goal:
+        # Check if the user goal was found and deleted
+        if num_deleted == 0:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail="User goal not found"
             )
-
-        db.delete(db_user_goal)
+        
+        # Commit the transaction
         db.commit()
-        return {"message": "User goal deleted successfully"}
     except HTTPException as http_err:
         raise http_err
     except Exception as err:

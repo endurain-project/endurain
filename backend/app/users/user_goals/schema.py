@@ -28,6 +28,7 @@ class Interval(str, Enum):
         if interval == Interval.WEEKLY:
             ...
     """
+
     DAILY = "daily"
     WEEKLY = "weekly"
     MONTHLY = "monthly"
@@ -49,6 +50,7 @@ class ActivityType(IntEnum):
         WALK (4): Walking or hiking activities.
         STRENGTH (5): Strength or resistance training sessions.
     """
+
     RUN = 1
     BIKE = 2
     SWIM = 3
@@ -96,6 +98,7 @@ class GoalType(IntEnum):
     >>> GoalType(3) is GoalType.distance
     True
     """
+
     CALORIES = 1
     ACTIVITIES = 2
     DISTANCE = 3
@@ -187,6 +190,7 @@ class UserGoalBase(BaseModel):
             goal_duration=3600,
         # raises PydanticCustomError(code="exclusive_goal_value")
     """
+
     interval: Interval
     activity_type: ActivityType
     goal_type: GoalType
@@ -281,6 +285,27 @@ class UserGoalCreate(UserGoalBase):
     """
 
 
+class UserGoalEdit(UserGoalBase):
+    """
+    Schema for updating an existing user goal.
+
+    Inherits from UserGoalBase and is intended for partial-update operations
+    (e.g., PATCH). Fields defined on the base schema are treated as optional
+    when used with this model; only the attributes supplied in an update payload
+    will be applied to the stored goal. Any validation rules declared on the
+    base schema remain in effect for fields that are present.
+
+    Usage:
+    - Use this model as the request body type for endpoints that modify a user's
+        goal. Omitted fields will remain unchanged; fields explicitly set to None
+        will be applied if None is an allowed value.
+
+    Notes:
+    - For creating new goals, prefer the creation schema (e.g., UserGoalCreate)
+        to ensure required fields are provided.
+    """
+
+
 class UserGoalRead(UserGoalBase):
     """
     Read schema for a user's goal.
@@ -292,6 +317,7 @@ class UserGoalRead(UserGoalBase):
     Intended for API responses and other read operations where validated,
     serializable goal data is required.
     """
+
     id: StrictInt
     user_id: StrictInt
 

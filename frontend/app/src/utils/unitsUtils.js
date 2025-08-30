@@ -33,8 +33,16 @@ export function feetAndInchesToCm(feet, inches) {
     return (totalInches * 2.54).toFixed(0);
 }
 
+export function feetToMeters(feet) {
+    return (feet * 0.3048).toFixed(0);
+}
+
 export function milesToKm(miles) {
     return (miles * 1.60934).toFixed(0);
+}
+
+export function milesToMeters(miles) {
+    return (miles * 1609.344).toFixed(0);
 }
 
 export function lbsToKg(lbs) {

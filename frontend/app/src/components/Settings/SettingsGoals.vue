@@ -21,7 +21,7 @@
                     </ul>
                     <!-- list zone -->
                     <ul class="list-group list-group-flush" v-for="goal in goalsArray" :key="goal.id" :goal="goal" v-if="goalsArray && goalsArray.length">
-                        <GoalsListComponent :goal="goal" />
+                        <GoalsListComponent :goal="goal" @goalDeleted="updateGoalList" @editedGoal="editGoalList" />
                     </ul>
                 </div>
                 <NoItemsFoundComponents :show-shadow="false" v-else/>
@@ -52,8 +52,20 @@ function setIsLoadingNewGoal(state) {
 	isLoadingNewGoal.value = state;
 }
 
+function updateGoalList(goalDeletedId) {
+	goalsArray.value = goalsArray.value.filter(
+		(goal) => goal.id !== goalDeletedId,
+	);
+	push.success(t("settingsGoalsZone.successGoalDeleted"));
+}
+
 function addGoalList(createdGoal) {
 	goalsArray.value.unshift(createdGoal);
+}
+
+function editGoalList(editedGoal) {
+	const index = goalsArray.value.findIndex((goal) => goal.id === editedGoal.id);
+	goalsArray.value[index] = editedGoal;
 }
 
 onMounted(() => {

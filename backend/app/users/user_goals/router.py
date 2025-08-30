@@ -89,7 +89,7 @@ async def create_user_goal(
 async def update_user_goal(
     goal_id: int,
     validate_id: Annotated[Callable, Depends(user_goals_dependencies.validate_goal_id)],
-    user_goal: user_goals_schema.UserGoalRead,
+    user_goal: user_goals_schema.UserGoalEdit,
     token_user_id: Annotated[
         int, Depends(session_security.get_user_id_from_access_token)
     ],
@@ -101,7 +101,7 @@ async def update_user_goal(
     Args:
         goal_id (int): The ID of the goal to update.
         validate_id (Callable): Dependency that validates the goal ID.
-        user_goal (user_goals_schema.UserGoalRead): The updated goal data.
+        user_goal (user_goals_schema.UserGoalEdit): The updated goal data.
         token_user_id (int): The user ID extracted from the access token.
         db (Session): Database session dependency.
 
