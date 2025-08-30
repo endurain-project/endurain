@@ -40,32 +40,17 @@
 	</div>
 
 	<!-- Forgot Password Modal -->
-	<div class="modal fade" id="forgotPasswordModal" tabindex="-1" aria-labelledby="forgotPasswordModalLabel" aria-hidden="true" ref="forgotPasswordModalRef">
-		<div class="modal-dialog">
-			<div class="modal-content">
-				<div class="modal-header">
-					<h5 class="modal-title" id="forgotPasswordModalLabel">{{ $t("forgotPassword.title") }}</h5>
-					<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-				</div>
-				<div class="modal-body">
-					<form @submit.prevent="submitForgotPasswordForm">
-						<div class="mb-3">
-							<label for="forgotPasswordEmail" class="form-label">{{ $t("forgotPassword.emailLabel") }}</label>
-							<input type="email" class="form-control" id="forgotPasswordEmail" v-model="forgotPasswordEmail" required>
-							<div class="form-text">{{ $t("forgotPassword.emailHelp") }}</div>
-						</div>
-						<div class="modal-footer">
-							<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ $t("generalItems.buttonClose") }}</button>
-							<button type="submit" class="btn btn-primary" :disabled="forgotPasswordLoading">
-								<span v-if="forgotPasswordLoading" class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-								{{ $t("forgotPassword.submitButton") }}
-							</button>
-						</div>
-					</form>
-				</div>
-			</div>
-		</div>
-	</div>
+	<ModalComponentEmailInput
+		ref="forgotPasswordModalRef"
+		modal-id="forgotPasswordModal"
+		:title="$t('forgotPassword.title')"
+		:email-field-label="$t('forgotPassword.emailLabel')"
+		:email-help-text="$t('forgotPassword.emailHelp')"
+		action-button-type="primary"
+		:action-button-text="$t('forgotPassword.submitButton')"
+		:is-loading="forgotPasswordLoading"
+		@email-to-emit-action="handleForgotPasswordSubmit"
+	/>
 </template>
 
 <script setup>
@@ -84,6 +69,8 @@ import { useServerSettingsStore } from "@/stores/serverSettingsStore";
 import { session } from "@/services/sessionService";
 import { profile } from "@/services/profileService";
 import { Modal } from "bootstrap";
+// Importing modal component
+import ModalComponentEmailInput from "@/components/Modals/ModalComponentEmailInput.vue";
 
 // Variables
 const route = useRoute();
@@ -99,7 +86,6 @@ const loginPhotoUrl = serverSettingsStore.serverSettings.login_photo_set
 	: null;
 
 // Forgot password variables
-const forgotPasswordEmail = ref("");
 const forgotPasswordLoading = ref(false);
 const forgotPasswordModalRef = ref(null);
 let forgotPasswordModalInstance = null;
@@ -151,8 +137,8 @@ const submitForm = async () => {
 };
 
 // Forgot password form submission
-const submitForgotPasswordForm = async () => {
-	if (!forgotPasswordEmail.value) {
+const handleForgotPasswordSubmit = async (email) => {
+	if (!email) {
 		push.error(t("forgotPassword.emailRequired"));
 		return;
 	}
@@ -161,7 +147,7 @@ const submitForgotPasswordForm = async () => {
 
 	try {
 		await session.requestPasswordReset({
-			email: forgotPasswordEmail.value
+			email: email
 		});
 
 		push.success(t("forgotPassword.requestSuccess"));
@@ -170,9 +156,6 @@ const submitForgotPasswordForm = async () => {
 		if (forgotPasswordModalInstance) {
 			forgotPasswordModalInstance.hide();
 		}
-		
-		// Reset form
-		forgotPasswordEmail.value = "";
 	} catch (error) {
 		if (error.toString().includes("503")) {
 			push.error(t("forgotPassword.emailNotConfigured"));
@@ -188,7 +171,9 @@ onMounted(async () => {
 	// Initialize the modal
 	await nextTick();
 	if (forgotPasswordModalRef.value) {
-		forgotPasswordModalInstance = new Modal(forgotPasswordModalRef.value);
+		// Access the modal element from the component
+		const modalElement = forgotPasswordModalRef.value.$el;
+		forgotPasswordModalInstance = new Modal(modalElement);
 	}
 
 	// Check if the session expired
