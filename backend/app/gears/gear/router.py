@@ -367,3 +367,97 @@ async def import_bikes_from_Strava_CSV(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal Server Error",
         ) from err
+
+@router.post(
+    "/stravashoesimport",
+)
+async def import_shoes_from_Strava_CSV(
+    token_user_id: Annotated[
+        int,
+        Depends(session_security.get_user_id_from_access_token),
+    ],
+    db: Annotated[
+        Session,
+        Depends(core_database.get_db),
+    ],
+    background_tasks: BackgroundTasks,
+):
+    import_time_iso = datetime.today().date().strftime('%Y-%m-%d')
+    try:
+        core_logger.print_to_log("Entering shoe importing function")
+
+        # CSV file location
+        bulk_import_dir = core_config.FILES_BULK_IMPORT_DIR
+        shoesfilename = "shoes.csv" # Hard coding filename for now (this is the filename Strava uses)
+        shoes_file_path = os.path.join(bulk_import_dir, shoesfilename)
+
+        # Get file and parse it
+        shoes_dict = {}  # format: "Shoe Name" from the Strava CSV is used as the key, which then holds a dictionary that is based on the Strava shoe gear CSV file's data
+        try:
+            if os.path.isfile(shoes_file_path):
+                  core_logger.print_to_log_and_console(f"shoes.csv file exists in bulk_import directory. Starting to process file.")
+                  with open(shoes_file_path, "r") as shoe_file:
+                      shoes_csv = csv.DictReader(shoe_file)
+                      for row in shoes_csv:    # Must process CSV file object while file is still open.
+                          # Example row: {'Shoe Name': 'New forest runners', 'Shoe Brand': 'Saucony', 'Shoe Model': 'Trail runner 2200', 'Shoe Default Sport Types': ''}
+                          if ('Shoe Name' not in row) or ('Shoe Brand' not in row) or ('Shoe Model' not in row): 
+                              core_logger.print_to_log_and_console("Aborting shoes import: Proper headers not found in shoes.csv.  File should have 'Shoe Name', 'Shoe Brand', and 'Shoe Model'.")
+                              return None
+                          shoes_dict[row["Shoe Name"]] = row
+                  core_logger.print_to_log_and_console(f"Strava shoe gear csv file parsed and gear dictionary created. File was {len(shoes_dict)} rows long, ignoring header row.")
+            else:
+                  core_logger.print_to_log_and_console(f"No shoes.csv file located.")
+                  return None # Nothing to return - no file.
+        except:
+            # TO DO: RAISE ERROR OR ADD NOTIFICATON HERE?
+            core_logger.print_to_log_and_console(f"Error attempting to open shoes.csv file.")
+            return None # Nothing to return - error parsing file.
+
+        # Get user's existing gear 
+        user_gear_list = gears_crud.get_gear_user(token_user_id, db)
+        if user_gear_list is None:
+             #User has no gear - we can just add our own straight up.
+             users_existing_gear_nicknames = None
+        else:
+             #User has gear - we will need to check for duplicates.  So build a list of gear nicknames to check against.
+             users_existing_gear_nicknames = []
+             for item in user_gear_list:
+                  users_existing_gear_nicknames.append(item.nickname)
+
+        # Go through bikes and add them to the database if they are not duplicates.
+        for shoe in shoes_dict:  # shoe here is the nickname of the shoe from Strava (the index of our shoes_dict)
+             #core_logger.print_to_log_and_console(f"In shoes_dict iterator.  Current shoe is - {shoe}") # Testing code.
+             if shoe in users_existing_gear_nicknames:
+                   core_logger.print_to_log_and_console(f"Shoe - {shoe} - found in existing user gear (nicknames matched).  Skipping import.")
+             else:
+                   core_logger.print_to_log_and_console(f"Shoe - {shoe} - not found in existing user gear. Importing.")
+                   # Notes on the import:
+                   # Hard-coding gear type of shoe to be gear_type of 2 here
+                   #    Once gear type dictionary is incorporated, recode here. 
+                   # Strava does not export its internal gear ID, so we do not have that information.
+                   # Strava does not export the active / inactive state of the shoe, so importing all as active (as we need a status).
+                   new_gear = gears_schema.Gear(
+                         user_id = token_user_id,
+                         brand = shoes_dict[shoe]["Shoe Brand"],
+                         model = shoes_dict[shoe]["Shoe Model"],
+                         nickname = shoe,
+                         gear_type = 2,
+                         created_at = import_time_iso,
+                         is_active = True,
+                         strava_gear_id = None
+                        )
+                   gears_crud.create_gear(new_gear, token_user_id, db)
+                   core_logger.print_to_log_and_console(f"Shoe - {shoe} - has been imported.")
+        # Return a success message
+        core_logger.print_to_log_and_console("Shoe import complete.")
+        return {"Shoe import successful."}
+    except Exception as err:
+        # Log the exception
+        core_logger.print_to_log_and_console(
+            f"Error in import_shoes_from_Strava_CSV: {err}", "error"
+        )
+        # Raise an HTTPException with a 500 Internal Server Error status code
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal Server Error",
+        ) from err

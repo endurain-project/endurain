@@ -37,7 +37,7 @@
 					</div>
 					<div class="d-flex align-items-center">
 						<!-- import shoes button -->
-						<a href="#" class="btn btn-primary" role="button" @click="submitStravaShoessImport">{{ $t("settingsImportZone.stravaImportbuttonShoes") }}</a>
+						<a href="#" class="btn btn-primary" role="button" @click="submitStravaShoesImport">{{ $t("settingsImportZone.stravaImportbuttonShoes") }}</a>
 					</div>
 				</li>
 			</ul>
