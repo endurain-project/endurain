@@ -33,5 +33,8 @@ export const gears = {
     },
     stravaBikesImport() {
         return fetchPostRequest('gears/stravabikesimport');
+    },
+    stravaShoesImport() {
+        return fetchPostRequest('gears/stravashoesimport');
     }
 };
