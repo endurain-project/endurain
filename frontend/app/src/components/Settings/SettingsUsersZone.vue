@@ -76,7 +76,7 @@ import { useServerSettingsStore } from "@/stores/serverSettingsStore";
 
 const { t } = useI18n();
 const serverSettingsStore = useServerSettingsStore();
-const isLoading = ref(true);
+const isLoading = ref(false);
 const isUsersUpdatingLoading = ref(false);
 const isLoadingNewUser = ref(false);
 const usersArray = ref([]);
@@ -149,6 +149,7 @@ function setIsLoadingNewUser(state) {
 }
 
 onMounted(async () => {
+	isLoading.value = true;
 	await fetchUsers();
 	isLoading.value = false;
 });

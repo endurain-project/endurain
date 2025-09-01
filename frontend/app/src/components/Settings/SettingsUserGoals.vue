@@ -45,7 +45,7 @@ import { userGoals as userGoalService } from '@/services/userGoalsService';
 const { t } = useI18n();
 
 const goalsArray = ref([]);
-const isLoading = ref(true);
+const isLoading = ref(false);
 const isLoadingNewGoal = ref(false);
 
 function setIsLoadingNewGoal(state) {
@@ -68,12 +68,14 @@ function editGoalList(editedGoal) {
 	goalsArray.value[index] = editedGoal;
 }
 
-onMounted(() => {
-    userGoalService.getUserGoals().then((data) => {
-        goalsArray.value = data;
-    }).catch((error) => {
+onMounted(async () => {
+    isLoading.value = true;
+    try {
+        goalsArray.value = await userGoalService.getUserGoals();
+    } catch (error) {
         push.error(`${t('settingsUserGoalsZone.errorFetchingGoals')} - ${error}`);
-    });
-	isLoading.value = false;
+    } finally {
+        isLoading.value = false;
+    }
 });
 </script>
