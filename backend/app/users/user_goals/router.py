@@ -38,24 +38,22 @@ async def get_user_goals(
 
 @router.get("/results", response_model=List[user_goals_schema.UserGoalProgress] | None)
 async def get_user_goals_results(
-    date: str | None,
     token_user_id: Annotated[
         int, Depends(session_security.get_user_id_from_access_token)
     ],
     db: Annotated[Session, Depends(core_database.get_db)],
 ):
     """
-    Retrieve the results of user goals for a specific date.
+    Retrieve the results of user goals.
 
     Args:
-        date (str | None): The date for which to retrieve user goals results.
         token_user_id (int): The ID of the user extracted from the access token.
         db (Session): The database session dependency.
 
     Returns:
-        Any: The calculated user goals results for the specified user and date.
+        Any: The calculated user goals results for the specified user.
     """
-    return user_goals_crud.calculate_user_goals(token_user_id, date, db)
+    return user_goals_crud.calculate_user_goals(token_user_id, None, db)
 
 
 @router.post("", response_model=user_goals_schema.UserGoalRead, status_code=201)

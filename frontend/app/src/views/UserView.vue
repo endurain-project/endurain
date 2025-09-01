@@ -61,7 +61,6 @@
                 <UserDistanceStatsComponent 
                     :thisWeekDistances="thisWeekDistances" 
                     :thisMonthDistances="thisMonthDistances" 
-                    :userGoals="userGoals"
                     v-else/>
             </div>
         </div>

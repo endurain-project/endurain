@@ -35,25 +35,24 @@ def calculate_goal_progress_by_activity_type(
         activities = activity_crud.get_user_activities_per_timeframe_and_activity_types(
             goal.user_id, activity_types, start_date, end_date, db, True
         )
-
-        if not activities:
-            return None
         
         # Calculate totals based on goal type
-        total_calories = None
-        total_distance = None
-        total_elevation = None
-        total_duration = None
-        
-        if goal.goal_type == user_goals_schema.GoalType.CALORIES:
-            total_calories = sum(activity.calories or 0 for activity in activities)
-        elif goal.goal_type == user_goals_schema.GoalType.DISTANCE:
-            total_distance = sum(activity.distance or 0 for activity in activities)
-        elif goal.goal_type == user_goals_schema.GoalType.ELEVATION:
-            total_elevation = sum(activity.elevation_gain or 0 for activity in activities)
-        elif goal.goal_type == user_goals_schema.GoalType.DURATION:
-            total_duration = sum(activity.total_elapsed_time or 0 for activity in activities)
-        
+        total_calories = 0
+        total_activities_number = 0
+        total_distance = 0
+        total_elevation = 0
+        total_duration = 0
+
+        if activities:
+            if goal.goal_type == user_goals_schema.GoalType.CALORIES:
+                total_calories = sum(activity.calories or 0 for activity in activities)
+            elif goal.goal_type == user_goals_schema.GoalType.DISTANCE:
+                total_distance = sum(activity.distance or 0 for activity in activities)
+            elif goal.goal_type == user_goals_schema.GoalType.ELEVATION:
+                total_elevation = sum(activity.elevation_gain or 0 for activity in activities)
+            elif goal.goal_type == user_goals_schema.GoalType.DURATION:
+                total_duration = sum(activity.total_elapsed_time or 0 for activity in activities)
+
         # Create and return the progress object
         return user_goals_schema.UserGoalProgress(
             goal_id=goal.id,
@@ -63,7 +62,7 @@ def calculate_goal_progress_by_activity_type(
             start_date=start_date.strftime("%Y-%m-%d"),
             end_date=end_date.strftime("%Y-%m-%d"),
             total_calories=total_calories,
-            total_activities_number=len(activities),
+            total_activities_number=total_activities_number,
             total_distance=total_distance,
             total_elevation=total_elevation,
             total_duration=total_duration,
@@ -136,23 +135,27 @@ def get_start_end_date_by_interval(
     """
     date_obj = datetime.strptime(date, "%Y-%m-%d")
     if interval == "yearly":
-        start_date = date_obj.replace(month=1, day=1)
-        end_date = (start_date + timedelta(days=365)).replace(day=1) - timedelta(
-            seconds=1
-        )  # Last day of the year
+        start_date = date_obj.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
+        # Calculate the last second of December 31st of the same year
+        end_date = datetime(date_obj.year, 12, 31, 23, 59, 59)
     elif interval == "weekly":
         start_date = date_obj - timedelta(days=date_obj.weekday())  # Monday
+        start_date = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
         end_date = start_date + timedelta(
             days=6, hours=23, minutes=59, seconds=59
         )  # Sunday
     elif interval == "monthly":
-        start_date = date_obj.replace(day=1)
-        end_date = (start_date + timedelta(days=31)).replace(day=1) - timedelta(
-            seconds=1
-        )  # Last day of the month
+        start_date = date_obj.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        # Get the first day of next month
+        if date_obj.month == 12:
+            next_month = start_date.replace(year=date_obj.year + 1, month=1)
+        else:
+            next_month = start_date.replace(month=date_obj.month + 1)
+        # Subtract one second to get the last second of the current month
+        end_date = next_month - timedelta(seconds=1)
     elif interval == "daily":
         start_date = date_obj.replace(hour=0, minute=0, second=0, microsecond=0)
-        end_date = date_obj + timedelta(hours=23, minutes=59, seconds=59)
+        end_date = date_obj.replace(hour=23, minute=59, second=59, microsecond=0)
     else:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid interval specified"

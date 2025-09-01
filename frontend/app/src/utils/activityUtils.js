@@ -767,8 +767,3 @@ export function formatRawDistance(t, meters, unitSystem) {
 	const unitLabel = Number(unitSystem) === 1 ? t("generalItems.unitsKm") : t("generalItems.unitsMiles");
 	return `${formattedValue} ${unitLabel}`;
 }
-
-export const convertDistanceMetersToKmsOrMiles = (distance, useMeter = true) =>
-	useMeter ? metersToKm(distance) : metersToMiles(distance);
-export const convertDistanceMetersToYards = (distance, useMeter = true) =>
-	useMeter ? metersToKm(distance) : metersToYards(distance);

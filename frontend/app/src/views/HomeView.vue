@@ -25,8 +25,7 @@
 					</div>
 					<UserDistanceStatsComponent 
 						:thisWeekDistances="thisWeekDistances"
-						:thisMonthDistances="thisMonthDistances" 
-						:userGoals="userGoals" v-else />
+						:thisMonthDistances="thisMonthDistances" v-else />
 				</div>
 
 				<!-- add activity and refresh buttons -->
@@ -179,6 +178,7 @@ async function fetchUserStars() {
 			authStore.user.id,
 		);
 		userGoals.value = await userGoalsService.getUserGoalResults();
+		console.log(userGoals.value);
 	} catch (error) {
 		// Set the error message
 		push.error(`${t("homeView.errorFetchingUserStats")} - ${error}`);

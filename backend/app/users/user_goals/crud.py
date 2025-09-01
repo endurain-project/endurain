@@ -67,13 +67,7 @@ def calculate_user_goals(
     if not date:
         date = datetime.now().strftime("%Y-%m-%d")
     try:
-        goals = (
-            db.query(user_goals_models.UserGoal)
-            .filter(
-                user_goals_models.UserGoal.user_id == user_id,
-            )
-            .all()
-        )
+        goals = get_user_goals_by_user_id(user_id, db)
 
         if not goals:
             return None
