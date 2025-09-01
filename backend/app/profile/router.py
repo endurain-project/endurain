@@ -701,6 +701,7 @@ async def import_profile_data(
     - User profile
     - User default gear
     - User integrations
+    - User goals
     - User privacy settings
     - Activities and their related laps, sets, streams, workout steps, media and exercise titles
     - Health data and health targets
@@ -740,6 +741,7 @@ async def import_profile_data(
         "user": 0,
         "user_default_gear": 0,
         "user_integrations": 0,
+        "user_goals": 0,
         "user_privacy_settings": 0,
     }
 
@@ -753,6 +755,7 @@ async def import_profile_data(
                 "data/user.json": "user_data",
                 "data/user_default_gear.json": "user_default_gear_data",
                 "data/user_integrations.json": "user_integrations_data",
+                "data/user_goals.json": "user_goals_data",
                 "data/user_privacy_settings.json": "user_privacy_settings_data",
                 "data/activities.json": "activities_data",
                 "data/activity_laps.json": "activity_laps_data",
@@ -905,6 +908,17 @@ async def import_profile_data(
                         user_integrations, token_user_id, db
                     )
                     counts["user_integrations"] += 1
+
+                # user goals
+                if results["user_goals_data"]:
+                    for goal_data in results["user_goals_data"]:
+                        goal_data.pop("id", None)
+                        goal_data.pop("user_id", None)
+                        # convert goal data to Goal schema
+                        goal = user_goals_schema.UserGoalCreate(**goal_data)
+                        # create goal
+                        user_goals_crud.create_user_goal(token_user_id, goal, db)
+                        counts["user_goals"] += 1
 
                 # user privacy settings
                 if results["user_privacy_settings_data"]:
