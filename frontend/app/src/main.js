@@ -58,7 +58,6 @@ async function initApp() {
 	app.use(createPinia());
 	app.use(notivue);
 	app.component("font-awesome-icon", FontAwesomeIcon);
-	app.use(router);
 
 	// Setup i18n asynchronously
 	const i18n = await setupI18n();
@@ -73,6 +72,9 @@ async function initApp() {
 
 	const serverSettingsStore = useServerSettingsStore();
 	serverSettingsStore.loadServerSettingsFromServer();
+
+	// Setup router
+	app.use(router);
 
 	app.mount("#app");
 }
