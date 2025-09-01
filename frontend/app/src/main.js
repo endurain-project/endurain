@@ -17,7 +17,7 @@ import "leaflet/dist/leaflet.css";
 
 import App from "./App.vue";
 import router from "./router";
-import i18n from "./i18n";
+import { setupI18n } from "./i18n";
 
 /* import the fontawesome core */
 import { library } from "@fortawesome/fontawesome-svg-core";
@@ -51,22 +51,31 @@ const notivue = createNotivue({
 	},
 });
 
-const app = createApp(App);
+// Initialize app asynchronously
+async function initApp() {
+	const app = createApp(App);
 
-app.use(createPinia());
-app.use(notivue);
-app.component("font-awesome-icon", FontAwesomeIcon);
-app.use(router);
-app.use(i18n);
+	app.use(createPinia());
+	app.use(notivue);
+	app.component("font-awesome-icon", FontAwesomeIcon);
+	app.use(router);
 
-// Import the store and load the user from the storage
-const authStore = useAuthStore();
-authStore.loadUserFromStorage(i18n);
+	// Setup i18n asynchronously
+	const i18n = await setupI18n();
+	app.use(i18n);
 
-const themeStore = useThemeStore();
-themeStore.loadThemeFromStorage();
+	// Import the store and load the user from the storage
+	const authStore = useAuthStore();
+	authStore.loadUserFromStorage(i18n);
 
-const serverSettingsStore = useServerSettingsStore();
-serverSettingsStore.loadServerSettingsFromServer();
+	const themeStore = useThemeStore();
+	themeStore.loadThemeFromStorage();
 
-app.mount("#app");
+	const serverSettingsStore = useServerSettingsStore();
+	serverSettingsStore.loadServerSettingsFromServer();
+
+	app.mount("#app");
+}
+
+// Initialize the app
+initApp();
