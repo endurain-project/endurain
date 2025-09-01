@@ -2,7 +2,7 @@
 	<div class="row">
 		<!-- sidebar zone -->
 		<div class="col-lg-3 col-md-12">
-			<div class="sticky-sidebar">
+			<div>
 				<div class="d-none d-lg-block d-flex mb-3 rounded p-3 bg-body-tertiary shadow-sm">
 					<!-- user name and photo zone -->
 					<div v-if="isLoading">
