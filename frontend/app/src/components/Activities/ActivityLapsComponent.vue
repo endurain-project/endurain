@@ -81,6 +81,7 @@
 
 <script setup>
 import { computed } from "vue";
+import { useI18n } from "vue-i18n";
 // Importing the utils
 import { formatSecondsToMinutes } from "@/utils/dateTimeUtils";
 import {
@@ -108,6 +109,8 @@ const props = defineProps({
         required: true,
     },
 });
+
+const { t } = useI18n();
 
 const normalizedLaps = computed(() => {
     if (
@@ -143,13 +146,13 @@ const normalizedLaps = computed(() => {
     // Normalize each lap's pace relative to the fastest
     return lapsWithRest.map((lap) => {
         const normalizedScore = (fastestPace / lap.enhanced_avg_pace) * 100;
-        const formattedPace = formatPace(props.activity, props.units, lap, false, lap.swimIsRest);
-        const formattedPaceFull = formatPace(props.activity, props.units, lap, true, lap.swimIsRest);
-        const formattedDistance = formatDistance(props.activity, props.units, lap);
-        const formattedElevation = formatElevation(lap.total_ascent, props.units, false);
-        const formattedElevationFull = formatElevation(lap.total_ascent, props.units);
-        const formattedSpeed = formatAverageSpeed(props.activity, props.units, lap, false);
-        const formattedSpeedFull = formatAverageSpeed(props.activity, props.units, lap);
+        const formattedPace = formatPace(t, props.activity, props.units, lap, false, lap.swimIsRest);
+        const formattedPaceFull = formatPace(t, props.activity, props.units, lap, true, lap.swimIsRest);
+        const formattedDistance = formatDistance(t, props.activity, props.units, lap);
+        const formattedElevation = formatElevation(t, lap.total_ascent, props.units, false);
+        const formattedElevationFull = formatElevation(t, lap.total_ascent, props.units);
+        const formattedSpeed = formatAverageSpeed(t, props.activity, props.units, lap, false);
+        const formattedSpeedFull = formatAverageSpeed(t, props.activity, props.units, lap);
 
         return {
             ...lap,

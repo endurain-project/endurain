@@ -49,7 +49,7 @@
                         <!-- Conditionally display city and country -->
                         <span v-if="activity.city || activity.town || activity.country">
                             -
-                            <span>{{ formatLocation(activity) }}</span>
+                            <span>{{ formatLocation(t, activity) }}</span>
                         </span>
                     </h6>
                 </div>
@@ -153,7 +153,7 @@
                     {{ $t("activitySummaryComponent.activityDistance") }}
                 </span>
                 <br>
-                <span>{{ formatDistance(activity, authStore.user.units) }}</span>
+                <span>{{ formatDistance(t, activity, authStore.user.units) }}</span>
             </div>
             <!-- calories -->
             <div class="col" v-else>
@@ -161,7 +161,7 @@
                     {{ $t("activitySummaryComponent.activityCalories") }}
                 </span>
                 <br>
-                <span>{{ formatCalories(activity.calories) }}</span>
+                <span>{{ formatCalories(t, activity.calories) }}</span>
             </div>
             <!-- activity time-->
             <div class="col border-start border-opacity-50">
@@ -179,7 +179,7 @@
                         {{ $t("activitySummaryComponent.activityEleGain") }}
                     </span>
                     <br>
-                    <span>{{ formatElevation(activity.elevation_gain, authStore.user.units) }}</span>
+                    <span>{{ formatElevation(t, activity.elevation_gain, authStore.user.units) }}</span>
                 </div>
                 <!-- pace -->
                 <div
@@ -188,7 +188,7 @@
                         {{ $t("activitySummaryComponent.activityPace") }}
                     </span>
                     <br>
-                    {{ formatPace(activity, authStore.user.units) }}
+                    {{ formatPace(t, activity, authStore.user.units) }}
                 </div>
                 <!-- avg_hr -->
                 <div v-else>
@@ -196,7 +196,7 @@
                         {{ $t("activitySummaryComponent.activityAvgHR") }}
                     </span>
                     <br>
-                    <span>{{ formatHr(activity.average_hr) }}</span>
+                    <span>{{ formatHr(t, activity.average_hr) }}</span>
                 </div>
             </div>
         </div>
@@ -209,7 +209,7 @@
                     {{ $t("activitySummaryComponent.activityAvgPower") }}
                 </span>
                 <br>
-                <span>{{ formatPower(activity.average_power) }}</span>
+                <span>{{ formatPower(t, activity.average_power) }}</span>
             </div>
             <!-- avg_hr not running and cycling activities-->
             <div class="col"
@@ -218,7 +218,7 @@
                     {{ $t("activitySummaryComponent.activityAvgHR") }}
                 </span>
                 <br>
-                <span>{{ formatHr(activity.average_hr) }}</span>
+                <span>{{ formatHr(t, activity.average_hr) }}</span>
             </div>
             <!-- max_hr not running and cycling activities-->
             <div class="col border-start border-opacity-50"
@@ -227,14 +227,14 @@
                     {{ $t("activitySummaryComponent.activityMaxHR") }}
                 </span>
                 <br>
-                <span>{{ formatHr(activity.max_hr) }}</span>
+                <span>{{ formatHr(t, activity.max_hr) }}</span>
             </div>
             <!-- ele gain running activities -->
             <div class="col border-start border-opacity-50"
                 v-if="activityTypeIsRunning(activity)">
                 <span class="fw-lighter">{{ $t("activitySummaryComponent.activityEleGain") }}</span>
                 <br>
-                <span>{{ formatElevation(activity.elevation_gain, authStore.user.units) }}</span>
+                <span>{{ formatElevation(t, activity.elevation_gain, authStore.user.units) }}</span>
             </div>
             <!-- avg_speed cycling activities -->
             <div class="col border-start border-opacity-50"
@@ -243,7 +243,7 @@
                     {{ $t("activitySummaryComponent.activityAvgSpeed") }}
                 </span>
                 <br>
-                <span>{{ formatAverageSpeed(activity, authStore.user.units) }}</span>
+                <span>{{ formatAverageSpeed(t, activity, authStore.user.units) }}</span>
             </div>
             <!-- calories -->
             <div class="col border-start border-opacity-50">
@@ -251,7 +251,7 @@
                     {{ $t("activitySummaryComponent.activityCalories") }}
                 </span>
                 <br>
-                <span>{{ formatCalories(activity.calories) }}</span>
+                <span>{{ formatCalories(t, activity.calories) }}</span>
             </div>
         </div>
     </div>

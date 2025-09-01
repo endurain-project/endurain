@@ -60,19 +60,19 @@
 		<div class="row row-gap-3 gap-0 justify-content-around" v-else-if="summaryData">
 			<div class="col-lg col-md-4 col-sm-6">
 				<ActivitiesSummaryTotalsSectionComponent :title="t('summaryView.metricTotalDistance')"
-					:subTitle="formatRawDistance(summaryData.total_distance, authStore.user.units)" />
+					:subTitle="formatRawDistance(t, summaryData.total_distance, authStore.user.units)" />
 			</div>
 			<div class="col-lg col-md-4 col-sm-6">
 				<ActivitiesSummaryTotalsSectionComponent :title="t('summaryView.metricTotalDuration')"
-					:subTitle="formatDuration(summaryData.total_duration)" />
+					:subTitle="formatDuration(t, summaryData.total_duration)" />
 			</div>
 			<div class="col-lg col-md-4 col-sm-6">
 				<ActivitiesSummaryTotalsSectionComponent :title="t('summaryView.metricTotalElevation')"
-					:subTitle="formatElevation(summaryData.total_elevation_gain, authStore.user.units)" />
+					:subTitle="formatElevation(t, summaryData.total_elevation_gain, authStore.user.units)" />
 			</div>
 			<div class="col-lg col-md-6 col-sm-6">
 				<ActivitiesSummaryTotalsSectionComponent :title="t('summaryView.metricTotalCalories')"
-					:subTitle="formatCalories(summaryData.total_calories)" />
+					:subTitle="formatCalories(t, summaryData.total_calories)" />
 			</div>
 			<div class="col-lg col-md-6 col-sm-6">
 				<ActivitiesSummaryTotalsSectionComponent :title="t('summaryView.metricTotalActivities')"

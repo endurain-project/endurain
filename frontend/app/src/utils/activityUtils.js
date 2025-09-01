@@ -434,6 +434,7 @@ export function activityTypeNotRowing(activity) {
 /**
  * Formats the pace of an activity based on its type and the specified unit system.
  *
+ * @param {Object} t - The translation function.
  * @param {Object} activity - The activity object containing pace and activity_type.
  * @param {number|string} unitSystem - The unit system to use (1 for metric, otherwise imperial).
  * @param {Object|null} [lap=null] - Optional lap object to use its enhanced_avg_pace instead of activity pace.
@@ -441,13 +442,13 @@ export function activityTypeNotRowing(activity) {
  * @param {boolean} [isRest=false] - Whether the lap is a rest lap.
  * @returns {string} The formatted pace string.
  */
-export function formatPace(activity, unitSystem, lap = null, units = true, isRest = false) {
+export function formatPace(t, activity, unitSystem, lap = null, units = true, isRest = false) {
 	let pace = activity.pace;
 	if (lap) {
 		pace = lap.enhanced_avg_pace;
 	}
 	if (isRest) {
-		return i18n.global.t("generalItems.labelRest");
+		return t("generalItems.labelRest");
 	}
 	if (
 		activityTypeIsSwimming(activity) ||
@@ -469,6 +470,7 @@ export function formatPace(activity, unitSystem, lap = null, units = true, isRes
 /**
  * Formats the average speed of an activity based on the unit system and activity type.
  *
+ * @param {Object} t - The translation function.
  * @param {Object} activity - The activity object containing speed and type information.
  * @param {number|string} unitSystem - The unit system to use (1 for imperial, otherwise metric).
  * @param {Object|null} [lap=null] - Optional lap object to use for speed calculation.
@@ -476,6 +478,7 @@ export function formatPace(activity, unitSystem, lap = null, units = true, isRes
  * @returns {string} The formatted average speed, including units if specified, or a "No Data" label if unavailable.
  */
 export function formatAverageSpeed(
+	t,
 	activity,
 	unitSystem,
 	lap = null,
@@ -490,35 +493,36 @@ export function formatAverageSpeed(
 		activity.average_speed === undefined ||
 		activity.average_speed < 0
 	)
-		return i18n.global.t("generalItems.labelNoData");
+		return t("generalItems.labelNoData");
 
 	if (
 		activityTypeIsCycling(activity)
 	) {
 		if (Number(unitSystem) === 1) {
 			if (units) {
-				return `${formatAverageSpeedMetric(speed)} ${i18n.global.t("generalItems.unitsKmH")}`;
+				return `${formatAverageSpeedMetric(speed)} ${t("generalItems.unitsKmH")}`;
 			}
 			return `${formatAverageSpeedMetric(speed)}`;
 		} else {
 			if (units) {
-				return `${formatAverageSpeedImperial(speed)} ${i18n.global.t("generalItems.unitsMph")}`;
+				return `${formatAverageSpeedImperial(speed)} ${t("generalItems.unitsMph")}`;
 			}
 			return `${formatAverageSpeedImperial(speed)}`;
 		}
 	}
-	return i18n.global.t("generalItems.labelNoData");
+	return t("generalItems.labelNoData");
 }
 
 /**
  * Formats a date-time string into a localized date and time string.
  *
+ * @param {Object} t - The translation function.
  * @param {string} dateTimeString - The date-time string to format. If falsy, a "Not Applicable" label is returned.
  * @param {string} [separator=", "] - The separator to use between the date and time. Defaults to ", ".
  * @returns {string} The formatted date and time string, or a "Not Applicable" label if the input is invalid.
  */
-export function formatDateTime(dateTimeString, separator = ", ") {
-	if (!dateTimeString) return i18n.global.t("generalItems.labelNoData");
+export function formatDateTime(t, dateTimeString, separator = ", ") {
+	if (!dateTimeString) return t("generalItems.labelNoData");
 	return `${formatDateMed(dateTimeString)}${separator}${formatTime(dateTimeString)}`;
 }
 
@@ -526,40 +530,42 @@ export function formatDateTime(dateTimeString, separator = ", ") {
  * Formats a duration given in seconds into a human-readable format.
  * If the input is null, undefined, or negative, it returns a localized "Not Applicable" label.
  *
+ * @param {Object} t - The translation function.
  * @param {number|null|undefined} seconds - The duration in seconds to format.
  * @returns {string} The formatted duration or a "Not Applicable" label if the input is invalid.
  */
-export function formatDuration(seconds) {
+export function formatDuration(t, seconds) {
 	if (seconds === null || seconds === undefined || seconds < 0)
-		return i18n.global.t("generalItems.labelNoData");
+		return t("generalItems.labelNoData");
 	return formatSecondsToMinutes(seconds);
 }
 
 /**
  * Formats the distance of an activity or lap based on the unit system and activity type.
  *
+ * @param {Object} t - The translation function.
  * @param {Object} activity - The activity object containing distance and activity_type.
  * @param {number|string} unitSystem - The unit system to use (1 for metric, otherwise imperial).
  * @param {Object|null} [lap=null] - Optional lap object containing total_distance.
  * @returns {string} The formatted distance string with appropriate units or a "No Data" label.
  */
-export function formatDistance(activity, unitSystem, lap = null) {
+export function formatDistance(t, activity, unitSystem, lap = null) {
 	let distance = activity.distance;
 	if (lap) {
 		distance = lap.total_distance;
 	}
 	if (distance === null || distance === undefined || distance < 0)
-		return i18n.global.t("generalItems.labelNoData");
+		return t("generalItems.labelNoData");
 	if (Number(unitSystem) === 1) {
 		if (!activityTypeIsSwimming(activity)) {
-			return `${metersToKm(distance)} ${i18n.global.t("generalItems.unitsKm")}`;
+			return `${metersToKm(distance)} ${t("generalItems.unitsKm")}`;
 		}
-		return `${distance} ${i18n.global.t("generalItems.unitsM")}`;
+		return `${distance} ${t("generalItems.unitsM")}`;
 	}
 	if (!activityTypeIsSwimming(activity)) {
-		return `${metersToMiles(distance)} ${i18n.global.t("generalItems.unitsMiles")}`;
+		return `${metersToMiles(distance)} ${t("generalItems.unitsMiles")}`;
 	}
-	return `${metersToYards(distance)} ${i18n.global.t("generalItems.unitsYards")}`;
+	return `${metersToYards(distance)} ${t("generalItems.unitsYards")}`;
 }
 
 
@@ -567,19 +573,20 @@ export function formatDistance(activity, unitSystem, lap = null) {
  * Formats a distance value in meters to either kilometers or miles, based on the unit system.
  * The result is rounded (optionally) and formatted with spaces as thousands separators.
  *
+ * @param {Object} t - The translation function.
  * @param {number} distance - The distance in meters to format.
  * @param {number} unitSystem - The unit system to use (1 for kilometers, otherwise miles).
  * @param {boolean} [round=true] - Whether to round the result to the nearest integer.
  * @returns {string} The formatted distance string with the appropriate unit.
  */
-export function formatDistanceRaw(distance, unitSystem, round = true, units = true) {
+export function formatDistanceRaw(t, distance, unitSystem, round = true, units = true) {
 	let value = Number(unitSystem) === 1 ? metersToKm(distance) : metersToMiles(distance);
 	if (round) {
 		value = Math.round(value);
 	}
 	// Format with space as thousands separator for better readability
 	let formatted = value.toLocaleString('en-US', { useGrouping: true, maximumFractionDigits: 0 }).replace(/,/g, ' ');
-	const unit = Number(unitSystem) === 1 ? i18n.global.t("generalItems.unitsKm") : i18n.global.t("generalItems.unitsMiles");
+	const unit = Number(unitSystem) === 1 ? t("generalItems.unitsKm") : t("generalItems.unitsMiles");
 	if (units) {
 		return `${formatted} ${unit}`;
 	}
@@ -593,32 +600,46 @@ export function formatDistanceRaw(distance, unitSystem, round = true, units = tr
  * it returns a localized "Not Applicable" label. Otherwise, it rounds
  * the hr value and appends the localized "bpm" unit.
  *
+ * @param {Object} t - The translation function.
  * @param {number|null|undefined} hr - The heart rate to format.
  * @returns {string} A formatted string representing the heart rate
  *                   or a "Not Applicable" label if the input is invalid.
  */
-export function formatHr(hr) {
+export function formatHr(t, hr) {
 	if (hr === null || hr === undefined || hr <= 0)
-		return i18n.global.t("generalItems.labelNoData");
-	return `${Math.round(hr)} ${i18n.global.t("generalItems.unitsBpm")}`;
+		return t("generalItems.labelNoData");
+	return `${Math.round(hr)} ${t("generalItems.unitsBpm")}`;
 }
 
-export function formatPower(power) {
+/**
+ * Formats the power into a user-friendly string.
+ *
+ * If the provided power is null, undefined, or less than or equal to 0,
+ * it returns a localized "Not Applicable" label. Otherwise, it rounds
+ * the power value and appends the localized "W" unit.
+ *
+ * @param {Object} t - The translation function.
+ * @param {number|null|undefined} power - The power to format.
+ * @returns {string} A formatted string representing the power
+ *                   or a "Not Applicable" label if the input is invalid.
+ */
+export function formatPower(t, power) {
 	if (power === null || power === undefined || power <= 0)
-		return i18n.global.t("generalItems.labelNoData");
-	return `${Math.round(power)} ${i18n.global.t("generalItems.unitsWattsShort")}`;
+		return t("generalItems.labelNoData");
+	return `${Math.round(power)} ${t("generalItems.unitsWattsShort")}`;
 }
 
 /**
  * Formats an elevation value based on the provided unit system.
  *
+ * @param {Object} t - The translation function.
  * @param {number|null|undefined} meters - The elevation value in meters. Can be null or undefined.
  * @param {number} unitSystem - The unit system to use. If `1`, the elevation is returned in meters; otherwise, it is converted to feet.
  * @returns {string} The formatted elevation string with the appropriate unit, or a "not applicable" label if the input is null or undefined.
  */
-export function formatElevation(meters, unitSystem, units = true) {
+export function formatElevation(t, meters, unitSystem, units = true) {
 	if (meters === null || meters === undefined) {
-		return i18n.global.t("generalItems.labelNoData");
+		return t("generalItems.labelNoData");
 	}
 	const numericValue = Number(unitSystem) === 1 ? parseFloat(meters) : parseFloat(metersToFeet(meters));
 	const formattedValue = numericValue.toLocaleString(undefined, { maximumFractionDigits: 0 });
@@ -627,23 +648,24 @@ export function formatElevation(meters, unitSystem, units = true) {
 		return formattedValue;
 	}
 
-	const unitLabel = Number(unitSystem) === 1 ? i18n.global.t("generalItems.unitsM") : i18n.global.t("generalItems.unitsFeet");
+	const unitLabel = Number(unitSystem) === 1 ? t("generalItems.unitsM") : t("generalItems.unitsFeet");
 	return `${formattedValue} ${unitLabel}`;
 }
 
 /**
  * Formats the given calorie value into a string with appropriate units.
  *
+ * @param {Object} t - The translation function.
  * @param {number|null|undefined} calories - The calorie value to format. If null or undefined, a "not applicable" label is returned.
  * @returns {string} A formatted string representing the calorie value with units, or a "not applicable" label if the input is null or undefined.
  */
-export function formatCalories(calories) {
+export function formatCalories(t, calories) {
 	if (calories === null || calories === undefined) {
-		return i18n.global.t("generalItems.labelNoData");
+		return t("generalItems.labelNoData");
 	}
 	const numericValue = parseFloat(calories);
 	const formattedValue = numericValue.toLocaleString(undefined, { maximumFractionDigits: 0 });
-	return `${formattedValue} ${i18n.global.t("generalItems.unitsCalories")}`;
+	return `${formattedValue} ${t("generalItems.unitsCalories")}`;
 }
 
 /**
@@ -694,15 +716,16 @@ export function getIcon(typeId) {
 /**
  * Formats the location of an activity into a readable string.
  *
+ * @param {Object} t - The translation function.
  * @param {Object} activity - The activity object containing location details.
  * @returns {string} A formatted location string. If no location details are provided,
  * it returns a localized "Not Applicable" label.
  */
-export function formatLocation(activity) {
+export function formatLocation(t, activity) {
 	const { city, town, country } = activity;
 
 	if (!city && !town && !country) {
-		return i18n.global.t("generalItems.labelNoData");
+		return t("generalItems.labelNoData");
 	}
 
 	const locationParts = [];
@@ -727,20 +750,21 @@ export function formatLocation(activity) {
 /**
  * Formats a raw distance in meters based on the unit system.
  *
+ * @param {Object} t - The translation function.
  * @param {number|null|undefined} meters - The distance in meters.
  * @param {number|string} unitSystem - The unit system to use (1 for metric, otherwise imperial).
  * @returns {string} The formatted distance string with appropriate units or a "No Data" label.
  */
-export function formatRawDistance(meters, unitSystem) {
+export function formatRawDistance(t, meters, unitSystem) {
 	if (meters === null || meters === undefined || meters < 0) {
-		return i18n.global.t("generalItems.labelNoData");
+		return t("generalItems.labelNoData");
 	}
 	const numericValue = Number(unitSystem) === 1 ? parseFloat(metersToKm(meters)) : parseFloat(metersToMiles(meters));
 	// Assuming metersToKm and metersToMiles return numbers or strings that can be parsed to numbers
 	// Use toLocaleString for formatting, allow for some decimal places for precision if needed
 	const formattedValue = numericValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-	const unitLabel = Number(unitSystem) === 1 ? i18n.global.t("generalItems.unitsKm") : i18n.global.t("generalItems.unitsMiles");
+	const unitLabel = Number(unitSystem) === 1 ? t("generalItems.unitsKm") : t("generalItems.unitsMiles");
 	return `${formattedValue} ${unitLabel}`;
 }
 

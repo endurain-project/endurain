@@ -2,9 +2,11 @@ import { fetchGetRequest, fetchPostRequest, fetchPutRequest, fetchDeleteRequest,
 import { getIcon, formatCalories, formatDuration, convertDistanceMetersToKmsOrMiles, convertDistanceMetersToYards } from '@/utils/activityUtils'
 import { startCase } from '@/utils/genericUtils';
 import { useAuthStore } from '@/stores/authStore';
+import { useI18n } from "vue-i18n";
 
 
 const authStore = useAuthStore();
+const { t } = useI18n();
 
 export const userGoals = {
     getUserGoalResults() {
@@ -22,11 +24,11 @@ export const userGoals = {
                     goal_distance: convertDistanceMetersToKmsOrMiles(goal.goal_distance, Number(authStore.user.units) === 1),
                     total_distance: convertDistanceMetersToKmsOrMiles(goal.total_distance, Number(authStore.user.units) === 1),
 
-                    total_calories: formatCalories(goal.total_calories),
-                    goal_calories: formatCalories(goal.goal_calories),
+                    total_calories: formatCalories(t, goal.total_calories),
+                    goal_calories: formatCalories(t, goal.goal_calories),
 
-                    total_duration: formatDuration(goal.total_duration),
-                    goal_duration: formatDuration(goal.goal_duration),
+                    total_duration: formatDuration(t, goal.total_duration),
+                    goal_duration: formatDuration(t, goal.goal_duration),
                 }));
             })
     },
