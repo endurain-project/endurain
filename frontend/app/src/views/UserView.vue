@@ -222,7 +222,7 @@ import { userGoals as userGoalsService } from "@/services/userGoalsService";
 // Import Notivue push
 import { push } from 'notivue'
 // Importing the components
-import UserDistanceStatsComponent from '@/components/Activities/UserDistanceStatsComponent.vue';
+import UserDistanceStatsComponent from '@/components/Users/UserDistanceStatsComponent.vue';
 import LoadingComponent from '@/components/GeneralComponents/LoadingComponent.vue';
 import NoItemsFoundComponent from '@/components/GeneralComponents/NoItemsFoundComponents.vue';
 import ActivitySummaryComponent from '@/components/Activities/ActivitySummaryComponent.vue';

@@ -136,7 +136,7 @@ import { activityMedia } from "@/services/activityMediaService";
 // Import Notivue push
 import { push } from "notivue";
 // Importing the components
-import UserDistanceStatsComponent from "@/components/Activities/UserDistanceStatsComponent.vue";
+import UserDistanceStatsComponent from "@/components/Users/UserDistanceStatsComponent.vue";
 import NoItemsFoundComponent from "@/components/GeneralComponents/NoItemsFoundComponents.vue";
 import ActivitySummaryComponent from "@/components/Activities/ActivitySummaryComponent.vue";
 import ActivityMapComponent from "@/components/Activities/ActivityMapComponent.vue";

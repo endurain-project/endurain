@@ -15,7 +15,7 @@ const componentPaths = {
 	'activitySummaryComponent': 'components/activities/activitySummaryComponent.json',
 	'activityWorkoutStepsComponent': 'components/activities/activityWorkoutStepsComponent.json',
 	'activitiesTableComponent': 'components/activities/activitiesTableComponent.json',
-	'userDistanceStats': 'components/activities/userDistanceStatsComponent.json',
+	'userDistanceStats': 'components/users/userDistanceStatsComponent.json',
 	// Followers component
 	'followersListComponent': 'components/followers/followersListComponent.json',
 	// Gears component

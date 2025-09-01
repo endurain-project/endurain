@@ -48,15 +48,13 @@ async def get_user_goals_results(
     Retrieve the results of user goals for a specific date.
 
     Args:
-        date (str | None): The date for which to retrieve user goals results in 'YYYY-MM-DD' format. If None, defaults to today's date.
+        date (str | None): The date for which to retrieve user goals results.
         token_user_id (int): The ID of the user extracted from the access token.
         db (Session): The database session dependency.
 
     Returns:
         Any: The calculated user goals results for the specified user and date.
     """
-    if not date:
-        date = datetime.now().strftime("%Y-%m-%d")
     return user_goals_crud.calculate_user_goals(token_user_id, date, db)
 
 
