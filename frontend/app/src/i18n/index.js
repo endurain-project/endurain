@@ -50,6 +50,7 @@ import caUsersListComponent from './ca/components/settings/settingsUsersZone/use
 import caUsersPasswordRequirementsComponent from './ca/components/settings/settingsUsersZone/usersPasswordRequirementsComponent.json';
 import caUserSessionsListComponent from './ca/components/settings/settingsUserSessionsZone/userSessionsListComponent.json';
 import caSettingsServerSettingsZoneComponent from './ca/components/settings/settingsServerSettingsZoneComponent.json';
+import caSettingsUserGoalsZone from './ca/components/settings/settingsUserGoals.json'
 import caGoalsListComponent from './ca/components/settings/settingsUserGoalsZone/goalsListComponent.json';
 import caGoalsAddEditGoalModalComponent from './ca/components/settings/settingsUserGoalsZone/goalsAddEditGoalModalComponent.json';
 // General components
@@ -120,6 +121,7 @@ import deUsersListComponent from './de/components/settings/settingsUsersZone/use
 import deUsersPasswordRequirementsComponent from './de/components/settings/settingsUsersZone/usersPasswordRequirementsComponent.json';
 import deUserSessionsListComponent from './de/components/settings/settingsUserSessionsZone/userSessionsListComponent.json';
 import deSettingsServerSettingsZoneComponent from './de/components/settings/settingsServerSettingsZoneComponent.json';
+import deSettingsUserGoalsZone from './de/components/settings/settingsUserGoals.json'
 import deGoalsListComponent from './de/components/settings/settingsUserGoalsZone/goalsListComponent.json';
 import deGoalsAddEditGoalModalComponent from './de/components/settings/settingsUserGoalsZone/goalsAddEditGoalModalComponent.json';
 // General components
@@ -190,6 +192,7 @@ import esUsersListComponent from './es/components/settings/settingsUsersZone/use
 import esUsersPasswordRequirementsComponent from './es/components/settings/settingsUsersZone/usersPasswordRequirementsComponent.json';
 import esUserSessionsListComponent from './es/components/settings/settingsUserSessionsZone/userSessionsListComponent.json';
 import esSettingsServerSettingsZoneComponent from './es/components/settings/settingsServerSettingsZoneComponent.json';
+import esSettingsUserGoalsZone from './es/components/settings/settingsUserGoals.json'
 import esGoalsListComponent from './es/components/settings/settingsUserGoalsZone/goalsListComponent.json';
 import esGoalsAddEditGoalModalComponent from './es/components/settings/settingsUserGoalsZone/goalsAddEditGoalModalComponent.json';
 // General components
@@ -261,6 +264,7 @@ import frUsersListComponent from './fr/components/settings/settingsUsersZone/use
 import frUsersPasswordRequirementsComponent from './fr/components/settings/settingsUsersZone/usersPasswordRequirementsComponent.json';
 import frUserSessionsListComponent from './fr/components/settings/settingsUserSessionsZone/userSessionsListComponent.json';
 import frSettingsServerSettingsZoneComponent from './fr/components/settings/settingsServerSettingsZoneComponent.json';
+import frSettingsUserGoalsZone from './fr/components/settings/settingsUserGoals.json'
 import frGoalsListComponent from './fr/components/settings/settingsUserGoalsZone/goalsListComponent.json';
 import frGoalsAddEditGoalModalComponent from './fr/components/settings/settingsUserGoalsZone/goalsAddEditGoalModalComponent.json';
 // General components
@@ -332,6 +336,7 @@ import nlUsersListComponent from './nl/components/settings/settingsUsersZone/use
 import nlUsersPasswordRequirementsComponent from './nl/components/settings/settingsUsersZone/usersPasswordRequirementsComponent.json';
 import nlUserSessionsListComponent from './nl/components/settings/settingsUserSessionsZone/userSessionsListComponent.json';
 import nlSettingsServerSettingsZoneComponent from './nl/components/settings/settingsServerSettingsZoneComponent.json';
+import nlSettingsUserGoalsZone from './nl/components/settings/settingsUserGoals.json'
 import nlGoalsListComponent from './nl/components/settings/settingsUserGoalsZone/goalsListComponent.json';
 import nlGoalsAddEditGoalModalComponent from './nl/components/settings/settingsUserGoalsZone/goalsAddEditGoalModalComponent.json';
 // General components
@@ -403,6 +408,7 @@ import ptUsersListComponent from './pt/components/settings/settingsUsersZone/use
 import ptUsersPasswordRequirementsComponent from './pt/components/settings/settingsUsersZone/usersPasswordRequirementsComponent.json';
 import ptUserSessionsListComponent from './pt/components/settings/settingsUserSessionsZone/userSessionsListComponent.json';
 import ptSettingsServerSettingsZoneComponent from './pt/components/settings/settingsServerSettingsZoneComponent.json';
+import ptSettingsUserGoalsZone from './pt/components/settings/settingsUserGoals.json'
 import ptGoalsListComponent from './pt/components/settings/settingsUserGoalsZone/goalsListComponent.json';
 import ptGoalsAddEditGoalModalComponent from './pt/components/settings/settingsUserGoalsZone/goalsAddEditGoalModalComponent.json';
 // General components
@@ -547,6 +553,7 @@ const messages = {
 		usersPasswordRequirementsComponent: caUsersPasswordRequirementsComponent,
 		userSessionsListComponent: caUserSessionsListComponent,
 		settingsServerSettingsZoneComponent: caSettingsServerSettingsZoneComponent,
+		settingsUserGoalsZone: caSettingsUserGoalsZone,
 		goalsListComponent: caGoalsListComponent,
 		goalsAddEditGoalModalComponent: caGoalsAddEditGoalModalComponent,
 		// General components
@@ -617,6 +624,7 @@ const messages = {
 		usersPasswordRequirementsComponent: deUsersPasswordRequirementsComponent,
 		userSessionsListComponent: deUserSessionsListComponent,
 		settingsServerSettingsZoneComponent: deSettingsServerSettingsZoneComponent,
+		settingsUserGoalsZone: deSettingsUserGoalsZone,
 		goalsListComponent: deGoalsListComponent,
 		goalsAddEditGoalModalComponent: deGoalsAddEditGoalModalComponent,
 		// General components
@@ -687,6 +695,7 @@ const messages = {
 		usersPasswordRequirementsComponent: esUsersPasswordRequirementsComponent,
 		userSessionsListComponent: esUserSessionsListComponent,
 		settingsServerSettingsZoneComponent: esSettingsServerSettingsZoneComponent,
+		settingsUserGoalsZone: esSettingsUserGoalsZone,
 		goalsListComponent: esGoalsListComponent,
 		goalsAddEditGoalModalComponent: esGoalsAddEditGoalModalComponent,
 		// General components
@@ -757,6 +766,7 @@ const messages = {
 		usersPasswordRequirementsComponent: frUsersPasswordRequirementsComponent,
 		userSessionsListComponent: frUserSessionsListComponent,
 		settingsServerSettingsZoneComponent: frSettingsServerSettingsZoneComponent,
+		settingsUserGoalsZone: frSettingsUserGoalsZone,
 		goalsListComponent: frGoalsListComponent,
 		goalsAddEditGoalModalComponent: frGoalsAddEditGoalModalComponent,
 		// General components
@@ -827,6 +837,7 @@ const messages = {
 		usersPasswordRequirementsComponent: nlUsersPasswordRequirementsComponent,
 		userSessionsListComponent: nlUserSessionsListComponent,
 		settingsServerSettingsZoneComponent: nlSettingsServerSettingsZoneComponent,
+		settingsUserGoalsZone: nlSettingsUserGoalsZone,
 		goalsListComponent: nlGoalsListComponent,
 		goalsAddEditGoalModalComponent: nlGoalsAddEditGoalModalComponent,
 		// General components
@@ -897,6 +908,7 @@ const messages = {
 		usersPasswordRequirementsComponent: ptUsersPasswordRequirementsComponent,
 		userSessionsListComponent: ptUserSessionsListComponent,
 		settingsServerSettingsZoneComponent: ptSettingsServerSettingsZoneComponent,
+		settingsUserGoalsZone: ptSettingsUserGoalsZone,
 		goalsListComponent: ptGoalsListComponent,
 		goalsAddEditGoalModalComponent: ptGoalsAddEditGoalModalComponent,
 		// General components
