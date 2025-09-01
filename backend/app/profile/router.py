@@ -21,6 +21,9 @@ import users.user_integrations.schema as users_integrations_schema
 import users.user_default_gear.crud as user_default_gear_crud
 import users.user_default_gear.schema as user_default_gear_schema
 
+import users.user_goals.crud as user_goals_crud
+import users.user_goals.schema as user_goals_schema
+
 import users.user_privacy_settings.crud as users_privacy_settings_crud
 import users.user_privacy_settings.schema as users_privacy_settings_schema
 
@@ -374,7 +377,7 @@ async def export_profile_data(
     """
     Exports all profile-related data for the authenticated user as a ZIP archive.
 
-    This endpoint collects and packages the user's activities, associated files (such as GPX/FIT tracks), laps, sets, streams, workout steps, exercise titles, gears, health data, health targets, user information, user images, default gear, integrations, and privacy settings into a single ZIP file. The resulting archive contains JSON files for structured data and includes any relevant user or activity files found on disk.
+    This endpoint collects and packages the user's activities, associated files (such as GPX/FIT tracks), laps, sets, streams, workout steps, exercise titles, gears, health data, health targets, user information, user images, default gear, integrations, goals, and privacy settings into a single ZIP file. The resulting archive contains JSON files for structured data and includes any relevant user or activity files found on disk.
 
     Args:
         token_user_id (int): The ID of the authenticated user, extracted from the access token.
@@ -454,6 +457,7 @@ async def export_profile_data(
         "user": 1,
         "user_default_gear": 0,
         "user_integrations": 0,
+        "user_goals": 0,
         "user_privacy_settings": 0,
     }
 
@@ -468,7 +472,7 @@ async def export_profile_data(
             3. Gear and gear components information in JSON format.
             4. Health data and health targets in JSON format.
             5. User profile information (excluding password) and user images.
-            6. User default gear, integrations, and privacy settings in JSON format.
+            6. User default gear, integrations, goals, and privacy settings in JSON format.
             7. A counts.json file with statistics about the included files.
 
         The function streams the ZIP file in chunks for efficient memory usage.
@@ -609,6 +613,9 @@ async def export_profile_data(
                         token_user_id, db
                     )
                 )
+                user_goals = user_goals_crud.get_user_goals_by_user_id(
+                    token_user_id, db
+                )
                 user_privacy_settings = (
                     users_privacy_settings_crud.get_user_privacy_settings_by_user_id(
                         token_user_id, db
@@ -630,6 +637,7 @@ async def export_profile_data(
                     (health_targets, "data/health_targets.json"),
                     (user_default_gear, "data/user_default_gear.json"),
                     (user_integrations, "data/user_integrations.json"),
+                    (user_goals, "data/user_goals.json"),
                     (user_privacy_settings, "data/user_privacy_settings.json"),
                     (counts, "counts.json"),
                 ]
@@ -1040,7 +1048,9 @@ async def import_profile_data(
                             # Extract the part after the underscore
                             filename = old_path.split("/")[-1]
                             suffix = filename.split("_", 1)[1]
-                            media_data["media_path"] = f"{core_config.ACTIVITY_MEDIA_DIR}/{new_activity.id}_{suffix}"
+                            media_data["media_path"] = (
+                                f"{core_config.ACTIVITY_MEDIA_DIR}/{new_activity.id}_{suffix}"
+                            )
                         # convert activity data to ActivityMedia schema
                         media_item = activity_media_schema.ActivityMedia(**media_data)
                         # add the media item to the media list

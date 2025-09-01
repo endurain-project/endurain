@@ -33,7 +33,7 @@ async def get_user_goals(
     Returns:
         List[UserGoalRead]: A list of user goal objects for the authenticated user.
     """
-    return user_goals_crud.get_user_goals(token_user_id, db)
+    return user_goals_crud.get_user_goals_by_user_id(token_user_id, db)
 
 
 @router.get("/results", response_model=List[user_goals_schema.UserGoalProgress] | None)

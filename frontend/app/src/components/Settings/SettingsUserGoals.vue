@@ -37,8 +37,8 @@ import { push } from "notivue";
 
 import LoadingComponent from "@/components/GeneralComponents/LoadingComponent.vue";
 import NoItemsFoundComponents from "@/components/GeneralComponents/NoItemsFoundComponents.vue";
-import GoalsAddEditGoalModalComponent from "@/components/Settings/settingsUserGoalsZone/GoalsAddEditGoalModalComponent.vue";
-import GoalsListComponent from "@/components/Settings/settingsUserGoalsZone/GoalsListComponent.vue";
+import GoalsAddEditGoalModalComponent from "@/components/Settings/SettingsUserGoalsZone/GoalsAddEditGoalModalComponent.vue";
+import GoalsListComponent from "@/components/Settings/SettingsUserGoalsZone/GoalsListComponent.vue";
 
 import { userGoals as userGoalService } from '@/services/userGoalsService';
 

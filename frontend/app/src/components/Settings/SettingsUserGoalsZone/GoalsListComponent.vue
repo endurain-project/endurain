@@ -7,7 +7,7 @@
 				<font-awesome-icon icon="fa-solid fa-person-biking" size="2x" v-else-if="goal.activity_type == 2" />
 				<font-awesome-icon class="ms-1" icon="fa-solid fa-person-swimming" size="2x"
 					v-else-if="goal.activity_type == 3" />
-				<font-awesome-icon class="ms-3 me-1" icon="fa-solid fa-person-walking" size="2x"
+				<font-awesome-icon class="ms-2 me-2" icon="fa-solid fa-person-walking" size="2x"
 					v-else-if="goal.activity_type == 4" />
 				<font-awesome-icon icon="fa-solid fa-dumbbell" size="2x" v-else />
 				<div class="ms-3">
@@ -89,7 +89,7 @@ import { useI18n } from "vue-i18n";
 import { push } from "notivue";
 
 import ModalComponent from "@/components/Modals/ModalComponent.vue";
-import GoalsAddEditGoalModalComponent from "@/components/Settings/settingsUserGoalsZone/GoalsAddEditGoalModalComponent.vue";
+import GoalsAddEditGoalModalComponent from "@/components/Settings/SettingsUserGoalsZone/GoalsAddEditGoalModalComponent.vue";
 
 import { metersToKm, metersToMiles, metersToFeet } from "@/utils/unitsUtils";
 

@@ -1,6 +1,5 @@
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
-from sqlalchemy.exc import IntegrityError
 from typing import List
 from datetime import datetime
 
@@ -11,7 +10,7 @@ import users.user_goals.utils as user_goals_utils
 import core.logger as core_logger
 
 
-def get_user_goals(
+def get_user_goals_by_user_id(
     user_id: int, db: Session
 ) -> List[user_goals_models.UserGoal] | None:
     """
@@ -39,7 +38,7 @@ def get_user_goals(
         raise http_err
     except Exception as err:
         # Log the exception
-        core_logger.print_to_log(f"Error in get_user_goals: {err}", "error", exc=err)
+        core_logger.print_to_log(f"Error in get_user_goals_by_user_id: {err}", "error", exc=err)
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
