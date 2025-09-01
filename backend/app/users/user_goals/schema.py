@@ -322,6 +322,7 @@ class UserGoalProgress(BaseModel):
     goal_type: GoalType
     start_date: str
     end_date: str
+    percentage_completed: NonNegInt | None = None
     # total
     total_calories: NonNegInt | None = None
     total_activities_number: NonNegInt | None = None

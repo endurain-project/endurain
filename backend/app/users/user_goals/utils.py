@@ -37,6 +37,7 @@ def calculate_goal_progress_by_activity_type(
         )
         
         # Calculate totals based on goal type
+        percentage_completed = 0
         total_calories = 0
         total_activities_number = 0
         total_distance = 0
@@ -46,12 +47,16 @@ def calculate_goal_progress_by_activity_type(
         if activities:
             if goal.goal_type == user_goals_schema.GoalType.CALORIES:
                 total_calories = sum(activity.calories or 0 for activity in activities)
+                percentage_completed = (total_calories / goal.goal_calories) * 100
             elif goal.goal_type == user_goals_schema.GoalType.DISTANCE:
                 total_distance = sum(activity.distance or 0 for activity in activities)
+                percentage_completed = (total_distance / goal.goal_distance) * 100
             elif goal.goal_type == user_goals_schema.GoalType.ELEVATION:
                 total_elevation = sum(activity.elevation_gain or 0 for activity in activities)
+                percentage_completed = (total_elevation / goal.goal_elevation) * 100
             elif goal.goal_type == user_goals_schema.GoalType.DURATION:
                 total_duration = sum(activity.total_elapsed_time or 0 for activity in activities)
+                percentage_completed = (total_duration / goal.goal_duration) * 100
 
         # Create and return the progress object
         return user_goals_schema.UserGoalProgress(
@@ -61,6 +66,7 @@ def calculate_goal_progress_by_activity_type(
             goal_type=goal.goal_type,
             start_date=start_date.strftime("%Y-%m-%d"),
             end_date=end_date.strftime("%Y-%m-%d"),
+            percentage_completed=round(percentage_completed),
             total_calories=total_calories,
             total_activities_number=total_activities_number,
             total_distance=total_distance,

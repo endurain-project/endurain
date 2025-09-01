@@ -23,9 +23,9 @@
 					<div v-if="isLoading">
 						<LoadingComponent />
 					</div>
-					<UserDistanceStatsComponent 
+					<UserDistanceStatsComponent v-else
 						:thisWeekDistances="thisWeekDistances"
-						:thisMonthDistances="thisMonthDistances" v-else />
+						:thisMonthDistances="thisMonthDistances" />
 				</div>
 
 				<!-- add activity and refresh buttons -->
@@ -109,6 +109,15 @@
 				</div>
 			</div>
 		</div>
+
+		<div class="col-lg-3">
+			<div class="d-none d-lg-block d-flex mb-3 rounded p-3 bg-body-tertiary shadow-sm">
+				<div v-if="isLoading">
+					<LoadingComponent />
+				</div>
+				<UserGoalsStatsComponent :goals="userGoals" v-else/>
+			</div>
+		</div>
 	</div>
 </template>
 
@@ -136,6 +145,7 @@ import { activityMedia } from "@/services/activityMediaService";
 import { push } from "notivue";
 // Importing the components
 import UserDistanceStatsComponent from "@/components/Users/UserDistanceStatsComponent.vue";
+import UserGoalsStatsComponent from "@/components/Users/UserGoalsStatsComponent.vue";
 import NoItemsFoundComponent from "@/components/GeneralComponents/NoItemsFoundComponents.vue";
 import ActivitySummaryComponent from "@/components/Activities/ActivitySummaryComponent.vue";
 import ActivityMapComponent from "@/components/Activities/ActivityMapComponent.vue";

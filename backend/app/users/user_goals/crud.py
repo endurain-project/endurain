@@ -139,7 +139,6 @@ def create_user_goal(user_id: int, user_goal: user_goals_schema.UserGoalCreate, 
             goal_distance=user_goal.goal_distance,
             goal_elevation=user_goal.goal_elevation,
             goal_duration=user_goal.goal_duration,
-            goal_steps=user_goal.goal_steps,
         )
         db.add(db_user_goal)
         db.commit()

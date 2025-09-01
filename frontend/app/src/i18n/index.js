@@ -15,7 +15,6 @@ const componentPaths = {
 	'activitySummaryComponent': 'components/activities/activitySummaryComponent.json',
 	'activityWorkoutStepsComponent': 'components/activities/activityWorkoutStepsComponent.json',
 	'activitiesTableComponent': 'components/activities/activitiesTableComponent.json',
-	'userDistanceStats': 'components/users/userDistanceStatsComponent.json',
 	// Followers component
 	'followersListComponent': 'components/followers/followersListComponent.json',
 	// Gears component
@@ -56,6 +55,9 @@ const componentPaths = {
 	'settingsUserGoalsZone': 'components/settings/settingsUserGoals.json',
 	'goalsListComponent': 'components/settings/settingsUserGoalsZone/goalsListComponent.json',
 	'goalsAddEditGoalModalComponent': 'components/settings/settingsUserGoalsZone/goalsAddEditGoalModalComponent.json',
+	// Users components
+	'userDistanceStats': 'components/users/userDistanceStatsComponent.json',
+	"userGoalsStatsComponent": "components/users/userGoalsStatsComponent.json",
 	// General components
 	'noItemsFoundComponent': 'components/noItemsFoundComponent.json',
 	// General translations
