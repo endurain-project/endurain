@@ -70,12 +70,6 @@ def upgrade() -> None:
             nullable=True,
             comment="Goal duration in seconds (e.g., 3600 for 1 hours)",
         ),
-        sa.Column(
-            "goal_steps",
-            sa.Integer(),
-            nullable=True,
-            comment="Goal steps (e.g., 10000 for 10,000 steps)",
-        ),
         sa.ForeignKeyConstraint(["user_id"], ["users.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),
     )

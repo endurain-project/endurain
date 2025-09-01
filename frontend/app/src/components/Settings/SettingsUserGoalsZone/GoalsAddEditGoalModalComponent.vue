@@ -51,8 +51,6 @@
                             </option>
                             <option :value="5">{{ $t("goalsAddEditGoalModalComponent.addEditGoalModalDurationLabel") }}
                             </option>
-                            <option :value="6">{{ $t("goalsAddEditGoalModalComponent.addEditGoalModalStepsLabel") }}
-                            </option>
                         </select>
                         <!-- calories fields -->
                         <div v-if="newEditGoalType === 1">
@@ -129,14 +127,6 @@
                                 :placeholder='$t("goalsAddEditGoalModalComponent.addEditGoalModalDurationPlaceholder")'
                                 v-model="newEditGoalDuration">
                         </div>
-                        <!-- steps fields -->
-                        <div v-if="newEditGoalType === 6">
-                            <label for="goalStepsAddEdit"><b>{{
-                                $t("goalsAddEditGoalModalComponent.addEditGoalModalStepsLabel") }}</b></label>
-                            <input class="form-control" type="number" name="goalStepsAddEdit"
-                                :placeholder='$t("goalsAddEditGoalModalComponent.addEditGoalModalStepsPlaceholder")'
-                                v-model="newEditGoalSteps">
-                        </div>
 
                         <p>* {{ $t("generalItems.requiredField") }}</p>
                     </div>
@@ -191,7 +181,6 @@ const newEditGoalDistanceImperial = ref(null);
 const newEditGoalElevationMetric = ref(null);
 const newEditGoalElevationImperial = ref(null);
 const newEditGoalDuration = ref(null);
-const newEditGoalSteps = ref(null);
 
 if (props.goal) {
     if (props.action === 'edit') {
@@ -206,7 +195,6 @@ if (props.goal) {
         newEditGoalElevationMetric.value = props.goal.goal_elevation;
         newEditGoalElevationImperial.value = metersToFeet(props.goal.goal_elevation);
         newEditGoalDuration.value = props.goal.goal_duration;
-        newEditGoalSteps.value = props.goal.goal_steps;
     }
 }
 
@@ -237,7 +225,6 @@ function setGoalObject() {
         goal_distance: distance,
         goal_elevation: elevation,
         goal_duration: newEditGoalDuration.value,
-        goal_steps: newEditGoalSteps.value,
     };
 }
 

@@ -78,8 +78,6 @@ class GoalType(IntEnum):
         Target elevation gain (units configured elsewhere, e.g., meters).
     duration (5)
         Target total duration (typically represented in seconds).
-    steps (6)
-        Target number of steps taken.
 
     Notes
     -----
@@ -104,7 +102,6 @@ class GoalType(IntEnum):
     DISTANCE = 3
     ELEVATION = 4
     DURATION = 5
-    STEPS = 6
 
 
 # goal_type -> field name
@@ -114,7 +111,6 @@ TYPE_TO_FIELD = {
     GoalType.DISTANCE: "goal_distance",
     GoalType.ELEVATION: "goal_elevation",
     GoalType.DURATION: "goal_duration",
-    GoalType.STEPS: "goal_steps",
 }
 
 # Non-negative int helper; attach constraint at the field level
@@ -147,8 +143,6 @@ class UserGoalBase(BaseModel):
         Target elevation gain or None.
     goal_duration : NonNegInt | None
         Target duration in seconds or None.
-    goal_steps : NonNegInt | None
-        Target step count or None.
 
     Validation behavior
     -------------------
@@ -199,7 +193,6 @@ class UserGoalBase(BaseModel):
     goal_distance: NonNegInt | None = None
     goal_elevation: NonNegInt | None = None
     goal_duration: NonNegInt | None = None
-    goal_steps: NonNegInt | None = None
 
     model_config = ConfigDict(
         from_attributes=True, extra="forbid", validate_assignment=True
@@ -323,23 +316,21 @@ class UserGoalRead(UserGoalBase):
 
 
 class UserGoalProgress(BaseModel):
-    goal_id: int
-    activity_type: int
-    activity_type_name: str
-    interval: str
+    goal_id: StrictInt
+    interval: Interval
+    activity_type: ActivityType
+    goal_type: GoalType
     start_date: str
     end_date: str
     # total
-    total_activities: int | None = 0
-    total_duration: int | None = 0
-    total_distance: int | None = 0
-    total_elevation: int | None = 0
-    total_calories: int | None = 0
-    total_steps: int | None = 0
+    total_calories: NonNegInt | None = None
+    total_activities_number: NonNegInt | None = None
+    total_distance: NonNegInt | None = None
+    total_elevation: NonNegInt | None = None
+    total_duration: NonNegInt | None = None
     # goal
-    goal_duration: int | None = 0
-    goal_distance: int | None = 0
-    goal_elevation: int | None = 0
-    goal_calories: int | None = 0
-    goal_steps: int | None = 0
-    goal_count: int | None = 0
+    goal_calories: NonNegInt | None = None
+    goal_activities_number: NonNegInt | None = None
+    goal_distance: NonNegInt | None = None
+    goal_elevation: NonNegInt | None = None
+    goal_duration: NonNegInt | None = None

@@ -53,8 +53,6 @@
 					<span v-if="goal.goal_type == 5">{{
 						$t("goalsAddEditGoalModalComponent.addEditGoalModalDurationLabel") }} - {{ goal.goal_duration
 						}}</span>
-					<span v-if="goal.goal_type == 6">{{ $t("goalsAddEditGoalModalComponent.addEditGoalModalStepsLabel")
-					}} - {{ goal.goal_steps }}</span>
 				</div>
 			</div>
 			<div>

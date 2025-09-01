@@ -59,11 +59,6 @@ class UserGoal(Base):
         nullable=True,
         comment="Goal duration in seconds (e.g., 3600 for 1 hours)",
     )
-    goal_steps = Column(
-        Integer,
-        nullable=True,
-        comment="Goal steps (e.g., 10000 for 10,000 steps)",
-    )
 
     # Relationship to User
     user = relationship("User", back_populates="goals")

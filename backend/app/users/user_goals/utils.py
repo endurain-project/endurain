@@ -15,78 +15,64 @@ def calculate_goal_progress_by_activity_type(
     goal: user_goals_models.UserGoal,
     date: str,
     db: Session,
-) -> user_goals_schema.UserGoalProgress:
-    """
-    Calculates the progress of a user's goal for a specific activity type within a given time interval.
-
-    Args:
-        goal (user_goals_models.UserGoal): The user goal object containing goal details.
-        date (str): The reference date (in 'YYYY-MM-DD' format) to determine the interval for progress calculation.
-        db (Session): The database session for querying user activities.
-
-    Returns:
-        user_goals_schema.UserGoalProgress: An object containing the progress metrics for the specified goal and activity type.
-
-    Raises:
-        HTTPException: If an error occurs during processing or database access.
-    """
+) -> user_goals_schema.UserGoalProgress | None:    
     try:
         start_date, end_date = get_start_end_date_by_interval(goal.interval, date)
-        activities = activity_crud.get_user_activities_per_timeframe_and_activity_type(
-            goal.user_id, goal.activity_type, start_date, end_date, db
+
+        # Define activity type mappings
+        TYPE_MAP = {
+            user_goals_schema.ActivityType.RUN: [1, 2, 3, 34],
+            user_goals_schema.ActivityType.BIKE: [4, 5, 6, 7, 27, 28, 29],
+            user_goals_schema.ActivityType.SWIM: [8, 9],
+            user_goals_schema.ActivityType.WALK: [11, 12],
+        }
+        DEFAULT_TYPES = (10, 19, 20)
+        
+        # Get activity types based on goal.activity_type, default to [10, 19, 20]
+        activity_types = TYPE_MAP.get(goal.activity_type, DEFAULT_TYPES)
+
+        # Fetch all activities in a single query
+        activities = activity_crud.get_user_activities_per_timeframe_and_activity_types(
+            goal.user_id, activity_types, start_date, end_date, db, True
         )
 
         if not activities:
-            return user_goals_schema.UserGoalProgress(
-                goal_id=goal.id,
-                interval=goal.interval,
-                activity_type=goal.activity_type,
-                goal_type=goal.goal_type,
-                activity_type_name=(
-                    ACTIVITY_ID_TO_NAME[goal.activity_type]
-                    if goal.activity_type
-                    else None
-                ),
-                start_date=start_date.strftime("%Y-%m-%d"),
-                end_date=end_date.strftime("%Y-%m-%d"),
-                goal_calories=goal.goal_calories,
-                goal_count=goal.goal_activities_number,
-                goal_distance=goal.goal_distance,
-                goal_elevation=goal.goal_elevation,
-                goal_duration=goal.goal_duration,
-                goal_steps=goal.goal_steps,
-            )
-
-        total_duration = sum(
-            activity.total_elapsed_time or 0 for activity in activities
-        )
-        total_distance = sum(activity.distance or 0 for activity in activities)
-        total_elevation = sum(activity.elevation_gain or 0 for activity in activities)
-        total_calories = sum(activity.calories or 0 for activity in activities)
-
+            return None
+        
+        # Calculate totals based on goal type
+        total_calories = None
+        total_distance = None
+        total_elevation = None
+        total_duration = None
+        
+        if goal.goal_type == user_goals_schema.GoalType.CALORIES:
+            total_calories = sum(activity.calories or 0 for activity in activities)
+        elif goal.goal_type == user_goals_schema.GoalType.DISTANCE:
+            total_distance = sum(activity.distance or 0 for activity in activities)
+        elif goal.goal_type == user_goals_schema.GoalType.ELEVATION:
+            total_elevation = sum(activity.elevation_gain or 0 for activity in activities)
+        elif goal.goal_type == user_goals_schema.GoalType.DURATION:
+            total_duration = sum(activity.total_elapsed_time or 0 for activity in activities)
+        
+        # Create and return the progress object
         return user_goals_schema.UserGoalProgress(
             goal_id=goal.id,
             interval=goal.interval,
             activity_type=goal.activity_type,
             goal_type=goal.goal_type,
-            activity_type_name=(
-                ACTIVITY_ID_TO_NAME[goal.activity_type] if goal.activity_type else None
-            ),
             start_date=start_date.strftime("%Y-%m-%d"),
             end_date=end_date.strftime("%Y-%m-%d"),
-            total_activities=len(activities),
             total_calories=total_calories,
-            total_duration=total_duration,
+            total_activities_number=len(activities),
             total_distance=total_distance,
             total_elevation=total_elevation,
+            total_duration=total_duration,
             goal_calories=goal.goal_calories,
-            goal_count=goal.goal_activities_number,
+            goal_activities_number=goal.goal_activities_number,
             goal_distance=goal.goal_distance,
             goal_elevation=goal.goal_elevation,
             goal_duration=goal.goal_duration,
-            goal_steps=goal.goal_steps,
         )
-
     except HTTPException as http_err:
         raise http_err
     except Exception as err:
@@ -107,21 +93,54 @@ def get_start_end_date_by_interval(
     interval: str, date: str
 ) -> tuple[datetime, datetime]:
     """
-    Calculates the start and end datetime objects for a given interval ('daily', 'weekly', or 'monthly') based on a provided date string.
+    Return the start and end datetimes for the interval containing the given date.
 
-    Args:
-        interval (str): The interval type. Must be one of 'daily', 'weekly', or 'monthly'.
-        date (str): The reference date in 'YYYY-MM-DD' format.
+    Parameters
+    ----------
+    interval : str
+        One of "yearly", "monthly", "weekly", or "daily". Determines how the window is aligned:
+        - "yearly": calendar year containing the date
+        - "monthly": calendar month containing the date
+        - "weekly": ISO week starting on Monday containing the date
+        - "daily": the given calendar day
+    date : str
+        Date string in "YYYY-MM-DD" format. This is parsed with datetime.strptime(date, "%Y-%m-%d").
 
-    Returns:
-        tuple[datetime, datetime]: A tuple containing the start and end datetime objects for the specified interval.
+    Returns
+    -------
+    tuple[datetime, datetime]
+        A pair (start_date, end_date) where:
+        - start_date is the beginning of the requested interval (00:00:00 on the start day),
+        - end_date is the last second of the requested interval (23:59:59 on the end day).
+        Both datetimes are naive (no tzinfo) and use second precision.
 
-    Raises:
-        HTTPException: If the interval specified is not one of the accepted values.
+    Raises
+    ------
+    HTTPException
+        Raises an HTTPException with status_code=400 if an unsupported interval string is provided.
+
+    Notes
+    -----
+    - "yearly": start is January 1st of the date's year at 00:00:00; end is the last second of December 31st.
+    - "monthly": start is the first day of the month at 00:00:00; end is the last second of that month.
+    - "weekly": start is the Monday of the week at 00:00:00; end is the following Sunday at 23:59:59.
+    - "daily": start is the date at 00:00:00; end is the date at 23:59:59.
+    - The implementation computes month/year boundaries by advancing to the next period and
+      subtracting one second; if you need timezone-aware behavior or sub-second precision,
+      convert inputs/outputs to timezone-aware datetimes and adjust the logic accordingly.
+
+    Examples
+    --------
+    >>> get_start_end_date_by_interval("daily", "2023-03-15")
+    (datetime(2023, 3, 15, 0, 0, 0), datetime(2023, 3, 15, 23, 59, 59))
     """
     date_obj = datetime.strptime(date, "%Y-%m-%d")
-
-    if interval == "weekly":
+    if interval == "yearly":
+        start_date = date_obj.replace(month=1, day=1)
+        end_date = (start_date + timedelta(days=365)).replace(day=1) - timedelta(
+            seconds=1
+        )  # Last day of the year
+    elif interval == "weekly":
         start_date = date_obj - timedelta(days=date_obj.weekday())  # Monday
         end_date = start_date + timedelta(
             days=6, hours=23, minutes=59, seconds=59

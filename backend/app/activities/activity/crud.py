@@ -516,6 +516,62 @@ def get_user_activities_per_timeframe_and_activity_type(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal Server Error",
         ) from err
+    
+
+def get_user_activities_per_timeframe_and_activity_types(
+    user_id: int,
+    activity_types: list[int],
+    start: datetime,
+    end: datetime,
+    db: Session,
+    user_is_owner: bool = False,
+):
+    try:
+        # Get the activities from the database
+        activities = (
+            db.query(activities_models.Activity)
+            .filter(
+                activities_models.Activity.user_id == user_id,
+                activities_models.Activity.activity_type.in_(activity_types),
+                func.date(activities_models.Activity.start_time) >= start.date(),
+                func.date(activities_models.Activity.start_time) <= end.date(),
+            )
+            .order_by(desc(activities_models.Activity.start_time))
+        ).all()
+
+        # Check if there are activities if not return None
+        if not activities:
+            return None
+
+        for activity in activities:
+            activity = activities_utils.serialize_activity(activity)
+
+            if not user_is_owner:
+                activity.private_notes = None
+                if activity.hide_start_time:
+                    activity.start_time = None
+                    activity.end_time = None
+                if activity.hide_location:
+                    activity.city = None
+                    activity.town = None
+                    activity.country = None
+                if activity.hide_gear:
+                    activity.gear_id = None
+                    activity.strava_gear_id = None
+                    activity.garminconnect_gear_id = None
+
+        # Return the activities
+        return activities
+    except Exception as err:
+        # Log the exception
+        core_logger.print_to_log(
+            f"Error in get_user_activities_per_timeframe_and_activity_types: {err}", "error", exc=err
+        )
+        # Raise an HTTPException with a 500 Internal Server Error status code
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal Server Error",
+        ) from err
 
 
 def get_user_following_activities_per_timeframe(
