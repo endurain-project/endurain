@@ -62,6 +62,7 @@ Endurain currently supports:
 - Third-party app support
 - Weight logging
 - Notification system
+- Define and track goals
 
 ## Planned Features
 
