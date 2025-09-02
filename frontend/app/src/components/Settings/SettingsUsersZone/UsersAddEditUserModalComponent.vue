@@ -458,7 +458,6 @@ async function submitEditUserForm() {
                 } else {
                     data.photo_path = await users.uploadImage(newEditUserPhotoFile.value, data.id);
                 }
-                console.log(data.photo_path)
             } catch (error) {
                 push.error(`${t("usersAddEditUserModalComponent.addEditUserModalErrorUploadingUserPhoto")} - ${error}`);
             }

@@ -2,7 +2,7 @@
 	<div class="row">
 		<!-- sidebar zone -->
 		<div class="col-lg-3 col-md-12">
-			<div class="sticky-sidebar">
+			<div>
 				<div class="d-none d-lg-block d-flex mb-3 rounded p-3 bg-body-tertiary shadow-sm">
 					<!-- user name and photo zone -->
 					<div v-if="isLoading">
@@ -111,7 +111,7 @@
 		</div>
 
 		<div class="col-lg-3">
-			<div class="sticky-sidebar">
+			<div>
 				<div class="d-none d-lg-block d-flex mb-3 rounded p-3 bg-body-tertiary shadow-sm">
 					<div v-if="isLoading">
 						<LoadingComponent />
@@ -122,15 +122,6 @@
 		</div>
 	</div>
 </template>
-
-<style scoped>
-.sticky-sidebar {
-	position: sticky;
-	top: 20px;
-	/* Adjust based on your layout */
-	z-index: 1000;
-}
-</style>
 
 <script setup>
 import { ref, onMounted, onUnmounted } from "vue";
@@ -190,7 +181,6 @@ async function fetchUserStars() {
 			authStore.user.id,
 		);
 		userGoals.value = await userGoalsService.getUserGoalResults();
-		console.log(userGoals.value);
 	} catch (error) {
 		// Set the error message
 		push.error(`${t("homeView.errorFetchingUserStats")} - ${error}`);

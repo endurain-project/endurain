@@ -1,6 +1,6 @@
 <template>
     <h5>Goals</h5>
-    <ul class="list-group list-group-flush" v-for="goal in goals" :key="goal.id">
+    <ul class="list-group list-group-flush" v-for="goal in goals" :key="goal.id" v-if="goals">
         <li class="list-group-item d-flex justify-content-between px-0 bg-body-tertiary">
             <div class="flex-grow-1">
                 <div>
@@ -51,6 +51,7 @@
             </div>
         </li>
     </ul>
+    <NoItemsFoundComponents :show-shadow="false" v-else/>
 </template>
 
 <script setup>
@@ -59,9 +60,11 @@ import { useAuthStore } from "@/stores/authStore";
 import { formatDistanceRaw, formatDuration } from "@/utils/activityUtils";
 import { metersToFeet } from "@/utils/unitsUtils";
 
+import NoItemsFoundComponents from "@/components/GeneralComponents/NoItemsFoundComponents.vue";
+
 const props = defineProps({
     goals: {
-        type: Object,
+        type: [Object, null],
         required: true,
     },
 });

@@ -89,7 +89,7 @@ async function loadTranslations() {
 		// Load all components for this locale
 		for (const [key, path] of Object.entries(componentPaths)) {
 			try {
-				const module = await import(`./${locale}/${path}`);
+				const module = await import(/* @vite-ignore */ `./${locale}/${path}`);
 				messages[locale][key] = module.default;
 			} catch (error) {
 				console.warn(`Failed to load ${locale}/${path}:`, error);

@@ -58,10 +58,8 @@
                 <div v-if="isLoading">
                     <LoadingComponent />
                 </div>
-                <UserDistanceStatsComponent 
-                    :thisWeekDistances="thisWeekDistances" 
-                    :thisMonthDistances="thisMonthDistances" 
-                    v-else/>
+                <UserDistanceStatsComponent :thisWeekDistances="thisWeekDistances"
+                    :thisMonthDistances="thisMonthDistances" v-else />
             </div>
         </div>
     </div>
@@ -93,7 +91,8 @@
             </button>
         </li>
         <li class="nav-item" role="presentation" v-if="userProfile.id == authStore.user.id">
-            <router-link :to="{ name: 'settings', query: { profileSettings: 1 }}" class="btn nav-link link-body-emphasis">
+            <router-link :to="{ name: 'settings', query: { profileSettings: 1 } }"
+                class="btn nav-link link-body-emphasis">
                 <font-awesome-icon :icon="['fas', 'fa-gear']" />
                 {{ $t("userView.navigationUserSettings") }}
             </router-link>
@@ -107,9 +106,12 @@
             </a>
 
             <!-- Modal follow user -->
-            <ModalComponent modalId="followUserModal" :title="t('userView.modalFollowUserTitle')" :body="`${t('userView.modalFollowUserBody')}<b>${userProfile.name}</b>?`" :actionButtonType="`success`" :actionButtonText="t('userView.modalFollowUserTitle')" @submitAction="submitFollowUser"/>
+            <ModalComponent modalId="followUserModal" :title="t('userView.modalFollowUserTitle')"
+                :body="`${t('userView.modalFollowUserBody')}<b>${userProfile.name}</b>?`" :actionButtonType="`success`"
+                :actionButtonText="t('userView.modalFollowUserTitle')" @submitAction="submitFollowUser" />
         </li>
-        <li class="nav-item" role="presentation" v-if="userProfile.id != authStore.user.id && userFollowState != null && !userFollowState.is_accepted">
+        <li class="nav-item" role="presentation"
+            v-if="userProfile.id != authStore.user.id && userFollowState != null && !userFollowState.is_accepted">
             <!-- Cancel follow request button -->
             <a class="btn btn-outline-secondary h-100 ms-2" href="#" role="button" data-bs-toggle="modal"
                 data-bs-target="#cancelFollowUserModal">
@@ -118,9 +120,13 @@
             </a>
 
             <!-- Modal cancel follow request -->
-            <ModalComponent modalId="cancelFollowUserModal" :title="t('userView.modalCancelFollowRequestTitle')" :body="`${t('userView.modalCancelFollowRequestBody')}<b>${userProfile.name}</b>?`" :actionButtonType="`danger`" :actionButtonText="t('userView.modalCancelFollowRequestTitle')" @submitAction="submitCancelFollowUser"/>
+            <ModalComponent modalId="cancelFollowUserModal" :title="t('userView.modalCancelFollowRequestTitle')"
+                :body="`${t('userView.modalCancelFollowRequestBody')}<b>${userProfile.name}</b>?`"
+                :actionButtonType="`danger`" :actionButtonText="t('userView.modalCancelFollowRequestTitle')"
+                @submitAction="submitCancelFollowUser" />
         </li>
-        <li class="nav-item" role="presentation" v-if="userProfile.id != authStore.user.id && userFollowState != null && userFollowState.is_accepted">
+        <li class="nav-item" role="presentation"
+            v-if="userProfile.id != authStore.user.id && userFollowState != null && userFollowState.is_accepted">
             <!-- Unfollow user button -->
             <a class="btn btn-outline-danger h-100 ms-2" href="#" role="button" data-bs-toggle="modal"
                 data-bs-target="#unfollowUserModal">
@@ -129,7 +135,9 @@
             </a>
 
             <!-- Modal unfollow user -->
-            <ModalComponent modalId="unfollowUserModal" :title="t('userView.modalUnfollowUserTitle')" :body="`${t('userView.modalUnfollowUserBody')}<b>${userProfile.name}</b>?`" :actionButtonType="`danger`" :actionButtonText="t('userView.modalUnfollowUserTitle')" @submitAction="submitUnfollowUser"/>
+            <ModalComponent modalId="unfollowUserModal" :title="t('userView.modalUnfollowUserTitle')"
+                :body="`${t('userView.modalUnfollowUserBody')}<b>${userProfile.name}</b>?`" :actionButtonType="`danger`"
+                :actionButtonText="t('userView.modalUnfollowUserTitle')" @submitAction="submitUnfollowUser" />
         </li>
     </ul>
 
@@ -138,11 +146,12 @@
     </div>
     <div class="tab-content" id="pills-tabContent" v-else>
         <!-- activities tab content -->
-        <div class="tab-pane fade show active" id="pills-activities" role="tabpanel" aria-labelledby="pills-activities-tab" tabindex="0">
+        <div class="tab-pane fade show active" id="pills-activities" role="tabpanel"
+            aria-labelledby="pills-activities-tab" tabindex="0">
             <!-- pagination -->
             <nav>
                 <ul class="pagination justify-content-center">
-                    <li :class="['page-item', { active: week === 0 }]" >
+                    <li :class="['page-item', { active: week === 0 }]">
                         <a href="#" class="page-link link-body-emphasis" @click="setWeek(0, $event)">
                             {{ $t("userView.activitiesPaginationWeek0") }}
                         </a>
@@ -150,7 +159,7 @@
                     <li v-if="week > 2" class="page-item disabled">
                         <a class="page-link">...</a>
                     </li>
-                    <li v-for="i in visibleWeeks" :key="i" :class="['page-item', { active: i === week }]" >
+                    <li v-for="i in visibleWeeks" :key="i" :class="['page-item', { active: i === week }]">
                         <a href="#" class="page-link link-body-emphasis" @click="setWeek(i, $event)">
                             {{ formatDateRange(i) }}
                         </a>
@@ -158,7 +167,7 @@
                     <li v-if="week < 49" class="page-item disabled">
                         <a class="page-link">...</a>
                     </li>
-                    <li :class="['page-item', { active: week === 51 }]" >
+                    <li :class="['page-item', { active: week === 51 }]">
                         <a href="#" class="page-link link-body-emphasis" @click="setWeek(51, $event)">
                             {{ $t("userView.activitiesPaginationWeek51") }}
                         </a>
@@ -168,12 +177,14 @@
 
             <!-- Checking if userWeekActivities is loaded and has length -->
             <div v-if="userWeekActivities && userWeekActivities.length">
-            <!-- Iterating over userWeekActivities to display them -->
-                <div class="card mb-3 rounded border-0 bg-body-tertiary shadow-sm" v-for="activity in userWeekActivities" :key="activity.id">
+                <!-- Iterating over userWeekActivities to display them -->
+                <div class="card mb-3 rounded border-0 bg-body-tertiary shadow-sm"
+                    v-for="activity in userWeekActivities" :key="activity.id">
                     <div class="card-body">
-                        <ActivitySummaryComponent :activity="activity" :source="'home'" :units="userProfile.units"/>
+                        <ActivitySummaryComponent :activity="activity" :source="'home'" :units="userProfile.units" />
                     </div>
-                    <ActivityMapComponent class="mx-3 mb-3" :activity="activity" :source="'home'" v-if="activity && ((authStore.isAuthenticated && authStore.user.id === activity.user_id) || (activity.hide_map === false && authStore.isAuthenticated === false))"/>
+                    <ActivityMapComponent class="mx-3 mb-3" :activity="activity" :source="'home'"
+                        v-if="activity && ((authStore.isAuthenticated && authStore.user.id === activity.user_id) || (activity.hide_map === false && authStore.isAuthenticated === false))" />
                 </div>
             </div>
             <!-- Displaying a message or component when there are no activities -->
@@ -181,10 +192,12 @@
         </div>
 
         <!-- following tab content -->
-        <div class="tab-pane fade" id="pills-following" role="tabpanel" aria-labelledby="pills-following-tab" tabindex="0">
+        <div class="tab-pane fade" id="pills-following" role="tabpanel" aria-labelledby="pills-following-tab"
+            tabindex="0">
             <ul class="list-group list-group-flush w-100 rounded shadow-sm" v-if="followersAll && followersAll.length">
-                <li class="list-group-item d-flex justify-content-center align-items-center w-100 p-3 bg-body-tertiary" v-for="follower in followersAll" :key="follower.following_id">
-                    <FollowersListComponent :follower="follower" :type=1 @followingDeleted="updateFollowingList"/>
+                <li class="list-group-item d-flex justify-content-center align-items-center w-100 p-3 bg-body-tertiary"
+                    v-for="follower in followersAll" :key="follower.following_id">
+                    <FollowersListComponent :follower="follower" :type=1 @followingDeleted="updateFollowingList" />
                 </li>
             </ul>
             <!-- Displaying a message or component when there are no following users -->
@@ -192,10 +205,13 @@
         </div>
 
         <!-- followers tab content -->
-        <div class="tab-pane fade" id="pills-followers" role="tabpanel" aria-labelledby="pills-followers-tab" tabindex="0">
+        <div class="tab-pane fade" id="pills-followers" role="tabpanel" aria-labelledby="pills-followers-tab"
+            tabindex="0">
             <ul class="list-group list-group-flush w-100 rounded shadow-sm" v-if="followingAll && followingAll.length">
-                <li class="list-group-item d-flex justify-content-center align-items-center w-100 p-3 bg-body-tertiary" v-for="follower in followingAll" :key="follower.follower_id">
-                    <FollowersListComponent :follower="follower" :type=2 @followerDeleted="updateFollowerList" @followerAccepted="updateFollowerListWithAccepted"/>
+                <li class="list-group-item d-flex justify-content-center align-items-center w-100 p-3 bg-body-tertiary"
+                    v-for="follower in followingAll" :key="follower.follower_id">
+                    <FollowersListComponent :follower="follower" :type=2 @followerDeleted="updateFollowerList"
+                        @followerAccepted="updateFollowerListWithAccepted" />
                 </li>
             </ul>
             <!-- Displaying a message or component when there are no following users -->
@@ -217,7 +233,6 @@ import { useAuthStore } from '@/stores/authStore';
 import { users } from '@/services/usersService';
 import { activities } from '@/services/activitiesService';
 import { followers } from '@/services/followersService';
-import { userGoals as userGoalsService } from "@/services/userGoalsService";
 // Import Notivue push
 import { push } from 'notivue'
 // Importing the components
@@ -237,7 +252,6 @@ const route = useRoute();
 const userProfile = ref(null);
 const thisWeekDistances = ref([]);
 const thisMonthDistances = ref([]);
-const userGoals = ref([]);
 const thisMonthNumberOfActivities = ref(0);
 const followersCountAccepted = ref(0);
 const followingCountAccepted = ref(0);
@@ -260,7 +274,6 @@ async function fetchUserStars() {
     try {
         thisWeekDistances.value = await activities.getUserThisWeekStats(authStore.user.id);
         thisMonthDistances.value = await activities.getUserThisMonthStats(authStore.user.id);
-        userGoals.value = await userGoalsService.getUserGoalResults();
     } catch (error) {
         // Set the error message
         push.error(`${t('userView.errorFetchingUserStats')} - ${error}`)
@@ -353,7 +366,7 @@ async function setWeek(newWeek, event) {
     event.preventDefault();
     week.value = newWeek;
 
-    try{
+    try {
         userWeekActivities.value = await activities.getUserWeekActivities(userProfile.value.id, week.value);
     } catch (error) {
         // Set the error message
@@ -377,11 +390,11 @@ function updateFollowingList(deletedFollowingId) {
     push.success(t('userView.successFollowingDeleted'))
 }
 
-function updateFollowerList(deletedFollowerId){
+function updateFollowerList(deletedFollowerId) {
     if (authStore.user.id !== userProfile.value.id) {
         // will get the following to remove
         const auxFollowing = followingAll.value.find(follower => follower.following_id === deletedFollowerId);
-        
+
         // if the following is accepted, will decrease the count
         if (auxFollowing.is_accepted) {
             followingCountAccepted.value -= 1;
@@ -390,10 +403,10 @@ function updateFollowerList(deletedFollowerId){
         // will remove the following from the list
         followingAll.value = followingAll.value.filter(follower => follower.following_id !== deletedFollowerId);
         push.success(t('userView.successFollowerDeleted'))
-    }else{
+    } else {
         // will get the following to remove
         const auxFollowing = followingAll.value.find(follower => follower.follower_id === deletedFollowerId);
-        
+
         // if the following is accepted, will decrease the count
         if (auxFollowing.is_accepted) {
             followersCountAccepted.value -= 1;
@@ -406,7 +419,7 @@ function updateFollowerList(deletedFollowerId){
     }
 }
 
-function updateFollowerListWithAccepted(acceptedFollowerId){
+function updateFollowerListWithAccepted(acceptedFollowerId) {
     // will get the following to change the is_accepted
     followingAll.value = followingAll.value.map(follower => {
         if (follower.follower_id === acceptedFollowerId) {
@@ -423,12 +436,12 @@ function updateFollowerListWithAccepted(acceptedFollowerId){
 }
 
 async function submitFollowUser() {
-    try{
+    try {
         // Create the user follow
-        const newfollower = await followers.createUserFollowsSpecificUser(userProfile.value.id);
+        const newFollower = await followers.createUserFollowsSpecificUser(userProfile.value.id);
 
         // Add the user to the following list
-        followingAll.value.unshift(newfollower);
+        followingAll.value.unshift(newFollower);
 
         // Set the follower state
         userFollowState.value = 0;
@@ -441,7 +454,7 @@ async function submitFollowUser() {
     }
 }
 
-async function unfollowUser(){ 
+async function unfollowUser() {
     // Delete the user follow
     await followers.deleteUserFollower(userProfile.value.id);
 
