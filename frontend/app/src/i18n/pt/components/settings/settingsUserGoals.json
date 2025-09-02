@@ -1,7 +1,7 @@
 {
-    "addNewGoal": "Add new goal",
-    "labelNumberOfGoals1": "You have ",
-    "labelNumberOfGoals2": " goal(s) set:",
-    "successGoalDeleted": "Goal deleted successfully",
-    "errorFetchingGoals": "Error fetching goals"
+    "addNewGoal": "Adicionar novo objetivo",
+    "labelNumberOfGoals1": "Você tem ",
+    "labelNumberOfGoals2": " objetivo(s) definido(s):",
+    "successGoalDeleted": "Objetivo eliminado com sucesso",
+    "errorFetchingGoals": "Erro ao obter objetivos"
 }
