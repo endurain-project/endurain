@@ -63,6 +63,7 @@ Endurain currently supports:
 - Weight logging
 - Notification system
 - Define and track goals
+- MFA TOTP support
 
 ## Planned Features
 
