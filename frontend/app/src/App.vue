@@ -1,38 +1,44 @@
 <script setup>
-import { RouterView } from 'vue-router'
-import NavbarComponent from './components/Navbar/NavbarComponent.vue'
-import NavbarBottomMobileComponent from './components/Navbar/NavbarBottomMobileComponent.vue'
-import FooterComponent from './components/FooterComponent.vue'
-import { Notivue, Notification, NotivueSwipe, NotificationProgress, pastelTheme } from 'notivue'
+import { RouterView } from "vue-router";
+import NavbarComponent from "./components/Navbar/NavbarComponent.vue";
+import NavbarBottomMobileComponent from "./components/Navbar/NavbarBottomMobileComponent.vue";
+import FooterComponent from "./components/FooterComponent.vue";
+import {
+	Notivue,
+	Notification,
+	NotivueSwipe,
+	NotificationProgress,
+	pastelTheme,
+} from "notivue";
 </script>
 
 <template>
-  <Notivue v-slot="item">
-    <NotivueSwipe :item="item">
-      <Notification :item="item" :theme="pastelTheme">
-        <NotificationProgress :item="item" />
-      </Notification>
-    </NotivueSwipe>
-  </Notivue>
-  <div class="d-flex flex-column min-vh-100">
-    <!-- Top Navbar with safe-area padding -->
-    <div class="bg-body-tertiary shadow-sm safe-area-top">
-      <NavbarComponent class="container safe-area-container" />
-    </div>
+	<Notivue v-slot="item">
+		<NotivueSwipe :item="item">
+			<Notification :item="item" :theme="pastelTheme">
+				<NotificationProgress :item="item" />
+			</Notification>
+		</NotivueSwipe>
+	</Notivue>
+	<div class="d-flex flex-column min-vh-100">
+		<!-- Top Navbar with safe-area padding -->
+		<div class="bg-body-tertiary shadow-sm safe-area-top">
+			<NavbarComponent class="container safe-area-container"/>
+		</div>
 
-    <!-- Main content -->
-    <main class="container safe-area-container py-4 flex-grow-1">
-      <RouterView />
-    </main>
+		<!-- Main content -->
+		<main class="container safe-area-container py-4 flex-grow-1">
+			<RouterView />
+		</main>
 
-    <!-- Desktop Footer -->
-    <FooterComponent class="d-none d-lg-block shadow-sm" />
+		<!-- Desktop Footer -->
+		<FooterComponent class="d-none d-lg-block shadow-sm"/>
 
-    <!-- Bottom Mobile Navbar with safe-area padding -->
-    <NavbarBottomMobileComponent
-      class="d-lg-none d-block sticky-bottom shadow-sm safe-area-bottom"
-    />
-  </div>
+		<!-- Bottom Mobile Navbar with safe-area padding -->
+		<NavbarBottomMobileComponent 
+			class="d-lg-none d-block sticky-bottom shadow-sm safe-area-bottom"
+		/>
+	</div>
 </template>
 
 <style>

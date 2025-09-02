@@ -3,7 +3,9 @@
     <div class="container">
       <p class="text-center text-muted">
         &copy;
-        {{ new Date().getFullYear() === 2023 ? '2023' : '2023 - ' + new Date().getFullYear() }}
+        {{
+          new Date().getFullYear() === 2023 ? '2023' : '2023 - ' + new Date().getFullYear()
+        }}
         Endurain •
         <a
           class="link-body-emphasis"

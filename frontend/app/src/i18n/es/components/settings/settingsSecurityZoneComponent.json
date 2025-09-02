@@ -1,13 +1,13 @@
 {
-  "subtitleChangePassword": "Cambiar contraseña",
-  "changeUserPasswordBodyLabel": "Cambiar contraseña del usuario ",
-  "changeUserPasswordPasswordLabel": "Nueva contraseña",
-  "changeUserPasswordPasswordConfirmationLabel": "Confirmar nueva contraseña",
-  "changeUserPasswordFeedbackLabel": "La contraseña no cumple con los requisitos",
-  "changeUserPasswordPasswordsDoNotMatchFeedbackLabel": "Las contraseñas no coinciden",
-  "subtitleMySessions": "Mis sesiones",
-  "userChangePasswordSuccessMessage": "La contraseña ha sido cambiada correctamente",
-  "userChangePasswordErrorMessage": "Error al cambiar la contraseña",
-  "successDeleteSession": "Sesión eliminada exitosamente",
-  "errorDeleteSession": "Error al eliminar la sesión"
+    "subtitleChangePassword": "Cambiar contraseña",
+    "changeUserPasswordBodyLabel": "Cambiar contraseña del usuario ",
+    "changeUserPasswordPasswordLabel": "Nueva contraseña",
+    "changeUserPasswordPasswordConfirmationLabel": "Confirmar nueva contraseña",
+    "changeUserPasswordFeedbackLabel": "La contraseña no cumple con los requisitos",
+    "changeUserPasswordPasswordsDoNotMatchFeedbackLabel": "Las contraseñas no coinciden",
+    "subtitleMySessions": "Mis sesiones",
+    "userChangePasswordSuccessMessage": "La contraseña ha sido cambiada correctamente",
+    "userChangePasswordErrorMessage": "Error al cambiar la contraseña",
+    "successDeleteSession": "Sesión eliminada exitosamente",
+    "errorDeleteSession": "Error al eliminar la sesión"
 }

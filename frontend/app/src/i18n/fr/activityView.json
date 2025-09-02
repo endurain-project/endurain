@@ -1,13 +1,13 @@
 {
-  "labelGear": "Équipement",
-  "labelGearNotSet": "Non défini",
-  "modalLabelDeleteGear": "Supprimer un équipement de l'activité",
-  "modalLabelDeleteGearBody": "Êtes-vous sûr de vouloir retirer l'équipement de l'activité ?",
-  "modalLabelDeleteGearButton": "Supprimer l'équipement",
-  "successMessageGearAdded": "Équipement ajouté à l'activité",
-  "successMessageGearDeleted": "Équipement supprimé de l'activité",
-  "errorMessageDeleteGear": "Erreur lors de la suppression de l'équipement de l'activité",
-  "errorMessageActivityNotFound": "Activité non trouvée",
-  "alertPrivacyMessage": "Vous avez masqué des informations dans cette activité. Vous pouvez les voir, mais pas les autres.",
-  "isHiddenMessage": "This activity is hidden. Probably because it is a duplicate or was hidden by the user."
+    "labelGear": "Équipement",
+    "labelGearNotSet": "Non défini",
+    "modalLabelDeleteGear": "Supprimer un équipement de l'activité",
+    "modalLabelDeleteGearBody": "Êtes-vous sûr de vouloir retirer l'équipement de l'activité ?",
+    "modalLabelDeleteGearButton": "Supprimer l'équipement",
+    "successMessageGearAdded": "Équipement ajouté à l'activité",
+    "successMessageGearDeleted": "Équipement supprimé de l'activité",
+    "errorMessageDeleteGear": "Erreur lors de la suppression de l'équipement de l'activité",
+    "errorMessageActivityNotFound": "Activité non trouvée",
+    "alertPrivacyMessage": "Vous avez masqué des informations dans cette activité. Vous pouvez les voir, mais pas les autres.",
+    "isHiddenMessage": "This activity is hidden. Probably because it is a duplicate or was hidden by the user."
 }

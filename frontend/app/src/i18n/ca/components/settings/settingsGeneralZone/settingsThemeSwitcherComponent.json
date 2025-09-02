@@ -1,6 +1,6 @@
 {
-  "formLabel": "Tema",
-  "themeLight": "Clar",
-  "themeDark": "Fosc",
-  "themeAuto": "Auto"
+    "formLabel": "Tema",
+    "themeLight": "Clar",
+    "themeDark": "Fosc",
+    "themeAuto": "Auto"
 }

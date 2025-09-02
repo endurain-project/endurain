@@ -1,14 +1,14 @@
 {
-  "labelLapNumber": "Runde",
-  "labelLapIntensity": "Intensität",
-  "labelLapDistance": "Distanz",
-  "labelLapTime": "Zeit",
-  "labelLapPace": "Tempo",
-  "labelLapSpeed": "Geschwindigkeit",
-  "labelLapElevation": "Höhe",
-  "labelLapElev": "Höhe",
-  "labelLapAvgHr": "Durchschnittliche Herzfrequenz",
-  "labelLapHR": "HF",
-  "labelLapStrokeRate": "Schlagzahl",
-  "labelLapSR": "SZ"
+    "labelLapNumber": "Runde",
+    "labelLapIntensity": "Intensität",
+    "labelLapDistance": "Distanz",
+    "labelLapTime": "Zeit",
+    "labelLapPace": "Tempo",
+    "labelLapSpeed": "Geschwindigkeit",
+    "labelLapElevation": "Höhe",
+    "labelLapElev": "Höhe",
+    "labelLapAvgHr": "Durchschnittliche Herzfrequenz",
+    "labelLapHR": "HF",
+    "labelLapStrokeRate": "Schlagzahl",
+    "labelLapSR": "SZ"
 }
