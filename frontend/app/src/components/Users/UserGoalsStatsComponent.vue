@@ -1,37 +1,38 @@
 <template>
-    <h5>Goals</h5>
+    <h5>{{ t("userGoalsStatsComponent.title") }}</h5>
     <ul class="list-group list-group-flush" v-for="goal in goals" :key="goal.id" v-if="goals">
         <li class="list-group-item d-flex justify-content-between px-0 bg-body-tertiary">
             <div class="flex-grow-1">
                 <div>
                     <span v-if="goal.activity_type == 1">{{ $t("userGoalsStatsComponent.activityTypeRun")
-                        }}</span>
+                    }}</span>
                     <span v-if="goal.activity_type == 2">{{ $t("userGoalsStatsComponent.activityTypeBike")
-                        }}</span>
+                    }}</span>
                     <span v-if="goal.activity_type == 3">{{
                         $t("userGoalsStatsComponent.activityTypeSwim")
-                        }}</span>
+                    }}</span>
                     <span v-if="goal.activity_type == 4">{{ $t("userGoalsStatsComponent.activityTypeWalk")
-                        }}</span>
+                    }}</span>
                     <span v-if="goal.activity_type == 5">{{ $t("userGoalsStatsComponent.activityTypeStrength")
-                        }}</span>
+                    }}</span>
                     <span> | </span>
                     <span v-if="goal.interval == 'daily'">{{ $t("userGoalsStatsComponent.intervalOption1")
-                        }}</span>
+                    }}</span>
                     <span v-if="goal.interval == 'weekly'">{{ $t("userGoalsStatsComponent.intervalOption2")
-                        }}</span>
+                    }}</span>
                     <span v-if="goal.interval == 'monthly'">{{ $t("userGoalsStatsComponent.intervalOption3")
-                        }}</span>
+                    }}</span>
                     <span v-if="goal.interval == 'yearly'">{{ $t("userGoalsStatsComponent.intervalOption4")
-                        }}</span>
+                    }}</span>
                     <br>
-                    <span v-if="goal.goal_type === 1">{{ goal.total_calories }} {{ $t("generalItems.unitsCalories") }}{{ $t("generalItems.ofWithSpaces") }}{{
-                        goal.goal_calories }} {{ $t("generalItems.unitsCalories") }}</span>
+                    <span v-if="goal.goal_type === 1">{{ goal.total_calories }} {{ $t("generalItems.unitsCalories") }}{{
+                        $t("generalItems.ofWithSpaces") }}{{
+                            goal.goal_calories }} {{ $t("generalItems.unitsCalories") }}</span>
                     <span v-if="goal.goal_type === 2">{{ goal.total_activities_number }}{{
                         $t("generalItems.ofWithSpaces") }}{{
                             goal.goal_activities_number }} {{ $t("userGoalsStatsComponent.activities") }}</span>
                     <span v-if="goal.goal_type === 3">{{ formatDistanceRaw(t, goal.total_distance, authStore.user.units)
-                    }}{{ $t("generalItems.ofWithSpaces") }}{{
+                        }}{{ $t("generalItems.ofWithSpaces") }}{{
                             formatDistanceRaw(t, goal.goal_distance, authStore.user.units) }}</span>
                     <span v-if="goal.goal_type === 4 && authStore.user.units === 1">{{ goal.total_elevation }}{{
                         $t("generalItems.ofWithSpaces") }}{{ goal.goal_elevation }} {{ $t("generalItems.unitsM")
@@ -51,7 +52,7 @@
             </div>
         </li>
     </ul>
-    <NoItemsFoundComponents :show-shadow="false" v-else/>
+    <NoItemsFoundComponents :show-shadow="false" v-else />
 </template>
 
 <script setup>
