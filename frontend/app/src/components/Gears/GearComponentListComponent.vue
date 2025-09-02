@@ -22,9 +22,9 @@
                 <span v-if="gearComponent.purchase_value"> - {{ gearComponent.purchase_value }}€ </span>
                 <br>
                 <span v-if="gearComponent.expected_kms && gear.gear_type !== 4">{{
-                    formatDistanceRaw(gearComponentDistance,
+                    formatDistanceRaw(t, gearComponentDistance,
                         authStore.user.units, true, false) }}{{ t('gearComponentListComponent.gearComponentOf') }}{{
-                        formatDistanceRaw(gearComponent.expected_kms, authStore.user.units)
+                        formatDistanceRaw(t, gearComponent.expected_kms, authStore.user.units)
                     }}</span>
                 <span v-if="gearComponent.expected_kms && gear.gear_type === 4">{{
                     formatSecondsToOnlyHours(gearComponentTime) }}{{ t('gearComponentListComponent.gearComponentOf')

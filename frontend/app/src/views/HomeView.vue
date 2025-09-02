@@ -2,7 +2,7 @@
 	<div class="row">
 		<!-- sidebar zone -->
 		<div class="col-lg-3 col-md-12">
-			<div class="sticky-sidebar">
+			<div>
 				<div class="d-none d-lg-block d-flex mb-3 rounded p-3 bg-body-tertiary shadow-sm">
 					<!-- user name and photo zone -->
 					<div v-if="isLoading">
@@ -23,8 +23,9 @@
 					<div v-if="isLoading">
 						<LoadingComponent />
 					</div>
-					<UserDistanceStatsComponent :thisWeekDistances="thisWeekDistances"
-						:thisMonthDistances="thisMonthDistances" v-else />
+					<UserDistanceStatsComponent v-else
+						:thisWeekDistances="thisWeekDistances"
+						:thisMonthDistances="thisMonthDistances" />
 				</div>
 
 				<!-- add activity and refresh buttons -->
@@ -108,17 +109,19 @@
 				</div>
 			</div>
 		</div>
+
+		<div class="col-lg-3">
+			<div>
+				<div class="d-none d-lg-block d-flex mb-3 rounded p-3 bg-body-tertiary shadow-sm">
+					<div v-if="isLoading">
+						<LoadingComponent />
+					</div>
+					<UserGoalsStatsComponent :goals="userGoals" v-else/>
+				</div>
+			</div>
+		</div>
 	</div>
 </template>
-
-<style scoped>
-.sticky-sidebar {
-	position: sticky;
-	top: 20px;
-	/* Adjust based on your layout */
-	z-index: 1000;
-}
-</style>
 
 <script setup>
 import { ref, onMounted, onUnmounted } from "vue";
@@ -129,11 +132,13 @@ import { useAuthStore } from "@/stores/authStore";
 import { useServerSettingsStore } from "@/stores/serverSettingsStore";
 // Import the services
 import { activities } from "@/services/activitiesService";
+import { userGoals as userGoalsService } from "@/services/userGoalsService";
 import { activityMedia } from "@/services/activityMediaService";
 // Import Notivue push
 import { push } from "notivue";
 // Importing the components
-import UserDistanceStatsComponent from "@/components/Activities/UserDistanceStatsComponent.vue";
+import UserDistanceStatsComponent from "@/components/Users/UserDistanceStatsComponent.vue";
+import UserGoalsStatsComponent from "@/components/Users/UserGoalsStatsComponent.vue";
 import NoItemsFoundComponent from "@/components/GeneralComponents/NoItemsFoundComponents.vue";
 import ActivitySummaryComponent from "@/components/Activities/ActivitySummaryComponent.vue";
 import ActivityMapComponent from "@/components/Activities/ActivityMapComponent.vue";
@@ -148,6 +153,7 @@ const selectedActivityView = ref("userActivities");
 const isLoading = ref(true);
 const thisWeekDistances = ref([]);
 const thisMonthDistances = ref([]);
+const userGoals = ref([]);
 const userNumberOfActivities = ref(0);
 const userActivities = ref([]);
 const activityMediaMap = ref({});
@@ -174,6 +180,7 @@ async function fetchUserStars() {
 		thisMonthDistances.value = await activities.getUserThisMonthStats(
 			authStore.user.id,
 		);
+		userGoals.value = await userGoalsService.getUserGoalResults();
 	} catch (error) {
 		// Set the error message
 		push.error(`${t("homeView.errorFetchingUserStats")} - ${error}`);

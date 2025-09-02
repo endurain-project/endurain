@@ -276,7 +276,7 @@ def serialize_activity(activity: activities_schema.Activity):
         if dt.tzinfo is None:
             dt = dt.replace(tzinfo=ZoneInfo("UTC"))
         return dt.astimezone(timezone).strftime("%Y-%m-%dT%H:%M:%S")
-    
+
     def convert_to_datetime_if_string(dt):
         if isinstance(dt, str):
             return datetime.fromisoformat(dt)
@@ -288,9 +288,13 @@ def serialize_activity(activity: activities_schema.Activity):
         else ZoneInfo(os.environ.get("TZ", "UTC"))
     )
 
-    activity.start_time_tz_applied = make_aware_and_format(activity.start_time, timezone)
+    activity.start_time_tz_applied = make_aware_and_format(
+        activity.start_time, timezone
+    )
     activity.end_time_tz_applied = make_aware_and_format(activity.end_time, timezone)
-    activity.created_at_tz_applied = make_aware_and_format(activity.created_at, timezone)
+    activity.created_at_tz_applied = make_aware_and_format(
+        activity.created_at, timezone
+    )
 
     # Convert to datetime objects if they are strings before calling astimezone
     start_time_dt = convert_to_datetime_if_string(activity.start_time)
@@ -866,15 +870,15 @@ def location_based_on_coordinates(latitude, longitude) -> dict | None:
         }
 
     # Throttle requests according to configured rate limit
-    if core_config.GEOCODES_MIN_INTERVAL > 0:
-        with core_config.GEOCODES_LOCK:
+    if core_config.REVERSE_GEO_MIN_INTERVAL > 0:
+        with core_config.REVERSE_GEO_LOCK:
             now = time.monotonic()
-            interval = core_config.GEOCODES_MIN_INTERVAL - (
-                now - core_config.GEOCODES_LAST_CALL
+            interval = core_config.REVERSE_GEO_MIN_INTERVAL - (
+                now - core_config.REVERSE_GEO_LAST_CALL
             )
             if interval > 0:
                 time.sleep(interval)
-            core_config.GEOCODES_LAST_CALL = time.monotonic()
+            core_config.REVERSE_GEO_LAST_CALL = time.monotonic()
 
     # Make the request and get the response
     try:
@@ -883,10 +887,7 @@ def location_based_on_coordinates(latitude, longitude) -> dict | None:
         response = requests.get(url, headers=headers, timeout=10)
         response.raise_for_status()
 
-        if (
-            core_config.REVERSE_GEO_PROVIDER == "geocode"
-            or core_config.REVERSE_GEO_PROVIDER == "nominatim"
-        ):
+        if core_config.REVERSE_GEO_PROVIDER in ("geocode", "nominatim"):
             # Get the data from the response
             data = response.json().get("address", {})
             # Return the location based on the coordinates

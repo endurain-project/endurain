@@ -31,6 +31,7 @@ import session.router as session_router
 import session.security as session_security
 import strava.router as strava_router
 import users.user.router as users_router
+import users.user_goals.router as user_goals_router
 import users.user.public_router as users_public_router
 import users.user.mfa_router as users_mfa_router
 import users.user_default_gear.router as user_default_gear_router
@@ -164,6 +165,15 @@ router.include_router(
 router.include_router(
     user_default_gear_router.router,
     prefix=core_config.ROOT_PATH + "/profile/default_gear",
+    tags=["profile"],
+    dependencies=[
+        Depends(session_security.validate_access_token),
+        Security(session_security.check_scopes, scopes=["profile"]),
+    ],
+)
+router.include_router(
+    user_goals_router.router,
+    prefix=core_config.ROOT_PATH + "/profile/goals",
     tags=["profile"],
     dependencies=[
         Depends(session_security.validate_access_token),

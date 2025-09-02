@@ -30,14 +30,14 @@
 							$t("settingsUsersZone.labelNumberOfUsers2") }}{{ usersArray.length }}{{
 								$t("settingsUsersZone.labelNumberOfUsers3") }}</span>
 
-						<!-- Displaying loading new gear if applicable -->
+						<!-- Displaying loading new user if applicable -->
 						<ul class="list-group list-group-flush" v-if="isLoadingNewUser">
 							<li class="list-group-item rounded">
 								<LoadingComponent />
 							</li>
 						</ul>
 
-						<!-- Displaying loading if gears are updating -->
+						<!-- Displaying loading if users are updating -->
 						<LoadingComponent v-if="isUsersUpdatingLoading" />
 
 						<!-- list zone -->
@@ -76,7 +76,7 @@ import { useServerSettingsStore } from "@/stores/serverSettingsStore";
 
 const { t } = useI18n();
 const serverSettingsStore = useServerSettingsStore();
-const isLoading = ref(true);
+const isLoading = ref(false);
 const isUsersUpdatingLoading = ref(false);
 const isLoadingNewUser = ref(false);
 const usersArray = ref([]);
@@ -149,6 +149,7 @@ function setIsLoadingNewUser(state) {
 }
 
 onMounted(async () => {
+	isLoading.value = true;
 	await fetchUsers();
 	isLoading.value = false;
 });

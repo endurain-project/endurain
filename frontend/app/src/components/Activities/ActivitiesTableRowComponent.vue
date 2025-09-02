@@ -8,24 +8,24 @@
             <span v-else>{{ activity.name }}</span>
         </router-link>
     </td>
-    <td>{{ formatLocation(activity) }}</td>
-    <td class="d-none d-md-table-cell">{{ formatDateTime(activity.start_time_tz_applied) }}</td>
-    <td class="d-none d-md-table-cell">{{ formatDuration(activity.total_timer_time) }}</td>
-    <td class="d-none d-md-table-cell">{{ formatDistance(activity, authStore.user.units) }}</td>
+    <td>{{ formatLocation(t, activity) }}</td>
+    <td class="d-none d-md-table-cell">{{ formatDateTime(t, activity.start_time_tz_applied) }}</td>
+    <td class="d-none d-md-table-cell">{{ formatDuration(t, activity.total_timer_time) }}</td>
+    <td class="d-none d-md-table-cell">{{ formatDistance(t, activity, authStore.user.units) }}</td>
     <td class="d-none d-md-table-cell">
         <span v-if="activityTypeIsRunning(activity) || activityTypeIsSwimming(activity) || activityTypeIsWalking(activity) || activityTypeIsRowing(activity)">
-            {{ formatPace(activity, authStore.user.units) }}
+            {{ formatPace(t, activity, authStore.user.units) }}
         </span>
         <span v-else-if="activityTypeIsCycling(activity)">
-            {{ formatAverageSpeed(activity, authStore.user.units) }}
+            {{ formatAverageSpeed(t, activity, authStore.user.units) }}
         </span>
         <span v-else>
             {{ $t('generalItems.labelNotApplicable') }}
         </span>
     </td>
-    <td class="d-none d-md-table-cell">{{ formatCalories(activity.calories) }}</td>
-    <td class="d-none d-md-table-cell">{{ formatElevation(activity.elevation_gain, authStore.user.units) }}</td>
-    <td class="d-none d-md-table-cell">{{ formatHr(activity.average_hr) }}</td>
+    <td class="d-none d-md-table-cell">{{ formatCalories(t, activity.calories) }}</td>
+    <td class="d-none d-md-table-cell">{{ formatElevation(t, activity.elevation_gain, authStore.user.units) }}</td>
+    <td class="d-none d-md-table-cell">{{ formatHr(t, activity.average_hr) }}</td>
 </template>
 
 <script setup>

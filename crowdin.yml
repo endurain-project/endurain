@@ -25,6 +25,8 @@ files:
     translation: /frontend/app/src/i18n/%two_letters_code%/components/notifications/%original_file_name%
   - source: /frontend/app/src/i18n/us/components/settings/*.json
     translation: /frontend/app/src/i18n/%two_letters_code%/components/settings/%original_file_name%
+  - source: /frontend/app/src/i18n/us/components/users/*.json
+    translation: /frontend/app/src/i18n/%two_letters_code%/components/users/%original_file_name%
   - source: /frontend/app/src/i18n/us/components/settings/settingsGeneralZone/*.json
     translation: /frontend/app/src/i18n/%two_letters_code%/components/settings/settingsGeneralZone/%original_file_name%
   - source: /frontend/app/src/i18n/us/components/settings/settingsIntegrationsZone/*.json

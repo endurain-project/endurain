@@ -53,7 +53,7 @@ def get_main_logger():
     return logging.getLogger("main_logger")
 
 
-def print_to_log(message: str, log_level: str = "info", exc: Exception = None):
+def print_to_log(message: str, log_level: str = "info", exc: Exception = None, context = None):
     """
     Logs a message at the specified log level using the main logger.
 

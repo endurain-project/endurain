@@ -64,7 +64,7 @@
                     <!-- add component zone -->
                     <button type="button" class="mt-2 w-100 btn btn-primary" data-bs-toggle="modal"
                         data-bs-target="#addGearComponentModal" :disabled="![1, 2, 4, 7].includes(gear?.gear_type)">
-                        {{ $t("gearView.buttonAddComponent") }}{{ $t("generalItems.betaTag") }}
+                        {{ $t("gearView.buttonAddComponent") }}
                     </button>
 
                     <!-- add component modal -->
@@ -148,10 +148,9 @@
                         <h5>{{ $t("gearView.titleComponents") }}</h5>
                         <span class="mb-1 ms-1" v-if="gearComponentsShowInactive">({{ gearComponents.length }})</span>
                         <span class="mb-1 ms-1" v-else>({{ gearComponentsActive.length }})</span>
-                        <span class="ms-1">{{ $t("generalItems.betaTag") }}</span>
                     </div>
                     <div class="dropdown">
-                        <button class="btn btn-link link-body-emphasis dropdown-toggle" type="button"
+                        <button class="btn btn-sm btn-link link-body-emphasis dropdown-toggle" type="button"
                             data-bs-toggle="dropdown" aria-expanded="false">
                             <font-awesome-icon :icon="['fas', 'filter']" />
                         </button>
