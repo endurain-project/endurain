@@ -150,7 +150,7 @@
                         <span class="mb-1 ms-1" v-else>({{ gearComponentsActive.length }})</span>
                     </div>
                     <div class="dropdown">
-                        <button class="btn btn-link link-body-emphasis dropdown-toggle" type="button"
+                        <button class="btn btn-sm btn-link link-body-emphasis dropdown-toggle" type="button"
                             data-bs-toggle="dropdown" aria-expanded="false">
                             <font-awesome-icon :icon="['fas', 'filter']" />
                         </button>
