@@ -3,6 +3,7 @@ from sqlalchemy import (
     Integer,
     String,
     Date,
+    Boolean
 )
 from sqlalchemy.orm import relationship
 from core.database import Base
@@ -77,13 +78,13 @@ class User(Base):
         comment="User currency (one digit)(1 - euro, 2 - dollar, 3 - pound)",
     )
     mfa_enabled = Column(
-        Integer,
+        Boolean,
         nullable=False,
-        default=0,
-        comment="Whether MFA is enabled for this user (0 - disabled, 1 - enabled)",
+        default=False,
+        comment="Whether MFA is enabled for this user",
     )
     mfa_secret = Column(
-        String(length=64),
+        String(length=512),
         nullable=True,
         comment="User MFA secret for TOTP generation (encrypted at rest)",
     )

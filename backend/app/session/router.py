@@ -20,7 +20,7 @@ import session.schema as session_schema
 
 import users.user.crud as users_crud
 import users.user.utils as users_utils
-import users.user.mfa_utils as user_mfa_utils
+import profile.utils as profile_utils
 
 import core.database as core_database
 
@@ -33,13 +33,13 @@ async def login_for_access_token(
     response: Response,
     request: Request,
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
-    db: Annotated[
-        Session,
-        Depends(core_database.get_db),
-    ],
     client_type: Annotated[str, Depends(session_security.header_client_type_scheme)],
     pending_mfa_store: Annotated[
         session_schema.PendingMFALogin, Depends(session_schema.get_pending_mfa_store)
+    ],
+    db: Annotated[
+        Session,
+        Depends(core_database.get_db),
     ],
 ):
     user = session_utils.authenticate_user(form_data.username, form_data.password, db)
@@ -48,7 +48,7 @@ async def login_for_access_token(
     users_utils.check_user_is_active(user)
 
     # Check if MFA is enabled for this user
-    if user_mfa_utils.is_mfa_enabled_for_user(user.id, db):
+    if profile_utils.is_mfa_enabled_for_user(user.id, db):
         # Store the user for pending MFA verification
         pending_mfa_store.add_pending_login(form_data.username, user.id)
         
@@ -60,7 +60,7 @@ async def login_for_access_token(
                 username=form_data.username,
                 message="MFA verification required"
             )
-        elif client_type == "mobile":
+        if client_type == "mobile":
             return {
                 "mfa_required": True,
                 "username": form_data.username,
@@ -72,7 +72,6 @@ async def login_for_access_token(
 
 
 async def complete_login(response: Response, request: Request, user, client_type: str, db: Session):
-    """Complete the login process after authentication (and optionally MFA)"""
     # Create the tokens
     access_token, refresh_token, csrf_token = session_utils.create_tokens(user)
 
@@ -110,13 +109,13 @@ async def verify_mfa_and_login(
     response: Response,
     request: Request,
     mfa_request: session_schema.MFALoginRequest,
-    db: Annotated[
-        Session,
-        Depends(core_database.get_db),
-    ],
     client_type: Annotated[str, Depends(session_security.header_client_type_scheme)],
     pending_mfa_store: Annotated[
         session_schema.PendingMFALogin, Depends(session_schema.get_pending_mfa_store)
+    ],
+    db: Annotated[
+        Session,
+        Depends(core_database.get_db),
     ],
 ):
     # Check if there's a pending MFA login for this username
@@ -128,7 +127,7 @@ async def verify_mfa_and_login(
         )
     
     # Verify the MFA code
-    if not user_mfa_utils.verify_user_mfa(user_id, mfa_request.mfa_code, db):
+    if not profile_utils.verify_user_mfa(user_id, mfa_request.mfa_code, db):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid MFA code"

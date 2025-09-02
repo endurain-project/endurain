@@ -478,18 +478,55 @@ def delete_user(user_id: int, db: Session):
 
 
 def enable_user_mfa(user_id: int, encrypted_secret: str, db: Session):
-    """Enable MFA for a user by setting the secret and enabling flag"""
+    """
+    Enable multi-factor authentication (MFA) for a user.
+
+    This function looks up the user by user_id, sets the user's MFA flag and
+    stores the provided encrypted secret, then commits the change to the database.
+
+    Parameters
+    ----------
+    user_id : int
+        ID of the user to enable MFA for.
+    encrypted_secret : str
+        Encrypted MFA secret to be stored on the user record.
+    db : Session
+        Active SQLAlchemy session used to query and persist the user.
+
+    Returns
+    -------
+    None
+
+    Raises
+    ------
+    HTTPException
+        - 404 Not Found: if no user exists with the given user_id (includes
+          header {"WWW-Authenticate": "Bearer"}).
+        - 500 Internal Server Error: if any unexpected error occurs while updating
+          the database (the transaction will be rolled back and the error logged).
+
+    Side effects
+    ------------
+    - Sets user.mfa_enabled = True and user.mfa_secret = encrypted_secret.
+    - Commits the transaction on success and refreshes the user instance.
+    - Rolls back the transaction and logs the exception on failure.
+    """
     try:
-        user = db.query(users_models.User).filter(users_models.User.id == user_id).first()
-        
-        if user:
-            user.mfa_enabled = 1
-            user.mfa_secret = encrypted_secret
-            db.commit()
-            db.refresh(user)
-            return user
-        
-        return None
+        db_user = (
+            db.query(users_models.User).filter(users_models.User.id == user_id).first()
+        )
+
+        if db_user is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
+        db_user.mfa_enabled = True
+        db_user.mfa_secret = encrypted_secret
+        db.commit()
+        db.refresh(db_user)
     except Exception as err:
         db.rollback()
         core_logger.print_to_log(f"Error in enable_user_mfa: {err}", "error", exc=err)
@@ -500,18 +537,42 @@ def enable_user_mfa(user_id: int, encrypted_secret: str, db: Session):
 
 
 def disable_user_mfa(user_id: int, db: Session):
-    """Disable MFA for a user by clearing the secret and flag"""
+    """
+    Disable multi-factor authentication (MFA) for a user.
+    Looks up the user by the given user_id using the provided SQLAlchemy Session,
+    disables MFA by setting `mfa_enabled` to False and clearing `mfa_secret`, then
+    commits the change and refreshes the user instance from the database.
+    Args:
+        user_id (int): ID of the user whose MFA should be disabled.
+        db (Session): SQLAlchemy Session for database operations.
+    Returns:
+        None
+    Raises:
+        HTTPException: 
+            - 404 Not Found if the user does not exist.
+            - 500 Internal Server Error for any other failure; in this case the
+              transaction is rolled back and the error is logged.
+    Side effects:
+        - Persists changes to the database (commit).
+        - Clears the user's MFA secret and marks MFA as disabled.
+        - Refreshes the in-memory user object to reflect persisted state.
+    """
     try:
-        user = db.query(users_models.User).filter(users_models.User.id == user_id).first()
+        db_user = (
+            db.query(users_models.User).filter(users_models.User.id == user_id).first()
+        )
+
+        if db_user is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
         
-        if user:
-            user.mfa_enabled = 0
-            user.mfa_secret = None
-            db.commit()
-            db.refresh(user)
-            return user
-        
-        return None
+        db_user.mfa_enabled = False
+        db_user.mfa_secret = None
+        db.commit()
+        db.refresh(db_user)
     except Exception as err:
         db.rollback()
         core_logger.print_to_log(f"Error in disable_user_mfa: {err}", "error", exc=err)

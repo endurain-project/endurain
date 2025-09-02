@@ -2,8 +2,10 @@
 	<div class="bg-body-tertiary shadow-sm rounded p-3">
 		<div class="row justify-content-center align-items-center">
 			<div class="col d-none d-lg-block">
-				<img width="auto" height="auto" :src="loginPhotoUrl" alt="Square login image" class="img-fluid rounded" v-if="serverSettingsStore.serverSettings.login_photo_set" />
-				<img width="auto" height="auto" src="/src/assets/login.png"  alt="Square login image" class="img-fluid rounded" v-else >
+				<img width="auto" height="auto" :src="loginPhotoUrl" alt="Square login image" class="img-fluid rounded"
+					v-if="serverSettingsStore.serverSettings.login_photo_set" />
+				<img width="auto" height="auto" src="/src/assets/login.png" alt="Square login image"
+					class="img-fluid rounded" v-else>
 			</div>
 			<div class="col form-signin text-center m-3">
 				<form @submit.prevent="submitForm">
@@ -12,28 +14,33 @@
 					<br>
 
 					<div class="form-floating">
-						<input type="text" class="form-control" id="floatingInput" name="loginUsername" :placeholder='$t("loginView.username")' v-model="username" required>
+						<input type="text" class="form-control" id="floatingInput" name="loginUsername"
+							:placeholder='$t("loginView.username")' v-model="username" required>
 						<label for="loginUsername">{{ $t("loginView.username") }}</label>
 					</div>
 					<br>
 					<div class="form-floating position-relative">
-						<input :type="showPassword ? 'text' : 'password'" class="form-control" name="loginPassword" :placeholder='$t("loginView.password")' v-model="password" required>
+						<input :type="showPassword ? 'text' : 'password'" class="form-control" name="loginPassword"
+							:placeholder='$t("loginView.password")' v-model="password" required>
 						<label for="loginPassword">{{ $t("loginView.password") }}</label>
-						<button type="button" class="btn position-absolute top-50 end-0 translate-middle-y me-2" @click="togglePasswordVisibility">
+						<button type="button" class="btn position-absolute top-50 end-0 translate-middle-y me-2"
+							@click="togglePasswordVisibility">
 							<font-awesome-icon :icon="showPassword ? ['fas', 'eye-slash'] : ['fas', 'eye']" />
 						</button>
 					</div>
 					<br>
-					
+
 					<!-- MFA input field (shown when MFA is required) -->
 					<div v-if="mfaRequired" class="form-floating">
-						<input type="text" class="form-control" id="mfaCode" name="mfaCode" :placeholder='$t("loginView.mfaCode")' v-model="mfaCode" required>
+						<input type="text" class="form-control" id="mfaCode" name="mfaCode"
+							:placeholder='$t("loginView.mfaCode")' v-model="mfaCode" required>
 						<label for="mfaCode">{{ $t("loginView.mfaCode") }}</label>
 					</div>
 					<br v-if="mfaRequired">
-					
+
 					<button class="w-100 btn btn-lg btn-primary" type="submit" :disabled="loading">
-						<span v-if="loading" class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+						<span v-if="loading" class="spinner-border spinner-border-sm me-2" role="status"
+							aria-hidden="true"></span>
 						{{ mfaRequired ? $t("loginView.verifyMFAButton") : $t("loginView.signInButton") }}
 					</button>
 					<!--<div>
@@ -107,7 +114,7 @@ const submitLogin = async () => {
 		loading.value = true;
 		// Get the token
 		const response = await session.authenticateUser(formData);
-		
+
 		// Check if MFA is required
 		if (response && response.mfa_required) {
 			mfaRequired.value = true;

@@ -38,6 +38,7 @@ class MFARequiredResponse(BaseModel):
 
 class PendingMFALogin:
     """Store for pending MFA logins"""
+
     def __init__(self):
         self._store = {}
 
@@ -69,7 +70,7 @@ class CSRFMiddleware(BaseHTTPMiddleware):
     def __init__(self, app):
         super().__init__(app)
         # Define paths that don't need CSRF protection
-        self.exempt_paths = ["/api/v1/token", "/api/v1/refresh"]
+        self.exempt_paths = ["/api/v1/token", "/api/v1/refresh", "/api/v1/mfa/verify"]
 
     async def dispatch(self, request: Request, call_next):
         # Get client type from header
