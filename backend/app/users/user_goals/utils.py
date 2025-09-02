@@ -26,7 +26,7 @@ def calculate_goal_progress_by_activity_type(
             user_goals_schema.ActivityType.SWIM: [8, 9],
             user_goals_schema.ActivityType.WALK: [11, 12],
         }
-        DEFAULT_TYPES = (10, 19, 20)
+        DEFAULT_TYPES = (19, 20)
         
         # Get activity types based on goal.activity_type, default to [10, 19, 20]
         activity_types = TYPE_MAP.get(goal.activity_type, DEFAULT_TYPES)
@@ -57,6 +57,9 @@ def calculate_goal_progress_by_activity_type(
             elif goal.goal_type == user_goals_schema.GoalType.DURATION:
                 total_duration = sum(activity.total_elapsed_time or 0 for activity in activities)
                 percentage_completed = (total_duration / goal.goal_duration) * 100
+            elif goal.goal_type == user_goals_schema.GoalType.ACTIVITIES:
+                total_activities_number = len(activities)
+                percentage_completed = (total_activities_number / goal.goal_activities_number) * 100
 
         # Create and return the progress object
         return user_goals_schema.UserGoalProgress(

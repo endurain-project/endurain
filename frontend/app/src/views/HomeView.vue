@@ -2,7 +2,7 @@
 	<div class="row">
 		<!-- sidebar zone -->
 		<div class="col-lg-3 col-md-12">
-			<div>
+			<div class="sticky-sidebar">
 				<div class="d-none d-lg-block d-flex mb-3 rounded p-3 bg-body-tertiary shadow-sm">
 					<!-- user name and photo zone -->
 					<div v-if="isLoading">
@@ -111,11 +111,13 @@
 		</div>
 
 		<div class="col-lg-3">
-			<div class="d-none d-lg-block d-flex mb-3 rounded p-3 bg-body-tertiary shadow-sm">
-				<div v-if="isLoading">
-					<LoadingComponent />
+			<div class="sticky-sidebar">
+				<div class="d-none d-lg-block d-flex mb-3 rounded p-3 bg-body-tertiary shadow-sm">
+					<div v-if="isLoading">
+						<LoadingComponent />
+					</div>
+					<UserGoalsStatsComponent :goals="userGoals" v-else/>
 				</div>
-				<UserGoalsStatsComponent :goals="userGoals" v-else/>
 			</div>
 		</div>
 	</div>
