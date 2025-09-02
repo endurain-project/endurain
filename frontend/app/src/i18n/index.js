@@ -1,5 +1,11 @@
 import { createI18n } from 'vue-i18n';
 
+// Bundle only locale JSON files (root + nested), eagerly so they're in dist
+const translationModules = {
+	...import.meta.glob('./{ca,de,es,fr,nl,pt,us}/*.json', { eager: true }),
+	...import.meta.glob('./{ca,de,es,fr,nl,pt,us}/**/*.json', { eager: true }),
+};
+
 // Define available locales
 const locales = ['ca', 'de', 'es', 'fr', 'nl', 'pt', 'us'];
 
@@ -79,52 +85,50 @@ const componentPaths = {
 	'summaryView': 'summaryView.json',
 };
 
-// Function to dynamically import all translations
-async function loadTranslations() {
-	const messages = {};
+// Reverse map: relative path -> semantic key
+const pathToKey = Object.entries(componentPaths).reduce((acc, [key, rel]) => {
+	acc[rel] = key;
+	return acc;
+}, {});
 
-	for (const locale of locales) {
-		messages[locale] = {};
+function buildMessages() {
+	const messages = Object.fromEntries(locales.map(l => [l, {}]));
 
-		// Load all components for this locale
-		for (const [key, path] of Object.entries(componentPaths)) {
-			try {
-				const module = await import(/* @vite-ignore */ `./${locale}/${path}`);
-				messages[locale][key] = module.default;
-			} catch (error) {
-				console.warn(`Failed to load ${locale}/${path}:`, error);
-				// Fallback to empty object to prevent runtime errors
-				messages[locale][key] = {};
-			}
+	for (const [importPath, mod] of Object.entries(translationModules)) {
+		// "./us/components/.../file.json" or "./us/homeView.json"
+		const m = importPath.match(/^\.\/([^/]+)\/(.+)$/);
+		if (!m) continue;
+		const locale = m[1];
+		if (!locales.includes(locale)) continue;
+
+		const relPath = m[2];
+		const key = pathToKey[relPath];
+		if (!key) {
+			// Uncomment for debugging unknown files:
+			// console.warn(`[i18n] No mapping for ${locale}/${relPath}`);
+			continue;
+		}
+
+		const value = (mod && mod.default) ? mod.default : mod;
+		messages[locale][key] = value;
+	}
+
+	// Optional: ensure every key exists for every locale (fallback-safe)
+	for (const l of locales) {
+		for (const k of Object.keys(componentPaths)) {
+			if (!(k in messages[l])) messages[l][k] = {};
 		}
 	}
 
 	return messages;
 }
 
-// Create i18n instance with lazy loading
-let i18nInstance = null;
-
-export async function setupI18n() {
-	if (!i18nInstance) {
-		const messages = await loadTranslations();
-
-		i18nInstance = createI18n({
-			legacy: false,
-			locale: 'us',
-			fallbackLocale: 'us',
-			messages,
-		});
-	}
-
-	return i18nInstance;
-}
-
-// For backward compatibility, export a default instance
-// Note: This will be empty until setupI18n() is called
-export default i18nInstance || createI18n({
+const i18n = createI18n({
 	legacy: false,
 	locale: 'us',
 	fallbackLocale: 'us',
-	messages: {},
+	messages: buildMessages(),
 });
+
+export default i18n;
+export async function setupI18n() { return i18n; }
