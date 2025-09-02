@@ -1,5 +1,5 @@
 <template>
-    <h5>{{ t("userGoalsStatsComponent.title") }}</h5>
+    <h5>{{ t("userGoalsStatsComponent.title") }}{{ $t('generalItems.betaTag') }}</h5>
     <ul class="list-group list-group-flush" v-for="goal in goals" :key="goal.id" v-if="goals">
         <li class="list-group-item d-flex justify-content-between px-0 bg-body-tertiary">
             <div class="flex-grow-1">

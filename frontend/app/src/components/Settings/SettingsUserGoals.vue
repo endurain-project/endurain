@@ -3,7 +3,7 @@
         <div class="bg-body-tertiary rounded p-3 shadow-sm">
             <!-- add goal button -->
             <a class="w-100 btn btn-primary" href="#" role="button" data-bs-toggle="modal"
-                data-bs-target="#addGoalModal">{{ $t("settingsUserGoalsZone.addNewGoal") }}</a>
+                data-bs-target="#addGoalModal">{{ $t("settingsUserGoalsZone.addNewGoal") }}{{ $t('generalItems.betaTag') }}</a>
 
             <!-- Modal goal user -->
             <GoalsAddEditGoalModalComponent :action="'add'" @createdGoal="addGoalList"

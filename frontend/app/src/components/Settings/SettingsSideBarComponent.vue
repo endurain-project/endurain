@@ -29,7 +29,7 @@
             <li class="nav-item">
                 <a href="#" class="nav-link link-body-emphasis" :class="{ active: activeSection === 'myGoals' }" @click.prevent="changeActive('myGoals')">
                     <font-awesome-icon :icon="['fas', 'fa-check-double']" />
-                    <span class="ms-1">{{ $t("settingsSideBar.myGoals") }}</span>
+                    <span class="ms-1">{{ $t("settingsSideBar.myGoals") }}{{ $t('generalItems.betaTag') }}</span>
                 </a>
             </li>
             <li class="nav-item">
