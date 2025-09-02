@@ -25,7 +25,7 @@
                     <span v-if="goal.interval == 'yearly'">{{ $t("userGoalsStatsComponent.intervalOption4")
                         }}</span>
                     <br>
-                    <span v-if="goal.goal_type === 1">{{ goal.total_calories }}{{ $t("generalItems.ofWithSpaces") }}{{
+                    <span v-if="goal.goal_type === 1">{{ goal.total_calories }} {{ $t("generalItems.unitsCalories") }}{{ $t("generalItems.ofWithSpaces") }}{{
                         goal.goal_calories }} {{ $t("generalItems.unitsCalories") }}</span>
                     <span v-if="goal.goal_type === 2">{{ goal.total_activities_number }}{{
                         $t("generalItems.ofWithSpaces") }}{{
