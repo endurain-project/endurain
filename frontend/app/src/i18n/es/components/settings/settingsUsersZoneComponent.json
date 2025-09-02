@@ -1,10 +1,10 @@
 {
-    "buttonAddUser": "Agregar usuario",
-    "labelSearchUsersByUsername": "Búsqueda de usuarios por nombre de usuario",
-    "labelNumberOfUsers1": "Hay un total de ",
-    "labelNumberOfUsers2": " usuario(s) (",
-    "labelNumberOfUsers3": " cargado):",
-    "successUserAdded": "Usuario añadido con éxito",
-    "successUserDeleted": "Usuario eliminado con éxito",
-    "errorFetchingUsers": "Error al obtener usuarios"
+  "buttonAddUser": "Agregar usuario",
+  "labelSearchUsersByUsername": "Búsqueda de usuarios por nombre de usuario",
+  "labelNumberOfUsers1": "Hay un total de ",
+  "labelNumberOfUsers2": " usuario(s) (",
+  "labelNumberOfUsers3": " cargado):",
+  "successUserAdded": "Usuario añadido con éxito",
+  "successUserDeleted": "Usuario eliminado con éxito",
+  "errorFetchingUsers": "Error al obtener usuarios"
 }

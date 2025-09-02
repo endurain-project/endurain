@@ -1,8 +1,8 @@
 {
-    "modalMediaDeleteTitle": "Medien löschen",
-    "modalMediaDeleteBody1": "Bist Du dir sicher, dass Du das Bild mit der ID löschen willst ",
-    "modalMediaDeleteBody2": " und Name ",
-    "errorFetchingActivityStream": "Fehler beim Abrufen der Aktivitätsdaten",
-    "mediaDeletedSuccessfully": "Medien erfolgreich gelöscht",
-    "errorDeletingMedia": "Fehler beim Löschen der Medien"
+  "modalMediaDeleteTitle": "Medien löschen",
+  "modalMediaDeleteBody1": "Bist Du dir sicher, dass Du das Bild mit der ID löschen willst ",
+  "modalMediaDeleteBody2": " und Name ",
+  "errorFetchingActivityStream": "Fehler beim Abrufen der Aktivitätsdaten",
+  "mediaDeletedSuccessfully": "Medien erfolgreich gelöscht",
+  "errorDeletingMedia": "Fehler beim Löschen der Medien"
 }

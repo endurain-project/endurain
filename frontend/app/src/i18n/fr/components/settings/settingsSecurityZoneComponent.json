@@ -1,13 +1,13 @@
 {
-    "subtitleChangePassword": "Modifier le mot de passe",
-    "changeUserPasswordBodyLabel": "Changer le mot de passe pour l'utilisateur ",
-    "changeUserPasswordPasswordLabel": "Nouveau mot de passe",
-    "changeUserPasswordPasswordConfirmationLabel": "Confirmer le nouveau mot de passe",
-    "changeUserPasswordFeedbackLabel": "Le mot de passe ne répond pas aux exigences",
-    "changeUserPasswordPasswordsDoNotMatchFeedbackLabel": "Les mots de passe ne correspondent pas",
-    "subtitleMySessions": "Mes sessions",
-    "userChangePasswordSuccessMessage": "Le mot de passe a bien été modifié",
-    "userChangePasswordErrorMessage": "Erreur lors de la modification du mot de passe",
-    "successDeleteSession": "Session supprimée avec succès",
-    "errorDeleteSession": "Erreur lors de la suppression de session"
+  "subtitleChangePassword": "Modifier le mot de passe",
+  "changeUserPasswordBodyLabel": "Changer le mot de passe pour l'utilisateur ",
+  "changeUserPasswordPasswordLabel": "Nouveau mot de passe",
+  "changeUserPasswordPasswordConfirmationLabel": "Confirmer le nouveau mot de passe",
+  "changeUserPasswordFeedbackLabel": "Le mot de passe ne répond pas aux exigences",
+  "changeUserPasswordPasswordsDoNotMatchFeedbackLabel": "Les mots de passe ne correspondent pas",
+  "subtitleMySessions": "Mes sessions",
+  "userChangePasswordSuccessMessage": "Le mot de passe a bien été modifié",
+  "userChangePasswordErrorMessage": "Erreur lors de la modification du mot de passe",
+  "successDeleteSession": "Session supprimée avec succès",
+  "errorDeleteSession": "Erreur lors de la suppression de session"
 }

@@ -1,13 +1,13 @@
 {
-    "labelGear": "Uitrusting",
-    "labelGearNotSet": "Niet ingesteld",
-    "modalLabelDeleteGear": "Verwijder uitrusting uit activiteit",
-    "modalLabelDeleteGearBody": "Weet je zeker dat je de uitrusting uit de activiteit wilt verwijderen?",
-    "modalLabelDeleteGearButton": "Verwijder uitrusting",
-    "successMessageGearAdded": "Uitrusting toegevoegd aan activiteit",
-    "successMessageGearDeleted": "Uitrusting verwijderd uit activiteit",
-    "errorMessageDeleteGear": "Fout bij verwijderen van uitrusting uit activiteit",
-    "errorMessageActivityNotFound": "Activiteit niet gevonden",
-    "alertPrivacyMessage": "Je hebt informatie in deze activiteit verborgen. Je kunt het zelf zien, maar anderen niet.",
-    "isHiddenMessage": "This activity is hidden. Probably because it is a duplicate or was hidden by the user."
+  "labelGear": "Uitrusting",
+  "labelGearNotSet": "Niet ingesteld",
+  "modalLabelDeleteGear": "Verwijder uitrusting uit activiteit",
+  "modalLabelDeleteGearBody": "Weet je zeker dat je de uitrusting uit de activiteit wilt verwijderen?",
+  "modalLabelDeleteGearButton": "Verwijder uitrusting",
+  "successMessageGearAdded": "Uitrusting toegevoegd aan activiteit",
+  "successMessageGearDeleted": "Uitrusting verwijderd uit activiteit",
+  "errorMessageDeleteGear": "Fout bij verwijderen van uitrusting uit activiteit",
+  "errorMessageActivityNotFound": "Activiteit niet gevonden",
+  "alertPrivacyMessage": "Je hebt informatie in deze activiteit verborgen. Je kunt het zelf zien, maar anderen niet.",
+  "isHiddenMessage": "This activity is hidden. Probably because it is a duplicate or was hidden by the user."
 }

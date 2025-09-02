@@ -1,13 +1,13 @@
 {
-    "weight": "Gewicht",
-    "noWeightData": "Geen gewichtsgegevens",
-    "noWeightTarget": "Geen gewichtsdoel",
-    "noHeightDefined": "Geen hoogte gedefinieerd voor de gebruiker",
-    "bmi": "BMI",
-    "bmiUnderweight": "Ondergewicht",
-    "bmiNormalWeight": "Normaal gewicht",
-    "bmiOverweight": "Overgewicht",
-    "bmiObesityClass1": "Obesitas (klasse 1)",
-    "bmiObesityClass2": "Obesitas (klasse 2)",
-    "bmiObesityClass3": "Extreme obesitas (klasse 3)"
+  "weight": "Gewicht",
+  "noWeightData": "Geen gewichtsgegevens",
+  "noWeightTarget": "Geen gewichtsdoel",
+  "noHeightDefined": "Geen hoogte gedefinieerd voor de gebruiker",
+  "bmi": "BMI",
+  "bmiUnderweight": "Ondergewicht",
+  "bmiNormalWeight": "Normaal gewicht",
+  "bmiOverweight": "Overgewicht",
+  "bmiObesityClass1": "Obesitas (klasse 1)",
+  "bmiObesityClass2": "Obesitas (klasse 2)",
+  "bmiObesityClass3": "Extreme obesitas (klasse 3)"
 }

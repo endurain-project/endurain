@@ -1,13 +1,13 @@
 {
-    "title": "Ausrüstung",
-    "buttonAddGear": "Ausrüstung hinzufügen",
-    "subTitleSearchGearByNickname": "Suche Ausrüstung nach Spitzname",
-    "placeholderSearchGearByNickname": "Spitzname",
-    "buttonSearchGear": "Suche Ausrüstung",
-    "displayUserNumberOfGears1": "Insgesamt ",
-    "displayUserNumberOfGears2": " Ausrüstung(en) (",
-    "displayUserNumberOfGears3": " geladen):",
-    "successGearDeleted": "Ausrüstung erfolgreich gelöscht",
-    "errorGearNotFound": "Ausrüstung nicht gefunden",
-    "errorFetchingGears": "Fehler beim Abrufen der Ausrüstung"
+  "title": "Ausrüstung",
+  "buttonAddGear": "Ausrüstung hinzufügen",
+  "subTitleSearchGearByNickname": "Suche Ausrüstung nach Spitzname",
+  "placeholderSearchGearByNickname": "Spitzname",
+  "buttonSearchGear": "Suche Ausrüstung",
+  "displayUserNumberOfGears1": "Insgesamt ",
+  "displayUserNumberOfGears2": " Ausrüstung(en) (",
+  "displayUserNumberOfGears3": " geladen):",
+  "successGearDeleted": "Ausrüstung erfolgreich gelöscht",
+  "errorGearNotFound": "Ausrüstung nicht gefunden",
+  "errorFetchingGears": "Fehler beim Abrufen der Ausrüstung"
 }

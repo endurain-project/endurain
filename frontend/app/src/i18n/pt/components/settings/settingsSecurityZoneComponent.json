@@ -1,13 +1,13 @@
 {
-    "subtitleChangePassword": "Alterar palavra-passe",
-    "changeUserPasswordBodyLabel": "Alterar palavra-passe do utilizador ",
-    "changeUserPasswordPasswordLabel": "Nova palavra-passe",
-    "changeUserPasswordPasswordConfirmationLabel": "Confirmar a nova palavra-passe",
-    "changeUserPasswordFeedbackLabel": "Palavra-passe não cumpre os requisitos",
-    "changeUserPasswordPasswordsDoNotMatchFeedbackLabel": "Palavras-passe não coincidem",
-    "subtitleMySessions": "As minhas sessões",
-    "userChangePasswordSuccessMessage": "Palavra-passe alterada com sucesso",
-    "userChangePasswordErrorMessage": "Erro ao alterar palavra-passe",
-    "successDeleteSession": "Sessão eliminada com sucesso",
-    "errorDeleteSession": "Erro ao eliminar sessão"
+  "subtitleChangePassword": "Alterar palavra-passe",
+  "changeUserPasswordBodyLabel": "Alterar palavra-passe do utilizador ",
+  "changeUserPasswordPasswordLabel": "Nova palavra-passe",
+  "changeUserPasswordPasswordConfirmationLabel": "Confirmar a nova palavra-passe",
+  "changeUserPasswordFeedbackLabel": "Palavra-passe não cumpre os requisitos",
+  "changeUserPasswordPasswordsDoNotMatchFeedbackLabel": "Palavras-passe não coincidem",
+  "subtitleMySessions": "As minhas sessões",
+  "userChangePasswordSuccessMessage": "Palavra-passe alterada com sucesso",
+  "userChangePasswordErrorMessage": "Erro ao alterar palavra-passe",
+  "successDeleteSession": "Sessão eliminada com sucesso",
+  "errorDeleteSession": "Erro ao eliminar sessão"
 }
