@@ -1,10 +1,10 @@
 {
-    "buttonAddUser": "Gebruiker toevoegen",
-    "labelSearchUsersByUsername": "Gebruikers zoeken op gebruikersnaam",
-    "labelNumberOfUsers1": "Er is een totaal van ",
-    "labelNumberOfUsers2": " gebruiker(s) (",
-    "labelNumberOfUsers3": " geladen):",
-    "successUserAdded": "Gebruiker succesvol toegevoegd",
-    "successUserDeleted": "Gebruiker succesvol verwijderd",
-    "errorFetchingUsers": "Fout bij ophalen gebruikers"
+  "buttonAddUser": "Gebruiker toevoegen",
+  "labelSearchUsersByUsername": "Gebruikers zoeken op gebruikersnaam",
+  "labelNumberOfUsers1": "Er is een totaal van ",
+  "labelNumberOfUsers2": " gebruiker(s) (",
+  "labelNumberOfUsers3": " geladen):",
+  "successUserAdded": "Gebruiker succesvol toegevoegd",
+  "successUserDeleted": "Gebruiker succesvol verwijderd",
+  "errorFetchingUsers": "Fout bij ophalen gebruikers"
 }

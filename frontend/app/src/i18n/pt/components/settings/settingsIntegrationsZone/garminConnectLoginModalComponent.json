@@ -1,14 +1,14 @@
 {
-    "garminConnectAuthModalTitle": "Associar conta do Garmin Connect",
-    "garminConnectAuthModalUsernameLabel": "E-mail do Garmin Connect",
-    "garminConnectAuthModalUsernamePlaceholder": "E-mail do Garmin Connect",
-    "garminConnectAuthModalPasswordLabel": "Palavra-passe do Garmin Connect",
-    "garminConnectAuthModalPasswordPlaceholder": "Palavra-passe do Garmin Connect",
-    "garminConnectAuthModalMfaCodeLabel": "Código MFA",
-    "garminConnectAuthModalMfaCodePlaceholder": "Código MFA",
-    "buttonSubmitMfaCode": "Enviar código MFA",
-    "garminConnectAuthModalLoginButton": "Iniciar sessão",
-    "processingMessageLinkGarminConnect": "A associar conta do Garmin Connect...",
-    "successMessageLinkGarminConnect": "Conta do Garmin Connect associada",
-    "errorMessageUnableToLinkGarminConnect": "Não foi possível associar a conta do Garmin Connect"
+  "garminConnectAuthModalTitle": "Associar conta do Garmin Connect",
+  "garminConnectAuthModalUsernameLabel": "E-mail do Garmin Connect",
+  "garminConnectAuthModalUsernamePlaceholder": "E-mail do Garmin Connect",
+  "garminConnectAuthModalPasswordLabel": "Palavra-passe do Garmin Connect",
+  "garminConnectAuthModalPasswordPlaceholder": "Palavra-passe do Garmin Connect",
+  "garminConnectAuthModalMfaCodeLabel": "Código MFA",
+  "garminConnectAuthModalMfaCodePlaceholder": "Código MFA",
+  "buttonSubmitMfaCode": "Enviar código MFA",
+  "garminConnectAuthModalLoginButton": "Iniciar sessão",
+  "processingMessageLinkGarminConnect": "A associar conta do Garmin Connect...",
+  "successMessageLinkGarminConnect": "Conta do Garmin Connect associada",
+  "errorMessageUnableToLinkGarminConnect": "Não foi possível associar a conta do Garmin Connect"
 }

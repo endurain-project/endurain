@@ -1,13 +1,13 @@
 {
-    "title": "Equipament",
-    "buttonAddGear": "Afegir Equipament",
-    "subTitleSearchGearByNickname": "Cercar per àlies d'equipament",
-    "placeholderSearchGearByNickname": "Àlies",
-    "buttonSearchGear": "Cerca Equip",
-    "displayUserNumberOfGears1": "Hi ha un total de ",
-    "displayUserNumberOfGears2": " equipament(s) (",
-    "displayUserNumberOfGears3": " carregat):",
-    "successGearDeleted": "Equipament esborrat correctament",
-    "errorGearNotFound": "Equipament no trobat",
-    "errorFetchingGears": "Error obtenint equips"
+  "title": "Equipament",
+  "buttonAddGear": "Afegir Equipament",
+  "subTitleSearchGearByNickname": "Cercar per àlies d'equipament",
+  "placeholderSearchGearByNickname": "Àlies",
+  "buttonSearchGear": "Cerca Equip",
+  "displayUserNumberOfGears1": "Hi ha un total de ",
+  "displayUserNumberOfGears2": " equipament(s) (",
+  "displayUserNumberOfGears3": " carregat):",
+  "successGearDeleted": "Equipament esborrat correctament",
+  "errorGearNotFound": "Equipament no trobat",
+  "errorFetchingGears": "Error obtenint equips"
 }

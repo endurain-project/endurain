@@ -1,9 +1,9 @@
 {
-    "usersSection": "Usuaris",
-    "serverSettingsSection": "Opcions servidor",
-    "generalSection": "General",
-    "myProfileSection": "El meu perfil",
-    "myGoals": "My Goals",
-    "securitySection": "Seguretat",
-    "integrationsSection": "Integracions"
+  "usersSection": "Usuaris",
+  "serverSettingsSection": "Opcions servidor",
+  "generalSection": "General",
+  "myProfileSection": "El meu perfil",
+  "myGoals": "My Goals",
+  "securitySection": "Seguretat",
+  "integrationsSection": "Integracions"
 }
