@@ -7,7 +7,7 @@ readme = "README.md"
 package-mode = false
 
 [tool.poetry.dependencies]
-python = "^3.13"
+python = "^3.12"
 fastapi = "^0.115.6"
 uvicorn = "^0.34.0"
 python-dotenv = "^1.0.1"
@@ -39,6 +39,8 @@ poetry = "^2.0.0"
 user-agents = "^2.2.0"
 pydantic = {extras = ["email"], version = "^2.11.3"}
 garth = "^0.5.16"
+pyotp = "^2.9.0"
+qrcode = {extras = ["pil"], version = "^8.2"}
 
 
 [build-system]

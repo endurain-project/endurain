@@ -28,10 +28,10 @@ class User(BaseModel):
     is_active: int
     first_day_of_week: int = 1
     currency: int
+    mfa_enabled: bool = False
+    mfa_secret: str | None = None
 
-    model_config = {
-        "from_attributes": True
-    }
+    model_config = {"from_attributes": True}
 
 
 class UserCreate(User):

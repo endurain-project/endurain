@@ -11,7 +11,8 @@ async function fetchWithRetry(url, options, responseType = 'json') {
 	if (
 		['POST', 'PUT', 'DELETE', 'PATCH'].includes(options.method) &&
 		url !== 'token' &&
-		url !== 'refresh'
+		url !== 'refresh' &&
+		url !== 'mfa/verify'
 	) {
 		const csrfToken = document.cookie
 			.split('; ')
@@ -98,24 +99,6 @@ export async function fetchGetRequest(url, options = {}) {
 			'X-Client-Type': 'web'
 		}
 	}
-
-	/* const fullUrl = `${API_URL}${url}`
-
-	// For blob responses
-	if (options.responseType === 'blob') {
-		const response = await fetch(fullUrl, requestOptions)
-
-		if (!response.ok) {
-			const errorBody = await response.json()
-			const errorMessage = errorBody.detail || 'Unknown error'
-			throw new Error(`${response.status} - ${errorMessage}`)
-		}
-
-		return response.blob()
-	}
-
-	// Regular JSON response
-	return fetchWithRetry(url, requestOptions) */
 	const responseType = options.responseType || 'json'
   	return fetchWithRetry(url, requestOptions, responseType)
 }

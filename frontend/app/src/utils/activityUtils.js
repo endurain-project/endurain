@@ -103,16 +103,16 @@ const activityLabelMap = {
 
 
 /**
- * Return a localized label for a given activity type.
+ * Returns the localized label for a given activity type.
  *
- * If the provided activity_type is present in the ACTIVITY_TYPES array, this
- * function returns the result of calling the corresponding label generator
- * from activityLabelMap with the translation function `t`. If the activity
- * type is not recognized, it returns the default label "Workout".
+ * If `activity_type` exists in the global ACTIVITY_TYPES array, the corresponding
+ * formatter function from `activityLabelMap` is invoked with the translation
+ * function `t` and its result is returned. Otherwise a default translated
+ * label for the key "activityItems.workout" is returned.
  *
- * @param {string} activity_type - The activity type identifier to resolve.
- * @param {Function} t - Translation function passed to label generators (e.g., i18n.t).
- * @returns {string} Localized label for the activity type, or "Workout" if unknown.
+ * @param {string} activity_type - Identifier of the activity type to resolve.
+ * @param {function(string, Object=): string} t - Translation function that accepts a translation key and optional options, returning the localized string.
+ * @returns {string} Localized label for the specified activity type, or a default "workout" label when the type is unknown.
  *
  * @see ACTIVITY_TYPES
  * @see activityLabelMap
@@ -121,7 +121,7 @@ export function activityTypeName(activity_type, t) {
 	if (ACTIVITY_TYPES.includes(activity_type)) {
 		return activityLabelMap[activity_type](t);
 	}
-	return "Workout";
+	return t("activityItems.workout");
 }
 
 

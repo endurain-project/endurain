@@ -2,8 +2,10 @@
 	<div class="bg-body-tertiary shadow-sm rounded p-3">
 		<div class="row justify-content-center align-items-center">
 			<div class="col d-none d-lg-block">
-				<img width="auto" height="auto" :src="loginPhotoUrl" alt="Square login image" class="img-fluid rounded" v-if="serverSettingsStore.serverSettings.login_photo_set" />
-				<img width="auto" height="auto" src="/src/assets/login.png"  alt="Square login image" class="img-fluid rounded" v-else >
+				<img width="auto" height="auto" :src="loginPhotoUrl" alt="Square login image" class="img-fluid rounded"
+					v-if="serverSettingsStore.serverSettings.login_photo_set" />
+				<img width="auto" height="auto" src="/src/assets/login.png" alt="Square login image"
+					class="img-fluid rounded" v-else>
 			</div>
 			<div class="col form-signin text-center m-3">
 				<form @submit.prevent="submitForm">
@@ -12,19 +14,35 @@
 					<br>
 
 					<div class="form-floating">
-						<input type="text" class="form-control" id="floatingInput" name="loginUsername" :placeholder='$t("loginView.username")' v-model="username" required>
+						<input type="text" class="form-control" id="floatingInput" name="loginUsername"
+							:placeholder='$t("loginView.username")' v-model="username" required>
 						<label for="loginUsername">{{ $t("loginView.username") }}</label>
 					</div>
 					<br>
 					<div class="form-floating position-relative">
-						<input :type="showPassword ? 'text' : 'password'" class="form-control" name="loginPassword" :placeholder='$t("loginView.password")' v-model="password" required>
+						<input :type="showPassword ? 'text' : 'password'" class="form-control" name="loginPassword"
+							:placeholder='$t("loginView.password")' v-model="password" required>
 						<label for="loginPassword">{{ $t("loginView.password") }}</label>
-						<button type="button" class="btn position-absolute top-50 end-0 translate-middle-y me-2" @click="togglePasswordVisibility">
+						<button type="button" class="btn position-absolute top-50 end-0 translate-middle-y me-2"
+							@click="togglePasswordVisibility">
 							<font-awesome-icon :icon="showPassword ? ['fas', 'eye-slash'] : ['fas', 'eye']" />
 						</button>
 					</div>
 					<br>
-					<button class="w-100 btn btn-lg btn-primary" type="submit">{{ $t("loginView.signInButton") }}</button>
+
+					<!-- MFA input field (shown when MFA is required) -->
+					<div v-if="mfaRequired" class="form-floating">
+						<input type="text" class="form-control" id="mfaCode" name="mfaCode"
+							:placeholder='$t("loginView.mfaCode")' v-model="mfaCode" required>
+						<label for="mfaCode">{{ $t("loginView.mfaCode") }}</label>
+					</div>
+					<br v-if="mfaRequired">
+
+					<button class="w-100 btn btn-lg btn-primary" type="submit" :disabled="loading">
+						<span v-if="loading" class="spinner-border spinner-border-sm me-2" role="status"
+							aria-hidden="true"></span>
+						{{ mfaRequired ? $t("loginView.verifyMFAButton") : $t("loginView.signInButton") }}
+					</button>
 					<!--<div>
 						<hr>
 						<button class="w-100 btn btn-lg btn-warning disabled" type="submit">{{ $t("loginView.signUpButton") }}</button>
@@ -57,6 +75,10 @@ const router = useRouter();
 const { locale, t } = useI18n();
 const username = ref("");
 const password = ref("");
+const mfaCode = ref("");
+const mfaRequired = ref(false);
+const loading = ref(false);
+const pendingUsername = ref("");
 const authStore = useAuthStore();
 const serverSettingsStore = useServerSettingsStore();
 const showPassword = ref(false);
@@ -71,6 +93,17 @@ const togglePasswordVisibility = () => {
 
 // Handle the form submission
 const submitForm = async () => {
+	if (mfaRequired.value) {
+		// Handle MFA verification
+		await submitMFAVerification();
+	} else {
+		// Handle regular login
+		await submitLogin();
+	}
+};
+
+// Handle regular login
+const submitLogin = async () => {
 	// Create the form data
 	const formData = new URLSearchParams();
 	formData.append("grant_type", "password");
@@ -78,28 +111,70 @@ const submitForm = async () => {
 	formData.append("password", password.value);
 
 	try {
+		loading.value = true;
 		// Get the token
-		const session_id = await session.authenticateUser(formData);
+		const response = await session.authenticateUser(formData);
 
-		// Get logged user information
-		const userProfile = await profile.getProfileInfo();
-
-		// Store the user in the auth store
-		authStore.setUser(userProfile, session_id, locale);
-
-		// Redirect to the home page
-		return router.push("/");
-	} catch (error) {
-		// Handle the error
-		if (error.toString().includes("401")) {
-			push.error(`${t("loginView.error401")} - ${error}`);
-		} else if (error.toString().includes("403")) {
-			push.error(`${t("loginView.error403")} - ${error}`);
-		} else if (error.toString().includes("500")) {
-			push.error(`${t("loginView.error500")} - ${error}`);
-		} else {
-			push.error(`${t("loginView.errorUndefined")} - ${error}`);
+		// Check if MFA is required
+		if (response && response.mfa_required) {
+			mfaRequired.value = true;
+			pendingUsername.value = response.username;
+			push.info(t("loginView.mfaRequired"));
+			return;
 		}
+
+		// Complete login if no MFA required
+		await completeLogin(response);
+	} catch (error) {
+		handleLoginError(error);
+	} finally {
+		loading.value = false;
+	}
+};
+
+// Handle MFA verification
+const submitMFAVerification = async () => {
+	try {
+		loading.value = true;
+		const response = await session.verifyMFAAndLogin({
+			username: pendingUsername.value,
+			mfa_code: mfaCode.value
+		});
+
+		await completeLogin(response);
+	} catch (error) {
+		if (error.toString().includes("401") || error.toString().includes("400")) {
+			push.error(t("loginView.invalidMFACode"));
+		} else {
+			handleLoginError(error);
+		}
+	} finally {
+		loading.value = false;
+	}
+};
+
+// Complete the login process
+const completeLogin = async (session_id) => {
+	// Get logged user information
+	const userProfile = await profile.getProfileInfo();
+
+	// Store the user in the auth store
+	authStore.setUser(userProfile, session_id, locale);
+
+	// Redirect to the home page
+	return router.push("/");
+};
+
+// Handle login errors
+const handleLoginError = (error) => {
+	if (error.toString().includes("401")) {
+		push.error(`${t("loginView.error401")} - ${error}`);
+	} else if (error.toString().includes("403")) {
+		push.error(`${t("loginView.error403")} - ${error}`);
+	} else if (error.toString().includes("500")) {
+		push.error(`${t("loginView.error500")} - ${error}`);
+	} else {
+		push.error(`${t("loginView.errorUndefined")} - ${error}`);
 	}
 };
 
