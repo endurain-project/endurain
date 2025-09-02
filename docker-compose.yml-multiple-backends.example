@@ -8,7 +8,6 @@ services:
       - DB_PASSWORD=changeme
       - SECRET_KEY=chnageme # openssl rand -hex 32
       - FERNET_KEY=changeme # https://fernetkeygen.com or python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
-      - GEOCODES_MAPS_API=changeme
       - ENDURAIN_HOST=http://localhost:8080 # host or local ip (example: http://192.168.1.10:8080 or https://endurain.com), default is http://localhost:8080
     volumes:
     #  - <local_path>/endurain/backend/app:/app/backend # Configure volume if you want to edit the code locally by cloning the repo
