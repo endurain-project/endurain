@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel
 from datetime import datetime
 from fastapi import Request, HTTPException
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -18,26 +18,6 @@ class UsersSessions(BaseModel):
     expires_at: datetime
 
     model_config = {"from_attributes": True}
-
-
-class PasswordResetToken(BaseModel):
-    id: str
-    user_id: int
-    token_hash: str
-    created_at: datetime
-    expires_at: datetime
-    used: int
-
-    model_config = {"from_attributes": True}
-
-
-class PasswordResetRequest(BaseModel):
-    email: EmailStr
-
-
-class PasswordResetConfirm(BaseModel):
-    token: str
-    new_password: str
 
 
 class CSRFMiddleware(BaseHTTPMiddleware):

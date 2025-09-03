@@ -44,34 +44,3 @@ class UsersSessions(Base):
 
     # Define a relationship to the User model
     user = relationship("User", back_populates="users_sessions")
-
-
-class PasswordResetToken(Base):
-    __tablename__ = "password_reset_tokens"
-
-    id = Column(String(length=64), nullable=False, primary_key=True)
-    user_id = Column(
-        Integer,
-        ForeignKey("users.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True,
-        comment="User ID that the password reset token belongs to",
-    )
-    token_hash = Column(
-        String(length=128), nullable=False, comment="Hashed password reset token"
-    )
-    created_at = Column(
-        DateTime, nullable=False, comment="Token creation date (datetime)"
-    )
-    expires_at = Column(
-        DateTime, nullable=False, comment="Token expiration date (datetime)"
-    )
-    used = Column(
-        Integer, 
-        nullable=False, 
-        default=0, 
-        comment="Token usage status (0 - unused, 1 - used)"
-    )
-
-    # Define a relationship to the User model
-    user = relationship("User", back_populates="password_reset_tokens")

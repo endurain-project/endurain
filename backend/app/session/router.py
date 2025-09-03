@@ -14,9 +14,7 @@ from sqlalchemy.orm import Session
 
 import session.utils as session_utils
 import session.security as session_security
-import session.constants as session_constants
 import session.crud as session_crud
-import session.schema as session_schema
 
 import users.user.crud as users_crud
 import users.user.utils as users_utils
@@ -212,60 +210,3 @@ async def delete_session_user(
 ):
     # Delete the session from the database
     return session_crud.delete_session(session_id, user_id, db)
-
-
-@router.post("/password-reset/request")
-async def request_password_reset(
-    request_data: session_schema.PasswordResetRequest,
-    db: Annotated[
-        Session,
-        Depends(core_database.get_db),
-    ],
-):
-    """Request a password reset via email"""
-    try:
-        success = await session_utils.send_password_reset_email(request_data.email, db)
-        # Always return success to not reveal if email exists
-        return {"message": "If the email exists in our system, a password reset link has been sent."}
-    except HTTPException as http_err:
-        raise http_err
-    except Exception as err:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to process password reset request"
-        )
-
-
-@router.post("/password-reset/confirm")
-async def confirm_password_reset(
-    confirm_data: session_schema.PasswordResetConfirm,
-    db: Annotated[
-        Session,
-        Depends(core_database.get_db),
-    ],
-):
-    """Confirm password reset with token"""
-    # Check if the password meets the complexity requirements
-    is_valid, message = session_security.is_password_complexity_valid(
-        confirm_data.new_password
-    )
-    if not is_valid:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=message,
-        )
-    
-    # Use the token to reset password
-    success = session_utils.use_password_reset_token(
-        confirm_data.token, 
-        confirm_data.new_password, 
-        db
-    )
-    
-    if not success:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid or expired password reset token"
-        )
-    
-    return {"message": "Password reset successful"}

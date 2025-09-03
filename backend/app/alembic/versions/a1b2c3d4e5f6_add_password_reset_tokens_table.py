@@ -55,9 +55,9 @@ def upgrade() -> None:
         ),
         sa.Column(
             "used",
-            sa.Integer(),
+            sa.Boolean(),
             nullable=False,
-            comment="Token usage status (0 - unused, 1 - used)",
+            comment="Token usage status (False - unused, True - used)",
         ),
         sa.ForeignKeyConstraint(["user_id"], ["users.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),
