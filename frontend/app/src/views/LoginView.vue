@@ -25,7 +25,7 @@
           <p>{{ $t('loginView.subtitle') }}</p>
           <br />
 
-          <div class="form-floating">
+          <div class="form-floating" v-if="!mfaRequired">
             <input
               type="text"
               class="form-control"
@@ -38,7 +38,7 @@
             <label for="loginUsername">{{ $t('loginView.username') }}</label>
           </div>
           <br />
-          <div class="form-floating position-relative">
+          <div class="form-floating position-relative" v-if="!mfaRequired">
             <input
               :type="showPassword ? 'text' : 'password'"
               class="form-control"
@@ -56,7 +56,7 @@
               <font-awesome-icon :icon="showPassword ? ['fas', 'eye-slash'] : ['fas', 'eye']" />
             </button>
           </div>
-          <br />
+          <br v-if="!mfaRequired" />
 
           <!-- MFA input field (shown when MFA is required) -->
           <div v-if="mfaRequired" class="form-floating">
