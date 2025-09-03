@@ -2,64 +2,62 @@
   <div class="row">
     <!-- sidebar zone -->
     <div class="col-lg-3 col-md-12">
-      <div>
-        <div class="d-none d-lg-block d-flex mb-3 rounded p-3 bg-body-tertiary shadow-sm">
-          <!-- user name and photo zone -->
-          <div v-if="isLoading">
-            <LoadingComponent />
-          </div>
-          <div v-else>
-            <div class="justify-content-center d-flex" v-if="authStore.user">
-              <UserAvatarComponent :user="authStore.user" :width="120" :height="120" />
-            </div>
-            <div class="text-center mt-3 fw-bold" v-if="authStore.user.id">
-              <router-link
-                :to="{ name: 'user', params: { id: authStore.user.id } }"
-                class="link-body-emphasis link-underline-opacity-0 link-underline-opacity-100-hover"
-              >
-                {{ authStore.user.name }}
-              </router-link>
-            </div>
-          </div>
-          <!-- user stats zone -->
-          <div v-if="isLoading">
-            <LoadingComponent />
-          </div>
-          <UserDistanceStatsComponent
-            v-else
-            :thisWeekDistances="thisWeekDistances"
-            :thisMonthDistances="thisMonthDistances"
-          />
+      <div class="d-none d-lg-block d-flex mb-3 rounded p-3 bg-body-tertiary shadow-sm">
+        <!-- user name and photo zone -->
+        <div v-if="isLoading">
+          <LoadingComponent />
         </div>
+        <div v-else>
+          <div class="justify-content-center d-flex" v-if="authStore.user">
+            <UserAvatarComponent :user="authStore.user" :width="120" :height="120" />
+          </div>
+          <div class="text-center mt-3 fw-bold" v-if="authStore.user.id">
+            <router-link
+              :to="{ name: 'user', params: { id: authStore.user.id } }"
+              class="link-body-emphasis link-underline-opacity-0 link-underline-opacity-100-hover fs-4"
+            >
+              {{ authStore.user.name }}
+            </router-link>
+          </div>
+        </div>
+      </div>
+      <div class="d-none d-lg-block d-flex mb-3 rounded p-3 bg-body-tertiary shadow-sm">
+        <!-- user stats zone -->
+        <div v-if="isLoading">
+          <LoadingComponent />
+        </div>
+        <UserDistanceStatsComponent
+          v-else
+          :thisWeekDistances="thisWeekDistances"
+          :thisMonthDistances="thisMonthDistances"
+        />
+      </div>
 
-        <!-- add activity and refresh buttons -->
-        <div class="row mb-3">
-          <div class="col">
-            <a
-              class="w-100 btn btn-primary shadow-sm"
-              href="#"
-              role="button"
-              data-bs-toggle="modal"
-              data-bs-target="#addActivityModal"
-            >
-              {{ $t('homeView.buttonAddActivity') }}
-            </a>
-          </div>
-          <div
-            class="col-auto"
-            v-if="
-              authStore.user.is_strava_linked == 1 || authStore.user.is_garminconnect_linked == 1
-            "
+      <!-- add activity and refresh buttons -->
+      <div class="row mb-3">
+        <div class="col">
+          <a
+            class="w-100 btn btn-primary shadow-sm"
+            href="#"
+            role="button"
+            data-bs-toggle="modal"
+            data-bs-target="#addActivityModal"
           >
-            <a
-              class="w-100 btn btn-primary shadow-sm"
-              href="#"
-              role="button"
-              @click="refreshActivities"
-            >
-              <font-awesome-icon :icon="['fas', 'arrows-rotate']" />
-            </a>
-          </div>
+            {{ $t('homeView.buttonAddActivity') }}
+          </a>
+        </div>
+        <div
+          class="col-auto"
+          v-if="authStore.user.is_strava_linked == 1 || authStore.user.is_garminconnect_linked == 1"
+        >
+          <a
+            class="w-100 btn btn-primary shadow-sm"
+            href="#"
+            role="button"
+            @click="refreshActivities"
+          >
+            <font-awesome-icon :icon="['fas', 'arrows-rotate']" />
+          </a>
         </div>
       </div>
 
@@ -229,7 +227,7 @@ const selectedActivityView = ref('userActivities')
 const isLoading = ref(true)
 const thisWeekDistances = ref([])
 const thisMonthDistances = ref([])
-const userGoals = ref([])
+const userGoals = ref(null)
 const userNumberOfActivities = ref(0)
 const userActivities = ref([])
 const activityMediaMap = ref({})

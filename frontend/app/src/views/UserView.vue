@@ -1,16 +1,17 @@
 <template>
-  <div class="rounded p-3 bg-body-tertiary shadow-sm">
-    <div class="row align-items-center">
-      <!-- picture col -->
-      <div class="col">
+  <div class="row">
+    <!-- sidebar zone -->
+    <div class="col-lg-3 col-md-12">
+      <div class="mb-3 rounded p-3 bg-body-tertiary shadow-sm">
+        <!-- user name and photo zone -->
         <div v-if="isLoading">
           <LoadingComponent />
         </div>
-        <div class="vstack d-flex justify-content-center" v-else>
-          <div class="d-flex justify-content-center" v-if="userProfile">
+        <div v-else>
+          <div class="justify-content-center d-flex" v-if="userProfile">
             <UserAvatarComponent :user="userProfile" :width="120" :height="120" />
           </div>
-          <div class="text-center mt-3 mb-3" v-if="userProfile">
+          <div class="text-center mt-3 fw-bold" v-if="userProfile.id">
             <h3>
               <span>{{ userProfile.name }}</span>
             </h3>
@@ -23,11 +24,9 @@
           </div>
         </div>
       </div>
-      <div class="col">
-        <div v-if="isLoading">
-          <LoadingComponent />
-        </div>
-        <div class="vstack d-flex align-middle text-center" v-else>
+      <!-- followers and number of activities -->
+      <div class="mb-3 rounded p-3 bg-body-tertiary shadow-sm">
+        <div class="vstack d-flex align-middle text-center">
           <span class="fw-lighter">
             {{ $t('userView.thisMonthActivitiesNumber') }}
           </span>
@@ -52,301 +51,316 @@
           </div>
         </div>
       </div>
-      <div class="col-sm">
+      <!-- user stats zone -->
+      <div class="mb-3 rounded p-3 bg-body-tertiary shadow-sm">
+        <!-- user stats zone -->
         <div v-if="isLoading">
           <LoadingComponent />
         </div>
         <UserDistanceStatsComponent
+          v-else
           :thisWeekDistances="thisWeekDistances"
           :thisMonthDistances="thisMonthDistances"
-          v-else
         />
       </div>
+      <!-- user goals zone -->
+      <div
+        class="mb-3 rounded p-3 bg-body-tertiary shadow-sm"
+        v-if="userProfile && userProfile.id == authStore.user.id"
+      >
+        <div v-if="isLoading">
+          <LoadingComponent />
+        </div>
+        <UserGoalsStatsComponent :goals="userGoals" v-else />
+      </div>
     </div>
-  </div>
-
-  <!-- navigation -->
-  <div v-if="isLoading">
-    <LoadingComponent />
-  </div>
-  <ul
-    class="nav nav-pills mb-3 mt-3 justify-content-center"
-    id="pills-tab"
-    role="tablist"
-    v-else-if="userProfile"
-  >
-    <li class="nav-item" role="presentation">
-      <button
-        class="nav-link active link-body-emphasis"
-        id="pills-activities-tab"
-        data-bs-toggle="pill"
-        data-bs-target="#pills-activities"
-        type="button"
-        role="tab"
-        aria-controls="pills-activities"
-        aria-selected="true"
-      >
-        {{ $t('userView.navigationActivities') }}
-      </button>
-    </li>
-    <li class="nav-item" role="presentation">
-      <button
-        class="nav-link link-body-emphasis"
-        id="pills-following-tab"
-        data-bs-toggle="pill"
-        data-bs-target="#pills-following"
-        type="button"
-        role="tab"
-        aria-controls="pills-following"
-        aria-selected="false"
-      >
-        {{ $t('userView.navigationFollowing') }}
-      </button>
-    </li>
-    <li class="nav-item" role="presentation">
-      <button
-        class="nav-link link-body-emphasis"
-        id="pills-followers-tab"
-        data-bs-toggle="pill"
-        data-bs-target="#pills-followers"
-        type="button"
-        role="tab"
-        aria-controls="pills-followers"
-        aria-selected="false"
-      >
-        {{ $t('userView.navigationFollowers') }}
-      </button>
-    </li>
-    <li class="nav-item" role="presentation" v-if="userProfile.id == authStore.user.id">
-      <router-link
-        :to="{ name: 'settings', query: { profileSettings: 1 } }"
-        class="btn nav-link link-body-emphasis"
-      >
-        <font-awesome-icon :icon="['fas', 'fa-gear']" />
-        {{ $t('userView.navigationUserSettings') }}
-      </router-link>
-    </li>
-    <li
-      class="nav-item"
-      role="presentation"
-      v-if="userProfile.id != authStore.user.id && userFollowState == null"
-    >
-      <!-- Follow user button -->
-      <a
-        class="btn btn-outline-success h-100 ms-2"
-        href="#"
-        role="button"
-        data-bs-toggle="modal"
-        data-bs-target="#followUserModal"
-      >
-        <font-awesome-icon :icon="['fas', 'fa-user-plus']" />
-        {{ $t('userView.navigationFollow') }}
-      </a>
-
-      <!-- Modal follow user -->
-      <ModalComponent
-        modalId="followUserModal"
-        :title="t('userView.modalFollowUserTitle')"
-        :body="`${t('userView.modalFollowUserBody')}<b>${userProfile.name}</b>?`"
-        :actionButtonType="`success`"
-        :actionButtonText="t('userView.modalFollowUserTitle')"
-        @submitAction="submitFollowUser"
-      />
-    </li>
-    <li
-      class="nav-item"
-      role="presentation"
-      v-if="
-        userProfile.id != authStore.user.id &&
-        userFollowState != null &&
-        !userFollowState.is_accepted
-      "
-    >
-      <!-- Cancel follow request button -->
-      <a
-        class="btn btn-outline-secondary h-100 ms-2"
-        href="#"
-        role="button"
-        data-bs-toggle="modal"
-        data-bs-target="#cancelFollowUserModal"
-      >
-        <font-awesome-icon :icon="['fas', 'fa-user-plus']" />
-        {{ $t('userView.navigationRequestSent') }}
-      </a>
-
-      <!-- Modal cancel follow request -->
-      <ModalComponent
-        modalId="cancelFollowUserModal"
-        :title="t('userView.modalCancelFollowRequestTitle')"
-        :body="`${t('userView.modalCancelFollowRequestBody')}<b>${userProfile.name}</b>?`"
-        :actionButtonType="`danger`"
-        :actionButtonText="t('userView.modalCancelFollowRequestTitle')"
-        @submitAction="submitCancelFollowUser"
-      />
-    </li>
-    <li
-      class="nav-item"
-      role="presentation"
-      v-if="
-        userProfile.id != authStore.user.id &&
-        userFollowState != null &&
-        userFollowState.is_accepted
-      "
-    >
-      <!-- Unfollow user button -->
-      <a
-        class="btn btn-outline-danger h-100 ms-2"
-        href="#"
-        role="button"
-        data-bs-toggle="modal"
-        data-bs-target="#unfollowUserModal"
-      >
-        <font-awesome-icon :icon="['fas', 'fa-user-minus']" />
-        {{ $t('userView.navigationUnfollow') }}
-      </a>
-
-      <!-- Modal unfollow user -->
-      <ModalComponent
-        modalId="unfollowUserModal"
-        :title="t('userView.modalUnfollowUserTitle')"
-        :body="`${t('userView.modalUnfollowUserBody')}<b>${userProfile.name}</b>?`"
-        :actionButtonType="`danger`"
-        :actionButtonText="t('userView.modalUnfollowUserTitle')"
-        @submitAction="submitUnfollowUser"
-      />
-    </li>
-  </ul>
-
-  <div v-if="isLoading">
-    <LoadingComponent />
-  </div>
-  <div class="tab-content" id="pills-tabContent" v-else>
-    <!-- activities tab content -->
-    <div
-      class="tab-pane fade show active"
-      id="pills-activities"
-      role="tabpanel"
-      aria-labelledby="pills-activities-tab"
-      tabindex="0"
-    >
-      <!-- pagination -->
-      <nav>
-        <ul class="pagination justify-content-center">
-          <li :class="['page-item', { active: week === 0 }]">
-            <a href="#" class="page-link link-body-emphasis" @click="setWeek(0, $event)">
-              {{ $t('userView.activitiesPaginationWeek0') }}
+    <!-- goals zone -->
+    <div class="col">
+      <div class="mb-3 rounded p-3 bg-body-tertiary shadow-sm">
+        <div v-if="isLoading">
+          <LoadingComponent />
+        </div>
+        <ul class="nav nav-pills justify-content-center" id="pills-tab" role="tablist">
+          <li class="nav-item" role="presentation">
+            <button
+              class="nav-link active link-body-emphasis"
+              id="pills-activities-tab"
+              data-bs-toggle="pill"
+              data-bs-target="#pills-activities"
+              type="button"
+              role="tab"
+              aria-controls="pills-activities"
+              aria-selected="true"
+            >
+              {{ $t('userView.navigationActivities') }}
+            </button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button
+              class="nav-link link-body-emphasis"
+              id="pills-following-tab"
+              data-bs-toggle="pill"
+              data-bs-target="#pills-following"
+              type="button"
+              role="tab"
+              aria-controls="pills-following"
+              aria-selected="false"
+            >
+              {{ $t('userView.navigationFollowing') }}
+            </button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button
+              class="nav-link link-body-emphasis"
+              id="pills-followers-tab"
+              data-bs-toggle="pill"
+              data-bs-target="#pills-followers"
+              type="button"
+              role="tab"
+              aria-controls="pills-followers"
+              aria-selected="false"
+            >
+              {{ $t('userView.navigationFollowers') }}
+            </button>
+          </li>
+          <li
+            class="nav-item"
+            role="presentation"
+            v-if="userProfile && userProfile.id == authStore.user.id"
+          >
+            <router-link
+              :to="{ name: 'settings', query: { profileSettings: 1 } }"
+              class="btn nav-link link-body-emphasis"
+            >
+              <font-awesome-icon :icon="['fas', 'fa-gear']" />
+              {{ $t('userView.navigationUserSettings') }}
+            </router-link>
+          </li>
+          <li
+            class="nav-item"
+            role="presentation"
+            v-if="userProfile && userProfile.id != authStore.user.id && userFollowState == null"
+          >
+            <!-- Follow user button -->
+            <a
+              class="btn btn-outline-success h-100 ms-2"
+              href="#"
+              role="button"
+              data-bs-toggle="modal"
+              data-bs-target="#followUserModal"
+            >
+              <font-awesome-icon :icon="['fas', 'fa-user-plus']" />
+              {{ $t('userView.navigationFollow') }}
             </a>
+
+            <!-- Modal follow user -->
+            <ModalComponent
+              modalId="followUserModal"
+              :title="t('userView.modalFollowUserTitle')"
+              :body="`${t('userView.modalFollowUserBody')}<b>${userProfile.name}</b>?`"
+              :actionButtonType="`success`"
+              :actionButtonText="t('userView.modalFollowUserTitle')"
+              @submitAction="submitFollowUser"
+            />
           </li>
-          <li v-if="week > 2" class="page-item disabled">
-            <a class="page-link">...</a>
-          </li>
-          <li v-for="i in visibleWeeks" :key="i" :class="['page-item', { active: i === week }]">
-            <a href="#" class="page-link link-body-emphasis" @click="setWeek(i, $event)">
-              {{ formatDateRange(i) }}
+          <li
+            class="nav-item"
+            role="presentation"
+            v-if="
+              userProfile &&
+              userProfile.id != authStore.user.id &&
+              userFollowState != null &&
+              !userFollowState.is_accepted
+            "
+          >
+            <!-- Cancel follow request button -->
+            <a
+              class="btn btn-outline-secondary h-100 ms-2"
+              href="#"
+              role="button"
+              data-bs-toggle="modal"
+              data-bs-target="#cancelFollowUserModal"
+            >
+              <font-awesome-icon :icon="['fas', 'fa-user-plus']" />
+              {{ $t('userView.navigationRequestSent') }}
             </a>
+
+            <!-- Modal cancel follow request -->
+            <ModalComponent
+              modalId="cancelFollowUserModal"
+              :title="t('userView.modalCancelFollowRequestTitle')"
+              :body="`${t('userView.modalCancelFollowRequestBody')}<b>${userProfile.name}</b>?`"
+              :actionButtonType="`danger`"
+              :actionButtonText="t('userView.modalCancelFollowRequestTitle')"
+              @submitAction="submitCancelFollowUser"
+            />
           </li>
-          <li v-if="week < 49" class="page-item disabled">
-            <a class="page-link">...</a>
-          </li>
-          <li :class="['page-item', { active: week === 51 }]">
-            <a href="#" class="page-link link-body-emphasis" @click="setWeek(51, $event)">
-              {{ $t('userView.activitiesPaginationWeek51') }}
+          <li
+            class="nav-item"
+            role="presentation"
+            v-if="
+              userProfile &&
+              userProfile.id != authStore.user.id &&
+              userFollowState != null &&
+              userFollowState.is_accepted
+            "
+          >
+            <!-- Unfollow user button -->
+            <a
+              class="btn btn-outline-danger h-100 ms-2"
+              href="#"
+              role="button"
+              data-bs-toggle="modal"
+              data-bs-target="#unfollowUserModal"
+            >
+              <font-awesome-icon :icon="['fas', 'fa-user-minus']" />
+              {{ $t('userView.navigationUnfollow') }}
             </a>
+
+            <!-- Modal unfollow user -->
+            <ModalComponent
+              modalId="unfollowUserModal"
+              :title="t('userView.modalUnfollowUserTitle')"
+              :body="`${t('userView.modalUnfollowUserBody')}<b>${userProfile.name}</b>?`"
+              :actionButtonType="`danger`"
+              :actionButtonText="t('userView.modalUnfollowUserTitle')"
+              @submitAction="submitUnfollowUser"
+            />
           </li>
         </ul>
-      </nav>
-
-      <!-- Checking if userWeekActivities is loaded and has length -->
-      <div v-if="userWeekActivities && userWeekActivities.length">
-        <!-- Iterating over userWeekActivities to display them -->
+      </div>
+      <div v-if="isLoading">
+        <LoadingComponent />
+      </div>
+      <div class="tab-content" id="pills-tabContent" v-else>
+        <!-- activities tab content -->
         <div
-          class="card mb-3 rounded border-0 bg-body-tertiary shadow-sm"
-          v-for="activity in userWeekActivities"
-          :key="activity.id"
+          class="tab-pane fade show active"
+          id="pills-activities"
+          role="tabpanel"
+          aria-labelledby="pills-activities-tab"
+          tabindex="0"
         >
-          <div class="card-body">
-            <ActivitySummaryComponent
-              :activity="activity"
-              :source="'home'"
-              :units="userProfile.units"
-            />
+          <!-- pagination -->
+          <nav class="mb-3 rounded pt-3 pb-1 px-3 bg-body-tertiary shadow-sm">
+            <ul class="pagination justify-content-center">
+              <li :class="['page-item', { active: week === 0 }]">
+                <a href="#" class="page-link link-body-emphasis" @click="setWeek(0, $event)">
+                  {{ $t('userView.activitiesPaginationWeek0') }}
+                </a>
+              </li>
+              <li v-if="week > 2" class="page-item disabled">
+                <a class="page-link">...</a>
+              </li>
+              <li v-for="i in visibleWeeks" :key="i" :class="['page-item', { active: i === week }]">
+                <a href="#" class="page-link link-body-emphasis" @click="setWeek(i, $event)">
+                  {{ formatDateRange(i) }}
+                </a>
+              </li>
+              <li v-if="week < 49" class="page-item disabled">
+                <a class="page-link">...</a>
+              </li>
+              <li :class="['page-item', { active: week === 51 }]">
+                <a href="#" class="page-link link-body-emphasis" @click="setWeek(51, $event)">
+                  {{ $t('userView.activitiesPaginationWeek51') }}
+                </a>
+              </li>
+            </ul>
+          </nav>
+
+          <!-- Checking if userWeekActivities is loaded and has length -->
+          <div v-if="userWeekActivities && userWeekActivities.length">
+            <!-- Iterating over userWeekActivities to display them -->
+            <div
+              class="card mb-3 rounded border-0 bg-body-tertiary shadow-sm"
+              v-for="activity in userWeekActivities"
+              :key="activity.id"
+            >
+              <div class="card-body">
+                <ActivitySummaryComponent
+                  :activity="activity"
+                  :source="'home'"
+                  :units="userProfile.units"
+                />
+              </div>
+              <ActivityMapComponent
+                class="mx-3 mb-3"
+                :activity="activity"
+                :source="'home'"
+                v-if="
+                  activity &&
+                  ((authStore.isAuthenticated && authStore.user.id === activity.user_id) ||
+                    (activity.hide_map === false && authStore.isAuthenticated === false))
+                "
+              />
+            </div>
           </div>
-          <ActivityMapComponent
-            class="mx-3 mb-3"
-            :activity="activity"
-            :source="'home'"
-            v-if="
-              activity &&
-              ((authStore.isAuthenticated && authStore.user.id === activity.user_id) ||
-                (activity.hide_map === false && authStore.isAuthenticated === false))
-            "
-          />
+          <!-- Displaying a message or component when there are no activities -->
+          <NoItemsFoundComponent :show-shadow="false" v-else />
+        </div>
+
+        <!-- following tab content -->
+        <div
+          class="tab-pane fade"
+          id="pills-following"
+          role="tabpanel"
+          aria-labelledby="pills-following-tab"
+          tabindex="0"
+        >
+          <ul
+            class="list-group list-group-flush w-100 rounded shadow-sm"
+            v-if="followersAll && followersAll.length"
+          >
+            <li
+              class="list-group-item d-flex justify-content-center align-items-center w-100 p-3 bg-body-tertiary"
+              v-for="follower in followersAll"
+              :key="follower.following_id"
+            >
+              <FollowersListComponent
+                :follower="follower"
+                :type="1"
+                @followingDeleted="updateFollowingList"
+              />
+            </li>
+          </ul>
+          <!-- Displaying a message or component when there are no following users -->
+          <NoItemsFoundComponent :show-shadow="false" v-else />
+        </div>
+
+        <!-- followers tab content -->
+        <div
+          class="tab-pane fade"
+          id="pills-followers"
+          role="tabpanel"
+          aria-labelledby="pills-followers-tab"
+          tabindex="0"
+        >
+          <ul
+            class="list-group list-group-flush w-100 rounded shadow-sm"
+            v-if="followingAll && followingAll.length"
+          >
+            <li
+              class="list-group-item d-flex justify-content-center align-items-center w-100 p-3 bg-body-tertiary"
+              v-for="follower in followingAll"
+              :key="follower.follower_id"
+            >
+              <FollowersListComponent
+                :follower="follower"
+                :type="2"
+                @followerDeleted="updateFollowerList"
+                @followerAccepted="updateFollowerListWithAccepted"
+              />
+            </li>
+          </ul>
+          <!-- Displaying a message or component when there are no following users -->
+          <NoItemsFoundComponent :show-shadow="false" v-else />
         </div>
       </div>
-      <!-- Displaying a message or component when there are no activities -->
-      <NoItemsFoundComponent v-else />
     </div>
 
-    <!-- following tab content -->
-    <div
-      class="tab-pane fade"
-      id="pills-following"
-      role="tabpanel"
-      aria-labelledby="pills-following-tab"
-      tabindex="0"
-    >
-      <ul
-        class="list-group list-group-flush w-100 rounded shadow-sm"
-        v-if="followersAll && followersAll.length"
-      >
-        <li
-          class="list-group-item d-flex justify-content-center align-items-center w-100 p-3 bg-body-tertiary"
-          v-for="follower in followersAll"
-          :key="follower.following_id"
-        >
-          <FollowersListComponent
-            :follower="follower"
-            :type="1"
-            @followingDeleted="updateFollowingList"
-          />
-        </li>
-      </ul>
-      <!-- Displaying a message or component when there are no following users -->
-      <NoItemsFoundComponent v-else />
-    </div>
-
-    <!-- followers tab content -->
-    <div
-      class="tab-pane fade"
-      id="pills-followers"
-      role="tabpanel"
-      aria-labelledby="pills-followers-tab"
-      tabindex="0"
-    >
-      <ul
-        class="list-group list-group-flush w-100 rounded shadow-sm"
-        v-if="followingAll && followingAll.length"
-      >
-        <li
-          class="list-group-item d-flex justify-content-center align-items-center w-100 p-3 bg-body-tertiary"
-          v-for="follower in followingAll"
-          :key="follower.follower_id"
-        >
-          <FollowersListComponent
-            :follower="follower"
-            :type="2"
-            @followerDeleted="updateFollowerList"
-            @followerAccepted="updateFollowerListWithAccepted"
-          />
-        </li>
-      </ul>
-      <!-- Displaying a message or component when there are no following users -->
-      <NoItemsFoundComponent v-else />
-    </div>
+    <!-- back button -->
+    <BackButtonComponent />
   </div>
-
-  <!-- back button -->
-  <BackButtonComponent />
 </template>
 
 <script setup>
@@ -359,10 +373,12 @@ import { useAuthStore } from '@/stores/authStore'
 import { users } from '@/services/usersService'
 import { activities } from '@/services/activitiesService'
 import { followers } from '@/services/followersService'
+import { userGoals as userGoalsService } from '@/services/userGoalsService'
 // Import Notivue push
 import { push } from 'notivue'
 // Importing the components
 import UserDistanceStatsComponent from '@/components/Users/UserDistanceStatsComponent.vue'
+import UserGoalsStatsComponent from '@/components/Users/UserGoalsStatsComponent.vue'
 import LoadingComponent from '@/components/GeneralComponents/LoadingComponent.vue'
 import NoItemsFoundComponent from '@/components/GeneralComponents/NoItemsFoundComponents.vue'
 import ActivitySummaryComponent from '@/components/Activities/ActivitySummaryComponent.vue'
@@ -376,6 +392,7 @@ const { t } = useI18n()
 const authStore = useAuthStore()
 const route = useRoute()
 const userProfile = ref(null)
+const userGoals = ref(null)
 const thisWeekDistances = ref([])
 const thisMonthDistances = ref([])
 const thisMonthNumberOfActivities = ref(0)
@@ -452,6 +469,8 @@ const fetchData = async () => {
     // Fetch the user follow state
     if (Number(route.params.id) !== authStore.user.id) {
       userFollowState.value = await followers.getUserFollowState(authStore.user.id, route.params.id)
+    } else {
+      userGoals.value = await userGoalsService.getUserGoalResults()
     }
   } catch (error) {
     push.error(`${t('userView.errorFetchingUserActivities')} - ${error}`)
