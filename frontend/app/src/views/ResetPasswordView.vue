@@ -80,7 +80,7 @@ import { ref, computed, onMounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useI18n } from "vue-i18n";
 import { push } from "notivue";
-import { session } from "@/services/sessionService";
+import { passwordReset } from "@/services/passwordResetService";
 
 const route = useRoute();
 const router = useRouter();
@@ -128,7 +128,7 @@ const submitResetForm = async () => {
 	resetLoading.value = true;
 
 	try {
-		await session.confirmPasswordReset({
+		await passwordReset.confirmPasswordReset({
 			token: token,
 			new_password: newPassword.value
 		});

@@ -67,6 +67,7 @@ import { useAuthStore } from "@/stores/authStore";
 import { useServerSettingsStore } from "@/stores/serverSettingsStore";
 // Importing the services for the login
 import { session } from "@/services/sessionService";
+import { passwordReset } from "@/services/passwordResetService";
 import { profile } from "@/services/profileService";
 import { Modal } from "bootstrap";
 // Importing modal component
@@ -146,7 +147,7 @@ const handleForgotPasswordSubmit = async (email) => {
 	forgotPasswordLoading.value = true;
 
 	try {
-		await session.requestPasswordReset({
+		await passwordReset.requestPasswordReset({
 			email: email
 		});
 
