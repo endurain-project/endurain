@@ -27,7 +27,9 @@ TZ = os.getenv("TZ", "UTC")
 REVERSE_GEO_PROVIDER = os.getenv("REVERSE_GEO_PROVIDER", "geocode").lower()
 PHOTON_API_HOST = os.getenv("PHOTON_API_HOST", "photon.komoot.io").lower()
 PHOTON_API_USE_HTTPS = os.getenv("PHOTON_API_USE_HTTPS", "true").lower() == "true"
-NOMINATIM_API_HOST = os.getenv("NOMINATIM_API_HOST", "nominatim.openstreetmap.org").lower()
+NOMINATIM_API_HOST = os.getenv(
+    "NOMINATIM_API_HOST", "nominatim.openstreetmap.org"
+).lower()
 NOMINATIM_API_USE_HTTPS = os.getenv("NOMINATIM_API_USE_HTTPS", "true").lower() == "true"
 GEOCODES_MAPS_API = os.getenv("GEOCODES_MAPS_API", "changeme")
 try:
@@ -65,7 +67,7 @@ def check_required_env_vars():
     if missing_email_vars:
         core_logger.print_to_log_and_console(
             f"Email not configured (missing: {', '.join(missing_email_vars)}). Password reset feature will not work.",
-            "warning"
+            "info",
         )
 
     for var in required_env_vars:
