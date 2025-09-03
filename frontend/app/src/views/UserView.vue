@@ -74,16 +74,17 @@
         <UserGoalsStatsComponent :goals="userGoals" v-else />
       </div>
     </div>
-    <!-- goals zone -->
+    <!-- content zone -->
     <div class="col">
-      <div class="mb-3 rounded p-3 bg-body-tertiary shadow-sm">
+      <div class="mb-3 rounded pb-3 bg-body-tertiary shadow-sm">
         <div v-if="isLoading">
           <LoadingComponent />
         </div>
+        <!-- navigation zone-->
         <ul class="nav nav-pills justify-content-center" id="pills-tab" role="tablist">
           <li class="nav-item" role="presentation">
             <button
-              class="nav-link active link-body-emphasis"
+              class="nav-link active link-body-emphasis mt-3"
               id="pills-activities-tab"
               data-bs-toggle="pill"
               data-bs-target="#pills-activities"
@@ -97,7 +98,7 @@
           </li>
           <li class="nav-item" role="presentation">
             <button
-              class="nav-link link-body-emphasis"
+              class="nav-link link-body-emphasis mt-3"
               id="pills-following-tab"
               data-bs-toggle="pill"
               data-bs-target="#pills-following"
@@ -111,7 +112,7 @@
           </li>
           <li class="nav-item" role="presentation">
             <button
-              class="nav-link link-body-emphasis"
+              class="nav-link link-body-emphasis mt-3"
               id="pills-followers-tab"
               data-bs-toggle="pill"
               data-bs-target="#pills-followers"
@@ -130,7 +131,7 @@
           >
             <router-link
               :to="{ name: 'settings', query: { profileSettings: 1 } }"
-              class="btn nav-link link-body-emphasis"
+              class="btn nav-link link-body-emphasis mt-3"
             >
               <font-awesome-icon :icon="['fas', 'fa-gear']" />
               {{ $t('userView.navigationUserSettings') }}
@@ -143,7 +144,7 @@
           >
             <!-- Follow user button -->
             <a
-              class="btn btn-outline-success h-100 ms-2"
+              class="btn btn-outline-success ms-2 mt-3"
               href="#"
               role="button"
               data-bs-toggle="modal"
@@ -175,7 +176,7 @@
           >
             <!-- Cancel follow request button -->
             <a
-              class="btn btn-outline-secondary h-100 ms-2"
+              class="btn btn-outline-secondary ms-2 mt-3"
               href="#"
               role="button"
               data-bs-toggle="modal"
@@ -207,7 +208,7 @@
           >
             <!-- Unfollow user button -->
             <a
-              class="btn btn-outline-danger h-100 ms-2"
+              class="btn btn-outline-danger ms-2 mt-3"
               href="#"
               role="button"
               data-bs-toggle="modal"
