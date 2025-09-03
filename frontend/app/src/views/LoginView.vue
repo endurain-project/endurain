@@ -2,8 +2,10 @@
 	<div class="bg-body-tertiary shadow-sm rounded p-3">
 		<div class="row justify-content-center align-items-center">
 			<div class="col d-none d-lg-block">
-				<img width="auto" height="auto" :src="loginPhotoUrl" alt="Square login image" class="img-fluid rounded" v-if="serverSettingsStore.serverSettings.login_photo_set" />
-				<img width="auto" height="auto" src="/src/assets/login.png"  alt="Square login image" class="img-fluid rounded" v-else >
+				<img width="auto" height="auto" :src="loginPhotoUrl" alt="Square login image" class="img-fluid rounded"
+					v-if="serverSettingsStore.serverSettings.login_photo_set" />
+				<img width="auto" height="auto" src="/src/assets/login.png" alt="Square login image"
+					class="img-fluid rounded" v-else>
 			</div>
 			<div class="col form-signin text-center m-3">
 				<form @submit.prevent="submitForm">
@@ -12,19 +14,23 @@
 					<br>
 
 					<div class="form-floating">
-						<input type="text" class="form-control" id="floatingInput" name="loginUsername" :placeholder='$t("loginView.username")' v-model="username" required>
+						<input type="text" class="form-control" id="floatingInput" name="loginUsername"
+							:placeholder='$t("loginView.username")' v-model="username" required>
 						<label for="loginUsername">{{ $t("loginView.username") }}</label>
 					</div>
 					<br>
 					<div class="form-floating position-relative">
-						<input :type="showPassword ? 'text' : 'password'" class="form-control" name="loginPassword" :placeholder='$t("loginView.password")' v-model="password" required>
+						<input :type="showPassword ? 'text' : 'password'" class="form-control" name="loginPassword"
+							:placeholder='$t("loginView.password")' v-model="password" required>
 						<label for="loginPassword">{{ $t("loginView.password") }}</label>
-						<button type="button" class="btn position-absolute top-50 end-0 translate-middle-y me-2" @click="togglePasswordVisibility">
+						<button type="button" class="btn position-absolute top-50 end-0 translate-middle-y me-2"
+							@click="togglePasswordVisibility">
 							<font-awesome-icon :icon="showPassword ? ['fas', 'eye-slash'] : ['fas', 'eye']" />
 						</button>
 					</div>
 					<br>
-					<button class="w-100 btn btn-lg btn-primary" type="submit">{{ $t("loginView.signInButton") }}</button>
+					<button class="w-100 btn btn-lg btn-primary" type="submit">{{ $t("loginView.signInButton")
+						}}</button>
 					<div class="mt-3 text-center">
 						<a href="#" @click.prevent="showForgotPasswordModal" class="text-decoration-none">
 							{{ $t("loginView.forgotPassword") }}
@@ -40,17 +46,11 @@
 	</div>
 
 	<!-- Forgot Password Modal -->
-	<ModalComponentEmailInput
-		ref="forgotPasswordModalRef"
-		modal-id="forgotPasswordModal"
-		:title="$t('forgotPassword.title')"
-		:email-field-label="$t('forgotPassword.emailLabel')"
-		:email-help-text="$t('forgotPassword.emailHelp')"
-		action-button-type="primary"
-		:action-button-text="$t('forgotPassword.submitButton')"
-		:is-loading="forgotPasswordLoading"
-		@email-to-emit-action="handleForgotPasswordSubmit"
-	/>
+	<ModalComponentEmailInput ref="forgotPasswordModalRef" modal-id="forgotPasswordModal"
+		:title="$t('loginView.forgotPasswordModalTitle')" :email-field-label="$t('loginView.forgotPasswordModalEmailLabel')"
+		:email-help-text="$t('loginView.forgotPasswordModalEmailHelp')" action-button-type="success"
+		:action-button-text="$t('loginView.forgotPasswordModalSubmitButton')" :is-loading="forgotPasswordLoading"
+		@emailToEmitAction="handleForgotPasswordSubmit" />
 </template>
 
 <script setup>
@@ -139,7 +139,7 @@ const submitForm = async () => {
 // Forgot password form submission
 const handleForgotPasswordSubmit = async (email) => {
 	if (!email) {
-		push.error(t("forgotPassword.emailRequired"));
+		push.error(t("loginView.forgotPasswordModalEmailRequired"));
 		return;
 	}
 
@@ -150,17 +150,17 @@ const handleForgotPasswordSubmit = async (email) => {
 			email: email
 		});
 
-		push.success(t("forgotPassword.requestSuccess"));
-		
+		push.success(t("loginView.forgotPasswordModalRequestSuccess"));
+
 		// Close modal
 		if (forgotPasswordModalInstance) {
 			forgotPasswordModalInstance.hide();
 		}
 	} catch (error) {
 		if (error.toString().includes("503")) {
-			push.error(t("forgotPassword.emailNotConfigured"));
+			push.error(t("loginView.forgotPasswordModalEmailNotConfigured"));
 		} else {
-			push.error(`${t("forgotPassword.requestError")} - ${error}`);
+			push.error(`${t("loginView.forgotPasswordModalRequestError")} - ${error}`);
 		}
 	} finally {
 		forgotPasswordLoading.value = false;

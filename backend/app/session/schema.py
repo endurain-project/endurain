@@ -24,7 +24,12 @@ class CSRFMiddleware(BaseHTTPMiddleware):
     def __init__(self, app):
         super().__init__(app)
         # Define paths that don't need CSRF protection
-        self.exempt_paths = ["/api/v1/token", "/api/v1/refresh"]
+        self.exempt_paths = [
+            "/api/v1/token",
+            "/api/v1/refresh",
+            "/api/v1/password-reset/request",
+            "/api/v1/password-reset/confirm",
+        ]
 
     async def dispatch(self, request: Request, call_next):
         # Get client type from header

@@ -480,7 +480,6 @@ import usSearchView from './us/searchView.json';
 import usSettingsView from './us/settingsView.json';
 import usUserView from './us/userView.json';
 import usSummaryView from './us/summaryView.json';
-import usForgotPassword from './us/forgotPassword.json';
 import usResetPassword from './us/resetPassword.json';
 
 // Constructing the messages structure
@@ -961,7 +960,6 @@ const messages = {
 		settingsView: usSettingsView,
 		userView: usUserView,
 		summaryView: usSummaryView,
-		forgotPassword: usForgotPassword,
 		resetPassword: usResetPassword,
 	},
 };

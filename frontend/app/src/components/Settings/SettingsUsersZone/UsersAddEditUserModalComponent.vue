@@ -55,7 +55,7 @@
                         <label for="userEmailAddEdit"><b>* {{
                             $t("usersAddEditUserModalComponent.addEditUserModalEmailLabel") }}</b></label>
                         <input class="form-control" :class="{ 'is-invalid': !isEmailValid || !isEmailExists }"
-                            type="text" name="userEmailAddEdit"
+                            type="email" name="userEmailAddEdit"
                             :placeholder='$t("usersAddEditUserModalComponent.addEditUserModalEmailPlaceholder")'
                             maxlength="45" v-model="newEditUserEmail" required>
                         <div id="validationEmailFeedback" class="invalid-feedback" v-if="!isEmailValid">

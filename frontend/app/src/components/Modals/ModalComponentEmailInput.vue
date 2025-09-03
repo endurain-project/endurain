@@ -7,39 +7,23 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    <form @submit.prevent="submitAction()">
-                        <div class="mb-3">
-                            <label :for="`${modalId}Email`" class="form-label">{{ emailFieldLabel }}</label>
-                            <input 
-                                type="email" 
-                                class="form-control" 
-                                :id="`${modalId}Email`" 
-                                v-model="emailToEmit" 
-                                :placeholder="emailFieldLabel"
-                                required
-                            >
-                            <div class="form-text" v-if="emailHelpText">{{ emailHelpText }}</div>
-                        </div>
-                        <div class="modal-footer">
-                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                                {{ $t("generalItems.buttonClose") }}
-                            </button>
-                            <button 
-                                type="submit" 
-                                class="btn" 
-                                :class="{ 
-                                    'btn-success': actionButtonType === 'success', 
-                                    'btn-danger': actionButtonType === 'danger', 
-                                    'btn-warning': actionButtonType === 'warning', 
-                                    'btn-primary': actionButtonType === 'primary' || actionButtonType === 'loading' 
-                                }"
-                                :disabled="isLoading"
-                            >
-                                <span v-if="isLoading" class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                                {{ actionButtonText }}
-                            </button>
-                        </div>
-                    </form>
+                    <label :for="`${modalId}Email`" class="form-label">{{ emailFieldLabel }}</label>
+                    <input type="email" class="form-control" :class="{ 'is-invalid': !isEmailValid }" :name="`${modalId}Email`" :id="`${modalId}Email`" v-model="emailToEmit"
+                        :placeholder="emailFieldLabel" required>
+                    <div id="validationEmailFeedback" class="invalid-feedback" v-if="!isEmailValid">
+                        {{ $t("usersAddEditUserModalComponent.addEditUserModalErrorEmailInvalid") }}
+                    </div>
+                    <div class="form-text" v-if="emailHelpText">{{ emailHelpText }}</div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        {{ $t("generalItems.buttonClose") }}
+                    </button>
+                    <a type="button" @click="submitAction()" class="btn"
+                        :class="{ 'btn-success': actionButtonType === 'success', 'btn-danger': actionButtonType === 'danger', 'btn-warning': actionButtonType === 'warning', 'btn-primary': actionButtonType === 'loading' }"
+                        :disabled="isLoading"><span v-if="isLoading" class="spinner-border spinner-border-sm me-2"
+                            role="status" aria-hidden="true"></span>{{
+                                actionButtonText }}</a>
                 </div>
             </div>
         </div>
@@ -47,7 +31,7 @@
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 
 const props = defineProps({
     modalId: {
@@ -85,6 +69,10 @@ const props = defineProps({
 });
 
 const emit = defineEmits(['emailToEmitAction']);
+const isEmailValid = computed(() => {
+    const emailRegex = /^[^\s@]{1,}@[^\s@]{2,}\.[^\s@]{2,}$/;
+    return emailRegex.test(emailToEmit.value);
+});
 
 const emailToEmit = ref(props.emailDefaultValue);
 

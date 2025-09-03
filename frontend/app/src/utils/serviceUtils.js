@@ -11,7 +11,9 @@ async function fetchWithRetry(url, options, responseType = 'json') {
 	if (
 		['POST', 'PUT', 'DELETE', 'PATCH'].includes(options.method) &&
 		url !== 'token' &&
-		url !== 'refresh'
+		url !== 'refresh' &&
+		url !== 'password-reset/request' &&
+		url !== 'password-reset/confirm'
 	) {
 		const csrfToken = document.cookie
 			.split('; ')
