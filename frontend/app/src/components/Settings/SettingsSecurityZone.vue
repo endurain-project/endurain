@@ -3,7 +3,50 @@
     <div class="bg-body-tertiary rounded p-3 shadow-sm">
       <h4>{{ $t('settingsSecurityZone.subtitleChangePassword') }}</h4>
       <UsersPasswordRequirementsComponent />
+  <div class="col">
+    <div class="bg-body-tertiary rounded p-3 shadow-sm">
+      <h4>{{ $t('settingsSecurityZone.subtitleChangePassword') }}</h4>
+      <UsersPasswordRequirementsComponent />
 
+      <form @submit.prevent="submitChangeUserPasswordForm">
+        <!-- password fields -->
+        <label for="validationNewPassword"
+          ><b>* {{ $t('settingsSecurityZone.changeUserPasswordPasswordLabel') }}</b></label
+        >
+        <div class="position-relative">
+          <input
+            :type="showNewPassword ? 'text' : 'password'"
+            class="form-control"
+            :class="{ 'is-invalid': !isNewPasswordValid || !isPasswordMatch }"
+            id="validationNewPassword"
+            aria-describedby="validationNewPasswordFeedback"
+            :placeholder="$t('settingsSecurityZone.changeUserPasswordPasswordLabel')"
+            v-model="newPassword"
+            required
+          />
+          <button
+            type="button"
+            class="btn position-absolute top-50 end-0 translate-middle-y"
+            :class="{ 'me-4': !isNewPasswordValid || !isPasswordMatch }"
+            @click="toggleNewPasswordVisibility"
+          >
+            <font-awesome-icon :icon="showNewPassword ? ['fas', 'eye-slash'] : ['fas', 'eye']" />
+          </button>
+        </div>
+        <div
+          id="validationNewPasswordFeedback"
+          class="invalid-feedback d-block"
+          v-if="!isNewPasswordValid"
+        >
+          {{ $t('settingsSecurityZone.changeUserPasswordFeedbackLabel') }}
+        </div>
+        <div
+          id="validationNewPasswordFeedback"
+          class="invalid-feedback d-block"
+          v-if="!isPasswordMatch"
+        >
+          {{ $t('settingsSecurityZone.changeUserPasswordPasswordsDoNotMatchFeedbackLabel') }}
+        </div>
       <form @submit.prevent="submitChangeUserPasswordForm">
         <!-- password fields -->
         <label for="validationNewPassword"
@@ -294,7 +337,9 @@ import { useI18n } from 'vue-i18n'
 import Modal from 'bootstrap/js/src/modal'
 // Importing the services
 import { profile } from '@/services/profileService'
+import { profile } from '@/services/profileService'
 // Import Notivue push
+import { push } from 'notivue'
 import { push } from 'notivue'
 // Importing the components
 import UsersPasswordRequirementsComponent from '@/components/Settings/SettingsUsersZone/UsersPasswordRequirementsComponent.vue'

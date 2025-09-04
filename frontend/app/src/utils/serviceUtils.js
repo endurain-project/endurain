@@ -7,17 +7,19 @@ export const API_URL = `${window.env.ENDURAIN_HOST}/api/v1/`
 export const FRONTEND_URL = `${window.env.ENDURAIN_HOST}/`
 
 async function fetchWithRetry(url, options, responseType = 'json') {
-  // Add CSRF token to headers for state-changing requests
-  if (
-    ['POST', 'PUT', 'DELETE', 'PATCH'].includes(options.method) &&
-    url !== 'token' &&
-    url !== 'refresh' &&
-    url !== 'mfa/verify'
-  ) {
-    const csrfToken = document.cookie
-      .split('; ')
-      .find((row) => row.startsWith('endurain_csrf_token='))
-      ?.split('=')[1]
+	// Add CSRF token to headers for state-changing requests
+	if (
+		['POST', 'PUT', 'DELETE', 'PATCH'].includes(options.method) &&
+		url !== 'token' &&
+		url !== 'refresh' &&
+    url !== 'mfa/verify' &&
+    url !== 'password-reset/request' &&
+    url !== 'password-reset/confirm'
+	) {
+		const csrfToken = document.cookie
+			.split('; ')
+			.find((row) => row.startsWith('endurain_csrf_token='))
+			?.split('=')[1]
 
     if (csrfToken) {
       options.headers = {

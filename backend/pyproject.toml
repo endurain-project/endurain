@@ -39,6 +39,7 @@ poetry = "^2.0.0"
 user-agents = "^2.2.0"
 pydantic = {extras = ["email"], version = "^2.11.3"}
 garth = "^0.5.16"
+apprise = "^1.8.0"
 pyotp = "^2.9.0"
 qrcode = {extras = ["pil"], version = "^8.2"}
 

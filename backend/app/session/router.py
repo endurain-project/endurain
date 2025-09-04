@@ -14,7 +14,6 @@ from sqlalchemy.orm import Session
 
 import session.utils as session_utils
 import session.security as session_security
-import session.constants as session_constants
 import session.crud as session_crud
 import session.schema as session_schema
 

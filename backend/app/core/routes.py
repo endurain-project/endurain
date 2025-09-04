@@ -24,6 +24,7 @@ import gears.gear_components.router as gear_components_router
 import health_data.router as health_data_router
 import health_targets.router as health_targets_router
 import notifications.router as notifications_router
+import password_reset_tokens.router as password_reset_tokens_router
 import profile.router as profile_router
 import server_settings.public_router as server_settings_public_router
 import server_settings.router as server_settings_router
@@ -135,6 +136,11 @@ router.include_router(
         Depends(session_security.validate_access_token),
         Security(session_security.check_scopes, scopes=["profile"]),
     ],
+)
+router.include_router(
+    password_reset_tokens_router.router,
+    prefix=core_config.ROOT_PATH,
+    tags=["password_reset_tokens"],
 )
 router.include_router(
     profile_router.router,

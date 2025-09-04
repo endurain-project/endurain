@@ -90,11 +90,24 @@
       </div>
     </div>
   </div>
+
+  <!-- Forgot Password Modal -->
+  <ModalComponentEmailInput
+    ref="forgotPasswordModalRef"
+    modal-id="forgotPasswordModal"
+    :title="$t('loginView.forgotPasswordModalTitle')"
+    :email-field-label="$t('loginView.forgotPasswordModalEmailLabel')"
+    :email-help-text="$t('loginView.forgotPasswordModalEmailHelp')"
+    action-button-type="success"
+    :action-button-text="$t('loginView.forgotPasswordModalSubmitButton')"
+    :is-loading="forgotPasswordLoading"
+    @emailToEmitAction="handleForgotPasswordSubmit"
+  />
 </template>
 
 <script setup>
 // Importing the vue composition API
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, nextTick, watch } from 'vue'
 // Importing the router
 import { useRoute, useRouter } from 'vue-router'
 // Importing the i18n
@@ -106,7 +119,11 @@ import { useAuthStore } from '@/stores/authStore'
 import { useServerSettingsStore } from '@/stores/serverSettingsStore'
 // Importing the services for the login
 import { session } from '@/services/sessionService'
+import { passwordReset } from '@/services/passwordResetService'
 import { profile } from '@/services/profileService'
+import { Modal } from 'bootstrap'
+// Importing modal component
+import ModalComponentEmailInput from '@/components/Modals/ModalComponentEmailInput.vue'
 
 // Variables
 const route = useRoute()
@@ -124,6 +141,18 @@ const showPassword = ref(false)
 const loginPhotoUrl = serverSettingsStore.serverSettings.login_photo_set
   ? `${window.env.ENDURAIN_HOST}/server_images/login.png`
   : null
+
+// Forgot password variables
+const forgotPasswordLoading = ref(false)
+const forgotPasswordModalRef = ref(null)
+let forgotPasswordModalInstance = null
+
+// Function to show forgot password modal
+const showForgotPasswordModal = () => {
+  if (forgotPasswordModalInstance) {
+    forgotPasswordModalInstance.show()
+  }
+}
 
 // Toggle password visibility
 const togglePasswordVisibility = () => {
@@ -200,24 +229,64 @@ const completeLogin = async (session_id) => {
   // Store the user in the auth store
   authStore.setUser(userProfile, session_id, locale)
 
-  // Redirect to the home page
-  return router.push('/')
-}
-
-// Handle login errors
-const handleLoginError = (error) => {
-  if (error.toString().includes('401')) {
-    push.error(`${t('loginView.error401')} - ${error}`)
-  } else if (error.toString().includes('403')) {
-    push.error(`${t('loginView.error403')} - ${error}`)
-  } else if (error.toString().includes('500')) {
-    push.error(`${t('loginView.error500')} - ${error}`)
-  } else {
-    push.error(`${t('loginView.errorUndefined')} - ${error}`)
+    // Redirect to the home page
+    return router.push('/')
+  } catch (error) {
+    // Handle the error
+    if (error.toString().includes('401')) {
+      push.error(`${t('loginView.error401')} - ${error}`)
+    } else if (error.toString().includes('403')) {
+      push.error(`${t('loginView.error403')} - ${error}`)
+    } else if (error.toString().includes('500')) {
+      push.error(`${t('loginView.error500')} - ${error}`)
+    } else {
+      push.error(`${t('loginView.errorUndefined')} - ${error}`)
+    }
   }
 }
 
-onMounted(() => {
+// Forgot password form submission
+const handleForgotPasswordSubmit = async (email) => {
+  if (!email) {
+    push.error(t('loginView.forgotPasswordModalEmailRequired'))
+    return
+  }
+
+  forgotPasswordLoading.value = true
+
+  try {
+    await passwordReset.requestPasswordReset({
+      email: email
+    })
+
+    push.success(t('loginView.forgotPasswordModalRequestSuccess'))
+  } catch (error) {
+    if (error.toString().includes('500')) {
+      push.error(t('loginView.forgotPasswordModalUnableToSendEmail'))
+    } else if (error.toString().includes('503')) {
+      push.error(t('loginView.forgotPasswordModalEmailNotConfigured'))
+    } else {
+      push.error(`${t('loginView.forgotPasswordModalRequestError')} - ${error}`)
+    }
+  } finally {
+    forgotPasswordLoading.value = false
+
+    // Close modal
+    if (forgotPasswordModalInstance) {
+      forgotPasswordModalInstance.hide()
+    }
+  }
+}
+
+onMounted(async () => {
+  // Initialize the modal
+  await nextTick()
+  if (forgotPasswordModalRef.value) {
+    // Access the modal element from the component
+    const modalElement = forgotPasswordModalRef.value.$el
+    forgotPasswordModalInstance = new Modal(modalElement)
+  }
+
   // Check if the session expired
   if (route.query.sessionExpired === 'true') {
     push.warning(t('loginView.sessionExpired'))
@@ -232,7 +301,15 @@ onMounted(() => {
   }
   // Check if the public shareable links are disabled
   if (route.query.errorpublic_shareable_links === 'true') {
-    push.error(t('loginView.errorpublic_shareable_links'))
+    push.error(t('loginView.errorPublic_shareable_links'))
+  }
+  // Check for password reset success
+  if (route.query.passwordResetSuccess === 'true') {
+    push.success(t('loginView.passwordResetSuccess'))
+  }
+  // Check for password reset invalid link
+  if (route.query.passwordResetInvalidLink === 'true') {
+    push.error(t('loginView.passwordResetInvalidLink'))
   }
 })
 </script>
