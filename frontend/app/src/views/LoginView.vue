@@ -84,7 +84,7 @@
           </button>
           <div class="mt-3 text-center" v-if="!mfaRequired">
 						<a href="#" @click.prevent="showForgotPasswordModal" class="link-body-emphasis link-underline-opacity-0 link-underline-opacity-100-hover">
-							{{ $t("loginView.forgotPassword") }}
+							{{ $t("loginView.forgotPassword") }}{{ $t('generalItems.betaTag') }}
 						</a>
 					</div>
           <!--<div>
@@ -100,7 +100,7 @@
   <ModalComponentEmailInput
     ref="forgotPasswordModalRef"
     modal-id="forgotPasswordModal"
-    :title="$t('loginView.forgotPasswordModalTitle')"
+    :title="$t('loginView.forgotPasswordModalTitle') + $t('generalItems.betaTag')"
     :email-field-label="$t('loginView.forgotPasswordModalEmailLabel')"
     :email-help-text="$t('loginView.forgotPasswordModalEmailHelp')"
     action-button-type="success"
