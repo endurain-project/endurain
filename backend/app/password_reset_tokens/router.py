@@ -97,38 +97,40 @@ async def confirm_password_reset(
     ],
 ):
     """
-    Confirm a password reset using a provided token and new password.
-    This asynchronous endpoint handler performs the following steps:
-    1. Validates that the provided new password meets the application's
-        complexity requirements via session_security.is_password_complexity_valid.
-    2. Attempts to consume the provided password reset token and update the
-        user's password via password_reset_tokens_utils.use_password_reset_token.
-    3. Returns a success message on completion.
-    Parameters
-    ----------
-    confirm_data : password_reset_tokens_schema.PasswordResetConfirm
-         Data object containing the password reset token and the new password.
-    db : Session
-         Database session injected via Depends(core_database.get_db); used to
-         look up and persist user and token changes.
-    Returns
-    -------
-    dict
-         A JSON-serializable dictionary with a success message:
-         {"message": "Password reset successful"}.
-    Raises
-    ------
-    HTTPException
-         - HTTP 400 Bad Request if the new password does not meet complexity
-            requirements (detail contains the failure reason).
-         - HTTP 400 Bad Request if the token is invalid or expired.
-    Notes
-    -----
-    - This function relies on external utilities for password complexity checking
-      and token consumption; their side effects include hashing and persisting the
-      new password and marking the token as used/invalid.
-    - The function is intended to be used as a FastAPI route handler and expects
-      dependency injection for the database session.
+    Confirm a password reset using a one-time token.
+
+    Validates the provided new password against configured complexity rules and, if
+    valid, delegates to the password reset token utility to apply the new password.
+
+    Parameters:
+        confirm_data (password_reset_tokens_schema.PasswordResetConfirm):
+            Object containing the reset token and the requested new password
+            (expected attributes: 'token', 'new_password').
+        db (Session):
+            Database session provided by dependency injection (core_database.get_db).
+
+    Returns:
+        dict: A JSON-serializable mapping with a success message, e.g.:
+            {"message": "Password reset successful"}
+
+    Raises:
+        HTTPException:
+            - Raised with status 400 if the new password does not meet complexity
+              requirements. The response detail contains the validation message.
+            - May be raised by password_reset_tokens_utils.use_password_reset_token
+              for problems such as an invalid, expired, or already-consumed token,
+              or for database-related errors.
+
+    Side effects:
+        - Updates the user's password in persistent storage.
+        - Invalidates/consumes the provided password reset token.
+        - Persists changes using the provided database session.
+
+    Notes:
+        - Password complexity rules are enforced by
+          session_security.is_password_complexity_valid.
+        - Token application, user lookup, password hashing, and database commits
+          are handled by password_reset_tokens_utils.use_password_reset_token.
     """
     # Check if the password meets the complexity requirements
     is_valid, message = session_security.is_password_complexity_valid(
@@ -141,14 +143,8 @@ async def confirm_password_reset(
         )
 
     # Use the token to reset password
-    success = password_reset_tokens_utils.use_password_reset_token(
+    password_reset_tokens_utils.use_password_reset_token(
         confirm_data.token, confirm_data.new_password, db
     )
-
-    if not success:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid or expired password reset token",
-        )
 
     return {"message": "Password reset successful"}

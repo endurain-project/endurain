@@ -68,6 +68,7 @@ import caNotFoundView from './ca/notFoundView.json';
 import caSearchView from './ca/searchView.json';
 import caSettingsView from './ca/settingsView.json';
 import caUserView from './ca/userView.json';
+import caResetPassword from './ca/resetPassword.json';
 
 // German translations
 // Activities component
@@ -136,6 +137,7 @@ import deNotFoundView from './de/notFoundView.json';
 import deSearchView from './de/searchView.json';
 import deSettingsView from './de/settingsView.json';
 import deUserView from './de/userView.json';
+import deResetPassword from './de/resetPassword.json';
 
 // Spanish translations
 // Activities component
@@ -204,6 +206,7 @@ import esNotFoundView from './es/notFoundView.json';
 import esSearchView from './es/searchView.json';
 import esSettingsView from './es/settingsView.json';
 import esUserView from './es/userView.json';
+import esResetPassword from './es/resetPassword.json';
 
 
 // French translations
@@ -273,6 +276,7 @@ import frNotFoundView from './fr/notFoundView.json';
 import frSearchView from './fr/searchView.json';
 import frSettingsView from './fr/settingsView.json';
 import frUserView from './fr/userView.json';
+import frResetPassword from './fr/resetPassword.json';
 
 
 // Dutch translations
@@ -342,6 +346,7 @@ import nlNotFoundView from './nl/notFoundView.json';
 import nlSearchView from './nl/searchView.json';
 import nlSettingsView from './nl/settingsView.json';
 import nlUserView from './nl/userView.json';
+import nlResetPassword from './nl/resetPassword.json';
 
 
 // Portuguese Portugal translations
@@ -411,6 +416,7 @@ import ptNotFoundView from './pt/notFoundView.json';
 import ptSearchView from './pt/searchView.json';
 import ptSettingsView from './pt/settingsView.json';
 import ptUserView from './pt/userView.json';
+import ptResetPassword from './pt/resetPassword.json';
 
 // US translations
 // Activities component
@@ -551,6 +557,7 @@ const messages = {
 		searchView: caSearchView,
 		settingsView: caSettingsView,
 		userView: caUserView,
+		resetPassword: caResetPassword,
 	},
 	de: {
 		// Activities component
@@ -619,6 +626,7 @@ const messages = {
 		searchView: deSearchView,
 		settingsView: deSettingsView,
 		userView: deUserView,
+		resetPassword: deResetPassword,
 	},
 	es: {
 		// Activities component
@@ -687,6 +695,7 @@ const messages = {
 		searchView: esSearchView,
 		settingsView: esSettingsView,
 		userView: esUserView,
+		resetPassword: esResetPassword,
 	},
 	fr: {
 		// Activities component
@@ -755,6 +764,7 @@ const messages = {
 		searchView: frSearchView,
 		settingsView: frSettingsView,
 		userView: frUserView,
+		resetPassword: frResetPassword,
 	},
 	nl: {
 		// Activities component
@@ -823,6 +833,7 @@ const messages = {
 		searchView: nlSearchView,
 		settingsView: nlSettingsView,
 		userView: nlUserView,
+		resetPassword: nlResetPassword,
 	},
 	pt: {
 		// Activities component
@@ -891,6 +902,7 @@ const messages = {
 		searchView: ptSearchView,
 		settingsView: ptSettingsView,
 		userView: ptUserView,
+		resetPassword: ptResetPassword,
 	},
 	us: {
 		// Activities component

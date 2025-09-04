@@ -201,8 +201,45 @@ async def send_password_reset_email(
     )
 
 
-def use_password_reset_token(token: str, new_password: str, db: Session) -> bool:
+def use_password_reset_token(token: str, new_password: str, db: Session):
+    """
+    Use a password reset token to update a user's password and mark the token as used.
 
+    The function:
+    - Hashes the provided plain-text token (SHA-256) and looks up the corresponding
+        password reset record in the database.
+    - If no matching record is found, raises an HTTPException with status 400.
+    - Delegates password update to users_crud.edit_user_password.
+    - Marks the token as used via password_reset_tokens_crud.mark_password_reset_token_used.
+    - Logs unexpected errors and raises an HTTPException with status 500 on failure.
+
+    Parameters:
+    - token (str): The plain-text password reset token supplied by the user. This
+        function will hash it before database lookup.
+    - new_password (str): The new plain-text password to set for the user. Password
+        validation/hashing is expected to be handled by the underlying users_crud.
+    - db (Session): An active SQLAlchemy Session (or equivalent) used for DB operations.
+        Transaction management (commit/rollback) is expected to be handled by the caller
+        or the CRUD functions.
+
+    Returns:
+    - None
+
+    Side effects:
+    - Updates the user's password in the database.
+    - Marks the password reset token record as used/consumed.
+    - Writes error information to the application log on unexpected failures.
+
+    Exceptions:
+    - Raises HTTPException(status_code=400) when the token is invalid or expired.
+    - Re-raises any HTTPException raised by underlying CRUD functions.
+    - Raises HTTPException(status_code=500) for unexpected internal errors.
+
+    Security notes:
+    - The token is hashed (SHA-256) before lookup to avoid storing/using the plain token.
+    - Ensure new_password meets application password policy and that users_crud
+        securely hashes and salts passwords before persisting.
+    """
     # Hash the provided token to find the database record
     token_hash = hashlib.sha256(token.encode()).hexdigest()
 
@@ -212,7 +249,10 @@ def use_password_reset_token(token: str, new_password: str, db: Session) -> bool
     )
 
     if not db_token:
-        return False
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired password reset token",
+        )
 
     # Update user password
     try:
@@ -220,18 +260,48 @@ def use_password_reset_token(token: str, new_password: str, db: Session) -> bool
 
         # Mark token as used
         password_reset_tokens_crud.mark_password_reset_token_used(db_token.id, db)
-
-        return True
     except HTTPException as http_err:
         raise http_err
     except Exception as err:
         core_logger.print_to_log(
             f"Error in use_password_reset_token: {err}", "error", exc=err
         )
-        return False
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal Server Error",
+        ) from err
 
 
 def delete_invalid_tokens_from_db():
+    """
+    Remove expired password reset tokens from the database.
+
+    Opens a new database session, calls the password_reset_tokens_crud layer to
+    delete any expired password reset tokens, and logs the number of deleted
+    tokens if one or more were removed. The database session is guaranteed to be
+    closed whether the operation succeeds or an exception is raised.
+
+    Behavior:
+    - Creates a SessionLocal() session.
+    - Invokes password_reset_tokens_crud.delete_expired_password_reset_tokens(db),
+        which should return the number of deleted tokens (int).
+    - If the returned count is greater than zero, logs an informational message
+        via core_logger.print_to_log_and_console.
+    - Always closes the database session in a finally block.
+
+    Returns:
+    - None
+
+    Exceptions:
+    - Exceptions raised by the CRUD layer or the logger will propagate to the
+        caller, but the database session will still be closed before propagation.
+
+    Notes:
+    - This function performs destructive, persistent changes (deletions) and is
+        intended to be run as part of maintenance (for example, a scheduled task).
+    - The operation is effectively idempotent: running it repeatedly when there
+        are no expired tokens will have no further effect.
+    """
     # Create a new database session
     db = SessionLocal()
 

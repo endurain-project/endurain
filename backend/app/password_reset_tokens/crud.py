@@ -86,7 +86,7 @@ def get_password_reset_token_by_hash(
                 and_(
                     password_reset_tokens_models.PasswordResetToken.token_hash
                     == token_hash,
-                    password_reset_tokens_models.PasswordResetToken.used is False,
+                    password_reset_tokens_models.PasswordResetToken.used == False,
                     password_reset_tokens_models.PasswordResetToken.expires_at
                     > datetime.now(timezone.utc),
                 )

@@ -193,11 +193,15 @@ onMounted(async () => {
 	}
 	// Check if the public shareable links are disabled
 	if (route.query.errorpublic_shareable_links === "true") {
-		push.error(t("loginView.errorpublic_shareable_links"));
+		push.error(t("loginView.errorPublic_shareable_links"));
 	}
 	// Check for password reset success
 	if (route.query.passwordResetSuccess === "true") {
 		push.success(t("loginView.passwordResetSuccess"));
+	}
+	// Check for password reset invalid link
+	if (route.query.passwordResetInvalidLink === "true") {
+		push.error(t("loginView.passwordResetInvalidLink"));
 	}
 });
 </script>

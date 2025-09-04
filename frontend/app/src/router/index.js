@@ -90,7 +90,7 @@ const router = createRouter({
 router.beforeEach((to, from, next) => {
 	const authStore = useAuthStore();
 
-	if (!authStore.isAuthenticated && to.path !== "/login" && !to.path.startsWith("/activity/")) {
+	if (!authStore.isAuthenticated && to.path !== "/login" && !to.path.startsWith("/activity/") && !to.path.startsWith("/reset-password")) {
 		next("/login");
 	} else if (authStore.isAuthenticated) {
 		if (to.path === "/login") {
