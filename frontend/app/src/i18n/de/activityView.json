@@ -1,13 +1,13 @@
 {
-  "labelGear": "Ausrüstung",
-  "labelGearNotSet": "Nicht konfiguriert",
-  "modalLabelDeleteGear": "Ausrüstung von Aktivität löschen",
-  "modalLabelDeleteGearBody": "Bist du sicher, dass du die Ausrüstung von der Aktivität entfernen möchtest?",
-  "modalLabelDeleteGearButton": "Ausrüstung löschen",
-  "successMessageGearAdded": "Ausrüstung zur Aktivität hinzugefügt",
-  "successMessageGearDeleted": "Ausrüstung von Aktivität gelöscht",
-  "errorMessageDeleteGear": "Fehler beim Löschen der Ausrüstung aus der Aktivität",
-  "errorMessageActivityNotFound": "Aktivität nicht gefunden",
-  "alertPrivacyMessage": "Du hast versteckte Informationen in dieser Aktivität. Du kannst sie sehen, aber andere nicht.",
-  "isHiddenMessage": "Diese Aktivität ist versteckt. Wahrscheinlich, weil sie ein Duplikat ist oder vom Benutzer versteckt wurde."
+    "labelGear": "Ausrüstung",
+    "labelGearNotSet": "Nicht konfiguriert",
+    "modalLabelDeleteGear": "Ausrüstung von Aktivität löschen",
+    "modalLabelDeleteGearBody": "Bist du sicher, dass du die Ausrüstung von der Aktivität entfernen möchtest?",
+    "modalLabelDeleteGearButton": "Ausrüstung löschen",
+    "successMessageGearAdded": "Ausrüstung zur Aktivität hinzugefügt",
+    "successMessageGearDeleted": "Ausrüstung von Aktivität gelöscht",
+    "errorMessageDeleteGear": "Fehler beim Löschen der Ausrüstung aus der Aktivität",
+    "errorMessageActivityNotFound": "Aktivität nicht gefunden",
+    "alertPrivacyMessage": "Du hast versteckte Informationen in dieser Aktivität. Du kannst sie sehen, aber andere nicht.",
+    "isHiddenMessage": "Diese Aktivität ist versteckt. Wahrscheinlich, weil sie ein Duplikat ist oder vom Benutzer versteckt wurde."
 }
