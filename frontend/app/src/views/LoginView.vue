@@ -82,6 +82,11 @@
             ></span>
             {{ mfaRequired ? $t('loginView.verifyMFAButton') : $t('loginView.signInButton') }}
           </button>
+          <div class="mt-3 text-center" v-if="!mfaRequired">
+						<a href="#" @click.prevent="showForgotPasswordModal" class="link-body-emphasis link-underline-opacity-0 link-underline-opacity-100-hover">
+							{{ $t("loginView.forgotPassword") }}
+						</a>
+					</div>
           <!--<div>
 						<hr>
 						<button class="w-100 btn btn-lg btn-warning disabled" type="submit">{{ $t("loginView.signUpButton") }}</button>
@@ -229,19 +234,20 @@ const completeLogin = async (session_id) => {
   // Store the user in the auth store
   authStore.setUser(userProfile, session_id, locale)
 
-    // Redirect to the home page
-    return router.push('/')
-  } catch (error) {
-    // Handle the error
-    if (error.toString().includes('401')) {
-      push.error(`${t('loginView.error401')} - ${error}`)
-    } else if (error.toString().includes('403')) {
-      push.error(`${t('loginView.error403')} - ${error}`)
-    } else if (error.toString().includes('500')) {
-      push.error(`${t('loginView.error500')} - ${error}`)
-    } else {
-      push.error(`${t('loginView.errorUndefined')} - ${error}`)
-    }
+  // Redirect to the home page
+  return router.push('/')
+}
+
+// Handle login errors
+const handleLoginError = (error) => {
+  if (error.toString().includes('401')) {
+    push.error(`${t('loginView.error401')} - ${error}`)
+  } else if (error.toString().includes('403')) {
+    push.error(`${t('loginView.error403')} - ${error}`)
+  } else if (error.toString().includes('500')) {
+    push.error(`${t('loginView.error500')} - ${error}`)
+  } else {
+    push.error(`${t('loginView.errorUndefined')} - ${error}`)
   }
 }
 

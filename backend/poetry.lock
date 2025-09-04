@@ -1292,14 +1292,14 @@ trio = ["trio"]
 
 [[package]]
 name = "joserfc"
-version = "1.3.1"
+version = "1.3.2"
 description = "The ultimate Python library for JOSE RFCs, including JWS, JWE, JWK, JWA, JWT"
 optional = false
 python-versions = ">=3.9"
 groups = ["main"]
 files = [
-    {file = "joserfc-1.3.1-py3-none-any.whl", hash = "sha256:04cb666b7cd590721b41d9fd96f9e2ac1d54e3d7e2ebfb5f8b0002e09817585b"},
-    {file = "joserfc-1.3.1.tar.gz", hash = "sha256:f682710bffbf2052d7a90e5d808dbaf06832ccac24f697b262837ea052eeb2c9"},
+    {file = "joserfc-1.3.2-py3-none-any.whl", hash = "sha256:81a1d14a0da6d0278f963cb6d6ee43b4640552341b6e984d1535083eba535723"},
+    {file = "joserfc-1.3.2.tar.gz", hash = "sha256:147bbba5b0b7c29fa270921dc1f17d83b48ccf0fecf51295b8de1ff1b682ca53"},
 ]
 
 [package.dependencies]
@@ -3570,5 +3570,5 @@ cffi = ["cffi (>=1.17)"]
 
 [metadata]
 lock-version = "2.1"
-python-versions = "^3.13"
-content-hash = "43875600d84afa2ad5c6b5fbd55fa84c74b90859c1c3875b7df8599aca2e6f9c"
+python-versions = "^3.12"
+content-hash = "3339debac028bc2c9ca0a6b54178d187eed5d6d1e4aebc444e898eeed8c9dfbf"

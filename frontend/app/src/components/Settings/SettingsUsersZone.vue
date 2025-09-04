@@ -70,20 +70,6 @@
                 @editedUser="editUserList"
               />
             </ul>
-            <!-- list zone -->
-            <ul
-              class="list-group list-group-flush"
-              v-for="user in usersArray"
-              :key="user.id"
-              :user="user"
-              v-else
-            >
-              <UsersListComponent
-                :user="user"
-                @userDeleted="updateUserList"
-                @editedUser="editUserList"
-              />
-            </ul>
 
             <!-- pagination area -->
             <PaginationComponent
@@ -105,17 +91,6 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch } from 'vue'
-import { useI18n } from 'vue-i18n'
-import { push } from 'notivue'
-import { debounce } from 'lodash'
-import LoadingComponent from '@/components/GeneralComponents/LoadingComponent.vue'
-import NoItemsFoundComponent from '@/components/GeneralComponents/NoItemsFoundComponents.vue'
-import UsersListComponent from '@/components/Settings/SettingsUsersZone/UsersListComponent.vue'
-import PaginationComponent from '@/components/GeneralComponents/PaginationComponent.vue'
-import UsersAddEditUserModalComponent from '@/components/Settings/SettingsUsersZone/UsersAddEditUserModalComponent.vue'
-import { users } from '@/services/usersService'
-import { useServerSettingsStore } from '@/stores/serverSettingsStore'
 import { ref, onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { push } from 'notivue'

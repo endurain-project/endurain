@@ -20,11 +20,5 @@ export const session = {
   },
   logoutUser() {
     return fetchPostRequest('logout', null)
-  },
-  requestPasswordReset(data) {
-    return fetchPostRequest('password-reset/request', data)
-  },
-  confirmPasswordReset(data) {
-    return fetchPostRequest('password-reset/confirm', data)
   }
 }
