@@ -80,7 +80,6 @@ def calculate_user_goals(
         raise http_err
     except Exception as err:
         # Log the exception
-        print(err)
         core_logger.print_to_log(
             f"Error in calculate_user_goals: {err}", "error", exc=err
         )
