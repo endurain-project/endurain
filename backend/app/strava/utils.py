@@ -14,7 +14,6 @@ import users.user_integrations.schema as user_integrations_schema
 import users.user_integrations.crud as user_integrations_crud
 
 import users.user.crud as users_crud
-import users.user.schema as user_schema
 
 from core.database import SessionLocal
 

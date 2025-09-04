@@ -7,6 +7,8 @@ import strava.utils as strava_utils
 import garmin.activity_utils as garmin_activity_utils
 import garmin.health_utils as garmin_health_utils
 
+import password_reset_tokens.utils as password_reset_tokens_utils
+
 import core.logger as core_logger
 
 # scheduler = BackgroundScheduler()
@@ -48,6 +50,14 @@ def start_scheduler():
         240,
         [1],
         "retrieve last day Garmin Connect users body composition",
+    )
+
+    add_scheduler_job(
+        password_reset_tokens_utils.delete_invalid_tokens_from_db,
+        "interval",
+        60,
+        [],
+        "delete invalid password reset tokens from the database",
     )
 
 

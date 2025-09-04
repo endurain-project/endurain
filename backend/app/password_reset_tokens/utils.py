@@ -19,6 +19,8 @@ import users.user.crud as users_crud
 import core.apprise as core_apprise
 import core.logger as core_logger
 
+from core.database import SessionLocal
+
 
 def generate_password_reset_token() -> tuple[str, str]:
     """
@@ -227,3 +229,23 @@ def use_password_reset_token(token: str, new_password: str, db: Session) -> bool
             f"Error in use_password_reset_token: {err}", "error", exc=err
         )
         return False
+
+
+def delete_invalid_tokens_from_db():
+    # Create a new database session
+    db = SessionLocal()
+
+    try:
+        # Get num tokens deleted
+        num_deleted = password_reset_tokens_crud.delete_expired_password_reset_tokens(
+            db
+        )
+
+        # Log the number of deleted tokens
+        if num_deleted > 0:
+            core_logger.print_to_log_and_console(
+                f"Deleted {num_deleted} expired password reset tokens", "info"
+            )
+    finally:
+        # Ensure the session is closed after use
+        db.close()
