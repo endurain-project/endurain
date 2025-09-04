@@ -1,13 +1,13 @@
 {
-    "title": "Equipamento",
-    "buttonAddGear": "Adicionar equipamento",
-    "subTitleSearchGearByNickname": "Procurar equipamento por alcunha",
-    "placeholderSearchGearByNickname": "Alcunha",
-    "buttonSearchGear": "Procurar equipamento",
-    "displayUserNumberOfGears1": "Existe um total de ",
-    "displayUserNumberOfGears2": " equipamento(s) (",
-    "displayUserNumberOfGears3": " carregado(s)):",
-    "successGearDeleted": "Equipamento eliminado com sucesso",
-    "errorGearNotFound": "Equipamento não encontrado",
-    "errorFetchingGears": "Erro ao procurar equipamentos"
+  "title": "Equipamento",
+  "buttonAddGear": "Adicionar equipamento",
+  "subTitleSearchGearByNickname": "Procurar equipamento por alcunha",
+  "placeholderSearchGearByNickname": "Alcunha",
+  "buttonSearchGear": "Procurar equipamento",
+  "displayUserNumberOfGears1": "Existe um total de ",
+  "displayUserNumberOfGears2": " equipamento(s) (",
+  "displayUserNumberOfGears3": " carregado(s)):",
+  "successGearDeleted": "Equipamento eliminado com sucesso",
+  "errorGearNotFound": "Equipamento não encontrado",
+  "errorFetchingGears": "Erro ao procurar equipamentos"
 }

@@ -1,9 +1,9 @@
 {
-    "labelGarminConnect": "Garmin Connect",
-    "modalDeleteWeightTitle": "Gewicht löschen",
-    "modalDeleteWeightBody": "Bist du sicher, dass du den Gewichtseintrag für löschen möchtest ",
-    "successDeleteWeight": "Gewicht gelöscht",
-    "errorDeleteWeight": "Gewichtseintrag konnte nicht gelöscht werden",
-    "successEditWeight": "Gewicht bearbeitet",
-    "errorEditWeight": "Gewichtseintrag konnte nicht bearbeitet werden"
+  "labelGarminConnect": "Garmin Connect",
+  "modalDeleteWeightTitle": "Gewicht löschen",
+  "modalDeleteWeightBody": "Bist du sicher, dass du den Gewichtseintrag für löschen möchtest ",
+  "successDeleteWeight": "Gewicht gelöscht",
+  "errorDeleteWeight": "Gewichtseintrag konnte nicht gelöscht werden",
+  "successEditWeight": "Gewicht bearbeitet",
+  "errorEditWeight": "Gewichtseintrag konnte nicht bearbeitet werden"
 }

@@ -1,6 +1,6 @@
 {
-    "errorFetchingNotificationsPagination": "Fehler beim Abrufen der Benachrichtigungen mit Seitennummerierung",
-    "errorFetchingNotificationsNumber": "Fehler beim Abrufen der Benachrichtigungsanzahl",
-    "errorFetchingNotificationById": "Fehler beim Abrufen der Benachrichtigung anhand der ID",
-    "errorFetchingMessageFromWebSocket": "Fehler beim Abrufen der Nachricht aus WebSocket"
+  "errorFetchingNotificationsPagination": "Fehler beim Abrufen der Benachrichtigungen mit Seitennummerierung",
+  "errorFetchingNotificationsNumber": "Fehler beim Abrufen der Benachrichtigungsanzahl",
+  "errorFetchingNotificationById": "Fehler beim Abrufen der Benachrichtigung anhand der ID",
+  "errorFetchingMessageFromWebSocket": "Fehler beim Abrufen der Nachricht aus WebSocket"
 }
