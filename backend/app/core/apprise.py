@@ -64,6 +64,7 @@ class AppriseService:
         params.append(f"pass={self.smtp_password}")
         params.append(f"smtp={self.smtp_host}")
         params.append(f"port={self.smtp_port}")
+        params.append("name=Endurain")
 
         # Append any additional parameters to the url
         if params:
