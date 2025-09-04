@@ -66,7 +66,7 @@ def check_required_env_vars():
     for var in email_vars:
         if var not in os.environ:
             core_logger.print_to_log_and_console(
-                f"Email not configured (missing: {', '.join(var)}). Password reset feature will not work.",
+                f"Email not configured (missing: {var}). Password reset feature will not work.",
                 "info",
             )
 
