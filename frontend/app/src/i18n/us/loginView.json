@@ -23,5 +23,6 @@
     "forgotPasswordModalEmailRequired": "Email address is required",
     "forgotPasswordModalRequestSuccess": "If the email exists in the system, a password reset link will be sent to the provided email address",
     "forgotPasswordModalRequestError": "Failed to process password reset request",
-    "forgotPasswordModalEmailNotConfigured": "Email service is not configured. Please contact the administrator"
+    "forgotPasswordModalEmailNotConfigured": "Email service is not configured. Please contact the administrator",
+    "forgotPasswordModalUnableToSendEmail": "Unable to send email. Please try again later or contact the administrator"
 }

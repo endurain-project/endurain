@@ -14,6 +14,7 @@ import password_reset_tokens.utils as password_reset_tokens_utils
 import session.security as session_security
 
 import core.database as core_database
+import core.apprise as core_apprise
 
 # Define the API router
 router = APIRouter()
@@ -22,45 +23,69 @@ router = APIRouter()
 @router.post("/password-reset/request")
 async def request_password_reset(
     request_data: password_reset_tokens_schema.PasswordResetRequest,
+    email_service: Annotated[
+        core_apprise.AppriseService,
+        Depends(core_apprise.get_email_service),
+    ],
     db: Annotated[
         Session,
         Depends(core_database.get_db),
     ],
 ):
     """
-    Handle a request to initiate a password reset for a user account.
-    This asynchronous endpoint triggers the process that sends a password reset
-    email to the provided address. For security and privacy reasons the
-    endpoint always returns a generic success message so that callers cannot
-    determine whether the supplied email address is registered in the system.
+    Asynchronously handle a password reset request.
+
+    Attempts to send a password reset email for the provided email address using an
+    injected email service and a database session. The endpoint intentionally returns
+    a generic success message to avoid revealing whether the provided email exists
+    in the system.
+
     Parameters
-    - request_data (password_reset_tokens_schema.PasswordResetRequest):
-        Pydantic/schema object containing the email address to which the reset
-        link should be sent (e.g. {"email": "user@example.com"}).
-    - db (Session):
-        Database session dependency used by the underlying utilities to look up
-        accounts or persist tokens.
-    Behavior / Side effects
-    - Calls password_reset_tokens_utils.send_password_reset_email(request_data.email, db)
-      to create a reset token and send the reset email if appropriate.
-    - Intentionally does not disclose whether the email exists to prevent user
-      enumeration.
-    Return
-    - dict: A JSON-serializable dictionary with a generic message:
-      {"message": "If the email exists in the system, a password reset link has been sent."}
-    Errors
-    - Exceptions raised by the underlying email/token utilities (for example,
-      database or email service errors) may propagate and result in an error
-      response; these are not part of the normal success path.
+    ----------
+    request_data : password_reset_tokens_schema.PasswordResetRequest
+        Pydantic model containing the email address to send the reset link to.
+    email_service : core_apprise.AppriseService
+        Dependency-injected service responsible for sending emails.
+    db : Session
+        Dependency-injected database session.
+
+    Returns
+    -------
+    dict
+        A generic success message:
+        {"message": "If the email exists in the system, a password reset link has been sent."}
+
+    Raises
+    ------
+    HTTPException
+        Raised with status_code=status.HTTP_500_INTERNAL_SERVER_ERROR if sending
+        the password reset email fails.
+    Other Errors
+        Validation errors from FastAPI/Pydantic or dependency resolution errors may
+        be propagated by the framework.
+
     Notes
-    - This function is async and should be awaited by the framework. Ensure that
-      send_password_reset_email handles throttling, token generation, and other
-      security considerations (rate limiting, token expiration, single-use tokens).
+    -----
+    - This function is asynchronous.
+    - Side effects include attempting to send an email and potentially interacting
+      with the database (e.g., creating or updating a password reset token).
+    - The generic response is used to mitigate user enumeration attacks.
     """
-    await password_reset_tokens_utils.send_password_reset_email(request_data.email, db)
-    
-    # Always return success to not reveal if email exists
-    return {"message": "If the email exists in the system, a password reset link has been sent."}
+    success = await password_reset_tokens_utils.send_password_reset_email(
+        request_data.email, email_service, db
+    )
+
+    # if the email was sent successfully send a generic success message
+    if success:
+        return {
+            "message": "If the email exists in the system, a password reset link has been sent."
+        }
+
+    # If the email sending failed, raise an error
+    raise HTTPException(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        detail="Unable to send password reset email",
+    )
 
 
 @router.post("/password-reset/confirm")
@@ -114,18 +139,16 @@ async def confirm_password_reset(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=message,
         )
-    
+
     # Use the token to reset password
     success = password_reset_tokens_utils.use_password_reset_token(
-        confirm_data.token,
-        confirm_data.new_password,
-        db
+        confirm_data.token, confirm_data.new_password, db
     )
-    
+
     if not success:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid or expired password reset token"
+            detail="Invalid or expired password reset token",
         )
-    
+
     return {"message": "Password reset successful"}

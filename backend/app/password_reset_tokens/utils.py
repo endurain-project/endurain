@@ -1,4 +1,3 @@
-import os
 import secrets
 import hashlib
 
@@ -11,12 +10,13 @@ from uuid import uuid4
 
 from sqlalchemy.orm import Session
 
+import password_reset_tokens.email_messages as password_reset_tokens_email_messages
 import password_reset_tokens.schema as password_reset_tokens_schema
 import password_reset_tokens.crud as password_reset_tokens_crud
 
 import users.user.crud as users_crud
 
-import core.email as core_email
+import core.apprise as core_apprise
 import core.logger as core_logger
 
 
@@ -110,53 +110,57 @@ def create_password_reset_token(user_id: int, db: Session) -> str:
     return token
 
 
-async def send_password_reset_email(email: str, db: Session) -> bool:
+async def send_password_reset_email(
+    email: str, email_service: core_apprise.AppriseService, db: Session
+) -> bool:
     """
-    Send a password reset email to the account associated with the given email address.
+    Asynchronously send a password reset email for the given address.
 
-    This asynchronous helper:
-    - Verifies that the configured email service is available.
-    - Looks up the user by email in the provided database session.
-    - If the user exists and is active, generates a password reset token and requests
-        the email service to send the reset email.
-    - Intentionally does not reveal whether the email exists or whether the user is
-        inactive: in those cases it returns True to avoid information disclosure.
+    This function performs the following steps:
+    1. Verifies that the provided email service is configured; if not, raises an HTTP 503.
+    2. Attempts to locate the user record for the given email in the provided DB session.
+        - For security (to avoid user enumeration), if the user does not exist the function
+          returns True and does not indicate existence to the caller.
+    3. Verifies the located user is active (expects user.is_active == 1).
+        - If the user is inactive the function returns True for the same security reason.
+    4. Creates a password reset token and persists it via create_password_reset_token.
+    5. Constructs a frontend reset URL using the email_service.frontend_host and the token.
+    6. Builds a default English email subject/body via password_reset_tokens_email_messages
+        and delegates actual sending to email_service.send_email.
+    7. Returns the boolean result from the email service send operation.
 
     Parameters
-    ----------
-    email : str
-            The recipient email address to which the password reset message should be sent.
-    db : Session
-            Database session used to query user records and to create/persist the password
-            reset token.
+    - email (str): Recipient email address for the password reset message.
+    - email_service (core_apprise.AppriseService): An email service instance used to
+      construct the frontend host and send the message. Must implement is_configured()
+      and an async send_email(...) method that returns a bool.
+    - db (Session): SQLAlchemy Session (or equivalent) used to look up the user and
+      persist the reset token.
 
     Returns
-    -------
-    bool
-            True when the operation is considered successful. This includes the cases
-            where the user does not exist or is inactive (to avoid revealing account
-            state). For an existing active user, the return value reflects whether the
-            email service successfully sent the reset message (True on success, False on failure).
+    - bool: True when the operation is considered successful. This includes the cases
+      where the user does not exist or is inactive (to avoid revealing account existence).
+      Otherwise returns the boolean result produced by the email_service.send_email call
+      (False typically indicates the email failed to send).
 
     Raises
-    ------
-    HTTPException
-            If the email service is not configured, raises HTTPException with status
-            503 (Service Unavailable).
+    - HTTPException (status 503): If the email service is not configured.
+    - Any other exceptions raised by the DB access, token creation, or email service
+      may propagate to the caller.
 
-    Side effects
-    ------------
-    - May create and persist a password reset token for the user.
-    - Invokes the configured email service to send the password reset email.
+    Side effects and security notes
+    - A password reset token is generated and stored when a matching active user is found.
+    - The function deliberately avoids disclosing whether an email address maps to a user
+      or whether that user is active, to mitigate user enumeration attacks.
+    - The reset link contains the raw token; callers should ensure the frontend and token
+      handling enforce appropriate expiry and single-use semantics.
+    - As an async function, it must be awaited.
 
-    Notes
-    -----
-    - This function is async and must be awaited by callers.
-    - Security: the design intentionally avoids leaking whether a given email is
-        registered or whether the associated account is active.
+    Example
+    - await send_password_reset_email("user@example.com", email_service, db)
     """
     # Check if email service is configured
-    if not core_email.email_service.is_configured():
+    if not email_service.is_configured():
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Email service is not configured",
@@ -176,14 +180,23 @@ async def send_password_reset_email(email: str, db: Session) -> bool:
     # Generate password reset token
     token = create_password_reset_token(user.id, db)
 
-    # Send email
-    success = await core_email.email_service.send_password_reset_email(
-        to_email=email,
-        user_name=user.name,
-        reset_token=token,
+    # Generate reset link
+    reset_link = f"{email_service.frontend_host}/reset-password?token={token}"
+
+    # use default email message in English
+    subject, html_content, text_content = (
+        password_reset_tokens_email_messages.get_password_reset_email_en(
+            user.name, reset_link, email_service
+        )
     )
 
-    return success
+    # Send email
+    return await email_service.send_email(
+        to_emails=[email],
+        subject=subject,
+        html_content=html_content,
+        text_content=text_content,
+    )
 
 
 def use_password_reset_token(token: str, new_password: str, db: Session) -> bool:

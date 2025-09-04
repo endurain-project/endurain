@@ -32,7 +32,7 @@
 					<button class="w-100 btn btn-lg btn-primary" type="submit">{{ $t("loginView.signInButton")
 						}}</button>
 					<div class="mt-3 text-center">
-						<a href="#" @click.prevent="showForgotPasswordModal" class="text-decoration-none">
+						<a href="#" @click.prevent="showForgotPasswordModal" class="link-body-emphasis link-underline-opacity-0 link-underline-opacity-100-hover">
 							{{ $t("loginView.forgotPassword") }}
 						</a>
 					</div>
@@ -152,19 +152,21 @@ const handleForgotPasswordSubmit = async (email) => {
 		});
 
 		push.success(t("loginView.forgotPasswordModalRequestSuccess"));
-
-		// Close modal
-		if (forgotPasswordModalInstance) {
-			forgotPasswordModalInstance.hide();
-		}
 	} catch (error) {
-		if (error.toString().includes("503")) {
+		if (error.toString().includes("500")) {
+			push.error(t("loginView.forgotPasswordModalUnableToSendEmail"));
+		} else if (error.toString().includes("503")) {
 			push.error(t("loginView.forgotPasswordModalEmailNotConfigured"));
 		} else {
 			push.error(`${t("loginView.forgotPasswordModalRequestError")} - ${error}`);
 		}
 	} finally {
 		forgotPasswordLoading.value = false;
+
+		// Close modal
+		if (forgotPasswordModalInstance) {
+			forgotPasswordModalInstance.hide();
+		}
 	}
 };
 
