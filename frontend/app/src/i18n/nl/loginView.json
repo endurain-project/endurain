@@ -17,5 +17,17 @@
   "signUpText": "Op zoek naar Aanmelden?",
   "signUpButton": "Aanmelden",
   "errorPublicActivityNotFound": "Openbare activiteit niet gevonden",
-  "errorpublic_shareable_links": "Openbare deelbare links zijn niet toegestaan. Om deze activiteit te bekijken moet u aangemeld zijn"
+  "errorPublic_shareable_links": "Public shareable links are not allowed. To view this activity, you must be signed in",
+  "forgotPassword": "Forgot your password?",
+  "passwordResetInvalidLink": "No password reset token provided",
+  "passwordResetSuccess": "Your password has been reset successfully",
+  "forgotPasswordModalTitle": "Forgot Password",
+  "forgotPasswordModalEmailLabel": "Email address",
+  "forgotPasswordModalEmailHelp": "Enter the email address associated with your account. An email with a link to reset your password will be sent.",
+  "forgotPasswordModalSubmitButton": "Send Reset Link",
+  "forgotPasswordModalEmailRequired": "Email address is required",
+  "forgotPasswordModalRequestSuccess": "If the email exists in the system, a password reset link will be sent to the provided email address",
+  "forgotPasswordModalRequestError": "Failed to process password reset request",
+  "forgotPasswordModalEmailNotConfigured": "Email service is not configured. Please contact the administrator",
+  "forgotPasswordModalUnableToSendEmail": "Unable to send email. Please try again later or contact the administrator"
 }
