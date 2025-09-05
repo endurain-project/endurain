@@ -30,6 +30,9 @@ class User(BaseModel):
     currency: int
     mfa_enabled: bool = False
     mfa_secret: str | None = None
+    email_verified: bool = False
+    email_verification_token: str | None = None
+    pending_admin_approval: bool = False
 
     model_config = {"from_attributes": True}
 

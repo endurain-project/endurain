@@ -98,7 +98,9 @@ const componentPaths = {
   settingsView: 'settingsView.json',
   userView: 'userView.json',
   summaryView: 'summaryView.json',
-  resetPassword: 'resetPassword.json'
+  resetPassword: 'resetPassword.json',
+  signupView: 'signupView.json',
+  emailVerification: 'emailVerification.json'
 }
 
 // Reverse map: relative path -> semantic key
