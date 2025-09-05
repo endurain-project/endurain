@@ -1,5 +1,5 @@
 {
-  "badgeCurrentSession": "Sesión actual",
-  "modalDeleteSessionTitle": "Eliminar sesión",
-  "modalDeleteSessionBody": "¿Está seguro que desea eliminar la sesión?"
+    "badgeCurrentSession": "Sesión actual",
+    "modalDeleteSessionTitle": "Eliminar sesión",
+    "modalDeleteSessionBody": "¿Está seguro que desea eliminar la sesión?"
 }
