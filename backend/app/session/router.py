@@ -16,10 +16,18 @@ import session.utils as session_utils
 import session.security as session_security
 import session.crud as session_crud
 import session.schema as session_schema
+import session.constants as session_constants
 
 import users.user.crud as users_crud
 import users.user.utils as users_utils
+import users.user.schema as users_schema
+import users.user_integrations.crud as user_integrations_crud
+import users.user_default_gear.crud as user_default_gear_crud
+import users.user_privacy_settings.crud as users_privacy_settings_crud
+
+import health_targets.crud as health_targets_crud
 import profile.utils as profile_utils
+import server_settings.crud as server_settings_crud
 
 import core.database as core_database
 
@@ -101,6 +109,93 @@ async def complete_login(response: Response, request: Request, user, client_type
             detail="Invalid client type",
             headers={"WWW-Authenticate": "Bearer"},
         )
+
+
+@router.post("/signup", status_code=201)
+async def signup(
+    user: users_schema.UserSignup,
+    db: Annotated[
+        Session,
+        Depends(core_database.get_db),
+    ],
+):
+    """Public endpoint for user sign-up"""
+    # Get server settings to check if signup is enabled
+    server_settings = server_settings_crud.get_server_settings(db)
+    if not server_settings:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Server settings not configured",
+        )
+    
+    # Check if signup is enabled
+    users_utils.check_user_can_signup(server_settings)
+    
+    # Generate email verification token if needed
+    email_verification_token = None
+    if server_settings.signup_require_email_verification:
+        email_verification_token = users_utils.generate_email_verification_token()
+    
+    # Create the user in the database
+    created_user = users_crud.create_signup_user(user, email_verification_token, server_settings, db)
+
+    # Create the user integrations in the database
+    user_integrations_crud.create_user_integrations(created_user.id, db)
+
+    # Create the user privacy settings
+    users_privacy_settings_crud.create_user_privacy_settings(created_user.id, db)
+
+    # Create the user health targets
+    health_targets_crud.create_health_targets(created_user.id, db)
+
+    # Create the user default gear
+    user_default_gear_crud.create_user_default_gear(created_user.id, db)
+
+    # Return appropriate response based on server configuration
+    response_data = {"message": "User created successfully"}
+    
+    if server_settings.signup_require_email_verification:
+        response_data["message"] = "User created successfully. Please check your email for verification instructions."
+        response_data["email_verification_required"] = True
+        # TODO: Send verification email here
+    
+    if server_settings.signup_require_admin_approval:
+        response_data["message"] = "User created successfully. Account is pending admin approval."
+        response_data["admin_approval_required"] = True
+    
+    if not server_settings.signup_require_email_verification and not server_settings.signup_require_admin_approval:
+        response_data["message"] = "User created successfully. You can now log in."
+    
+    return response_data
+
+
+@router.get("/verify-email/{token}")
+async def verify_email(
+    token: str,
+    db: Annotated[
+        Session,
+        Depends(core_database.get_db),
+    ],
+):
+    """Public endpoint for email verification"""
+    # Get server settings
+    server_settings = server_settings_crud.get_server_settings(db)
+    if not server_settings or not server_settings.signup_require_email_verification:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Email verification is not enabled",
+        )
+    
+    # Verify the email
+    user = users_crud.verify_user_email(token, db)
+    
+    message = "Email verified successfully."
+    if user.pending_admin_approval:
+        message += " Your account is now pending admin approval."
+    else:
+        message += " You can now log in."
+    
+    return {"message": message, "user_active": user.is_active == session_constants.USER_ACTIVE}
 
 
 @router.post("/mfa/verify")

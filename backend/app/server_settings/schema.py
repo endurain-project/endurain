@@ -9,6 +9,9 @@ class ServerSettings(BaseModel):
     login_photo_set: bool
     currency: int
     num_records_per_page: int
+    signup_enabled: bool
+    signup_require_admin_approval: bool
+    signup_require_email_verification: bool
 
     model_config = {
         "from_attributes": True

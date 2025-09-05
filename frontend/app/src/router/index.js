@@ -16,6 +16,18 @@ const routes = [
     meta: { requiresAuth: false }
   },
   {
+    path: '/signup',
+    name: 'signup',
+    component: () => import('../views/SignUpView.vue'),
+    meta: { requiresAuth: false }
+  },
+  {
+    path: '/verify-email/:token',
+    name: 'verify-email',
+    component: () => import('../views/EmailVerificationView.vue'),
+    meta: { requiresAuth: false }
+  },
+  {
     path: '/reset-password',
     name: 'reset-password',
     component: () => import('../views/ResetPasswordView.vue'),

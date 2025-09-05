@@ -580,3 +580,119 @@ def disable_user_mfa(user_id: int, db: Session):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal Server Error",
         ) from err
+
+
+def create_signup_user(user: users_schema.UserSignup, email_verification_token: str, server_settings, db: Session):
+    """Create a new user via sign-up with appropriate verification and approval settings"""
+    try:
+        # Determine user status based on server settings
+        is_active = session_constants.USER_ACTIVE
+        email_verified = False
+        pending_admin_approval = False
+        
+        if server_settings.signup_require_email_verification:
+            email_verified = False
+            is_active = session_constants.USER_NOT_ACTIVE  # Inactive until email verified
+        
+        if server_settings.signup_require_admin_approval:
+            pending_admin_approval = True
+            is_active = session_constants.USER_NOT_ACTIVE  # Inactive until approved
+        
+        # If both email verification and admin approval are disabled, user is immediately active
+        if not server_settings.signup_require_email_verification and not server_settings.signup_require_admin_approval:
+            is_active = session_constants.USER_ACTIVE
+            email_verified = True
+        
+        # Create a new user
+        db_user = users_models.User(
+            name=user.name,
+            username=user.username,
+            email=user.email,
+            city=user.city,
+            birthdate=user.birthdate,
+            preferred_language=user.preferred_language,
+            gender=user.gender,
+            units=user.units,
+            height=user.height,
+            access_type=session_constants.REGULAR_ACCESS,
+            is_active=is_active,
+            first_day_of_week=user.first_day_of_week,
+            currency=user.currency,
+            email_verified=email_verified,
+            email_verification_token=email_verification_token if server_settings.signup_require_email_verification else None,
+            pending_admin_approval=pending_admin_approval,
+            password=session_security.hash_password(user.password),
+        )
+
+        # Add the user to the database
+        db.add(db_user)
+        db.commit()
+        db.refresh(db_user)
+
+        # Return user
+        return db_user
+    except IntegrityError as integrity_error:
+        # Rollback the transaction
+        db.rollback()
+
+        # Raise an HTTPException with a 409 Conflict status code
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Duplicate entry error. Check if email and username are unique",
+        ) from integrity_error
+    except Exception as err:
+        # Rollback the transaction
+        db.rollback()
+
+        # Log the exception
+        core_logger.print_to_log(f"Error in create_signup_user: {err}", "error", exc=err)
+
+        # Raise an HTTPException with a 500 Internal Server Error status code
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal Server Error",
+        ) from err
+
+
+def verify_user_email(token: str, db: Session):
+    """Verify user email using the verification token"""
+    try:
+        # Find user by verification token
+        db_user = (
+            db.query(users_models.User)
+            .filter(users_models.User.email_verification_token == token)
+            .first()
+        )
+
+        if db_user is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Invalid or expired verification token",
+            )
+
+        # Mark email as verified and remove token
+        db_user.email_verified = True
+        db_user.email_verification_token = None
+        
+        # If not pending admin approval, activate the user
+        if not db_user.pending_admin_approval:
+            db_user.is_active = session_constants.USER_ACTIVE
+
+        db.commit()
+        db.refresh(db_user)
+
+        return db_user
+    except HTTPException as http_err:
+        raise http_err
+    except Exception as err:
+        # Rollback the transaction
+        db.rollback()
+
+        # Log the exception
+        core_logger.print_to_log(f"Error in verify_user_email: {err}", "error", exc=err)
+
+        # Raise an HTTPException with a 500 Internal Server Error status code
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal Server Error",
+        ) from err

@@ -1,5 +1,6 @@
 import os
 import glob
+import secrets
 
 from fastapi import HTTPException, status, UploadFile
 from sqlalchemy.orm import Session
@@ -72,3 +73,17 @@ async def save_user_image(user_id: int, file: UploadFile, db: Session):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal Server Error",
         ) from err
+
+
+def generate_email_verification_token():
+    """Generate a secure token for email verification"""
+    return secrets.token_urlsafe(32)
+
+
+def check_user_can_signup(server_settings) -> None:
+    """Check if user signup is enabled on the server"""
+    if not server_settings.signup_enabled:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="User sign-up is not enabled on this server",
+        )

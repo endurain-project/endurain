@@ -88,6 +88,23 @@ class User(Base):
         nullable=True,
         comment="User MFA secret for TOTP generation (encrypted at rest)",
     )
+    email_verified = Column(
+        Boolean,
+        nullable=False,
+        default=False,
+        comment="Whether the user's email address has been verified",
+    )
+    email_verification_token = Column(
+        String(length=255),
+        nullable=True,
+        comment="Token for email verification",
+    )
+    pending_admin_approval = Column(
+        Boolean,
+        nullable=False,
+        default=False,
+        comment="Whether the user is pending admin approval for activation",
+    )
 
     # Define a relationship to UsersSessions model
     users_sessions = relationship(
