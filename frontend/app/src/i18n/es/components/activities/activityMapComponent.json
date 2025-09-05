@@ -1,8 +1,8 @@
 {
-    "modalMediaDeleteTitle": "Eliminar medio",
-    "modalMediaDeleteBody1": "¿Está seguro que desea eliminar la actividad? ",
-    "modalMediaDeleteBody2": " y nombre ",
-    "errorFetchingActivityStream": "Error obteniendo datos del flujo de actividad",
-    "mediaDeletedSuccessfully": "Medio eliminado con éxito",
-    "errorDeletingMedia": "Error al eliminar el medio"
+  "modalMediaDeleteTitle": "Eliminar medio",
+  "modalMediaDeleteBody1": "¿Está seguro que desea eliminar la actividad? ",
+  "modalMediaDeleteBody2": " y nombre ",
+  "errorFetchingActivityStream": "Error obteniendo datos del flujo de actividad",
+  "mediaDeletedSuccessfully": "Medio eliminado con éxito",
+  "errorDeletingMedia": "Error al eliminar el medio"
 }

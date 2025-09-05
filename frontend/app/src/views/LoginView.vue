@@ -83,10 +83,14 @@
             {{ mfaRequired ? $t('loginView.verifyMFAButton') : $t('loginView.signInButton') }}
           </button>
           <div class="mt-3 text-center" v-if="!mfaRequired">
-						<a href="#" @click.prevent="showForgotPasswordModal" class="link-body-emphasis link-underline-opacity-0 link-underline-opacity-100-hover">
-							{{ $t("loginView.forgotPassword") }}{{ $t('generalItems.betaTag') }}
-						</a>
-					</div>
+            <a
+              href="#"
+              @click.prevent="showForgotPasswordModal"
+              class="link-body-emphasis link-underline-opacity-0 link-underline-opacity-100-hover"
+            >
+              {{ $t('loginView.forgotPassword') }}{{ $t('generalItems.betaTag') }}
+            </a>
+          </div>
           <!--<div>
 						<hr>
 						<button class="w-100 btn btn-lg btn-warning disabled" type="submit">{{ $t("loginView.signUpButton") }}</button>
