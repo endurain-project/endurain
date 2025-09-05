@@ -126,7 +126,6 @@ def upgrade() -> None:
             "id",
             sa.String(length=64),
             nullable=False,
-            comment="Password reset token ID",
         ),
         sa.Column(
             "user_id",
