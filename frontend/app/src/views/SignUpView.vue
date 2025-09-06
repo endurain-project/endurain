@@ -19,7 +19,7 @@
           v-else
         />
       </div>
-      <div class="col form-signin text-center m-3">
+      <div class="col form-signin m-3">
         <form @submit.prevent="submitForm">
           <h1>Create Account</h1>
           <p>{{ $t('signupView.subtitle') }}</p>
@@ -31,13 +31,11 @@
               type="text"
               class="form-control"
               id="name"
-              :class="{ 'is-invalid': errors.name }"
               :placeholder="$t('signupView.name')"
-              v-model="formData.name"
+              v-model="signUpName"
               required
             />
             <label for="name">{{ $t('signupView.name') }}</label>
-            <div class="invalid-feedback" v-if="errors.name">{{ errors.name }}</div>
           </div>
 
           <!-- Username field -->
@@ -46,13 +44,11 @@
               type="text"
               class="form-control"
               id="username"
-              :class="{ 'is-invalid': errors.username }"
               :placeholder="$t('signupView.username')"
-              v-model="formData.username"
+              v-model="signUpUsername"
               required
             />
             <label for="username">{{ $t('signupView.username') }}</label>
-            <div class="invalid-feedback" v-if="errors.username">{{ errors.username }}</div>
           </div>
 
           <!-- Email field -->
@@ -60,36 +56,44 @@
             <input
               type="email"
               class="form-control"
-              id="email"
-              :class="{ 'is-invalid': errors.email }"
+              id="validationEmail"
+              aria-describedby="validationEmailFeedback"
+              :class="{ 'is-invalid': !isEmailValid }"
               :placeholder="$t('signupView.email')"
-              v-model="formData.email"
+              v-model="signUpEmail"
               required
             />
             <label for="email">{{ $t('signupView.email') }}</label>
-            <div class="invalid-feedback" v-if="errors.email">{{ errors.email }}</div>
+            <div id="validationEmailFeedback" class="invalid-feedback" v-if="!isEmailValid">
+              {{ $t('usersAddEditUserModalComponent.addEditUserModalErrorEmailInvalid') }}
+            </div>
           </div>
 
           <!-- Password field -->
-          <div class="form-floating position-relative mb-3">
+          <div class="form-floating mb-3 position-relative">
             <input
               :type="showPassword ? 'text' : 'password'"
               class="form-control"
-              id="password"
-              :class="{ 'is-invalid': errors.password }"
+              :class="{ 'is-invalid': !isPasswordValid }"
+              id="validationPassword"
+              aria-describedby="validationPasswordFeedback"
+              name="signUpPassword"
               :placeholder="$t('signupView.password')"
-              v-model="formData.password"
+              v-model="signUpPassword"
               required
             />
-            <label for="password">{{ $t('signupView.password') }}</label>
+            <label for="signUpPassword">{{ $t('signupView.password') }}</label>
             <button
               type="button"
-              class="btn position-absolute top-50 end-0 translate-middle-y me-2"
+              class="btn position-absolute top-50 end-0 translate-middle-y"
+              :class="{ 'me-4': !isPasswordValid }"
               @click="togglePasswordVisibility"
             >
               <font-awesome-icon :icon="showPassword ? ['fas', 'eye-slash'] : ['fas', 'eye']" />
             </button>
-            <div class="invalid-feedback" v-if="errors.password">{{ errors.password }}</div>
+          </div>
+          <div id="validationPasswordFeedback" class="invalid-feedback d-block" v-if="!isPasswordValid">
+            {{ $t('usersAddEditUserModalComponent.addEditUserModalErrorPasswordInvalid') }}
           </div>
 
           <!-- Optional fields section -->
@@ -111,7 +115,7 @@
                 class="form-control"
                 id="city"
                 :placeholder="$t('signupView.city')"
-                v-model="formData.city"
+                v-model="signUpCity"
               />
               <label for="city">{{ $t('signupView.city') }}</label>
             </div>
@@ -123,14 +127,14 @@
                 class="form-control"
                 id="birthdate"
                 :placeholder="$t('signupView.birthdate')"
-                v-model="formData.birthdate"
+                v-model="signUpBirthdate"
               />
               <label for="birthdate">{{ $t('signupView.birthdate') }}</label>
             </div>
 
             <!-- Gender field -->
             <div class="form-floating mb-3">
-              <select class="form-select" id="gender" v-model="formData.gender">
+              <select class="form-select" id="gender" v-model="signUpGender">
                 <option value="1">{{ $t('signupView.male') }}</option>
                 <option value="2">{{ $t('signupView.female') }}</option>
                 <option value="3">{{ $t('signupView.unspecified') }}</option>
@@ -140,7 +144,7 @@
 
             <!-- Units field -->
             <div class="form-floating mb-3">
-              <select class="form-select" id="units" v-model="formData.units">
+              <select class="form-select" id="units" v-model="signUpUnits">
                 <option value="1">{{ $t('signupView.metric') }}</option>
                 <option value="2">{{ $t('signupView.imperial') }}</option>
               </select>
@@ -148,16 +152,72 @@
             </div>
 
             <!-- Height field -->
-            <div class="form-floating mb-3">
-              <input
-                type="number"
-                class="form-control"
-                id="height"
-                :placeholder="$t('signupView.height')"
-                v-model="formData.height"
-                min="0"
-              />
-              <label for="height">{{ $t('signupView.height') }}</label>
+            <!-- metric -->
+            <div class="input-group mb-3" v-if="Number(serverSettingsStore?.serverSettings?.units) === 1">
+              <div class="form-floating flex-grow-1">
+                <input
+                  type="number"
+                  class="form-control"
+                  name="signUpHeightCms"
+                  :placeholder="
+                    $t('usersAddEditUserModalComponent.addEditUserModalHeightPlaceholder')
+                  "
+                  v-model="signUpHeightCms"
+                />
+                <label for="signUpHeightCms">
+                  {{ $t('usersAddEditUserModalComponent.addEditUserModalHeightLabel') }}
+                </label>
+              </div>
+              <span class="input-group-text">{{ $t('generalItems.unitsCm') }}</span>
+            </div>
+            <!-- imperial -->
+            <div class="input-group mb-3" v-else>
+              <div class="form-floating flex-grow-1">
+                <input
+                  class="form-control"
+                  :class="{ 'is-invalid': !isFeetValid }"
+                  type="number"
+                  aria-describedby="validationFeetFeedback"
+                  name="signUpHeightFeet"
+                  :placeholder="
+                    $t('usersAddEditUserModalComponent.addEditUserModalHeightPlaceholder')
+                  "
+                  v-model="signUpHeightFeet"
+                  min="0"
+                  max="10"
+                  step="1"
+                />
+                <label for="signUpHeightFeet">
+                  {{ $t('usersAddEditUserModalComponent.addEditUserModalHeightLabel') }}
+                </label>
+              </div>
+              <span class="input-group-text">{{ $t('generalItems.unitsFeet') }}</span>
+              <div class="form-floating flex-grow-1">
+                <input
+                  class="form-control"
+                  :class="{ 'is-invalid': !isInchesValid }"
+                  type="number"
+                  aria-describedby="validationInchesFeedback"
+                  name="signUpHeightInches"
+                  :placeholder="
+                    $t('usersAddEditUserModalComponent.addEditUserModalHeightPlaceholder')
+                  "
+                  v-model="signUpHeightInches"
+                  min="0"
+                  max="11"
+                  step="1"
+                />
+                <label for="signUpHeightInches">
+                  {{ $t('usersAddEditUserModalComponent.addEditUserModalHeightLabel') }}
+                </label>
+              </div>
+              <span class="input-group-text">{{ $t('generalItems.unitsInches') }}</span>
+              <div id="validationFeetFeedback" class="invalid-feedback d-block" v-if="!isFeetValid">
+                {{ $t('usersAddEditUserModalComponent.addEditUserModalFeetValidationLabel') }}
+              </div>
+              <div id="validationInchesFeedback" class="invalid-feedback d-block" v-if="!isInchesValid">
+                {{ $t('usersAddEditUserModalComponent.addEditUserModalInchesValidationLabel') }}
+              </div>
             </div>
           </div>
 
@@ -186,7 +246,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { push } from 'notivue'
@@ -198,7 +258,39 @@ const router = useRouter()
 const { t } = useI18n()
 const serverSettingsStore = useServerSettingsStore()
 const loading = ref(false)
+const signUpName = ref(null)
+const signUpUsername = ref(null)
+const signUpEmail = ref(null)
+const signUpPassword = ref(null)
+const signUpCity = ref(null)
+const signUpBirthdate = ref(null)
+const signUpGender = ref(1)
+const signUpUnits = ref(1)
+const signUpHeightCms = ref(null)
+const signUpHeightFeet = ref(null)
+const signUpHeightInches = ref(null)
+const isFeetValid = computed(
+  () => signUpHeightFeet.value >= 0 && signUpHeightFeet.value <= 10
+)
+const isInchesValid = computed(
+  () => signUpHeightInches.value >= 0 && signUpHeightInches.value <= 11
+)
+const isEmailValid = computed(() => {
+  if (!signUpEmail.value) return true
+  const emailRegex = /^[^\s@]{1,}@[^\s@]{2,}\.[^\s@]{2,}$/
+  return emailRegex.test(signUpEmail.value)
+})
 const showPassword = ref(false)
+// Toggle password visibility
+const togglePasswordVisibility = () => {
+  showPassword.value = !showPassword.value
+}
+const isPasswordValid = computed(() => {
+  if (!signUpPassword.value) return true
+  const regex =
+    /^(?=.*[A-Z])(?=.*\d)(?=.*[ !\"#$%&'()*+,\-./:;<=>?@[\\\]^_`{|}~])[A-Za-z\d !"#$%&'()*+,\-./:;<=>?@[\\\]^_`{|}~]{8,}$/
+  return regex.test(signUpPassword.value)
+})
 const showOptionalFields = ref(false)
 
 const loginPhotoUrl = computed(() =>
@@ -206,58 +298,6 @@ const loginPhotoUrl = computed(() =>
     ? `${window.env.ENDURAIN_HOST}/server_images/login.png`
     : null
 )
-
-// Form data
-const formData = reactive({
-  name: '',
-  username: '',
-  email: '',
-  password: '',
-  city: '',
-  birthdate: '',
-  gender: 1,
-  units: 1,
-  height: null,
-  preferred_language: 'en',
-  first_day_of_week: 1,
-  currency: 1
-})
-
-// Form errors
-const errors = ref({})
-
-// Toggle password visibility
-const togglePasswordVisibility = () => {
-  showPassword.value = !showPassword.value
-}
-
-// Validate form
-const validateForm = () => {
-  const newErrors = {}
-
-  if (!formData.name.trim()) {
-    newErrors.name = t('signupView.errorNameRequired')
-  }
-
-  if (!formData.username.trim()) {
-    newErrors.username = t('signupView.errorUsernameRequired')
-  }
-
-  if (!formData.email.trim()) {
-    newErrors.email = t('signupView.errorEmailRequired')
-  } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-    newErrors.email = t('signupView.errorEmailInvalid')
-  }
-
-  if (!formData.password) {
-    newErrors.password = t('signupView.errorPasswordRequired')
-  } else if (formData.password.length < 8) {
-    newErrors.password = t('signupView.errorPasswordTooShort')
-  }
-
-  errors.value = newErrors
-  return Object.keys(newErrors).length === 0
-}
 
 // Handle form submission
 const submitForm = async () => {

@@ -250,18 +250,18 @@
                   }})</b
                 ></label
               >
-              <input
-                class="form-control"
-                type="number"
-                name="userHeightAddEditCms"
-                :placeholder="
-                  $t('usersAddEditUserModalComponent.addEditUserModalHeightPlaceholder') +
-                  ' (' +
-                  $t('generalItems.unitsCm') +
-                  ')'
-                "
-                v-model="newEditUserHeightCms"
-              />
+              <div class="input-group">
+                <input
+                  class="form-control"
+                  type="number"
+                  name="userHeightAddEditCms"
+                  :placeholder="
+                    $t('usersAddEditUserModalComponent.addEditUserModalHeightPlaceholder')
+                  "
+                  v-model="newEditUserHeightCms"
+                />
+                <span class="input-group-text">{{ $t('generalItems.unitsCm') }}</span>
+              </div>
             </div>
             <div v-else>
               <label for="userHeightAddEditFeetInches"
@@ -279,17 +279,14 @@
                   aria-describedby="validationFeetFeedback"
                   name="userHeightAddEditFeet"
                   :placeholder="
-                    $t('usersAddEditUserModalComponent.addEditUserModalHeightPlaceholder') +
-                    ' (' +
-                    $t('generalItems.unitsFeet') +
-                    ')'
+                    $t('usersAddEditUserModalComponent.addEditUserModalHeightPlaceholder')
                   "
                   v-model="newEditUserHeightFeet"
                   min="0"
                   max="10"
                   step="1"
                 />
-                <span class="input-group-text">’</span>
+                <span class="input-group-text">{{ $t('generalItems.unitsFeet') }}</span>
                 <input
                   class="form-control"
                   :class="{ 'is-invalid': !isInchesValid }"
@@ -297,17 +294,14 @@
                   aria-describedby="validationInchesFeedback"
                   name="userHeightAddEditInches"
                   :placeholder="
-                    $t('usersAddEditUserModalComponent.addEditUserModalHeightPlaceholder') +
-                    ' (' +
-                    $t('generalItems.unitsInches') +
-                    ')'
+                    $t('usersAddEditUserModalComponent.addEditUserModalHeightPlaceholder')
                   "
                   v-model="newEditUserHeightInches"
                   min="0"
                   max="11"
                   step="1"
                 />
-                <span class="input-group-text">’’</span>
+                <span class="input-group-text">{{ $t('generalItems.unitsInches') }}</span>
                 <div id="validationFeetFeedback" class="invalid-feedback" v-if="!isFeetValid">
                   {{ $t('usersAddEditUserModalComponent.addEditUserModalFeetValidationLabel') }}
                 </div>

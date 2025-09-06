@@ -118,6 +118,8 @@ class UserBase(BaseModel):
     first_day_of_week: WeekDay = WeekDay.MONDAY
     currency: server_settings_schema.Currency = server_settings_schema.Currency.EURO
 
+    model_config = ConfigDict(use_enum_values=True)
+
 
 class User(UserBase):
     id: StrictInt
