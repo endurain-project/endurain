@@ -99,10 +99,6 @@
               {{ $t('loginView.signUpLink') }}
             </router-link>
           </div>
-          <!--<div>
-						<hr>
-						<button class="w-100 btn btn-lg btn-warning disabled" type="submit">{{ $t("loginView.signUpButton") }}</button>
-					</div>-->
         </form>
       </div>
     </div>

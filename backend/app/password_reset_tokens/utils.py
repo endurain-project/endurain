@@ -1,6 +1,3 @@
-import secrets
-import hashlib
-
 from datetime import datetime, timedelta, timezone
 from fastapi import (
     HTTPException,
@@ -20,34 +17,6 @@ import core.apprise as core_apprise
 import core.logger as core_logger
 
 from core.database import SessionLocal
-
-
-def generate_password_reset_token() -> tuple[str, str]:
-    """
-    Generate a URL-safe password reset token and its SHA-256 hash for storage.
-    Returns:
-        tuple[str, str]: A tuple (token, token_hash) where:
-            - token: a URL-safe, cryptographically secure random token suitable for
-              inclusion in password reset links (this raw token is intended to be
-              sent to the user).
-            - token_hash: the hexadecimal SHA-256 hash of the token, suitable for
-              storing in a database instead of the raw token.
-    Notes:
-        - Do not store or log the raw token; store only the hash (token_hash).
-        - When validating a presented token, compute its SHA-256 hex digest and
-          compare it to the stored token_hash using a constant-time comparison to
-          mitigate timing attacks (e.g., secrets.compare_digest).
-        - Consider associating an expiration timestamp and single-use semantics with
-          the token to limit its validity window.
-        - Token generation relies on the `secrets` module for cryptographic randomness.
-    """
-    # Generate a random 32-byte token
-    token = secrets.token_urlsafe(32)
-
-    # Create a hash of the token for database storage
-    token_hash = hashlib.sha256(token.encode()).hexdigest()
-
-    return token, token_hash
 
 
 def create_password_reset_token(user_id: int, db: Session) -> str:
@@ -93,7 +62,7 @@ def create_password_reset_token(user_id: int, db: Session) -> str:
     # Send `token` to the user's email. Do not store the plaintext token in persistent storage.
     """
     # Generate token and hash
-    token, token_hash = generate_password_reset_token()
+    token, token_hash = core_apprise.generate_token_and_hash()
 
     # Create token object
     reset_token = password_reset_tokens_schema.PasswordResetToken(

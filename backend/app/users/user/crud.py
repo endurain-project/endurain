@@ -548,7 +548,7 @@ def disable_user_mfa(user_id: int, db: Session):
     Returns:
         None
     Raises:
-        HTTPException: 
+        HTTPException:
             - 404 Not Found if the user does not exist.
             - 500 Internal Server Error for any other failure; in this case the
               transaction is rolled back and the error is logged.
@@ -568,7 +568,7 @@ def disable_user_mfa(user_id: int, db: Session):
                 detail="User not found",
                 headers={"WWW-Authenticate": "Bearer"},
             )
-        
+
         db_user.mfa_enabled = False
         db_user.mfa_secret = None
         db.commit()
@@ -582,14 +582,35 @@ def disable_user_mfa(user_id: int, db: Session):
         ) from err
 
 
-def create_signup_user(user: users_schema.UserSignup, email_verification_token: str, server_settings, db: Session):
-    """Create a new user via sign-up with appropriate verification and approval settings"""
+def create_signup_user(
+    user: users_schema.UserSignup,
+    email_verification_token: str,
+    server_settings,
+    db: Session,
+):
+    """
+    Creates a new user during the signup process, handling email verification and admin approval requirements.
+
+    Args:
+        user (users_schema.UserSignup): The user signup data containing user details.
+        email_verification_token (str): Token for email verification, if required.
+        server_settings: Server configuration settings that determine signup requirements.
+        db (Session): SQLAlchemy database session.
+
+    Returns:
+        users_models.User: The newly created user object.
+
+    Raises:
+        HTTPException: 
+            - 409 Conflict if the email or username is not unique.
+            - 500 Internal Server Error for any other exceptions.
+    """
     try:
         # Determine user status based on server settings
         active = True
         email_verified = False
         pending_admin_approval = False
-        
+
         if server_settings.signup_require_email_verification:
             email_verified = False
             active = False  # Inactive until email verified
@@ -599,10 +620,13 @@ def create_signup_user(user: users_schema.UserSignup, email_verification_token: 
             active = False  # Inactive until approved
 
         # If both email verification and admin approval are disabled, user is immediately active
-        if not server_settings.signup_require_email_verification and not server_settings.signup_require_admin_approval:
+        if (
+            not server_settings.signup_require_email_verification
+            and not server_settings.signup_require_admin_approval
+        ):
             active = True
             email_verified = True
-        
+
         # Create a new user
         db_user = users_models.User(
             name=user.name,
@@ -619,7 +643,11 @@ def create_signup_user(user: users_schema.UserSignup, email_verification_token: 
             first_day_of_week=user.first_day_of_week,
             currency=user.currency,
             email_verified=email_verified,
-            email_verification_token=email_verification_token if server_settings.signup_require_email_verification else None,
+            email_verification_token=(
+                email_verification_token
+                if server_settings.signup_require_email_verification
+                else None
+            ),
             pending_admin_approval=pending_admin_approval,
             password=session_security.hash_password(user.password),
         )
@@ -645,7 +673,9 @@ def create_signup_user(user: users_schema.UserSignup, email_verification_token: 
         db.rollback()
 
         # Log the exception
-        core_logger.print_to_log(f"Error in create_signup_user: {err}", "error", exc=err)
+        core_logger.print_to_log(
+            f"Error in create_signup_user: {err}", "error", exc=err
+        )
 
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
@@ -673,7 +703,7 @@ def verify_user_email(token: str, db: Session):
         # Mark email as verified and remove token
         db_user.email_verified = True
         db_user.email_verification_token = None
-        
+
         # If not pending admin approval, activate the user
         if not db_user.pending_admin_approval:
             db_user.active = True

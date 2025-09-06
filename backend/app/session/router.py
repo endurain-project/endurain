@@ -1,3 +1,4 @@
+import email
 from typing import Annotated, Callable
 
 from fastapi import (
@@ -16,7 +17,7 @@ import session.utils as session_utils
 import session.security as session_security
 import session.crud as session_crud
 import session.schema as session_schema
-import session.constants as session_constants
+import session.email_messages as session_email_messages
 
 import users.user.crud as users_crud
 import users.user.utils as users_utils
@@ -30,6 +31,7 @@ import profile.utils as profile_utils
 import server_settings.crud as server_settings_crud
 
 import core.database as core_database
+import core.apprise as core_apprise
 
 # Define the API router
 router = APIRouter()
@@ -116,12 +118,15 @@ async def complete_login(
 @router.post("/signup", status_code=201)
 async def signup(
     user: users_schema.UserSignup,
+    email_service: Annotated[
+        core_apprise.AppriseService,
+        Depends(core_apprise.get_email_service),
+    ],
     db: Annotated[
         Session,
         Depends(core_database.get_db),
     ],
 ):
-    """Public endpoint for user sign-up"""
     # Get server settings to check if signup is enabled
     server_settings = server_settings_crud.get_server_settings(db)
     if not server_settings:
@@ -131,16 +136,24 @@ async def signup(
         )
 
     # Check if signup is enabled
-    users_utils.check_user_can_signup(server_settings)
+    if not server_settings.signup_enabled:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="User sign-up is not enabled on this server",
+        )
 
     # Generate email verification token if needed
     email_verification_token = None
+    email_verification_token_hash = None
     if server_settings.signup_require_email_verification:
-        email_verification_token = users_utils.generate_email_verification_token()
+        # Generate token and hash
+        email_verification_token, email_verification_token_hash = (
+            core_apprise.generate_token_and_hash()
+        )
 
     # Create the user in the database
     created_user = users_crud.create_signup_user(
-        user, email_verification_token, server_settings, db
+        user, email_verification_token_hash, server_settings, db
     )
 
     # Create the user integrations in the database
@@ -156,27 +169,37 @@ async def signup(
     user_default_gear_crud.create_user_default_gear(created_user.id, db)
 
     # Return appropriate response based on server configuration
-    response_data = {"message": "User created successfully"}
+    response_data = {"message": "User created successfully."}
 
     if server_settings.signup_require_email_verification:
+        # Generate sign-up link
+        sign_up_link = f"{email_service.frontend_host}/verify-email?token={email_verification_token}"
+        # use default email message in English
+        subject, html_content, text_content = (
+            session_email_messages.get_signup_confirmation_email_en(
+                user.name, sign_up_link, email_service
+            )
+        )
+        await email_service.send_email(
+            to_emails=[user.email],
+            subject=subject,
+            html_content=html_content,
+            text_content=text_content,
+        )
         response_data["message"] = (
-            "User created successfully. Please check your email for verification instructions."
+            response_data["message"] + " Email sent with verification instructions."
         )
         response_data["email_verification_required"] = True
-        # TODO: Send verification email here
-
     if server_settings.signup_require_admin_approval:
         response_data["message"] = (
-            "User created successfully. Account is pending admin approval."
+            response_data["message"] + " Account is pending admin approval."
         )
         response_data["admin_approval_required"] = True
-
     if (
         not server_settings.signup_require_email_verification
         and not server_settings.signup_require_admin_approval
     ):
-        response_data["message"] = "User created successfully. You can now log in."
-
+        response_data["message"] = response_data["message"] + " You can now log in."
     return response_data
 
 

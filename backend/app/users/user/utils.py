@@ -17,6 +17,16 @@ import core.config as core_config
 
 
 def check_user_is_active(user: users_schema.User) -> None:
+    """
+    Checks if the given user is active.
+
+    Raises:
+        HTTPException: If the user is not active, raises an HTTP 403 Forbidden exception
+        with a detail message "Inactive user" and a "WWW-Authenticate" header.
+
+    Args:
+        user (users_schema.User): The user object to check.
+    """
     if not user.active:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -26,6 +36,18 @@ def check_user_is_active(user: users_schema.User) -> None:
 
 
 def delete_user_photo_filesystem(user_id: int):
+    """
+    Deletes all photo files associated with a user from the filesystem.
+
+    This function searches for files in the directory specified by `core_config.USER_IMAGES_DIR`
+    that match the given `user_id` with any file extension, and removes them.
+
+    Args:
+        user_id (int): The ID of the user whose photo files should be deleted.
+
+    Returns:
+        None
+    """
     # Define the pattern to match files with the specified name regardless of the extension
     folder = core_config.USER_IMAGES_DIR
     file = f"{user_id}.*"
@@ -40,11 +62,39 @@ def delete_user_photo_filesystem(user_id: int):
 
 
 def format_user_birthdate(user):
-    user.birthdate = user.birthdate if isinstance(user.birthdate, str) else user.birthdate.isoformat() if user.birthdate else None
+    """
+    Formats the birthdate attribute of a user object to an ISO 8601 string if it is a date/datetime object.
+    If the birthdate is already a string or None, it remains unchanged.
+
+    Args:
+        user: An object with a 'birthdate' attribute, which can be a string, date/datetime object, or None.
+
+    Returns:
+        The user object with the 'birthdate' attribute formatted as an ISO 8601 string, string, or None.
+    """
+    user.birthdate = (
+        user.birthdate
+        if isinstance(user.birthdate, str)
+        else user.birthdate.isoformat() if user.birthdate else None
+    )
     return user
 
 
 async def save_user_image(user_id: int, file: UploadFile, db: Session):
+    """
+    Saves a user's image to the server and updates the user's photo path in the database.
+
+    Args:
+        user_id (int): The ID of the user whose image is being saved.
+        file (UploadFile): The uploaded image file.
+        db (Session): The database session.
+
+    Returns:
+        Any: The result of updating the user's photo path in the database.
+
+    Raises:
+        HTTPException: If an error occurs during the image saving process, raises a 500 Internal Server Error.
+    """
     try:
         upload_dir = core_config.USER_IMAGES_DIR
         os.makedirs(upload_dir, exist_ok=True)
@@ -73,17 +123,3 @@ async def save_user_image(user_id: int, file: UploadFile, db: Session):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal Server Error",
         ) from err
-
-
-def generate_email_verification_token():
-    """Generate a secure token for email verification"""
-    return secrets.token_urlsafe(32)
-
-
-def check_user_can_signup(server_settings) -> None:
-    """Check if user signup is enabled on the server"""
-    if not server_settings.signup_enabled:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="User sign-up is not enabled on this server",
-        )
