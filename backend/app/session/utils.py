@@ -94,7 +94,7 @@ def authenticate_user(username: str, password: str, db: Session):
 
 def create_tokens(user: users_schema.User):
     # Check user access level and set scopes accordingly
-    if user.access_type == session_constants.REGULAR_ACCESS:
+    if user.access_type == users_schema.UserAccessType.REGULAR:
         scopes = session_constants.REGULAR_ACCESS_SCOPES
     else:
         scopes = session_constants.ADMIN_ACCESS_SCOPES

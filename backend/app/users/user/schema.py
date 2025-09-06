@@ -5,12 +5,34 @@ import server_settings.schema as server_settings_schema
 
 
 class Gender(IntEnum):
+    """
+    An enumeration representing the gender of a user.
+
+    Attributes:
+        MALE (int): Represents male gender.
+        FEMALE (int): Represents female gender.
+        UNSPECIFIED (int): Represents unspecified or undisclosed gender.
+    """
+
     MALE = 1
     FEMALE = 2
     UNSPECIFIED = 3
 
 
 class Language(Enum):
+    """
+    An enumeration representing supported languages for the application.
+
+    Members:
+        CATALAN: Catalan language code ("ca").
+        DUTCH: Dutch language code ("nl").
+        GERMAN: German language code ("de").
+        FRENCH: French language code ("fr").
+        SPANISH: Spanish language code ("es").
+        PORTUGUESE: Portuguese language code ("pt").
+        ENGLISH_USA: US English language code ("us").
+    """
+
     CATALAN = "ca"
     DUTCH = "nl"
     GERMAN = "de"
@@ -21,6 +43,19 @@ class Language(Enum):
 
 
 class WeekDay(IntEnum):
+    """
+    An enumeration representing the days of the week.
+
+    Attributes:
+        SUNDAY (int): Represents Sunday (0).
+        MONDAY (int): Represents Monday (1).
+        TUESDAY (int): Represents Tuesday (2).
+        WEDNESDAY (int): Represents Wednesday (3).
+        THURSDAY (int): Represents Thursday (4).
+        FRIDAY (int): Represents Friday (5).
+        SATURDAY (int): Represents Saturday (6).
+    """
+
     SUNDAY = 0
     MONDAY = 1
     TUESDAY = 2
@@ -31,6 +66,14 @@ class WeekDay(IntEnum):
 
 
 class UserAccessType(IntEnum):
+    """
+    Enumeration representing different types of user access levels.
+
+    Attributes:
+        REGULAR (int): Standard user with regular access permissions.
+        ADMIN (int): User with administrative access permissions.
+    """
+
     REGULAR = 1
     ADMIN = 2
 
@@ -39,6 +82,22 @@ PASSWORD_REGEX = r"^(?=.*[A-Z])(?=.*\d)(?=.*[ !\"#$%&'()*+,\-./:;<=>?@[\\\]^_`{|
 
 
 def validate_password(value: str) -> str:
+    """
+    Validates that the provided password meets the required complexity.
+
+    Args:
+        value (str): The password string to validate.
+
+    Raises:
+        ValueError: If the password does not meet the following criteria:
+            - At least 8 characters long
+            - Includes an uppercase letter
+            - Includes a number
+            - Includes a special character
+
+    Returns:
+        str: The validated password string.
+    """
     if not re.match(PASSWORD_REGEX, value):
         raise ValueError(
             "Password must be at least 8 characters long, include an uppercase letter, a number, and a special character."
