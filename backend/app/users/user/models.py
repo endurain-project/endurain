@@ -1,10 +1,4 @@
-from sqlalchemy import (
-    Column,
-    Integer,
-    String,
-    Date,
-    Boolean
-)
+from sqlalchemy import Column, Integer, String, Date, Boolean
 from sqlalchemy.orm import relationship
 from core.database import Base
 
@@ -92,7 +86,7 @@ class User(Base):
         Boolean,
         nullable=False,
         default=False,
-        comment="Whether the user's email address has been verified",
+        comment="Whether the user's email address has been verified (true - yes, false - no)",
     )
     email_verification_token = Column(
         String(length=255),
@@ -103,7 +97,7 @@ class User(Base):
         Boolean,
         nullable=False,
         default=False,
-        comment="Whether the user is pending admin approval for activation",
+        comment="Whether the user is pending admin approval for activation (true - yes, false - no)",
     )
 
     # Define a relationship to UsersSessions model
