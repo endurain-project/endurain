@@ -56,8 +56,11 @@ class User(Base):
         Integer, nullable=False, comment="User type (one digit)(1 - user, 2 - admin)"
     )
     photo_path = Column(String(length=250), nullable=True, comment="User photo path")
-    is_active = Column(
-        Integer, nullable=False, comment="Is user active (1 - active, 2 - not active)"
+    active = Column(
+        Boolean,
+        nullable=False,
+        default=True,
+        comment="Whether the user is active (true - yes, false - no)",
     )
     first_day_of_week = Column(
         Integer,

@@ -58,27 +58,29 @@ async def login_for_access_token(
     if profile_utils.is_mfa_enabled_for_user(user.id, db):
         # Store the user for pending MFA verification
         pending_mfa_store.add_pending_login(form_data.username, user.id)
-        
+
         # Return MFA required response
         if client_type == "web":
             response.status_code = status.HTTP_202_ACCEPTED
             return session_schema.MFARequiredResponse(
                 mfa_required=True,
                 username=form_data.username,
-                message="MFA verification required"
+                message="MFA verification required",
             )
         if client_type == "mobile":
             return {
                 "mfa_required": True,
                 "username": form_data.username,
-                "message": "MFA verification required"
+                "message": "MFA verification required",
             }
-    
+
     # If no MFA required, proceed with normal login
     return await complete_login(response, request, user, client_type, db)
 
 
-async def complete_login(response: Response, request: Request, user, client_type: str, db: Session):
+async def complete_login(
+    response: Response, request: Request, user, client_type: str, db: Session
+):
     # Create the tokens
     access_token, refresh_token, csrf_token = session_utils.create_tokens(user)
 
@@ -127,17 +129,19 @@ async def signup(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Server settings not configured",
         )
-    
+
     # Check if signup is enabled
     users_utils.check_user_can_signup(server_settings)
-    
+
     # Generate email verification token if needed
     email_verification_token = None
     if server_settings.signup_require_email_verification:
         email_verification_token = users_utils.generate_email_verification_token()
-    
+
     # Create the user in the database
-    created_user = users_crud.create_signup_user(user, email_verification_token, server_settings, db)
+    created_user = users_crud.create_signup_user(
+        user, email_verification_token, server_settings, db
+    )
 
     # Create the user integrations in the database
     user_integrations_crud.create_user_integrations(created_user.id, db)
@@ -153,19 +157,26 @@ async def signup(
 
     # Return appropriate response based on server configuration
     response_data = {"message": "User created successfully"}
-    
+
     if server_settings.signup_require_email_verification:
-        response_data["message"] = "User created successfully. Please check your email for verification instructions."
+        response_data["message"] = (
+            "User created successfully. Please check your email for verification instructions."
+        )
         response_data["email_verification_required"] = True
         # TODO: Send verification email here
-    
+
     if server_settings.signup_require_admin_approval:
-        response_data["message"] = "User created successfully. Account is pending admin approval."
+        response_data["message"] = (
+            "User created successfully. Account is pending admin approval."
+        )
         response_data["admin_approval_required"] = True
-    
-    if not server_settings.signup_require_email_verification and not server_settings.signup_require_admin_approval:
+
+    if (
+        not server_settings.signup_require_email_verification
+        and not server_settings.signup_require_admin_approval
+    ):
         response_data["message"] = "User created successfully. You can now log in."
-    
+
     return response_data
 
 
@@ -185,17 +196,19 @@ async def verify_email(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Email verification is not enabled",
         )
-    
+
     # Verify the email
     user = users_crud.verify_user_email(token, db)
-    
+
     message = "Email verified successfully."
     if user.pending_admin_approval:
         message += " Your account is now pending admin approval."
     else:
         message += " You can now log in."
-    
-    return {"message": message, "user_active": user.is_active == session_constants.USER_ACTIVE}
+
+    return {
+        "message": message,
+    }
 
 
 @router.post("/mfa/verify")
@@ -217,31 +230,29 @@ async def verify_mfa_and_login(
     if not user_id:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="No pending MFA login found for this username"
+            detail="No pending MFA login found for this username",
         )
-    
+
     # Verify the MFA code
     if not profile_utils.verify_user_mfa(user_id, mfa_request.mfa_code, db):
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid MFA code"
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid MFA code"
         )
-    
+
     # Get the user and complete login
     user = users_crud.get_user_by_id(user_id, db)
     if not user:
         pending_mfa_store.delete_pending_login(mfa_request.username)
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
         )
-    
+
     # Check if the user is still active
     users_utils.check_user_is_active(user)
-    
+
     # Clean up pending login
     pending_mfa_store.delete_pending_login(mfa_request.username)
-    
+
     # Complete the login
     return await complete_login(response, request, user, client_type, db)
 

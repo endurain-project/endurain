@@ -97,7 +97,7 @@ class GearComponents(BaseModel):
         model (str): Model name or number of the gear component.
         purchase_date (str): Date when the component was purchased (ISO format recommended).
         retired_date (str | None): Date when the component was retired, if applicable.
-        is_active (bool | None): Indicates if the component is currently active.
+        active (bool | None): Indicates if the component is currently active.
         expected_kms (int | None): Expected kilometers the component should last.
         purchase_value (float | None): Purchase value of the component.
     """
@@ -109,7 +109,7 @@ class GearComponents(BaseModel):
     model: str
     purchase_date: str
     retired_date: str | None = None
-    is_active: bool | None = None
+    active: bool | None = None
     expected_kms: int | None = None
     purchase_value: float | None = None
 

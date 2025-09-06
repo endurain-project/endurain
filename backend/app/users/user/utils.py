@@ -17,7 +17,7 @@ import core.config as core_config
 
 
 def check_user_is_active(user: users_schema.User) -> None:
-    if user.is_active == session_constants.USER_NOT_ACTIVE:
+    if not user.active:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Inactive user",

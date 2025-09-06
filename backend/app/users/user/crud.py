@@ -586,21 +586,21 @@ def create_signup_user(user: users_schema.UserSignup, email_verification_token: 
     """Create a new user via sign-up with appropriate verification and approval settings"""
     try:
         # Determine user status based on server settings
-        is_active = session_constants.USER_ACTIVE
+        active = True
         email_verified = False
         pending_admin_approval = False
         
         if server_settings.signup_require_email_verification:
             email_verified = False
-            is_active = session_constants.USER_NOT_ACTIVE  # Inactive until email verified
-        
+            active = False  # Inactive until email verified
+
         if server_settings.signup_require_admin_approval:
             pending_admin_approval = True
-            is_active = session_constants.USER_NOT_ACTIVE  # Inactive until approved
-        
+            active = False  # Inactive until approved
+
         # If both email verification and admin approval are disabled, user is immediately active
         if not server_settings.signup_require_email_verification and not server_settings.signup_require_admin_approval:
-            is_active = session_constants.USER_ACTIVE
+            active = True
             email_verified = True
         
         # Create a new user
@@ -614,8 +614,8 @@ def create_signup_user(user: users_schema.UserSignup, email_verification_token: 
             gender=user.gender,
             units=user.units,
             height=user.height,
-            access_type=session_constants.REGULAR_ACCESS,
-            is_active=is_active,
+            access_type=users_schema.UserAccessType.REGULAR,
+            active=active,
             first_day_of_week=user.first_day_of_week,
             currency=user.currency,
             email_verified=email_verified,
@@ -676,7 +676,7 @@ def verify_user_email(token: str, db: Session):
         
         # If not pending admin approval, activate the user
         if not db_user.pending_admin_approval:
-            db_user.is_active = session_constants.USER_ACTIVE
+            db_user.active = True
 
         db.commit()
         db.refresh(db_user)

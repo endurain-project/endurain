@@ -383,17 +383,17 @@
                 </option>
               </select>
             </div>
-            <!-- user is_active fields -->
+            <!-- user active fields -->
             <div v-if="action != 'profile'">
-              <label for="userIsActiveAddEdit"
+              <label for="userActiveAddEdit"
                 ><b
                   >* {{ $t('usersAddEditUserModalComponent.addEditUserModalIsActiveLabel') }}</b
                 ></label
               >
               <select
                 class="form-select"
-                name="userIsActiveAddEdit"
-                v-model="newEditUserIsActive"
+                name="userActiveAddEdit"
+                v-model="newEditUserActive"
                 required
               >
                 <option :value="1">
@@ -508,7 +508,7 @@ const isInchesValid = computed(
 )
 const newEditUserPreferredLanguage = ref('us')
 const newEditUserAccessType = ref(1)
-const newEditUserIsActive = ref(1)
+const newEditUserActive = ref(true)
 const newEditUserPhotoPath = ref(null)
 const isUsernameExists = ref(true)
 const isEmailExists = ref(true)
@@ -543,7 +543,7 @@ if (props.user) {
   newEditUserPreferredLanguage.value = props.user.preferred_language
   newEditUserFirstDayOfWeek.value = props.user.first_day_of_week
   newEditUserAccessType.value = props.user.access_type
-  newEditUserIsActive.value = props.user.is_active
+  newEditUserActive.value = props.user.active
   newEditUserPhotoPath.value = props.user.photo_path
   if (props.user.height) {
     const { feet, inches } = cmToFeetInches(props.user.height)
@@ -651,7 +651,7 @@ async function submitAddUserForm() {
         access_type: newEditUserAccessType.value,
         photo_path: null,
         first_day_of_week: newEditUserFirstDayOfWeek.value,
-        is_active: newEditUserIsActive.value,
+        active: newEditUserActive.value,
         password: newUserPassword.value
       }
       const createdUser = await users.createUser(data)
@@ -695,7 +695,7 @@ async function submitEditUserForm() {
       first_day_of_week: newEditUserFirstDayOfWeek.value,
       access_type: newEditUserAccessType.value,
       photo_path: newEditUserPhotoPath.value,
-      is_active: newEditUserIsActive.value
+      active: newEditUserActive.value
     }
     if (newEditUserPhotoFile.value) {
       try {

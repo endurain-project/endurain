@@ -123,7 +123,7 @@ async def send_password_reset_email(
     2. Attempts to locate the user record for the given email in the provided DB session.
         - For security (to avoid user enumeration), if the user does not exist the function
           returns True and does not indicate existence to the caller.
-    3. Verifies the located user is active (expects user.is_active == 1).
+    3. Verifies the located user is active.
         - If the user is inactive the function returns True for the same security reason.
     4. Creates a password reset token and persists it via create_password_reset_token.
     5. Constructs a frontend reset URL using the email_service.frontend_host and the token.
@@ -175,7 +175,7 @@ async def send_password_reset_email(
         return True
 
     # Check if user is active
-    if user.is_active != 1:
+    if not user.active:
         # Don't reveal if user is inactive for security
         return True
 

@@ -150,10 +150,182 @@ def upgrade() -> None:
         comment="Whether the user is pending admin approval for activation (true - yes, false - no)",
         existing_type=sa.Boolean(),
     )
+    op.add_column(
+        "users",
+        sa.Column(
+            "active",
+            sa.Boolean(),
+            nullable=True,
+            default=False,
+            comment="Whether the user is active (true - yes, false - no)",
+        ),
+    )
+    op.execute(
+        """
+        UPDATE users
+        SET active = true
+        WHERE is_active = 1;
+        UPDATE users
+        SET active = false
+        WHERE is_active = 2;
+    """
+    )
+    op.alter_column(
+        "users",
+        "active",
+        nullable=False,
+        comment="Whether the user is active (true - yes, false - no)",
+        existing_type=sa.Boolean(),
+    )
+    op.drop_column("users", "is_active")
+    # Add new columns to gear table
+    op.add_column(
+        "gear",
+        sa.Column(
+            "active",
+            sa.Boolean(),
+            nullable=True,
+            default=True,
+            comment="Whether the gear is active (true - yes, false - no)",
+        ),
+    )
+    op.execute(
+        """
+        UPDATE gear
+        SET active = true
+        WHERE is_active = 1;
+        UPDATE gear
+        SET active = false
+        WHERE is_active = 0;
+    """
+    )
+    op.alter_column(
+        "gear",
+        "active",
+        nullable=False,
+        comment="Whether the gear is active (true - yes, false - no)",
+        existing_type=sa.Boolean(),
+    )
+    op.drop_column("gear", "is_active")
+    # Add new columns to gear component table
+    op.add_column(
+        "gear_components",
+        sa.Column(
+            "active",
+            sa.Boolean(),
+            nullable=True,
+            default=True,
+            comment="Whether the gear component is active (true - yes, false - no)",
+        ),
+    )
+    op.execute(
+        """
+        UPDATE gear_components
+        SET active = true
+        WHERE is_active = true;
+        UPDATE gear_components
+        SET active = false
+        WHERE is_active = false;
+    """
+    )
+    op.alter_column(
+        "gear_components",
+        "active",
+        nullable=False,
+        comment="Whether the gear component is active (true - yes, false - no)",
+        existing_type=sa.Boolean(),
+    )
+    op.drop_column("gear_components", "is_active")
 
 
 def downgrade() -> None:
+    # Remove columns from gear_components table
+    op.add_column(
+        "gear_components",
+        sa.Column(
+            "is_active",
+            sa.Boolean(),
+            nullable=True,
+            default=True,
+            comment="Is gear component active",
+        ),
+    )
+    op.execute(
+        """
+        UPDATE gear_components
+        SET is_active = true
+        WHERE active = true;
+        UPDATE gear_components
+        SET is_active = false
+        WHERE active = false;
+    """
+    )
+    op.alter_column(
+        "gear_components",
+        "is_active",
+        nullable=False,
+        comment="Is gear component active",
+        existing_type=sa.Boolean(),
+    )
+    op.drop_column("gear_components", "active")
+    # Remove columns from gear table
+    op.add_column(
+        "gear",
+        sa.Column(
+            "is_active",
+            sa.Integer(),
+            nullable=True,
+            default=1,
+            comment="Is gear active (0 - not active, 1 - active)",
+        ),
+    )
+    op.execute(
+        """
+        UPDATE gear
+        SET is_active = 1
+        WHERE active = true;
+        UPDATE gear
+        SET is_active = 0
+        WHERE active = false;
+    """
+    )
+    op.alter_column(
+        "gear",
+        "is_active",
+        nullable=False,
+        comment="Is gear active (0 - not active, 1 - active)",
+        existing_type=sa.Integer(),
+    )
+    op.drop_column("gear", "active")
     # Remove columns from users table
+    op.add_column(
+        "users",
+        sa.Column(
+            "is_active",
+            sa.Integer(),
+            nullable=True,
+            default=1,
+            comment="Is user active (1 - active, 2 - not active)",
+        ),
+    )
+    op.execute(
+        """
+        UPDATE users
+        SET is_active = 1
+        WHERE active = true;
+        UPDATE users
+        SET is_active = 2
+        WHERE active = false;
+    """
+    )
+    op.alter_column(
+        "users",
+        "is_active",
+        nullable=False,
+        comment="Is user active (1 - active, 2 - not active)",
+        existing_type=sa.Integer(),
+    )
+    op.drop_column("users", "active")
     op.drop_column("users", "pending_admin_approval")
     op.drop_column("users", "email_verification_token")
     op.drop_column("users", "email_verified")

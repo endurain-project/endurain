@@ -26,7 +26,7 @@
         >
         <span
           class="badge bg-danger-subtle border border-danger-subtle text-danger-emphasis d-none d-sm-inline"
-          v-if="user.is_active == 2"
+          v-if="user.active == false"
           >{{ $t('usersListComponent.userListUserIsInactiveBadge') }}</span
         >
 

@@ -158,7 +158,7 @@
           <div>
             <span
               class="badge bg-danger-subtle border border-danger-subtle text-danger-emphasis align-middle"
-              v-if="result.is_active == 0"
+              v-if="result.active == false"
               >{{ $t('searchView.resultIsInactiveBadge') }}</span
             >
           </div>

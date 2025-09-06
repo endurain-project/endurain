@@ -1,5 +1,39 @@
-from pydantic import BaseModel, EmailStr, field_validator
+from enum import Enum, IntEnum
+from pydantic import BaseModel, EmailStr, field_validator, StrictInt, ConfigDict
 import re
+import server_settings.schema as server_settings_schema
+
+
+class Gender(IntEnum):
+    MALE = 1
+    FEMALE = 2
+    UNSPECIFIED = 3
+
+
+class Language(Enum):
+    CATALAN = "ca"
+    DUTCH = "nl"
+    GERMAN = "de"
+    FRENCH = "fr"
+    SPANISH = "es"
+    PORTUGUESE = "pt"
+    ENGLISH_USA = "us"
+
+
+class WeekDay(IntEnum):
+    SUNDAY = 0
+    MONDAY = 1
+    TUESDAY = 2
+    WEDNESDAY = 3
+    THURSDAY = 4
+    FRIDAY = 5
+    SATURDAY = 6
+
+
+class UserAccessType(IntEnum):
+    REGULAR = 1
+    ADMIN = 2
+
 
 PASSWORD_REGEX = r"^(?=.*[A-Z])(?=.*\d)(?=.*[ !\"#$%&'()*+,\-./:;<=>?@[\\\]^_`{|}~])[A-Za-z\d !\"#$%&'()*+,\-./:;<=>?@[\\\]^_`{|}~]{8,}$"
 
@@ -12,37 +46,34 @@ def validate_password(value: str) -> str:
     return value
 
 
-class User(BaseModel):
-    id: int | None = None
+class UserBase(BaseModel):
     name: str
     username: str
     email: EmailStr
     city: str | None = None
     birthdate: str | None = None
-    preferred_language: str
-    gender: int
-    units: int
+    preferred_language: Language = Language.ENGLISH_USA
+    gender: Gender = Gender.MALE
+    units: server_settings_schema.Units = server_settings_schema.Units.METRIC
     height: int | None = None
-    access_type: int
+    first_day_of_week: WeekDay = WeekDay.MONDAY
+    currency: server_settings_schema.Currency = server_settings_schema.Currency.EURO
+
+
+class User(UserBase):
+    id: StrictInt
+    access_type: UserAccessType
     photo_path: str | None = None
-    is_active: int
-    first_day_of_week: int = 1
-    currency: int
+    active: bool
     mfa_enabled: bool = False
     mfa_secret: str | None = None
     email_verified: bool = False
     email_verification_token: str | None = None
     pending_admin_approval: bool = False
 
-    model_config = {"from_attributes": True}
-
-
-class UserCreate(User):
-    password: str
-
-    @field_validator("password")
-    def validate_password_field(cls, value):
-        return validate_password(value)
+    model_config = ConfigDict(
+        from_attributes=True, extra="forbid", validate_assignment=True
+    )
 
 
 class UserMe(User):
@@ -63,7 +94,7 @@ class UserMe(User):
     hide_activity_gear: bool | None = None
 
 
-class UserEditPassword(BaseModel):
+class UserSignup(UserBase):
     password: str
 
     @field_validator("password")
@@ -71,18 +102,16 @@ class UserEditPassword(BaseModel):
         return validate_password(value)
 
 
-class UserSignup(BaseModel):
-    name: str
-    username: str
-    email: EmailStr
-    city: str | None = None
-    birthdate: str | None = None
-    preferred_language: str = "en"
-    gender: int = 1  # Default to male
-    units: int = 1   # Default to metric
-    height: int | None = None
-    first_day_of_week: int = 1
-    currency: int = 1  # Default to euro
+class UserCreate(User):
+    id: StrictInt
+    password: str
+
+    @field_validator("password")
+    def validate_password_field(cls, value):
+        return validate_password(value)
+
+
+class UserEditPassword(BaseModel):
     password: str
 
     @field_validator("password")
