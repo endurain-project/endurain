@@ -17,7 +17,7 @@
   "signUpText": "Möchtest du dich anmelden?",
   "signUpButton": "Registrieren",
   "errorPublicActivityNotFound": "Öffentliche Aktivität nicht gefunden",
-  "errorPublic_shareable_links": "Public shareable links are not allowed. To view this activity, you must be signed in",
+  "errorPublic_shareable_links": "Öffentlich zugängliche Links sind nicht zulässig. Um diese Aktivität anzuzeigen, müssen Sie angemeldet sein",
   "forgotPassword": "Forgot your password?",
   "passwordResetInvalidLink": "No password reset token provided",
   "passwordResetSuccess": "Your password has been reset successfully",
