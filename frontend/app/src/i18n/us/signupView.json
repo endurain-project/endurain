@@ -16,6 +16,7 @@
   "currency": "Currency",
   "signUpButton": "Create Account",
   "alreadyHaveAccount": "Already have an account? Sign in",
+  "success": "Sign-up successful",
   "errorNameRequired": "Full name is required",
   "errorUsernameRequired": "Username is required",
   "errorEmailRequired": "Email address is required",

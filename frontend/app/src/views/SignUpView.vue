@@ -113,7 +113,7 @@
 
             <!-- Height field -->
             <!-- metric -->
-            <div class="input-group mb-3" v-if="Number(serverSettingsStore?.serverSettings?.units) === 1">
+            <div class="input-group mb-3" v-if="Number(serverSettingsStore.serverSettings.units) === 1">
               <div class="form-floating flex-grow-1">
                 <input type="number" class="form-control" name="signUpHeightCms" :placeholder="$t('signupView.height')
                   " v-model="signUpHeightCms" />
@@ -216,12 +216,12 @@ const signUpPreferredLanguage = ref('us')
 const signUpCity = ref(null)
 const signUpBirthdate = ref(null)
 const signUpGender = ref(1)
-const signUpUnits = ref(serverSettingsStore?.serverSettings?.units)
+const signUpUnits = ref(serverSettingsStore.serverSettings.units)
 const signUpHeightCms = ref(null)
 const signUpHeightFeet = ref(null)
 const signUpHeightInches = ref(null)
 const signUpFirstDayOfWeek = ref(1)
-const signUpCurrency = ref(serverSettingsStore?.serverSettings?.currency)
+const signUpCurrency = ref(serverSettingsStore.serverSettings.currency)
 const isFeetValid = computed(
   () => signUpHeightFeet.value >= 0 && signUpHeightFeet.value <= 10
 )
@@ -254,7 +254,7 @@ const loginPhotoUrl = computed(() =>
 
 // Handle form submission
 const submitForm = async () => {
-  if (Number(serverSettingsStore?.serverSettings?.units) === 1) {
+  if (Number(serverSettingsStore.serverSettings.units) === 1) {
     const { feet, inches } = cmToFeetInches(signUpHeightCms.value)
     signUpHeightFeet.value = feet
     signUpHeightInches.value = inches
@@ -285,7 +285,7 @@ const submitForm = async () => {
 
     const response = await session.signUpRequest(data)
 
-    push.success(response.message)
+    push.success(t('signupView.success'))
 
     // Redirect to login with appropriate query parameters
     const queryParams = {}
@@ -314,7 +314,7 @@ const submitForm = async () => {
 
 onMounted(() => {
   // Check if signup is enabled
-  if (!serverSettingsStore?.serverSettings?.signup_enabled) {
+  if (!serverSettingsStore.serverSettings.signup_enabled) {
     push.error(t('signupView.signupDisabled'))
     router.push('/login')
   }
