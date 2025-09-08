@@ -115,7 +115,7 @@ async def complete_login(
         )
 
 
-@router.post("/signup", status_code=201)
+@router.post("/sign-up/request", status_code=201)
 async def signup(
     user: users_schema.UserSignup,
     email_service: Annotated[
@@ -203,9 +203,9 @@ async def signup(
     return response_data
 
 
-@router.get("/verify-email/{token}")
+@router.get("/sign-up/confirm")
 async def verify_email(
-    token: str,
+    confirm_data: session_schema.SignUpResetConfirm,
     db: Annotated[
         Session,
         Depends(core_database.get_db),
@@ -221,7 +221,7 @@ async def verify_email(
         )
 
     # Verify the email
-    user = users_crud.verify_user_email(token, db)
+    user = users_crud.verify_user_email(confirm_data.token, db)
 
     message = "Email verified successfully."
     if user.pending_admin_approval:

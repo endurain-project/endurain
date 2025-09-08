@@ -204,13 +204,13 @@
               required
             >
               <option :value="1">
-                {{ $t('usersAddEditUserModalComponent.addEditUserModalGenderOption1') }}
+                {{ $t('generalItems.genderMale') }}
               </option>
               <option :value="2">
-                {{ $t('usersAddEditUserModalComponent.addEditUserModalGenderOption2') }}
+                {{ $t('generalItems.genderFemale') }}
               </option>
               <option :value="3">
-                {{ $t('usersAddEditUserModalComponent.addEditUserModalGenderOption3') }}
+                {{ $t('generalItems.genderUnspecified') }}
               </option>
             </select>
             <!-- units fields -->

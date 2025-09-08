@@ -21,10 +21,10 @@ export const session = {
   logoutUser() {
     return fetchPostRequest('logout', null)
   },
-  signUp(userData) {
-    return fetchPostRequest('signup', userData)
+  signUpRequest(userData) {
+    return fetchPostRequest('sign-up/request', userData)
   },
-  verifyEmail(token) {
-    return fetchGetRequest(`verify-email/${token}`)
+  signUpConfirm(token) {
+    return fetchGetRequest(`sign-up/confirm/${token}`)
   }
 }
