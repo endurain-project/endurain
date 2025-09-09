@@ -12,7 +12,7 @@ import core.database as core_database
 router = APIRouter()
 
 
-@router.get("", response_model=server_settings_schema.ServerSettings)
+@router.get("", response_model=server_settings_schema.ServerSettingsReadPublic)
 async def read_public_server_settings(
     db: Annotated[
         Session,
@@ -20,4 +20,9 @@ async def read_public_server_settings(
     ],
 ):
     # Get the server_settings from the database
-    return server_settings_crud.get_server_settings(db)
+    server_settings = server_settings_crud.get_server_settings(db)
+
+    delattr(server_settings, "signup_require_admin_approval")
+    delattr(server_settings, "signup_require_email_verification")
+
+    return server_settings

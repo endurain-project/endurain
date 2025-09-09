@@ -12,8 +12,8 @@ export const useServerSettingsStore = defineStore('serverSettings', {
       currency: 1,
       num_records_per_page: 5,
       signup_enabled: false,
-      signup_require_admin_approval: false,
-      signup_require_email_verification: false
+      signup_require_admin_approval: null,
+      signup_require_email_verification: null,
     }
   }),
   actions: {
@@ -32,6 +32,10 @@ export const useServerSettingsStore = defineStore('serverSettings', {
     async loadServerSettingsFromServer() {
       const settings = await serverSettings.getPublicServerSettings()
       this.setServerSettings(settings)
+    },
+    setServerSettingsOnLogout() {
+      this.serverSettings.signup_require_admin_approval = null
+      this.serverSettings.signup_require_email_verification = null
     }
   }
 })

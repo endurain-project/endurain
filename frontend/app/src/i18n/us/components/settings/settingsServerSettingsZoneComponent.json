@@ -24,5 +24,6 @@
   "processingPhotoDelete": "Processing photo delete",
   "successPhotoDelete": "Photo deleted successfully",
   "successUpdateServerSettings": "Server settings updated successfully",
-  "errorUpdateServerSettings": "Error updating server settings"
+  "errorUpdateServerSettings": "Error updating server settings",
+  "errorFetchingServerSettings": "Error fetching server settings"
 }

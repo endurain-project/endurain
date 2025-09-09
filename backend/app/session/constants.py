@@ -19,8 +19,8 @@ HEALTH_SCOPES = [
     "health_targets:read",
     "health_targets:write",
 ]
-SERVER_SETTINGS_REGULAR_SCOPES = ["server_settings:read"]
-SERVER_SETTINGS_ADMIN_SCOPES = ["server_settings:write"]
+SERVER_SETTINGS_REGULAR_SCOPES = []
+SERVER_SETTINGS_ADMIN_SCOPES = ["server_settings:read", "server_settings:write"]
 SCOPES_DICT = {
     "profile": "Privileges over user's own profile",
     "users:read": "Read privileges over users",
