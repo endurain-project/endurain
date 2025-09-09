@@ -30,10 +30,10 @@
           <font-awesome-icon :icon="['fas', 'file-import']" size="2x" />
             <div class="ms-3">
               <div class="fw-bold">
-                {{ $t("settingsImportZone.stravaImportIntegrationTitle") }} 
+                {{ $t("settingsImportZone.stravaGearImportTitle") }} 
                 {{ $t('generalItems.betaTag') }}
               </div>
-            {{ $t("settingsImportZone.stravaImportIntegrationBody") }}
+            {{ $t("settingsImportZone.stravaGearImportBody") }}
             </div>
           </div>
           <div class="d-flex align-items-center">
@@ -42,7 +42,7 @@
               href="#" 
               class="btn btn-primary" 
               role="button" 
-              @click="submitStravaBikesImport">{{ $t("settingsImportZone.stravaImportbuttonBikes") }}
+              @click="submitStravaBikesImport">{{ $t("settingsImportZone.stravaGearImportbuttonBikes") }}
             </a>
           </div>
         </li>
