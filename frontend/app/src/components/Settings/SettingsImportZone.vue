@@ -1,45 +1,54 @@
 <template>
-    <div class="col">
-		<div class="bg-body-tertiary rounded p-3 shadow-sm">
-			<!-- list zone -->
-			<ul class="list-group list-group-flush">
-				<!-- import zone -->
-				<!-- bulk import zone -->
-				<li class="list-group-item d-flex justify-content-between bg-body-tertiary px-0">
-					<div class="d-flex align-items-center">
-						<font-awesome-icon :icon="['fas', 'file-import']" size="2x" />
-						<div class="ms-3">
-							<div class="fw-bold">
-								{{ $t("settingsImportZone.bulkImportIntegrationTitle") }}
-							</div>
-							{{ $t("settingsImportZone.bulkImportIntegrationBody") }}
-						</div>
-					</div>
-					<div class="d-flex align-items-center">
-						<!-- import button -->
-						<a href="#" class="btn btn-primary" role="button" @click="submitBulkImport">{{ $t("settingsImportZone.buttonBulkImport") }}</a>
-					</div>
-				</li>
-				<!-- Strava bulk-export import zone -->
-				<li class="list-group-item d-flex justify-content-between bg-body-tertiary px-0">
-					<div class="d-flex align-items-center">
-						<font-awesome-icon :icon="['fas', 'file-import']" size="2x" />
-						<div class="ms-3">
-							<div class="fw-bold">
-								{{ $t("settingsImportZone.stravaImportIntegrationTitle") }}
-							</div>
-							{{ $t("settingsImportZone.stravaImportIntegrationBody") }}
-						</div>
-					</div>
-					<div class="d-flex align-items-center">
-						<!-- import button -->
-						<a href="#" class="btn btn-primary" role="button" @click="submitStravaBikesImport">{{ $t("settingsImportZone.stravaImportbuttonBikes") }}</a>
-					</div>
-				</li>
-			</ul>
-
-		</div>
-	</div>
+  <div class="col">
+    <div class="bg-body-tertiary rounded p-3 shadow-sm">
+      <!-- list zone -->
+      <ul class="list-group list-group-flush">
+        <!-- bulk import zone -->
+        <li class="list-group-item d-flex justify-content-between bg-body-tertiary px-0">
+          <div class="d-flex align-items-center">
+            <font-awesome-icon :icon="['fas', 'file-import']" size="2x" />
+            <div class="ms-3">
+              <div class="fw-bold">
+                {{ $t("settingsImportZone.bulkImportIntegrationTitle") }}
+              </div>
+            {{ $t("settingsImportZone.bulkImportIntegrationBody") }}
+            </div>
+          </div>
+          <div class="d-flex align-items-center">
+            <!-- import button -->
+            <a 
+              href="#" 
+              class="btn btn-primary" 
+              role="button" 
+              @click="submitBulkImport">{{ $t("settingsImportZone.buttonBulkImport") }}
+            </a>
+          </div>
+        </li>
+        <!-- Strava bulk-export import zone -->
+        <li class="list-group-item d-flex justify-content-between bg-body-tertiary px-0">
+          <div class="d-flex align-items-center">
+          <font-awesome-icon :icon="['fas', 'file-import']" size="2x" />
+            <div class="ms-3">
+              <div class="fw-bold">
+                {{ $t("settingsImportZone.stravaImportIntegrationTitle") }} 
+                {{ $t('generalItems.betaTag') }}
+              </div>
+            {{ $t("settingsImportZone.stravaImportIntegrationBody") }}
+            </div>
+          </div>
+          <div class="d-flex align-items-center">
+            <!-- import button -->
+            <a 
+              href="#" 
+              class="btn btn-primary" 
+              role="button" 
+              @click="submitStravaBikesImport">{{ $t("settingsImportZone.stravaImportbuttonBikes") }}
+            </a>
+          </div>
+        </li>
+      </ul>
+    </div>
+  </div>
 </template>
 
 <script setup>
