@@ -50,35 +50,6 @@ import { push } from 'notivue'
 // Importing the services
 import { strava } from '@/services/stravaService'
 // Importing the components
-<<<<<<< HEAD
-import SettingsSideBarComponent from '../components/Settings/SettingsSideBarComponent.vue';
-import SettingsUsersZone from '../components/Settings/SettingsUsersZone.vue';
-import SettingsServerSettingsZone from '../components/Settings/SettingsServerSettingsZone.vue';
-import SettingsGeneralZone from '../components/Settings/SettingsGeneralZone.vue';
-import SettingsUserProfileZone from '../components/Settings/SettingsUserProfileZone.vue';
-import SettingsSecurityZone from '../components/Settings/SettingsSecurityZone.vue';
-import SettingsIntegrationsZone from '../components/Settings/SettingsIntegrationsZone.vue';
-import SettingsImportZone from '../components/Settings/SettingsImportZone.vue';
-import BackButtonComponent from '@/components/GeneralComponents/BackButtonComponent.vue';
-
-export default {
-    components: {
-        SettingsSideBarComponent,
-        SettingsUsersZone,
-        SettingsServerSettingsZone,
-        SettingsGeneralZone,
-        SettingsUserProfileZone,
-        SettingsSecurityZone,
-        SettingsIntegrationsZone,
-        SettingsImportZone,
-        BackButtonComponent,
-    },
-    setup () {
-        const authStore = useAuthStore();
-        const route = useRoute();
-        const { locale, t } = useI18n();
-        const activeSection = ref('users');
-=======
 import SettingsSideBarComponent from '../components/Settings/SettingsSideBarComponent.vue'
 import SettingsUsersZone from '../components/Settings/SettingsUsersZone.vue'
 import SettingsServerSettingsZone from '../components/Settings/SettingsServerSettingsZone.vue'
@@ -87,6 +58,7 @@ import SettingsUserProfileZone from '../components/Settings/SettingsUserProfileZ
 import SettingsSecurityZone from '../components/Settings/SettingsSecurityZone.vue'
 import SettingsIntegrationsZone from '../components/Settings/SettingsIntegrationsZone.vue'
 import BackButtonComponent from '@/components/GeneralComponents/BackButtonComponent.vue'
+import SettingsImportZone from '../components/Settings/SettingsImportZone.vue'
 import SettingsUserGoals from '../components/Settings/SettingsUserGoals.vue'
 
 export default {
@@ -99,6 +71,7 @@ export default {
     SettingsSecurityZone,
     SettingsIntegrationsZone,
     BackButtonComponent,
+    SettingsImportZone,
     SettingsUserGoals
   },
   setup() {
@@ -106,7 +79,6 @@ export default {
     const route = useRoute()
     const { locale, t } = useI18n()
     const activeSection = ref('users')
->>>>>>> master
 
     function updateActiveSection(section) {
       // Update the active section.
@@ -156,45 +128,6 @@ export default {
       }
     })
 
-<<<<<<< HEAD
-                // Set the user object with the strava_linked property set to 1.
-                const user = authStore.user;
-                user.is_strava_linked = 1;
-                authStore.setUser(user, locale);
-
-                // Set the success message and show the success alert.
-                push.success(t('settingsIntegrationsZone.successMessageStravaAccountLinked'))
-
-                try {
-                    await strava.setUniqueUserStateStravaLink(null);
-                } catch (error) {
-                    // If there is an error, set the error message and show the error alert.
-                    push.error(`${t('settingsIntegrationsZone.errorMessageUnableToUnSetStravaState')} - ${error}`)
-                }
-            }
-
-            if (route.query.stravaLinked === '0') {
-                // If the stravaLinked query parameter is set to 0, set the active section to integrations.
-                activeSection.value = 'integrations';
-
-                try {
-                    await strava.setUniqueUserStateStravaLink(null);
-                } catch (error) {
-                    // If there is an error, set the error message and show the error alert.
-                    push.error(`${t('settingsIntegrationsZone.errorMessageUnableToUnSetStravaState')} - ${error}`)
-                }
-            }
-        });
-
-        return {
-            authStore,
-            activeSection,
-            updateActiveSection,
-            t,
-        };
-    },
-};
-=======
     return {
       authStore,
       activeSection,
@@ -203,5 +136,4 @@ export default {
     }
   }
 }
->>>>>>> master
 </script>

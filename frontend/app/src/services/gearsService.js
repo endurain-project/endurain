@@ -40,4 +40,3 @@ export const gears = {
     return fetchPostRequest('gears/stravabikesimport');
   }
 }
->>>>>>> master
