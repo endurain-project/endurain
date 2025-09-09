@@ -42,5 +42,21 @@ export const profile = {
     formData.append('file', file)
 
     return fetchPostFileRequest('profile/import', formData)
+  },
+  // MFA endpoints
+  getMFAStatus() {
+    return fetchGetRequest('profile/mfa/status')
+  },
+  setupMFA() {
+    return fetchPostRequest('profile/mfa/setup', {})
+  },
+  enableMFA(data) {
+    return fetchPostRequest('profile/mfa/enable', data)
+  },
+  disableMFA(data) {
+    return fetchPostRequest('profile/mfa/disable', data)
+  },
+  verifyMFA(data) {
+    return fetchPostRequest('profile/mfa/verify', data)
   }
 }

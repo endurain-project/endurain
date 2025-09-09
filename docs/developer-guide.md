@@ -152,12 +152,13 @@ The API is reachable under `/api/v1`. Below are some example endpoints. All endp
 
 
 ## Supported activity types
-The table bellow details the activity types supported by Endurain:
+The table bellow details the activity types supported by Endurain.
 
 | Name | Value |
 | ---- | --- |
 | Run | 1 |
 | Trail run | 2 |
+| Track run | 34 |
 | Virtual run | 3 |
 | Road cycling | 4 |
 | Gravel cycling | 5 |
@@ -192,18 +193,18 @@ The table bellow details the activity types supported by Endurain:
 
 
 ## Supported gear types
-The table bellow details the gear types supported by Endurain:
+The table bellow details the gear types supported by Endurain.
 
 | Name               | Value | Notes                                   |
 |--------------------|-------|-----------------------------------------|
-| Bike               | 1     | N/A                                     |
-| Shoes              | 2     | N/A                                     |
-| Wetsuit            | 3     | N/A                                     |
-| Racquet            | 4     | N/A                                     |
-| Ski                | 5     | N/A                                     |
-| Snowboard          | 6     | N/A                                     |
-| Windsurf           | 7     | N/A                                     |
-| Water sports board | 8     | Example: stand up paddle and surf board |
+| bike               | 1     | N/A                                     |
+| shoes              | 2     | N/A                                     |
+| wetsuit            | 3     | N/A                                     |
+| racquet            | 4     | N/A                                     |
+| ski                | 5     | N/A                                     |
+| snowboard          | 6     | N/A                                     |
+| windsurf           | 7     | N/A                                     |
+| water_sports_board | 8     | Example: stand up paddle and surf board |
 
 
 ## Supported bike component gear types

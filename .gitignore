@@ -41,6 +41,9 @@ backend/app/data/activity_files/*.tcx
 backend/app/data/activity_files/bulk_import/*.gpx
 backend/app/data/activity_files/bulk_import/*.fit
 backend/app/data/activity_files/bulk_import/*.tcx
+backend/app/data/activity_files/bulk_import/import_errors/*.gpx
+backend/app/data/activity_files/bulk_import/import_errors/*.fit
+backend/app/data/activity_files/bulk_import/import_errors/*.tcx
 backend/app/data/activity_files/processed/*.gpx
 backend/app/data/activity_files/processed/*.fit
 backend/app/data/activity_files/processed/*.tcx

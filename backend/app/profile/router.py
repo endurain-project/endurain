@@ -21,8 +21,14 @@ import users.user_integrations.schema as users_integrations_schema
 import users.user_default_gear.crud as user_default_gear_crud
 import users.user_default_gear.schema as user_default_gear_schema
 
+import users.user_goals.crud as user_goals_crud
+import users.user_goals.schema as user_goals_schema
+
 import users.user_privacy_settings.crud as users_privacy_settings_crud
 import users.user_privacy_settings.schema as users_privacy_settings_schema
+
+import profile.utils as profile_utils
+import profile.schema as profile_schema
 
 import session.security as session_security
 import session.crud as session_crud
@@ -360,6 +366,9 @@ async def delete_profile_session(
     return session_crud.delete_session(session_id, token_user_id, db)
 
 
+# Import/export logic
+
+
 @router.get("/export")
 async def export_profile_data(
     token_user_id: Annotated[
@@ -374,7 +383,7 @@ async def export_profile_data(
     """
     Exports all profile-related data for the authenticated user as a ZIP archive.
 
-    This endpoint collects and packages the user's activities, associated files (such as GPX/FIT tracks), laps, sets, streams, workout steps, exercise titles, gears, health data, health targets, user information, user images, default gear, integrations, and privacy settings into a single ZIP file. The resulting archive contains JSON files for structured data and includes any relevant user or activity files found on disk.
+    This endpoint collects and packages the user's activities, associated files (such as GPX/FIT tracks), laps, sets, streams, workout steps, exercise titles, gears, health data, health targets, user information, user images, default gear, integrations, goals, and privacy settings into a single ZIP file. The resulting archive contains JSON files for structured data and includes any relevant user or activity files found on disk.
 
     Args:
         token_user_id (int): The ID of the authenticated user, extracted from the access token.
@@ -454,6 +463,7 @@ async def export_profile_data(
         "user": 1,
         "user_default_gear": 0,
         "user_integrations": 0,
+        "user_goals": 0,
         "user_privacy_settings": 0,
     }
 
@@ -468,7 +478,7 @@ async def export_profile_data(
             3. Gear and gear components information in JSON format.
             4. Health data and health targets in JSON format.
             5. User profile information (excluding password) and user images.
-            6. User default gear, integrations, and privacy settings in JSON format.
+            6. User default gear, integrations, goals, and privacy settings in JSON format.
             7. A counts.json file with statistics about the included files.
 
         The function streams the ZIP file in chunks for efficient memory usage.
@@ -609,6 +619,9 @@ async def export_profile_data(
                         token_user_id, db
                     )
                 )
+                user_goals = user_goals_crud.get_user_goals_by_user_id(
+                    token_user_id, db
+                )
                 user_privacy_settings = (
                     users_privacy_settings_crud.get_user_privacy_settings_by_user_id(
                         token_user_id, db
@@ -630,6 +643,7 @@ async def export_profile_data(
                     (health_targets, "data/health_targets.json"),
                     (user_default_gear, "data/user_default_gear.json"),
                     (user_integrations, "data/user_integrations.json"),
+                    (user_goals, "data/user_goals.json"),
                     (user_privacy_settings, "data/user_privacy_settings.json"),
                     (counts, "counts.json"),
                 ]
@@ -693,6 +707,7 @@ async def import_profile_data(
     - User profile
     - User default gear
     - User integrations
+    - User goals
     - User privacy settings
     - Activities and their related laps, sets, streams, workout steps, media and exercise titles
     - Health data and health targets
@@ -732,6 +747,7 @@ async def import_profile_data(
         "user": 0,
         "user_default_gear": 0,
         "user_integrations": 0,
+        "user_goals": 0,
         "user_privacy_settings": 0,
     }
 
@@ -745,6 +761,7 @@ async def import_profile_data(
                 "data/user.json": "user_data",
                 "data/user_default_gear.json": "user_default_gear_data",
                 "data/user_integrations.json": "user_integrations_data",
+                "data/user_goals.json": "user_goals_data",
                 "data/user_privacy_settings.json": "user_privacy_settings_data",
                 "data/activities.json": "activities_data",
                 "data/activity_laps.json": "activity_laps_data",
@@ -898,6 +915,17 @@ async def import_profile_data(
                     )
                     counts["user_integrations"] += 1
 
+                # user goals
+                if results["user_goals_data"]:
+                    for goal_data in results["user_goals_data"]:
+                        goal_data.pop("id", None)
+                        goal_data.pop("user_id", None)
+                        # convert goal data to Goal schema
+                        goal = user_goals_schema.UserGoalCreate(**goal_data)
+                        # create goal
+                        user_goals_crud.create_user_goal(token_user_id, goal, db)
+                        counts["user_goals"] += 1
+
                 # user privacy settings
                 if results["user_privacy_settings_data"]:
                     # current
@@ -1040,7 +1068,9 @@ async def import_profile_data(
                             # Extract the part after the underscore
                             filename = old_path.split("/")[-1]
                             suffix = filename.split("_", 1)[1]
-                            media_data["media_path"] = f"{core_config.ACTIVITY_MEDIA_DIR}/{new_activity.id}_{suffix}"
+                            media_data["media_path"] = (
+                                f"{core_config.ACTIVITY_MEDIA_DIR}/{new_activity.id}_{suffix}"
+                            )
                         # convert activity data to ActivityMedia schema
                         media_item = activity_media_schema.ActivityMedia(**media_data)
                         # add the media item to the media list
@@ -1180,3 +1210,232 @@ async def import_profile_data(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Import failed: {err}",
         ) from err
+
+
+# MFA logic
+@router.get("/mfa/status", response_model=profile_schema.MFAStatusResponse)
+async def get_mfa_status(
+    token_user_id: Annotated[
+        int,
+        Depends(session_security.get_user_id_from_access_token),
+    ],
+    db: Annotated[Session, Depends(core_database.get_db)],
+):
+    """
+    Return the multi-factor authentication (MFA) enabled status for the authenticated user.
+
+    This async route handler expects the authenticated user's ID to be injected from an access
+    token and a database session to be provided via dependency injection. It checks whether the
+    user has MFA enabled by delegating to profile_utils.is_mfa_enabled_for_user and returns the
+    result wrapped in the profile_schema.MFAStatusResponse model.
+
+    Args:
+        token_user_id (int): User ID extracted from the access token (provided by
+            session_security.get_user_id_from_access_token dependency).
+        db (Session): SQLAlchemy database session (provided by core_database.get_db dependency).
+
+    Returns:
+        profile_schema.MFAStatusResponse: Response object with a single attribute:
+            - mfa_enabled (bool): True if the user has MFA enabled, False otherwise.
+
+    Raises:
+        HTTPException: If authentication fails or the access token is invalid (raised by the
+            dependency that extracts the user ID).
+        sqlalchemy.exc.SQLAlchemyError: On database-related errors originating from the DB session
+            or helper functions.
+
+    Notes:
+        - This function performs a read-only check and does not modify persistent state.
+        - Intended to be used as a FastAPI route handler; the dependencies supply authentication
+          and the DB session automatically.
+        - Example serialized response: {"mfa_enabled": true}
+    """
+    is_enabled = profile_utils.is_mfa_enabled_for_user(token_user_id, db)
+    return profile_schema.MFAStatusResponse(mfa_enabled=is_enabled)
+
+
+@router.post("/mfa/setup", response_model=profile_schema.MFASetupResponse)
+async def setup_mfa(
+    token_user_id: Annotated[
+        int,
+        Depends(session_security.get_user_id_from_access_token),
+    ],
+    db: Annotated[Session, Depends(core_database.get_db)],
+    mfa_secret_store: Annotated[
+        profile_schema.MFASecretStore, Depends(profile_schema.get_mfa_secret_store)
+    ],
+):
+    """
+    Initiate MFA setup for the authenticated user.
+
+    Generates a new TOTP secret and associated provisioning data for the user identified
+    by token_user_id, persists any required MFA metadata using the provided database
+    session, and temporarily stores the raw secret in mfa_secret_store for the
+    subsequent enable/verification step.
+
+    Args:
+        token_user_id (int): User ID extracted from the access token via
+            session_security.get_user_id_from_access_token. The MFA setup will be
+            performed for this user.
+        db (Session): Database session (injected via core_database.get_db) used by
+            profile_utils.setup_user_mfa to persist user MFA metadata.
+        mfa_secret_store (profile_schema.MFASecretStore): Ephemeral secret store (injected
+            via profile_schema.get_mfa_secret_store). The generated raw secret is added
+            with mfa_secret_store.add_secret(token_user_id, secret) so it can be
+            verified in a subsequent request that enables MFA.
+
+    Returns:
+        object: The response returned by profile_utils.setup_user_mfa. Typically this
+        contains the information needed by the client to configure an authenticator
+        app (for example: secret or masked secret, otpauth URI, and/or QR code data).
+
+    Side effects:
+        - Persists MFA-related metadata in the database via profile_utils.setup_user_mfa.
+        - Temporarily stores the raw TOTP secret in mfa_secret_store; callers should
+          ensure secrets are removed or expired after successful verification to avoid
+          long-lived plaintext secrets.
+
+    Errors/Exceptions:
+        - Authentication/authorization errors if the access token is invalid or does not
+          resolve to a user id (raised by the dependency).
+        - Database-related errors from profile_utils.setup_user_mfa or the db session.
+        - Storage errors from mfa_secret_store.add_secret (e.g., failure to persist the secret).
+        Callers (API layer) should translate these into appropriate HTTP responses.
+
+    Notes:
+        - Intended to be used as a FastAPI endpoint where token_user_id and db are
+          provided via Depends().
+        - Ensure mfa_secret_store implements appropriate concurrency control and TTL/expiry
+          for stored secrets.
+    """
+    response = profile_utils.setup_user_mfa(token_user_id, db)
+
+    # Store the secret temporarily for the enable step
+    mfa_secret_store.add_secret(token_user_id, response.secret)
+
+    return response
+
+
+@router.post("/mfa/enable")
+async def enable_mfa(
+    request: profile_schema.MFASetupRequest,
+    token_user_id: Annotated[
+        int,
+        Depends(session_security.get_user_id_from_access_token),
+    ],
+    db: Annotated[Session, Depends(core_database.get_db)],
+    mfa_secret_store: Annotated[
+        profile_schema.MFASecretStore, Depends(profile_schema.get_mfa_secret_store)
+    ],
+):
+    """
+    Enable Multi-Factor Authentication (MFA) for the authenticated user.
+
+    Completes an in-progress MFA setup by retrieving the temporary secret for the user,
+    validating the provided one-time code (TOTP) and persisting the MFA configuration.
+    The temporary secret is removed from the store on success or error to avoid leaking secrets.
+
+    Parameters
+    ----------
+    request : profile_schema.MFASetupRequest
+        Request body containing the MFA code (TOTP) submitted by the user.
+    token_user_id : int
+        ID of the authenticated user, injected from the access token dependency.
+    db : Session
+        Database session used to persist the user's MFA settings.
+    mfa_secret_store : profile_schema.MFASecretStore
+        Temporary storage used to retrieve and delete the user's MFA secret during setup.
+
+    Returns
+    -------
+    dict
+        JSON-serializable success message: {"message": "MFA enabled successfully"}.
+
+    Raises
+    ------
+    HTTPException
+        - 400 Bad Request if there is no MFA setup in progress (no temporary secret available).
+        - Propagates HTTPException raised by the underlying validation/persistence (e.g., invalid TOTP,
+          database errors). On any error the temporary secret is removed to ensure cleanup.
+
+    Side effects
+    ------------
+    - Calls profile_utils.enable_user_mfa(...) to validate and enable MFA for the user.
+    - Deletes the temporary MFA secret from mfa_secret_store in both success and error paths.
+    """
+    # Get the secret from temporary storage
+    secret = mfa_secret_store.get_secret(token_user_id)
+    if not secret:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No MFA setup in progress. Please run setup first.",
+        )
+
+    try:
+        profile_utils.enable_user_mfa(token_user_id, secret, request.mfa_code, db)
+        # Clean up the temporary secret
+        mfa_secret_store.delete_secret(token_user_id)
+        return {"message": "MFA enabled successfully"}
+    except HTTPException:
+        # Clean up on error
+        mfa_secret_store.delete_secret(token_user_id)
+        raise
+
+
+@router.post("/mfa/disable")
+async def disable_mfa(
+    request: profile_schema.MFADisableRequest,
+    token_user_id: Annotated[
+        int,
+        Depends(session_security.get_user_id_from_access_token),
+    ],
+    db: Annotated[Session, Depends(core_database.get_db)],
+):
+    """Disable multi-factor authentication (MFA) for the authenticated user.
+
+    Asynchronous FastAPI route handler that disables MFA for the user identified by
+    the access token. It validates the MFA code provided in the request and delegates
+    the disabling operation to profile_utils.disable_user_mfa, persisting the change
+    using the supplied database session.
+
+    Args:
+        request (profile_schema.MFADisableRequest): Request payload containing the MFA code
+            (expected attribute: `mfa_code`).
+        token_user_id (int): ID of the authenticated user, resolved from the access token
+            via dependency injection.
+        db (Session): SQLAlchemy database session provided by dependency injection.
+
+    Returns:
+        dict: A JSON-serializable dict with a success message, e.g.:
+            {"message": "MFA disabled successfully"}
+
+    Raises:
+        fastapi.HTTPException: If authentication fails or required dependencies cannot be resolved.
+        ValueError: If the provided MFA code is invalid (actual exception type may vary
+            depending on profile_utils implementation).
+        sqlalchemy.exc.SQLAlchemyError: If a database error occurs while updating the user's record.
+        Exception: Propagates other unexpected errors thrown by profile_utils.disable_user_mfa.
+
+    Notes:
+        - This function relies on FastAPI's Depends to supply token_user_id and db.
+        - Side effects: updates the user's MFA state in the database.
+    """
+    profile_utils.disable_user_mfa(token_user_id, request.mfa_code, db)
+    return {"message": "MFA disabled successfully"}
+
+
+@router.post("/mfa/verify")
+async def verify_mfa(
+    request: profile_schema.MFARequest,
+    token_user_id: Annotated[
+        int,
+        Depends(session_security.get_user_id_from_access_token),
+    ],
+    db: Annotated[Session, Depends(core_database.get_db)],
+):
+    is_valid = profile_utils.verify_user_mfa(token_user_id, request.mfa_code, db)
+    if not is_valid:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid MFA code"
+        )
+    return {"message": "MFA code verified successfully"}

@@ -10,7 +10,9 @@ class Activity(BaseModel):
     name: str
     activity_type: int
     start_time: str | None = None
+    start_time_tz_applied: str | None = None
     end_time: str | None = None
+    end_time_tz_applied: str | None = None
     timezone: str | None = None
     total_elapsed_time: float | None = None
     total_timer_time: float | None = None
@@ -18,6 +20,7 @@ class Activity(BaseModel):
     town: str | None = None
     country: str | None = None
     created_at: str | None = None
+    created_at_tz_applied: str | None = None
     elevation_gain: int | None = None
     elevation_loss: int | None = None
     pace: float | None = None

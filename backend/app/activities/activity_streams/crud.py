@@ -393,10 +393,10 @@ def transform_activity_streams_hr(activity_stream, activity, db):
     max_heart_rate = 220 - (current_year - year)
 
     # Calculate heart rate zones based on the maximum heart rate
-    zone_1 = max_heart_rate * 0.5
-    zone_2 = max_heart_rate * 0.6
-    zone_3 = max_heart_rate * 0.7
-    zone_4 = max_heart_rate * 0.8
+    zone_1 = max_heart_rate * 0.6
+    zone_2 = max_heart_rate * 0.7
+    zone_3 = max_heart_rate * 0.8
+    zone_4 = max_heart_rate * 0.9
 
     # Extract heart rate values from waypoints
     hr_values = np.array(
