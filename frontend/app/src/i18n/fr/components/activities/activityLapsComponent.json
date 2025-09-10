@@ -1,14 +1,14 @@
 {
-  "labelLapNumber": "Intervalle",
-  "labelLapIntensity": "Intensité",
-  "labelLapDistance": "Distance",
-  "labelLapTime": "Temps",
-  "labelLapPace": "Allure",
-  "labelLapSpeed": "Vitesse",
-  "labelLapElevation": "Élévation",
-  "labelLapElev": "Élév.",
-  "labelLapAvgHr": "Fréq. cardiaque moy.",
-  "labelLapHR": "FC",
-  "labelLapStrokeRate": "Stroke rate",
-  "labelLapSR": "SR"
+    "labelLapNumber": "Intervalle",
+    "labelLapIntensity": "Intensité",
+    "labelLapDistance": "Distance",
+    "labelLapTime": "Temps",
+    "labelLapPace": "Allure",
+    "labelLapSpeed": "Vitesse",
+    "labelLapElevation": "Élévation",
+    "labelLapElev": "Élév.",
+    "labelLapAvgHr": "Fréq. cardiaque moy.",
+    "labelLapHR": "FC",
+    "labelLapStrokeRate": "Stroke rate",
+    "labelLapSR": "SR"
 }
