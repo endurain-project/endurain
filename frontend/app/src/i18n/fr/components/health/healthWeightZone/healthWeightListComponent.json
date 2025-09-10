@@ -1,9 +1,9 @@
 {
-  "labelGarminConnect": "Garmin Connect",
-  "modalDeleteWeightTitle": "Supprimer le poids",
-  "modalDeleteWeightBody": "Êtes-vous sûr de vouloir supprimer la saisie de poids pour ",
-  "successDeleteWeight": "Poids supprimé",
-  "errorDeleteWeight": "Impossible de supprimer la saisie de poids",
-  "successEditWeight": "Poids modifié",
-  "errorEditWeight": "Impossible de modifier la saisie du poids"
+    "labelGarminConnect": "Garmin Connect",
+    "modalDeleteWeightTitle": "Supprimer le poids",
+    "modalDeleteWeightBody": "Êtes-vous sûr de vouloir supprimer la saisie de poids pour ",
+    "successDeleteWeight": "Poids supprimé",
+    "errorDeleteWeight": "Impossible de supprimer la saisie de poids",
+    "successEditWeight": "Poids modifié",
+    "errorEditWeight": "Impossible de modifier la saisie du poids"
 }

@@ -44,5 +44,7 @@
 ![Settings general page](assets/gallery/screenshot_settings_general.png)
 ![Settings profile page 1](assets/gallery/screenshot_settings_profile_1.png)
 ![Settings profile page 2](assets/gallery/screenshot_settings_profile_2.png)
+![Settings profile page 2](assets/gallery/screenshot_settings_profile_3.png)
+![Settings my goals page](assets/gallery/screenshot_settings_my_goals.png)
 ![Settings security page](assets/gallery/screenshot_settings_security.png)
 ![Settings integrations page](assets/gallery/screenshot_settings_integrations.png)
