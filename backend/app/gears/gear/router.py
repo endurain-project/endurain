@@ -388,66 +388,89 @@ async def import_shoes_from_Strava_CSV(
 
         # CSV file location
         bulk_import_dir = core_config.FILES_BULK_IMPORT_DIR
-        shoesfilename = "shoes.csv" # Hard coding filename for now (this is the filename Strava uses)
+        shoesfilename = core_config.STRAVA_BULK_IMPORT_SHOES_FILE
         shoes_file_path = os.path.join(bulk_import_dir, shoesfilename)
 
         # Get file and parse it
-        shoes_dict = {}  # format: "Shoe Name" from the Strava CSV is used as the key, which then holds a dictionary that is based on the Strava shoe gear CSV file's data
+        shoes_list = [] # Using a list for shoes, as there is no unique value to use as a dictionary key like with bikes
         try:
             if os.path.isfile(shoes_file_path):
-                  core_logger.print_to_log_and_console(f"shoes.csv file exists in bulk_import directory. Starting to process file.")
+                  core_logger.print_to_log_and_console(f"{shoesfilename} exists in the {bulk_import_dir} directory. Starting to process file.")
                   with open(shoes_file_path, "r") as shoe_file:
                       shoes_csv = csv.DictReader(shoe_file)
                       for row in shoes_csv:    # Must process CSV file object while file is still open.
                           # Example row: {'Shoe Name': 'New forest runners', 'Shoe Brand': 'Saucony', 'Shoe Model': 'Trail runner 2200', 'Shoe Default Sport Types': ''}
                           if ('Shoe Name' not in row) or ('Shoe Brand' not in row) or ('Shoe Model' not in row): 
-                              core_logger.print_to_log_and_console("Aborting shoes import: Proper headers not found in shoes.csv.  File should have 'Shoe Name', 'Shoe Brand', and 'Shoe Model'.")
+                              core_logger.print_to_log_and_console("Aborting shoes import: Proper headers not found in {shoesfilename}. File should have 'Shoe Name', 'Shoe Brand', and 'Shoe Model'.")
                               return None
-                          shoes_dict[row["Shoe Name"]] = row
-                  core_logger.print_to_log_and_console(f"Strava shoe gear csv file parsed and gear dictionary created. File was {len(shoes_dict)} rows long, ignoring header row.")
+                          shoes_list.append(row)
+                  core_logger.print_to_log_and_console(f"Strava shoe gear csv file parsed and gear dictionary created. File was {len(shoes_list)} rows long, ignoring header row.")
             else:
-                  core_logger.print_to_log_and_console(f"No shoes.csv file located.")
+                  core_logger.print_to_log_and_console(f"No {shoesfilename} file located in the {bulk_import_dir} directory.")
                   return None # Nothing to return - no file.
         except:
             # TO DO: RAISE ERROR OR ADD NOTIFICATON HERE?
-            core_logger.print_to_log_and_console(f"Error attempting to open shoes.csv file.")
+            core_logger.print_to_log_and_console(f"Error attempting to open {shoes_file_path} file.")
             return None # Nothing to return - error parsing file.
+
+        #core_logger.print_to_log_and_console(f"Users full shoe list is: {shoes_list}") # Testing code
 
         # Get user's existing gear 
         user_gear_list = gears_crud.get_gear_user(token_user_id, db)
         if user_gear_list is None:
              #User has no gear - we can just add our own straight up.
-             users_existing_gear_nicknames = None
+             users_existing_gear_dictionary = None
         else:
              #User has gear - we will need to check for duplicates.  So build a list of gear nicknames to check against.
-             users_existing_gear_nicknames = []
+             users_existing_gear_dictionary_list = []
              for item in user_gear_list:
-                  users_existing_gear_nicknames.append(item.nickname)
+                  gear_dict = {}
+                  gear_dict["nickname"] = item.nickname
+                  gear_dict["brand"] = item.brand
+                  gear_dict["model"] = item.model
+                  gear_dict["strava_gear_id"] = item.strava_gear_id
+                  users_existing_gear_dictionary_list.append(gear_dict)
+        #core_logger.print_to_log_and_console(f"User gear dictionary list: {users_existing_gear_dictionary_list}") # Testing code
 
-        # Go through bikes and add them to the database if they are not duplicates.
-        for shoe in shoes_dict:  # shoe here is the nickname of the shoe from Strava (the index of our shoes_dict)
-             #core_logger.print_to_log_and_console(f"In shoes_dict iterator.  Current shoe is - {shoe}") # Testing code.
-             if shoe in users_existing_gear_nicknames:
-                   core_logger.print_to_log_and_console(f"Shoe - {shoe} - found in existing user gear (nicknames matched).  Skipping import.")
+        # Get gear type id of shoes
+        shoe_gear_type = gears_utils.GEAR_NAME_TO_ID["shoes"]
+
+        # Go through shoes and add them to the database if they are not duplicates.
+        for shoerow in shoes_list:  # shoe here is list item that contains the dictionary from strava
+             #core_logger.print_to_log_and_console(f"In shoes_dict iterator.  Current shoe is - {shoerow}") # Testing code.
+
+             # Iterate through user gear list to check if shoe is already present
+             shoerowalreadypresent = False
+             for item in users_existing_gear_dictionary_list:
+                   # Must replace + with space when checking becuase gear.utils.transform_schema_gear_to_model_gear modifies the entered gear name/model/brand when adding it to the database
+                   if item["nickname"] == shoerow["Shoe Name"].replace("+", " ") and item["brand"] == shoerow["Shoe Brand"].replace("+", " ") and item["model"] == shoerow["Shoe Model"].replace("+", " "):
+                         if item["strava_gear_id"] == None:
+                               shoerowalreadypresent = True
+                               break
+                         else:
+                               # TO DO: Consider what to do in the case that the shoe exists, but it is from Strava. 
+                               core_logger.print_to_log_and_console(f"Shoe - {shoerow} - found in existing gear, linked to Strava.  Not importing shoe, but be aware that shoe will be removed if Strava is unlinked.")
+                               shoerowalreadypresent = True
+                               break
+             if shoerowalreadypresent:
+                   core_logger.print_to_log_and_console(f"Shoe - {shoerow} - found in existing user gear.  Skipping import.")
              else:
-                   core_logger.print_to_log_and_console(f"Shoe - {shoe} - not found in existing user gear. Importing.")
+                   core_logger.print_to_log_and_console(f"Shoe - {shoerow} - not found in existing user gear. Importing.")
                    # Notes on the import:
-                   # Hard-coding gear type of shoe to be gear_type of 2 here
-                   #    Once gear type dictionary is incorporated, recode here. 
                    # Strava does not export its internal gear ID, so we do not have that information.
                    # Strava does not export the active / inactive state of the shoe, so importing all as active (as we need a status).
                    new_gear = gears_schema.Gear(
                          user_id = token_user_id,
-                         brand = shoes_dict[shoe]["Shoe Brand"],
-                         model = shoes_dict[shoe]["Shoe Model"],
-                         nickname = shoe,
-                         gear_type = 2,
+                         brand = shoerow["Shoe Brand"],
+                         model = shoerow["Shoe Model"],
+                         nickname = shoerow["Shoe Name"],
+                         gear_type = shoe_gear_type,
                          created_at = import_time_iso,
                          is_active = True,
                          strava_gear_id = None
                         )
                    gears_crud.create_gear(new_gear, token_user_id, db)
-                   core_logger.print_to_log_and_console(f"Shoe - {shoe} - has been imported.")
+                   core_logger.print_to_log_and_console(f"Shoe - {shoerow} - has been imported.")
         # Return a success message
         core_logger.print_to_log_and_console("Shoe import complete.")
         return {"Shoe import successful."}
