@@ -114,16 +114,10 @@ At the present time, importing bikes from a Strava bulk export is implemented as
 To perform an import of bikes: 
 - Place the bikes.csv file from a Strava bulk export into the data/activity_files/bulk_import folder. Create the folder if needed.
 - In the "Settings" menu select "Import".
-- Click "Bikes Import" next to "Strava import".
+- Click "Bikes Import" next to "Strava gear import".
 - Status messages about the import, including why any gear was not imported, can be found in the logs.
 
 Ensure the file is named "bikes.csv" and has a header row with at least the fields 'Bike Name', 'Bike Brand', and 'Bike Model'.
-
-### Importing other items from a Strava bulk import
-
-Importing of shoes is under development in September 2025.
-
-Importing activity metadata and media is under development in September 2025.
 
 #### Shoe import
 
@@ -132,12 +126,18 @@ At the present time, importing shoes from a Strava bulk export is implemented as
 To perform an import of shoes: 
 - Place the shoes.csv file from a Strava bulk export into the data/activity_files/bulk_import folder. Create the folder if needed.
 - In the "Settings" menu select "Import".
-- Click "Shoes import" next to "Strava import".
+- Click "Shoes import" next to "Strava gear import".
 - Status messages about the import, including why any gear was not imported, can be found in the logs.
 
 Ensure the file is named "shoes.csv" and has a header row with at least the fields 'Shoe Name', 'Shoe Brand', and 'Shoe Model'.
 
-Please report any problems observed with shoe imports on GitHub.
+Note that Strava allows blank shoe names, but Endurain does not.  Shoes with a blank name will thus be given a default name of "Unnamed Shoe #" on import.
+
+Endurain does not allow the "+" character in gear field names, and thus all +'s will be replaced with spaces.
+
+### Importing other items from a Strava bulk import
+
+Importing activity metadata and media is under development in September 2025.
 
 ## Image personalization
 
