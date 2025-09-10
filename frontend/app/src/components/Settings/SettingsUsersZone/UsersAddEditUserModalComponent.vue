@@ -513,11 +513,13 @@ const newEditUserPhotoPath = ref(null)
 const isUsernameExists = ref(true)
 const isEmailExists = ref(true)
 const isEmailValid = computed(() => {
+  if (!newEditUserEmail.value) return true
   const emailRegex = /^[^\s@]{1,}@[^\s@]{2,}\.[^\s@]{2,}$/
   return emailRegex.test(newEditUserEmail.value)
 })
 const newUserPassword = ref('')
 const isPasswordValid = computed(() => {
+  if (!newUserPassword.value) return true
   const regex =
     /^(?=.*[A-Z])(?=.*\d)(?=.*[ !\"#$%&'()*+,\-./:;<=>?@[\\\]^_`{|}~])[A-Za-z\d !"#$%&'()*+,\-./:;<=>?@[\\\]^_`{|}~]{8,}$/
   return regex.test(newUserPassword.value)
