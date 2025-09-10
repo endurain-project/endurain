@@ -1,13 +1,13 @@
 {
-    "userListAccessTypeOption1": "Regular user",
-    "userListAccessTypeOption2": "Administrator",
-    "userListUserIsMeBadge": "Me",
-    "userListUserIsAdminBadge": "Admin",
-    "userListUserIsInactiveBadge": "Inactive",
-    "userEditErrorMessage": "Error editing user",
-    "modalDeleteUserTitle": "Delete user",
-    "modalDeleteUserBody": "Are you sure you want to delete user ",
-    "userListUserSessionsTitle": "User sessions",
-    "userSessionDeleteSuccessMessage": "Session deleted successfully",
-    "userSessionDeleteErrorMessage": "Error deleting session"
+  "userListAccessTypeOption1": "Regular user",
+  "userListAccessTypeOption2": "Administrator",
+  "userListUserIsMeBadge": "Me",
+  "userListUserIsAdminBadge": "Admin",
+  "userListUserIsInactiveBadge": "Inactive",
+  "userEditErrorMessage": "Error editing user",
+  "modalDeleteUserTitle": "Delete user",
+  "modalDeleteUserBody": "Are you sure you want to delete user ",
+  "userListUserSessionsTitle": "User sessions",
+  "userSessionDeleteSuccessMessage": "Session deleted successfully",
+  "userSessionDeleteErrorMessage": "Error deleting session"
 }

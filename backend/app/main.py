@@ -21,6 +21,8 @@ import session.schema as session_schema
 import strava.activity_utils as strava_activity_utils
 import strava.utils as strava_utils
 
+import password_reset_tokens.utils as password_reset_tokens_utils
+
 from core.routes import router as api_router
 
 
@@ -59,6 +61,12 @@ async def startup_event():
         "Retrieving last day body composition from Garmin Connect on startup"
     )
     garmin_health_utils.retrieve_garminconnect_users_bc_for_days(1)
+
+    # Delete invalid password reset tokens
+    core_logger.print_to_log_and_console(
+        "Deleting invalid password reset tokens from the database"
+    )
+    password_reset_tokens_utils.delete_invalid_tokens_from_db()
 
 
 def shutdown_event():

@@ -1,8 +1,9 @@
 {
-    "usersSection": "Gebruikers",
-    "serverSettingsSection": "Serverinstellingen",
-    "generalSection": "Algemeen",
-    "myProfileSection": "Mijn profiel",
-    "securitySection": "Beveiliging",
-    "integrationsSection": "Integraties"
+  "usersSection": "Gebruikers",
+  "serverSettingsSection": "Serverinstellingen",
+  "generalSection": "Algemeen",
+  "myProfileSection": "Mijn profiel",
+  "myGoals": "My Goals",
+  "securitySection": "Beveiliging",
+  "integrationsSection": "Integraties"
 }

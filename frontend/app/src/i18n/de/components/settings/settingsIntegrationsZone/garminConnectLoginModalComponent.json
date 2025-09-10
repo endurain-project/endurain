@@ -1,14 +1,14 @@
 {
-    "garminConnectAuthModalTitle": "Garmin Connect Konto verbinden",
-    "garminConnectAuthModalUsernameLabel": "Garmin Connect E-Mail",
-    "garminConnectAuthModalUsernamePlaceholder": "Garmin Connect E-Mail",
-    "garminConnectAuthModalPasswordLabel": "Garmin Connect Passwort",
-    "garminConnectAuthModalPasswordPlaceholder": "Garmin Connect Passwort",
-    "garminConnectAuthModalMfaCodeLabel": "MFA-Code",
-    "garminConnectAuthModalMfaCodePlaceholder": "MFA-Code",
-    "buttonSubmitMfaCode": "MFA-Code absenden",
-    "garminConnectAuthModalLoginButton": "Anmelden",
-    "processingMessageLinkGarminConnect": "Verknüpfe Garmin Connect Konto...",
-    "successMessageLinkGarminConnect": "Garmin Connect Konto verknüpft",
-    "errorMessageUnableToLinkGarminConnect": "Die Verbindung zum Garmin Connect Konto konnte nicht getrennt werden"
+  "garminConnectAuthModalTitle": "Garmin Connect Konto verbinden",
+  "garminConnectAuthModalUsernameLabel": "Garmin Connect E-Mail",
+  "garminConnectAuthModalUsernamePlaceholder": "Garmin Connect E-Mail",
+  "garminConnectAuthModalPasswordLabel": "Garmin Connect Passwort",
+  "garminConnectAuthModalPasswordPlaceholder": "Garmin Connect Passwort",
+  "garminConnectAuthModalMfaCodeLabel": "MFA-Code",
+  "garminConnectAuthModalMfaCodePlaceholder": "MFA-Code",
+  "buttonSubmitMfaCode": "MFA-Code absenden",
+  "garminConnectAuthModalLoginButton": "Anmelden",
+  "processingMessageLinkGarminConnect": "Verknüpfe Garmin Connect Konto...",
+  "successMessageLinkGarminConnect": "Garmin Connect Konto verknüpft",
+  "errorMessageUnableToLinkGarminConnect": "Die Verbindung zum Garmin Connect Konto konnte nicht getrennt werden"
 }

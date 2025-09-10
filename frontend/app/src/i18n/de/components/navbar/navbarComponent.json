@@ -1,13 +1,13 @@
 {
-    "search": "Suche",
-    "activities": "Aktivitäten",
-    "activitiesList": "List",
-    "summary": "Summary",
-    "gear": "Ausrüstung",
-    "health": "Gesundheit",
-    "profile": "Profil",
-    "settings": "Einstellungen",
-    "login": "Anmelden",
-    "logout": "Abmelden",
-    "errorLogout": "Fehler beim Ausloggen"
+  "search": "Suche",
+  "activities": "Aktivitäten",
+  "activitiesList": "Liste",
+  "summary": "Zusammenfassung",
+  "gear": "Ausrüstung",
+  "health": "Gesundheit",
+  "profile": "Profil",
+  "settings": "Einstellungen",
+  "login": "Anmelden",
+  "logout": "Abmelden",
+  "errorLogout": "Fehler beim Ausloggen"
 }

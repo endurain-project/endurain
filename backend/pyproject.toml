@@ -1,13 +1,13 @@
 [tool.poetry]
 name = "endurain"
-version = "0.13.1"
+version = "0.14.0"
 description = "Endurain API for the Endurain app"
 authors = ["João Vitória Silva <8648976+joaovitoriasilva@users.noreply.github.com>"]
 readme = "README.md"
 package-mode = false
 
 [tool.poetry.dependencies]
-python = "^3.13"
+python = "^3.12"
 fastapi = "^0.115.6"
 uvicorn = "^0.34.0"
 python-dotenv = "^1.0.1"
@@ -39,6 +39,9 @@ poetry = "^2.0.0"
 user-agents = "^2.2.0"
 pydantic = {extras = ["email"], version = "^2.11.3"}
 garth = "^0.5.16"
+apprise = "^1.8.0"
+pyotp = "^2.9.0"
+qrcode = {extras = ["pil"], version = "^8.2"}
 
 
 [build-system]
