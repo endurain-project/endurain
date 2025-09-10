@@ -1,13 +1,13 @@
 {
-  "weight": "Peso",
-  "noWeightData": "Sem dados de peso",
-  "noWeightTarget": "Sem meta de peso",
-  "noHeightDefined": "Altura não definida para utilizador",
-  "bmi": "IMC",
-  "bmiUnderweight": "Abaixo do peso",
-  "bmiNormalWeight": "Peso normal",
-  "bmiOverweight": "Acima do peso",
-  "bmiObesityClass1": "Obesidade (Classe 1)",
-  "bmiObesityClass2": "Obesidade (Classe 2)",
-  "bmiObesityClass3": "Obesidade extrema (Classe 3)"
+    "weight": "Peso",
+    "noWeightData": "Sem dados de peso",
+    "noWeightTarget": "Sem meta de peso",
+    "noHeightDefined": "Altura não definida para utilizador",
+    "bmi": "IMC",
+    "bmiUnderweight": "Abaixo do peso",
+    "bmiNormalWeight": "Peso normal",
+    "bmiOverweight": "Acima do peso",
+    "bmiObesityClass1": "Obesidade (Classe 1)",
+    "bmiObesityClass2": "Obesidade (Classe 2)",
+    "bmiObesityClass3": "Obesidade extrema (Classe 3)"
 }
