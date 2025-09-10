@@ -115,6 +115,12 @@ class User(Base):
         back_populates="user",
         cascade="all, delete-orphan",
     )
+    # Define a relationship to SignUpToken model
+    sign_up_tokens = relationship(
+        "SignUpToken",
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
     # Define a relationship to UsersIntegrations model
     users_integrations = relationship(
         "UsersIntegrations",

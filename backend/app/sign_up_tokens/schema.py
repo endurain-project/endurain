@@ -1,8 +1,8 @@
-from pydantic import BaseModel, EmailStr, ConfigDict
+from pydantic import BaseModel, ConfigDict
 from datetime import datetime
 
 
-class PasswordResetToken(BaseModel):
+class SignUpToken(BaseModel):
     id: str
     user_id: int
     token_hash: str
@@ -15,10 +15,5 @@ class PasswordResetToken(BaseModel):
     )
 
 
-class PasswordResetRequest(BaseModel):
-    email: EmailStr
-
-
-class PasswordResetConfirm(BaseModel):
+class SignUpConfirm(BaseModel):
     token: str
-    new_password: str

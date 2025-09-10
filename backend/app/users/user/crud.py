@@ -584,7 +584,6 @@ def disable_user_mfa(user_id: int, db: Session):
 
 def create_signup_user(
     user: users_schema.UserSignup,
-    email_verification_token: str,
     server_settings,
     db: Session,
 ):
@@ -593,7 +592,6 @@ def create_signup_user(
 
     Args:
         user (users_schema.UserSignup): The user signup data containing user details.
-        email_verification_token (str): Token for email verification, if required.
         server_settings: Server configuration settings that determine signup requirements.
         db (Session): SQLAlchemy database session.
 
@@ -643,11 +641,6 @@ def create_signup_user(
             first_day_of_week=user.first_day_of_week,
             currency=user.currency,
             email_verified=email_verified,
-            email_verification_token=(
-                email_verification_token
-                if server_settings.signup_require_email_verification
-                else None
-            ),
             pending_admin_approval=pending_admin_approval,
             password=session_security.hash_password(user.password),
         )

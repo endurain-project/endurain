@@ -78,6 +78,29 @@ def create_password_reset_token(
 def get_password_reset_token_by_hash(
     token_hash: str, db: Session
 ) -> password_reset_tokens_models.PasswordResetToken | None:
+    """
+    Retrieve an unused, unexpired PasswordResetToken that matches the provided token hash.
+
+    Parameters:
+        token_hash (str): The hashed token value to look up.
+        db (Session): SQLAlchemy Session used to query the password_reset_tokens table.
+
+    Returns:
+        password_reset_tokens_models.PasswordResetToken | None:
+            The matching PasswordResetToken instance if an unused token exists and its
+            expires_at is strictly in the future (compared to datetime.now(timezone.utc));
+            otherwise None when no valid token is found.
+
+    Raises:
+        HTTPException:
+            Raises an HTTPException with status_code 500 if an unexpected error occurs
+            while querying the database. The underlying exception is logged before
+            the HTTPException is raised.
+
+    Notes:
+        - The function filters tokens by token_hash, used == False, and expires_at > now (UTC).
+        - Side effects: unexpected errors are logged via core_logger.print_to_log.
+    """
     try:
         # Get the token from the database
         db_token = (

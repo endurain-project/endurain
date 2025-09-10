@@ -17,7 +17,6 @@ import session.utils as session_utils
 import session.security as session_security
 import session.crud as session_crud
 import session.schema as session_schema
-import session.email_messages as session_email_messages
 
 import users.user.crud as users_crud
 import users.user.utils as users_utils
@@ -28,6 +27,10 @@ import users.user_privacy_settings.crud as users_privacy_settings_crud
 
 import health_targets.crud as health_targets_crud
 import profile.utils as profile_utils
+
+import sign_up_tokens.crud as sign_up_tokens_crud
+import sign_up_tokens.utils as sign_up_tokens_utils
+
 import server_settings.crud as server_settings_crud
 
 import core.database as core_database
@@ -142,18 +145,9 @@ async def signup(
             detail="User sign-up is not enabled on this server",
         )
 
-    # Generate email verification token if needed
-    email_verification_token = None
-    email_verification_token_hash = None
-    if server_settings.signup_require_email_verification:
-        # Generate token and hash
-        email_verification_token, email_verification_token_hash = (
-            core_apprise.generate_token_and_hash()
-        )
-
     # Create the user in the database
     created_user = users_crud.create_signup_user(
-        user, email_verification_token_hash, server_settings, db
+        user, server_settings, db
     )
 
     # Create the user integrations in the database
@@ -171,24 +165,22 @@ async def signup(
     # Return appropriate response based on server configuration
     response_data = {"message": "User created successfully."}
 
-    if server_settings.signup_require_email_verification:
-        # Generate sign-up link
-        sign_up_link = f"{email_service.frontend_host}/verify-email?token={email_verification_token}"
-        # use default email message in English
-        subject, html_content, text_content = (
-            session_email_messages.get_signup_confirmation_email_en(
-                user.name, sign_up_link, email_service
+    if (
+        server_settings.signup_require_email_verification
+        and not server_settings.signup_require_admin_approval
+    ):
+        # Send the sign-up email
+        success = await sign_up_tokens_utils.send_sign_up_email(created_user, email_service, db)
+
+        if success:
+            response_data["message"] = (
+                response_data["message"] + " Email sent with verification instructions."
             )
-        )
-        await email_service.send_email(
-            to_emails=[user.email],
-            subject=subject,
-            html_content=html_content,
-            text_content=text_content,
-        )
-        response_data["message"] = (
-            response_data["message"] + " Email sent with verification instructions."
-        )
+        else:
+            response_data["message"] = (
+                response_data["message"]
+                + " Failed to send verification email. Please contact support."
+            )
         response_data["email_verification_required"] = True
     if server_settings.signup_require_admin_approval:
         response_data["message"] = (

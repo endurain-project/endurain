@@ -4,6 +4,7 @@ from fastapi import (
     status,
 )
 from uuid import uuid4
+import hashlib
 
 from sqlalchemy.orm import Session
 

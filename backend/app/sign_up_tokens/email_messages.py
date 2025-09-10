@@ -58,9 +58,9 @@ def get_signup_confirmation_email_en(
                 <a href="{signup_link}" style="background-color: #198754; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; display: inline-block; font-weight: bold;">Confirm Account</a>
             </div>
 
-            <!--<div style="background-color: #fff3cd; border: 1px solid #ffeaa7; color: #856404; padding: 15px; border-radius: 5px; margin: 20px 0;">
+            <div style="background-color: #fff3cd; border: 1px solid #ffeaa7; color: #856404; padding: 15px; border-radius: 5px; margin: 20px 0;">
                 <strong>Security notice:</strong> This confirmation link will expire in 24 hours.
-            </div>-->
+            </div>
 
             <p>If you didn’t create an Endurain account, please ignore this email.</p>
 

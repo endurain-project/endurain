@@ -120,15 +120,6 @@ def upgrade() -> None:
     op.add_column(
         "users",
         sa.Column(
-            "email_verification_token",
-            sa.String(length=255),
-            nullable=True,
-            comment="Token for email verification",
-        ),
-    )
-    op.add_column(
-        "users",
-        sa.Column(
             "pending_admin_approval",
             sa.Boolean(),
             nullable=True,
@@ -236,9 +227,61 @@ def upgrade() -> None:
         existing_type=sa.Boolean(),
     )
     op.drop_column("gear_components", "is_active")
+    # Sign up tokens table
+    op.create_table(
+        "sign_up_tokens",
+        sa.Column(
+            "id",
+            sa.String(length=64),
+            nullable=False,
+        ),
+        sa.Column(
+            "user_id",
+            sa.Integer(),
+            nullable=False,
+            comment="User ID that the sign up token belongs to",
+        ),
+        sa.Column(
+            "token_hash",
+            sa.String(length=128),
+            nullable=False,
+            comment="Hashed sign up token",
+        ),
+        sa.Column(
+            "created_at",
+            sa.DateTime(),
+            nullable=False,
+            comment="Token creation date (datetime)",
+        ),
+        sa.Column(
+            "expires_at",
+            sa.DateTime(),
+            nullable=False,
+            comment="Token expiration date (datetime)",
+        ),
+        sa.Column(
+            "used",
+            sa.Boolean(),
+            nullable=False,
+            comment="Token usage status (False - unused, True - used)",
+        ),
+        sa.ForeignKeyConstraint(["user_id"], ["users.id"], ondelete="CASCADE"),
+        sa.PrimaryKeyConstraint("id"),
+    )
+    op.create_index(
+        op.f("ix_sign_up_tokens_user_id"),
+        "sign_up_tokens",
+        ["user_id"],
+        unique=False,
+    )
 
 
 def downgrade() -> None:
+    # Drop sign up tokens table
+    op.drop_index(
+        op.f("ix_sign_up_tokens_user_id"), table_name="sign_up_tokens"
+    )
+    op.drop_table("sign_up_tokens")
     # Remove columns from gear_components table
     op.add_column(
         "gear_components",
@@ -327,7 +370,6 @@ def downgrade() -> None:
     )
     op.drop_column("users", "active")
     op.drop_column("users", "pending_admin_approval")
-    op.drop_column("users", "email_verification_token")
     op.drop_column("users", "email_verified")
 
     # Remove columns from server_settings table
