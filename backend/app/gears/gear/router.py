@@ -423,6 +423,7 @@ async def import_shoes_from_Strava_CSV(
         else:
              #User has gear - we will need to check for duplicates.  So build a list of gear nicknames to check against.
              users_existing_gear_dictionary_list = []
+             users_existing_gear_nicknames = []
              for item in user_gear_list:
                   gear_dict = {}
                   gear_dict["nickname"] = item.nickname
@@ -430,6 +431,7 @@ async def import_shoes_from_Strava_CSV(
                   gear_dict["model"] = item.model
                   gear_dict["strava_gear_id"] = item.strava_gear_id
                   users_existing_gear_dictionary_list.append(gear_dict)
+                  users_existing_gear_nicknames.append(item.nickname)
         #core_logger.print_to_log_and_console(f"User gear dictionary list: {users_existing_gear_dictionary_list}") # Testing code
 
         # Get gear type id of shoes
@@ -439,7 +441,23 @@ async def import_shoes_from_Strava_CSV(
         for shoerow in shoes_list:  # shoe here is list item that contains the dictionary from strava
              #core_logger.print_to_log_and_console(f"In shoes_dict iterator.  Current shoe is - {shoerow}") # Testing code.
 
+             # Strava allows nameless shoes, but Endurain does not.  Check for nameless shoes and add a novel name.
+             blank_name = False
+             if shoerow["Shoe Name"] == None or shoerow["Shoe Name"] == "" or shoerow["Shoe Name"].replace("+", " ").strip() == "":
+                   core_logger.print_to_log_and_console(f"Shoe name is blank") # Testing code
+                   blank_name = True
+                   duplicate_name = True
+                   newnumber=1
+                   while duplicate_name:
+                         proposed_name = core_config.STRAVA_BULK_IMPORT_SHOES_UNNAMED_SHOE + str(newnumber)
+                         if proposed_name in users_existing_gear_nicknames:
+                               newnumber+=1
+                         else:
+                               duplicate_name = False
+                   core_logger.print_to_log_and_console(f"Shoe name was blank, it has been updated to: {proposed_name}") # Testing code
+
              # Iterate through user gear list to check if shoe is already present
+             #   Note - shoes that have a blank name in Strava and that have already been imported once will NOT be detected as duplicates, as the name will have been changed from the (blank) strava name.
              shoerowalreadypresent = False
              for item in users_existing_gear_dictionary_list:
                    # Must replace + with space when checking becuase gear.utils.transform_schema_gear_to_model_gear modifies the entered gear name/model/brand when adding it to the database
@@ -459,11 +477,15 @@ async def import_shoes_from_Strava_CSV(
                    # Notes on the import:
                    # Strava does not export its internal gear ID, so we do not have that information.
                    # Strava does not export the active / inactive state of the shoe, so importing all as active (as we need a status).
+                   if blank_name:
+                         shoe_name = proposed_name
+                   else:
+                         shoe_name = shoerow["Shoe Name"]
                    new_gear = gears_schema.Gear(
                          user_id = token_user_id,
                          brand = shoerow["Shoe Brand"],
                          model = shoerow["Shoe Model"],
-                         nickname = shoerow["Shoe Name"],
+                         nickname = shoe_name,
                          gear_type = shoe_gear_type,
                          created_at = import_time_iso,
                          is_active = True,
