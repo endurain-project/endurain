@@ -61,6 +61,9 @@ def calculate_goal_progress_by_activity_type(
                 total_activities_number = len(activities)
                 percentage_completed = (total_activities_number / goal.goal_activities_number) * 100
 
+        if percentage_completed > 100:
+            percentage_completed = 100
+
         # Create and return the progress object
         return user_goals_schema.UserGoalProgress(
             goal_id=goal.id,

@@ -702,7 +702,7 @@ export function getIcon(typeId) {
     33: ['fas', 'person-snowboarding'],
     34: ['fas', 'person-running'], // Track run icon might be better if available
     35: ['fas', 'person-biking'],
-    36: ['fas', 'person-biking'],
+    36: ['fas', 'person-biking']
   }
 
   return iconMap[typeId] || ['fas', 'dumbbell']

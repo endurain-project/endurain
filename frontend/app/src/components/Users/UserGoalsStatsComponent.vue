@@ -68,7 +68,11 @@
           aria-valuemin="0"
           aria-valuemax="100"
         >
-          <div class="progress-bar" :style="{ width: goal.percentage_completed + '%' }">
+          <div
+            class="progress-bar"
+            :class="{ 'bg-success': goal.percentage_completed === 100 }"
+            :style="{ width: goal.percentage_completed + '%' }"
+          >
             {{ goal.percentage_completed }}%
           </div>
         </div>
