@@ -461,7 +461,8 @@ async def import_shoes_from_Strava_CSV(
              shoerowalreadypresent = False
              for item in users_existing_gear_dictionary_list:
                    # Must replace + with space when checking becuase gear.utils.transform_schema_gear_to_model_gear modifies the entered gear name/model/brand when adding it to the database
-                   if item["nickname"] == shoerow["Shoe Name"].replace("+", " ") and item["brand"] == shoerow["Shoe Brand"].replace("+", " ") and item["model"] == shoerow["Shoe Model"].replace("+", " "):
+                   # Making all comparisons lower case, as Endrain gear database throws an error if names are the same with just capitalization differences
+                   if item["nickname"].lower() == shoerow["Shoe Name"].replace("+", " ").lower() and item["brand"].lower() == shoerow["Shoe Brand"].replace("+", " ").lower() and item["model"].lower() == shoerow["Shoe Model"].replace("+", " ").lower():
                          if item["strava_gear_id"] == None:
                                shoerowalreadypresent = True
                                break
