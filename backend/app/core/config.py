@@ -23,6 +23,7 @@ FILES_PROCESSED_DIR = f"{FILES_DIR}/processed"
 FILES_BULK_IMPORT_DIR = f"{FILES_DIR}/bulk_import"
 FILES_BULK_IMPORT_IMPORT_ERRORS_DIR = f"{FILES_BULK_IMPORT_DIR}/import_errors"
 STRAVA_BULK_IMPORT_BIKES_FILE = "bikes.csv"
+STRAVA_BULK_IMPORT_SHOES_FILE = "shoes.csv"
 ENVIRONMENT = os.getenv("ENVIRONMENT", "production").lower()
 TZ = os.getenv("TZ", "UTC")
 REVERSE_GEO_PROVIDER = os.getenv("REVERSE_GEO_PROVIDER", "nominatim").lower()
