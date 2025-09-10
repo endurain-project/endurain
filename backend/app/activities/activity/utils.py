@@ -81,6 +81,7 @@ ACTIVITY_ID_TO_NAME = {
     32: "Stand up paddling",
     33: "Surf",
     34: "Track run",
+    35: "E-Bike ride"
     # Add other mappings as needed based on the full list in define_activity_type comments if required
     # "AlpineSki",
     # "BackcountrySki",
@@ -192,6 +193,9 @@ ACTIVITY_NAME_TO_ID.update(
         "track running": 34,
         "trackrun": 34,
         "track": 34,
+        "EBikeRide": 35,
+        "ebikeride": 35,
+        "ebike_ride": 35,
     }
 )
 

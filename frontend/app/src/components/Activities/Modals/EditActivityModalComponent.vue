@@ -100,6 +100,9 @@
               <option value="29">
                 {{ $t('editActivityModalComponent.modalEditActivityTypeOption29') }}
               </option>
+              <option value="35">
+                {{ $t('editActivityModalComponent.modalEditActivityTypeOption35') }}
+              </option>
               <option value="7">
                 {{ $t('editActivityModalComponent.modalEditActivityTypeOption7') }}
               </option>
