@@ -22,7 +22,7 @@ def calculate_goal_progress_by_activity_type(
         # Define activity type mappings
         TYPE_MAP = {
             user_goals_schema.ActivityType.RUN: [1, 2, 3, 34],
-            user_goals_schema.ActivityType.BIKE: [4, 5, 6, 7, 27, 28, 29],
+            user_goals_schema.ActivityType.BIKE: [4, 5, 6, 7, 27, 28, 29, 35, 36],
             user_goals_schema.ActivityType.SWIM: [8, 9],
             user_goals_schema.ActivityType.WALK: [11, 12],
         }

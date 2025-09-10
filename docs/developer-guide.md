@@ -168,6 +168,7 @@ The table bellow details the activity types supported by Endurain.
 | Virtual cycling | 7 |
 | Indoor cycling | 28 |
 | E-Bike cycling | 35 |
+| E-Bike mountain cycling | 36 |
 | Indoor swimming | 8 |
 | Open water swimming | 9 |
 | General workout | 10 |
