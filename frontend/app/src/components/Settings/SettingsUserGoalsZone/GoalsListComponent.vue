@@ -126,7 +126,6 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
 import { useAuthStore } from '@/stores/authStore'
 import { useI18n } from 'vue-i18n'
 import { push } from 'notivue'
