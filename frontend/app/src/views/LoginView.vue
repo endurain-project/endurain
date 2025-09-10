@@ -333,5 +333,9 @@ onMounted(async () => {
   if (route.query.adminApprovalRequired === 'true') {
     push.info(t('loginView.adminApprovalRequired'))
   }
+  // Check for email verification invalid link
+  if (route.query.verifyEmailInvalidLink === 'true') {
+    push.error(t('loginView.verifyEmailInvalidLink'))
+  }
 })
 </script>

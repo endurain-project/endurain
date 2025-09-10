@@ -32,5 +32,6 @@
   "forgotPasswordModalUnableToSendEmail": "Unable to send email. Please try again later or contact the administrator",
   "signUpLink": "Don't have an account? Sign up",
   "emailVerificationSent": "Please check your email for verification instructions",
-  "adminApprovalRequired": "Your account is pending admin approval"
+  "adminApprovalRequired": "Your account is pending admin approval",
+  "verifyEmailInvalidLink": "Invalid email verification link"
 }

@@ -22,7 +22,7 @@ const routes = [
     meta: { requiresAuth: false }
   },
   {
-    path: '/verify-email/:token',
+    path: '/verify-email',
     name: 'verify-email',
     component: () => import('../views/EmailVerificationView.vue'),
     meta: { requiresAuth: false }
