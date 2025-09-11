@@ -40,6 +40,9 @@ export const users = {
   editUser(user_id, data) {
     return fetchPutRequest(`users/${user_id}`, data)
   },
+  approveUser(user_id) {
+    return fetchPutRequest(`users/${user_id}/approve`)
+  },
   editUserPassword(user_id, data) {
     return fetchPutRequest(`users/${user_id}/password`, data)
   },

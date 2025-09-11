@@ -18,6 +18,7 @@ import health_targets.crud as health_targets_crud
 
 import session.security as session_security
 
+import core.apprise as core_apprise
 import core.database as core_database
 import core.dependencies as core_dependencies
 
@@ -198,6 +199,47 @@ async def edit_user(
 
     # Return success message
     return {"detail": f"User ID {user_attributtes.id} updated successfully"}
+
+
+@router.put("/{user_id}/approve")
+async def approve_user(
+    user_id: int,
+    validate_id: Annotated[Callable, Depends(users_dependencies.validate_user_id)],
+    check_scopes: Annotated[
+        Callable, Security(session_security.check_scopes, scopes=["users:write"])
+    ],
+    email_service: Annotated[
+        core_apprise.AppriseService,
+        Depends(core_apprise.get_email_service),
+    ],
+    db: Annotated[
+        Session,
+        Depends(core_database.get_db),
+    ],
+):
+    # Approve the user in the database
+    user_can_login, require_email_verification, email_sent_success = (
+        await users_crud.approve_user(user_id, email_service, db)
+    )
+
+    # Return appropriate response based on server configuration
+    response_data = {"message": f"User ID {user_id} approved successfully."}
+
+    if require_email_verification and email_sent_success:
+        response_data["message"] = (
+            response_data["message"] + " Email sent with verification instructions."
+        )
+    if require_email_verification and not email_sent_success:
+        response_data["message"] = (
+            response_data["message"] + " Failed to send verification instructions."
+        )
+    if user_can_login:
+        response_data["message"] = response_data["message"] + " User can now log in."
+    response_data["email_verification_required"] = require_email_verification
+    response_data["email_sent_success"] = email_sent_success
+    response_data["user_can_login"] = user_can_login
+
+    return response_data
 
 
 @router.put("/{user_id}/password")

@@ -12,9 +12,12 @@ import users.user.models as users_models
 
 import health_data.utils as health_data_utils
 
-import server_settings.crud as server_settings_crud
+import sign_up_tokens.utils as sign_up_tokens_utils
+
+import server_settings.utils as server_settings_utils
 
 import core.logger as core_logger
+import core.apprise as core_apprise
 
 
 def authenticate_user(username: str, db: Session):
@@ -217,12 +220,11 @@ def get_user_by_id(user_id: int, db: Session):
 def get_user_by_id_if_is_public(user_id: int, db: Session):
     try:
         # Check if public sharable links are enabled in server settings
-        server_settings = server_settings_crud.get_server_settings(db)
+        server_settings = server_settings_utils.get_server_settings(db)
 
         # Return None if public sharable links are disabled
         if (
-            not server_settings
-            or not server_settings.public_shareable_links
+            not server_settings.public_shareable_links
             or not server_settings.public_shareable_links_user_info
         ):
             return None
@@ -371,6 +373,61 @@ def edit_user(user_id: int, user: users_schema.User, db: Session):
 
         # Log the exception
         core_logger.print_to_log(f"Error in edit_user: {err}", "error", exc=err)
+
+        # Raise an HTTPException with a 500 Internal Server Error status code
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal Server Error",
+        ) from err
+
+
+async def approve_user(
+    user_id: int, email_service: core_apprise.AppriseService, db: Session
+):
+    try:
+        # Get the user from the database
+        db_user = (
+            db.query(users_models.User).filter(users_models.User.id == user_id).first()
+        )
+
+        if db_user is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
+        # Get the server settings from the database
+        server_settings = server_settings_utils.get_server_settings(db)
+
+        user_can_login = False
+        require_email_verification = False
+        email_sent_success = False
+
+        db_user.pending_admin_approval = False
+        if server_settings.signup_require_email_verification:
+            require_email_verification = True
+            # Send the sign-up email
+            email_sent_success = await sign_up_tokens_utils.send_sign_up_email(
+                db_user, email_service, db
+            )
+        else:
+            db_user.active = True
+            db_user.email_verified = True
+            user_can_login = True
+
+        # Commit the transaction
+        db.commit()
+
+        return user_can_login, require_email_verification, email_sent_success
+    except HTTPException as http_err:
+        raise http_err
+    except Exception as err:
+        # Rollback the transaction
+        db.rollback()
+
+        # Log the exception
+        core_logger.print_to_log(f"Error in approve_user: {err}", "error", exc=err)
 
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
@@ -702,8 +759,7 @@ def create_signup_user(
         ) from err
 
 
-def verify_user_email(token: str, db: Session):
-    """Verify user email using the verification token"""
+""" def verify_user_email(token: str, db: Session):
     try:
         # Find user by verification token
         db_user = (
@@ -743,4 +799,4 @@ def verify_user_email(token: str, db: Session):
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal Server Error",
-        ) from err
+        ) from err """

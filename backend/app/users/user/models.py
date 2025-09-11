@@ -91,11 +91,6 @@ class User(Base):
         default=False,
         comment="Whether the user's email address has been verified (true - yes, false - no)",
     )
-    email_verification_token = Column(
-        String(length=128),
-        nullable=True,
-        comment="Token hash for email verification",
-    )
     pending_admin_approval = Column(
         Boolean,
         nullable=False,

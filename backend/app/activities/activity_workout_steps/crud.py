@@ -8,7 +8,7 @@ import activities.activity.crud as activity_crud
 import activities.activity_workout_steps.models as activity_workout_steps_models
 import activities.activity_workout_steps.schema as activity_workout_steps_schema
 
-import server_settings.crud as server_settings_crud
+import server_settings.utils as server_settings_utils
 
 import core.logger as core_logger
 
@@ -127,10 +127,10 @@ def get_public_activity_workout_steps(activity_id: int, db: Session):
             return None
         
         # Check if public sharable links are enabled in server settings
-        server_settings = server_settings_crud.get_server_settings(db)
+        server_settings = server_settings_utils.get_server_settings(db)
 
         # Return None if public sharable links are disabled
-        if not server_settings or not server_settings.public_shareable_links:
+        if not server_settings.public_shareable_links:
             return None
         
         # Get the activity workout steps from the database

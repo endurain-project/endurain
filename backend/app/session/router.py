@@ -30,10 +30,9 @@ import notifications.utils as notifications_utils
 import health_targets.crud as health_targets_crud
 import profile.utils as profile_utils
 
-import sign_up_tokens.crud as sign_up_tokens_crud
 import sign_up_tokens.utils as sign_up_tokens_utils
 
-import server_settings.crud as server_settings_crud
+import server_settings.utils as server_settings_utils
 
 import core.database as core_database
 import core.apprise as core_apprise
@@ -139,12 +138,7 @@ async def signup(
     ],
 ):
     # Get server settings to check if signup is enabled
-    server_settings = server_settings_crud.get_server_settings(db)
-    if not server_settings:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Server settings not configured",
-        )
+    server_settings = server_settings_utils.get_server_settings(db)
 
     # Check if signup is enabled
     if not server_settings.signup_enabled:
@@ -216,8 +210,8 @@ async def verify_email(
 ):
     """Public endpoint for email verification"""
     # Get server settings
-    server_settings = server_settings_crud.get_server_settings(db)
-    if not server_settings or not server_settings.signup_require_email_verification:
+    server_settings = server_settings_utils.get_server_settings(db)
+    if not server_settings.signup_require_email_verification:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Email verification is not enabled",

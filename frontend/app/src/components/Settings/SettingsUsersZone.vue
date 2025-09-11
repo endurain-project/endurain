@@ -35,7 +35,7 @@
         </div>
       </div>
       <div>
-        <LoadingComponent v-if="isLoading" />
+        <LoadingComponent class="mt-3" v-if="isLoading" />
         <div v-else>
           <!-- Checking if usersArray is loaded and has length -->
           <div class="mt-3" v-if="usersArray && usersArray.length">
@@ -68,6 +68,7 @@
                 :user="user"
                 @userDeleted="updateUserList"
                 @editedUser="editUserList"
+                @approvedUser="approvedUserList"
               />
             </ul>
 
@@ -172,6 +173,15 @@ function addUserList(createdUser) {
 function editUserList(editedUser) {
   const index = usersArray.value.findIndex((user) => user.id === editedUser.id)
   usersArray.value[index] = editedUser
+}
+
+function approvedUserList(approvedUser) {
+  const index = usersArray.value.findIndex((user) => user.id === approvedUser.userID)
+  usersArray.value[index].pending_admin_approval = false
+  if (approvedUser.user_can_login === true) {
+    usersArray.value[index].email_verified = true
+    usersArray.value[index].active = true
+  }
 }
 
 function setIsLoadingNewUser(state) {
