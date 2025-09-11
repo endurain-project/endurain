@@ -1,9 +1,9 @@
 {
-    "usersSection": "Benutzer",
-    "serverSettingsSection": "Server-Einstellungen",
-    "generalSection": "Allgemein",
-    "myProfileSection": "Mein Profil",
-    "myGoals": "Meine Ziele",
-    "securitySection": "Sicherheit",
-    "integrationsSection": "Integrationen"
+  "usersSection": "Benutzer",
+  "serverSettingsSection": "Server-Einstellungen",
+  "generalSection": "Allgemein",
+  "myProfileSection": "Mein Profil",
+  "myGoals": "Meine Ziele",
+  "securitySection": "Sicherheit",
+  "integrationsSection": "Integrationen"
 }
