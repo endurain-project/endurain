@@ -25,6 +25,8 @@ import users.user_integrations.crud as user_integrations_crud
 import users.user_default_gear.crud as user_default_gear_crud
 import users.user_privacy_settings.crud as users_privacy_settings_crud
 
+import notifications.utils as notifications_utils
+
 import health_targets.crud as health_targets_crud
 import profile.utils as profile_utils
 
@@ -35,6 +37,8 @@ import server_settings.crud as server_settings_crud
 
 import core.database as core_database
 import core.apprise as core_apprise
+
+import websocket.schema as websocket_schema
 
 # Define the API router
 router = APIRouter()
@@ -125,6 +129,10 @@ async def signup(
         core_apprise.AppriseService,
         Depends(core_apprise.get_email_service),
     ],
+    websocket_manager: Annotated[
+        websocket_schema.WebSocketManager,
+        Depends(websocket_schema.get_websocket_manager),
+    ],
     db: Annotated[
         Session,
         Depends(core_database.get_db),
@@ -187,6 +195,9 @@ async def signup(
             response_data["message"] + " Account is pending admin approval."
         )
         response_data["admin_approval_required"] = True
+
+        await sign_up_tokens_utils.send_sign_up_admin_approval_email(created_user, email_service, db)
+        await notifications_utils.create_admin_new_sign_up_approval_request_notification(created_user, websocket_manager, db)
     if (
         not server_settings.signup_require_email_verification
         and not server_settings.signup_require_admin_approval

@@ -1,13 +1,10 @@
 import os
 import glob
-import secrets
 
 from fastapi import HTTPException, status, UploadFile
 from sqlalchemy.orm import Session
 
 import shutil
-
-import session.constants as session_constants
 
 import users.user.crud as users_crud
 import users.user.schema as users_schema
@@ -33,6 +30,18 @@ def check_user_is_active(user: users_schema.User) -> None:
             detail="Inactive user",
             headers={"WWW-Authenticate": "Bearer"},
         )
+    
+
+def get_admin_users(db: Session):
+    admins = users_crud.get_users_admin(db)
+
+    if not admins:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No admin users found",
+        )
+    
+    return admins
 
 
 def delete_user_photo_filesystem(user_id: int):

@@ -85,7 +85,6 @@ def get_users_with_pagination(db: Session, page_number: int = 1, num_records: in
 
         # Return the users
         return users
-
     except Exception as err:
         # Log the exception
         core_logger.print_to_log(
@@ -247,6 +246,32 @@ def get_user_by_id_if_is_public(user_id: int, db: Session):
         core_logger.print_to_log(
             f"Error in get_user_by_id_if_is_public: {err}", "error", exc=err
         )
+        # Raise an HTTPException with a 500 Internal Server Error status code
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal Server Error",
+        ) from err
+
+
+def get_users_admin(db: Session):
+    try:
+        # Get the users from the database and format the birthdate
+        users = [
+            users_utils.format_user_birthdate(user)
+            for user in db.query(users_models.User)
+            .filter(users_models.User.access_type == 2)
+            .all()
+        ]
+
+        # If the users were not found, return None
+        if not users:
+            return None
+
+        # Return the users
+        return users
+    except Exception as err:
+        # Log the exception
+        core_logger.print_to_log(f"Error in get_users_admin: {err}", "error", exc=err)
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -599,7 +624,7 @@ def create_signup_user(
         users_models.User: The newly created user object.
 
     Raises:
-        HTTPException: 
+        HTTPException:
             - 409 Conflict if the email or username is not unique.
             - 500 Internal Server Error for any other exceptions.
     """

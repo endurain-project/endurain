@@ -13,7 +13,7 @@ import sign_up_tokens.schema as sign_up_tokens_schema
 import sign_up_tokens.crud as sign_up_tokens_crud
 
 import users.user.models as users_models
-import users.user.crud as users_crud
+import users.user.utils as users_utils
 
 import core.apprise as core_apprise
 import core.logger as core_logger
@@ -31,7 +31,8 @@ def create_sign_up_token(user_id: int, db: Session) -> str:
         user_id=user_id,
         token_hash=token_hash,
         created_at=datetime.now(timezone.utc),
-        expires_at=datetime.now(timezone.utc) + timedelta(hours=1),  # 1 hour expiration
+        expires_at=datetime.now(timezone.utc)
+        + timedelta(hours=24),  # 24 hour expiration
         used=0,
     )
 
@@ -72,6 +73,36 @@ async def send_sign_up_email(
         html_content=html_content,
         text_content=text_content,
     )
+
+
+async def send_sign_up_admin_approval_email(
+    user: users_models.User, email_service: core_apprise.AppriseService, db: Session
+) -> bool:
+    # Check if email service is configured
+    if not email_service.is_configured():
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Email service is not configured",
+        )
+
+    admins = users_utils.get_admin_users(db)
+
+    # Send email to all admin users
+    for admin in admins:
+        # use default email message in English
+        subject, html_content, text_content = (
+            sign_up_tokens_email_messages.get_admin_signup_notification_email_en(
+                admin.name, user.name, email_service
+            )
+        )
+
+        # Send email
+        await email_service.send_email(
+            to_emails=[admin.email],
+            subject=subject,
+            html_content=html_content,
+            text_content=text_content,
+        )
 
 
 def use_sign_up_token(token: str, db: Session):

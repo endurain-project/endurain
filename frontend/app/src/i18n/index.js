@@ -40,6 +40,7 @@ const componentPaths = {
   navbarBottomMobileComponent: 'components/navbar/navbarBottomMobileComponent.json',
   navbarComponent: 'components/navbar/navbarComponent.json',
   // Notifications components
+  adminNewSignUpApprovalRequestNotificationComponent: 'components/notifications/adminNewSignUpApprovalRequestNotificationComponent.json',
   navbarNotificationsComponent: 'components/notifications/navbarNotificationsComponent.json',
   newAcceptedRequestNotificationComponent:
     'components/notifications/newAcceptedRequestNotificationComponent.json',
