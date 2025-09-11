@@ -1,9 +1,9 @@
 {
-    "labelGarminConnect": "Garmin Connect",
-    "modalDeleteWeightTitle": "Esborrar pes",
-    "modalDeleteWeightBody": "Segur que vols suprimir l'entrada de pes per ",
-    "successDeleteWeight": "Pes esborrat",
-    "errorDeleteWeight": "No s'ha pogut suprimir l'entrada de pes",
-    "successEditWeight": "Pes editat",
-    "errorEditWeight": "No s'ha pogut editar l'entrada de pes"
+  "labelGarminConnect": "Garmin Connect",
+  "modalDeleteWeightTitle": "Esborrar pes",
+  "modalDeleteWeightBody": "Segur que vols suprimir l'entrada de pes per ",
+  "successDeleteWeight": "Pes esborrat",
+  "errorDeleteWeight": "No s'ha pogut suprimir l'entrada de pes",
+  "successEditWeight": "Pes editat",
+  "errorEditWeight": "No s'ha pogut editar l'entrada de pes"
 }

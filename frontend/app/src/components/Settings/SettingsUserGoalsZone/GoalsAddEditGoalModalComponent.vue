@@ -317,10 +317,14 @@ if (props.goal) {
     newEditGoalType.value = props.goal.goal_type
     newEditGoalCalories.value = props.goal.goal_calories
     newEditGoalActivitiesNumber.value = props.goal.goal_activities_number
-    newEditGoalDistanceMetric.value = Math.round(metersToKm(props.goal.goal_distance))
-    newEditGoalDistanceImperial.value = metersToMiles(props.goal.goal_distance)
-    newEditGoalElevationMetric.value = props.goal.goal_elevation
-    newEditGoalElevationImperial.value = metersToFeet(props.goal.goal_elevation)
+    if (props.goal.goal_distance) {
+      newEditGoalDistanceMetric.value = Math.round(metersToKm(props.goal.goal_distance))
+      newEditGoalDistanceImperial.value = Math.round(metersToMiles(props.goal.goal_distance))
+    }
+    if (props.goal.goal_elevation) {
+      newEditGoalElevationMetric.value = props.goal.goal_elevation
+      newEditGoalElevationImperial.value = metersToFeet(props.goal.goal_elevation)
+    }
     newEditGoalDuration.value = props.goal.goal_duration
   }
 }

@@ -1,7 +1,7 @@
 {
-    "addNewGoal": "Neues Ziel hinzufügen",
-    "labelNumberOfGoals1": "Sie haben ",
-    "labelNumberOfGoals2": " Ziel(e) gesetzt:",
-    "successGoalDeleted": "Ziel erfolgreich gelöscht",
-    "errorFetchingGoals": "Fehler beim Abrufen der Ziele"
+  "addNewGoal": "Neues Ziel hinzufügen",
+  "labelNumberOfGoals1": "Sie haben ",
+  "labelNumberOfGoals2": " Ziel(e) gesetzt:",
+  "successGoalDeleted": "Ziel erfolgreich gelöscht",
+  "errorFetchingGoals": "Fehler beim Abrufen der Ziele"
 }
