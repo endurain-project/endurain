@@ -1,7 +1,7 @@
 <template>
   <router-link
     class="dropdown-item link-body-emphasis text-wrap"
-    :to="{ name: 'settings' }"
+    :to="{ name: 'settings', query: { tab: 'users', username: notification.options['user_username'] } }"
   >
     <span
       ><b>{{ $t('adminNewSignUpApprovalRequestNotificationComponent.title') }}</b></span
