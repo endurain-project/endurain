@@ -20,11 +20,5 @@ export const session = {
   },
   logoutUser() {
     return fetchPostRequest('logout', null)
-  },
-  signUpRequest(userData) {
-    return fetchPostRequest('sign-up/request', userData)
-  },
-  signUpConfirm(token) {
-    return fetchGetRequest(`sign-up/confirm/${token}`)
   }
 }

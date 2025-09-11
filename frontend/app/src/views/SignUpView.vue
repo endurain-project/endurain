@@ -200,7 +200,7 @@ import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { push } from 'notivue'
 import { useServerSettingsStore } from '@/stores/serverSettingsStore'
-import { session } from '@/services/sessionService'
+import { signUp as signUpService } from '@/services/signUpService'
 import { cmToFeetInches, feetAndInchesToCm } from '@/utils/unitsUtils'
 
 // Variables
@@ -283,7 +283,7 @@ const submitForm = async () => {
       currency: signUpCurrency.value
     }
 
-    const response = await session.signUpRequest(data)
+    const response = await signUpService.signUpRequest(data)
 
     push.success(t('signupView.success'))
 
