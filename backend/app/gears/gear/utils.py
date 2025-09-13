@@ -54,6 +54,7 @@ def transform_schema_gear_to_model_gear(
         created_date = gear.created_at
 
     # Create a new gear object
+    #  Note - if the modifications to gear item nickname, brand, and model are altered (e.g., the + to space replace), be sure to simultaneously update the function is_gear_duplicate, below
     new_gear = gears_models.Gear(
         brand=(
             unquote(gear.brand).replace("+", " ") if gear.brand is not None else None
