@@ -327,10 +327,14 @@ async def import_bikes_from_Strava_CSV(
         # Get gear type id of bikes
         bike_gear_type = gears_utils.GEAR_NAME_TO_ID["bike"]
 
+        # Create list of nicknames added during this import, to check for overlapping nicknames (which causes an error)
+        nicknames_added = []
+
         # Go through bikes and add them to the database if they are not duplicates.
         for bike in bikes_dict:  # bike here is the nickname of the bike from Strava (the index of our bikes_dict)
              gear_item_dict = {"name": bike, "brand": bikes_dict[bike]["Bike Brand"], "model": bikes_dict[bike]["Bike Model"], "gear_type": bike_gear_type}
              name_duplicated, gear_duplicated, duplicate_item = gears_utils.is_gear_duplicate(gear_item_dict, user_gear_list)
+             if bike.replace("+", " ").lower() in nicknames_added: name_duplicated = True
              if name_duplicated:
                    if gear_duplicated:
                        if duplicate_item.strava_gear_id is None:
@@ -356,6 +360,7 @@ async def import_bikes_from_Strava_CSV(
                         )
                    gears_crud.create_gear(new_gear, token_user_id, db)
                    core_logger.print_to_log_and_console(f"Bike - {bike} - has been imported.")
+                   nicknames_added.append(bike.replace("+", " ").lower()) # for checking of duplicated names during a single import
         # Return a success message
         core_logger.print_to_log_and_console("Bike import complete.")
         return {"Gear import successful."}
