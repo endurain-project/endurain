@@ -321,27 +321,36 @@ async def import_bikes_from_Strava_CSV(
 
         # Get user's existing gear 
         user_gear_list = gears_crud.get_gear_user(token_user_id, db)
-        if user_gear_list is None:
-             #User has no gear - we can just add our own straight up.
-             users_existing_gear_nicknames = None
-        else:
-             #User has gear - we will need to check for duplicates.  So build a list of gear nicknames to check against, as Strava requires a name for bikes (unlike shoes).
-             users_existing_gear_nicknames = []
-             for item in user_gear_list:
-                  users_existing_gear_nicknames.append(item.nickname)
+            # Saving DB calls by doing this once for the entire gear import
+            #   But one issue with pulling the DB before the import loop below: if a user's import has duplicate gear nicknames in it, this will not be caught by this check.
+            #   But calling the get_gear_user function during the for loop below results in an error, and also would be tons of db calls for large gear imports.
+            #   So, adding a duplicate-nickname check within a single import run to handle this case.
+
+        # Create list of nicknames added during this import, to check for overlapping nicknames during this import (which causes an error)
+        nicknames_added = []
 
         # Get gear type id of bikes
         bike_gear_type = gears_utils.GEAR_NAME_TO_ID["bike"]
 
         # Go through bikes and add them to the database if they are not duplicates.
         for bike in bikes_dict:  # bike here is the nickname of the bike from Strava (the index of our bikes_dict)
-             if bike in users_existing_gear_nicknames:
-                   core_logger.print_to_log_and_console(f"Bike - {bike} - found in existing user gear (nicknames matched).  Skipping import.")
+             gear_item_dict = {"name": bike, "brand": bikes_dict[bike]["Bike Brand"], "model": bikes_dict[bike]["Bike Model"], "gear_type": bike_gear_type}
+             name_duplicated, gear_duplicated, duplicate_item = gears_utils.is_gear_duplicate(gear_item_dict, user_gear_list)
+             if bike.replace("+", " ").lower() in nicknames_added: name_duplicated = True
+             if name_duplicated:
+                   # At least the nickname is duplicated, so do not import.  The following logic explains various cases to the user.
+                   if gear_duplicated:
+                       if duplicate_item.strava_gear_id is None:
+                           core_logger.print_to_log_and_console(f"Bike - {bike} - found in existing user gear.  Skipping import.")
+                       else:
+                           core_logger.print_to_log_and_console(f"Bike - {bike} - was found in existing user gear, linked to Strava.  Skipping import of bike, but be aware that the bike will be removed if Strava is unlinked.")
+                   else:
+                       core_logger.print_to_log_and_console(f"Bike - {bike} - nickname of bike was found in existing user gear.  Skipping import, as nicknames cannot overlap (and capitalization does not matter).")
              else:
                    core_logger.print_to_log_and_console(f"Bike - {bike} - not found in existing user gear. Importing.")
                    # Notes on the import:
-                   # Strava does not export its internal gear ID, so we do not have that information.
-                   # Strava does not export the active / inactive state of the bike, so importing all as active (as we need a status).
+                   #     Strava does not export its internal gear ID, so we do not have that information.
+                   #     Strava does not export the active / inactive state of the bike, so importing all as active (as we need a status).
                    new_gear = gears_schema.Gear(
                          user_id = token_user_id,
                          brand = bikes_dict[bike]["Bike Brand"],
@@ -352,8 +361,9 @@ async def import_bikes_from_Strava_CSV(
                          is_active = True,
                          strava_gear_id = None
                         )
-                   gears_crud.create_gear(new_gear, token_user_id, db)
-                   core_logger.print_to_log_and_console(f"Bike - {bike} - has been imported.")
+                   added_gear = gears_crud.create_gear(new_gear, token_user_id, db)
+                   core_logger.print_to_log_and_console(f"Bike - {bike} - has been imported as {added_gear.nickname}.")
+                   nicknames_added.append(added_gear.nickname.lower()) # for checking of duplicated names during a single import, case-insenitively
         # Return a success message
         core_logger.print_to_log_and_console("Bike import complete.")
         return {"Gear import successful."}
