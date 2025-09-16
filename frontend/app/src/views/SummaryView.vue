@@ -253,6 +253,7 @@ const selectedMonth = ref(todayMonth)
 const summaryData = ref(null)
 const typeBreakdownData = ref(null)
 const activities = ref([])
+const timezone = ref([])
 const userNumberActivities = ref(0)
 const pageNumber = ref(1)
 const totalPages = ref(1)
@@ -384,6 +385,10 @@ async function updateActivities() {
 
 // Fetch activities with pagination, filters, and sorting
 async function fetchActivities() {
+  // Get timezone
+
+  timezone.value = await activitiesService.getTimezone()
+
   clearData({
     clearSummary: false,
     clearTypeBreakdown: false,
@@ -395,7 +400,8 @@ async function fetchActivities() {
     selectedViewType.value,
     selectedDate.value,
     selectedYear.value,
-    selectedActivityType.value
+    selectedActivityType.value,
+    timezone.value
   )
 
   try {

@@ -1181,6 +1181,35 @@ def get_activities_if_contains_name(name: str, user_id: int, db: Session):
         ) from err
 
 
+def get_last_activity_timezone(user_id: int, db: Session):
+    try:
+
+        query = db.query(
+            activities_models.Activity.timezone
+        ).filter(
+            activities_models.Activity.user_id == user_id
+        ).order_by(activities_models.Activity.start_time.desc()).limit(1)
+
+        result = query.all()
+        
+        if not result:
+            return None
+        
+        timezone_str = result[0][0]
+
+        # Return the timezone as a string
+        return timezone_str
+    except Exception as err:
+        # Log the exception
+        core_logger.print_to_log(
+            f"Error in get_last_activity_timezone: {err}", "error", exc=err
+        )
+        # Raise an HTTPException with a 500 Internal Server Error status code
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal Server Error",
+        ) from err
+
 async def create_activity(
     activity: activities_schema.Activity,
     websocket_manager: websocket_schema.WebSocketManager,

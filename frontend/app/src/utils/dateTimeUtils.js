@@ -163,25 +163,49 @@ export function navigateWeek(currentDate, direction, firstDayOfWeek = 0) {
 }
 
 /**
- * Gets the start date (1st) of the month for a given JavaScript Date object, in UTC.
+ * Gets the start date (1st) of the month for a given JavaScript Date object, in the specified timezone.
  * @param {Date} jsDate - The input JavaScript Date object.
- * @returns {Date} - The JavaScript Date object for the first day of that month (UTC).
+ * @param {string} timezone - The local timezone.
+ * @returns {Date} - The JavaScript Date object for the first day of that month in the specified timezone.
  */
-export function getMonthStartDate(jsDate) {
-  return DateTime.fromJSDate(jsDate, { zone: 'utc' }).startOf('month').toJSDate()
+export function getMonthStartDate(jsDate, timezone) {
+  return DateTime.fromJSDate(jsDate, { zone: timezone }).startOf('month').toJSDate()
 }
 
 /**
- * Gets the end date (start of next month) for a given JavaScript Date object's month, in UTC.
+ * Gets the end date (start of next month) for a given JavaScript Date object's month, in the specified timezone.
  * This means it's the first day of the next month, making the range exclusive for the end date.
  * @param {Date} jsDate - The input JavaScript Date object.
- * @returns {Date} - The JavaScript Date object for the start of the next month (UTC).
+ * @param {string} timezone - The timezone.
+ * @returns {Date} - The JavaScript Date object for the start of the next month in the specified timezone.
  */
-export function getMonthEndDate(jsDate) {
-  return DateTime.fromJSDate(jsDate, { zone: 'utc' })
+export function getMonthEndDate(jsDate, timezone) {
+  return DateTime.fromJSDate(jsDate, { zone: timezone })
     .startOf('month')
     .plus({ months: 1 })
     .toJSDate()
+}
+
+/**
+ * Gets the start date year for a given JavaScript Date object, in the specified time zone.
+ * @param {Date} jsDate - The input JavaScript Date object.
+ * @param {string} timezone - The timezone.
+ * @returns {Date} - The JavaScript Date object for the first day of the year in the specified timezone.
+ */
+
+export function getYearStartDate(jsDate, timezone) {
+  return DateTime.fromJSDate(jsDate, {zone: timezone}).startOf('year').toJSDate()
+}
+
+/**
+ * Gets the start date of the next year for a given JavaScript Date object, in the specified time zone.
+ * @param {Date} jsDate - The input JavaScript Date object.
+ * @param {string} timezone - The timezone.
+ * @returns {Date} - The JavaScript Date object for the first day of the next year in the specified timezone.
+ */
+
+export function getYearEndDate(jsDate, timezone) {
+  return DateTime.fromJSDate(jsDate, {zone: timezone}).startOf('year').plus({years: 1}).toJSDate()
 }
 
 /**
@@ -208,4 +232,20 @@ export function formatDateISO(date) {
   let day = String(date.getDate()).padStart(2, '0')
 
   return `${year}-${month}-${day}`
+}
+
+/**
+ * Formats a DateTime object into an ISO date string (YYYY-MM-DDTHH:MM:SS).
+ *
+ * @param {DateTime} datetime - The datetime to format.
+ * @returns {string} The formatted datetime string in ISO format.
+ */
+export function formatUTCDateTimeISO(datetime) {
+  let year = datetime.getUTCFullYear()
+  let month = String(datetime.getUTCMonth() + 1).padStart(2, '0')
+  let day = String(datetime.getUTCDate()).padStart(2, '0')
+  let hours = String(datetime.getUTCHours()).padStart(2, '0')
+  let minutes = String(datetime.getUTCMinutes()).padStart(2, '0')
+  let seconds = String(datetime.getUTCSeconds()).padStart(2, '0')
+  return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`
 }

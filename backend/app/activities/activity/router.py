@@ -316,8 +316,8 @@ async def read_activities_user_activities_number(
     ],
     # Added optional filter query parameters
     activity_type: int | None = Query(None, alias="type"),
-    start_date: date | None = Query(None),
-    end_date: date | None = Query(None),
+    start_date: date | datetime | None = Query(None),
+    end_date: date | datetime | None = Query(None),
     name_search: str | None = Query(None),
 ):
     # Get the number of activities for the user
@@ -393,8 +393,8 @@ async def read_activities_user_activities_pagination(
     ],
     # Added optional filter query parameters
     activity_type: int | None = Query(None, alias="type"),
-    start_date: date | None = Query(None),
-    end_date: date | None = Query(None),
+    start_date: date | datetime | None = Query(None),
+    end_date: date | datetime | None = Query(None),
     name_search: str | None = Query(None),
     sort_by: str | None = Query(None),
     sort_order: str | None = Query(None),
@@ -469,6 +469,27 @@ async def read_activities_followed_user_activities_number(
 
     # Return the number of activities
     return len(activities)
+
+@router.get(
+    "/timezone",
+    response_model=str | None,        
+)
+async def read_last_activity_timezone(
+    check_scopes: Annotated[
+        Callable, Security(session_security.check_scopes, scopes=["activities:read"])
+    ],
+    token_user_id: Annotated[
+        int,
+        Depends(session_security.get_user_id_from_access_token),
+    ],
+    db: Annotated[
+        Session,
+        Depends(core_database.get_db),
+    ],
+):
+    timezone = activities_crud.get_last_activity_timezone(token_user_id, db)
+
+    return timezone
 
 
 @router.get(

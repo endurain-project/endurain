@@ -115,6 +115,9 @@ export const activities = {
   getActivityByName(name) {
     return fetchGetRequest(`activities/name/contains/${name}`)
   },
+  getTimezone() {
+    return fetchGetRequest('activities/timezone')
+  },
   getActivityRefresh() {
     return fetchGetRequest('activities/refresh')
   },

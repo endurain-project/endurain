@@ -1,9 +1,13 @@
+import { DateTime } from 'luxon'
 import {
   getWeekStartDate,
   getWeekEndDate,
   getMonthStartDate,
   getMonthEndDate,
-  formatDateISO
+  formatDateISO,
+  formatUTCDateTimeISO,
+  getYearStartDate,
+  getYearEndDate
 } from '@/utils/dateTimeUtils'
 
 /**
@@ -111,6 +115,7 @@ export function buildActivityFilters(
   selectedDate,
   selectedYear,
   selectedActivityType,
+  timezone,
   firstDayOfWeek = 0
 ) {
   const filters = {
@@ -119,23 +124,32 @@ export function buildActivityFilters(
 
   if (viewType === 'year') {
     // Note: Validation should be done before calling this function
-    filters.start_date = `${selectedYear}-01-01`
-    filters.end_date = `${selectedYear + 1}-01-01`
-  } else if (viewType === 'week' || viewType === 'month') {
-    const date = new Date(`${selectedDate}T00:00:00Z`)
+    const datestr = `${selectedYear}-01-01T00:00:00`
+    const date_tz_applied = DateTime.fromISO(datestr, {zone: timezone})
+    const date = date_tz_applied.toUTC().toJSDate()
+    const yearStart = getYearStartDate(date, timezone)
+    const yearEnd = getYearEndDate(date, timezone)
 
-    if (viewType === 'week') {
-      const weekStart = getWeekStartDate(date, firstDayOfWeek)
-      const weekEnd = getWeekEndDate(date, firstDayOfWeek)
-      filters.start_date = formatDateISO(weekStart)
-      filters.end_date = formatDateISO(weekEnd)
-    } else {
-      // month
-      const monthStart = getMonthStartDate(date)
-      const monthEnd = getMonthEndDate(date)
-      filters.start_date = formatDateISO(monthStart)
-      filters.end_date = formatDateISO(monthEnd)
-    }
+    filters.start_date = formatUTCDateTimeISO(yearStart)
+    filters.end_date = formatUTCDateTimeISO(yearEnd)
+
+  } else if (viewType === 'month') {
+    const date_tz_applied = DateTime.fromISO(selectedDate, { zone: timezone}).startOf("day")
+    const date = date_tz_applied.toUTC().toJSDate()
+    const monthStart = getMonthStartDate(date, timezone)
+    const monthEnd = getMonthEndDate(date, timezone)
+
+    filters.start_date = formatUTCDateTimeISO(monthStart)
+    filters.end_date = formatUTCDateTimeISO(monthEnd)
+
+  } else if (viewType === 'week') {
+    const date_tz_applied = DateTime.fromISO(selectedDate, { zone: timezone}).startOf("day")
+    const date = date_tz_applied.toUTC().toJSDate()
+    const weekStart = getWeekStartDate(date, firstDayOfWeek)
+    const weekEnd = getWeekEndDate(date, firstDayOfWeek)
+
+    filters.start_date = formatUTCDateTimeISO(weekStart)
+    filters.end_date = formatUTCDateTimeISO(weekEnd)
   }
   // For 'lifetime', no date filters are added
 

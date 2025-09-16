@@ -1,8 +1,13 @@
+import os
 from sqlalchemy.orm import Session
 from sqlalchemy import func, extract, case
-from datetime import timedelta, date
+from datetime import timedelta, date, datetime
+from zoneinfo import ZoneInfo
 
 from typing import List
+from activities.activity.crud import (
+    get_last_activity_timezone,
+)
 from activities.activity.models import Activity
 from activities.activity.utils import (
     set_activity_name_based_on_activity_type,
@@ -20,7 +25,7 @@ from activities.activity_summaries.schema import (
     LifetimeSummaryResponse,
     YearlyPeriodSummary,
 )
-
+import core.logger as core_logger
 
 def _get_type_breakdown(
     db: Session,
@@ -74,11 +79,30 @@ def _get_type_breakdown(
         )
     return type_breakdown_list
 
+def tzconvert(dt, timezone):
+    if isinstance(dt, str):
+        dt = datetime.fromisoformat(dt)
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=ZoneInfo("UTC"))
+    timestr = dt.astimezone(timezone).strftime("%Y-%m-%dT%H:%M:%S")
+    return datetime.fromisoformat(timestr)
 
 def get_weekly_summary(
     db: Session, user_id: int, target_date: date, activity_type: str | None = None
 ) -> WeeklySummaryResponse:
-    start_of_week = target_date - timedelta(days=target_date.weekday())
+    # Set time zone for start_of_week and end_of_week to be based on the last activities time zone
+    timezone_str = get_last_activity_timezone(user_id, db)
+    
+    timezone = (
+        ZoneInfo(timezone_str)
+        if timezone_str
+        else ZoneInfo(os.environ.get("TZ", "UTC"))
+    )
+    target_date_dt = datetime.fromisoformat(target_date.strftime("%Y-%m-%dT%H:%M:%S"))
+    target_date_ = tzconvert(target_date_dt, timezone)
+    target_date_tz_applied = target_date_dt - target_date_ + target_date_dt
+
+    start_of_week = target_date_tz_applied - timedelta(days=target_date.weekday())
     end_of_week = start_of_week + timedelta(days=7)
 
     # Database-agnostic ISO day of week calculation
@@ -86,13 +110,13 @@ def get_weekly_summary(
     # For MySQL: convert DAYOFWEEK (1=Sunday, 7=Saturday) to ISO format
     engine_name = db.bind.dialect.name
     if engine_name == 'postgresql':
-        iso_day_of_week = extract("isodow", Activity.start_time)
+        iso_day_of_week = extract("isodow", func.timezone(Activity.timezone, func.timezone('UTC', Activity.start_time)))
     else:  # MySQL/MariaDB and others
         iso_day_of_week = case(
-            (func.dayofweek(Activity.start_time) == 1, 7),  # Sunday -> 7
-            else_=func.dayofweek(Activity.start_time) - 1   # Mon-Sat -> 1-6
+            (func.dayofweek(func.convert_tz(Activity.start_time, 'UTC', Activity.timezone)) == 1, 7),  # Sunday -> 7
+            else_=func.dayofweek(func.convert_tz(Activity.start_time, 'UTC', Activity.timezone)) - 1   # Mon-Sat -> 1-6
         )
-
+    
     query = db.query(
         iso_day_of_week.label("day_of_week"),
         func.coalesce(func.sum(Activity.distance), 0).label("total_distance"),
@@ -160,12 +184,27 @@ def get_weekly_summary(
 def get_monthly_summary(
     db: Session, user_id: int, target_date: date, activity_type: str | None = None
 ) -> MonthlySummaryResponse:
+    timezone_str = get_last_activity_timezone(user_id, db)
+
+    timezone = (
+        ZoneInfo(timezone_str)
+        if timezone_str
+        else ZoneInfo(os.environ.get("TZ", "UTC"))
+    )
+    target_date_dt = datetime.fromisoformat(target_date.strftime("%Y-%m-%dT%H:%M:%S"))
+    target_date_ = tzconvert(target_date_dt, timezone)
+    target_date_tz_applied = target_date_dt - target_date_ + target_date_dt
+
     start_of_month = target_date.replace(day=1)
     next_month = (start_of_month + timedelta(days=32)).replace(day=1)
     end_of_month = next_month
 
+    core_logger.print_to_log_and_console(target_date)
+    core_logger.print_to_log_and_console(start_of_month)
+    core_logger.print_to_log_and_console(end_of_month)
+
     query = db.query(
-        extract("week", Activity.start_time).label("week_number"),
+        extract("week", func.timezone(Activity.timezone, func.timezone('UTC',Activity.start_time))).label("week_number"),
         func.coalesce(func.sum(Activity.distance), 0).label("total_distance"),
         func.coalesce(func.sum(Activity.total_timer_time), 0.0).label("total_duration"),
         func.coalesce(func.sum(Activity.elevation_gain), 0).label(
@@ -187,9 +226,7 @@ def get_monthly_summary(
         else:
             query = query.filter(Activity.id == -1)  # Force no results
 
-    query = query.group_by(extract("week", Activity.start_time)).order_by(
-        extract("week", Activity.start_time)
-    )
+    query = query.group_by("week_number").order_by("week_number")
 
     weekly_results = query.all()
     breakdown = []
@@ -227,11 +264,23 @@ def get_monthly_summary(
 def get_yearly_summary(
     db: Session, user_id: int, year: int, activity_type: str | None = None
 ) -> YearlySummaryResponse:
-    start_of_year = date(year, 1, 1)
-    end_of_year = date(year + 1, 1, 1)
+    timezone_str = get_last_activity_timezone(user_id, db)
+    
+    timezone = (
+        ZoneInfo(timezone_str)
+        if timezone_str
+        else ZoneInfo(os.environ.get("TZ", "UTC"))
+    )
+    start_of_year = datetime(year, 1, 1, 0, 0, 0, 0, timezone)
+    start_of_year = tzconvert(start_of_year, ZoneInfo('UTC'))
+    end_of_year = datetime(year + 1, 1, 1, 0, 0, 0, 0, timezone)
+    end_of_year = tzconvert(end_of_year, ZoneInfo('UTC'))
+
+    core_logger.print_to_log_and_console(start_of_year)
+    core_logger.print_to_log_and_console(end_of_year)
 
     query = db.query(
-        extract("month", Activity.start_time).label("month_number"),
+        extract("month", func.timezone(Activity.timezone, func.timezone('UTC', Activity.start_time))).label("month_number"),
         func.coalesce(func.sum(Activity.distance), 0).label("total_distance"),
         func.coalesce(func.sum(Activity.total_timer_time), 0.0).label("total_duration"),
         func.coalesce(func.sum(Activity.elevation_gain), 0).label(
@@ -253,9 +302,7 @@ def get_yearly_summary(
         else:
             query = query.filter(Activity.id == -1)  # Force no results
 
-    query = query.group_by(extract("month", Activity.start_time)).order_by(
-        extract("month", Activity.start_time)
-    )
+    query = query.group_by("month_number").order_by("month_number")
 
     monthly_results = query.all()
     breakdown = []
