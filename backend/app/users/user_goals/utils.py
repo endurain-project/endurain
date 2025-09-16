@@ -22,7 +22,7 @@ def calculate_goal_progress_by_activity_type(
         # Define activity type mappings
         TYPE_MAP = {
             user_goals_schema.ActivityType.RUN: [1, 2, 3, 34],
-            user_goals_schema.ActivityType.BIKE: [4, 5, 6, 7, 27, 28, 29],
+            user_goals_schema.ActivityType.BIKE: [4, 5, 6, 7, 27, 28, 29, 35, 36],
             user_goals_schema.ActivityType.SWIM: [8, 9],
             user_goals_schema.ActivityType.WALK: [11, 12],
         }
@@ -61,6 +61,9 @@ def calculate_goal_progress_by_activity_type(
                 total_activities_number = len(activities)
                 percentage_completed = (total_activities_number / goal.goal_activities_number) * 100
 
+        if percentage_completed > 100:
+            percentage_completed = 100
+
         # Create and return the progress object
         return user_goals_schema.UserGoalProgress(
             goal_id=goal.id,
@@ -72,8 +75,8 @@ def calculate_goal_progress_by_activity_type(
             percentage_completed=round(percentage_completed),
             total_calories=total_calories,
             total_activities_number=total_activities_number,
-            total_distance=total_distance,
-            total_elevation=total_elevation,
+            total_distance=round(total_distance),
+            total_elevation=round(total_elevation),
             total_duration=total_duration,
             goal_calories=goal.goal_calories,
             goal_activities_number=goal.goal_activities_number,

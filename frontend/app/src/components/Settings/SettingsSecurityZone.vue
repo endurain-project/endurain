@@ -308,9 +308,11 @@ const newPasswordRepeat = ref('')
 const regex =
   /^(?=.*[A-Z])(?=.*\d)(?=.*[ !\"#$%&'()*+,\-./:;<=>?@[\\\]^_`{|}~])[A-Za-z\d !"#$%&'()*+,\-./:;<=>?@[\\\]^_`{|}~]{8,}$/
 const isNewPasswordValid = computed(() => {
+  if (!newPassword.value) return true
   return regex.test(newPassword.value)
 })
 const isNewPasswordRepeatValid = computed(() => {
+  if (!newPasswordRepeat.value) return true
   return regex.test(newPasswordRepeat.value)
 })
 const isPasswordMatch = computed(() => newPassword.value === newPasswordRepeat.value)

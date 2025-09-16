@@ -32,7 +32,7 @@ async def fetch_and_process_activities_by_dates(
     try:
         # Fetch Garmin Connect activities for the specified date range
         garmin_activities = garminconnect_client.get_activities_by_date(
-            start_date.date(), end_date.date()
+            str(start_date.date()), str(end_date.date())
         )
     except Exception as err:
         core_logger.print_to_log(
