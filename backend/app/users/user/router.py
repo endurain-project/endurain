@@ -41,7 +41,7 @@ async def read_users_number(
 
 @router.get(
     "/page_number/{page_number}/num_records/{num_records}",
-    response_model=list[users_schema.User] | None,
+    response_model=list[users_schema.UserRead] | None,
 )
 async def read_users_all_pagination(
     page_number: int,
@@ -63,7 +63,7 @@ async def read_users_all_pagination(
 
 @router.get(
     "/username/contains/{username}",
-    response_model=list[users_schema.User] | None,
+    response_model=list[users_schema.UserRead] | None,
 )
 async def read_users_contain_username(
     username: str,
@@ -81,7 +81,7 @@ async def read_users_contain_username(
 
 @router.get(
     "/username/{username}",
-    response_model=users_schema.User | None,
+    response_model=users_schema.UserRead | None,
 )
 async def read_users_username(
     username: str,
@@ -99,7 +99,7 @@ async def read_users_username(
 
 @router.get(
     "/email/{email}",
-    response_model=users_schema.User | None,
+    response_model=users_schema.UserRead | None,
 )
 async def read_users_email(
     email: str,
@@ -115,7 +115,7 @@ async def read_users_email(
     return users_crud.get_user_by_email(email, db)
 
 
-@router.get("/id/{user_id}", response_model=users_schema.User)
+@router.get("/id/{user_id}", response_model=users_schema.UserRead)
 async def read_users_id(
     user_id: int,
     validate_id: Annotated[Callable, Depends(users_dependencies.validate_user_id)],
@@ -131,7 +131,7 @@ async def read_users_id(
     return users_crud.get_user_by_id(user_id, db)
 
 
-@router.post("", response_model=users_schema.User, status_code=201)
+@router.post("", response_model=users_schema.UserRead, status_code=201)
 async def create_user(
     user: users_schema.UserCreate,
     check_scopes: Annotated[
@@ -185,7 +185,7 @@ async def upload_user_image(
 async def edit_user(
     user_id: int,
     validate_id: Annotated[Callable, Depends(users_dependencies.validate_user_id)],
-    user_attributtes: users_schema.User,
+    user_attributtes: users_schema.UserRead,
     check_scopes: Annotated[
         Callable, Security(session_security.check_scopes, scopes=["users:write"])
     ],

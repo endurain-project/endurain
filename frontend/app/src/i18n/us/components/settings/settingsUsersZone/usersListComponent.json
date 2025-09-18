@@ -4,6 +4,7 @@
   "userListUserIsMeBadge": "Me",
   "userListUserIsAdminBadge": "Admin",
   "userListUserIsInactiveBadge": "Inactive",
+  "userListUserHasUnverifiedEmailBadge": "Unverified email",
   "modalApproveSignUpTitle": "Approve user sign up",
   "modalApproveSignUpBody": "Are you sure you want to approve user ",
   "processingApproval": "Processing approval...",

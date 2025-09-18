@@ -390,11 +390,11 @@
                 v-model="newEditUserActive"
                 required
               >
-                <option :value="1">
-                  {{ $t('usersAddEditUserModalComponent.addEditUserModalIsActiveOption1') }}
+                <option :value="true">
+                  {{ $t('generalItems.yes') }}
                 </option>
-                <option :value="2">
-                  {{ $t('usersAddEditUserModalComponent.addEditUserModalIsActiveOption2') }}
+                <option :value="false">
+                  {{ $t('generalItems.no') }}
                 </option>
               </select>
             </div>
@@ -524,6 +524,7 @@ const togglePasswordVisibility = () => {
 }
 
 if (props.user) {
+  console.log(props.user)
   if (props.action === 'edit') {
     editUserModalId.value = `editUserModal${props.user.id}`
   }

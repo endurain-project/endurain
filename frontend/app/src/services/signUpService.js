@@ -4,10 +4,10 @@ import {
 } from '@/utils/serviceUtils'
 
 export const signUp = {
-  signUpRequest(userData) {
-    return fetchPostRequest('sign-up/request', userData)
+  signUpRequest(data) {
+    return fetchPostRequest('sign-up/request', data)
   },
-  signUpConfirm(token) {
-    return fetchGetRequest(`sign-up/confirm/${token}`)
+  signUpConfirm(data) {
+    return fetchPostRequest('sign-up/confirm', data)
   }
 }

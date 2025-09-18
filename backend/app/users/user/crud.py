@@ -15,6 +15,7 @@ import health_data.utils as health_data_utils
 import sign_up_tokens.utils as sign_up_tokens_utils
 
 import server_settings.utils as server_settings_utils
+import server_settings.schema as server_settings_schema
 
 import core.logger as core_logger
 import core.apprise as core_apprise
@@ -24,7 +25,7 @@ def authenticate_user(username: str, db: Session):
     try:
         user = (
             db.query(users_models.User)
-            .filter(users_models.User.username == username)
+            .filter(users_models.User.username == username.lower())
             .first()
         )
 
@@ -169,7 +170,7 @@ def get_user_by_email(email: str, db: Session):
     try:
         # Get the user from the database
         user = (
-            db.query(users_models.User).filter(users_models.User.email == email).first()
+            db.query(users_models.User).filter(users_models.User.email == email.lower()).first()
         )
 
         # If the user was not found, return None
@@ -283,6 +284,8 @@ def get_users_admin(db: Session):
 
 def create_user(user: users_schema.UserCreate, db: Session):
     try:
+        user.username = user.username.lower()
+        user.email = user.email.lower()
         # Create a new user
         db_user = users_models.User(
             **user.model_dump(exclude={"password"}),
@@ -319,7 +322,7 @@ def create_user(user: users_schema.UserCreate, db: Session):
         ) from err
 
 
-def edit_user(user_id: int, user: users_schema.User, db: Session):
+def edit_user(user_id: int, user: users_schema.UserRead, db: Session):
     try:
         # Get the user from the database
         db_user = (
@@ -396,30 +399,22 @@ async def approve_user(
                 detail="User not found",
                 headers={"WWW-Authenticate": "Bearer"},
             )
-
-        # Get the server settings from the database
-        server_settings = server_settings_utils.get_server_settings(db)
-
-        user_can_login = False
-        require_email_verification = False
-        email_sent_success = False
+        
+        if not db_user.email_verified:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="User email is not verified",
+            )
 
         db_user.pending_admin_approval = False
-        if server_settings.signup_require_email_verification:
-            require_email_verification = True
-            # Send the sign-up email
-            email_sent_success = await sign_up_tokens_utils.send_sign_up_email(
-                db_user, email_service, db
-            )
-        else:
-            db_user.active = True
-            db_user.email_verified = True
-            user_can_login = True
+        db_user.active = True
+        # Send the sign-up email
+        #email_sent_success = await sign_up_tokens_utils.send_sign_up_email(
+        #    db_user, email_service, db
+        #)
 
         # Commit the transaction
         db.commit()
-
-        return user_can_login, require_email_verification, email_sent_success
     except HTTPException as http_err:
         raise http_err
     except Exception as err:
@@ -428,6 +423,47 @@ async def approve_user(
 
         # Log the exception
         core_logger.print_to_log(f"Error in approve_user: {err}", "error", exc=err)
+
+        # Raise an HTTPException with a 500 Internal Server Error status code
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal Server Error",
+        ) from err
+    
+
+async def verify_user_email(
+    user_id: int, server_settings: server_settings_schema.ServerSettingsRead, db: Session
+):
+    try:
+        # Get the user from the database
+        db_user = (
+            db.query(users_models.User).filter(users_models.User.id == user_id).first()
+        )
+
+        if db_user is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
+        db_user.email_verified = True
+        db_user.active = True
+        # Send the sign-up email
+        #email_sent_success = await sign_up_tokens_utils.send_sign_up_email(
+        #    db_user, email_service, db
+        #)
+
+        # Commit the transaction
+        db.commit()
+    except HTTPException as http_err:
+        raise http_err
+    except Exception as err:
+        # Rollback the transaction
+        db.rollback()
+
+        # Log the exception
+        core_logger.print_to_log(f"Error in verify_user_email: {err}", "error", exc=err)
 
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
@@ -710,8 +746,8 @@ def create_signup_user(
         # Create a new user
         db_user = users_models.User(
             name=user.name,
-            username=user.username,
-            email=user.email,
+            username=user.username.lower(),
+            email=user.email.lower(),
             city=user.city,
             birthdate=user.birthdate,
             preferred_language=user.preferred_language,

@@ -122,7 +122,6 @@ class UserBase(BaseModel):
 
 
 class User(UserBase):
-    id: StrictInt
     access_type: UserAccessType
     photo_path: str | None = None
     active: bool
@@ -135,8 +134,11 @@ class User(UserBase):
         from_attributes=True, extra="forbid", validate_assignment=True
     )
 
+class UserRead(User):
+    id: StrictInt
 
-class UserMe(User):
+
+class UserMe(UserRead):
     is_strava_linked: int | None = None
     is_garminconnect_linked: int | None = None
     default_activity_visibility: int | None = None
@@ -163,7 +165,6 @@ class UserSignup(UserBase):
 
 
 class UserCreate(User):
-    id: StrictInt
     password: str
 
     @field_validator("password")

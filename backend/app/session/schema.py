@@ -25,10 +25,6 @@ class LoginRequest(BaseModel):
     password: str
 
 
-class SignUpResetConfirm(BaseModel):
-    token: str
-
-
 class MFALoginRequest(BaseModel):
     username: str
     mfa_code: str

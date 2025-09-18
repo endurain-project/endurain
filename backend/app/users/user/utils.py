@@ -13,7 +13,7 @@ import core.logger as core_logger
 import core.config as core_config
 
 
-def check_user_is_active(user: users_schema.User) -> None:
+def check_user_is_active(user: users_schema.UserRead) -> None:
     """
     Checks if the given user is active.
 
@@ -22,7 +22,7 @@ def check_user_is_active(user: users_schema.User) -> None:
         with a detail message "Inactive user" and a "WWW-Authenticate" header.
 
     Args:
-        user (users_schema.User): The user object to check.
+        user (users_schema.UserRead): The user object to check.
     """
     if not user.active:
         raise HTTPException(

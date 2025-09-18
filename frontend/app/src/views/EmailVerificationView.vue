@@ -12,7 +12,7 @@ import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { push } from 'notivue'
-import { session } from '@/services/sessionService'
+import { signUp as signUpService } from '@/services/signUpService'
 import LoadingComponent from '@/components/GeneralComponents/LoadingComponent.vue'
 
 // Variables
@@ -30,25 +30,19 @@ onMounted(async () => {
   }
 
   try {
-    const response = await session.verifyEmail(token)
-    success.value = true
-    message.value = response.message || t('emailVerification.verificationSuccess')
-    
+    await signUpService.verifyEmail({
+      token: token
+    })
     push.success(t('emailVerification.emailVerified'))
+    router.push('/login?verifyEmail=true')
   } catch (error) {
-    success.value = false
-    
     if (error.toString().includes('404')) {
-      message.value = t('emailVerification.tokenNotFound')
+      push.error(`${t('emailVerification.tokenNotFound')} - ${error}`)
     } else if (error.toString().includes('400')) {
-      message.value = t('emailVerification.tokenExpired')
+      push.error(`${t('emailVerification.tokenExpired')} - ${error}`)
     } else {
-      message.value = t('emailVerification.verificationFailed')
+      push.error(`${t('emailVerification.verificationFailed')} - ${error}`)
     }
-    
-    push.error(message.value)
-  } finally {
-    loading.value = false
   }
 })
 </script>

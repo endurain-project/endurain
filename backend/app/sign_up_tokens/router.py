@@ -21,6 +21,7 @@ import notifications.utils as notifications_utils
 import health_targets.crud as health_targets_crud
 
 import sign_up_tokens.utils as sign_up_tokens_utils
+import sign_up_tokens.schema as sign_up_tokens_schema
 
 import server_settings.utils as server_settings_utils
 
@@ -39,10 +40,6 @@ async def signup(
     email_service: Annotated[
         core_apprise.AppriseService,
         Depends(core_apprise.get_email_service),
-    ],
-    websocket_manager: Annotated[
-        websocket_schema.WebSocketManager,
-        Depends(websocket_schema.get_websocket_manager),
     ],
     db: Annotated[
         Session,
@@ -128,10 +125,7 @@ async def signup(
     # Return appropriate response based on server configuration
     response_data = {"message": "User created successfully."}
 
-    if (
-        server_settings.signup_require_email_verification
-        and not server_settings.signup_require_admin_approval
-    ):
+    if server_settings.signup_require_email_verification:
         # Send the sign-up email
         success = await sign_up_tokens_utils.send_sign_up_email(
             created_user, email_service, db
@@ -152,13 +146,6 @@ async def signup(
             response_data["message"] + " Account is pending admin approval."
         )
         response_data["admin_approval_required"] = True
-
-        await sign_up_tokens_utils.send_sign_up_admin_approval_email(
-            created_user, email_service, db
-        )
-        await notifications_utils.create_admin_new_sign_up_approval_request_notification(
-            created_user, websocket_manager, db
-        )
     if (
         not server_settings.signup_require_email_verification
         and not server_settings.signup_require_admin_approval
@@ -169,13 +156,12 @@ async def signup(
 
 @router.get("/sign-up/confirm")
 async def verify_email(
-    confirm_data: session_schema.SignUpResetConfirm,
+    confirm_data: sign_up_tokens_schema.SignUpConfirm,
     db: Annotated[
         Session,
         Depends(core_database.get_db),
     ],
 ):
-    """Public endpoint for email verification"""
     # Get server settings
     server_settings = server_settings_utils.get_server_settings(db)
     if not server_settings.signup_require_email_verification:
@@ -185,7 +171,8 @@ async def verify_email(
         )
 
     # Verify the email
-    user = users_crud.verify_user_email(confirm_data.token, db)
+    server_settings = server_settings_utils.get_server_settings(db)
+    await sign_up_tokens_utils.use_sign_up_token(confirm_data.token, server_settings, db)
 
     message = "Email verified successfully."
     if user.pending_admin_approval:
