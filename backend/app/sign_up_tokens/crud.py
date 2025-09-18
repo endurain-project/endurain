@@ -9,6 +9,67 @@ import sign_up_tokens.models as sign_up_tokens_models
 import core.logger as core_logger
 
 
+def get_sign_up_token_by_hash(
+    token_hash: str, db: Session
+) -> sign_up_tokens_models.SignUpToken | None:
+    """
+    Retrieve an unused, unexpired SignUpToken matching the provided token hash.
+
+    Parameters
+    ----------
+    token_hash : str
+        The hashed token value to look up in the database.
+    db : Session
+        The SQLAlchemy Session used to perform the query.
+
+    Returns
+    -------
+    sign_up_tokens_models.SignUpToken | None
+        The SignUpToken model instance if a matching token exists, is not marked as used,
+        and has an expires_at timestamp later than the current UTC time. Returns None when
+        no valid token is found.
+
+    Raises
+    ------
+    HTTPException
+        If an unexpected error occurs during the database query, the exception is logged
+        and an HTTPException with status code 500 (Internal Server Error) is raised.
+
+    Notes
+    -----
+    - The function filters tokens by: token_hash equality, used == False, and expires_at > now (UTC).
+    - Any caught exception is logged via core_logger.print_to_log before raising the HTTPException.
+    """
+    try:
+        # Get the token from the database
+        db_token = (
+            db.query(sign_up_tokens_models.SignUpToken)
+            .filter(
+                and_(
+                    sign_up_tokens_models.SignUpToken.token_hash == token_hash,
+                    sign_up_tokens_models.SignUpToken.used == False,
+                    sign_up_tokens_models.SignUpToken.expires_at
+                    > datetime.now(timezone.utc),
+                )
+            )
+            .first()
+        )
+
+        # Return the token (can be None if not found)
+        return db_token
+    except Exception as err:
+        # Log the exception
+        core_logger.print_to_log(
+            f"Error in get_sign_up_token_by_hash: {err}", "error", exc=err
+        )
+
+        # Raise an HTTPException with a 500 Internal Server Error status code
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal Server Error",
+        ) from err
+
+
 def create_sign_up_token(
     token: sign_up_tokens_schema.SignUpToken, db: Session
 ) -> sign_up_tokens_models.SignUpToken:
@@ -67,67 +128,6 @@ def create_sign_up_token(
         # Log the exception
         core_logger.print_to_log(
             f"Error in create_sign_up_token: {err}", "error", exc=err
-        )
-
-        # Raise an HTTPException with a 500 Internal Server Error status code
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Internal Server Error",
-        ) from err
-
-
-def get_sign_up_token_by_hash(
-    token_hash: str, db: Session
-) -> sign_up_tokens_models.SignUpToken | None:
-    """
-    Retrieve an unused, unexpired SignUpToken matching the provided token hash.
-
-    Parameters
-    ----------
-    token_hash : str
-        The hashed token value to look up in the database.
-    db : Session
-        The SQLAlchemy Session used to perform the query.
-
-    Returns
-    -------
-    sign_up_tokens_models.SignUpToken | None
-        The SignUpToken model instance if a matching token exists, is not marked as used,
-        and has an expires_at timestamp later than the current UTC time. Returns None when
-        no valid token is found.
-
-    Raises
-    ------
-    HTTPException
-        If an unexpected error occurs during the database query, the exception is logged
-        and an HTTPException with status code 500 (Internal Server Error) is raised.
-
-    Notes
-    -----
-    - The function filters tokens by: token_hash equality, used == False, and expires_at > now (UTC).
-    - Any caught exception is logged via core_logger.print_to_log before raising the HTTPException.
-    """
-    try:
-        # Get the token from the database
-        db_token = (
-            db.query(sign_up_tokens_models.SignUpToken)
-            .filter(
-                and_(
-                    sign_up_tokens_models.SignUpToken.token_hash == token_hash,
-                    sign_up_tokens_models.SignUpToken.used == False,
-                    sign_up_tokens_models.SignUpToken.expires_at
-                    > datetime.now(timezone.utc),
-                )
-            )
-            .first()
-        )
-
-        # Return the token (can be None if not found)
-        return db_token
-    except Exception as err:
-        # Log the exception
-        core_logger.print_to_log(
-            f"Error in get_sign_up_token_by_hash: {err}", "error", exc=err
         )
 
         # Raise an HTTPException with a 500 Internal Server Error status code

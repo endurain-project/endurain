@@ -166,20 +166,21 @@ async def verify_email(
     server_settings = server_settings_utils.get_server_settings(db)
     if not server_settings.signup_require_email_verification:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
+            status_code=status.HTTP_412_PRECONDITION_FAILED,
             detail="Email verification is not enabled",
         )
 
     # Verify the email
-    server_settings = server_settings_utils.get_server_settings(db)
-    await sign_up_tokens_utils.use_sign_up_token(confirm_data.token, server_settings, db)
+    await sign_up_tokens_utils.use_sign_up_token(
+        confirm_data.token, server_settings, db
+    )
 
-    message = "Email verified successfully."
-    if user.pending_admin_approval:
-        message += " Your account is now pending admin approval."
+    # Return appropriate response based on server configuration
+    response_data = {"message": "Email verified successfully."}
+    if server_settings.signup_require_admin_approval:
+        response_data["message"] += " Your account is now pending admin approval."
+        response_data["admin_approval_required"] = True
     else:
-        message += " You can now log in."
+        response_data["message"] += " You can now log in."
 
-    return {
-        "message": message,
-    }
+    return response_data

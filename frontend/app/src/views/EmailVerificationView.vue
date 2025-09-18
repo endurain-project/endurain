@@ -8,7 +8,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { push } from 'notivue'
@@ -30,11 +30,19 @@ onMounted(async () => {
   }
 
   try {
-    await signUpService.verifyEmail({
+    const response = await signUpService.signUpConfirm({
       token: token
     })
+    
     push.success(t('emailVerification.emailVerified'))
-    router.push('/login?verifyEmail=true')
+
+    // Redirect to login with appropriate query parameters
+    const queryParams = {}
+    if (response.admin_approval_required) {
+      queryParams.adminApprovalRequired = 'true'
+    }
+
+    router.push({ name: 'login', query: queryParams })
   } catch (error) {
     if (error.toString().includes('404')) {
       push.error(`${t('emailVerification.tokenNotFound')} - ${error}`)
