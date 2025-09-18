@@ -57,7 +57,7 @@ async def send_sign_up_email(
     token = create_sign_up_token(user.id, db)
 
     # Generate reset link
-    reset_link = f"{email_service.frontend_host}/reset-password?token={token}"
+    reset_link = f"{email_service.frontend_host}/verify-email?token={token}"
 
     # use default email message in English
     subject, html_content, text_content = (
@@ -92,7 +92,7 @@ async def send_sign_up_admin_approval_email(
         # use default email message in English
         subject, html_content, text_content = (
             sign_up_tokens_email_messages.get_admin_signup_notification_email_en(
-                admin.name, user.name, email_service
+                admin.name, user.name, user.username, email_service
             )
         )
 
@@ -105,7 +105,7 @@ async def send_sign_up_admin_approval_email(
         )
 
 
-def use_sign_up_token(token: str, db: Session):
+def use_sign_up_token(token: str, db: Session) -> int:
     # Hash the provided token to find the database record
     token_hash = hashlib.sha256(token.encode()).hexdigest()
 
@@ -121,6 +121,9 @@ def use_sign_up_token(token: str, db: Session):
     try:
         # Mark token as used
         sign_up_tokens_crud.mark_sign_up_token_used(db_token.id, db)
+
+        # Return the associated user ID
+        return db_token.user_id
     except HTTPException as http_err:
         raise http_err
     except Exception as err:

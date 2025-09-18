@@ -8,8 +8,6 @@ from fastapi import (
 )
 from sqlalchemy.orm import Session
 
-import session.schema as session_schema
-
 import users.user.crud as users_crud
 import users.user.schema as users_schema
 import users.user_integrations.crud as user_integrations_crud
@@ -154,9 +152,17 @@ async def signup(
     return response_data
 
 
-@router.get("/sign-up/confirm")
+@router.post("/sign-up/confirm")
 async def verify_email(
     confirm_data: sign_up_tokens_schema.SignUpConfirm,
+    email_service: Annotated[
+        core_apprise.AppriseService,
+        Depends(core_apprise.get_email_service),
+    ],
+    websocket_manager: Annotated[
+        websocket_schema.WebSocketManager,
+        Depends(websocket_schema.get_websocket_manager),
+    ],
     db: Annotated[
         Session,
         Depends(core_database.get_db),
@@ -171,9 +177,19 @@ async def verify_email(
         )
 
     # Verify the email
-    await sign_up_tokens_utils.use_sign_up_token(
-        confirm_data.token, server_settings, db
-    )
+    user_id = sign_up_tokens_utils.use_sign_up_token(confirm_data.token, db)
+    users_crud.verify_user_email(user_id, server_settings, db)
+
+    if email_service.is_configured():
+        admin_users = users_crud.get_users_admin(db)
+        user = users_crud.get_user_by_id(user_id, db)
+        for admin in admin_users:
+            await sign_up_tokens_utils.send_sign_up_admin_approval_email(
+                admin, email_service, db
+            )
+            await notifications_utils.create_admin_new_sign_up_approval_request_notification(
+                user, websocket_manager, db
+            )
 
     # Return appropriate response based on server configuration
     response_data = {"message": "Email verified successfully."}

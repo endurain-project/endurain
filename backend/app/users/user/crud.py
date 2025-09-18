@@ -170,7 +170,9 @@ def get_user_by_email(email: str, db: Session):
     try:
         # Get the user from the database
         user = (
-            db.query(users_models.User).filter(users_models.User.email == email.lower()).first()
+            db.query(users_models.User)
+            .filter(users_models.User.email == email.lower())
+            .first()
         )
 
         # If the user was not found, return None
@@ -384,8 +386,8 @@ def edit_user(user_id: int, user: users_schema.UserRead, db: Session):
         ) from err
 
 
-async def approve_user(
-    user_id: int, email_service: core_apprise.AppriseService, db: Session
+def approve_user(
+    user_id: int, db: Session
 ):
     try:
         # Get the user from the database
@@ -399,7 +401,7 @@ async def approve_user(
                 detail="User not found",
                 headers={"WWW-Authenticate": "Bearer"},
             )
-        
+
         if not db_user.email_verified:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -408,10 +410,6 @@ async def approve_user(
 
         db_user.pending_admin_approval = False
         db_user.active = True
-        # Send the sign-up email
-        #email_sent_success = await sign_up_tokens_utils.send_sign_up_email(
-        #    db_user, email_service, db
-        #)
 
         # Commit the transaction
         db.commit()
@@ -429,10 +427,12 @@ async def approve_user(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal Server Error",
         ) from err
-    
 
-async def verify_user_email(
-    user_id: int, server_settings: server_settings_schema.ServerSettingsRead, db: Session
+
+def verify_user_email(
+    user_id: int,
+    server_settings: server_settings_schema.ServerSettingsRead,
+    db: Session,
 ):
     try:
         # Get the user from the database
@@ -448,11 +448,9 @@ async def verify_user_email(
             )
 
         db_user.email_verified = True
-        db_user.active = True
-        # Send the sign-up email
-        #email_sent_success = await sign_up_tokens_utils.send_sign_up_email(
-        #    db_user, email_service, db
-        #)
+        if not server_settings.signup_require_admin_approval:
+            db_user.pending_admin_approval = False
+            db_user.active = True
 
         # Commit the transaction
         db.commit()

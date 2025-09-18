@@ -34,7 +34,7 @@ onMounted(async () => {
       token: token
     })
     
-    push.success(t('emailVerification.emailVerified'))
+    push.success(t('emailVerificationView.emailVerified'))
 
     // Redirect to login with appropriate query parameters
     const queryParams = {}
@@ -45,11 +45,11 @@ onMounted(async () => {
     router.push({ name: 'login', query: queryParams })
   } catch (error) {
     if (error.toString().includes('404')) {
-      push.error(`${t('emailVerification.tokenNotFound')} - ${error}`)
+      push.error(`${t('emailVerificationView.tokenNotFound')} - ${error}`)
     } else if (error.toString().includes('400')) {
-      push.error(`${t('emailVerification.tokenExpired')} - ${error}`)
+      push.error(`${t('emailVerificationView.tokenExpired')} - ${error}`)
     } else {
-      push.error(`${t('emailVerification.verificationFailed')} - ${error}`)
+      push.error(`${t('emailVerificationView.verificationFailed')} - ${error}`)
     }
   }
 })

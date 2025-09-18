@@ -102,7 +102,10 @@ def get_signup_confirmation_email_en(
 
 
 def get_admin_signup_notification_email_en(
-    user_name: str, sign_up_user_name: str, email_service: core_apprise.AppriseService
+    user_name: str,
+    sign_up_user_name: str,
+    sign_up_user_username: str,
+    email_service: core_apprise.AppriseService,
 ) -> tuple:
     subject = "Endurain - New user sign-up pending approval"
 
@@ -139,7 +142,7 @@ def get_admin_signup_notification_email_en(
             <p>Please log in to the Endurain admin panel to review and approve this request.</p>
 
             <div style="text-align: center; margin: 30px 0;">
-                <a href="{email_service.frontend_host}/settings" style="background-color: #198754; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; display: inline-block; font-weight: bold;">Go to Admin Panel</a>
+                <a href="{email_service.frontend_host}/settings?tab=users&username={sign_up_user_username}" style="background-color: #198754; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; display: inline-block; font-weight: bold;">Go to Admin Panel</a>
             </div>
         </div>
 
@@ -163,7 +166,7 @@ def get_admin_signup_notification_email_en(
     User: {sign_up_user_name}
 
     Please log in to the Endurain admin panel to review and approve this request:
-    {email_service.frontend_host}/settings
+    {email_service.frontend_host}/settings?tab=users&username={sign_up_user_username}
 
     Best regards,
     The Endurain system

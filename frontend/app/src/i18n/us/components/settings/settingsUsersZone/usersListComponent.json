@@ -8,8 +8,6 @@
   "modalApproveSignUpTitle": "Approve user sign up",
   "modalApproveSignUpBody": "Are you sure you want to approve user ",
   "processingApproval": "Processing approval...",
-  "userApproveSuccessEmailSentMessage": "User approved successfully. An email has been sent to the user with instructions to complete the sign-up process.",
-  "userApproveWarningUnableToSendEmailMessage": "User approved successfully. Unable to send email to the user.",
   "userApproveSuccessMessage": "User approved successfully.",
   "userApproveErrorMessage": "Error approving user",
   "modalRejectSignUpTitle": "Reject user sign up",

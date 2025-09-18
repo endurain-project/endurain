@@ -208,38 +208,16 @@ async def approve_user(
     check_scopes: Annotated[
         Callable, Security(session_security.check_scopes, scopes=["users:write"])
     ],
-    email_service: Annotated[
-        core_apprise.AppriseService,
-        Depends(core_apprise.get_email_service),
-    ],
     db: Annotated[
         Session,
         Depends(core_database.get_db),
     ],
 ):
     # Approve the user in the database
-    user_can_login, require_email_verification, email_sent_success = (
-        await users_crud.approve_user(user_id, email_service, db)
-    )
+    users_crud.approve_user(user_id, db)
 
-    # Return appropriate response based on server configuration
-    response_data = {"message": f"User ID {user_id} approved successfully."}
-
-    if require_email_verification and email_sent_success:
-        response_data["message"] = (
-            response_data["message"] + " Email sent with verification instructions."
-        )
-    if require_email_verification and not email_sent_success:
-        response_data["message"] = (
-            response_data["message"] + " Failed to send verification instructions."
-        )
-    if user_can_login:
-        response_data["message"] = response_data["message"] + " User can now log in."
-    response_data["email_verification_required"] = require_email_verification
-    response_data["email_sent_success"] = email_sent_success
-    response_data["user_can_login"] = user_can_login
-
-    return response_data
+    # Return success message
+    return {"message": f"User ID {user_id} approved successfully."}
 
 
 @router.put("/{user_id}/password")

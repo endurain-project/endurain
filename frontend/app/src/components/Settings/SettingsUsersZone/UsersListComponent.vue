@@ -153,16 +153,8 @@ async function updateSessionListDeleted(sessionDeletedId) {
 async function submitApproveSignUp() {
   const notification = push.promise(t('usersListComponent.processingApproval'))
   try {
-    const approveResponse = await users.approveUser(props.user.id)
-    if (approveResponse.email_verification_required === true && approveResponse.email_sent_success === true) {
-      notification.resolve(t('usersListComponent.userApproveSuccessEmailSentMessage'))
-    }
-    if (approveResponse.email_verification_required === true && approveResponse.email_sent_success === false) {
-      notification.resolve(t('usersListComponent.userApproveWarningUnableToSendEmailMessage'))
-    }
-    if (approveResponse.user_can_login === true) {
-      notification.resolve(t('usersListComponent.userApproveSuccessMessage'))
-    }
+    await users.approveUser(props.user.id)
+    notification.resolve(t('usersListComponent.userApproveSuccessMessage'))
     approveResponse.userID = props.user.id
     emit('approvedUser', approveResponse)
   } catch (error) {
