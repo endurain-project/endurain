@@ -9,6 +9,7 @@ from fastapi import (
 from sqlalchemy.orm import Session
 
 import users.user.crud as users_crud
+import users.user.utils as users_utils
 import users.user.schema as users_schema
 import users.user_integrations.crud as user_integrations_crud
 import users.user_default_gear.crud as user_default_gear_crud
@@ -181,15 +182,13 @@ async def verify_email(
     users_crud.verify_user_email(user_id, server_settings, db)
 
     if email_service.is_configured():
-        admin_users = users_crud.get_users_admin(db)
         user = users_crud.get_user_by_id(user_id, db)
-        for admin in admin_users:
-            await sign_up_tokens_utils.send_sign_up_admin_approval_email(
-                admin, email_service, db
-            )
-            await notifications_utils.create_admin_new_sign_up_approval_request_notification(
-                user, websocket_manager, db
-            )
+        await sign_up_tokens_utils.send_sign_up_admin_approval_email(
+            user, email_service, db
+        )
+        await notifications_utils.create_admin_new_sign_up_approval_request_notification(
+            user, websocket_manager, db
+        )
 
     # Return appropriate response based on server configuration
     response_data = {"message": "Email verified successfully."}

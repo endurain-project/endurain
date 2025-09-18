@@ -12,6 +12,7 @@ import sign_up_tokens.email_messages as sign_up_tokens_email_messages
 import sign_up_tokens.schema as sign_up_tokens_schema
 import sign_up_tokens.crud as sign_up_tokens_crud
 
+import users.user.crud as users_crud
 import users.user.models as users_models
 import users.user.utils as users_utils
 
@@ -77,7 +78,7 @@ async def send_sign_up_email(
 
 async def send_sign_up_admin_approval_email(
     user: users_models.User, email_service: core_apprise.AppriseService, db: Session
-) -> bool:
+) -> None:
     # Check if email service is configured
     if not email_service.is_configured():
         raise HTTPException(
@@ -103,6 +104,41 @@ async def send_sign_up_admin_approval_email(
             html_content=html_content,
             text_content=text_content,
         )
+
+
+async def send_sign_up_approval_email(
+    user_id: int, email_service: core_apprise.AppriseService, db: Session
+) -> bool:
+    # Check if email service is configured
+    if not email_service.is_configured():
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Email service is not configured",
+        )
+    
+    # Get user info
+    user = users_crud.get_user_by_id(user_id, db)
+
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found",
+        )
+
+    # use default email message in English
+    subject, html_content, text_content = (
+        sign_up_tokens_email_messages.get_user_signup_approved_email_en(
+            user.name, user.username, email_service
+        )
+    )
+
+    # Send email
+    return await email_service.send_email(
+        to_emails=[user.email],
+        subject=subject,
+        html_content=html_content,
+        text_content=text_content,
+    )
 
 
 def use_sign_up_token(token: str, db: Session) -> int:

@@ -175,13 +175,11 @@ function editUserList(editedUser) {
   usersArray.value[index] = editedUser
 }
 
-function approvedUserList(approvedUser) {
-  const index = usersArray.value.findIndex((user) => user.id === approvedUser.userID)
+function approvedUserList(userID) {
+  const index = usersArray.value.findIndex((user) => user.id === userID)
   usersArray.value[index].pending_admin_approval = false
-  if (approvedUser.user_can_login === true) {
-    usersArray.value[index].email_verified = true
-    usersArray.value[index].active = true
-  }
+  usersArray.value[index].email_verified = true
+  usersArray.value[index].active = true
 }
 
 function setIsLoadingNewUser(state) {

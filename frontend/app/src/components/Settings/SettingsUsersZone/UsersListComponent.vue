@@ -155,8 +155,7 @@ async function submitApproveSignUp() {
   try {
     await users.approveUser(props.user.id)
     notification.resolve(t('usersListComponent.userApproveSuccessMessage'))
-    approveResponse.userID = props.user.id
-    emit('approvedUser', approveResponse)
+    emit('approvedUser', props.user.id)
   } catch (error) {
     notification.reject(`${t('usersListComponent.userApproveErrorMessage')} - ${error}`)
   }

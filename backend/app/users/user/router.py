@@ -16,6 +16,7 @@ import users.user_privacy_settings.crud as users_privacy_settings_crud
 
 import health_targets.crud as health_targets_crud
 
+import sign_up_tokens.utils as sign_up_tokens_utils
 import session.security as session_security
 
 import core.apprise as core_apprise
@@ -208,6 +209,10 @@ async def approve_user(
     check_scopes: Annotated[
         Callable, Security(session_security.check_scopes, scopes=["users:write"])
     ],
+    email_service: Annotated[
+        core_apprise.AppriseService,
+        Depends(core_apprise.get_email_service),
+    ],
     db: Annotated[
         Session,
         Depends(core_database.get_db),
@@ -215,6 +220,9 @@ async def approve_user(
 ):
     # Approve the user in the database
     users_crud.approve_user(user_id, db)
+
+    # Send approval email
+    await sign_up_tokens_utils.send_sign_up_approval_email(user_id, email_service, db)
 
     # Return success message
     return {"message": f"User ID {user_id} approved successfully."}
