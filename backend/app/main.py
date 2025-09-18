@@ -23,6 +23,8 @@ import strava.utils as strava_utils
 
 import password_reset_tokens.utils as password_reset_tokens_utils
 
+import sign_up_tokens.utils as sign_up_tokens_utils
+
 from core.routes import router as api_router
 
 
@@ -67,6 +69,12 @@ async def startup_event():
         "Deleting invalid password reset tokens from the database"
     )
     password_reset_tokens_utils.delete_invalid_tokens_from_db()
+
+    # Delete invalid sign-up tokens
+    core_logger.print_to_log_and_console(
+        "Deleting invalid sign-up tokens from the database"
+    )
+    sign_up_tokens_utils.delete_invalid_tokens_from_db()
 
 
 def shutdown_event():

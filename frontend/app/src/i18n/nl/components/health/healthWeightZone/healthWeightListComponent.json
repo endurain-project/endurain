@@ -1,9 +1,9 @@
 {
-  "labelGarminConnect": "Garmin Connect",
-  "modalDeleteWeightTitle": "Gewicht verwijderen",
-  "modalDeleteWeightBody": "Weet u zeker dat u gewicht wilt verwijderen voor ",
-  "successDeleteWeight": "Gewicht verwijderd",
-  "errorDeleteWeight": "Het was niet mogelijk om uw gewicht te verwijderen",
-  "successEditWeight": "Gewicht bewerkt",
-  "errorEditWeight": "Het was niet mogelijk om uw gewicht aan te passen"
+    "labelGarminConnect": "Garmin Connect",
+    "modalDeleteWeightTitle": "Gewicht verwijderen",
+    "modalDeleteWeightBody": "Weet u zeker dat u gewicht wilt verwijderen voor ",
+    "successDeleteWeight": "Gewicht verwijderd",
+    "errorDeleteWeight": "Het was niet mogelijk om uw gewicht te verwijderen",
+    "successEditWeight": "Gewicht bewerkt",
+    "errorEditWeight": "Het was niet mogelijk om uw gewicht aan te passen"
 }

@@ -1,14 +1,14 @@
 {
-  "garminConnectAuthModalTitle": "Garmin Connect account koppelen",
-  "garminConnectAuthModalUsernameLabel": "Garmin Connect e-mail",
-  "garminConnectAuthModalUsernamePlaceholder": "Garmin Connect e-mail",
-  "garminConnectAuthModalPasswordLabel": "Garmin Connect wachtwoord",
-  "garminConnectAuthModalPasswordPlaceholder": "Garmin Connect wachtwoord",
-  "garminConnectAuthModalMfaCodeLabel": "MFA code",
-  "garminConnectAuthModalMfaCodePlaceholder": "MFA code",
-  "buttonSubmitMfaCode": "MFA code versturen",
-  "garminConnectAuthModalLoginButton": "Inloggen",
-  "processingMessageLinkGarminConnect": "Garmin Connect account koppelen...",
-  "successMessageLinkGarminConnect": "Garmin Connect account gekoppeld",
-  "errorMessageUnableToLinkGarminConnect": "Kan Garmin Connect account niet koppelen"
+    "garminConnectAuthModalTitle": "Garmin Connect account koppelen",
+    "garminConnectAuthModalUsernameLabel": "Garmin Connect e-mail",
+    "garminConnectAuthModalUsernamePlaceholder": "Garmin Connect e-mail",
+    "garminConnectAuthModalPasswordLabel": "Garmin Connect wachtwoord",
+    "garminConnectAuthModalPasswordPlaceholder": "Garmin Connect wachtwoord",
+    "garminConnectAuthModalMfaCodeLabel": "MFA code",
+    "garminConnectAuthModalMfaCodePlaceholder": "MFA code",
+    "buttonSubmitMfaCode": "MFA code versturen",
+    "garminConnectAuthModalLoginButton": "Inloggen",
+    "processingMessageLinkGarminConnect": "Garmin Connect account koppelen...",
+    "successMessageLinkGarminConnect": "Garmin Connect account gekoppeld",
+    "errorMessageUnableToLinkGarminConnect": "Kan Garmin Connect account niet koppelen"
 }

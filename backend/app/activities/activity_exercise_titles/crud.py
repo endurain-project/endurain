@@ -5,7 +5,7 @@ from sqlalchemy.exc import IntegrityError
 import activities.activity_exercise_titles.models as activity_exercise_titles_models
 import activities.activity_exercise_titles.schema as activity_exercise_titles_schema
 
-import server_settings.crud as server_settings_crud
+import server_settings.utils as server_settings_utils
 
 import core.logger as core_logger
 
@@ -38,10 +38,10 @@ def get_activity_exercise_titles(db: Session):
 def get_public_activity_exercise_titles(db: Session):
     try:
         # Check if public sharable links are enabled in server settings
-        server_settings = server_settings_crud.get_server_settings(db)
+        server_settings = server_settings_utils.get_server_settings(db)
 
         # Return None if public sharable links are disabled
-        if not server_settings or not server_settings.public_shareable_links:
+        if not server_settings.public_shareable_links:
             return None
         
         # Get the activity exercise titles from the database

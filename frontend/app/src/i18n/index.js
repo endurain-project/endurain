@@ -40,6 +40,7 @@ const componentPaths = {
   navbarBottomMobileComponent: 'components/navbar/navbarBottomMobileComponent.json',
   navbarComponent: 'components/navbar/navbarComponent.json',
   // Notifications components
+  adminNewSignUpApprovalRequestNotificationComponent: 'components/notifications/adminNewSignUpApprovalRequestNotificationComponent.json',
   navbarNotificationsComponent: 'components/notifications/navbarNotificationsComponent.json',
   newAcceptedRequestNotificationComponent:
     'components/notifications/newAcceptedRequestNotificationComponent.json',
@@ -98,7 +99,9 @@ const componentPaths = {
   settingsView: 'settingsView.json',
   userView: 'userView.json',
   summaryView: 'summaryView.json',
-  resetPassword: 'resetPassword.json'
+  resetPassword: 'resetPassword.json',
+  signupView: 'signupView.json',
+  emailVerificationView: 'emailVerificationView.json'
 }
 
 // Reverse map: relative path -> semantic key

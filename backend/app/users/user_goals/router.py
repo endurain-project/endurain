@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 import users.user_goals.dependencies as user_goals_dependencies
 import users.user_goals.schema as user_goals_schema
 import users.user_goals.crud as user_goals_crud
+import users.user_goals.utils as user_goals_utils
 
 import session.security as session_security
 
@@ -53,7 +54,7 @@ async def get_user_goals_results(
     Returns:
         Any: The calculated user goals results for the specified user.
     """
-    return user_goals_crud.calculate_user_goals(token_user_id, None, db)
+    return user_goals_utils.calculate_user_goals(token_user_id, None, db)
 
 
 @router.post("", response_model=user_goals_schema.UserGoalRead, status_code=201)

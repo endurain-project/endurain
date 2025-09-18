@@ -1,0 +1,8 @@
+{
+  "title1": "Handling verify email",
+  "title2": "Please wait while your email is being verified. Do not refresh this page.",
+  "emailVerified": "Email verified successfully!",
+  "tokenNotFound": "Token not found",
+  "tokenExpired": "Token expired",
+  "verificationFailed": "Email verification failed"
+}
