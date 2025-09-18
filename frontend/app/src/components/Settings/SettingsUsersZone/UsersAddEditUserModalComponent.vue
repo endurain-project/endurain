@@ -524,7 +524,6 @@ const togglePasswordVisibility = () => {
 }
 
 if (props.user) {
-  console.log(props.user)
   if (props.action === 'edit') {
     editUserModalId.value = `editUserModal${props.user.id}`
   }

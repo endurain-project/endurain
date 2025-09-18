@@ -389,6 +389,43 @@ def edit_user(user_id: int, user: users_schema.UserRead, db: Session):
 def approve_user(
     user_id: int, db: Session
 ):
+    """
+    Approve a user by ID.
+
+    Fetches the user with the given user_id from the provided SQLAlchemy Session.
+    If the user exists and their email is verified, marks the user as approved by
+    setting `pending_admin_approval` to False and `active` to True, then commits
+    the transaction.
+
+    Parameters:
+        user_id (int): The primary key of the user to approve.
+        db (Session): SQLAlchemy Session used for querying and committing changes.
+
+    Raises:
+        HTTPException: 404 Not Found if no user with the given ID exists. The
+            raised exception includes a "WWW-Authenticate: Bearer" header.
+        HTTPException: 400 Bad Request if the user exists but their email has not
+            been verified.
+        HTTPException: 500 Internal Server Error for any unexpected error during
+            processing; the function will rollback the transaction and log the
+            original exception before raising this error.
+
+    Side effects:
+        - Updates the user object by setting `pending_admin_approval = False` and
+          `active = True`.
+        - Commits the DB transaction on success.
+        - Rolls back the DB transaction and logs the error via
+          `core_logger.print_to_log` on unexpected failures.
+
+    Returns:
+        None
+
+    Notes:
+        - The function expects the `users_models.User` model to be importable and the
+          provided `db` to be a working SQLAlchemy session.
+        - The original exception is chained to the re-raised 500 HTTPException to
+          preserve context for debugging.
+    """
     try:
         # Get the user from the database
         db_user = (
@@ -434,6 +471,44 @@ def verify_user_email(
     server_settings: server_settings_schema.ServerSettingsRead,
     db: Session,
 ):
+    """
+    Verify a user's email and update their account status in the database.
+
+    Parameters
+    ----------
+    user_id : int
+        The primary key of the user to verify.
+    server_settings : server_settings_schema.ServerSettingsRead
+        Server configuration used to determine whether admin approval is required
+        (controls whether the account should be activated immediately).
+    db : Session
+        SQLAlchemy session used to query and persist changes to the database.
+
+    Returns
+    -------
+    None
+
+    Side effects
+    ------------
+    - Marks the user's email as verified (sets db_user.email_verified = True).
+    - If server_settings.signup_require_admin_approval is False:
+      - Clears pending admin approval (db_user.pending_admin_approval = False).
+      - Activates the user account (db_user.active = True).
+    - Commits the transaction on success.
+    - On unexpected errors, rolls back the transaction and logs the exception via core_logger.print_to_log.
+
+    Raises
+    ------
+    HTTPException
+        - 404 Not Found: if no user exists with the provided user_id.
+        - Re-raises any HTTPException raised during processing.
+        - 500 Internal Server Error: for unexpected exceptions encountered while updating the database.
+
+    Notes
+    -----
+    - The function queries users_models.User for the given user_id.
+    - The caller is responsible for managing the lifecycle of the provided DB session.
+    """
     try:
         # Get the user from the database
         db_user = (
@@ -791,46 +866,3 @@ def create_signup_user(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal Server Error",
         ) from err
-
-
-""" def verify_user_email(token: str, db: Session):
-    try:
-        # Find user by verification token
-        db_user = (
-            db.query(users_models.User)
-            .filter(users_models.User.email_verification_token == token)
-            .first()
-        )
-
-        if db_user is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Invalid or expired verification token",
-            )
-
-        # Mark email as verified and remove token
-        db_user.email_verified = True
-        db_user.email_verification_token = None
-
-        # If not pending admin approval, activate the user
-        if not db_user.pending_admin_approval:
-            db_user.active = True
-
-        db.commit()
-        db.refresh(db_user)
-
-        return db_user
-    except HTTPException as http_err:
-        raise http_err
-    except Exception as err:
-        # Rollback the transaction
-        db.rollback()
-
-        # Log the exception
-        core_logger.print_to_log(f"Error in verify_user_email: {err}", "error", exc=err)
-
-        # Raise an HTTPException with a 500 Internal Server Error status code
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Internal Server Error",
-        ) from err """
