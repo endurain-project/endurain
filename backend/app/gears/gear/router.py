@@ -315,7 +315,7 @@ async def import_bikes_from_Strava_CSV(
                   core_logger.print_to_log_and_console(f"No {bikesfilename} file located in the {bulk_import_dir} directory.")
                   return None # Nothing to return - no file.
         except:
-            # TO DO: RAISE ERROR OR ADD NOTIFICATON HERE?
+            # TO DO: RAISE ERROR OR ADD NOTIFICATION HERE?
             core_logger.print_to_log_and_console(f"Error attempting to open {bikes_file_path} file.")
             return None # Nothing to return - error parsing file.
 
