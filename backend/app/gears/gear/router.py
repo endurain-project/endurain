@@ -418,9 +418,10 @@ async def import_shoes_from_Strava_CSV(
             else:
                   core_logger.print_to_log_and_console(f"No {shoesfilename} file located in the {bulk_import_dir} directory.")
                   return None # Nothing to return - no file.
-        except:
-            # TO DO: RAISE ERROR OR ADD NOTIFICATON HERE?
-            core_logger.print_to_log_and_console(f"Error attempting to open {shoes_file_path} file.")
+
+        except Exception as err:
+            # TO DO: RAISE ERROR OR ADD NOTIFICATION HERE?
+            core_logger.print_to_log_and_console(f"Error attempting to open {shoes_file_path} file:  {err}", "error")
             return None # Nothing to return - error parsing file.
 
         # Get user's existing gear 
