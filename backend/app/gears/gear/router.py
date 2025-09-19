@@ -313,10 +313,10 @@ async def import_bikes_from_Strava_CSV(
                   core_logger.print_to_log_and_console(f"Strava bike gear csv file parsed and gear dictionary created. File was {len(bikes_dict)} rows long, ignoring header row.")
             else:
                   core_logger.print_to_log_and_console(f"No {bikesfilename} file located in the {bulk_import_dir} directory.")
-                  return None # Nothing to return - no file.
-        except:
-            # TO DO: RAISE ERROR OR ADD NOTIFICATON HERE?
-            core_logger.print_to_log_and_console(f"Error attempting to open {bikes_file_path} file.")
+
+        except Exception as err:
+            # TO DO: RAISE ERROR OR ADD NOTIFICATION HERE?
+            core_logger.print_to_log_and_console(f"Error attempting to open {bikes_file_path} file:  {err}", "error")
             return None # Nothing to return - error parsing file.
 
         # Get user's existing gear 
@@ -363,7 +363,7 @@ async def import_bikes_from_Strava_CSV(
                         )
                    added_gear = gears_crud.create_gear(new_gear, token_user_id, db)
                    core_logger.print_to_log_and_console(f"Bike - {bike} - has been imported as {added_gear.nickname}.")
-                   nicknames_added.append(added_gear.nickname.lower()) # for checking of duplicated names during a single import, case-insenitively
+                   nicknames_added.append(added_gear.nickname.lower()) # for checking of duplicated names during a single import, case-insensitively
         # Return a success message
         core_logger.print_to_log_and_console("Bike import complete.")
         return {"Gear import successful."}
