@@ -113,7 +113,7 @@ def is_gear_duplicate(
 
     # Iterate through user gear list and look for an item that matches
     for item in user_gear_list:
-        # Must replace + with space when checking becuase gear.utils.transform_schema_gear_to_model_gear modifies the entered gear name/model/brand when adding it to the database
+        # Must replace + with space when checking because gear.utils.transform_schema_gear_to_model_gear modifies the entered gear name/model/brand when adding it to the database
         # Making all comparisons lower case, as Endurain gear database throws an error if names are the same with only capitalization differences
         # Checking both for name overlaps (which are not allowed, even for different gear types) and full item match.
         if item.nickname.lower() == gear_item["name"].replace("+", " ").lower():
