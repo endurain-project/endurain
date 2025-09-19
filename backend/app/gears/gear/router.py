@@ -363,7 +363,7 @@ async def import_bikes_from_Strava_CSV(
                         )
                    added_gear = gears_crud.create_gear(new_gear, token_user_id, db)
                    core_logger.print_to_log_and_console(f"Bike - {bike} - has been imported as {added_gear.nickname}.")
-                   nicknames_added.append(added_gear.nickname.lower()) # for checking of duplicated names during a single import, case-insenitively
+                   nicknames_added.append(added_gear.nickname.lower()) # for checking of duplicated names during a single import, case-insensitively
         # Return a success message
         core_logger.print_to_log_and_console("Bike import complete.")
         return {"Gear import successful."}
