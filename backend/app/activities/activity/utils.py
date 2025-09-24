@@ -84,6 +84,8 @@ ACTIVITY_ID_TO_NAME = {
     35: "E-Bike ride",
     36: "E-Mountain Bike ride",
     37: "Ice Skate",
+    38: "Soccer",
+    39: "Padel",
     # Add other mappings as needed based on the full list in define_activity_type comments if required
     # "AlpineSki",
     # "BackcountrySki",
@@ -205,6 +207,10 @@ ACTIVITY_NAME_TO_ID.update(
         "e_bike_mountain_ride": 36,
         "ebikemountainride": 36,
         "iceskate": 37,
+        "soccer": 38,
+        "padel": 39,
+        "padelball": 39,
+        "paddelball": 39,
     }
 )
 

@@ -190,9 +190,11 @@ The table bellow details the activity types supported by Endurain.
 | Squash | 24 |
 | Racquetball | 25 |
 | Pickleball | 26 |
+| Padel | 39 |
 | Windsurf | 30 |
 | Stand up paddling | 32 |
 | Surf | 33 |
+| Soccer | 38 |
 
 
 ## Supported gear types
