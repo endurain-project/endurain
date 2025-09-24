@@ -31,6 +31,7 @@
           <option value="8">{{ $t('searchView.searchSelectActivityType8') }}</option>
           <option value="9">{{ $t('searchView.searchSelectActivityType9') }}</option>
           <option value="10">{{ $t('searchView.searchSelectActivityType10') }}</option>
+          <option value="15">{{ $t('searchView.searchSelectActivityType15') }}</option>
           <option value="11">{{ $t('searchView.searchSelectActivityType11') }}</option>
           <option value="12">{{ $t('searchView.searchSelectActivityType12') }}</option>
           <option value="13">{{ $t('searchView.searchSelectActivityType13') }}</option>
@@ -309,6 +310,10 @@ function updateSearchResultsBasedOnActivityType() {
   } else if (searchSelectActivityType.value === '14') {
     searchResults.value = searchResultsOriginal.value.filter((user) =>
       [33].includes(user.activity_type)
+    )
+  } else if (searchSelectActivityType.value === '15') {
+    searchResults.value = searchResultsOriginal.value.filter((user) =>
+      [37].includes(user.activity_type)
     )
   } else {
     searchResults.value = searchResultsOriginal.value

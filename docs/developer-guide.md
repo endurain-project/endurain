@@ -180,6 +180,7 @@ The table bellow details the activity types supported by Endurain.
 | Alpine ski | 15 |
 | Nordic Ski | 16 |
 | Snowboard | 17 |
+| Ice Skate | 37 |
 | Transition | 18 |
 | Strength Training | 19 |
 | Crossfit | 20 |
