@@ -25,6 +25,7 @@ import gears.gear_components.router as gear_components_router
 import health_data.router as health_data_router
 import health_targets.router as health_targets_router
 import notifications.router as notifications_router
+import password_reset_tokens.router as password_reset_tokens_router
 import profile.router as profile_router
 import server_settings.public_router as server_settings_public_router
 import server_settings.router as server_settings_router
@@ -32,6 +33,7 @@ import session.router as session_router
 import session.security as session_security
 import strava.router as strava_router
 import users.user.router as users_router
+import users.user_goals.router as user_goals_router
 import users.user.public_router as users_public_router
 import users.user_default_gear.router as user_default_gear_router
 import websocket.router as websocket_router
@@ -149,6 +151,11 @@ router.include_router(
     ],
 )
 router.include_router(
+    password_reset_tokens_router.router,
+    prefix=core_config.ROOT_PATH,
+    tags=["password_reset_tokens"],
+)
+router.include_router(
     profile_router.router,
     prefix=core_config.ROOT_PATH + "/profile",
     tags=["profile"],
@@ -176,6 +183,15 @@ router.include_router(
 router.include_router(
     user_default_gear_router.router,
     prefix=core_config.ROOT_PATH + "/profile/default_gear",
+    tags=["profile"],
+    dependencies=[
+        Depends(session_security.validate_access_token),
+        Security(session_security.check_scopes, scopes=["profile"]),
+    ],
+)
+router.include_router(
+    user_goals_router.router,
+    prefix=core_config.ROOT_PATH + "/profile/goals",
     tags=["profile"],
     dependencies=[
         Depends(session_security.validate_access_token),

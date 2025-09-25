@@ -8,7 +8,6 @@ Welcome to the guide for getting started on hosting your own production instance
 * Domain name pointed to your external IP address.
 * Open FW rules to your server on port 443 and 80. (trough NAT if you are running ipv4)
 * A computer/server with enough disk space for your activity files.
-* API key from [geocode.maps.co](https://geocode.maps.co/) (free, but need to register).
 * A Linux distro that has `docker compose` cli, and `caddy` in the repositories.
 
 
@@ -79,7 +78,6 @@ Environment variable  | How to set it |
 | POSTGRES_PASSWORD | Set the same value as DB_PASSWORD.|
 | SECRET_KEY | Run `openssl rand -hex 32` on a terminal to get a secret |
 | FERNET_KEY |Run `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"` on a terminal to get a secret or go to [https://fernetkeygen.com](https://fernetkeygen.com). Example output is `7NfMMRSCWcoNDSjqBX8WoYH9nTFk1VdQOdZY13po53Y=` |
-| GEOCODES_MAPS_API | <a href="https://geocode.maps.co/">Geocode maps</a> offers a free plan consisting of 1 Request/Second. Registration necessary. |
 | TZ | Timezone definition. Insert your timezone. List of available time zones [here](https://en.wikipedia.org/wiki/List_of_tz_database_time_zones). Format `Europe/Lisbon` expected |
 | ENDURAIN_HOST | https://endurain.yourdomain.com |
 | BEHIND_PROXY | Change to true if behind reverse proxy |

@@ -1,14 +1,14 @@
 {
-    "labelLapNumber": "Volta",
-    "labelLapIntensity": "Intensitat",
-    "labelLapDistance": "Distància",
-    "labelLapTime": "Temps",
-    "labelLapPace": "Ritme",
-    "labelLapSpeed": "Velocitat",
-    "labelLapElevation": "Elevació",
-    "labelLapElev": "Elev",
-    "labelLapAvgHr": "Freqüència cardíaca mitjana",
-    "labelLapHR": "FC",
-    "labelLapStrokeRate": "Freqüència batecs",
-    "labelLapSR": "SR"
+  "labelLapNumber": "Volta",
+  "labelLapIntensity": "Intensitat",
+  "labelLapDistance": "Distància",
+  "labelLapTime": "Temps",
+  "labelLapPace": "Ritme",
+  "labelLapSpeed": "Velocitat",
+  "labelLapElevation": "Elevació",
+  "labelLapElev": "Elev",
+  "labelLapAvgHr": "Freqüència cardíaca mitjana",
+  "labelLapHR": "FC",
+  "labelLapStrokeRate": "Freqüència batecs",
+  "labelLapSR": "SR"
 }

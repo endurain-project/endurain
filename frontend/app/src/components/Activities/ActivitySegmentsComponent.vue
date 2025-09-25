@@ -24,7 +24,7 @@
                                         <tbody>
                                             <tr>
                                                 <td class="text-center m-10" colspan="3">
-                                                    {{ $t("activitySegmentsComponent.labelStartTime") }}: {{ formatDateTime(intersection.start_time) }}
+                                                    {{ $t("activitySegmentsComponent.labelStartTime") }}: {{ formatDateTime(t, intersection.start_time) }}
                                                 </td>
                                             </tr>
                                             <tr>
@@ -223,8 +223,8 @@ export default {
         formatSecondsToTime(seconds) {
             return formatSecondsToTime(seconds);
         },
-        formatDateTime(date){
-            return formatDateTime(date);
+        formatDateTime(t, date){
+            return formatDateTime(t, date);
         },
         formatSpeed(pace, activity_type, units){
             return formatSpeed(pace, activity_type, units);

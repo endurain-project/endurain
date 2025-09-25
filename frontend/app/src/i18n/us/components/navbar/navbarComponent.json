@@ -1,14 +1,14 @@
 {
-    "search": "Search",
-    "activities": "Activities",
-    "activitiesList": "List",
-    "summary": "Summary",
-    "gear": "Gear",
-    "health": "Health",
-    "profile": "Profile",
-    "settings": "Settings",
-    "login": "Login",
-    "logout": "Logout",
-    "errorLogout": "Error logging out",
-    "segments": "Segments"
+  "search": "Search",
+  "activities": "Activities",
+  "activitiesList": "List",
+  "summary": "Summary",
+  "gear": "Gear",
+  "health": "Health",
+  "profile": "Profile",
+  "settings": "Settings",
+  "login": "Login",
+  "logout": "Logout",
+  "errorLogout": "Error logging out",
+  "segments": "Segments"
 }

@@ -82,6 +82,8 @@ ACTIVITY_ID_TO_NAME = {
     32: "Stand up paddling",
     33: "Surf",
     34: "Track run",
+    35: "E-Bike ride",
+    36: "E-Mountain Bike ride"
     # Add other mappings as needed based on the full list in define_activity_type comments if required
     # "AlpineSki",
     # "BackcountrySki",
@@ -193,6 +195,16 @@ ACTIVITY_NAME_TO_ID.update(
         "track running": 34,
         "trackrun": 34,
         "track": 34,
+        "EBikeRide": 35,
+        "e_bike": 35,
+        "ebike": 35,
+        "e_bike_ride": 35,
+        "ebikeride": 35,
+        "EMountainBikeRide": 36,
+        "e_bike_mountain": 36,
+        "ebikemountain": 36,
+        "e_bike_mountain_ride": 36,
+        "ebikemountainride": 36,
     }
 )
 
@@ -277,7 +289,7 @@ def serialize_activity(activity: activities_schema.Activity):
         if dt.tzinfo is None:
             dt = dt.replace(tzinfo=ZoneInfo("UTC"))
         return dt.astimezone(timezone).strftime("%Y-%m-%dT%H:%M:%S")
-    
+
     def convert_to_datetime_if_string(dt):
         if isinstance(dt, str):
             return datetime.fromisoformat(dt)
@@ -289,9 +301,13 @@ def serialize_activity(activity: activities_schema.Activity):
         else ZoneInfo(os.environ.get("TZ", "UTC"))
     )
 
-    activity.start_time_tz_applied = make_aware_and_format(activity.start_time, timezone)
+    activity.start_time_tz_applied = make_aware_and_format(
+        activity.start_time, timezone
+    )
     activity.end_time_tz_applied = make_aware_and_format(activity.end_time, timezone)
-    activity.created_at_tz_applied = make_aware_and_format(activity.created_at, timezone)
+    activity.created_at_tz_applied = make_aware_and_format(
+        activity.created_at, timezone
+    )
 
     # Convert to datetime objects if they are strings before calling astimezone
     start_time_dt = convert_to_datetime_if_string(activity.start_time)
@@ -785,7 +801,7 @@ def calculate_activity_distances(activities: list[activities_schema.Activity]):
         for activity in activities:
             if activity.activity_type in [1, 2, 3, 34]:
                 run += activity.distance
-            elif activity.activity_type in [4, 5, 6, 7, 27, 28, 29]:
+            elif activity.activity_type in [4, 5, 6, 7, 27, 28, 29, 35, 36]:
                 bike += activity.distance
             elif activity.activity_type in [8, 9]:
                 swim += activity.distance
@@ -875,15 +891,15 @@ def location_based_on_coordinates(latitude, longitude) -> dict | None:
         }
 
     # Throttle requests according to configured rate limit
-    if core_config.GEOCODES_MIN_INTERVAL > 0:
-        with core_config.GEOCODES_LOCK:
+    if core_config.REVERSE_GEO_MIN_INTERVAL > 0:
+        with core_config.REVERSE_GEO_LOCK:
             now = time.monotonic()
-            interval = core_config.GEOCODES_MIN_INTERVAL - (
-                now - core_config.GEOCODES_LAST_CALL
+            interval = core_config.REVERSE_GEO_MIN_INTERVAL - (
+                now - core_config.REVERSE_GEO_LAST_CALL
             )
             if interval > 0:
                 time.sleep(interval)
-            core_config.GEOCODES_LAST_CALL = time.monotonic()
+            core_config.REVERSE_GEO_LAST_CALL = time.monotonic()
 
     # Make the request and get the response
     try:
@@ -892,10 +908,7 @@ def location_based_on_coordinates(latitude, longitude) -> dict | None:
         response = requests.get(url, headers=headers, timeout=10)
         response.raise_for_status()
 
-        if (
-            core_config.REVERSE_GEO_PROVIDER == "geocode"
-            or core_config.REVERSE_GEO_PROVIDER == "nominatim"
-        ):
+        if core_config.REVERSE_GEO_PROVIDER in ("geocode", "nominatim"):
             # Get the data from the response
             data = response.json().get("address", {})
             # Return the location based on the coordinates

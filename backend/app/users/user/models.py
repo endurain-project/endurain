@@ -3,6 +3,7 @@ from sqlalchemy import (
     Integer,
     String,
     Date,
+    Boolean
 )
 from sqlalchemy.orm import relationship
 from core.database import Base
@@ -76,10 +77,27 @@ class User(Base):
         default=1,
         comment="User currency (one digit)(1 - euro, 2 - dollar, 3 - pound)",
     )
+    mfa_enabled = Column(
+        Boolean,
+        nullable=False,
+        default=False,
+        comment="Whether MFA is enabled for this user",
+    )
+    mfa_secret = Column(
+        String(length=512),
+        nullable=True,
+        comment="User MFA secret for TOTP generation (encrypted at rest)",
+    )
 
     # Define a relationship to UsersSessions model
     users_sessions = relationship(
         "UsersSessions",
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
+    # Define a relationship to PasswordResetToken model
+    password_reset_tokens = relationship(
+        "PasswordResetToken",
         back_populates="user",
         cascade="all, delete-orphan",
     )
@@ -153,6 +171,13 @@ class User(Base):
     # Establish a one-to-many relationship with 'notifications'
     notifications = relationship(
         "Notification",
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
+
+    # Establish a one-to-many relationship with 'user_goals'
+    goals = relationship(
+        "UserGoal",
         back_populates="user",
         cascade="all, delete-orphan",
     )

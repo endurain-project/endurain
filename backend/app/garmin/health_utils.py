@@ -27,7 +27,7 @@ def fetch_and_process_bc_by_dates(
     try:
         # Fetch Garmin Connect body composition data for the specified date range
         garmin_bc = garminconnect_client.get_body_composition(
-            start_date.date(), end_date.date()
+            str(start_date.date()), str(end_date.date())
         )
     except Exception as err:
         # Log an informational event if no body composition were found

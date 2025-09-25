@@ -9,7 +9,7 @@
     </td>
     <td>{{ formatSegmentLocation(segment) }}</td>
     <td class="d-none d-md-table-cell">{{ segment.num_activities }}</td>
-    <td class="d-none d-md-table-cell">{{ formatDateTime(segment.most_recent_activity) }}</td>
+    <td class="d-none d-md-table-cell">{{ formatDateTime(t, segment.most_recent_activity) }}</td>
 </template>
 
 <script setup>

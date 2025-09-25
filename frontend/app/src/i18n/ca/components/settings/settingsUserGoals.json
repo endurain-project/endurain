@@ -1,0 +1,7 @@
+{
+  "addNewGoal": "Afegir nou objectiu",
+  "labelNumberOfGoals1": "Tens ",
+  "labelNumberOfGoals2": " objectiu(s) definit(s):",
+  "successGoalDeleted": "Objectiu esborrat correctament",
+  "errorFetchingGoals": "Error obtenint objectius"
+}

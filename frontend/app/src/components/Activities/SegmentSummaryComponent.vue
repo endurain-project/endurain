@@ -123,7 +123,7 @@
                     <br>
                     <span>
                         <router-link :to="{ name: 'activity', params: { id: lTime[0] }}" class="link-body-emphasis link-underline-opacity-0 link_underline-opacity-100-hover">
-                        {{ formatDateTime(lTime[1]) }}
+                        {{ formatDateTime(t, lTime[1]) }}
                         </router-link>
                     </span>
                 </div>
@@ -160,7 +160,7 @@
                     <br>
                     <span>
                         <router-link :to="{ name: 'activity', params: { id: fTime[0] }}" class="link-body-emphasis link-underline-opacity-0 link_underline-opacity-100-hover">
-                        {{ formatDateTime(fTime[1]) }}
+                        {{ formatDateTime(t, fTime[1]) }}
                         </router-link>
                     </span>
                 </div>
