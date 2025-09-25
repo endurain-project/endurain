@@ -91,7 +91,7 @@
           :class="{ active: activeSection === 'import' }" 
           @click.prevent="changeActive('import')"
         >
-          <font-awesome-icon :icon="['fas', 'fa-puzzle-piece']" />
+          <font-awesome-icon :icon="['fas', 'fa-upload']" />
           <span class="ms-1">{{ $t("settingsSideBar.importSection") }}</span>
         </a>
       </li>
