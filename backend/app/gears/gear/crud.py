@@ -309,7 +309,7 @@ def create_multiple_gears(gears: list[gears_schema.Gear], user_id: int, db: Sess
         seen = set()
         deduped: list[gears_schema.Gear] = []
         for gear in valid_gears:
-            nickname_normalized = str(gear.nickname).strip().lower()
+            nickname_normalized = str(gear.nickname).replace("+", " ").strip()
             if nickname_normalized not in seen:
                 seen.add(nickname_normalized)
                 deduped.append(gear)
