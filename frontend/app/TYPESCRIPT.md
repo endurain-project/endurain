@@ -75,6 +75,16 @@ npm run type-check
 
 The build process (`npm run build`) now includes type checking automatically.
 
+### Linting
+
+TypeScript files are configured to work with ESLint:
+
+```bash
+npm run lint
+```
+
+Note: The project uses ESLint 9 which requires migration from `.eslintrc.cjs` to `eslint.config.js`. The current ESLint configuration may need updates for full functionality.
+
 ### IDE Support
 
 TypeScript configuration is provided via `tsconfig.json`, which enables:
@@ -99,8 +109,67 @@ TypeScript is **optional** and migration can be done incrementally:
 2. Gradually migrate existing files when making significant changes
 3. No immediate action required for existing JavaScript files
 
+## Practical Examples
+
+### Migrating a JavaScript Utility to TypeScript
+
+Before (JavaScript):
+```javascript
+// src/utils/example.js
+export function calculateDistance(lat1, lon1, lat2, lon2) {
+  // ... implementation
+  return distance
+}
+```
+
+After (TypeScript):
+```typescript
+// src/utils/example.ts
+export function calculateDistance(
+  lat1: number,
+  lon1: number,
+  lat2: number,
+  lon2: number
+): number {
+  // ... implementation
+  return distance
+}
+```
+
+### Using Existing JavaScript Files from TypeScript
+
+TypeScript files can import and use existing JavaScript modules:
+
+```typescript
+// Import from existing JS service
+import { fetchUserProfile } from '@/services/profileService'
+
+// TypeScript provides type safety for your new code
+const profile = await fetchUserProfile(userId)
+```
+
+### Defining Types for API Responses
+
+```typescript
+// src/types/api.ts
+export interface Activity {
+  id: number
+  name: string
+  distance: number
+  duration: number
+  date: string
+}
+
+export interface ApiResponse<T> {
+  data: T
+  status: number
+  message?: string
+}
+```
+
 ## Important Notes
 
 - `allowJs: true` is enabled, so JavaScript and TypeScript can coexist
 - Existing JavaScript files will not show type errors
 - Type checking is strict for TypeScript files but permissive for JavaScript
+- The `@/` path alias works in both JavaScript and TypeScript files
