@@ -41,6 +41,12 @@ async function fetchWithRetry(url, options, responseType = 'json') {
       ) {
         throw error
       }
+      if (
+        url === 'mfa/verify' &&
+        error.message.includes('Invalid MFA code')
+      ) {
+        throw error
+      }
       try {
         await refreshAccessToken()
         return await attemptFetch(url, options, responseType)
