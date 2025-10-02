@@ -1,12 +1,12 @@
 files:
   - source: /frontend/app/src/i18n/us/*.json
-    translation: /frontend/app/src/i18n/%two_letters_code%/%file_name%.%file_extension%
+    translation: /frontend/app/src/i18n/%two_letters_code%/%original_file_name%
   - source: /frontend/app/src/i18n/us/components/*.json
-    translation: /frontend/app/src/i18n/%two_letters_code%/components/%file_name%.%file_extension%
+    translation: /frontend/app/src/i18n/%two_letters_code%/components/%original_file_name%
   - source: /frontend/app/src/i18n/us/gears/*.json
-    translation: /frontend/app/src/i18n/%two_letters_code%/gears/%file_name%.%file_extension%
+    translation: /frontend/app/src/i18n/%two_letters_code%/gears/%original_file_name%
   - source: /frontend/app/src/i18n/us/strava/*.json
-    translation: /frontend/app/src/i18n/%two_letters_code%/strava/%file_name%.%file_extension%
+    translation: /frontend/app/src/i18n/%two_letters_code%/strava/%original_file_name%
   - source: /frontend/app/src/i18n/us/components/activities/*.json
     translation: /frontend/app/src/i18n/%two_letters_code%/components/activities/%original_file_name%
   - source: /frontend/app/src/i18n/us/components/activities/modals/*.json
