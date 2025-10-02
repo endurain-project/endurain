@@ -2,6 +2,7 @@ import logging
 
 import core.config as core_config
 
+
 def setup_main_logger():
     """
     Sets up the main application logger and attaches a file handler to it, as well as to the Alembic and APScheduler loggers.
@@ -53,7 +54,9 @@ def get_main_logger():
     return logging.getLogger("main_logger")
 
 
-def print_to_log(message: str, log_level: str = "info", exc: Exception = None, context = None):
+def print_to_log(
+    message: str, log_level: str = "info", exc: Exception = None, context=None
+):
     """
     Logs a message at the specified log level using the main logger.
 
@@ -74,6 +77,24 @@ def print_to_log(message: str, log_level: str = "info", exc: Exception = None, c
         main_logger.warning(message)
     elif log_level == "debug":
         main_logger.debug(message)
+
+
+def print_to_console(message: str, log_level: str = "info"):
+    """
+    Prints a message to the console only (without logging to file).
+
+    Args:
+        message (str): The message to print.
+        log_level (str, optional): The log level to display ('info', 'error', 'warning', 'debug'). Defaults to "info".
+    """
+    if log_level == "info":
+        print(f"INFO:     {message}")
+    elif log_level == "error":
+        print(f"ERROR:    {message}")
+    elif log_level == "warning":
+        print(f"WARNING:  {message}")
+    elif log_level == "debug":
+        print(f"DEBUG:    {message}")
 
 
 def print_to_log_and_console(
