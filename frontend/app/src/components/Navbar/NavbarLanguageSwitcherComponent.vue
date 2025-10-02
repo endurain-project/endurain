@@ -7,9 +7,7 @@
       data-bs-toggle="dropdown"
       aria-expanded="false"
     >
-      <span :class="'fi fi-cn'" v-if="currentLanguage === 'zh-CN'"></span>
-      <span :class="'fi fi-tw'" v-else-if="currentLanguage === 'zh-TW'"></span>
-      <span :class="'fi fi-' + currentLanguage" v-else-if="currentLanguage !== 'ca'"></span>
+      <span :class="'fi fi-' + currentLanguage" v-if="currentLanguage !== 'ca'"></span>
       <span class="fi fi-es-ct" v-else></span>
     </a>
 
@@ -22,9 +20,7 @@
           :aria-pressed="currentLanguage === language.value ? 'true' : 'false'"
         >
           <span class="me-2">{{ language.label }}</span>
-          <span :class="'fi fi-cn'" v-if="language.value === 'zh-CN'"></span>
-          <span :class="'fi fi-tw'" v-else-if="language.value === 'zh-TW'"></span>
-          <span :class="'fi fi-' + language.value" v-else-if="language.value !== 'ca'"></span>
+          <span :class="'fi fi-' + language.value" v-if="language.value !== 'ca'"></span>
           <span class="fi fi-es-ct" v-else></span>
           <span v-if="currentLanguage === language.value" class="ms-3"
             ><font-awesome-icon :icon="['fas', 'check']"
@@ -42,8 +38,8 @@ import { useI18n } from 'vue-i18n'
 const { locale, t } = useI18n()
 const languages = computed(() => [
   { value: 'ca', label: t('generalItems.languageOption2') },
-  { value: 'zh-CN', label: t('generalItems.languageOption8') },
-  { value: 'zh-TW', label: t('generalItems.languageOption9') },
+  { value: 'cn', label: t('generalItems.languageOption8') },
+  { value: 'tw', label: t('generalItems.languageOption9') },
   { value: 'de', label: t('generalItems.languageOption4') },
   { value: 'fr', label: t('generalItems.languageOption5') },
   { value: 'nl', label: t('generalItems.languageOption6') },

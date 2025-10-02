@@ -1,37 +1,78 @@
-files:
-  - source: /frontend/app/src/i18n/us/*.json
-    translation: /frontend/app/src/i18n/%two_letters_code%/%original_file_name%
-  - source: /frontend/app/src/i18n/us/components/*.json
-    translation: /frontend/app/src/i18n/%two_letters_code%/components/%original_file_name%
-  - source: /frontend/app/src/i18n/us/gears/*.json
-    translation: /frontend/app/src/i18n/%two_letters_code%/gears/%original_file_name%
-  - source: /frontend/app/src/i18n/us/strava/*.json
-    translation: /frontend/app/src/i18n/%two_letters_code%/strava/%original_file_name%
-  - source: /frontend/app/src/i18n/us/components/activities/*.json
-    translation: /frontend/app/src/i18n/%two_letters_code%/components/activities/%original_file_name%
-  - source: /frontend/app/src/i18n/us/components/activities/modals/*.json
-    translation: /frontend/app/src/i18n/%two_letters_code%/components/activities/modals/%original_file_name%
-  - source: /frontend/app/src/i18n/us/components/followers/*.json
-    translation: /frontend/app/src/i18n/%two_letters_code%/components/followers/%original_file_name%
-  - source: /frontend/app/src/i18n/us/components/gears/*.json
-    translation: /frontend/app/src/i18n/%two_letters_code%/components/gears/%original_file_name%
-  - source: /frontend/app/src/i18n/us/components/health/*.json
-    translation: /frontend/app/src/i18n/%two_letters_code%/components/health/%original_file_name%
-  - source: /frontend/app/src/i18n/us/components/health/healthWeightZone/*.json
-    translation: /frontend/app/src/i18n/%two_letters_code%/components/health/healthWeightZone/%original_file_name%
-  - source: /frontend/app/src/i18n/us/components/navbar/*.json
-    translation: /frontend/app/src/i18n/%two_letters_code%/components/navbar/%original_file_name%
-  - source: /frontend/app/src/i18n/us/components/notifications/*.json
-    translation: /frontend/app/src/i18n/%two_letters_code%/components/notifications/%original_file_name%
-  - source: /frontend/app/src/i18n/us/components/settings/*.json
-    translation: /frontend/app/src/i18n/%two_letters_code%/components/settings/%original_file_name%
-  - source: /frontend/app/src/i18n/us/components/users/*.json
-    translation: /frontend/app/src/i18n/%two_letters_code%/components/users/%original_file_name%
-  - source: /frontend/app/src/i18n/us/components/settings/settingsGeneralZone/*.json
-    translation: /frontend/app/src/i18n/%two_letters_code%/components/settings/settingsGeneralZone/%original_file_name%
-  - source: /frontend/app/src/i18n/us/components/settings/settingsIntegrationsZone/*.json
-    translation: /frontend/app/src/i18n/%two_letters_code%/components/settings/settingsIntegrationsZone/%original_file_name%
-  - source: /frontend/app/src/i18n/us/components/settings/settingsUsersZone/*.json
-    translation: /frontend/app/src/i18n/%two_letters_code%/components/settings/settingsUsersZone/%original_file_name%
-  - source: /frontend/app/src/i18n/us/components/settings/settingsUserSessionsZone/*.json
-    translation: /frontend/app/src/i18n/%two_letters_code%/components/settings/settingsUserSessionsZone/%original_file_name%
+"project_id": "654570"
+
+"preserve_hierarchy": true
+
+"files": [
+  {
+    "source": "/frontend/app/src/i18n/us/*.json",
+    "translation": "/frontend/app/src/i18n/%two_letters_code%/%original_file_name%"
+  },
+  {
+    "source": "/frontend/app/src/i18n/us/components/*.json",
+    "translation": "/frontend/app/src/i18n/%two_letters_code%/components/%original_file_name%"
+  },
+  {
+    "source": "/frontend/app/src/i18n/us/gears/*.json",
+    "translation": "/frontend/app/src/i18n/%two_letters_code%/gears/%original_file_name%"
+  },
+  {
+    "source": "/frontend/app/src/i18n/us/strava/*.json",
+    "translation": "/frontend/app/src/i18n/%two_letters_code%/strava/%original_file_name%"
+  },
+  {
+    "source": "/frontend/app/src/i18n/us/components/activities/*.json",
+    "translation": "/frontend/app/src/i18n/%two_letters_code%/components/activities/%original_file_name%"
+  },
+  {
+    "source": "/frontend/app/src/i18n/us/components/activities/modals/*.json",
+    "translation": "/frontend/app/src/i18n/%two_letters_code%/components/activities/modals/%original_file_name%"
+  },
+  {
+    "source": "/frontend/app/src/i18n/us/components/followers/*.json",
+    "translation": "/frontend/app/src/i18n/%two_letters_code%/components/followers/%original_file_name%"
+  },
+  {
+    "source": "/frontend/app/src/i18n/us/components/gears/*.json",
+    "translation": "/frontend/app/src/i18n/%two_letters_code%/components/gears/%original_file_name%"
+  },
+  {
+    "source": "/frontend/app/src/i18n/us/components/health/*.json",
+    "translation": "/frontend/app/src/i18n/%two_letters_code%/components/health/%original_file_name%"
+  },
+  {
+    "source": "/frontend/app/src/i18n/us/components/health/healthWeightZone/*.json",
+    "translation": "/frontend/app/src/i18n/%two_letters_code%/components/health/healthWeightZone/%original_file_name%"
+  },
+  {
+    "source": "/frontend/app/src/i18n/us/components/navbar/*.json",
+    "translation": "/frontend/app/src/i18n/%two_letters_code%/components/navbar/%original_file_name%"
+  },
+  {
+    "source": "/frontend/app/src/i18n/us/components/notifications/*.json",
+    "translation": "/frontend/app/src/i18n/%two_letters_code%/components/notifications/%original_file_name%"
+  },
+  {
+    "source": "/frontend/app/src/i18n/us/components/settings/*.json",
+    "translation": "/frontend/app/src/i18n/%two_letters_code%/components/settings/%original_file_name%"
+  },
+  {
+    "source": "/frontend/app/src/i18n/us/components/users/*.json",
+    "translation": "/frontend/app/src/i18n/%two_letters_code%/components/users/%original_file_name%"
+  },
+  {
+    "source": "/frontend/app/src/i18n/us/components/settings/settingsGeneralZone/*.json",
+    "translation": "/frontend/app/src/i18n/%two_letters_code%/components/settings/settingsGeneralZone/%original_file_name%"
+  },
+  {
+    "source": "/frontend/app/src/i18n/us/components/settings/settingsIntegrationsZone/*.json",
+    "translation": "/frontend/app/src/i18n/%two_letters_code%/components/settings/settingsIntegrationsZone/%original_file_name%"
+  },
+  {
+    "source": "/frontend/app/src/i18n/us/components/settings/settingsUsersZone/*.json",
+    "translation": "/frontend/app/src/i18n/%two_letters_code%/components/settings/settingsUsersZone/%original_file_name%"
+  },
+  {
+    "source": "/frontend/app/src/i18n/us/components/settings/settingsUserSessionsZone/*.json",
+    "translation": "/frontend/app/src/i18n/%two_letters_code%/components/settings/settingsUserSessionsZone/%original_file_name%"
+  }
+]

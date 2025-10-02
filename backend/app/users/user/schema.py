@@ -24,9 +24,9 @@ class Language(Enum):
     An enumeration representing supported languages for the application.
 
     Members:
-        CATALAN: Catalan language code ("ca").
-        CHINESE_SIMPLIFIED: Simplified Chinese language code ("zh-CN").
-        CHINESE_TRADITIONAL: Traditional Chinese language code ("zh-TW").
+        CATALAN: Catalan language code ("ca-ES").
+        CHINESE_SIMPLIFIED: Simplified Chinese language code ("cn").
+        CHINESE_TRADITIONAL: Traditional Chinese language code ("tw").
         DUTCH: Dutch language code ("nl").
         GERMAN: German language code ("de").
         FRENCH: French language code ("fr").
@@ -36,8 +36,8 @@ class Language(Enum):
     """
 
     CATALAN = "ca"
-    CHINESE_SIMPLIFIED = "zh-CN"
-    CHINESE_TRADITIONAL = "zh-TW"
+    CHINESE_SIMPLIFIED = "cn"
+    CHINESE_TRADITIONAL = "tw"
     DUTCH = "nl"
     GERMAN = "de"
     FRENCH = "fr"

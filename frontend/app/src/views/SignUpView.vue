@@ -66,8 +66,8 @@
             <div class="form-floating mb-3">
               <select class="form-select" name="preferredLanguage" v-model="signUpPreferredLanguage" required>
                 <option value="ca">{{ $t('generalItems.languageOption2') }}</option>
-                <option value="zh-CN">{{ $t('generalItems.languageOption8') }}</option>
-                <option value="zh-TW">{{ $t('generalItems.languageOption9') }}</
+                <option value="cn">{{ $t('generalItems.languageOption8') }}</option>
+                <option value="tw">{{ $t('generalItems.languageOption9') }}</option>
                 <option value="de">{{ $t('generalItems.languageOption4') }}</option>
                 <option value="fr">{{ $t('generalItems.languageOption5') }}</option>
                 <option value="nl">{{ $t('generalItems.languageOption6') }}</option>
