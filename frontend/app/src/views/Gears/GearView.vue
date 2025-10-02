@@ -85,7 +85,7 @@
             <div class="hstack justify-content-center">
               <span
                 class="badge bg-success-subtle border border-success-subtle text-success-emphasis align-middle"
-                v-if="gear?.active == true"
+                v-if="gear?.is_active == 1"
               >
                 {{ $t('gearView.gearIsActiveBadge') }}
               </span>
@@ -476,7 +476,7 @@ async function updateGearActivities() {
 
 function updateGearComponentsActive() {
   gearComponentsActive.value = gearComponents.value.filter(
-    (gearComponent) => gearComponent.active === true
+    (gearComponent) => gearComponent.is_active === true
   )
   updateTotalCosts()
 }

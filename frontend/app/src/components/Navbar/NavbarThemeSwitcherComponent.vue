@@ -20,10 +20,10 @@
           @click="changeTheme(theme.value)"
           :aria-pressed="themeStore.theme === theme.value ? 'true' : 'false'"
         >
-          <span v-if="theme.value == 'dark'" class="me-1"
+          <span v-if="theme.label == 'Dark'" class="me-1"
             ><font-awesome-icon :icon="['fas', 'moon']"
           /></span>
-          <span v-else-if="theme.value == 'light'"
+          <span v-else-if="theme.label == 'Light'"
             ><font-awesome-icon :icon="['fas', 'sun']"
           /></span>
           <span v-else><font-awesome-icon :icon="['fas', 'circle-half-stroke']" /></span>

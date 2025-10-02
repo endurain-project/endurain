@@ -35,7 +35,7 @@
         </div>
       </div>
       <div>
-        <LoadingComponent class="mt-3" v-if="isLoading" />
+        <LoadingComponent v-if="isLoading" />
         <div v-else>
           <!-- Checking if usersArray is loaded and has length -->
           <div class="mt-3" v-if="usersArray && usersArray.length">
@@ -68,7 +68,6 @@
                 :user="user"
                 @userDeleted="updateUserList"
                 @editedUser="editUserList"
-                @approvedUser="approvedUserList"
               />
             </ul>
 
@@ -93,7 +92,6 @@
 
 <script setup>
 import { ref, onMounted, watch } from 'vue'
-import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { push } from 'notivue'
 import { debounce } from 'lodash'
@@ -106,7 +104,6 @@ import { users } from '@/services/usersService'
 import { useServerSettingsStore } from '@/stores/serverSettingsStore'
 
 const { t } = useI18n()
-const route = useRoute()
 const serverSettingsStore = useServerSettingsStore()
 const isLoading = ref(false)
 const isUsersUpdatingLoading = ref(false)
@@ -125,13 +122,9 @@ const performSearch = debounce(async () => {
     return
   }
   try {
-    isLoading.value = true
     usersArray.value = await users.getUserContainsUsername(searchUsername.value)
-    usersNumber.value = usersArray.value.length
   } catch (error) {
     push.error(`${t('settingsUsersZone.errorFetchingUsers')} - ${error}`)
-  } finally {
-    isLoading.value = false
   }
 }, 500)
 
@@ -175,25 +168,14 @@ function editUserList(editedUser) {
   usersArray.value[index] = editedUser
 }
 
-function approvedUserList(userID) {
-  const index = usersArray.value.findIndex((user) => user.id === userID)
-  usersArray.value[index].pending_admin_approval = false
-  usersArray.value[index].email_verified = true
-  usersArray.value[index].active = true
-}
-
 function setIsLoadingNewUser(state) {
   isLoadingNewUser.value = state
 }
 
 onMounted(async () => {
   isLoading.value = true
-  if (route.query.username) {
-    searchUsername.value = route.query.username
-  } else {
-    await fetchUsers()
-    isLoading.value = false
-  }
+  await fetchUsers()
+  isLoading.value = false
 })
 
 watch(searchUsername, performSearch, { immediate: false })

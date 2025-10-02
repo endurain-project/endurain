@@ -16,10 +16,8 @@ import users.user_privacy_settings.crud as users_privacy_settings_crud
 
 import health_targets.crud as health_targets_crud
 
-import sign_up_tokens.utils as sign_up_tokens_utils
 import session.security as session_security
 
-import core.apprise as core_apprise
 import core.database as core_database
 import core.dependencies as core_dependencies
 
@@ -42,7 +40,7 @@ async def read_users_number(
 
 @router.get(
     "/page_number/{page_number}/num_records/{num_records}",
-    response_model=list[users_schema.UserRead] | None,
+    response_model=list[users_schema.User] | None,
 )
 async def read_users_all_pagination(
     page_number: int,
@@ -64,7 +62,7 @@ async def read_users_all_pagination(
 
 @router.get(
     "/username/contains/{username}",
-    response_model=list[users_schema.UserRead] | None,
+    response_model=list[users_schema.User] | None,
 )
 async def read_users_contain_username(
     username: str,
@@ -82,7 +80,7 @@ async def read_users_contain_username(
 
 @router.get(
     "/username/{username}",
-    response_model=users_schema.UserRead | None,
+    response_model=users_schema.User | None,
 )
 async def read_users_username(
     username: str,
@@ -100,7 +98,7 @@ async def read_users_username(
 
 @router.get(
     "/email/{email}",
-    response_model=users_schema.UserRead | None,
+    response_model=users_schema.User | None,
 )
 async def read_users_email(
     email: str,
@@ -116,7 +114,7 @@ async def read_users_email(
     return users_crud.get_user_by_email(email, db)
 
 
-@router.get("/id/{user_id}", response_model=users_schema.UserRead)
+@router.get("/id/{user_id}", response_model=users_schema.User)
 async def read_users_id(
     user_id: int,
     validate_id: Annotated[Callable, Depends(users_dependencies.validate_user_id)],
@@ -132,7 +130,7 @@ async def read_users_id(
     return users_crud.get_user_by_id(user_id, db)
 
 
-@router.post("", response_model=users_schema.UserRead, status_code=201)
+@router.post("", response_model=users_schema.User, status_code=201)
 async def create_user(
     user: users_schema.UserCreate,
     check_scopes: Annotated[
@@ -186,7 +184,7 @@ async def upload_user_image(
 async def edit_user(
     user_id: int,
     validate_id: Annotated[Callable, Depends(users_dependencies.validate_user_id)],
-    user_attributtes: users_schema.UserRead,
+    user_attributtes: users_schema.User,
     check_scopes: Annotated[
         Callable, Security(session_security.check_scopes, scopes=["users:write"])
     ],
@@ -200,32 +198,6 @@ async def edit_user(
 
     # Return success message
     return {"detail": f"User ID {user_attributtes.id} updated successfully"}
-
-
-@router.put("/{user_id}/approve")
-async def approve_user(
-    user_id: int,
-    validate_id: Annotated[Callable, Depends(users_dependencies.validate_user_id)],
-    check_scopes: Annotated[
-        Callable, Security(session_security.check_scopes, scopes=["users:write"])
-    ],
-    email_service: Annotated[
-        core_apprise.AppriseService,
-        Depends(core_apprise.get_email_service),
-    ],
-    db: Annotated[
-        Session,
-        Depends(core_database.get_db),
-    ],
-):
-    # Approve the user in the database
-    users_crud.approve_user(user_id, db)
-
-    # Send approval email
-    await sign_up_tokens_utils.send_sign_up_approval_email(user_id, email_service, db)
-
-    # Return success message
-    return {"message": f"User ID {user_id} approved successfully."}
 
 
 @router.put("/{user_id}/password")

@@ -268,7 +268,7 @@
                 class="form-select"
                 name="gearComponentIsActiveAddEdit"
                 :disabled="newEditGearComponentRetiredDate"
-                v-model="newEditGearComponentActive"
+                v-model="newEditGearComponentIsActive"
                 required
               >
                 <option :value="true">{{ $t('generalItems.yes') }}</option>
@@ -359,7 +359,7 @@ const newEditGearComponentExpectedDistanceMiles = ref(null)
 const newEditGearComponentExpectedTime = ref(null)
 const newEditGearComponentPurchaseValue = ref(null)
 const newEditGearComponentRetiredDate = ref(null)
-const newEditGearComponentActive = ref(true)
+const newEditGearComponentIsActive = ref(true)
 
 onMounted(() => {
   newEditGearComponentUserId.value = props.gear.user_id
@@ -384,7 +384,7 @@ onMounted(() => {
     }
     newEditGearComponentPurchaseValue.value = props.gearComponent.purchase_value
     newEditGearComponentRetiredDate.value = props.gearComponent.retired_date
-    newEditGearComponentActive.value = props.gearComponent.active
+    newEditGearComponentIsActive.value = props.gearComponent.is_active
   } else {
     if (props.gear.gear_type === 1) {
       newEditGearComponentType.value = 'back_break_oil'
@@ -400,10 +400,10 @@ onMounted(() => {
 
 function updateIsActiveBasedOnRetiredDate() {
   if (newEditGearComponentRetiredDate.value && newEditGearComponentRetiredDate.value !== '') {
-    newEditGearComponentActive.value = false
+    newEditGearComponentIsActive.value = false
   } else {
     newEditGearComponentRetiredDate.value = null
-    newEditGearComponentActive.value = true
+    newEditGearComponentIsActive.value = true
   }
 }
 
@@ -479,7 +479,7 @@ async function submitEditGearComponentForm() {
       retired_date: newEditGearComponentRetiredDate.value
         ? newEditGearComponentRetiredDate.value
         : null,
-      active: newEditGearComponentActive.value,
+      is_active: newEditGearComponentIsActive.value,
       expected_kms: expected_kms,
       purchase_value: newEditGearComponentPurchaseValue.value
     }

@@ -13,7 +13,7 @@ import core.database as core_database
 router = APIRouter()
 
 
-@router.get("/id/{user_id}", response_model=users_schema.UserRead)
+@router.get("/id/{user_id}", response_model=users_schema.User)
 async def read_users_id(
     user_id: int,
     validate_id: Annotated[Callable, Depends(users_dependencies.validate_user_id)],

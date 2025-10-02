@@ -208,7 +208,7 @@ async def upload_profile_image(
 
 @router.put("")
 async def edit_user(
-    user_attributtes: users_schema.UserRead,
+    user_attributtes: users_schema.User,
     token_user_id: Annotated[
         int,
         Depends(session_security.get_user_id_from_access_token),
@@ -222,7 +222,7 @@ async def edit_user(
     Edits the attributes of an existing user in the database.
 
     Args:
-        user_attributtes (users_schema.UserRead): The updated user attributes to be saved.
+        user_attributtes (users_schema.User): The updated user attributes to be saved.
         token_user_id (int): The ID of the user extracted from the access token.
         db (Session): The database session dependency.
 
@@ -836,7 +836,7 @@ async def import_profile_data(
                         "photo_path"
                     ] = f"data/user_images/{token_user_id}.{extension}"
                 # convert user data to User schema
-                user = users_schema.UserRead(**results["user_data"])
+                user = users_schema.User(**results["user_data"])
                 # Update user
                 users_crud.edit_user(token_user_id, user, db)
                 counts["user"] += 1

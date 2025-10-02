@@ -5,11 +5,10 @@
   "unitsImperial": "Imperial",
   "currencyLabel": "Default currency",
   "numRecordsLabel": "Number of records per page",
-  "signupTitle": "Sign-up",
-  "adminApprovalLabel": "Admin approval",
-  "emailConfirmationLabel": "Email confirmation",
   "publicShareableLinksLabel": "Public shareable links",
-  "enabledLabel": "Enabled",
+  "publicShareableLinksEnabledLabel": "Enabled",
+  "publicShareableLinksTrue": "True",
+  "publicShareableLinksFalse": "False",
   "serverSettingsPublicShareableLinksEnabledWarningAlert": "Enabling this will make all publicly posted activities viewable without authentication.",
   "publicShareableLinksShowUserInfoLabel": "Show user info",
   "serverSettingsPublicShareableLinksShowUserWarningAlert": "Enabling this will display user information on all public links",
@@ -24,6 +23,5 @@
   "processingPhotoDelete": "Processing photo delete",
   "successPhotoDelete": "Photo deleted successfully",
   "successUpdateServerSettings": "Server settings updated successfully",
-  "errorUpdateServerSettings": "Error updating server settings",
-  "errorFetchingServerSettings": "Error fetching server settings"
+  "errorUpdateServerSettings": "Error updating server settings"
 }

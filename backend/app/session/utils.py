@@ -22,7 +22,7 @@ import users.user.schema as users_schema
 
 
 def create_session_object(
-    user: users_schema.UserRead,
+    user: users_schema.User,
     request: Request,
     refresh_token: str,
     refresh_token_exp: datetime,
@@ -92,9 +92,9 @@ def authenticate_user(username: str, password: str, db: Session):
     return user
 
 
-def create_tokens(user: users_schema.UserRead):
+def create_tokens(user: users_schema.User):
     # Check user access level and set scopes accordingly
-    if user.access_type == users_schema.UserAccessType.REGULAR:
+    if user.access_type == session_constants.REGULAR_ACCESS:
         scopes = session_constants.REGULAR_ACCESS_SCOPES
     else:
         scopes = session_constants.ADMIN_ACCESS_SCOPES
@@ -165,7 +165,7 @@ def create_response_with_tokens(
 
 
 def create_session(
-    user: users_schema.UserRead,
+    user: users_schema.User,
     request: Request,
     refresh_token: str,
     db: Session,

@@ -112,7 +112,7 @@ def validate_token_expiration(token: Annotated[str, Depends(oauth2_scheme)]) -> 
 
         # Validate token expiration
         claims_requests.validate(payload.claims)
-    except jwt.InvalidClaimError as claims_err:
+    except jwt.JWTClaimsError as claims_err:
         core_logger.print_to_log(
             f"JWT claims validation error: {claims_err}",
             "error",

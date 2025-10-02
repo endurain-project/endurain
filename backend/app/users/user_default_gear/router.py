@@ -1,6 +1,6 @@
-from typing import Annotated
+from typing import Annotated, Callable
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Security
 from sqlalchemy.orm import Session
 
 import users.user_default_gear.schema as user_default_gear_schema
@@ -40,6 +40,4 @@ async def edit_user_default_gear(
     ],
 ):
     # Update the user default gear in the database
-    return user_default_gear_crud.edit_user_default_gear(
-        user_default_gear, token_user_id, db
-    )
+    return user_default_gear_crud.edit_user_default_gear(user_default_gear, token_user_id, db)

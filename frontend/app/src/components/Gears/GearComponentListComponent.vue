@@ -116,7 +116,7 @@
         /></a>
       </span>
 
-      <div v-if="gearComponent.active == false" class="d-flex justify-content-end">
+      <div v-if="gearComponent.is_active == 0" class="d-flex justify-content-end">
         <span class="badge bg-danger-subtle border border-danger-subtle text-danger-emphasis">
           {{ $t('gearComponentListComponent.gearComponentListGearComponentIsInactiveBadge') }}
         </span>

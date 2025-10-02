@@ -8,10 +8,11 @@ import {
 import { fetchPublicGetRequest } from '@/utils/servicePublicUtils'
 
 export const serverSettings = {
-  // Server settings authenticated
-  getServerSettings() {
-    return fetchGetRequest('server_settings')
+  // Server settings public
+  getPublicServerSettings() {
+    return fetchPublicGetRequest('public/server_settings')
   },
+  // Server settings authenticated
   editServerSettings(data) {
     return fetchPutRequest('server_settings', data)
   },
@@ -23,9 +24,5 @@ export const serverSettings = {
   },
   deleteLoginPhotoFile() {
     return fetchDeleteRequest('server_settings/upload/login')
-  },
-  // Server settings public
-  getPublicServerSettings() {
-    return fetchPublicGetRequest('public/server_settings')
   }
 }

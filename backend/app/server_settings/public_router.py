@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 import server_settings.schema as server_settings_schema
-import server_settings.utils as server_settings_utils
+import server_settings.crud as server_settings_crud
 
 import core.database as core_database
 
@@ -12,7 +12,7 @@ import core.database as core_database
 router = APIRouter()
 
 
-@router.get("", response_model=server_settings_schema.ServerSettingsReadPublic)
+@router.get("", response_model=server_settings_schema.ServerSettings)
 async def read_public_server_settings(
     db: Annotated[
         Session,
@@ -20,9 +20,4 @@ async def read_public_server_settings(
     ],
 ):
     # Get the server_settings from the database
-    server_settings = server_settings_utils.get_server_settings(db)
-
-    delattr(server_settings, "signup_require_admin_approval")
-    delattr(server_settings, "signup_require_email_verification")
-
-    return server_settings
+    return server_settings_crud.get_server_settings(db)

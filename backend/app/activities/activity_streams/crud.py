@@ -11,7 +11,7 @@ import activities.activity.crud as activity_crud
 import activities.activity.models as activity_models
 import activities.activity.schema as activities_schema
 
-import server_settings.utils as server_settings_utils
+import server_settings.crud as server_settings_crud
 
 import users.user.crud as users_crud
 
@@ -167,10 +167,10 @@ def get_activities_streams(
 def get_public_activity_streams(activity_id: int, db: Session):
     try:
         # Check if public sharable links are enabled in server settings
-        server_settings = server_settings_utils.get_server_settings(db)
+        server_settings = server_settings_crud.get_server_settings(db)
 
         # Return None if public sharable links are disabled
-        if not server_settings.public_shareable_links:
+        if not server_settings or not server_settings.public_shareable_links:
             return None
 
         activity = activity_crud.get_activity_by_id_if_is_public(activity_id, db)
@@ -440,10 +440,10 @@ def transform_activity_streams_hr(activity_stream, activity, db):
 def get_public_activity_stream_by_type(activity_id: int, stream_type: int, db: Session):
     try:
         # Check if public sharable links are enabled in server settings
-        server_settings = server_settings_utils.get_server_settings(db)
+        server_settings = server_settings_crud.get_server_settings(db)
 
         # Return None if public sharable links are disabled
-        if not server_settings.public_shareable_links:
+        if not server_settings or not server_settings.public_shareable_links:
             return None
 
         activity = activity_crud.get_activity_by_id_if_is_public(activity_id, db)

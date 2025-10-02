@@ -59,11 +59,8 @@ class GearComponents(Base):
         nullable=True,
         comment="Gear component retired date (DateTime)",
     )
-    active = Column(
-        Boolean,
-        nullable=False,
-        default=False,
-        comment="Whether the gear component is active (true - yes, false - no)",
+    is_active = Column(
+        Boolean, nullable=False, default=False, comment="Is gear component active"
     )
     expected_kms = Column(
         Integer,

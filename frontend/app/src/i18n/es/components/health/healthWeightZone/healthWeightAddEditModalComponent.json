@@ -1,8 +1,8 @@
 {
-    "addWeightModalTitle": "Añadir peso",
-    "editWeightModalTitle": "Editar peso",
-    "addWeightWeightLabel": "Peso",
-    "addWeightDateLabel": "Fecha",
-    "successAddWeight": "Peso agregado",
-    "errorAddWeight": "Error al añadir peso"
+  "addWeightModalTitle": "Añadir peso",
+  "editWeightModalTitle": "Editar peso",
+  "addWeightWeightLabel": "Peso",
+  "addWeightDateLabel": "Fecha",
+  "successAddWeight": "Peso agregado",
+  "errorAddWeight": "Error al añadir peso"
 }

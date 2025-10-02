@@ -8,7 +8,7 @@ import { formatDateMed, formatTime, formatSecondsToMinutes } from '@/utils/dateT
  */
 const ACTIVITY_TYPES = [
   1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27,
-  28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39
+  28, 29, 30, 31, 32, 33, 34, 35, 36
 ]
 
 /**
@@ -57,10 +57,7 @@ const activityLabelMap = {
   33: (t) => t('activityItems.surf'),
   34: (t) => t('activityItems.trackRun'),
   35: (t) => t('activityItems.ebikeRide'),
-  36: (t) => t('activityItems.ebikeMountainRide'),
-  37: (t) => t('activityItems.iceSkate'),
-  38: (t) => t('activityItems.soccer'),
-  39: (t) => t('activityItems.padel')
+  36: (t) => t('activityItems.ebikeMountainRide')
 }
 
 /**
@@ -370,8 +367,7 @@ export function activityTypeIsRacquet(activity) {
     activity.activity_type === 23 ||
     activity.activity_type === 24 ||
     activity.activity_type === 25 ||
-    activity.activity_type === 26 ||
-    activity.activity_type === 39
+    activity.activity_type === 26
   )
 }
 
@@ -380,7 +376,7 @@ export function activityTypeIsRacquet(activity) {
  *
  * @param {Object} activity - The activity object to check.
  * @param {number} activity.activity_type - The type identifier of the activity.
- * @returns {boolean} Returns true if the activity is not racquet-related (types 21, 22, 23, 24, 25, 26, or 39), otherwise false.
+ * @returns {boolean} Returns true if the activity is not racquet-related (types 21, 22, 23, 24, 25, or 26), otherwise false.
  */
 export function activityTypeNotRacquet(activity) {
   return (
@@ -389,8 +385,7 @@ export function activityTypeNotRacquet(activity) {
     activity.activity_type !== 23 &&
     activity.activity_type !== 24 &&
     activity.activity_type !== 25 &&
-    activity.activity_type !== 26 &&
-    activity.activity_type !== 39
+    activity.activity_type !== 26
   )
 }
 
@@ -707,10 +702,7 @@ export function getIcon(typeId) {
     33: ['fas', 'person-snowboarding'],
     34: ['fas', 'person-running'], // Track run icon might be better if available
     35: ['fas', 'person-biking'],
-    36: ['fas', 'person-biking'],
-    37: ['fas', 'person-skating'],
-    38: ['fas', 'futbol'],
-    39: ['fas', 'table-tennis-paddle-ball']
+    36: ['fas', 'person-biking']
   }
 
   return iconMap[typeId] || ['fas', 'dumbbell']

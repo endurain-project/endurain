@@ -30,7 +30,6 @@ import server_settings.public_router as server_settings_public_router
 import server_settings.router as server_settings_router
 import session.router as session_router
 import session.security as session_security
-import sign_up_tokens.router as sign_up_tokens_router
 import strava.router as strava_router
 import users.user.router as users_router
 import users.user_goals.router as user_goals_router
@@ -162,11 +161,6 @@ router.include_router(
     session_router.router,
     prefix=core_config.ROOT_PATH,
     tags=["sessions"],
-)
-router.include_router(
-    sign_up_tokens_router.router,
-    prefix=core_config.ROOT_PATH,
-    tags=["sign_up_tokens"],
 )
 router.include_router(
     strava_router.router,

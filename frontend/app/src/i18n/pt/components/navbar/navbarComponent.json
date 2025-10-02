@@ -1,13 +1,13 @@
 {
-    "search": "Procurar",
-    "activities": "Atividades",
-    "activitiesList": "Lista",
-    "summary": "Sumário",
-    "gear": "Equipamento",
-    "health": "Saúde",
-    "profile": "Perfil",
-    "settings": "Definições",
-    "login": "Iniciar sessão",
-    "logout": "Encerrar sessão",
-    "errorLogout": "Erro ao terminar sessão"
+  "search": "Procurar",
+  "activities": "Atividades",
+  "activitiesList": "Lista",
+  "summary": "Sumário",
+  "gear": "Equipamento",
+  "health": "Saúde",
+  "profile": "Perfil",
+  "settings": "Definições",
+  "login": "Iniciar sessão",
+  "logout": "Encerrar sessão",
+  "errorLogout": "Erro ao terminar sessão"
 }

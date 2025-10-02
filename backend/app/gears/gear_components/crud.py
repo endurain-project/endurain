@@ -117,7 +117,7 @@ def create_gear_component(
             brand=gear_component.brand,
             model=gear_component.model,
             purchase_date=gear_component.purchase_date,
-            active=True,
+            is_active=True,
             expected_kms=gear_component.expected_kms,
             purchase_value=gear_component.purchase_value,
         )

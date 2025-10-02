@@ -204,13 +204,13 @@
               required
             >
               <option :value="1">
-                {{ $t('generalItems.genderMale') }}
+                {{ $t('usersAddEditUserModalComponent.addEditUserModalGenderOption1') }}
               </option>
               <option :value="2">
-                {{ $t('generalItems.genderFemale') }}
+                {{ $t('usersAddEditUserModalComponent.addEditUserModalGenderOption2') }}
               </option>
               <option :value="3">
-                {{ $t('generalItems.genderUnspecified') }}
+                {{ $t('usersAddEditUserModalComponent.addEditUserModalGenderOption3') }}
               </option>
             </select>
             <!-- units fields -->
@@ -250,18 +250,18 @@
                   }})</b
                 ></label
               >
-              <div class="input-group">
-                <input
-                  class="form-control"
-                  type="number"
-                  name="userHeightAddEditCms"
-                  :placeholder="
-                    $t('usersAddEditUserModalComponent.addEditUserModalHeightPlaceholder')
-                  "
-                  v-model="newEditUserHeightCms"
-                />
-                <span class="input-group-text">{{ $t('generalItems.unitsCm') }}</span>
-              </div>
+              <input
+                class="form-control"
+                type="number"
+                name="userHeightAddEditCms"
+                :placeholder="
+                  $t('usersAddEditUserModalComponent.addEditUserModalHeightPlaceholder') +
+                  ' (' +
+                  $t('generalItems.unitsCm') +
+                  ')'
+                "
+                v-model="newEditUserHeightCms"
+              />
             </div>
             <div v-else>
               <label for="userHeightAddEditFeetInches"
@@ -279,14 +279,17 @@
                   aria-describedby="validationFeetFeedback"
                   name="userHeightAddEditFeet"
                   :placeholder="
-                    $t('usersAddEditUserModalComponent.addEditUserModalHeightPlaceholder')
+                    $t('usersAddEditUserModalComponent.addEditUserModalHeightPlaceholder') +
+                    ' (' +
+                    $t('generalItems.unitsFeet') +
+                    ')'
                   "
                   v-model="newEditUserHeightFeet"
                   min="0"
                   max="10"
                   step="1"
                 />
-                <span class="input-group-text">{{ $t('generalItems.unitsFeet') }}</span>
+                <span class="input-group-text">’</span>
                 <input
                   class="form-control"
                   :class="{ 'is-invalid': !isInchesValid }"
@@ -294,14 +297,17 @@
                   aria-describedby="validationInchesFeedback"
                   name="userHeightAddEditInches"
                   :placeholder="
-                    $t('usersAddEditUserModalComponent.addEditUserModalHeightPlaceholder')
+                    $t('usersAddEditUserModalComponent.addEditUserModalHeightPlaceholder') +
+                    ' (' +
+                    $t('generalItems.unitsInches') +
+                    ')'
                   "
                   v-model="newEditUserHeightInches"
                   min="0"
                   max="11"
                   step="1"
                 />
-                <span class="input-group-text">{{ $t('generalItems.unitsInches') }}</span>
+                <span class="input-group-text">’’</span>
                 <div id="validationFeetFeedback" class="invalid-feedback" v-if="!isFeetValid">
                   {{ $t('usersAddEditUserModalComponent.addEditUserModalFeetValidationLabel') }}
                 </div>
@@ -377,24 +383,24 @@
                 </option>
               </select>
             </div>
-            <!-- user active fields -->
+            <!-- user is_active fields -->
             <div v-if="action != 'profile'">
-              <label for="userActiveAddEdit"
+              <label for="userIsActiveAddEdit"
                 ><b
                   >* {{ $t('usersAddEditUserModalComponent.addEditUserModalIsActiveLabel') }}</b
                 ></label
               >
               <select
                 class="form-select"
-                name="userActiveAddEdit"
-                v-model="newEditUserActive"
+                name="userIsActiveAddEdit"
+                v-model="newEditUserIsActive"
                 required
               >
-                <option :value="true">
-                  {{ $t('generalItems.yes') }}
+                <option :value="1">
+                  {{ $t('usersAddEditUserModalComponent.addEditUserModalIsActiveOption1') }}
                 </option>
-                <option :value="false">
-                  {{ $t('generalItems.no') }}
+                <option :value="2">
+                  {{ $t('usersAddEditUserModalComponent.addEditUserModalIsActiveOption2') }}
                 </option>
               </select>
             </div>
@@ -502,7 +508,7 @@ const isInchesValid = computed(
 )
 const newEditUserPreferredLanguage = ref('us')
 const newEditUserAccessType = ref(1)
-const newEditUserActive = ref(true)
+const newEditUserIsActive = ref(1)
 const newEditUserPhotoPath = ref(null)
 const isUsernameExists = ref(true)
 const isEmailExists = ref(true)
@@ -539,7 +545,7 @@ if (props.user) {
   newEditUserPreferredLanguage.value = props.user.preferred_language
   newEditUserFirstDayOfWeek.value = props.user.first_day_of_week
   newEditUserAccessType.value = props.user.access_type
-  newEditUserActive.value = props.user.active
+  newEditUserIsActive.value = props.user.is_active
   newEditUserPhotoPath.value = props.user.photo_path
   if (props.user.height) {
     const { feet, inches } = cmToFeetInches(props.user.height)
@@ -647,7 +653,7 @@ async function submitAddUserForm() {
         access_type: newEditUserAccessType.value,
         photo_path: null,
         first_day_of_week: newEditUserFirstDayOfWeek.value,
-        active: newEditUserActive.value,
+        is_active: newEditUserIsActive.value,
         password: newUserPassword.value
       }
       const createdUser = await users.createUser(data)
@@ -691,7 +697,7 @@ async function submitEditUserForm() {
       first_day_of_week: newEditUserFirstDayOfWeek.value,
       access_type: newEditUserAccessType.value,
       photo_path: newEditUserPhotoPath.value,
-      active: newEditUserActive.value
+      is_active: newEditUserIsActive.value
     }
     if (newEditUserPhotoFile.value) {
       try {

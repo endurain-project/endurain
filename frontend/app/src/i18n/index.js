@@ -40,7 +40,6 @@ const componentPaths = {
   navbarBottomMobileComponent: 'components/navbar/navbarBottomMobileComponent.json',
   navbarComponent: 'components/navbar/navbarComponent.json',
   // Notifications components
-  adminNewSignUpApprovalRequestNotificationComponent: 'components/notifications/adminNewSignUpApprovalRequestNotificationComponent.json',
   navbarNotificationsComponent: 'components/notifications/navbarNotificationsComponent.json',
   newAcceptedRequestNotificationComponent:
     'components/notifications/newAcceptedRequestNotificationComponent.json',
@@ -60,7 +59,6 @@ const componentPaths = {
   settingsUserProfileZone: 'components/settings/settingsUserProfileZoneComponent.json',
   settingsSecurityZone: 'components/settings/settingsSecurityZoneComponent.json',
   settingsIntegrationsZone: 'components/settings/settingsIntegrationsZoneComponent.json',
-  settingsImportZone: 'components/settings/settingsImportZoneComponent.json',
   garminConnectLoginModalComponent:
     'components/settings/settingsIntegrationsZone/garminConnectLoginModalComponent.json',
   usersAddEditUserModalComponent:
@@ -100,9 +98,7 @@ const componentPaths = {
   settingsView: 'settingsView.json',
   userView: 'userView.json',
   summaryView: 'summaryView.json',
-  resetPassword: 'resetPassword.json',
-  signupView: 'signupView.json',
-  emailVerificationView: 'emailVerificationView.json'
+  resetPassword: 'resetPassword.json'
 }
 
 // Reverse map: relative path -> semantic key

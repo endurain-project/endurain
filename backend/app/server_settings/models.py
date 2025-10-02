@@ -42,23 +42,5 @@ class ServerSettings(Base):
         default=25,
         comment="Number of records per page in lists",
     )
-    signup_enabled = Column(
-        Boolean,
-        nullable=False,
-        default=False,
-        comment="Allow user sign-up registration (true - yes, false - no)",
-    )
-    signup_require_admin_approval = Column(
-        Boolean,
-        nullable=False,
-        default=True,
-        comment="Require admin approval for new sign-ups (true - yes, false - no)",
-    )
-    signup_require_email_verification = Column(
-        Boolean,
-        nullable=False,
-        default=True,
-        comment="Require email verification for new sign-ups (true - yes, false - no)",
-    )
 
     __table_args__ = (CheckConstraint("id = 1", name="single_row_check"),)

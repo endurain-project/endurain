@@ -62,20 +62,17 @@
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/authStore'
-import { useServerSettingsStore } from '@/stores/serverSettingsStore'
 import { push } from 'notivue'
 import FooterComponent from '@/components/FooterComponent.vue'
 import UserAvatarComponent from '@/components/Users/UserAvatarComponent.vue'
 
 const router = useRouter()
 const authStore = useAuthStore()
-const serverSettingsStore = useServerSettingsStore()
 const { locale, t } = useI18n()
 
 async function handleLogout() {
   try {
     await authStore.logoutUser(router, locale)
-    serverSettingsStore.setServerSettingsOnLogout()
   } catch (error) {
     push.error(`${t('navbarComponent.errorLogout')} - ${error}`)
   }

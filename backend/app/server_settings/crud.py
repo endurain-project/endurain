@@ -1,5 +1,10 @@
 from fastapi import HTTPException, status
+from sqlalchemy import func
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
+from urllib.parse import unquote
+
+import session.security as session_security
 
 import server_settings.schema as server_settings_schema
 import server_settings.models as server_settings_models
@@ -32,17 +37,13 @@ def get_server_settings(db: Session):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal Server Error: {err}",
         ) from err
+    
 
-
-def edit_server_settings(
-    server_settings: server_settings_schema.ServerSettingsEdit, db: Session
-):
+def edit_server_settings(server_settings: server_settings_schema.ServerSettings, db: Session):
     try:
         # Get the server_settings from the database
         db_server_settings = (
-            db.query(server_settings_models.ServerSettings)
-            .filter(server_settings_models.ServerSettings.id == 1)
-            .first()
+            db.query(server_settings_models.ServerSettings).filter(server_settings_models.ServerSettings.id == 1).first()
         )
 
         if db_server_settings is None:
@@ -69,9 +70,7 @@ def edit_server_settings(
         db.rollback()
 
         # Log the exception
-        core_logger.print_to_log(
-            f"Error in edit_server_settings: {err}", "error", exc=err
-        )
+        core_logger.print_to_log(f"Error in edit_server_settings: {err}", "error", exc=err)
 
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(

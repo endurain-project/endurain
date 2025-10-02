@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr, ConfigDict
+from pydantic import BaseModel, EmailStr
 from datetime import datetime
 
 
@@ -10,9 +10,7 @@ class PasswordResetToken(BaseModel):
     expires_at: datetime
     used: bool
 
-    model_config = ConfigDict(
-        from_attributes=True, extra="forbid", validate_assignment=True
-    )
+    model_config = {"from_attributes": True}
 
 
 class PasswordResetRequest(BaseModel):

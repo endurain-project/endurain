@@ -1,9 +1,11 @@
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List
+from datetime import datetime
 
 import users.user_goals.schema as user_goals_schema
 import users.user_goals.models as user_goals_models
+import users.user_goals.utils as user_goals_utils
 
 import core.logger as core_logger
 
@@ -37,6 +39,50 @@ def get_user_goals_by_user_id(
     except Exception as err:
         # Log the exception
         core_logger.print_to_log(f"Error in get_user_goals_by_user_id: {err}", "error", exc=err)
+        # Raise an HTTPException with a 500 Internal Server Error status code
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal Server Error",
+        ) from err
+
+
+def calculate_user_goals(
+    user_id: int, date: str | None, db: Session
+) -> List[user_goals_schema.UserGoalProgress] | None:
+    """
+    Calculates the progress of all goals for a given user on a specified date.
+
+    Args:
+        user_id (int): The ID of the user whose goals are to be calculated.
+        date (str | None): The date for which to calculate goal progress, in "YYYY-MM-DD" format. If None, uses the current date.
+        db (Session): The SQLAlchemy database session.
+
+    Returns:
+        List[user_goals_schema.UserGoalProgress] | None:
+            A list of UserGoalProgress objects representing the progress of each goal, or None if no goals are found.
+
+    Raises:
+        HTTPException: If an error occurs during calculation or database access.
+    """
+    if not date:
+        date = datetime.now().strftime("%Y-%m-%d")
+    try:
+        goals = get_user_goals_by_user_id(user_id, db)
+
+        if not goals:
+            return None
+
+        return [
+            user_goals_utils.calculate_goal_progress_by_activity_type(goal, date, db)
+            for goal in goals
+        ]
+    except HTTPException as http_err:
+        raise http_err
+    except Exception as err:
+        # Log the exception
+        core_logger.print_to_log(
+            f"Error in calculate_user_goals: {err}", "error", exc=err
+        )
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

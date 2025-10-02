@@ -1,4 +1,4 @@
-import os, secrets, hashlib
+import os
 import apprise
 from typing import List
 
@@ -214,22 +214,6 @@ def get_email_service():
             svc.send(to="user@example.com", subject="Hi", body="Hello")
     """
     return email_service
-
-
-def generate_token_and_hash() -> tuple[str, str]:
-    """
-    Generates a secure random token and its SHA-256 hash.
-
-    Returns:
-        tuple[str, str]: A tuple containing the generated token and its SHA-256 hash.
-    """
-    # Generate a random 32-byte token
-    token = secrets.token_urlsafe(32)
-
-    # Create a hash of the token for database storage
-    token_hash = hashlib.sha256(token.encode()).hexdigest()
-
-    return token, token_hash
 
 
 email_service = AppriseService()

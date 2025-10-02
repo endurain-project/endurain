@@ -1,13 +1,13 @@
 {
-    "weight": "Pes",
-    "noWeightData": "Sense dades de Pes",
-    "noWeightTarget": "Cap objectiu de pes",
-    "noHeightDefined": "Alçada no definida per l'usuari",
-    "bmi": "IMC",
-    "bmiUnderweight": "Molt prim",
-    "bmiNormalWeight": "Pes normal",
-    "bmiOverweight": "Sobrepès",
-    "bmiObesityClass1": "Obesitat (Classe 1)",
-    "bmiObesityClass2": "Obesitat (Classe 2)",
-    "bmiObesityClass3": "Obessitat Extrema (Classe 3)"
+  "weight": "Pes",
+  "noWeightData": "Sense dades de Pes",
+  "noWeightTarget": "Cap objectiu de pes",
+  "noHeightDefined": "Alçada no definida per l'usuari",
+  "bmi": "IMC",
+  "bmiUnderweight": "Molt prim",
+  "bmiNormalWeight": "Pes normal",
+  "bmiOverweight": "Sobrepès",
+  "bmiObesityClass1": "Obesitat (Classe 1)",
+  "bmiObesityClass2": "Obesitat (Classe 2)",
+  "bmiObesityClass3": "Obessitat Extrema (Classe 3)"
 }

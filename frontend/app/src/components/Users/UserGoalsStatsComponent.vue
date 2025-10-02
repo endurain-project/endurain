@@ -43,7 +43,7 @@
             }}{{ goal.goal_activities_number }} {{ $t('userGoalsStatsComponent.activities') }}</span
           >
           <span v-if="goal.goal_type === 3"
-            >{{ formatDistanceRaw(t, goal.total_distance, authStore.user.units, false)
+            >{{ formatDistanceRaw(t, goal.total_distance, authStore.user.units)
             }}{{ $t('generalItems.ofWithSpaces')
             }}{{ formatDistanceRaw(t, goal.goal_distance, authStore.user.units) }}</span
           >

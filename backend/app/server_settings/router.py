@@ -6,7 +6,6 @@ from sqlalchemy.orm import Session
 
 import server_settings.schema as server_settings_schema
 import server_settings.crud as server_settings_crud
-import server_settings.utils as server_settings_utils
 
 import session.security as session_security
 
@@ -18,7 +17,7 @@ import core.config as core_config
 router = APIRouter()
 
 
-@router.get("", response_model=server_settings_schema.ServerSettingsRead)
+@router.get("", response_model=server_settings_schema.ServerSettings)
 async def read_server_settings(
     check_scopes: Annotated[
         Callable,
@@ -30,12 +29,12 @@ async def read_server_settings(
     ],
 ):
     # Get the server_settings from the database
-    return server_settings_utils.get_server_settings(db)
+    return server_settings_crud.get_server_settings(db)
 
 
-@router.put("", response_model=server_settings_schema.ServerSettingsRead)
+@router.put("", response_model=server_settings_schema.ServerSettings)
 async def edit_server_settings(
-    server_settings_attributtes: server_settings_schema.ServerSettingsEdit,
+    server_settings_attributtes: server_settings_schema.ServerSettings,
     check_scopes: Annotated[
         Callable,
         Security(session_security.check_scopes, scopes=["server_settings:write"]),

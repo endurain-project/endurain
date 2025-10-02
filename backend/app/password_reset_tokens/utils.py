@@ -1,10 +1,12 @@
+import secrets
+import hashlib
+
 from datetime import datetime, timedelta, timezone
 from fastapi import (
     HTTPException,
     status,
 )
 from uuid import uuid4
-import hashlib
 
 from sqlalchemy.orm import Session
 
@@ -18,6 +20,34 @@ import core.apprise as core_apprise
 import core.logger as core_logger
 
 from core.database import SessionLocal
+
+
+def generate_password_reset_token() -> tuple[str, str]:
+    """
+    Generate a URL-safe password reset token and its SHA-256 hash for storage.
+    Returns:
+        tuple[str, str]: A tuple (token, token_hash) where:
+            - token: a URL-safe, cryptographically secure random token suitable for
+              inclusion in password reset links (this raw token is intended to be
+              sent to the user).
+            - token_hash: the hexadecimal SHA-256 hash of the token, suitable for
+              storing in a database instead of the raw token.
+    Notes:
+        - Do not store or log the raw token; store only the hash (token_hash).
+        - When validating a presented token, compute its SHA-256 hex digest and
+          compare it to the stored token_hash using a constant-time comparison to
+          mitigate timing attacks (e.g., secrets.compare_digest).
+        - Consider associating an expiration timestamp and single-use semantics with
+          the token to limit its validity window.
+        - Token generation relies on the `secrets` module for cryptographic randomness.
+    """
+    # Generate a random 32-byte token
+    token = secrets.token_urlsafe(32)
+
+    # Create a hash of the token for database storage
+    token_hash = hashlib.sha256(token.encode()).hexdigest()
+
+    return token, token_hash
 
 
 def create_password_reset_token(user_id: int, db: Session) -> str:
@@ -63,7 +93,7 @@ def create_password_reset_token(user_id: int, db: Session) -> str:
     # Send `token` to the user's email. Do not store the plaintext token in persistent storage.
     """
     # Generate token and hash
-    token, token_hash = core_apprise.generate_token_and_hash()
+    token, token_hash = generate_password_reset_token()
 
     # Create token object
     reset_token = password_reset_tokens_schema.PasswordResetToken(
@@ -93,7 +123,7 @@ async def send_password_reset_email(
     2. Attempts to locate the user record for the given email in the provided DB session.
         - For security (to avoid user enumeration), if the user does not exist the function
           returns True and does not indicate existence to the caller.
-    3. Verifies the located user is active.
+    3. Verifies the located user is active (expects user.is_active == 1).
         - If the user is inactive the function returns True for the same security reason.
     4. Creates a password reset token and persists it via create_password_reset_token.
     5. Constructs a frontend reset URL using the email_service.frontend_host and the token.
@@ -145,7 +175,7 @@ async def send_password_reset_email(
         return True
 
     # Check if user is active
-    if not user.active:
+    if user.is_active != 1:
         # Don't reveal if user is inactive for security
         return True
 

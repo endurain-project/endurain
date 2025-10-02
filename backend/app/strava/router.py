@@ -1,4 +1,3 @@
-import os
 from datetime import datetime, timedelta, timezone
 from typing import Annotated, Callable
 from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks, Security
@@ -11,17 +10,14 @@ import session.security as session_security
 import users.user_integrations.crud as user_integrations_crud
 
 import gears.gear.crud as gears_crud
-import gears.gear.utils as gears_utils
 
 import activities.activity.crud as activities_crud
-import activities.activity.utils as activities_utils
 
 import strava.gear_utils as strava_gear_utils
 import strava.activity_utils as strava_activity_utils
 import strava.utils as strava_utils
 import strava.schema as strava_schema
 
-import core.config as core_config
 import core.cryptography as core_cryptography
 import core.logger as core_logger
 import core.database as core_database
@@ -71,12 +67,8 @@ async def strava_link(
 
         # Exchange code for token
         tokens = strava_client.exchange_code_for_token(
-            client_id=core_cryptography.decrypt_token_fernet(
-                user_integrations.strava_client_id
-            ),
-            client_secret=core_cryptography.decrypt_token_fernet(
-                user_integrations.strava_client_secret
-            ),
+            client_id=core_cryptography.decrypt_token_fernet(user_integrations.strava_client_id),
+            client_secret=core_cryptography.decrypt_token_fernet(user_integrations.strava_client_secret),
             code=code,
         )
 
@@ -93,7 +85,9 @@ async def strava_link(
         )
 
         # Clean up by setting Strava
-        user_integrations_crud.unlink_strava_account(user_integrations.user_id, db)
+        user_integrations_crud.unlink_strava_account(
+            user_integrations.user_id, db
+        )
 
         # Raise an HTTPException with appropriate status code
         raise HTTPException(
@@ -146,7 +140,7 @@ async def strava_retrieve_activities_days(
     }
 
 
-@router.get("/gear", status_code=201)
+@router.get("/gear", status_code=202)
 async def strava_retrieve_gear(
     validate_access_token: Annotated[
         Callable,
@@ -175,59 +169,6 @@ async def strava_retrieve_gear(
     return {
         "detail": f"Strava gear will be processed in the background for for {token_user_id}"
     }
-
-
-@router.post("/import/bikes", status_code=201)
-async def import_bikes_from_strava_export(
-    token_user_id: Annotated[
-        int,
-        Depends(session_security.get_user_id_from_access_token),
-    ],
-    db: Annotated[
-        Session,
-        Depends(core_database.get_db),
-    ],
-):
-    try:
-        # Log beginning of bike import
-        core_logger.print_to_log("Entering bike importing function")
-
-        # Get bikes from Strava export CSV file
-        bikes_dict = strava_gear_utils.iterate_over_bikes_csv()
-
-        # Transform bikes dict to list of Gear schema objects
-        if bikes_dict:
-            bikes = strava_gear_utils.transform_csv_bike_gear_to_schema_gear(
-                bikes_dict, token_user_id
-            )
-
-            # Add bikes to the database
-            if bikes:
-                gears_crud.create_multiple_gears(bikes, token_user_id, db)
-
-        # Define variables for moving the bikes file
-        processed_dir = core_config.FILES_PROCESSED_DIR
-        bulk_import_dir = core_config.FILES_BULK_IMPORT_DIR
-        bikes_file_name = core_config.STRAVA_BULK_IMPORT_BIKES_FILE
-        bikes_file_path = os.path.join(bulk_import_dir, bikes_file_name)
-
-        # Move the bikes file to the processed directory
-        activities_utils.move_file(processed_dir, bikes_file_name, bikes_file_path)
-
-        # Log completion of bike import
-        core_logger.print_to_log_and_console("Bike import complete.")
-    except HTTPException as http_err:
-        raise http_err
-    except Exception as err:
-        # Log the exception
-        core_logger.print_to_log_and_console(
-            f"Error in import_bikes_from_strava_export: {err}", "error"
-        )
-        # Raise an HTTPException with a 500 Internal Server Error status code
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Internal Server Error",
-        ) from err
 
 
 @router.put("/client")

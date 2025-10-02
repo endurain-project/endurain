@@ -296,54 +296,19 @@ def get_gear_by_garminconnect_id_from_user_id(
 
 def create_multiple_gears(gears: list[gears_schema.Gear], user_id: int, db: Session):
     try:
-        # 1) Filter out None and gears without a usable nickname
-        valid_gears = [
-            gear
-            for gear in (gears or [])
-            if gear is not None
-            and getattr(gear, "nickname", None)
-            and str(gear.nickname).strip()
+        # Filter out None values from the gears list
+        valid_gears = [gear for gear in gears if gear is not None]
+
+        # Create a list of gear objects
+        new_gears = [
+            gears_utils.transform_schema_gear_to_model_gear(gear, user_id)
+            for gear in valid_gears
         ]
 
-        # 2) De-dupe within the valid_gears payload (case-insensitive, trimmed)
-        seen = set()
-        deduped: list[gears_schema.Gear] = []
-        for gear in valid_gears:
-            nickname_normalized = str(gear.nickname).replace("+", " ").strip()
-            if nickname_normalized not in seen:
-                seen.add(nickname_normalized)
-                deduped.append(gear)
-            else:
-                core_logger.print_to_log_and_console(
-                    f"Duplicate nickname '{gear.nickname}' in request for user {user_id}, skipping",
-                    "warning",
-                )
+        # Add the gears to the database
+        db.add_all(new_gears)
+        db.commit()
 
-        # 3) Skip any that already exist for this user
-        gears_to_create: list[gears_schema.Gear] = []
-        for gear in deduped:
-            gear_check = get_gear_user_by_nickname(user_id, gear.nickname, db)
-
-            if gear_check is not None:
-                core_logger.print_to_log_and_console(
-                    f"Gear with nickname '{gear.nickname}' already exists for user {user_id}, skipping",
-                    "warning",
-                )
-            else:
-                gears_to_create.append(gear)
-
-        # 4) Persist any remaining
-        if gears_to_create:
-            new_gears = [
-                gears_utils.transform_schema_gear_to_model_gear(gear, user_id)
-                for gear in gears_to_create
-            ]
-            db.add_all(new_gears)
-            db.commit()
-
-    except HTTPException as http_err:
-        # If an HTTPException is raised, re-raise it
-        raise http_err
     except IntegrityError as integrity_error:
         # Rollback the transaction
         db.rollback()
@@ -351,8 +316,9 @@ def create_multiple_gears(gears: list[gears_schema.Gear], user_id: int, db: Sess
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="Duplicate entry error. Check if strava_gear_id or garminconnect_gear_id are unique",
+            detail="Duplicate entry error. Check if nickname, strava_gear_id or garminconnect_gear_id are unique",
         ) from integrity_error
+
     except Exception as err:
         # Rollback the transaction
         db.rollback()
@@ -371,7 +337,9 @@ def create_multiple_gears(gears: list[gears_schema.Gear], user_id: int, db: Sess
 
 def create_gear(gear: gears_schema.Gear, user_id: int, db: Session):
     try:
-        gear_check = get_gear_user_by_nickname(user_id, gear.nickname, db)
+        gear_check = get_gear_user_by_nickname(
+            user_id, gear.nickname, db
+        )
 
         if gear_check is not None:
             # If the gear already exists, raise an HTTPException with a 409 Conflict status code
@@ -435,8 +403,8 @@ def edit_gear(gear_id: int, gear: gears_schema.Gear, db: Session):
             db_gear.gear_type = gear.gear_type
         if gear.created_at is not None:
             db_gear.created_at = gear.created_at
-        if gear.active is not None:
-            db_gear.active = gear.active
+        if gear.is_active is not None:
+            db_gear.is_active = gear.is_active
         if gear.initial_kms is not None:
             db_gear.initial_kms = gear.initial_kms
         if gear.purchase_value is not None:

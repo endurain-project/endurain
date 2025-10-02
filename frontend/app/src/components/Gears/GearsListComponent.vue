@@ -111,7 +111,7 @@
       </span>
       <span
         class="badge bg-danger-subtle border border-danger-subtle text-danger-emphasis align-middle d-none d-sm-inline"
-        v-if="gear.active == false"
+        v-if="gear.is_active == 0"
         >{{ $t('gearsListComponent.gearListGearIsInactiveBadge') }}</span
       >
 

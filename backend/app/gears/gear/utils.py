@@ -1,13 +1,7 @@
 from sqlalchemy import func
 from urllib.parse import unquote
-from typing import Annotated
-from fastapi import Depends
-from sqlalchemy.orm import Session
-import session.security as session_security
-import core.database as core_database
 
 import gears.gear.models as gears_models
-import gears.gear.crud as gears_crud
 import gears.gear.schema as gears_schema
 
 # Global gear type integer to gear name mapping (ID to name)
@@ -43,7 +37,6 @@ GEAR_NAME_TO_ID.update(
     }
 )
 
-
 def transform_schema_gear_to_model_gear(
     gear: gears_schema.Gear, user_id: int
 ) -> gears_models.Gear:
@@ -57,20 +50,16 @@ def transform_schema_gear_to_model_gear(
     # Create a new gear object
     new_gear = gears_models.Gear(
         brand=(
-            unquote(gear.brand).replace("+", " ").strip()
-            if gear.brand is not None
-            else None
+            unquote(gear.brand).replace("+", " ") if gear.brand is not None else None
         ),
         model=(
-            unquote(gear.model).replace("+", " ").strip()
-            if gear.model is not None
-            else None
+            unquote(gear.model).replace("+", " ") if gear.model is not None else None
         ),
-        nickname=unquote(gear.nickname).replace("+", " ").strip(),
+        nickname=unquote(gear.nickname).replace("+", " "),
         gear_type=gear.gear_type,
         user_id=user_id,
         created_at=created_date,
-        active=gear.active,
+        is_active=gear.is_active,
         initial_kms=gear.initial_kms,
         purchase_value=gear.purchase_value,
         strava_gear_id=gear.strava_gear_id,
