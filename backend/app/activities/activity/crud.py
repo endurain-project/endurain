@@ -1190,12 +1190,12 @@ def get_last_activity_timezone(user_id: int, db: Session):
             activities_models.Activity.user_id == user_id
         ).order_by(activities_models.Activity.start_time.desc()).limit(1)
 
-        result = query.all()
+        result = query.first()
         
         if not result:
             return None
         
-        timezone_str = result[0][0]
+        timezone_str = result[0]
 
         # Return the timezone as a string
         return timezone_str

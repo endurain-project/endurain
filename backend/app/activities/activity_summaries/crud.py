@@ -199,10 +199,6 @@ def get_monthly_summary(
     next_month = (start_of_month + timedelta(days=32)).replace(day=1)
     end_of_month = next_month
 
-    core_logger.print_to_log_and_console(target_date)
-    core_logger.print_to_log_and_console(start_of_month)
-    core_logger.print_to_log_and_console(end_of_month)
-
     query = db.query(
         extract("week", func.timezone(Activity.timezone, func.timezone('UTC',Activity.start_time))).label("week_number"),
         func.coalesce(func.sum(Activity.distance), 0).label("total_distance"),
@@ -275,9 +271,6 @@ def get_yearly_summary(
     start_of_year = tzconvert(start_of_year, ZoneInfo('UTC'))
     end_of_year = datetime(year + 1, 1, 1, 0, 0, 0, 0, timezone)
     end_of_year = tzconvert(end_of_year, ZoneInfo('UTC'))
-
-    core_logger.print_to_log_and_console(start_of_year)
-    core_logger.print_to_log_and_console(end_of_year)
 
     query = db.query(
         extract("month", func.timezone(Activity.timezone, func.timezone('UTC', Activity.start_time))).label("month_number"),
