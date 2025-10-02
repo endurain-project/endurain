@@ -33,7 +33,6 @@
 
     <!-- Include the SettingsImportZone -->
     <SettingsImportZone v-if="activeSection === 'import'" />
-
   </div>
   <!-- back button -->
   <BackButtonComponent />
@@ -73,9 +72,15 @@ function updateActiveSection(section) {
 
 onMounted(async () => {
   if (route.query.tab) {
-    if ((route.query.tab === 'users' || route.query.tab === 'serverSettings' ) && authStore.user.access_type === 2) {
+    if (
+      (route.query.tab === 'users' || route.query.tab === 'serverSettings') &&
+      authStore.user.access_type === 2
+    ) {
       activeSection.value = route.query.tab
-    } else if ((route.query.tab === 'users' || route.query.tab === 'serverSettings' ) && authStore.user.access_type === 1) {
+    } else if (
+      (route.query.tab === 'users' || route.query.tab === 'serverSettings') &&
+      authStore.user.access_type === 1
+    ) {
       activeSection.value = 'general'
     } else {
       activeSection.value = route.query.tab
@@ -103,9 +108,7 @@ onMounted(async () => {
       await strava.setUniqueUserStateStravaLink(null)
     } catch (error) {
       // If there is an error, set the error message and show the error alert.
-      push.error(
-        `${t('settingsIntegrationsZone.errorMessageUnableToUnSetStravaState')} - ${error}`
-      )
+      push.error(`${t('settingsIntegrationsZone.errorMessageUnableToUnSetStravaState')} - ${error}`)
     }
   }
 
@@ -117,9 +120,7 @@ onMounted(async () => {
       await strava.setUniqueUserStateStravaLink(null)
     } catch (error) {
       // If there is an error, set the error message and show the error alert.
-      push.error(
-        `${t('settingsIntegrationsZone.errorMessageUnableToUnSetStravaState')} - ${error}`
-      )
+      push.error(`${t('settingsIntegrationsZone.errorMessageUnableToUnSetStravaState')} - ${error}`)
     }
   }
 })

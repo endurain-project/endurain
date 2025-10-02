@@ -1,7 +1,4 @@
-import {
-  fetchGetRequest,
-  fetchPostRequest,
-} from '@/utils/serviceUtils'
+import { fetchGetRequest, fetchPostRequest } from '@/utils/serviceUtils'
 
 export const signUp = {
   signUpRequest(data) {

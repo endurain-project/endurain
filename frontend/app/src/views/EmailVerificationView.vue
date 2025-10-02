@@ -33,7 +33,7 @@ onMounted(async () => {
     const response = await signUpService.signUpConfirm({
       token: token
     })
-    
+
     push.success(t('emailVerificationView.emailVerified'))
 
     // Redirect to login with appropriate query parameters

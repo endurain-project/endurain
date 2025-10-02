@@ -1,6 +1,6 @@
 /**
  * Common type definitions for the Endurain application
- * 
+ *
  * This file serves as a starting point for TypeScript type definitions.
  * As you migrate JavaScript code to TypeScript, add relevant types here.
  */

@@ -13,7 +13,7 @@ export const useServerSettingsStore = defineStore('serverSettings', {
       num_records_per_page: 5,
       signup_enabled: false,
       signup_require_admin_approval: null,
-      signup_require_email_verification: null,
+      signup_require_email_verification: null
     }
   }),
   actions: {
