@@ -235,10 +235,10 @@ export function formatDateISO(date) {
 }
 
 /**
- * Formats a DateTime object into an ISO date string (YYYY-MM-DDTHH:MM:SS).
+ * Formats a Date object with time information into an ISO date string (YYYY-MM-DDTHH:MM:SS).
  *
- * @param {DateTime} datetime - The datetime to format.
- * @returns {string} The formatted datetime string in ISO format.
+ * @param {Date} datetime - The date with time information to format.
+ * @returns {string} The formatted date and time string in ISO format.
  */
 export function formatUTCDateTimeISO(datetime) {
   let year = datetime.getUTCFullYear()
