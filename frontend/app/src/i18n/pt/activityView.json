@@ -1,13 +1,13 @@
 {
-  "labelGear": "Equipamento",
-  "labelGearNotSet": "Não definido",
-  "modalLabelDeleteGear": "Remover equipamento da atividade",
-  "modalLabelDeleteGearBody": "Tem certeza que deseja remover o equipamento da atividade?",
-  "modalLabelDeleteGearButton": "Eliminar equipamento",
-  "successMessageGearAdded": "Equipamento adicionado à atividade",
-  "successMessageGearDeleted": "Equipamento eliminado da atividade",
-  "errorMessageDeleteGear": "Erro ao eliminar equipamento da atividade",
-  "errorMessageActivityNotFound": "Atividade não encontrada",
-  "alertPrivacyMessage": "Tem informações ocultas nesta atividade. Pode vê-las, mas outros não.",
-  "isHiddenMessage": "Esta atividade está oculta. Provavelmente por ser duplicada ou ter sido ocultada pelo utilizador."
+    "labelGear": "Equipamento",
+    "labelGearNotSet": "Não definido",
+    "modalLabelDeleteGear": "Remover equipamento da atividade",
+    "modalLabelDeleteGearBody": "Tem certeza que deseja remover o equipamento da atividade?",
+    "modalLabelDeleteGearButton": "Eliminar equipamento",
+    "successMessageGearAdded": "Equipamento adicionado à atividade",
+    "successMessageGearDeleted": "Equipamento eliminado da atividade",
+    "errorMessageDeleteGear": "Erro ao eliminar equipamento da atividade",
+    "errorMessageActivityNotFound": "Atividade não encontrada",
+    "alertPrivacyMessage": "Tem informações ocultas nesta atividade. Pode vê-las, mas outros não.",
+    "isHiddenMessage": "Esta atividade está oculta. Provavelmente por ser duplicada ou ter sido ocultada pelo utilizador."
 }

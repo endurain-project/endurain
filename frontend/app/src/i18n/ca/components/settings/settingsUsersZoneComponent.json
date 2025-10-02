@@ -1,10 +1,10 @@
 {
-  "buttonAddUser": "Afegir usuari",
-  "labelSearchUsersByUsername": "Cerca usuaris per nom d'usuari",
-  "labelNumberOfUsers1": "Hi ha un total de ",
-  "labelNumberOfUsers2": " usuari(s) (",
-  "labelNumberOfUsers3": " carregat):",
-  "successUserAdded": "Usuari afegit correctament",
-  "successUserDeleted": "Usuari esborrat correctament",
-  "errorFetchingUsers": "Error obtenint usuaris"
+    "buttonAddUser": "Afegir usuari",
+    "labelSearchUsersByUsername": "Cerca usuaris per nom d'usuari",
+    "labelNumberOfUsers1": "Hi ha un total de ",
+    "labelNumberOfUsers2": " usuari(s) (",
+    "labelNumberOfUsers3": " carregat):",
+    "successUserAdded": "Usuari afegit correctament",
+    "successUserDeleted": "Usuari esborrat correctament",
+    "errorFetchingUsers": "Error obtenint usuaris"
 }

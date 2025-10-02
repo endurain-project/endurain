@@ -1,139 +1,158 @@
 <template>
   <div class="col">
     <form class="bg-body-tertiary rounded p-3 shadow-sm">
+      <!-- Defaults -->
       <h4>{{ $t('settingsServerSettingsZoneComponent.defaultsTitle') }}</h4>
       <!-- Units -->
-      <label>{{ $t('settingsServerSettingsZoneComponent.unitsLabel') }}</label>
-      <select class="form-select" name="serverSettingsUnits" v-model="units" required>
-        <option value="1">{{ $t('settingsServerSettingsZoneComponent.unitsMetric') }}</option>
-        <option value="2">{{ $t('settingsServerSettingsZoneComponent.unitsImperial') }}</option>
-      </select>
-      <!-- Currency -->
-      <label class="mt-1">{{ $t('settingsServerSettingsZoneComponent.currencyLabel') }}</label>
-      <select class="form-select" name="serverSettingsCurrency" v-model="currency" required>
-        <option value="1">{{ $t('generalItems.currencyEuro') }}</option>
-        <option value="2">{{ $t('generalItems.currencyDollar') }}</option>
-        <option value="3">{{ $t('generalItems.currencyPound') }}</option>
-      </select>
-      <!-- Num records per list -->
-      <label class="mt-1">{{ $t('settingsServerSettingsZoneComponent.numRecordsLabel') }}</label>
-      <select
-        class="form-select"
-        name="serverSettingsNumRecordsPerPage"
-        v-model="numRecordsPerPage"
-        required
-      >
-        <option value="5">5</option>
-        <option value="10">10</option>
-        <option value="25">25</option>
-        <option value="50">50</option>
-        <option value="100">100</option>
-      </select>
+      <LoadingComponent v-if="isLoading" />
+      <div v-else>
+        <label>{{ $t('settingsServerSettingsZoneComponent.unitsLabel') }}</label>
+        <select class="form-select" name="serverSettingsUnits" v-model="units" required>
+          <option value="1">{{ $t('settingsServerSettingsZoneComponent.unitsMetric') }}</option>
+          <option value="2">{{ $t('settingsServerSettingsZoneComponent.unitsImperial') }}</option>
+        </select>
+        <!-- Currency -->
+        <label class="mt-1">{{ $t('settingsServerSettingsZoneComponent.currencyLabel') }}</label>
+        <select class="form-select" name="serverSettingsCurrency" v-model="currency" required>
+          <option value="1">{{ $t('generalItems.currencyEuro') }}</option>
+          <option value="2">{{ $t('generalItems.currencyDollar') }}</option>
+          <option value="3">{{ $t('generalItems.currencyPound') }}</option>
+        </select>
+        <!-- Num records per list -->
+        <label class="mt-1">{{ $t('settingsServerSettingsZoneComponent.numRecordsLabel') }}</label>
+        <select class="form-select" name="serverSettingsNumRecordsPerPage" v-model="numRecordsPerPage" required>
+          <option value="5">5</option>
+          <option value="10">10</option>
+          <option value="25">25</option>
+          <option value="50">50</option>
+          <option value="100">100</option>
+        </select>
+      </div>
+      <hr />
+      <!-- Sign-up -->
+      <h4>{{ $t('settingsServerSettingsZoneComponent.signupTitle') }}</h4>
+      <LoadingComponent v-if="isLoading" />
+      <div v-else>
+        <label class="form-label" for="serverSettingsSignUpEnabledSelect">{{
+          $t('settingsServerSettingsZoneComponent.enabledLabel')
+        }}</label>
+        <select class="form-select" name="serverSettingsSignUpEnabledSelect" v-model="signUp" required>
+          <option value="false">
+            {{ $t('generalItems.false') }}
+          </option>
+          <option value="true">
+            {{ $t('generalItems.true') }}
+          </option>
+        </select>
+        <!-- requires admin approval -->
+        <label class="form-label" for="serverSettingsAdminApprovalSelect">{{
+          $t('settingsServerSettingsZoneComponent.adminApprovalLabel')
+        }}</label>
+        <select class="form-select" name="serverSettingsAdminApprovalSelect" v-model="adminApproval" required>
+          <option value="false">
+            {{ $t('generalItems.false') }}
+          </option>
+          <option value="true">
+            {{ $t('generalItems.true') }}
+          </option>
+        </select>
+        <!-- requires email confirmation -->
+        <label class="form-label" for="serverSettingsEmailConfirmationSelect">{{
+          $t('settingsServerSettingsZoneComponent.emailConfirmationLabel')
+        }}</label>
+        <select class="form-select" name="serverSettingsEmailConfirmationSelect" v-model="emailConfirmation" required>
+          <option value="false">
+            {{ $t('generalItems.false') }}
+          </option>
+          <option value="true">
+            {{ $t('generalItems.true') }}
+          </option>
+        </select>
+      </div>
       <hr />
       <!-- Public shareable links -->
       <h4 class="mt-4">
         {{ $t('settingsServerSettingsZoneComponent.publicShareableLinksLabel') }}
       </h4>
-      <label class="form-label" for="serverSettingsPublicShareableLinksEnabledSelect">{{
-        $t('settingsServerSettingsZoneComponent.publicShareableLinksEnabledLabel')
-      }}</label>
-      <select
-        class="form-select"
-        name="serverSettingsPublicShareableLinksEnabledSelect"
-        v-model="publicShareableLinks"
-        required
-      >
-        <option value="false">
-          {{ $t('settingsServerSettingsZoneComponent.publicShareableLinksFalse') }}
-        </option>
-        <option value="true">
-          {{ $t('settingsServerSettingsZoneComponent.publicShareableLinksTrue') }}
-        </option>
-      </select>
-      <div class="alert alert-warning mt-2" role="alert">
-        <font-awesome-icon :icon="['fas', 'triangle-exclamation']" />
-        <span class="ms-2">{{
-          $t(
-            'settingsServerSettingsZoneComponent.serverSettingsPublicShareableLinksEnabledWarningAlert'
-          )
-        }}</span>
-      </div>
-      <!-- Public shareable user info -->
-      <label class="form-label" for="serverSettingsPublicShareableLinksShowUserInfo">{{
-        $t('settingsServerSettingsZoneComponent.publicShareableLinksShowUserInfoLabel')
-      }}</label>
-      <select
-        class="form-select"
-        name="serverSettingsPublicShareableLinksShowUserInfo"
-        v-model="publicShareableLinksUserInfo"
-        required
-      >
-        <option value="false">
-          {{ $t('settingsServerSettingsZoneComponent.publicShareableLinksFalse') }}
-        </option>
-        <option value="true">
-          {{ $t('settingsServerSettingsZoneComponent.publicShareableLinksTrue') }}
-        </option>
-      </select>
-      <div class="alert alert-warning mt-2" role="alert">
-        <font-awesome-icon :icon="['fas', 'triangle-exclamation']" />
-        <span class="ms-2">{{
-          $t(
-            'settingsServerSettingsZoneComponent.serverSettingsPublicShareableLinksShowUserWarningAlert'
-          )
-        }}</span>
+      <LoadingComponent v-if="isLoading" />
+      <div v-else>
+        <label class="form-label" for="serverSettingsPublicShareableLinksEnabledSelect">{{
+          $t('settingsServerSettingsZoneComponent.enabledLabel')
+        }}</label>
+        <select class="form-select" name="serverSettingsPublicShareableLinksEnabledSelect" v-model="publicShareableLinks"
+          required>
+          <option value="false">
+            {{ $t('generalItems.false') }}
+          </option>
+          <option value="true">
+            {{ $t('generalItems.true') }}
+          </option>
+        </select>
+        <div class="alert alert-warning mt-2" role="alert">
+          <font-awesome-icon :icon="['fas', 'triangle-exclamation']" />
+          <span class="ms-2">{{
+            $t(
+              'settingsServerSettingsZoneComponent.serverSettingsPublicShareableLinksEnabledWarningAlert'
+            )
+          }}</span>
+        </div>
+        <!-- Public shareable user info -->
+        <label class="form-label" for="serverSettingsPublicShareableLinksShowUserInfo">{{
+          $t('settingsServerSettingsZoneComponent.publicShareableLinksShowUserInfoLabel')
+        }}</label>
+        <select class="form-select" name="serverSettingsPublicShareableLinksShowUserInfo"
+          v-model="publicShareableLinksUserInfo" required>
+          <option value="false">
+            {{ $t('generalItems.false') }}
+          </option>
+          <option value="true">
+            {{ $t('generalItems.true') }}
+          </option>
+        </select>
+        <div class="alert alert-warning mt-2" role="alert">
+          <font-awesome-icon :icon="['fas', 'triangle-exclamation']" />
+          <span class="ms-2">{{
+            $t(
+              'settingsServerSettingsZoneComponent.serverSettingsPublicShareableLinksShowUserWarningAlert'
+            )
+          }}</span>
+        </div>
       </div>
       <hr />
       <!-- Login photo set -->
       <h4 class="mt-4">{{ $t('settingsServerSettingsZoneComponent.photosLabel') }}</h4>
-      <div class="row">
-        <div class="col">
-          <label class="form-label" for="serverSettingsLoginPhotoLabel">{{
-            $t('settingsServerSettingsZoneComponent.loginPhotoLabel')
-          }}</label>
-          <!-- add login photo button -->
-          <a
-            class="w-100 btn btn-primary shadow-sm"
-            href="#"
-            role="button"
-            data-bs-toggle="modal"
-            data-bs-target="#addLoginPhotoModal"
-            v-if="!loginPhotoSet"
-          >
-            {{ $t('settingsServerSettingsZoneComponent.buttonAddPhoto') }}
-          </a>
+      <LoadingComponent v-if="isLoading" />
+      <div v-else>
+        <div class="row">
+          <div class="col">
+            <label class="form-label" for="serverSettingsLoginPhotoLabel">{{
+              $t('settingsServerSettingsZoneComponent.loginPhotoLabel')
+            }}</label>
+            <!-- add login photo button -->
+            <a class="w-100 btn btn-primary shadow-sm" href="#" role="button" data-bs-toggle="modal"
+              data-bs-target="#addLoginPhotoModal" v-if="!loginPhotoSet">
+              {{ $t('settingsServerSettingsZoneComponent.buttonAddPhoto') }}
+            </a>
 
-          <!-- Delete login photo section -->
-          <a
-            class="w-100 btn btn-danger"
-            href="#"
-            role="button"
-            data-bs-toggle="modal"
-            data-bs-target="#deleteLoginPhotoModal"
-            v-else
-            >{{ $t('settingsServerSettingsZoneComponent.buttonDeleteLoginPhoto') }}</a
-          >
+            <!-- Delete login photo section -->
+            <a class="w-100 btn btn-danger" href="#" role="button" data-bs-toggle="modal"
+              data-bs-target="#deleteLoginPhotoModal" v-else>{{
+                $t('settingsServerSettingsZoneComponent.buttonDeleteLoginPhoto') }}</a>
 
-          <!-- Modal add login photo -->
-          <ModalComponentUploadFile
-            modalId="addLoginPhotoModal"
-            :title="$t('settingsServerSettingsZoneComponent.loginPhotoLabel')"
-            :fileFieldLabel="$t('settingsServerSettingsZoneComponent.logonPhotoAddLabel')"
-            filesAccepted=".png"
-            actionButtonType="success"
-            :actionButtonText="$t('settingsServerSettingsZoneComponent.loginPhotoLabel')"
-            @fileToEmitAction="submitUploadFileForm"
-          />
+            <!-- Modal add login photo -->
+            <ModalComponentUploadFile modalId="addLoginPhotoModal"
+              :title="$t('settingsServerSettingsZoneComponent.loginPhotoLabel')"
+              :fileFieldLabel="$t('settingsServerSettingsZoneComponent.logonPhotoAddLabel')" filesAccepted=".png"
+              actionButtonType="success" :actionButtonText="$t('settingsServerSettingsZoneComponent.loginPhotoLabel')"
+              @fileToEmitAction="submitUploadFileForm" />
 
-          <!-- Modal delete login photo -->
-          <ModalComponent
-            modalId="deleteLoginPhotoModal"
-            :title="t('settingsServerSettingsZoneComponent.buttonDeleteLoginPhoto')"
-            :body="`${t('settingsServerSettingsZoneComponent.modalDeleteLoginPhotoBody')}`"
-            actionButtonType="danger"
-            :actionButtonText="t('settingsServerSettingsZoneComponent.buttonDeleteLoginPhoto')"
-            @submitAction="submitDeleteLoginPhoto"
-          />
+            <!-- Modal delete login photo -->
+            <ModalComponent modalId="deleteLoginPhotoModal"
+              :title="t('settingsServerSettingsZoneComponent.buttonDeleteLoginPhoto')"
+              :body="`${t('settingsServerSettingsZoneComponent.modalDeleteLoginPhotoBody')}`" actionButtonType="danger"
+              :actionButtonText="t('settingsServerSettingsZoneComponent.buttonDeleteLoginPhoto')"
+              @submitAction="submitDeleteLoginPhoto" />
+          </div>
         </div>
       </div>
     </form>
@@ -141,15 +160,17 @@
 </template>
 
 <script setup>
-import { ref, watch } from 'vue'
+import { ref, watch, onMounted, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useServerSettingsStore } from '@/stores/serverSettingsStore'
 import { serverSettings } from '@/services/serverSettingsService'
 import { push } from 'notivue'
 import ModalComponent from '@/components/Modals/ModalComponent.vue'
 import ModalComponentUploadFile from '@/components/Modals/ModalComponentUploadFile.vue'
+import LoadingComponent from '@/components/GeneralComponents/LoadingComponent.vue'
 
 const { t } = useI18n()
+const isLoading = ref(true)
 const serverSettingsStore = useServerSettingsStore()
 const units = ref(serverSettingsStore.serverSettings.units)
 const currency = ref(serverSettingsStore.serverSettings.currency)
@@ -159,6 +180,9 @@ const publicShareableLinksUserInfo = ref(
   serverSettingsStore.serverSettings.public_shareable_links_user_info
 )
 const loginPhotoSet = ref(serverSettingsStore.serverSettings.login_photo_set)
+const signUp = ref(serverSettingsStore.serverSettings.signup_enabled)
+const adminApproval = ref(serverSettingsStore.serverSettings.signup_require_admin_approval)
+const emailConfirmation = ref(serverSettingsStore.serverSettings.signup_require_email_verification)
 
 async function updateServerSettings() {
   const data = {
@@ -168,7 +192,10 @@ async function updateServerSettings() {
     num_records_per_page: numRecordsPerPage.value,
     public_shareable_links: publicShareableLinks.value,
     public_shareable_links_user_info: publicShareableLinksUserInfo.value,
-    login_photo_set: loginPhotoSet.value
+    login_photo_set: loginPhotoSet.value,
+    signup_enabled: signUp.value,
+    signup_require_admin_approval: adminApproval.value,
+    signup_require_email_verification: emailConfirmation.value
   }
   try {
     // Update the server settings in the DB
@@ -228,10 +255,35 @@ const submitDeleteLoginPhoto = async () => {
   }
 }
 
+onMounted(async () => {
+  try {
+    const settings = await serverSettings.getServerSettings()
+    serverSettingsStore.setServerSettings(settings)
+    // Update local state
+    units.value = serverSettingsStore.serverSettings.units
+    currency.value = serverSettingsStore.serverSettings.currency
+    numRecordsPerPage.value = serverSettingsStore.serverSettings.num_records_per_page
+    publicShareableLinks.value = serverSettingsStore.serverSettings.public_shareable_links
+    publicShareableLinksUserInfo.value = serverSettingsStore.serverSettings.public_shareable_links_user_info
+    loginPhotoSet.value = serverSettingsStore.serverSettings.login_photo_set
+    signUp.value = serverSettingsStore.serverSettings.signup_enabled
+    adminApproval.value = serverSettingsStore.serverSettings.signup_require_admin_approval
+    emailConfirmation.value = serverSettingsStore.serverSettings.signup_require_email_verification
+
+    await nextTick()
+    isLoading.value = false
+  } catch (error) {
+    push.error(`${t('settingsServerSettingsZoneComponent.errorFetchingServerSettings')} - ${error}`)
+    isLoading.value = false
+  }
+})
+
 watch(
-  [units, currency, numRecordsPerPage, publicShareableLinks, publicShareableLinksUserInfo],
+  [units, currency, numRecordsPerPage, publicShareableLinks, publicShareableLinksUserInfo, signUp, adminApproval, emailConfirmation],
   async () => {
-    await updateServerSettings()
+    if (isLoading.value == false) {
+      await updateServerSettings()
+    }
   },
   { immediate: false }
 )

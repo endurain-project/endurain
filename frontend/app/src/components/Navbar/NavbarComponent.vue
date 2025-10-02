@@ -141,6 +141,7 @@ import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 // import the stores
 import { useAuthStore } from '@/stores/authStore'
+import { useServerSettingsStore } from '@/stores/serverSettingsStore'
 // Import Notivue push
 import { push } from 'notivue'
 
@@ -153,12 +154,14 @@ import NavbarNotificationsComponent from '@/components/Navbar/NavbarNotification
 // Composables
 const router = useRouter()
 const authStore = useAuthStore()
+const serverSettingsStore = useServerSettingsStore()
 const { locale, t } = useI18n()
 
 // Methods
 async function handleLogout() {
   try {
     await authStore.logoutUser(router, locale)
+    serverSettingsStore.setServerSettingsOnLogout()
   } catch (error) {
     push.error(`${t('navbarComponent.errorLogout')} - ${error}`)
   }

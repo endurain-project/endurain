@@ -88,13 +88,17 @@
               @click.prevent="showForgotPasswordModal"
               class="link-body-emphasis link-underline-opacity-0 link-underline-opacity-100-hover"
             >
-              {{ $t('loginView.forgotPassword') }}{{ $t('generalItems.betaTag') }}
+              {{ $t('loginView.forgotPassword') }}
             </a>
           </div>
-          <!--<div>
-						<hr>
-						<button class="w-100 btn btn-lg btn-warning disabled" type="submit">{{ $t("loginView.signUpButton") }}</button>
-					</div>-->
+          <div class="mt-3 text-center" v-if="!mfaRequired && serverSettingsStore.serverSettings.signup_enabled">
+            <router-link
+              to="/signup"
+              class="link-body-emphasis link-underline-opacity-0 link-underline-opacity-100-hover"
+            >
+              {{ $t('loginView.signUpLink') }}
+            </router-link>
+          </div>
         </form>
       </div>
     </div>
@@ -104,7 +108,7 @@
   <ModalComponentEmailInput
     ref="forgotPasswordModalRef"
     modal-id="forgotPasswordModal"
-    :title="$t('loginView.forgotPasswordModalTitle') + $t('generalItems.betaTag')"
+    :title="$t('loginView.forgotPasswordModalTitle')"
     :email-field-label="$t('loginView.forgotPasswordModalEmailLabel')"
     :email-help-text="$t('loginView.forgotPasswordModalEmailHelp')"
     action-button-type="success"
@@ -320,6 +324,18 @@ onMounted(async () => {
   // Check for password reset invalid link
   if (route.query.passwordResetInvalidLink === 'true') {
     push.error(t('loginView.passwordResetInvalidLink'))
+  }
+  // Check for email verification sent
+  if (route.query.emailVerificationSent === 'true') {
+    push.info(t('loginView.emailVerificationSent'))
+  }
+  // Check for admin approval required
+  if (route.query.adminApprovalRequired === 'true') {
+    push.info(t('loginView.adminApprovalRequired'))
+  }
+  // Check for email verification invalid link
+  if (route.query.verifyEmailInvalidLink === 'true') {
+    push.error(t('loginView.verifyEmailInvalidLink'))
   }
 })
 </script>
