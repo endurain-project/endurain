@@ -1,0 +1,20 @@
+{
+  "labelWorkoutStepType": "Step type",
+  "labelWorkoutStepTime": "Step time",
+  "labelWorkoutStepReps": "Step reps",
+  "labelWorkoutStepIntensity": "Intensity",
+  "labelWorkoutStepNotes": "Notes",
+  "labelWorkoutStepExerciseName": "Step name",
+  "labelWorkoutStepExerciseWeight": "Weight",
+  "labelWorkoutStepSwimStroke": "Step swim stroke",
+  "labelWorkoutSetType": "Set type",
+  "labelWorkoutSetTime": "Set time",
+  "labelWorkoutSetReps": "Set reps",
+  "labelWorkoutSetExerciseName": "Set name",
+  "labelWorkoutSetExerciseWeight": "Set weight",
+  "labelWorkoutSetTypeMobile": "Type",
+  "labelWorkoutSetTimeMobile": "Time",
+  "labelWorkoutSetRepsMobile": "Reps",
+  "labelWorkoutSetExerciseNameMobile": "Name",
+  "labelWorkoutSetExerciseWeightMobile": "Weight"
+}

@@ -9,7 +9,7 @@
       </div>
       <div class="col form-signin m-3">
         <form @submit.prevent="submitForm">
-          <h1>Create Account</h1>
+          <h1>{{ $t('signupView.title') }}</h1>
           <p>{{ $t('signupView.subtitle') }}</p>
           <br />
 
@@ -57,7 +57,7 @@
           <!-- Optional fields section -->
           <div class="mb-3">
             <button type="button" class="btn btn-link" @click="showOptionalFields = !showOptionalFields">
-              {{ showOptionalFields ? 'Hide' : 'Show' }} Optional Fields
+              {{ showOptionalFields ? 'Hide' : 'Show' }}{{ $t('signupView.optionalFields') }}
             </button>
           </div>
 
@@ -66,6 +66,8 @@
             <div class="form-floating mb-3">
               <select class="form-select" name="preferredLanguage" v-model="signUpPreferredLanguage" required>
                 <option value="ca">{{ $t('generalItems.languageOption2') }}</option>
+                <option value="zh-CN">{{ $t('generalItems.languageOption8') }}</option>
+                <option value="zh-TW">{{ $t('generalItems.languageOption9') }}</
                 <option value="de">{{ $t('generalItems.languageOption4') }}</option>
                 <option value="fr">{{ $t('generalItems.languageOption5') }}</option>
                 <option value="nl">{{ $t('generalItems.languageOption6') }}</option>

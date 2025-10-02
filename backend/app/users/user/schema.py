@@ -25,6 +25,8 @@ class Language(Enum):
 
     Members:
         CATALAN: Catalan language code ("ca").
+        CHINESE_SIMPLIFIED: Simplified Chinese language code ("zh-CN").
+        CHINESE_TRADITIONAL: Traditional Chinese language code ("zh-TW").
         DUTCH: Dutch language code ("nl").
         GERMAN: German language code ("de").
         FRENCH: French language code ("fr").
@@ -34,6 +36,8 @@ class Language(Enum):
     """
 
     CATALAN = "ca"
+    CHINESE_SIMPLIFIED = "zh-CN"
+    CHINESE_TRADITIONAL = "zh-TW"
     DUTCH = "nl"
     GERMAN = "de"
     FRENCH = "fr"

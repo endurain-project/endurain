@@ -1,9 +1,11 @@
 {
+  "title": "Sign Up",
   "subtitle": "Create your account below",
   "name": "Full Name",
   "username": "Username",
   "email": "Email Address",
   "password": "Password",
+  "optionalFields": " Optional Fields",
   "preferredLanguage": "Preferred Language",
   "city": "City",
   "birthdate": "Birth Date",

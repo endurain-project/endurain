@@ -149,6 +149,12 @@
             <span v-if="authStore.user.preferred_language == 'ca'">{{
               $t('generalItems.languageOption2')
             }}</span>
+            <span v-if="authStore.user.preferred_language == 'zh-CN'">{{
+              $t('generalItems.languageOption8')
+            }}</span>
+            <span v-if="authStore.user.preferred_language == 'zh-TW'">{{
+              $t('generalItems.languageOption9')
+            }}</span>
             <span v-if="authStore.user.preferred_language == 'de'">{{
               $t('generalItems.languageOption4')
             }}</span>
