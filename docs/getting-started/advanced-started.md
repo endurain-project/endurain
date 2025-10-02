@@ -88,8 +88,8 @@ Docker image uses a non-root user, so ensure target folders are not owned by roo
 ## Bulk import and file upload
 
 To perform a bulk import:
-- Place .fit, .tcx, .gz and/or .gpx files into the activity_files/bulk_import folder. Create the folder if needed.
-- In the "Settings" menu select "Integrations".
+- Place .fit, .tcx, .gz and/or .gpx files into the data/activity_files/bulk_import folder. Create the folder if needed.
+- In the "Settings" menu select "Import".
 - Click "Import" next to "Bulk Import".
 
 .fit files are preferred. I noticed that Strava/Garmin Connect process of converting .fit to .gpx introduces additional data to the activity file leading to minor variances in the data, like for example additional 
@@ -98,6 +98,28 @@ meters in distance and elevation gain. Some notes:
 - After the files are processed, the files are moved to the processed folder
 - GEOCODES API has a limit of 1 Request/Second on the free plan, so if you have a large number of files, it might not be possible to import all in the same action
 - The bulk import currently only imports data present in the .fit, .tcx or .gpx files - no metadata or other media are imported.
+
+## Importing information from a Strava bulk export (BETA)
+
+Strava allows users to create a bulk export of their historical activity on the site. This information is stored in a zip file, primarily as .csv files, GPS recording files (e.g., .gpx, .fit), and media files (e.g., .jpg, .png).
+
+### Importing gear from a Strava bulk import
+
+At the present time, importing bikes from a Strava bulk export is implemented as a beta feature - use with caution.  Components of bikes are not imported - just the bikes themselves. 
+
+To perform an import of bikes: 
+- Place the bikes.csv file from a Strava bulk export into the data/activity_files/bulk_import folder. Create the folder if needed.
+- In the "Settings" menu select "Import".
+- Click "Bikes Import" next to "Strava import".
+- Status messages about the import, including why any gear was not imported, can be found in the logs.
+
+Ensure the file is named "bikes.csv" and has a header row with at least the fields 'Bike Name', 'Bike Brand', and 'Bike Model'.
+
+### Importing other items from a Strava bulk import
+
+Importing of shoes is under development in September 2025.
+
+Importing activity metadata and media is under development in September 2025.
 
 ## Image personalization
 
