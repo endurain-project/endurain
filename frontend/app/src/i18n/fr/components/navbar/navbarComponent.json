@@ -1,13 +1,13 @@
 {
-    "search": "Rechercher",
-    "activities": "Activités",
-    "activitiesList": "List",
-    "summary": "Résumé",
-    "gear": "Équipement",
-    "health": "Santé",
-    "profile": "Profil",
-    "settings": "Paramètres",
-    "login": "Connexion",
-    "logout": "Déconnexion",
-    "errorLogout": "Erreur de déconnexion"
+  "search": "Rechercher",
+  "activities": "Activités",
+  "activitiesList": "List",
+  "summary": "Résumé",
+  "gear": "Équipement",
+  "health": "Santé",
+  "profile": "Profil",
+  "settings": "Paramètres",
+  "login": "Connexion",
+  "logout": "Déconnexion",
+  "errorLogout": "Erreur de déconnexion"
 }

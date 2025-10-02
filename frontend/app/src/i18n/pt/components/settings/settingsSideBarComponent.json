@@ -1,9 +1,10 @@
 {
-    "usersSection": "Utilizadores",
-    "serverSettingsSection": "Definições do Servidor",
-    "generalSection": "Geral",
-    "myProfileSection": "O meu perfil",
-    "myGoals": "Meus objetivos",
-    "securitySection": "Segurança",
-    "integrationsSection": "Integrações"
+  "usersSection": "Utilizadores",
+  "serverSettingsSection": "Definições do Servidor",
+  "generalSection": "Geral",
+  "myProfileSection": "O meu perfil",
+  "myGoals": "Meus objetivos",
+  "securitySection": "Segurança",
+  "integrationsSection": "Integrações",
+  "importSection": "Importar"
 }

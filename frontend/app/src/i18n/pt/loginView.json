@@ -29,5 +29,9 @@
   "forgotPasswordModalRequestSuccess": "Se o e-mail existe no sistema, um e-mail com um código de reposição da palavra-passe será enviado para o endereço de e-mail fornecido",
   "forgotPasswordModalRequestError": "Falha ao processar pedido de reposição de palavra-passe",
   "forgotPasswordModalEmailNotConfigured": "O serviço de e-mail não está configurado. Entre em contacto com o administrador",
-  "forgotPasswordModalUnableToSendEmail": "Não foi possível enviar o e-mail. Por favor, tente novamente mais tarde ou contacte o administrador"
+  "forgotPasswordModalUnableToSendEmail": "Não foi possível enviar o e-mail. Por favor, tente novamente mais tarde ou contacte o administrador",
+  "signUpLink": "Não tem conta? Registe-se",
+  "emailVerificationSent": "Por favor, verifique o seu e-mail para instruções de verificação",
+  "adminApprovalRequired": "A sua conta está pendente de aprovação de administrador",
+  "verifyEmailInvalidLink": "Link de verificação de e-mail inválido"
 }

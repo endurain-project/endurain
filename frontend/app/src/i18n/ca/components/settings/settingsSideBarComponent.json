@@ -1,9 +1,10 @@
 {
-    "usersSection": "Usuaris",
-    "serverSettingsSection": "Opcions servidor",
-    "generalSection": "General",
-    "myProfileSection": "El meu perfil",
-    "myGoals": "Objectius",
-    "securitySection": "Seguretat",
-    "integrationsSection": "Integracions"
+  "usersSection": "Usuaris",
+  "serverSettingsSection": "Opcions servidor",
+  "generalSection": "General",
+  "myProfileSection": "El meu perfil",
+  "myGoals": "Objectius",
+  "securitySection": "Seguretat",
+  "integrationsSection": "Integracions",
+  "importSection": "Import"
 }

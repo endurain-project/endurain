@@ -1,6 +1,6 @@
 {
-    "buttonAddWeight": "Adicionar peso",
-    "labelNumberOfHealthDataWeight1": "Existe um total de ",
-    "labelNumberOfHealthDataWeight2": " medida(s) de peso inserida(s) (",
-    "labelNumberOfHealthDataWeight3": " carregada(s)):"
+  "buttonAddWeight": "Adicionar peso",
+  "labelNumberOfHealthDataWeight1": "Existe um total de ",
+  "labelNumberOfHealthDataWeight2": " medida(s) de peso inserida(s) (",
+  "labelNumberOfHealthDataWeight3": " carregada(s)):"
 }

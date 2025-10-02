@@ -1,6 +1,6 @@
 {
-    "modalLabelAddGear": "Añadir equipo a la actividad",
-    "modalLabelSelectGear": "Seleccionar equipo",
-    "modalButtonAddGear": "Añadir equipo",
-    "errorEditingGear": "Error al editar el equipo"
+  "modalLabelAddGear": "Añadir equipo a la actividad",
+  "modalLabelSelectGear": "Seleccionar equipo",
+  "modalButtonAddGear": "Añadir equipo",
+  "errorEditingGear": "Error al editar el equipo"
 }
