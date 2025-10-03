@@ -97,51 +97,20 @@ async def confirm_password_reset(
     ],
 ):
     """
-    Confirm a password reset using a one-time token.
+    Confirms a password reset using the provided token and new password.
 
-    Validates the provided new password against configured complexity rules and, if
-    valid, delegates to the password reset token utility to apply the new password.
-
-    Parameters:
-        confirm_data (password_reset_tokens_schema.PasswordResetConfirm):
-            Object containing the reset token and the requested new password
-            (expected attributes: 'token', 'new_password').
-        db (Session):
-            Database session provided by dependency injection (core_database.get_db).
+    Args:
+        confirm_data (password_reset_tokens_schema.PasswordResetConfirm): 
+            Data containing the password reset token and the new password.
+        db (Session): 
+            Database session dependency.
 
     Returns:
-        dict: A JSON-serializable mapping with a success message, e.g.:
-            {"message": "Password reset successful"}
+        dict: A message indicating the password reset was successful.
 
     Raises:
-        HTTPException:
-            - Raised with status 400 if the new password does not meet complexity
-              requirements. The response detail contains the validation message.
-            - May be raised by password_reset_tokens_utils.use_password_reset_token
-              for problems such as an invalid, expired, or already-consumed token,
-              or for database-related errors.
-
-    Side effects:
-        - Updates the user's password in persistent storage.
-        - Invalidates/consumes the provided password reset token.
-        - Persists changes using the provided database session.
-
-    Notes:
-        - Password complexity rules are enforced by
-          session_security.is_password_complexity_valid.
-        - Token application, user lookup, password hashing, and database commits
-          are handled by password_reset_tokens_utils.use_password_reset_token.
+        HTTPException: If the token is invalid, expired, or the password reset fails.
     """
-    # Check if the password meets the complexity requirements
-    is_valid, message = session_security.is_password_complexity_valid(
-        confirm_data.new_password
-    )
-    if not is_valid:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=message,
-        )
-
     # Use the token to reset password
     password_reset_tokens_utils.use_password_reset_token(
         confirm_data.token, confirm_data.new_password, db

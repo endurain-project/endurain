@@ -41,6 +41,30 @@ async def login_for_access_token(
         Depends(core_database.get_db),
     ],
 ):
+    """
+    Handles user login and access token generation, including Multi-Factor Authentication (MFA) flow.
+
+    This endpoint authenticates a user using provided credentials, checks if the user is active,
+    and determines if MFA is required. If MFA is enabled for the user, it stores the pending login
+    and returns an MFA-required response. Otherwise, it completes the login process and returns
+    the required information.
+
+    Args:
+        response: The HTTP response object
+        request: The HTTP request object
+        form_data: Form data containing username and password
+        client_type: The type of client making the request ("web" or "mobile")
+        pending_mfa_store: Store for pending MFA logins
+        db: Database session
+
+    Returns:
+        Union[session_schema.MFARequiredResponse, dict, str]:
+            - If MFA is required, returns an MFA-required response (schema or dict depending on client type)
+            - If MFA is not required, proceeds with normal login via session_utils.complete_login()
+
+    Raises:
+        HTTPException: If authentication fails or the user is inactive
+    """
     user = session_utils.authenticate_user(form_data.username, form_data.password, db)
 
     # Check if the user is active
@@ -67,42 +91,7 @@ async def login_for_access_token(
             }
 
     # If no MFA required, proceed with normal login
-    return await complete_login(response, request, user, client_type, db)
-
-
-async def complete_login(
-    response: Response, request: Request, user, client_type: str, db: Session
-):
-    # Create the tokens
-    access_token, refresh_token, csrf_token = session_utils.create_tokens(user)
-
-    if client_type == "web":
-        # create response with tokens
-        response = session_utils.create_response_with_tokens(
-            response, access_token, refresh_token, csrf_token
-        )
-
-        # Create the session and store it in the database
-        session_id = session_utils.create_session(user, request, refresh_token, db)
-
-        # Return the session_id
-        return session_id
-    elif client_type == "mobile":
-        # Create the session and store it in the database
-        session_id = session_utils.create_session(user, request, refresh_token, db)
-
-        # Return the tokens
-        return {
-            "access_token": access_token,
-            "refresh_token": refresh_token,
-            "session_id": session_id,
-        }
-    else:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Invalid client type",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+    return session_utils.complete_login(response, request, user, client_type, db)
 
 
 @router.post("/mfa/verify")
@@ -119,6 +108,26 @@ async def verify_mfa_and_login(
         Depends(core_database.get_db),
     ],
 ):
+    """
+    Verify MFA code and complete login process.
+
+    This endpoint verifies the MFA code for a pending login and completes
+    the authentication process if the code is valid.
+
+    Args:
+        response: The HTTP response object
+        request: The HTTP request object
+        mfa_request: MFA login request containing username and MFA code
+        client_type: The type of client making the request ("web" or "mobile")
+        pending_mfa_store: Store for pending MFA logins
+        db: Database session
+
+    Returns:
+        Result from session_utils.complete_login()
+
+    Raises:
+        HTTPException: If no pending login found, MFA code is invalid, or user not found
+    """
     # Check if there's a pending MFA login for this username
     user_id = pending_mfa_store.get_pending_login(mfa_request.username)
     if not user_id:
@@ -148,32 +157,54 @@ async def verify_mfa_and_login(
     pending_mfa_store.delete_pending_login(mfa_request.username)
 
     # Complete the login
-    return await complete_login(response, request, user, client_type, db)
+    return session_utils.complete_login(response, request, user, client_type, db)
 
 
 @router.post("/refresh")
 async def refresh_token(
     response: Response,
     request: Request,
-    validate_refresh_token: Annotated[
+    _validate_refresh_token: Annotated[
         Callable, Depends(session_security.validate_refresh_token)
     ],
     token_user_id: Annotated[
         int,
         Depends(session_security.get_user_id_from_refresh_token),
     ],
-    db: Annotated[
-        Session,
-        Depends(core_database.get_db),
-    ],
-    refresh_token: Annotated[
+    refresh_token_value: Annotated[
         str,
         Depends(session_security.get_and_return_refresh_token),
     ],
     client_type: Annotated[str, Depends(session_security.header_client_type_scheme)],
+    db: Annotated[
+        Session,
+        Depends(core_database.get_db),
+    ],
 ):
+    """
+    Refreshes authentication tokens for a user session.
+
+    Depending on the client type ("web" or "mobile"), this endpoint will:
+    - For "web": Set new access, refresh, and CSRF tokens in the response, update the session in the database, and return a success message.
+    - For "mobile": Update the session in the database and return the new access and refresh tokens.
+
+    Args:
+        response (Response): The HTTP response object to set cookies or headers.
+        request (Request): The incoming HTTP request object.
+        _validate_refresh_token (Callable): Dependency to validate the refresh token.
+        token_user_id (int): The user ID extracted from the refresh token.
+        db (Session): Database session dependency.
+        refresh_token_value (str): The raw refresh token value.
+        client_type (str): The type of client making the request ("web" or "mobile").
+
+    Raises:
+        HTTPException: If the session is not found, the user is inactive, or the client type is invalid.
+
+    Returns:
+        dict: For "web" clients, a success message. For "mobile" clients, the new access and refresh tokens.
+    """
     # Get the session from the database
-    session = session_crud.get_session_by_refresh_token(refresh_token, db)
+    session = session_crud.get_session_by_refresh_token(refresh_token_value, db)
 
     # Check if the session was found
     if session is None:
@@ -204,24 +235,26 @@ async def refresh_token(
 
         # Return the tokens and a success message
         return {"Token refreshed successfully"}
-    elif client_type == "mobile":
+    if client_type == "mobile":
         # Edit the session and store it in the database
         session_utils.edit_session(session, request, new_refresh_token, db)
 
         # Return the tokens
         return {"access_token": new_access_token, "refresh_token": new_refresh_token}
-    else:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Invalid client type",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="Invalid client type",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
 
 
 @router.post("/logout")
 async def logout(
     response: Response,
-    refresh_token: Annotated[
+    _validate_access_token: Annotated[
+        Callable, Depends(session_security.validate_access_token)
+    ],
+    refresh_token_value: Annotated[
         str,
         Depends(session_security.get_and_return_refresh_token),
     ],
@@ -235,8 +268,27 @@ async def logout(
         Depends(core_database.get_db),
     ],
 ):
+    """
+    Logs out a user by deleting their session and clearing authentication cookies.
+
+    This endpoint handles logout requests for both web and mobile clients. For web clients, it deletes authentication cookies. For mobile clients, it simply returns a success message. If the session associated with the refresh token exists, it is deleted from the database.
+
+    Args:
+        response (Response): The response object used to modify cookies.
+        _validate_access_token (Callable): Dependency to validate the access token.
+        refresh_token_value (str): The refresh token value extracted from the request.
+        client_type (str): The type of client making the request ("web" or "mobile").
+        token_user_id (int): The user ID extracted from the refresh token.
+        db (Session): The database session dependency.
+
+    Returns:
+        dict: A message indicating successful logout.
+
+    Raises:
+        HTTPException: If the client type is invalid, raises a 403 Forbidden error.
+    """
     # Get the session from the database
-    session = session_crud.get_session_by_refresh_token(refresh_token, db)
+    session = session_crud.get_session_by_refresh_token(refresh_token_value, db)
 
     # Check if the session was found
     if session is not None:
@@ -249,20 +301,22 @@ async def logout(
         response.delete_cookie(key="endurain_refresh_token", path="/")
         response.delete_cookie(key="endurain_csrf_token", path="/")
         return {"message": "Logout successful"}
-    elif client_type == "mobile":
+    if client_type == "mobile":
         return {"message": "Logout successful"}
-    else:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Invalid client type",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="Invalid client type",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
 
 
 @router.get("/sessions/user/{user_id}")
 async def read_sessions_user(
     user_id: int,
-    check_scopes: Annotated[
+    _validate_access_token: Annotated[
+        Callable, Depends(session_security.validate_access_token)
+    ],
+    _check_scopes: Annotated[
         Callable, Security(session_security.check_scopes, scopes=["sessions:read"])
     ],
     db: Annotated[
@@ -270,6 +324,18 @@ async def read_sessions_user(
         Depends(core_database.get_db),
     ],
 ):
+    """
+    Retrieve all sessions associated with a specific user.
+
+    Args:
+        user_id (int): The ID of the user whose sessions are to be retrieved.
+        _validate_access_token (Callable): Dependency that validates the access token for authentication.
+        _check_scopes (Callable): Dependency that checks if the user has the required scopes for reading sessions.
+        db (Session): Database session dependency.
+
+    Returns:
+        List[Session]: A list of session objects associated with the specified user.
+    """
     # Get the sessions from the database
     return session_crud.get_user_sessions(user_id, db)
 
@@ -278,7 +344,10 @@ async def read_sessions_user(
 async def delete_session_user(
     session_id: str,
     user_id: int,
-    check_scopes: Annotated[
+    _validate_access_token: Annotated[
+        Callable, Depends(session_security.validate_access_token)
+    ],
+    _check_scopes: Annotated[
         Callable, Security(session_security.check_scopes, scopes=["sessions:write"])
     ],
     db: Annotated[
@@ -286,5 +355,21 @@ async def delete_session_user(
         Depends(core_database.get_db),
     ],
 ):
+    """
+    Deletes a user from a session.
+
+    Args:
+        session_id (str): The ID of the session from which the user will be removed.
+        user_id (int): The ID of the user to be removed from the session.
+        _validate_access_token (Callable): Dependency that validates the access token.
+        _check_scopes (Callable): Dependency that checks if the user has the required scopes ("sessions:write").
+        db (Session): Database session dependency.
+
+    Returns:
+        Any: The result of the session deletion operation.
+
+    Raises:
+        HTTPException: If the session or user does not exist, or if access is unauthorized.
+    """
     # Delete the session from the database
     return session_crud.delete_session(session_id, user_id, db)

@@ -135,7 +135,7 @@ async def read_users_id(
 @router.post("", response_model=users_schema.UserRead, status_code=201)
 async def create_user(
     user: users_schema.UserCreate,
-    check_scopes: Annotated[
+    _check_scopes: Annotated[
         Callable, Security(session_security.check_scopes, scopes=["users:write"])
     ],
     db: Annotated[
@@ -231,9 +231,9 @@ async def approve_user(
 @router.put("/{user_id}/password")
 async def edit_user_password(
     user_id: int,
-    validate_id: Annotated[Callable, Depends(users_dependencies.validate_user_id)],
+    _validate_id: Annotated[Callable, Depends(users_dependencies.validate_user_id)],
     user_attributes: users_schema.UserEditPassword,
-    check_scopes: Annotated[
+    _check_scopes: Annotated[
         Callable, Security(session_security.check_scopes, scopes=["users:write"])
     ],
     db: Annotated[
@@ -241,16 +241,6 @@ async def edit_user_password(
         Depends(core_database.get_db),
     ],
 ):
-    # Check if the password meets the complexity requirements
-    is_valid, message = session_security.is_password_complexity_valid(
-        user_attributes.password
-    )
-    if not is_valid:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=message,
-        )
-
     # Update the user password in the database
     users_crud.edit_user_password(user_id, user_attributes.password, db)
 

@@ -1,4 +1,3 @@
-import bcrypt
 import secrets
 
 from typing import Annotated, Union
@@ -14,7 +13,13 @@ from fastapi.security import (
 from joserfc import jwt
 from joserfc.jwk import OctKey
 
+# Import password hashing libraries
+from pwdlib import PasswordHash
+from pwdlib.hashers.argon2 import Argon2Hasher
+from pwdlib.hashers.bcrypt import BcryptHasher
+
 import session.constants as session_constants
+import session.password_hasher as session_password_hasher
 
 import core.logger as core_logger
 
@@ -39,49 +44,11 @@ cookie_refresh_token_scheme = APIKeyCookie(
     auto_error=False,
 )
 
-
-def is_password_complexity_valid(password) -> tuple[bool, str]:
-    # Check for minimum length
-    if len(password) < 8:
-        return False, "Password must be at least 8 characters long."
-
-    # Check for at least one uppercase letter
-    if not any(char.isupper() for char in password):
-        return False, "Password must contain at least one uppercase letter."
-
-    # Check for at least one digit
-    if not any(char.isdigit() for char in password):
-        return False, "Password must contain at least one digit."
-
-    # Check for at least one special character
-    special_characters = set("!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~")
-    if not any(char in special_characters for char in password):
-        return False, "Password must contain at least one special character."
-
-    return True, "Password is valid."
-
-
-def hash_password(password: str) -> str:
-    # Explicitly set the cost factor for bcrypt (default is 12, but is set explicitly for clarity)
-    cost_factor = 12
-    return bcrypt.hashpw(
-        password.encode("utf-8"), bcrypt.gensalt(rounds=cost_factor)
-    ).decode("utf-8")
-
-
-def verify_password(plain_password: str, hashed_password: str) -> bool:
-    try:
-        return bcrypt.checkpw(
-            plain_password.encode("utf-8"), hashed_password.encode("utf-8")
-        )
-    except Exception as err:
-        core_logger.print_to_log(
-            f"Error verifying password: {err}",
-            "error",
-            exc=err,
-            context={"plain_password": "[REDACTED]", "hashed_password": "[REDACTED]"},
-        )
-        return False
+# Initialize the PasswordHasher with both Argon2 and Bcrypt support
+# Argon2 listed first => new hashes use Argon2; bcrypt remains verifiable for legacy rows.
+password_hasher = session_password_hasher.PasswordHasher(
+    hasher=[Argon2Hasher(), BcryptHasher()]
+)
 
 
 def decode_token(token: Annotated[str, Depends(oauth2_scheme)]) -> dict:

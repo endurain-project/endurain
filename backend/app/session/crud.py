@@ -1,3 +1,6 @@
+"""CRUD operations for user sessions."""
+
+from datetime import datetime, timezone
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
@@ -7,11 +10,40 @@ import session.schema as session_schema
 import core.logger as core_logger
 
 
-def get_user_sessions(user_id: int, db: Session):
+class SessionNotFoundError(Exception):
+    """
+    Exception raised when a requested session cannot be found.
+
+    This error is typically used to indicate that an operation requiring a session
+    failed because the session does not exist in the data store.
+
+    Attributes:
+        message (str): Optional explanation of the error.
+    """
+
+
+def get_user_sessions(
+    user_id: int, db: Session
+) -> list[session_models.UsersSessions] | None:
+    """
+    Retrieve all session records for a given user, ordered by creation date descending.
+
+    Args:
+        user_id (int): The ID of the user whose sessions are to be retrieved.
+        db (Session): SQLAlchemy database session.
+
+    Returns:
+        list[session_models.UsersSessions]: List of session objects for the user, ordered by most recent.
+        None: If no sessions are found for the user.
+
+    Raises:
+        HTTPException: If an error occurs during retrieval, raises a 500 Internal Server Error.
+    """
     try:
         db_sessions = (
             db.query(session_models.UsersSessions)
             .filter(session_models.UsersSessions.user_id == user_id)
+            .order_by(session_models.UsersSessions.created_at.desc())
             .all()
         )
 
@@ -28,22 +60,36 @@ def get_user_sessions(user_id: int, db: Session):
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Internal Server Error",
+            detail="Failed to retrieve sessions",
         ) from err
 
 
-def get_session_by_refresh_token(refresh_token: str, db: Session):
+def get_session_by_refresh_token(
+    refresh_token: str, db: Session
+) -> session_models.UsersSessions | None:
+    """
+    Retrieve a user session from the database using a refresh token, ensuring the session is not expired.
+
+    Args:
+        refresh_token (str): The refresh token associated with the user session.
+        db (Session): The SQLAlchemy database session.
+
+    Returns:
+        UsersSessions | None: The user session object if found and not expired, otherwise None.
+
+    Raises:
+        HTTPException: If an error occurs during retrieval, raises a 500 Internal Server Error.
+    """
     try:
-        # Get the session from the database
+        # Get the session from the database, ensure it's not expired
         db_session = (
             db.query(session_models.UsersSessions)
             .filter(session_models.UsersSessions.refresh_token == refresh_token)
+            .filter(
+                session_models.UsersSessions.expires_at > datetime.now(timezone.utc)
+            )
             .first()
         )
-
-        # If the session was not found, return None
-        if db_session is None:
-            return None
 
         # Return the session
         return db_session
@@ -56,33 +102,36 @@ def get_session_by_refresh_token(refresh_token: str, db: Session):
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Internal Server Error",
+            detail="Failed to retrieve session",
         ) from err
 
 
-def create_session(session: session_schema.UsersSessions, db: Session):
-    try:
-        # Create a new session
-        db_session = session_models.UsersSessions(
-            id=session.id,
-            user_id=session.user_id,
-            refresh_token=session.refresh_token,
-            ip_address=session.ip_address,
-            device_type=session.device_type,
-            operating_system=session.operating_system,
-            operating_system_version=session.operating_system_version,
-            browser=session.browser,
-            browser_version=session.browser_version,
-            created_at=session.created_at,
-            expires_at=session.expires_at,
-        )
+def create_session(
+    session: session_schema.UsersSessions, db: Session
+) -> session_models.UsersSessions:
+    """
+    Creates a new user session in the database.
 
-        # Add the user to the database
+    Args:
+        session (session_schema.UsersSessions): The session data to be created.
+        db (Session): The SQLAlchemy database session.
+
+    Returns:
+        session_models.UsersSessions: The newly created session object.
+
+    Raises:
+        HTTPException: If an error occurs during session creation, raises a 500 Internal Server Error.
+    """
+    try:
+        # Create a new session using model_dump
+        db_session = session_models.UsersSessions(**session.model_dump())
+
+        # Add the session to the database
         db.add(db_session)
         db.commit()
         db.refresh(db_session)
 
-        # Return the user
+        # Return the session
         return db_session
     except Exception as err:
         # Rollback the transaction
@@ -94,11 +143,25 @@ def create_session(session: session_schema.UsersSessions, db: Session):
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Internal Server Error",
+            detail="Failed to create session",
         ) from err
 
 
-def edit_session(session: session_schema.UsersSessions, db: Session):
+def edit_session(session: session_schema.UsersSessions, db: Session) -> None:
+    """
+    Edits an existing user session in the database.
+
+    This function retrieves a session by its ID, updates its fields with the provided values,
+    and commits the changes to the database. If the session does not exist, it raises a 404 error.
+    If any other exception occurs, it rolls back the transaction, logs the error, and raises a 500 error.
+
+    Args:
+        session (session_schema.UsersSessions): The session data containing updated fields.
+        db (Session): The SQLAlchemy database session.
+
+    Raises:
+        HTTPException: If the session is not found (404) or if an error occurs during update (500).
+    """
     try:
         # Get the session from the database
         db_session = (
@@ -106,6 +169,10 @@ def edit_session(session: session_schema.UsersSessions, db: Session):
             .filter(session_models.UsersSessions.id == session.id)
             .first()
         )
+
+        # Check if the session exists, if not raises exception
+        if not db_session:
+            raise SessionNotFoundError(f"Session {session.id} not found")
 
         # Dictionary of the fields to update if they are not None
         session_data = session.model_dump(exclude_unset=True)
@@ -115,6 +182,10 @@ def edit_session(session: session_schema.UsersSessions, db: Session):
 
         # Commit the transaction
         db.commit()
+    except SessionNotFoundError as err:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=str(err)
+        ) from err
     except Exception as err:
         # Rollback the transaction
         db.rollback()
@@ -125,11 +196,26 @@ def edit_session(session: session_schema.UsersSessions, db: Session):
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Internal Server Error",
+            detail="Failed to update session",
         ) from err
 
 
-def delete_session(session_id: str, user_id: int, db: Session):
+def delete_session(session_id: str, user_id: int, db: Session) -> None:
+    """
+    Deletes a user session from the database.
+
+    Args:
+        session_id (str): The unique identifier of the session to delete.
+        user_id (int): The ID of the user associated with the session.
+        db (Session): The SQLAlchemy database session.
+
+    Raises:
+        HTTPException: If the session is not found (404) or if an error occurs during deletion (500).
+
+    Notes:
+        - Rolls back the transaction and logs the error if an unexpected exception occurs.
+        - Commits the transaction if the session is successfully deleted.
+    """
     try:
         # Delete the session
         num_deleted = (
@@ -143,15 +229,16 @@ def delete_session(session_id: str, user_id: int, db: Session):
 
         # Check if the session was found and deleted
         if num_deleted == 0:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Session ID {session_id} not found",
+            raise SessionNotFoundError(
+                f"Session {session_id} not found for user {user_id}"
             )
 
         # Commit the transaction
         db.commit()
-    except HTTPException as http_err:
-        raise http_err
+    except SessionNotFoundError as err:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=str(err)
+        ) from err
     except Exception as err:
         # Rollback the transaction
         db.rollback()
@@ -162,5 +249,5 @@ def delete_session(session_id: str, user_id: int, db: Session):
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Internal Server Error",
+            detail="Failed to delete session",
         ) from err

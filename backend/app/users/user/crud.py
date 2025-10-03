@@ -5,6 +5,7 @@ from sqlalchemy.exc import IntegrityError
 from urllib.parse import unquote
 
 import session.security as session_security
+import session.password_hasher as session_password_hasher
 
 import users.user.schema as users_schema
 import users.user.utils as users_utils
@@ -12,25 +13,20 @@ import users.user.models as users_models
 
 import health_data.utils as health_data_utils
 
-import sign_up_tokens.utils as sign_up_tokens_utils
-
 import server_settings.utils as server_settings_utils
 import server_settings.schema as server_settings_schema
 
 import core.logger as core_logger
-import core.apprise as core_apprise
 
 
-def authenticate_user(username: str, db: Session):
+def authenticate_user(username: str, db: Session) -> users_models.User | None:
     try:
         user = (
             db.query(users_models.User)
             .filter(users_models.User.username == username.lower())
             .first()
         )
-
-        if not user:
-            return None
+        
         return user
     except Exception as err:
         # Log the exception
@@ -38,7 +34,7 @@ def authenticate_user(username: str, db: Session):
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Internal Server Error",
+            detail="Failed to authenticate user",
         ) from err
 
 
@@ -288,10 +284,14 @@ def create_user(user: users_schema.UserCreate, db: Session):
     try:
         user.username = user.username.lower()
         user.email = user.email.lower()
+        
+        # Hash the password
+        hashed_password = users_utils.check_password_and_hash(user.password, 8)
+
         # Create a new user
         db_user = users_models.User(
             **user.model_dump(exclude={"password"}),
-            password=session_security.hash_password(user.password),
+            password=hashed_password,
         )
 
         # Add the user to the database
@@ -301,6 +301,12 @@ def create_user(user: users_schema.UserCreate, db: Session):
 
         # Return user
         return db_user
+    except HTTPException as http_err:
+        # Rollback the transaction
+        db.rollback()
+
+        # Raise exception
+        raise http_err
     except IntegrityError as integrity_error:
         # Rollback the transaction
         db.rollback()
@@ -320,7 +326,7 @@ def create_user(user: users_schema.UserCreate, db: Session):
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Internal Server Error",
+            detail="Failed to create user",
         ) from err
 
 
@@ -545,7 +551,7 @@ def verify_user_email(
         ) from err
 
 
-def edit_user_password(user_id: int, password: str, db: Session):
+def edit_user_password(user_id: int, password: str, db: Session, is_hashed: bool = False):
     try:
         # Get the user from the database
         db_user = (
@@ -553,7 +559,10 @@ def edit_user_password(user_id: int, password: str, db: Session):
         )
 
         # Update the user
-        db_user.password = session_security.hash_password(password)
+        if is_hashed:
+            db_user.password = password
+        else:
+            db_user.password = users_utils.check_password_and_hash(password, 8)
 
         # Commit the transaction
         db.commit()
@@ -569,7 +578,7 @@ def edit_user_password(user_id: int, password: str, db: Session):
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Internal Server Error",
+            detail="Failed to edit user password",
         ) from err
 
 
@@ -833,7 +842,7 @@ def create_signup_user(
             currency=user.currency,
             email_verified=email_verified,
             pending_admin_approval=pending_admin_approval,
-            password=session_security.hash_password(user.password),
+            password=users_utils.check_password_and_hash(user.password, 8),
         )
 
         # Add the user to the database

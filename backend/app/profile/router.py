@@ -281,29 +281,16 @@ async def edit_profile_password(
     ],
 ):
     """
-    Asynchronously updates the password for the authenticated user after validating password complexity.
+    Edits the password of the authenticated user.
 
     Args:
-        user_attributtes (users_schema.UserEditPassword): The new password data provided by the user.
-        token_user_id (int): The ID of the authenticated user, extracted from the access token.
-        db (Session): The database session dependency.
-
-    Raises:
-        HTTPException: If the new password does not meet complexity requirements.
+        user_attributtes (users_schema.UserEditPassword): Schema containing the new password.
+        token_user_id (int): ID of the user extracted from the access token.
+        db (Session): Database session dependency.
 
     Returns:
-        dict: A success message indicating the user's password was updated.
+        dict: A message indicating the password was updated successfully.
     """
-    # Check if the password meets the complexity requirements
-    is_valid, message = session_security.is_password_complexity_valid(
-        user_attributtes.password
-    )
-    if not is_valid:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=message,
-        )
-
     # Update the user password in the database
     users_crud.edit_user_password(token_user_id, user_attributtes.password, db)
 

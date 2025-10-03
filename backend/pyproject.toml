@@ -23,7 +23,6 @@ gpxpy = "^1.6.2"
 tcxreader = "^0.4.11"
 alembic = "^1.14.0"
 joserfc = "^1.0.1"
-bcrypt = "^4.2.1"
 mysqlclient = "^2.2.6"
 fitdecode = "^0.10.0"
 numpy = "^2.2.1"
@@ -42,6 +41,7 @@ garth = "^0.5.16"
 apprise = "^1.8.0"
 pyotp = "^2.9.0"
 qrcode = {extras = ["pil"], version = "^8.2"}
+pwdlib = {extras = ["argon2", "bcrypt"], version = "^0.2.1"}
 
 
 [build-system]
