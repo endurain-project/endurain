@@ -9,9 +9,9 @@
     "stravaGearImportbuttonBikes": "Import Strava bikes",
     "loadingMessageStravaBikesImport": "Importing Strava bikes from file...",
     "successMessageStravaBikesImport": "Strava bikes imported successfully",
-    "errorMessageUnableToImportBikes": "An error occurred while importing Strava bikes"
+    "errorMessageUnableToImportBikes": "An error occurred while importing Strava bikes",
     "stravaImportbuttonShoes": "Import Strava shoes",
     "loadingMessageStravaShoesImport": "Importing Strava shoes from file...",
     "successMessageStravaShoesImport": "Strava shoes imported successfully",
-    "errorMessageUnableToImportShoes": "An error occurred while importing Strava shoees"
+    "errorMessageUnableToImportShoes": "An error occurred while importing Strava shoes"
 }
