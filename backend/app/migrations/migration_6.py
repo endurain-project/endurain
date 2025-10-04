@@ -25,7 +25,7 @@ def process_migration_6(db: Session):
     if users:
         for user in users:
             try:
-                user.nickname = user.nickname.lower()
+                user.username = user.username.lower()
 
                 user_crud.edit_user(user.id, user, db)
             except Exception as err:

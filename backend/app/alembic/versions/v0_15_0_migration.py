@@ -277,7 +277,7 @@ def upgrade() -> None:
     # Add the new entry to the migrations table
     op.execute("""
     INSERT INTO migrations (id, name, description, executed) VALUES
-    (6, 'v0.15.0', 'Lowercase user nicknames', false);
+    (6, 'v0.15.0', 'Lowercase user usernames', false);
     """)
 
 
