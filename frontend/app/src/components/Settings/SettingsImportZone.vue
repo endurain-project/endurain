@@ -97,13 +97,15 @@ async function submitStravaBikesImport() {
 	}
 }
 async function submitStravaShoesImport() {
+  // Set the loading message
+  const notification = push.promise(t('settingsImportZone.loadingMessageStravaShoesImport'))
 	try {
-		await gears.stravaShoesImport();
-		// Show the loading alert.
-		push.info(t("settingsImportZone.loadingMessageStravaShoesImport"));
+		await stravaService.importShoes();
+		// Resolve the loading message with a success message
+		notification.resolve(t("settingsImportZone.successMessageStravaShoesImport"));
 	} catch (error) {
-		// If there is an error, show the error alert.
-		push.error(
+		// Reject the loading message with an error message
+		notification.reject(
 			`${t("settingsImportZone.errorMessageUnableToImportShoes")} - ${error}`,
 		);
 	}

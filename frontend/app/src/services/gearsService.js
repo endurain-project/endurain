@@ -35,8 +35,5 @@ export const gears = {
   },
   deleteGear(gearId) {
     return fetchDeleteRequest(`gears/${gearId}`)
-  },
-  stravaShoesImport() {
-    return fetchPostRequest('gears/stravashoesimport')
   }
 }
