@@ -153,13 +153,13 @@ def get_gear_user_by_nickname(
 ) -> gears_schema.Gear | None:
     try:
         # Unquote the nickname and change "+" to whitespace
-        parsed_nickname = unquote(nickname).replace("+", " ").lower().strip()
+        parsed_nickname = unquote(nickname).replace("+", " ").strip()
 
         # Get the gear by user ID and nickname from the database
         gear = (
             db.query(gears_models.Gear)
             .filter(
-                func.lower(gears_models.Gear.nickname) == parsed_nickname,
+                gears_models.Gear.nickname == parsed_nickname,
                 gears_models.Gear.user_id == user_id,
             )
             .first()
@@ -323,7 +323,6 @@ def create_multiple_gears(gears: list[gears_schema.Gear], user_id: int, db: Sess
         gears_to_create: list[gears_schema.Gear] = []
         for gear in deduped:
             gear_check = get_gear_user_by_nickname(user_id, gear.nickname, db)
-
             if gear_check is not None:
                 core_logger.print_to_log_and_console(
                     f"Gear with nickname '{gear.nickname}' already exists for user {user_id}, skipping",
