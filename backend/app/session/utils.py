@@ -19,6 +19,7 @@ import session.security as session_security
 import session.constants as session_constants
 import session.schema as session_schema
 import session.crud as session_crud
+import session.password_hasher as session_password_hasher
 
 import users.user.crud as users_crud
 import users.user.schema as users_schema
@@ -108,7 +109,10 @@ def edit_session_object(
 
 
 def authenticate_user(
-    username: str, password: str, db: Session
+    username: str,
+    password: str,
+    password_hasher: session_password_hasher.PasswordHasher,
+    db: Session,
 ) -> users_schema.UserRead:
     """
     Authenticates a user by verifying the provided username and password.
@@ -116,6 +120,7 @@ def authenticate_user(
     Args:
         username (str): The username of the user attempting to authenticate.
         password (str): The password provided by the user.
+        password_hasher (PasswordHasher): The password hasher instance used for verification.
         db (Session): The database session used to query user data.
     Returns:
         users_schema.UserRead: The authenticated user object.
@@ -134,8 +139,8 @@ def authenticate_user(
         )
 
     # Verify password and get updated hash if applicable
-    is_password_valid, updated_hash = (
-        session_security.password_hasher.verify_and_update(password, user.password)
+    is_password_valid, updated_hash = password_hasher.verify_and_update(
+        password, user.password
     )
     if not is_password_valid:
         raise HTTPException(
@@ -146,7 +151,9 @@ def authenticate_user(
 
     # Update user hash if applicable
     if updated_hash:
-        users_crud.edit_user_password(user.id, updated_hash, db, is_hashed=True)
+        users_crud.edit_user_password(
+            user.id, updated_hash, password_hasher, db, is_hashed=True
+        )
 
     # Return the user if the password is correct
     return user

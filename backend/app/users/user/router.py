@@ -18,6 +18,7 @@ import health_targets.crud as health_targets_crud
 
 import sign_up_tokens.utils as sign_up_tokens_utils
 import session.security as session_security
+import session.password_hasher as session_password_hasher
 
 import core.apprise as core_apprise
 import core.database as core_database
@@ -138,13 +139,17 @@ async def create_user(
     _check_scopes: Annotated[
         Callable, Security(session_security.check_scopes, scopes=["users:write"])
     ],
+    password_hasher: Annotated[
+        session_password_hasher.PasswordHasher,
+        Depends(session_password_hasher.get_password_hasher),
+    ],
     db: Annotated[
         Session,
         Depends(core_database.get_db),
     ],
 ):
     # Create the user in the database
-    created_user = users_crud.create_user(user, db)
+    created_user = users_crud.create_user(user, password_hasher, db)
 
     # Create the user integrations in the database
     user_integrations_crud.create_user_integrations(created_user.id, db)
@@ -236,13 +241,19 @@ async def edit_user_password(
     _check_scopes: Annotated[
         Callable, Security(session_security.check_scopes, scopes=["users:write"])
     ],
+    password_hasher: Annotated[
+        session_password_hasher.PasswordHasher,
+        Depends(session_password_hasher.get_password_hasher),
+    ],
     db: Annotated[
         Session,
         Depends(core_database.get_db),
     ],
 ):
     # Update the user password in the database
-    users_crud.edit_user_password(user_id, user_attributes.password, db)
+    users_crud.edit_user_password(
+        user_id, user_attributes.password, password_hasher, db
+    )
 
     # Return success message
     return {f"User ID {user_id} password updated successfully"}

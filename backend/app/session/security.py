@@ -13,13 +13,7 @@ from fastapi.security import (
 from joserfc import jwt
 from joserfc.jwk import OctKey
 
-# Import password hashing libraries
-from pwdlib import PasswordHash
-from pwdlib.hashers.argon2 import Argon2Hasher
-from pwdlib.hashers.bcrypt import BcryptHasher
-
 import session.constants as session_constants
-import session.password_hasher as session_password_hasher
 
 import core.logger as core_logger
 
@@ -42,12 +36,6 @@ cookie_access_token_scheme = APIKeyCookie(
 cookie_refresh_token_scheme = APIKeyCookie(
     name="endurain_refresh_token",
     auto_error=False,
-)
-
-# Initialize the PasswordHasher with both Argon2 and Bcrypt support
-# Argon2 listed first => new hashes use Argon2; bcrypt remains verifiable for legacy rows.
-password_hasher = session_password_hasher.PasswordHasher(
-    hasher=[Argon2Hasher(), BcryptHasher()]
 )
 
 

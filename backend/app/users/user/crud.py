@@ -26,7 +26,7 @@ def authenticate_user(username: str, db: Session) -> users_models.User | None:
             .filter(users_models.User.username == username.lower())
             .first()
         )
-        
+
         return user
     except Exception as err:
         # Log the exception
@@ -280,13 +280,19 @@ def get_users_admin(db: Session):
         ) from err
 
 
-def create_user(user: users_schema.UserCreate, db: Session):
+def create_user(
+    user: users_schema.UserCreate,
+    password_hasher: session_password_hasher.PasswordHasher,
+    db: Session,
+):
     try:
         user.username = user.username.lower()
         user.email = user.email.lower()
-        
+
         # Hash the password
-        hashed_password = users_utils.check_password_and_hash(user.password, 8)
+        hashed_password = users_utils.check_password_and_hash(
+            user.password, password_hasher, 8
+        )
 
         # Create a new user
         db_user = users_models.User(
@@ -392,9 +398,7 @@ def edit_user(user_id: int, user: users_schema.UserRead, db: Session):
         ) from err
 
 
-def approve_user(
-    user_id: int, db: Session
-):
+def approve_user(user_id: int, db: Session):
     """
     Approve a user by ID.
 
@@ -551,7 +555,13 @@ def verify_user_email(
         ) from err
 
 
-def edit_user_password(user_id: int, password: str, db: Session, is_hashed: bool = False):
+def edit_user_password(
+    user_id: int,
+    password: str,
+    password_hasher: session_password_hasher.PasswordHasher,
+    db: Session,
+    is_hashed: bool = False,
+):
     try:
         # Get the user from the database
         db_user = (
@@ -562,7 +572,9 @@ def edit_user_password(user_id: int, password: str, db: Session, is_hashed: bool
         if is_hashed:
             db_user.password = password
         else:
-            db_user.password = users_utils.check_password_and_hash(password, 8)
+            db_user.password = users_utils.check_password_and_hash(
+                password, password_hasher, 8
+            )
 
         # Commit the transaction
         db.commit()
@@ -784,7 +796,8 @@ def disable_user_mfa(user_id: int, db: Session):
 
 def create_signup_user(
     user: users_schema.UserSignup,
-    server_settings,
+    server_settings: server_settings_schema.ServerSettingsRead,
+    password_hasher: session_password_hasher.PasswordHasher,
     db: Session,
 ):
     """
@@ -792,7 +805,8 @@ def create_signup_user(
 
     Args:
         user (users_schema.UserSignup): The user signup data containing user details.
-        server_settings: Server configuration settings that determine signup requirements.
+        server_settings (server_settings_schema.ServerSettingsRead): Server settings used to determine if email verification or admin approval is required.
+        password_hasher (session_password_hasher.PasswordHasher): Password hasher used to hash the user's password.
         db (Session): SQLAlchemy database session.
 
     Returns:
@@ -842,7 +856,9 @@ def create_signup_user(
             currency=user.currency,
             email_verified=email_verified,
             pending_admin_approval=pending_admin_approval,
-            password=users_utils.check_password_and_hash(user.password, 8),
+            password=users_utils.check_password_and_hash(
+                user.password, password_hasher, 8
+            ),
         )
 
         # Add the user to the database

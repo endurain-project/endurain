@@ -16,6 +16,7 @@ import session.utils as session_utils
 import session.security as session_security
 import session.crud as session_crud
 import session.schema as session_schema
+import session.password_hasher as session_password_hasher
 
 import users.user.crud as users_crud
 import users.user.utils as users_utils
@@ -36,6 +37,10 @@ async def login_for_access_token(
     pending_mfa_store: Annotated[
         session_schema.PendingMFALogin, Depends(session_schema.get_pending_mfa_store)
     ],
+    password_hasher: Annotated[
+        session_password_hasher.PasswordHasher,
+        Depends(session_password_hasher.get_password_hasher),
+    ],
     db: Annotated[
         Session,
         Depends(core_database.get_db),
@@ -55,6 +60,7 @@ async def login_for_access_token(
         form_data: Form data containing username and password
         client_type: The type of client making the request ("web" or "mobile")
         pending_mfa_store: Store for pending MFA logins
+        password_hasher: The password hasher instance used for verifying passwords
         db: Database session
 
     Returns:
@@ -65,7 +71,9 @@ async def login_for_access_token(
     Raises:
         HTTPException: If authentication fails or the user is inactive
     """
-    user = session_utils.authenticate_user(form_data.username, form_data.password, db)
+    user = session_utils.authenticate_user(
+        form_data.username, form_data.password, password_hasher, db
+    )
 
     # Check if the user is active
     users_utils.check_user_is_active(user)

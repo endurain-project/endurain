@@ -241,3 +241,20 @@ class PasswordHasher:
             return True
         except PasswordPolicyError:
             return False
+
+
+def get_password_hasher():
+    """
+    Returns the password hasher instance.
+
+    This function provides access to the application's password hasher, which is used for securely hashing and verifying passwords.
+
+    Returns:
+        password_hasher: An instance of the password hasher used for password operations.
+    """
+    return password_hasher
+
+
+# Initialize the PasswordHasher with both Argon2 and Bcrypt support
+# Argon2 listed first => new hashes use Argon2; bcrypt remains verifiable for legacy rows.
+password_hasher = PasswordHasher(hasher=[Argon2Hasher(), BcryptHasher()])

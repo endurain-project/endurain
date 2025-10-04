@@ -22,6 +22,8 @@ import health_targets.crud as health_targets_crud
 import sign_up_tokens.utils as sign_up_tokens_utils
 import sign_up_tokens.schema as sign_up_tokens_schema
 
+import session.password_hasher as session_password_hasher
+
 import server_settings.utils as server_settings_utils
 
 import core.database as core_database
@@ -40,6 +42,10 @@ async def signup(
         core_apprise.AppriseService,
         Depends(core_apprise.get_email_service),
     ],
+    password_hasher: Annotated[
+        session_password_hasher.PasswordHasher,
+        Depends(session_password_hasher.get_password_hasher),
+    ],
     db: Annotated[
         Session,
         Depends(core_database.get_db),
@@ -55,6 +61,7 @@ async def signup(
         verification and admin approval emails.
     - websocket_manager (websocket_schema.WebSocketManager): Injected manager used to send
         real-time notifications (e.g., admin approval requests).
+    - password_hasher (session_password_hasher.PasswordHasher): Injected password hasher used to hash user passwords.
     - db (Session): Database session/connection used to create the user and related records.
 
     Behavior and side effects
@@ -107,7 +114,9 @@ async def signup(
         )
 
     # Create the user in the database
-    created_user = users_crud.create_signup_user(user, server_settings, db)
+    created_user = users_crud.create_signup_user(
+        user, server_settings, password_hasher, db
+    )
 
     # Create the user integrations in the database
     user_integrations_crud.create_user_integrations(created_user.id, db)
