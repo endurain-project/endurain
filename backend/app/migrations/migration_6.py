@@ -5,6 +5,7 @@ import core.logger as core_logger
 import migrations.crud as migrations_crud
 
 import users.user.crud as user_crud
+import users.user.schema as users_schema
 
 
 def process_migration_6(db: Session):
@@ -26,8 +27,9 @@ def process_migration_6(db: Session):
         for user in users:
             try:
                 user.username = user.username.lower()
+                user_converted = users_schema.UserRead.model_validate(user)
 
-                user_crud.edit_user(user.id, user, db)
+                user_crud.edit_user(user.id, user_converted, db)
             except Exception as err:
                 core_logger.print_to_log_and_console(
                     f"Migration 6 - Error processing user {user.id}: {err}",
