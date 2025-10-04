@@ -113,7 +113,7 @@ def get_gear_user_contains_nickname(
 ) -> list[gears_schema.Gear] | None:
     try:
         # Unquote the nickname and change "+" to whitespace
-        parsed_nickname = unquote(nickname).replace("+", " ").lower()
+        parsed_nickname = unquote(nickname).replace("+", " ").lower().strip()
 
         # Get the gear by user ID and nickname from the database
         gears = (
@@ -153,7 +153,7 @@ def get_gear_user_by_nickname(
 ) -> gears_schema.Gear | None:
     try:
         # Unquote the nickname and change "+" to whitespace
-        parsed_nickname = unquote(nickname).replace("+", " ").lower()
+        parsed_nickname = unquote(nickname).replace("+", " ").lower().strip()
 
         # Get the gear by user ID and nickname from the database
         gear = (
