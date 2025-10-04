@@ -46,7 +46,7 @@
     "@vue/tsconfig": "^0.8.1",
     "eslint": "^9.15.0",
     "eslint-plugin-vue": "^10.3.0",
-    "jsdom": "^26.0.0",
+    "jsdom": "^27.0.0",
     "npm-run-all2": "^8.0.4",
     "typescript": "^5.9.3",
     "vite": "^6.1.0",
