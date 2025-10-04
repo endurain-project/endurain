@@ -301,8 +301,8 @@ def create_multiple_gears(gears: list[gears_schema.Gear], user_id: int, db: Sess
             gear
             for gear in (gears or [])
             if gear is not None
-            and getattr(gear, "nickname", None)
-            and str(gear.nickname).strip()
+            and getattr(gear, "nickname", None) is not None
+            and str(gear.nickname).replace("+", " ").strip() is not ""
         ]
 
         # 2) De-dupe within the valid_gears payload (case-insensitive, trimmed)
