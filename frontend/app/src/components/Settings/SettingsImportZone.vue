@@ -61,22 +61,15 @@
 </template>
 
 <script setup>
-import { ref } from "vue";
 import { useI18n } from "vue-i18n";
 // Import Notivue push
 import { push } from "notivue";
-// Importing the stores
-import { useAuthStore } from "@/stores/authStore";
 // Importing the services
 import { activities } from "@/services/activitiesService";
-import { gears } from "@/services/gearsService";
-// Import the components
-import ModalComponent from "@/components/Modals/ModalComponent.vue";
-import ModalComponentNumberAndStringInput from "@/components/Modals/ModalComponentNumberAndStringInput.vue";
-import ModalComponentNumberInput from "@/components/Modals/ModalComponentNumberInput.vue";
-import ModalComponentDateRangeInput from "@/components/Modals/ModalComponentDateRangeInput.vue";
-const authStore = useAuthStore();
-const { locale, t } = useI18n();
+import { strava as stravaService } from "@/services/stravaService";
+
+const { t } = useI18n();
+
 async function submitBulkImport() {
 	try {
 		await activities.bulkImportActivities();
@@ -90,13 +83,15 @@ async function submitBulkImport() {
 	}
 }
 async function submitStravaBikesImport() {
+  // Set the loading message
+  const notification = push.promise(t('settingsImportZone.loadingMessageStravaBikesImport'))
 	try {
-		await gears.stravaBikesImport();
-		// Show the loading alert.
-		push.info(t("settingsImportZone.loadingMessageStravaBikesImport"));
+		await stravaService.importBikes();
+		// Resolve the loading message with a success message
+		notification.resolve(t("settingsImportZone.successMessageStravaBikesImport"));
 	} catch (error) {
-		// If there is an error, show the error alert.
-		push.error(
+		// Reject the loading message with an error message
+		notification.reject(
 			`${t("settingsImportZone.errorMessageUnableToImportBikes")} - ${error}`,
 		);
 	}

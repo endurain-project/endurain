@@ -2,7 +2,7 @@ from sqlalchemy import func
 from urllib.parse import unquote
 from typing import Annotated
 from fastapi import Depends
-from sqlalchemy.orm import Session 
+from sqlalchemy.orm import Session
 import session.security as session_security
 import core.database as core_database
 
@@ -43,6 +43,7 @@ GEAR_NAME_TO_ID.update(
     }
 )
 
+
 def transform_schema_gear_to_model_gear(
     gear: gears_schema.Gear, user_id: int
 ) -> gears_models.Gear:
@@ -54,15 +55,18 @@ def transform_schema_gear_to_model_gear(
         created_date = gear.created_at
 
     # Create a new gear object
-    #  Note - if the modifications to gear item nickname, brand, and model are altered (e.g., the + to space replace), be sure to simultaneously update the function is_gear_duplicate, below
     new_gear = gears_models.Gear(
         brand=(
-            unquote(gear.brand).replace("+", " ") if gear.brand is not None else None
+            unquote(gear.brand).replace("+", " ").strip()
+            if gear.brand is not None
+            else None
         ),
         model=(
-            unquote(gear.model).replace("+", " ") if gear.model is not None else None
+            unquote(gear.model).replace("+", " ").strip()
+            if gear.model is not None
+            else None
         ),
-        nickname=unquote(gear.nickname).replace("+", " "),
+        nickname=unquote(gear.nickname).replace("+", " ").strip(),
         gear_type=gear.gear_type,
         user_id=user_id,
         created_at=created_date,
@@ -82,48 +86,3 @@ def serialize_gear(gear: gears_schema.Gear):
 
     # Return the serialized gear object
     return gear
-
-# Determine if a gear item is already in the gear database
-    # Can use passed user gear list to save on calls to the database
-    # Gear item dictionary struture:  gear_item = {"name": str, "brand": str, "model": str, "gear_type": int}
-def is_gear_duplicate(
-    gear_item: dict, 
-    user_gear_list: list = None,
-    token_user_id: Annotated[
-        int,
-        Depends(session_security.get_user_id_from_access_token),
-    ] = None,
-    db: Annotated[
-        Session,
-        Depends(core_database.get_db),
-    ] = None,
-) -> tuple[bool, bool, gears_schema.Gear]:
-
-    name_duplicate = False
-    gear_is_duplicate = False
-    duplicate_gear_item = None
-
-    # Get gear list, if needed
-    if user_gear_list is None:
-        user_gear_list = gears_crud.get_gear_user(token_user_id, db)
-
-    # Return no match if user has no gear
-    if user_gear_list is None:
-        return name_duplicate, gear_is_duplicate, duplicate_gear_item
-
-    # Iterate through user gear list and look for an item that matches
-    for item in user_gear_list:
-        # Must replace + with space when checking because gear.utils.transform_schema_gear_to_model_gear modifies the entered gear name/model/brand when adding it to the database
-        # Making all comparisons lower case, as Endurain gear database throws an error if names are the same with only capitalization differences
-        # Checking both for name overlaps (which are not allowed, even for different gear types) and full item match.
-        if item.nickname.lower() == gear_item["name"].replace("+", " ").lower():
-            name_duplicate = True
-            duplicate_gear_item = item
-        if item.nickname.lower() == gear_item["name"].replace("+", " ").lower() and item.brand.lower() == gear_item["brand"].replace("+", " ").lower() and item.model.lower() == gear_item["model"].replace("+", " ").lower() and item.gear_type == gear_item["gear_type"]:
-            name_duplicate = True
-            gear_is_duplicate = True
-            duplicate_gear_item = item
-            break
-
-    return name_duplicate, gear_is_duplicate, duplicate_gear_item
-
