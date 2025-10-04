@@ -5,11 +5,11 @@
   "unitsImperial": "Imperial",
   "currencyLabel": "Divisa defecte",
   "numRecordsLabel": "Número d'items per pàgina",
-  "signupTitle": "Sign-up",
-  "adminApprovalLabel": "Admin approval",
-  "emailConfirmationLabel": "Email confirmation",
+  "signupTitle": "Registre",
+  "adminApprovalLabel": "Aprovació d'administrador",
+  "emailConfirmationLabel": "Confirmació d'email",
   "publicShareableLinksLabel": "Enllaços publics compartibles",
-  "enabledLabel": "Enabled",
+  "enabledLabel": "Habilitat",
   "serverSettingsPublicShareableLinksEnabledWarningAlert": "Activant això, es podran veure totes les activitats publicades sense autenticació.",
   "publicShareableLinksShowUserInfoLabel": "Mostra informació de l'usuari",
   "serverSettingsPublicShareableLinksShowUserWarningAlert": "Activant això, es mostrarà la informació de l'usuari a tots els enllaços públics",
@@ -25,5 +25,5 @@
   "successPhotoDelete": "Foto borrada correctament",
   "successUpdateServerSettings": "Opcions de servidor actualitzades",
   "errorUpdateServerSettings": "Error actualitzant opcions de servidor",
-  "errorFetchingServerSettings": "Error fetching server settings"
+  "errorFetchingServerSettings": "Error actualitzant opcions de servidor"
 }

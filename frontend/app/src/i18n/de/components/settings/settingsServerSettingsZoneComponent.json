@@ -25,5 +25,5 @@
   "successPhotoDelete": "Bild erfolgreich gelöscht",
   "successUpdateServerSettings": "Servereinstellungen erfolgreich aktualisiert",
   "errorUpdateServerSettings": "Fehler beim Aktualisieren der Servereinstellungen",
-  "errorFetchingServerSettings": "Error fetching server settings"
+  "errorFetchingServerSettings": "Fehler beim Abrufen der Benutzerstatistiken"
 }

@@ -30,8 +30,8 @@
   "forgotPasswordModalRequestError": "Ha fallat el procés de restabliment",
   "forgotPasswordModalEmailNotConfigured": "Servei de correu no configurat. Contacta amb l'adminstrador",
   "forgotPasswordModalUnableToSendEmail": "No s'ha pogut enviar correu. Prova de nou o contacta amb l'administrador",
-  "signUpLink": "Don't have an account? Sign up",
-  "emailVerificationSent": "Please check your email for verification instructions",
-  "adminApprovalRequired": "Your account is pending admin approval",
-  "verifyEmailInvalidLink": "Invalid email verification link"
+  "signUpLink": "No tens compte? Registre",
+  "emailVerificationSent": "Reviseu el correu electrònic per obtenir instruccions de verificació",
+  "adminApprovalRequired": "Compte pendent d'aprovació d''administració",
+  "verifyEmailInvalidLink": "Enllaç de verificació d'email invàlid"
 }

@@ -13,8 +13,8 @@
   "languageOption5": "Francès (FR)",
   "languageOption6": "Holandès (NL)",
   "languageOption7": "Espanyol (ES)",
-  "languageOption8": "Chinese (Simplified)",
-  "languageOption9": "Chinese (Traditional)",
+  "languageOption8": "Xinès (Simplificat)",
+  "languageOption9": "Xinès (Tradicional)",
   "firstDayOfWeekOption0": "Diumenge",
   "firstDayOfWeekOption1": "Dilluns",
   "firstDayOfWeekOption2": "Dimarts",
@@ -71,7 +71,7 @@
   "currencyDollarSymbol": "$",
   "currencyPound": "Lliura Britànica",
   "currencyPoundSymbol": "£",
-  "genderMale": "Male",
-  "genderFemale": "Female",
-  "genderUnspecified": "Unspecified"
+  "genderMale": "Home",
+  "genderFemale": "Dona",
+  "genderUnspecified": "Sense especificar"
 }

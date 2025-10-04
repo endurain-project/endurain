@@ -4,7 +4,7 @@
   "buttonConnect": "Verbinden",
   "buttonDropdownOptions": "Optionen",
   "modalRetrieveActivitiesByDaysTitle": "Abrufen von Aktivitäten nach Tagen",
-  "modalRetrieveActivitiesByDateRangeTitle": "Abrufen von Aktivitäten nach Tagen",
+  "modalRetrieveActivitiesByDateRangeTitle": "Abrufen von Aktivitäten nach Datumsbereich",
   "modalRetrieveActivitiesByDaysLabel": "Tage",
   "modalRetrieveActivitiesByDaysPlaceholder": "Tage",
   "modalRetrieveButton": "Abrufen",

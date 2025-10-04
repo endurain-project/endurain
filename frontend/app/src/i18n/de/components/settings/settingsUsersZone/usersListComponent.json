@@ -11,7 +11,7 @@
   "userApproveSuccessMessage": "User approved successfully.",
   "userApproveErrorMessage": "Error approving user",
   "modalRejectSignUpTitle": "Reject user sign up",
-  "modalRejectSignUpBody1": "Are you sure you want to reject user ",
+  "modalRejectSignUpBody1": "Bist du sicher, dass du den Benutzer ablehnen möchtest ",
   "modalRejectSignUpBody2": "The user will be deleted, this cannot be undone.",
   "userEditErrorMessage": "Fehler beim Bearbeiten des Benutzers",
   "modalDeleteUserTitle": "Benutzer löschen",
