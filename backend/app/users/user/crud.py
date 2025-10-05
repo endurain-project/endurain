@@ -345,6 +345,8 @@ def edit_user(user_id: int, user: users_schema.UserRead, db: Session):
             # Delete the user photo in the filesystem
             users_utils.delete_user_photo_filesystem(db_user.id)
 
+        user.username = user.username.lower()
+
         # Dictionary of the fields to update if they are not None
         user_data = user.model_dump(exclude_unset=True)
         # Iterate over the fields and update the db_user dynamically

@@ -370,8 +370,8 @@ const submitForm = async () => {
     // Prepare data for submission
     const data = {
       name: signUpName.value,
-      username: signUpUsername.value,
-      email: signUpEmail.value,
+      username: signUpUsername.value.toLowerCase(),
+      email: signUpEmail.value.toLowerCase(),
       password: signUpPassword.value,
       preferred_language: signUpPreferredLanguage.value,
       city: signUpCity.value || null,

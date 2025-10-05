@@ -27,6 +27,8 @@ def process_migration_6(db: Session):
         for user in users:
             try:
                 user.username = user.username.lower()
+                if user.birthdate:
+                    user.birthdate = user.birthdate.isoformat()
                 user_converted = users_schema.UserRead.model_validate(user)
 
                 user_crud.edit_user(user.id, user_converted, db)
