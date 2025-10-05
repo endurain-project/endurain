@@ -20,6 +20,7 @@ import session.constants as session_constants
 import session.schema as session_schema
 import session.crud as session_crud
 import session.password_hasher as session_password_hasher
+import session.token_manager as session_token_manager
 
 import users.user.crud as users_crud
 import users.user.schema as users_schema
@@ -159,16 +160,7 @@ def authenticate_user(
     return user
 
 
-def create_tokens(user: users_schema.UserRead) -> Tuple[str, str, str]:
-    """
-    Create access, refresh, and CSRF tokens for a user.
-
-    Args:
-        user: User object
-
-    Returns:
-        Tuple of (access_token, refresh_token, csrf_token)
-    """
+def create_tokens(user: users_schema.UserRead, token_manager: session_token_manager.TokenManager) -> Tuple[str, str, str]:
     # Check user access level and set scopes accordingly
     if user.access_type == users_schema.UserAccessType.REGULAR:
         scopes = session_constants.REGULAR_ACCESS_SCOPES

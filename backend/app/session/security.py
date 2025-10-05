@@ -1,5 +1,3 @@
-import secrets
-
 from typing import Annotated, Union
 from fastapi import Depends, HTTPException, status
 from fastapi.security import (
@@ -9,11 +7,8 @@ from fastapi.security import (
     APIKeyCookie,
 )
 
-# import the jwt module from the joserfc package
-from joserfc import jwt
-from joserfc.jwk import OctKey
-
 import session.constants as session_constants
+import session.token_manager as session_token_manager
 
 import core.logger as core_logger
 
@@ -39,140 +34,6 @@ cookie_refresh_token_scheme = APIKeyCookie(
 )
 
 
-def decode_token(token: Annotated[str, Depends(oauth2_scheme)]) -> dict:
-    try:
-        # Decode the token and return the payload
-        return jwt.decode(token, OctKey.import_key(session_constants.JWT_SECRET_KEY))
-    except Exception as err:
-        core_logger.print_to_log(
-            f"Error decoding token: {err}",
-            "error",
-            exc=err,
-            context={"token": "[REDACTED]"},
-        )
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Unable to decode token",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-
-
-def validate_token_expiration(token: Annotated[str, Depends(oauth2_scheme)]) -> None:
-    try:
-        claims_requests = jwt.JWTClaimsRegistry(
-            exp={"essential": True},
-            sub={"essential": True},  # Ensure 'sub' claim is required
-        )
-        payload = decode_token(token)
-
-        # Validate token expiration
-        claims_requests.validate(payload.claims)
-    except jwt.InvalidClaimError as claims_err:
-        core_logger.print_to_log(
-            f"JWT claims validation error: {claims_err}",
-            "error",
-            exc=claims_err,
-            context={"token": "[REDACTED]"},
-        )
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Token is missing required claims or is invalid.",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    except Exception as err:
-        core_logger.print_to_log(
-            f"Error validating token expiration: {err}",
-            "error",
-            exc=err,
-            context={"token": "[REDACTED]"},
-        )
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Token is expired or invalid.",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-
-
-def get_token_user_id(token: Annotated[str, Depends(oauth2_scheme)]) -> int:
-    try:
-        # Decode the token
-        payload = decode_token(token)
-
-        # Get the user id from the payload and return it
-        return payload.claims["sub"]
-    except KeyError as err:
-        core_logger.print_to_log(
-            f"User ID claim not found in token: {err}",
-            "error",
-            exc=err,
-            context={"token": "[REDACTED]"},
-        )
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="User ID claim is missing in the token.",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    except Exception as err:
-        core_logger.print_to_log(
-            f"Error retrieving user ID from token: {err}",
-            "error",
-            exc=err,
-            context={"token": "[REDACTED]"},
-        )
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Unable to retrieve user ID from token.",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-
-
-def get_token_scopes(token: Annotated[str, Depends(oauth2_scheme)]) -> list[str]:
-    try:
-        # Decode the token
-        payload = decode_token(token)
-
-        # Get the scopes from the payload and return it
-        return payload.claims["scopes"]
-    except KeyError as err:
-        core_logger.print_to_log(
-            f"Scopes claim not found in token: {err}",
-            "error",
-            exc=err,
-            context={"token": "[REDACTED]"},
-        )
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Scopes claim is missing in the token.",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    except Exception as err:
-        core_logger.print_to_log(
-            f"Error retrieving scopes from token: {err}",
-            "error",
-            exc=err,
-            context={"token": "[REDACTED]"},
-        )
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Unable to retrieve scopes from token.",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-
-
-# Helper function to create a CSRF token
-def create_csrf_token() -> str:
-    return secrets.token_urlsafe(32)
-
-
-def create_token(data: dict) -> str:
-    # Encode the data and return the token
-    return jwt.encode(
-        {"alg": session_constants.JWT_ALGORITHM},
-        data.copy(),
-        OctKey.import_key(session_constants.JWT_SECRET_KEY),
-    )
-
-
 def get_token(
     noncookie_token: Annotated[Union[str, None], Depends(oauth2_scheme)],
     cookie_token: Union[str, None],
@@ -188,14 +49,13 @@ def get_token(
 
     if client_type == "web":
         return cookie_token
-    elif client_type == "mobile":
+    if client_type == "mobile":
         return noncookie_token
-    else:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Invalid client type",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="Invalid client type",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
 
 
 ## ACCESS TOKEN VALIDATION
@@ -210,10 +70,14 @@ def get_access_token(
 def validate_access_token(
     # access_token: Annotated[str, Depends(get_access_token_from_cookies)]
     access_token: Annotated[str, Depends(get_access_token)],
+    token_manager: Annotated[
+        session_token_manager.TokenManager,
+        Depends(session_token_manager.get_token_manager),
+    ],
 ) -> None:
     try:
         # Validate the token expiration
-        validate_token_expiration(access_token)
+        token_manager.validate_token_expiration(access_token)
     except HTTPException as http_err:
         core_logger.print_to_log(
             f"Access token validation failed: {http_err.detail}",
@@ -232,14 +96,18 @@ def validate_access_token(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="An unexpected error occurred during access token validation.",
-        )
+        ) from err
 
 
 def get_user_id_from_access_token(
     access_token: Annotated[str, Depends(get_access_token)],
+    token_manager: Annotated[
+        session_token_manager.TokenManager,
+        Depends(session_token_manager.get_token_manager),
+    ],
 ) -> int:
     # Return the user ID associated with the token
-    return get_token_user_id(access_token)
+    return token_manager.get_token_user_id(access_token)
 
 
 def get_and_return_access_token(
@@ -263,10 +131,14 @@ def get_refresh_token(
 def validate_refresh_token(
     # access_token: Annotated[str, Depends(get_access_token_from_cookies)]
     refresh_token: Annotated[str, Depends(get_refresh_token)],
+    token_manager: Annotated[
+        session_token_manager.TokenManager,
+        Depends(session_token_manager.get_token_manager),
+    ],
 ) -> None:
     try:
         # Validate the token expiration
-        validate_token_expiration(refresh_token)
+        token_manager.validate_token_expiration(refresh_token)
     except HTTPException as http_err:
         core_logger.print_to_log(
             f"Refresh token validation failed: {http_err.detail}",
@@ -285,14 +157,18 @@ def validate_refresh_token(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="An unexpected error occurred during refresh token validation.",
-        )
+        ) from err
 
 
 def get_user_id_from_refresh_token(
     refresh_token: Annotated[str, Depends(get_refresh_token)],
+    token_manager: Annotated[
+        session_token_manager.TokenManager,
+        Depends(session_token_manager.get_token_manager),
+    ],
 ) -> int:
     # Return the user ID associated with the token
-    return get_token_user_id(refresh_token)
+    return token_manager.get_token_user_id(refresh_token)
 
 
 def get_and_return_refresh_token(
@@ -304,10 +180,14 @@ def get_and_return_refresh_token(
 
 def check_scopes(
     access_token: Annotated[str, Depends(get_access_token)],
+    token_manager: Annotated[
+        session_token_manager.TokenManager,
+        Depends(session_token_manager.get_token_manager),
+    ],
     security_scopes: SecurityScopes,
 ) -> None:
     # Get the scopes from the token
-    scopes = get_token_scopes(access_token)
+    scopes = token_manager.get_token_scopes(access_token)
 
     try:
         # Use set operations to find missing scopes
@@ -337,4 +217,4 @@ def check_scopes(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="An unexpected error occurred during scope validation.",
-        )
+        ) from err

@@ -17,6 +17,7 @@ import session.security as session_security
 import session.crud as session_crud
 import session.schema as session_schema
 import session.password_hasher as session_password_hasher
+import session.token_manager as session_token_manager
 
 import users.user.crud as users_crud
 import users.user.utils as users_utils
@@ -184,6 +185,10 @@ async def refresh_token(
         Depends(session_security.get_and_return_refresh_token),
     ],
     client_type: Annotated[str, Depends(session_security.header_client_type_scheme)],
+    token_manager: Annotated[
+        session_token_manager.TokenManager,
+        Depends(session_token_manager.get_token_manager),
+    ],
     db: Annotated[
         Session,
         Depends(core_database.get_db),
@@ -230,7 +235,7 @@ async def refresh_token(
 
     # Create the tokens
     new_access_token, new_refresh_token, new_csrf_token = session_utils.create_tokens(
-        user
+        user, token_manager
     )
 
     if client_type == "web":
