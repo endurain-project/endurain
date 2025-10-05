@@ -287,7 +287,7 @@ def transform_csv_bike_gear_to_schema_gear(
             model=bikes_dict[bike]["Bike Model"],
             nickname=bike,
             gear_type=gears_utils.GEAR_NAME_TO_ID["bike"],
-            is_active=True,
+            active=True,
             strava_gear_id=None,
         )
         gears.append(new_gear)
