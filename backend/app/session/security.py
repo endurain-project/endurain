@@ -15,7 +15,7 @@ import core.logger as core_logger
 # Define the OAuth2 scheme for handling bearer tokens
 oauth2_scheme = OAuth2PasswordBearer(
     tokenUrl="token",
-    scopes=session_constants.SCOPES_DICT,
+    scopes=session_constants.SCOPE_DICT,
     auto_error=False,
 )
 
@@ -178,7 +178,7 @@ def get_and_return_refresh_token(
     return refresh_token
 
 
-def check_scopes(
+def check_scope(
     access_token: Annotated[str, Depends(get_access_token)],
     token_manager: Annotated[
         session_token_manager.TokenManager,
@@ -186,12 +186,12 @@ def check_scopes(
     ],
     security_scopes: SecurityScopes,
 ) -> None:
-    # Get the scopes from the token
-    scopes = token_manager.get_token_scopes(access_token)
+    # Get the scope from the token
+    scope = token_manager.get_token_scopes(access_token)
 
     try:
-        # Use set operations to find missing scopes
-        missing_scopes = set(security_scopes.scopes) - set(scopes)
+        # Use set operations to find missing scope
+        missing_scopes = set(security_scopes.scopes) - set(scope)
         if missing_scopes:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
@@ -212,7 +212,7 @@ def check_scopes(
             f"Unexpected error during scope validation: {err}",
             "error",
             exc=err,
-            context={"scopes": scopes, "required_scopes": security_scopes.scopes},
+            context={"scope": scope, "required_scope": security_scopes.scopes},
         )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

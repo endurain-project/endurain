@@ -104,7 +104,7 @@ def create_app() -> FastAPI:
     origins = [
         "http://localhost:8080",
         "http://localhost:5173",
-        os.environ.get("ENDURAIN_HOST"),
+        core_config.ENDURAIN_HOST,
     ]
 
     app.add_middleware(
@@ -112,7 +112,7 @@ def create_app() -> FastAPI:
         allow_origins=(
             origins
             if core_config.ENVIRONMENT == "development"
-            else os.environ.get("ENDURAIN_HOST")
+            else core_config.ENDURAIN_HOST
         ),
         allow_credentials=True,
         allow_methods=["*"],

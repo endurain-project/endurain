@@ -42,6 +42,10 @@ async def login_for_access_token(
         session_password_hasher.PasswordHasher,
         Depends(session_password_hasher.get_password_hasher),
     ],
+    token_manager: Annotated[
+        session_token_manager.TokenManager,
+        Depends(session_token_manager.get_token_manager),
+    ],
     db: Annotated[
         Session,
         Depends(core_database.get_db),
@@ -100,7 +104,9 @@ async def login_for_access_token(
             }
 
     # If no MFA required, proceed with normal login
-    return session_utils.complete_login(response, request, user, client_type, db)
+    return session_utils.complete_login(
+        response, request, user, client_type, token_manager, db
+    )
 
 
 @router.post("/mfa/verify")
@@ -111,6 +117,10 @@ async def verify_mfa_and_login(
     client_type: Annotated[str, Depends(session_security.header_client_type_scheme)],
     pending_mfa_store: Annotated[
         session_schema.PendingMFALogin, Depends(session_schema.get_pending_mfa_store)
+    ],
+    token_manager: Annotated[
+        session_token_manager.TokenManager,
+        Depends(session_token_manager.get_token_manager),
     ],
     db: Annotated[
         Session,
@@ -166,7 +176,9 @@ async def verify_mfa_and_login(
     pending_mfa_store.delete_pending_login(mfa_request.username)
 
     # Complete the login
-    return session_utils.complete_login(response, request, user, client_type, db)
+    return session_utils.complete_login(
+        response, request, user, client_type, token_manager, db
+    )
 
 
 @router.post("/refresh")
@@ -329,8 +341,8 @@ async def read_sessions_user(
     _validate_access_token: Annotated[
         Callable, Depends(session_security.validate_access_token)
     ],
-    _check_scopes: Annotated[
-        Callable, Security(session_security.check_scopes, scopes=["sessions:read"])
+    __check_scope: Annotated[
+        Callable, Security(session_security.check_scope, scopes=["sessions:read"])
     ],
     db: Annotated[
         Session,
@@ -343,7 +355,7 @@ async def read_sessions_user(
     Args:
         user_id (int): The ID of the user whose sessions are to be retrieved.
         _validate_access_token (Callable): Dependency that validates the access token for authentication.
-        _check_scopes (Callable): Dependency that checks if the user has the required scopes for reading sessions.
+        __check_scope (Callable): Dependency that checks if the user has the required scope for reading sessions.
         db (Session): Database session dependency.
 
     Returns:
@@ -360,8 +372,8 @@ async def delete_session_user(
     _validate_access_token: Annotated[
         Callable, Depends(session_security.validate_access_token)
     ],
-    _check_scopes: Annotated[
-        Callable, Security(session_security.check_scopes, scopes=["sessions:write"])
+    __check_scope: Annotated[
+        Callable, Security(session_security.check_scope, scopes=["sessions:write"])
     ],
     db: Annotated[
         Session,
@@ -375,7 +387,7 @@ async def delete_session_user(
         session_id (str): The ID of the session from which the user will be removed.
         user_id (int): The ID of the user to be removed from the session.
         _validate_access_token (Callable): Dependency that validates the access token.
-        _check_scopes (Callable): Dependency that checks if the user has the required scopes ("sessions:write").
+        __check_scope (Callable): Dependency that checks if the user has the required scope ("sessions:write").
         db (Session): Database session dependency.
 
     Returns:

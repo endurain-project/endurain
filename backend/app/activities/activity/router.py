@@ -40,13 +40,15 @@ router = APIRouter()
 )
 async def read_activities_user_activities_week(
     user_id: int,
-    validate_user_id: Annotated[Callable, Depends(users_dependencies.validate_user_id)],
+    _validate_user_id: Annotated[
+        Callable, Depends(users_dependencies.validate_user_id)
+    ],
     week_number: int,
-    validate_week_number: Annotated[
+    _validate_week_number: Annotated[
         Callable, Depends(activities_dependencies.validate_week_number)
     ],
-    check_scopes: Annotated[
-        Callable, Security(session_security.check_scopes, scopes=["activities:read"])
+    _check_scope: Annotated[
+        Callable, Security(session_security.check_scope, scopes=["activities:read"])
     ],
     token_user_id: Annotated[
         int,
@@ -88,9 +90,11 @@ async def read_activities_user_activities_week(
 )
 async def read_activities_user_activities_this_week_distances(
     user_id: int,
-    validate_user_id: Annotated[Callable, Depends(users_dependencies.validate_user_id)],
-    check_scopes: Annotated[
-        Callable, Security(session_security.check_scopes, scopes=["activities:read"])
+    _validate_user_id: Annotated[
+        Callable, Depends(users_dependencies.validate_user_id)
+    ],
+    _check_scope: Annotated[
+        Callable, Security(session_security.check_scope, scopes=["activities:read"])
     ],
     token_user_id: Annotated[
         int,
@@ -127,9 +131,11 @@ async def read_activities_user_activities_this_week_distances(
 )
 async def read_activities_user_activities_this_month_distances(
     user_id: int,
-    validate_user_id: Annotated[Callable, Depends(users_dependencies.validate_user_id)],
-    check_scopes: Annotated[
-        Callable, Security(session_security.check_scopes, scopes=["activities:read"])
+    _validate_user_id: Annotated[
+        Callable, Depends(users_dependencies.validate_user_id)
+    ],
+    _check_scope: Annotated[
+        Callable, Security(session_security.check_scope, scopes=["activities:read"])
     ],
     token_user_id: Annotated[
         int,
@@ -172,9 +178,11 @@ async def read_activities_user_activities_this_month_distances(
 )
 async def read_activities_user_activities_this_month_number(
     user_id: int,
-    validate_user_id: Annotated[Callable, Depends(users_dependencies.validate_user_id)],
-    check_scopes: Annotated[
-        Callable, Security(session_security.check_scopes, scopes=["activities:read"])
+    _validate_user_id: Annotated[
+        Callable, Depends(users_dependencies.validate_user_id)
+    ],
+    _check_scope: Annotated[
+        Callable, Security(session_security.check_scope, scopes=["activities:read"])
     ],
     token_user_id: Annotated[
         Callable,
@@ -217,9 +225,11 @@ async def read_activities_user_activities_this_month_number(
 )
 async def read_activities_gear_activities(
     gear_id: int,
-    validate_gear_id: Annotated[Callable, Depends(gears_dependencies.validate_gear_id)],
-    check_scopes: Annotated[
-        Callable, Security(session_security.check_scopes, scopes=["activities:read"])
+    _validate_gear_id: Annotated[
+        Callable, Depends(gears_dependencies.validate_gear_id)
+    ],
+    _check_scope: Annotated[
+        Callable, Security(session_security.check_scope, scopes=["activities:read"])
     ],
     token_user_id: Annotated[
         Callable,
@@ -242,9 +252,11 @@ async def read_activities_gear_activities(
 )
 async def read_activities_gear_activities_number(
     gear_id: int,
-    validate_gear_id: Annotated[Callable, Depends(gears_dependencies.validate_gear_id)],
-    check_scopes: Annotated[
-        Callable, Security(session_security.check_scopes, scopes=["activities:read"])
+    _validate_gear_id: Annotated[
+        Callable, Depends(gears_dependencies.validate_gear_id)
+    ],
+    _check_scope: Annotated[
+        Callable, Security(session_security.check_scope, scopes=["activities:read"])
     ],
     token_user_id: Annotated[
         Callable,
@@ -270,14 +282,16 @@ async def read_activities_gear_activities_number(
 )
 async def read_activities_gear_activities_with_pagination(
     gear_id: int,
-    validate_gear_id: Annotated[Callable, Depends(gears_dependencies.validate_gear_id)],
+    _validate_gear_id: Annotated[
+        Callable, Depends(gears_dependencies.validate_gear_id)
+    ],
     page_number: int,
     num_records: int,
-    validate_pagination_values: Annotated[
+    _validate_pagination_values: Annotated[
         Callable, Depends(core_dependencies.validate_pagination_values)
     ],
-    check_scopes: Annotated[
-        Callable, Security(session_security.check_scopes, scopes=["activities:read"])
+    _check_scope: Annotated[
+        Callable, Security(session_security.check_scope, scopes=["activities:read"])
     ],
     token_user_id: Annotated[
         Callable,
@@ -299,8 +313,8 @@ async def read_activities_gear_activities_with_pagination(
     response_model=int,
 )
 async def read_activities_user_activities_number(
-    check_scopes: Annotated[
-        Callable, Security(session_security.check_scopes, scopes=["activities:read"])
+    _check_scope: Annotated[
+        Callable, Security(session_security.check_scope, scopes=["activities:read"])
     ],
     token_user_id: Annotated[
         int,
@@ -311,7 +325,7 @@ async def read_activities_user_activities_number(
         Depends(core_database.get_db),
     ],
     # Added dependencies for optional query parameters
-    validate_activity_type: Annotated[
+    _validate_activity_type: Annotated[
         Callable, Depends(activities_dependencies.validate_activity_type)
     ],
     # Added optional filter query parameters
@@ -343,8 +357,8 @@ async def read_activities_user_activities_number(
     response_model=dict | None,
 )
 async def read_activities_types(
-    check_scopes: Annotated[
-        Callable, Security(session_security.check_scopes, scopes=["activities:read"])
+    _check_scope: Annotated[
+        Callable, Security(session_security.check_scope, scopes=["activities:read"])
     ],
     token_user_id: Annotated[
         int,
@@ -364,14 +378,16 @@ async def read_activities_types(
 )
 async def read_activities_user_activities_pagination(
     user_id: int,
-    validate_user_id: Annotated[Callable, Depends(users_dependencies.validate_user_id)],
+    _validate_user_id: Annotated[
+        Callable, Depends(users_dependencies.validate_user_id)
+    ],
     page_number: int,
     num_records: int,
     validate_pagination_values: Annotated[
         Callable, Depends(core_dependencies.validate_pagination_values)
     ],
-    check_scopes: Annotated[
-        Callable, Security(session_security.check_scopes, scopes=["activities:read"])
+    _check_scope: Annotated[
+        Callable, Security(session_security.check_scope, scopes=["activities:read"])
     ],
     token_user_id: Annotated[
         int,
@@ -382,13 +398,13 @@ async def read_activities_user_activities_pagination(
         Depends(core_database.get_db),
     ],
     # Added dependencies for optional query parameters
-    validate_activity_type: Annotated[
+    _validate_activity_type: Annotated[
         Callable, Depends(activities_dependencies.validate_activity_type)
     ],
-    validate_sort_by: Annotated[
+    _validate_sort_by: Annotated[
         Callable, Depends(activities_dependencies.validate_sort_by)
     ],
-    validate_sort_order: Annotated[
+    _validate_sort_order: Annotated[
         Callable, Depends(activities_dependencies.validate_sort_order)
     ],
     # Added optional filter query parameters
@@ -425,14 +441,16 @@ async def read_activities_user_activities_pagination(
 )
 async def read_activities_followed_user_activities_pagination(
     user_id: int,
-    validate_user_id: Annotated[Callable, Depends(users_dependencies.validate_user_id)],
+    _validate_user_id: Annotated[
+        Callable, Depends(users_dependencies.validate_user_id)
+    ],
     page_number: int,
     num_records: int,
-    validate_pagination_values: Annotated[
+    _validate_pagination_values: Annotated[
         Callable, Depends(core_dependencies.validate_pagination_values)
     ],
-    check_scopes: Annotated[
-        Callable, Security(session_security.check_scopes, scopes=["activities:read"])
+    _check_scope: Annotated[
+        Callable, Security(session_security.check_scope, scopes=["activities:read"])
     ],
     db: Annotated[
         Session,
@@ -451,9 +469,11 @@ async def read_activities_followed_user_activities_pagination(
 )
 async def read_activities_followed_user_activities_number(
     user_id: int,
-    validate_user_id: Annotated[Callable, Depends(users_dependencies.validate_user_id)],
-    check_scopes: Annotated[
-        Callable, Security(session_security.check_scopes, scopes=["activities:read"])
+    _validate_user_id: Annotated[
+        Callable, Depends(users_dependencies.validate_user_id)
+    ],
+    _check_scope: Annotated[
+        Callable, Security(session_security.check_scope, scopes=["activities:read"])
     ],
     db: Annotated[
         Session,
@@ -476,8 +496,8 @@ async def read_activities_followed_user_activities_number(
     response_model=list[activities_schema.Activity] | None,
 )
 async def read_activities_user_activities_refresh(
-    check_scopes: Annotated[
-        Callable, Security(session_security.check_scopes, scopes=["activities:read"])
+    _check_scope: Annotated[
+        Callable, Security(session_security.check_scope, scopes=["activities:read"])
     ],
     token_user_id: Annotated[
         int,
@@ -535,11 +555,11 @@ async def read_activities_user_activities_refresh(
 )
 async def read_activities_activity_from_id(
     activity_id: int,
-    validate_activity_id: Annotated[
+    _validate_activity_id: Annotated[
         Callable, Depends(activities_dependencies.validate_activity_id)
     ],
-    check_scopes: Annotated[
-        Callable, Security(session_security.check_scopes, scopes=["activities:read"])
+    _check_scope: Annotated[
+        Callable, Security(session_security.check_scope, scopes=["activities:read"])
     ],
     token_user_id: Annotated[
         int,
@@ -562,8 +582,8 @@ async def read_activities_activity_from_id(
 )
 async def read_activities_contain_name(
     name: str,
-    check_scopes: Annotated[
-        Callable, Security(session_security.check_scopes, scopes=["activities:read"])
+    _check_scope: Annotated[
+        Callable, Security(session_security.check_scope, scopes=["activities:read"])
     ],
     token_user_id: Annotated[
         int,
@@ -589,8 +609,8 @@ async def create_activity_with_uploaded_file(
         Depends(session_security.get_user_id_from_access_token),
     ],
     file: UploadFile,
-    check_scopes: Annotated[
-        Callable, Security(session_security.check_scopes, scopes=["activities:write"])
+    _check_scope: Annotated[
+        Callable, Security(session_security.check_scope, scopes=["activities:write"])
     ],
     websocket_manager: Annotated[
         websocket_schema.WebSocketManager,
@@ -624,8 +644,8 @@ async def create_activity_with_bulk_import(
         int,
         Depends(session_security.get_user_id_from_access_token),
     ],
-    check_scopes: Annotated[
-        Callable, Security(session_security.check_scopes, scopes=["activities:write"])
+    _check_scope: Annotated[
+        Callable, Security(session_security.check_scope, scopes=["activities:write"])
     ],
     db: Annotated[
         Session,
@@ -654,13 +674,17 @@ async def create_activity_with_bulk_import(
             # Check if file is one we can process
             _, file_extension = os.path.splitext(file_path)
             if file_extension not in supported_file_formats:
-                core_logger.print_to_log_and_console(f"Skipping file {file_path} due to not having a supported file extension. Supported extensions are: {supported_file_formats}.")
+                core_logger.print_to_log_and_console(
+                    f"Skipping file {file_path} due to not having a supported file extension. Supported extensions are: {supported_file_formats}."
+                )
                 # Might be good to notify the user, but background tasks cannot raise HTTPExceptions
                 continue
 
             if os.path.isfile(file_path):
                 # Log the file being processed
-                core_logger.print_to_log_and_console(f"Queuing file for processing: {file_path}")
+                core_logger.print_to_log_and_console(
+                    f"Queuing file for processing: {file_path}"
+                )
                 # Parse and store the activity
                 background_tasks.add_task(
                     activities_utils.parse_and_store_activity_from_file,
@@ -671,10 +695,14 @@ async def create_activity_with_bulk_import(
                 )
 
         # Log a success message that explains processing will continue elsewhere.
-        core_logger.print_to_log_and_console("Bulk import initiated for all files found in the bulk_import directory. Processing of files will continue in the background.")
+        core_logger.print_to_log_and_console(
+            "Bulk import initiated for all files found in the bulk_import directory. Processing of files will continue in the background."
+        )
 
         # Return a success message
-        return {"Bulk import initiated for all files found in the bulk_import directory. Processing of files will continue in the background."}
+        return {
+            "Bulk import initiated for all files found in the bulk_import directory. Processing of files will continue in the background."
+        }
     except Exception as err:
         # Log the exception
         core_logger.print_to_log(
@@ -696,8 +724,8 @@ async def edit_activity(
         Depends(session_security.get_user_id_from_access_token),
     ],
     activity_attributes: activities_schema.ActivityEdit,
-    check_scopes: Annotated[
-        Callable, Security(session_security.check_scopes, scopes=["activities:write"])
+    _check_scope: Annotated[
+        Callable, Security(session_security.check_scope, scopes=["activities:write"])
     ],
     db: Annotated[
         Session,
@@ -716,15 +744,15 @@ async def edit_activity(
 )
 async def edit_activity_visibility(
     visibility: int,
-    validate_visibility: Annotated[
+    _validate_visibility: Annotated[
         Callable, Depends(activities_dependencies.validate_visibility)
     ],
     token_user_id: Annotated[
         int,
         Depends(session_security.get_user_id_from_access_token),
     ],
-    check_scopes: Annotated[
-        Callable, Security(session_security.check_scopes, scopes=["activities:write"])
+    _check_scope: Annotated[
+        Callable, Security(session_security.check_scope, scopes=["activities:write"])
     ],
     db: Annotated[
         Session,
@@ -743,11 +771,11 @@ async def edit_activity_visibility(
 )
 async def delete_activity(
     activity_id: int,
-    validate_activity_id: Annotated[
+    _validate_activity_id: Annotated[
         Callable, Depends(activities_dependencies.validate_activity_id)
     ],
-    check_scopes: Annotated[
-        Callable, Security(session_security.check_scopes, scopes=["activities:write"])
+    _check_scope: Annotated[
+        Callable, Security(session_security.check_scope, scopes=["activities:write"])
     ],
     token_user_id: Annotated[
         int,

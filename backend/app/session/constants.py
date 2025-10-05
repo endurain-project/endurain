@@ -19,28 +19,28 @@ if JWT_REFRESH_TOKEN_EXPIRE_DAYS <= 0:
 if not JWT_SECRET_KEY:
     raise ValueError("SECRET_KEY environment variable is required")
 
-# Scopes (immutable)
-USERS_REGULAR_SCOPES: Final[tuple[str, ...]] = ("profile", "users:read")
-USERS_ADMIN_SCOPES: Final[tuple[str, ...]] = (
+# scope (immutable)
+USERS_REGULAR_SCOPE: Final[tuple[str, ...]] = ("profile", "users:read")
+USERS_ADMIN_SCOPE: Final[tuple[str, ...]] = (
     "users:write",
     "sessions:read",
     "sessions:write",
 )
-GEARS_SCOPES: Final[tuple[str, ...]] = ("gears:read", "gears:write")
-ACTIVITIES_SCOPES: Final[tuple[str, ...]] = ("activities:read", "activities:write")
-HEALTH_SCOPES: Final[tuple[str, ...]] = (
+GEARS_SCOPE: Final[tuple[str, ...]] = ("gears:read", "gears:write")
+ACTIVITIES_SCOPE: Final[tuple[str, ...]] = ("activities:read", "activities:write")
+HEALTH_SCOPE: Final[tuple[str, ...]] = (
     "health:read",
     "health:write",
     "health_targets:read",
     "health_targets:write",
 )
-SERVER_SETTINGS_REGULAR_SCOPES: Final[tuple[str, ...]] = ()
-SERVER_SETTINGS_ADMIN_SCOPES: Final[tuple[str, ...]] = (
+SERVER_SETTINGS_REGULAR_SCOPE: Final[tuple[str, ...]] = ()
+SERVER_SETTINGS_ADMIN_SCOPE: Final[tuple[str, ...]] = (
     "server_settings:read",
     "server_settings:write",
 )
 
-SCOPES_DICT: Final[Mapping[str, str]] = MappingProxyType(
+SCOPE_DICT: Final[Mapping[str, str]] = MappingProxyType(
     {
         "profile": "Privileges over user's own profile",
         "users:read": "Read privileges over users",
@@ -60,13 +60,13 @@ SCOPES_DICT: Final[Mapping[str, str]] = MappingProxyType(
     }
 )
 
-REGULAR_ACCESS_SCOPES: Final[tuple[str, ...]] = (
-    USERS_REGULAR_SCOPES
-    + GEARS_SCOPES
-    + ACTIVITIES_SCOPES
-    + HEALTH_SCOPES
-    + SERVER_SETTINGS_REGULAR_SCOPES
+REGULAR_ACCESS_SCOPE: Final[tuple[str, ...]] = (
+    USERS_REGULAR_SCOPE
+    + GEARS_SCOPE
+    + ACTIVITIES_SCOPE
+    + HEALTH_SCOPE
+    + SERVER_SETTINGS_REGULAR_SCOPE
 )
-ADMIN_ACCESS_SCOPES: Final[tuple[str, ...]] = (
-    REGULAR_ACCESS_SCOPES + USERS_ADMIN_SCOPES + SERVER_SETTINGS_ADMIN_SCOPES
+ADMIN_ACCESS_SCOPE: Final[tuple[str, ...]] = (
+    REGULAR_ACCESS_SCOPE + USERS_ADMIN_SCOPE + SERVER_SETTINGS_ADMIN_SCOPE
 )

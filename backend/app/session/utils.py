@@ -1,5 +1,3 @@
-"""Session utility functions and helpers."""
-
 import os
 from datetime import datetime, timedelta, timezone
 from dataclasses import dataclass
@@ -161,32 +159,12 @@ def authenticate_user(
 
 
 def create_tokens(user: users_schema.UserRead, token_manager: session_token_manager.TokenManager) -> Tuple[str, str, str]:
-    # Check user access level and set scopes accordingly
-    if user.access_type == users_schema.UserAccessType.REGULAR:
-        scopes = session_constants.REGULAR_ACCESS_SCOPES
-    else:
-        scopes = session_constants.ADMIN_ACCESS_SCOPES
+    # Create the access, refresh tokens and csrf token
+    access_token = token_manager.create_token(user, "access")
 
-    # Create the access and refresh tokens
-    access_token = session_security.create_token(
-        data={
-            "sub": user.id,
-            "scopes": scopes,
-            "exp": datetime.now(timezone.utc)
-            + timedelta(minutes=session_constants.JWT_ACCESS_TOKEN_EXPIRE_MINUTES),
-        },
-    )
+    refresh_token = token_manager.create_token(user, "refresh")
 
-    refresh_token = session_security.create_token(
-        data={
-            "sub": user.id,
-            "scopes": scopes,
-            "exp": datetime.now(timezone.utc)
-            + timedelta(days=session_constants.JWT_REFRESH_TOKEN_EXPIRE_DAYS),
-        },
-    )
-
-    csrf_token = session_security.create_csrf_token()
+    csrf_token = token_manager.create_csrf_token()
 
     return access_token, refresh_token, csrf_token
 
@@ -309,6 +287,7 @@ def complete_login(
     request: Request,
     user: users_schema.UserRead,
     client_type: str,
+    token_manager: session_token_manager.TokenManager,
     db: Session,
 ) -> dict | str:
     """
@@ -323,6 +302,7 @@ def complete_login(
         request: FastAPI request object (for session metadata)
         user: Authenticated user object
         client_type: Type of client ("web" or "mobile")
+        token_manager: Token manager instance
         db: Database session
 
     Returns:
@@ -333,7 +313,7 @@ def complete_login(
         HTTPException: If client_type is invalid
     """
     # Create the tokens
-    access_token, refresh_token, csrf_token = create_tokens(user)
+    access_token, refresh_token, csrf_token = create_tokens(user, token_manager)
 
     if client_type == "web":
         # Set response cookies with tokens

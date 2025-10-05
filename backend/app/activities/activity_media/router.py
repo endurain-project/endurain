@@ -31,8 +31,8 @@ async def read_activities_media_user(
     validate_id: Annotated[
         Callable, Depends(activities_dependencies.validate_activity_id)
     ],
-    check_scopes: Annotated[
-        Callable, Security(session_security.check_scopes, scopes=["activities:read"])
+    _check_scope: Annotated[
+        Callable, Security(session_security.check_scope, scopes=["activities:read"])
     ],
     token_user_id: Annotated[
         int,
@@ -56,9 +56,9 @@ async def upload_media(
     validate_id: Annotated[
         Callable, Depends(activities_dependencies.validate_activity_id)
     ],
-    check_scopes: Annotated[
+    _check_scope: Annotated[
         Callable,
-        Security(session_security.check_scopes, scopes=["activities:write"]),
+        Security(session_security.check_scope, scopes=["activities:write"]),
     ],
     db: Annotated[
         Session,
@@ -98,8 +98,8 @@ async def delete_activity_media(
     validate_id: Annotated[
         Callable, Depends(activities_media_dependencies.validate_media_id)
     ],
-    check_scopes: Annotated[
-        Callable, Security(session_security.check_scopes, scopes=["activities:write"])
+    _check_scope: Annotated[
+        Callable, Security(session_security.check_scope, scopes=["activities:write"])
     ],
     token_user_id: Annotated[
         int,

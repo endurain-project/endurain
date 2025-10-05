@@ -19,8 +19,8 @@ router = APIRouter()
     response_model=list[activity_exercise_titles_schema.ActivityExerciseTitles] | None,
 )
 async def read_activities_exercise_titles_all(
-    check_scopes: Annotated[
-        Callable, Security(session_security.check_scopes, scopes=["activities:read"])
+    _check_scope: Annotated[
+        Callable, Security(session_security.check_scope, scopes=["activities:read"])
     ],
     db: Annotated[
         Session,

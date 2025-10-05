@@ -1,16 +1,31 @@
 import secrets
+import uuid
+
+from enum import Enum
+
+from datetime import datetime, timedelta, timezone
+
 from fastapi import HTTPException, status
 from joserfc import jwt
 from joserfc.jwk import OctKey
 
 import session.constants as session_constants
+
+import users.user.schema as users_schema
+
 import core.logger as core_logger
+import core.config as core_config
+
+
+class TokenType(Enum):
+    ACCESS = "access"
+    REFRESH = "refresh"
 
 
 class TokenManager:
     """
     TokenManager is a utility class for managing JSON Web Tokens (JWT) in authentication workflows.
-    This class provides methods to create, decode, and validate JWT tokens, as well as extract specific claims such as user ID and scopes. It also supports CSRF token generation.
+    This class provides methods to create, decode, and validate JWT tokens, as well as extract specific claims such as user ID and scope. It also supports CSRF token generation.
     Attributes:
         algorithm (str): The algorithm used for token operations (default: "HS256").
         _key: The imported key object used for JWT operations.
@@ -84,48 +99,48 @@ class TokenManager:
                 detail="Unable to retrieve user ID from token.",
                 headers={"WWW-Authenticate": "Bearer"},
             ) from err
-        
+
     def get_token_scopes(self, token: str) -> list[str]:
         """
-        Extracts the list of scopes from a given JWT token.
+        Extracts the list of scope from a given JWT token.
 
         Args:
-            token (str): The JWT token from which to extract scopes.
+            token (str): The JWT token from which to extract scope.
 
         Returns:
-            list[str]: A list of scopes present in the token.
+            list[str]: A list of scope present in the token.
 
         Raises:
-            HTTPException: If the "scopes" claim is missing from the token payload or if any error occurs during extraction.
+            HTTPException: If the "scope" claim is missing from the token payload or if any error occurs during extraction.
         """
         try:
             # Decode the token
             payload = self.decode_token(token)
 
-            # Get the scopes from the payload and return it
-            return payload.claims["scopes"]
+            # Get the scope from the payload and return it
+            return payload.claims["scope"]
         except KeyError as err:
             core_logger.print_to_log(
-                f"Scopes claim not found in token: {err}",
+                f"scope claim not found in token: {err}",
                 "error",
                 exc=err,
                 context={"token": "[REDACTED]"},
             )
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Scopes claim is missing in the token.",
+                detail="scope claim is missing in the token.",
                 headers={"WWW-Authenticate": "Bearer"},
             ) from err
         except Exception as err:
             core_logger.print_to_log(
-                f"Error retrieving scopes from token: {err}",
+                f"Error retrieving scope from token: {err}",
                 "error",
                 exc=err,
                 context={"token": "[REDACTED]"},
             )
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Unable to retrieve scopes from token.",
+                detail="Unable to retrieve scope from token.",
                 headers={"WWW-Authenticate": "Bearer"},
             ) from err
 
@@ -209,21 +224,48 @@ class TokenManager:
                 detail="Token is expired or invalid.",
                 headers={"WWW-Authenticate": "Bearer"},
             ) from err
-        
-    def create_token(self, data: dict) -> str:
-        """
-        Creates a JWT token by encoding the provided data dictionary.
 
-        Args:
-            data (dict): The payload data to be encoded into the token.
+    def create_token(
+        self,
+        user: users_schema.UserRead,
+        token_type: TokenType,
+        data: dict | None = None,
+    ) -> str:
+        scope_dict = data if data else {}
 
-        Returns:
-            str: The encoded JWT token as a string.
-        """
+        if data is None:
+            # Check user access level and set scope accordingly
+            if user.access_type == users_schema.UserAccessType.REGULAR:
+                scope = session_constants.REGULAR_ACCESS_SCOPE
+            else:
+                scope = session_constants.ADMIN_ACCESS_SCOPE
+
+            exp = datetime.now(timezone.utc) + timedelta(
+                minutes=session_constants.JWT_ACCESS_TOKEN_EXPIRE_MINUTES
+            )
+            if token_type == TokenType.REFRESH:
+                exp = datetime.now(timezone.utc) + timedelta(
+                    days=session_constants.JWT_REFRESH_TOKEN_EXPIRE_DAYS
+                )
+
+            # Set now
+            now = int(datetime.now(timezone.utc).timestamp())
+
+            scope_dict = {
+                "iss": core_config.ENDURAIN_HOST,
+                "aud": core_config.ENDURAIN_HOST,
+                "sub": user.id,
+                "scope": scope,
+                "iat": now,
+                "nbf": now,
+                "exp": exp,
+                "jti": str(uuid.uuid4()),
+            }
+
         # Encode the data and return the token
         return jwt.encode(
             {"alg": self.algorithm},
-            data.copy(),
+            scope_dict.copy(),
             OctKey.import_key(self.secret_key),
         )
 

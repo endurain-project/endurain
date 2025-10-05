@@ -102,7 +102,7 @@ router.include_router(
     tags=["garminconnect"],
     dependencies=[
         Depends(session_security.validate_access_token),
-        Security(session_security.check_scopes, scopes=["profile"]),
+        Security(session_security.check_scope, scopes=["profile"]),
     ],
 )
 router.include_router(
@@ -135,7 +135,7 @@ router.include_router(
     tags=["notifications"],
     dependencies=[
         Depends(session_security.validate_access_token),
-        Security(session_security.check_scopes, scopes=["profile"]),
+        Security(session_security.check_scope, scopes=["profile"]),
     ],
 )
 router.include_router(
@@ -149,7 +149,7 @@ router.include_router(
     tags=["profile"],
     dependencies=[
         Depends(session_security.validate_access_token),
-        Security(session_security.check_scopes, scopes=["profile"]),
+        Security(session_security.check_scope, scopes=["profile"]),
     ],
 )
 router.include_router(
@@ -179,7 +179,7 @@ router.include_router(
     tags=["profile"],
     dependencies=[
         Depends(session_security.validate_access_token),
-        Security(session_security.check_scopes, scopes=["profile"]),
+        Security(session_security.check_scope, scopes=["profile"]),
     ],
 )
 router.include_router(
@@ -188,7 +188,7 @@ router.include_router(
     tags=["profile"],
     dependencies=[
         Depends(session_security.validate_access_token),
-        Security(session_security.check_scopes, scopes=["profile"]),
+        Security(session_security.check_scope, scopes=["profile"]),
     ],
 )
 router.include_router(
@@ -203,7 +203,7 @@ router.include_router(
     tags=["websocket"],
     # dependencies=[
     #   Depends(session_security.validate_access_token),
-    #   Security(session_security.check_scopes, scopes=["profile"]),
+    #   Security(session_security.check_scope, scopes=["profile"]),
     # ],
 )
 

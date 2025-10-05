@@ -25,8 +25,8 @@ async def read_activities_laps_for_activity_all(
     validate_id: Annotated[
         Callable, Depends(activities_dependencies.validate_activity_id)
     ],
-    check_scopes: Annotated[
-        Callable, Security(session_security.check_scopes, scopes=["activities:read"])
+    _check_scope: Annotated[
+        Callable, Security(session_security.check_scope, scopes=["activities:read"])
     ],
     token_user_id: Annotated[
         int,

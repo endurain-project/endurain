@@ -20,9 +20,9 @@ router = APIRouter()
 
 @router.get("", response_model=server_settings_schema.ServerSettingsRead)
 async def read_server_settings(
-    check_scopes: Annotated[
+    _check_scope: Annotated[
         Callable,
-        Security(session_security.check_scopes, scopes=["server_settings:read"]),
+        Security(session_security.check_scope, scopes=["server_settings:read"]),
     ],
     db: Annotated[
         Session,
@@ -36,9 +36,9 @@ async def read_server_settings(
 @router.put("", response_model=server_settings_schema.ServerSettingsRead)
 async def edit_server_settings(
     server_settings_attributtes: server_settings_schema.ServerSettingsEdit,
-    check_scopes: Annotated[
+    _check_scope: Annotated[
         Callable,
-        Security(session_security.check_scopes, scopes=["server_settings:write"]),
+        Security(session_security.check_scope, scopes=["server_settings:write"]),
     ],
     db: Annotated[
         Session,
@@ -55,9 +55,9 @@ async def edit_server_settings(
 )
 async def upload_login_photo(
     file: UploadFile,
-    check_scopes: Annotated[
+    _check_scope: Annotated[
         Callable,
-        Security(session_security.check_scopes, scopes=["server_settings:write"]),
+        Security(session_security.check_scope, scopes=["server_settings:write"]),
     ],
 ):
     try:
@@ -86,9 +86,9 @@ async def upload_login_photo(
     status_code=200,
 )
 async def delete_login_photo(
-    check_scopes: Annotated[
+    _check_scope: Annotated[
         Callable,
-        Security(session_security.check_scopes, scopes=["server_settings:write"]),
+        Security(session_security.check_scope, scopes=["server_settings:write"]),
     ],
 ):
     try:
