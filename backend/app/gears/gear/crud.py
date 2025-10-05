@@ -153,13 +153,13 @@ def get_gear_user_by_nickname(
 ) -> gears_schema.Gear | None:
     try:
         # Unquote the nickname and change "+" to whitespace
-        parsed_nickname = unquote(nickname).replace("+", " ").strip()
+        parsed_nickname = unquote(nickname).replace("+", " ").lower().strip()
 
         # Get the gear by user ID and nickname from the database
         gear = (
             db.query(gears_models.Gear)
             .filter(
-                gears_models.Gear.nickname == parsed_nickname,
+                func.lower(gears_models.Gear.nickname) == parsed_nickname,
                 gears_models.Gear.user_id == user_id,
             )
             .first()
@@ -301,15 +301,15 @@ def create_multiple_gears(gears: list[gears_schema.Gear], user_id: int, db: Sess
             gear
             for gear in (gears or [])
             if gear is not None
-            and getattr(gear, "nickname", None) is not None
-            and str(gear.nickname).replace("+", " ").strip() is not ""
+            and getattr(gear, "nickname", None)
+            and str(gear.nickname).replace("+", " ").strip() 
         ]
 
         # 2) De-dupe within the valid_gears payload (case-insensitive, trimmed)
         seen = set()
         deduped: list[gears_schema.Gear] = []
         for gear in valid_gears:
-            nickname_normalized = str(gear.nickname).replace("+", " ").strip()
+            nickname_normalized = str(gear.nickname).replace("+", " ").lower().strip()
             if nickname_normalized not in seen:
                 seen.add(nickname_normalized)
                 deduped.append(gear)
