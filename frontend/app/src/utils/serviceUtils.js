@@ -6,8 +6,16 @@ let refreshTokenPromise = null
 export const API_URL = `${window.env.ENDURAIN_HOST}/api/v1/`
 export const FRONTEND_URL = `${window.env.ENDURAIN_HOST}/`
 
-async function fetchWithRetry(url, options, responseType = 'json') {
-  // Add CSRF token to headers for state-changing requests
+// Helper function to get CSRF token from cookie
+function getCsrfToken() {
+  return document.cookie
+    .split('; ')
+    .find((row) => row.startsWith('endurain_csrf_token='))
+    ?.split('=')[1]
+}
+
+// Helper function to add CSRF token to options if needed
+function addCsrfTokenToOptions(url, options) {
   if (
     ['POST', 'PUT', 'DELETE', 'PATCH'].includes(options.method) &&
     url !== 'token' &&
@@ -18,10 +26,7 @@ async function fetchWithRetry(url, options, responseType = 'json') {
     url !== 'sign-up/request' &&
     url !== 'sign-up/confirm'
   ) {
-    const csrfToken = document.cookie
-      .split('; ')
-      .find((row) => row.startsWith('endurain_csrf_token='))
-      ?.split('=')[1]
+    const csrfToken = getCsrfToken()
 
     if (csrfToken) {
       options.headers = {
@@ -30,6 +35,12 @@ async function fetchWithRetry(url, options, responseType = 'json') {
       }
     }
   }
+  return options
+}
+
+async function fetchWithRetry(url, options, responseType = 'json') {
+  // Add CSRF token to headers for state-changing requests
+  options = addCsrfTokenToOptions(url, options)
 
   try {
     return await attemptFetch(url, options, responseType)
@@ -49,6 +60,8 @@ async function fetchWithRetry(url, options, responseType = 'json') {
       }
       try {
         await refreshAccessToken()
+        // Re-add CSRF token after refresh (new token was set in cookie)
+        options = addCsrfTokenToOptions(url, options)
         return await attemptFetch(url, options, responseType)
       } catch {
         const authStore = useAuthStore()
