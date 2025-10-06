@@ -5,6 +5,7 @@ from sqlalchemy.exc import IntegrityError
 from urllib.parse import unquote
 
 import session.security as session_security
+import session.password_hasher as session_password_hasher
 
 import users.user.schema as users_schema
 import users.user.utils as users_utils
@@ -12,16 +13,13 @@ import users.user.models as users_models
 
 import health_data.utils as health_data_utils
 
-import sign_up_tokens.utils as sign_up_tokens_utils
-
 import server_settings.utils as server_settings_utils
 import server_settings.schema as server_settings_schema
 
 import core.logger as core_logger
-import core.apprise as core_apprise
 
 
-def authenticate_user(username: str, db: Session):
+def authenticate_user(username: str, db: Session) -> users_models.User | None:
     try:
         user = (
             db.query(users_models.User)
@@ -29,8 +27,6 @@ def authenticate_user(username: str, db: Session):
             .first()
         )
 
-        if not user:
-            return None
         return user
     except Exception as err:
         # Log the exception
@@ -38,7 +34,7 @@ def authenticate_user(username: str, db: Session):
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Internal Server Error",
+            detail="Failed to authenticate user",
         ) from err
 
 
@@ -284,14 +280,24 @@ def get_users_admin(db: Session):
         ) from err
 
 
-def create_user(user: users_schema.UserCreate, db: Session):
+def create_user(
+    user: users_schema.UserCreate,
+    password_hasher: session_password_hasher.PasswordHasher,
+    db: Session,
+):
     try:
         user.username = user.username.lower()
         user.email = user.email.lower()
+
+        # Hash the password
+        hashed_password = users_utils.check_password_and_hash(
+            user.password, password_hasher, 8
+        )
+
         # Create a new user
         db_user = users_models.User(
             **user.model_dump(exclude={"password"}),
-            password=session_security.hash_password(user.password),
+            password=hashed_password,
         )
 
         # Add the user to the database
@@ -301,6 +307,12 @@ def create_user(user: users_schema.UserCreate, db: Session):
 
         # Return user
         return db_user
+    except HTTPException as http_err:
+        # Rollback the transaction
+        db.rollback()
+
+        # Raise exception
+        raise http_err
     except IntegrityError as integrity_error:
         # Rollback the transaction
         db.rollback()
@@ -320,7 +332,7 @@ def create_user(user: users_schema.UserCreate, db: Session):
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Internal Server Error",
+            detail="Failed to create user",
         ) from err
 
 
@@ -388,9 +400,7 @@ def edit_user(user_id: int, user: users_schema.UserRead, db: Session):
         ) from err
 
 
-def approve_user(
-    user_id: int, db: Session
-):
+def approve_user(user_id: int, db: Session):
     """
     Approve a user by ID.
 
@@ -547,7 +557,13 @@ def verify_user_email(
         ) from err
 
 
-def edit_user_password(user_id: int, password: str, db: Session):
+def edit_user_password(
+    user_id: int,
+    password: str,
+    password_hasher: session_password_hasher.PasswordHasher,
+    db: Session,
+    is_hashed: bool = False,
+):
     try:
         # Get the user from the database
         db_user = (
@@ -555,7 +571,12 @@ def edit_user_password(user_id: int, password: str, db: Session):
         )
 
         # Update the user
-        db_user.password = session_security.hash_password(password)
+        if is_hashed:
+            db_user.password = password
+        else:
+            db_user.password = users_utils.check_password_and_hash(
+                password, password_hasher, 8
+            )
 
         # Commit the transaction
         db.commit()
@@ -571,7 +592,7 @@ def edit_user_password(user_id: int, password: str, db: Session):
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Internal Server Error",
+            detail="Failed to edit user password",
         ) from err
 
 
@@ -777,7 +798,8 @@ def disable_user_mfa(user_id: int, db: Session):
 
 def create_signup_user(
     user: users_schema.UserSignup,
-    server_settings,
+    server_settings: server_settings_schema.ServerSettingsRead,
+    password_hasher: session_password_hasher.PasswordHasher,
     db: Session,
 ):
     """
@@ -785,7 +807,8 @@ def create_signup_user(
 
     Args:
         user (users_schema.UserSignup): The user signup data containing user details.
-        server_settings: Server configuration settings that determine signup requirements.
+        server_settings (server_settings_schema.ServerSettingsRead): Server settings used to determine if email verification or admin approval is required.
+        password_hasher (session_password_hasher.PasswordHasher): Password hasher used to hash the user's password.
         db (Session): SQLAlchemy database session.
 
     Returns:
@@ -835,7 +858,9 @@ def create_signup_user(
             currency=user.currency,
             email_verified=email_verified,
             pending_admin_approval=pending_admin_approval,
-            password=session_security.hash_password(user.password),
+            password=users_utils.check_password_and_hash(
+                user.password, password_hasher, 8
+            ),
         )
 
         # Add the user to the database

@@ -9,6 +9,7 @@ LICENSE_NAME = "GNU Affero General Public License v3.0 or later"
 LICENSE_IDENTIFIER = "AGPL-3.0-or-later"
 LICENSE_URL = "https://spdx.org/licenses/AGPL-3.0-or-later.html"
 ROOT_PATH = "/api/v1"
+ENDURAIN_HOST = os.getenv("ENDURAIN_HOST", "http://localhost:8080")
 FRONTEND_DIR = os.getenv("FRONTEND_DIR", "/app/frontend/dist")
 BACKEND_DIR = os.getenv("BACKEND_DIR", "/app/backend")
 DATA_DIR = os.getenv("DATA_DIR", "/app/backend/data")

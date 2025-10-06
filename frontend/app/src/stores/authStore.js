@@ -65,12 +65,15 @@ export const useAuthStore = defineStore('auth', {
     setUser(userData, session_id, locale) {
       this.user = userData
       localStorage.setItem('user', JSON.stringify(this.user))
-      localStorage.setItem('session_id', session_id)
+      this.setUserSessionId(session_id)
       this.isAuthenticated = true
       this.setUserWebsocket()
-      this.session_id = session_id
 
       this.setLocale(this.user.preferred_language, locale)
+    },
+    setUserSessionId(session_id) {
+      this.session_id = session_id
+      localStorage.setItem('session_id', session_id)
     },
     clearUser(locale) {
       this.isAuthenticated = false

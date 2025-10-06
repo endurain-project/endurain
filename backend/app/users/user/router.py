@@ -18,6 +18,7 @@ import health_targets.crud as health_targets_crud
 
 import sign_up_tokens.utils as sign_up_tokens_utils
 import session.security as session_security
+import session.password_hasher as session_password_hasher
 
 import core.apprise as core_apprise
 import core.database as core_database
@@ -29,7 +30,7 @@ router = APIRouter()
 
 @router.get("/number", response_model=int)
 async def read_users_number(
-    check_scopes: Annotated[
+    _check_scopes: Annotated[
         Callable, Security(session_security.check_scopes, scopes=["users:read"])
     ],
     db: Annotated[
@@ -50,7 +51,7 @@ async def read_users_all_pagination(
     validate_pagination_values: Annotated[
         Callable, Depends(core_dependencies.validate_pagination_values)
     ],
-    check_scopes: Annotated[
+    _check_scopes: Annotated[
         Callable, Security(session_security.check_scopes, scopes=["users:read"])
     ],
     db: Annotated[
@@ -68,7 +69,7 @@ async def read_users_all_pagination(
 )
 async def read_users_contain_username(
     username: str,
-    check_scopes: Annotated[
+    _check_scopes: Annotated[
         Callable, Security(session_security.check_scopes, scopes=["users:read"])
     ],
     db: Annotated[
@@ -86,7 +87,7 @@ async def read_users_contain_username(
 )
 async def read_users_username(
     username: str,
-    check_scopes: Annotated[
+    _check_scopes: Annotated[
         Callable, Security(session_security.check_scopes, scopes=["users:read"])
     ],
     db: Annotated[
@@ -104,7 +105,7 @@ async def read_users_username(
 )
 async def read_users_email(
     email: str,
-    check_scopes: Annotated[
+    _check_scopes: Annotated[
         Callable, Security(session_security.check_scopes, scopes=["users:read"])
     ],
     db: Annotated[
@@ -120,7 +121,7 @@ async def read_users_email(
 async def read_users_id(
     user_id: int,
     validate_id: Annotated[Callable, Depends(users_dependencies.validate_user_id)],
-    check_scopes: Annotated[
+    _check_scopes: Annotated[
         Callable, Security(session_security.check_scopes, scopes=["users:read"])
     ],
     db: Annotated[
@@ -135,8 +136,12 @@ async def read_users_id(
 @router.post("", response_model=users_schema.UserRead, status_code=201)
 async def create_user(
     user: users_schema.UserCreate,
-    check_scopes: Annotated[
+    __check_scope: Annotated[
         Callable, Security(session_security.check_scopes, scopes=["users:write"])
+    ],
+    password_hasher: Annotated[
+        session_password_hasher.PasswordHasher,
+        Depends(session_password_hasher.get_password_hasher),
     ],
     db: Annotated[
         Session,
@@ -144,7 +149,7 @@ async def create_user(
     ],
 ):
     # Create the user in the database
-    created_user = users_crud.create_user(user, db)
+    created_user = users_crud.create_user(user, password_hasher, db)
 
     # Create the user integrations in the database
     user_integrations_crud.create_user_integrations(created_user.id, db)
@@ -171,7 +176,7 @@ async def upload_user_image(
     user_id: int,
     validate_id: Annotated[Callable, Depends(users_dependencies.validate_user_id)],
     file: UploadFile,
-    check_scopes: Annotated[
+    _check_scopes: Annotated[
         Callable, Security(session_security.check_scopes, scopes=["users:write"])
     ],
     db: Annotated[
@@ -187,7 +192,7 @@ async def edit_user(
     user_id: int,
     validate_id: Annotated[Callable, Depends(users_dependencies.validate_user_id)],
     user_attributtes: users_schema.UserRead,
-    check_scopes: Annotated[
+    _check_scopes: Annotated[
         Callable, Security(session_security.check_scopes, scopes=["users:write"])
     ],
     db: Annotated[
@@ -206,7 +211,7 @@ async def edit_user(
 async def approve_user(
     user_id: int,
     validate_id: Annotated[Callable, Depends(users_dependencies.validate_user_id)],
-    check_scopes: Annotated[
+    _check_scopes: Annotated[
         Callable, Security(session_security.check_scopes, scopes=["users:write"])
     ],
     email_service: Annotated[
@@ -231,28 +236,24 @@ async def approve_user(
 @router.put("/{user_id}/password")
 async def edit_user_password(
     user_id: int,
-    validate_id: Annotated[Callable, Depends(users_dependencies.validate_user_id)],
+    _validate_id: Annotated[Callable, Depends(users_dependencies.validate_user_id)],
     user_attributes: users_schema.UserEditPassword,
-    check_scopes: Annotated[
+    __check_scope: Annotated[
         Callable, Security(session_security.check_scopes, scopes=["users:write"])
+    ],
+    password_hasher: Annotated[
+        session_password_hasher.PasswordHasher,
+        Depends(session_password_hasher.get_password_hasher),
     ],
     db: Annotated[
         Session,
         Depends(core_database.get_db),
     ],
 ):
-    # Check if the password meets the complexity requirements
-    is_valid, message = session_security.is_password_complexity_valid(
-        user_attributes.password
-    )
-    if not is_valid:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=message,
-        )
-
     # Update the user password in the database
-    users_crud.edit_user_password(user_id, user_attributes.password, db)
+    users_crud.edit_user_password(
+        user_id, user_attributes.password, password_hasher, db
+    )
 
     # Return success message
     return {f"User ID {user_id} password updated successfully"}
@@ -262,7 +263,7 @@ async def edit_user_password(
 async def delete_user_photo(
     user_id: int,
     validate_id: Annotated[Callable, Depends(users_dependencies.validate_user_id)],
-    check_scopes: Annotated[
+    _check_scopes: Annotated[
         Callable, Security(session_security.check_scopes, scopes=["users:write"])
     ],
     db: Annotated[
@@ -281,7 +282,7 @@ async def delete_user_photo(
 async def delete_user(
     user_id: int,
     validate_id: Annotated[Callable, Depends(users_dependencies.validate_user_id)],
-    check_scopes: Annotated[
+    _check_scopes: Annotated[
         Callable, Security(session_security.check_scopes, scopes=["users:write"])
     ],
     db: Annotated[

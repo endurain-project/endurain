@@ -6,11 +6,34 @@ from sqlalchemy.orm import Session
 
 import shutil
 
+import session.password_hasher as session_password_hasher
+
 import users.user.crud as users_crud
 import users.user.schema as users_schema
 
 import core.logger as core_logger
 import core.config as core_config
+
+
+def check_password_and_hash(
+    password: str,
+    password_hasher: session_password_hasher.PasswordHasher,
+    min_length: int = 8,
+) -> str:
+    # Check if password meets requirements
+    try:
+        password_hasher.validate_password(password, min_length)
+    except session_password_hasher.PasswordPolicyError as err:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(err),
+        ) from err
+
+    # Hash the password
+    hashed_password = password_hasher.hash_password(password)
+
+    # Return the hashed password
+    return hashed_password
 
 
 def check_user_is_active(user: users_schema.UserRead) -> None:
@@ -30,7 +53,7 @@ def check_user_is_active(user: users_schema.UserRead) -> None:
             detail="Inactive user",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    
+
 
 def get_admin_users(db: Session):
     admins = users_crud.get_users_admin(db)
@@ -40,7 +63,7 @@ def get_admin_users(db: Session):
             status_code=status.HTTP_404_NOT_FOUND,
             detail="No admin users found",
         )
-    
+
     return admins
 
 

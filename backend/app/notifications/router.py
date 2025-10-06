@@ -22,7 +22,7 @@ router = APIRouter()
 )
 async def read_notifications_number(
     token_user_id: Annotated[
-        int, Depends(session_security.get_user_id_from_access_token)
+        int, Depends(session_security.get_sub_from_access_token)
     ],
     db: Annotated[
         Session,
@@ -55,7 +55,7 @@ async def read_notifications_by_id(
         Callable, Depends(notifications_dependencies.validate_notification_id)
     ],
     token_user_id: Annotated[
-        int, Depends(session_security.get_user_id_from_access_token)
+        int, Depends(session_security.get_sub_from_access_token)
     ],
     db: Annotated[
         Session,
@@ -89,7 +89,7 @@ async def read_notifications_user_pagination(
         Callable, Depends(core_dependencies.validate_pagination_values)
     ],
     token_user_id: Annotated[
-        int, Depends(session_security.get_user_id_from_access_token)
+        int, Depends(session_security.get_sub_from_access_token)
     ],
     db: Annotated[
         Session,
@@ -123,7 +123,7 @@ async def mark_notification_as_read(
         Callable, Depends(notifications_dependencies.validate_notification_id)
     ],
     token_user_id: Annotated[
-        int, Depends(session_security.get_user_id_from_access_token)
+        int, Depends(session_security.get_sub_from_access_token)
     ],
     db: Annotated[
         Session,

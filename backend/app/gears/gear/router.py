@@ -20,11 +20,11 @@ router = APIRouter()
     response_model=list[gears_schema.Gear] | None,
 )
 async def read_gears(
-    check_scopes: Annotated[
+    _check_scopes: Annotated[
         Callable, Security(session_security.check_scopes, scopes=["gears:read"])
     ],
     token_user_id: Annotated[
-        int, Depends(session_security.get_user_id_from_access_token)
+        int, Depends(session_security.get_sub_from_access_token)
     ],
     db: Annotated[Session, Depends(core_database.get_db)],
 ):
@@ -39,11 +39,11 @@ async def read_gears(
 async def read_gear_id(
     gear_id: int,
     validate_gear_id: Annotated[Callable, Depends(gears_dependencies.validate_gear_id)],
-    check_scopes: Annotated[
+    _check_scopes: Annotated[
         Callable, Security(session_security.check_scopes, scopes=["gears:read"])
     ],
     token_user_id: Annotated[
-        int, Depends(session_security.get_user_id_from_access_token)
+        int, Depends(session_security.get_sub_from_access_token)
     ],
     db: Annotated[Session, Depends(core_database.get_db)],
 ):
@@ -58,11 +58,11 @@ async def read_gear_id(
 async def read_gear_user_pagination(
     page_number: int,
     num_records: int,
-    check_scopes: Annotated[
+    _check_scopes: Annotated[
         Callable, Security(session_security.check_scopes, scopes=["gears:read"])
     ],
     token_user_id: Annotated[
-        int, Depends(session_security.get_user_id_from_access_token)
+        int, Depends(session_security.get_sub_from_access_token)
     ],
     db: Annotated[
         Session,
@@ -80,11 +80,11 @@ async def read_gear_user_pagination(
     response_model=int,
 )
 async def read_gear_user_number(
-    check_scopes: Annotated[
+    _check_scopes: Annotated[
         Callable, Security(session_security.check_scopes, scopes=["gears:read"])
     ],
     token_user_id: Annotated[
-        int, Depends(session_security.get_user_id_from_access_token)
+        int, Depends(session_security.get_sub_from_access_token)
     ],
     db: Annotated[
         Session,
@@ -108,11 +108,11 @@ async def read_gear_user_number(
 )
 async def read_gear_user_contains_nickname(
     nickname: str,
-    check_scopes: Annotated[
+    _check_scopes: Annotated[
         Callable, Security(session_security.check_scopes, scopes=["gears:read"])
     ],
     token_user_id: Annotated[
-        int, Depends(session_security.get_user_id_from_access_token)
+        int, Depends(session_security.get_sub_from_access_token)
     ],
     db: Annotated[
         Session,
@@ -129,11 +129,11 @@ async def read_gear_user_contains_nickname(
 )
 async def read_gear_user_by_nickname(
     nickname: str,
-    check_scopes: Annotated[
+    _check_scopes: Annotated[
         Callable, Security(session_security.check_scopes, scopes=["gears:read"])
     ],
     token_user_id: Annotated[
-        int, Depends(session_security.get_user_id_from_access_token)
+        int, Depends(session_security.get_sub_from_access_token)
     ],
     db: Annotated[
         Session,
@@ -151,11 +151,11 @@ async def read_gear_user_by_nickname(
 async def read_gear_user_by_type(
     gear_type: int,
     validate_type: Annotated[Callable, Depends(gears_dependencies.validate_gear_type)],
-    check_scopes: Annotated[
+    _check_scopes: Annotated[
         Callable, Security(session_security.check_scopes, scopes=["gears:read"])
     ],
     token_user_id: Annotated[
-        int, Depends(session_security.get_user_id_from_access_token)
+        int, Depends(session_security.get_sub_from_access_token)
     ],
     db: Annotated[
         Session,
@@ -173,11 +173,11 @@ async def read_gear_user_by_type(
 )
 async def create_gear(
     gear: gears_schema.Gear,
-    check_scopes: Annotated[
+    _check_scopes: Annotated[
         Callable, Security(session_security.check_scopes, scopes=["gears:write"])
     ],
     token_user_id: Annotated[
-        int, Depends(session_security.get_user_id_from_access_token)
+        int, Depends(session_security.get_sub_from_access_token)
     ],
     db: Annotated[
         Session,
@@ -193,11 +193,11 @@ async def edit_gear(
     gear_id: int,
     validate_id: Annotated[Callable, Depends(gears_dependencies.validate_gear_id)],
     gear: gears_schema.Gear,
-    check_scopes: Annotated[
+    _check_scopes: Annotated[
         Callable, Security(session_security.check_scopes, scopes=["gears:write"])
     ],
     token_user_id: Annotated[
-        int, Depends(session_security.get_user_id_from_access_token)
+        int, Depends(session_security.get_sub_from_access_token)
     ],
     db: Annotated[
         Session,
@@ -231,11 +231,11 @@ async def edit_gear(
 async def delete_gear(
     gear_id: int,
     validate_id: Annotated[Callable, Depends(gears_dependencies.validate_gear_id)],
-    check_scopes: Annotated[
+    _check_scopes: Annotated[
         Callable, Security(session_security.check_scopes, scopes=["gears:write"])
     ],
     token_user_id: Annotated[
-        int, Depends(session_security.get_user_id_from_access_token)
+        int, Depends(session_security.get_sub_from_access_token)
     ],
     db: Annotated[
         Session,

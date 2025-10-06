@@ -1,11 +1,15 @@
-from fastapi.responses import FileResponse
 import os
+
+from fastapi.responses import FileResponse
 
 import core.config as core_config
 
 
 def return_frontend_index(path: str):
-    return FileResponse(core_config.FRONTEND_DIR + "/" + path)
+    file_path = f"{core_config.FRONTEND_DIR}/" + path
+    if not os.path.isfile(file_path):
+        return None
+    return FileResponse(file_path)
 
 
 def return_user_img_path(user_img: str):

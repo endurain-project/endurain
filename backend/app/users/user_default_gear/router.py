@@ -17,7 +17,7 @@ router = APIRouter()
 @router.get("", response_model=user_default_gear_schema.UserDefaultGear)
 async def read_user_default_gear(
     token_user_id: Annotated[
-        int, Depends(session_security.get_user_id_from_access_token)
+        int, Depends(session_security.get_sub_from_access_token)
     ],
     db: Annotated[
         Session,
@@ -32,7 +32,7 @@ async def read_user_default_gear(
 async def edit_user_default_gear(
     user_default_gear: user_default_gear_schema.UserDefaultGear,
     token_user_id: Annotated[
-        int, Depends(session_security.get_user_id_from_access_token)
+        int, Depends(session_security.get_sub_from_access_token)
     ],
     db: Annotated[
         Session,

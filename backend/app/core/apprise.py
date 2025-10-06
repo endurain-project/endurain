@@ -3,6 +3,7 @@ import apprise
 from typing import List
 
 import core.logger as core_logger
+import core.config as core_config
 
 
 class AppriseService:
@@ -13,7 +14,7 @@ class AppriseService:
         self.smtp_password = os.getenv("SMTP_PASSWORD")
         self.smtp_secure = os.getenv("SMTP_SECURE", "true").lower()
         self.smtp_secure_type = os.getenv("SMTP_SECURE_TYPE", "starttls").lower()
-        self.frontend_host = os.getenv("ENDURAIN_HOST")
+        self.frontend_host = core_config.ENDURAIN_HOST
 
     def _build_smtp_url(self) -> str:
         """
