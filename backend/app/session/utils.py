@@ -61,28 +61,17 @@ class DeviceInfo:
 
 
 def create_session_object(
+    session_id: str,
     user: users_schema.UserRead,
     request: Request,
     hashed_refresh_token: str,
     refresh_token_exp: datetime,
 ) -> session_schema.UsersSessions:
-    """
-    Creates a UsersSessions object for a user session, extracting device and request information.
-
-    Args:
-        user (users_schema.UserRead): The user for whom the session is being created.
-        request (Request): The incoming HTTP request object.
-        hashed_refresh_token (str): The hashed refresh token for the session.
-        refresh_token_exp (datetime): The expiration datetime for the refresh token.
-
-    Returns:
-        session_schema.UsersSessions: The newly created user session object containing session and device details.
-    """
     user_agent = get_user_agent(request)
     device_info = parse_user_agent(user_agent)
 
     return session_schema.UsersSessions(
-        id=str(uuid4()),
+        id=session_id,
         user_id=user.id,
         refresh_token=hashed_refresh_token,
         ip_address=get_ip_address(request),
@@ -187,25 +176,46 @@ def authenticate_user(
 
 def create_tokens(
     user: users_schema.UserRead, token_manager: session_token_manager.TokenManager
-) -> Tuple[str, str, str]:
+) -> Tuple[str, datetime, str, datetime, str, str]:
     """
-    Generates access, refresh, and CSRF tokens for a given user.
+    Generates session tokens for a given user, including access token, refresh token, and CSRF token.
 
     Args:
         user (users_schema.UserRead): The user object for whom the tokens are being created.
-        token_manager (session_token_manager.TokenManager): The token manager responsible for generating tokens.
+        token_manager (session_token_manager.TokenManager): The token manager instance used to generate tokens.
 
     Returns:
-        Tuple[str, str, str]: A tuple containing the access token, refresh token, and CSRF token.
+        Tuple[str, datetime, str, datetime, str, str]: 
+            A tuple containing:
+                - session_id (str): Unique session identifier.
+                - access_token_exp (datetime): Expiration datetime of the access token.
+                - access_token (str): The generated access token.
+                - refresh_token_exp (datetime): Expiration datetime of the refresh token.
+                - refresh_token (str): The generated refresh token.
+                - csrf_token (str): The generated CSRF token.
     """
-    # Create the access, refresh tokens and csrf token
-    access_token = token_manager.create_token(user, "access")
+    # Generate a unique session ID
+    session_id = str(uuid4())
 
-    refresh_token = token_manager.create_token(user, "refresh")
+    # Create the access, refresh tokens and csrf token
+    access_token_exp, access_token = token_manager.create_token(
+        session_id, user, session_token_manager.TokenType.ACCESS
+    )
+
+    refresh_token_exp, refresh_token = token_manager.create_token(
+        session_id, user, session_token_manager.TokenType.REFRESH
+    )
 
     csrf_token = token_manager.create_csrf_token()
 
-    return access_token, refresh_token, csrf_token
+    return (
+        session_id,
+        access_token_exp,
+        access_token,
+        refresh_token_exp,
+        refresh_token,
+        csrf_token,
+    )
 
 
 def create_response_with_tokens(
@@ -260,40 +270,43 @@ def create_response_with_tokens(
 
 
 def create_session(
+    session_id: str,
     user: users_schema.UserRead,
     request: Request,
     refresh_token: str,
     password_hasher: session_password_hasher.PasswordHasher,
     db: Session,
-) -> str:
+) -> None:
     """
-    Creates a new session for the given user and stores it in the database.
-    Refresh token is hashed before storage.
+    Creates a new user session and stores it in the database.
 
     Args:
+        session_id (str): Unique identifier for the session.
         user (users_schema.UserRead): The user for whom the session is being created.
         request (Request): The incoming HTTP request object.
-        refresh_token (str): The refresh token to be hashed and stored with the session.
+        refresh_token (str): The refresh token to be associated with the session.
         password_hasher (session_password_hasher.PasswordHasher): Utility to hash the refresh token.
-        db (Session): The database session for storing the session object.
+        db (Session): Database session for storing the session.
 
     Returns:
-        str: The unique identifier of the newly created session.
+        None
     """
+    # Calculate the refresh token expiration date
+    exp = datetime.now(timezone.utc) + timedelta(
+        days=session_constants.JWT_REFRESH_TOKEN_EXPIRE_DAYS
+    )
+
     # Create a new session
     new_session = create_session_object(
+        session_id,
         user,
         request,
         password_hasher.hash_password(refresh_token),
-        datetime.now(timezone.utc)
-        + timedelta(days=session_constants.JWT_REFRESH_TOKEN_EXPIRE_DAYS),
+        exp,
     )
 
     # Add the session to the database
     session_crud.create_session(new_session, db)
-
-    # Return the session ID
-    return new_session.id
 
 
 def edit_session(
@@ -304,25 +317,28 @@ def edit_session(
     db: Session,
 ) -> None:
     """
-    Edits an existing user session by updating its refresh token and expiration date, then persists the changes to the database.
-    Refresh token is hashed before storage.
+    Edits an existing user session by updating its refresh token and expiration date.
 
     Args:
-        session (session_schema.UsersSessions): The current user session object to be updated.
+        session (session_schema.UsersSessions): The current user session object to be edited.
         request (Request): The incoming request object containing session context.
-        new_refresh_token (str): The new refresh token to be hashed and stored.
+        new_refresh_token (str): The new refresh token to be set for the session.
         password_hasher (session_password_hasher.PasswordHasher): Utility for hashing the refresh token.
         db (Session): Database session for committing changes.
 
     Returns:
         None
     """
+    # Calculate the refresh token expiration date
+    exp = datetime.now(timezone.utc) + timedelta(
+        days=session_constants.JWT_REFRESH_TOKEN_EXPIRE_DAYS
+    )
+
     # Update the session
     updated_session = edit_session_object(
         request,
         password_hasher.hash_password(new_refresh_token),
-        datetime.now(timezone.utc)
-        + timedelta(days=session_constants.JWT_REFRESH_TOKEN_EXPIRE_DAYS),
+        exp,
         session,
     )
 
@@ -340,50 +356,53 @@ def complete_login(
     db: Session,
 ) -> dict | str:
     """
-    Complete the login process by creating tokens and session.
-
-    This function handles the final steps of authentication after credentials
-    have been verified (and MFA if required). It creates tokens, sets cookies
-    for web clients, and creates a session record in the database.
+    Handles the completion of the login process by generating session and authentication tokens,
+    storing the session in the database, and returning appropriate responses based on client type.
 
     Args:
-        response: FastAPI response object (for setting cookies)
-        request: FastAPI request object (for session metadata)
-        user: Authenticated user object
-        client_type: Type of client ("web" or "mobile")
-        password_hasher: Password hasher instance
-        token_manager: Token manager instance
-        db: Database session
+        response (Response): The HTTP response object to set cookies for web clients.
+        request (Request): The HTTP request object containing client information.
+        user (users_schema.UserRead): The authenticated user object.
+        client_type (str): The type of client ("web" or "mobile").
+        password_hasher (session_password_hasher.PasswordHasher): Utility for password hashing.
+        token_manager (session_token_manager.TokenManager): Utility for token generation and management.
+        db (Session): Database session for storing session information.
 
     Returns:
-        For web clients: session_id string
-        For mobile clients: dict with access_token, refresh_token, and session_id
+        dict | str: For web clients, returns the session ID as a string.
+                    For mobile clients, returns a dictionary containing tokens and session info.
 
     Raises:
-        HTTPException: If client_type is invalid
+        HTTPException: If the client type is invalid, raises a 403 Forbidden error.
     """
     # Create the tokens
-    access_token, refresh_token, csrf_token = create_tokens(user, token_manager)
+    (
+        session_id,
+        access_token_exp,
+        access_token,
+        _refresh_token_exp,
+        refresh_token,
+        csrf_token,
+    ) = create_tokens(user, token_manager)
+
+    # Create the session and store it in the database
+    create_session(session_id, user, request, refresh_token, password_hasher, db)
 
     if client_type == "web":
         # Set response cookies with tokens
         create_response_with_tokens(response, access_token, refresh_token, csrf_token)
 
-        # Create the session and store it in the database
-        session_id = create_session(user, request, refresh_token, password_hasher, db)
-
         # Return the session_id
         return session_id
 
     if client_type == "mobile":
-        # Create the session and store it in the database
-        session_id = create_session(user, request, refresh_token, password_hasher, db)
-
         # Return the tokens directly (no cookies for mobile)
         return {
             "access_token": access_token,
             "refresh_token": refresh_token,
             "session_id": session_id,
+            "token_type": "Bearer",
+            "expires_in": int(access_token_exp.timestamp()),
         }
 
     raise HTTPException(

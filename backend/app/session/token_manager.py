@@ -7,6 +7,14 @@ from datetime import datetime, timedelta, timezone
 
 from fastapi import HTTPException, status
 from joserfc import jwt
+from joserfc.errors import (
+    InvalidPayloadError,
+    MissingClaimError,
+    ExpiredTokenError,
+    InvalidTokenError,
+    InsecureClaimError,
+    InvalidClaimError,
+)
 from joserfc.jwk import OctKey
 
 import session.constants as session_constants
@@ -24,20 +32,32 @@ class TokenType(Enum):
 
 class TokenManager:
     """
-    TokenManager is a utility class for managing JSON Web Tokens (JWT) in authentication workflows.
-    This class provides methods to create, decode, and validate JWT tokens, as well as extract specific claims such as user ID and scope. It also supports CSRF token generation.
+    TokenManager is a utility class for managing JSON Web Tokens (JWT) in user sessions.
+
+    This class provides methods for creating, decoding, validating, and extracting claims from JWTs,
+    as well as generating secure CSRF tokens. It supports configurable encryption algorithms and
+    integrates with application logging and exception handling for robust security and error reporting.
+
     Attributes:
         algorithm (str): The algorithm used for token operations (default: "HS256").
-        _key: The imported key object used for JWT operations.
+        _key: The imported key object used for cryptographic operations.
+
     Methods:
         __init__(secret_key: str, algorithm: str = "HS256"):
-        get_token_user_id(token: str) -> int:
-        get_token_scope(token: str) -> list[str]:
+
+        get_token_claim(token: str, claim: str) -> str | list[str] | int:
+
         decode_token(token: str) -> dict:
+
         validate_token_expiration(token: str) -> None:
-        create_token(data: dict) -> str:
+
+        create_token(session_id: str, user: users_schema.UserRead, token_type: TokenType) -> tuple[datetime, str]:
+
         create_csrf_token() -> str:
             Generates a secure random CSRF (Cross-Site Request Forgery) token.
+
+        HTTPException: Raised for invalid, expired, or missing claims in JWT tokens.
+        ValueError: Raised for missing or invalid parameters during token creation.
     """
 
     def __init__(self, secret_key: str, algorithm: str = "HS256"):
@@ -53,94 +73,48 @@ class TokenManager:
         self.algorithm = algorithm
         self._key = OctKey.import_key(secret_key)
 
-    def get_token_user_id(self, token: str) -> int:
+    def get_token_claim(self, token: str, claim: str) -> str | list[str] | int:
         """
-        Extracts and returns the user ID from a given JWT token.
-
-        Decodes the provided token and retrieves the 'sub' claim, which represents the user ID.
-        If the 'sub' claim is missing or any error occurs during extraction, logs the error and raises an HTTP 401 Unauthorized exception.
+        Retrieves a specific claim from a decoded JWT token.
 
         Args:
-            token (str): The JWT token from which to extract the user ID.
+            token (str): The JWT token string to decode.
+            claim (str): The name of the claim to retrieve from the token.
 
         Returns:
-            int: The user ID extracted from the token.
+            str | list[str] | int: The value of the requested claim, which can be a string, list of strings, or integer.
 
         Raises:
-            HTTPException: If the 'sub' claim is missing or if any error occurs during token decoding.
+            HTTPException: If the claim is not found in the token or if there is an error retrieving the claim.
         """
         try:
             # Decode the token
             payload = self.decode_token(token)
 
-            # Get the user id from the payload and return it
-            return payload.claims["sub"]
+            # Get the claim from the payload and return it
+            return payload.claims[claim]
         except KeyError as err:
             core_logger.print_to_log(
-                f"User ID claim not found in token: {err}",
+                f"Claim '{claim}' not found in token: {err}",
                 "error",
                 exc=err,
                 context={"token": "[REDACTED]"},
             )
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="User ID claim is missing in the token.",
+                detail=f"Claim '{claim}' is missing in the token.",
                 headers={"WWW-Authenticate": "Bearer"},
             ) from err
         except Exception as err:
             core_logger.print_to_log(
-                f"Error retrieving user ID from token: {err}",
+                f"Error retrieving claim '{claim}' from token: {err}",
                 "error",
                 exc=err,
                 context={"token": "[REDACTED]"},
             )
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Unable to retrieve user ID from token.",
-                headers={"WWW-Authenticate": "Bearer"},
-            ) from err
-
-    def get_token_scope(self, token: str) -> list[str]:
-        """
-        Extracts the list of scope from a given JWT token.
-
-        Args:
-            token (str): The JWT token from which to extract scope.
-
-        Returns:
-            list[str]: A list of scope present in the token.
-
-        Raises:
-            HTTPException: If the "scope" claim is missing from the token payload or if any error occurs during extraction.
-        """
-        try:
-            # Decode the token
-            payload = self.decode_token(token)
-
-            # Get the scope from the payload and return it
-            return payload.claims["scope"]
-        except KeyError as err:
-            core_logger.print_to_log(
-                f"scope claim not found in token: {err}",
-                "error",
-                exc=err,
-                context={"token": "[REDACTED]"},
-            )
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="scope claim is missing in the token.",
-                headers={"WWW-Authenticate": "Bearer"},
-            ) from err
-        except Exception as err:
-            core_logger.print_to_log(
-                f"Error retrieving scope from token: {err}",
-                "error",
-                exc=err,
-                context={"token": "[REDACTED]"},
-            )
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Unable to retrieve scope from token.",
+                detail=f"Unable to retrieve claim '{claim}' from token.",
                 headers={"WWW-Authenticate": "Bearer"},
             ) from err
 
@@ -160,7 +134,7 @@ class TokenManager:
         try:
             # Decode the token and return the payload
             return jwt.decode(token, OctKey.import_key(self.secret_key))
-        except jwt.InvalidPayloadError as payload_err:
+        except InvalidPayloadError as payload_err:
             core_logger.print_to_log(
                 f"Invalid token payload: {payload_err}",
                 "error",
@@ -189,20 +163,22 @@ class TokenManager:
         """
         Validates the expiration and required claims of a JWT token.
 
-        Decodes the provided JWT token and checks for the presence and validity of essential claims,
-        including issuer (`iss`), audience (`aud`), subject (`sub`), issued at (`iat`), not before (`nbf`),
-        expiration (`exp`), and JWT ID (`jti`). If any required claim is missing or invalid, or if the token
-        is expired, raises an HTTP 401 Unauthorized exception.
+        This method checks if the provided JWT token contains all essential claims,
+        verifies its expiration, and ensures it is not used before its valid time.
+        If any required claim is missing, the token is expired, not yet valid, or contains
+        insecure/invalid claims, appropriate HTTP exceptions are raised and errors are logged.
 
         Args:
             token (str): The JWT token to validate.
 
         Raises:
-            HTTPException: If the token is missing required claims, is invalid, or is expired.
+            HTTPException: If the token is missing required claims, expired, not yet valid,
+                           or contains invalid claims.
         """
         try:
             # Define required claims
             claims_requests = jwt.JWTClaimsRegistry(
+                sid={"essential": True},
                 iss={"essential": True, "value": f"{core_config.ENDURAIN_HOST}"},
                 aud={"essential": True, "value": f"{core_config.ENDURAIN_HOST}"},
                 sub={"essential": True},
@@ -218,7 +194,7 @@ class TokenManager:
 
             # Validate token expiration
             claims_requests.validate(payload.claims)
-        except jwt.MissingClaimError as missing_err:
+        except MissingClaimError as missing_err:
             core_logger.print_to_log(
                 f"JWT missing claim error: {missing_err}",
                 "error",
@@ -230,19 +206,13 @@ class TokenManager:
                 detail="Token is missing required claims.",
                 headers={"WWW-Authenticate": "Bearer"},
             ) from missing_err
-        except jwt.ExpiredTokenError as expired_err:
-            core_logger.print_to_log(
-                f"JWT token expired error: {expired_err}",
-                "error",
-                exc=expired_err,
-                context={"token": "[REDACTED]"},
-            )
+        except ExpiredTokenError as expired_err:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Token is expired.",
                 headers={"WWW-Authenticate": "Bearer"},
             ) from expired_err
-        except jwt.InvalidTokenError as invalid_err:
+        except InvalidTokenError as invalid_err:
             core_logger.print_to_log(
                 f"JWT is not valid yet error: {invalid_err}",
                 "error",
@@ -254,14 +224,14 @@ class TokenManager:
                 detail="Token is not valid yet.",
                 headers={"WWW-Authenticate": "Bearer"},
             ) from invalid_err
-        except jwt.InsecureClaimError as insecure_err:
+        except InsecureClaimError as insecure_err:
             core_logger.print_to_log(
                 f"JWT insecure claim error: {insecure_err}",
                 "error",
                 exc=insecure_err,
                 context={"token": "[REDACTED]"},
             )
-        except jwt.InvalidClaimError as claims_err:
+        except InvalidClaimError as claims_err:
             core_logger.print_to_log(
                 f"JWT claims validation error: {claims_err}",
                 "error",
@@ -288,63 +258,61 @@ class TokenManager:
 
     def create_token(
         self,
+        session_id: str,
         user: users_schema.UserRead,
         token_type: TokenType,
-        data: dict | None = None,
-    ) -> str:
+    ) -> tuple[datetime, str]:
         """
-        Creates a JWT token for the specified user with appropriate claims and expiration.
+        Creates a JWT token for a user session with appropriate access scope and expiration.
 
         Args:
-            user (users_schema.UserRead): The user for whom the token is being created.
-            token_type (TokenType): The type of token to create (e.g., access or refresh).
-            data (dict | None, optional): Additional claims to include in the token. If None, default claims are set based on user access type.
+            session_id (str): The unique identifier for the session.
+            user (users_schema.UserRead): The user object containing user details.
+            token_type (TokenType): The type of token to create (access or refresh).
 
         Returns:
-            str: The encoded JWT token as a string.
+            tuple[datetime, str]: A tuple containing the token's expiration datetime and the encoded JWT token string.
 
-        Notes:
-            - If `data` is None, the function sets default claims including issuer, audience, subject, scope, issued at, not before, expiration, and JWT ID.
-            - The expiration time is determined by the token type (access or refresh).
-            - The token is signed using the configured algorithm and secret key.
+        Raises:
+            ValueError: If required parameters are missing or invalid.
         """
-        scope_dict = data if data else {}
+        # Check user access level and set scope accordingly
+        if user.access_type == users_schema.UserAccessType.REGULAR:
+            scope = session_constants.REGULAR_ACCESS_SCOPE
+        else:
+            scope = session_constants.ADMIN_ACCESS_SCOPE
 
-        if data is None:
-            # Check user access level and set scope accordingly
-            if user.access_type == users_schema.UserAccessType.REGULAR:
-                scope = session_constants.REGULAR_ACCESS_SCOPE
-            else:
-                scope = session_constants.ADMIN_ACCESS_SCOPE
-
+        exp = datetime.now(timezone.utc) + timedelta(
+            minutes=session_constants.JWT_ACCESS_TOKEN_EXPIRE_MINUTES
+        )
+        if token_type == TokenType.REFRESH:
             exp = datetime.now(timezone.utc) + timedelta(
-                minutes=session_constants.JWT_ACCESS_TOKEN_EXPIRE_MINUTES
+                days=session_constants.JWT_REFRESH_TOKEN_EXPIRE_DAYS
             )
-            if token_type == TokenType.REFRESH:
-                exp = datetime.now(timezone.utc) + timedelta(
-                    days=session_constants.JWT_REFRESH_TOKEN_EXPIRE_DAYS
-                )
 
-            # Set now
-            now = int(datetime.now(timezone.utc).timestamp())
+        # Set now
+        now = int(datetime.now(timezone.utc).timestamp())
 
-            scope_dict = {
-                "iss": core_config.ENDURAIN_HOST,
-                "aud": core_config.ENDURAIN_HOST,
-                "sub": user.id,
-                "scope": scope,
-                "iat": now,
-                "nbf": now,
-                "exp": exp,
-                "jti": str(uuid.uuid4()),
-            }
+        scope_dict = {
+            "sid": session_id,
+            "iss": core_config.ENDURAIN_HOST,
+            "aud": core_config.ENDURAIN_HOST,
+            "sub": user.id,
+            "scope": scope,
+            "iat": now,
+            "nbf": now,
+            "exp": exp,
+            "jti": str(uuid.uuid4()),
+        }
 
-        # Encode the data and return the token
-        return jwt.encode(
+        encoded_token = jwt.encode(
             {"alg": self.algorithm},
             scope_dict.copy(),
             OctKey.import_key(self.secret_key),
         )
+
+        # Return the expiration and the encoded token
+        return exp, encoded_token
 
     @staticmethod
     def create_csrf_token() -> str:

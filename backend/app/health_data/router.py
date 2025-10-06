@@ -27,7 +27,7 @@ async def read_health_data_number(
     ],
     token_user_id: Annotated[
         int,
-        Depends(session_security.get_user_id_from_access_token),
+        Depends(session_security.get_sub_from_access_token),
     ],
     db: Annotated[
         Session,
@@ -48,7 +48,7 @@ async def read_health_data_all(
     ],
     token_user_id: Annotated[
         int,
-        Depends(session_security.get_user_id_from_access_token),
+        Depends(session_security.get_sub_from_access_token),
     ],
     db: Annotated[
         Session,
@@ -74,7 +74,7 @@ async def read_health_data_all_pagination(
     ],
     token_user_id: Annotated[
         int,
-        Depends(session_security.get_user_id_from_access_token),
+        Depends(session_security.get_sub_from_access_token),
     ],
     db: Annotated[
         Session,
@@ -95,7 +95,7 @@ async def create_health_data(
     ],
     token_user_id: Annotated[
         int,
-        Depends(session_security.get_user_id_from_access_token),
+        Depends(session_security.get_sub_from_access_token),
     ],
     db: Annotated[
         Session,
@@ -124,7 +124,7 @@ async def edit_health_data(
     ],
     token_user_id: Annotated[
         int,
-        Depends(session_security.get_user_id_from_access_token),
+        Depends(session_security.get_sub_from_access_token),
     ],
     db: Annotated[
         Session,
@@ -143,7 +143,7 @@ async def delete_health_data(
     ],
     token_user_id: Annotated[
         int,
-        Depends(session_security.get_user_id_from_access_token),
+        Depends(session_security.get_sub_from_access_token),
     ],
     db: Annotated[
         Session,

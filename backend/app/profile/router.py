@@ -80,7 +80,7 @@ router = APIRouter()
 async def read_users_me(
     token_user_id: Annotated[
         int,
-        Depends(session_security.get_user_id_from_access_token),
+        Depends(session_security.get_sub_from_access_token),
     ],
     db: Annotated[
         Session,
@@ -152,7 +152,7 @@ async def read_users_me(
 async def read_sessions_me(
     token_user_id: Annotated[
         int,
-        Depends(session_security.get_user_id_from_access_token),
+        Depends(session_security.get_sub_from_access_token),
     ],
     db: Annotated[
         Session,
@@ -182,7 +182,7 @@ async def upload_profile_image(
     file: UploadFile,
     token_user_id: Annotated[
         int,
-        Depends(session_security.get_user_id_from_access_token),
+        Depends(session_security.get_sub_from_access_token),
     ],
     db: Annotated[
         Session,
@@ -211,7 +211,7 @@ async def edit_user(
     user_attributtes: users_schema.UserRead,
     token_user_id: Annotated[
         int,
-        Depends(session_security.get_user_id_from_access_token),
+        Depends(session_security.get_sub_from_access_token),
     ],
     db: Annotated[
         Session,
@@ -241,7 +241,7 @@ async def edit_profile_privacy_settings(
     user_privacy_settings: users_privacy_settings_schema.UsersPrivacySettings,
     token_user_id: Annotated[
         int,
-        Depends(session_security.get_user_id_from_access_token),
+        Depends(session_security.get_sub_from_access_token),
     ],
     db: Annotated[
         Session,
@@ -273,7 +273,7 @@ async def edit_profile_password(
     user_attributtes: users_schema.UserEditPassword,
     token_user_id: Annotated[
         int,
-        Depends(session_security.get_user_id_from_access_token),
+        Depends(session_security.get_sub_from_access_token),
     ],
     db: Annotated[
         Session,
@@ -302,7 +302,7 @@ async def edit_profile_password(
 async def delete_profile_photo(
     token_user_id: Annotated[
         int,
-        Depends(session_security.get_user_id_from_access_token),
+        Depends(session_security.get_sub_from_access_token),
     ],
     db: Annotated[
         Session,
@@ -331,7 +331,7 @@ async def delete_profile_session(
     session_id: str,
     token_user_id: Annotated[
         int,
-        Depends(session_security.get_user_id_from_access_token),
+        Depends(session_security.get_sub_from_access_token),
     ],
     db: Annotated[
         Session,
@@ -360,7 +360,7 @@ async def delete_profile_session(
 async def export_profile_data(
     token_user_id: Annotated[
         int,
-        Depends(session_security.get_user_id_from_access_token),
+        Depends(session_security.get_sub_from_access_token),
     ],
     db: Annotated[
         Session,
@@ -678,7 +678,7 @@ async def import_profile_data(
     file: UploadFile,
     token_user_id: Annotated[
         int,
-        Depends(session_security.get_user_id_from_access_token),
+        Depends(session_security.get_sub_from_access_token),
     ],
     db: Annotated[Session, Depends(core_database.get_db)],
     websocket_manager: Annotated[
@@ -1204,7 +1204,7 @@ async def import_profile_data(
 async def get_mfa_status(
     token_user_id: Annotated[
         int,
-        Depends(session_security.get_user_id_from_access_token),
+        Depends(session_security.get_sub_from_access_token),
     ],
     db: Annotated[Session, Depends(core_database.get_db)],
 ):
@@ -1218,7 +1218,7 @@ async def get_mfa_status(
 
     Args:
         token_user_id (int): User ID extracted from the access token (provided by
-            session_security.get_user_id_from_access_token dependency).
+            session_security.get_sub_from_access_token dependency).
         db (Session): SQLAlchemy database session (provided by core_database.get_db dependency).
 
     Returns:
@@ -1245,7 +1245,7 @@ async def get_mfa_status(
 async def setup_mfa(
     token_user_id: Annotated[
         int,
-        Depends(session_security.get_user_id_from_access_token),
+        Depends(session_security.get_sub_from_access_token),
     ],
     db: Annotated[Session, Depends(core_database.get_db)],
     mfa_secret_store: Annotated[
@@ -1262,7 +1262,7 @@ async def setup_mfa(
 
     Args:
         token_user_id (int): User ID extracted from the access token via
-            session_security.get_user_id_from_access_token. The MFA setup will be
+            session_security.get_sub_from_access_token. The MFA setup will be
             performed for this user.
         db (Session): Database session (injected via core_database.get_db) used by
             profile_utils.setup_user_mfa to persist user MFA metadata.
@@ -1308,7 +1308,7 @@ async def enable_mfa(
     request: profile_schema.MFASetupRequest,
     token_user_id: Annotated[
         int,
-        Depends(session_security.get_user_id_from_access_token),
+        Depends(session_security.get_sub_from_access_token),
     ],
     db: Annotated[Session, Depends(core_database.get_db)],
     mfa_secret_store: Annotated[
@@ -1374,7 +1374,7 @@ async def disable_mfa(
     request: profile_schema.MFADisableRequest,
     token_user_id: Annotated[
         int,
-        Depends(session_security.get_user_id_from_access_token),
+        Depends(session_security.get_sub_from_access_token),
     ],
     db: Annotated[Session, Depends(core_database.get_db)],
 ):
@@ -1416,7 +1416,7 @@ async def verify_mfa(
     request: profile_schema.MFARequest,
     token_user_id: Annotated[
         int,
-        Depends(session_security.get_user_id_from_access_token),
+        Depends(session_security.get_sub_from_access_token),
     ],
     db: Annotated[Session, Depends(core_database.get_db)],
 ):

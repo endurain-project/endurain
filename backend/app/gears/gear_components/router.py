@@ -25,7 +25,7 @@ async def read_gear_components(
         Callable, Security(session_security.check_scopes, scopes=["gears:read"])
     ],
     token_user_id: Annotated[
-        int, Depends(session_security.get_user_id_from_access_token)
+        int, Depends(session_security.get_sub_from_access_token)
     ],
     db: Annotated[Session, Depends(core_database.get_db)],
 ):
@@ -44,7 +44,7 @@ async def read_gear_components_gear_id(
         Callable, Security(session_security.check_scopes, scopes=["gears:read"])
     ],
     token_user_id: Annotated[
-        int, Depends(session_security.get_user_id_from_access_token)
+        int, Depends(session_security.get_sub_from_access_token)
     ],
     db: Annotated[Session, Depends(core_database.get_db)],
 ):
@@ -68,7 +68,7 @@ async def create_gear_component(
         Callable, Security(gears_components_dependencies.validate_gear_component_type)
     ],
     token_user_id: Annotated[
-        int, Depends(session_security.get_user_id_from_access_token)
+        int, Depends(session_security.get_sub_from_access_token)
     ],
     db: Annotated[
         Session,
@@ -88,7 +88,7 @@ async def edit_gear_component(
         Callable, Security(session_security.check_scopes, scopes=["gears:write"])
     ],
     token_user_id: Annotated[
-        int, Depends(session_security.get_user_id_from_access_token)
+        int, Depends(session_security.get_sub_from_access_token)
     ],
     db: Annotated[
         Session,
@@ -142,7 +142,7 @@ async def delete_component_gear(
         Callable, Security(session_security.check_scopes, scopes=["gears:write"])
     ],
     token_user_id: Annotated[
-        int, Depends(session_security.get_user_id_from_access_token)
+        int, Depends(session_security.get_sub_from_access_token)
     ],
     db: Annotated[
         Session,

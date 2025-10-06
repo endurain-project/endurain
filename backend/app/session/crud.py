@@ -64,8 +64,8 @@ def get_user_sessions(
         ) from err
 
 
-def get_session_by_refresh_token(
-    hashed_refresh_token: str, db: Session
+def get_session_by_id(
+    session_id: str, db: Session
 ) -> session_models.UsersSessions | None:
     """
     Retrieve a user session from the database using a refresh token, ensuring the session is not expired.
@@ -84,7 +84,7 @@ def get_session_by_refresh_token(
         # Get the session from the database, ensure it's not expired
         db_session = (
             db.query(session_models.UsersSessions)
-            .filter(session_models.UsersSessions.refresh_token == hashed_refresh_token)
+            .filter(session_models.UsersSessions.id == session_id)
             .filter(
                 session_models.UsersSessions.expires_at > datetime.now(timezone.utc)
             )
@@ -96,7 +96,7 @@ def get_session_by_refresh_token(
     except Exception as err:
         # Log the exception
         core_logger.print_to_log(
-            f"Error in get_session_by_refresh_token: {err}", "error", exc=err
+            f"Error in get_session_by_id: {err}", "error", exc=err
         )
 
         # Raise an HTTPException with a 500 Internal Server Error status code

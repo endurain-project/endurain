@@ -31,7 +31,7 @@ async def read_activities_streams_for_activity_all(
     ],
     token_user_id: Annotated[
         int,
-        Depends(session_security.get_user_id_from_access_token),
+        Depends(session_security.get_sub_from_access_token),
     ],
     db: Annotated[
         Session,
@@ -60,7 +60,7 @@ async def read_activities_streams_for_activity_stream_type(
     ],
     token_user_id: Annotated[
         int,
-        Depends(session_security.get_user_id_from_access_token),
+        Depends(session_security.get_sub_from_access_token),
     ],
     db: Annotated[
         Session,

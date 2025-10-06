@@ -93,7 +93,9 @@ def get_access_token(
     Raises:
         HTTPException: If no valid access token is found or the client type is unsupported.
     """
-    return get_token(non_cookie_access_token, cookie_access_token, client_type, "access")
+    return get_token(
+        non_cookie_access_token, cookie_access_token, client_type, "access"
+    )
 
 
 def validate_access_token(
@@ -142,7 +144,7 @@ def validate_access_token(
         ) from err
 
 
-def get_user_id_from_access_token(
+def get_sub_from_access_token(
     access_token: Annotated[str, Depends(get_access_token)],
     token_manager: Annotated[
         session_token_manager.TokenManager,
@@ -150,20 +152,44 @@ def get_user_id_from_access_token(
     ],
 ) -> int:
     """
-    Retrieves the user ID associated with a given access token.
+    Retrieves the user ID ('sub' claim) from the provided access token.
 
     Args:
-        access_token (str): The access token extracted from the request, provided by dependency injection.
-        token_manager (session_token_manager.TokenManager): An instance of TokenManager used to manage and validate tokens, provided by dependency injection.
+        access_token (str): The access token from which to extract the claim.
+        token_manager (session_token_manager.TokenManager): The token manager instance used to decode and validate the token.
 
     Returns:
-        int: The user ID associated with the provided access token.
+        int: The user ID associated with the access token.
 
     Raises:
-        Exception: If the access token is invalid or the user ID cannot be retrieved.
+        Exception: If the token is invalid or the 'sub' claim is missing.
     """
     # Return the user ID associated with the token
-    return token_manager.get_token_user_id(access_token)
+    return token_manager.get_token_claim(access_token, "sub")
+
+
+def get_sid_from_access_token(
+    access_token: Annotated[str, Depends(get_access_token)],
+    token_manager: Annotated[
+        session_token_manager.TokenManager,
+        Depends(session_token_manager.get_token_manager),
+    ],
+) -> int:
+    """
+    Retrieves the session ID ('sid') from the provided access token.
+
+    Args:
+        access_token (str): The access token from which to extract the session ID.
+        token_manager (session_token_manager.TokenManager): The token manager used to validate and extract claims from the token.
+
+    Returns:
+        int: The session ID ('sid') associated with the access token.
+
+    Raises:
+        Exception: If the token is invalid or the 'sid' claim is not present.
+    """
+    # Return the user ID associated with the token
+    return token_manager.get_token_claim(access_token, "sid")
 
 
 def get_and_return_access_token(
@@ -252,7 +278,7 @@ def validate_refresh_token(
         ) from err
 
 
-def get_user_id_from_refresh_token(
+def get_sub_from_refresh_token(
     refresh_token: Annotated[str, Depends(get_refresh_token)],
     token_manager: Annotated[
         session_token_manager.TokenManager,
@@ -260,20 +286,44 @@ def get_user_id_from_refresh_token(
     ],
 ) -> int:
     """
-    Retrieves the user ID associated with a given refresh token.
+    Retrieves the user ID ('sub' claim) from a given refresh token.
 
     Args:
         refresh_token (str): The refresh token from which to extract the user ID.
-        token_manager (session_token_manager.TokenManager): An instance of TokenManager used to validate and extract information from the token.
+        token_manager (session_token_manager.TokenManager): The token manager instance used to validate and parse the token.
 
     Returns:
         int: The user ID associated with the provided refresh token.
 
     Raises:
-        Exception: If the token is invalid or the user ID cannot be retrieved.
+        Exception: If the token is invalid or the 'sub' claim is not found.
     """
     # Return the user ID associated with the token
-    return token_manager.get_token_user_id(refresh_token)
+    return token_manager.get_token_claim(refresh_token, "sub")
+
+
+def get_sid_from_refresh_token(
+    refresh_token: Annotated[str, Depends(get_refresh_token)],
+    token_manager: Annotated[
+        session_token_manager.TokenManager,
+        Depends(session_token_manager.get_token_manager),
+    ],
+) -> str:
+    """
+    Retrieves the session ID ('sid') from a given refresh token.
+
+    Args:
+        refresh_token (str): The refresh token from which to extract the session ID.
+        token_manager (session_token_manager.TokenManager): The token manager used to validate and extract claims from the token.
+
+    Returns:
+        str: The session ID associated with the provided refresh token.
+
+    Raises:
+        Exception: If the token is invalid or the 'sid' claim is not present.
+    """
+    # Return the session ID associated with the token
+    return token_manager.get_token_claim(refresh_token, "sid")
 
 
 def get_and_return_refresh_token(
@@ -316,7 +366,7 @@ def check_scopes(
         Errors and exceptions are logged using core_logger for debugging and auditing purposes.
     """
     # Get the scope from the token
-    scope = token_manager.get_token_scope(access_token)
+    scope = token_manager.get_token_claim(access_token, "scope")
 
     try:
         # Use set operations to find missing scope

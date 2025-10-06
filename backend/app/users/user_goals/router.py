@@ -20,7 +20,7 @@ router = APIRouter()
 @router.get("", response_model=List[user_goals_schema.UserGoalRead] | None)
 async def get_user_goals(
     token_user_id: Annotated[
-        int, Depends(session_security.get_user_id_from_access_token)
+        int, Depends(session_security.get_sub_from_access_token)
     ],
     db: Annotated[Session, Depends(core_database.get_db)],
 ):
@@ -40,7 +40,7 @@ async def get_user_goals(
 @router.get("/results", response_model=List[user_goals_schema.UserGoalProgress] | None)
 async def get_user_goals_results(
     token_user_id: Annotated[
-        int, Depends(session_security.get_user_id_from_access_token)
+        int, Depends(session_security.get_sub_from_access_token)
     ],
     db: Annotated[Session, Depends(core_database.get_db)],
 ):
@@ -61,7 +61,7 @@ async def get_user_goals_results(
 async def create_user_goal(
     user_goal: user_goals_schema.UserGoalCreate,
     token_user_id: Annotated[
-        int, Depends(session_security.get_user_id_from_access_token)
+        int, Depends(session_security.get_sub_from_access_token)
     ],
     db: Annotated[Session, Depends(core_database.get_db)],
 ):
@@ -88,7 +88,7 @@ async def update_user_goal(
     validate_id: Annotated[Callable, Depends(user_goals_dependencies.validate_goal_id)],
     user_goal: user_goals_schema.UserGoalEdit,
     token_user_id: Annotated[
-        int, Depends(session_security.get_user_id_from_access_token)
+        int, Depends(session_security.get_sub_from_access_token)
     ],
     db: Annotated[Session, Depends(core_database.get_db)],
 ):
@@ -116,7 +116,7 @@ async def delete_user_goal(
     goal_id: int,
     validate_id: Annotated[Callable, Depends(user_goals_dependencies.validate_goal_id)],
     token_user_id: Annotated[
-        int, Depends(session_security.get_user_id_from_access_token)
+        int, Depends(session_security.get_sub_from_access_token)
     ],
     db: Annotated[Session, Depends(core_database.get_db)],
 ):

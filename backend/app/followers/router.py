@@ -201,7 +201,7 @@ async def create_follow(
     ],
     token_user_id: Annotated[
         int,
-        Depends(session_security.get_user_id_from_access_token),
+        Depends(session_security.get_sub_from_access_token),
     ],
     _check_scopes: Annotated[
         Callable, Security(session_security.check_scopes, scopes=["profile"])
@@ -233,7 +233,7 @@ async def accept_follow(
     ],
     token_user_id: Annotated[
         int,
-        Depends(session_security.get_user_id_from_access_token),
+        Depends(session_security.get_sub_from_access_token),
     ],
     _check_scopes: Annotated[
         Callable, Security(session_security.check_scopes, scopes=["profile"])
@@ -268,7 +268,7 @@ async def delete_follower(
     ],
     token_user_id: Annotated[
         int,
-        Depends(session_security.get_user_id_from_access_token),
+        Depends(session_security.get_sub_from_access_token),
     ],
     _check_scopes: Annotated[
         Callable, Security(session_security.check_scopes, scopes=["profile"])
@@ -297,7 +297,7 @@ async def delete_following(
     ],
     token_user_id: Annotated[
         int,
-        Depends(session_security.get_user_id_from_access_token),
+        Depends(session_security.get_sub_from_access_token),
     ],
     _check_scopes: Annotated[
         Callable, Security(session_security.check_scopes, scopes=["profile"])

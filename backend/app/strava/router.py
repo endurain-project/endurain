@@ -118,7 +118,7 @@ async def strava_retrieve_activities_days(
     ],
     token_user_id: Annotated[
         int,
-        Depends(session_security.get_user_id_from_access_token),
+        Depends(session_security.get_sub_from_access_token),
     ],
     websocket_manager: Annotated[
         websocket_schema.WebSocketManager,
@@ -158,7 +158,7 @@ async def strava_retrieve_gear(
     ],
     token_user_id: Annotated[
         int,
-        Depends(session_security.get_user_id_from_access_token),
+        Depends(session_security.get_sub_from_access_token),
     ],
     background_tasks: BackgroundTasks,
 ):
@@ -181,7 +181,7 @@ async def strava_retrieve_gear(
 async def import_bikes_from_strava_export(
     token_user_id: Annotated[
         int,
-        Depends(session_security.get_user_id_from_access_token),
+        Depends(session_security.get_sub_from_access_token),
     ],
     db: Annotated[
         Session,
@@ -243,7 +243,7 @@ async def strava_set_user_client(
     ],
     token_user_id: Annotated[
         int,
-        Depends(session_security.get_user_id_from_access_token),
+        Depends(session_security.get_sub_from_access_token),
     ],
     db: Annotated[Session, Depends(core_database.get_db)],
 ):
@@ -271,7 +271,7 @@ async def strava_set_user_unique_state(
     ],
     token_user_id: Annotated[
         int,
-        Depends(session_security.get_user_id_from_access_token),
+        Depends(session_security.get_sub_from_access_token),
     ],
     db: Annotated[Session, Depends(core_database.get_db)],
 ):
@@ -294,7 +294,7 @@ async def strava_unlink(
     ],
     token_user_id: Annotated[
         int,
-        Depends(session_security.get_user_id_from_access_token),
+        Depends(session_security.get_sub_from_access_token),
     ],
     db: Annotated[
         Session,

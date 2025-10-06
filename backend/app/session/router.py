@@ -197,7 +197,11 @@ async def refresh_token(
     ],
     token_user_id: Annotated[
         int,
-        Depends(session_security.get_user_id_from_refresh_token),
+        Depends(session_security.get_sub_from_refresh_token),
+    ],
+    token_session_id: Annotated[
+        str,
+        Depends(session_security.get_sid_from_refresh_token),
     ],
     refresh_token_value: Annotated[
         str,
@@ -218,40 +222,48 @@ async def refresh_token(
     ],
 ):
     """
-    Refreshes the user's authentication tokens.
+    Handles the refresh token process for user sessions.
 
-    This endpoint validates the provided refresh token, retrieves the associated session and user,
-    checks if the user is active, and generates new access, refresh, and CSRF tokens. The session
-    is updated in the database with the new refresh token. The response format depends on the client type:
-    - For "web" clients, tokens are set in the response and a success message is returned.
-    - For "mobile" clients, the new access and refresh tokens are returned in the response body.
+    This endpoint validates the provided refresh token, checks session and user status,
+    and issues new access, refresh, and CSRF tokens. The response format depends on the client type.
 
     Args:
         response (Response): The HTTP response object.
         request (Request): The HTTP request object.
         _validate_refresh_token (Callable): Dependency to validate the refresh token.
-        token_user_id (int): The user ID extracted from the refresh token.
+        token_user_id (int): User ID extracted from the refresh token.
+        token_session_id (str): Session ID extracted from the refresh token.
         refresh_token_value (str): The raw refresh token value.
         client_type (str): The type of client ("web" or "mobile").
-        password_hasher (PasswordHasher): Utility for hashing passwords and tokens.
-        token_manager (TokenManager): Utility for managing tokens.
-        db (Session): Database session dependency.
-
-    Raises:
-        HTTPException: If the session is not found, the user is inactive, or the client type is invalid.
+        password_hasher (PasswordHasher): Utility for verifying token hashes.
+        token_manager (TokenManager): Utility for creating tokens.
+        db (Session): Database session.
 
     Returns:
-        dict: For "web" clients, a success message. For "mobile" clients, the new access and refresh tokens.
+        Union[str, dict]: For "web" clients, returns the session ID.
+                          For "mobile" clients, returns a dictionary with new tokens and session ID.
+
+    Raises:
+        HTTPException: If the session is not found, the refresh token is invalid,
+                       the user is inactive, or the client type is invalid.
     """
-    hashed_refresh_token = password_hasher.hash_password(refresh_token_value)
     # Get the session from the database
-    session = session_crud.get_session_by_refresh_token(hashed_refresh_token, db)
+    session = session_crud.get_session_by_id(token_session_id, db)
 
     # Check if the session was found
     if session is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Session not found",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    is_valid = password_hasher.verify(refresh_token_value, session.refresh_token)
+
+    if not is_valid:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid refresh token",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
@@ -262,9 +274,14 @@ async def refresh_token(
     users_utils.check_user_is_active(user)
 
     # Create the tokens
-    new_access_token, new_refresh_token, new_csrf_token = session_utils.create_tokens(
-        user, token_manager
-    )
+    (
+        session_id,
+        new_access_token_exp,
+        new_access_token,
+        _new_refresh_token_exp,
+        new_refresh_token,
+        new_csrf_token,
+    ) = session_utils.create_tokens(user, token_manager)
 
     # Edit the session and store it in the database
     session_utils.edit_session(session, request, new_refresh_token, password_hasher, db)
@@ -275,10 +292,16 @@ async def refresh_token(
         )
 
         # Return the tokens and a success message
-        return {"Token refreshed successfully"}
+        return session_id
     if client_type == "mobile":
         # Return the tokens
-        return {"access_token": new_access_token, "refresh_token": new_refresh_token}
+        return {
+            "access_token": new_access_token,
+            "refresh_token": new_refresh_token,
+            "session_id": session_id,
+            "token_type": "bearer",
+            "expires_in": int(new_access_token_exp.timestamp()),
+        }
     raise HTTPException(
         status_code=status.HTTP_403_FORBIDDEN,
         detail="Invalid client type",
@@ -292,18 +315,22 @@ async def logout(
     _validate_access_token: Annotated[
         Callable, Depends(session_security.validate_access_token)
     ],
+    token_session_id: Annotated[
+        str,
+        Depends(session_security.get_sid_from_access_token),
+    ],
     refresh_token_value: Annotated[
         str,
         Depends(session_security.get_and_return_refresh_token),
     ],
     client_type: Annotated[str, Depends(session_security.header_client_type_scheme)],
+    token_user_id: Annotated[
+        int,
+        Depends(session_security.get_sub_from_refresh_token),
+    ],
     password_hasher: Annotated[
         session_password_hasher.PasswordHasher,
         Depends(session_password_hasher.get_password_hasher),
-    ],
-    token_user_id: Annotated[
-        int,
-        Depends(session_security.get_user_id_from_refresh_token),
     ],
     db: Annotated[
         Session,
@@ -311,34 +338,38 @@ async def logout(
     ],
 ):
     """
-    Logs out a user by deleting their session from the database and clearing authentication cookies.
-
-    This endpoint validates the user's access and refresh tokens, determines the client type,
-    and performs logout actions accordingly. For web clients, it clears relevant cookies.
-    For mobile clients, it simply returns a success message. If the client type is invalid,
-    an HTTP 403 error is raised.
-
-    Args:
-        response (Response): The response object used to modify cookies.
+    Logs out a user by validating and deleting their session, and clearing authentication cookies for web clients.
+    Parameters:
+        response (Response): The response object to modify cookies.
         _validate_access_token (Callable): Dependency to validate the access token.
+        token_session_id (str): The session ID extracted from the access token.
         refresh_token_value (str): The refresh token value from the request.
-        client_type (str): The type of client making the request ("web" or "mobile").
-        password_hasher (session_password_hasher.PasswordHasher): Utility for hashing passwords/tokens.
+        client_type (str): The type of client ("web" or "mobile").
         token_user_id (int): The user ID extracted from the refresh token.
-        db (Session): Database session dependency.
-
+        password_hasher (PasswordHasher): Utility for verifying the refresh token.
+        db (Session): Database session for CRUD operations.
     Returns:
         dict: A message indicating successful logout.
-
     Raises:
-        HTTPException: If the client type is invalid.
+        HTTPException: If the refresh token is invalid (401 Unauthorized).
+        HTTPException: If the client type is invalid (403 Forbidden).
     """
-    hashed_refresh_token = password_hasher.hash_password(refresh_token_value)
     # Get the session from the database
-    session = session_crud.get_session_by_refresh_token(hashed_refresh_token, db)
+    session = session_crud.get_session_by_id(token_session_id, db)
 
     # Check if the session was found
     if session is not None:
+        # Verify the refresh token
+        is_valid = password_hasher.verify(refresh_token_value, session.refresh_token)
+
+        # If the refresh token is not valid, raise an exception
+        if not is_valid:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid refresh token",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
         # Delete the session from the database
         session_crud.delete_session(session.id, token_user_id, db)
 

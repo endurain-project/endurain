@@ -52,7 +52,7 @@ async def read_activities_user_activities_week(
     ],
     token_user_id: Annotated[
         int,
-        Depends(session_security.get_user_id_from_access_token),
+        Depends(session_security.get_sub_from_access_token),
     ],
     db: Annotated[
         Session,
@@ -98,7 +98,7 @@ async def read_activities_user_activities_this_week_distances(
     ],
     token_user_id: Annotated[
         int,
-        Depends(session_security.get_user_id_from_access_token),
+        Depends(session_security.get_sub_from_access_token),
     ],
     db: Annotated[
         Session,
@@ -139,7 +139,7 @@ async def read_activities_user_activities_this_month_distances(
     ],
     token_user_id: Annotated[
         int,
-        Depends(session_security.get_user_id_from_access_token),
+        Depends(session_security.get_sub_from_access_token),
     ],
     db: Annotated[
         Session,
@@ -186,7 +186,7 @@ async def read_activities_user_activities_this_month_number(
     ],
     token_user_id: Annotated[
         Callable,
-        Depends(session_security.get_user_id_from_access_token),
+        Depends(session_security.get_sub_from_access_token),
     ],
     db: Annotated[
         Session,
@@ -233,7 +233,7 @@ async def read_activities_gear_activities(
     ],
     token_user_id: Annotated[
         Callable,
-        Depends(session_security.get_user_id_from_access_token),
+        Depends(session_security.get_sub_from_access_token),
     ],
     db: Annotated[
         Session,
@@ -260,7 +260,7 @@ async def read_activities_gear_activities_number(
     ],
     token_user_id: Annotated[
         Callable,
-        Depends(session_security.get_user_id_from_access_token),
+        Depends(session_security.get_sub_from_access_token),
     ],
     db: Annotated[
         Session,
@@ -295,7 +295,7 @@ async def read_activities_gear_activities_with_pagination(
     ],
     token_user_id: Annotated[
         Callable,
-        Depends(session_security.get_user_id_from_access_token),
+        Depends(session_security.get_sub_from_access_token),
     ],
     db: Annotated[
         Session,
@@ -318,7 +318,7 @@ async def read_activities_user_activities_number(
     ],
     token_user_id: Annotated[
         int,
-        Depends(session_security.get_user_id_from_access_token),
+        Depends(session_security.get_sub_from_access_token),
     ],
     db: Annotated[
         Session,
@@ -362,7 +362,7 @@ async def read_activities_types(
     ],
     token_user_id: Annotated[
         int,
-        Depends(session_security.get_user_id_from_access_token),
+        Depends(session_security.get_sub_from_access_token),
     ],
     db: Annotated[
         Session,
@@ -391,7 +391,7 @@ async def read_activities_user_activities_pagination(
     ],
     token_user_id: Annotated[
         int,
-        Depends(session_security.get_user_id_from_access_token),
+        Depends(session_security.get_sub_from_access_token),
     ],
     db: Annotated[
         Session,
@@ -501,7 +501,7 @@ async def read_activities_user_activities_refresh(
     ],
     token_user_id: Annotated[
         int,
-        Depends(session_security.get_user_id_from_access_token),
+        Depends(session_security.get_sub_from_access_token),
     ],
     db: Annotated[
         Session,
@@ -563,7 +563,7 @@ async def read_activities_activity_from_id(
     ],
     token_user_id: Annotated[
         int,
-        Depends(session_security.get_user_id_from_access_token),
+        Depends(session_security.get_sub_from_access_token),
     ],
     db: Annotated[
         Session,
@@ -587,7 +587,7 @@ async def read_activities_contain_name(
     ],
     token_user_id: Annotated[
         int,
-        Depends(session_security.get_user_id_from_access_token),
+        Depends(session_security.get_sub_from_access_token),
     ],
     db: Annotated[
         Session,
@@ -606,7 +606,7 @@ async def read_activities_contain_name(
 async def create_activity_with_uploaded_file(
     token_user_id: Annotated[
         int,
-        Depends(session_security.get_user_id_from_access_token),
+        Depends(session_security.get_sub_from_access_token),
     ],
     file: UploadFile,
     _check_scopes: Annotated[
@@ -642,7 +642,7 @@ async def create_activity_with_uploaded_file(
 async def create_activity_with_bulk_import(
     token_user_id: Annotated[
         int,
-        Depends(session_security.get_user_id_from_access_token),
+        Depends(session_security.get_sub_from_access_token),
     ],
     _check_scopes: Annotated[
         Callable, Security(session_security.check_scopes, scopes=["activities:write"])
@@ -721,7 +721,7 @@ async def create_activity_with_bulk_import(
 async def edit_activity(
     token_user_id: Annotated[
         int,
-        Depends(session_security.get_user_id_from_access_token),
+        Depends(session_security.get_sub_from_access_token),
     ],
     activity_attributes: activities_schema.ActivityEdit,
     _check_scopes: Annotated[
@@ -749,7 +749,7 @@ async def edit_activity_visibility(
     ],
     token_user_id: Annotated[
         int,
-        Depends(session_security.get_user_id_from_access_token),
+        Depends(session_security.get_sub_from_access_token),
     ],
     _check_scopes: Annotated[
         Callable, Security(session_security.check_scopes, scopes=["activities:write"])
@@ -779,7 +779,7 @@ async def delete_activity(
     ],
     token_user_id: Annotated[
         int,
-        Depends(session_security.get_user_id_from_access_token),
+        Depends(session_security.get_sub_from_access_token),
     ],
     db: Annotated[
         Session,
