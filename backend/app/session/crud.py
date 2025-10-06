@@ -65,13 +65,13 @@ def get_user_sessions(
 
 
 def get_session_by_refresh_token(
-    refresh_token: str, db: Session
+    hashed_refresh_token: str, db: Session
 ) -> session_models.UsersSessions | None:
     """
     Retrieve a user session from the database using a refresh token, ensuring the session is not expired.
 
     Args:
-        refresh_token (str): The refresh token associated with the user session.
+        hashed_refresh_token (str): The hashed refresh token associated with the user session.
         db (Session): The SQLAlchemy database session.
 
     Returns:
@@ -84,7 +84,7 @@ def get_session_by_refresh_token(
         # Get the session from the database, ensure it's not expired
         db_session = (
             db.query(session_models.UsersSessions)
-            .filter(session_models.UsersSessions.refresh_token == refresh_token)
+            .filter(session_models.UsersSessions.refresh_token == hashed_refresh_token)
             .filter(
                 session_models.UsersSessions.expires_at > datetime.now(timezone.utc)
             )

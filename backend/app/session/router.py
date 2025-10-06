@@ -66,6 +66,7 @@ async def login_for_access_token(
         client_type: The type of client making the request ("web" or "mobile")
         pending_mfa_store: Store for pending MFA logins
         password_hasher: The password hasher instance used for verifying passwords
+        token_manager: The token manager instance used for token operations
         db: Database session
 
     Returns:
@@ -105,7 +106,7 @@ async def login_for_access_token(
 
     # If no MFA required, proceed with normal login
     return session_utils.complete_login(
-        response, request, user, client_type, token_manager, db
+        response, request, user, client_type, password_hasher, token_manager, db
     )
 
 
@@ -117,6 +118,10 @@ async def verify_mfa_and_login(
     client_type: Annotated[str, Depends(session_security.header_client_type_scheme)],
     pending_mfa_store: Annotated[
         session_schema.PendingMFALogin, Depends(session_schema.get_pending_mfa_store)
+    ],
+    password_hasher: Annotated[
+        session_password_hasher.PasswordHasher,
+        Depends(session_password_hasher.get_password_hasher),
     ],
     token_manager: Annotated[
         session_token_manager.TokenManager,
@@ -139,6 +144,8 @@ async def verify_mfa_and_login(
         mfa_request: MFA login request containing username and MFA code
         client_type: The type of client making the request ("web" or "mobile")
         pending_mfa_store: Store for pending MFA logins
+        password_hasher: The password hasher instance used for verifying passwords
+        token_manager: The token manager instance used for token operations
         db: Database session
 
     Returns:
@@ -177,7 +184,7 @@ async def verify_mfa_and_login(
 
     # Complete the login
     return session_utils.complete_login(
-        response, request, user, client_type, token_manager, db
+        response, request, user, client_type, password_hasher, token_manager, db
     )
 
 
@@ -197,6 +204,10 @@ async def refresh_token(
         Depends(session_security.get_and_return_refresh_token),
     ],
     client_type: Annotated[str, Depends(session_security.header_client_type_scheme)],
+    password_hasher: Annotated[
+        session_password_hasher.PasswordHasher,
+        Depends(session_password_hasher.get_password_hasher),
+    ],
     token_manager: Annotated[
         session_token_manager.TokenManager,
         Depends(session_token_manager.get_token_manager),
@@ -207,20 +218,24 @@ async def refresh_token(
     ],
 ):
     """
-    Refreshes authentication tokens for a user session.
+    Refreshes the user's authentication tokens.
 
-    Depending on the client type ("web" or "mobile"), this endpoint will:
-    - For "web": Set new access, refresh, and CSRF tokens in the response, update the session in the database, and return a success message.
-    - For "mobile": Update the session in the database and return the new access and refresh tokens.
+    This endpoint validates the provided refresh token, retrieves the associated session and user,
+    checks if the user is active, and generates new access, refresh, and CSRF tokens. The session
+    is updated in the database with the new refresh token. The response format depends on the client type:
+    - For "web" clients, tokens are set in the response and a success message is returned.
+    - For "mobile" clients, the new access and refresh tokens are returned in the response body.
 
     Args:
-        response (Response): The HTTP response object to set cookies or headers.
-        request (Request): The incoming HTTP request object.
+        response (Response): The HTTP response object.
+        request (Request): The HTTP request object.
         _validate_refresh_token (Callable): Dependency to validate the refresh token.
         token_user_id (int): The user ID extracted from the refresh token.
-        db (Session): Database session dependency.
         refresh_token_value (str): The raw refresh token value.
-        client_type (str): The type of client making the request ("web" or "mobile").
+        client_type (str): The type of client ("web" or "mobile").
+        password_hasher (PasswordHasher): Utility for hashing passwords and tokens.
+        token_manager (TokenManager): Utility for managing tokens.
+        db (Session): Database session dependency.
 
     Raises:
         HTTPException: If the session is not found, the user is inactive, or the client type is invalid.
@@ -228,8 +243,9 @@ async def refresh_token(
     Returns:
         dict: For "web" clients, a success message. For "mobile" clients, the new access and refresh tokens.
     """
+    hashed_refresh_token = password_hasher.hash_password(refresh_token_value)
     # Get the session from the database
-    session = session_crud.get_session_by_refresh_token(refresh_token_value, db)
+    session = session_crud.get_session_by_refresh_token(hashed_refresh_token, db)
 
     # Check if the session was found
     if session is None:
@@ -250,20 +266,17 @@ async def refresh_token(
         user, token_manager
     )
 
+    # Edit the session and store it in the database
+    session_utils.edit_session(session, request, new_refresh_token, password_hasher, db)
+
     if client_type == "web":
         response = session_utils.create_response_with_tokens(
             response, new_access_token, new_refresh_token, new_csrf_token
         )
 
-        # Edit the session and store it in the database
-        session_utils.edit_session(session, request, new_refresh_token, db)
-
         # Return the tokens and a success message
         return {"Token refreshed successfully"}
     if client_type == "mobile":
-        # Edit the session and store it in the database
-        session_utils.edit_session(session, request, new_refresh_token, db)
-
         # Return the tokens
         return {"access_token": new_access_token, "refresh_token": new_refresh_token}
     raise HTTPException(
@@ -284,6 +297,10 @@ async def logout(
         Depends(session_security.get_and_return_refresh_token),
     ],
     client_type: Annotated[str, Depends(session_security.header_client_type_scheme)],
+    password_hasher: Annotated[
+        session_password_hasher.PasswordHasher,
+        Depends(session_password_hasher.get_password_hasher),
+    ],
     token_user_id: Annotated[
         int,
         Depends(session_security.get_user_id_from_refresh_token),
@@ -294,26 +311,31 @@ async def logout(
     ],
 ):
     """
-    Logs out a user by deleting their session and clearing authentication cookies.
+    Logs out a user by deleting their session from the database and clearing authentication cookies.
 
-    This endpoint handles logout requests for both web and mobile clients. For web clients, it deletes authentication cookies. For mobile clients, it simply returns a success message. If the session associated with the refresh token exists, it is deleted from the database.
+    This endpoint validates the user's access and refresh tokens, determines the client type,
+    and performs logout actions accordingly. For web clients, it clears relevant cookies.
+    For mobile clients, it simply returns a success message. If the client type is invalid,
+    an HTTP 403 error is raised.
 
     Args:
         response (Response): The response object used to modify cookies.
         _validate_access_token (Callable): Dependency to validate the access token.
-        refresh_token_value (str): The refresh token value extracted from the request.
+        refresh_token_value (str): The refresh token value from the request.
         client_type (str): The type of client making the request ("web" or "mobile").
+        password_hasher (session_password_hasher.PasswordHasher): Utility for hashing passwords/tokens.
         token_user_id (int): The user ID extracted from the refresh token.
-        db (Session): The database session dependency.
+        db (Session): Database session dependency.
 
     Returns:
         dict: A message indicating successful logout.
 
     Raises:
-        HTTPException: If the client type is invalid, raises a 403 Forbidden error.
+        HTTPException: If the client type is invalid.
     """
+    hashed_refresh_token = password_hasher.hash_password(refresh_token_value)
     # Get the session from the database
-    session = session_crud.get_session_by_refresh_token(refresh_token_value, db)
+    session = session_crud.get_session_by_refresh_token(hashed_refresh_token, db)
 
     # Check if the session was found
     if session is not None:

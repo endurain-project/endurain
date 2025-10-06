@@ -1,4 +1,6 @@
 import os
+
+from enum import Enum
 from datetime import datetime, timedelta, timezone
 from dataclasses import dataclass
 from typing import Tuple
@@ -13,7 +15,6 @@ from uuid import uuid4
 
 from sqlalchemy.orm import Session
 
-import session.security as session_security
 import session.constants as session_constants
 import session.schema as session_schema
 import session.crud as session_crud
@@ -24,11 +25,35 @@ import users.user.crud as users_crud
 import users.user.schema as users_schema
 
 
+class DeviceType(Enum):
+    """
+    An enumeration representing different types of devices.
+
+    Attributes:
+        MOBILE: Represents a mobile device.
+        TABLET: Represents a tablet device.
+        PC: Represents a personal computer/desktop device.
+    """
+
+    MOBILE = "Mobile"
+    TABLET = "Tablet"
+    PC = "PC"
+
+
 @dataclass
 class DeviceInfo:
-    """Device information extracted from user agent."""
+    """
+    Represents information about a user's device.
 
-    device_type: str
+    Attributes:
+        device_type (DeviceType): The type of device (e.g., mobile, desktop).
+        operating_system (str): The name of the operating system (e.g., 'Windows', 'macOS').
+        operating_system_version (str): The version of the operating system.
+        browser (str): The name of the browser (e.g., 'Chrome', 'Firefox').
+        browser_version (str): The version of the browser.
+    """
+
+    device_type: DeviceType
     operating_system: str
     operating_system_version: str
     browser: str
@@ -38,20 +63,20 @@ class DeviceInfo:
 def create_session_object(
     user: users_schema.UserRead,
     request: Request,
-    refresh_token: str,
+    hashed_refresh_token: str,
     refresh_token_exp: datetime,
 ) -> session_schema.UsersSessions:
     """
-    Create a new session object from user and request data.
+    Creates a UsersSessions object for a user session, extracting device and request information.
 
     Args:
-        user: User object
-        request: FastAPI request object
-        refresh_token: Refresh token string
-        refresh_token_exp: Refresh token expiration datetime
+        user (users_schema.UserRead): The user for whom the session is being created.
+        request (Request): The incoming HTTP request object.
+        hashed_refresh_token (str): The hashed refresh token for the session.
+        refresh_token_exp (datetime): The expiration datetime for the refresh token.
 
     Returns:
-        UsersSessions schema object
+        session_schema.UsersSessions: The newly created user session object containing session and device details.
     """
     user_agent = get_user_agent(request)
     device_info = parse_user_agent(user_agent)
@@ -59,7 +84,7 @@ def create_session_object(
     return session_schema.UsersSessions(
         id=str(uuid4()),
         user_id=user.id,
-        refresh_token=refresh_token,
+        refresh_token=hashed_refresh_token,
         ip_address=get_ip_address(request),
         device_type=device_info.device_type,
         operating_system=device_info.operating_system,
@@ -73,21 +98,21 @@ def create_session_object(
 
 def edit_session_object(
     request: Request,
-    refresh_token: str,
+    hashed_refresh_token: str,
     refresh_token_exp: datetime,
     session: Session,
 ) -> session_schema.UsersSessions:
     """
-    Create an updated session object with new token and request data.
+    Edits and returns a UsersSessions object with updated session information.
 
     Args:
-        request: FastAPI request object
-        refresh_token: New refresh token string
-        refresh_token_exp: New refresh token expiration datetime
-        session: Existing session object
+        request (Request): The incoming HTTP request object.
+        hashed_refresh_token (str): The hashed refresh token to associate with the session.
+        refresh_token_exp (datetime): The expiration datetime for the refresh token.
+        session (Session): The existing session object to update.
 
     Returns:
-        Updated UsersSessions schema object
+        session_schema.UsersSessions: The updated UsersSessions object containing session details such as device info, IP address, and token expiration.
     """
     user_agent = get_user_agent(request)
     device_info = parse_user_agent(user_agent)
@@ -95,7 +120,7 @@ def edit_session_object(
     return session_schema.UsersSessions(
         id=session.id,
         user_id=session.user_id,
-        refresh_token=refresh_token,
+        refresh_token=hashed_refresh_token,
         ip_address=get_ip_address(request),
         device_type=device_info.device_type,
         operating_system=device_info.operating_system,
@@ -115,14 +140,16 @@ def authenticate_user(
 ) -> users_schema.UserRead:
     """
     Authenticates a user by verifying the provided username and password.
-    Updates the user password hash in the DB if necessary.
+
     Args:
         username (str): The username of the user attempting to authenticate.
-        password (str): The password provided by the user.
-        password_hasher (PasswordHasher): The password hasher instance used for verification.
-        db (Session): The database session used to query user data.
+        password (str): The plaintext password provided by the user.
+        password_hasher (session_password_hasher.PasswordHasher): An instance of the password hasher for verifying and updating password hashes.
+        db (Session): The database session used for querying and updating user data.
+
     Returns:
-        users_schema.UserRead: The authenticated user object.
+        users_schema.UserRead: The authenticated user object if authentication is successful.
+
     Raises:
         HTTPException: If the username does not exist or the password is invalid.
     """
@@ -158,7 +185,19 @@ def authenticate_user(
     return user
 
 
-def create_tokens(user: users_schema.UserRead, token_manager: session_token_manager.TokenManager) -> Tuple[str, str, str]:
+def create_tokens(
+    user: users_schema.UserRead, token_manager: session_token_manager.TokenManager
+) -> Tuple[str, str, str]:
+    """
+    Generates access, refresh, and CSRF tokens for a given user.
+
+    Args:
+        user (users_schema.UserRead): The user object for whom the tokens are being created.
+        token_manager (session_token_manager.TokenManager): The token manager responsible for generating tokens.
+
+    Returns:
+        Tuple[str, str, str]: A tuple containing the access token, refresh token, and CSRF token.
+    """
     # Create the access, refresh tokens and csrf token
     access_token = token_manager.create_token(user, "access")
 
@@ -173,16 +212,16 @@ def create_response_with_tokens(
     response: Response, access_token: str, refresh_token: str, csrf_token: str
 ) -> Response:
     """
-    Set authentication cookies on the response object.
+    Sets access, refresh, and CSRF tokens as cookies on the given response object.
 
     Args:
-        response: FastAPI response object
-        access_token: Access token string
-        refresh_token: Refresh token string
-        csrf_token: CSRF token string
+        response (Response): The response object to set cookies on.
+        access_token (str): The JWT access token to be set as a cookie.
+        refresh_token (str): The JWT refresh token to be set as a cookie.
+        csrf_token (str): The CSRF token to be set as a cookie.
 
     Returns:
-        Response object with cookies set
+        Response: The response object with the tokens set as cookies.
     """
     secure = os.environ.get("FRONTEND_PROTOCOL") == "https"
 
@@ -224,25 +263,28 @@ def create_session(
     user: users_schema.UserRead,
     request: Request,
     refresh_token: str,
+    password_hasher: session_password_hasher.PasswordHasher,
     db: Session,
 ) -> str:
     """
-    Create a new user session and store it in the database.
+    Creates a new session for the given user and stores it in the database.
+    Refresh token is hashed before storage.
 
     Args:
-        user: User object
-        request: FastAPI request object
-        refresh_token: Refresh token string
-        db: Database session
+        user (users_schema.UserRead): The user for whom the session is being created.
+        request (Request): The incoming HTTP request object.
+        refresh_token (str): The refresh token to be hashed and stored with the session.
+        password_hasher (session_password_hasher.PasswordHasher): Utility to hash the refresh token.
+        db (Session): The database session for storing the session object.
 
     Returns:
-        Session ID string
+        str: The unique identifier of the newly created session.
     """
     # Create a new session
     new_session = create_session_object(
         user,
         request,
-        refresh_token,
+        password_hasher.hash_password(refresh_token),
         datetime.now(timezone.utc)
         + timedelta(days=session_constants.JWT_REFRESH_TOKEN_EXPIRE_DAYS),
     )
@@ -258,21 +300,27 @@ def edit_session(
     session: session_schema.UsersSessions,
     request: Request,
     new_refresh_token: str,
+    password_hasher: session_password_hasher.PasswordHasher,
     db: Session,
 ) -> None:
     """
-    Update an existing session with new token and request data.
+    Edits an existing user session by updating its refresh token and expiration date, then persists the changes to the database.
+    Refresh token is hashed before storage.
 
     Args:
-        session: Existing session object
-        request: FastAPI request object
-        new_refresh_token: New refresh token string
-        db: Database session
+        session (session_schema.UsersSessions): The current user session object to be updated.
+        request (Request): The incoming request object containing session context.
+        new_refresh_token (str): The new refresh token to be hashed and stored.
+        password_hasher (session_password_hasher.PasswordHasher): Utility for hashing the refresh token.
+        db (Session): Database session for committing changes.
+
+    Returns:
+        None
     """
     # Update the session
     updated_session = edit_session_object(
         request,
-        new_refresh_token,
+        password_hasher.hash_password(new_refresh_token),
         datetime.now(timezone.utc)
         + timedelta(days=session_constants.JWT_REFRESH_TOKEN_EXPIRE_DAYS),
         session,
@@ -287,6 +335,7 @@ def complete_login(
     request: Request,
     user: users_schema.UserRead,
     client_type: str,
+    password_hasher: session_password_hasher.PasswordHasher,
     token_manager: session_token_manager.TokenManager,
     db: Session,
 ) -> dict | str:
@@ -302,6 +351,7 @@ def complete_login(
         request: FastAPI request object (for session metadata)
         user: Authenticated user object
         client_type: Type of client ("web" or "mobile")
+        password_hasher: Password hasher instance
         token_manager: Token manager instance
         db: Database session
 
@@ -320,14 +370,14 @@ def complete_login(
         create_response_with_tokens(response, access_token, refresh_token, csrf_token)
 
         # Create the session and store it in the database
-        session_id = create_session(user, request, refresh_token, db)
+        session_id = create_session(user, request, refresh_token, password_hasher, db)
 
         # Return the session_id
         return session_id
 
     if client_type == "mobile":
         # Create the session and store it in the database
-        session_id = create_session(user, request, refresh_token, db)
+        session_id = create_session(user, request, refresh_token, password_hasher, db)
 
         # Return the tokens directly (no cookies for mobile)
         return {
@@ -345,27 +395,29 @@ def complete_login(
 
 def get_user_agent(request: Request) -> str:
     """
-    Extract user agent string from request.
+    Extracts the 'User-Agent' string from the request headers.
 
     Args:
-        request: FastAPI request object
+        request (Request): The incoming HTTP request object.
 
     Returns:
-        User agent string or empty string if not present
+        str: The value of the 'User-Agent' header if present, otherwise an empty string.
     """
     return request.headers.get("user-agent", "")
 
 
 def get_ip_address(request: Request) -> str:
     """
-    Extract client IP address from request.
-    Checks proxy headers first before falling back to client.host.
+    Extracts the client's IP address from a FastAPI Request object.
+
+    This function checks for common proxy headers ("X-Forwarded-For" and "X-Real-IP") to determine the original client IP address.
+    If these headers are not present, it falls back to the direct client host information.
 
     Args:
-        request: FastAPI request object
+        request (Request): The FastAPI Request object containing headers and client info.
 
     Returns:
-        IP address string
+        str: The determined IP address of the client, or "unknown" if it cannot be determined.
     """
     # Check for proxy headers first
     forwarded_for = request.headers.get("X-Forwarded-For")
@@ -382,16 +434,28 @@ def get_ip_address(request: Request) -> str:
 
 def parse_user_agent(user_agent: str) -> DeviceInfo:
     """
-    Parse user agent string to extract device information.
+    Parses a user agent string and extracts device information.
 
     Args:
-        user_agent: User agent string
+        user_agent (str): The user agent string to be parsed.
 
     Returns:
-        DeviceInfo dataclass with parsed information
+        DeviceInfo: An object containing details about the device type, operating system,
+                    operating system version, browser, and browser version.
+
+    DeviceInfo fields:
+        - device_type (DeviceType): The type of device ("Mobile", "Tablet", or "PC").
+        - operating_system (str): The name of the operating system.
+        - operating_system_version (str): The version of the operating system.
+        - browser (str): The name of the browser.
+        - browser_version (str): The version of the browser.
     """
     ua = parse(user_agent)
-    device_type = "Mobile" if ua.is_mobile else "Tablet" if ua.is_tablet else "PC"
+    device_type = (
+        DeviceType.MOBILE
+        if ua.is_mobile
+        else DeviceType.TABLET if ua.is_tablet else DeviceType.PC
+    )
 
     return DeviceInfo(
         device_type=device_type,

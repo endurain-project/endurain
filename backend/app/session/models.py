@@ -21,7 +21,7 @@ class UsersSessions(Base):
         comment="User ID that the session belongs",
     )
     refresh_token = Column(
-        String(length=4096), nullable=False, comment="Session refresh token"
+        String(length=255), nullable=False, comment="Session hashed refresh token"
     )
     ip_address = Column(String(45), nullable=False, comment="Client IP address")
     device_type = Column(String(length=45), nullable=False, comment="Device type")

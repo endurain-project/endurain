@@ -160,6 +160,18 @@ class TokenManager:
         try:
             # Decode the token and return the payload
             return jwt.decode(token, OctKey.import_key(self.secret_key))
+        except jwt.InvalidPayloadError as payload_err:
+            core_logger.print_to_log(
+                f"Invalid token payload: {payload_err}",
+                "error",
+                exc=payload_err,
+                context={"token": "[REDACTED]"},
+            )
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid token payload",
+                headers={"WWW-Authenticate": "Bearer"},
+            ) from payload_err
         except Exception as err:
             core_logger.print_to_log(
                 f"Error decoding token: {err}",
@@ -206,7 +218,50 @@ class TokenManager:
 
             # Validate token expiration
             claims_requests.validate(payload.claims)
-        except jwt.JWTClaimsError as claims_err:
+        except jwt.MissingClaimError as missing_err:
+            core_logger.print_to_log(
+                f"JWT missing claim error: {missing_err}",
+                "error",
+                exc=missing_err,
+                context={"token": "[REDACTED]"},
+            )
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Token is missing required claims.",
+                headers={"WWW-Authenticate": "Bearer"},
+            ) from missing_err
+        except jwt.ExpiredTokenError as expired_err:
+            core_logger.print_to_log(
+                f"JWT token expired error: {expired_err}",
+                "error",
+                exc=expired_err,
+                context={"token": "[REDACTED]"},
+            )
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Token is expired.",
+                headers={"WWW-Authenticate": "Bearer"},
+            ) from expired_err
+        except jwt.InvalidTokenError as invalid_err:
+            core_logger.print_to_log(
+                f"JWT is not valid yet error: {invalid_err}",
+                "error",
+                exc=invalid_err,
+                context={"token": "[REDACTED]"},
+            )
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Token is not valid yet.",
+                headers={"WWW-Authenticate": "Bearer"},
+            ) from invalid_err
+        except jwt.InsecureClaimError as insecure_err:
+            core_logger.print_to_log(
+                f"JWT insecure claim error: {insecure_err}",
+                "error",
+                exc=insecure_err,
+                context={"token": "[REDACTED]"},
+            )
+        except jwt.InvalidClaimError as claims_err:
             core_logger.print_to_log(
                 f"JWT claims validation error: {claims_err}",
                 "error",
@@ -215,7 +270,7 @@ class TokenManager:
             )
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Token is missing required claims or is invalid.",
+                detail="Token has invalid claims.",
                 headers={"WWW-Authenticate": "Bearer"},
             ) from claims_err
         except Exception as err:
