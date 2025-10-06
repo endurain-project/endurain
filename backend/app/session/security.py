@@ -35,12 +35,27 @@ cookie_refresh_token_scheme = APIKeyCookie(
 
 
 def get_token(
-    noncookie_token: Annotated[Union[str, None], Depends(oauth2_scheme)],
+    non_cookie_token: Annotated[Union[str, None], Depends(oauth2_scheme)],
     cookie_token: Union[str, None],
     client_type: str,
     token_type: str,
 ) -> str:
-    if noncookie_token is None and cookie_token is None:
+    """
+    Retrieves the authentication token based on client type and available sources.
+
+    Args:
+        non_cookie_token (str | None): Token provided via non-cookie method (e.g., Authorization header).
+        cookie_token (str | None): Token provided via cookie.
+        client_type (str): Type of client requesting the token ("web" or "mobile").
+        token_type (str): Type of token being requested (e.g., "access", "refresh").
+
+    Returns:
+        str: The authentication token appropriate for the client type.
+
+    Raises:
+        HTTPException: If both tokens are missing, or if the client type is invalid.
+    """
+    if non_cookie_token is None and cookie_token is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=f"{token_type.capitalize()} token missing",
@@ -50,7 +65,7 @@ def get_token(
     if client_type == "web":
         return cookie_token
     if client_type == "mobile":
-        return noncookie_token
+        return non_cookie_token
     raise HTTPException(
         status_code=status.HTTP_403_FORBIDDEN,
         detail="Invalid client type",
@@ -60,11 +75,25 @@ def get_token(
 
 ## ACCESS TOKEN VALIDATION
 def get_access_token(
-    noncookie_access_token: Annotated[Union[str, None], Depends(oauth2_scheme)],
+    non_cookie_access_token: Annotated[Union[str, None], Depends(oauth2_scheme)],
     cookie_access_token: Union[str, None] = Depends(cookie_access_token_scheme),
     client_type: str = Depends(header_client_type_scheme),
 ) -> str:
-    return get_token(noncookie_access_token, cookie_access_token, client_type, "access")
+    """
+    Retrieves the access token from either the Authorization header or a cookie, depending on the client type.
+
+    Args:
+        non_cookie_access_token (str | None): Access token provided via the Authorization header (OAuth2 scheme).
+        cookie_access_token (str | None): Access token provided via a cookie.
+        client_type (str): The type of client making the request, extracted from a custom header.
+
+    Returns:
+        str: The resolved access token based on the client type and available sources.
+
+    Raises:
+        HTTPException: If no valid access token is found or the client type is unsupported.
+    """
+    return get_token(non_cookie_access_token, cookie_access_token, client_type, "access")
 
 
 def validate_access_token(
@@ -75,6 +104,20 @@ def validate_access_token(
         Depends(session_token_manager.get_token_manager),
     ],
 ) -> None:
+    """
+    Validates the provided access token for expiration.
+
+    This function checks whether the given access token is still valid by verifying its expiration.
+    If the token is expired or invalid, an HTTPException is raised and the error is logged.
+    Any unexpected errors during validation are also logged and result in a 500 Internal Server Error.
+
+    Args:
+        access_token (str): The access token to be validated.
+        token_manager (session_token_manager.TokenManager): The token manager instance used for validation.
+
+    Raises:
+        HTTPException: If the token is expired, invalid, or an unexpected error occurs during validation.
+    """
     try:
         # Validate the token expiration
         token_manager.validate_token_expiration(access_token)
@@ -106,6 +149,19 @@ def get_user_id_from_access_token(
         Depends(session_token_manager.get_token_manager),
     ],
 ) -> int:
+    """
+    Retrieves the user ID associated with a given access token.
+
+    Args:
+        access_token (str): The access token extracted from the request, provided by dependency injection.
+        token_manager (session_token_manager.TokenManager): An instance of TokenManager used to manage and validate tokens, provided by dependency injection.
+
+    Returns:
+        int: The user ID associated with the provided access token.
+
+    Raises:
+        Exception: If the access token is invalid or the user ID cannot be retrieved.
+    """
     # Return the user ID associated with the token
     return token_manager.get_token_user_id(access_token)
 
@@ -113,18 +169,41 @@ def get_user_id_from_access_token(
 def get_and_return_access_token(
     access_token: Annotated[str, Depends(get_access_token)],
 ) -> str:
+    """
+    Retrieves and returns the access token from the request dependencies.
+
+    Args:
+        access_token (str): The access token extracted via dependency injection.
+
+    Returns:
+        str: The access token.
+    """
     # Return token
     return access_token
 
 
 ## REFRESH TOKEN VALIDATION
 def get_refresh_token(
-    noncookie_refresh_token: Annotated[Union[str, None], Depends(oauth2_scheme)],
+    non_cookie_refresh_token: Annotated[Union[str, None], Depends(oauth2_scheme)],
     cookie_refresh_token: Union[str, None] = Depends(cookie_refresh_token_scheme),
     client_type: str = Depends(header_client_type_scheme),
 ) -> str:
+    """
+    Retrieves the refresh token from either the Authorization header or a cookie, depending on the client type.
+
+    Args:
+        non_cookie_refresh_token (str | None): The refresh token provided via the Authorization header (if present).
+        cookie_refresh_token (str | None): The refresh token provided via a cookie (if present).
+        client_type (str): The type of client making the request, extracted from the request headers.
+
+    Returns:
+        str: The resolved refresh token based on the provided sources and client type.
+
+    Raises:
+        HTTPException: If no valid refresh token is found or the client type is invalid.
+    """
     return get_token(
-        noncookie_refresh_token, cookie_refresh_token, client_type, "refresh"
+        non_cookie_refresh_token, cookie_refresh_token, client_type, "refresh"
     )
 
 
@@ -136,6 +215,19 @@ def validate_refresh_token(
         Depends(session_token_manager.get_token_manager),
     ],
 ) -> None:
+    """
+    Validates the expiration of a refresh token using the provided token manager.
+
+    Args:
+        refresh_token (str): The refresh token to be validated, extracted via dependency injection.
+        token_manager (session_token_manager.TokenManager): The token manager instance used to validate the token, injected via dependency.
+
+    Raises:
+        HTTPException: If the refresh token is expired or invalid, or if an unexpected error occurs during validation.
+
+    Logs:
+        Errors and unexpected exceptions are logged with context, including a redacted refresh token.
+    """
     try:
         # Validate the token expiration
         token_manager.validate_token_expiration(refresh_token)
@@ -167,6 +259,19 @@ def get_user_id_from_refresh_token(
         Depends(session_token_manager.get_token_manager),
     ],
 ) -> int:
+    """
+    Retrieves the user ID associated with a given refresh token.
+
+    Args:
+        refresh_token (str): The refresh token from which to extract the user ID.
+        token_manager (session_token_manager.TokenManager): An instance of TokenManager used to validate and extract information from the token.
+
+    Returns:
+        int: The user ID associated with the provided refresh token.
+
+    Raises:
+        Exception: If the token is invalid or the user ID cannot be retrieved.
+    """
     # Return the user ID associated with the token
     return token_manager.get_token_user_id(refresh_token)
 
@@ -174,6 +279,15 @@ def get_user_id_from_refresh_token(
 def get_and_return_refresh_token(
     refresh_token: Annotated[str, Depends(get_refresh_token)],
 ) -> str:
+    """
+    Retrieves and returns the refresh token from the request dependencies.
+
+    Args:
+        refresh_token (str): The refresh token extracted via dependency injection.
+
+    Returns:
+        str: The provided refresh token.
+    """
     # Return token
     return refresh_token
 
@@ -186,6 +300,21 @@ def check_scopes(
     ],
     security_scopes: SecurityScopes,
 ) -> None:
+    """
+    Validates that the access token contains all required security scopes.
+
+    Args:
+        access_token (str): The access token extracted from the request.
+        token_manager (session_token_manager.TokenManager): Instance responsible for managing and validating tokens.
+        security_scopes (SecurityScopes): Required scopes for the endpoint.
+
+    Raises:
+        HTTPException: If any required scope is missing, raises 403 Forbidden with details.
+        HTTPException: If an unexpected error occurs during scope validation, raises 500 Internal Server Error.
+
+    Logs:
+        Errors and exceptions are logged using core_logger for debugging and auditing purposes.
+    """
     # Get the scope from the token
     scope = token_manager.get_token_scope(access_token)
 
