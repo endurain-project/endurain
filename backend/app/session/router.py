@@ -342,7 +342,7 @@ async def read_sessions_user(
         Callable, Depends(session_security.validate_access_token)
     ],
     __check_scope: Annotated[
-        Callable, Security(session_security.check_scope, scopes=["sessions:read"])
+        Callable, Security(session_security.check_scopes, scopes=["sessions:read"])
     ],
     db: Annotated[
         Session,
@@ -373,7 +373,7 @@ async def delete_session_user(
         Callable, Depends(session_security.validate_access_token)
     ],
     __check_scope: Annotated[
-        Callable, Security(session_security.check_scope, scopes=["sessions:write"])
+        Callable, Security(session_security.check_scopes, scopes=["sessions:write"])
     ],
     db: Annotated[
         Session,

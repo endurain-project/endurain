@@ -178,7 +178,7 @@ def get_and_return_refresh_token(
     return refresh_token
 
 
-def check_scope(
+def check_scopes(
     access_token: Annotated[str, Depends(get_access_token)],
     token_manager: Annotated[
         session_token_manager.TokenManager,
@@ -187,7 +187,7 @@ def check_scope(
     security_scopes: SecurityScopes,
 ) -> None:
     # Get the scope from the token
-    scope = token_manager.get_token_scopes(access_token)
+    scope = token_manager.get_token_scope(access_token)
 
     try:
         # Use set operations to find missing scope

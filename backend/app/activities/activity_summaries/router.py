@@ -27,8 +27,8 @@ async def read_activity_summary(
     validate_view_type: Annotated[
         Callable, Depends(activities_summary_dependencies.validate_view_type)
     ],
-    _check_scope: Annotated[
-        Callable, Security(session_security.check_scope, scopes=["activities:read"])
+    _check_scopes: Annotated[
+        Callable, Security(session_security.check_scopes, scopes=["activities:read"])
     ],
     token_user_id: Annotated[
         int,

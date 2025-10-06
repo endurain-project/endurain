@@ -32,7 +32,7 @@ class TokenManager:
     Methods:
         __init__(secret_key: str, algorithm: str = "HS256"):
         get_token_user_id(token: str) -> int:
-        get_token_scopes(token: str) -> list[str]:
+        get_token_scope(token: str) -> list[str]:
         decode_token(token: str) -> dict:
         validate_token_expiration(token: str) -> None:
         create_token(data: dict) -> str:
@@ -100,7 +100,7 @@ class TokenManager:
                 headers={"WWW-Authenticate": "Bearer"},
             ) from err
 
-    def get_token_scopes(self, token: str) -> list[str]:
+    def get_token_scope(self, token: str) -> list[str]:
         """
         Extracts the list of scope from a given JWT token.
 
@@ -177,22 +177,28 @@ class TokenManager:
         """
         Validates the expiration and required claims of a JWT token.
 
-        This method checks if the provided JWT token contains the essential claims
-        ('exp' and 'sub') and verifies that the token has not expired. If the token
-        is missing required claims or is invalid, an HTTP 401 Unauthorized exception
-        is raised. Any errors encountered during validation are logged.
+        Decodes the provided JWT token and checks for the presence and validity of essential claims,
+        including issuer (`iss`), audience (`aud`), subject (`sub`), issued at (`iat`), not before (`nbf`),
+        expiration (`exp`), and JWT ID (`jti`). If any required claim is missing or invalid, or if the token
+        is expired, raises an HTTP 401 Unauthorized exception.
 
         Args:
             token (str): The JWT token to validate.
 
         Raises:
-            HTTPException: If the token is missing required claims, is expired, or is invalid.
+            HTTPException: If the token is missing required claims, is invalid, or is expired.
         """
         try:
             # Define required claims
             claims_requests = jwt.JWTClaimsRegistry(
-                exp={"essential": True},
+                iss={"essential": True, "value": f"{core_config.ENDURAIN_HOST}"},
+                aud={"essential": True, "value": f"{core_config.ENDURAIN_HOST}"},
                 sub={"essential": True},
+                scope={"essential": True},
+                iat={"essential": True},
+                nbf={"essential": True},
+                exp={"essential": True},
+                jti={"essential": True},
             )
 
             # Decode the token to get the payload
@@ -200,7 +206,7 @@ class TokenManager:
 
             # Validate token expiration
             claims_requests.validate(payload.claims)
-        except jwt.InvalidClaimError as claims_err:
+        except jwt.JWTClaimsError as claims_err:
             core_logger.print_to_log(
                 f"JWT claims validation error: {claims_err}",
                 "error",
@@ -231,6 +237,22 @@ class TokenManager:
         token_type: TokenType,
         data: dict | None = None,
     ) -> str:
+        """
+        Creates a JWT token for the specified user with appropriate claims and expiration.
+
+        Args:
+            user (users_schema.UserRead): The user for whom the token is being created.
+            token_type (TokenType): The type of token to create (e.g., access or refresh).
+            data (dict | None, optional): Additional claims to include in the token. If None, default claims are set based on user access type.
+
+        Returns:
+            str: The encoded JWT token as a string.
+
+        Notes:
+            - If `data` is None, the function sets default claims including issuer, audience, subject, scope, issued at, not before, expiration, and JWT ID.
+            - The expiration time is determined by the token type (access or refresh).
+            - The token is signed using the configured algorithm and secret key.
+        """
         scope_dict = data if data else {}
 
         if data is None:

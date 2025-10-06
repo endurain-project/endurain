@@ -30,8 +30,8 @@ router = APIRouter()
 
 @router.get("/number", response_model=int)
 async def read_users_number(
-    _check_scope: Annotated[
-        Callable, Security(session_security.check_scope, scopes=["users:read"])
+    _check_scopes: Annotated[
+        Callable, Security(session_security.check_scopes, scopes=["users:read"])
     ],
     db: Annotated[
         Session,
@@ -51,8 +51,8 @@ async def read_users_all_pagination(
     validate_pagination_values: Annotated[
         Callable, Depends(core_dependencies.validate_pagination_values)
     ],
-    _check_scope: Annotated[
-        Callable, Security(session_security.check_scope, scopes=["users:read"])
+    _check_scopes: Annotated[
+        Callable, Security(session_security.check_scopes, scopes=["users:read"])
     ],
     db: Annotated[
         Session,
@@ -69,8 +69,8 @@ async def read_users_all_pagination(
 )
 async def read_users_contain_username(
     username: str,
-    _check_scope: Annotated[
-        Callable, Security(session_security.check_scope, scopes=["users:read"])
+    _check_scopes: Annotated[
+        Callable, Security(session_security.check_scopes, scopes=["users:read"])
     ],
     db: Annotated[
         Session,
@@ -87,8 +87,8 @@ async def read_users_contain_username(
 )
 async def read_users_username(
     username: str,
-    _check_scope: Annotated[
-        Callable, Security(session_security.check_scope, scopes=["users:read"])
+    _check_scopes: Annotated[
+        Callable, Security(session_security.check_scopes, scopes=["users:read"])
     ],
     db: Annotated[
         Session,
@@ -105,8 +105,8 @@ async def read_users_username(
 )
 async def read_users_email(
     email: str,
-    _check_scope: Annotated[
-        Callable, Security(session_security.check_scope, scopes=["users:read"])
+    _check_scopes: Annotated[
+        Callable, Security(session_security.check_scopes, scopes=["users:read"])
     ],
     db: Annotated[
         Session,
@@ -121,8 +121,8 @@ async def read_users_email(
 async def read_users_id(
     user_id: int,
     validate_id: Annotated[Callable, Depends(users_dependencies.validate_user_id)],
-    _check_scope: Annotated[
-        Callable, Security(session_security.check_scope, scopes=["users:read"])
+    _check_scopes: Annotated[
+        Callable, Security(session_security.check_scopes, scopes=["users:read"])
     ],
     db: Annotated[
         Session,
@@ -137,7 +137,7 @@ async def read_users_id(
 async def create_user(
     user: users_schema.UserCreate,
     __check_scope: Annotated[
-        Callable, Security(session_security.check_scope, scopes=["users:write"])
+        Callable, Security(session_security.check_scopes, scopes=["users:write"])
     ],
     password_hasher: Annotated[
         session_password_hasher.PasswordHasher,
@@ -176,8 +176,8 @@ async def upload_user_image(
     user_id: int,
     validate_id: Annotated[Callable, Depends(users_dependencies.validate_user_id)],
     file: UploadFile,
-    _check_scope: Annotated[
-        Callable, Security(session_security.check_scope, scopes=["users:write"])
+    _check_scopes: Annotated[
+        Callable, Security(session_security.check_scopes, scopes=["users:write"])
     ],
     db: Annotated[
         Session,
@@ -192,8 +192,8 @@ async def edit_user(
     user_id: int,
     validate_id: Annotated[Callable, Depends(users_dependencies.validate_user_id)],
     user_attributtes: users_schema.UserRead,
-    _check_scope: Annotated[
-        Callable, Security(session_security.check_scope, scopes=["users:write"])
+    _check_scopes: Annotated[
+        Callable, Security(session_security.check_scopes, scopes=["users:write"])
     ],
     db: Annotated[
         Session,
@@ -211,8 +211,8 @@ async def edit_user(
 async def approve_user(
     user_id: int,
     validate_id: Annotated[Callable, Depends(users_dependencies.validate_user_id)],
-    _check_scope: Annotated[
-        Callable, Security(session_security.check_scope, scopes=["users:write"])
+    _check_scopes: Annotated[
+        Callable, Security(session_security.check_scopes, scopes=["users:write"])
     ],
     email_service: Annotated[
         core_apprise.AppriseService,
@@ -239,7 +239,7 @@ async def edit_user_password(
     _validate_id: Annotated[Callable, Depends(users_dependencies.validate_user_id)],
     user_attributes: users_schema.UserEditPassword,
     __check_scope: Annotated[
-        Callable, Security(session_security.check_scope, scopes=["users:write"])
+        Callable, Security(session_security.check_scopes, scopes=["users:write"])
     ],
     password_hasher: Annotated[
         session_password_hasher.PasswordHasher,
@@ -263,8 +263,8 @@ async def edit_user_password(
 async def delete_user_photo(
     user_id: int,
     validate_id: Annotated[Callable, Depends(users_dependencies.validate_user_id)],
-    _check_scope: Annotated[
-        Callable, Security(session_security.check_scope, scopes=["users:write"])
+    _check_scopes: Annotated[
+        Callable, Security(session_security.check_scopes, scopes=["users:write"])
     ],
     db: Annotated[
         Session,
@@ -282,8 +282,8 @@ async def delete_user_photo(
 async def delete_user(
     user_id: int,
     validate_id: Annotated[Callable, Depends(users_dependencies.validate_user_id)],
-    _check_scope: Annotated[
-        Callable, Security(session_security.check_scope, scopes=["users:write"])
+    _check_scopes: Annotated[
+        Callable, Security(session_security.check_scopes, scopes=["users:write"])
     ],
     db: Annotated[
         Session,

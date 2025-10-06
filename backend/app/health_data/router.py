@@ -22,8 +22,8 @@ router = APIRouter()
     response_model=int,
 )
 async def read_health_data_number(
-    _check_scope: Annotated[
-        Callable, Security(session_security.check_scope, scopes=["health:read"])
+    _check_scopes: Annotated[
+        Callable, Security(session_security.check_scopes, scopes=["health:read"])
     ],
     token_user_id: Annotated[
         int,
@@ -43,8 +43,8 @@ async def read_health_data_number(
     response_model=list[health_data_schema.HealthData] | None,
 )
 async def read_health_data_all(
-    _check_scope: Annotated[
-        Callable, Security(session_security.check_scope, scopes=["health:read"])
+    _check_scopes: Annotated[
+        Callable, Security(session_security.check_scopes, scopes=["health:read"])
     ],
     token_user_id: Annotated[
         int,
@@ -66,8 +66,8 @@ async def read_health_data_all(
 async def read_health_data_all_pagination(
     page_number: int,
     num_records: int,
-    _check_scope: Annotated[
-        Callable, Security(session_security.check_scope, scopes=["health:read"])
+    _check_scopes: Annotated[
+        Callable, Security(session_security.check_scopes, scopes=["health:read"])
     ],
     validate_pagination_values: Annotated[
         Callable, Depends(core_dependencies.validate_pagination_values)
@@ -90,8 +90,8 @@ async def read_health_data_all_pagination(
 @router.post("", status_code=201)
 async def create_health_data(
     health_data: health_data_schema.HealthData,
-    _check_scope: Annotated[
-        Callable, Security(session_security.check_scope, scopes=["health:write"])
+    _check_scopes: Annotated[
+        Callable, Security(session_security.check_scopes, scopes=["health:write"])
     ],
     token_user_id: Annotated[
         int,
@@ -119,8 +119,8 @@ async def create_health_data(
 @router.put("")
 async def edit_health_data(
     health_data: health_data_schema.HealthData,
-    _check_scope: Annotated[
-        Callable, Security(session_security.check_scope, scopes=["health:write"])
+    _check_scopes: Annotated[
+        Callable, Security(session_security.check_scopes, scopes=["health:write"])
     ],
     token_user_id: Annotated[
         int,
@@ -138,8 +138,8 @@ async def edit_health_data(
 @router.delete("/{health_data_id}")
 async def delete_health_data(
     health_data_id: int,
-    _check_scope: Annotated[
-        Callable, Security(session_security.check_scope, scopes=["health:write"])
+    _check_scopes: Annotated[
+        Callable, Security(session_security.check_scopes, scopes=["health:write"])
     ],
     token_user_id: Annotated[
         int,

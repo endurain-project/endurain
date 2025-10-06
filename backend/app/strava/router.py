@@ -112,9 +112,9 @@ async def strava_retrieve_activities_days(
         Callable,
         Depends(session_security.validate_access_token),
     ],
-    _check_scope: Annotated[
+    _check_scopes: Annotated[
         Callable,
-        Security(session_security.check_scope, scopes=["profile"]),
+        Security(session_security.check_scopes, scopes=["profile"]),
     ],
     token_user_id: Annotated[
         int,
@@ -152,9 +152,9 @@ async def strava_retrieve_gear(
         Callable,
         Depends(session_security.validate_access_token),
     ],
-    _check_scope: Annotated[
+    _check_scopes: Annotated[
         Callable,
-        Security(session_security.check_scope, scopes=["profile"]),
+        Security(session_security.check_scopes, scopes=["profile"]),
     ],
     token_user_id: Annotated[
         int,
@@ -237,9 +237,9 @@ async def strava_set_user_client(
         Callable,
         Depends(session_security.validate_access_token),
     ],
-    _check_scope: Annotated[
+    _check_scopes: Annotated[
         Callable,
-        Security(session_security.check_scope, scopes=["profile"]),
+        Security(session_security.check_scopes, scopes=["profile"]),
     ],
     token_user_id: Annotated[
         int,
@@ -265,9 +265,9 @@ async def strava_set_user_unique_state(
         Callable,
         Depends(session_security.validate_access_token),
     ],
-    _check_scope: Annotated[
+    _check_scopes: Annotated[
         Callable,
-        Security(session_security.check_scope, scopes=["profile"]),
+        Security(session_security.check_scopes, scopes=["profile"]),
     ],
     token_user_id: Annotated[
         int,
@@ -288,9 +288,9 @@ async def strava_unlink(
         Callable,
         Depends(session_security.validate_access_token),
     ],
-    _check_scope: Annotated[
+    _check_scopes: Annotated[
         Callable,
-        Security(session_security.check_scope, scopes=["profile"]),
+        Security(session_security.check_scopes, scopes=["profile"]),
     ],
     token_user_id: Annotated[
         int,
