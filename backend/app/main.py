@@ -87,7 +87,7 @@ def shutdown_event():
 
 def create_app() -> FastAPI:
     # Define the FastAPI object
-    app = FastAPI(
+    fastapi_app = FastAPI(
         docs_url=core_config.ROOT_PATH + "/docs",
         redoc_url=core_config.ROOT_PATH + "/redoc",
         title="Endurain",
@@ -107,7 +107,7 @@ def create_app() -> FastAPI:
         core_config.ENDURAIN_HOST,
     ]
 
-    app.add_middleware(
+    fastapi_app.add_middleware(
         CORSMiddleware,
         allow_origins=(
             origins
@@ -119,29 +119,29 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
-    app.add_middleware(session_schema.CSRFMiddleware)
+    fastapi_app.add_middleware(session_schema.CSRFMiddleware)
 
     # Router files
-    app.include_router(api_router)
+    fastapi_app.include_router(api_router)
 
     # Add a route to serve the user images
-    app.mount(
+    fastapi_app.mount(
         f"/{core_config.USER_IMAGES_DIR}",
         StaticFiles(directory=core_config.USER_IMAGES_DIR),
         name="user_images",
     )
-    app.mount(
+    fastapi_app.mount(
         f"/{core_config.SERVER_IMAGES_DIR}",
         StaticFiles(directory=core_config.SERVER_IMAGES_DIR),
         name="server_images",
     )
-    app.mount(
+    fastapi_app.mount(
         f"/{core_config.ACTIVITY_MEDIA_DIR}",
         StaticFiles(directory=core_config.ACTIVITY_MEDIA_DIR),
         name="activity_media",
     )
 
-    return app
+    return fastapi_app
 
 
 # Silence stravalib token warnings

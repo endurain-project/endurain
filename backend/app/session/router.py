@@ -281,7 +281,7 @@ async def refresh_token(
         _new_refresh_token_exp,
         new_refresh_token,
         new_csrf_token,
-    ) = session_utils.create_tokens(user, token_manager)
+    ) = session_utils.create_tokens(user, token_manager, session.id)
 
     # Edit the session and store it in the database
     session_utils.edit_session(session, request, new_refresh_token, password_hasher, db)

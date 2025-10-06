@@ -175,27 +175,31 @@ def authenticate_user(
 
 
 def create_tokens(
-    user: users_schema.UserRead, token_manager: session_token_manager.TokenManager
+    user: users_schema.UserRead,
+    token_manager: session_token_manager.TokenManager,
+    session_id: str | None = None,
 ) -> Tuple[str, datetime, str, datetime, str, str]:
     """
-    Generates session tokens for a given user, including access token, refresh token, and CSRF token.
+    Generates session tokens for a user, including access token, refresh token, and CSRF token.
 
     Args:
         user (users_schema.UserRead): The user object for whom the tokens are being created.
-        token_manager (session_token_manager.TokenManager): The token manager instance used to generate tokens.
+        token_manager (session_token_manager.TokenManager): The token manager responsible for token creation.
+        session_id (str | None, optional): An optional session ID. If not provided, a new unique session ID is generated.
 
     Returns:
         Tuple[str, datetime, str, datetime, str, str]: 
             A tuple containing:
-                - session_id (str): Unique session identifier.
+                - session_id (str): The session identifier.
                 - access_token_exp (datetime): Expiration datetime of the access token.
-                - access_token (str): The generated access token.
+                - access_token (str): The access token string.
                 - refresh_token_exp (datetime): Expiration datetime of the refresh token.
-                - refresh_token (str): The generated refresh token.
-                - csrf_token (str): The generated CSRF token.
+                - refresh_token (str): The refresh token string.
+                - csrf_token (str): The CSRF token string.
     """
-    # Generate a unique session ID
-    session_id = str(uuid4())
+    if session_id is None:
+        # Generate a unique session ID
+        session_id = str(uuid4())
 
     # Create the access, refresh tokens and csrf token
     access_token_exp, access_token = token_manager.create_token(
