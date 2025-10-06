@@ -88,5 +88,11 @@ def frontend_not_found(
     path: str,
 ):
     if "." in path.split("/")[-1]:
-        return core_utils.return_frontend_index(path)
+        result = core_utils.return_frontend_index(path)
+        if result is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Resource not found",
+            )
+        return result
     return core_utils.return_frontend_index("index.html")

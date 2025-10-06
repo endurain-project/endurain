@@ -393,8 +393,9 @@ def complete_login(
         create_response_with_tokens(response, access_token, refresh_token, csrf_token)
 
         # Return the session_id
-        return session_id
-
+        return {
+            "session_id": session_id,
+        }
     if client_type == "mobile":
         # Return the tokens directly (no cookies for mobile)
         return {

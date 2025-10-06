@@ -140,9 +140,6 @@ def create_app() -> FastAPI:
         StaticFiles(directory=core_config.ACTIVITY_MEDIA_DIR),
         name="activity_media",
     )
-    app.mount(
-        "/", StaticFiles(directory=core_config.FRONTEND_DIR, html=True), name="frontend"
-    )
 
     return app
 

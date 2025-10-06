@@ -123,7 +123,7 @@
 
 <script setup>
 // Importing the vue composition API
-import { ref, onMounted, nextTick, watch } from 'vue'
+import { ref, onMounted, nextTick } from 'vue'
 // Importing the router
 import { useRoute, useRouter } from 'vue-router'
 // Importing the i18n
@@ -208,7 +208,7 @@ const submitLogin = async () => {
     }
 
     // Complete login if no MFA required
-    await completeLogin(response)
+    await completeLogin(response.session_id)
   } catch (error) {
     handleLoginError(error)
   } finally {
@@ -225,7 +225,7 @@ const submitMFAVerification = async () => {
       mfa_code: mfaCode.value
     })
 
-    await completeLogin(response)
+    await completeLogin(response.session_id)
   } catch (error) {
     if (error.toString().includes('401') || error.toString().includes('400')) {
       push.error(t('loginView.invalidMFACode'))

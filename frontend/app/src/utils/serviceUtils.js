@@ -77,25 +77,30 @@ async function refreshAccessToken() {
     return refreshTokenPromise
   }
 
-  const refreshUrl = `${API_URL}refresh`
-  refreshTokenPromise = fetch(refreshUrl, {
+  const url = "refresh"
+  const options = {
     method: 'POST',
     credentials: 'include',
     headers: {
       'Content-Type': 'application/json',
       'X-Client-Type': 'web'
     }
-  })
-    .then(async (response) => {
-      if (!response.ok) {
-        const errorBody = await response.json()
-        const errorMessage = errorBody.detail || 'Unknown error'
-        throw new Error(`${response.status} - ${errorMessage}`)
-      }
-    })
-    .finally(() => {
+  }
+
+  refreshTokenPromise = (async () => {
+    try {
+      const response = await attemptFetch(url, options)
+
+      const authStore = useAuthStore()
+      authStore.setUserSessionId(response.session_id)
+
+      return response
+    } catch (error) {
+      throw error
+    } finally {
       refreshTokenPromise = null
-    })
+    }
+  })()
 
   return refreshTokenPromise
 }

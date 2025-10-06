@@ -291,8 +291,10 @@ async def refresh_token(
             response, new_access_token, new_refresh_token, new_csrf_token
         )
 
-        # Return the tokens and a success message
-        return session_id
+        # Return session ID
+        return {
+            "session_id": session_id,
+        }
     if client_type == "mobile":
         # Return the tokens
         return {
