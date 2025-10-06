@@ -23,7 +23,7 @@
         <a class="link-body-emphasis" href="https://discord.gg/6VUjUq2uZR"
           ><font-awesome-icon :icon="['fab', 'fa-discord']"
         /></a>
-        • v0.15.0
+        • v0.16.0
       </p>
       <p class="text-center text-muted">
         <img
