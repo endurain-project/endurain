@@ -150,6 +150,91 @@ The API is reachable under `/api/v1`. Below are some example endpoints. All endp
 | **Activity Upload** | `/activities/create/upload` | .gpx, .tcx, .gz or .fit file |
 | **Set Weight** | `/health/weight` | JSON {'weight': <number>, 'created_at': `yyyy-MM-dd`} |
 
+### MFA Authentication Flow
+
+When Multi-Factor Authentication (MFA) is enabled for a user, the authentication process requires two steps:
+
+#### Step 1: Initial Login Request
+Make a standard login request to `/token`:
+
+**Request:**
+```http
+POST /api/v1/token
+Content-Type: application/x-www-form-urlencoded
+X-Client-Type: web|mobile
+
+username=user@example.com&password=userpassword
+```
+
+**Response (when MFA is enabled):**
+- **Web clients**: HTTP 202 Accepted
+  ```json
+  {
+    "mfa_required": true,
+    "username": "example",
+    "message": "MFA verification required"
+  }
+  ```
+- **Mobile clients**: HTTP 200 OK
+  ```json
+  {
+    "mfa_required": true,
+    "username": "example",
+    "message": "MFA verification required"
+  }
+  ```
+
+#### Step 2: MFA Verification
+Complete the login by providing the MFA code to `/mfa/verify`:
+
+**Request:**
+```http
+POST /api/v1/mfa/verify
+Content-Type: application/json
+X-Client-Type: web|mobile
+
+{
+  "username": "user@example.com",
+  "mfa_code": "123456"
+}
+```
+
+**Response (successful verification):**
+- **Web clients**: Tokens are set as HTTP-only cookies
+  ```json
+  {
+    "session_id": "unique_session_id"
+  }
+  ```
+- **Mobile clients**: Tokens are returned in response body
+  ```json
+  {
+    "access_token": "eyJ...",
+    "refresh_token": "eyJ...",
+    "session_id": "unique_session_id"
+  }
+  ```
+
+#### Error Handling
+- **No pending MFA login**: HTTP 400 Bad Request
+  ```json
+  {
+    "detail": "No pending MFA login found for this username"
+  }
+  ```
+- **Invalid MFA code**: HTTP 401 Unauthorized
+  ```json
+  {
+    "detail": "Invalid MFA code"
+  }
+  ```
+
+#### Important Notes
+- The pending MFA login session is temporary and will expire if not completed within a reasonable time
+- After successful MFA verification, the pending login is automatically cleaned up
+- The user must still be active at the time of MFA verification
+- If no MFA is enabled for the user, the standard single-step authentication flow applies
+
 
 ## Supported activity types
 The table bellow details the activity types supported by Endurain.
@@ -180,6 +265,7 @@ The table bellow details the activity types supported by Endurain.
 | Alpine ski | 15 |
 | Nordic Ski | 16 |
 | Snowboard | 17 |
+| Ice Skate | 37 |
 | Transition | 18 |
 | Strength Training | 19 |
 | Crossfit | 20 |
@@ -189,9 +275,11 @@ The table bellow details the activity types supported by Endurain.
 | Squash | 24 |
 | Racquetball | 25 |
 | Pickleball | 26 |
+| Padel | 39 |
 | Windsurf | 30 |
 | Stand up paddling | 32 |
 | Surf | 33 |
+| Soccer | 38 |
 
 
 ## Supported gear types

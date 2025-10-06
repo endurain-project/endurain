@@ -29,5 +29,9 @@
   "forgotPasswordModalRequestSuccess": "Si l'adreça existeix al sistema, rebràs un enllaç de restabliment de contrasenya",
   "forgotPasswordModalRequestError": "Ha fallat el procés de restabliment",
   "forgotPasswordModalEmailNotConfigured": "Servei de correu no configurat. Contacta amb l'adminstrador",
-  "forgotPasswordModalUnableToSendEmail": "No s'ha pogut enviar correu. Prova de nou o contacta amb l'administrador"
+  "forgotPasswordModalUnableToSendEmail": "No s'ha pogut enviar correu. Prova de nou o contacta amb l'administrador",
+  "signUpLink": "No tens compte? Registre",
+  "emailVerificationSent": "Reviseu el correu electrònic per obtenir instruccions de verificació",
+  "adminApprovalRequired": "Compte pendent d'aprovació d''administració",
+  "verifyEmailInvalidLink": "Enllaç de verificació d'email invàlid"
 }

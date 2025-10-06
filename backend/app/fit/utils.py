@@ -772,6 +772,8 @@ def parse_frame_session(frame):
             activity_type = "indoor_ride"
         elif activity_type == "cycling" and sub_sport == "mixed_surface":
             activity_type = "mixed_surface_ride"
+        elif activity_type == 64 and sub_sport == 85:
+            activity_type = "padel"
         else:
             activity_type = sub_sport
 

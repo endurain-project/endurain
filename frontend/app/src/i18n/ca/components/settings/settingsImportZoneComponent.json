@@ -1,0 +1,13 @@
+{
+  "bulkImportIntegrationTitle": "Importació massiva",
+  "bulkImportIntegrationBody": "Importació massiva d'activitats (des de fitxers desats a la carpeta activity_files/bulk_import)",
+  "buttonBulkImport": "Importar activitats",
+  "loadingMessageBulkImport": "Important activitats des de fitxers...",
+  "errorMessageUnableToImportActivities": "Error important activitats",
+  "stravaGearImportTitle": "Importació d'equipament d'Strava",
+  "stravaGearImportBody": "Importar equipament des d'una exportació massiva d'Strava (a la carpeta data/activity_files/bulk_import)",
+  "stravaGearImportbuttonBikes": "Importar bicis d'Strava",
+  "loadingMessageStravaBikesImport": "Important bicis d'Strava desde fitxer...",
+  "successMessageStravaBikesImport": "Bicis d'Strava importades correctament",
+  "errorMessageUnableToImportBikes": "Error important bicis d'Strava"
+}

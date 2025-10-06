@@ -2,12 +2,12 @@ import { createI18n } from 'vue-i18n'
 
 // Bundle only locale JSON files (root + nested), eagerly so they're in dist
 const translationModules = {
-  ...import.meta.glob('./{ca,de,es,fr,nl,pt,us}/*.json', { eager: true }),
-  ...import.meta.glob('./{ca,de,es,fr,nl,pt,us}/**/*.json', { eager: true })
+  ...import.meta.glob('./{ca,de,es,fr,nl,pt,us,cn,tw}/*.json', { eager: true }),
+  ...import.meta.glob('./{ca,de,es,fr,nl,pt,us,cn,tw}/**/*.json', { eager: true })
 }
 
 // Define available locales
-const locales = ['ca', 'de', 'es', 'fr', 'nl', 'pt', 'us']
+const locales = ['ca', 'de', 'es', 'fr', 'nl', 'pt', 'us', 'cn', 'tw']
 
 // Define all component paths
 const componentPaths = {
@@ -40,6 +40,8 @@ const componentPaths = {
   navbarBottomMobileComponent: 'components/navbar/navbarBottomMobileComponent.json',
   navbarComponent: 'components/navbar/navbarComponent.json',
   // Notifications components
+  adminNewSignUpApprovalRequestNotificationComponent:
+    'components/notifications/adminNewSignUpApprovalRequestNotificationComponent.json',
   navbarNotificationsComponent: 'components/notifications/navbarNotificationsComponent.json',
   newAcceptedRequestNotificationComponent:
     'components/notifications/newAcceptedRequestNotificationComponent.json',
@@ -59,6 +61,7 @@ const componentPaths = {
   settingsUserProfileZone: 'components/settings/settingsUserProfileZoneComponent.json',
   settingsSecurityZone: 'components/settings/settingsSecurityZoneComponent.json',
   settingsIntegrationsZone: 'components/settings/settingsIntegrationsZoneComponent.json',
+  settingsImportZone: 'components/settings/settingsImportZoneComponent.json',
   garminConnectLoginModalComponent:
     'components/settings/settingsIntegrationsZone/garminConnectLoginModalComponent.json',
   usersAddEditUserModalComponent:
@@ -98,7 +101,9 @@ const componentPaths = {
   settingsView: 'settingsView.json',
   userView: 'userView.json',
   summaryView: 'summaryView.json',
-  resetPassword: 'resetPassword.json'
+  resetPassword: 'resetPassword.json',
+  signupView: 'signupView.json',
+  emailVerificationView: 'emailVerificationView.json'
 }
 
 // Reverse map: relative path -> semantic key

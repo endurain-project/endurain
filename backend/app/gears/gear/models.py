@@ -5,6 +5,7 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     DECIMAL,
+    Boolean,
 )
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -45,8 +46,8 @@ class Gear(Base):
         default=func.now(),
         comment="Gear creation date (DateTime)",
     )
-    is_active = Column(
-        Integer, nullable=False, comment="Is gear active (0 - not active, 1 - active)"
+    active = Column(
+        Boolean, nullable=False, comment="Whether the gear is active (true - yes, false - no)"
     )
     initial_kms = Column(
         DECIMAL(precision=11, scale=2),

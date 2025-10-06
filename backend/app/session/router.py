@@ -50,27 +50,29 @@ async def login_for_access_token(
     if profile_utils.is_mfa_enabled_for_user(user.id, db):
         # Store the user for pending MFA verification
         pending_mfa_store.add_pending_login(form_data.username, user.id)
-        
+
         # Return MFA required response
         if client_type == "web":
             response.status_code = status.HTTP_202_ACCEPTED
             return session_schema.MFARequiredResponse(
                 mfa_required=True,
                 username=form_data.username,
-                message="MFA verification required"
+                message="MFA verification required",
             )
         if client_type == "mobile":
             return {
                 "mfa_required": True,
                 "username": form_data.username,
-                "message": "MFA verification required"
+                "message": "MFA verification required",
             }
-    
+
     # If no MFA required, proceed with normal login
     return await complete_login(response, request, user, client_type, db)
 
 
-async def complete_login(response: Response, request: Request, user, client_type: str, db: Session):
+async def complete_login(
+    response: Response, request: Request, user, client_type: str, db: Session
+):
     # Create the tokens
     access_token, refresh_token, csrf_token = session_utils.create_tokens(user)
 
@@ -122,31 +124,29 @@ async def verify_mfa_and_login(
     if not user_id:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="No pending MFA login found for this username"
+            detail="No pending MFA login found for this username",
         )
-    
+
     # Verify the MFA code
     if not profile_utils.verify_user_mfa(user_id, mfa_request.mfa_code, db):
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid MFA code"
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid MFA code"
         )
-    
+
     # Get the user and complete login
     user = users_crud.get_user_by_id(user_id, db)
     if not user:
         pending_mfa_store.delete_pending_login(mfa_request.username)
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
         )
-    
+
     # Check if the user is still active
     users_utils.check_user_is_active(user)
-    
+
     # Clean up pending login
     pending_mfa_store.delete_pending_login(mfa_request.username)
-    
+
     # Complete the login
     return await complete_login(response, request, user, client_type, db)
 

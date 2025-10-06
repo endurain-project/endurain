@@ -1,21 +1,82 @@
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
+from typing import List
 
 from activities.activity.utils import ACTIVITY_ID_TO_NAME
 
 import users.user_goals.schema as user_goals_schema
 import users.user_goals.models as user_goals_models
+import users.user_goals.crud as user_goals_crud
 
 import activities.activity.crud as activity_crud
 import core.logger as core_logger
+
+
+def calculate_user_goals(
+    user_id: int, date: str | None, db: Session
+) -> List[user_goals_schema.UserGoalProgress] | None:
+    """
+    Calculates the progress of all goals for a given user on a specified date.
+
+    Args:
+        user_id (int): The ID of the user whose goals are to be calculated.
+        date (str | None): The date for which to calculate goal progress, in "YYYY-MM-DD" format. If None, uses the current date.
+        db (Session): The SQLAlchemy database session.
+
+    Returns:
+        List[user_goals_schema.UserGoalProgress] | None:
+            A list of UserGoalProgress objects representing the progress of each goal, or None if no goals are found.
+
+    Raises:
+        HTTPException: If an error occurs during calculation or database access.
+    """
+    if not date:
+        date = datetime.now().strftime("%Y-%m-%d")
+    try:
+        goals = user_goals_crud.get_user_goals_by_user_id(user_id, db)
+
+        if not goals:
+            return None
+
+        return [
+            calculate_goal_progress_by_activity_type(goal, date, db)
+            for goal in goals
+        ]
+    except HTTPException as http_err:
+        raise http_err
+    except Exception as err:
+        # Log the exception
+        core_logger.print_to_log(
+            f"Error in calculate_user_goals: {err}", "error", exc=err
+        )
+        # Raise an HTTPException with a 500 Internal Server Error status code
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal Server Error",
+        ) from err
 
 
 def calculate_goal_progress_by_activity_type(
     goal: user_goals_models.UserGoal,
     date: str,
     db: Session,
-) -> user_goals_schema.UserGoalProgress | None:    
+) -> user_goals_schema.UserGoalProgress | None:
+    """
+    Calculates the progress of a user's goal for a specific activity type within a given time interval.
+    This function determines the progress of a goal (calories, distance, elevation, duration, or number of activities)
+    based on the user's activities of a specified type (run, bike, swim, walk) within the interval defined by the goal.
+    It fetches relevant activities from the database, aggregates the required metrics, and computes the percentage
+    completion of the goal.
+    Args:
+        goal (user_goals_models.UserGoal): The user goal object containing goal details and parameters.
+        date (str): The reference date (in 'YYYY-MM-DD' format) to determine the interval for progress calculation.
+        db (Session): The SQLAlchemy database session used for querying activities.
+    Returns:
+        user_goals_schema.UserGoalProgress | None: An object containing progress details for the goal, or None if no activities are found.
+    Raises:
+        HTTPException: If an error occurs during processing or database access.
+    """  
     try:
         start_date, end_date = get_start_end_date_by_interval(goal.interval, date)
 
