@@ -4,8 +4,8 @@
   "virtualRun": "Virtueller Run",
   "ride": "Ride",
   "gravelRide": "Gravel-Fahrt",
-  "mtbRide": "MTB Bike Fahrt",
-  "virtualRide": "Virtuelle-Fahrt",
+  "mtbRide": "MTB Fahrt",
+  "virtualRide": "Virtuelle Fahrt",
   "lapSwimming": "Bahnenschwimmen",
   "openWaterSwimming": "Schwimmen im offenen Wasser",
   "workout": "Workout",
@@ -32,6 +32,11 @@
   "windsurf": "Windsurfen",
   "standUpPaddling": "Stand-Up-Paddling",
   "surf": "Surfen",
-  "trackRun": "Track run",
+  "trackRun": "Laufbahnlauf",
+  "ebikeRide": "E-Bike ride",
+  "ebikeMountainRide": "E-Bike mountain ride",
+  "iceSkate": "Ice skate",
+  "soccer": "Soccer",
+  "padel": "Padel",
   "labelWorkout": " Workout"
 }

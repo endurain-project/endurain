@@ -25,9 +25,14 @@
           >{{ $t('usersListComponent.userListUserIsAdminBadge') }}</span
         >
         <span
-          class="badge bg-danger-subtle border border-danger-subtle text-danger-emphasis d-none d-sm-inline"
-          v-if="user.is_active == 2"
+          class="badge bg-danger-subtle border border-danger-subtle text-danger-emphasis me-2 d-none d-sm-inline"
+          v-if="user.active == false"
           >{{ $t('usersListComponent.userListUserIsInactiveBadge') }}</span
+        >
+        <span
+          class="badge bg-danger-subtle border border-danger-subtle text-danger-emphasis d-none d-sm-inline"
+          v-if="user.email_verified == false"
+          >{{ $t('usersListComponent.userListUserHasUnverifiedEmailBadge') }}</span
         >
 
         <!-- button toggle user details -->
@@ -43,6 +48,50 @@
           <font-awesome-icon :icon="['fas', 'caret-down']" v-if="!userDetails" />
           <font-awesome-icon :icon="['fas', 'caret-up']" v-else />
         </a>
+
+        <!-- approve sign-up button -->
+        <a
+          class="btn btn-link btn-lg link-body-emphasis"
+          href="#"
+          role="button"
+          data-bs-toggle="modal"
+          :data-bs-target="`#approveSignUpModal${user.id}`"
+          v-if="user.pending_admin_approval && user.email_verified"
+          ><font-awesome-icon :icon="['fas', 'fa-check']"
+        /></a>
+
+        <!-- approve sign up modal -->
+        <ModalComponent
+          :modalId="`approveSignUpModal${user.id}`"
+          :title="t('usersListComponent.modalApproveSignUpTitle')"
+          :body="`${t('usersListComponent.modalApproveSignUpBody')}<b>${user.username}</b>?`"
+          :actionButtonType="`success`"
+          :actionButtonText="t('usersListComponent.modalApproveSignUpTitle')"
+          @submitAction="submitApproveSignUp"
+          v-if="user.pending_admin_approval && user.email_verified"
+        />
+
+        <!-- reject sign-up button -->
+        <a
+          class="btn btn-link btn-lg link-body-emphasis"
+          href="#"
+          role="button"
+          data-bs-toggle="modal"
+          :data-bs-target="`#rejectSignUpModal${user.id}`"
+          v-if="user.pending_admin_approval && user.email_verified"
+          ><font-awesome-icon :icon="['fas', 'fa-xmark']"
+        /></a>
+
+        <!-- reject sign up modal -->
+        <ModalComponent
+          :modalId="`rejectSignUpModal${user.id}`"
+          :title="t('usersListComponent.modalRejectSignUpTitle')"
+          :body="`${t('usersListComponent.modalRejectSignUpBody1')}<b>${user.username}</b>? ${t('usersListComponent.modalRejectSignUpBody2')}`"
+          :actionButtonType="`danger`"
+          :actionButtonText="t('usersListComponent.modalRejectSignUpTitle')"
+          @submitAction="submitDeleteUser"
+          v-if="user.pending_admin_approval && user.email_verified"
+        />
 
         <!-- change user password button -->
         <a
@@ -106,9 +155,7 @@
           @sessionDeleted="updateSessionListDeleted"
         />
       </div>
-      <div v-else>
-        <NoItemsFoundComponents />
-      </div>
+      <NoItemsFoundComponents :show-shadow="false" v-else />
     </div>
   </li>
 </template>
@@ -134,7 +181,7 @@ const props = defineProps({
     required: true
   }
 })
-const emit = defineEmits(['userDeleted', 'editedUser'])
+const emit = defineEmits(['userDeleted', 'editedUser', 'approvedUser'])
 const { t } = useI18n()
 const authStore = useAuthStore()
 const userDetails = ref(false)
@@ -165,6 +212,17 @@ async function updateSessionListDeleted(sessionDeletedId) {
     push.success(t('usersListComponent.userSessionDeleteSuccessMessage'))
   } catch (error) {
     push.error(`${t('usersListComponent.userSessionDeleteErrorMessage')} - ${error}`)
+  }
+}
+
+async function submitApproveSignUp() {
+  const notification = push.promise(t('usersListComponent.processingApproval'))
+  try {
+    await users.approveUser(props.user.id)
+    notification.resolve(t('usersListComponent.userApproveSuccessMessage'))
+    emit('approvedUser', props.user.id)
+  } catch (error) {
+    notification.reject(`${t('usersListComponent.userApproveErrorMessage')} - ${error}`)
   }
 }
 

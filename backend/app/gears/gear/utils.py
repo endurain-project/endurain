@@ -70,7 +70,7 @@ def transform_schema_gear_to_model_gear(
         gear_type=gear.gear_type,
         user_id=user_id,
         created_at=created_date,
-        is_active=gear.is_active,
+        active=gear.active,
         initial_kms=gear.initial_kms,
         purchase_value=gear.purchase_value,
         strava_gear_id=gear.strava_gear_id,

@@ -5,10 +5,11 @@
   "unitsImperial": "Imperiaal",
   "currencyLabel": "Default currency",
   "numRecordsLabel": "Number of records per page",
+  "signupTitle": "Sign-up",
+  "adminApprovalLabel": "Admin approval",
+  "emailConfirmationLabel": "Email confirmation",
   "publicShareableLinksLabel": "Openbare link",
-  "publicShareableLinksEnabledLabel": "Ingeschakeld",
-  "publicShareableLinksTrue": "Waar",
-  "publicShareableLinksFalse": "Niet waar",
+  "enabledLabel": "Enabled",
   "serverSettingsPublicShareableLinksEnabledWarningAlert": "Het inschakelen van dit zal alle openbaar geplaatste activiteiten zichtbaar maken zonder authenticatie.",
   "publicShareableLinksShowUserInfoLabel": "Gebruikersinformatie tonen",
   "serverSettingsPublicShareableLinksShowUserWarningAlert": "Als u dit inschakelt, worden alle gebruikersinformatie op alle openbare links weergegeven",
@@ -23,5 +24,6 @@
   "processingPhotoDelete": "Foto verwijderen in behandeling",
   "successPhotoDelete": "Foto succesvol verwijderd",
   "successUpdateServerSettings": "Serverinstellingen succesvol bijgewerkt",
-  "errorUpdateServerSettings": "Fout bij het bijwerken van de serverinstellingen"
+  "errorUpdateServerSettings": "Fout bij het bijwerken van de serverinstellingen",
+  "errorFetchingServerSettings": "Error fetching server settings"
 }

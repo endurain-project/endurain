@@ -111,6 +111,20 @@ def get_gear_user(user_id: int, db: Session) -> list[gears_schema.Gear] | None:
 def get_gear_user_contains_nickname(
     user_id: int, nickname: str, db: Session
 ) -> list[gears_schema.Gear] | None:
+    """
+    Retrieve a list of gear objects for a given user where the gear's nickname contains the specified substring.
+
+    Args:
+        user_id (int): The ID of the user whose gear is being queried.
+        nickname (str): The substring to search for within gear nicknames. URL-encoded strings are supported.
+        db (Session): The SQLAlchemy database session.
+
+    Returns:
+        list[gears_schema.Gear] | None: A list of gear objects matching the criteria, or None if no gear is found.
+
+    Raises:
+        HTTPException: If an unexpected error occurs during the database query or processing.
+    """
     try:
         # Unquote the nickname and change "+" to whitespace
         parsed_nickname = unquote(nickname).replace("+", " ").lower().strip()
@@ -151,6 +165,25 @@ def get_gear_user_contains_nickname(
 def get_gear_user_by_nickname(
     user_id: int, nickname: str, db: Session
 ) -> gears_schema.Gear | None:
+    """
+    Retrieve a gear belonging to a user by its nickname.
+
+    This function attempts to find a gear in the database that matches the given user ID and nickname.
+    The nickname is URL-decoded, "+" characters are replaced with spaces, and the result is lowercased and stripped of whitespace before querying.
+    If a matching gear is found, it is serialized and returned; otherwise, None is returned.
+    In case of any exception, an error is logged and an HTTP 500 Internal Server Error is raised.
+
+    Args:
+        user_id (int): The ID of the user who owns the gear.
+        nickname (str): The nickname of the gear to retrieve.
+        db (Session): The SQLAlchemy database session.
+
+    Returns:
+        gears_schema.Gear | None: The serialized gear object if found, otherwise None.
+
+    Raises:
+        HTTPException: If an internal server error occurs during the process.
+    """
     try:
         # Unquote the nickname and change "+" to whitespace
         parsed_nickname = unquote(nickname).replace("+", " ").lower().strip()
@@ -302,7 +335,7 @@ def create_multiple_gears(gears: list[gears_schema.Gear], user_id: int, db: Sess
             for gear in (gears or [])
             if gear is not None
             and getattr(gear, "nickname", None)
-            and str(gear.nickname).replace("+", " ").strip() 
+            and str(gear.nickname).replace("+", " ").strip()
         ]
 
         # 2) De-dupe within the valid_gears payload (case-insensitive, trimmed)
@@ -434,8 +467,8 @@ def edit_gear(gear_id: int, gear: gears_schema.Gear, db: Session):
             db_gear.gear_type = gear.gear_type
         if gear.created_at is not None:
             db_gear.created_at = gear.created_at
-        if gear.is_active is not None:
-            db_gear.is_active = gear.is_active
+        if gear.active is not None:
+            db_gear.active = gear.active
         if gear.initial_kms is not None:
             db_gear.initial_kms = gear.initial_kms
         if gear.purchase_value is not None:

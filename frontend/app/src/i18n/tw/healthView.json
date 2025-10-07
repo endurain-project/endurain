@@ -1,0 +1,5 @@
+{
+  "title": "Health",
+  "errorFetchingHealthData": "Error fetching health data",
+  "errorFetchingHealthTargets": "Error fetching health targets"
+}

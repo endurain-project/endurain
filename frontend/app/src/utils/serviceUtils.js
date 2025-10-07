@@ -14,7 +14,9 @@ async function fetchWithRetry(url, options, responseType = 'json') {
     url !== 'refresh' &&
     url !== 'mfa/verify' &&
     url !== 'password-reset/request' &&
-    url !== 'password-reset/confirm'
+    url !== 'password-reset/confirm' &&
+    url !== 'sign-up/request' &&
+    url !== 'sign-up/confirm'
   ) {
     const csrfToken = document.cookie
       .split('; ')
@@ -37,6 +39,9 @@ async function fetchWithRetry(url, options, responseType = 'json') {
         url === 'garminconnect/link' &&
         error.message.includes('There was an authentication error using Garmin Connect')
       ) {
+        throw error
+      }
+      if (url === 'mfa/verify' && error.message.includes('Invalid MFA code')) {
         throw error
       }
       try {

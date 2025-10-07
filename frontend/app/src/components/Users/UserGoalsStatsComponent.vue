@@ -43,7 +43,7 @@
             }}{{ goal.goal_activities_number }} {{ $t('userGoalsStatsComponent.activities') }}</span
           >
           <span v-if="goal.goal_type === 3"
-            >{{ formatDistanceRaw(t, goal.total_distance, authStore.user.units)
+            >{{ formatDistanceRaw(t, goal.total_distance, authStore.user.units, false)
             }}{{ $t('generalItems.ofWithSpaces')
             }}{{ formatDistanceRaw(t, goal.goal_distance, authStore.user.units) }}</span
           >
@@ -68,7 +68,11 @@
           aria-valuemin="0"
           aria-valuemax="100"
         >
-          <div class="progress-bar" :style="{ width: goal.percentage_completed + '%' }">
+          <div
+            class="progress-bar"
+            :class="{ 'bg-success': goal.percentage_completed === 100 }"
+            :style="{ width: goal.percentage_completed + '%' }"
+          >
             {{ goal.percentage_completed }}%
           </div>
         </div>

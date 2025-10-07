@@ -5,10 +5,11 @@
   "unitsImperial": "Imperiale Einheiten",
   "currencyLabel": "Standardwährung",
   "numRecordsLabel": "Anzahl der Datensätze pro Seite",
+  "signupTitle": "Sign-up",
+  "adminApprovalLabel": "Admin approval",
+  "emailConfirmationLabel": "Email confirmation",
   "publicShareableLinksLabel": "Öffentliche Links",
-  "publicShareableLinksEnabledLabel": "Aktiviert",
-  "publicShareableLinksTrue": "Ein",
-  "publicShareableLinksFalse": "Aus",
+  "enabledLabel": "Enabled",
   "serverSettingsPublicShareableLinksEnabledWarningAlert": "Durch das Aktivieren dieser Option werden alle öffentlich geposteten Aktivitäten ohne Authentifizierung sichtbar.",
   "publicShareableLinksShowUserInfoLabel": "Zeige Benutzerinformationen",
   "serverSettingsPublicShareableLinksShowUserWarningAlert": "Durch das Aktivieren dieser Option werden alle Benutzerinformationen bei öffentlichen Links sichtbar",
@@ -23,5 +24,6 @@
   "processingPhotoDelete": "Bild wird gelöscht",
   "successPhotoDelete": "Bild erfolgreich gelöscht",
   "successUpdateServerSettings": "Servereinstellungen erfolgreich aktualisiert",
-  "errorUpdateServerSettings": "Fehler beim Aktualisieren der Servereinstellungen"
+  "errorUpdateServerSettings": "Fehler beim Aktualisieren der Servereinstellungen",
+  "errorFetchingServerSettings": "Fehler beim Abrufen der Benutzerstatistiken"
 }

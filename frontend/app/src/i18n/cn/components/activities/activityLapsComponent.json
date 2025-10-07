@@ -1,0 +1,14 @@
+{
+  "labelLapNumber": "Lap",
+  "labelLapIntensity": "Intensity",
+  "labelLapDistance": "Distance",
+  "labelLapTime": "Time",
+  "labelLapPace": "Pace",
+  "labelLapSpeed": "Speed",
+  "labelLapElevation": "Elevation",
+  "labelLapElev": "Elev",
+  "labelLapAvgHr": "Avg heart rate",
+  "labelLapHR": "HR",
+  "labelLapStrokeRate": "Stroke rate",
+  "labelLapSR": "SR"
+}

@@ -26,6 +26,8 @@ export default {
     const { locale, t } = useI18n()
     const languages = computed(() => [
       { value: 'ca', label: t('generalItems.languageOption2') },
+      { value: 'cn', label: t('generalItems.languageOption8') },
+      { value: 'tw', label: t('generalItems.languageOption9') },
       { value: 'de', label: t('generalItems.languageOption4') },
       { value: 'fr', label: t('generalItems.languageOption5') },
       { value: 'nl', label: t('generalItems.languageOption6') },

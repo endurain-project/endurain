@@ -105,7 +105,7 @@ def process_gear(
         nickname=strava_gear.name,
         gear_type=1 if gear_type == "bike" else 2,
         user_id=user_id,
-        is_active=1,
+        active=True,
         strava_gear_id=gear.id,
     )
 

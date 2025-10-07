@@ -6,10 +6,9 @@ import activities.activity.models as activity_models
 import activities.activity.crud as activity_crud
 
 import activities.activity_sets.models as activity_sets_models
-import activities.activity_sets.schema as activity_sets_schema
 import activities.activity_sets.utils as activity_sets_utils
 
-import server_settings.crud as server_settings_crud
+import server_settings.utils as server_settings_utils
 
 import core.logger as core_logger
 
@@ -138,10 +137,10 @@ def get_public_activity_sets(activity_id: int, db: Session):
             return None
 
         # Check if public sharable links are enabled in server settings
-        server_settings = server_settings_crud.get_server_settings(db)
+        server_settings = server_settings_utils.get_server_settings(db)
 
         # Return None if public sharable links are disabled
-        if not server_settings or not server_settings.public_shareable_links:
+        if not server_settings.public_shareable_links:
             return None
 
         # Get the activity sets from the database

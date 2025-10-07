@@ -27,5 +27,5 @@ services:
       timeout: 5s
       retries: 5
     volumes:
-      - /opt/endurain/postgres:/var/lib/postgresql/data
+      - <local_path>/endurain/postgres:/var/lib/postgresql/data
     restart: unless-stopped

@@ -97,14 +97,20 @@
               <option value="27">
                 {{ $t('editActivityModalComponent.modalEditActivityTypeOption27') }}
               </option>
+              <option value="28">
+                {{ $t('editActivityModalComponent.modalEditActivityTypeOption28') }}
+              </option>
               <option value="29">
                 {{ $t('editActivityModalComponent.modalEditActivityTypeOption29') }}
               </option>
+              <option value="35">
+                {{ $t('editActivityModalComponent.modalEditActivityTypeOption35') }}
+              </option>
+              <option value="36">
+                {{ $t('editActivityModalComponent.modalEditActivityTypeOption36') }}
+              </option>
               <option value="7">
                 {{ $t('editActivityModalComponent.modalEditActivityTypeOption7') }}
-              </option>
-              <option value="28">
-                {{ $t('editActivityModalComponent.modalEditActivityTypeOption28') }}
               </option>
               <hr />
               <option value="8">
@@ -155,6 +161,9 @@
               <option value="17">
                 {{ $t('editActivityModalComponent.modalEditActivityTypeOption17') }}
               </option>
+              <option value="37">
+                {{ $t('editActivityModalComponent.modalEditActivityTypeOption37') }}
+              </option>
               <hr />
               <option value="21">
                 {{ $t('editActivityModalComponent.modalEditActivityTypeOption21') }}
@@ -174,6 +183,9 @@
               <option value="26">
                 {{ $t('editActivityModalComponent.modalEditActivityTypeOption26') }}
               </option>
+              <option value="39">
+                {{ $t('editActivityModalComponent.modalEditActivityTypeOption39') }}
+              </option>
               <hr />
               <option value="30">
                 {{ $t('editActivityModalComponent.modalEditActivityTypeOption30') }}
@@ -183,6 +195,10 @@
               </option>
               <option value="33">
                 {{ $t('editActivityModalComponent.modalEditActivityTypeOption33') }}
+              </option>
+              <hr />
+              <option value="38">
+                {{ $t('editActivityModalComponent.modalEditActivityTypeOption38') }}
               </option>
             </select>
             <!-- visibility fields -->
