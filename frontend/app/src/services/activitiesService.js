@@ -117,7 +117,7 @@ export const activities = {
   },
   getTimezone() {
     return fetchGetRequest('activities/timezone')
-  },  
+  },
   getActivityRefresh() {
     return fetchGetRequest('activities/refresh')
   },
