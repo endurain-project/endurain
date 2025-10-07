@@ -202,3 +202,95 @@ def get_user_gear(user_id: int):
         )
     finally:
         db.close()
+
+
+def iterate_over_bikes_csv() -> dict:
+    """
+    Parses a Strava bikes CSV file and returns its contents as a dictionary.
+
+    The function looks for a CSV file specified by configuration settings, reads it, and constructs a dictionary where each key is the "Bike Name" from the CSV, and the value is a dictionary of the bike's attributes as provided in the CSV row.
+
+    Returns:
+        dict: A dictionary mapping bike names to their corresponding data from the CSV file.
+
+    Raises:
+        HTTPException: If the CSV file is missing, has invalid headers, or cannot be parsed.
+    """
+    # CSV file location
+    bulk_import_dir = core_config.FILES_BULK_IMPORT_DIR
+    bikes_file_name = core_config.STRAVA_BULK_IMPORT_BIKES_FILE
+    bikes_file_path = os.path.join(bulk_import_dir, bikes_file_name)
+
+    # Get file and parse it
+    bikes_dict = {}
+    try:
+        if os.path.isfile(bikes_file_path):
+            core_logger.print_to_log_and_console(
+                f"{bikes_file_name} exists in the {bulk_import_dir} directory. Starting to process file."
+            )
+            with open(bikes_file_path, "r", encoding="utf-8") as bike_file:
+                bikes_csv = csv.DictReader(bike_file)
+                for row in bikes_csv:
+                    if (
+                        ("Bike Name" not in row)
+                        or ("Bike Brand" not in row)
+                        or ("Bike Model" not in row)
+                    ):
+                        core_logger.print_to_log_and_console(
+                            f"Aborting bikes import: Proper headers not found in {bikes_file_name}.  File should have 'Bike Name', 'Bike Brand', and 'Bike Model'."
+                        )
+                        raise HTTPException(
+                            status_code=status.HTTP_424_FAILED_DEPENDENCY,
+                            detail="Invalid file. Proper headers not found in Strava bikes CSV file.",
+                        )
+                    bikes_dict[row["Bike Name"]] = row
+            core_logger.print_to_log_and_console(
+                f"Strava bike gear csv file parsed and gear dictionary created. File was {len(bikes_dict)} rows long, ignoring header row."
+            )
+            return bikes_dict
+        core_logger.print_to_log_and_console(
+            f"No {bikes_file_name} file located in the {bulk_import_dir} directory."
+        )
+        raise HTTPException(
+            status_code=status.HTTP_424_FAILED_DEPENDENCY,
+            detail="No Strava bikes CSV file found for import.",
+        )
+    except HTTPException as http_err:
+        raise http_err
+    except Exception as err:
+        core_logger.print_to_log_and_console(
+            f"Error attempting to open {bikes_file_path} file:  {err}", "error"
+        )
+        raise HTTPException(
+            status_code=status.HTTP_424_FAILED_DEPENDENCY,
+            detail="Error parsing Strava bikes CSV file.",
+        ) from err
+
+
+def transform_csv_bike_gear_to_schema_gear(
+    bikes_dict: dict, token_user_id: int
+) -> list[gears_schema.Gear]:
+    """
+    Transforms a dictionary of bike data (parsed from CSV) into a list of Gear schema objects.
+
+    Args:
+        bikes_dict (dict): A dictionary where each key is a bike nickname and each value is a dictionary
+            containing bike attributes such as "Bike Brand" and "Bike Model".
+        token_user_id (int): The user ID to associate with each Gear object.
+
+    Returns:
+        list[gears_schema.Gear]: A list of Gear schema objects created from the input bike data.
+    """
+    gears = []
+    for bike in bikes_dict:
+        new_gear = gears_schema.Gear(
+            user_id=token_user_id,
+            brand=bikes_dict[bike]["Bike Brand"],
+            model=bikes_dict[bike]["Bike Model"],
+            nickname=bike,
+            gear_type=gears_utils.GEAR_NAME_TO_ID["bike"],
+            active=True,
+            strava_gear_id=None,
+        )
+        gears.append(new_gear)
+    return gears

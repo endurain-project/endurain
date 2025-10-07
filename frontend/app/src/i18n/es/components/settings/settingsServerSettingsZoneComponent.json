@@ -5,10 +5,11 @@
   "unitsImperial": "Imperial",
   "currencyLabel": "Moneda predeterminada",
   "numRecordsLabel": "Número de registros por página",
+  "signupTitle": "Sign-up",
+  "adminApprovalLabel": "Admin approval",
+  "emailConfirmationLabel": "Email confirmation",
   "publicShareableLinksLabel": "Enlace público para compartir",
-  "publicShareableLinksEnabledLabel": "Habilitado",
-  "publicShareableLinksTrue": "Verdadero",
-  "publicShareableLinksFalse": "Falso",
+  "enabledLabel": "Enabled",
   "serverSettingsPublicShareableLinksEnabledWarningAlert": "Habilitar esto hará que todas las actividades publicadas sean visibles sin autenticación.",
   "publicShareableLinksShowUserInfoLabel": "Mostrar información del usuario",
   "serverSettingsPublicShareableLinksShowUserWarningAlert": "Habilitar esto mostrará la información del usuario en todos los enlaces públicos",
@@ -23,5 +24,6 @@
   "processingPhotoDelete": "Procesando eliminación de foto",
   "successPhotoDelete": "Foto eliminada con éxito",
   "successUpdateServerSettings": "Ajustes del servidor actualizados correctamente",
-  "errorUpdateServerSettings": "Error al actualizar los ajustes del servidor"
+  "errorUpdateServerSettings": "Error al actualizar los ajustes del servidor",
+  "errorFetchingServerSettings": "Error fetching server settings"
 }

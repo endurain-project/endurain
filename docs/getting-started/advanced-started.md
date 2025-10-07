@@ -99,6 +99,31 @@ meters in distance and elevation gain. Some notes:
 - GEOCODES API has a limit of 1 Request/Second on the free plan, so if you have a large number of files, it might not be possible to import all in the same action
 - The bulk import currently only imports data present in the .fit, .tcx or .gpx files - no metadata or other media are imported.
 
+## Importing information from a Strava bulk export (BETA)
+
+Strava allows users to create a bulk export of their historical activity on the site. This information is stored in a zip file, primarily as .csv files, GPS recording files (e.g., .gpx, .fit), and media files (e.g., .jpg, .png).
+
+### Importing gear from a Strava bulk import
+
+At the present time, importing bikes from a Strava bulk export is implemented as a beta feature - use with caution.  Components of bikes are not imported - just the bikes themselves.  There is no mechanism present to undo an import.
+
+To perform an import of bikes: 
+- Place the bikes.csv file from a Strava bulk export into the data/activity_files/bulk_import folder. Create the folder if needed;
+- In the "Settings" menu select "Import";
+- Click "Import Strava Bikes" next to "Strava gear import";
+- Upon successful import, the bikes.csv file is copied to /data/activity_files/processed folder;
+- Status messages about the import, including why any gear was not imported, can be found in the logs.
+
+Ensure the file is named "bikes.csv" and has a header row with at least the fields 'Bike Name', 'Bike Brand', and 'Bike Model'.
+
+Note: All "+" characters will be stripped from all fields on import, along with any beginning and ending space (" ") characters.
+
+### Importing other items from a Strava bulk import
+
+Importing of shoes is under development in October 2025.
+
+Importing activity metadata and media is under development in October 2025.
+
 ## Image personalization
 
 It is possible (v0.10.0 or higher) to personalize the login image in the login page. To do that, map the data/server_images directory for image persistence on container updates and:

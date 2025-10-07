@@ -105,16 +105,7 @@
         <span v-else-if="activityTypeIsSwimming(activity)">
           <font-awesome-icon :icon="['fas', 'fa-person-swimming']" />
         </span>
-        <span
-          v-else-if="
-            activity.activity_type === 21 ||
-            activity.activity_type === 22 ||
-            activity.activity_type === 23 ||
-            activity.activity_type === 24 ||
-            activity.activity_type === 25 ||
-            activity.activity_type === 26
-          "
-        >
+        <span v-else-if="activityTypeIsRacquet(activity)">
           <font-awesome-icon :icon="['fas', 'fa-table-tennis-paddle-ball']" />
         </span>
         <span v-else-if="activityTypeIsWindsurf(activity)">

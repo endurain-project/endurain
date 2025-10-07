@@ -332,6 +332,8 @@
               required
             >
               <option value="ca">{{ $t('generalItems.languageOption2') }}</option>
+              <option value="cn">{{ $t('generalItems.languageOption8') }}</option>
+              <option value="tw">{{ $t('generalItems.languageOption9') }}</option>
               <option value="de">{{ $t('generalItems.languageOption4') }}</option>
               <option value="fr">{{ $t('generalItems.languageOption5') }}</option>
               <option value="nl">{{ $t('generalItems.languageOption6') }}</option>
@@ -641,8 +643,8 @@ async function submitAddUserForm() {
     if (isPasswordValid.value) {
       const data = {
         name: newEditUserName.value,
-        username: newEditUserUsername.value,
-        email: newEditUserEmail.value,
+        username: newEditUserUsername.value.toLowerCase(),
+        email: newEditUserEmail.value.toLowerCase(),
         city: newEditUserCity.value,
         birthdate: newEditUserBirthDate.value,
         preferred_language: newEditUserPreferredLanguage.value,
@@ -684,9 +686,9 @@ async function submitEditUserForm() {
   try {
     const data = {
       id: props.user.id,
-      username: newEditUserUsername.value,
+      username: newEditUserUsername.value.toLowerCase(),
       name: newEditUserName.value,
-      email: newEditUserEmail.value,
+      email: newEditUserEmail.value.toLowerCase(),
       city: newEditUserCity.value,
       birthdate: newEditUserBirthDate.value,
       gender: newEditUserGender.value,

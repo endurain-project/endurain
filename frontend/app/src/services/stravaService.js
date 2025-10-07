@@ -1,4 +1,9 @@
-import { fetchGetRequest, fetchPutRequest, fetchDeleteRequest } from '@/utils/serviceUtils'
+import {
+  fetchGetRequest,
+  fetchPostRequest,
+  fetchPutRequest,
+  fetchDeleteRequest
+} from '@/utils/serviceUtils'
 
 export const strava = {
   setUniqueUserStateStravaLink(state) {
@@ -20,6 +25,9 @@ export const strava = {
 
     // Redirect to the Strava authorization URL
     window.location.href = stravaAuthUrl
+  },
+  importBikes() {
+    return fetchPostRequest('strava/import/bikes')
   },
   linkStravaCallback(state, code, scope) {
     return fetchPutRequest(`strava/link?state=${state}&code=${code}&scope=${scope}`)

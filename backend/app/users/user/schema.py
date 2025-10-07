@@ -1,5 +1,85 @@
 from pydantic import BaseModel, EmailStr, field_validator
 import re
+import server_settings.schema as server_settings_schema
+
+
+class Gender(IntEnum):
+    """
+    An enumeration representing the gender of a user.
+
+    Attributes:
+        MALE (int): Represents male gender.
+        FEMALE (int): Represents female gender.
+        UNSPECIFIED (int): Represents unspecified or undisclosed gender.
+    """
+
+    MALE = 1
+    FEMALE = 2
+    UNSPECIFIED = 3
+
+
+class Language(Enum):
+    """
+    An enumeration representing supported languages for the application.
+
+    Members:
+        CATALAN: Catalan language code ("ca-ES").
+        CHINESE_SIMPLIFIED: Simplified Chinese language code ("cn").
+        CHINESE_TRADITIONAL: Traditional Chinese language code ("tw").
+        DUTCH: Dutch language code ("nl").
+        GERMAN: German language code ("de").
+        FRENCH: French language code ("fr").
+        SPANISH: Spanish language code ("es").
+        PORTUGUESE: Portuguese language code ("pt").
+        ENGLISH_USA: US English language code ("us").
+    """
+
+    CATALAN = "ca"
+    CHINESE_SIMPLIFIED = "cn"
+    CHINESE_TRADITIONAL = "tw"
+    DUTCH = "nl"
+    GERMAN = "de"
+    FRENCH = "fr"
+    SPANISH = "es"
+    PORTUGUESE = "pt"
+    ENGLISH_USA = "us"
+
+
+class WeekDay(IntEnum):
+    """
+    An enumeration representing the days of the week.
+
+    Attributes:
+        SUNDAY (int): Represents Sunday (0).
+        MONDAY (int): Represents Monday (1).
+        TUESDAY (int): Represents Tuesday (2).
+        WEDNESDAY (int): Represents Wednesday (3).
+        THURSDAY (int): Represents Thursday (4).
+        FRIDAY (int): Represents Friday (5).
+        SATURDAY (int): Represents Saturday (6).
+    """
+
+    SUNDAY = 0
+    MONDAY = 1
+    TUESDAY = 2
+    WEDNESDAY = 3
+    THURSDAY = 4
+    FRIDAY = 5
+    SATURDAY = 6
+
+
+class UserAccessType(IntEnum):
+    """
+    Enumeration representing different types of user access levels.
+
+    Attributes:
+        REGULAR (int): Standard user with regular access permissions.
+        ADMIN (int): User with administrative access permissions.
+    """
+
+    REGULAR = 1
+    ADMIN = 2
+
 
 PASSWORD_REGEX = r"^(?=.*[A-Z])(?=.*\d)(?=.*[ !\"#$%&'()*+,\-./:;<=>?@[\\\]^_`{|}~])[A-Za-z\d !\"#$%&'()*+,\-./:;<=>?@[\\\]^_`{|}~]{8,}$"
 
