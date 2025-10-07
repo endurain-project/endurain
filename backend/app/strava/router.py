@@ -213,6 +213,7 @@ async def import_bikes_from_strava_export(
 
         # Move the bikes file to the processed directory
         activities_utils.move_file(processed_dir, bikes_file_name, bikes_file_path)
+        core_logger.print_to_log_and_console(f"{bikes_file_name} moved to: {processed_dir}.")
 
         # Log completion of bike import
         core_logger.print_to_log_and_console("Bike import complete.")
@@ -264,8 +265,9 @@ async def import_shoes_from_strava_export(
         shoes_file_name = core_config.STRAVA_BULK_IMPORT_SHOES_FILE
         shoes_file_path = os.path.join(bulk_import_dir, shoes_file_name)
 
-        # Move the shoes file to the processed directory
+        # Move the shoes file to the processed directory and log it.
         activities_utils.move_file(processed_dir, shoes_file_name, shoes_file_path)
+        core_logger.print_to_log_and_console(f"{shoes_file_name} moved to: {processed_dir}.")
 
         # Log completion of shoe import
         core_logger.print_to_log_and_console("Shoe import complete.")

@@ -355,7 +355,8 @@ def transform_csv_shoe_gear_to_schema_gear(
     shoes_list: list, token_user_id: int, db: Session
 ) -> list[gears_schema.Gear]:
     """
-    Transforms a list of shoe data (parsed from CSV) into a list of Gear schema objects.
+    Transforms a list of shoe data (parsed from CSV) into a list of Gear schema objects.  
+    Renames any name-less shoes to a default name plus a unique number, as Strava allows name-less shoes, but Endurain does not.
 
     Args:
         shoes_list (list): A list where each row is a single shoe's data, parsed from the strava shoe csv
@@ -365,10 +366,10 @@ def transform_csv_shoe_gear_to_schema_gear(
     Returns:
         list[gears_schema.Gear]: A list of Gear schema objects created from the input shoe data.
     """
+
+    # Go through shoes, fix any blank nicknames, and create a list of them to return.
     gears = []
     newnumber = 1  # Number to append to unnamed shoes.
-
-    # Go through shoes, fix any blank nicknames, and create a list of them.
     for shoerow in shoes_list:  
         # 1 - Check for nameless shoes and add a novel name. Why?  Because Strava allows nameless shoes, but Endurain does not.  
         if shoerow["Shoe Name"] is None or shoerow["Shoe Name"] == "" or shoerow["Shoe Name"].replace("+", " ").strip() == "":
@@ -388,7 +389,7 @@ def transform_csv_shoe_gear_to_schema_gear(
             # CSV data has a name for the shoe, use CSV's data as the name.
             shoe_name = shoerow["Shoe Name"]
 
-        # 2 - Add (possibly renamed) gear item to the list. 
+        # 2 - Add (possibly renamed) gear item to the list of gear to be added. 
         new_gear = gears_schema.Gear(
             user_id=token_user_id,
             brand=shoerow["Shoe Brand"],
