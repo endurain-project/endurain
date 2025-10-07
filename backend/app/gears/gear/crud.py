@@ -374,6 +374,9 @@ def create_multiple_gears(gears: list[gears_schema.Gear], user_id: int, db: Sess
             db.add_all(new_gears)
             db.commit()
 
+    except HTTPException as http_err:
+        # If an HTTPException is raised, re-raise it
+        raise http_err
     except IntegrityError as integrity_error:
         # Rollback the transaction
         db.rollback()
@@ -381,9 +384,8 @@ def create_multiple_gears(gears: list[gears_schema.Gear], user_id: int, db: Sess
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="Duplicate entry error. Check if nickname, strava_gear_id or garminconnect_gear_id are unique",
+            detail="Duplicate entry error. Check if strava_gear_id or garminconnect_gear_id are unique",
         ) from integrity_error
-
     except Exception as err:
         # Rollback the transaction
         db.rollback()
@@ -402,9 +404,7 @@ def create_multiple_gears(gears: list[gears_schema.Gear], user_id: int, db: Sess
 
 def create_gear(gear: gears_schema.Gear, user_id: int, db: Session):
     try:
-        gear_check = get_gear_user_by_nickname(
-            user_id, gear.nickname, db
-        )
+        gear_check = get_gear_user_by_nickname(user_id, gear.nickname, db)
 
         if gear_check is not None:
             # If the gear already exists, raise an HTTPException with a 409 Conflict status code
@@ -468,8 +468,8 @@ def edit_gear(gear_id: int, gear: gears_schema.Gear, db: Session):
             db_gear.gear_type = gear.gear_type
         if gear.created_at is not None:
             db_gear.created_at = gear.created_at
-        if gear.is_active is not None:
-            db_gear.is_active = gear.is_active
+        if gear.active is not None:
+            db_gear.active = gear.active
         if gear.initial_kms is not None:
             db_gear.initial_kms = gear.initial_kms
         if gear.purchase_value is not None:

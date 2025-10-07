@@ -317,7 +317,7 @@ async def read_activities_user_activities_number(
     # Added optional filter query parameters
     activity_type: int | None = Query(None, alias="type"),
     start_date: date | datetime | None = Query(None),
-    end_date: date | datetime | None = Query(None),
+    end_date: date | datetime| None = Query(None),
     name_search: str | None = Query(None),
 ):
     # Get the number of activities for the user
@@ -490,7 +490,6 @@ async def read_last_activity_timezone(
     timezone = activities_crud.get_last_activity_timezone(token_user_id, db)
 
     return timezone
-
 
 @router.get(
     "/refresh",

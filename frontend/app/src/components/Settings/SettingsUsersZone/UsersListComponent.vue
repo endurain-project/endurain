@@ -181,7 +181,7 @@ const props = defineProps({
     required: true
   }
 })
-const emit = defineEmits(['userDeleted', 'editedUser'])
+const emit = defineEmits(['userDeleted', 'editedUser', 'approvedUser'])
 const { t } = useI18n()
 const authStore = useAuthStore()
 const userDetails = ref(false)
@@ -212,6 +212,17 @@ async function updateSessionListDeleted(sessionDeletedId) {
     push.success(t('usersListComponent.userSessionDeleteSuccessMessage'))
   } catch (error) {
     push.error(`${t('usersListComponent.userSessionDeleteErrorMessage')} - ${error}`)
+  }
+}
+
+async function submitApproveSignUp() {
+  const notification = push.promise(t('usersListComponent.processingApproval'))
+  try {
+    await users.approveUser(props.user.id)
+    notification.resolve(t('usersListComponent.userApproveSuccessMessage'))
+    emit('approvedUser', props.user.id)
+  } catch (error) {
+    notification.reject(`${t('usersListComponent.userApproveErrorMessage')} - ${error}`)
   }
 }
 

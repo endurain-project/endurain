@@ -38,7 +38,7 @@
   <BackButtonComponent />
 </template>
 
-<script>
+<script setup>
 import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
@@ -57,30 +57,18 @@ import SettingsUserProfileZone from '../components/Settings/SettingsUserProfileZ
 import SettingsSecurityZone from '../components/Settings/SettingsSecurityZone.vue'
 import SettingsIntegrationsZone from '../components/Settings/SettingsIntegrationsZone.vue'
 import BackButtonComponent from '@/components/GeneralComponents/BackButtonComponent.vue'
+import SettingsImportZone from '../components/Settings/SettingsImportZone.vue'
 import SettingsUserGoals from '../components/Settings/SettingsUserGoals.vue'
 
-export default {
-  components: {
-    SettingsSideBarComponent,
-    SettingsUsersZone,
-    SettingsServerSettingsZone,
-    SettingsGeneralZone,
-    SettingsUserProfileZone,
-    SettingsSecurityZone,
-    SettingsIntegrationsZone,
-    BackButtonComponent,
-    SettingsUserGoals
-  },
-  setup() {
-    const authStore = useAuthStore()
-    const route = useRoute()
-    const { locale, t } = useI18n()
-    const activeSection = ref('users')
+const authStore = useAuthStore()
+const route = useRoute()
+const { locale, t } = useI18n()
+const activeSection = ref('users')
 
-    function updateActiveSection(section) {
-      // Update the active section.
-      activeSection.value = section
-    }
+function updateActiveSection(section) {
+  // Update the active section.
+  activeSection.value = section
+}
 
 onMounted(async () => {
   if (route.query.tab) {
@@ -104,17 +92,17 @@ onMounted(async () => {
     activeSection.value = 'general'
   }
 
-      if (route.query.stravaLinked === '1') {
-        // If the stravaLinked query parameter is set to 1, set the active section to integrations.
-        activeSection.value = 'integrations'
+  if (route.query.stravaLinked === '1') {
+    // If the stravaLinked query parameter is set to 1, set the active section to integrations.
+    activeSection.value = 'integrations'
 
-        // Set the user object with the strava_linked property set to 1.
-        const user = authStore.user
-        user.is_strava_linked = 1
-        authStore.setUser(user, locale)
+    // Set the user object with the strava_linked property set to 1.
+    const user = authStore.user
+    user.is_strava_linked = 1
+    authStore.setUser(user, locale)
 
-        // Set the success message and show the success alert.
-        push.success(t('settingsIntegrationsZone.successMessageStravaAccountLinked'))
+    // Set the success message and show the success alert.
+    push.success(t('settingsIntegrationsZone.successMessageStravaAccountLinked'))
 
     try {
       await strava.setUniqueUserStateStravaLink(null)
@@ -124,9 +112,9 @@ onMounted(async () => {
     }
   }
 
-      if (route.query.stravaLinked === '0') {
-        // If the stravaLinked query parameter is set to 0, set the active section to integrations.
-        activeSection.value = 'integrations'
+  if (route.query.stravaLinked === '0') {
+    // If the stravaLinked query parameter is set to 0, set the active section to integrations.
+    activeSection.value = 'integrations'
 
     try {
       await strava.setUniqueUserStateStravaLink(null)

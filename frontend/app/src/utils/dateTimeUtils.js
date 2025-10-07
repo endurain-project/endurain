@@ -165,15 +165,15 @@ export function navigateWeek(currentDate, direction, firstDayOfWeek = 0) {
 /**
  * Gets the start date (1st) of the month for a given JavaScript Date object, in the specified timezone.
  * @param {Date} jsDate - The input JavaScript Date object.
+ * @returns {Date} - The JavaScript Date object for the first day of that month (UTC).
  * @param {string} timezone - The local timezone.
- * @returns {Date} - The JavaScript Date object for the first day of that month in the specified timezone.
- */
+ * @returns {Date} - The JavaScript Date object for the first day of that month in the specified timezone. */
 export function getMonthStartDate(jsDate, timezone) {
   return DateTime.fromJSDate(jsDate, { zone: timezone }).startOf('month').toJSDate()
 }
 
 /**
- * Gets the end date (start of next month) for a given JavaScript Date object's month, in the specified timezone.
+ * Gets the end date (start of next month) for a given JavaScript Date object's month, in UTC.
  * This means it's the first day of the next month, making the range exclusive for the end date.
  * @param {Date} jsDate - The input JavaScript Date object.
  * @param {string} timezone - The timezone.
@@ -237,8 +237,8 @@ export function formatDateISO(date) {
 /**
  * Formats a Date object with time information into an ISO date string (YYYY-MM-DDTHH:MM:SS).
  *
- * @param {Date} datetime - The date with time information to format.
- * @returns {string} The formatted date and time string in ISO format.
+ * @param {Date} datetime - The date with time information time to format.
+ * @returns {string} The formatted date and time time string in ISO format.
  */
 export function formatUTCDateTimeISO(datetime) {
   let year = datetime.getUTCFullYear()

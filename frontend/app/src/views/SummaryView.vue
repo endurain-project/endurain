@@ -385,8 +385,7 @@ async function updateActivities() {
 
 // Fetch activities with pagination, filters, and sorting
 async function fetchActivities() {
-  // Get timezone
-
+  //Get timezone
   timezone.value = await activitiesService.getTimezone()
 
   clearData({

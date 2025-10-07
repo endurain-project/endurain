@@ -70,5 +70,8 @@
   "currencyDollar": "US Dollar",
   "currencyDollarSymbol": "$",
   "currencyPound": "British Pound",
-  "currencyPoundSymbol": "£"
+  "currencyPoundSymbol": "£",
+  "genderMale": "Male",
+  "genderFemale": "Female",
+  "genderUnspecified": "Unspecified"
 }

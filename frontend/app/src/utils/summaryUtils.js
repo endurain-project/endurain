@@ -1,4 +1,3 @@
-import { DateTime } from 'luxon'
 import {
   getWeekStartDate,
   getWeekEndDate,
@@ -129,7 +128,7 @@ export function buildActivityFilters(
     const date = date_tz_applied.toUTC().toJSDate()
     const yearStart = getYearStartDate(date, timezone)
     const yearEnd = getYearEndDate(date, timezone)
-
+    
     filters.start_date = formatUTCDateTimeISO(yearStart)
     filters.end_date = formatUTCDateTimeISO(yearEnd)
 

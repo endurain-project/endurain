@@ -32,6 +32,10 @@ export const useServerSettingsStore = defineStore('serverSettings', {
     async loadServerSettingsFromServer() {
       const settings = await serverSettings.getPublicServerSettings()
       this.setServerSettings(settings)
+    },
+    setServerSettingsOnLogout() {
+      this.serverSettings.signup_require_admin_approval = null
+      this.serverSettings.signup_require_email_verification = null
     }
   }
 })

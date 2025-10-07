@@ -88,8 +88,8 @@ Docker image uses a non-root user, so ensure target folders are not owned by roo
 ## Bulk import and file upload
 
 To perform a bulk import:
-- Place .fit, .tcx, .gz and/or .gpx files into the activity_files/bulk_import folder. Create the folder if needed.
-- In the "Settings" menu select "Integrations".
+- Place .fit, .tcx, .gz and/or .gpx files into the data/activity_files/bulk_import folder. Create the folder if needed.
+- In the "Settings" menu select "Import".
 - Click "Import" next to "Bulk Import".
 
 .fit files are preferred. I noticed that Strava/Garmin Connect process of converting .fit to .gpx introduces additional data to the activity file leading to minor variances in the data, like for example additional 

@@ -1,6 +1,7 @@
 <template>
   <div class="col">
     <form class="bg-body-tertiary rounded p-3 shadow-sm">
+      <!-- Defaults -->
       <h4>{{ $t('settingsServerSettingsZoneComponent.defaultsTitle') }}</h4>
       <!-- Units -->
       <LoadingComponent v-if="isLoading" />
@@ -206,15 +207,17 @@
 </template>
 
 <script setup>
-import { ref, watch } from 'vue'
+import { ref, watch, onMounted, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useServerSettingsStore } from '@/stores/serverSettingsStore'
 import { serverSettings } from '@/services/serverSettingsService'
 import { push } from 'notivue'
 import ModalComponent from '@/components/Modals/ModalComponent.vue'
 import ModalComponentUploadFile from '@/components/Modals/ModalComponentUploadFile.vue'
+import LoadingComponent from '@/components/GeneralComponents/LoadingComponent.vue'
 
 const { t } = useI18n()
+const isLoading = ref(true)
 const serverSettingsStore = useServerSettingsStore()
 const units = ref(serverSettingsStore.serverSettings.units)
 const currency = ref(serverSettingsStore.serverSettings.currency)
@@ -224,6 +227,9 @@ const publicShareableLinksUserInfo = ref(
   serverSettingsStore.serverSettings.public_shareable_links_user_info
 )
 const loginPhotoSet = ref(serverSettingsStore.serverSettings.login_photo_set)
+const signUp = ref(serverSettingsStore.serverSettings.signup_enabled)
+const adminApproval = ref(serverSettingsStore.serverSettings.signup_require_admin_approval)
+const emailConfirmation = ref(serverSettingsStore.serverSettings.signup_require_email_verification)
 
 async function updateServerSettings() {
   const data = {
@@ -233,7 +239,10 @@ async function updateServerSettings() {
     num_records_per_page: numRecordsPerPage.value,
     public_shareable_links: publicShareableLinks.value,
     public_shareable_links_user_info: publicShareableLinksUserInfo.value,
-    login_photo_set: loginPhotoSet.value
+    login_photo_set: loginPhotoSet.value,
+    signup_enabled: signUp.value,
+    signup_require_admin_approval: adminApproval.value,
+    signup_require_email_verification: emailConfirmation.value
   }
   try {
     // Update the server settings in the DB
@@ -329,7 +338,9 @@ watch(
     emailConfirmation
   ],
   async () => {
-    await updateServerSettings()
+    if (isLoading.value == false) {
+      await updateServerSettings()
+    }
   },
   { immediate: false }
 )

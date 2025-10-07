@@ -1,7 +1,10 @@
+import os
+import csv
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 from stravalib.client import Client
 
+import core.config as core_config
 import core.logger as core_logger
 
 import strava.utils as strava_utils
@@ -9,6 +12,7 @@ import strava.athlete_utils as strava_athlete_utils
 
 import gears.gear.schema as gears_schema
 import gears.gear.crud as gears_crud
+import gears.gear.utils as gears_utils
 
 import activities.activity.schema as activities_schema
 import activities.activity.crud as activities_crud
@@ -32,7 +36,7 @@ def get_strava_gear(gear_id: str, strava_client: Client):
         raise HTTPException(
             status_code=status.HTTP_424_FAILED_DEPENDENCY,
             detail="Not able to fetch Strava gear",
-        )
+        ) from err
 
     if strava_gear is None:
         raise HTTPException(
@@ -80,7 +84,7 @@ def fetch_and_process_gear(strava_client: Client, user_id: int, db: Session) -> 
 
 
 def process_gear(
-    gear, type: str, user_id: int, strava_client: Client, db: Session
+    gear, gear_type: str, user_id: int, strava_client: Client, db: Session
 ) -> gears_schema.Gear | None:
     # Get the gear by strava id from user id
     gear_db = gears_crud.get_gear_by_strava_id_from_user_id(gear.id, user_id, db)
@@ -99,9 +103,9 @@ def process_gear(
         brand=strava_gear.brand_name,
         model=strava_gear.model_name,
         nickname=strava_gear.name,
-        gear_type=1 if type == "bike" else 2,
+        gear_type=1 if gear_type == "bike" else 2,
         user_id=user_id,
-        is_active=1,
+        active=True,
         strava_gear_id=gear.id,
     )
 
@@ -109,11 +113,7 @@ def process_gear(
 
 
 def iterate_over_activities_and_set_gear(
-    activity: activities_schema.Activity,
-    gears: list[gears_schema.Gear],
-    counter: int,
-    user_id: int,
-    db: Session,
+    activity: activities_schema.Activity, gears: list[gears_schema.Gear], counter: int
 ) -> dict:
 
     # Iterate over gears and set gear if applicable
@@ -151,9 +151,7 @@ def set_activities_gear(user_id: int, db: Session) -> int:
 
     # iterate over activities and set gear if applicable
     for activity in activities:
-        parsed_activity = iterate_over_activities_and_set_gear(
-            activity, gears, counter, user_id, db
-        )
+        parsed_activity = iterate_over_activities_and_set_gear(activity, gears, counter)
         counter = parsed_activity["counter"]
         activities_parsed.append(parsed_activity["activity"])
 

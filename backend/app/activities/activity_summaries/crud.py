@@ -25,7 +25,7 @@ from activities.activity_summaries.schema import (
     LifetimeSummaryResponse,
     YearlyPeriodSummary,
 )
-import core.logger as core_logger
+
 
 def _get_type_breakdown(
     db: Session,
@@ -116,7 +116,7 @@ def get_weekly_summary(
             (func.dayofweek(func.convert_tz(Activity.start_time, 'UTC', Activity.timezone)) == 1, 7),  # Sunday -> 7
             else_=func.dayofweek(func.convert_tz(Activity.start_time, 'UTC', Activity.timezone)) - 1   # Mon-Sat -> 1-6
         )
-    
+
     query = db.query(
         iso_day_of_week.label("day_of_week"),
         func.coalesce(func.sum(Activity.distance), 0).label("total_distance"),

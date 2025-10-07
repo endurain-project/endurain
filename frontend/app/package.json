@@ -1,14 +1,16 @@
 {
   "name": "endurain",
-  "version": "0.14.2",
+  "version": "0.15.0",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "run-p type-check \"build-only {@}\" --",
+    "build-only": "vite build",
     "preview": "vite preview",
     "test:unit": "vitest",
-    "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs --fix --ignore-path .gitignore",
+    "type-check": "vue-tsc --build --force",
+    "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx --fix --ignore-path .gitignore",
     "format": "prettier --write src/"
   },
   "dependencies": {
@@ -32,10 +34,16 @@
   "devDependencies": {
     "@rushstack/eslint-patch": "^1.10.4",
     "@types/bootstrap": "^5.2.10",
+    "@types/jsdom": "^27.0.0",
     "@types/leaflet": "^1.9.14",
+    "@types/node": "^24.6.1",
+    "@typescript-eslint/eslint-plugin": "^8.45.0",
+    "@typescript-eslint/parser": "^8.45.0",
     "@vitejs/plugin-vue": "^5.2.1",
     "@vue/eslint-config-prettier": "^10.1.0",
+    "@vue/eslint-config-typescript": "^14.6.0",
     "@vue/test-utils": "^2.4.6",
+    "@vue/tsconfig": "^0.8.1",
     "eslint": "^9.15.0",
     "eslint-plugin-vue": "^10.3.0",
     "jsdom": "^27.0.0",
@@ -44,6 +52,7 @@
     "vite": "^6.1.0",
     "vite-plugin-pwa": "^1.0.0",
     "vitest": "^3.0.5",
-    "vue-eslint-parser": "^10.2.0"
+    "vue-eslint-parser": "^10.2.0",
+    "vue-tsc": "^3.1.0"
   }
 }

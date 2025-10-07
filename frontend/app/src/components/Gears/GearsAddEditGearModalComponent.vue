@@ -119,22 +119,22 @@
               v-model="newEditGearCreatedDate"
               required
             />
-            <!-- gear is_active fields -->
-            <label for="gearIsActiveAddEdit"
+            <!-- gear active fields -->
+            <label for="gearActiveAddEdit"
               ><b
                 >* {{ $t('gearsAddEditGearModalComponent.addEditGearModalAddIsActiveLabel') }}</b
               ></label
             >
             <select
               class="form-select"
-              name="gearIsActiveAddEdit"
-              v-model="newEditGearIsActive"
+              name="gearActiveAddEdit"
+              v-model="newEditGearActive"
               required
             >
-              <option value="1">
+              <option value="true">
                 {{ $t('gearsAddEditGearModalComponent.addEditGearModalAddIsActiveOption1') }}
               </option>
-              <option value="0">
+              <option value="false">
                 {{ $t('gearsAddEditGearModalComponent.addEditGearModalAddIsActiveOption0') }}
               </option>
             </select>
@@ -268,7 +268,7 @@ const newEditGearModel = ref('')
 const newEditGearNickname = ref('')
 const newEditGearType = ref(1)
 const newEditGearCreatedDate = ref(new Date().toISOString().split('T')[0])
-const newEditGearIsActive = ref(1)
+const newEditGearActive = ref(true)
 const newEditGearInitialKms = ref(0)
 const newEditGearInitialMiles = ref(0)
 const newEditGearPurchaseValue = ref(0)
@@ -314,7 +314,7 @@ onMounted(() => {
     newEditGearNickname.value = props.gear.nickname
     newEditGearType.value = props.gear.gear_type
     newEditGearCreatedDate.value = props.gear.created_at
-    newEditGearIsActive.value = props.gear.is_active
+    newEditGearActive.value = props.gear.active
     newEditGearInitialKms.value = props.gear.initial_kms
     if (props.gear.initial_kms && props.gear.initial_kms !== 0) {
       newEditGearInitialMiles.value = kmToMiles(props.gear.initial_kms)
@@ -332,7 +332,7 @@ async function submitAddGearForm() {
       nickname: newEditGearNickname.value,
       gear_type: newEditGearType.value,
       created_at: newEditGearCreatedDate.value,
-      is_active: newEditGearIsActive.value,
+      active: newEditGearActive.value,
       initial_kms: newEditGearInitialKms.value,
       purchase_value: newEditGearPurchaseValue.value
     }
@@ -344,7 +344,7 @@ async function submitAddGearForm() {
     newEditGearNickname.value = ''
     newEditGearType.value = 1
     newEditGearCreatedDate.value = new Date().toISOString().split('T')[0]
-    newEditGearIsActive.value = 1
+    newEditGearActive.value = true
     newEditGearInitialKms.value = 0
     newEditGearInitialMiles.value = 0
     newEditGearPurchaseValue.value = 0
@@ -372,7 +372,7 @@ async function submitEditGearForm() {
       nickname: newEditGearNickname.value,
       gear_type: newEditGearType.value,
       created_at: newEditGearCreatedDate.value,
-      is_active: newEditGearIsActive.value,
+      active: newEditGearActive.value,
       initial_kms: newEditGearInitialKms.value,
       purchase_value: newEditGearPurchaseValue.value
     }
