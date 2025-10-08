@@ -263,13 +263,13 @@ def get_user_activities_with_pagination(
         if start_date:
             # add filter for start date
             query = query.filter(
-                func.date(activities_models.Activity.start_time) >= start_date
+                activities_models.Activity.start_time >= start_date
             )
 
         if end_date:
             # add filter for end date
             query = query.filter(
-                func.date(activities_models.Activity.start_time) <= end_date
+                activities_models.Activity.start_time <= end_date
             )
 
         if name_search:
