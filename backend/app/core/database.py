@@ -1,7 +1,6 @@
 import os
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker, declarative_base
 from sqlalchemy.engine.url import URL
 
 
@@ -39,6 +38,21 @@ Base = declarative_base()
 
 
 def get_db():
+    """
+    Yields a new SQLAlchemy database session.
+
+    This generator function creates a new database session using SessionLocal,
+    yields it for use in database operations, and ensures the session is properly
+    closed after use. Intended for use as a dependency in FastAPI routes or other
+    contexts where session management is required.
+
+    Yields:
+        Session: An active SQLAlchemy database session.
+
+    Example:
+        with get_db() as db:
+            # use db session here
+    """
     # Create a new database session and return it
     db = SessionLocal()
 

@@ -67,6 +67,19 @@ def create_session_object(
     hashed_refresh_token: str,
     refresh_token_exp: datetime,
 ) -> session_schema.UsersSessions:
+    """
+    Creates a UsersSessions object representing a user session with device and request metadata.
+
+    Args:
+        session_id (str): Unique identifier for the session.
+        user (users_schema.UserRead): The user associated with the session.
+        request (Request): The HTTP request object containing client information.
+        hashed_refresh_token (str): The hashed refresh token for the session.
+        refresh_token_exp (datetime): The expiration datetime for the refresh token.
+
+    Returns:
+        session_schema.UsersSessions: The session object populated with user, device, and request details.
+    """
     user_agent = get_user_agent(request)
     device_info = parse_user_agent(user_agent)
 

@@ -12,6 +12,14 @@ backend/app/*/__pycache__/
 backend/app/*/*/__pycache__/
 backend/app/*/*/*/__pycache__/
 backend/app/*.pyc
+backend/tests/__pycache__/
+backend/tests/*/__pycache__/
+
+# Tests
+backend/.coverage
+backend/htmlcov/
+backend/coverage.xml
+backend/.pytest_cache/
 
 # Logs
 backend/app/logs/*.log
