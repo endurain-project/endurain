@@ -198,9 +198,14 @@ def fast_api_app(password_hasher, token_manager, mock_db) -> FastAPI:
 
         Attributes:
             calls (list): A list that records each call to add_pending_login as a tuple of (username, user_id).
+            _store (dict): Internal storage mapping usernames to user IDs for pending logins.
 
         Methods:
             add_pending_login(username, user_id):
+            get_pending_login(username):
+            delete_pending_login(username):
+            has_pending_login(username):
+            clear_all():
         """
 
         def __init__(self):
@@ -208,10 +213,11 @@ def fast_api_app(password_hasher, token_manager, mock_db) -> FastAPI:
             Initializes the object and creates an empty list to store call records.
             """
             self.calls = []
+            self._store = {}
 
         def add_pending_login(self, username, user_id):
             """
-            Adds a pending login attempt to the internal calls list.
+            Adds a pending login attempt to the internal calls list and store.
 
             Args:
                 username (str): The username of the user attempting to log in.
@@ -221,9 +227,105 @@ def fast_api_app(password_hasher, token_manager, mock_db) -> FastAPI:
                 None
             """
             self.calls.append((username, user_id))
+            self._store[username] = user_id
+
+        def get_pending_login(self, username: str):
+            """
+            Retrieve the pending login information for a given username.
+
+            Args:
+                username (str): The username to look up.
+
+            Returns:
+                Any: The pending login information associated with the username, or None if not found.
+            """
+            return self._store.get(username)
+
+        def delete_pending_login(self, username: str):
+            """
+            Removes the pending login entry for the specified username from the internal store.
+
+            Args:
+                username (str): The username whose pending login entry should be deleted.
+
+            Returns:
+                None
+            """
+            if username in self._store:
+                del self._store[username]
+
+        def has_pending_login(self, username: str):
+            """
+            Checks if the given username has a pending login session.
+
+            Args:
+                username (str): The username to check for a pending login.
+
+            Returns:
+                bool: True if the username has a pending login, False otherwise.
+            """
+            return username in self._store
+
+        def clear_all(self):
+            """
+            Clears all pending login entries from the internal store.
+            """
+            self._store.clear()
+            self.calls.clear()
 
     fake_store = FakePendingMFAStore()
     app.state.fake_store = fake_store
+
+    # Create mock values for security dependencies
+    app.state.mock_access_token = "mock_access_token"
+    app.state.mock_refresh_token = "mock_refresh_token"
+    app.state.mock_user_id = 1
+    app.state.mock_session_id = "mock_session_id"
+
+    # Security dependency overrides for testing authenticated endpoints
+    def _mock_validate_access_token():
+        """Mock validation that always passes"""
+        return None
+
+    def _mock_validate_refresh_token():
+        """Mock validation that always passes"""
+        return None
+
+    def _mock_get_access_token():
+        """Return mock access token"""
+        return app.state.mock_access_token
+
+    def _mock_get_refresh_token():
+        """Return mock refresh token"""
+        return app.state.mock_refresh_token
+
+    def _mock_get_sub_from_access_token():
+        """Return mock user ID from access token"""
+        return app.state.mock_user_id
+
+    def _mock_get_sid_from_access_token():
+        """Return mock session ID from access token"""
+        return app.state.mock_session_id
+
+    def _mock_get_sub_from_refresh_token():
+        """Return mock user ID from refresh token"""
+        return app.state.mock_user_id
+
+    def _mock_get_sid_from_refresh_token():
+        """Return mock session ID from refresh token"""
+        return app.state.mock_session_id
+
+    def _mock_get_and_return_access_token():
+        """Return mock access token"""
+        return app.state.mock_access_token
+
+    def _mock_get_and_return_refresh_token():
+        """Return mock refresh token"""
+        return app.state.mock_refresh_token
+
+    def _mock_check_scopes():
+        """Mock scope check that always passes"""
+        return None
 
     try:
         app.dependency_overrides[
@@ -232,6 +334,41 @@ def fast_api_app(password_hasher, token_manager, mock_db) -> FastAPI:
         app.dependency_overrides[
             session_router.session_schema.get_pending_mfa_store
         ] = lambda: fake_store
+
+        # Override security dependencies for authenticated endpoint testing
+        app.dependency_overrides[
+            session_router.session_security.validate_access_token
+        ] = _mock_validate_access_token
+        app.dependency_overrides[
+            session_router.session_security.validate_refresh_token
+        ] = _mock_validate_refresh_token
+        app.dependency_overrides[
+            session_router.session_security.get_access_token
+        ] = _mock_get_access_token
+        app.dependency_overrides[
+            session_router.session_security.get_refresh_token
+        ] = _mock_get_refresh_token
+        app.dependency_overrides[
+            session_router.session_security.get_sub_from_access_token
+        ] = _mock_get_sub_from_access_token
+        app.dependency_overrides[
+            session_router.session_security.get_sid_from_access_token
+        ] = _mock_get_sid_from_access_token
+        app.dependency_overrides[
+            session_router.session_security.get_sub_from_refresh_token
+        ] = _mock_get_sub_from_refresh_token
+        app.dependency_overrides[
+            session_router.session_security.get_sid_from_refresh_token
+        ] = _mock_get_sid_from_refresh_token
+        app.dependency_overrides[
+            session_router.session_security.get_and_return_access_token
+        ] = _mock_get_and_return_access_token
+        app.dependency_overrides[
+            session_router.session_security.get_and_return_refresh_token
+        ] = _mock_get_and_return_refresh_token
+        app.dependency_overrides[
+            session_router.session_security.check_scopes
+        ] = _mock_check_scopes
     except Exception:
         pass
 

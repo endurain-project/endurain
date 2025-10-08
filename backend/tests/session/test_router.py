@@ -234,3 +234,743 @@ class TestLoginEndpointSecurity:
                     mock_check(sample_inactive_user)
 
                 assert exc_info.value.status_code == 403
+
+
+class TestMFAVerifyEndpoint:
+    """
+    Test suite for the MFA verification endpoint (/mfa/verify).
+
+    This class contains tests that cover various scenarios for the MFA verification endpoint, including:
+    - Successful MFA verification and login for different client types (web and mobile).
+    - Handling of cases where no pending MFA login is found.
+    - Handling of invalid MFA codes.
+    - Handling of cases where the user is not found after MFA verification.
+    - Handling of inactive users after MFA verification.
+    - Handling of invalid client types during MFA verification.
+
+    Each test uses mocking to simulate the MFA verification flow, user lookup, and session creation.
+    """
+
+    @pytest.mark.parametrize(
+        "client_type, expected_status, returns_tokens",
+        [
+            ("web", status.HTTP_200_OK, False),
+            ("mobile", status.HTTP_200_OK, True),
+        ],
+    )
+    def test_mfa_verify_success(
+        self,
+        fast_api_app,
+        fast_api_client,
+        sample_user_read,
+        client_type,
+        expected_status,
+        returns_tokens,
+    ):
+        """
+        Test successful MFA verification and login completion.
+
+        This test verifies that when a valid MFA code is provided for a pending login,
+        the API successfully completes the login process and returns appropriate tokens
+        based on the client type.
+
+        Args:
+            fast_api_app: The FastAPI application instance under test.
+            fast_api_client: The test client for making HTTP requests.
+            sample_user_read: A sample user object.
+            client_type: The type of client ("web" or "mobile").
+            expected_status: The expected HTTP status code.
+            returns_tokens: Boolean indicating if tokens should be returned.
+        """
+        fast_api_app.state._client_type = client_type
+        
+        # Setup pending MFA login
+        pending_store = fast_api_app.state.fake_store
+        pending_store._store = {"testuser": sample_user_read.id}
+
+        with patch(
+            "session.router.profile_utils.verify_user_mfa"
+        ) as mock_verify_mfa, patch(
+            "session.router.users_crud.get_user_by_id"
+        ) as mock_get_user, patch(
+            "session.router.users_utils.check_user_is_active"
+        ), patch(
+            "session.router.session_utils.complete_login"
+        ) as mock_complete:
+            mock_verify_mfa.return_value = True
+            mock_get_user.return_value = sample_user_read
+            mock_complete.return_value = (
+                {"session_id": "test-session"}
+                if not returns_tokens
+                else {
+                    "access_token": "token",
+                    "refresh_token": "refresh",
+                    "session_id": "session",
+                    "token_type": "Bearer",
+                    "expires_in": 900,
+                }
+            )
+
+            resp = fast_api_client.post(
+                "/mfa/verify",
+                json={"username": "testuser", "mfa_code": "123456"},
+                headers={"X-Client-Type": client_type},
+            )
+
+            assert resp.status_code == expected_status
+            body = resp.json()
+            if returns_tokens:
+                assert body["access_token"] == "token"
+                assert body["refresh_token"] == "refresh"
+                assert body["session_id"] == "session"
+            else:
+                assert body["session_id"] == "test-session"
+
+    def test_mfa_verify_no_pending_login(self, fast_api_app, fast_api_client):
+        """
+        Test MFA verification when no pending login is found.
+
+        This test verifies that when attempting to verify MFA without a pending login,
+        the API returns a 400 Bad Request error.
+        """
+        fast_api_app.state._client_type = "web"
+        fast_api_app.state.fake_store._store = {}
+
+        resp = fast_api_client.post(
+            "/mfa/verify",
+            json={"username": "testuser", "mfa_code": "123456"},
+            headers={"X-Client-Type": "web"},
+        )
+
+        assert resp.status_code == status.HTTP_400_BAD_REQUEST
+        assert "No pending MFA login" in resp.json()["detail"]
+
+    def test_mfa_verify_invalid_code(
+        self, fast_api_app, fast_api_client, sample_user_read
+    ):
+        """
+        Test MFA verification with an invalid MFA code.
+
+        This test verifies that when an invalid MFA code is provided,
+        the API returns a 401 Unauthorized error.
+        """
+        fast_api_app.state._client_type = "web"
+        fast_api_app.state.fake_store._store = {"testuser": sample_user_read.id}
+
+        with patch("session.router.profile_utils.verify_user_mfa") as mock_verify_mfa:
+            mock_verify_mfa.return_value = False
+
+            resp = fast_api_client.post(
+                "/mfa/verify",
+                json={"username": "testuser", "mfa_code": "999999"},
+                headers={"X-Client-Type": "web"},
+            )
+
+            assert resp.status_code == status.HTTP_401_UNAUTHORIZED
+            assert "Invalid MFA code" in resp.json()["detail"]
+
+    def test_mfa_verify_user_not_found(
+        self, fast_api_app, fast_api_client, sample_user_read
+    ):
+        """
+        Test MFA verification when user is not found after verification.
+
+        This test verifies that when a user cannot be found in the database
+        after MFA verification, the API returns a 404 Not Found error and
+        cleans up the pending login.
+        """
+        fast_api_app.state._client_type = "web"
+        fast_api_app.state.fake_store._store = {"testuser": sample_user_read.id}
+
+        with patch(
+            "session.router.profile_utils.verify_user_mfa"
+        ) as mock_verify_mfa, patch(
+            "session.router.users_crud.get_user_by_id"
+        ) as mock_get_user:
+            mock_verify_mfa.return_value = True
+            mock_get_user.return_value = None
+
+            resp = fast_api_client.post(
+                "/mfa/verify",
+                json={"username": "testuser", "mfa_code": "123456"},
+                headers={"X-Client-Type": "web"},
+            )
+
+            assert resp.status_code == status.HTTP_404_NOT_FOUND
+            assert "User not found" in resp.json()["detail"]
+
+    def test_mfa_verify_inactive_user(
+        self, fast_api_app, fast_api_client, sample_inactive_user
+    ):
+        """
+        Test MFA verification with an inactive user.
+
+        This test verifies that when an inactive user attempts to complete MFA login,
+        the API returns a 403 Forbidden error.
+        """
+        fast_api_app.state._client_type = "web"
+        fast_api_app.state.fake_store._store = {"inactive": sample_inactive_user.id}
+
+        with patch(
+            "session.router.profile_utils.verify_user_mfa"
+        ) as mock_verify_mfa, patch(
+            "session.router.users_crud.get_user_by_id"
+        ) as mock_get_user, patch(
+            "session.router.users_utils.check_user_is_active"
+        ) as mock_check_active:
+            mock_verify_mfa.return_value = True
+            mock_get_user.return_value = sample_inactive_user
+            mock_check_active.side_effect = HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN, detail="User is inactive"
+            )
+
+            resp = fast_api_client.post(
+                "/mfa/verify",
+                json={"username": "inactive", "mfa_code": "123456"},
+                headers={"X-Client-Type": "web"},
+            )
+
+            assert resp.status_code == status.HTTP_403_FORBIDDEN
+            assert "User is inactive" in resp.json()["detail"]
+
+
+class TestRefreshTokenEndpoint:
+    """
+    Test suite for the refresh token endpoint (/refresh).
+
+    This class contains tests that cover various scenarios for the token refresh endpoint, including:
+    - Successful token refresh for different client types (web and mobile).
+    - Handling of session not found errors.
+    - Handling of invalid refresh token hash mismatches.
+    - Handling of inactive users during refresh.
+    - Handling of invalid client types during refresh.
+
+    Each test uses mocking to simulate token validation, session retrieval, and token creation.
+    """
+
+    @pytest.mark.parametrize(
+        "client_type, expected_status, returns_tokens",
+        [
+            ("web", status.HTTP_200_OK, False),
+            ("mobile", status.HTTP_200_OK, True),
+        ],
+    )
+    def test_refresh_token_success(
+        self,
+        fast_api_app,
+        fast_api_client,
+        sample_user_read,
+        password_hasher,
+        client_type,
+        expected_status,
+        returns_tokens,
+    ):
+        """
+        Test successful token refresh.
+
+        This test verifies that when a valid refresh token is provided,
+        the API successfully creates new tokens and returns them based on client type.
+
+        Args:
+            fast_api_app: The FastAPI application instance under test.
+            fast_api_client: The test client for making HTTP requests.
+            sample_user_read: A sample user object.
+            password_hasher: The password hasher instance.
+            mock_db: Mock database session.
+            client_type: The type of client ("web" or "mobile").
+            expected_status: The expected HTTP status code.
+            returns_tokens: Boolean indicating if tokens should be returned.
+        """
+        fast_api_app.state._client_type = client_type
+        fast_api_app.state.mock_user_id = sample_user_read.id
+        fast_api_app.state.mock_session_id = "test-session-id"
+        fast_api_app.state.mock_refresh_token = "refresh_token_value"
+
+        mock_session = MagicMock()
+        mock_session.id = "test-session-id"
+        mock_session.refresh_token = password_hasher.hash_password("refresh_token_value")
+
+        with patch(
+            "session.router.session_crud.get_session_by_id", return_value=mock_session
+        ), patch(
+            "session.router.users_crud.get_user_by_id", return_value=sample_user_read
+        ), patch(
+            "session.router.users_utils.check_user_is_active"
+        ), patch(
+            "session.router.session_utils.create_tokens",
+            return_value=(
+                "new-session-id",
+                MagicMock(timestamp=lambda: 1234567890),
+                "new_access_token",
+                MagicMock(),
+                "new_refresh_token",
+                "new_csrf_token",
+            ),
+        ), patch(
+            "session.router.session_utils.edit_session"
+        ), patch(
+            "session.router.session_utils.create_response_with_tokens",
+            side_effect=lambda r, a, rf, c: r,
+        ):
+            resp = fast_api_client.post(
+                "/refresh",
+                headers={"X-Client-Type": client_type},
+                cookies={"endurain_refresh_token": "refresh_token_value"},
+            )
+
+            assert resp.status_code == expected_status
+            body = resp.json()
+            if returns_tokens:
+                assert body["access_token"] == "new_access_token"
+                assert body["refresh_token"] == "new_refresh_token"
+                assert body["session_id"] == "new-session-id"
+                assert body["token_type"] == "bearer"
+            else:
+                assert body["session_id"] == "new-session-id"
+
+    def test_refresh_token_session_not_found(self, fast_api_app, fast_api_client):
+        """
+        Test token refresh when session is not found.
+
+        This test verifies that when attempting to refresh with a session ID
+        that doesn't exist, the API returns a 404 Not Found error.
+        """
+        fast_api_app.state._client_type = "web"
+        fast_api_app.state.mock_user_id = 1
+        fast_api_app.state.mock_session_id = "nonexistent-session"
+        fast_api_app.state.mock_refresh_token = "refresh_token_value"
+
+        with patch(
+            "session.router.session_crud.get_session_by_id", return_value=None
+        ):
+            resp = fast_api_client.post(
+                "/refresh",
+                headers={"X-Client-Type": "web"},
+                cookies={"endurain_refresh_token": "refresh_token_value"},
+            )
+
+            assert resp.status_code == status.HTTP_404_NOT_FOUND
+            assert "Session not found" in resp.json()["detail"]
+
+    def test_refresh_token_invalid_hash(
+        self, fast_api_app, fast_api_client, password_hasher
+    ):
+        """
+        Test token refresh with invalid refresh token hash.
+
+        This test verifies that when the refresh token hash doesn't match
+        the stored hash, the API returns a 401 Unauthorized error.
+        """
+        fast_api_app.state._client_type = "web"
+        fast_api_app.state.mock_user_id = 1
+        fast_api_app.state.mock_session_id = "test-session-id"
+        fast_api_app.state.mock_refresh_token = "wrong_token_value"
+
+        mock_session = MagicMock()
+        mock_session.id = "test-session-id"
+        mock_session.refresh_token = password_hasher.hash_password("different_token")
+
+        with patch(
+            "session.router.session_crud.get_session_by_id", return_value=mock_session
+        ):
+            resp = fast_api_client.post(
+                "/refresh",
+                headers={"X-Client-Type": "web"},
+                cookies={"endurain_refresh_token": "wrong_token_value"},
+            )
+
+            assert resp.status_code == status.HTTP_401_UNAUTHORIZED
+            assert "Invalid refresh token" in resp.json()["detail"]
+
+    def test_refresh_token_inactive_user(
+        self, fast_api_app, fast_api_client, sample_inactive_user, password_hasher
+    ):
+        """
+        Test token refresh with an inactive user.
+
+        This test verifies that when an inactive user attempts to refresh tokens,
+        the API returns a 403 Forbidden error.
+        """
+        fast_api_app.state._client_type = "web"
+        fast_api_app.state.mock_user_id = sample_inactive_user.id
+        fast_api_app.state.mock_session_id = "test-session-id"
+        fast_api_app.state.mock_refresh_token = "refresh_token_value"
+
+        mock_session = MagicMock()
+        mock_session.id = "test-session-id"
+        mock_session.refresh_token = password_hasher.hash_password("refresh_token_value")
+
+        with patch(
+            "session.router.session_crud.get_session_by_id", return_value=mock_session
+        ), patch(
+            "session.router.users_crud.get_user_by_id",
+            return_value=sample_inactive_user,
+        ), patch(
+            "session.router.users_utils.check_user_is_active",
+            side_effect=HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN, detail="User is inactive"
+            ),
+        ):
+            resp = fast_api_client.post(
+                "/refresh",
+                headers={"X-Client-Type": "web"},
+                cookies={"endurain_refresh_token": "refresh_token_value"},
+            )
+
+            assert resp.status_code == status.HTTP_403_FORBIDDEN
+
+    def test_refresh_token_invalid_client_type(
+        self, fast_api_app, fast_api_client, sample_user_read, password_hasher
+    ):
+        """
+        Test token refresh with an invalid client type.
+
+        This test verifies that when an invalid client type is provided,
+        the API returns a 403 Forbidden error.
+        """
+        fast_api_app.state._client_type = "desktop"
+        fast_api_app.state.mock_user_id = sample_user_read.id
+        fast_api_app.state.mock_session_id = "test-session-id"
+        fast_api_app.state.mock_refresh_token = "refresh_token_value"
+
+        mock_session = MagicMock()
+        mock_session.id = "test-session-id"
+        mock_session.refresh_token = password_hasher.hash_password("refresh_token_value")
+
+        with patch(
+            "session.router.session_crud.get_session_by_id", return_value=mock_session
+        ), patch(
+            "session.router.users_crud.get_user_by_id", return_value=sample_user_read
+        ), patch(
+            "session.router.users_utils.check_user_is_active"
+        ), patch(
+            "session.router.session_utils.create_tokens",
+            return_value=(
+                "new-session-id",
+                MagicMock(timestamp=lambda: 1234567890),
+                "new_access_token",
+                MagicMock(),
+                "new_refresh_token",
+                "new_csrf_token",
+            ),
+        ), patch(
+            "session.router.session_utils.edit_session"
+        ):
+            resp = fast_api_client.post(
+                "/refresh",
+                headers={"X-Client-Type": "desktop"},
+                cookies={"endurain_refresh_token": "refresh_token_value"},
+            )
+
+            assert resp.status_code == status.HTTP_403_FORBIDDEN
+            assert "Invalid client type" in resp.json()["detail"]
+
+
+class TestLogoutEndpoint:
+    """
+    Test suite for the logout endpoint (/logout).
+
+    This class contains tests that cover various scenarios for the logout endpoint, including:
+    - Successful logout for different client types (web and mobile).
+    - Cookie clearing for web clients.
+    - Handling of invalid refresh tokens during logout.
+    - Handling of session not found during logout (should still succeed).
+    - Handling of invalid client types during logout.
+
+    Each test uses mocking to simulate token validation, session retrieval, and session deletion.
+    """
+
+    @pytest.mark.parametrize(
+        "client_type, expected_status",
+        [
+            ("web", status.HTTP_200_OK),
+            ("mobile", status.HTTP_200_OK),
+        ],
+    )
+    def test_logout_success(
+        self,
+        fast_api_app,
+        fast_api_client,
+        password_hasher,
+        client_type,
+        expected_status,
+    ):
+        """
+        Test successful logout.
+
+        This test verifies that when a valid access and refresh token are provided,
+        the API successfully deletes the session and returns a success message.
+
+        Args:
+            fast_api_app: The FastAPI application instance under test.
+            fast_api_client: The test client for making HTTP requests.
+            password_hasher: The password hasher instance.
+            client_type: The type of client ("web" or "mobile").
+            expected_status: The expected HTTP status code.
+        """
+        fast_api_app.state._client_type = client_type
+        fast_api_app.state.mock_session_id = "test-session-id"
+        fast_api_app.state.mock_user_id = 1
+        fast_api_app.state.mock_refresh_token = "refresh_token_value"
+
+        mock_session = MagicMock()
+        mock_session.id = "test-session-id"
+        mock_session.refresh_token = password_hasher.hash_password("refresh_token_value")
+
+        with patch(
+            "session.router.session_crud.get_session_by_id", return_value=mock_session
+        ), patch(
+            "session.router.session_crud.delete_session"
+        ) as mock_delete:
+            resp = fast_api_client.post(
+                "/logout",
+                headers={"X-Client-Type": client_type},
+                cookies={
+                    "endurain_access_token": "access_token",
+                    "endurain_refresh_token": "refresh_token_value",
+                },
+            )
+
+            assert resp.status_code == expected_status
+            assert resp.json()["message"] == "Logout successful"
+            mock_delete.assert_called_once()
+
+            # Check cookies are cleared for web clients
+            if client_type == "web":
+                # The response should have set-cookie headers to clear cookies
+                assert "set-cookie" in resp.headers or resp.cookies
+
+    def test_logout_invalid_refresh_token(
+        self, fast_api_app, fast_api_client, password_hasher
+    ):
+        """
+        Test logout with an invalid refresh token.
+
+        This test verifies that when the refresh token hash doesn't match,
+        the API returns a 401 Unauthorized error.
+        """
+        fast_api_app.state._client_type = "web"
+        fast_api_app.state.mock_session_id = "test-session-id"
+        fast_api_app.state.mock_user_id = 1
+        fast_api_app.state.mock_refresh_token = "wrong_token_value"
+
+        mock_session = MagicMock()
+        mock_session.id = "test-session-id"
+        mock_session.refresh_token = password_hasher.hash_password("different_token")
+
+        with patch(
+            "session.router.session_crud.get_session_by_id", return_value=mock_session
+        ):
+            resp = fast_api_client.post(
+                "/logout",
+                headers={"X-Client-Type": "web"},
+                cookies={
+                    "endurain_access_token": "access_token",
+                    "endurain_refresh_token": "wrong_token_value",
+                },
+            )
+
+            assert resp.status_code == status.HTTP_401_UNAUTHORIZED
+            assert "Invalid refresh token" in resp.json()["detail"]
+
+    def test_logout_session_not_found_still_succeeds(
+        self, fast_api_app, fast_api_client
+    ):
+        """
+        Test logout when session is not found (should still succeed).
+
+        This test verifies that when attempting to logout with a session ID
+        that doesn't exist, the API still returns success (idempotent operation).
+        """
+        fast_api_app.state._client_type = "web"
+        fast_api_app.state.mock_session_id = "nonexistent-session"
+        fast_api_app.state.mock_user_id = 1
+        fast_api_app.state.mock_refresh_token = "refresh_token_value"
+
+        with patch(
+            "session.router.session_crud.get_session_by_id", return_value=None
+        ):
+            resp = fast_api_client.post(
+                "/logout",
+                headers={"X-Client-Type": "web"},
+                cookies={
+                    "endurain_access_token": "access_token",
+                    "endurain_refresh_token": "refresh_token_value",
+                },
+            )
+
+            assert resp.status_code == status.HTTP_200_OK
+            assert resp.json()["message"] == "Logout successful"
+
+    def test_logout_invalid_client_type(self, fast_api_app, fast_api_client):
+        """
+        Test logout with an invalid client type.
+
+        This test verifies that when an invalid client type is provided,
+        the API returns a 401 Unauthorized error (client type validation
+        happens after authentication in the dependency chain).
+        """
+        fast_api_app.state._client_type = "desktop"
+        fast_api_app.state.mock_session_id = "test-session-id"
+        fast_api_app.state.mock_user_id = 1
+        fast_api_app.state.mock_refresh_token = "refresh_token_value"
+
+        mock_session = MagicMock()
+        mock_session.id = "test-session-id"
+
+        with patch(
+            "session.router.session_crud.get_session_by_id", return_value=mock_session
+        ):
+            resp = fast_api_client.post(
+                "/logout",
+                headers={"X-Client-Type": "desktop"},
+                cookies={
+                    "endurain_access_token": "access_token",
+                    "endurain_refresh_token": "refresh_token_value",
+                },
+            )
+
+            # Client type validation happens in the header_client_type_scheme dependency
+            # which runs after authentication, so we get 401 due to invalid client type
+            # being rejected by the scheme validator
+            assert resp.status_code == status.HTTP_401_UNAUTHORIZED
+
+
+class TestSessionsEndpoints:
+    """
+    Test suite for the sessions management endpoints.
+
+    This class contains tests for:
+    - GET /sessions/user/{user_id} - Retrieve all sessions for a user
+    - DELETE /sessions/{session_id}/user/{user_id} - Delete a specific session
+
+    Each test uses mocking to simulate authentication, authorization, and database operations.
+    """
+
+    def test_read_sessions_user_success(
+        self, fast_api_app, fast_api_client, sample_user_read
+    ):
+        """
+        Test successful retrieval of user sessions.
+
+        This test verifies that when a valid access token is provided with
+        appropriate scopes, the API returns all sessions for the user.
+        """
+        fast_api_app.state._client_type = "web"
+
+        mock_sessions = [
+            {
+                "id": "session-1",
+                "user_id": sample_user_read.id,
+                "device_type": "desktop",
+                "browser": "Chrome",
+            },
+            {
+                "id": "session-2",
+                "user_id": sample_user_read.id,
+                "device_type": "mobile",
+                "browser": "Safari",
+            },
+        ]
+
+        with patch(
+            "session.router.session_crud.get_user_sessions", return_value=mock_sessions
+        ) as mock_get_sessions:
+            resp = fast_api_client.get(
+                f"/sessions/user/{sample_user_read.id}",
+                headers={
+                    "X-Client-Type": "web",
+                    "Authorization": "Bearer access_token",
+                },
+            )
+
+            assert resp.status_code == status.HTTP_200_OK
+            assert len(resp.json()) == 2
+            assert resp.json()[0]["id"] == "session-1"
+            assert resp.json()[1]["id"] == "session-2"
+            mock_get_sessions.assert_called_once()
+
+    def test_read_sessions_user_empty_list(
+        self, fast_api_app, fast_api_client, sample_user_read
+    ):
+        """
+        Test retrieval of user sessions when no sessions exist.
+
+        This test verifies that when a user has no active sessions,
+        the API returns an empty list.
+        """
+        fast_api_app.state._client_type = "web"
+
+        with patch(
+            "session.router.session_crud.get_user_sessions", return_value=[]
+        ):
+            resp = fast_api_client.get(
+                f"/sessions/user/{sample_user_read.id}",
+                headers={
+                    "X-Client-Type": "web",
+                    "Authorization": "Bearer access_token",
+                },
+            )
+
+            assert resp.status_code == status.HTTP_200_OK
+            assert resp.json() == []
+
+    def test_delete_session_success(
+        self, fast_api_app, fast_api_client, sample_user_read
+    ):
+        """
+        Test successful deletion of a user session.
+
+        This test verifies that when a valid access token is provided with
+        appropriate scopes, the API successfully deletes the specified session.
+        """
+        fast_api_app.state._client_type = "web"
+        session_id = "session-to-delete"
+
+        with patch(
+            "session.router.session_crud.delete_session", return_value=True
+        ) as mock_delete:
+            resp = fast_api_client.delete(
+                f"/sessions/{session_id}/user/{sample_user_read.id}",
+                headers={
+                    "X-Client-Type": "web",
+                    "Authorization": "Bearer access_token",
+                },
+            )
+
+            assert resp.status_code == status.HTTP_200_OK
+            # Verify delete_session was called with the correct session_id and user_id
+            # (the third argument is the database session which we don't need to verify)
+            assert mock_delete.called
+            call_args = mock_delete.call_args[0]
+            assert call_args[0] == session_id
+            assert call_args[1] == sample_user_read.id
+
+    def test_delete_session_not_found(
+        self, fast_api_app, fast_api_client, sample_user_read
+    ):
+        """
+        Test deletion of a non-existent session.
+
+        This test verifies that when attempting to delete a session that doesn't exist,
+        the API handles it appropriately (implementation-dependent behavior).
+        """
+        fast_api_app.state._client_type = "web"
+        session_id = "nonexistent-session"
+
+        with patch(
+            "session.router.session_crud.delete_session",
+            side_effect=HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Session not found"
+            ),
+        ):
+            resp = fast_api_client.delete(
+                f"/sessions/{session_id}/user/{sample_user_read.id}",
+                headers={
+                    "X-Client-Type": "web",
+                    "Authorization": "Bearer access_token",
+                },
+            )
+
+            assert resp.status_code == status.HTTP_404_NOT_FOUND
+            assert "Session not found" in resp.json()["detail"]
