@@ -497,25 +497,32 @@ class TestRefreshTokenEndpoint:
         ), patch(
             "session.router.users_utils.check_user_is_active"
         ), patch(
-            "session.router.session_utils.create_tokens",
-            return_value=(
-                "new-session-id",
-                MagicMock(timestamp=lambda: 1234567890),
-                "new_access_token",
-                MagicMock(),
-                "new_refresh_token",
-                "new_csrf_token",
-            ),
-        ), patch(
+            "session.router.session_utils.create_tokens"
+        ) as mock_create_tokens, patch(
             "session.router.session_utils.edit_session"
         ), patch(
             "session.router.session_utils.create_response_with_tokens",
             side_effect=lambda r, a, rf, c: r,
         ):
+            # Set up proper mock for create_tokens with timestamp
+            mock_access_exp = MagicMock()
+            mock_access_exp.timestamp.return_value = 1234567890
+            mock_refresh_exp = MagicMock()
+            mock_create_tokens.return_value = (
+                "new-session-id",
+                mock_access_exp,
+                "new_access_token",
+                mock_refresh_exp,
+                "new_refresh_token",
+                "new_csrf_token",
+            )
+            
+            # Set cookies on client instance (new API)
+            fast_api_client.cookies.set("endurain_refresh_token", "refresh_token_value")
+            
             resp = fast_api_client.post(
                 "/refresh",
                 headers={"X-Client-Type": client_type},
-                cookies={"endurain_refresh_token": "refresh_token_value"},
             )
 
             assert resp.status_code == expected_status
@@ -543,10 +550,12 @@ class TestRefreshTokenEndpoint:
         with patch(
             "session.router.session_crud.get_session_by_id", return_value=None
         ):
+            # Set cookies on client instance (new API)
+            fast_api_client.cookies.set("endurain_refresh_token", "refresh_token_value")
+            
             resp = fast_api_client.post(
                 "/refresh",
                 headers={"X-Client-Type": "web"},
-                cookies={"endurain_refresh_token": "refresh_token_value"},
             )
 
             assert resp.status_code == status.HTTP_404_NOT_FOUND
@@ -573,10 +582,12 @@ class TestRefreshTokenEndpoint:
         with patch(
             "session.router.session_crud.get_session_by_id", return_value=mock_session
         ):
+            # Set cookies on client instance (new API)
+            fast_api_client.cookies.set("endurain_refresh_token", "wrong_token_value")
+            
             resp = fast_api_client.post(
                 "/refresh",
                 headers={"X-Client-Type": "web"},
-                cookies={"endurain_refresh_token": "wrong_token_value"},
             )
 
             assert resp.status_code == status.HTTP_401_UNAUTHORIZED
@@ -611,10 +622,12 @@ class TestRefreshTokenEndpoint:
                 status_code=status.HTTP_403_FORBIDDEN, detail="User is inactive"
             ),
         ):
+            # Set cookies on client instance (new API)
+            fast_api_client.cookies.set("endurain_refresh_token", "refresh_token_value")
+            
             resp = fast_api_client.post(
                 "/refresh",
                 headers={"X-Client-Type": "web"},
-                cookies={"endurain_refresh_token": "refresh_token_value"},
             )
 
             assert resp.status_code == status.HTTP_403_FORBIDDEN
@@ -644,22 +657,29 @@ class TestRefreshTokenEndpoint:
         ), patch(
             "session.router.users_utils.check_user_is_active"
         ), patch(
-            "session.router.session_utils.create_tokens",
-            return_value=(
-                "new-session-id",
-                MagicMock(timestamp=lambda: 1234567890),
-                "new_access_token",
-                MagicMock(),
-                "new_refresh_token",
-                "new_csrf_token",
-            ),
-        ), patch(
+            "session.router.session_utils.create_tokens"
+        ) as mock_create_tokens, patch(
             "session.router.session_utils.edit_session"
         ):
+            # Set up proper mock for create_tokens with timestamp
+            mock_access_exp = MagicMock()
+            mock_access_exp.timestamp.return_value = 1234567890
+            mock_refresh_exp = MagicMock()
+            mock_create_tokens.return_value = (
+                "new-session-id",
+                mock_access_exp,
+                "new_access_token",
+                mock_refresh_exp,
+                "new_refresh_token",
+                "new_csrf_token",
+            )
+            
+            # Set cookies on client instance (new API)
+            fast_api_client.cookies.set("endurain_refresh_token", "refresh_token_value")
+            
             resp = fast_api_client.post(
                 "/refresh",
                 headers={"X-Client-Type": "desktop"},
-                cookies={"endurain_refresh_token": "refresh_token_value"},
             )
 
             assert resp.status_code == status.HTTP_403_FORBIDDEN
@@ -722,13 +742,13 @@ class TestLogoutEndpoint:
         ), patch(
             "session.router.session_crud.delete_session"
         ) as mock_delete:
+            # Set cookies on client instance (new API)
+            fast_api_client.cookies.set("endurain_access_token", "access_token")
+            fast_api_client.cookies.set("endurain_refresh_token", "refresh_token_value")
+            
             resp = fast_api_client.post(
                 "/logout",
                 headers={"X-Client-Type": client_type},
-                cookies={
-                    "endurain_access_token": "access_token",
-                    "endurain_refresh_token": "refresh_token_value",
-                },
             )
 
             assert resp.status_code == expected_status
@@ -761,13 +781,13 @@ class TestLogoutEndpoint:
         with patch(
             "session.router.session_crud.get_session_by_id", return_value=mock_session
         ):
+            # Set cookies on client instance (new API)
+            fast_api_client.cookies.set("endurain_access_token", "access_token")
+            fast_api_client.cookies.set("endurain_refresh_token", "wrong_token_value")
+            
             resp = fast_api_client.post(
                 "/logout",
                 headers={"X-Client-Type": "web"},
-                cookies={
-                    "endurain_access_token": "access_token",
-                    "endurain_refresh_token": "wrong_token_value",
-                },
             )
 
             assert resp.status_code == status.HTTP_401_UNAUTHORIZED
@@ -790,13 +810,13 @@ class TestLogoutEndpoint:
         with patch(
             "session.router.session_crud.get_session_by_id", return_value=None
         ):
+            # Set cookies on client instance (new API)
+            fast_api_client.cookies.set("endurain_access_token", "access_token")
+            fast_api_client.cookies.set("endurain_refresh_token", "refresh_token_value")
+            
             resp = fast_api_client.post(
                 "/logout",
                 headers={"X-Client-Type": "web"},
-                cookies={
-                    "endurain_access_token": "access_token",
-                    "endurain_refresh_token": "refresh_token_value",
-                },
             )
 
             assert resp.status_code == status.HTTP_200_OK
@@ -821,13 +841,13 @@ class TestLogoutEndpoint:
         with patch(
             "session.router.session_crud.get_session_by_id", return_value=mock_session
         ):
+            # Set cookies on client instance (new API)
+            fast_api_client.cookies.set("endurain_access_token", "access_token")
+            fast_api_client.cookies.set("endurain_refresh_token", "refresh_token_value")
+            
             resp = fast_api_client.post(
                 "/logout",
                 headers={"X-Client-Type": "desktop"},
-                cookies={
-                    "endurain_access_token": "access_token",
-                    "endurain_refresh_token": "refresh_token_value",
-                },
             )
 
             # Client type validation happens in the header_client_type_scheme dependency
