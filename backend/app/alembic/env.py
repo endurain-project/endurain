@@ -22,6 +22,7 @@ import health_targets.models
 import migrations.models
 import notifications.models
 import password_reset_tokens.models
+import sign_up_tokens.models
 import server_settings.models
 import session.models
 import users.user.models

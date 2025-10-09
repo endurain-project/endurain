@@ -1,0 +1,10 @@
+{
+  "buttonAddUser": "Add user",
+  "labelSearchUsersByUsername": "Search users by username",
+  "labelNumberOfUsers1": "There is a total of ",
+  "labelNumberOfUsers2": " user(s) (",
+  "labelNumberOfUsers3": " loaded):",
+  "successUserAdded": "User added successfully",
+  "successUserDeleted": "User deleted successfully",
+  "errorFetchingUsers": "Error fetching users"
+}

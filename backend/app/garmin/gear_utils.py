@@ -63,7 +63,7 @@ def process_gear(gear, user_id: int, db: Session) -> gears_schema.Gear | None:
         nickname=gear["displayName"] if gear["displayName"] else gear["customMakeModel"],
         gear_type=1 if gear["gearTypeName"] == "Bike" else 2,
         user_id=user_id,
-        is_active=1 if gear["gearStatusName"] == "active" else 0,
+        active=True if gear["gearStatusName"] == "active" else False,
         garminconnect_gear_id=gear["uuid"],
     )
 

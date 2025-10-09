@@ -76,6 +76,8 @@ class CSRFMiddleware(BaseHTTPMiddleware):
             "/api/v1/mfa/verify",
             "/api/v1/password-reset/request",
             "/api/v1/password-reset/confirm",
+            "/api/v1/sign-up/request",
+            "/api/v1/sign-up/confirm"
         ]
 
     async def dispatch(self, request: Request, call_next):

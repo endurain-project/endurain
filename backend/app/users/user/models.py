@@ -1,10 +1,4 @@
-from sqlalchemy import (
-    Column,
-    Integer,
-    String,
-    Date,
-    Boolean
-)
+from sqlalchemy import Column, Integer, String, Date, Boolean
 from sqlalchemy.orm import relationship
 from core.database import Base
 
@@ -62,8 +56,11 @@ class User(Base):
         Integer, nullable=False, comment="User type (one digit)(1 - user, 2 - admin)"
     )
     photo_path = Column(String(length=250), nullable=True, comment="User photo path")
-    is_active = Column(
-        Integer, nullable=False, comment="Is user active (1 - active, 2 - not active)"
+    active = Column(
+        Boolean,
+        nullable=False,
+        default=True,
+        comment="Whether the user is active (true - yes, false - no)",
     )
     first_day_of_week = Column(
         Integer,
@@ -88,6 +85,18 @@ class User(Base):
         nullable=True,
         comment="User MFA secret for TOTP generation (encrypted at rest)",
     )
+    email_verified = Column(
+        Boolean,
+        nullable=False,
+        default=False,
+        comment="Whether the user's email address has been verified (true - yes, false - no)",
+    )
+    pending_admin_approval = Column(
+        Boolean,
+        nullable=False,
+        default=False,
+        comment="Whether the user is pending admin approval for activation (true - yes, false - no)",
+    )
 
     # Define a relationship to UsersSessions model
     users_sessions = relationship(
@@ -98,6 +107,12 @@ class User(Base):
     # Define a relationship to PasswordResetToken model
     password_reset_tokens = relationship(
         "PasswordResetToken",
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
+    # Define a relationship to SignUpToken model
+    sign_up_tokens = relationship(
+        "SignUpToken",
         back_populates="user",
         cascade="all, delete-orphan",
     )

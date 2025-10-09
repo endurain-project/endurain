@@ -1,0 +1,4 @@
+{
+  "newActivityDuplicateStartTimeTitle": "New activity with duplicated start time",
+  "newActivityDuplicateStartTimeSubTitle": "A new activity has been added with a start time that overlaps with an existing activity. Please review it"
+}

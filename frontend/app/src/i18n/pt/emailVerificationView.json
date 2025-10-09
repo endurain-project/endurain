@@ -1,0 +1,8 @@
+{
+  "title1": "A processar verificação de e-mail",
+  "title2": "Aguarde enquanto seu e-mail é verificado. Não atualize esta página.",
+  "emailVerified": "E-mail verificado com sucesso!",
+  "tokenNotFound": "Token não encontrado",
+  "tokenExpired": "Token expirado",
+  "verificationFailed": "Falha na verificação de e-mail"
+}
