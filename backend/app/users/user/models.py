@@ -7,6 +7,50 @@ import followers.models as followers_models
 
 # Data model for users table using SQLAlchemy's ORM
 class User(Base):
+    """
+    Represents a user in the system.
+
+    Attributes:
+        id (int): Primary key for the user.
+        name (str): User's real name (may include spaces).
+        username (str): Unique username (letters, numbers, and dots allowed).
+        email (str): Unique email address (max 250 characters).
+        password (str): User's password hash.
+        city (str, optional): User's city.
+        birthdate (date, optional): User's birthdate.
+        preferred_language (str): Preferred language code (e.g., 'en', 'pt').
+        gender (int): User's gender (1 - male, 2 - female, 3 - unspecified).
+        units (int): Measurement units (1 - metric, 2 - imperial).
+        height (int, optional): User's height in centimeters.
+        access_type (int): User type (1 - user, 2 - admin).
+        photo_path (str, optional): Path to user's photo.
+        active (bool): Whether the user is active.
+        first_day_of_week (int): First day of the week (0 - Sunday, 1 - Monday, etc.).
+        currency (int): Currency preference (1 - euro, 2 - dollar, 3 - pound).
+        mfa_enabled (bool): Whether multi-factor authentication is enabled.
+        mfa_secret (str, optional): MFA secret for TOTP generation (encrypted at rest).
+        email_verified (bool): Whether the user's email address has been verified.
+        pending_admin_approval (bool): Whether the user is pending admin approval for activation.
+
+    Relationships:
+        users_sessions: List of session objects associated with the user.
+        password_reset_tokens: List of password reset tokens for the user.
+        sign_up_tokens: List of sign-up tokens for the user.
+        users_integrations: List of integrations associated with the user.
+        users_default_gear: List of default gear associated with the user.
+        users_privacy_settings: List of privacy settings for the user.
+        gear: List of gear owned by the user.
+        gear_components: List of gear components owned by the user.
+        activities: List of activities performed by the user.
+        followers: List of Follower objects representing users who follow this user.
+        following: List of Follower objects representing users this user is following.
+        health_data: List of health data records for the user.
+        health_targets: List of health targets for the user.
+        notifications: List of notifications for the user.
+        goals: List of user goals.
+        user_identity_providers: List of identity providers linked to the user.
+    """
+
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True)
@@ -193,6 +237,13 @@ class User(Base):
     # Establish a one-to-many relationship with 'user_goals'
     goals = relationship(
         "UserGoal",
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
+
+    # Establish a many-to-many relationship with user_identity_providers
+    user_identity_providers = relationship(
+        "UserIdentityProvider",
         back_populates="user",
         cascade="all, delete-orphan",
     )

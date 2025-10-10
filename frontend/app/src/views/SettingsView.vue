@@ -16,6 +16,11 @@
       v-if="activeSection === 'serverSettings' && authStore.user.access_type == 2"
     />
 
+    <!-- Include the SettingsIdentityProvidersZone -->
+    <SettingsIdentityProvidersZone
+      v-if="activeSection === 'identityProviders' && authStore.user.access_type == 2"
+    />
+
     <!-- Include the SettingsGeneralZone -->
     <SettingsGeneralZone v-if="activeSection === 'general'" />
 
@@ -52,6 +57,7 @@ import { strava } from '@/services/stravaService'
 import SettingsSideBarComponent from '../components/Settings/SettingsSideBarComponent.vue'
 import SettingsUsersZone from '../components/Settings/SettingsUsersZone.vue'
 import SettingsServerSettingsZone from '../components/Settings/SettingsServerSettingsZone.vue'
+import SettingsIdentityProvidersZone from '../components/Settings/SettingsIdentityProvidersZone.vue'
 import SettingsGeneralZone from '../components/Settings/SettingsGeneralZone.vue'
 import SettingsUserProfileZone from '../components/Settings/SettingsUserProfileZone.vue'
 import SettingsSecurityZone from '../components/Settings/SettingsSecurityZone.vue'
@@ -73,12 +79,16 @@ function updateActiveSection(section) {
 onMounted(async () => {
   if (route.query.tab) {
     if (
-      (route.query.tab === 'users' || route.query.tab === 'serverSettings') &&
+      (route.query.tab === 'users' ||
+        route.query.tab === 'serverSettings' ||
+        route.query.tab === 'identityProviders') &&
       authStore.user.access_type === 2
     ) {
       activeSection.value = route.query.tab
     } else if (
-      (route.query.tab === 'users' || route.query.tab === 'serverSettings') &&
+      (route.query.tab === 'users' ||
+        route.query.tab === 'serverSettings' ||
+        route.query.tab === 'identityProviders') &&
       authStore.user.access_type === 1
     ) {
       activeSection.value = 'general'

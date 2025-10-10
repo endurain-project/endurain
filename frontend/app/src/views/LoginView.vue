@@ -15,84 +15,133 @@
           <h1>Endurain</h1>
           <p class="mb-4">{{ $t('loginView.subtitle') }}</p>
 
-          <div class="form-floating mb-3" v-if="!mfaRequired">
-            <input
-              type="text"
-              class="form-control"
-              id="loginUsername"
-              name="loginUsername"
-              :placeholder="$t('loginView.username')"
-              v-model="username"
-              required
-            />
-            <label for="loginUsername">{{ $t('loginView.username') }}</label>
-          </div>
-          <div class="form-floating position-relative mb-3" v-if="!mfaRequired">
-            <input
-              :type="showPassword ? 'text' : 'password'"
-              class="form-control"
-              id="loginPassword"
-              name="loginPassword"
-              :placeholder="$t('loginView.password')"
-              v-model="password"
-              required
-            />
-            <label for="loginPassword">{{ $t('loginView.password') }}</label>
-            <button
-              type="button"
-              class="btn position-absolute top-50 end-0 translate-middle-y me-2"
-              :aria-label="
-                showPassword ? $t('loginView.hidePassword') : $t('loginView.showPassword')
-              "
-              @click="togglePasswordVisibility"
-            >
-              <font-awesome-icon :icon="showPassword ? ['fas', 'eye-slash'] : ['fas', 'eye']" />
+          <!-- Local Login Form (shown when local login is enabled or during MFA) -->
+          <template v-if="serverSettingsStore.serverSettings.local_login_enabled || mfaRequired">
+            <div class="form-floating mb-3" v-if="!mfaRequired">
+              <input
+                type="text"
+                class="form-control"
+                id="loginUsername"
+                name="loginUsername"
+                :placeholder="$t('loginView.username')"
+                v-model="username"
+                required
+              />
+              <label for="loginUsername">{{ $t('loginView.username') }}</label>
+            </div>
+            <div class="form-floating position-relative mb-3" v-if="!mfaRequired">
+              <input
+                :type="showPassword ? 'text' : 'password'"
+                class="form-control"
+                id="loginPassword"
+                name="loginPassword"
+                :placeholder="$t('loginView.password')"
+                v-model="password"
+                required
+              />
+              <label for="loginPassword">{{ $t('loginView.password') }}</label>
+              <button
+                type="button"
+                class="btn position-absolute top-50 end-0 translate-middle-y me-2"
+                :aria-label="
+                  showPassword ? $t('loginView.hidePassword') : $t('loginView.showPassword')
+                "
+                @click="togglePasswordVisibility"
+              >
+                <font-awesome-icon :icon="showPassword ? ['fas', 'eye-slash'] : ['fas', 'eye']" />
+              </button>
+            </div>
+
+            <!-- MFA input field (shown when MFA is required) -->
+            <div v-if="mfaRequired" class="form-floating mb-3">
+              <input
+                type="text"
+                class="form-control"
+                id="mfaCode"
+                name="mfaCode"
+                :placeholder="$t('loginView.mfaCode')"
+                v-model="mfaCode"
+                required
+                autocomplete="one-time-code"
+              />
+              <label for="mfaCode">{{ $t('loginView.mfaCode') }}</label>
+            </div>
+
+            <button class="w-100 btn btn-lg btn-primary" type="submit" :disabled="loading">
+              <span
+                v-if="loading"
+                class="spinner-border spinner-border-sm me-2"
+                role="status"
+                aria-hidden="true"
+              ></span>
+              {{ mfaRequired ? $t('loginView.verifyMFAButton') : $t('loginView.signInButton') }}
             </button>
-          </div>
-
-          <!-- MFA input field (shown when MFA is required) -->
-          <div v-if="mfaRequired" class="form-floating mb-3">
-            <input
-              type="text"
-              class="form-control"
-              id="mfaCode"
-              name="mfaCode"
-              :placeholder="$t('loginView.mfaCode')"
-              v-model="mfaCode"
-              required
-              autocomplete="one-time-code"
-            />
-            <label for="mfaCode">{{ $t('loginView.mfaCode') }}</label>
-          </div>
-
-          <button class="w-100 btn btn-lg btn-primary" type="submit" :disabled="loading">
-            <span
-              v-if="loading"
-              class="spinner-border spinner-border-sm me-2"
-              role="status"
-              aria-hidden="true"
-            ></span>
-            {{ mfaRequired ? $t('loginView.verifyMFAButton') : $t('loginView.signInButton') }}
-          </button>
-          <div class="mt-3 text-center" v-if="!mfaRequired">
-            <a
-              href="#"
-              @click.prevent="showForgotPasswordModal"
-              class="link-body-emphasis link-underline-opacity-0 link-underline-opacity-100-hover"
+            <div class="mt-3 text-center" v-if="!mfaRequired">
+              <a
+                href="#"
+                @click.prevent="showForgotPasswordModal"
+                class="link-body-emphasis link-underline-opacity-0 link-underline-opacity-100-hover"
+              >
+                {{ $t('loginView.forgotPassword') }}
+              </a>
+            </div>
+            <div
+              class="mt-3 text-center"
+              v-if="!mfaRequired && serverSettingsStore.serverSettings.signup_enabled"
             >
-              {{ $t('loginView.forgotPassword') }}
-            </a>
-          </div>
+              <router-link
+                to="/signup"
+                class="link-body-emphasis link-underline-opacity-0 link-underline-opacity-100-hover"
+              >
+                {{ $t('loginView.signUpLink') }}
+              </router-link>
+            </div>
+          </template>
+
+          <!-- SSO Providers Section -->
           <div
-            class="mt-3 text-center"
-            v-if="!mfaRequired && serverSettingsStore.serverSettings.signup_enabled"
+            v-if="
+              !mfaRequired &&
+              serverSettingsStore.serverSettings.sso_enabled &&
+              ssoProviders.length > 0
+            "
+            class="mt-4"
           >
-            <router-link
-              to="/signup"
-              class="link-body-emphasis link-underline-opacity-0 link-underline-opacity-100-hover"
-            >
-              {{ $t('loginView.signUpLink') }}
-            </router-link>
+            <div class="d-flex align-items-center mb-3">
+              <hr class="flex-grow-1" />
+              <span class="px-2 text-muted">{{ $t('loginView.ssoSection') }}</span>
+              <hr class="flex-grow-1" />
+            </div>
+
+            <div v-for="provider in ssoProviders" :key="provider.slug" class="mb-2">
+              <button
+                type="button"
+                class="w-100 btn btn-outline-secondary d-flex align-items-center justify-content-center"
+                :style="
+                  provider.button_color
+                    ? `border-color: ${provider.button_color}; color: ${provider.button_color}`
+                    : ''
+                "
+                @click="handleSSOLogin(provider.slug)"
+                :aria-label="$t('loginView.ssoButton', { provider: provider.name })"
+              >
+                <!-- Custom logo if available -->
+                <img
+                  v-if="provider.icon && getProviderCustomLogo(provider.icon)"
+                  :src="getProviderCustomLogo(provider.icon)!"
+                  :alt="`${provider.name} logo`"
+                  class="me-2"
+                  style="height: 1.25rem; width: auto"
+                />
+                <!-- FontAwesome icon fallback -->
+                <font-awesome-icon
+                  v-else-if="provider.icon"
+                  :icon="getProviderIcon(provider.icon)"
+                  class="me-2"
+                />
+                {{ provider.button_text || $t('loginView.ssoButton', { provider: provider.name }) }}
+              </button>
+            </div>
           </div>
         </form>
       </div>
@@ -141,6 +190,7 @@ import { useServerSettingsStore } from '@/stores/serverSettingsStore'
 import { session } from '@/services/sessionService'
 import { passwordReset } from '@/services/passwordResetService'
 import { profile } from '@/services/profileService'
+import { identityProviders } from '@/services/identityProvidersService'
 // Components
 import ModalComponentEmailInput from '@/components/Modals/ModalComponentEmailInput.vue'
 // Composables
@@ -166,6 +216,30 @@ const ROUTE_QUERY_HANDLERS: RouteQueryHandlers = {
   emailVerificationSent: { type: 'info', key: 'loginView.emailVerificationSent' },
   adminApprovalRequired: { type: 'info', key: 'loginView.adminApprovalRequired' },
   verifyEmailInvalidLink: { type: 'error', key: 'loginView.verifyEmailInvalidLink' }
+} as const
+
+/**
+ * Icon mapping for SSO providers
+ * Maps provider icon names to FontAwesome icon arrays
+ */
+const PROVIDER_ICON_MAP: Record<string, [string, string]> = {
+  google: ['fab', 'google'],
+  microsoft: ['fab', 'microsoft'],
+  github: ['fab', 'github'],
+  gitlab: ['fab', 'gitlab'],
+  okta: ['fas', 'id-card'],
+  auth0: ['fas', 'lock'],
+  default: ['fas', 'right-to-bracket']
+} as const
+
+/**
+ * Custom logo mapping for SSO providers
+ * Maps provider icon names to image paths for custom logos
+ */
+const PROVIDER_CUSTOM_LOGO_MAP: Record<string, string> = {
+  keycloak: '/src/assets/sso/keycloak.svg',
+  authentik: '/src/assets/sso/authentik.svg',
+  authelia: '/src/assets/sso/authelia.svg'
 } as const
 
 // ============================================================================
@@ -202,6 +276,25 @@ const mfaRequired: Ref<boolean> = ref(false)
 const loading: Ref<boolean> = ref(false)
 const pendingUsername: Ref<string> = ref('')
 const showPassword: Ref<boolean> = ref(false)
+
+// ============================================================================
+// SSO State
+// ============================================================================
+
+/**
+ * SSO Provider interface
+ */
+interface SSOProvider {
+  id: number
+  name: string
+  slug: string
+  icon?: string
+  button_text?: string
+  button_color?: string
+}
+
+const ssoProviders: Ref<SSOProvider[]> = ref([])
+const loadingSSOProviders: Ref<boolean> = ref(false)
 
 // ============================================================================
 // Computed Properties
@@ -395,6 +488,136 @@ const handleForgotPasswordSubmit = async (email: string): Promise<void> => {
 }
 
 // ============================================================================
+// SSO Logic
+// ============================================================================
+
+/**
+ * Fetch enabled SSO providers from the API
+ * Loads public list of identity providers for display on login page
+ */
+const fetchSSOProviders = async (): Promise<void> => {
+  // Only fetch if SSO is enabled
+  if (!serverSettingsStore.serverSettings.sso_enabled) {
+    return
+  }
+
+  try {
+    loadingSSOProviders.value = true
+    const providers = await identityProviders.getEnabledProviders()
+    ssoProviders.value = providers || []
+  } catch (error) {
+    console.error('Failed to fetch SSO providers:', error)
+    // Silent fail - login page should still work without SSO
+    ssoProviders.value = []
+  } finally {
+    loadingSSOProviders.value = false
+  }
+}
+
+/**
+ * Check if a provider has a custom logo
+ * Returns the logo path if available
+ *
+ * @param iconName - Provider icon name
+ * @returns Custom logo path or null
+ */
+const getProviderCustomLogo = (iconName?: string): string | null => {
+  if (!iconName) return null
+  const logoPath =
+    PROVIDER_CUSTOM_LOGO_MAP[iconName.toLowerCase() as keyof typeof PROVIDER_CUSTOM_LOGO_MAP]
+  return logoPath || null
+}
+
+/**
+ * Get FontAwesome icon for a provider
+ * Maps provider icon names to icon arrays
+ * Only used when custom logo is not available
+ *
+ * @param iconName - Provider icon name
+ * @returns FontAwesome icon array
+ */
+const getProviderIcon = (iconName?: string): [string, string] => {
+  if (!iconName) return PROVIDER_ICON_MAP.default as [string, string]
+  const icon = PROVIDER_ICON_MAP[iconName.toLowerCase() as keyof typeof PROVIDER_ICON_MAP]
+  return (icon || PROVIDER_ICON_MAP.default) as [string, string]
+}
+
+/**
+ * Handle SSO login button click
+ * Redirects to SSO provider authorization page
+ *
+ * @param slug - Provider slug identifier
+ */
+const handleSSOLogin = (slug: string): void => {
+  identityProviders.initiateLogin(slug)
+}
+
+/**
+ * Check for SSO auto-redirect
+ * Automatically redirects to SSO provider if:
+ * - SSO is enabled
+ * - Auto-redirect is enabled
+ * - Exactly one provider is configured
+ * - Local login is disabled
+ * - No query parameters present (to avoid redirect loops)
+ */
+const checkSSOAutoRedirect = (): void => {
+  const settings = serverSettingsStore.serverSettings
+
+  // Check all conditions for auto-redirect
+  if (
+    settings.sso_enabled &&
+    settings.sso_auto_redirect &&
+    !settings.local_login_enabled &&
+    ssoProviders.value.length === 1 &&
+    Object.keys(route.query).length === 0
+  ) {
+    // Auto-redirect to the single SSO provider
+    const provider = ssoProviders.value[0]
+    if (provider) {
+      handleSSOLogin(provider.slug)
+    }
+  }
+}
+
+/**
+ * Process SSO callback query parameters
+ * Handles success and error states from SSO authentication
+ */
+const processSSOCallback = (): void => {
+  // Check for SSO success
+  if (route.query.sso === 'success') {
+    push.success(t('loginView.ssoSuccess'))
+    // SSO login was successful, user will be redirected by the backend
+    return
+  }
+
+  // Check for SSO error
+  if (route.query.error) {
+    const errorType = route.query.error as string
+    switch (errorType) {
+      case 'sso_failed':
+        push.error(t('loginView.ssoFailed'))
+        break
+      case 'sso_cancelled':
+        push.info(t('loginView.ssoCancelled'))
+        break
+      case 'sso_account_not_found':
+        push.error(t('loginView.ssoAccountNotFound'))
+        break
+      case 'sso_account_disabled':
+        push.error(t('loginView.ssoAccountDisabled'))
+        break
+      case 'sso_auto_create_disabled':
+        push.error(t('loginView.ssoAutoCreateDisabled'))
+        break
+      default:
+        push.error(t('loginView.ssoErrorUndefined'))
+    }
+  }
+}
+
+// ============================================================================
 // Route & Notification Handling
 // ============================================================================
 
@@ -408,6 +631,9 @@ const processRouteQueryParameters = (): void => {
       push[config.type](t(config.key))
     }
   })
+
+  // Process SSO-specific callbacks
+  processSSOCallback()
 }
 
 // ============================================================================
@@ -416,14 +642,20 @@ const processRouteQueryParameters = (): void => {
 
 /**
  * Component mounted lifecycle hook
- * Initializes modal and processes route parameters
+ * Initializes modal, fetches SSO providers, and processes route parameters
  */
 onMounted(async () => {
   // Initialize forgot password modal
   await initializeModal(forgotPasswordModalRef)
 
+  // Fetch SSO providers if enabled
+  await fetchSSOProviders()
+
   // Process any route query parameters for notifications
   processRouteQueryParameters()
+
+  // Check for SSO auto-redirect (must be after providers are fetched)
+  checkSSOAutoRedirect()
 })
 
 /**

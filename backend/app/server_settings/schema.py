@@ -43,6 +43,9 @@ class ServerSettings(BaseModel):
         currency (Currency): Currency used by the server.
         num_records_per_page (int): Number of records displayed per page.
         signup_enabled (bool): Indicates if user signup is enabled.
+        sso_enabled (bool): Indicates if SSO/IdP login is enabled.
+        local_login_enabled (bool): Indicates if local username/password login is allowed.
+        sso_auto_redirect (bool): Auto-redirect to SSO if only one IdP is configured.
     """
 
     id: StrictInt
@@ -53,6 +56,9 @@ class ServerSettings(BaseModel):
     currency: Currency
     num_records_per_page: int
     signup_enabled: bool
+    sso_enabled: bool
+    local_login_enabled: bool
+    sso_auto_redirect: bool
 
     model_config = ConfigDict(
         from_attributes=True,

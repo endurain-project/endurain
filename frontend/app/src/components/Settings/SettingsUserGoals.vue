@@ -17,7 +17,7 @@
         @createdGoal="addGoalList"
         @isLoadingNewGoal="setIsLoadingNewGoal"
       />
-      <LoadingComponent v-if="isLoading" />
+      <LoadingComponent class="mt-3" v-if="isLoading" />
       <div v-else>
         <div class="mt-3" v-if="goalsArray && goalsArray.length">
           <span

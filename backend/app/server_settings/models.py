@@ -60,5 +60,23 @@ class ServerSettings(Base):
         default=True,
         comment="Require email verification for new sign-ups (true - yes, false - no)",
     )
+    sso_enabled = Column(
+        Boolean,
+        nullable=False,
+        default=False,
+        comment="Enable SSO/IdP login (true - yes, false - no)",
+    )
+    local_login_enabled = Column(
+        Boolean,
+        nullable=False,
+        default=True,
+        comment="Allow local username/password login (true - yes, false - no)",
+    )
+    sso_auto_redirect = Column(
+        Boolean,
+        nullable=False,
+        default=False,
+        comment="Auto-redirect to SSO if only one IdP (true - yes, false - no)",
+    )
 
     __table_args__ = (CheckConstraint("id = 1", name="single_row_check"),)

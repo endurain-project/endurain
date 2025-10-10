@@ -90,6 +90,80 @@
         </select>
       </div>
       <hr />
+      <!-- SSO (Single Sign-On) -->
+      <h4 class="mt-4">{{ $t('settingsServerSettingsZoneComponent.ssoTitle') }}</h4>
+      <LoadingComponent v-if="isLoading" />
+      <div v-else>
+        <label class="form-label" for="serverSettingsSSOEnabledSelect">{{
+          $t('settingsServerSettingsZoneComponent.enabledLabel')
+        }}</label>
+        <select
+          class="form-select"
+          name="serverSettingsSSOEnabledSelect"
+          v-model="ssoEnabled"
+          required
+        >
+          <option value="false">
+            {{ $t('generalItems.false') }}
+          </option>
+          <option value="true">
+            {{ $t('generalItems.true') }}
+          </option>
+        </select>
+        <div class="alert alert-info mt-2" role="alert">
+          <font-awesome-icon :icon="['fas', 'info-circle']" />
+          <span class="ms-2">{{
+            $t('settingsServerSettingsZoneComponent.ssoEnabledInfoAlert')
+          }}</span>
+        </div>
+        <!-- Local login enabled -->
+        <label class="form-label" for="serverSettingsLocalLoginEnabledSelect">{{
+          $t('settingsServerSettingsZoneComponent.localLoginEnabledLabel')
+        }}</label>
+        <select
+          class="form-select"
+          name="serverSettingsLocalLoginEnabledSelect"
+          v-model="localLoginEnabled"
+          required
+        >
+          <option value="false">
+            {{ $t('generalItems.false') }}
+          </option>
+          <option value="true">
+            {{ $t('generalItems.true') }}
+          </option>
+        </select>
+        <div class="alert alert-warning mt-2" role="alert">
+          <font-awesome-icon :icon="['fas', 'triangle-exclamation']" />
+          <span class="ms-2">{{
+            $t('settingsServerSettingsZoneComponent.localLoginEnabledWarningAlert')
+          }}</span>
+        </div>
+        <!-- SSO auto-redirect -->
+        <label class="form-label" for="serverSettingsSSOAutoRedirectSelect">{{
+          $t('settingsServerSettingsZoneComponent.ssoAutoRedirectLabel')
+        }}</label>
+        <select
+          class="form-select"
+          name="serverSettingsSSOAutoRedirectSelect"
+          v-model="ssoAutoRedirect"
+          required
+        >
+          <option value="false">
+            {{ $t('generalItems.false') }}
+          </option>
+          <option value="true">
+            {{ $t('generalItems.true') }}
+          </option>
+        </select>
+        <div class="alert alert-info mt-2" role="alert">
+          <font-awesome-icon :icon="['fas', 'info-circle']" />
+          <span class="ms-2">{{
+            $t('settingsServerSettingsZoneComponent.ssoAutoRedirectInfoAlert')
+          }}</span>
+        </div>
+      </div>
+      <hr />
       <!-- Public shareable links -->
       <h4 class="mt-4">
         {{ $t('settingsServerSettingsZoneComponent.publicShareableLinksLabel') }}
@@ -230,6 +304,9 @@ const loginPhotoSet = ref(serverSettingsStore.serverSettings.login_photo_set)
 const signUp = ref(serverSettingsStore.serverSettings.signup_enabled)
 const adminApproval = ref(serverSettingsStore.serverSettings.signup_require_admin_approval)
 const emailConfirmation = ref(serverSettingsStore.serverSettings.signup_require_email_verification)
+const ssoEnabled = ref(serverSettingsStore.serverSettings.sso_enabled)
+const localLoginEnabled = ref(serverSettingsStore.serverSettings.local_login_enabled)
+const ssoAutoRedirect = ref(serverSettingsStore.serverSettings.sso_auto_redirect)
 
 async function updateServerSettings() {
   const data = {
@@ -242,7 +319,10 @@ async function updateServerSettings() {
     login_photo_set: loginPhotoSet.value,
     signup_enabled: signUp.value,
     signup_require_admin_approval: adminApproval.value,
-    signup_require_email_verification: emailConfirmation.value
+    signup_require_email_verification: emailConfirmation.value,
+    sso_enabled: ssoEnabled.value,
+    local_login_enabled: localLoginEnabled.value,
+    sso_auto_redirect: ssoAutoRedirect.value
   }
   try {
     // Update the server settings in the DB
@@ -317,6 +397,9 @@ onMounted(async () => {
     signUp.value = serverSettingsStore.serverSettings.signup_enabled
     adminApproval.value = serverSettingsStore.serverSettings.signup_require_admin_approval
     emailConfirmation.value = serverSettingsStore.serverSettings.signup_require_email_verification
+    ssoEnabled.value = serverSettingsStore.serverSettings.sso_enabled
+    localLoginEnabled.value = serverSettingsStore.serverSettings.local_login_enabled
+    ssoAutoRedirect.value = serverSettingsStore.serverSettings.sso_auto_redirect
 
     await nextTick()
     isLoading.value = false
@@ -335,7 +418,10 @@ watch(
     publicShareableLinksUserInfo,
     signUp,
     adminApproval,
-    emailConfirmation
+    emailConfirmation,
+    ssoEnabled,
+    localLoginEnabled,
+    ssoAutoRedirect
   ],
   async () => {
     if (isLoading.value == false) {

@@ -41,6 +41,8 @@ apprise = "^1.8.0"
 pyotp = "^2.9.0"
 qrcode = {extras = ["pil"], version = "^8.2"}
 pwdlib = {extras = ["argon2", "bcrypt"], version = "^0.2.1"}
+authlib = "^1.3.2"
+httpx = "^0.28.1"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.3.4"

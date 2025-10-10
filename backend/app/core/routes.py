@@ -23,6 +23,8 @@ import gears.gear.router as gears_router
 import gears.gear_components.router as gear_components_router
 import health_data.router as health_data_router
 import health_targets.router as health_targets_router
+import identity_providers.router as identity_providers_router
+import identity_providers.public_router as identity_providers_public_router
 import notifications.router as notifications_router
 import password_reset_tokens.router as password_reset_tokens_router
 import profile.router as profile_router
@@ -128,6 +130,11 @@ router.include_router(
     prefix=core_config.ROOT_PATH + "/health_targets",
     tags=["health_targets"],
     dependencies=[Depends(session_security.validate_access_token)],
+)
+router.include_router(
+    identity_providers_router.router,
+    prefix=core_config.ROOT_PATH + "/idp",
+    tags=["identity_providers"],
 )
 router.include_router(
     notifications_router.router,
@@ -237,6 +244,11 @@ router.include_router(
     activity_workout_steps_public_router.router,
     prefix=core_config.ROOT_PATH + "/public/activities_workout_steps",
     tags=["public_activity_workout_steps"],
+)
+router.include_router(
+    identity_providers_public_router.router,
+    prefix=core_config.ROOT_PATH + "/public/idp",
+    tags=["identity_providers_public"],
 )
 router.include_router(
     server_settings_public_router.router,

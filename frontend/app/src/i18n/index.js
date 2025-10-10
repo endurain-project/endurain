@@ -75,6 +75,10 @@ const componentPaths = {
     'components/settings/settingsUserSessionsZone/userSessionsListComponent.json',
   settingsServerSettingsZoneComponent:
     'components/settings/settingsServerSettingsZoneComponent.json',
+  settingsIdentityProvidersZone:
+    'components/settings/settingsIdentityProvidersZoneComponent.json',
+  identityProvidersAddEditModal:
+    'components/settings/settingsIdentityProvidersZone/identityProvidersAddEditModalComponent.json',
   settingsUserGoalsZone: 'components/settings/settingsUserGoals.json',
   goalsListComponent: 'components/settings/settingsUserGoalsZone/goalsListComponent.json',
   goalsAddEditGoalModalComponent:
