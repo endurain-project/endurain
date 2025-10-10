@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 import password_reset_tokens.schema as password_reset_tokens_schema
 import password_reset_tokens.utils as password_reset_tokens_utils
 
-import session.security as session_security
+import session.password_hasher as session_password_hasher
 
 import core.database as core_database
 import core.apprise as core_apprise
@@ -91,6 +91,10 @@ async def request_password_reset(
 @router.post("/password-reset/confirm")
 async def confirm_password_reset(
     confirm_data: password_reset_tokens_schema.PasswordResetConfirm,
+    password_hasher: Annotated[
+        session_password_hasher.PasswordHasher,
+        Depends(session_password_hasher.get_password_hasher),
+    ],
     db: Annotated[
         Session,
         Depends(core_database.get_db),
@@ -102,6 +106,8 @@ async def confirm_password_reset(
     Args:
         confirm_data (password_reset_tokens_schema.PasswordResetConfirm): 
             Data containing the password reset token and the new password.
+        password_hasher (session_password_hasher.PasswordHasher): 
+            An instance of the password hasher to use for hashing the new password.
         db (Session): 
             Database session dependency.
 
@@ -113,7 +119,7 @@ async def confirm_password_reset(
     """
     # Use the token to reset password
     password_reset_tokens_utils.use_password_reset_token(
-        confirm_data.token, confirm_data.new_password, db
+        confirm_data.token, confirm_data.new_password, password_hasher, db
     )
 
     return {"message": "Password reset successful"}

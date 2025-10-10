@@ -14,6 +14,8 @@ import password_reset_tokens.crud as password_reset_tokens_crud
 
 import users.user.crud as users_crud
 
+import session.password_hasher as session_password_hasher
+
 import core.apprise as core_apprise
 import core.logger as core_logger
 
@@ -171,7 +173,12 @@ async def send_password_reset_email(
     )
 
 
-def use_password_reset_token(token: str, new_password: str, db: Session):
+def use_password_reset_token(
+    token: str,
+    new_password: str,
+    password_hasher: session_password_hasher.PasswordHasher,
+    db: Session,
+):
     """
     Use a password reset token to update a user's password and mark the token as used.
 
@@ -188,6 +195,8 @@ def use_password_reset_token(token: str, new_password: str, db: Session):
         function will hash it before database lookup.
     - new_password (str): The new plain-text password to set for the user. Password
         validation/hashing is expected to be handled by the underlying users_crud.
+    - password_hasher (session_password_hasher.PasswordHasher): An instance of the
+        password hasher to use when updating the user's password.
     - db (Session): An active SQLAlchemy Session (or equivalent) used for DB operations.
         Transaction management (commit/rollback) is expected to be handled by the caller
         or the CRUD functions.
@@ -226,7 +235,9 @@ def use_password_reset_token(token: str, new_password: str, db: Session):
 
     # Update user password
     try:
-        users_crud.edit_user_password(db_token.user_id, new_password, db)
+        users_crud.edit_user_password(
+            db_token.user_id, new_password, password_hasher, db
+        )
 
         # Mark token as used
         password_reset_tokens_crud.mark_password_reset_token_used(db_token.id, db)
