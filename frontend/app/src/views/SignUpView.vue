@@ -5,18 +5,9 @@
         <img
           width="auto"
           height="auto"
-          :src="loginPhotoUrl"
-          alt="Square signup image"
+          :src="loginPhotoUrl || '/src/assets/login.png'"
+          alt="Endurain login illustration"
           class="img-fluid rounded"
-          v-if="serverSettingsStore.serverSettings.login_photo_set"
-        />
-        <img
-          width="auto"
-          height="auto"
-          src="/src/assets/login.png"
-          alt="Square signup image"
-          class="img-fluid rounded"
-          v-else
         />
       </div>
       <div class="col form-signin m-3">
@@ -299,121 +290,318 @@
   </div>
 </template>
 
-<script setup>
-import { ref, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+<script setup lang="ts">
+/**
+ * @fileoverview SignUpView Component
+ *
+ * User registration view with comprehensive form validation and optional profile fields.
+ * Handles user signup with required and optional information including personal details,
+ * preferences, and physical attributes. Supports both metric and imperial unit systems.
+ *
+ * @component
+ * @example
+ * <SignUpView />
+ */
+
+// ============================================================================
+// Imports
+// ============================================================================
+import { ref, computed, onMounted, type Ref, type ComputedRef } from 'vue'
+import { useRouter, type Router } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { push } from 'notivue'
 import { useServerSettingsStore } from '@/stores/serverSettingsStore'
 import { signUp as signUpService } from '@/services/signUpService'
 import { cmToFeetInches, feetAndInchesToCm } from '@/utils/unitsUtils'
+import { isValidEmail, sanitizeInput, isValidPassword } from '@/utils/validationUtils'
+import { HTTP_STATUS, QUERY_PARAM_TRUE, extractStatusCode } from '@/constants/httpConstants'
+import type { ErrorWithResponse } from '@/types'
 
-// Variables
-const router = useRouter()
+// ============================================================================
+// Interfaces
+// ============================================================================
+
+/**
+ * User signup request data structure
+ * @interface SignUpRequestData
+ */
+interface SignUpRequestData {
+  /** User's full name */
+  name: string
+  /** Unique username (lowercase) */
+  username: string
+  /** User's email address (lowercase) */
+  email: string
+  /** User's password */
+  password: string
+  /** Preferred language code (e.g., 'us', 'pt', 'es') */
+  preferred_language: string
+  /** User's city of residence */
+  city: string | null
+  /** User's birth date in ISO format */
+  birthdate: string | null
+  /** Gender identifier (1=male, 2=female, 3=unspecified) */
+  gender: number
+  /** Unit system preference (1=metric, 2=imperial) */
+  units: number
+  /** User's height in centimeters */
+  height: number | null
+  /** First day of week (0=Sunday, 1=Monday, etc.) */
+  first_day_of_week: number
+  /** Currency preference (1=Euro, 2=Dollar, 3=Pound) */
+  currency: number
+}
+
+/**
+ * Signup API response structure
+ * @interface SignUpResponse
+ */
+interface SignUpResponse {
+  /** Whether email verification is required */
+  email_verification_required: boolean
+  /** Whether admin approval is required */
+  admin_approval_required: boolean
+}
+
+/**
+ * Login route query parameters for post-signup redirect
+ * @interface LoginQueryParams
+ */
+interface LoginQueryParams {
+  /** Email verification status flag */
+  emailVerificationSent?: string
+  /** Admin approval status flag */
+  adminApprovalRequired?: string
+  /** Index signature for Vue Router compatibility */
+  [key: string]: string | undefined
+}
+
+// ============================================================================
+// Composables & Stores
+// ============================================================================
+const router: Router = useRouter()
 const { t } = useI18n()
 const serverSettingsStore = useServerSettingsStore()
-const isLoading = ref(false)
-const signUpName = ref(null)
-const signUpUsername = ref(null)
-const signUpEmail = ref(null)
-const signUpPassword = ref(null)
-const signUpPreferredLanguage = ref('us')
-const signUpCity = ref(null)
-const signUpBirthdate = ref(null)
-const signUpGender = ref(1)
-const signUpUnits = ref(serverSettingsStore.serverSettings.units)
-const signUpHeightCms = ref(null)
-const signUpHeightFeet = ref(null)
-const signUpHeightInches = ref(null)
-const signUpFirstDayOfWeek = ref(1)
-const signUpCurrency = ref(serverSettingsStore.serverSettings.currency)
-const isFeetValid = computed(() => signUpHeightFeet.value >= 0 && signUpHeightFeet.value <= 10)
-const isInchesValid = computed(
-  () => signUpHeightInches.value >= 0 && signUpHeightInches.value <= 11
-)
-const isEmailValid = computed(() => {
-  if (!signUpEmail.value) return true
-  const emailRegex = /^[^\s@]{1,}@[^\s@]{2,}\.[^\s@]{2,}$/
-  return emailRegex.test(signUpEmail.value)
-})
-const showPassword = ref(false)
-// Toggle password visibility
-const togglePasswordVisibility = () => {
-  showPassword.value = !showPassword.value
-}
-const isPasswordValid = computed(() => {
-  if (!signUpPassword.value) return true
-  const regex =
-    /^(?=.*[A-Z])(?=.*\d)(?=.*[ !\"#$%&'()*+,\-./:;<=>?@[\\\]^_`{|}~])[A-Za-z\d !"#$%&'()*+,\-./:;<=>?@[\\\]^_`{|}~]{8,}$/
-  return regex.test(signUpPassword.value)
-})
-const showOptionalFields = ref(false)
 
-const loginPhotoUrl = computed(() =>
-  serverSettingsStore.serverSettings.login_photo_set
+// ============================================================================
+// Reactive State - Form Data
+// ============================================================================
+
+/** Loading state during form submission */
+const isLoading: Ref<boolean> = ref(false)
+
+/** User's full name */
+const signUpName: Ref<string> = ref('')
+
+/** User's username */
+const signUpUsername: Ref<string> = ref('')
+
+/** User's email address */
+const signUpEmail: Ref<string> = ref('')
+
+/** User's password */
+const signUpPassword: Ref<string> = ref('')
+
+/** User's preferred language */
+const signUpPreferredLanguage: Ref<string> = ref('us')
+
+/** User's city */
+const signUpCity: Ref<string> = ref('')
+
+/** User's birth date */
+const signUpBirthdate: Ref<string> = ref('')
+
+/** User's gender (1=male, 2=female, 3=unspecified) */
+const signUpGender: Ref<number> = ref(1)
+
+/** User's unit preference (1=metric, 2=imperial) */
+const signUpUnits: Ref<number> = ref(Number(serverSettingsStore.serverSettings.units))
+
+/** User's height in centimeters */
+const signUpHeightCms: Ref<number | null> = ref(null)
+
+/** User's height in feet (imperial) */
+const signUpHeightFeet: Ref<number | null> = ref(null)
+
+/** User's height in inches (imperial) */
+const signUpHeightInches: Ref<number | null> = ref(null)
+
+/** First day of week preference (0=Sunday, 1=Monday, etc.) */
+const signUpFirstDayOfWeek: Ref<number> = ref(1)
+
+/** Currency preference (1=Euro, 2=Dollar, 3=Pound) */
+const signUpCurrency: Ref<number> = ref(Number(serverSettingsStore.serverSettings.currency))
+
+// ============================================================================
+// Reactive State - UI State
+// ============================================================================
+
+/** Password visibility toggle state */
+const showPassword: Ref<boolean> = ref(false)
+
+/** Optional fields section visibility state */
+const showOptionalFields: Ref<boolean> = ref(false)
+
+// ============================================================================
+// Computed Properties - Validation
+// ============================================================================
+
+/**
+ * Validates feet input for imperial height
+ * Range: 0-10 feet
+ */
+const isFeetValid: ComputedRef<boolean> = computed(() => {
+  if (signUpHeightFeet.value === null) return true
+  return signUpHeightFeet.value >= 0 && signUpHeightFeet.value <= 10
+})
+
+/**
+ * Validates inches input for imperial height
+ * Range: 0-11 inches
+ */
+const isInchesValid: ComputedRef<boolean> = computed(() => {
+  if (signUpHeightInches.value === null) return true
+  return signUpHeightInches.value >= 0 && signUpHeightInches.value <= 11
+})
+
+/**
+ * Validates email format using RFC 5322 compliant regex
+ */
+const isEmailValid: ComputedRef<boolean> = computed(() => {
+  if (!signUpEmail.value) return true
+  return isValidEmail(signUpEmail.value)
+})
+
+/**
+ * Validates password strength using centralized validation
+ * Requirements: min 8 chars, 1 uppercase, 1 digit, 1 special character
+ */
+const isPasswordValid: ComputedRef<boolean> = computed(() => {
+  if (!signUpPassword.value) return true
+  return isValidPassword(signUpPassword.value)
+})
+
+/**
+ * Compute the login photo URL from server settings
+ * Returns null if no custom photo is set, triggering fallback to default
+ */
+const loginPhotoUrl: ComputedRef<string | null> = computed(() => {
+  return serverSettingsStore.serverSettings.login_photo_set
     ? `${window.env.ENDURAIN_HOST}/server_images/login.png`
     : null
-)
+})
 
-// Handle form submission
-const submitForm = async () => {
+// ============================================================================
+// Methods - UI Interactions
+// ============================================================================
+
+/**
+ * Toggles password visibility between plain text and masked
+ */
+const togglePasswordVisibility = (): void => {
+  showPassword.value = !showPassword.value
+}
+
+// ============================================================================
+// Methods - Form Submission
+// ============================================================================
+
+/**
+ * Handles form submission for user signup
+ * Converts height units, sanitizes inputs, submits data, and redirects on success
+ *
+ * @async
+ * @throws {Error} When signup fails or validation errors occur
+ */
+const submitForm = async (): Promise<void> => {
+  // Convert height units based on server settings
   if (Number(serverSettingsStore.serverSettings.units) === 1) {
-    const { feet, inches } = cmToFeetInches(signUpHeightCms.value)
-    signUpHeightFeet.value = feet
-    signUpHeightInches.value = inches
+    // Metric system: convert cm to feet/inches for storage
+    if (signUpHeightCms.value !== null) {
+      const { feet, inches } = cmToFeetInches(signUpHeightCms.value)
+      signUpHeightFeet.value = feet
+      signUpHeightInches.value = inches
+    }
   } else {
-    signUpHeightCms.value = feetAndInchesToCm(signUpHeightFeet.value, signUpHeightInches.value)
+    // Imperial system: convert feet/inches to cm for storage
+    if (signUpHeightFeet.value !== null && signUpHeightInches.value !== null) {
+      const heightInCm = feetAndInchesToCm(signUpHeightFeet.value, signUpHeightInches.value)
+      signUpHeightCms.value = Number(heightInCm)
+    }
   }
+
   try {
     isLoading.value = true
 
-    // Prepare data for submission
-    const data = {
-      name: signUpName.value,
-      username: signUpUsername.value.toLowerCase(),
-      email: signUpEmail.value.toLowerCase(),
-      password: signUpPassword.value,
+    // Sanitize and prepare data for submission
+    const data: SignUpRequestData = {
+      name: sanitizeInput(signUpName.value),
+      username: sanitizeInput(signUpUsername.value.toLowerCase()),
+      email: sanitizeInput(signUpEmail.value.toLowerCase()),
+      password: signUpPassword.value, // Don't sanitize password
       preferred_language: signUpPreferredLanguage.value,
-      city: signUpCity.value || null,
+      city: signUpCity.value ? sanitizeInput(signUpCity.value) : null,
       birthdate: signUpBirthdate.value || null,
       gender: signUpGender.value,
       units: signUpUnits.value,
-      height: signUpHeightCms.value || null,
+      height: signUpHeightCms.value,
       first_day_of_week: signUpFirstDayOfWeek.value,
       currency: signUpCurrency.value
     }
 
-    const response = await signUpService.signUpRequest(data)
+    const response: SignUpResponse = await signUpService.signUpRequest(data)
 
     push.success(t('signupView.success'))
 
-    // Redirect to login with appropriate query parameters
-    const queryParams = {}
+    // Build query parameters for login redirect
+    const queryParams: LoginQueryParams = {}
     if (response.email_verification_required) {
-      queryParams.emailVerificationSent = 'true'
+      queryParams.emailVerificationSent = QUERY_PARAM_TRUE
     }
     if (response.admin_approval_required) {
-      queryParams.adminApprovalRequired = 'true'
+      queryParams.adminApprovalRequired = QUERY_PARAM_TRUE
     }
 
-    router.push({ name: 'login', query: queryParams })
+    await router.push({ name: 'login', query: queryParams })
   } catch (error) {
-    if (error.toString().includes('409')) {
-      push.error(t('signupView.errorUserExists'))
-    } else if (error.toString().includes('403')) {
-      push.error(t('signupView.errorSignupDisabled'))
-    } else if (error.toString().includes('400')) {
-      push.error(t('signupView.errorValidation'))
-    } else {
-      push.error(`${t('signupView.errorGeneral')} - ${error}`)
-    }
+    handleSignUpError(error as ErrorWithResponse)
   } finally {
     isLoading.value = false
   }
 }
 
+/**
+ * Handles signup errors and displays appropriate error messages
+ *
+ * @param {ErrorWithResponse} error - Error object with response data
+ */
+const handleSignUpError = (error: ErrorWithResponse): void => {
+  const statusCode = extractStatusCode(error)
+
+  switch (statusCode) {
+    case HTTP_STATUS.CONFLICT:
+      push.error(t('signupView.errorUserExists'))
+      break
+    case HTTP_STATUS.FORBIDDEN:
+      push.error(t('signupView.errorSignupDisabled'))
+      break
+    case HTTP_STATUS.BAD_REQUEST:
+      push.error(t('signupView.errorValidation'))
+      break
+    default:
+      push.error(`${t('signupView.errorGeneral')} - ${error}`)
+  }
+}
+
+// ============================================================================
+// Lifecycle Hooks
+// ============================================================================
+
+/**
+ * Component mounted lifecycle hook
+ * Checks if signup is enabled and redirects to login if disabled
+ */
 onMounted(() => {
-  // Check if signup is enabled
   if (!serverSettingsStore.serverSettings.signup_enabled) {
     push.error(t('signupView.signupDisabled'))
     router.push('/login')

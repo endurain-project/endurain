@@ -466,6 +466,7 @@ import { push } from 'notivue'
 import { profile } from '@/services/profileService'
 import { users } from '@/services/usersService'
 import { cmToFeetInches, feetAndInchesToCm } from '@/utils/unitsUtils'
+import { isValidPassword } from '@/utils/validationUtils'
 
 const props = defineProps({
   action: {
@@ -516,9 +517,7 @@ const isEmailValid = computed(() => {
 const newUserPassword = ref('')
 const isPasswordValid = computed(() => {
   if (!newUserPassword.value) return true
-  const regex =
-    /^(?=.*[A-Z])(?=.*\d)(?=.*[ !\"#$%&'()*+,\-./:;<=>?@[\\\]^_`{|}~])[A-Za-z\d !"#$%&'()*+,\-./:;<=>?@[\\\]^_`{|}~]{8,}$/
-  return regex.test(newUserPassword.value)
+  return isValidPassword(newUserPassword.value)
 })
 const showPassword = ref(false)
 const togglePasswordVisibility = () => {

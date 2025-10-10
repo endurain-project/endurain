@@ -168,6 +168,8 @@ import { push } from 'notivue'
 import { users } from '@/services/usersService'
 // Importing the components
 import UsersPasswordRequirementsComponent from '@/components/Settings/SettingsUsersZone/UsersPasswordRequirementsComponent.vue'
+// Importing validation utilities
+import { isValidPassword, passwordsMatch } from '@/utils/validationUtils'
 
 // Define props
 const props = defineProps({
@@ -181,15 +183,13 @@ const props = defineProps({
 const { t } = useI18n()
 const newPassword = ref('')
 const newPasswordRepeat = ref('')
-const regex =
-  /^(?=.*[A-Z])(?=.*\d)(?=.*[ !\"#$%&'()*+,\-./:;<=>?@[\\\]^_`{|}~])[A-Za-z\d !"#$%&'()*+,\-./:;<=>?@[\\\]^_`{|}~]{8,}$/
 const isNewPasswordValid = computed(() => {
-  return regex.test(newPassword.value)
+  return isValidPassword(newPassword.value)
 })
 const isNewPasswordRepeatValid = computed(() => {
-  return regex.test(newPasswordRepeat.value)
+  return isValidPassword(newPasswordRepeat.value)
 })
-const isPasswordMatch = computed(() => newPassword.value === newPasswordRepeat.value)
+const isPasswordMatch = computed(() => passwordsMatch(newPassword.value, newPasswordRepeat.value))
 
 const showNewPassword = ref(false)
 const showNewPasswordRepeat = ref(false)

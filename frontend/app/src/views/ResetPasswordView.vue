@@ -88,6 +88,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { push } from 'notivue'
 import { passwordReset } from '@/services/passwordResetService'
+import { isValidPassword, passwordsMatch } from '@/utils/validationUtils'
 
 const route = useRoute()
 const router = useRouter()
@@ -103,19 +104,15 @@ const resetLoading = ref(false)
 // Get token from query params
 const token = route.query.token
 
-// Password validation regex (same as backend)
-const passwordRegex =
-  /^(?=.*[A-Z])(?=.*\d)(?=.*[ !"#$%&'()*+,\-./:;<=>?@[\\\]^_`{|}~])[A-Za-z\d !"#$%&'()*+,\-./:;<=>?@[\\\]^_`{|}~]{8,}$/
-
 // Computed properties
 const isNewPasswordValid = computed(() => {
   if (!newPassword.value) return true
-  return passwordRegex.test(newPassword.value)
+  return isValidPassword(newPassword.value)
 })
 
 const isPasswordMatch = computed(() => {
   if (!confirmPassword.value) return true
-  return newPassword.value === confirmPassword.value
+  return passwordsMatch(newPassword.value, confirmPassword.value)
 })
 
 // Methods

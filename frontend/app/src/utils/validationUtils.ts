@@ -79,3 +79,123 @@ export const sanitizeInput = (input: string): string => {
   }
   return input.trim()
 }
+
+// ============================================================================
+// Password Validation
+// ============================================================================
+
+/**
+ * Password validation requirements interface
+ * @interface PasswordRequirements
+ */
+export interface PasswordRequirements {
+  /** Minimum password length */
+  minLength: number
+  /** Requires at least one uppercase letter */
+  requireUppercase: boolean
+  /** Requires at least one lowercase letter */
+  requireLowercase: boolean
+  /** Requires at least one digit */
+  requireDigit: boolean
+  /** Requires at least one special character */
+  requireSpecialChar: boolean
+}
+
+/**
+ * Password strength analysis result
+ * @interface PasswordStrength
+ */
+export interface PasswordStrength {
+  /** Whether password meets all requirements */
+  isValid: boolean
+  /** Overall strength score (0-100) */
+  score: number
+  /** Specific requirement failures */
+  failures: string[]
+  /** Descriptive strength level */
+  strengthLevel: 'weak' | 'fair' | 'good' | 'strong' | 'very-strong'
+}
+
+/**
+ * Default password requirements matching backend validation
+ * Requirements: min 8 chars, 1 uppercase, 1 digit, 1 special character
+ */
+export const DEFAULT_PASSWORD_REQUIREMENTS: PasswordRequirements = {
+  minLength: 8,
+  requireUppercase: true,
+  requireLowercase: false, // Not explicitly required but usually present
+  requireDigit: true,
+  requireSpecialChar: true
+}
+
+/**
+ * Validate password against standard requirements
+ * Default requirements: min 8 chars, 1 uppercase, 1 digit, 1 special character
+ *
+ * @param password - Password to validate
+ * @param requirements - Optional custom requirements (defaults to standard)
+ * @returns True if password meets requirements, false otherwise
+ *
+ * @example
+ * ```typescript
+ * isValidPassword('MyPass123!') // true
+ * isValidPassword('weakpass') // false - no uppercase, digit, or special char
+ * ```
+ */
+export const isValidPassword = (
+  password: string,
+  requirements: PasswordRequirements = DEFAULT_PASSWORD_REQUIREMENTS
+): boolean => {
+  if (!password || typeof password !== 'string') {
+    return false
+  }
+
+  // Check minimum length
+  if (password.length < requirements.minLength) {
+    return false
+  }
+
+  // Check uppercase requirement
+  if (requirements.requireUppercase && !/[A-Z]/.test(password)) {
+    return false
+  }
+
+  // Check lowercase requirement
+  if (requirements.requireLowercase && !/[a-z]/.test(password)) {
+    return false
+  }
+
+  // Check digit requirement
+  if (requirements.requireDigit && !/\d/.test(password)) {
+    return false
+  }
+
+  // Check special character requirement
+  // Matches the same special chars as backend: !"#$%&'()*+,-./:;<=>?@[\]^_`{|}~
+  if (requirements.requireSpecialChar && !/[ !"#$%&'()*+,\-./:;<=>?@[\\\]^_`{|}~]/.test(password)) {
+    return false
+  }
+
+  return true
+}
+
+/**
+ * Validate that two passwords match (for confirmation fields)
+ *
+ * @param password - Original password
+ * @param confirmPassword - Confirmation password
+ * @returns True if passwords match, false otherwise
+ *
+ * @example
+ * ```typescript
+ * passwordsMatch('MyPass123!', 'MyPass123!') // true
+ * passwordsMatch('MyPass123!', 'DifferentPass') // false
+ * ```
+ */
+export const passwordsMatch = (password: string, confirmPassword: string): boolean => {
+  return (
+    typeof password === 'string' &&
+    typeof confirmPassword === 'string' &&
+    password === confirmPassword
+  )
+}

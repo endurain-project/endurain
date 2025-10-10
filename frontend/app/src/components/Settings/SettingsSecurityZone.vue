@@ -298,6 +298,8 @@ import { profile } from '@/services/profileService'
 import { push } from 'notivue'
 // Importing the components
 import UsersPasswordRequirementsComponent from '@/components/Settings/SettingsUsersZone/UsersPasswordRequirementsComponent.vue'
+// Importing validation utilities
+import { isValidPassword, passwordsMatch } from '@/utils/validationUtils'
 import LoadingComponent from '@/components/GeneralComponents/LoadingComponent.vue'
 import NoItemsFoundComponents from '@/components/GeneralComponents/NoItemsFoundComponents.vue'
 import UserSessionsListComponent from '@/components/Settings/SettingsUserSessionsZone/UserSessionsListComponent.vue'
@@ -305,17 +307,15 @@ import UserSessionsListComponent from '@/components/Settings/SettingsUserSession
 const { t } = useI18n()
 const newPassword = ref('')
 const newPasswordRepeat = ref('')
-const regex =
-  /^(?=.*[A-Z])(?=.*\d)(?=.*[ !\"#$%&'()*+,\-./:;<=>?@[\\\]^_`{|}~])[A-Za-z\d !"#$%&'()*+,\-./:;<=>?@[\\\]^_`{|}~]{8,}$/
 const isNewPasswordValid = computed(() => {
   if (!newPassword.value) return true
-  return regex.test(newPassword.value)
+  return isValidPassword(newPassword.value)
 })
 const isNewPasswordRepeatValid = computed(() => {
   if (!newPasswordRepeat.value) return true
-  return regex.test(newPasswordRepeat.value)
+  return isValidPassword(newPasswordRepeat.value)
 })
-const isPasswordMatch = computed(() => newPassword.value === newPasswordRepeat.value)
+const isPasswordMatch = computed(() => passwordsMatch(newPassword.value, newPasswordRepeat.value))
 const userSessions = ref([])
 const isLoading = ref(true)
 
