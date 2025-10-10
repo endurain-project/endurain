@@ -31,7 +31,6 @@ services:
         image: unified-image # based on image that will be created above
         environment:
             - TZ=Europe/Lisbon # change if needed. Default is UTC
-            - DB_TYPE=postgres
             - DB_HOST=postgres
             - DB_PORT=5432
             - DB_PASSWORD=changeme

@@ -4,7 +4,7 @@ Always reference these instructions first and fallback to search or bash command
 
 ## Working Effectively
 
-Endurain is a self-hosted fitness tracking application built with Vue.js frontend, Python FastAPI backend, and supports PostgreSQL/MariaDB databases. The primary development approach uses Docker, but frontend-only development is supported.
+Endurain is a self-hosted fitness tracking application built with Vue.js frontend, Python FastAPI backend, and supports PostgreSQL databases. The primary development approach uses Docker, but frontend-only development is supported.
 
 ### Prerequisites and Environment Setup
 - Requires Node.js (tested with v20.19.4) for frontend development
@@ -126,7 +126,7 @@ Repository root:
 ## Architecture Notes
 - **Frontend**: Vue.js 3 with Vite, Bootstrap CSS, Chart.js, Leaflet maps
 - **Backend**: Python FastAPI with SQLAlchemy, Alembic migrations
-- **Database**: PostgreSQL or MariaDB support
+- **Database**: PostgreSQL support
 - **Integrations**: Strava and Garmin Connect APIs
 - **File Support**: .gpx, .tcx, .fit file imports
 - **Authentication**: JWT tokens with 15-minute access tokens

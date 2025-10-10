@@ -16,24 +16,9 @@ services:
     ports:
       - "8080:8080" # Endurain port, change per your needs
     depends_on:
-      postgres: # mariadb or postgres
-        condition: service_healthy # remove this line when using mariadb
+      postgres:
+        condition: service_healthy
       jaeger: {} # optional
-    restart: unless-stopped
-  
-  # mysql mariadb logic
-  mariadb:
-    image: mariadb:latest
-    container_name: mariadb
-    environment:
-      - MYSQL_ROOT_PASSWORD=changeme
-      - MYSQL_DATABASE=endurain
-      - MYSQL_USER=endurain
-      - MYSQL_PASSWORD=changeme
-    ports:
-      - "3306:3306"
-    volumes:
-      - <local_path>/mariadb:/var/lib/mysql
     restart: unless-stopped
 
   # postgres logic
@@ -85,19 +70,6 @@ services:
     image: adminer
     ports:
       - 8081:8080
-    restart: unless-stopped
-
-# phpmyadmin for DB manipulation - optional
-  phpmyadmin:
-    container_name: phpmyadmin
-    image: phpmyadmin
-    ports:
-      - 81:80
-    environment:
-      - PMA_HOST=mariadb
-      - PMA_ARBITRARY=1
-    depends_on:
-      - mariadb
     restart: unless-stopped
 
 networks:

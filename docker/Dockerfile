@@ -36,7 +36,6 @@ FROM python:3.13-alpine
 # Install dependencies
 RUN apk add --no-cache \
     build-base \
-    mariadb-dev \
     pkgconfig \
     musl-dev \
     python3-dev \
