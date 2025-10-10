@@ -5,31 +5,21 @@
         <img
           width="auto"
           height="auto"
-          :src="loginPhotoUrl"
-          alt="Square login image"
+          :src="loginPhotoUrl || '/src/assets/login.png'"
+          alt="Endurain login illustration"
           class="img-fluid rounded"
-          v-if="serverSettingsStore.serverSettings.login_photo_set"
-        />
-        <img
-          width="auto"
-          height="auto"
-          src="/src/assets/login.png"
-          alt="Square login image"
-          class="img-fluid rounded"
-          v-else
         />
       </div>
       <div class="col form-signin text-center m-3">
         <form @submit.prevent="submitForm">
           <h1>Endurain</h1>
-          <p>{{ $t('loginView.subtitle') }}</p>
-          <br />
+          <p class="mb-4">{{ $t('loginView.subtitle') }}</p>
 
-          <div class="form-floating" v-if="!mfaRequired">
+          <div class="form-floating mb-3" v-if="!mfaRequired">
             <input
               type="text"
               class="form-control"
-              id="floatingInput"
+              id="loginUsername"
               name="loginUsername"
               :placeholder="$t('loginView.username')"
               v-model="username"
@@ -37,11 +27,11 @@
             />
             <label for="loginUsername">{{ $t('loginView.username') }}</label>
           </div>
-          <br />
-          <div class="form-floating position-relative" v-if="!mfaRequired">
+          <div class="form-floating position-relative mb-3" v-if="!mfaRequired">
             <input
               :type="showPassword ? 'text' : 'password'"
               class="form-control"
+              id="loginPassword"
               name="loginPassword"
               :placeholder="$t('loginView.password')"
               v-model="password"
@@ -51,15 +41,17 @@
             <button
               type="button"
               class="btn position-absolute top-50 end-0 translate-middle-y me-2"
+              :aria-label="
+                showPassword ? $t('loginView.hidePassword') : $t('loginView.showPassword')
+              "
               @click="togglePasswordVisibility"
             >
               <font-awesome-icon :icon="showPassword ? ['fas', 'eye-slash'] : ['fas', 'eye']" />
             </button>
           </div>
-          <br v-if="!mfaRequired" />
 
           <!-- MFA input field (shown when MFA is required) -->
-          <div v-if="mfaRequired" class="form-floating">
+          <div v-if="mfaRequired" class="form-floating mb-3">
             <input
               type="text"
               class="form-control"
@@ -68,10 +60,10 @@
               :placeholder="$t('loginView.mfaCode')"
               v-model="mfaCode"
               required
+              autocomplete="one-time-code"
             />
             <label for="mfaCode">{{ $t('loginView.mfaCode') }}</label>
           </div>
-          <br v-if="mfaRequired" />
 
           <button class="w-100 btn btn-lg btn-primary" type="submit" :disabled="loading">
             <span
@@ -121,73 +113,149 @@
   />
 </template>
 
-<script setup>
-// Importing the vue composition API
-import { ref, onMounted, nextTick } from 'vue'
-// Importing the router
+<script setup lang="ts">
+/**
+ * LoginView Component
+ *
+ * Handles user authentication with support for:
+ * - Standard username/password login
+ * - Multi-Factor Authentication (MFA)
+ * - Password reset functionality
+ * - Route-based notification handling
+ *
+ * @component
+ */
+
+// Vue composition API
+import { ref, computed, onMounted, onUnmounted, type Ref, type ComputedRef } from 'vue'
+// Router
 import { useRoute, useRouter } from 'vue-router'
-// Importing the i18n
+// Internationalization
 import { useI18n } from 'vue-i18n'
-// Import Notivue push
+// Notifications
 import { push } from 'notivue'
-// Importing the stores
+// Stores
 import { useAuthStore } from '@/stores/authStore'
 import { useServerSettingsStore } from '@/stores/serverSettingsStore'
-// Importing the services for the login
+// Services
 import { session } from '@/services/sessionService'
 import { passwordReset } from '@/services/passwordResetService'
 import { profile } from '@/services/profileService'
-import { Modal } from 'bootstrap'
-// Importing modal component
+// Components
 import ModalComponentEmailInput from '@/components/Modals/ModalComponentEmailInput.vue'
+// Composables
+import { useBootstrapModal } from '@/composables/useBootstrapModal'
+// Types
+import type { RouteQueryHandlers, LoginResponse, ErrorWithResponse } from '@/types'
+// Constants
+import { HTTP_STATUS, QUERY_PARAM_TRUE, extractStatusCode } from '@/constants/httpConstants'
+// Utils
+import { isNotEmpty, sanitizeInput } from '@/utils/validationUtils'
 
-// Variables
+/**
+ * Route query parameter handlers configuration
+ * Maps URL query parameters to notification types and i18n keys
+ */
+const ROUTE_QUERY_HANDLERS: RouteQueryHandlers = {
+  sessionExpired: { type: 'warning', key: 'loginView.sessionExpired' },
+  logoutSuccess: { type: 'success', key: 'loginView.logoutSuccess' },
+  errorPublicActivityNotFound: { type: 'error', key: 'loginView.errorPublicActivityNotFound' },
+  errorpublic_shareable_links: { type: 'error', key: 'loginView.errorPublic_shareable_links' },
+  passwordResetSuccess: { type: 'success', key: 'loginView.passwordResetSuccess' },
+  passwordResetInvalidLink: { type: 'error', key: 'loginView.passwordResetInvalidLink' },
+  emailVerificationSent: { type: 'info', key: 'loginView.emailVerificationSent' },
+  adminApprovalRequired: { type: 'info', key: 'loginView.adminApprovalRequired' },
+  verifyEmailInvalidLink: { type: 'error', key: 'loginView.verifyEmailInvalidLink' }
+} as const
+
+// ============================================================================
+// Composables & Store Initialization
+// ============================================================================
+
 const route = useRoute()
 const router = useRouter()
 const { locale, t } = useI18n()
-const username = ref('')
-const password = ref('')
-const mfaCode = ref('')
-const mfaRequired = ref(false)
-const loading = ref(false)
-const pendingUsername = ref('')
 const authStore = useAuthStore()
 const serverSettingsStore = useServerSettingsStore()
-const showPassword = ref(false)
-const loginPhotoUrl = serverSettingsStore.serverSettings.login_photo_set
-  ? `${window.env.ENDURAIN_HOST}/server_images/login.png`
-  : null
 
-// Forgot password variables
-const forgotPasswordLoading = ref(false)
-const forgotPasswordModalRef = ref(null)
-let forgotPasswordModalInstance = null
+// ============================================================================
+// Modal Management
+// ============================================================================
 
-// Function to show forgot password modal
-const showForgotPasswordModal = () => {
-  if (forgotPasswordModalInstance) {
-    forgotPasswordModalInstance.show()
-  }
+const forgotPasswordModalRef: Ref<typeof ModalComponentEmailInput | null> = ref(null)
+const {
+  initializeModal,
+  showModal: showForgotModal,
+  hideModal: hideForgotModal,
+  disposeModal
+} = useBootstrapModal()
+const forgotPasswordLoading: Ref<boolean> = ref(false)
+
+// ============================================================================
+// Form State
+// ============================================================================
+
+const username: Ref<string> = ref('')
+const password: Ref<string> = ref('')
+const mfaCode: Ref<string> = ref('')
+const mfaRequired: Ref<boolean> = ref(false)
+const loading: Ref<boolean> = ref(false)
+const pendingUsername: Ref<string> = ref('')
+const showPassword: Ref<boolean> = ref(false)
+
+// ============================================================================
+// Computed Properties
+// ============================================================================
+
+/**
+ * Compute the login photo URL from server settings
+ * Returns null if no custom photo is set, triggering fallback to default
+ */
+const loginPhotoUrl: ComputedRef<string | null> = computed(() => {
+  return serverSettingsStore.serverSettings.login_photo_set
+    ? `${window.env.ENDURAIN_HOST}/server_images/login.png`
+    : null
+})
+
+// ============================================================================
+// UI Interaction Handlers
+// ============================================================================
+
+/**
+ * Show the forgot password modal
+ */
+const showForgotPasswordModal = (): void => {
+  showForgotModal()
 }
 
-// Toggle password visibility
-const togglePasswordVisibility = () => {
+/**
+ * Toggle password field visibility
+ */
+const togglePasswordVisibility = (): void => {
   showPassword.value = !showPassword.value
 }
 
-// Handle the form submission
-const submitForm = async () => {
+// ============================================================================
+// Authentication Logic
+// ============================================================================
+
+/**
+ * Main form submission handler
+ * Routes to either MFA verification or standard login based on state
+ */
+const submitForm = async (): Promise<void> => {
   if (mfaRequired.value) {
-    // Handle MFA verification
     await submitMFAVerification()
   } else {
-    // Handle regular login
     await submitLogin()
   }
 }
 
-// Handle regular login
-const submitLogin = async () => {
+/**
+ * Handle standard username/password login
+ * Initiates authentication and checks for MFA requirement
+ */
+const submitLogin = async (): Promise<void> => {
   // Create the form data
   const formData = new URLSearchParams()
   formData.append('grant_type', 'password')
@@ -197,12 +265,12 @@ const submitLogin = async () => {
   try {
     loading.value = true
     // Get the token
-    const response = await session.authenticateUser(formData)
+    const response = (await session.authenticateUser(formData)) as LoginResponse
 
     // Check if MFA is required
     if (response && response.mfa_required) {
       mfaRequired.value = true
-      pendingUsername.value = response.username
+      pendingUsername.value = response.username || ''
       push.info(t('loginView.mfaRequired'))
       return
     }
@@ -210,35 +278,45 @@ const submitLogin = async () => {
     // Complete login if no MFA required
     await completeLogin(response.session_id)
   } catch (error) {
-    handleLoginError(error)
+    handleLoginError(error as ErrorWithResponse)
   } finally {
     loading.value = false
   }
 }
 
-// Handle MFA verification
-const submitMFAVerification = async () => {
+/**
+ * Handle Multi-Factor Authentication verification
+ * Validates MFA code and completes login if successful
+ */
+const submitMFAVerification = async (): Promise<void> => {
   try {
     loading.value = true
-    const response = await session.verifyMFAAndLogin({
+    const response = (await session.verifyMFAAndLogin({
       username: pendingUsername.value,
       mfa_code: mfaCode.value
-    })
+    })) as LoginResponse
 
     await completeLogin(response.session_id)
   } catch (error) {
-    if (error.toString().includes('401') || error.toString().includes('400')) {
+    const statusCode = extractStatusCode(error)
+
+    if (statusCode === HTTP_STATUS.UNAUTHORIZED || statusCode === HTTP_STATUS.BAD_REQUEST) {
       push.error(t('loginView.invalidMFACode'))
     } else {
-      handleLoginError(error)
+      handleLoginError(error as ErrorWithResponse)
     }
   } finally {
     loading.value = false
   }
 }
 
-// Complete the login process
-const completeLogin = async (session_id) => {
+/**
+ * Complete the login process after successful authentication
+ * Fetches user profile, updates auth store, and redirects to home
+ *
+ * @param session_id - Session identifier from authentication response
+ */
+const completeLogin = async (session_id: string): Promise<void> => {
   // Get logged user information
   const userProfile = await profile.getProfileInfo()
 
@@ -246,25 +324,51 @@ const completeLogin = async (session_id) => {
   authStore.setUser(userProfile, session_id, locale)
 
   // Redirect to the home page
-  return router.push('/')
+  await router.push('/')
 }
 
-// Handle login errors
-const handleLoginError = (error) => {
-  if (error.toString().includes('401')) {
-    push.error(`${t('loginView.error401')} - ${error}`)
-  } else if (error.toString().includes('403')) {
-    push.error(`${t('loginView.error403')} - ${error}`)
-  } else if (error.toString().includes('500')) {
-    push.error(`${t('loginView.error500')} - ${error}`)
-  } else {
-    push.error(`${t('loginView.errorUndefined')} - ${error}`)
+// ============================================================================
+// Error Handling
+// ============================================================================
+
+/**
+ * Handle login errors with appropriate user feedback
+ * Maps HTTP status codes to localized error messages
+ *
+ * @param error - Error object from authentication attempt
+ */
+const handleLoginError = (error: ErrorWithResponse): void => {
+  const statusCode = extractStatusCode(error)
+
+  switch (statusCode) {
+    case HTTP_STATUS.UNAUTHORIZED:
+      push.error(`${t('loginView.error401')} - ${error}`)
+      break
+    case HTTP_STATUS.FORBIDDEN:
+      push.error(`${t('loginView.error403')} - ${error}`)
+      break
+    case HTTP_STATUS.INTERNAL_SERVER_ERROR:
+      push.error(`${t('loginView.error500')} - ${error}`)
+      break
+    default:
+      push.error(`${t('loginView.errorUndefined')} - ${error}`)
   }
 }
 
-// Forgot password form submission
-const handleForgotPasswordSubmit = async (email) => {
-  if (!email) {
+// ============================================================================
+// Password Reset Logic
+// ============================================================================
+
+/**
+ * Handle forgot password form submission
+ * Validates email and sends password reset request
+ *
+ * @param email - User's email address for password reset
+ */
+const handleForgotPasswordSubmit = async (email: string): Promise<void> => {
+  // Validate email input
+  const sanitizedEmail = sanitizeInput(email)
+  if (!isNotEmpty(sanitizedEmail)) {
     push.error(t('loginView.forgotPasswordModalEmailRequired'))
     return
   }
@@ -272,73 +376,61 @@ const handleForgotPasswordSubmit = async (email) => {
   forgotPasswordLoading.value = true
 
   try {
-    await passwordReset.requestPasswordReset({
-      email: email
-    })
-
+    await passwordReset.requestPasswordReset({ email: sanitizedEmail })
     push.success(t('loginView.forgotPasswordModalRequestSuccess'))
   } catch (error) {
-    if (error.toString().includes('500')) {
+    const statusCode = extractStatusCode(error)
+
+    if (statusCode === HTTP_STATUS.INTERNAL_SERVER_ERROR) {
       push.error(t('loginView.forgotPasswordModalUnableToSendEmail'))
-    } else if (error.toString().includes('503')) {
+    } else if (statusCode === HTTP_STATUS.SERVICE_UNAVAILABLE) {
       push.error(t('loginView.forgotPasswordModalEmailNotConfigured'))
     } else {
       push.error(`${t('loginView.forgotPasswordModalRequestError')} - ${error}`)
     }
   } finally {
     forgotPasswordLoading.value = false
-
-    // Close modal
-    if (forgotPasswordModalInstance) {
-      forgotPasswordModalInstance.hide()
-    }
+    hideForgotModal()
   }
 }
 
-onMounted(async () => {
-  // Initialize the modal
-  await nextTick()
-  if (forgotPasswordModalRef.value) {
-    // Access the modal element from the component
-    const modalElement = forgotPasswordModalRef.value.$el
-    forgotPasswordModalInstance = new Modal(modalElement)
-  }
+// ============================================================================
+// Route & Notification Handling
+// ============================================================================
 
-  // Check if the session expired
-  if (route.query.sessionExpired === 'true') {
-    push.warning(t('loginView.sessionExpired'))
-  }
-  // Check if the logout was successful
-  if (route.query.logoutSuccess === 'true') {
-    push.success(t('loginView.logoutSuccess'))
-  }
-  // Check if the public activity was not found
-  if (route.query.errorPublicActivityNotFound === 'true') {
-    push.error(t('loginView.errorPublicActivityNotFound'))
-  }
-  // Check if the public shareable links are disabled
-  if (route.query.errorpublic_shareable_links === 'true') {
-    push.error(t('loginView.errorPublic_shareable_links'))
-  }
-  // Check for password reset success
-  if (route.query.passwordResetSuccess === 'true') {
-    push.success(t('loginView.passwordResetSuccess'))
-  }
-  // Check for password reset invalid link
-  if (route.query.passwordResetInvalidLink === 'true') {
-    push.error(t('loginView.passwordResetInvalidLink'))
-  }
-  // Check for email verification sent
-  if (route.query.emailVerificationSent === 'true') {
-    push.info(t('loginView.emailVerificationSent'))
-  }
-  // Check for admin approval required
-  if (route.query.adminApprovalRequired === 'true') {
-    push.info(t('loginView.adminApprovalRequired'))
-  }
-  // Check for email verification invalid link
-  if (route.query.verifyEmailInvalidLink === 'true') {
-    push.error(t('loginView.verifyEmailInvalidLink'))
-  }
+/**
+ * Process route query parameters and display appropriate notifications
+ * Checks for specific query parameters and shows corresponding messages
+ */
+const processRouteQueryParameters = (): void => {
+  Object.entries(ROUTE_QUERY_HANDLERS).forEach(([param, config]) => {
+    if (route.query[param] === QUERY_PARAM_TRUE) {
+      push[config.type](t(config.key))
+    }
+  })
+}
+
+// ============================================================================
+// Lifecycle Hooks
+// ============================================================================
+
+/**
+ * Component mounted lifecycle hook
+ * Initializes modal and processes route parameters
+ */
+onMounted(async () => {
+  // Initialize forgot password modal
+  await initializeModal(forgotPasswordModalRef)
+
+  // Process any route query parameters for notifications
+  processRouteQueryParameters()
+})
+
+/**
+ * Component unmounted lifecycle hook
+ * Cleanup modal resources
+ */
+onUnmounted(() => {
+  disposeModal()
 })
 </script>

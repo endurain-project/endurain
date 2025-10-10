@@ -38,7 +38,7 @@
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
             {{ $t('generalItems.buttonClose') }}
           </button>
-          <a
+          <button
             type="button"
             @click="submitAction()"
             class="btn"
@@ -46,72 +46,136 @@
               'btn-success': actionButtonType === 'success',
               'btn-danger': actionButtonType === 'danger',
               'btn-warning': actionButtonType === 'warning',
-              'btn-primary': actionButtonType === 'loading'
+              'btn-primary': actionButtonType === 'primary'
             }"
             :disabled="isLoading"
-            ><span
+          >
+            <span
               v-if="isLoading"
               class="spinner-border spinner-border-sm me-2"
               role="status"
               aria-hidden="true"
-            ></span
-            >{{ actionButtonText }}</a
-          >
+            ></span>
+            {{ actionButtonText }}
+          </button>
         </div>
       </div>
     </div>
   </div>
 </template>
 
-<script setup>
-import { ref, computed } from 'vue'
+<script setup lang="ts">
+/**
+ * ModalComponentEmailInput Component
+ *
+ * A reusable Bootstrap modal component for email input operations.
+ * Features:
+ * - RFC 5322 compliant email validation
+ * - Real-time validation feedback
+ * - Loading state support
+ * - Customizable button types (success, danger, warning, primary)
+ * - Input sanitization
+ *
+ * @component
+ */
 
-const props = defineProps({
-  modalId: {
-    type: String,
-    required: true
-  },
-  title: {
-    type: String,
-    required: true
-  },
-  emailFieldLabel: {
-    type: String,
-    required: true
-  },
-  emailHelpText: {
-    type: String,
-    default: ''
-  },
-  emailDefaultValue: {
-    type: String,
-    default: ''
-  },
-  actionButtonType: {
-    type: String,
-    required: true
-  },
-  actionButtonText: {
-    type: String,
-    required: true
-  },
-  isLoading: {
-    type: Boolean,
-    default: false
-  }
+// Vue composition API
+import { ref, computed, type Ref, type ComputedRef } from 'vue'
+// Types
+import type { ActionButtonType } from '@/types'
+// Utils
+import { isValidEmail, sanitizeInput } from '@/utils/validationUtils'
+
+// ============================================================================
+// Types
+// ============================================================================
+
+/**
+ * Component props interface
+ */
+interface Props {
+  /** Unique identifier for the modal element */
+  modalId: string
+  /** Modal header title */
+  title: string
+  /** Label for the email input field */
+  emailFieldLabel: string
+  /** Optional help text displayed below input */
+  emailHelpText?: string
+  /** Default value for email input */
+  emailDefaultValue?: string
+  /** Button style type */
+  actionButtonType: ActionButtonType
+  /** Text displayed on action button */
+  actionButtonText: string
+  /** Loading state indicator */
+  isLoading?: boolean
+}
+
+/**
+ * Component emits interface
+ */
+interface Emits {
+  (e: 'emailToEmitAction', email: string): void
+}
+
+// ============================================================================
+// Props & Emits
+// ============================================================================
+
+const props = withDefaults(defineProps<Props>(), {
+  emailHelpText: '',
+  emailDefaultValue: '',
+  isLoading: false
 })
 
-const emit = defineEmits(['emailToEmitAction'])
-const isEmailValid = computed(() => {
-  const emailRegex = /^[^\s@]{1,}@[^\s@]{2,}\.[^\s@]{2,}$/
-  return emailRegex.test(emailToEmit.value)
+const emit = defineEmits<Emits>()
+
+// ============================================================================
+// State
+// ============================================================================
+
+/**
+ * Email input value
+ * Initialized with default value from props
+ */
+const emailToEmit: Ref<string> = ref(props.emailDefaultValue)
+
+// ============================================================================
+// Computed Properties
+// ============================================================================
+
+/**
+ * Validate email format using RFC 5322 compliant validation
+ * Returns true if email is valid or empty (to avoid showing error on load)
+ *
+ * @returns {boolean} Email validation state
+ */
+const isEmailValid: ComputedRef<boolean> = computed(() => {
+  // Don't show validation error for empty input
+  if (!emailToEmit.value) return true
+
+  return isValidEmail(emailToEmit.value)
 })
 
-const emailToEmit = ref(props.emailDefaultValue)
+// ============================================================================
+// Actions
+// ============================================================================
 
-function submitAction() {
-  if (emailToEmit.value) {
-    emit('emailToEmitAction', emailToEmit.value)
+/**
+ * Handle form submission
+ * Validates and sanitizes email before emitting to parent
+ * Only emits if email is non-empty and valid
+ */
+const submitAction = (): void => {
+  if (!emailToEmit.value) return
+
+  // Sanitize input before validation
+  const sanitizedEmail = sanitizeInput(emailToEmit.value)
+
+  // Only emit if email is valid
+  if (isValidEmail(sanitizedEmail)) {
+    emit('emailToEmitAction', sanitizedEmail)
   }
 }
 </script>

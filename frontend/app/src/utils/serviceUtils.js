@@ -87,7 +87,7 @@ async function refreshAccessToken() {
     return refreshTokenPromise
   }
 
-  const url = "refresh"
+  const url = 'refresh'
   const options = {
     method: 'POST',
     credentials: 'include',
