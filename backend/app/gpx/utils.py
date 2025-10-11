@@ -95,6 +95,13 @@ def parse_gpx_file(
                                 # Extract latitude and longitude from the point
                                 latitude, longitude = point.latitude, point.longitude
 
+                                # Extract elevation, time, and location details
+                                elevation, time = point.elevation, point.time
+                                
+                                # Skip trackpoints without time data (common in some OsmAnd exports)
+                                if time is None:
+                                    continue
+
                                 # Calculate distance between waypoints
                                 if (
                                     prev_latitude is not None
@@ -104,9 +111,6 @@ def parse_gpx_file(
                                         (prev_latitude, prev_longitude),
                                         (latitude, longitude),
                                     ).meters
-
-                                # Extract elevation, time, and location details
-                                elevation, time = point.elevation, point.time
 
                                 if elevation != 0:
                                     is_elevation_set = True
