@@ -27,8 +27,8 @@
         <form @submit.prevent="handleSubmit">
           <div class="modal-body">
             <!-- Template Selection (Add Only) -->
-            <div v-if="action === 'add'">
-              <label for="providerTemplate" class="form-label"
+            <div v-if="action === 'add'" class="mb-3">
+              <label for="providerTemplate"
                 ><b>{{ $t('identityProvidersAddEditModal.templateLabel') }}</b></label
               >
               <select
@@ -36,211 +36,227 @@
                 id="providerTemplate"
                 v-model="selectedTemplate"
                 @change="applyTemplate"
+                aria-label="Provider template selection"
               >
                 <option value="">{{ $t('identityProvidersAddEditModal.templateCustom') }}</option>
-                <option value="keycloak">Keycloak</option>
-                <option value="authentik">Authentik</option>
-                <option value="authelia">Authelia</option>
-                <option value="google">Google</option>
-                <option value="microsoft">Microsoft</option>
+                <option v-for="(template, index) in templates" :key="index" :value="index">
+                  {{ template.name }}
+                </option>
               </select>
-              <div v-if="templateDescription">
+              <div class="form-text" v-if="templateDescription">
                 {{ templateDescription }}
               </div>
             </div>
 
             <!-- Basic Information -->
-            <div>
-              <label for="providerName" class="form-label"
-                ><b>* {{ $t('identityProvidersAddEditModal.nameLabel') }}</b></label
-              >
-              <input
-                type="text"
-                class="form-control"
-                id="providerName"
-                v-model="formData.name"
-                :placeholder="$t('identityProvidersAddEditModal.namePlaceholder')"
-                maxlength="100"
-                required
-              />
+            <!-- name field -->
+            <label for="providerName"
+              ><b>* {{ $t('identityProvidersAddEditModal.nameLabel') }}</b></label
+            >
+            <input
+              type="text"
+              class="form-control"
+              id="providerName"
+              name="providerName"
+              v-model="formData.name"
+              :placeholder="$t('identityProvidersAddEditModal.namePlaceholder')"
+              maxlength="100"
+              aria-label="Provider name"
+              required
+            />
+            <!-- slug field -->
+            <label for="providerSlug"
+              ><b>* {{ $t('identityProvidersAddEditModal.slugLabel') }}</b></label
+            >
+            <input
+              type="text"
+              class="form-control"
+              :class="{ 'is-invalid': !isSlugValid }"
+              id="providerSlug"
+              name="providerSlug"
+              aria-describedby="validationSlugFeedback slugHelpText"
+              v-model="formData.slug"
+              :placeholder="$t('identityProvidersAddEditModal.slugPlaceholder')"
+              maxlength="50"
+              pattern="[a-z0-9-]+"
+              :disabled="action === 'edit'"
+              required
+            />
+            <div id="slugHelpText" class="form-text" v-if="action === 'add'">
+              {{ $t('identityProvidersAddEditModal.slugHelp') }}
             </div>
-
-            <div>
-              <label for="providerSlug" class="form-label"
-                ><b>* {{ $t('identityProvidersAddEditModal.slugLabel') }}</b></label
-              >
-              <input
-                type="text"
-                class="form-control"
-                :class="{ 'is-invalid': !isSlugValid }"
-                id="providerSlug"
-                v-model="formData.slug"
-                :placeholder="$t('identityProvidersAddEditModal.slugPlaceholder')"
-                maxlength="50"
-                pattern="[a-z0-9-]+"
-                :disabled="action === 'edit'"
-                required
-              />
-              <div v-if="action === 'add'">
-                {{ $t('identityProvidersAddEditModal.slugHelp') }}
-              </div>
-              <div class="invalid-feedback" v-if="!isSlugValid">
-                {{ $t('identityProvidersAddEditModal.slugInvalid') }}
-              </div>
+            <div id="validationSlugFeedback" class="invalid-feedback" v-if="!isSlugValid">
+              {{ $t('identityProvidersAddEditModal.slugInvalid') }}
             </div>
 
             <!-- Provider Type -->
-            <div>
-              <label for="providerType" class="form-label"
-                ><b>* {{ $t('identityProvidersAddEditModal.providerTypeLabel') }}</b></label
-              >
-              <select
-                class="form-select"
-                id="providerType"
-                v-model="formData.provider_type"
-                required
-              >
-                <option value="oidc">OpenID Connect (OIDC)</option>
-                <option value="oauth2">OAuth 2.0</option>
-              </select>
-            </div>
+            <label for="providerType"
+              ><b>* {{ $t('identityProvidersAddEditModal.providerTypeLabel') }}</b></label
+            >
+            <select
+              class="form-select"
+              id="providerType"
+              name="providerType"
+              v-model="formData.provider_type"
+              aria-label="Provider type selection"
+              required
+            >
+              <option value="oidc">OpenID Connect (OIDC)</option>
+              <option value="oauth2">OAuth 2.0</option>
+            </select>
 
             <!-- OAuth/OIDC Configuration -->
-            <div>
-              <label for="issuerUrl" class="form-label"
-                ><b>* {{ $t('identityProvidersAddEditModal.issuerUrlLabel') }}</b></label
-              >
-              <input
-                type="url"
-                class="form-control"
-                id="issuerUrl"
-                v-model="formData.issuer_url"
-                :placeholder="$t('identityProvidersAddEditModal.issuerUrlPlaceholder')"
-                maxlength="500"
-                required
-              />
-              <div class="form-text">
-                {{ $t('identityProvidersAddEditModal.issuerUrlHelp') }}
-              </div>
+            <!-- issuer url field -->
+            <label for="issuerUrl"
+              ><b>* {{ $t('identityProvidersAddEditModal.issuerUrlLabel') }}</b></label
+            >
+            <input
+              type="url"
+              class="form-control"
+              id="issuerUrl"
+              name="issuerUrl"
+              aria-describedby="issuerUrlHelpText"
+              v-model="formData.issuer_url"
+              :placeholder="$t('identityProvidersAddEditModal.issuerUrlPlaceholder')"
+              maxlength="500"
+              required
+            />
+            <div id="issuerUrlHelpText" class="form-text">
+              {{ $t('identityProvidersAddEditModal.issuerUrlHelp') }}
             </div>
 
-            <div>
-              <label for="clientId" class="form-label"
-                ><b>* {{ $t('identityProvidersAddEditModal.clientIdLabel') }}</b></label
-              >
-              <input
-                type="text"
-                class="form-control"
-                id="clientId"
-                v-model="formData.client_id"
-                :placeholder="$t('identityProvidersAddEditModal.clientIdPlaceholder')"
-                maxlength="512"
-                required
-              />
+            <!-- client id field -->
+            <label for="clientId"
+              ><b>* {{ $t('identityProvidersAddEditModal.clientIdLabel') }}</b></label
+            >
+            <input
+              type="text"
+              class="form-control"
+              id="clientId"
+              name="clientId"
+              v-model="formData.client_id"
+              :placeholder="$t('identityProvidersAddEditModal.clientIdPlaceholder')"
+              maxlength="512"
+              aria-label="Client ID"
+              required
+            />
+
+            <!-- client secret field -->
+            <label for="clientSecret"
+              ><b>* {{ $t('identityProvidersAddEditModal.clientSecretLabel') }}</b></label
+            >
+            <input
+              type="password"
+              class="form-control"
+              id="clientSecret"
+              name="clientSecret"
+              aria-describedby="clientSecretHelpText"
+              v-model="formData.client_secret"
+              :placeholder="
+                action === 'edit'
+                  ? $t('identityProvidersAddEditModal.clientSecretPlaceholderEdit')
+                  : $t('identityProvidersAddEditModal.clientSecretPlaceholder')
+              "
+              maxlength="512"
+              :required="action === 'add'"
+            />
+            <div id="clientSecretHelpText" class="form-text" v-if="action === 'edit'">
+              {{ $t('identityProvidersAddEditModal.clientSecretHelpEdit') }}
             </div>
 
-            <div>
-              <label for="clientSecret" class="form-label"
-                ><b>* {{ $t('identityProvidersAddEditModal.clientSecretLabel') }}</b></label
-              >
-              <input
-                type="password"
-                class="form-control"
-                id="clientSecret"
-                v-model="formData.client_secret"
-                :placeholder="
-                  action === 'edit'
-                    ? $t('identityProvidersAddEditModal.clientSecretPlaceholderEdit')
-                    : $t('identityProvidersAddEditModal.clientSecretPlaceholder')
-                "
-                maxlength="512"
-                :required="action === 'add'"
-              />
-              <div v-if="action === 'edit'">
-                {{ $t('identityProvidersAddEditModal.clientSecretHelpEdit') }}
-              </div>
-            </div>
-
-            <div>
-              <label for="scopes" class="form-label"
-                ><b>{{ $t('identityProvidersAddEditModal.scopesLabel') }}</b></label
-              >
-              <input
-                type="text"
-                class="form-control"
-                id="scopes"
-                v-model="formData.scopes"
-                :placeholder="$t('identityProvidersAddEditModal.scopesPlaceholder')"
-                maxlength="500"
-              />
-              <div class="form-text">
-                {{ $t('identityProvidersAddEditModal.scopesHelp') }}
-              </div>
+            <!-- scopes field -->
+            <label for="scopes"
+              ><b>{{ $t('identityProvidersAddEditModal.scopesLabel') }}</b></label
+            >
+            <input
+              type="text"
+              class="form-control"
+              id="scopes"
+              name="scopes"
+              aria-describedby="scopesHelpText"
+              v-model="formData.scopes"
+              :placeholder="$t('identityProvidersAddEditModal.scopesPlaceholder')"
+              maxlength="500"
+            />
+            <div id="scopesHelpText" class="form-text">
+              {{ $t('identityProvidersAddEditModal.scopesHelp') }}
             </div>
 
             <!-- Appearance -->
             <hr />
             <h6>{{ $t('identityProvidersAddEditModal.appearanceSection') }}</h6>
 
-            <div>
-              <label for="icon" class="form-label">{{
-                $t('identityProvidersAddEditModal.iconLabel')
-              }}</label>
-              <input
-                type="text"
-                class="form-control"
-                id="icon"
-                v-model="formData.icon"
-                :placeholder="$t('identityProvidersAddEditModal.iconPlaceholder')"
-                maxlength="100"
-              />
-              <div class="form-text">
-                {{ $t('identityProvidersAddEditModal.iconHelp') }}
-              </div>
+            <!-- icon field -->
+            <label for="icon">{{ $t('identityProvidersAddEditModal.iconLabel') }}</label>
+            <input
+              type="text"
+              class="form-control"
+              id="icon"
+              name="icon"
+              aria-describedby="iconHelpText"
+              v-model="formData.icon"
+              :placeholder="$t('identityProvidersAddEditModal.iconPlaceholder')"
+              maxlength="100"
+            />
+            <div id="iconHelpText" class="form-text">
+              {{ $t('identityProvidersAddEditModal.iconHelp') }}
             </div>
 
             <!-- Options -->
             <hr />
             <h6>{{ $t('identityProvidersAddEditModal.optionsSection') }}</h6>
 
+            <!-- enabled checkbox -->
             <div class="form-check mb-3">
               <input
                 class="form-check-input"
                 type="checkbox"
                 id="enabled"
+                name="enabled"
                 v-model="formData.enabled"
+                aria-label="Enable identity provider"
               />
               <label class="form-check-label" for="enabled">
                 {{ $t('identityProvidersAddEditModal.enabledLabel') }}
               </label>
             </div>
 
-            <div class="form-check mb-3">
-              <input
-                class="form-check-input"
-                type="checkbox"
-                id="autoCreateUsers"
-                v-model="formData.auto_create_users"
-              />
-              <label class="form-check-label" for="autoCreateUsers">
-                {{ $t('identityProvidersAddEditModal.autoCreateUsersLabel') }}
-              </label>
-              <div class="form-text">
+            <!-- auto create users checkbox -->
+            <div class="mb-3">
+              <div class="form-check">
+                <input
+                  class="form-check-input"
+                  type="checkbox"
+                  id="autoCreateUsers"
+                  name="autoCreateUsers"
+                  aria-describedby="autoCreateUsersHelpText"
+                  v-model="formData.auto_create_users"
+                />
+                <label class="form-check-label" for="autoCreateUsers">
+                  {{ $t('identityProvidersAddEditModal.autoCreateUsersLabel') }}
+                </label>
+              </div>
+              <div id="autoCreateUsersHelpText" class="form-text">
                 {{ $t('identityProvidersAddEditModal.autoCreateUsersHelp') }}
               </div>
             </div>
 
-            <div class="form-check mb-3">
-              <input
-                class="form-check-input"
-                type="checkbox"
-                id="syncUserInfo"
-                v-model="formData.sync_user_info"
-              />
-              <label class="form-check-label" for="syncUserInfo">
-                {{ $t('identityProvidersAddEditModal.syncUserInfoLabel') }}
-              </label>
-              <div class="form-text">
+            <!-- sync user info checkbox -->
+            <div class="mb-3">
+              <div class="form-check">
+                <input
+                  class="form-check-input"
+                  type="checkbox"
+                  id="syncUserInfo"
+                  name="syncUserInfo"
+                  aria-describedby="syncUserInfoHelpText"
+                  v-model="formData.sync_user_info"
+                />
+                <label class="form-check-label" for="syncUserInfo">
+                  {{ $t('identityProvidersAddEditModal.syncUserInfoLabel') }}
+                </label>
+              </div>
+              <div id="syncUserInfoHelpText" class="form-text">
                 {{ $t('identityProvidersAddEditModal.syncUserInfoHelp') }}
               </div>
             </div>
@@ -251,6 +267,8 @@
               <strong>{{ $t('identityProvidersAddEditModal.configurationNotes') }}</strong>
               <p class="mb-0 mt-2">{{ templateNotes }}</p>
             </div>
+
+            <p>* {{ $t('generalItems.requiredField') }}</p>
           </div>
           <div class="modal-footer">
             <button
@@ -258,10 +276,22 @@
               class="btn btn-secondary"
               data-bs-dismiss="modal"
               @click="resetForm"
+              aria-label="Close modal"
             >
               {{ $t('generalItems.buttonClose') }}
             </button>
-            <button type="submit" class="btn btn-primary" :disabled="isSubmitting">
+            <button
+              type="submit"
+              class="btn btn-success"
+              name="providerSubmit"
+              data-bs-dismiss="modal"
+              :disabled="isSubmitting || !isSlugValid"
+              :aria-label="
+                action === 'add'
+                  ? $t('identityProvidersAddEditModal.addButton')
+                  : $t('identityProvidersAddEditModal.saveButton')
+              "
+            >
               <span
                 v-if="isSubmitting"
                 class="spinner-border spinner-border-sm me-2"
@@ -303,7 +333,7 @@ import { push } from 'notivue'
 // Services
 import { identityProviders } from '@/services/identityProvidersService'
 // Types
-import type { ErrorWithResponse } from '@/types'
+import type { ErrorWithResponse, IdentityProviderTemplate } from '@/types'
 // Constants
 import { HTTP_STATUS, extractStatusCode } from '@/constants/httpConstants'
 
@@ -325,74 +355,6 @@ interface IdentityProvider {
   sync_user_info?: boolean
 }
 
-/**
- * Template configuration interface
- */
-interface TemplateConfig {
-  name: string
-  provider_type: string
-  issuer_url: string
-  scopes: string
-  icon: string
-  description: string
-  configuration_notes: string
-}
-
-/**
- * Template configurations
- */
-const TEMPLATES: Record<string, TemplateConfig> = {
-  keycloak: {
-    name: 'Keycloak',
-    provider_type: 'oidc',
-    issuer_url: 'https://{your-keycloak-domain}/realms/{realm}',
-    scopes: 'openid profile email',
-    icon: 'keycloak',
-    description: 'Keycloak - Open Source Identity and Access Management',
-    configuration_notes:
-      'Replace {your-keycloak-domain} with your Keycloak server domain (e.g., keycloak.example.com) and {realm} with your realm name. Create an OIDC client in Keycloak admin console.'
-  },
-  authentik: {
-    name: 'Authentik',
-    provider_type: 'oidc',
-    issuer_url: 'https://{your-authentik-domain}/application/o/{slug}/',
-    scopes: 'openid profile email',
-    icon: 'authentik',
-    description: 'Authentik - Open-source Identity Provider',
-    configuration_notes:
-      'Replace {your-authentik-domain} with your Authentik server domain (e.g., authentik.example.com) and {slug} with your application slug. Create an OAuth2/OIDC provider in Authentik.'
-  },
-  authelia: {
-    name: 'Authelia',
-    provider_type: 'oidc',
-    issuer_url: 'https://{your-authelia-domain}',
-    scopes: 'openid profile email',
-    icon: 'authelia',
-    description: 'Authelia - Open-source authentication and authorization server',
-    configuration_notes:
-      'Replace {your-authelia-domain} with your Authelia server domain (e.g., auth.example.com). Configure an OIDC client in your Authelia configuration file.'
-  },
-  google: {
-    name: 'Google',
-    provider_type: 'oidc',
-    issuer_url: 'https://accounts.google.com',
-    scopes: 'openid profile email',
-    icon: 'google',
-    description: 'Google OAuth 2.0',
-    configuration_notes: 'Create OAuth 2.0 credentials in Google Cloud Console.'
-  },
-  microsoft: {
-    name: 'Microsoft',
-    provider_type: 'oidc',
-    issuer_url: 'https://login.microsoftonline.com/{tenant}/v2.0',
-    scopes: 'openid profile email',
-    icon: 'microsoft',
-    description: 'Microsoft Azure AD / Entra ID',
-    configuration_notes:
-      "Replace {tenant} with your tenant ID or 'common'. Register an app in Azure Portal."
-  }
-}
-
 // ============================================================================
 // Props & Emits
 // ============================================================================
@@ -406,6 +368,10 @@ const props = defineProps({
   provider: {
     type: Object as PropType<IdentityProvider | null>,
     default: null
+  },
+  templates: {
+    type: Array as PropType<IdentityProviderTemplate[]>,
+    default: () => []
   }
 })
 
@@ -421,25 +387,13 @@ const emit = defineEmits<{
 const { t } = useI18n()
 
 // ============================================================================
-// Component State
+// Reactive State
 // ============================================================================
 
 const selectedTemplate: Ref<string> = ref('')
 const isSubmitting: Ref<boolean> = ref(false)
 
-const formData: Ref<{
-  name: string
-  slug: string
-  provider_type: string
-  enabled: boolean
-  issuer_url: string
-  client_id: string
-  client_secret: string
-  scopes: string
-  icon: string
-  auto_create_users: boolean
-  sync_user_info: boolean
-}> = ref({
+const formData = ref({
   name: '',
   slug: '',
   provider_type: 'oidc',
@@ -469,30 +423,33 @@ const isSlugValid = computed(() => {
 })
 
 const templateDescription = computed(() => {
-  if (!selectedTemplate.value) return ''
-  const template = TEMPLATES[selectedTemplate.value]
+  if (!selectedTemplate.value || selectedTemplate.value === '') return ''
+  const index = parseInt(selectedTemplate.value)
+  const template = props.templates[index]
   return template ? template.description : ''
 })
 
 const templateNotes = computed(() => {
-  if (!selectedTemplate.value) return ''
-  const template = TEMPLATES[selectedTemplate.value]
+  if (!selectedTemplate.value || selectedTemplate.value === '') return ''
+  const index = parseInt(selectedTemplate.value)
+  const template = props.templates[index]
   return template ? template.configuration_notes : ''
 })
 
 // ============================================================================
-// Template Handling
+// UI Interaction Handlers
 // ============================================================================
 
 /**
  * Apply selected template configuration to form
  */
 const applyTemplate = (): void => {
-  if (!selectedTemplate.value) {
+  if (!selectedTemplate.value || selectedTemplate.value === '') {
     return
   }
 
-  const template = TEMPLATES[selectedTemplate.value]
+  const index = parseInt(selectedTemplate.value)
+  const template = props.templates[index]
   if (!template) {
     return
   }
@@ -506,7 +463,13 @@ const applyTemplate = (): void => {
 }
 
 // ============================================================================
-// Form Handling
+// Validation Logic
+// ============================================================================
+
+// (Validation is handled via computed properties above)
+
+// ============================================================================
+// Main Logic
 // ============================================================================
 
 /**
@@ -680,10 +643,3 @@ watch(
   { immediate: true }
 )
 </script>
-
-<style scoped>
-.form-control-color {
-  width: 100%;
-  height: 38px;
-}
-</style>

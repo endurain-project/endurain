@@ -43,7 +43,7 @@ export const identityProviders = {
    * @returns {Promise} Array of available templates
    */
   getTemplates() {
-    return fetchGetRequest('public/idp/templates')
+    return fetchGetRequest('idp/templates')
   },
 
   /**

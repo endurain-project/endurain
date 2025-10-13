@@ -146,6 +146,7 @@
     <IdentityProvidersAddEditModalComponent
       :action="'edit'"
       :provider="provider"
+      :templates="templates"
       @providerUpdated="handleProviderUpdated"
     />
 
@@ -187,6 +188,8 @@ import ModalComponent from '@/components/Modals/ModalComponent.vue'
 import IdentityProvidersAddEditModalComponent from './IdentityProvidersAddEditModalComponent.vue'
 // Constants
 import { HTTP_STATUS, extractStatusCode } from '@/constants/httpConstants'
+// Types
+import type { IdentityProviderTemplate } from '@/types'
 
 /**
  * Identity Provider interface
@@ -221,6 +224,7 @@ const PROVIDER_CUSTOM_LOGO_MAP: Record<string, string> = {
 
 const props = defineProps<{
   provider: IdentityProvider
+  templates: IdentityProviderTemplate[]
 }>()
 
 const emit = defineEmits<{

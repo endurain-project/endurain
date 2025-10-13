@@ -58,6 +58,20 @@ export interface LoginResponse {
 }
 
 /**
+ * Identity Provider Template
+ * Configuration template for identity providers (OIDC, OAuth2, etc.)
+ */
+export interface IdentityProviderTemplate {
+  name: string
+  provider_type: string
+  issuer_url: string
+  scopes: string
+  icon: string
+  description: string
+  configuration_notes: string
+}
+
+/**
  * Window Environment Extension
  * Extends the global Window interface to include custom env property
  */

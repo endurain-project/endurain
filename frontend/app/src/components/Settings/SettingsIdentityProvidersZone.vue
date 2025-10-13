@@ -20,6 +20,7 @@
           <IdentityProvidersAddEditModalComponent
             :action="'add'"
             :provider="null"
+            :templates="templates"
             @providerAdded="handleProviderAdded"
           />
         </div>
@@ -44,6 +45,7 @@
             >
               <IdentityProviderListComponent
                 :provider="provider"
+                :templates="templates"
                 @providerDeleted="updateProviderList"
                 @providerUpdated="updateProviderInList"
               />
@@ -86,9 +88,10 @@ import LoadingComponent from '@/components/GeneralComponents/LoadingComponent.vu
 import NoItemsFoundComponents from '@/components/GeneralComponents/NoItemsFoundComponents.vue'
 import IdentityProvidersAddEditModalComponent from './SettingsIdentityProvidersZone/IdentityProvidersAddEditModalComponent.vue'
 import IdentityProviderListComponent from './SettingsIdentityProvidersZone/IdentityProviderListComponent.vue'
-
 // Constants
 import { HTTP_STATUS, extractStatusCode } from '@/constants/httpConstants'
+// Types
+import type { IdentityProviderTemplate } from '@/types'
 
 /**
  * Identity Provider interface
@@ -118,6 +121,7 @@ const { t } = useI18n()
 // ============================================================================
 
 const providers: Ref<IdentityProvider[]> = ref([])
+const templates: Ref<IdentityProviderTemplate[]> = ref([])
 const isLoading: Ref<boolean> = ref(true)
 
 // ============================================================================
@@ -143,6 +147,25 @@ const fetchProviders = async (): Promise<void> => {
     providers.value = []
   } finally {
     isLoading.value = false
+  }
+}
+
+/**
+ * Fetch identity provider templates from the API
+ * Loads pre-configured templates for common providers
+ */
+const fetchTemplates = async (): Promise<void> => {
+  try {
+    const response = await identityProviders.getTemplates()
+    templates.value = response || []
+  } catch (error) {
+    const statusCode = extractStatusCode(error)
+    if (statusCode === HTTP_STATUS.FORBIDDEN) {
+      push.error(t('settingsIdentityProvidersZone.errorForbidden'))
+    } else {
+      push.error(`${t('settingsIdentityProvidersZone.errorFetchingTemplates')} - ${error}`)
+    }
+    templates.value = []
   }
 }
 
@@ -198,9 +221,9 @@ const updateProviderInList = (updatedProvider: IdentityProvider): void => {
 
 /**
  * Component mounted lifecycle hook
- * Fetches all identity providers on component load
+ * Fetches all identity providers and templates on component load
  */
 onMounted(async () => {
-  await fetchProviders()
+  await Promise.all([fetchProviders(), fetchTemplates()])
 })
 </script>
