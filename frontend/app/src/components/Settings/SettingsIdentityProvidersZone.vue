@@ -26,17 +26,10 @@
             <!-- Provider Icon/Logo -->
             <div class="me-3">
               <img
-                v-if="getProviderCustomLogo(provider.icon)"
                 :src="getProviderCustomLogo(provider.icon)!"
                 :alt="`${provider.name} logo`"
                 style="height: 2rem; width: auto"
               />
-              <font-awesome-icon
-                v-else-if="provider.icon"
-                :icon="getProviderIcon(provider.icon)"
-                size="2x"
-              />
-              <font-awesome-icon v-else :icon="['fas', 'id-card']" size="2x" />
             </div>
 
             <!-- Provider Info -->
@@ -208,23 +201,6 @@ interface IdentityProvider {
 }
 
 /**
- * Icon mapping for SSO providers
- * Maps provider icon names to FontAwesome icon arrays
- */
-const PROVIDER_ICON_MAP: Record<string, [string, string]> = {
-  google: ['fab', 'google'],
-  microsoft: ['fab', 'microsoft'],
-  github: ['fab', 'github'],
-  gitlab: ['fab', 'gitlab'],
-  okta: ['fas', 'id-card'],
-  auth0: ['fas', 'lock'],
-  keycloak: ['fas', 'key'],
-  authentik: ['fas', 'shield-halved'],
-  authelia: ['fas', 'shield-alt'],
-  default: ['fas', 'id-card']
-} as const
-
-/**
  * Custom logo mapping for SSO providers
  * Maps provider icon names to image paths for custom logos
  */
@@ -291,20 +267,6 @@ const getProviderCustomLogo = (iconName?: string): string | null => {
   const logoPath =
     PROVIDER_CUSTOM_LOGO_MAP[iconName.toLowerCase() as keyof typeof PROVIDER_CUSTOM_LOGO_MAP]
   return logoPath || null
-}
-
-/**
- * Get FontAwesome icon for a provider
- * Maps provider icon names to icon arrays
- * Only used when custom logo is not available
- *
- * @param iconName - Provider icon name
- * @returns FontAwesome icon array
- */
-const getProviderIcon = (iconName?: string): [string, string] => {
-  if (!iconName) return PROVIDER_ICON_MAP.default as [string, string]
-  const icon = PROVIDER_ICON_MAP[iconName.toLowerCase() as keyof typeof PROVIDER_ICON_MAP]
-  return (icon || PROVIDER_ICON_MAP.default) as [string, string]
 }
 
 // ============================================================================
