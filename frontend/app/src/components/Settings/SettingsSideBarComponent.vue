@@ -34,7 +34,10 @@
           @click.prevent="changeActive('identityProviders')"
         >
           <font-awesome-icon :icon="['fas', 'id-card']" />
-          <span class="ms-1">{{ $t('settingsSideBar.identityProvidersSection') }}</span>
+          <span class="ms-1"
+            >{{ $t('settingsSideBar.identityProvidersSection')
+            }}{{ $t('generalItems.betaTag') }}</span
+          >
         </a>
       </li>
       <hr v-if="authStore.user.access_type == 2" />

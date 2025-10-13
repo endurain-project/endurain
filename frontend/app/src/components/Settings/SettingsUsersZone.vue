@@ -81,7 +81,7 @@
             />
           </div>
           <!-- Displaying a message or component when there are no activities -->
-          <NoItemsFoundComponent class="mt-3" :show-shadow="false" v-else/>
+          <NoItemsFoundComponent class="mt-3" :show-shadow="false" v-else />
         </div>
       </div>
     </div>

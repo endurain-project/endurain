@@ -42,7 +42,6 @@
           :href="`#collapseUserDetails${user.id}`"
           role="button"
           aria-expanded="false"
-          @click="showUserDetails()"
           :aria-controls="`collapseUserDetails${user.id}`"
         >
           <font-awesome-icon :icon="['fas', 'caret-down']" v-if="!userDetails" />
@@ -201,10 +200,6 @@ function editUserList(editedUser) {
   emit('editedUser', editedUser)
 }
 
-function showUserDetails() {
-  userDetails.value = !userDetails.value
-}
-
 async function updateSessionListDeleted(sessionDeletedId) {
   try {
     await session.deleteSession(sessionDeletedId, props.user.id)
@@ -229,5 +224,16 @@ async function submitApproveSignUp() {
 onMounted(async () => {
   userSessions.value = await session.getUserSessions(props.user.id)
   isLoading.value = false
+
+  // Attach Bootstrap collapse event listeners to sync icon state
+  const collapseElement = document.getElementById(`collapseUserDetails${props.user.id}`)
+  if (collapseElement) {
+    collapseElement.addEventListener('show.bs.collapse', () => {
+      userDetails.value = true
+    })
+    collapseElement.addEventListener('hide.bs.collapse', () => {
+      userDetails.value = false
+    })
+  }
 })
 </script>

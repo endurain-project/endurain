@@ -458,7 +458,9 @@ const formData: Ref<{
 // ============================================================================
 
 const editModalId = computed(() => {
-  return props.provider ? `editIdentityProviderModal${props.provider.id}` : 'editIdentityProviderModal'
+  return props.provider
+    ? `editIdentityProviderModal${props.provider.id}`
+    : 'editIdentityProviderModal'
 })
 
 const isSlugValid = computed(() => {
