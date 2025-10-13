@@ -182,8 +182,6 @@ def create_identity_provider(
             jwks_uri=idp_data.jwks_uri,
             scopes=idp_data.scopes,
             icon=idp_data.icon,
-            button_text=idp_data.button_text,
-            button_color=idp_data.button_color,
             auto_create_users=idp_data.auto_create_users,
             sync_user_info=idp_data.sync_user_info,
             user_mapping=idp_data.user_mapping,

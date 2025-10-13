@@ -118,18 +118,6 @@ def upgrade() -> None:
             comment="Icon name (FontAwesome) or custom URL",
         ),
         sa.Column(
-            "button_text",
-            sa.String(length=100),
-            nullable=True,
-            comment="Custom text for login button",
-        ),
-        sa.Column(
-            "button_color",
-            sa.String(length=20),
-            nullable=True,
-            comment="Custom color for login button (hex)",
-        ),
-        sa.Column(
             "auto_create_users",
             sa.Boolean(),
             nullable=False,

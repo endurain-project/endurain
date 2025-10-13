@@ -23,8 +23,6 @@ class IdentityProvider(Base):
         jwks_uri (str, optional): OIDC JWKS URI for token verification.
         scopes (str, optional): OAuth2/OIDC scopes to request (default: "openid profile email").
         icon (str, optional): Icon name (FontAwesome) or custom URL for the provider.
-        button_text (str, optional): Custom text for the login button.
-        button_color (str, optional): Custom color for the login button (hex).
         auto_create_users (bool): Automatically create users on first login.
         sync_user_info (bool): Sync user info on each login.
         user_mapping (dict, optional): JSON mapping of IdP claims to user fields.
@@ -105,16 +103,6 @@ class IdentityProvider(Base):
         String(length=100),
         nullable=True,
         comment="Icon name (FontAwesome) or custom URL"
-    )
-    button_text = Column(
-        String(length=100),
-        nullable=True,
-        comment="Custom text for login button"
-    )
-    button_color = Column(
-        String(length=20),
-        nullable=True,
-        comment="Custom color for login button (hex)"
     )
     auto_create_users = Column(
         Boolean,

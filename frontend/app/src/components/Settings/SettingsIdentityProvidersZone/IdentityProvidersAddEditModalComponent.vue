@@ -199,34 +199,6 @@
               </div>
             </div>
 
-            <div class="row">
-              <div class="col-md-6 mb-3">
-                <label for="buttonText" class="form-label">{{
-                  $t('identityProvidersAddEditModal.buttonTextLabel')
-                }}</label>
-                <input
-                  type="text"
-                  class="form-control"
-                  id="buttonText"
-                  v-model="formData.button_text"
-                  :placeholder="$t('identityProvidersAddEditModal.buttonTextPlaceholder')"
-                  maxlength="100"
-                />
-              </div>
-
-              <div class="col-md-6 mb-3">
-                <label for="buttonColor" class="form-label">{{
-                  $t('identityProvidersAddEditModal.buttonColorLabel')
-                }}</label>
-                <input
-                  type="color"
-                  class="form-control form-control-color"
-                  id="buttonColor"
-                  v-model="formData.button_color"
-                />
-              </div>
-            </div>
-
             <!-- Options -->
             <hr />
             <h6>{{ $t('identityProvidersAddEditModal.optionsSection') }}</h6>
@@ -349,8 +321,6 @@ interface IdentityProvider {
   client_id?: string
   client_secret?: string
   scopes?: string
-  button_text?: string
-  button_color?: string
   auto_create_users?: boolean
   sync_user_info?: boolean
 }
@@ -364,7 +334,6 @@ interface TemplateConfig {
   issuer_url: string
   scopes: string
   icon: string
-  button_color: string
   description: string
   configuration_notes: string
 }
@@ -379,7 +348,6 @@ const TEMPLATES: Record<string, TemplateConfig> = {
     issuer_url: 'https://{your-keycloak-domain}/realms/{realm}',
     scopes: 'openid profile email',
     icon: 'keycloak',
-    button_color: '#008CBA',
     description: 'Keycloak - Open Source Identity and Access Management',
     configuration_notes:
       'Replace {your-keycloak-domain} with your Keycloak server domain (e.g., keycloak.example.com) and {realm} with your realm name. Create an OIDC client in Keycloak admin console.'
@@ -390,7 +358,6 @@ const TEMPLATES: Record<string, TemplateConfig> = {
     issuer_url: 'https://{your-authentik-domain}/application/o/{slug}/',
     scopes: 'openid profile email',
     icon: 'authentik',
-    button_color: '#FD4B2D',
     description: 'Authentik - Open-source Identity Provider',
     configuration_notes:
       'Replace {your-authentik-domain} with your Authentik server domain (e.g., authentik.example.com) and {slug} with your application slug. Create an OAuth2/OIDC provider in Authentik.'
@@ -401,7 +368,6 @@ const TEMPLATES: Record<string, TemplateConfig> = {
     issuer_url: 'https://{your-authelia-domain}',
     scopes: 'openid profile email',
     icon: 'authelia',
-    button_color: '#1E88E5',
     description: 'Authelia - Open-source authentication and authorization server',
     configuration_notes:
       'Replace {your-authelia-domain} with your Authelia server domain (e.g., auth.example.com). Configure an OIDC client in your Authelia configuration file.'
@@ -412,7 +378,6 @@ const TEMPLATES: Record<string, TemplateConfig> = {
     issuer_url: 'https://accounts.google.com',
     scopes: 'openid profile email',
     icon: 'google',
-    button_color: '#4285F4',
     description: 'Google OAuth 2.0',
     configuration_notes: 'Create OAuth 2.0 credentials in Google Cloud Console.'
   },
@@ -422,7 +387,6 @@ const TEMPLATES: Record<string, TemplateConfig> = {
     issuer_url: 'https://login.microsoftonline.com/{tenant}/v2.0',
     scopes: 'openid profile email',
     icon: 'microsoft',
-    button_color: '#0078D4',
     description: 'Microsoft Azure AD / Entra ID',
     configuration_notes:
       "Replace {tenant} with your tenant ID or 'common'. Register an app in Azure Portal."
@@ -473,8 +437,6 @@ const formData: Ref<{
   client_secret: string
   scopes: string
   icon: string
-  button_text: string
-  button_color: string
   auto_create_users: boolean
   sync_user_info: boolean
 }> = ref({
@@ -487,8 +449,6 @@ const formData: Ref<{
   client_secret: '',
   scopes: 'openid profile email',
   icon: '',
-  button_text: '',
-  button_color: '#0066cc',
   auto_create_users: true,
   sync_user_info: true
 })
@@ -541,8 +501,6 @@ const applyTemplate = (): void => {
   formData.value.issuer_url = template.issuer_url
   formData.value.scopes = template.scopes
   formData.value.icon = template.icon
-  formData.value.button_color = template.button_color
-  formData.value.button_text = `Sign in with ${template.name}`
 }
 
 // ============================================================================
@@ -564,8 +522,6 @@ const resetForm = (): void => {
     client_secret: '',
     scopes: 'openid profile email',
     icon: '',
-    button_text: '',
-    button_color: '#0066cc',
     auto_create_users: true,
     sync_user_info: true
   }
@@ -586,8 +542,6 @@ const loadProviderData = (): void => {
       client_secret: '', // Don't load existing secret
       scopes: props.provider.scopes || 'openid profile email',
       icon: props.provider.icon || '',
-      button_text: props.provider.button_text || '',
-      button_color: props.provider.button_color || '#0066cc',
       auto_create_users: props.provider.auto_create_users ?? true,
       sync_user_info: props.provider.sync_user_info ?? true
     }
@@ -633,8 +587,6 @@ const createProvider = async (): Promise<void> => {
       client_secret: formData.value.client_secret,
       scopes: formData.value.scopes || 'openid profile email',
       icon: formData.value.icon || undefined,
-      button_text: formData.value.button_text || undefined,
-      button_color: formData.value.button_color || undefined,
       auto_create_users: formData.value.auto_create_users,
       sync_user_info: formData.value.sync_user_info
     })
@@ -672,8 +624,6 @@ const updateProvider = async (): Promise<void> => {
       client_id: formData.value.client_id,
       scopes: formData.value.scopes || 'openid profile email',
       icon: formData.value.icon || undefined,
-      button_text: formData.value.button_text || undefined,
-      button_color: formData.value.button_color || undefined,
       auto_create_users: formData.value.auto_create_users,
       sync_user_info: formData.value.sync_user_info
     }

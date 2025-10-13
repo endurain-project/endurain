@@ -117,11 +117,6 @@
               <button
                 type="button"
                 class="w-100 btn btn-outline-secondary d-flex align-items-center justify-content-center"
-                :style="
-                  provider.button_color
-                    ? `border-color: ${provider.button_color}; color: ${provider.button_color}`
-                    : ''
-                "
                 @click="handleSSOLogin(provider.slug)"
                 :aria-label="$t('loginView.ssoButton', { provider: provider.name })"
               >
@@ -139,7 +134,7 @@
                   :icon="getProviderIcon(provider.icon)"
                   class="me-2"
                 />
-                {{ provider.button_text || $t('loginView.ssoButton', { provider: provider.name }) }}
+                {{ $t('loginView.ssoButton', { provider: provider.name }) }}
               </button>
             </div>
           </div>
@@ -289,8 +284,6 @@ interface SSOProvider {
   name: string
   slug: string
   icon?: string
-  button_text?: string
-  button_color?: string
 }
 
 const ssoProviders: Ref<SSOProvider[]> = ref([])

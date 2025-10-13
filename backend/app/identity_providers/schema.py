@@ -20,8 +20,6 @@ class IdentityProviderBase(BaseModel):
         jwks_uri (str | None): OIDC JWKS URI (max 500 characters).
         scopes (str): OAuth2/OIDC scopes (max 500 characters). Defaults to "openid profile email".
         icon (str | None): Icon name or URL (max 100 characters).
-        button_text (str | None): Custom button text (max 100 characters).
-        button_color (str | None): Button color in hex format (e.g., #0066cc, max 20 characters).
         auto_create_users (bool): Whether to auto-create users on first login. Defaults to True.
         sync_user_info (bool): Whether to sync user info on each login. Defaults to True.
         user_mapping (Dict[str, Any] | None): Claims mapping configuration.
@@ -29,7 +27,6 @@ class IdentityProviderBase(BaseModel):
     Validators:
         - slug: Ensures the slug contains only lowercase letters, numbers, and hyphens.
         - provider_type: Ensures the provider type is one of the allowed values.
-        - button_color: Ensures the button color is a valid hex color code.
     """
 
     name: str = Field(
@@ -59,12 +56,6 @@ class IdentityProviderBase(BaseModel):
         default="openid profile email", max_length=500, description="OAuth2/OIDC scopes"
     )
     icon: str | None = Field(None, max_length=100, description="Icon name or URL")
-    button_text: str | None = Field(
-        None, max_length=100, description="Custom button text"
-    )
-    button_color: str | None = Field(
-        None, max_length=20, description="Button color (hex)"
-    )
     auto_create_users: bool = Field(
         default=True, description="Auto-create users on first login"
     )
@@ -114,25 +105,6 @@ class IdentityProviderBase(BaseModel):
         allowed = ["oidc", "oauth2", "saml"]
         if v not in allowed:
             raise ValueError(f'Provider type must be one of: {", ".join(allowed)}')
-        return v
-
-    @field_validator("button_color")
-    @classmethod
-    def validate_button_color(cls, v: str | None) -> str | None:
-        """
-        Validates that the provided button color is a valid hexadecimal color code.
-
-        Args:
-            v (str | None): The color value to validate.
-
-        Returns:
-            str | None: The validated color value if valid, otherwise raises a ValueError.
-
-        Raises:
-            ValueError: If the provided color is not a valid hex color (e.g., #0066cc).
-        """
-        if v and not re.match(r"^#[0-9A-Fa-f]{6}$", v):
-            raise ValueError("Button color must be a valid hex color (e.g., #0066cc)")
         return v
 
 
@@ -220,8 +192,6 @@ class IdentityProviderPublic(BaseModel):
         name (str): Display name of the identity provider.
         slug (str): URL-friendly unique identifier for the provider.
         icon (str | None): URL or path to the provider's icon image.
-        button_text (str | None): Custom text to display on the login button.
-        button_color (str | None): Hex code or color name for the login button.
 
     Config:
         model_config (dict): Pydantic model configuration to allow population from ORM attributes.
@@ -231,8 +201,6 @@ class IdentityProviderPublic(BaseModel):
     name: str
     slug: str
     icon: str | None = None
-    button_text: str | None = None
-    button_color: str | None = None
 
     model_config = ConfigDict(
         from_attributes=True, extra="forbid", validate_assignment=True
@@ -250,7 +218,6 @@ class IdentityProviderTemplate(BaseModel):
         issuer_url (str | None): URL of the identity provider's issuer, if applicable.
         scopes (str): Scopes required for authentication.
         icon (str | None): URL or path to the icon representing the identity provider.
-        button_color (str | None): Hex code or color name for the provider's button.
         user_mapping (Dict[str, Any] | None): Mapping configuration for user attributes.
         description (str): Description of this template.
         configuration_notes (str | None): Setup instructions for this identity provider.
@@ -264,7 +231,6 @@ class IdentityProviderTemplate(BaseModel):
     issuer_url: str | None = None
     scopes: str
     icon: str | None = None
-    button_color: str | None = None
     user_mapping: Dict[str, Any] | None = None
     description: str = Field(..., description="Description of this template")
     configuration_notes: str | None = Field(

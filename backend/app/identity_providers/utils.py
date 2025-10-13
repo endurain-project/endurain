@@ -11,7 +11,6 @@ IDP_TEMPLATES = {
         "issuer_url": "https://{your-keycloak-domain}/realms/{realm}",
         "scopes": "openid profile email",
         "icon": "fa-key",
-        "button_color": "#008CBA",
         "user_mapping": {
             "username": ["preferred_username", "username", "email"],
             "email": ["email", "mail"],
@@ -26,7 +25,6 @@ IDP_TEMPLATES = {
         "issuer_url": "https://{your-authentik-domain}/application/o/{slug}/",
         "scopes": "openid profile email",
         "icon": "fa-shield-alt",
-        "button_color": "#FD4B2D",
         "user_mapping": {
             "username": ["preferred_username", "username", "email"],
             "email": ["email", "mail"],
@@ -41,7 +39,6 @@ IDP_TEMPLATES = {
         "issuer_url": "https://{your-authelia-domain}",
         "scopes": "openid profile email",
         "icon": "fa-lock",
-        "button_color": "#1E88E5",
         "user_mapping": {
             "username": ["preferred_username", "username", "email"],
             "email": ["email"],
@@ -56,7 +53,6 @@ IDP_TEMPLATES = {
         "issuer_url": "https://accounts.google.com",
         "scopes": "openid profile email",
         "icon": "fa-google",
-        "button_color": "#4285F4",
         "user_mapping": {
             "username": ["email"],
             "email": ["email"],
@@ -71,7 +67,6 @@ IDP_TEMPLATES = {
         "issuer_url": "https://login.microsoftonline.com/{tenant}/v2.0",
         "scopes": "openid profile email",
         "icon": "fa-microsoft",
-        "button_color": "#0078D4",
         "user_mapping": {
             "username": ["preferred_username", "email"],
             "email": ["email"],

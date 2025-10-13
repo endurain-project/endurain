@@ -58,8 +58,6 @@ export const identityProviders = {
    * @param {string} [data.issuer_url] - OIDC issuer URL
    * @param {string} [data.scopes] - OAuth scopes
    * @param {string} [data.icon] - Icon name or URL
-   * @param {string} [data.button_text] - Custom button text
-   * @param {string} [data.button_color] - Button color (hex)
    * @param {boolean} [data.auto_create_users] - Auto-create users
    * @param {boolean} [data.sync_user_info] - Sync user info on login
    * @param {Object} [data.user_mapping] - Claims mapping

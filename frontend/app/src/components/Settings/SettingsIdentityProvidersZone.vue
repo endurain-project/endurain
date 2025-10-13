@@ -205,8 +205,6 @@ interface IdentityProvider {
   authorization_endpoint?: string
   token_endpoint?: string
   userinfo_endpoint?: string
-  button_text?: string
-  button_color?: string
 }
 
 /**

@@ -41,8 +41,6 @@ async def get_enabled_providers(db: Annotated[Session, Depends(core_database.get
             name=p.name,
             slug=p.slug,
             icon=p.icon,
-            button_text=p.button_text,
-            button_color=p.button_color,
         )
         for p in providers
     ]
