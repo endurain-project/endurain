@@ -333,27 +333,9 @@ import { push } from 'notivue'
 // Services
 import { identityProviders } from '@/services/identityProvidersService'
 // Types
-import type { ErrorWithResponse, IdentityProviderTemplate } from '@/types'
+import type { ErrorWithResponse, IdentityProviderTemplate, IdentityProvider } from '@/types'
 // Constants
 import { HTTP_STATUS, extractStatusCode } from '@/constants/httpConstants'
-
-/**
- * Identity Provider interface
- */
-interface IdentityProvider {
-  id: number
-  name: string
-  slug: string
-  provider_type: string
-  icon?: string
-  is_enabled: boolean
-  issuer_url?: string
-  client_id?: string
-  client_secret?: string
-  scopes?: string
-  auto_create_users?: boolean
-  sync_user_info?: boolean
-}
 
 // ============================================================================
 // Props & Emits

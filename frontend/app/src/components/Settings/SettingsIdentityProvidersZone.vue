@@ -91,24 +91,7 @@ import IdentityProviderListComponent from './SettingsIdentityProvidersZone/Ident
 // Constants
 import { HTTP_STATUS, extractStatusCode } from '@/constants/httpConstants'
 // Types
-import type { IdentityProviderTemplate } from '@/types'
-
-/**
- * Identity Provider interface
- */
-interface IdentityProvider {
-  id: number
-  name: string
-  slug: string
-  provider_type: string
-  icon?: string
-  is_enabled: boolean
-  issuer_url?: string
-  client_id?: string
-  authorization_endpoint?: string
-  token_endpoint?: string
-  userinfo_endpoint?: string
-}
+import type { IdentityProviderTemplate, IdentityProvider } from '@/types'
 
 // ============================================================================
 // Composables & State

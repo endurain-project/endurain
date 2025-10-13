@@ -72,6 +72,31 @@ export interface IdentityProviderTemplate {
 }
 
 /**
+ * Identity Provider
+ * Represents a configured external identity provider for SSO authentication
+ * Combines properties used for both editing and displaying providers
+ */
+export interface IdentityProvider {
+  id: number
+  name: string
+  slug: string
+  provider_type: string
+  icon?: string
+  is_enabled: boolean
+  issuer_url?: string
+  client_id?: string
+  // Edit-specific fields
+  client_secret?: string
+  scopes?: string
+  auto_create_users?: boolean
+  sync_user_info?: boolean
+  // Display-specific fields
+  authorization_endpoint?: string
+  token_endpoint?: string
+  userinfo_endpoint?: string
+}
+
+/**
  * Window Environment Extension
  * Extends the global Window interface to include custom env property
  */
