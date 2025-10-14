@@ -1,11 +1,9 @@
 {
-  "addProviderButton": "Add Provider",
+  "addProviderButton": "Add identity provider",
   "enabledBadge": "Enabled",
   "disabledBadge": "Disabled",
   "oidcType": "OpenID Connect",
   "oauth2Type": "OAuth 2.0",
-  "enableButton": "Enable",
-  "disableButton": "Disable",
   "editButton": "Edit",
   "deleteButton": "Delete",
   "infoAlert": "Identity providers allow users to authenticate using external services like Google, Microsoft, Keycloak, or Authentik.",

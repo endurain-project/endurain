@@ -25,6 +25,29 @@ class IdentityProviderService:
         self._discovery_cache: Dict[int, Dict[str, Any]] = {}
         self._cache_expiry: Dict[int, datetime] = {}
         self._cache_ttl = timedelta(hours=1)
+        self._http_client: httpx.AsyncClient | None = None
+
+    async def _get_http_client(self) -> httpx.AsyncClient:
+        """
+        Asynchronously retrieves or creates an instance of httpx.AsyncClient for making HTTP requests.
+
+        If the HTTP client does not already exist, it initializes a new AsyncClient with a timeout of 10 seconds
+        and connection limits (maximum 5 keep-alive connections and 10 total connections). Returns the client instance.
+
+        Returns:
+            httpx.AsyncClient: The HTTP client instance for asynchronous requests.
+        """
+        if self._http_client is None:
+            self._http_client = httpx.AsyncClient(
+                timeout=10.0,
+                limits=httpx.Limits(max_keepalive_connections=5, max_connections=10),
+                follow_redirects=True,
+                headers={
+                    "User-Agent": "Endurain/0.16.0 (OIDC Client)",
+                    "Accept": "application/json",
+                }
+            )
+        return self._http_client
 
     async def get_oidc_configuration(
         self, idp: idp_models.IdentityProvider
@@ -54,22 +77,48 @@ class IdentityProviderService:
             discovery_url = (
                 f"{idp.issuer_url.rstrip('/')}/.well-known/openid-configuration"
             )
-            async with httpx.AsyncClient() as client:
-                response = await client.get(discovery_url, timeout=10.0)
-                response.raise_for_status()
-                config = response.json()
+            core_logger.print_to_log(
+                f"Fetching OIDC configuration from: {discovery_url}", "info"
+            )
+            
+            client = await self._get_http_client()
+            response = await client.get(discovery_url)
+            
+            core_logger.print_to_log(
+                f"OIDC discovery response status: {response.status_code}", "debug"
+            )
+            
+            response.raise_for_status()
+            config = response.json()
 
-                # Cache the configuration
-                self._discovery_cache[idp.id] = config
-                self._cache_expiry[idp.id] = (
-                    datetime.now(timezone.utc) + self._cache_ttl
-                )
+            # Cache the configuration
+            self._discovery_cache[idp.id] = config
+            self._cache_expiry[idp.id] = (
+                datetime.now(timezone.utc) + self._cache_ttl
+            )
 
-                core_logger.print_to_log(
-                    f"Successfully fetched OIDC configuration for {idp.name}", "info"
-                )
-
-                return config
+            return config
+        except httpx.HTTPStatusError as err:
+            core_logger.print_to_log(
+                f"HTTP error fetching OIDC discovery for {idp.name}: {err.response.status_code} - {err.response.text}", 
+                "warning"
+            )
+            return None
+        except httpx.ConnectError as err:
+            core_logger.print_to_log(
+                f"Connection error fetching OIDC discovery for {idp.name}. "
+                f"URL: {discovery_url}. Error: {err}. "
+                f"Check if the service is reachable and not using 'localhost' in Docker.", 
+                "error"
+            )
+            return None
+        except httpx.RequestError as err:
+            core_logger.print_to_log(
+                f"Request error fetching OIDC discovery for {idp.name}. "
+                f"URL: {discovery_url}. Error: {err}", 
+                "warning"
+            )
+            return None
         except Exception as err:
             core_logger.print_to_log(
                 f"Failed to fetch OIDC discovery for {idp.name}: {err}", "warning"
@@ -87,7 +136,7 @@ class IdentityProviderService:
             str: The complete redirect URI for the specified identity provider.
         """
         base_url = core_config.ENDURAIN_HOST
-        return f"{base_url}/api/v1/idp/callback/{idp_slug}"
+        return f"{base_url}/api/v1/public/idp/callback/{idp_slug}"
 
     async def initiate_login(
         self, idp: idp_models.IdentityProvider, request: Request, db: Session

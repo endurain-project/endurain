@@ -92,6 +92,6 @@ export const identityProviders = {
    * @param {string} slug - The provider slug
    */
   initiateLogin(slug) {
-    window.location.href = `/api/v1/idp/login/${slug}`
+    window.location.href = `${window.env.ENDURAIN_HOST}/api/v1/public/idp/login/${slug}`
   }
 }

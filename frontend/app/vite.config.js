@@ -7,6 +7,47 @@ import { VitePWA } from 'vite-plugin-pwa'
 
 // https://vitejs.dev/config/
 export default defineConfig({
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          // Core Vue framework and state management
+          'vue-vendor': ['vue', 'vue-router', 'pinia'],
+          
+          // Large charting library - only needed on stats/activity pages
+          'chart': ['chart.js', 'chartjs-plugin-datalabels'],
+          
+          // Map library - only needed on activity detail pages with GPS data
+          'leaflet': ['leaflet'],
+          
+          // UI framework - used across the app
+          'bootstrap': ['bootstrap'],
+          
+          // FontAwesome icons - used throughout the app
+          'fontawesome': [
+            '@fortawesome/fontawesome-svg-core',
+            '@fortawesome/free-solid-svg-icons',
+            '@fortawesome/free-regular-svg-icons',
+            '@fortawesome/free-brands-svg-icons',
+            '@fortawesome/vue-fontawesome'
+          ],
+          
+          // Date/time utilities and notifications
+          'utils': ['luxon', 'notivue', 'vue-i18n']
+        }
+      }
+    }
+  },
+  server: {
+    proxy: {
+      // Proxy all /api requests to the backend server during development
+      '/api': {
+        target: 'http://localhost:8080',
+        changeOrigin: true,
+        secure: false
+      }
+    }
+  },
   plugins: [
     vue(),
     VitePWA({
@@ -62,6 +103,7 @@ export default defineConfig({
         skipWaiting: true,
         sourcemap: false,
         navigateFallback: '/',
+        navigateFallbackDenylist: [/^\/api\//],
         runtimeCaching: [
           {
             urlPattern: ({ url }) => /^\/api\/v1(?:\/|$)/.test(url.pathname),

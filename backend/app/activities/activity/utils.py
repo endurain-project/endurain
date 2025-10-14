@@ -901,7 +901,7 @@ def location_based_on_coordinates(latitude, longitude) -> dict | None:
 
     # Make the request and get the response
     try:
-        headers = {"User-Agent": "Endurain"}
+        headers = {"User-Agent": "Endurain/0.16.0 (ReverseGeocoding)"}
         # Make the request and get the response
         response = requests.get(url, headers=headers, timeout=10)
         response.raise_for_status()
