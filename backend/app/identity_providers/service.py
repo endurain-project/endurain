@@ -1,4 +1,4 @@
-import os
+import random
 import json
 import base64
 from typing import Dict, Any
@@ -16,7 +16,10 @@ import identity_providers.models as idp_models
 import users.user.crud as users_crud
 import users.user.schema as users_schema
 import users.user.models as users_models
+import users.user.utils as users_utils
 import users.user_identity_providers.crud as user_idp_crud
+import session.password_hasher as session_password_hasher
+import server_settings.schema as server_settings_schema
 
 
 class IdentityProviderService:
@@ -49,7 +52,7 @@ class IdentityProviderService:
                 headers={
                     "User-Agent": "Endurain/0.16.0 (OIDC Client)",
                     "Accept": "application/json",
-                }
+                },
             )
         return self._http_client
 
@@ -85,40 +88,38 @@ class IdentityProviderService:
             discovery_url = (
                 f"{idp.issuer_url.rstrip('/')}/.well-known/openid-configuration"
             )
-            
+
             # Fetch the configuration
             client = await self._get_http_client()
             response = await client.get(discovery_url)
-            
+
             response.raise_for_status()
             config = response.json()
 
             # Cache the configuration
             self._discovery_cache[idp.id] = config
-            self._cache_expiry[idp.id] = (
-                datetime.now(timezone.utc) + self._cache_ttl
-            )
+            self._cache_expiry[idp.id] = datetime.now(timezone.utc) + self._cache_ttl
 
             return config
         except httpx.HTTPStatusError as err:
             core_logger.print_to_log(
-                f"HTTP error fetching OIDC discovery for {idp.name}: {err.response.status_code} - {err.response.text}", 
-                "warning"
+                f"HTTP error fetching OIDC discovery for {idp.name}: {err.response.status_code} - {err.response.text}",
+                "warning",
             )
             return None
         except httpx.ConnectError as err:
             core_logger.print_to_log(
                 f"Connection error fetching OIDC discovery for {idp.name}. "
                 f"URL: {discovery_url}. Error: {err}. "
-                f"Check if the service is reachable and not using 'localhost' in Docker.", 
-                "error"
+                f"Check if the service is reachable and not using 'localhost' in Docker.",
+                "error",
             )
             return None
         except httpx.RequestError as err:
             core_logger.print_to_log(
                 f"Request error fetching OIDC discovery for {idp.name}. "
-                f"URL: {discovery_url}. Error: {err}", 
-                "warning"
+                f"URL: {discovery_url}. Error: {err}",
+                "warning",
             )
             return None
         except Exception as err:
@@ -223,6 +224,7 @@ class IdentityProviderService:
         code: str,
         state: str,
         request: Request,
+        password_hasher: session_password_hasher.PasswordHasher,
         db: Session,
     ) -> Dict[str, Any]:
         """
@@ -236,6 +238,7 @@ class IdentityProviderService:
             code (str): The authorization code returned by the IdP.
             state (str): The state parameter returned by the IdP for CSRF protection.
             request (Request): The incoming HTTP request object.
+            password_hasher (session_password_hasher.PasswordHasher): The password hasher instance.
             db (Session): The database session for user lookup/creation.
 
         Returns:
@@ -304,7 +307,9 @@ class IdentityProviderService:
                 )
 
             # Find or create user
-            user = await self._find_or_create_user(idp, subject, userinfo, db)
+            user = await self._find_or_create_user(
+                idp, subject, userinfo, password_hasher, db
+            )
 
             # Clean up session data after successful authentication
             request.session.pop(f"oauth_state_{idp.id}", None)
@@ -362,7 +367,7 @@ class IdentityProviderService:
                 if access_token:
                     response = await client.get(
                         userinfo_endpoint,
-                        headers={"Authorization": f"Bearer {access_token}"}
+                        headers={"Authorization": f"Bearer {access_token}"},
                     )
                     return response.json()
             except Exception as err:
@@ -379,17 +384,17 @@ class IdentityProviderService:
                 parts = id_token.split(".")
                 if len(parts) != 3:
                     raise ValueError("Invalid JWT format")
-                
+
                 # Decode the payload (second part) - base64url decode
                 payload = parts[1]
                 # Add padding if necessary
                 padding = 4 - len(payload) % 4
                 if padding != 4:
                     payload += "=" * padding
-                
+
                 decoded_bytes = base64.urlsafe_b64decode(payload)
                 claims = json.loads(decoded_bytes)
-                
+
                 return claims
             except Exception as err:
                 core_logger.print_to_log(
@@ -444,6 +449,7 @@ class IdentityProviderService:
         idp: idp_models.IdentityProvider,
         subject: str,
         userinfo: Dict[str, Any],
+        password_hasher: session_password_hasher.PasswordHasher,
         db: Session,
     ) -> users_models.User:
         """
@@ -458,6 +464,7 @@ class IdentityProviderService:
             idp (idp_models.IdentityProvider): The identity provider instance.
             subject (str): The unique subject identifier from the IdP.
             userinfo (Dict[str, Any]): User information/claims from the IdP.
+            password_hasher (session_password_hasher.PasswordHasher): The password hasher instance.
             db (Session): Database session.
 
         Returns:
@@ -502,7 +509,9 @@ class IdentityProviderService:
                 detail="User account creation is disabled for this identity provider",
             )
 
-        user = await self._create_user_from_idp(idp, subject, mapped_data, db)
+        user = await self._create_user_from_idp(
+            idp, subject, mapped_data, password_hasher, db
+        )
 
         return user
 
@@ -511,63 +520,79 @@ class IdentityProviderService:
         idp: idp_models.IdentityProvider,
         subject: str,
         mapped_data: Dict[str, Any],
+        password_hasher: session_password_hasher.PasswordHasher,
         db: Session,
     ) -> users_models.User:
         """
         Creates a new user in the database based on identity provider (IdP) information.
 
-        This method generates a unique username, creates a user with mapped data from the IdP,
-        and links the user to the IdP subject. The password is randomly generated and not intended
-        for SSO users. The user's email is marked as verified, and default values are set for
-        language, gender, units, and access type.
+        This method generates a unique username, creates a user with mapped data from the IdP
+        using the existing CRUD layer, and links the user to the IdP subject. The password is
+        randomly generated and properly hashed but not intended for SSO users. The user's email
+        is marked as verified since we trust the IdP's verification.
 
         Args:
             idp (idp_models.IdentityProvider): The identity provider instance.
             subject (str): The unique subject identifier from the IdP.
             mapped_data (Dict[str, Any]): User data mapped from the IdP (e.g., username, email, name).
+            password_hasher (session_password_hasher.PasswordHasher): The password hasher instance.
             db (Session): The database session.
 
         Returns:
             users_models.User: The newly created user instance.
+
+        Raises:
+            HTTPException: If user creation fails (e.g., duplicate username/email).
         """
         # Generate a random password (won't be used for SSO users)
-        random_password = secrets.token_urlsafe(32)
+        random_password = password_hasher.generate_password(length=16)
 
         # Ensure username is unique
         base_username = mapped_data.get("username", f"user_{subject[:8]}")
         username = base_username
-        counter = 1
         while users_crud.get_user_by_username(username, db):
-            username = f"{base_username}{counter}"
-            counter += 1
+            username = f"{base_username}_{str(random.randint(100000, 999999))}"
+            
 
-        # Create user
-        user = users_models.User(
+        # Create user signup schema
+        user_signup = users_schema.UserSignup(
             username=username,
             email=mapped_data.get("email", f"{username}@sso.local"),
             name=mapped_data.get("name", username),
             password=random_password,
-            preferred_language=users_schema.Language.ENGLISH_USA,  # Default to US English
-            gender=1,  # Unspecified
-            units=1,  # Metric
-            access_type=1,  # Regular user
-            active=True,
-            email_verified=True,  # Trust IdP email verification
-            pending_admin_approval=False,
+            preferred_language=users_schema.Language.ENGLISH_USA,
+            gender=users_schema.Gender.UNSPECIFIED,
+            units=server_settings_schema.Units.METRIC,
+            first_day_of_week=users_schema.WeekDay.MONDAY,
+            currency=server_settings_schema.Currency.EURO,
         )
 
-        db.add(user)
-        db.commit()
-        db.refresh(user)
+        # Create a mock server settings that bypasses email verification and admin approval
+        # since we trust the IdP for these users
+        mock_server_settings = type(
+            "obj",
+            (object,),
+            {
+                "signup_require_email_verification": False,
+                "signup_require_admin_approval": False,
+            },
+        )()
+
+        created_user = users_crud.create_signup_user(
+            user_signup, mock_server_settings, password_hasher, db
+        )
+
+        # Create default data for the user
+        users_utils.create_user_default_data(created_user.id, db)
 
         # Create the IdP link
-        user_idp_crud.create_user_idp_link(user.id, idp.id, subject, db)
+        user_idp_crud.create_user_idp_link(created_user.id, idp.id, subject, db)
 
         core_logger.print_to_log(
-            f"Created new user {user.username} from IdP {idp.name}", "info"
+            f"Created new user {created_user.username} from IdP {idp.name}", "info"
         )
 
-        return user
+        return created_user
 
     async def _update_user_from_idp(
         self,

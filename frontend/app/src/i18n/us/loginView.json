@@ -8,6 +8,8 @@
   "subtitle": "Sign-in below",
   "username": "Username",
   "password": "Password",
+  "hidePassword": "Hide password",
+  "showPassword": "Show password",
   "mfaCode": "MFA Code",
   "mfaRequired": "Multi-factor authentication required. Please enter your 6-digit code.",
   "verifyMFAButton": "Verify MFA",

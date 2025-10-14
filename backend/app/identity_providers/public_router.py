@@ -1,9 +1,11 @@
 from typing import Annotated, List
+from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, status, Response, Request, Query
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 
 import core.database as core_database
+import session.password_hasher as session_password_hasher
 import session.token_manager as session_token_manager
 import session.utils as session_utils
 import session.crud as session_crud
@@ -82,15 +84,19 @@ async def initiate_login(
 @router.get("/callback/{idp_slug}", status_code=status.HTTP_307_TEMPORARY_REDIRECT)
 async def handle_callback(
     idp_slug: str,
+    password_hasher: Annotated[
+        session_password_hasher.PasswordHasher,
+        Depends(session_password_hasher.get_password_hasher),
+    ],
+    token_manager: Annotated[
+        session_token_manager.TokenManager,
+        Depends(session_token_manager.get_token_manager),
+    ],
+    db: Annotated[Session, Depends(core_database.get_db)],
     code: str = Query(..., description="Authorization code from IdP"),
     state: str = Query(..., description="State parameter for CSRF protection"),
     request: Request = None,
     response: Response = None,
-    token_manager: Annotated[
-        session_token_manager.TokenManager,
-        Depends(session_token_manager.get_token_manager),
-    ] = None,
-    db: Annotated[Session, Depends(core_database.get_db)] = None,
 ):
     """
     Handles the OAuth callback from an external Identity Provider (IdP) for Single Sign-On (SSO) authentication.
@@ -103,6 +109,7 @@ async def handle_callback(
         state (str): State parameter for CSRF protection.
         request (Request, optional): The incoming HTTP request object.
         response (Response, optional): The outgoing HTTP response object.
+        password_hasher (session_password_hasher.PasswordHasher, optional): Dependency-injected password hasher for secure password handling.
         token_manager (session_token_manager.TokenManager, optional): Dependency-injected token manager for session handling.
         db (Session, optional): Dependency-injected database session.
     Returns:
@@ -121,7 +128,7 @@ async def handle_callback(
 
         # Process the OAuth callback
         result = await idp_service.idp_service.handle_callback(
-            idp, code, state, request, db
+            idp, code, state, request, password_hasher, db
         )
 
         user = result["user"]
@@ -139,32 +146,22 @@ async def handle_callback(
             csrf_token,
         ) = session_utils.create_tokens(user_read, token_manager)
 
-        # Create session in database
-        device_info = session_utils.get_device_info(request)
-        session_crud.create_user_session(
-            user_id=user.id,
-            session_id=session_id,
-            refresh_token=refresh_token,
-            device_type=device_info.device_type.value,
-            operating_system=device_info.operating_system,
-            browser=device_info.browser,
-            ip_address=request.client.host if request.client else "unknown",
-            db=db,
+        # Create the session and store it in the database
+        session_utils.create_session(
+            session_id, user_read, request, refresh_token, password_hasher, db
         )
 
         # Set authentication cookies
         response = session_utils.create_response_with_tokens(
             response,
             access_token,
-            access_token_exp,
             refresh_token,
-            refresh_token_exp,
             csrf_token,
         )
 
         # Redirect to frontend
         frontend_url = core_config.ENDURAIN_HOST
-        redirect_url = f"{frontend_url}/?sso=success"
+        redirect_url = f"{frontend_url}/login?sso=success&session_id={session_id}"
 
         core_logger.print_to_log(
             f"SSO login successful for user {user.username} via {idp.name}", "info"

@@ -99,8 +99,10 @@
           </template>
 
           <!-- SSO Providers Section -->
+          <LoadingComponent v-if="loadingSSOProviders" />
           <div
-            v-if="
+            v-else-if="
+              !loadingSSOProviders &&
               !mfaRequired &&
               serverSettingsStore.serverSettings.sso_enabled &&
               ssoProviders.length > 0
@@ -122,17 +124,10 @@
               >
                 <!-- Custom logo if available -->
                 <img
-                  v-if="provider.icon && getProviderCustomLogo(provider.icon)"
                   :src="getProviderCustomLogo(provider.icon)!"
                   :alt="`${provider.name} logo`"
                   class="me-2"
                   style="height: 1.25rem; width: auto"
-                />
-                <!-- FontAwesome icon fallback -->
-                <font-awesome-icon
-                  v-else-if="provider.icon"
-                  :icon="getProviderIcon(provider.icon)"
-                  class="me-2"
                 />
                 {{ $t('loginView.ssoButton', { provider: provider.name }) }}
               </button>
@@ -188,6 +183,7 @@ import { profile } from '@/services/profileService'
 import { identityProviders } from '@/services/identityProvidersService'
 // Components
 import ModalComponentEmailInput from '@/components/Modals/ModalComponentEmailInput.vue'
+import LoadingComponent from '@/components/GeneralComponents/LoadingComponent.vue'
 // Composables
 import { useBootstrapModal } from '@/composables/useBootstrapModal'
 // Types
@@ -211,20 +207,6 @@ const ROUTE_QUERY_HANDLERS: RouteQueryHandlers = {
   emailVerificationSent: { type: 'info', key: 'loginView.emailVerificationSent' },
   adminApprovalRequired: { type: 'info', key: 'loginView.adminApprovalRequired' },
   verifyEmailInvalidLink: { type: 'error', key: 'loginView.verifyEmailInvalidLink' }
-} as const
-
-/**
- * Icon mapping for SSO providers
- * Maps provider icon names to FontAwesome icon arrays
- */
-const PROVIDER_ICON_MAP: Record<string, [string, string]> = {
-  google: ['fab', 'google'],
-  microsoft: ['fab', 'microsoft'],
-  github: ['fab', 'github'],
-  gitlab: ['fab', 'gitlab'],
-  okta: ['fas', 'id-card'],
-  auth0: ['fas', 'lock'],
-  default: ['fas', 'right-to-bracket']
 } as const
 
 /**
@@ -287,7 +269,7 @@ interface SSOProvider {
 }
 
 const ssoProviders: Ref<SSOProvider[]> = ref([])
-const loadingSSOProviders: Ref<boolean> = ref(false)
+const loadingSSOProviders: Ref<boolean> = ref(true)
 
 // ============================================================================
 // Computed Properties
@@ -496,8 +478,7 @@ const fetchSSOProviders = async (): Promise<void> => {
 
   try {
     loadingSSOProviders.value = true
-    const providers = await identityProviders.getEnabledProviders()
-    ssoProviders.value = providers || []
+    ssoProviders.value = await identityProviders.getEnabledProviders()
   } catch (error) {
     console.error('Failed to fetch SSO providers:', error)
     // Silent fail - login page should still work without SSO
@@ -519,20 +500,6 @@ const getProviderCustomLogo = (iconName?: string): string | null => {
   const logoPath =
     PROVIDER_CUSTOM_LOGO_MAP[iconName.toLowerCase() as keyof typeof PROVIDER_CUSTOM_LOGO_MAP]
   return logoPath || null
-}
-
-/**
- * Get FontAwesome icon for a provider
- * Maps provider icon names to icon arrays
- * Only used when custom logo is not available
- *
- * @param iconName - Provider icon name
- * @returns FontAwesome icon array
- */
-const getProviderIcon = (iconName?: string): [string, string] => {
-  if (!iconName) return PROVIDER_ICON_MAP.default as [string, string]
-  const icon = PROVIDER_ICON_MAP[iconName.toLowerCase() as keyof typeof PROVIDER_ICON_MAP]
-  return (icon || PROVIDER_ICON_MAP.default) as [string, string]
 }
 
 /**
@@ -577,12 +544,17 @@ const checkSSOAutoRedirect = (): void => {
  * Process SSO callback query parameters
  * Handles success and error states from SSO authentication
  */
-const processSSOCallback = (): void => {
+const processSSOCallback = async (): Promise<void> => {
   // Check for SSO success
-  if (route.query.sso === 'success') {
+  if (route.query.sso === 'success' && route.query.session_id) {
     push.success(t('loginView.ssoSuccess'))
-    // SSO login was successful, user will be redirected by the backend
-    return
+
+    const sessionId = Array.isArray(route.query.session_id)
+      ? route.query.session_id[0]
+      : route.query.session_id
+    if (typeof sessionId === 'string') {
+      await completeLogin(sessionId)
+    }
   }
 
   // Check for SSO error

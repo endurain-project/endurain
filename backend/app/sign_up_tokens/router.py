@@ -11,13 +11,8 @@ from sqlalchemy.orm import Session
 import users.user.crud as users_crud
 import users.user.utils as users_utils
 import users.user.schema as users_schema
-import users.user_integrations.crud as user_integrations_crud
-import users.user_default_gear.crud as user_default_gear_crud
-import users.user_privacy_settings.crud as users_privacy_settings_crud
 
 import notifications.utils as notifications_utils
-
-import health_targets.crud as health_targets_crud
 
 import sign_up_tokens.utils as sign_up_tokens_utils
 import sign_up_tokens.schema as sign_up_tokens_schema
@@ -118,17 +113,8 @@ async def signup(
         user, server_settings, password_hasher, db
     )
 
-    # Create the user integrations in the database
-    user_integrations_crud.create_user_integrations(created_user.id, db)
-
-    # Create the user privacy settings
-    users_privacy_settings_crud.create_user_privacy_settings(created_user.id, db)
-
-    # Create the user health targets
-    health_targets_crud.create_health_targets(created_user.id, db)
-
-    # Create the user default gear
-    user_default_gear_crud.create_user_default_gear(created_user.id, db)
+    # Create default data for the user
+    users_utils.create_user_default_data(created_user.id, db)
 
     # Return appropriate response based on server configuration
     response_data = {"message": "User created successfully."}

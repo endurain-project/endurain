@@ -151,17 +151,8 @@ async def create_user(
     # Create the user in the database
     created_user = users_crud.create_user(user, password_hasher, db)
 
-    # Create the user integrations in the database
-    user_integrations_crud.create_user_integrations(created_user.id, db)
-
-    # Create the user privacy settings
-    users_privacy_settings_crud.create_user_privacy_settings(created_user.id, db)
-
-    # Create the user health targets
-    health_targets_crud.create_health_targets(created_user.id, db)
-
-    # Create the user default gear
-    user_default_gear_crud.create_user_default_gear(created_user.id, db)
+    # Create default data for the user
+    users_utils.create_user_default_data(created_user.id, db)
 
     # Return the user with formatted birthdate
     return users_utils.format_user_birthdate(created_user)
