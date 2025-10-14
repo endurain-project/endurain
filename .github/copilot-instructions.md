@@ -66,6 +66,12 @@ Endurain is a self-hosted fitness tracking application built with Vue.js fronten
 
 #### Backend Code Quality Standards
 
+- **Modern Python Syntax (Python 3.13):**
+  - Use union types with `|` operator: `str | None` instead of `Optional[str]`
+  - Use built-in generics: `list[str]` instead of `List[str]`, `dict[str, int]` instead of `Dict[str, int]`
+  - No imports from `typing` module for `Optional`, `List`, `Dict`, `Tuple`, `Set` – use native syntax
+  - Example: `def get_user(user_id: int) -> User | None:`
+  - Example: `async def get_activities(limit: int = 10) -> list[Activity]:`
 - Use type hints (`def foo(x: int) -> str:`)
 - Standard FastAPI project layout: `routers/`, `schemas/`, `services/`, `models/`
 - Public functions/classes must have docstrings

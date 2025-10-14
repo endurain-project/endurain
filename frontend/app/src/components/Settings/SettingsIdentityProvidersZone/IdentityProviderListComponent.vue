@@ -188,18 +188,9 @@ import ModalComponent from '@/components/Modals/ModalComponent.vue'
 import IdentityProvidersAddEditModalComponent from './IdentityProvidersAddEditModalComponent.vue'
 // Constants
 import { HTTP_STATUS, extractStatusCode } from '@/constants/httpConstants'
+import { PROVIDER_CUSTOM_LOGO_MAP } from '@/constants/ssoConstants'
 // Types
 import type { IdentityProviderTemplate, IdentityProvider } from '@/types'
-
-/**
- * Custom logo mapping for SSO providers
- * Maps provider icon names to image paths for custom logos
- */
-const PROVIDER_CUSTOM_LOGO_MAP: Record<string, string> = {
-  keycloak: '/src/assets/sso/keycloak.svg',
-  authentik: '/src/assets/sso/authentik.svg',
-  authelia: '/src/assets/sso/authelia.svg'
-} as const
 
 // ============================================================================
 // Props & Emits

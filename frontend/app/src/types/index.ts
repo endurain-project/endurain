@@ -97,6 +97,18 @@ export interface IdentityProvider {
 }
 
 /**
+ * SSO Provider (Public)
+ * Lightweight representation of an identity provider for the login page
+ * Contains only the public information needed for display and authentication
+ */
+export interface SSOProvider {
+  id: number
+  name: string
+  slug: string
+  icon?: string
+}
+
+/**
  * Window Environment Extension
  * Extends the global Window interface to include custom env property
  */

@@ -16,7 +16,7 @@
           <p class="mb-4">{{ $t('loginView.subtitle') }}</p>
 
           <!-- Local Login Form (shown when local login is enabled or during MFA) -->
-          <template v-if="serverSettingsStore.serverSettings.local_login_enabled || mfaRequired">
+          <template v-if="serverSettings.local_login_enabled || mfaRequired">
             <div class="form-floating mb-3" v-if="!mfaRequired">
               <input
                 type="text"
@@ -85,10 +85,7 @@
                 {{ $t('loginView.forgotPassword') }}
               </a>
             </div>
-            <div
-              class="mt-3 text-center"
-              v-if="!mfaRequired && serverSettingsStore.serverSettings.signup_enabled"
-            >
+            <div class="mt-3 text-center" v-if="!mfaRequired && serverSettings.signup_enabled">
               <router-link
                 to="/signup"
                 class="link-body-emphasis link-underline-opacity-0 link-underline-opacity-100-hover"
@@ -104,7 +101,7 @@
             v-else-if="
               !loadingSSOProviders &&
               !mfaRequired &&
-              serverSettingsStore.serverSettings.sso_enabled &&
+              serverSettings.sso_enabled &&
               ssoProviders.length > 0
             "
             class="mt-4"
@@ -124,6 +121,7 @@
               >
                 <!-- Custom logo if available -->
                 <img
+                  v-if="getProviderCustomLogo(provider.icon)"
                   :src="getProviderCustomLogo(provider.icon)!"
                   :alt="`${provider.name} logo`"
                   class="me-2"
@@ -166,7 +164,7 @@
  */
 
 // Vue composition API
-import { ref, computed, onMounted, onUnmounted, type Ref, type ComputedRef } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 // Router
 import { useRoute, useRouter } from 'vue-router'
 // Internationalization
@@ -187,9 +185,10 @@ import LoadingComponent from '@/components/GeneralComponents/LoadingComponent.vu
 // Composables
 import { useBootstrapModal } from '@/composables/useBootstrapModal'
 // Types
-import type { RouteQueryHandlers, LoginResponse, ErrorWithResponse } from '@/types'
+import type { RouteQueryHandlers, LoginResponse, ErrorWithResponse, SSOProvider } from '@/types'
 // Constants
 import { HTTP_STATUS, QUERY_PARAM_TRUE, extractStatusCode } from '@/constants/httpConstants'
+import { PROVIDER_CUSTOM_LOGO_MAP } from '@/constants/ssoConstants'
 // Utils
 import { isNotEmpty, sanitizeInput } from '@/utils/validationUtils'
 
@@ -209,16 +208,6 @@ const ROUTE_QUERY_HANDLERS: RouteQueryHandlers = {
   verifyEmailInvalidLink: { type: 'error', key: 'loginView.verifyEmailInvalidLink' }
 } as const
 
-/**
- * Custom logo mapping for SSO providers
- * Maps provider icon names to image paths for custom logos
- */
-const PROVIDER_CUSTOM_LOGO_MAP: Record<string, string> = {
-  keycloak: '/src/assets/sso/keycloak.svg',
-  authentik: '/src/assets/sso/authentik.svg',
-  authelia: '/src/assets/sso/authelia.svg'
-} as const
-
 // ============================================================================
 // Composables & Store Initialization
 // ============================================================================
@@ -233,57 +222,53 @@ const serverSettingsStore = useServerSettingsStore()
 // Modal Management
 // ============================================================================
 
-const forgotPasswordModalRef: Ref<typeof ModalComponentEmailInput | null> = ref(null)
+const forgotPasswordModalRef = ref<typeof ModalComponentEmailInput | null>(null)
 const {
   initializeModal,
   showModal: showForgotModal,
   hideModal: hideForgotModal,
   disposeModal
 } = useBootstrapModal()
-const forgotPasswordLoading: Ref<boolean> = ref(false)
+const forgotPasswordLoading = ref(false)
 
 // ============================================================================
 // Form State
 // ============================================================================
 
-const username: Ref<string> = ref('')
-const password: Ref<string> = ref('')
-const mfaCode: Ref<string> = ref('')
-const mfaRequired: Ref<boolean> = ref(false)
-const loading: Ref<boolean> = ref(false)
-const pendingUsername: Ref<string> = ref('')
-const showPassword: Ref<boolean> = ref(false)
+const username = ref('')
+const password = ref('')
+const mfaCode = ref('')
+const mfaRequired = ref(false)
+const loading = ref(false)
+const pendingUsername = ref('')
+const showPassword = ref(false)
 
 // ============================================================================
 // SSO State
 // ============================================================================
 
-/**
- * SSO Provider interface
- */
-interface SSOProvider {
-  id: number
-  name: string
-  slug: string
-  icon?: string
-}
-
-const ssoProviders: Ref<SSOProvider[]> = ref([])
-const loadingSSOProviders: Ref<boolean> = ref(true)
+const ssoProviders = ref<SSOProvider[]>([])
+const loadingSSOProviders = ref(true)
 
 // ============================================================================
 // Computed Properties
 // ============================================================================
 
 /**
+ * Shorthand for server settings
+ * Reduces verbosity and improves reactivity tracking
+ */
+const serverSettings = computed(() => serverSettingsStore.serverSettings)
+
+/**
  * Compute the login photo URL from server settings
  * Returns null if no custom photo is set, triggering fallback to default
  */
-const loginPhotoUrl: ComputedRef<string | null> = computed(() => {
-  return serverSettingsStore.serverSettings.login_photo_set
+const loginPhotoUrl = computed<string | null>(() =>
+  serverSettings.value.login_photo_set
     ? `${window.env.ENDURAIN_HOST}/server_images/login.png`
     : null
-})
+)
 
 // ============================================================================
 // UI Interaction Handlers
@@ -472,7 +457,7 @@ const handleForgotPasswordSubmit = async (email: string): Promise<void> => {
  */
 const fetchSSOProviders = async (): Promise<void> => {
   // Only fetch if SSO is enabled
-  if (!serverSettingsStore.serverSettings.sso_enabled) {
+  if (!serverSettings.value.sso_enabled) {
     return
   }
 
@@ -522,13 +507,11 @@ const handleSSOLogin = (slug: string): void => {
  * - No query parameters present (to avoid redirect loops)
  */
 const checkSSOAutoRedirect = (): void => {
-  const settings = serverSettingsStore.serverSettings
-
   // Check all conditions for auto-redirect
   if (
-    settings.sso_enabled &&
-    settings.sso_auto_redirect &&
-    !settings.local_login_enabled &&
+    serverSettings.value.sso_enabled &&
+    serverSettings.value.sso_auto_redirect &&
+    !serverSettings.value.local_login_enabled &&
     ssoProviders.value.length === 1 &&
     Object.keys(route.query).length === 0
   ) {
@@ -590,7 +573,7 @@ const processSSOCallback = async (): Promise<void> => {
  * Process route query parameters and display appropriate notifications
  * Checks for specific query parameters and shows corresponding messages
  */
-const processRouteQueryParameters = (): void => {
+const processRouteQueryParameters = async (): Promise<void> => {
   Object.entries(ROUTE_QUERY_HANDLERS).forEach(([param, config]) => {
     if (route.query[param] === QUERY_PARAM_TRUE) {
       push[config.type](t(config.key))
@@ -598,7 +581,7 @@ const processRouteQueryParameters = (): void => {
   })
 
   // Process SSO-specific callbacks
-  processSSOCallback()
+  await processSSOCallback()
 }
 
 // ============================================================================
@@ -617,7 +600,7 @@ onMounted(async () => {
   await fetchSSOProviders()
 
   // Process any route query parameters for notifications
-  processRouteQueryParameters()
+  await processRouteQueryParameters()
 
   // Check for SSO auto-redirect (must be after providers are fetched)
   checkSSOAutoRedirect()
