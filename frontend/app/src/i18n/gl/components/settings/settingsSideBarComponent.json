@@ -1,0 +1,11 @@
+{
+  "usersSection": "Users",
+  "serverSettingsSection": "Server Settings",
+  "identityProvidersSection": "Identity Providers",
+  "generalSection": "General",
+  "myProfileSection": "My Profile",
+  "myGoals": "My Goals",
+  "securitySection": "Security",
+  "integrationsSection": "Integrations",
+  "importSection": "Import"
+}

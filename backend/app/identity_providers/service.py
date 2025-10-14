@@ -1,4 +1,6 @@
 import os
+import json
+import base64
 from typing import Dict, Any
 from datetime import datetime, timedelta, timezone
 import secrets
@@ -6,13 +8,13 @@ import httpx
 from sqlalchemy.orm import Session
 from fastapi import HTTPException, status, Request
 from authlib.integrations.httpx_client import AsyncOAuth2Client
-from authlib.jose import jwt, JoseError
 
 import core.config as core_config
 import core.cryptography as core_cryptography
 import core.logger as core_logger
 import identity_providers.models as idp_models
 import users.user.crud as users_crud
+import users.user.schema as users_schema
 import users.user.models as users_models
 import users.user_identity_providers.crud as user_idp_crud
 
@@ -355,8 +357,14 @@ class IdentityProviderService:
         # Try to get from userinfo endpoint
         if userinfo_endpoint:
             try:
-                response = await client.get(userinfo_endpoint, token=token_response)
-                return response.json()
+                # Use the access token to fetch userinfo
+                access_token = token_response.get("access_token")
+                if access_token:
+                    response = await client.get(
+                        userinfo_endpoint,
+                        headers={"Authorization": f"Bearer {access_token}"}
+                    )
+                    return response.json()
             except Exception as err:
                 core_logger.print_to_log(
                     f"Failed to fetch userinfo from endpoint: {err}", "warning"
@@ -366,13 +374,27 @@ class IdentityProviderService:
         id_token = token_response.get("id_token")
         if id_token:
             try:
-                # Decode without verification (verification should be done with JWKS)
-                claims = jwt.decode(
-                    id_token, key=None, options={"verify_signature": False}
-                )
+                # Decode JWT without verification by manually extracting the payload
+                # In production, this should be verified with JWKS
+                parts = id_token.split(".")
+                if len(parts) != 3:
+                    raise ValueError("Invalid JWT format")
+                
+                # Decode the payload (second part) - base64url decode
+                payload = parts[1]
+                # Add padding if necessary
+                padding = 4 - len(payload) % 4
+                if padding != 4:
+                    payload += "=" * padding
+                
+                decoded_bytes = base64.urlsafe_b64decode(payload)
+                claims = json.loads(decoded_bytes)
+                
                 return claims
-            except JoseError as err:
-                core_logger.print_to_log(f"Failed to decode ID token: {err}", "warning")
+            except Exception as err:
+                core_logger.print_to_log(
+                    f"Failed to decode ID token: {err}", "warning", exc=err
+                )
 
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -524,8 +546,8 @@ class IdentityProviderService:
             username=username,
             email=mapped_data.get("email", f"{username}@sso.local"),
             name=mapped_data.get("name", username),
-            password=random_password,  # Will be hashed by the model
-            preferred_language=os.getenv("DEFAULT_LANGUAGE", "en"),
+            password=random_password,
+            preferred_language=users_schema.Language.ENGLISH_USA,  # Default to US English
             gender=1,  # Unspecified
             units=1,  # Metric
             access_type=1,  # Regular user
