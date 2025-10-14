@@ -82,7 +82,7 @@ export interface IdentityProvider {
   slug: string
   provider_type: string
   icon?: string
-  is_enabled: boolean
+  enabled: boolean
   issuer_url?: string
   client_id?: string
   // Edit-specific fields

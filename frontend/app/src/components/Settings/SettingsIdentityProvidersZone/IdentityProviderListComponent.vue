@@ -31,7 +31,7 @@
       <div class="d-flex align-items-center">
         <!-- Status Badge -->
         <span
-          v-if="provider.is_enabled"
+          v-if="provider.enabled"
           class="badge bg-success-subtle border border-success-subtle text-success-emphasis me-2 d-none d-sm-inline"
           :aria-label="$t('settingsIdentityProvidersZone.enabledBadge')"
           >{{ $t('settingsIdentityProvidersZone.enabledBadge') }}</span
@@ -63,13 +63,13 @@
           role="button"
           @click.prevent="handleToggleProvider"
           :aria-label="
-            provider.is_enabled
+            provider.enabled
               ? $t('settingsIdentityProvidersZone.disableButton')
               : $t('settingsIdentityProvidersZone.enableButton')
           "
         >
           <font-awesome-icon
-            :icon="provider.is_enabled ? ['fas', 'toggle-on'] : ['fas', 'toggle-off']"
+            :icon="provider.enabled ? ['fas', 'toggle-on'] : ['fas', 'toggle-off']"
           />
         </a>
 
@@ -272,7 +272,7 @@ const handleProviderUpdated = (updatedProvider: IdentityProvider): void => {
  * Updates provider enabled status
  */
 const handleToggleProvider = async (): Promise<void> => {
-  const newStatus = !props.provider.is_enabled
+  const newStatus = !props.provider.enabled
   const notification = push.promise(
     t(
       newStatus
@@ -284,11 +284,11 @@ const handleToggleProvider = async (): Promise<void> => {
 
   try {
     await identityProviders.updateProvider(props.provider.id, {
-      is_enabled: newStatus
+      enabled: newStatus
     })
 
     // Update local state by emitting to parent
-    emit('providerUpdated', { ...props.provider, is_enabled: newStatus })
+    emit('providerUpdated', { ...props.provider, enabled: newStatus })
 
     notification.resolve(
       t(

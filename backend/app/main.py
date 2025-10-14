@@ -3,6 +3,7 @@ import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from starlette.middleware.sessions import SessionMiddleware
 
 from alembic.config import Config
 from alembic import command
@@ -98,6 +99,16 @@ def create_app() -> FastAPI:
             "identifier": core_config.LICENSE_IDENTIFIER,
             "url": core_config.LICENSE_URL,
         },
+    )
+
+    # Add session middleware for OAuth state management
+    fastapi_app.add_middleware(
+        SessionMiddleware,
+        secret_key=os.environ.get("SECRET_KEY"),
+        session_cookie="endurain_session",
+        max_age=3600,  # 1 hour session timeout
+        same_site="lax",
+        https_only=(core_config.ENVIRONMENT == "production"),
     )
 
     # Add CORS middleware to allow requests from the frontend

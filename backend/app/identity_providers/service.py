@@ -1,5 +1,5 @@
 import os
-from typing import Dict, Any, List
+from typing import Dict, Any
 from datetime import datetime, timedelta, timezone
 import secrets
 import httpx
@@ -11,17 +11,19 @@ from authlib.jose import jwt, JoseError
 import core.config as core_config
 import core.cryptography as core_cryptography
 import core.logger as core_logger
-import identity_providers.crud as idp_crud
 import identity_providers.models as idp_models
 import users.user.crud as users_crud
 import users.user.models as users_models
-import users.user.schema as users_schema
 import users.user_identity_providers.crud as user_idp_crud
 
 
 class IdentityProviderService:
 
     def __init__(self):
+        """
+        Initializes the service with in-memory caches for discovery data and their expiry times,
+        sets the cache time-to-live (TTL) to 1 hour, and prepares an optional asynchronous HTTP client.
+        """
         self._discovery_cache: Dict[int, Dict[str, Any]] = {}
         self._cache_expiry: Dict[int, datetime] = {}
         self._cache_ttl = timedelta(hours=1)
@@ -53,15 +55,18 @@ class IdentityProviderService:
         self, idp: idp_models.IdentityProvider
     ) -> Dict[str, Any] | None:
         """
-        Asynchronously retrieves the OpenID Connect (OIDC) discovery configuration for a given identity provider.
-        This method first checks if the OIDC configuration is cached and still valid. If so, it returns the cached configuration.
-        Otherwise, it fetches the configuration from the identity provider's `.well-known/openid-configuration` endpoint,
-        caches the result, and returns it.
+        Retrieves the OpenID Connect (OIDC) discovery configuration for a given identity provider.
+        This method attempts to fetch the OIDC configuration from the provider's well-known discovery endpoint.
+        It uses an in-memory cache to avoid redundant network requests and respects a cache TTL (time-to-live).
+        If the configuration is cached and not expired, it is returned directly from the cache.
+        Otherwise, it fetches the configuration over HTTP, caches it, and returns the result.
         Args:
-            idp (idp_models.IdentityProvider): The identity provider instance containing issuer information.
+            idp (idp_models.IdentityProvider): The identity provider instance containing the issuer URL and unique ID.
         Returns:
-            Dict[str, Any] | None: The OIDC discovery configuration as a dictionary if successful, or None if the issuer URL is missing
-            or if fetching the configuration fails.
+            Dict[str, Any] | None: The OIDC discovery configuration as a dictionary if successful, or None if fetching fails
+            or the issuer URL is not provided.
+        Raises:
+            Does not raise exceptions directly; logs errors and returns None on failure.
         """
         if not idp.issuer_url:
             return None
@@ -74,19 +79,14 @@ class IdentityProviderService:
                 return self._discovery_cache[idp.id]
 
         try:
+            # Construct the discovery URL
             discovery_url = (
                 f"{idp.issuer_url.rstrip('/')}/.well-known/openid-configuration"
             )
-            core_logger.print_to_log(
-                f"Fetching OIDC configuration from: {discovery_url}", "info"
-            )
             
+            # Fetch the configuration
             client = await self._get_http_client()
             response = await client.get(discovery_url)
-            
-            core_logger.print_to_log(
-                f"OIDC discovery response status: {response.status_code}", "debug"
-            )
             
             response.raise_for_status()
             config = response.json()
@@ -183,12 +183,10 @@ class IdentityProviderService:
             state = secrets.token_urlsafe(32)
             nonce = secrets.token_urlsafe(32)
 
-            # Store in session (in production, use Redis or similar)
-            if not hasattr(request.state, "session"):
-                request.state.session = {}
-            request.state.session[f"oauth_state_{idp.id}"] = state
-            request.state.session[f"oauth_nonce_{idp.id}"] = nonce
-            request.state.session["oauth_idp_id"] = idp.id
+            # Store in session (using SessionMiddleware)
+            request.session[f"oauth_state_{idp.id}"] = state
+            request.session[f"oauth_nonce_{idp.id}"] = nonce
+            request.session["oauth_idp_id"] = idp.id
 
             # Build authorization URL
             redirect_uri = self._get_redirect_uri(idp.slug)
@@ -200,10 +198,6 @@ class IdentityProviderService:
 
             authorization_url, _ = client.create_authorization_url(
                 authorization_endpoint, state=state, nonce=nonce
-            )
-
-            core_logger.print_to_log(
-                f"Initiated OAuth login for IdP {idp.name} (ID: {idp.id})", "info"
             )
 
             return authorization_url
@@ -251,9 +245,7 @@ class IdentityProviderService:
         """
         try:
             # Verify state
-            stored_state = getattr(request.state, "session", {}).get(
-                f"oauth_state_{idp.id}"
-            )
+            stored_state = request.session.get(f"oauth_state_{idp.id}")
             if not stored_state or state != stored_state:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
@@ -311,6 +303,11 @@ class IdentityProviderService:
 
             # Find or create user
             user = await self._find_or_create_user(idp, subject, userinfo, db)
+
+            # Clean up session data after successful authentication
+            request.session.pop(f"oauth_state_{idp.id}", None)
+            request.session.pop(f"oauth_nonce_{idp.id}", None)
+            request.session.pop("oauth_idp_id", None)
 
             core_logger.print_to_log(
                 f"User {user.username} authenticated via IdP {idp.name}", "info"

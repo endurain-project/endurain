@@ -483,7 +483,7 @@ const loadProviderData = (): void => {
       name: props.provider.name || '',
       slug: props.provider.slug || '',
       provider_type: props.provider.provider_type || 'oidc',
-      enabled: props.provider.is_enabled || false,
+      enabled: props.provider.enabled || false,
       issuer_url: props.provider.issuer_url || '',
       client_id: props.provider.client_id || '',
       client_secret: '', // Don't load existing secret
