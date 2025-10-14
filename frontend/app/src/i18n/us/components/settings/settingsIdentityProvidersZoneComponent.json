@@ -4,6 +4,8 @@
   "labelNumberOfProviders2": " identity provider(s) configured:",
   "enabledBadge": "Enabled",
   "disabledBadge": "Disabled",
+  "disableButton": "Disable",
+  "enableButton": "Enable",
   "oidcType": "OpenID Connect",
   "oauth2Type": "OAuth 2.0",
   "editButton": "Edit",

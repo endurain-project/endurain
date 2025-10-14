@@ -33,7 +33,7 @@
           <!-- Providers List -->
           <div class="mt-3" v-if="hasProviders">
             <span
-            >{{ $t('settingsIdentityProvidersZone.labelNumberOfProviders1') }}{{ providers.length
+              >{{ $t('settingsIdentityProvidersZone.labelNumberOfProviders1') }}{{ providers.length
               }}{{ $t('settingsIdentityProvidersZone.labelNumberOfProviders2') }}</span
             >
             <!-- List Zone -->

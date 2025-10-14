@@ -50,13 +50,13 @@
 
             <!-- Basic Information -->
             <!-- name field -->
-            <label for="providerName"
+            <label :for="`providerName_${action === 'add' ? 'add' : `edit_${provider?.id}`}`"
               ><b>* {{ $t('identityProvidersAddEditModal.nameLabel') }}</b></label
             >
             <input
               type="text"
               class="form-control"
-              id="providerName"
+              :id="`providerName_${action === 'add' ? 'add' : `edit_${provider?.id}`}`"
               name="providerName"
               v-model="formData.name"
               :placeholder="$t('identityProvidersAddEditModal.namePlaceholder')"
@@ -65,16 +65,16 @@
               required
             />
             <!-- slug field -->
-            <label for="providerSlug"
+            <label :for="`providerSlug_${action === 'add' ? 'add' : `edit_${provider?.id}`}`"
               ><b>* {{ $t('identityProvidersAddEditModal.slugLabel') }}</b></label
             >
             <input
               type="text"
               class="form-control"
               :class="{ 'is-invalid': !isSlugValid }"
-              id="providerSlug"
+              :id="`providerSlug_${action === 'add' ? 'add' : `edit_${provider?.id}`}`"
               name="providerSlug"
-              aria-describedby="validationSlugFeedback slugHelpText"
+              :aria-describedby="`validationSlugFeedback_${action === 'add' ? 'add' : `edit_${provider?.id}`} slugHelpText_${action === 'add' ? 'add' : `edit_${provider?.id}`}`"
               v-model="formData.slug"
               :placeholder="$t('identityProvidersAddEditModal.slugPlaceholder')"
               maxlength="50"
@@ -82,20 +82,28 @@
               :disabled="action === 'edit'"
               required
             />
-            <div id="slugHelpText" class="form-text" v-if="action === 'add'">
+            <div
+              :id="`slugHelpText_${action === 'add' ? 'add' : `edit_${provider?.id}`}`"
+              class="form-text"
+              v-if="action === 'add'"
+            >
               {{ $t('identityProvidersAddEditModal.slugHelp') }}
             </div>
-            <div id="validationSlugFeedback" class="invalid-feedback" v-if="!isSlugValid">
+            <div
+              :id="`validationSlugFeedback_${action === 'add' ? 'add' : `edit_${provider?.id}`}`"
+              class="invalid-feedback"
+              v-if="!isSlugValid"
+            >
               {{ $t('identityProvidersAddEditModal.slugInvalid') }}
             </div>
 
             <!-- Provider Type -->
-            <label for="providerType"
+            <label :for="`providerType_${action === 'add' ? 'add' : `edit_${provider?.id}`}`"
               ><b>* {{ $t('identityProvidersAddEditModal.providerTypeLabel') }}</b></label
             >
             <select
               class="form-select"
-              id="providerType"
+              :id="`providerType_${action === 'add' ? 'add' : `edit_${provider?.id}`}`"
               name="providerType"
               v-model="formData.provider_type"
               aria-label="Provider type selection"
@@ -107,32 +115,35 @@
 
             <!-- OAuth/OIDC Configuration -->
             <!-- issuer url field -->
-            <label for="issuerUrl"
+            <label :for="`issuerUrl_${action === 'add' ? 'add' : `edit_${provider?.id}`}`"
               ><b>* {{ $t('identityProvidersAddEditModal.issuerUrlLabel') }}</b></label
             >
             <input
               type="url"
               class="form-control"
-              id="issuerUrl"
+              :id="`issuerUrl_${action === 'add' ? 'add' : `edit_${provider?.id}`}`"
               name="issuerUrl"
-              aria-describedby="issuerUrlHelpText"
+              :aria-describedby="`issuerUrlHelpText_${action === 'add' ? 'add' : `edit_${provider?.id}`}`"
               v-model="formData.issuer_url"
               :placeholder="$t('identityProvidersAddEditModal.issuerUrlPlaceholder')"
               maxlength="500"
               required
             />
-            <div id="issuerUrlHelpText" class="form-text">
+            <div
+              :id="`issuerUrlHelpText_${action === 'add' ? 'add' : `edit_${provider?.id}`}`"
+              class="form-text"
+            >
               {{ $t('identityProvidersAddEditModal.issuerUrlHelp') }}
             </div>
 
             <!-- client id field -->
-            <label for="clientId"
+            <label :for="`clientId_${action === 'add' ? 'add' : `edit_${provider?.id}`}`"
               ><b>* {{ $t('identityProvidersAddEditModal.clientIdLabel') }}</b></label
             >
             <input
               type="text"
               class="form-control"
-              id="clientId"
+              :id="`clientId_${action === 'add' ? 'add' : `edit_${provider?.id}`}`"
               name="clientId"
               v-model="formData.client_id"
               :placeholder="$t('identityProvidersAddEditModal.clientIdPlaceholder')"
@@ -142,15 +153,17 @@
             />
 
             <!-- client secret field -->
-            <label for="clientSecret"
+            <label :for="`clientSecret_${action === 'add' ? 'add' : `edit_${provider?.id}`}`"
               ><b>* {{ $t('identityProvidersAddEditModal.clientSecretLabel') }}</b></label
             >
             <input
               type="password"
               class="form-control"
-              id="clientSecret"
+              :id="`clientSecret_${action === 'add' ? 'add' : `edit_${provider?.id}`}`"
               name="clientSecret"
-              aria-describedby="clientSecretHelpText"
+              :aria-describedby="
+                action === 'edit' ? `clientSecretHelpText_edit_${provider?.id}` : undefined
+              "
               v-model="formData.client_secret"
               :placeholder="
                 action === 'edit'
@@ -160,25 +173,32 @@
               maxlength="512"
               :required="action === 'add'"
             />
-            <div id="clientSecretHelpText" class="form-text" v-if="action === 'edit'">
+            <div
+              :id="`clientSecretHelpText_edit_${provider?.id}`"
+              class="form-text"
+              v-if="action === 'edit'"
+            >
               {{ $t('identityProvidersAddEditModal.clientSecretHelpEdit') }}
             </div>
 
             <!-- scopes field -->
-            <label for="scopes"
+            <label :for="`scopes_${action === 'add' ? 'add' : `edit_${provider?.id}`}`"
               ><b>{{ $t('identityProvidersAddEditModal.scopesLabel') }}</b></label
             >
             <input
               type="text"
               class="form-control"
-              id="scopes"
+              :id="`scopes_${action === 'add' ? 'add' : `edit_${provider?.id}`}`"
               name="scopes"
-              aria-describedby="scopesHelpText"
+              :aria-describedby="`scopesHelpText_${action === 'add' ? 'add' : `edit_${provider?.id}`}`"
               v-model="formData.scopes"
               :placeholder="$t('identityProvidersAddEditModal.scopesPlaceholder')"
               maxlength="500"
             />
-            <div id="scopesHelpText" class="form-text">
+            <div
+              :id="`scopesHelpText_${action === 'add' ? 'add' : `edit_${provider?.id}`}`"
+              class="form-text"
+            >
               {{ $t('identityProvidersAddEditModal.scopesHelp') }}
             </div>
 
@@ -187,18 +207,23 @@
             <h6>{{ $t('identityProvidersAddEditModal.appearanceSection') }}</h6>
 
             <!-- icon field -->
-            <label for="icon">{{ $t('identityProvidersAddEditModal.iconLabel') }}</label>
+            <label :for="`icon_${action === 'add' ? 'add' : `edit_${provider?.id}`}`">{{
+              $t('identityProvidersAddEditModal.iconLabel')
+            }}</label>
             <input
               type="text"
               class="form-control"
-              id="icon"
+              :id="`icon_${action === 'add' ? 'add' : `edit_${provider?.id}`}`"
               name="icon"
-              aria-describedby="iconHelpText"
+              :aria-describedby="`iconHelpText_${action === 'add' ? 'add' : `edit_${provider?.id}`}`"
               v-model="formData.icon"
               :placeholder="$t('identityProvidersAddEditModal.iconPlaceholder')"
               maxlength="100"
             />
-            <div id="iconHelpText" class="form-text">
+            <div
+              :id="`iconHelpText_${action === 'add' ? 'add' : `edit_${provider?.id}`}`"
+              class="form-text"
+            >
               {{ $t('identityProvidersAddEditModal.iconHelp') }}
             </div>
 
@@ -211,12 +236,15 @@
               <input
                 class="form-check-input"
                 type="checkbox"
-                id="enabled"
+                :id="`enabled_${action === 'add' ? 'add' : `edit_${provider?.id}`}`"
                 name="enabled"
                 v-model="formData.enabled"
                 aria-label="Enable identity provider"
               />
-              <label class="form-check-label" for="enabled">
+              <label
+                class="form-check-label"
+                :for="`enabled_${action === 'add' ? 'add' : `edit_${provider?.id}`}`"
+              >
                 {{ $t('identityProvidersAddEditModal.enabledLabel') }}
               </label>
             </div>
@@ -227,16 +255,22 @@
                 <input
                   class="form-check-input"
                   type="checkbox"
-                  id="autoCreateUsers"
+                  :id="`autoCreateUsers_${action === 'add' ? 'add' : `edit_${provider?.id}`}`"
                   name="autoCreateUsers"
-                  aria-describedby="autoCreateUsersHelpText"
+                  :aria-describedby="`autoCreateUsersHelpText_${action === 'add' ? 'add' : `edit_${provider?.id}`}`"
                   v-model="formData.auto_create_users"
                 />
-                <label class="form-check-label" for="autoCreateUsers">
+                <label
+                  class="form-check-label"
+                  :for="`autoCreateUsers_${action === 'add' ? 'add' : `edit_${provider?.id}`}`"
+                >
                   {{ $t('identityProvidersAddEditModal.autoCreateUsersLabel') }}
                 </label>
               </div>
-              <div id="autoCreateUsersHelpText" class="form-text">
+              <div
+                :id="`autoCreateUsersHelpText_${action === 'add' ? 'add' : `edit_${provider?.id}`}`"
+                class="form-text"
+              >
                 {{ $t('identityProvidersAddEditModal.autoCreateUsersHelp') }}
               </div>
             </div>
@@ -247,16 +281,22 @@
                 <input
                   class="form-check-input"
                   type="checkbox"
-                  id="syncUserInfo"
+                  :id="`syncUserInfo_${action === 'add' ? 'add' : `edit_${provider?.id}`}`"
                   name="syncUserInfo"
-                  aria-describedby="syncUserInfoHelpText"
+                  :aria-describedby="`syncUserInfoHelpText_${action === 'add' ? 'add' : `edit_${provider?.id}`}`"
                   v-model="formData.sync_user_info"
                 />
-                <label class="form-check-label" for="syncUserInfo">
+                <label
+                  class="form-check-label"
+                  :for="`syncUserInfo_${action === 'add' ? 'add' : `edit_${provider?.id}`}`"
+                >
                   {{ $t('identityProvidersAddEditModal.syncUserInfoLabel') }}
                 </label>
               </div>
-              <div id="syncUserInfoHelpText" class="form-text">
+              <div
+                :id="`syncUserInfoHelpText_${action === 'add' ? 'add' : `edit_${provider?.id}`}`"
+                class="form-text"
+              >
                 {{ $t('identityProvidersAddEditModal.syncUserInfoHelp') }}
               </div>
             </div>
