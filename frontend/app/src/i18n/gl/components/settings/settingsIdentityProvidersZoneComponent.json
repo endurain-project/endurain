@@ -17,7 +17,6 @@
   "deletingProvider": "Deleting {name}...",
   "providerDeleted": "{name} has been deleted",
   "providerAdded": "{name} has been added",
-  "labelNumberOfProviders": "Identity Providers",
   "providerDetailsTitle": "Provider Details",
   "slugLabel": "Slug",
   "issuerUrlLabel": "Issuer URL",

@@ -165,8 +165,14 @@ Repository root:
 #### TypeScript
 
 - Always use `<script setup lang="ts">`
-- Explicit typing for all `ref`, `computed`, and function params
-- Type imports: `Ref<T>`, `ComputedRef<T>`, `Router`, `RouteLocationNormalizedLoaded`
+- **Modern Type Inference:**
+  - Use `ref<T>()` with generic parameter: `const user = ref<User | null>(null)`
+  - **Avoid** redundant `Ref<T>` annotations: ~~`const user: Ref<User | null> = ref(null)`~~
+  - Let TypeScript infer types when obvious: `const count = ref(0)` (infers `Ref<number>`)
+  - Let `computed()` infer return types from callback
+  - **Avoid** redundant `ComputedRef<T>` annotations
+- Explicit typing for function parameters and return types
+- Type imports for complex types: `Router`, `RouteLocationNormalizedLoaded`
 - No implicit `any` types
 - Centralized imports from `/types/index.ts`
 

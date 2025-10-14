@@ -10,7 +10,6 @@
             role="button"
             data-bs-toggle="modal"
             data-bs-target="#addIdentityProviderModal"
-            @click="handleAddProvider"
             :aria-label="$t('settingsIdentityProvidersZone.addProviderButton')"
             >{{ $t('settingsIdentityProvidersZone.addProviderButton')
             }}{{ $t('generalItems.betaTag') }}</a
@@ -32,22 +31,20 @@
 
         <div v-else>
           <!-- Providers List -->
-          <div class="mt-3" v-if="providers && providers.length">
-            <!-- Title Zone -->
-            <span>{{ $t('settingsIdentityProvidersZone.labelNumberOfProviders') }}</span>
-
-            <!-- List Zone -->
-            <ul
-              class="list-group list-group-flush"
-              v-for="provider in providers"
-              :key="provider.id"
-              :provider="provider"
+          <div class="mt-3" v-if="hasProviders">
+            <span
+            >{{ $t('settingsIdentityProvidersZone.labelNumberOfProviders1') }}{{ providers.length
+              }}{{ $t('settingsIdentityProvidersZone.labelNumberOfProviders2') }}</span
             >
+            <!-- List Zone -->
+            <ul class="list-group list-group-flush">
               <IdentityProviderListComponent
+                v-for="provider in providers"
+                :key="provider.id"
                 :provider="provider"
                 :templates="templates"
-                @providerDeleted="updateProviderList"
-                @providerUpdated="updateProviderInList"
+                @providerDeleted="handleProviderDeleted"
+                @providerUpdated="handleProviderUpdated"
               />
             </ul>
           </div>
@@ -76,7 +73,7 @@
  */
 
 // Vue composition API
-import { ref, onMounted, type Ref } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 // Internationalization
 import { useI18n } from 'vue-i18n'
 // Notifications
@@ -103,13 +100,43 @@ const { t } = useI18n()
 // Component State
 // ============================================================================
 
-const providers: Ref<IdentityProvider[]> = ref([])
-const templates: Ref<IdentityProviderTemplate[]> = ref([])
-const isLoading: Ref<boolean> = ref(true)
+const providers = ref<IdentityProvider[]>([])
+const templates = ref<IdentityProviderTemplate[]>([])
+const isLoading = ref(true)
+
+// ============================================================================
+// Computed Properties
+// ============================================================================
+
+/**
+ * Check if there are any providers configured
+ * Used to determine whether to show the list or empty state
+ */
+const hasProviders = computed(() => providers.value.length > 0)
 
 // ============================================================================
 // Data Fetching
 // ============================================================================
+
+/**
+ * Handle API errors with consistent error messages
+ * Centralized error handling for all API calls
+ *
+ * @param error - Error object from API call
+ * @param operationType - Type of operation that failed (providers, templates)
+ */
+const handleApiError = (error: unknown, operationType: 'providers' | 'templates'): void => {
+  const statusCode = extractStatusCode(error)
+  if (statusCode === HTTP_STATUS.FORBIDDEN) {
+    push.error(t('settingsIdentityProvidersZone.errorForbidden'))
+  } else {
+    const errorKey =
+      operationType === 'providers'
+        ? 'settingsIdentityProvidersZone.errorFetchingProviders'
+        : 'settingsIdentityProvidersZone.errorFetchingTemplates'
+    push.error(`${t(errorKey)} - ${error}`)
+  }
+}
 
 /**
  * Fetch all identity providers from the API
@@ -121,12 +148,7 @@ const fetchProviders = async (): Promise<void> => {
     const response = await identityProviders.getAllProviders()
     providers.value = response || []
   } catch (error) {
-    const statusCode = extractStatusCode(error)
-    if (statusCode === HTTP_STATUS.FORBIDDEN) {
-      push.error(t('settingsIdentityProvidersZone.errorForbidden'))
-    } else {
-      push.error(`${t('settingsIdentityProvidersZone.errorFetchingProviders')} - ${error}`)
-    }
+    handleApiError(error, 'providers')
     providers.value = []
   } finally {
     isLoading.value = false
@@ -142,12 +164,7 @@ const fetchTemplates = async (): Promise<void> => {
     const response = await identityProviders.getTemplates()
     templates.value = response || []
   } catch (error) {
-    const statusCode = extractStatusCode(error)
-    if (statusCode === HTTP_STATUS.FORBIDDEN) {
-      push.error(t('settingsIdentityProvidersZone.errorForbidden'))
-    } else {
-      push.error(`${t('settingsIdentityProvidersZone.errorFetchingTemplates')} - ${error}`)
-    }
+    handleApiError(error, 'templates')
     templates.value = []
   }
 }
@@ -157,16 +174,8 @@ const fetchTemplates = async (): Promise<void> => {
 // ============================================================================
 
 /**
- * Handle add provider button click
- * Opens modal for adding a new provider
- */
-const handleAddProvider = (): void => {
-  // Modal is triggered by data-bs-toggle and data-bs-target attributes
-}
-
-/**
  * Handle provider added event from modal
- * Adds new provider to the list
+ * Adds new provider to the list and shows success notification
  *
  * @param provider - Newly created provider
  */
@@ -181,17 +190,17 @@ const handleProviderAdded = (provider: IdentityProvider): void => {
  *
  * @param providerId - ID of deleted provider
  */
-const updateProviderList = (providerId: number): void => {
+const handleProviderDeleted = (providerId: number): void => {
   providers.value = providers.value.filter((p) => p.id !== providerId)
 }
 
 /**
  * Handle provider updated from list component
- * Updates existing provider in the list
+ * Updates existing provider in the list with new data
  *
  * @param updatedProvider - Updated provider data
  */
-const updateProviderInList = (updatedProvider: IdentityProvider): void => {
+const handleProviderUpdated = (updatedProvider: IdentityProvider): void => {
   const index = providers.value.findIndex((p) => p.id === updatedProvider.id)
   if (index !== -1) {
     providers.value[index] = updatedProvider
