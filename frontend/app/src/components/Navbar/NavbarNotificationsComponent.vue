@@ -1,5 +1,5 @@
 <template>
-  <div class="nav-item dropdown d-none d-lg-block">
+  <div class="dropdown d-none d-lg-block">
     <!-- toggle -->
     <a
       class="nav-link link-body-emphasis dropdown-toggle"
@@ -72,8 +72,18 @@
   </div>
 </template>
 
-<script setup>
-import { ref, onMounted, onUnmounted, watch } from 'vue'
+<script setup lang="ts">
+/**
+ * Navbar Notifications Component
+ *
+ * Displays a dropdown menu with user notifications, including real-time updates via WebSocket.
+ * Handles pagination, read status, and various notification types.
+ */
+
+// ============================================================================
+// Section 1: Imports
+// ============================================================================
+import { ref, onMounted, onUnmounted, watch, type Ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { push } from 'notivue'
 
@@ -89,19 +99,58 @@ import NewFollowerRequestNotificationComponent from '@/components/Notifications/
 import NoItemsFoundComponents from '@/components/GeneralComponents/NoItemsFoundComponents.vue'
 import LoadingComponent from '@/components/GeneralComponents/LoadingComponent.vue'
 
+// ============================================================================
+// Section 2: Type Definitions
+// ============================================================================
+
+/**
+ * Notification object structure matching backend schema
+ */
+interface Notification {
+  id: number
+  user_id: number
+  type: number
+  options: Record<string, unknown>
+  read: boolean
+  created_at: string
+}
+
+/**
+ * WebSocket message structure for notification events
+ */
+interface WebSocketNotificationMessage {
+  message: string
+  notification_id: number
+}
+
+// ============================================================================
+// Section 3: Composables & Stores
+// ============================================================================
 const { t } = useI18n()
-const isLoading = ref(true)
-const showDropdown = ref(false)
 const serverSettingsStore = useServerSettingsStore()
 const authStore = useAuthStore()
-const notificationsWithPagination = ref([])
-const notificationsNotRead = ref(0)
-const notificationsNumber = ref(0)
-const pageNumber = ref(1)
-const numRecords = serverSettingsStore.serverSettings.num_records_per_page || 25
-const totalPages = ref(1)
 
-async function fetchNotifications() {
+// ============================================================================
+// Section 4: Reactive State
+// ============================================================================
+const isLoading = ref<boolean>(true)
+const showDropdown = ref<boolean>(false)
+const notificationsWithPagination = ref<Notification[]>([])
+const notificationsNotRead = ref<number>(0)
+const notificationsNumber = ref<number>(0)
+const pageNumber = ref<number>(1)
+const numRecords: number = serverSettingsStore.serverSettings.num_records_per_page || 25
+const totalPages = ref<number>(1)
+
+// ============================================================================
+// Section 5: Main Logic
+// ============================================================================
+
+/**
+ * Fetch notifications with pagination
+ * Updates the notification list and calculates unread count
+ */
+async function fetchNotifications(): Promise<void> {
   try {
     const newNotifications = await notifications.getUserNotificationsWithPagination(
       pageNumber.value,
@@ -126,7 +175,10 @@ async function fetchNotifications() {
   }
 }
 
-async function fetchNotificationsNumber() {
+/**
+ * Fetch the total number of notifications for the user
+ */
+async function fetchNotificationsNumber(): Promise<void> {
   try {
     notificationsNumber.value = await notifications.getUserNotificationsNumber()
   } catch (error) {
@@ -134,28 +186,35 @@ async function fetchNotificationsNumber() {
   }
 }
 
-function setPageNumber() {
-  // Set the page number to +1.
+/**
+ * Increment the page number for pagination
+ */
+function setPageNumber(): void {
   pageNumber.value += 1
 }
 
-function markNotificationAsRead(notificationId) {
-  // Decrease the number of notifications not read.
+/**
+ * Mark a notification as read in the local state
+ * @param notificationId - The ID of the notification to mark as read
+ */
+function markNotificationAsRead(notificationId: number): void {
   notificationsNotRead.value--
-  // Find the notification and mark it as read.
   const notification = notificationsWithPagination.value.find((n) => n.id === notificationId)
   if (notification) {
     notification.read = true
   }
 }
 
-async function fetchNotificationById(notificationId) {
-  // Fetch the notification by ID
+/**
+ * Fetch a single notification by ID and add it to the list if not already present
+ * Used for real-time WebSocket updates
+ * @param notificationId - The ID of the notification to fetch
+ */
+async function fetchNotificationById(notificationId: number): Promise<void> {
   try {
     const newNotification = await notifications.getUserNotificationByID(notificationId)
 
     if (newNotification) {
-      // Check if the notification is not already in the list
       const existingNotification = notificationsWithPagination.value.find(
         (n) => n.id === notificationId
       )
@@ -172,13 +231,20 @@ async function fetchNotificationById(notificationId) {
   }
 }
 
+// ============================================================================
+// Section 6: Lifecycle Hooks
+// ============================================================================
+
+/**
+ * Initialize component and set up WebSocket listener for real-time notifications
+ */
 onMounted(async () => {
-  if (authStore.user_websocket) {
-    authStore.user_websocket.on
+  const websocket = authStore.user_websocket as WebSocket | null
+  if (websocket) {
     // Set up websocket message handler
-    authStore.user_websocket.onmessage = async (event) => {
+    websocket.onmessage = async (event: MessageEvent) => {
       try {
-        const data = JSON.parse(event.data)
+        const data = JSON.parse(event.data) as WebSocketNotificationMessage
         if (
           data &&
           (data.message === 'NEW_ACTIVITY_NOTIFICATION' ||
@@ -201,13 +267,18 @@ onMounted(async () => {
   isLoading.value = false
 })
 
-// Clean up when component unmounts
+/**
+ * Clean up WebSocket listener when component unmounts
+ */
 onUnmounted(() => {
-  if (authStore.user_websocket && authStore.user_websocket.onmessage) {
-    authStore.user_websocket.onmessage = null
+  const websocket = authStore.user_websocket as WebSocket | null
+  if (websocket && websocket.onmessage) {
+    websocket.onmessage = null
   }
 })
 
-// Watch the page number variable.
+/**
+ * Watch page number changes and fetch new notifications
+ */
 watch(pageNumber, fetchNotifications, { immediate: false })
 </script>

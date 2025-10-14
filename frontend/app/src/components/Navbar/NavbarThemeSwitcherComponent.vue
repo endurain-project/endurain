@@ -6,6 +6,7 @@
       role="button"
       data-bs-toggle="dropdown"
       aria-expanded="false"
+      aria-label="Theme switcher"
     >
       <font-awesome-icon :icon="['fas', 'moon']" v-if="themeStore.theme == 'dark'" />
       <font-awesome-icon :icon="['fas', 'sun']" v-else-if="themeStore.theme == 'light'" />
@@ -19,6 +20,7 @@
           class="btn dropdown-item"
           @click="changeTheme(theme.value)"
           :aria-pressed="themeStore.theme === theme.value ? 'true' : 'false'"
+          :aria-label="`Switch to ${theme.label} theme`"
         >
           <span v-if="theme.value == 'dark'" class="me-1"
             ><font-awesome-icon :icon="['fas', 'moon']"
@@ -37,20 +39,41 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
+/**
+ * @fileoverview Theme switcher component for the navigation bar.
+ * Provides a dropdown to switch between light, dark, and auto themes.
+ * Automatically syncs with system theme preferences when auto mode is selected.
+ */
+
+// Section 1: Imports
 import { onMounted, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useThemeStore } from '@/stores/themeStore'
 
+// Section 2: Composables & Stores
 const themeStore = useThemeStore()
 const { t } = useI18n()
-const themes = computed(() => [
+
+// Section 3: Reactive State
+interface ThemeOption {
+  value: string
+  label: string
+}
+
+// Section 4: Computed Properties
+const themes = computed<ThemeOption[]>(() => [
   { value: 'light', label: t('settingsThemeSwitcher.themeLight') },
   { value: 'dark', label: t('settingsThemeSwitcher.themeDark') },
   { value: 'auto', label: t('settingsThemeSwitcher.themeAuto') }
 ])
 
-const setTheme = (theme) => {
+// Section 7: Main Logic
+/**
+ * Sets the theme on the document element.
+ * For 'auto' theme, detects system preference.
+ */
+const setTheme = (theme: string): void => {
   if (theme === 'auto') {
     document.documentElement.setAttribute(
       'data-bs-theme',
@@ -61,11 +84,15 @@ const setTheme = (theme) => {
   }
 }
 
-const changeTheme = (theme) => {
+/**
+ * Changes the current theme and persists it to the store.
+ */
+const changeTheme = (theme: string): void => {
   setTheme(theme)
   themeStore.setTheme(theme)
 }
 
+// Section 8: Lifecycle Hooks
 onMounted(() => {
   setTheme(themeStore.theme)
 

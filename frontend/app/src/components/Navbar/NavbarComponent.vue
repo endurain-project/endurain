@@ -135,7 +135,10 @@
   </nav>
 </template>
 
-<script setup>
+<script setup lang="ts">
+/**
+ * @fileoverview Navigation bar component with responsive design and user authentication state.
+ */
 import { useRouter } from 'vue-router'
 // Importing the i18n
 import { useI18n } from 'vue-i18n'
@@ -158,9 +161,9 @@ const serverSettingsStore = useServerSettingsStore()
 const { locale, t } = useI18n()
 
 // Methods
-async function handleLogout() {
+async function handleLogout(): Promise<void> {
   try {
-    await authStore.logoutUser(router, locale)
+    await authStore.logoutUser(router as never, locale as never)
     serverSettingsStore.setServerSettingsOnLogout()
   } catch (error) {
     push.error(`${t('navbarComponent.errorLogout')} - ${error}`)
