@@ -23,6 +23,7 @@ class IdentityProviderBase(BaseModel):
         auto_create_users (bool): Whether to auto-create users on first login. Defaults to True.
         sync_user_info (bool): Whether to sync user info on each login. Defaults to True.
         user_mapping (Dict[str, Any] | None): Claims mapping configuration.
+        client_id (str | None): The client ID for the provider (1-512 characters).
 
     Validators:
         - slug: Ensures the slug contains only lowercase letters, numbers, and hyphens.
@@ -65,6 +66,7 @@ class IdentityProviderBase(BaseModel):
     user_mapping: Dict[str, Any] | None = Field(
         None, description="Claims mapping configuration"
     )
+    client_id: str | None = Field(None, min_length=1, max_length=512)
 
     @field_validator("slug")
     @classmethod
@@ -116,13 +118,9 @@ class IdentityProviderCreate(IdentityProviderBase):
         IdentityProviderBase
 
     Attributes:
-        client_id (str): OAuth2/OIDC client ID. Must be between 1 and 512 characters.
         client_secret (str): OAuth2/OIDC client secret. Must be between 1 and 512 characters.
     """
-
-    client_id: str = Field(
-        ..., min_length=1, max_length=512, description="OAuth2/OIDC client ID"
-    )
+    
     client_secret: str = Field(
         ..., min_length=1, max_length=512, description="OAuth2/OIDC client secret"
     )
@@ -143,7 +141,6 @@ class IdentityProviderUpdate(IdentityProviderBase):
         scopes (str | None): Scopes to request from the provider (up to 500 characters).
         auto_create_users (bool | None): Whether to automatically create users upon authentication.
         sync_user_info (bool | None): Whether to synchronize user information on login.
-        client_id (str | None): The client ID for the provider (1-512 characters).
         client_secret (str | None): The client secret for the provider (1-512 characters).
     """
 
@@ -154,7 +151,6 @@ class IdentityProviderUpdate(IdentityProviderBase):
     scopes: str | None = Field(None, max_length=500)
     auto_create_users: bool | None = None
     sync_user_info: bool | None = None
-    client_id: str | None = Field(None, min_length=1, max_length=512)
     client_secret: str | None = Field(None, min_length=1, max_length=512)
 
 

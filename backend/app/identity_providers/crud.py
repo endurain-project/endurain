@@ -14,25 +14,31 @@ def get_identity_provider(
     idp_id: int, db: Session
 ) -> idp_models.IdentityProvider | None:
     """
-    Retrieve an IdentityProvider record from the database by its ID.
+    Retrieve an identity provider by its ID from the database, decrypting its client_id.
 
     Args:
-        idp_id (int): The unique identifier of the IdentityProvider to retrieve.
-        db (Session): The SQLAlchemy database session used for the query.
+        idp_id (int): The unique identifier of the identity provider.
+        db (Session): The SQLAlchemy database session.
 
     Returns:
-        IdentityProvider | None: The IdentityProvider instance if found, otherwise None.
+        idp_models.IdentityProvider | None: The identity provider object with decrypted client_id if found, otherwise None.
 
     Raises:
-        HTTPException: If an unexpected error occurs during the database query,
-                       raises a 500 Internal Server Error.
+        HTTPException: If an error occurs during retrieval or decryption, raises a 500 Internal Server Error.
     """
     try:
-        return (
+        # Get IDP from database
+        db_idp = (
             db.query(idp_models.IdentityProvider)
             .filter(idp_models.IdentityProvider.id == idp_id)
             .first()
         )
+
+        # Unencrypt client_id
+        db_idp.client_id = core_cryptography.decrypt_token_fernet(db_idp.client_id)
+
+        # Return IDP
+        return db_idp
     except Exception as err:
         core_logger.print_to_log(
             f"Error in get_identity_provider: {err}", "error", exc=err
@@ -47,25 +53,31 @@ def get_identity_provider_by_slug(
     slug: str, db: Session
 ) -> idp_models.IdentityProvider | None:
     """
-    Retrieve an IdentityProvider instance from the database by its slug.
+    Retrieve an IdentityProvider object from the database by its slug, decrypting its client_id.
 
     Args:
-        slug (str): The unique slug identifier of the identity provider.
+        slug (str): The unique slug identifier for the identity provider.
         db (Session): The SQLAlchemy database session.
 
     Returns:
-        IdentityProvider | None: The IdentityProvider instance if found, otherwise None.
+        idp_models.IdentityProvider | None: The IdentityProvider object with decrypted client_id if found, otherwise None.
 
     Raises:
-        HTTPException: If an unexpected error occurs during the database query,
-                       raises a 500 Internal Server Error.
+        HTTPException: If an error occurs during retrieval or decryption, raises a 500 Internal Server Error.
     """
     try:
-        return (
+        # Get IDP from database
+        db_idp = (
             db.query(idp_models.IdentityProvider)
             .filter(idp_models.IdentityProvider.slug == slug)
             .first()
         )
+
+        # Unencrypt client_id
+        db_idp.client_id = core_cryptography.decrypt_token_fernet(db_idp.client_id)
+
+        # Return IDP
+        return db_idp
     except Exception as err:
         core_logger.print_to_log(
             f"Error in get_identity_provider_by_slug: {err}", "error", exc=err
@@ -78,23 +90,31 @@ def get_identity_provider_by_slug(
 
 def get_all_identity_providers(db: Session) -> List[idp_models.IdentityProvider]:
     """
-    Retrieve all identity providers from the database, ordered by name.
+    Retrieve all identity providers from the database, decrypting their client IDs.
 
     Args:
         db (Session): SQLAlchemy database session.
 
     Returns:
-        List[idp_models.IdentityProvider]: A list of all identity provider records.
+        List[idp_models.IdentityProvider]: A list of identity provider objects with decrypted client IDs.
 
     Raises:
-        HTTPException: If an error occurs during the database query, raises a 500 Internal Server Error.
+        HTTPException: If an error occurs during retrieval or decryption, raises a 500 Internal Server Error.
     """
     try:
-        return (
+        # Get IDPs from database
+        db_idps = (
             db.query(idp_models.IdentityProvider)
             .order_by(idp_models.IdentityProvider.name)
             .all()
         )
+
+        # Unencrypt client_id
+        for idp in db_idps:
+            idp.client_id = core_cryptography.decrypt_token_fernet(idp.client_id)
+
+        # Return IDPs
+        return db_idps
     except Exception as err:
         core_logger.print_to_log(
             f"Error in get_all_identity_providers: {err}", "error", exc=err
@@ -170,7 +190,7 @@ def create_identity_provider(
         # Create the identity provider
         db_idp = idp_models.IdentityProvider(
             name=idp_data.name,
-            slug=idp_data.slug,
+            slug=idp_data.slug.lower(),
             provider_type=idp_data.provider_type,
             enabled=idp_data.enabled,
             client_id=encrypted_client_id,
