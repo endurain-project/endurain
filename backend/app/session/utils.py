@@ -637,7 +637,9 @@ async def refresh_idp_tokens_if_needed(user_id: int, db: Session) -> None:
         # Don't raise - IdP token refresh is opportunistic and non-blocking
 
 
-async def clear_all_idp_tokens(user_id: int, db: Session) -> None:
+async def clear_all_idp_tokens(
+    user_id: int, db: Session, revoke_at_idp: bool = False
+) -> None:
     """
     Clear all IdP refresh tokens for a user upon logout.
 
@@ -651,26 +653,36 @@ async def clear_all_idp_tokens(user_id: int, db: Session) -> None:
     Args:
         user_id (int): The ID of the user who is logging out.
         db (Session): The database session for querying and updating user-IdP links.
+        revoke_at_idp (bool): If True, attempt to revoke tokens at the IdP before clearing
+            locally (RFC 7009). Default False for performance. Revocation failures do not
+            block logout - tokens are always cleared locally regardless of IdP response.
 
     Returns:
         None
 
     Side Effects:
+        - Optionally attempts to revoke tokens at each IdP (if revoke_at_idp=True)
         - Clears all IdP refresh tokens from database for this user
         - Sets idp_refresh_token, idp_access_token_expires_at, and
           idp_refresh_token_updated_at to NULL
-        - Logs clearing actions at debug level
+        - Logs clearing/revocation actions at debug/info level
 
     Error Handling:
         - All errors are caught and logged but do not block logout
-        - Logout succeeds even if IdP token clearing fails
+        - Logout succeeds even if IdP token clearing/revocation fails
         - Individual IdP failures don't prevent clearing other IdPs
+        - Revocation failures are logged but don't prevent local clearing
 
     Security Note:
-        - This follows the principle of least privilege
+        - Follows the principle of least privilege
         - Reduces the window of token validity after logout
         - User must re-authenticate with IdP on next SSO login
-        - Does NOT revoke tokens at the IdP (optional future enhancement)
+        - Optional IdP revocation provides defense in depth (RFC 7009)
+
+    Performance Note:
+        - revoke_at_idp=False (default): Fast logout (~10-40ms per IdP, local only)
+        - revoke_at_idp=True: Slower logout (~100-500ms per IdP, includes network calls)
+        - Revocation is best-effort and non-blocking
     """
     try:
         # Get all IdP links for this user
@@ -683,6 +695,33 @@ async def clear_all_idp_tokens(user_id: int, db: Session) -> None:
         # Clear tokens for each IdP link
         for link in idp_links:
             try:
+                # Optionally attempt to revoke token at IdP first (RFC 7009)
+                if revoke_at_idp:
+                    try:
+                        revoked = await idp_service.idp_service.revoke_idp_token(
+                            user_id, link.idp_id, db
+                        )
+                        if revoked:
+                            core_logger.print_to_log(
+                                f"Revoked IdP token at provider for user {user_id}, idp {link.idp_id}",
+                                "info",
+                            )
+                        else:
+                            core_logger.print_to_log(
+                                f"IdP token revocation not supported or failed for user {user_id}, idp {link.idp_id}. "
+                                "Will clear locally.",
+                                "debug",
+                            )
+                    except Exception as revoke_err:
+                        # Log revocation failure but continue with local clearing
+                        core_logger.print_to_log(
+                            f"Error revoking IdP token for user {user_id}, idp {link.idp_id}: {revoke_err}. "
+                            "Will clear locally.",
+                            "warning",
+                            exc=revoke_err,
+                        )
+
+                # Always clear locally regardless of revocation result
                 success = user_idp_crud.clear_idp_refresh_token(
                     user_id, link.idp_id, db
                 )

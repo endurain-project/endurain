@@ -1101,6 +1101,189 @@ class IdentityProviderService:
             )
             return None
 
+    async def revoke_idp_token(
+        self,
+        user_id: int,
+        idp_id: int,
+        db: Session,
+    ) -> bool:
+        """
+        Attempt to revoke a refresh token at the IdP (RFC 7009).
+
+        This method implements the OAuth2 Token Revocation specification (RFC 7009)
+        to notify the IdP that a token is no longer needed. This is a best-effort
+        operation - failure to revoke does not prevent local token clearing.
+
+        Args:
+            user_id (int): The ID of the user whose token should be revoked.
+            idp_id (int): The ID of the identity provider.
+            db (Session): The database session for token retrieval.
+
+        Returns:
+            bool: True if revocation succeeded or was not needed, False if revocation failed.
+
+        Raises:
+            Does not raise exceptions - all errors are caught and logged.
+
+        Security Note:
+            - Token revocation at the IdP provides defense in depth
+            - Even if revocation fails, tokens are cleared locally
+            - Network failures or unsupported IdPs return False (non-fatal)
+            - Follows OAuth2 RFC 7009 specification
+
+        RFC 7009 Specification:
+            POST to revocation_endpoint with:
+            - token: The refresh token to revoke
+            - token_type_hint: "refresh_token" (optional)
+            - client_id and client_secret for authentication
+
+        Example:
+            success = await idp_service.revoke_idp_token(user_id=123, idp_id=1, db=db)
+            if success:
+                # Token revoked at IdP
+                clear_local_token()
+            else:
+                # Revocation failed (network, unsupported, etc.) but clear locally anyway
+                clear_local_token()
+        """
+        try:
+            # Get the IdP configuration
+            idp = idp_crud.get_identity_provider(idp_id, db)
+            if not idp or not idp.enabled:
+                core_logger.print_to_log(
+                    f"IdP (ID: {idp_id}) not found or disabled. Skipping token revocation.",
+                    "debug",
+                )
+                return False
+
+            # Get the encrypted refresh token from database
+            encrypted_refresh_token = user_idp_crud.get_idp_refresh_token(
+                user_id, idp_id, db
+            )
+
+            if not encrypted_refresh_token:
+                # No token to revoke - consider this success
+                core_logger.print_to_log(
+                    f"No refresh token to revoke for user {user_id}, idp {idp_id}",
+                    "debug",
+                )
+                return True
+
+            # Decrypt the refresh token
+            try:
+                refresh_token = core_cryptography.decrypt_token_fernet(
+                    encrypted_refresh_token
+                )
+                if not refresh_token:
+                    core_logger.print_to_log(
+                        f"Failed to decrypt refresh token for revocation (user {user_id}, idp {idp_id})",
+                        "warning",
+                    )
+                    return False
+            except Exception as err:
+                core_logger.print_to_log(
+                    f"Error decrypting refresh token for revocation: {err}",
+                    "warning",
+                    exc=err,
+                )
+                return False
+
+            # Try to get revocation endpoint from OIDC discovery
+            revocation_endpoint = None
+            if idp.issuer_url:
+                try:
+                    config = await self.get_oidc_configuration(idp)
+                    if config:
+                        revocation_endpoint = config.get("revocation_endpoint")
+                except Exception as err:
+                    core_logger.print_to_log(
+                        f"OIDC discovery failed for revocation endpoint (IdP {idp.name}): {err}",
+                        "debug",
+                        exc=err,
+                    )
+
+            if not revocation_endpoint:
+                # IdP doesn't advertise a revocation endpoint
+                core_logger.print_to_log(
+                    f"IdP {idp.name} does not support token revocation (no revocation_endpoint). "
+                    "Token will be cleared locally only.",
+                    "debug",
+                )
+                return False
+
+            # Decrypt client secret for authentication
+            try:
+                client_secret = self._decrypt_client_secret(idp)
+            except Exception as err:
+                core_logger.print_to_log(
+                    f"Failed to decrypt client secret for revocation: {err}",
+                    "warning",
+                    exc=err,
+                )
+                return False
+
+            # Call the revocation endpoint (RFC 7009)
+            try:
+                client = await self._get_http_client()
+                response = await client.post(
+                    revocation_endpoint,
+                    data={
+                        "token": refresh_token,
+                        "token_type_hint": "refresh_token",
+                        "client_id": idp.client_id,
+                        "client_secret": client_secret,
+                    },
+                    headers={"Content-Type": "application/x-www-form-urlencoded"},
+                )
+
+                # RFC 7009: The revocation endpoint responds with HTTP 200
+                # for both successful revocations and invalid tokens
+                if response.status_code == 200:
+                    core_logger.print_to_log(
+                        f"Successfully revoked IdP token for user {user_id}, idp {idp_id}",
+                        "info",
+                    )
+                    return True
+                else:
+                    core_logger.print_to_log(
+                        f"IdP revocation endpoint returned {response.status_code} for user {user_id}, idp {idp_id}",
+                        "warning",
+                    )
+                    return False
+
+            except httpx.TimeoutException as err:
+                core_logger.print_to_log(
+                    f"Timeout revoking token at IdP {idp.name} for user {user_id}: {err}",
+                    "warning",
+                    exc=err,
+                )
+                return False
+
+            except httpx.RequestError as err:
+                core_logger.print_to_log(
+                    f"Network error revoking token at IdP {idp.name} for user {user_id}: {err}",
+                    "warning",
+                    exc=err,
+                )
+                return False
+
+            except Exception as err:
+                core_logger.print_to_log(
+                    f"Unexpected error revoking token at IdP {idp.name} for user {user_id}: {err}",
+                    "warning",
+                    exc=err,
+                )
+                return False
+
+        except Exception as err:
+            # Catch-all for unexpected errors
+            core_logger.print_to_log(
+                f"Error in revoke_idp_token for user {user_id}, idp {idp_id}: {err}",
+                "error",
+                exc=err,
+            )
+            return False
+
     def _is_token_expired_by_age(
         self, link: user_idp_models.UserIdentityProvider
     ) -> bool:
