@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy import exists
 from sqlalchemy.orm import Session
 from sqlalchemy.sql import func
@@ -129,7 +129,7 @@ def update_user_idp_last_login(
     """
     db_link = get_user_idp_link(user_id, idp_id, db)
     if db_link:
-        db_link.last_login = datetime.now(datetime.timezone.utc)
+        db_link.last_login = datetime.now(timezone.utc)
         db.commit()
         db.refresh(db_link)
     return db_link
