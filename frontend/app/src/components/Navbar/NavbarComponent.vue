@@ -1,6 +1,6 @@
 <template>
-  <nav class="navbar navbar-expand-lg bg-body-tertiary">
-    <div class="container-fluid">
+  <div class="container-fluid">
+    <nav class="navbar navbar-expand-lg bg-body-tertiary">
       <!-- Navbar brand + search in the left -->
       <router-link :to="{ name: 'home' }" class="navbar-brand d-flex align-items-center">
         <img src="/logo/logo.svg" alt="Logo" width="24" height="24" class="me-2 rounded" />
@@ -131,8 +131,8 @@
           <span class="ms-1">{{ $t('navbarComponent.login') }}</span>
         </router-link>
       </div>
-    </div>
-  </nav>
+    </nav>
+  </div>
 </template>
 
 <script setup lang="ts">
