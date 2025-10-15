@@ -161,8 +161,8 @@ def parse_gpx_file(
                                             # Extract 'power' value
                                             power = extension.text
                                         elif extension.tag.endswith("heartrate"):
-                                            # Tissot T-Touch smartwatch and similar devices extension
-                                            heart_rate = extension.text
+                                            # Tissot smartwatch and similar devices extension
+                                            heart_rate = int(extension.text) if extension.text else 0
 
                                 # Check if heart rate, cadence, power are set
                                 if heart_rate != 0:
