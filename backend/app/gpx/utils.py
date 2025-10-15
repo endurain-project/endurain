@@ -103,6 +103,13 @@ def parse_gpx_file(
                                 # Extract latitude and longitude from the point
                                 latitude, longitude = point.latitude, point.longitude
 
+                                # Extract elevation, time, and location details
+                                elevation, time = point.elevation, point.time
+                                
+                                # Skip trackpoints without time data (common in some OsmAnd exports)
+                                if time is None:
+                                    continue
+
                                 # Calculate distance between waypoints
                                 if (
                                     prev_latitude is not None
@@ -112,9 +119,6 @@ def parse_gpx_file(
                                         (prev_latitude, prev_longitude),
                                         (latitude, longitude),
                                     ).meters
-
-                                # Extract elevation, time, and location details
-                                elevation, time = point.elevation, point.time
 
                                 if elevation != 0:
                                     is_elevation_set = True
@@ -261,6 +265,13 @@ def parse_gpx_file(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail="Invalid GPX file - no tracks found in the GPX file",
                 )
+
+        # Check if we have at least one valid trackpoint with time data
+        if first_waypoint_time is None or last_waypoint_time is None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid GPX file - no trackpoints with valid time data found",
+            )
 
         # Calculate elevation gain/loss, pace, average speed, and average power
         if ele_waypoints:
