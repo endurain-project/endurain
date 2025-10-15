@@ -26,6 +26,7 @@ import users.user.schema as users_schema
 import users.user_identity_providers.crud as user_idp_crud
 
 import identity_providers.service as idp_service
+from identity_providers.service import TokenAction
 import core.logger as core_logger
 
 
@@ -509,16 +510,19 @@ def parse_user_agent(user_agent: str) -> DeviceInfo:
 
 async def refresh_idp_tokens_if_needed(user_id: int, db: Session) -> None:
     """
-    Opportunistically refresh IdP tokens for all linked identity providers.
+    Opportunistically refresh or clear IdP tokens for all linked identity providers.
 
     This helper function is called during Endurain session refresh to check if any
-    linked identity providers have tokens that need refreshing. If tokens are close
-    to expiry (within 5 minutes), it attempts to silently refresh them.
+    linked identity providers have tokens that need action. Based on token policy:
+    - Tokens close to expiry are refreshed
+    - Tokens exceeding maximum age are cleared and require re-authentication
+    - Valid tokens are skipped
 
     This provides a better user experience by:
     - Reducing the need for re-authentication with IdPs
     - Maintaining seamless SSO sessions
     - Avoiding token expiry during active user sessions
+    - Enforcing security policy for maximum token lifetime
 
     Args:
         user_id (int): The ID of the user whose IdP tokens should be checked.
@@ -529,23 +533,25 @@ async def refresh_idp_tokens_if_needed(user_id: int, db: Session) -> None:
 
     Side Effects:
         - May update IdP tokens in database if refresh is successful
-        - Logs refresh attempts at debug level
-        - Logs refresh failures at debug level (non-blocking)
+        - May clear IdP tokens in database if they exceed maximum age
+        - Logs refresh/clear attempts at debug/info level
+        - Logs failures at debug/warning level (non-blocking)
 
     Error Handling:
         - All errors are caught and logged, but do not block session refresh
-        - IdP token refresh failures are non-fatal (user session continues)
+        - IdP token refresh/clear failures are non-fatal (user session continues)
         - Network errors to IdP are logged but don't affect Endurain session
 
     Performance:
         - Only refreshes tokens that are close to expiry (policy-based)
-        - Rate-limited to prevent excessive IdP API calls (1-minute minimum)
+        - Rate-limited to prevent excessive IdP API calls
         - Runs asynchronously to avoid blocking session refresh response
 
     Security:
         - Uses existing IdP service methods (inherits all security controls)
         - Token refresh follows OAuth2 refresh_token grant type
         - Failed refreshes clear invalid tokens from database
+        - Enforces maximum token age for security
     """
     try:
         # Get all IdP links for this user
@@ -555,11 +561,14 @@ async def refresh_idp_tokens_if_needed(user_id: int, db: Session) -> None:
             # User has no IdP links - nothing to refresh
             return
 
-        # Check each IdP link and refresh if needed
+        # Check each IdP link and take appropriate action
         for link in idp_links:
             try:
-                # Check if this IdP token needs refreshing (policy-based)
-                if idp_service.idp_service._should_refresh_idp_token(link):
+                # Determine what action to take for this IdP token (policy-based)
+                action = idp_service.idp_service._should_refresh_idp_token(link)
+
+                if action == TokenAction.REFRESH:
+                    # Token is close to expiry - attempt to refresh
                     core_logger.print_to_log(
                         f"Attempting to refresh IdP token for user {user_id}, idp {link.idp_id}",
                         "debug",
@@ -581,12 +590,36 @@ async def refresh_idp_tokens_if_needed(user_id: int, db: Session) -> None:
                             "User may need to re-authenticate with IdP later.",
                             "debug",
                         )
-                else:
-                    # Token doesn't need refreshing yet (still valid or recently refreshed)
+
+                elif action == TokenAction.CLEAR:
+                    # Token has exceeded maximum age - clear it for security
+                    core_logger.print_to_log(
+                        f"Clearing expired IdP token (max age exceeded) for user {user_id}, idp {link.idp_id}",
+                        "info",
+                    )
+
+                    success = user_idp_crud.clear_idp_refresh_token(
+                        user_id, link.idp_id, db
+                    )
+
+                    if success:
+                        core_logger.print_to_log(
+                            f"Successfully cleared expired IdP token for user {user_id}, idp {link.idp_id}. "
+                            "User will need to re-authenticate with IdP.",
+                            "info",
+                        )
+                    else:
+                        core_logger.print_to_log(
+                            f"Failed to clear expired IdP token for user {user_id}, idp {link.idp_id}",
+                            "warning",
+                        )
+
+                else:  # TokenAction.SKIP
+                    # Token is still valid and not close to expiry - no action needed
                     pass
 
             except Exception as err:
-                # Log individual IdP refresh failure but continue with other IdPs
+                # Log individual IdP operation failure but continue with other IdPs
                 core_logger.print_to_log(
                     f"Error checking/refreshing IdP token for user {user_id}, idp {link.idp_id}: {err}",
                     "warning",
