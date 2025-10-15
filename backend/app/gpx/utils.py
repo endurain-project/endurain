@@ -83,8 +83,16 @@ def parse_gpx_file(
                 # Iterate over tracks in the GPX file
                 for track in gpx.tracks:
                     # Set activity name, description, and type if available
-                    activity_name = track.name if track.name else gpx.name if gpx.name else "Workout"
-                    activity_description = track.description if track.description else gpx.description if gpx.description else None
+                    activity_name = (
+                        track.name
+                        if track.name
+                        else gpx.name if gpx.name else "Workout"
+                    )
+                    activity_description = (
+                        track.description
+                        if track.description
+                        else gpx.description if gpx.description else None
+                    )
                     activity_type = track.type if track.type else "Workout"
 
                     if track.segments:
@@ -151,7 +159,10 @@ def parse_gpx_file(
                                                 cadence = cad_element.text
 
                                             # OpenTracks extension
-                                            if hr_element is None and cad_element is None:
+                                            if (
+                                                hr_element is None
+                                                and cad_element is None
+                                            ):
                                                 for child in extension:
                                                     if child.tag.endswith("hr"):
                                                         heart_rate = child.text
@@ -159,10 +170,18 @@ def parse_gpx_file(
                                                         cadence = child.text
                                         elif extension.tag.endswith("power"):
                                             # Extract 'power' value
-                                            power = extension.text
+                                            power = (
+                                                int(extension.text)
+                                                if extension.text
+                                                else 0
+                                            )
                                         elif extension.tag.endswith("heartrate"):
                                             # Tissot smartwatch and similar devices extension
-                                            heart_rate = int(extension.text) if extension.text else 0
+                                            heart_rate = (
+                                                int(extension.text)
+                                                if extension.text
+                                                else 0
+                                            )
 
                                 # Check if heart rate, cadence, power are set
                                 if heart_rate != 0:
