@@ -29,12 +29,57 @@ class UserIdentityProviderResponse(UserIdentityProviderBase):
     Response schema for user identity provider link.
     
     Includes all base fields plus auto-generated metadata.
+    
+    Security Note:
+        The actual `idp_refresh_token` is intentionally NOT included in this schema.
+        Only metadata about the token (expiry times) is exposed for security reasons.
     """
     id: int = Field(..., description="Link ID")
     linked_at: datetime = Field(..., description="When this IdP was linked")
     last_login: datetime | None = Field(
         None,
         description="Last time user logged in with this IdP"
+    )
+    idp_access_token_expires_at: datetime | None = Field(
+        None,
+        description="When the IdP access token expires (for reference)"
+    )
+    idp_refresh_token_updated_at: datetime | None = Field(
+        None,
+        description="When the refresh token was last obtained or refreshed"
+    )
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class UserIdentityProviderTokenUpdate(BaseModel):
+    """
+    Internal schema for updating IdP token data.
+    
+    This schema is used only by the service layer and NEVER exposed via API endpoints.
+    The refresh token should always be encrypted before being stored.
+    
+    Security Note:
+        - This schema contains the encrypted refresh token
+        - Never use this schema in API responses
+        - Only used for internal CRUD operations
+    
+    Attributes:
+        idp_refresh_token (str | None): Encrypted refresh token from IdP (Fernet encrypted).
+        idp_access_token_expires_at (datetime | None): When the access token expires.
+        idp_refresh_token_updated_at (datetime | None): When the refresh token was last updated.
+    """
+    idp_refresh_token: str | None = Field(
+        None,
+        description="Encrypted refresh token from IdP (already Fernet encrypted)"
+    )
+    idp_access_token_expires_at: datetime | None = Field(
+        None,
+        description="When the IdP access token expires"
+    )
+    idp_refresh_token_updated_at: datetime | None = Field(
+        None,
+        description="When the refresh token was last obtained/refreshed"
     )
 
     model_config = ConfigDict(from_attributes=True)

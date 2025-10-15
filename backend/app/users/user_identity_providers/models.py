@@ -52,6 +52,15 @@ class UserIdentityProvider(Base):
     last_login = Column(
         DateTime, nullable=True, comment="Last time user logged in with this IdP"
     )
+    idp_refresh_token = Column(
+        String(length=2000), nullable=True, comment="Encrypted refresh token"
+    )
+    idp_access_token_expires_at = Column(
+        DateTime, nullable=True, comment="Access token expiry time"
+    )
+    idp_refresh_token_updated_at = Column(
+        DateTime, nullable=True, comment="Last refresh"
+    )
 
     # Relationships
     user = relationship("User", back_populates="user_identity_providers")

@@ -191,6 +191,24 @@ def upgrade() -> None:
             nullable=True,
             comment="Last time user logged in with this IdP",
         ),
+        sa.Column(
+            "idp_refresh_token",
+            sa.String(length=2000),
+            nullable=False,
+            comment="Encrypted refresh token",
+        ),
+        sa.Column(
+            "idp_access_token_expires_at",
+            sa.DateTime(),
+            nullable=True,
+            comment="Access token expiry time",
+        ),
+        sa.Column(
+            "idp_refresh_token_updated_at",
+            sa.DateTime(),
+            nullable=True,
+            comment="Last refresh",
+        ),
         sa.ForeignKeyConstraint(
             ["idp_id"], ["identity_providers.id"], ondelete="CASCADE"
         ),

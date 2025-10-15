@@ -257,7 +257,20 @@ class IdentityProviderService:
 
             # Decrypt credentials
             client_id = idp.client_id
-            client_secret = core_cryptography.decrypt_token_fernet(idp.client_secret)
+            try:
+                client_secret = core_cryptography.decrypt_token_fernet(idp.client_secret)
+                if not client_secret:
+                    raise ValueError("Decryption returned empty value")
+            except Exception as err:
+                core_logger.print_to_log(
+                    f"Failed to decrypt client secret for IdP {idp.name}: {err}",
+                    "error",
+                    exc=err,
+                )
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=f"Identity provider {idp.name} configuration error. Please contact administrator.",
+                ) from err
 
             # Get token endpoint
             token_endpoint = idp.token_endpoint
@@ -265,31 +278,88 @@ class IdentityProviderService:
 
             # Try OIDC discovery if needed
             if (not token_endpoint or not userinfo_endpoint) and idp.issuer_url:
-                config = await self.get_oidc_configuration(idp)
-                if config:
-                    token_endpoint = token_endpoint or config.get("token_endpoint")
-                    userinfo_endpoint = userinfo_endpoint or config.get(
-                        "userinfo_endpoint"
+                try:
+                    config = await self.get_oidc_configuration(idp)
+                    if config:
+                        token_endpoint = token_endpoint or config.get("token_endpoint")
+                        userinfo_endpoint = userinfo_endpoint or config.get(
+                            "userinfo_endpoint"
+                        )
+                except Exception as err:
+                    core_logger.print_to_log(
+                        f"OIDC discovery failed for IdP {idp.name} at {idp.issuer_url}: {err}",
+                        "warning",
+                        exc=err,
                     )
+                    # Continue with manually configured endpoints if available
 
             if not token_endpoint:
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail="Identity provider not properly configured",
+                    detail=f"Identity provider {idp.name} not properly configured: missing token endpoint.",
                 )
 
             # Exchange code for tokens
             redirect_uri = self._get_redirect_uri(idp.slug)
 
-            client = AsyncOAuth2Client(
-                client_id=client_id,
-                client_secret=client_secret,
-                redirect_uri=redirect_uri,
-            )
+            try:
+                client = AsyncOAuth2Client(
+                    client_id=client_id,
+                    client_secret=client_secret,
+                    redirect_uri=redirect_uri,
+                )
 
-            token_response = await client.fetch_token(
-                token_endpoint, grant_type="authorization_code", code=code
-            )
+                token_response = await client.fetch_token(
+                    token_endpoint, grant_type="authorization_code", code=code
+                )
+            except httpx.TimeoutException as err:
+                core_logger.print_to_log(
+                    f"Timeout connecting to IdP {idp.name} token endpoint: {err}",
+                    "error",
+                    exc=err,
+                )
+                raise HTTPException(
+                    status_code=status.HTTP_504_GATEWAY_TIMEOUT,
+                    detail=f"Identity provider {idp.name} is not responding. Please try again later.",
+                ) from err
+            except httpx.HTTPStatusError as err:
+                core_logger.print_to_log(
+                    f"HTTP error from IdP {idp.name} token endpoint: {err.response.status_code} - {err.response.text}",
+                    "error",
+                    exc=err,
+                )
+                # Check for common OAuth2 error responses
+                if err.response.status_code == 400:
+                    detail = "Authorization code is invalid or expired. Please try logging in again."
+                elif err.response.status_code == 401:
+                    detail = f"Identity provider {idp.name} rejected the authentication request. Please contact administrator."
+                else:
+                    detail = f"Identity provider {idp.name} returned an error. Please try again later."
+                
+                raise HTTPException(
+                    status_code=status.HTTP_502_BAD_GATEWAY,
+                    detail=detail,
+                ) from err
+            except httpx.RequestError as err:
+                core_logger.print_to_log(
+                    f"Network error connecting to IdP {idp.name}: {err}",
+                    "error",
+                    exc=err,
+                )
+                raise HTTPException(
+                    status_code=status.HTTP_502_BAD_GATEWAY,
+                    detail=f"Unable to connect to identity provider {idp.name}. Please check your network connection.",
+                ) from err
+            except Exception as err:
+                core_logger.print_to_log(
+                    f"Unexpected error during token exchange with IdP {idp.name}: {err}",
+                    "error",
+                    exc=err,
+                )
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="Failed to complete authentication. Please try again.",
+                ) from err
 
             # Get user information
             userinfo = await self._get_userinfo(
@@ -299,15 +369,22 @@ class IdentityProviderService:
             # Extract subject (unique user identifier)
             subject = userinfo.get("sub") or userinfo.get("id")
             if not subject:
+                core_logger.print_to_log(
+                    f"IdP {idp.name} did not provide 'sub' or 'id' claim in userinfo: {list(userinfo.keys())}",
+                    "error",
+                )
                 raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="IdP did not provide user identifier",
+                    status_code=status.HTTP_502_BAD_GATEWAY,
+                    detail=f"Identity provider {idp.name} did not provide required user identifier. Please contact administrator.",
                 )
 
             # Find or create user
             user = await self._find_or_create_user(
                 idp, subject, userinfo, password_hasher, db
             )
+
+            # Store IdP tokens for future session renewal
+            await self._store_idp_tokens(user.id, idp.id, token_response, db)
 
             # Clean up session data after successful authentication
             request.session.pop(f"oauth_state_{idp.id}", None)
@@ -321,16 +398,18 @@ class IdentityProviderService:
             return {"user": user, "token_data": token_response, "userinfo": userinfo}
 
         except HTTPException:
+            # Re-raise HTTPExceptions as-is (already have proper status codes and messages)
             raise
         except Exception as err:
+            # Catch-all for unexpected errors
             core_logger.print_to_log(
-                f"Error handling OAuth callback for IdP {idp.name}: {err}",
+                f"Unexpected error handling OAuth callback for IdP {idp.name}: {err}",
                 "error",
                 exc=err,
             )
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to process SSO callback",
+                detail=f"An unexpected error occurred during authentication with {idp.name}. Please try again or contact administrator.",
             ) from err
 
     async def _get_userinfo(
@@ -367,10 +446,31 @@ class IdentityProviderService:
                         userinfo_endpoint,
                         headers={"Authorization": f"Bearer {access_token}"},
                     )
+                    response.raise_for_status()
                     return response.json()
+                else:
+                    core_logger.print_to_log(
+                        "No access token available for userinfo request", "warning"
+                    )
+            except httpx.TimeoutException as err:
+                core_logger.print_to_log(
+                    f"Timeout fetching userinfo from endpoint: {err}", "warning", exc=err
+                )
+            except httpx.HTTPStatusError as err:
+                core_logger.print_to_log(
+                    f"HTTP error {err.response.status_code} fetching userinfo: {err.response.text}",
+                    "warning",
+                    exc=err,
+                )
+            except httpx.RequestError as err:
+                core_logger.print_to_log(
+                    f"Network error fetching userinfo: {err}", "warning", exc=err
+                )
             except Exception as err:
                 core_logger.print_to_log(
-                    f"Failed to fetch userinfo from endpoint: {err}", "warning"
+                    f"Unexpected error fetching userinfo from endpoint: {err}",
+                    "warning",
+                    exc=err,
                 )
 
         # Fall back to ID token claims
@@ -381,7 +481,7 @@ class IdentityProviderService:
                 # In production, this should be verified with JWKS
                 parts = id_token.split(".")
                 if len(parts) != 3:
-                    raise ValueError("Invalid JWT format")
+                    raise ValueError(f"Invalid JWT format: expected 3 parts, got {len(parts)}")
 
                 # Decode the payload (second part) - base64url decode
                 payload = parts[1]
@@ -393,16 +493,123 @@ class IdentityProviderService:
                 decoded_bytes = base64.urlsafe_b64decode(payload)
                 claims = json.loads(decoded_bytes)
 
+                core_logger.print_to_log(
+                    "Successfully decoded ID token claims as fallback", "debug"
+                )
                 return claims
+            except ValueError as err:
+                core_logger.print_to_log(
+                    f"ID token format error: {err}", "warning", exc=err
+                )
+            except json.JSONDecodeError as err:
+                core_logger.print_to_log(
+                    f"Failed to parse ID token JSON payload: {err}", "warning", exc=err
+                )
             except Exception as err:
                 core_logger.print_to_log(
-                    f"Failed to decode ID token: {err}", "warning", exc=err
+                    f"Unexpected error decoding ID token: {err}", "warning", exc=err
                 )
 
+        # If we get here, both userinfo endpoint and ID token extraction failed
+        core_logger.print_to_log(
+            "Failed to retrieve user information from both userinfo endpoint and ID token",
+            "error",
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to retrieve user information from IdP",
+            detail="Unable to retrieve user information from identity provider. Please contact administrator.",
         )
+
+    async def _store_idp_tokens(
+        self,
+        user_id: int,
+        idp_id: int,
+        token_response: Dict[str, Any],
+        db: Session,
+    ) -> None:
+        """
+        Store IdP tokens after successful authentication.
+
+        This method extracts the refresh token from the OAuth token response, encrypts it,
+        and stores it along with metadata for future session renewal. If no refresh token
+        is provided by the IdP, the method logs a debug message and returns gracefully.
+
+        Args:
+            user_id (int): The ID of the authenticated user.
+            idp_id (int): The ID of the identity provider.
+            token_response (Dict[str, Any]): The OAuth token response from the IdP containing
+                access_token, refresh_token (optional), and expires_in.
+            db (Session): The database session for storing tokens.
+
+        Returns:
+            None
+
+        Security Note:
+            - The refresh token is encrypted using Fernet before storage
+            - If encryption fails, the error is logged but authentication continues
+            - Missing refresh tokens are handled gracefully (not all IdPs provide them)
+
+        Example token_response:
+            {
+                "access_token": "eyJhbGci...",
+                "refresh_token": "eyJhbGci...",  # Optional
+                "expires_in": 300,
+                "token_type": "Bearer"
+            }
+        """
+        # Extract refresh token from response
+        refresh_token = token_response.get("refresh_token")
+
+        if not refresh_token:
+            core_logger.print_to_log(
+                f"No refresh token provided by IdP (user_id={user_id}, idp_id={idp_id}). "
+                "User will need to re-authenticate when session expires.",
+                "debug",
+            )
+            return
+
+        try:
+            # Encrypt the refresh token using Fernet
+            encrypted_refresh = core_cryptography.encrypt_token_fernet(refresh_token)
+
+            if not encrypted_refresh:
+                core_logger.print_to_log(
+                    f"Failed to encrypt refresh token for user {user_id}, idp {idp_id}. "
+                    "Token will not be stored.",
+                    "warning",
+                )
+                return
+
+            # Calculate when the access token expires
+            expires_in = token_response.get("expires_in", 300)  # Default 5 minutes
+            access_token_expires_at = datetime.now(timezone.utc) + timedelta(
+                seconds=expires_in
+            )
+
+            # Store encrypted token and metadata in database
+            user_idp_crud.store_idp_tokens(
+                user_id=user_id,
+                idp_id=idp_id,
+                encrypted_refresh_token=encrypted_refresh,
+                access_token_expires_at=access_token_expires_at,
+                db=db,
+            )
+
+            core_logger.print_to_log(
+                f"Stored IdP refresh token for user {user_id}, idp {idp_id} "
+                f"(expires at {access_token_expires_at.isoformat()})",
+                "debug",
+            )
+
+        except Exception as err:
+            # Log the error but don't fail the authentication flow
+            core_logger.print_to_log(
+                f"Error storing IdP refresh token for user {user_id}: {err}",
+                "error",
+                exc=err,
+            )
+            # Authentication succeeds even if token storage fails
+            # User will need to re-auth when session expires, but that's acceptable
 
     def _map_user_claims(
         self, idp: idp_models.IdentityProvider, claims: Dict[str, Any]

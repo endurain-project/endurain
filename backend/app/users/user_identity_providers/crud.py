@@ -135,9 +135,105 @@ def update_user_idp_last_login(
     return db_link
 
 
+def store_idp_tokens(
+    user_id: int,
+    idp_id: int,
+    encrypted_refresh_token: str,
+    access_token_expires_at: datetime,
+    db: Session,
+) -> user_idp_models.UserIdentityProvider | None:
+    """
+    Store IdP tokens for a user-IdP link.
+
+    This function stores the encrypted refresh token and its metadata. The refresh token
+    must already be encrypted using Fernet before calling this function.
+
+    Args:
+        user_id (int): The ID of the user.
+        idp_id (int): The ID of the identity provider.
+        encrypted_refresh_token (str): The Fernet-encrypted refresh token from the IdP.
+        access_token_expires_at (datetime): When the IdP access token expires.
+        db (Session): The SQLAlchemy database session.
+
+    Returns:
+        user_idp_models.UserIdentityProvider | None: The updated UserIdentityProvider link if found, otherwise None.
+
+    Security Note:
+        The refresh_token parameter must be pre-encrypted with Fernet before calling this function.
+        Never pass plaintext tokens to this function.
+    """
+    db_link = get_user_idp_link(user_id, idp_id, db)
+    if db_link:
+        db_link.idp_refresh_token = encrypted_refresh_token
+        db_link.idp_access_token_expires_at = access_token_expires_at
+        db_link.idp_refresh_token_updated_at = datetime.now(timezone.utc)
+        db.commit()
+        db.refresh(db_link)
+    return db_link
+
+
+def get_idp_refresh_token(
+    user_id: int, idp_id: int, db: Session
+) -> str | None:
+    """
+    Get the encrypted refresh token for a user-IdP link.
+
+    This function retrieves the encrypted refresh token. The caller is responsible
+    for decrypting it using Fernet before use.
+
+    Args:
+        user_id (int): The ID of the user.
+        idp_id (int): The ID of the identity provider.
+        db (Session): The SQLAlchemy database session.
+
+    Returns:
+        str | None: The encrypted refresh token string if found, otherwise None.
+
+    Security Note:
+        - Returns the encrypted token (not plaintext)
+        - Caller must decrypt using Fernet
+        - Returns None if link doesn't exist or token is not set
+    """
+    db_link = get_user_idp_link(user_id, idp_id, db)
+    if db_link:
+        return db_link.idp_refresh_token
+    return None
+
+
+def clear_idp_refresh_token(user_id: int, idp_id: int, db: Session) -> bool:
+    """
+    Clear the IdP refresh token and related metadata.
+
+    This function should be called when:
+    - User logs out
+    - Token refresh fails (invalid/revoked token)
+    - User unlinks the IdP
+    - Security requires token invalidation
+
+    Args:
+        user_id (int): The ID of the user.
+        idp_id (int): The ID of the identity provider.
+        db (Session): The SQLAlchemy database session.
+
+    Returns:
+        bool: True if the token was cleared, False if the link was not found.
+    """
+    db_link = get_user_idp_link(user_id, idp_id, db)
+    if db_link:
+        db_link.idp_refresh_token = None
+        db_link.idp_access_token_expires_at = None
+        db_link.idp_refresh_token_updated_at = None
+        db.commit()
+        return True
+    return False
+
+
 def delete_user_idp_link(user_id: int, idp_id: int, db: Session) -> bool:
     """
     Deletes the link between a user and an identity provider (IDP) from the database.
+
+    This function implements defense-in-depth by clearing sensitive token data before
+    deleting the record, even though the database CASCADE would handle deletion.
 
     Args:
         user_id (int): The ID of the user whose IDP link is to be deleted.
@@ -146,9 +242,19 @@ def delete_user_idp_link(user_id: int, idp_id: int, db: Session) -> bool:
 
     Returns:
         bool: True if the link was found and deleted, False otherwise.
+
+    Security Note:
+        Sensitive token data is explicitly cleared before deletion as a defense-in-depth measure.
     """
     db_link = get_user_idp_link(user_id, idp_id, db)
     if db_link:
+        # Clear sensitive data first (defense in depth)
+        db_link.idp_refresh_token = None
+        db_link.idp_access_token_expires_at = None
+        db_link.idp_refresh_token_updated_at = None
+        db.commit()
+
+        # Then delete the link
         db.delete(db_link)
         db.commit()
         return True
