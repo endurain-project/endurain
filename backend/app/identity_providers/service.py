@@ -13,11 +13,13 @@ import core.config as core_config
 import core.cryptography as core_cryptography
 import core.logger as core_logger
 import identity_providers.models as idp_models
+import identity_providers.crud as idp_crud
 import users.user.crud as users_crud
 import users.user.schema as users_schema
 import users.user.models as users_models
 import users.user.utils as users_utils
 import users.user_identity_providers.crud as user_idp_crud
+import users.user_identity_providers.models as user_idp_models
 import session.password_hasher as session_password_hasher
 import server_settings.schema as server_settings_schema
 
@@ -141,6 +143,119 @@ class IdentityProviderService:
         base_url = core_config.ENDURAIN_HOST
         return f"{base_url}/api/v1/public/idp/callback/{idp_slug}"
 
+    def _decrypt_client_secret(self, idp: idp_models.IdentityProvider) -> str:
+        """
+        Decrypt the IdP client secret using Fernet encryption.
+
+        This helper method centralizes client secret decryption logic to avoid code duplication
+        and ensure consistent error handling across all OAuth flows.
+
+        Args:
+            idp (idp_models.IdentityProvider): The identity provider with encrypted client secret.
+
+        Returns:
+            str: The decrypted client secret.
+
+        Raises:
+            HTTPException: If decryption fails or returns empty value (500 Internal Server Error).
+
+        Security Note:
+            - Decrypted secret only exists in function scope (not logged)
+            - Raises HTTPException to prevent OAuth flows with invalid credentials
+        """
+        try:
+            client_secret = core_cryptography.decrypt_token_fernet(idp.client_secret)
+            if not client_secret:
+                raise ValueError("Decryption returned empty value")
+            return client_secret
+        except Exception as err:
+            core_logger.print_to_log(
+                f"Failed to decrypt client secret for IdP {idp.name}: {err}",
+                "error",
+                exc=err,
+            )
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Identity provider {idp.name} configuration error. Please contact administrator.",
+            ) from err
+
+    async def _resolve_token_endpoint(
+        self, idp: idp_models.IdentityProvider
+    ) -> str:
+        """
+        Resolve the token endpoint URL for an IdP, using OIDC discovery if needed.
+
+        This helper method centralizes token endpoint resolution logic, trying manual
+        configuration first and falling back to OIDC discovery if available.
+
+        Args:
+            idp (idp_models.IdentityProvider): The identity provider configuration.
+
+        Returns:
+            str: The token endpoint URL.
+
+        Raises:
+            HTTPException: If token endpoint cannot be resolved (500 Internal Server Error).
+
+        Note:
+            - Manual configuration (idp.token_endpoint) takes precedence
+            - Falls back to OIDC discovery (/.well-known/openid-configuration)
+            - Discovery failures are logged but don't block if manual endpoint exists
+        """
+        token_endpoint = idp.token_endpoint
+
+        # Try OIDC discovery if token endpoint not manually configured
+        if not token_endpoint and idp.issuer_url:
+            try:
+                config = await self.get_oidc_configuration(idp)
+                if config:
+                    token_endpoint = config.get("token_endpoint")
+            except Exception as err:
+                core_logger.print_to_log(
+                    f"OIDC discovery failed for IdP {idp.name} at {idp.issuer_url}: {err}",
+                    "warning",
+                    exc=err,
+                )
+                # Continue - will raise below if still no endpoint
+
+        if not token_endpoint:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Identity provider {idp.name} missing token endpoint configuration.",
+            )
+
+        return token_endpoint
+
+    def _create_oauth_client(
+        self,
+        client_id: str,
+        client_secret: str,
+        redirect_uri: str | None = None,
+    ) -> AsyncOAuth2Client:
+        """
+        Create an OAuth2 client for communicating with IdP token endpoints.
+
+        This helper method centralizes OAuth client creation to ensure consistent
+        configuration across all OAuth flows.
+
+        Args:
+            client_id (str): The OAuth2 client ID.
+            client_secret (str): The OAuth2 client secret (decrypted).
+            redirect_uri (str | None): The redirect URI (required for authorization code flow).
+
+        Returns:
+            AsyncOAuth2Client: Configured OAuth2 client instance.
+
+        Note:
+            - For authorization code flow: provide redirect_uri
+            - For refresh token flow: redirect_uri can be None
+        """
+        return AsyncOAuth2Client(
+            client_id=client_id,
+            client_secret=client_secret,
+            redirect_uri=redirect_uri,
+        )
+
     async def initiate_login(
         self, idp: idp_models.IdentityProvider, request: Request, db: Session
     ) -> str:
@@ -255,55 +370,30 @@ class IdentityProviderService:
                     detail="Invalid state parameter",
                 )
 
-            # Decrypt credentials
+            # Decrypt credentials and resolve endpoints using helper methods
             client_id = idp.client_id
-            try:
-                client_secret = core_cryptography.decrypt_token_fernet(idp.client_secret)
-                if not client_secret:
-                    raise ValueError("Decryption returned empty value")
-            except Exception as err:
-                core_logger.print_to_log(
-                    f"Failed to decrypt client secret for IdP {idp.name}: {err}",
-                    "error",
-                    exc=err,
-                )
-                raise HTTPException(
-                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail=f"Identity provider {idp.name} configuration error. Please contact administrator.",
-                ) from err
+            client_secret = self._decrypt_client_secret(idp)
+            token_endpoint = await self._resolve_token_endpoint(idp)
 
-            # Get token endpoint
-            token_endpoint = idp.token_endpoint
+            # Get userinfo endpoint (with OIDC discovery fallback)
             userinfo_endpoint = idp.userinfo_endpoint
-
-            # Try OIDC discovery if needed
-            if (not token_endpoint or not userinfo_endpoint) and idp.issuer_url:
+            if not userinfo_endpoint and idp.issuer_url:
                 try:
                     config = await self.get_oidc_configuration(idp)
                     if config:
-                        token_endpoint = token_endpoint or config.get("token_endpoint")
-                        userinfo_endpoint = userinfo_endpoint or config.get(
-                            "userinfo_endpoint"
-                        )
+                        userinfo_endpoint = config.get("userinfo_endpoint")
                 except Exception as err:
                     core_logger.print_to_log(
-                        f"OIDC discovery failed for IdP {idp.name} at {idp.issuer_url}: {err}",
+                        f"OIDC discovery failed for userinfo endpoint, IdP {idp.name}: {err}",
                         "warning",
                         exc=err,
                     )
-                    # Continue with manually configured endpoints if available
-
-            if not token_endpoint:
-                raise HTTPException(
-                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail=f"Identity provider {idp.name} not properly configured: missing token endpoint.",
-                )
 
             # Exchange code for tokens
             redirect_uri = self._get_redirect_uri(idp.slug)
 
             try:
-                client = AsyncOAuth2Client(
+                client = self._create_oauth_client(
                     client_id=client_id,
                     client_secret=client_secret,
                     redirect_uri=redirect_uri,
@@ -833,6 +923,215 @@ class IdentityProviderService:
         db.refresh(user)
 
         return user
+
+    async def refresh_idp_session(
+        self,
+        user_id: int,
+        idp_id: int,
+        db: Session,
+    ) -> Dict[str, Any] | None:
+        """
+        Attempt to refresh a user's IdP session using stored refresh token.
+
+        This method enables silent session renewal without re-prompting the user to login.
+        It retrieves the stored encrypted refresh token, decrypts it, and exchanges it
+        with the IdP for new access and refresh tokens. If successful, the new tokens
+        are encrypted and stored.
+
+        Args:
+            user_id (int): The ID of the user whose session should be refreshed.
+            idp_id (int): The ID of the identity provider.
+            db (Session): The database session for token retrieval and updates.
+
+        Returns:
+            Dict[str, Any] | None: A dictionary containing the new token response if successful,
+                or None if the refresh failed (expired/revoked token, network error, etc.).
+
+        Raises:
+            HTTPException: If the IdP is not found, disabled, or misconfigured.
+
+        Example return value:
+            {
+                "access_token": "eyJhbGci...",
+                "refresh_token": "eyJhbGci...",  # May be the same or new token
+                "expires_in": 300,
+                "token_type": "Bearer"
+            }
+
+        Security Notes:
+            - Refresh token is decrypted only in memory, never logged
+            - If refresh fails (invalid/revoked), the stored token is cleared
+            - Network errors do not clear the token (IdP may be temporarily down)
+        """
+        # Get the IdP configuration
+        idp = idp_crud.get_identity_provider(idp_id, db)
+        if not idp or not idp.enabled:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Identity provider (ID: {idp_id}) not found or disabled",
+            )
+
+        # Get the encrypted refresh token from database
+        encrypted_refresh_token = user_idp_crud.get_idp_refresh_token(
+            user_id, idp_id, db
+        )
+
+        if not encrypted_refresh_token:
+            core_logger.print_to_log(
+                f"No refresh token stored for user {user_id}, idp {idp_id}. "
+                "Cannot refresh session.",
+                "debug",
+            )
+            return None
+
+        # Decrypt the refresh token
+        try:
+            refresh_token = core_cryptography.decrypt_token_fernet(
+                encrypted_refresh_token
+            )
+            if not refresh_token:
+                raise ValueError("Decryption returned empty value")
+        except Exception as err:
+            core_logger.print_to_log(
+                f"Failed to decrypt refresh token for user {user_id}, idp {idp_id}: {err}",
+                "error",
+                exc=err,
+            )
+            # Clear corrupted token
+            user_idp_crud.clear_idp_refresh_token(user_id, idp_id, db)
+            return None
+
+        # Resolve endpoints and credentials using helper methods
+        token_endpoint = await self._resolve_token_endpoint(idp)
+        client_secret = self._decrypt_client_secret(idp)
+
+        # Create OAuth client for token refresh
+        try:
+            client = self._create_oauth_client(
+                client_id=idp.client_id,
+                client_secret=client_secret,
+                redirect_uri=None,  # Not needed for refresh token flow
+            )
+
+            # Exchange refresh token for new tokens
+            token_response = await client.fetch_token(
+                token_endpoint,
+                grant_type="refresh_token",
+                refresh_token=refresh_token,
+            )
+
+            core_logger.print_to_log(
+                f"Successfully refreshed IdP session for user {user_id}, idp {idp_id}",
+                "debug",
+            )
+
+            # Store the new tokens (they may include a new refresh token)
+            await self._store_idp_tokens(user_id, idp_id, token_response, db)
+
+            return token_response
+
+        except httpx.TimeoutException as err:
+            core_logger.print_to_log(
+                f"Timeout refreshing IdP session for user {user_id}, idp {idp_id}: {err}",
+                "warning",
+                exc=err,
+            )
+            # Don't clear token - IdP may be temporarily down
+            return None
+
+        except httpx.HTTPStatusError as err:
+            # Check if this is a token revocation (400) or auth failure (401)
+            if err.response.status_code in (400, 401):
+                core_logger.print_to_log(
+                    f"IdP refresh token invalid/revoked for user {user_id}, idp {idp_id}: "
+                    f"{err.response.status_code} - {err.response.text}",
+                    "warning",
+                    exc=err,
+                )
+                # Clear invalid token from database
+                user_idp_crud.clear_idp_refresh_token(user_id, idp_id, db)
+                return None
+            else:
+                # Other HTTP errors (5xx) - don't clear token
+                core_logger.print_to_log(
+                    f"HTTP error refreshing IdP session for user {user_id}, idp {idp_id}: "
+                    f"{err.response.status_code} - {err.response.text}",
+                    "warning",
+                    exc=err,
+                )
+                return None
+
+        except httpx.RequestError as err:
+            core_logger.print_to_log(
+                f"Network error refreshing IdP session for user {user_id}, idp {idp_id}: {err}",
+                "warning",
+                exc=err,
+            )
+            # Don't clear token - network issue, not token issue
+            return None
+
+        except Exception as err:
+            core_logger.print_to_log(
+                f"Unexpected error refreshing IdP session for user {user_id}, idp {idp_id}: {err}",
+                "error",
+                exc=err,
+            )
+            return None
+
+    def _should_refresh_idp_token(
+        self, link: user_idp_models.UserIdentityProvider
+    ) -> bool:
+        """
+        Determine if an IdP token should be refreshed based on expiry and age policies.
+
+        This method checks multiple conditions to decide if a token refresh is warranted:
+        1. Whether a refresh token exists
+        2. Whether the access token is close to expiry (within 5 minutes)
+        3. Whether the refresh token was recently updated (avoid excessive refresh calls)
+
+        Args:
+            link (user_idp_models.UserIdentityProvider): The user-IdP link containing token metadata.
+
+        Returns:
+            bool: True if the token should be refreshed, False otherwise.
+
+        Policy:
+            - Refresh if access token expires in < 5 minutes
+            - Don't refresh if token was updated in last 1 minute (rate limiting)
+            - Don't refresh if no refresh token is stored
+            - Don't refresh if expiry time is unknown
+
+        Example usage:
+            link = user_idp_crud.get_user_idp_link(user_id, idp_id, db)
+            if self._should_refresh_idp_token(link):
+                await self.refresh_idp_session(user_id, idp_id, db)
+        """
+        # Check if refresh token exists
+        if not link or not link.idp_refresh_token:
+            return False
+
+        # Check if we know when the access token expires
+        if not link.idp_access_token_expires_at:
+            # No expiry info - assume token is still valid
+            return False
+
+        now = datetime.now(timezone.utc)
+
+        # Check if token was refreshed very recently (rate limiting)
+        if link.idp_refresh_token_updated_at:
+            time_since_refresh = now - link.idp_refresh_token_updated_at
+            if time_since_refresh < timedelta(minutes=1):
+                # Refreshed less than 1 minute ago - don't refresh again
+                return False
+
+        # Check if access token is close to expiry (within 5 minutes)
+        time_until_expiry = link.idp_access_token_expires_at - now
+        if time_until_expiry < timedelta(minutes=5):
+            # Token expires soon - should refresh
+            return True
+
+        # Token is still valid and not close to expiry
+        return False
 
 
 # Global service instance
