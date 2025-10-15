@@ -10,7 +10,7 @@
             role="button"
             data-bs-toggle="modal"
             data-bs-target="#addGoalModal"
-            >{{ $t('settingsUserGoalsZone.addNewGoal') }}{{ $t('generalItems.betaTag') }}</a
+            >{{ $t('settingsUserGoalsZone.addNewGoal') }}</a
           >
 
           <!-- Modal goal user -->

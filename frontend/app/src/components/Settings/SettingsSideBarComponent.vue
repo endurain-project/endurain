@@ -72,7 +72,7 @@
         >
           <font-awesome-icon :icon="['fas', 'fa-check-double']" />
           <span class="ms-1"
-            >{{ $t('settingsSideBar.myGoals') }}{{ $t('generalItems.betaTag') }}</span
+            >{{ $t('settingsSideBar.myGoals') }}</span
           >
         </a>
       </li>

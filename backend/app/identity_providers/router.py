@@ -64,41 +64,6 @@ async def list_idp_templates(
     return idp_utils.get_idp_templates()
 
 
-@router.get(
-    "/{idp_id}",
-    response_model=idp_schema.IdentityProvider,
-    status_code=status.HTTP_200_OK,
-)
-async def get_identity_provider(
-    idp_id: int,
-    db: Annotated[Session, Depends(core_database.get_db)],
-    _check_scopes: Annotated[
-        users_schema.UserRead,
-        Security(session_security.check_scopes, scopes=["server_settings:read"]),
-    ],
-):
-    """
-    Retrieve an identity provider by its ID.
-
-    Args:
-        idp_id (int): The unique identifier of the identity provider to retrieve.
-        db (Session): SQLAlchemy database session dependency.
-        _check_scopes (users_schema.UserRead): Dependency to ensure the user has the required scopes ("server_settings:read").
-
-    Raises:
-        HTTPException: If the identity provider is not found, raises a 404 Not Found error.
-
-    Returns:
-        The identity provider object if found.
-    """
-    idp = idp_crud.get_identity_provider(idp_id, db)
-    if not idp:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Identity provider not found"
-        )
-    return idp
-
-
 @router.post(
     "", response_model=idp_schema.IdentityProvider, status_code=status.HTTP_201_CREATED
 )

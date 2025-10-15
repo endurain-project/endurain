@@ -101,7 +101,7 @@
 
       <hr />
       <!-- MFA Settings -->
-      <h4>{{ $t('settingsSecurityZone.subtitleMFA') }}{{ $t('generalItems.betaTag') }}</h4>
+      <h4>{{ $t('settingsSecurityZone.subtitleMFA') }}</h4>
       <div v-if="isMFALoading">
         <LoadingComponent />
       </div>

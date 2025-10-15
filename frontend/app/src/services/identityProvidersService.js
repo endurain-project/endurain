@@ -22,15 +22,6 @@ export const identityProviders = {
   },
 
   /**
-   * Get a specific identity provider by ID (admin only)
-   * @param {number} idpId - The identity provider ID
-   * @returns {Promise} Identity provider object
-   */
-  getProvider(idpId) {
-    return fetchGetRequest(`idp/${idpId}`)
-  },
-
-  /**
    * Get list of enabled identity providers for login page (public)
    * @returns {Promise} Array of public identity provider info
    */
