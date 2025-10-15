@@ -163,10 +163,7 @@ class IdentityProviderService:
             HTTPException: If the identity provider is not properly configured or if an error occurs during initiation.
         """
         try:
-            # Decrypt credentials
-            #client_id = core_cryptography.decrypt_token_fernet(idp.client_id)
             client_id = idp.client_id
-            # client_secret = core_cryptography.decrypt_token_fernet(idp.client_secret)
 
             # Get endpoints
             authorization_endpoint = idp.authorization_endpoint
@@ -259,7 +256,7 @@ class IdentityProviderService:
                 )
 
             # Decrypt credentials
-            client_id = core_cryptography.decrypt_token_fernet(idp.client_id)
+            client_id = idp.client_id
             client_secret = core_cryptography.decrypt_token_fernet(idp.client_secret)
 
             # Get token endpoint

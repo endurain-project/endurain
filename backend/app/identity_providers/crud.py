@@ -8,6 +8,7 @@ import identity_providers.models as idp_models
 import identity_providers.schema as idp_schema
 import core.cryptography as core_cryptography
 import core.logger as core_logger
+import users.user_identity_providers.crud as user_identity_providers_crud
 
 
 def get_identity_provider(
@@ -37,6 +38,9 @@ def get_identity_provider(
         # Return None if not found
         if not db_idp:
             return None
+
+        # Expunge from session to prevent accidental persistence of decrypted values
+        db.expunge(db_idp)
 
         # Unencrypt client_id
         db_idp.client_id = core_cryptography.decrypt_token_fernet(db_idp.client_id)
@@ -80,6 +84,9 @@ def get_identity_provider_by_slug(
         # Return None if not found
         if not db_idp:
             return None
+
+        # Expunge from session to prevent accidental persistence of decrypted values
+        db.expunge(db_idp)
 
         # Unencrypt client_id
         db_idp.client_id = core_cryptography.decrypt_token_fernet(db_idp.client_id)
@@ -125,6 +132,10 @@ def get_all_identity_providers(db: Session) -> List[idp_models.IdentityProvider]
         # Return empty list if no IDPs found
         if not db_idps:
             return []
+
+        # Expunge all objects from session to prevent accidental persistence of decrypted values
+        for idp in db_idps:
+            db.expunge(idp)
 
         # Unencrypt client_id
         for idp in db_idps:
@@ -232,6 +243,12 @@ def create_identity_provider(
             f"Created identity provider: {db_idp.name} (ID: {db_idp.id})", "info"
         )
 
+        # Expunge from session before modifying to prevent accidental re-persistence
+        db.expunge(db_idp)
+
+        # Set client_id not encrypted for return
+        db_idp.client_id = idp_data.client_id
+
         return db_idp
     except HTTPException:
         raise
@@ -329,6 +346,7 @@ def delete_identity_provider(idp_id: int, db: Session) -> None:
             - 500 for any other internal server error.
     """
     try:
+        # Check if IDP exists
         db_idp = get_identity_provider(idp_id, db)
         if not db_idp:
             raise HTTPException(
@@ -337,10 +355,11 @@ def delete_identity_provider(idp_id: int, db: Session) -> None:
             )
 
         # Check if any users are linked to this provider
-        if db_idp.user_links:
+        db_user_idp = user_identity_providers_crud.get_idp_has_user_links(idp_id, db)
+        if db_user_idp:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
-                detail=f"Cannot delete identity provider with {len(db_idp.user_links)} linked users",
+                detail=f"Cannot delete identity provider with linked users",
             )
 
         db.delete(db_idp)

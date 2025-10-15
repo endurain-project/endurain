@@ -162,19 +162,19 @@ async def update_identity_provider(
 @router.delete("/{idp_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_identity_provider(
     idp_id: int,
-    db: Annotated[Session, Depends(core_database.get_db)],
     _check_scopes: Annotated[
         users_schema.UserRead,
         Security(session_security.check_scopes, scopes=["server_settings:write"]),
     ],
+    db: Annotated[Session, Depends(core_database.get_db)],
 ):
     """
     Deletes an identity provider by its ID.
 
     Args:
         idp_id (int): The unique identifier of the identity provider to delete.
-        db (Session): SQLAlchemy database session dependency.
         _check_scopes (UserRead): Dependency to ensure the user has the required "server_settings:write" scope.
+        db (Session): SQLAlchemy database session dependency.
 
     Raises:
         HTTPException: If the identity provider does not exist or the user lacks sufficient permissions.

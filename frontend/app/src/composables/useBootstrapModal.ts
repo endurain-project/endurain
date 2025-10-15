@@ -78,7 +78,7 @@ export function useBootstrapModal() {
   }
 
   /**
-   * Hide the modal
+   * Hide the modal and clean up backdrop
    *
    * @throws Error if modal is not initialized
    */
@@ -88,6 +88,20 @@ export function useBootstrapModal() {
       return
     }
     modalInstance.value.hide()
+
+    // Clean up any remaining backdrops (Bootstrap sometimes leaves them)
+    setTimeout(() => {
+      const backdrops = document.querySelectorAll('.modal-backdrop')
+      backdrops.forEach((backdrop) => backdrop.remove())
+
+      // Reset body styles if no other modals are open
+      const openModals = document.querySelectorAll('.modal.show')
+      if (openModals.length === 0) {
+        document.body.classList.remove('modal-open')
+        document.body.style.overflow = ''
+        document.body.style.paddingRight = ''
+      }
+    }, 300) // Wait for Bootstrap's fade animation to complete
   }
 
   /**

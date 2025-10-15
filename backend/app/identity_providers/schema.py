@@ -120,7 +120,7 @@ class IdentityProviderCreate(IdentityProviderBase):
     Attributes:
         client_secret (str): OAuth2/OIDC client secret. Must be between 1 and 512 characters.
     """
-    
+
     client_secret: str = Field(
         ..., min_length=1, max_length=512, description="OAuth2/OIDC client secret"
     )

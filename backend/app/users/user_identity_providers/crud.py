@@ -1,13 +1,28 @@
 from datetime import datetime
+from sqlalchemy import exists
 from sqlalchemy.orm import Session
 from sqlalchemy.sql import func
 from users.user_identity_providers import models as user_idp_models
 
 
+def get_idp_has_user_links(idp_id: int, db: Session) -> bool:
+    """
+    Checks if there are any user links associated with a given identity provider ID.
+
+    Args:
+        idp_id (int): The ID of the identity provider to check for user links.
+        db (Session): The SQLAlchemy database session to use for the query.
+
+    Returns:
+        bool: True if there is at least one user linked to the specified identity provider, False otherwise.
+    """
+    return db.query(
+        exists().where(user_idp_models.UserIdentityProvider.idp_id == idp_id)
+    ).scalar()
+
+
 def get_user_idp_link(
-    user_id: int,
-    idp_id: int,
-    db: Session
+    user_id: int, idp_id: int, db: Session
 ) -> user_idp_models.UserIdentityProvider | None:
     """
     Retrieve the UserIdentityProvider link for a specific user and identity provider.
@@ -20,16 +35,18 @@ def get_user_idp_link(
     Returns:
         UserIdentityProvider | None: The UserIdentityProvider instance if found, otherwise None.
     """
-    return db.query(user_idp_models.UserIdentityProvider).filter(
-        user_idp_models.UserIdentityProvider.user_id == user_id,
-        user_idp_models.UserIdentityProvider.idp_id == idp_id
-    ).first()
+    return (
+        db.query(user_idp_models.UserIdentityProvider)
+        .filter(
+            user_idp_models.UserIdentityProvider.user_id == user_id,
+            user_idp_models.UserIdentityProvider.idp_id == idp_id,
+        )
+        .first()
+    )
 
 
 def get_user_idp_link_by_subject(
-    idp_id: int,
-    idp_subject: str,
-    db: Session
+    idp_id: int, idp_subject: str, db: Session
 ) -> user_idp_models.UserIdentityProvider | None:
     """
     Retrieve a UserIdentityProvider record by identity provider ID and subject.
@@ -42,15 +59,18 @@ def get_user_idp_link_by_subject(
     Returns:
         UserIdentityProvider | None: The matching UserIdentityProvider record if found, otherwise None.
     """
-    return db.query(user_idp_models.UserIdentityProvider).filter(
-        user_idp_models.UserIdentityProvider.idp_id == idp_id,
-        user_idp_models.UserIdentityProvider.idp_subject == idp_subject
-    ).first()
+    return (
+        db.query(user_idp_models.UserIdentityProvider)
+        .filter(
+            user_idp_models.UserIdentityProvider.idp_id == idp_id,
+            user_idp_models.UserIdentityProvider.idp_subject == idp_subject,
+        )
+        .first()
+    )
 
 
 def get_user_idp_links(
-    user_id: int,
-    db: Session
+    user_id: int, db: Session
 ) -> list[user_idp_models.UserIdentityProvider]:
     """
     Retrieve all identity provider links associated with a given user.
@@ -62,16 +82,15 @@ def get_user_idp_links(
     Returns:
         list[user_idp_models.UserIdentityProvider]: A list of UserIdentityProvider objects linked to the specified user.
     """
-    return db.query(user_idp_models.UserIdentityProvider).filter(
-        user_idp_models.UserIdentityProvider.user_id == user_id
-    ).all()
+    return (
+        db.query(user_idp_models.UserIdentityProvider)
+        .filter(user_idp_models.UserIdentityProvider.user_id == user_id)
+        .all()
+    )
 
 
 def create_user_idp_link(
-    user_id: int,
-    idp_id: int,
-    idp_subject: str,
-    db: Session
+    user_id: int, idp_id: int, idp_subject: str, db: Session
 ) -> user_idp_models.UserIdentityProvider:
     """
     Creates a link between a user and an identity provider (IDP) in the database.
@@ -86,10 +105,7 @@ def create_user_idp_link(
         user_idp_models.UserIdentityProvider: The newly created UserIdentityProvider link object.
     """
     db_link = user_idp_models.UserIdentityProvider(
-        user_id=user_id,
-        idp_id=idp_id,
-        idp_subject=idp_subject,
-        last_login=func.now()
+        user_id=user_id, idp_id=idp_id, idp_subject=idp_subject, last_login=func.now()
     )
     db.add(db_link)
     db.commit()
@@ -98,9 +114,7 @@ def create_user_idp_link(
 
 
 def update_user_idp_last_login(
-    user_id: int,
-    idp_id: int,
-    db: Session
+    user_id: int, idp_id: int, db: Session
 ) -> user_idp_models.UserIdentityProvider | None:
     """
     Updates the 'last_login' timestamp for a user's identity provider link to the current UTC time.
@@ -121,11 +135,7 @@ def update_user_idp_last_login(
     return db_link
 
 
-def delete_user_idp_link(
-    user_id: int,
-    idp_id: int,
-    db: Session
-) -> bool:
+def delete_user_idp_link(user_id: int, idp_id: int, db: Session) -> bool:
     """
     Deletes the link between a user and an identity provider (IDP) from the database.
 

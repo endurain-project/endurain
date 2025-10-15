@@ -79,6 +79,12 @@ export async function attemptFetch(url, options, responseType = 'json') {
     const errorMessage = errorBody.detail || 'Unknown error'
     throw new Error(`${response.status} - ${errorMessage}`)
   }
+
+  // Handle 204 No Content - no body to parse
+  if (response.status === 204) {
+    return null
+  }
+
   return responseType === 'blob' ? response.blob() : response.json()
 }
 
