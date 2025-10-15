@@ -363,7 +363,7 @@
  */
 
 // Vue composition API
-import { ref, computed, watch, type Ref, type PropType } from 'vue'
+import { ref, computed, watch, type PropType } from 'vue'
 // Internationalization
 import { useI18n } from 'vue-i18n'
 // Bootstrap
@@ -397,6 +397,8 @@ const props = defineProps({
   }
 })
 
+console.log('Templates:', props.templates) // Debugging line to check templates prop
+
 const emit = defineEmits<{
   providerAdded: [provider: IdentityProvider]
   providerUpdated: [provider: IdentityProvider]
@@ -412,8 +414,8 @@ const { t } = useI18n()
 // Reactive State
 // ============================================================================
 
-const selectedTemplate: Ref<string> = ref('')
-const isSubmitting: Ref<boolean> = ref(false)
+const selectedTemplate = ref('')
+const isSubmitting = ref(false)
 
 const formData = ref({
   name: '',
@@ -445,14 +447,14 @@ const isSlugValid = computed(() => {
 })
 
 const templateDescription = computed(() => {
-  if (!selectedTemplate.value || selectedTemplate.value === '') return ''
+  if (selectedTemplate.value === '') return ''
   const index = parseInt(selectedTemplate.value)
   const template = props.templates[index]
   return template ? template.description : ''
 })
 
 const templateNotes = computed(() => {
-  if (!selectedTemplate.value || selectedTemplate.value === '') return ''
+  if (selectedTemplate.value === '') return ''
   const index = parseInt(selectedTemplate.value)
   const template = props.templates[index]
   return template ? template.configuration_notes : ''
@@ -466,7 +468,7 @@ const templateNotes = computed(() => {
  * Apply selected template configuration to form
  */
 const applyTemplate = (): void => {
-  if (!selectedTemplate.value || selectedTemplate.value === '') {
+  if (selectedTemplate.value === '') {
     return
   }
 
@@ -566,7 +568,7 @@ const createProvider = async (): Promise<void> => {
   try {
     const response = await identityProviders.createProvider({
       name: formData.value.name,
-      slug: formData.value.slug,
+      slug: formData.value.slug.toLowerCase(),
       provider_type: formData.value.provider_type,
       enabled: formData.value.enabled,
       issuer_url: formData.value.issuer_url,
