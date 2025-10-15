@@ -38,20 +38,25 @@ export function useBootstrapModal() {
   /**
    * Initialize the Bootstrap Modal instance
    *
-   * @param modalRef - Vue ref containing the modal element
+   * Supports both component refs (with $el property) and template refs (direct DOM elements)
+   *
+   * @param modalRef - Vue ref containing either a component instance or HTMLElement
    * @returns Promise that resolves when modal is initialized
    * @throws Error if modal element is not found or initialization fails
    */
   const initializeModal = async (modalRef: Ref<any>): Promise<void> => {
     await nextTick()
 
-    if (!modalRef.value?.$el) {
+    // Handle both component refs (modalRef.value.$el) and template refs (modalRef.value)
+    const element = modalRef.value?.$el || modalRef.value
+
+    if (!element) {
       console.error('Modal element not found in ref')
       return
     }
 
     try {
-      modalInstance.value = new Modal(modalRef.value.$el)
+      modalInstance.value = new Modal(element)
       isInitialized.value = true
     } catch (error) {
       console.error('Failed to initialize Bootstrap modal:', error)

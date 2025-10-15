@@ -1,15 +1,16 @@
 <template>
   <div
+    ref="modalRef"
     class="modal fade"
-    :id="`${modalId}`"
+    :id="modalId"
     tabindex="-1"
-    :aria-labelledby="`${modalId}`"
+    :aria-labelledby="`${modalId}Title`"
     aria-hidden="true"
   >
     <div class="modal-dialog">
       <div class="modal-content">
         <div class="modal-header">
-          <h1 class="modal-title fs-5" :id="`${modalId}`">{{ title }}</h1>
+          <h1 class="modal-title fs-5" :id="`${modalId}Title`">{{ title }}</h1>
           <button
             type="button"
             class="btn-close"
@@ -21,30 +22,56 @@
           <span v-html="body"></span>
         </div>
         <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+          <button
+            type="button"
+            class="btn btn-secondary"
+            data-bs-dismiss="modal"
+            aria-label="Close modal"
+          >
             {{ $t('generalItems.buttonClose') }}
           </button>
-          <a
+          <button
             type="button"
-            @click="submitAction()"
+            @click="submitAction"
             class="btn"
             :class="{
               'btn-success': actionButtonType === 'success',
               'btn-danger': actionButtonType === 'danger',
               'btn-warning': actionButtonType === 'warning',
-              'btn-primary': actionButtonType === 'loading'
+              'btn-primary': actionButtonType === 'primary'
             }"
             data-bs-dismiss="modal"
-            >{{ actionButtonText }}</a
+            :aria-label="actionButtonText"
           >
+            {{ actionButtonText }}
+          </button>
         </div>
       </div>
     </div>
   </div>
 </template>
 
-<script setup>
-// Define props
+<script setup lang="ts">
+/**
+ * ModalComponent
+ *
+ * Generic reusable modal component with configurable action button types.
+ * Supports custom actions with optional value emission.
+ *
+ * @component
+ */
+
+// Vue composition API
+import { ref, onMounted, onUnmounted, type PropType } from 'vue'
+// Composables
+import { useBootstrapModal } from '@/composables/useBootstrapModal'
+// Types
+import type { ActionButtonType } from '@/types'
+
+// ============================================================================
+// Props & Emits
+// ============================================================================
+
 const props = defineProps({
   modalId: {
     type: String,
@@ -59,15 +86,16 @@ const props = defineProps({
     required: true
   },
   actionButtonType: {
-    type: String,
-    required: true
+    type: String as PropType<ActionButtonType>,
+    required: true,
+    validator: (value: string) => ['success', 'danger', 'warning', 'primary'].includes(value)
   },
   actionButtonText: {
     type: String,
     required: true
   },
   valueToEmit: {
-    type: [Number, String],
+    type: [Number, String] as PropType<number | string | null>,
     default: null
   },
   emitValue: {
@@ -76,15 +104,52 @@ const props = defineProps({
   }
 })
 
-// Define emits
-const emit = defineEmits(['submitAction'])
+const emit = defineEmits<{
+  submitAction: [value: number | string | boolean | null]
+}>()
 
-// Methods
-function submitAction() {
+// ============================================================================
+// Composables & State
+// ============================================================================
+
+const { initializeModal, disposeModal } = useBootstrapModal()
+
+// ============================================================================
+// Reactive State
+// ============================================================================
+
+const modalRef = ref<HTMLDivElement | null>(null)
+
+// ============================================================================
+// Main Logic
+// ============================================================================
+
+/**
+ * Handle submit action and emit appropriate value
+ */
+const submitAction = (): void => {
   if (props.emitValue) {
     emit('submitAction', props.valueToEmit)
   } else {
     emit('submitAction', true)
   }
 }
+
+// ============================================================================
+// Lifecycle Hooks
+// ============================================================================
+
+/**
+ * Initialize modal on mount
+ */
+onMounted(async () => {
+  await initializeModal(modalRef)
+})
+
+/**
+ * Clean up modal on unmount
+ */
+onUnmounted(() => {
+  disposeModal()
+})
 </script>

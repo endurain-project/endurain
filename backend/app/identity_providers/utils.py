@@ -11,7 +11,7 @@ IDP_TEMPLATES = {
         "provider_type": "oidc",
         "issuer_url": "https://{your-keycloak-domain}/realms/{realm}",
         "scopes": "openid profile email",
-        "icon": "fa-key",
+        "icon": "keycloak",
         "user_mapping": {
             "username": ["preferred_username", "username", "email"],
             "email": ["email", "mail"],
@@ -25,7 +25,7 @@ IDP_TEMPLATES = {
         "provider_type": "oidc",
         "issuer_url": "https://{your-authentik-domain}/application/o/{slug}/",
         "scopes": "openid profile email",
-        "icon": "fa-shield-alt",
+        "icon": "authentik",
         "user_mapping": {
             "username": ["preferred_username", "username", "email"],
             "email": ["email", "mail"],
@@ -39,7 +39,7 @@ IDP_TEMPLATES = {
         "provider_type": "oidc",
         "issuer_url": "https://{your-authelia-domain}",
         "scopes": "openid profile email",
-        "icon": "fa-lock",
+        "icon": "authelia",
         "user_mapping": {
             "username": ["preferred_username", "username", "email"],
             "email": ["email"],
@@ -47,44 +47,6 @@ IDP_TEMPLATES = {
         },
         "description": "Authelia - Open-source authentication and authorization server",
         "configuration_notes": "Replace {your-authelia-domain} with your Authelia server domain (e.g., auth.example.com). Configure an OIDC client in your Authelia configuration file.",
-    },
-    "google_consumer": {
-        "name": "Google",
-        "provider_type": "oidc",
-        "issuer_url": "https://accounts.google.com",
-        "scopes": "openid profile email",
-        "icon": "fa-google",
-        "user_mapping": {"username": ["email"], "email": ["email"], "name": ["name"]},
-        "description": "Google OAuth 2.0",
-        "configuration_notes": "Create OAuth 2.0 credentials in Google Cloud Console.",
-    },
-    "microsoft_entra": {
-        "name": "Microsoft Entra ID",
-        "provider_type": "oidc",
-        "issuer_url": "https://login.microsoftonline.com/{tenant}/v2.0",
-        "scopes": "openid profile email",
-        "icon": "fa-microsoft",
-        "user_mapping": {
-            "username": ["preferred_username", "email"],
-            "email": ["email"],
-            "name": ["name"],
-        },
-        "description": "Microsoft Entra ID (Azure AD) - Enterprise Accounts",
-        "configuration_notes": "Replace {tenant} with your tenant ID (for single tenant) or 'organizations' (for multi-tenant). Register an app in Azure Portal under 'App registrations'.",
-    },
-    "microsoft_consumer": {
-        "name": "Microsoft Account",
-        "provider_type": "oidc",
-        "issuer_url": "https://login.microsoftonline.com/consumers/v2.0",
-        "scopes": "openid profile email",
-        "icon": "fa-microsoft",
-        "user_mapping": {
-            "username": ["preferred_username", "email"],
-            "email": ["email"],
-            "name": ["name"],
-        },
-        "description": "Microsoft Account - Consumer Accounts (Outlook, Hotmail, Xbox)",
-        "configuration_notes": "For personal Microsoft accounts only (@outlook.com, @hotmail.com, @live.com, Xbox accounts). Register an app in Azure Portal with 'Accounts in any organizational directory and personal Microsoft accounts' option.",
     },
 }
 
@@ -95,17 +57,10 @@ def get_idp_templates() -> List[idp_schema.IdentityProviderTemplate]:
 
     Returns:
         List[idp_schema.IdentityProviderTemplate]: 
-            A list of IdentityProviderTemplate objects for all identity providers 
-            except 'microsoft_consumer', 'microsoft_entra', and 'google_consumer'.
+            A list of IdentityProviderTemplate objects for all identity providers.
     """
     templates = []
     for template_id, template_data in IDP_TEMPLATES.items():
-        if (
-            template_id == "microsoft_consumer"
-            or template_id == "microsoft_entra"
-            or template_id == "google_consumer"
-        ):
-            continue
         templates.append(
             idp_schema.IdentityProviderTemplate(
                 template_id=template_id, **template_data

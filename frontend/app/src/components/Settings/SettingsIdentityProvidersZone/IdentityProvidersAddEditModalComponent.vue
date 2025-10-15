@@ -1,19 +1,20 @@
 <template>
   <!-- Modal add/edit identity provider -->
   <div
+    ref="modalRef"
     class="modal fade"
     :id="action === 'add' ? 'addIdentityProviderModal' : editModalId"
     tabindex="-1"
-    :aria-labelledby="action === 'add' ? 'addIdentityProviderModal' : editModalId"
+    :aria-labelledby="headingId"
     aria-hidden="true"
   >
     <div class="modal-dialog modal-lg">
       <div class="modal-content">
         <div class="modal-header">
-          <h1 class="modal-title fs-5" v-if="action === 'add'">
+          <h1 class="modal-title fs-5" :id="headingId" v-if="action === 'add'">
             {{ $t('identityProvidersAddEditModal.addTitle') }}
           </h1>
-          <h1 class="modal-title fs-5" v-else>
+          <h1 class="modal-title fs-5" :id="headingId" v-else>
             {{ $t('identityProvidersAddEditModal.editTitle') }}
           </h1>
           <button
@@ -80,6 +81,7 @@
               maxlength="50"
               pattern="[a-z0-9-]+"
               :disabled="action === 'edit'"
+              :aria-invalid="!isSlugValid ? 'true' : 'false'"
               required
             />
             <div
@@ -207,9 +209,9 @@
             <h6>{{ $t('identityProvidersAddEditModal.appearanceSection') }}</h6>
 
             <!-- icon field -->
-            <label :for="`icon_${action === 'add' ? 'add' : `edit_${provider?.id}`}`">{{
+            <label :for="`icon_${action === 'add' ? 'add' : `edit_${provider?.id}`}`"><b>{{
               $t('identityProvidersAddEditModal.iconLabel')
-            }}</label>
+            }}</b></label>
             <input
               type="text"
               class="form-control"
@@ -231,74 +233,73 @@
             <hr />
             <h6>{{ $t('identityProvidersAddEditModal.optionsSection') }}</h6>
 
-            <!-- enabled checkbox -->
-            <div class="form-check mb-3">
-              <input
-                class="form-check-input"
-                type="checkbox"
-                :id="`enabled_${action === 'add' ? 'add' : `edit_${provider?.id}`}`"
-                name="enabled"
-                v-model="formData.enabled"
-                aria-label="Enable identity provider"
-              />
-              <label
-                class="form-check-label"
-                :for="`enabled_${action === 'add' ? 'add' : `edit_${provider?.id}`}`"
-              >
-                {{ $t('identityProvidersAddEditModal.enabledLabel') }}
-              </label>
+            <!-- enabled select -->
+            <label :for="`enabled_${action === 'add' ? 'add' : `edit_${provider?.id}`}`"
+              ><b>{{ $t('identityProvidersAddEditModal.enabledLabel') }}</b></label
+            >
+            <select
+              class="form-select"
+              :id="`enabled_${action === 'add' ? 'add' : `edit_${provider?.id}`}`"
+              name="enabled"
+              v-model="formData.enabled"
+              aria-label="Enable identity provider"
+            >
+              <option :value="true">
+                {{ $t('generalItems.yes') }}
+              </option>
+              <option :value="false">
+                {{ $t('generalItems.no') }}
+              </option>
+            </select>
+
+            <!-- auto create users select -->
+            <label :for="`autoCreateUsers_${action === 'add' ? 'add' : `edit_${provider?.id}`}`"
+              ><b>{{ $t('identityProvidersAddEditModal.autoCreateUsersLabel') }}</b></label
+            >
+            <select
+              class="form-select"
+              :id="`autoCreateUsers_${action === 'add' ? 'add' : `edit_${provider?.id}`}`"
+              name="autoCreateUsers"
+              :aria-describedby="`autoCreateUsersHelpText_${action === 'add' ? 'add' : `edit_${provider?.id}`}`"
+              v-model="formData.auto_create_users"
+            >
+              <option :value="true">
+                {{ $t('generalItems.yes') }}
+              </option>
+              <option :value="false">
+                {{ $t('generalItems.no') }}
+              </option>
+            </select>
+            <div
+              :id="`autoCreateUsersHelpText_${action === 'add' ? 'add' : `edit_${provider?.id}`}`"
+              class="form-text"
+            >
+              {{ $t('identityProvidersAddEditModal.autoCreateUsersHelp') }}
             </div>
 
-            <!-- auto create users checkbox -->
-            <div class="mb-3">
-              <div class="form-check">
-                <input
-                  class="form-check-input"
-                  type="checkbox"
-                  :id="`autoCreateUsers_${action === 'add' ? 'add' : `edit_${provider?.id}`}`"
-                  name="autoCreateUsers"
-                  :aria-describedby="`autoCreateUsersHelpText_${action === 'add' ? 'add' : `edit_${provider?.id}`}`"
-                  v-model="formData.auto_create_users"
-                />
-                <label
-                  class="form-check-label"
-                  :for="`autoCreateUsers_${action === 'add' ? 'add' : `edit_${provider?.id}`}`"
-                >
-                  {{ $t('identityProvidersAddEditModal.autoCreateUsersLabel') }}
-                </label>
-              </div>
-              <div
-                :id="`autoCreateUsersHelpText_${action === 'add' ? 'add' : `edit_${provider?.id}`}`"
-                class="form-text"
-              >
-                {{ $t('identityProvidersAddEditModal.autoCreateUsersHelp') }}
-              </div>
-            </div>
-
-            <!-- sync user info checkbox -->
-            <div class="mb-3">
-              <div class="form-check">
-                <input
-                  class="form-check-input"
-                  type="checkbox"
-                  :id="`syncUserInfo_${action === 'add' ? 'add' : `edit_${provider?.id}`}`"
-                  name="syncUserInfo"
-                  :aria-describedby="`syncUserInfoHelpText_${action === 'add' ? 'add' : `edit_${provider?.id}`}`"
-                  v-model="formData.sync_user_info"
-                />
-                <label
-                  class="form-check-label"
-                  :for="`syncUserInfo_${action === 'add' ? 'add' : `edit_${provider?.id}`}`"
-                >
-                  {{ $t('identityProvidersAddEditModal.syncUserInfoLabel') }}
-                </label>
-              </div>
-              <div
-                :id="`syncUserInfoHelpText_${action === 'add' ? 'add' : `edit_${provider?.id}`}`"
-                class="form-text"
-              >
-                {{ $t('identityProvidersAddEditModal.syncUserInfoHelp') }}
-              </div>
+            <!-- sync user info select -->
+            <label :for="`syncUserInfo_${action === 'add' ? 'add' : `edit_${provider?.id}`}`"
+              ><b>{{ $t('identityProvidersAddEditModal.syncUserInfoLabel') }}</b></label
+            >
+            <select
+              class="form-select"
+              :id="`syncUserInfo_${action === 'add' ? 'add' : `edit_${provider?.id}`}`"
+              name="syncUserInfo"
+              :aria-describedby="`syncUserInfoHelpText_${action === 'add' ? 'add' : `edit_${provider?.id}`}`"
+              v-model="formData.sync_user_info"
+            >
+              <option :value="true">
+                {{ $t('generalItems.yes') }}
+              </option>
+              <option :value="false">
+                {{ $t('generalItems.no') }}
+              </option>
+            </select>
+            <div
+              :id="`syncUserInfoHelpText_${action === 'add' ? 'add' : `edit_${provider?.id}`}`"
+              class="form-text"
+            >
+              {{ $t('identityProvidersAddEditModal.syncUserInfoHelp') }}
             </div>
 
             <!-- Configuration Notes (Template Mode) -->
@@ -324,7 +325,6 @@
               type="submit"
               class="btn btn-success"
               name="providerSubmit"
-              data-bs-dismiss="modal"
               :disabled="isSubmitting || !isSlugValid"
               :aria-label="
                 action === 'add'
@@ -363,17 +363,17 @@
  */
 
 // Vue composition API
-import { ref, computed, watch, type PropType } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted, type PropType } from 'vue'
 // Internationalization
 import { useI18n } from 'vue-i18n'
-// Bootstrap
-import { Modal } from 'bootstrap'
+// Composables
+import { useBootstrapModal } from '@/composables/useBootstrapModal'
 // Notifications
 import { push } from 'notivue'
 // Services
 import { identityProviders } from '@/services/identityProvidersService'
 // Types
-import type { ErrorWithResponse, IdentityProviderTemplate, IdentityProvider } from '@/types'
+import type { IdentityProviderTemplate, IdentityProvider } from '@/types'
 // Constants
 import { HTTP_STATUS, extractStatusCode } from '@/constants/httpConstants'
 
@@ -397,8 +397,6 @@ const props = defineProps({
   }
 })
 
-console.log('Templates:', props.templates) // Debugging line to check templates prop
-
 const emit = defineEmits<{
   providerAdded: [provider: IdentityProvider]
   providerUpdated: [provider: IdentityProvider]
@@ -409,13 +407,20 @@ const emit = defineEmits<{
 // ============================================================================
 
 const { t } = useI18n()
+const { initializeModal, hideModal, disposeModal } = useBootstrapModal()
 
 // ============================================================================
 // Reactive State
 // ============================================================================
 
+const modalRef = ref<HTMLDivElement | null>(null)
 const selectedTemplate = ref('')
 const isSubmitting = ref(false)
+const headingId = computed(() =>
+  props.action === 'add'
+    ? 'addIdentityProviderModalTitle'
+    : `editIdentityProviderModalTitle_${props.provider?.id ?? 'unknown'}`
+)
 
 const formData = ref({
   name: '',
@@ -582,7 +587,7 @@ const createProvider = async (): Promise<void> => {
 
     notification.resolve(t('identityProvidersAddEditModal.providerCreated'))
     emit('providerAdded', response)
-    closeModal()
+    hideModal()
     resetForm()
   } catch (error) {
     const statusCode = extractStatusCode(error)
@@ -626,7 +631,7 @@ const updateProvider = async (): Promise<void> => {
 
     notification.resolve(t('identityProvidersAddEditModal.providerUpdated'))
     emit('providerUpdated', response)
-    closeModal()
+    hideModal()
     resetForm()
   } catch (error) {
     const statusCode = extractStatusCode(error)
@@ -638,21 +643,23 @@ const updateProvider = async (): Promise<void> => {
   }
 }
 
-/**
- * Close modal programmatically
- */
-const closeModal = (): void => {
-  const modalId = props.action === 'add' ? 'addIdentityProviderModal' : editModalId.value
-  const modalElement = document.getElementById(modalId)
-  if (modalElement) {
-    const modal = Modal.getInstance(modalElement)
-    modal?.hide()
-  }
-}
-
 // ============================================================================
 // Lifecycle & Watchers
 // ============================================================================
+
+/**
+ * Initialize modal on mount
+ */
+onMounted(async () => {
+  await initializeModal(modalRef)
+})
+
+/**
+ * Clean up modal on unmount
+ */
+onUnmounted(() => {
+  disposeModal()
+})
 
 /**
  * Watch for provider prop changes (edit mode)
