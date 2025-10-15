@@ -14,7 +14,7 @@ def get_identity_provider(
     idp_id: int, db: Session
 ) -> idp_models.IdentityProvider | None:
     """
-    Retrieve an identity provider by its ID from the database, decrypting its client_id.
+    Retrieve an identity provider by its ID from the database.
 
     Args:
         idp_id (int): The unique identifier of the identity provider.
@@ -24,7 +24,7 @@ def get_identity_provider(
         idp_models.IdentityProvider | None: The identity provider object with decrypted client_id if found, otherwise None.
 
     Raises:
-        HTTPException: If an error occurs during retrieval or decryption, raises a 500 Internal Server Error.
+        HTTPException: If an unexpected error occurs during retrieval or decryption.
     """
     try:
         # Get IDP from database
@@ -33,6 +33,10 @@ def get_identity_provider(
             .filter(idp_models.IdentityProvider.id == idp_id)
             .first()
         )
+
+        # Return None if not found
+        if not db_idp:
+            return None
 
         # Unencrypt client_id
         db_idp.client_id = core_cryptography.decrypt_token_fernet(db_idp.client_id)
@@ -53,17 +57,17 @@ def get_identity_provider_by_slug(
     slug: str, db: Session
 ) -> idp_models.IdentityProvider | None:
     """
-    Retrieve an IdentityProvider object from the database by its slug, decrypting its client_id.
+    Retrieve an IdentityProvider object from the database by its slug.
 
     Args:
         slug (str): The unique slug identifier for the identity provider.
         db (Session): The SQLAlchemy database session.
 
     Returns:
-        idp_models.IdentityProvider | None: The IdentityProvider object with decrypted client_id if found, otherwise None.
+        idp_models.IdentityProvider | None: The IdentityProvider object if found, with the client_id decrypted; otherwise, None.
 
     Raises:
-        HTTPException: If an error occurs during retrieval or decryption, raises a 500 Internal Server Error.
+        HTTPException: If an unexpected error occurs during the database query or decryption process, raises a 500 Internal Server Error.
     """
     try:
         # Get IDP from database
@@ -72,6 +76,10 @@ def get_identity_provider_by_slug(
             .filter(idp_models.IdentityProvider.slug == slug)
             .first()
         )
+
+        # Return None if not found
+        if not db_idp:
+            return None
 
         # Unencrypt client_id
         db_idp.client_id = core_cryptography.decrypt_token_fernet(db_idp.client_id)
@@ -90,16 +98,21 @@ def get_identity_provider_by_slug(
 
 def get_all_identity_providers(db: Session) -> List[idp_models.IdentityProvider]:
     """
-    Retrieve all identity providers from the database, decrypting their client IDs.
+    Retrieve all identity providers from the database, ordered by name.
+
+    This function queries the database for all IdentityProvider records, decrypts the
+    client_id for each provider, and returns the list. If no identity providers are found,
+    an empty list is returned. In case of any exception during the process, an error is
+    logged and an HTTP 500 Internal Server Error is raised.
 
     Args:
         db (Session): SQLAlchemy database session.
 
     Returns:
-        List[idp_models.IdentityProvider]: A list of identity provider objects with decrypted client IDs.
+        List[idp_models.IdentityProvider]: List of identity provider objects with decrypted client_id.
 
     Raises:
-        HTTPException: If an error occurs during retrieval or decryption, raises a 500 Internal Server Error.
+        HTTPException: If an error occurs during the database query or decryption.
     """
     try:
         # Get IDPs from database
@@ -108,6 +121,10 @@ def get_all_identity_providers(db: Session) -> List[idp_models.IdentityProvider]
             .order_by(idp_models.IdentityProvider.name)
             .all()
         )
+
+        # Return empty list if no IDPs found
+        if not db_idps:
+            return []
 
         # Unencrypt client_id
         for idp in db_idps:

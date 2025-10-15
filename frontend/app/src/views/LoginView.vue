@@ -458,14 +458,13 @@ const handleForgotPasswordSubmit = async (email: string): Promise<void> => {
 const fetchSSOProviders = async (): Promise<void> => {
   // Only fetch if SSO is enabled
   if (!serverSettings.value.sso_enabled) {
+    loadingSSOProviders.value = false
     return
   }
 
   try {
-    loadingSSOProviders.value = true
     ssoProviders.value = await identityProviders.getEnabledProviders()
   } catch (error) {
-    console.error('Failed to fetch SSO providers:', error)
     // Silent fail - login page should still work without SSO
     ssoProviders.value = []
   } finally {

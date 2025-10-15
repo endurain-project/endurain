@@ -164,7 +164,8 @@ class IdentityProviderService:
         """
         try:
             # Decrypt credentials
-            client_id = core_cryptography.decrypt_token_fernet(idp.client_id)
+            #client_id = core_cryptography.decrypt_token_fernet(idp.client_id)
+            client_id = idp.client_id
             # client_secret = core_cryptography.decrypt_token_fernet(idp.client_secret)
 
             # Get endpoints

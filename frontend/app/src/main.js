@@ -71,7 +71,7 @@ async function initApp() {
   themeStore.loadThemeFromStorage()
 
   const serverSettingsStore = useServerSettingsStore()
-  serverSettingsStore.loadServerSettingsFromServer()
+  await serverSettingsStore.loadServerSettingsFromServer()
 
   // Setup router
   app.use(router)
