@@ -286,6 +286,9 @@ async def refresh_token(
     # Edit the session and store it in the database
     session_utils.edit_session(session, request, new_refresh_token, password_hasher, db)
 
+    # Opportunistically refresh IdP tokens for all linked identity providers
+    await session_utils.refresh_idp_tokens_if_needed(user.id, db)
+
     if client_type == "web":
         response = session_utils.create_response_with_tokens(
             response, new_access_token, new_refresh_token, new_csrf_token
@@ -374,6 +377,9 @@ async def logout(
 
         # Delete the session from the database
         session_crud.delete_session(session.id, token_user_id, db)
+
+        # Clear all IdP refresh tokens for security
+        await session_utils.clear_all_idp_tokens(token_user_id, db)
 
     if client_type == "web":
         # Clear the cookies by setting their expiration to the past

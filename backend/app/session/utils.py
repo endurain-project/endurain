@@ -23,6 +23,10 @@ import session.token_manager as session_token_manager
 
 import users.user.crud as users_crud
 import users.user.schema as users_schema
+import users.user_identity_providers.crud as user_idp_crud
+
+import identity_providers.service as idp_service
+import core.logger as core_logger
 
 
 class DeviceType(Enum):
@@ -501,3 +505,180 @@ def parse_user_agent(user_agent: str) -> DeviceInfo:
         browser=ua.browser.family or "Unknown",
         browser_version=ua.browser.version_string or "Unknown",
     )
+
+
+async def refresh_idp_tokens_if_needed(user_id: int, db: Session) -> None:
+    """
+    Opportunistically refresh IdP tokens for all linked identity providers.
+
+    This helper function is called during Endurain session refresh to check if any
+    linked identity providers have tokens that need refreshing. If tokens are close
+    to expiry (within 5 minutes), it attempts to silently refresh them.
+
+    This provides a better user experience by:
+    - Reducing the need for re-authentication with IdPs
+    - Maintaining seamless SSO sessions
+    - Avoiding token expiry during active user sessions
+
+    Args:
+        user_id (int): The ID of the user whose IdP tokens should be checked.
+        db (Session): The database session for querying user-IdP links.
+
+    Returns:
+        None
+
+    Side Effects:
+        - May update IdP tokens in database if refresh is successful
+        - Logs refresh attempts at debug level
+        - Logs refresh failures at debug level (non-blocking)
+
+    Error Handling:
+        - All errors are caught and logged, but do not block session refresh
+        - IdP token refresh failures are non-fatal (user session continues)
+        - Network errors to IdP are logged but don't affect Endurain session
+
+    Performance:
+        - Only refreshes tokens that are close to expiry (policy-based)
+        - Rate-limited to prevent excessive IdP API calls (1-minute minimum)
+        - Runs asynchronously to avoid blocking session refresh response
+
+    Security:
+        - Uses existing IdP service methods (inherits all security controls)
+        - Token refresh follows OAuth2 refresh_token grant type
+        - Failed refreshes clear invalid tokens from database
+    """
+    try:
+        # Get all IdP links for this user
+        idp_links = user_idp_crud.get_user_idp_links(user_id, db)
+
+        if not idp_links:
+            # User has no IdP links - nothing to refresh
+            return
+
+        # Check each IdP link and refresh if needed
+        for link in idp_links:
+            try:
+                # Check if this IdP token needs refreshing (policy-based)
+                if idp_service.idp_service._should_refresh_idp_token(link):
+                    core_logger.print_to_log(
+                        f"Attempting to refresh IdP token for user {user_id}, idp {link.idp_id}",
+                        "debug",
+                    )
+
+                    # Attempt to refresh the IdP session
+                    result = await idp_service.idp_service.refresh_idp_session(
+                        user_id, link.idp_id, db
+                    )
+
+                    if result:
+                        core_logger.print_to_log(
+                            f"Successfully refreshed IdP token for user {user_id}, idp {link.idp_id}",
+                            "debug",
+                        )
+                    else:
+                        core_logger.print_to_log(
+                            f"IdP token refresh failed for user {user_id}, idp {link.idp_id}. "
+                            "User may need to re-authenticate with IdP later.",
+                            "debug",
+                        )
+                else:
+                    # Token doesn't need refreshing yet (still valid or recently refreshed)
+                    pass
+
+            except Exception as err:
+                # Log individual IdP refresh failure but continue with other IdPs
+                core_logger.print_to_log(
+                    f"Error checking/refreshing IdP token for user {user_id}, idp {link.idp_id}: {err}",
+                    "warning",
+                    exc=err,
+                )
+                # Continue to next IdP link
+
+    except Exception as err:
+        # Catch-all for unexpected errors (e.g., database query failure)
+        core_logger.print_to_log(
+            f"Error retrieving IdP links for user {user_id}: {err}",
+            "warning",
+            exc=err,
+        )
+        # Don't raise - IdP token refresh is opportunistic and non-blocking
+
+
+async def clear_all_idp_tokens(user_id: int, db: Session) -> None:
+    """
+    Clear all IdP refresh tokens for a user upon logout.
+
+    This helper function is called during logout to clear all stored IdP refresh tokens
+    for the user. This implements the security best practice of invalidating tokens
+    when a user explicitly logs out.
+
+    According to OAuth2 best practices (RFC 6819), refresh tokens should be revoked
+    when the user logs out to minimize the window of token exposure.
+
+    Args:
+        user_id (int): The ID of the user who is logging out.
+        db (Session): The database session for querying and updating user-IdP links.
+
+    Returns:
+        None
+
+    Side Effects:
+        - Clears all IdP refresh tokens from database for this user
+        - Sets idp_refresh_token, idp_access_token_expires_at, and
+          idp_refresh_token_updated_at to NULL
+        - Logs clearing actions at debug level
+
+    Error Handling:
+        - All errors are caught and logged but do not block logout
+        - Logout succeeds even if IdP token clearing fails
+        - Individual IdP failures don't prevent clearing other IdPs
+
+    Security Note:
+        - This follows the principle of least privilege
+        - Reduces the window of token validity after logout
+        - User must re-authenticate with IdP on next SSO login
+        - Does NOT revoke tokens at the IdP (optional future enhancement)
+    """
+    try:
+        # Get all IdP links for this user
+        idp_links = user_idp_crud.get_user_idp_links(user_id, db)
+
+        if not idp_links:
+            # User has no IdP links - nothing to clear
+            return
+
+        # Clear tokens for each IdP link
+        for link in idp_links:
+            try:
+                success = user_idp_crud.clear_idp_refresh_token(
+                    user_id, link.idp_id, db
+                )
+
+                if success:
+                    core_logger.print_to_log(
+                        f"Cleared IdP refresh token for user {user_id}, idp {link.idp_id} on logout",
+                        "debug",
+                    )
+                else:
+                    core_logger.print_to_log(
+                        f"No IdP refresh token to clear for user {user_id}, idp {link.idp_id}",
+                        "debug",
+                    )
+
+            except Exception as err:
+                # Log individual IdP token clearing failure but continue with other IdPs
+                core_logger.print_to_log(
+                    f"Error clearing IdP token for user {user_id}, idp {link.idp_id}: {err}",
+                    "warning",
+                    exc=err,
+                )
+                # Continue to next IdP link
+
+    except Exception as err:
+        # Catch-all for unexpected errors (e.g., database query failure)
+        core_logger.print_to_log(
+            f"Error retrieving IdP links for user {user_id} during logout: {err}",
+            "warning",
+            exc=err,
+        )
+        # Don't raise - IdP token clearing is a best-effort security measure
