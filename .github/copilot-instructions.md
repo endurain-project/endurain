@@ -15,6 +15,7 @@ Always reference these instructions first and fallback to search or bash command
 - Do not alter port numbers, environment variables, or framework versions unless explicitly instructed.
 - Prefer using existing validation, constants, and type files rather than creating new ones.
 - Use the timing benchmarks in this document to evaluate build success or performance anomalies.
+- **Documentation files:** When creating new development documentation files (e.g., `BACKEND_AUTH_DEVELOPMENT_LOG.md`, `OBSERVABILITY_STRATEGY.md`), store them in the `devdocs/` folder. This folder is gitignored and used for local development documentation that should not be committed to the repository.
 
 ---
 
