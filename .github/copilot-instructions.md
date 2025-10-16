@@ -16,6 +16,7 @@ Always reference these instructions first and fallback to search or bash command
 - Prefer using existing validation, constants, and type files rather than creating new ones.
 - Use the timing benchmarks in this document to evaluate build success or performance anomalies.
 - **Documentation files:** When creating new development documentation files (e.g., `BACKEND_AUTH_DEVELOPMENT_LOG.md`, `OBSERVABILITY_STRATEGY.md`), store them in the `devdocs/` folder. This folder is gitignored and used for local development documentation that should not be committed to the repository.
+- **Development/helper scripts:** When creating new development/helper scripts, store them in the `devscripts/` folder. This folder is gitignored and used for local development scripts that should not be committed to the repository.
 
 ---
 

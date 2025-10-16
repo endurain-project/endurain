@@ -111,3 +111,6 @@ postgres/
 
 # local dev docs
 devdocs/
+
+#local dev scripts
+devscripts/
