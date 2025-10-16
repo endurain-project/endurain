@@ -476,21 +476,26 @@ def get_ip_address(request: Request) -> str:
 
 def parse_user_agent(user_agent: str) -> DeviceInfo:
     """
-    Parses a user agent string and extracts device information.
+    Parse a user agent string and extract device information.
+
+    This function analyzes a user agent string to determine device characteristics
+    including device type, operating system, and browser information.
 
     Args:
-        user_agent (str): The user agent string to be parsed.
+        user_agent (str): The user agent string to parse.
 
     Returns:
-        DeviceInfo: An object containing details about the device type, operating system,
-                    operating system version, browser, and browser version.
+        DeviceInfo: An object containing parsed device information with the following attributes:
+            - device_type: The type of device (MOBILE, TABLET, or PC)
+            - operating_system: The name of the operating system family
+            - operating_system_version: The version string of the operating system
+            - browser: The name of the browser family
+            - browser_version: The version string of the browser
 
-    DeviceInfo fields:
-        - device_type (DeviceType): The type of device ("Mobile", "Tablet", or "PC").
-        - operating_system (str): The name of the operating system.
-        - operating_system_version (str): The version of the operating system.
-        - browser (str): The name of the browser.
-        - browser_version (str): The version of the browser.
+    Note:
+        - Device type is determined based on whether the user agent indicates a mobile
+          or tablet device, defaulting to PC if neither.
+        - If any information cannot be determined, it defaults to "Unknown".
     """
     ua = parse(user_agent)
     device_type = (
@@ -510,48 +515,32 @@ def parse_user_agent(user_agent: str) -> DeviceInfo:
 
 async def refresh_idp_tokens_if_needed(user_id: int, db: Session) -> None:
     """
-    Opportunistically refresh or clear IdP tokens for all linked identity providers.
+    Refreshes identity provider (IdP) tokens for a user if needed based on token expiration policies.
 
-    This helper function is called during Endurain session refresh to check if any
-    linked identity providers have tokens that need action. Based on token policy:
-    - Tokens close to expiry are refreshed
-    - Tokens exceeding maximum age are cleared and require re-authentication
-    - Valid tokens are skipped
+    This function retrieves all IdP links associated with a user and evaluates each token's
+    state to determine the appropriate action: refresh if nearing expiry, clear if maximum
+    age is exceeded, or skip if still valid.
 
-    This provides a better user experience by:
-    - Reducing the need for re-authentication with IdPs
-    - Maintaining seamless SSO sessions
-    - Avoiding token expiry during active user sessions
-    - Enforcing security policy for maximum token lifetime
+    The function is designed to be non-blocking and opportunistic - errors during token
+    refresh or clearing are logged but do not raise exceptions, allowing the application
+    to continue normal operation even if IdP token management fails.
 
     Args:
-        user_id (int): The ID of the user whose IdP tokens should be checked.
-        db (Session): The database session for querying user-IdP links.
+        user_id (int): The ID of the user whose IdP tokens should be checked and refreshed.
+        db (Session): SQLAlchemy database session for performing database operations.
 
     Returns:
-        None
+        None: This function performs side effects (token refresh/clearing) but returns nothing.
 
-    Side Effects:
-        - May update IdP tokens in database if refresh is successful
-        - May clear IdP tokens in database if they exceed maximum age
-        - Logs refresh/clear attempts at debug/info level
-        - Logs failures at debug/warning level (non-blocking)
+    Raises:
+        Does not raise exceptions. All errors are caught, logged, and suppressed to ensure
+        IdP token management does not disrupt normal application flow.
 
-    Error Handling:
-        - All errors are caught and logged, but do not block session refresh
-        - IdP token refresh/clear failures are non-fatal (user session continues)
-        - Network errors to IdP are logged but don't affect Endurain session
-
-    Performance:
-        - Only refreshes tokens that are close to expiry (policy-based)
-        - Rate-limited to prevent excessive IdP API calls
-        - Runs asynchronously to avoid blocking session refresh response
-
-    Security:
-        - Uses existing IdP service methods (inherits all security controls)
-        - Token refresh follows OAuth2 refresh_token grant type
-        - Failed refreshes clear invalid tokens from database
-        - Enforces maximum token age for security
+    Notes:
+        - If a user has no IdP links, the function returns early without performing any operations.
+        - Token refresh attempts that fail are logged but the user session remains valid.
+        - Tokens exceeding maximum age are cleared for security, requiring user re-authentication.
+        - Individual IdP operation failures do not prevent checking other IdP links.
     """
     try:
         # Get all IdP links for this user
@@ -641,48 +630,32 @@ async def clear_all_idp_tokens(
     user_id: int, db: Session, revoke_at_idp: bool = False
 ) -> None:
     """
-    Clear all IdP refresh tokens for a user upon logout.
+    Clear all IdP (Identity Provider) refresh tokens for a user.
 
-    This helper function is called during logout to clear all stored IdP refresh tokens
-    for the user. This implements the security best practice of invalidating tokens
-    when a user explicitly logs out.
-
-    According to OAuth2 best practices (RFC 6819), refresh tokens should be revoked
-    when the user logs out to minimize the window of token exposure.
+    This function retrieves all IdP links associated with a user and clears their
+    refresh tokens. It supports optional revocation at the IdP level before clearing
+    tokens locally.
 
     Args:
-        user_id (int): The ID of the user who is logging out.
-        db (Session): The database session for querying and updating user-IdP links.
-        revoke_at_idp (bool): If True, attempt to revoke tokens at the IdP before clearing
-            locally (RFC 7009). Default False for performance. Revocation failures do not
-            block logout - tokens are always cleared locally regardless of IdP response.
+        user_id (int): The ID of the user whose IdP tokens should be cleared.
+        db (Session): The database session to use for queries.
+        revoke_at_idp (bool, optional): If True, attempts to revoke tokens at the
+            IdP provider level (RFC 7009) before clearing locally. Defaults to False.
 
     Returns:
         None
 
-    Side Effects:
-        - Optionally attempts to revoke tokens at each IdP (if revoke_at_idp=True)
-        - Clears all IdP refresh tokens from database for this user
-        - Sets idp_refresh_token, idp_access_token_expires_at, and
-          idp_refresh_token_updated_at to NULL
-        - Logs clearing/revocation actions at debug/info level
+    Raises:
+        This function does not raise exceptions. All errors are logged and handled
+        gracefully to ensure logout processes are not interrupted.
 
-    Error Handling:
-        - All errors are caught and logged but do not block logout
-        - Logout succeeds even if IdP token clearing/revocation fails
-        - Individual IdP failures don't prevent clearing other IdPs
-        - Revocation failures are logged but don't prevent local clearing
-
-    Security Note:
-        - Follows the principle of least privilege
-        - Reduces the window of token validity after logout
-        - User must re-authenticate with IdP on next SSO login
-        - Optional IdP revocation provides defense in depth (RFC 7009)
-
-    Performance Note:
-        - revoke_at_idp=False (default): Fast logout (~10-40ms per IdP, local only)
-        - revoke_at_idp=True: Slower logout (~100-500ms per IdP, includes network calls)
-        - Revocation is best-effort and non-blocking
+    Notes:
+        - If no IdP links exist for the user, the function returns early.
+        - Token revocation at the IdP is best-effort; local clearing always proceeds
+          regardless of revocation success or failure.
+        - Individual IdP token clearing failures do not prevent clearing tokens for
+          other IdPs.
+        - All errors are logged with appropriate severity levels (debug, info, warning).
     """
     try:
         # Get all IdP links for this user

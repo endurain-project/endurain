@@ -24,12 +24,14 @@ import users.user.utils as users_utils
 import profile.utils as profile_utils
 
 import core.database as core_database
+import core.rate_limit as core_rate_limit
 
 # Define the API router
 router = APIRouter()
 
 
 @router.post("/token")
+@core_rate_limit.limiter.limit(core_rate_limit.SESSION_LOGIN_LIMIT)
 async def login_for_access_token(
     response: Response,
     request: Request,
@@ -53,6 +55,8 @@ async def login_for_access_token(
 ):
     """
     Handles user login and access token generation, including Multi-Factor Authentication (MFA) flow.
+    
+    Rate Limit: 5 requests per minute per IP
 
     This endpoint authenticates a user using provided credentials, checks if the user is active,
     and determines if MFA is required. If MFA is enabled for the user, it stores the pending login

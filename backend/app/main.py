@@ -13,6 +13,7 @@ import core.config as core_config
 import core.scheduler as core_scheduler
 import core.tracing as core_tracing
 import core.migrations as core_migrations
+import core.rate_limit as core_rate_limit
 
 import garmin.activity_utils as garmin_activity_utils
 import garmin.health_utils as garmin_health_utils
@@ -131,6 +132,13 @@ def create_app() -> FastAPI:
     )
 
     fastapi_app.add_middleware(session_schema.CSRFMiddleware)
+
+    # Add rate limiting
+    fastapi_app.state.limiter = core_rate_limit.limiter
+    fastapi_app.add_exception_handler(
+        core_rate_limit.RateLimitExceeded,
+        core_rate_limit.rate_limit_exceeded_handler
+    )
 
     # Router files
     fastapi_app.include_router(api_router)

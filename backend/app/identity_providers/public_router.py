@@ -5,6 +5,7 @@ from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 
 import core.database as core_database
+import core.rate_limit as core_rate_limit
 import session.password_hasher as session_password_hasher
 import session.token_manager as session_token_manager
 import session.utils as session_utils
@@ -49,6 +50,7 @@ async def get_enabled_providers(db: Annotated[Session, Depends(core_database.get
 
 
 @router.get("/login/{idp_slug}", status_code=status.HTTP_307_TEMPORARY_REDIRECT)
+@core_rate_limit.limiter.limit(core_rate_limit.OAUTH_AUTHORIZE_LIMIT)
 async def initiate_login(
     idp_slug: str,
     request: Request,
@@ -56,6 +58,8 @@ async def initiate_login(
 ):
     """
     Initiates the login process for a given identity provider using OAuth.
+    
+    Rate Limit: 10 requests per minute per IP
     Args:
         idp_slug (str): The slug identifier for the identity provider.
         request (Request): The incoming HTTP request object.
@@ -82,6 +86,7 @@ async def initiate_login(
 
 
 @router.get("/callback/{idp_slug}", status_code=status.HTTP_307_TEMPORARY_REDIRECT)
+@core_rate_limit.limiter.limit(core_rate_limit.OAUTH_CALLBACK_LIMIT)
 async def handle_callback(
     idp_slug: str,
     password_hasher: Annotated[
@@ -100,6 +105,8 @@ async def handle_callback(
 ):
     """
     Handles the OAuth callback from an external Identity Provider (IdP) for Single Sign-On (SSO) authentication.
+    
+    Rate Limit: 10 requests per minute per IP
     This endpoint processes the authorization code and state parameters returned by the IdP after user authentication.
     It validates the IdP, exchanges the code for user information, creates session tokens, stores the session in the database,
     sets authentication cookies, and redirects the user to the frontend application.

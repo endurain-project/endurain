@@ -794,7 +794,7 @@ class IdentityProviderService:
                         if not userinfo_endpoint:
                             userinfo_endpoint = config.get("userinfo_endpoint")
                         
-                        # Get JWKS URI for ID token verification (Sprint 3, Phase 1)
+                        # Get JWKS URI for ID token verification
                         jwks_uri = config.get("jwks_uri")
                         expected_issuer = config.get("issuer")
                         
@@ -877,7 +877,7 @@ class IdentityProviderService:
                     detail="Failed to complete authentication. Please try again.",
                 ) from err
 
-            # Get user information with ID token verification (Sprint 3, Phase 1)
+            # Get user information with ID token verification
             userinfo = await self._get_userinfo(
                 token_response=token_response,
                 userinfo_endpoint=userinfo_endpoint,
@@ -951,7 +951,7 @@ class IdentityProviderService:
         If the endpoint is unavailable or the request fails, it falls back to extracting claims from the `id_token` in the token response,
         verifying the ID token signature using JWKS before returning the claims.
 
-        Security Enhancement (Sprint 3, Phase 1):
+        Security Enhancement:
         - ID tokens are now cryptographically verified using joserfc and JWKS
         - Signature verification prevents token forgery and tampering
         - Claims validation ensures token integrity (iss, aud, exp, nonce)
@@ -1018,7 +1018,7 @@ class IdentityProviderService:
         id_token = token_response.get("id_token")
         if id_token and jwks_uri and expected_issuer:
             try:
-                # SECURITY: Verify ID token signature using JWKS (Sprint 3, Phase 1)
+                # SECURITY: Verify ID token signature using JWKS
                 # This replaces the insecure manual base64 decode
                 id_token_claims = await self._verify_id_token(
                     id_token=id_token,

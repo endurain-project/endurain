@@ -759,7 +759,7 @@ description = "cryptography is a package which provides cryptographic recipes an
 optional = false
 python-versions = "!=3.9.0,!=3.9.1,>=3.7"
 groups = ["main"]
-markers = "python_version >= \"3.14\" and platform_python_implementation != \"PyPy\""
+markers = "python_full_version >= \"3.14.0\" and platform_python_implementation != \"PyPy\""
 files = [
     {file = "cryptography-45.0.7-cp311-abi3-macosx_10_9_universal2.whl", hash = "sha256:3be4f21c6245930688bd9e162829480de027f8bf962ede33d4f8ba7d67a00cee"},
     {file = "cryptography-45.0.7-cp311-abi3-manylinux2014_aarch64.manylinux_2_17_aarch64.whl", hash = "sha256:67285f8a611b0ebc0857ced2081e30302909f571a46bfa7a3cc0ad303fe015c6"},
@@ -820,7 +820,7 @@ description = "cryptography is a package which provides cryptographic recipes an
 optional = false
 python-versions = "!=3.9.0,!=3.9.1,>=3.8"
 groups = ["main"]
-markers = "python_version < \"3.14\" or platform_python_implementation == \"PyPy\""
+markers = "python_full_version < \"3.14.0\" or platform_python_implementation == \"PyPy\""
 files = [
     {file = "cryptography-46.0.0-cp311-abi3-macosx_10_9_universal2.whl", hash = "sha256:c9c4121f9a41cc3d02164541d986f59be31548ad355a5c96ac50703003c50fb7"},
     {file = "cryptography-46.0.0-cp311-abi3-manylinux2014_aarch64.manylinux_2_17_aarch64.whl", hash = "sha256:4f70cbade61a16f5e238c4b0eb4e258d177a2fcb59aa0aae1236594f7b0ae338"},
@@ -1720,6 +1720,34 @@ doc = ["furo", "jaraco.packaging (>=9.3)", "jaraco.tidelift (>=1.4)", "rst.linke
 enabler = ["pytest-enabler (>=2.2)"]
 test = ["pyfakefs", "pytest (>=6,!=8.1.*)"]
 type = ["pygobject-stubs", "pytest-mypy", "shtab", "types-pywin32"]
+
+[[package]]
+name = "limits"
+version = "5.6.0"
+description = "Rate limiting utilities"
+optional = false
+python-versions = ">=3.10"
+groups = ["main"]
+files = [
+    {file = "limits-5.6.0-py3-none-any.whl", hash = "sha256:b585c2104274528536a5b68864ec3835602b3c4a802cd6aa0b07419798394021"},
+    {file = "limits-5.6.0.tar.gz", hash = "sha256:807fac75755e73912e894fdd61e2838de574c5721876a19f7ab454ae1fffb4b5"},
+]
+
+[package.dependencies]
+deprecated = ">=1.2"
+packaging = ">=21"
+typing-extensions = "*"
+
+[package.extras]
+async-memcached = ["memcachio (>=0.3)"]
+async-mongodb = ["motor (>=3,<4)"]
+async-redis = ["coredis (>=3.4.0,<6)"]
+async-valkey = ["valkey (>=6)"]
+memcached = ["pymemcache (>3,<5.0.0)"]
+mongodb = ["pymongo (>4.1,<5)"]
+redis = ["redis (>3,!=4.5.2,!=4.5.3,<7.0.0)"]
+rediscluster = ["redis (>=4.2.0,!=4.5.2,!=4.5.3)"]
+valkey = ["valkey (>=6)"]
 
 [[package]]
 name = "mako"
@@ -3336,6 +3364,24 @@ files = [
 ]
 
 [[package]]
+name = "slowapi"
+version = "0.1.9"
+description = "A rate limiting extension for Starlette and Fastapi"
+optional = false
+python-versions = ">=3.7,<4.0"
+groups = ["main"]
+files = [
+    {file = "slowapi-0.1.9-py3-none-any.whl", hash = "sha256:cfad116cfb84ad9d763ee155c1e5c5cbf00b0d47399a769b227865f5df576e36"},
+    {file = "slowapi-0.1.9.tar.gz", hash = "sha256:639192d0f1ca01b1c6d95bf6c71d794c3a9ee189855337b4821f7f457dddad77"},
+]
+
+[package.dependencies]
+limits = ">=2.3"
+
+[package.extras]
+redis = ["redis (>=3.4.1,<4.0.0)"]
+
+[[package]]
 name = "sniffio"
 version = "1.3.1"
 description = "Sniff out which async library your code is running under"
@@ -4095,4 +4141,4 @@ cffi = ["cffi (>=1.17,<2.0) ; platform_python_implementation != \"PyPy\" and pyt
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.12"
-content-hash = "8d17288b61072ee5de7bf90b2217f8dcd3920e004925bfabccb9c6da85b107d7"
+content-hash = "a191f0b361c86b5333f191edfb7eab3a10198f8545107390eba124eb15f1d01c"
