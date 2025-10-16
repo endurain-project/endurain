@@ -702,7 +702,18 @@ class IdentityProviderService:
                 )
 
             # Generate state and nonce for security
-            state = secrets.token_urlsafe(32)
+            # State includes timestamp for expiry validation (10 minutes)
+            random_state = secrets.token_urlsafe(32)
+            state_data = {
+                "random": random_state,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "idp_id": idp.id
+            }
+            # Encode state as base64 JSON for URL safety
+            state = base64.urlsafe_b64encode(
+                json.dumps(state_data).encode()
+            ).decode()
+            
             nonce = secrets.token_urlsafe(32)
 
             # Store in session (using SessionMiddleware)
@@ -768,13 +779,57 @@ class IdentityProviderService:
                            or any other error occurs during the callback handling process.
         """
         try:
-            # Verify state
+            # Verify state with timestamp expiry validation
             stored_state = request.session.get(f"oauth_state_{idp.id}")
             if not stored_state or state != stored_state:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail="Invalid state parameter",
                 )
+            
+            # Decode and validate state timestamp (10-minute expiry)
+            try:
+                state_json = base64.urlsafe_b64decode(state.encode()).decode()
+                state_data = json.loads(state_json)
+                
+                # Validate timestamp exists
+                if "timestamp" not in state_data:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail="State parameter missing timestamp",
+                    )
+                
+                # Parse timestamp and check expiry
+                state_timestamp = datetime.fromisoformat(state_data["timestamp"])
+                now = datetime.now(timezone.utc)
+                age = now - state_timestamp
+                
+                # Reject states older than 10 minutes (CSRF protection)
+                if age > timedelta(minutes=10):
+                    core_logger.print_to_log(
+                        f"Expired state detected for IdP {idp.name}: age={age.total_seconds():.1f}s",
+                        "warning"
+                    )
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail="State parameter expired. Please try logging in again.",
+                    )
+                
+                core_logger.print_to_log(
+                    f"State validation successful for IdP {idp.name}: age={age.total_seconds():.1f}s",
+                    "debug"
+                )
+                
+            except (json.JSONDecodeError, ValueError, KeyError) as err:
+                core_logger.print_to_log(
+                    f"Failed to decode state parameter: {err}",
+                    "error",
+                    exc=err
+                )
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Invalid state parameter format",
+                ) from err
 
             # Decrypt credentials and resolve endpoints using helper methods
             client_id = idp.client_id
