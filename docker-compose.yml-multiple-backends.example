@@ -45,23 +45,28 @@ services:
   # Jaeger is not enabled by default. If you do not need it or want it, you can remove this container
   jaeger:
     container_name: jaeger
-    image: jaegertracing/all-in-one:latest
+    image: jaegertracing/jaeger:latest
+    command:
+      - --set
+      - receivers.otlp.protocols.grpc.endpoint=0.0.0.0:4317
+      - --set
+      - receivers.otlp.protocols.http.endpoint=0.0.0.0:4318
     environment:
-      - PUID=1000
-      - PGID=1000
       - TZ=Europe/Lisbon
-      - COLLECTOR_ZIPKIN_HOST_PORT=:9411
     ports:
-      - 6831:6831/udp
-      - 6832:6832/udp
-      - 5778:5778
-      - 16686:16686
-      - 4317:4317
-      - 4318:4318
-      - 14250:14250
-      - 14268:14268
-      - 14269:14269
-      - 9411:9411
+      # UI / Query
+      - "16686:16686"
+      # OTLP (gRPC / HTTP)
+      - "4317:4317"
+      - "4318:4318"
+      # Collector APIs
+      - "14250:14250"
+      - "14268:14268"
+      - "14269:14269"   # health/admin
+      # Zipkin-compatible intake
+      - "9411:9411"
+      # Optional (kept from the docs’ quickstart)
+      - "5778:5778"
     restart: unless-stopped
 
 # adminer for DB manipulation - optional
