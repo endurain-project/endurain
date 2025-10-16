@@ -10,6 +10,7 @@ import session.password_hasher as session_password_hasher
 import users.user.schema as users_schema
 import users.user.utils as users_utils
 import users.user.models as users_models
+import users.user_identity_providers.crud as user_idp_crud
 
 import health_data.utils as health_data_utils
 
@@ -82,6 +83,11 @@ def get_users_with_pagination(db: Session, page_number: int = 1, num_records: in
         # If the users were not found, return None
         if not users:
             return None
+
+        # Enrich users with IDP count
+        for user in users:
+            idp_links = user_idp_crud.get_user_idp_links(user.id, db)
+            user.external_auth_count = len(idp_links)
 
         # Return the users
         return users

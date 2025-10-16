@@ -28,11 +28,15 @@ class UserIdentityProviderResponse(UserIdentityProviderBase):
     """
     Response schema for user identity provider link.
     
-    Includes all base fields plus auto-generated metadata.
+    Includes all base fields plus auto-generated metadata and enriched IDP details.
     
     Security Note:
         The actual `idp_refresh_token` is intentionally NOT included in this schema.
         Only metadata about the token (expiry times) is exposed for security reasons.
+    
+    Enriched Fields:
+        idp_name, idp_slug, idp_icon, idp_provider_type are added by the API layer
+        for frontend display convenience (not stored in this table).
     """
     id: int = Field(..., description="Link ID")
     linked_at: datetime = Field(..., description="When this IdP was linked")
@@ -48,6 +52,11 @@ class UserIdentityProviderResponse(UserIdentityProviderBase):
         None,
         description="When the refresh token was last obtained or refreshed"
     )
+    # Enriched fields (added by API layer, not in database)
+    idp_name: str | None = Field(None, description="Identity provider name")
+    idp_slug: str | None = Field(None, description="Identity provider slug")
+    idp_icon: str | None = Field(None, description="Identity provider icon")
+    idp_provider_type: str | None = Field(None, description="Provider type (oidc, oauth2, etc.)")
 
     model_config = ConfigDict(from_attributes=True)
 

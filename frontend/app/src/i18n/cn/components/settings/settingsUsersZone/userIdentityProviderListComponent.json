@@ -1,0 +1,15 @@
+{
+  "unknownProviderIcon": "未知提供商图标",
+  "providerTypeBadgeLabel": "身份验证提供商类型",
+  "linkedAtLabel": "提供商链接的日期和时间",
+  "linkedAt": "已链接",
+  "lastLoginLabel": "使用此提供商最后一次登录的日期和时间",
+  "lastLogin": "最后使用",
+  "neverUsedLabel": "此提供商从未用于登录",
+  "neverUsed": "从未使用",
+  "deleteButtonAriaLabel": "删除 {provider} 身份提供商链接",
+  "modalDeleteTitle": "删除身份提供商",
+  "modalDeleteBody1": "确定要取消链接",
+  "modalDeleteBody2": " 吗？用户将无法再使用此提供商登录。",
+  "modalDeleteButton": "删除提供商链接"
+}

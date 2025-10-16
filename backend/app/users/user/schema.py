@@ -142,6 +142,7 @@ class User(UserBase):
 
 class UserRead(User):
     id: StrictInt
+    external_auth_count: int = 0
 
 
 class UserMe(UserRead):

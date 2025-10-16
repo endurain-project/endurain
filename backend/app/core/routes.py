@@ -36,6 +36,7 @@ import sign_up_tokens.router as sign_up_tokens_router
 import strava.router as strava_router
 import users.user.router as users_router
 import users.user_goals.router as user_goals_router
+import users.user_identity_providers.router as user_identity_providers_router
 import users.user.public_router as users_public_router
 import users.user_default_gear.router as user_default_gear_router
 import websocket.router as websocket_router
@@ -197,6 +198,12 @@ router.include_router(
         Depends(session_security.validate_access_token),
         Security(session_security.check_scopes, scopes=["profile"]),
     ],
+)
+router.include_router(
+    user_identity_providers_router.router,
+    prefix=core_config.ROOT_PATH,
+    tags=["user_identity_providers"],
+    dependencies=[Depends(session_security.validate_access_token)],
 )
 router.include_router(
     users_router.router,

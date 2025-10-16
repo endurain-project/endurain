@@ -30,9 +30,15 @@
           >{{ $t('usersListComponent.userListUserIsInactiveBadge') }}</span
         >
         <span
-          class="badge bg-danger-subtle border border-danger-subtle text-danger-emphasis d-none d-sm-inline"
+          class="badge bg-danger-subtle border border-danger-subtle text-danger-emphasis me-2 d-none d-sm-inline"
           v-if="user.email_verified == false"
           >{{ $t('usersListComponent.userListUserHasUnverifiedEmailBadge') }}</span
+        >
+        <span
+          class="badge bg-info-subtle border border-info-subtle text-info-emphasis d-none d-sm-inline"
+          v-if="user.external_auth_count && user.external_auth_count > 0"
+          :aria-label="$t('usersListComponent.userListUserHasExternalAuthBadge')"
+          >{{ $t('usersListComponent.userListUserHasExternalAuthBadge') }}</span
         >
 
         <!-- button toggle user details -->
@@ -142,50 +148,132 @@
     </div>
     <div class="collapse" :id="`collapseUserDetails${user.id}`">
       <br />
-      <h6>{{ $t('usersListComponent.userListUserSessionsTitle') }}</h6>
-      <div v-if="isLoading">
-        <LoadingComponent />
+      <!-- Bootstrap Tabs Navigation -->
+      <ul class="nav nav-tabs" role="tablist">
+        <li class="nav-item" role="presentation">
+          <button
+            class="nav-link active"
+            :id="`sessions-tab-${user.id}`"
+            data-bs-toggle="tab"
+            :data-bs-target="`#sessions-${user.id}`"
+            type="button"
+            role="tab"
+            :aria-controls="`sessions-${user.id}`"
+            aria-selected="true"
+          >
+            {{ $t('usersListComponent.tabSessions') }}
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button
+            class="nav-link"
+            :id="`idps-tab-${user.id}`"
+            data-bs-toggle="tab"
+            :data-bs-target="`#idps-${user.id}`"
+            type="button"
+            role="tab"
+            :aria-controls="`idps-${user.id}`"
+            aria-selected="false"
+            @click="loadUserIdpsIfNeeded"
+          >
+            {{ $t('usersListComponent.tabIdentityProviders') }}
+          </button>
+        </li>
+      </ul>
+
+      <!-- Tab Content -->
+      <div class="tab-content mt-3">
+        <!-- Sessions Tab -->
+        <div
+          class="tab-pane fade show active"
+          :id="`sessions-${user.id}`"
+          role="tabpanel"
+          :aria-labelledby="`sessions-tab-${user.id}`"
+        >
+          <div v-if="isLoadingSessions">
+            <LoadingComponent />
+          </div>
+          <div v-else-if="userSessions && userSessions.length > 0">
+            <UserSessionsListComponent
+              v-for="session in userSessions"
+              :key="session.id"
+              :session="session"
+              @sessionDeleted="updateSessionListDeleted"
+            />
+          </div>
+          <NoItemsFoundComponents :show-shadow="false" v-else />
+        </div>
+
+        <!-- Identity Providers Tab -->
+        <div
+          class="tab-pane fade"
+          :id="`idps-${user.id}`"
+          role="tabpanel"
+          :aria-labelledby="`idps-tab-${user.id}`"
+        >
+          <div v-if="isLoadingIdps">
+            <LoadingComponent />
+          </div>
+          <div v-else-if="userIdps && userIdps.length > 0">
+            <UserIdentityProviderListComponent
+              v-for="idp in userIdps"
+              :key="idp.id"
+              :idp="idp"
+              :userId="user.id"
+              @idpDeleted="updateIdpListDeleted"
+            />
+          </div>
+          <NoItemsFoundComponents :show-shadow="false" v-else />
+        </div>
       </div>
-      <div v-else-if="userSessions && userSessions.length > 0">
-        <UserSessionsListComponent
-          v-for="session in userSessions"
-          :key="session.id"
-          :session="session"
-          @sessionDeleted="updateSessionListDeleted"
-        />
-      </div>
-      <NoItemsFoundComponents :show-shadow="false" v-else />
     </div>
   </li>
 </template>
 
-<script setup>
-import { ref, onMounted } from 'vue'
+<script setup lang="ts">
+import { ref, onMounted, type Ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { users } from '@/services/usersService'
 import { useAuthStore } from '@/stores/authStore'
 import { push } from 'notivue'
 import { session } from '@/services/sessionService'
+import { userIdentityProviders } from '@/services/userIdentityProvidersService'
+import type { UserIdentityProviderEnriched } from '@/types'
 import UserAvatarComponent from '@/components/Users/UserAvatarComponent.vue'
 import UserSessionsListComponent from '@/components/Settings/SettingsUserSessionsZone/UserSessionsListComponent.vue'
+import UserIdentityProviderListComponent from '@/components/Settings/SettingsUsersZone/UserIdentityProviderListComponent.vue'
 import NoItemsFoundComponents from '@/components/GeneralComponents/NoItemsFoundComponents.vue'
 import LoadingComponent from '@/components/GeneralComponents/LoadingComponent.vue'
 import ModalComponent from '@/components/Modals/ModalComponent.vue'
 import UsersChangeUserPasswordModalComponent from '@/components/Settings/SettingsUsersZone/UsersChangeUserPasswordModalComponent.vue'
 import UsersAddEditUserModalComponent from '@/components/Settings/SettingsUsersZone/UsersAddEditUserModalComponent.vue'
 
-const props = defineProps({
+const props = defineProps<{
   user: {
-    type: Object,
-    required: true
+    id: number
+    username: string
+    access_type: number
+    active: boolean
+    email_verified: boolean
+    pending_admin_approval?: boolean
+    external_auth_count?: number
   }
-})
-const emit = defineEmits(['userDeleted', 'editedUser', 'approvedUser'])
+}>()
+
+const emit = defineEmits<{
+  userDeleted: [userId: number]
+  editedUser: [editedUser: any]
+  approvedUser: [userId: number]
+}>()
+
 const { t } = useI18n()
 const authStore = useAuthStore()
 const userDetails = ref(false)
-const userSessions = ref([])
-const isLoading = ref(true)
+const userSessions: Ref<any[]> = ref([])
+const userIdps: Ref<UserIdentityProviderEnriched[]> = ref([])
+const isLoadingSessions = ref(true)
+const isLoadingIdps = ref(false)
+const idpsLoaded = ref(false)
 
 async function submitDeleteUser() {
   try {
@@ -196,17 +284,51 @@ async function submitDeleteUser() {
   }
 }
 
-function editUserList(editedUser) {
+function editUserList(editedUser: any) {
   emit('editedUser', editedUser)
 }
 
-async function updateSessionListDeleted(sessionDeletedId) {
+async function updateSessionListDeleted(sessionDeletedId: string) {
   try {
     await session.deleteSession(sessionDeletedId, props.user.id)
     userSessions.value = userSessions.value.filter((session) => session.id !== sessionDeletedId)
     push.success(t('usersListComponent.userSessionDeleteSuccessMessage'))
   } catch (error) {
     push.error(`${t('usersListComponent.userSessionDeleteErrorMessage')} - ${error}`)
+  }
+}
+
+async function loadUserIdpsIfNeeded() {
+  if (idpsLoaded.value) {
+    return
+  }
+
+  isLoadingIdps.value = true
+  try {
+    userIdps.value = await userIdentityProviders.getUserIdentityProviders(props.user.id)
+    idpsLoaded.value = true
+  } catch (error) {
+    push.error(`${t('usersListComponent.userIdpsLoadErrorMessage')} - ${error}`)
+  } finally {
+    isLoadingIdps.value = false
+  }
+}
+
+async function updateIdpListDeleted(idpId: number) {
+  try {
+    await userIdentityProviders.deleteUserIdentityProvider(props.user.id, idpId)
+
+    // Remove from local list
+    userIdps.value = userIdps.value.filter((idp) => idp.idp_id !== idpId)
+
+    // Update the external_auth_count badge
+    if (props.user.external_auth_count && props.user.external_auth_count > 0) {
+      props.user.external_auth_count--
+    }
+
+    push.success(t('usersListComponent.userIdpDeleteSuccessMessage'))
+  } catch (error) {
+    push.error(`${t('usersListComponent.userIdpDeleteErrorMessage')} - ${error}`)
   }
 }
 
@@ -223,7 +345,7 @@ async function submitApproveSignUp() {
 
 onMounted(async () => {
   userSessions.value = await session.getUserSessions(props.user.id)
-  isLoading.value = false
+  isLoadingSessions.value = false
 
   // Attach Bootstrap collapse event listeners to sync icon state
   const collapseElement = document.getElementById(`collapseUserDetails${props.user.id}`)

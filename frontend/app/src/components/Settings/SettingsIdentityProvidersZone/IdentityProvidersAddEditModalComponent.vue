@@ -209,9 +209,9 @@
             <h6>{{ $t('identityProvidersAddEditModal.appearanceSection') }}</h6>
 
             <!-- icon field -->
-            <label :for="`icon_${action === 'add' ? 'add' : `edit_${provider?.id}`}`"><b>{{
-              $t('identityProvidersAddEditModal.iconLabel')
-            }}</b></label>
+            <label :for="`icon_${action === 'add' ? 'add' : `edit_${provider?.id}`}`"
+              ><b>{{ $t('identityProvidersAddEditModal.iconLabel') }}</b></label
+            >
             <input
               type="text"
               class="form-control"

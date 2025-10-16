@@ -71,6 +71,8 @@ const componentPaths = {
   usersListComponent: 'components/settings/settingsUsersZone/usersListComponent.json',
   usersPasswordRequirementsComponent:
     'components/settings/settingsUsersZone/usersPasswordRequirementsComponent.json',
+  userIdentityProviderListComponent:
+    'components/settings/settingsUsersZone/userIdentityProviderListComponent.json',
   userSessionsListComponent:
     'components/settings/settingsUserSessionsZone/userSessionsListComponent.json',
   settingsServerSettingsZoneComponent:

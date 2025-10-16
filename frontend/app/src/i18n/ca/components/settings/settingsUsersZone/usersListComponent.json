@@ -5,6 +5,7 @@
   "userListUserIsAdminBadge": "Admin",
   "userListUserIsInactiveBadge": "Inactiu",
   "userListUserHasUnverifiedEmailBadge": "Correu no verificat",
+  "userListUserHasExternalAuthBadge": "Auth Externa",
   "modalApproveSignUpTitle": "Aprova el registre d'usuari",
   "modalApproveSignUpBody": "Esteu segur que voleu aprovar l'usuari ",
   "processingApproval": "Processant aprovació...",
@@ -18,5 +19,10 @@
   "modalDeleteUserBody": "Segur que vols esborrar l'usuari ",
   "userListUserSessionsTitle": "Sessions d'usuari",
   "userSessionDeleteSuccessMessage": "Sessió eliminada correctament",
-  "userSessionDeleteErrorMessage": "Error esborrant sessió"
+  "userSessionDeleteErrorMessage": "Error esborrant sessió",
+  "tabSessions": "Sessions",
+  "tabIdentityProviders": "Proveïdors d'identitat",
+  "userIdpsLoadErrorMessage": "Error carregant proveïdors d'identitat",
+  "userIdpDeleteSuccessMessage": "Proveïdor d'identitat desenllaçat correctament",
+  "userIdpDeleteErrorMessage": "Error desenllaçant proveïdor d'identitat"
 }

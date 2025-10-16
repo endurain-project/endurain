@@ -109,6 +109,43 @@ export interface SSOProvider {
 }
 
 /**
+ * User Identity Provider Link
+ * Represents a user's connection to an external identity provider (SSO)
+ * Used for displaying and managing user authentication methods in admin panel
+ *
+ * Security Note:
+ *   - Refresh tokens are NOT included in this interface (handled securely on backend)
+ *   - Only metadata and non-sensitive information is exposed
+ */
+export interface UserIdentityProvider {
+  id: number
+  user_id: number
+  idp_id: number
+  idp_subject: string
+  linked_at: string // ISO 8601 datetime string
+  last_login: string | null
+  idp_access_token_expires_at: string | null
+  idp_refresh_token_updated_at: string | null
+}
+
+/**
+ * User Identity Provider Enriched
+ * Extended version of UserIdentityProvider that includes IDP details for display
+ * The backend enriches responses with IDP information joined from identity_providers table
+ * This is the primary interface used in the admin UI for displaying user SSO connections
+ *
+ * Usage:
+ *   - UserIdentityProviderListComponent (display individual IDP link)
+ *   - UsersListComponent (display user's IDPs in tab)
+ */
+export interface UserIdentityProviderEnriched extends UserIdentityProvider {
+  idp_name: string
+  idp_slug: string
+  idp_icon?: string
+  idp_provider_type: string
+}
+
+/**
  * Window Environment Extension
  * Extends the global Window interface to include custom env property
  */

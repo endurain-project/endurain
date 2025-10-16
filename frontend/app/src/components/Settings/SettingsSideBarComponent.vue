@@ -71,9 +71,7 @@
           @click.prevent="changeActive('myGoals')"
         >
           <font-awesome-icon :icon="['fas', 'fa-check-double']" />
-          <span class="ms-1"
-            >{{ $t('settingsSideBar.myGoals') }}</span
-          >
+          <span class="ms-1">{{ $t('settingsSideBar.myGoals') }}</span>
         </a>
       </li>
       <li class="nav-item">
