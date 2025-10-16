@@ -9,6 +9,15 @@ import httpx
 from sqlalchemy.orm import Session
 from fastapi import HTTPException, status, Request
 from authlib.integrations.httpx_client import AsyncOAuth2Client
+from joserfc import jwt
+from joserfc.jwk import RSAKey, ECKey, OctKey
+from joserfc.errors import (
+    BadSignatureError,
+    ExpiredTokenError,
+    InvalidClaimError,
+    MissingClaimError,
+    InvalidPayloadError,
+)
 
 import core.config as core_config
 import core.cryptography as core_cryptography
@@ -56,6 +65,7 @@ class IdentityProviderService:
         """
         self._discovery_cache: Dict[int, Dict[str, Any]] = {}
         self._cache_expiry: Dict[int, datetime] = {}
+        self._jwks_cache: Dict[str, Dict[str, Any]] = {}  # Cache JWKS by issuer URL
         self._cache_ttl = timedelta(hours=1)
         self._http_client: httpx.AsyncClient | None = None
 
@@ -80,6 +90,379 @@ class IdentityProviderService:
                 },
             )
         return self._http_client
+
+    async def _fetch_jwks(self, jwks_uri: str) -> Dict[str, Any]:
+        """
+        Fetches the JSON Web Key Set (JWKS) from the identity provider.
+
+        This method retrieves the public keys used to verify JWT signatures from the IdP's
+        JWKS endpoint. Results are cached for 1 hour to minimize network requests and
+        improve performance.
+
+        The JWKS contains one or more public keys in JWK format. Each key has a 'kid'
+        (key ID) that matches the 'kid' in JWT headers, allowing us to find the correct
+        key for signature verification.
+
+        Args:
+            jwks_uri: The JWKS endpoint URL from OIDC discovery (e.g., https://idp.example.com/jwks)
+
+        Returns:
+            A dictionary containing the JWKS response with 'keys' array
+
+        Raises:
+            HTTPException: If the JWKS cannot be fetched (network errors, timeouts, invalid JSON)
+
+        Example JWKS response:
+        {
+            "keys": [
+                {
+                    "kid": "key-id-1",
+                    "kty": "RSA",
+                    "use": "sig",
+                    "n": "...",  # RSA modulus
+                    "e": "..."   # RSA exponent
+                }
+            ]
+        }
+        """
+        # Check cache first
+        now = datetime.now(timezone.utc)
+        if jwks_uri in self._jwks_cache:
+            cached_data = self._jwks_cache[jwks_uri]
+            cached_at = cached_data.get("cached_at")
+            if cached_at and (now - cached_at) < self._cache_ttl:
+                core_logger.print_to_log(
+                    f"Using cached JWKS for {jwks_uri}", "debug"
+                )
+                return cached_data["jwks"]
+
+        # Fetch JWKS from IdP
+        try:
+            client = await self._get_http_client()
+            core_logger.print_to_log(
+                f"Fetching JWKS from {jwks_uri}", "debug"
+            )
+            
+            response = await client.get(jwks_uri)
+            response.raise_for_status()
+            
+            jwks = response.json()
+            
+            # Validate JWKS structure
+            if not isinstance(jwks, dict) or "keys" not in jwks:
+                core_logger.print_to_log(
+                    f"Invalid JWKS format from {jwks_uri}: missing 'keys' array",
+                    "error"
+                )
+                raise HTTPException(
+                    status_code=status.HTTP_502_BAD_GATEWAY,
+                    detail="Identity provider returned invalid JWKS format"
+                )
+            
+            # Cache the JWKS with timestamp
+            self._jwks_cache[jwks_uri] = {
+                "jwks": jwks,
+                "cached_at": now
+            }
+            
+            core_logger.print_to_log(
+                f"Successfully fetched and cached JWKS from {jwks_uri} "
+                f"({len(jwks.get('keys', []))} keys)",
+                "debug"
+            )
+            
+            return jwks
+            
+        except httpx.TimeoutException as err:
+            core_logger.print_to_log(
+                f"Timeout fetching JWKS from {jwks_uri}: {err}",
+                "error",
+                exc=err
+            )
+            raise HTTPException(
+                status_code=status.HTTP_504_GATEWAY_TIMEOUT,
+                detail="Timeout retrieving signing keys from identity provider"
+            )
+        except httpx.HTTPStatusError as err:
+            core_logger.print_to_log(
+                f"HTTP error fetching JWKS from {jwks_uri}: {err.response.status_code}",
+                "error",
+                exc=err
+            )
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail=f"Identity provider JWKS endpoint returned error: {err.response.status_code}"
+            )
+        except json.JSONDecodeError as err:
+            core_logger.print_to_log(
+                f"Invalid JSON in JWKS response from {jwks_uri}: {err}",
+                "error",
+                exc=err
+            )
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail="Identity provider returned invalid JWKS JSON"
+            )
+        except Exception as err:
+            core_logger.print_to_log(
+                f"Unexpected error fetching JWKS from {jwks_uri}: {err}",
+                "error",
+                exc=err
+            )
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to retrieve signing keys from identity provider"
+            )
+
+    async def _verify_id_token(
+        self,
+        id_token: str,
+        jwks_uri: str,
+        expected_issuer: str,
+        expected_audience: str,
+        expected_nonce: str | None = None
+    ) -> Dict[str, Any]:
+        """
+        Verifies the ID token's signature and claims using JWKS from the identity provider.
+
+        This method performs comprehensive JWT verification following OIDC Core 1.0 spec:
+        1. Fetches the JWKS (public keys) from the IdP
+        2. Extracts the 'kid' (key ID) from the JWT header
+        3. Finds the matching public key in the JWKS
+        4. Imports the key based on its type (RSA, EC, or Oct)
+        5. Verifies the JWT signature using joserfc
+        6. Validates standard claims (iss, aud, exp, iat)
+        7. Validates nonce if provided (required for implicit/hybrid flows)
+
+        This replaces the insecure manual JWT decode that was previously used.
+
+        Args:
+            id_token: The ID token JWT string from the token response
+            jwks_uri: The JWKS endpoint URL to fetch public keys
+            expected_issuer: Expected 'iss' claim value (from OIDC discovery)
+            expected_audience: Expected 'aud' claim value (client_id)
+            expected_nonce: Expected nonce value from session (optional, but recommended)
+
+        Returns:
+            Dictionary containing the verified JWT claims (sub, email, name, etc.)
+
+        Raises:
+            HTTPException: If verification fails (invalid signature, expired token, claim mismatch)
+
+        Security Notes:
+            - BadSignatureError: Token was tampered with or signed by wrong key
+            - ExpiredTokenError: Token is past its 'exp' claim
+            - InvalidClaimError: iss/aud/nonce doesn't match expected values
+            - MissingClaimError: Required claim is missing
+        """
+        try:
+            # Step 1: Parse JWT header without verification to get 'kid'
+            # The ID token has format: header.payload.signature
+            parts = id_token.split(".")
+            if len(parts) != 3:
+                core_logger.print_to_log(
+                    f"Invalid JWT format: expected 3 parts, got {len(parts)}",
+                    "warning"
+                )
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Invalid ID token format"
+                )
+
+            # Decode header (first part) to get 'kid' and 'alg'
+            header_b64 = parts[0]
+            # Add padding if necessary
+            padding = 4 - len(header_b64) % 4
+            if padding != 4:
+                header_b64 += "=" * padding
+            
+            header_bytes = base64.urlsafe_b64decode(header_b64)
+            header = json.loads(header_bytes)
+            
+            kid = header.get("kid")
+            alg = header.get("alg")
+            
+            if not kid:
+                core_logger.print_to_log(
+                    "ID token header missing 'kid' claim",
+                    "warning"
+                )
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="ID token missing key identifier"
+                )
+            
+            if not alg:
+                core_logger.print_to_log(
+                    "ID token header missing 'alg' claim",
+                    "warning"
+                )
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="ID token missing algorithm"
+                )
+
+            core_logger.print_to_log(
+                f"ID token header: kid={kid}, alg={alg}",
+                "debug"
+            )
+
+            # Step 2: Fetch JWKS from IdP
+            jwks = await self._fetch_jwks(jwks_uri)
+
+            # Step 3: Find the matching key in JWKS
+            matching_key = None
+            for key_data in jwks.get("keys", []):
+                if key_data.get("kid") == kid:
+                    matching_key = key_data
+                    break
+
+            if not matching_key:
+                core_logger.print_to_log(
+                    f"No matching key found in JWKS for kid={kid}",
+                    "warning"
+                )
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="ID token signed with unknown key"
+                )
+
+            core_logger.print_to_log(
+                f"Found matching key in JWKS: kid={kid}, kty={matching_key.get('kty')}",
+                "debug"
+            )
+
+            # Step 4: Import the key based on type
+            key_type = matching_key.get("kty")
+            
+            if key_type == "RSA":
+                key = RSAKey.import_key(matching_key)
+            elif key_type == "EC":
+                key = ECKey.import_key(matching_key)
+            elif key_type == "oct":
+                key = OctKey.import_key(matching_key)
+            else:
+                core_logger.print_to_log(
+                    f"Unsupported key type in JWKS: {key_type}",
+                    "warning"
+                )
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail=f"Unsupported key type: {key_type}"
+                )
+
+            # Step 5: Verify signature and decode claims
+            # joserfc will verify the signature using the public key
+            decoded = jwt.decode(id_token, key)
+            claims = decoded.claims
+
+            # Step 5a: Validate claims (iss, aud, exp, iat)
+            # This is done separately after decoding in joserfc
+            claims_request = jwt.JWTClaimsRegistry(
+                iss={"essential": True, "value": expected_issuer},
+                aud={"essential": True, "value": expected_audience},
+                exp={"essential": True},
+                iat={"essential": True}
+            )
+            
+            # Validate all claims
+            claims_request.validate(claims)
+
+            core_logger.print_to_log(
+                f"Successfully verified ID token signature for sub={claims.get('sub')}",
+                "debug"
+            )
+
+            # Step 6: Validate nonce if provided
+            # The nonce is used to prevent replay attacks in OAuth2/OIDC flows
+            if expected_nonce:
+                token_nonce = claims.get("nonce")
+                if not token_nonce:
+                    core_logger.print_to_log(
+                        "ID token missing nonce claim but nonce was expected",
+                        "warning"
+                    )
+                    raise HTTPException(
+                        status_code=status.HTTP_401_UNAUTHORIZED,
+                        detail="ID token missing nonce"
+                    )
+                
+                if token_nonce != expected_nonce:
+                    core_logger.print_to_log(
+                        f"ID token nonce mismatch: expected {expected_nonce}, got {token_nonce}",
+                        "warning"
+                    )
+                    raise HTTPException(
+                        status_code=status.HTTP_401_UNAUTHORIZED,
+                        detail="ID token nonce mismatch"
+                    )
+
+            # Return verified claims
+            return claims
+
+        except BadSignatureError as err:
+            core_logger.print_to_log(
+                f"ID token signature verification failed: {err}",
+                "warning",
+                exc=err
+            )
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="ID token signature is invalid"
+            )
+        except ExpiredTokenError as err:
+            core_logger.print_to_log(
+                f"ID token has expired: {err}",
+                "warning",
+                exc=err
+            )
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="ID token has expired"
+            )
+        except InvalidClaimError as err:
+            core_logger.print_to_log(
+                f"ID token claim validation failed: {err}",
+                "warning",
+                exc=err
+            )
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail=f"ID token claim validation failed: {err}"
+            )
+        except MissingClaimError as err:
+            core_logger.print_to_log(
+                f"ID token missing required claim: {err}",
+                "warning",
+                exc=err
+            )
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail=f"ID token missing required claim: {err}"
+            )
+        except InvalidPayloadError as err:
+            core_logger.print_to_log(
+                f"ID token payload is invalid: {err}",
+                "warning",
+                exc=err
+            )
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="ID token payload is invalid"
+            )
+        except HTTPException:
+            # Re-raise HTTPExceptions from _fetch_jwks or our own validations
+            raise
+        except Exception as err:
+            core_logger.print_to_log(
+                f"Unexpected error verifying ID token: {err}",
+                "error",
+                exc=err
+            )
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to verify ID token"
+            )
 
     async def get_oidc_configuration(
         self, idp: idp_models.IdentityProvider
@@ -398,19 +781,39 @@ class IdentityProviderService:
             client_secret = self._decrypt_client_secret(idp)
             token_endpoint = await self._resolve_token_endpoint(idp)
 
-            # Get userinfo endpoint (with OIDC discovery fallback)
+            # Get OIDC configuration (for userinfo, jwks_uri, issuer)
             userinfo_endpoint = idp.userinfo_endpoint
-            if not userinfo_endpoint and idp.issuer_url:
+            jwks_uri = None
+            expected_issuer = None
+            
+            if idp.issuer_url:
                 try:
                     config = await self.get_oidc_configuration(idp)
                     if config:
-                        userinfo_endpoint = config.get("userinfo_endpoint")
+                        # Get userinfo endpoint if not manually configured
+                        if not userinfo_endpoint:
+                            userinfo_endpoint = config.get("userinfo_endpoint")
+                        
+                        # Get JWKS URI for ID token verification (Sprint 3, Phase 1)
+                        jwks_uri = config.get("jwks_uri")
+                        expected_issuer = config.get("issuer")
+                        
+                        core_logger.print_to_log(
+                            f"OIDC discovery complete for {idp.name}: "
+                            f"userinfo={bool(userinfo_endpoint)}, "
+                            f"jwks_uri={bool(jwks_uri)}, "
+                            f"issuer={bool(expected_issuer)}",
+                            "debug"
+                        )
                 except Exception as err:
                     core_logger.print_to_log(
-                        f"OIDC discovery failed for userinfo endpoint, IdP {idp.name}: {err}",
+                        f"OIDC discovery failed for IdP {idp.name}: {err}",
                         "warning",
                         exc=err,
                     )
+            
+            # Retrieve nonce from session for ID token verification
+            expected_nonce = request.session.get(f"oauth_nonce_{idp.id}")
 
             # Exchange code for tokens
             redirect_uri = self._get_redirect_uri(idp.slug)
@@ -474,9 +877,15 @@ class IdentityProviderService:
                     detail="Failed to complete authentication. Please try again.",
                 ) from err
 
-            # Get user information
+            # Get user information with ID token verification (Sprint 3, Phase 1)
             userinfo = await self._get_userinfo(
-                token_response, userinfo_endpoint, client
+                token_response=token_response,
+                userinfo_endpoint=userinfo_endpoint,
+                client=client,
+                jwks_uri=jwks_uri,
+                expected_issuer=expected_issuer,
+                expected_audience=client_id,
+                expected_nonce=expected_nonce
             )
 
             # Extract subject (unique user identifier)
@@ -530,26 +939,42 @@ class IdentityProviderService:
         token_response: Dict[str, Any],
         userinfo_endpoint: str | None,
         client: AsyncOAuth2Client,
+        jwks_uri: str | None,
+        expected_issuer: str | None,
+        expected_audience: str,
+        expected_nonce: str | None = None,
     ) -> Dict[str, Any]:
         """
         Retrieve user information from an identity provider using the provided token response.
 
         This method first attempts to fetch user information from the given `userinfo_endpoint` using the provided OAuth2 client.
         If the endpoint is unavailable or the request fails, it falls back to extracting claims from the `id_token` in the token response,
-        decoding it without signature verification.
+        verifying the ID token signature using JWKS before returning the claims.
+
+        Security Enhancement (Sprint 3, Phase 1):
+        - ID tokens are now cryptographically verified using joserfc and JWKS
+        - Signature verification prevents token forgery and tampering
+        - Claims validation ensures token integrity (iss, aud, exp, nonce)
+        - This replaces the insecure manual base64 decode previously used
 
         Args:
             token_response (Dict[str, Any]): The OAuth2 token response containing access and/or ID tokens.
             userinfo_endpoint (str | None): The endpoint URL to fetch user information, if available.
             client (AsyncOAuth2Client): The asynchronous OAuth2 client used to make HTTP requests.
+            jwks_uri (str | None): The JWKS endpoint URL for verifying ID token signatures.
+            expected_issuer (str | None): Expected 'iss' claim value from OIDC discovery.
+            expected_audience (str): Expected 'aud' claim value (typically the client_id).
+            expected_nonce (str | None): Expected nonce value from session (optional, but recommended).
 
         Returns:
             Dict[str, Any]: The user information claims retrieved from the identity provider.
 
         Raises:
-            HTTPException: If user information cannot be retrieved from either the userinfo endpoint or the ID token.
+            HTTPException: If user information cannot be retrieved from either the userinfo endpoint or the ID token,
+                          or if ID token verification fails.
         """
-        # Try to get from userinfo endpoint
+        # Try to get from userinfo endpoint first
+        userinfo_claims = None
         if userinfo_endpoint:
             try:
                 # Use the access token to fetch userinfo
@@ -560,7 +985,10 @@ class IdentityProviderService:
                         headers={"Authorization": f"Bearer {access_token}"},
                     )
                     response.raise_for_status()
-                    return response.json()
+                    userinfo_claims = response.json()
+                    core_logger.print_to_log(
+                        "Successfully retrieved userinfo from endpoint", "debug"
+                    )
                 else:
                     core_logger.print_to_log(
                         "No access token available for userinfo request", "warning"
@@ -586,46 +1014,70 @@ class IdentityProviderService:
                     exc=err,
                 )
 
-        # Fall back to ID token claims
+        # Verify ID token if present (always do this for security, even if userinfo endpoint succeeded)
         id_token = token_response.get("id_token")
-        if id_token:
+        if id_token and jwks_uri and expected_issuer:
             try:
-                # Decode JWT without verification by manually extracting the payload
-                # In production, this should be verified with JWKS
-                parts = id_token.split(".")
-                if len(parts) != 3:
-                    raise ValueError(f"Invalid JWT format: expected 3 parts, got {len(parts)}")
-
-                # Decode the payload (second part) - base64url decode
-                payload = parts[1]
-                # Add padding if necessary
-                padding = 4 - len(payload) % 4
-                if padding != 4:
-                    payload += "=" * padding
-
-                decoded_bytes = base64.urlsafe_b64decode(payload)
-                claims = json.loads(decoded_bytes)
-
-                core_logger.print_to_log(
-                    "Successfully decoded ID token claims as fallback", "debug"
+                # SECURITY: Verify ID token signature using JWKS (Sprint 3, Phase 1)
+                # This replaces the insecure manual base64 decode
+                id_token_claims = await self._verify_id_token(
+                    id_token=id_token,
+                    jwks_uri=jwks_uri,
+                    expected_issuer=expected_issuer,
+                    expected_audience=expected_audience,
+                    expected_nonce=expected_nonce
                 )
-                return claims
-            except ValueError as err:
+                
                 core_logger.print_to_log(
-                    f"ID token format error: {err}", "warning", exc=err
+                    f"Successfully verified ID token for sub={id_token_claims.get('sub')}", 
+                    "debug"
                 )
-            except json.JSONDecodeError as err:
-                core_logger.print_to_log(
-                    f"Failed to parse ID token JSON payload: {err}", "warning", exc=err
-                )
+                
+                # If we got userinfo from endpoint, merge with ID token claims
+                # ID token claims take precedence for standard claims (sub, iss, aud)
+                if userinfo_claims:
+                    # Merge: userinfo endpoint data + ID token verified claims
+                    # ID token claims override for security-critical fields
+                    merged_claims = {**userinfo_claims, **id_token_claims}
+                    core_logger.print_to_log(
+                        "Merged userinfo endpoint data with verified ID token claims",
+                        "debug"
+                    )
+                    return merged_claims
+                else:
+                    # Only ID token available, return verified claims
+                    return id_token_claims
+                    
+            except HTTPException:
+                # Re-raise verification errors (signature failed, expired, etc.)
+                # These are security-critical and should not be ignored
+                raise
             except Exception as err:
                 core_logger.print_to_log(
-                    f"Unexpected error decoding ID token: {err}", "warning", exc=err
+                    f"Unexpected error verifying ID token: {err}",
+                    "error",
+                    exc=err
                 )
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="Failed to verify ID token"
+                )
+        
+        # If we got userinfo from endpoint but no ID token, return userinfo
+        if userinfo_claims:
+            return userinfo_claims
+        
+        # If ID token exists but we're missing JWKS/issuer info, log warning
+        if id_token and (not jwks_uri or not expected_issuer):
+            core_logger.print_to_log(
+                "ID token present but cannot verify: missing JWKS URI or issuer. "
+                "Configure issuer_url for OIDC discovery.",
+                "warning"
+            )
 
-        # If we get here, both userinfo endpoint and ID token extraction failed
+        # If we get here, we couldn't retrieve or verify any user information
         core_logger.print_to_log(
-            "Failed to retrieve user information from both userinfo endpoint and ID token",
+            "Failed to retrieve user information from userinfo endpoint or ID token",
             "error",
         )
         raise HTTPException(
