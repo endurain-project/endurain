@@ -5,15 +5,21 @@ from io import BytesIO
 import tempfile
 import zipfile
 
-from typing import Annotated
+from typing import Annotated, List
 
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile
-from fastapi.responses import StreamingResponse
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, Request
+from fastapi.responses import StreamingResponse, RedirectResponse
 from sqlalchemy.orm import Session
 
 import users.user.schema as users_schema
 import users.user.crud as users_crud
 import users.user.utils as users_utils
+
+import users.user_identity_providers.crud as user_idp_crud
+import users.user_identity_providers.schema as user_idp_schema
+
+import identity_providers.crud as idp_crud
+import identity_providers.service as idp_service
 
 import users.user_integrations.crud as user_integrations_crud
 import users.user_integrations.schema as users_integrations_schema
@@ -32,6 +38,7 @@ import profile.schema as profile_schema
 
 import session.security as session_security
 import session.crud as session_crud
+import session.password_hasher as session_password_hasher
 
 import core.database as core_database
 import core.config as core_config
@@ -275,6 +282,10 @@ async def edit_profile_password(
         int,
         Depends(session_security.get_sub_from_access_token),
     ],
+    password_hasher: Annotated[
+        session_password_hasher.PasswordHasher,
+        Depends(session_password_hasher.get_password_hasher),
+    ],
     db: Annotated[
         Session,
         Depends(core_database.get_db),
@@ -286,13 +297,16 @@ async def edit_profile_password(
     Args:
         user_attributtes (users_schema.UserEditPassword): Schema containing the new password.
         token_user_id (int): ID of the user extracted from the access token.
+        password_hasher (session_password_hasher.PasswordHasher): Password hasher dependency.
         db (Session): Database session dependency.
 
     Returns:
         dict: A message indicating the password was updated successfully.
     """
     # Update the user password in the database
-    users_crud.edit_user_password(token_user_id, user_attributtes.password, db)
+    users_crud.edit_user_password(
+        token_user_id, user_attributtes.password, password_hasher, db
+    )
 
     # Return success message
     return {f"User ID {token_user_id} password updated successfully"}
@@ -1426,3 +1440,258 @@ async def verify_mfa(
             status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid MFA code"
         )
     return {"message": "MFA code verified successfully"}
+
+
+# Identity Provider Management Endpoints
+@router.get(
+    "/idp",
+    response_model=List[user_idp_schema.UserIdentityProviderResponse],
+    status_code=status.HTTP_200_OK,
+)
+async def get_my_identity_providers(
+    token_user_id: Annotated[
+        int,
+        Depends(session_security.get_sub_from_access_token),
+    ],
+    db: Annotated[
+        Session,
+        Depends(core_database.get_db),
+    ],
+):
+    """
+    Retrieve all identity provider links for the authenticated user.
+    This endpoint fetches all external identity provider (IdP) connections associated
+    with the current user's account. Each link includes connection metadata and enriched
+    details about the identity provider (name, slug, icon, and provider type).
+    Args:
+        token_user_id (int): The authenticated user's ID extracted from the JWT access token.
+            Injected automatically via dependency injection.
+        db (Session): Database session for executing queries.
+            Injected automatically via dependency injection.
+    Returns:
+        list[dict]: A list of dictionaries representing the user's IdP links. Each dictionary contains:
+            - id (int): Unique identifier for the user-IdP link
+            - user_id (int): ID of the user
+            - idp_id (int): ID of the identity provider
+            - idp_subject (str): User's unique identifier at the IdP
+            - linked_at (datetime): Timestamp when the link was created
+            - last_login (datetime): Timestamp of the last login via this IdP
+            - idp_access_token_expires_at (datetime): Expiration time of the IdP access token
+            - idp_refresh_token_updated_at (datetime): Last update time of the refresh token
+            - idp_name (str): Display name of the identity provider (if available)
+            - idp_slug (str): URL-safe identifier for the IdP (if available)
+            - idp_icon (str): Icon/logo URL for the IdP (if available)
+            - idp_provider_type (str): Type of provider (e.g., "oauth2", "oidc") (if available)
+    Raises:
+        HTTPException: May raise authentication/authorization errors via the dependency injection.
+    """
+    # Get user's IdP links
+    idp_links = user_idp_crud.get_user_idp_links(token_user_id, db)
+
+    # Enrich with IDP details (reuse logic from admin endpoint)
+    enriched_links = []
+    for link in idp_links:
+        # Convert SQLAlchemy model to dict
+        link_dict = {
+            "id": link.id,
+            "user_id": link.user_id,
+            "idp_id": link.idp_id,
+            "idp_subject": link.idp_subject,
+            "linked_at": link.linked_at,
+            "last_login": link.last_login,
+            "idp_access_token_expires_at": link.idp_access_token_expires_at,
+            "idp_refresh_token_updated_at": link.idp_refresh_token_updated_at,
+        }
+
+        # Fetch IDP details for display
+        idp = idp_crud.get_identity_provider(link.idp_id, db)
+        if idp:
+            link_dict["idp_name"] = idp.name
+            link_dict["idp_slug"] = idp.slug
+            link_dict["idp_icon"] = idp.icon
+            link_dict["idp_provider_type"] = idp.provider_type
+
+        enriched_links.append(link_dict)
+    return enriched_links
+
+
+@router.delete(
+    "/idp/{idp_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+async def delete_my_identity_provider(
+    idp_id: int,
+    token_user_id: Annotated[
+        int,
+        Depends(session_security.get_sub_from_access_token),
+    ],
+    db: Annotated[
+        Session,
+        Depends(core_database.get_db),
+    ],
+):
+    """
+    Delete (unlink) an identity provider from the authenticated user's account.
+
+    This endpoint allows users to remove the association between their account and
+    a specific identity provider. It includes critical safety checks to prevent
+    account lockout by ensuring users maintain at least one authentication method
+    (either a password or another IdP link).
+
+    Args:
+        idp_id (int): The ID of the identity provider to unlink.
+        token_user_id (int): The authenticated user's ID extracted from the access token.
+        db (Session): Database session dependency.
+
+    Returns:
+        None: Returns 204 No Content on successful deletion.
+
+    Raises:
+        HTTPException (404): If the identity provider doesn't exist or is not linked
+            to the user's account.
+        HTTPException (400): If attempting to unlink the last authentication method
+            without having a password set (prevents account lockout).
+        HTTPException (500): If the deletion operation fails at the database level.
+
+    Notes:
+        - Prevents account lockout by ensuring users have at least one authentication
+          method (password or remaining IdP link).
+        - Logs the unlinking action for audit purposes.
+        - Uses token-based authentication to ensure users can only unlink their own IdPs.
+    """
+    # Validate IDP exists
+    idp = idp_crud.get_identity_provider(idp_id, db)
+    if idp is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Identity provider with id {idp_id} not found",
+        )
+
+    # Check if link exists for this user
+    link = user_idp_crud.get_user_idp_link(token_user_id, idp_id, db)
+    if not link:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Identity provider {idp.name} is not linked to your account",
+        )
+
+    # CRITICAL: Prevent account lockout
+    # Get user details to check if they have a password
+    user = users_crud.get_user_by_id(token_user_id, db)
+
+    # Count remaining IdP links after deletion
+    all_idp_links = user_idp_crud.get_user_idp_links(token_user_id, db)
+    remaining_idp_count = len(all_idp_links) - 1
+
+    # User must have either:
+    # - A password set, OR
+    # - At least one remaining IdP link
+    has_password = user.password is not None and user.password != ""
+
+    if not has_password and remaining_idp_count == 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot unlink last authentication method. Please set a password first.",
+        )
+
+    # Proceed with deletion
+    success = user_idp_crud.delete_user_idp_link(token_user_id, idp_id, db)
+
+    if not success:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to unlink identity provider",
+        )
+
+    # Audit logging
+    core_logger.print_to_log(
+        f"User {token_user_id} unlinked IdP: idp_id={idp_id} ({idp.name})"
+    )
+
+    # Return 204 No Content (successful deletion)
+    return None
+
+
+@router.get(
+    "/idp/{idp_id}/link",
+    status_code=status.HTTP_307_TEMPORARY_REDIRECT,
+)
+async def link_identity_provider(
+    idp_id: int,
+    request: Request,
+    token_user_id: Annotated[
+        int,
+        Depends(session_security.get_sub_from_access_token),
+    ],
+    db: Annotated[
+        Session,
+        Depends(core_database.get_db),
+    ],
+):
+    """
+    Initiate linking an identity provider to the authenticated user's account.
+    This endpoint starts the OAuth flow to link an external identity provider (IdP)
+    to the currently authenticated user. The user will be redirected to the IdP's
+    authorization page to complete the linking process.
+    Args:
+        idp_id (int): The ID of the identity provider to link.
+        request (Request): The FastAPI request object containing request context.
+        token_user_id (int): The authenticated user's ID extracted from the access token.
+        db (Session): The database session for performing CRUD operations.
+    Returns:
+        RedirectResponse: A redirect to the identity provider's authorization URL
+            with HTTP 307 status code.
+    Raises:
+        HTTPException:
+            - 404 NOT_FOUND: If the identity provider doesn't exist or is disabled.
+            - 409 CONFLICT: If the identity provider is already linked to the user's account.
+            - 500 INTERNAL_SERVER_ERROR: If an unexpected error occurs during the linking process.
+    Notes:
+        - The function validates that the IdP exists and is enabled before proceeding.
+        - Checks for existing links to prevent duplicate associations.
+        - Logs the linking initiation for audit purposes.
+        - Any errors during the OAuth flow initiation are logged and re-raised as HTTP exceptions.
+    """
+    # Validate IDP exists and is enabled
+    idp = idp_crud.get_identity_provider(idp_id, db)
+    if not idp or not idp.enabled:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Identity provider not found or disabled",
+        )
+
+    # Check if already linked
+    existing_link = user_idp_crud.get_user_idp_link(token_user_id, idp_id, db)
+    if existing_link:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Identity provider {idp.name} is already linked to your account",
+        )
+
+    # Initiate OAuth flow in "link mode"
+    try:
+        authorization_url = await idp_service.idp_service.initiate_link(
+            idp, request, token_user_id, db
+        )
+
+        # Audit logging
+        core_logger.print_to_log(
+            f"User {token_user_id} initiated IdP link: idp_id={idp_id} ({idp.name})"
+        )
+
+        return RedirectResponse(
+            url=authorization_url, status_code=status.HTTP_307_TEMPORARY_REDIRECT
+        )
+
+    except HTTPException:
+        raise
+    except Exception as err:
+        core_logger.print_to_log(
+            f"Error initiating IdP link for user {token_user_id}, idp_id={idp_id}: {err}",
+            "error",
+            exc=err,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to initiate identity provider linking",
+        ) from err

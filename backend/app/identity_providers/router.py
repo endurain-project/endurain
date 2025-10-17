@@ -29,7 +29,7 @@ async def list_identity_providers(
     db: Annotated[Session, Depends(core_database.get_db)],
     _check_scopes: Annotated[
         users_schema.UserRead,
-        Security(session_security.check_scopes, scopes=["server_settings:read"]),
+        Security(session_security.check_scopes, scopes=["identity_providers:read"]),
     ],
 ):
     """
@@ -53,7 +53,7 @@ async def list_identity_providers(
 async def list_idp_templates(
     _check_scopes: Annotated[
         users_schema.UserRead,
-        Security(session_security.check_scopes, scopes=["server_settings:read"]),
+        Security(session_security.check_scopes, scopes=["identity_providers:read"]),
     ],
 ):
     """
@@ -72,7 +72,7 @@ async def create_identity_provider(
     db: Annotated[Session, Depends(core_database.get_db)],
     _check_scopes: Annotated[
         users_schema.UserRead,
-        Security(session_security.check_scopes, scopes=["server_settings:write"]),
+        Security(session_security.check_scopes, scopes=["identity_providers:write"]),
     ],
 ):
     """
@@ -103,7 +103,7 @@ async def update_identity_provider(
     db: Annotated[Session, Depends(core_database.get_db)],
     _check_scopes: Annotated[
         users_schema.UserRead,
-        Security(session_security.check_scopes, scopes=["server_settings:write"]),
+        Security(session_security.check_scopes, scopes=["identity_providers:write"]),
     ],
 ):
     """
@@ -129,7 +129,7 @@ async def delete_identity_provider(
     idp_id: int,
     _check_scopes: Annotated[
         users_schema.UserRead,
-        Security(session_security.check_scopes, scopes=["server_settings:write"]),
+        Security(session_security.check_scopes, scopes=["identity_providers:write"]),
     ],
     db: Annotated[Session, Depends(core_database.get_db)],
 ):

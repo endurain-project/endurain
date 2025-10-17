@@ -8,7 +8,8 @@ import {
   fetchGetRequest,
   fetchPostRequest,
   fetchPutRequest,
-  fetchDeleteRequest
+  fetchDeleteRequest,
+  API_URL
 } from '@/utils/serviceUtils'
 import { fetchPublicGetRequest } from '@/utils/servicePublicUtils'
 
@@ -83,6 +84,6 @@ export const identityProviders = {
    * @param {string} slug - The provider slug
    */
   initiateLogin(slug) {
-    window.location.href = `${window.env.ENDURAIN_HOST}/api/v1/public/idp/login/${slug}`
+    window.location.href = `${API_URL}public/idp/login/${slug}`
   }
 }

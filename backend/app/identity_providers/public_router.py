@@ -104,25 +104,30 @@ async def handle_callback(
     response: Response = None,
 ):
     """
-    Handles the OAuth callback from an external Identity Provider (IdP) for Single Sign-On (SSO) authentication.
-    
-    Rate Limit: 10 requests per minute per IP
-    This endpoint processes the authorization code and state parameters returned by the IdP after user authentication.
-    It validates the IdP, exchanges the code for user information, creates session tokens, stores the session in the database,
-    sets authentication cookies, and redirects the user to the frontend application.
+    Handle OAuth callback from an identity provider.
+    This endpoint processes the OAuth authorization callback from external identity providers.
+    It supports two modes: login mode (default) and link mode (for linking IdP to existing account).
     Args:
-        idp_slug (str): The slug identifier for the identity provider.
-        code (str): Authorization code received from the IdP.
-        state (str): State parameter for CSRF protection.
-        request (Request, optional): The incoming HTTP request object.
-        response (Response, optional): The outgoing HTTP response object.
-        password_hasher (session_password_hasher.PasswordHasher, optional): Dependency-injected password hasher for secure password handling.
-        token_manager (session_token_manager.TokenManager, optional): Dependency-injected token manager for session handling.
-        db (Session, optional): Dependency-injected database session.
+        idp_slug (str): The slug identifier of the identity provider.
+        password_hasher (session_password_hasher.PasswordHasher): Password hasher dependency for session management.
+        token_manager (session_token_manager.TokenManager): Token manager dependency for creating session tokens.
+        db (Session): Database session dependency.
+        code (str): Authorization code received from the identity provider.
+        state (str): State parameter used for CSRF protection.
+        request (Request, optional): The incoming HTTP request. Defaults to None.
+        response (Response, optional): The HTTP response object. Defaults to None.
     Returns:
-        RedirectResponse: Redirects the user to the frontend application with success or error status.
+        RedirectResponse: A redirect response to either:
+            - Settings page (link mode): /settings/security with success parameters
+            - Login page (login mode): /login with session_id
+            - Error page: /login with error parameter if callback fails
     Raises:
-        HTTPException: If the identity provider is not found or disabled, or if other errors occur during processing.
+        HTTPException: If the identity provider is not found, disabled, or if callback processing fails.
+    Notes:
+        - In link mode: Redirects to settings without creating a new session
+        - In login mode: Creates session tokens, stores session in database, sets authentication cookies
+        - On error: Redirects to login page with error parameter
+        - All redirects use HTTP 307 (Temporary Redirect) status code
     """
     try:
         # Get the identity provider
@@ -139,7 +144,23 @@ async def handle_callback(
         )
 
         user = result["user"]
+        is_link_mode = result.get("mode") == "link"
 
+        # Handle link mode differently - redirect to settings without creating new session
+        if is_link_mode:
+            frontend_url = core_config.ENDURAIN_HOST
+            redirect_url = f"{frontend_url}/settings/security?idp_link=success&idp_name={idp.name}"
+            
+            core_logger.print_to_log(
+                f"IdP link successful for user {user.username}, IdP {idp.name}", "info"
+            )
+            
+            return RedirectResponse(
+                url=redirect_url,
+                status_code=status.HTTP_307_TEMPORARY_REDIRECT,
+            )
+
+        # LOGIN MODE: Create session and redirect to dashboard
         # Convert to UserRead schema
         user_read = users_schema.UserRead.model_validate(user)
 

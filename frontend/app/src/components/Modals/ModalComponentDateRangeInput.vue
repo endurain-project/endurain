@@ -10,7 +10,7 @@
     <div class="modal-dialog">
       <div class="modal-content">
         <div class="modal-header">
-          <h5 class="modal-title" :id="`${modalId}Title`">{{ title }}</h5>
+          <h1 class="modal-title fs-5" :id="`${modalId}Title`">{{ title }}</h1>
           <button
             type="button"
             class="btn-close"
@@ -78,33 +78,31 @@
 /**
  * ModalComponentDateRangeInput
  *
- * Modal component for selecting a date range with start and end dates.
- * Defaults to last 7 days when mounted.
+ * Reusable modal component for selecting a date range with start and end dates.
+ * Defaults to last 7 days when mounted. Follows the same structure and patterns as ModalComponent.vue.
  *
  * @component
  */
 
+// ============================================================================
+// Section 1: Imports
+// ============================================================================
+
 // Vue composition API
 import { ref, onMounted, onUnmounted, type PropType } from 'vue'
-// Internationalization
-import { useI18n } from 'vue-i18n'
 // Composables
 import { useBootstrapModal } from '@/composables/useBootstrapModal'
 // Types
 import type { ActionButtonType } from '@/types'
 
 // ============================================================================
-// Types
+// Section 2: Props & Emits
 // ============================================================================
 
 interface DateRange {
   startDate: string
   endDate: string
 }
-
-// ============================================================================
-// Props & Emits
-// ============================================================================
 
 const props = defineProps({
   modalId: {
@@ -131,14 +129,13 @@ const emit = defineEmits<{
 }>()
 
 // ============================================================================
-// Composables & State
+// Section 3: Composables & Stores
 // ============================================================================
 
-const { t } = useI18n()
 const { initializeModal, disposeModal } = useBootstrapModal()
 
 // ============================================================================
-// Reactive State
+// Section 4: Reactive State
 // ============================================================================
 
 const modalRef = ref<HTMLDivElement | null>(null)
@@ -146,7 +143,7 @@ const startDate = ref('')
 const endDate = ref('')
 
 // ============================================================================
-// Main Logic
+// Section 7: Validation Logic
 // ============================================================================
 
 /**
@@ -162,6 +159,10 @@ const setDefaultDates = (): void => {
   endDate.value = today.toISOString().split('T')[0] || ''
 }
 
+// ============================================================================
+// Section 8: Main Logic
+// ============================================================================
+
 /**
  * Emit selected date range to parent component
  */
@@ -173,7 +174,7 @@ const emitDates = (): void => {
 }
 
 // ============================================================================
-// Lifecycle Hooks
+// Section 9: Lifecycle Hooks
 // ============================================================================
 
 /**

@@ -152,7 +152,7 @@
       <ul class="nav nav-tabs" role="tablist">
         <li class="nav-item" role="presentation">
           <button
-            class="nav-link active"
+            class="nav-link active link-body-emphasis link-underline-opacity-0 link-underline-opacity-100-hover"
             :id="`sessions-tab-${user.id}`"
             data-bs-toggle="tab"
             :data-bs-target="`#sessions-${user.id}`"
@@ -166,7 +166,7 @@
         </li>
         <li class="nav-item" role="presentation">
           <button
-            class="nav-link"
+            class="nav-link link-body-emphasis link-underline-opacity-0 link-underline-opacity-100-hover"
             :id="`idps-tab-${user.id}`"
             data-bs-toggle="tab"
             :data-bs-target="`#idps-${user.id}`"

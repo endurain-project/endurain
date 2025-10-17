@@ -128,7 +128,8 @@
           <button
             type="button"
             class="btn btn-danger"
-            @click="showDisableMFAModal"
+            data-bs-toggle="modal"
+            data-bs-target="#mfaDisableModal"
             :disabled="mfaDisableLoading"
           >
             {{ $t('settingsSecurityZone.disableMFAButton') }}
@@ -137,132 +138,76 @@
       </div>
 
       <!-- MFA Setup Modal -->
-      <div
-        class="modal fade"
-        id="mfaSetupModal"
-        tabindex="-1"
-        aria-labelledby="mfaSetupModalLabel"
-        aria-hidden="true"
-        ref="mfaSetupModal"
-      >
-        <div class="modal-dialog modal-dialog-centered">
-          <div class="modal-content">
-            <div class="modal-header">
-              <h5 class="modal-title" id="mfaSetupModalLabel">
-                {{ $t('settingsSecurityZone.mfaSetupModalTitle') }}
-              </h5>
-              <button
-                type="button"
-                class="btn-close"
-                data-bs-dismiss="modal"
-                aria-label="Close"
-              ></button>
-            </div>
-            <div class="modal-body">
-              <div v-if="qrCodeData">
-                <p>{{ $t('settingsSecurityZone.mfaSetupInstructions') }}</p>
-                <div class="text-center mb-3">
-                  <img :src="qrCodeData" alt="QR Code" class="img-fluid" style="max-width: 200px" />
-                </div>
-                <p>
-                  <strong>{{ $t('settingsSecurityZone.mfaSecretLabel') }}:</strong>
-                  <code class="ms-1">{{ mfaSecret }}</code>
-                </p>
-                <form @submit.prevent="enableMFA">
-                  <label for="mfaVerificationCode"
-                    ><b>* {{ $t('settingsSecurityZone.mfaVerificationCodeLabel') }}</b></label
-                  >
-                  <input
-                    type="text"
-                    class="form-control"
-                    id="mfaVerificationCode"
-                    v-model="mfaVerificationCode"
-                    :placeholder="$t('settingsSecurityZone.mfaVerificationCodePlaceholder')"
-                    required
-                  />
-                  <p class="mt-2">* {{ $t('generalItems.requiredField') }}</p>
-                  <div class="d-flex justify-content-end">
-                    <button type="button" class="btn btn-secondary me-2" data-bs-dismiss="modal">
-                      {{ $t('generalItems.cancel') }}
-                    </button>
-                    <button
-                      type="submit"
-                      class="btn btn-success"
-                      :disabled="!mfaVerificationCode || mfaEnableLoading"
-                    >
-                      <span
-                        v-if="mfaEnableLoading"
-                        class="spinner-border spinner-border-sm me-2"
-                        role="status"
-                        aria-hidden="true"
-                      ></span>
-                      {{ $t('settingsSecurityZone.enableMFAButton') }}
-                    </button>
-                  </div>
-                </form>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+      <ModalComponentMFASetup
+        ref="mfaSetupModalRef"
+        modalId="mfaSetupModal"
+        :title="t('settingsSecurityZone.mfaSetupModalTitle')"
+        :instructions="t('settingsSecurityZone.mfaSetupInstructions')"
+        :qrCodeData="qrCodeData"
+        :mfaSecret="mfaSecret"
+        :secretLabel="t('settingsSecurityZone.mfaSecretLabel')"
+        :verificationCodeLabel="t('settingsSecurityZone.mfaVerificationCodeLabel')"
+        :verificationCodePlaceholder="t('settingsSecurityZone.mfaVerificationCodePlaceholder')"
+        :requiredFieldText="t('generalItems.requiredField')"
+        :cancelButtonText="t('generalItems.cancel')"
+        actionButtonType="success"
+        :actionButtonText="t('settingsSecurityZone.enableMFAButton')"
+        :isLoading="mfaEnableLoading"
+        @submitAction="enableMFA"
+      />
 
       <!-- MFA Disable Modal -->
-      <div
-        class="modal fade"
-        id="mfaDisableModal"
-        tabindex="-1"
-        aria-labelledby="mfaDisableModalLabel"
-        aria-hidden="true"
-        ref="mfaDisableModal"
-      >
-        <div class="modal-dialog modal-dialog-centered">
-          <div class="modal-content">
-            <div class="modal-header">
-              <h5 class="modal-title" id="mfaDisableModalLabel">
-                {{ $t('settingsSecurityZone.mfaDisableModalTitle') }}
-              </h5>
-              <button
-                type="button"
-                class="btn-close"
-                data-bs-dismiss="modal"
-                aria-label="Close"
-              ></button>
-            </div>
-            <div class="modal-body">
-              <p>{{ $t('settingsSecurityZone.mfaDisableConfirmation') }}</p>
-              <form @submit.prevent="disableMFA">
-                <label for="mfaDisableCode"
-                  ><b>* {{ $t('settingsSecurityZone.mfaVerificationCodeLabel') }}</b></label
-                >
-                <input
-                  type="text"
-                  class="form-control"
-                  id="mfaDisableCode"
-                  v-model="mfaDisableCode"
-                  :placeholder="$t('settingsSecurityZone.mfaVerificationCodePlaceholder')"
-                  required
-                />
-                <p class="mt-2">* {{ $t('generalItems.requiredField') }}</p>
-                <div class="d-flex justify-content-end">
-                  <button type="button" class="btn btn-secondary me-2" data-bs-dismiss="modal">
-                    {{ $t('generalItems.cancel') }}
-                  </button>
-                  <button
-                    type="submit"
-                    class="btn btn-danger"
-                    :disabled="!mfaDisableCode || mfaDisableLoading"
-                  >
-                    <span
-                      v-if="mfaDisableLoading"
-                      class="spinner-border spinner-border-sm me-2"
-                      role="status"
-                      aria-hidden="true"
-                    ></span>
-                    {{ $t('settingsSecurityZone.disableMFAButton') }}
-                  </button>
-                </div>
-              </form>
-            </div>
+      <ModalComponentNumberInput
+        modalId="mfaDisableModal"
+        :title="t('settingsSecurityZone.mfaDisableModalTitle')"
+        :numberFieldLabel="t('settingsSecurityZone.mfaVerificationCodeLabel')"
+        :numberDefaultValue="null"
+        :actionButtonType="`danger`"
+        :actionButtonText="t('settingsSecurityZone.disableMFAButton')"
+        @numberToEmitAction="disableMFA"
+      />
+
+      <hr />
+      <!-- Linked Accounts (Identity Providers) -->
+      <h4>{{ $t('settingsSecurityZone.subtitleLinkedAccounts') }}</h4>
+      <p>{{ $t('settingsSecurityZone.linkedAccountsDescription') }}</p>
+
+      <div v-if="isLoadingLinkedAccounts">
+        <LoadingComponent />
+      </div>
+      <div v-else>
+        <!-- Linked Accounts List -->
+        <ul class="list-group" v-if="linkedAccounts && linkedAccounts.length > 0">
+          <UserIdentityProviderListComponent
+            v-for="account in linkedAccounts"
+            :key="account.id"
+            :idp="account"
+            :userId="authStore.user.id"
+            actionIcon="unlink"
+            :showProviderType="false"
+            @idpDeleted="unlinkAccount"
+          />
+        </ul>
+
+        <!-- Available Providers to Link -->
+        <div v-if="availableProviders && availableProviders.length > 0" class="mt-3">
+          <h5>{{ $t('settingsSecurityZone.availableProvidersLabel') }}</h5>
+          <div class="d-flex flex-wrap gap-2">
+            <button
+              v-for="provider in availableProviders"
+              :key="provider.id"
+              type="button"
+              class="btn btn-secondary"
+              @click="linkAccount(provider.id)"
+              :aria-label="`${provider.name}`"
+            >
+              <img
+                :src="getProviderCustomLogo(provider.icon)"
+                :alt="`${provider.name} logo`"
+                style="height: 20px; width: 20px; object-fit: contain"
+              />
+              {{ provider.name }}
+            </button>
           </div>
         </div>
       </div>
@@ -291,20 +236,29 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
-import Modal from 'bootstrap/js/src/modal'
+import { useRoute } from 'vue-router'
 // Importing the services
 import { profile } from '@/services/profileService'
+import { identityProviders } from '@/services/identityProvidersService'
 // Import Notivue push
 import { push } from 'notivue'
 // Importing the components
 import UsersPasswordRequirementsComponent from '@/components/Settings/SettingsUsersZone/UsersPasswordRequirementsComponent.vue'
+import ModalComponentNumberInput from '@/components/Modals/ModalComponentNumberInput.vue'
+import ModalComponentMFASetup from '@/components/Modals/ModalComponentMFASetup.vue'
+import UserIdentityProviderListComponent from '@/components/Settings/SettingsUsersZone/UserIdentityProviderListComponent.vue'
 // Importing validation utilities
 import { isValidPassword, passwordsMatch } from '@/utils/validationUtils'
 import LoadingComponent from '@/components/GeneralComponents/LoadingComponent.vue'
 import NoItemsFoundComponents from '@/components/GeneralComponents/NoItemsFoundComponents.vue'
 import UserSessionsListComponent from '@/components/Settings/SettingsUserSessionsZone/UserSessionsListComponent.vue'
+// Importing stores
+import { useAuthStore } from '@/stores/authStore'
+import { PROVIDER_CUSTOM_LOGO_MAP } from '@/constants/ssoConstants'
 
 const { t } = useI18n()
+const route = useRoute()
+const authStore = useAuthStore()
 const newPassword = ref('')
 const newPasswordRepeat = ref('')
 const isNewPasswordValid = computed(() => {
@@ -327,16 +281,16 @@ const mfaEnableLoading = ref(false)
 const mfaDisableLoading = ref(false)
 const qrCodeData = ref('')
 const mfaSecret = ref('')
-const mfaVerificationCode = ref('')
-const mfaDisableCode = ref('')
-const mfaSetupModal = ref(null)
-const mfaDisableModal = ref(null)
-
-let mfaSetupModalInstance = null
-let mfaDisableModalInstance = null
+const mfaSetupModalRef = ref(null)
 
 const showNewPassword = ref(false)
 const showNewPasswordRepeat = ref(false)
+
+// Linked Accounts (Identity Providers) variables
+const linkedAccounts = ref([])
+const availableProviders = ref([])
+const allProviders = ref([])
+const isLoadingLinkedAccounts = ref(false)
 
 // Toggle visibility for new password
 const toggleNewPasswordVisibility = () => {
@@ -406,7 +360,7 @@ async function setupMFA() {
     const setupData = await profile.setupMFA()
     qrCodeData.value = setupData.qr_code
     mfaSecret.value = setupData.secret
-    mfaSetupModalInstance.show()
+    mfaSetupModalRef.value?.show()
   } catch (error) {
     push.error(`${t('settingsSecurityZone.errorSetupMFA')} - ${error}`)
   } finally {
@@ -414,13 +368,12 @@ async function setupMFA() {
   }
 }
 
-async function enableMFA() {
+async function enableMFA(verificationCode) {
   try {
     mfaEnableLoading.value = true
-    await profile.enableMFA({ mfa_code: mfaVerificationCode.value })
+    await profile.enableMFA({ mfa_code: verificationCode })
     mfaEnabled.value = true
-    mfaSetupModalInstance.hide()
-    mfaVerificationCode.value = ''
+    mfaSetupModalRef.value?.hide()
     qrCodeData.value = ''
     mfaSecret.value = ''
     push.success(t('settingsSecurityZone.mfaEnabledSuccess'))
@@ -431,17 +384,13 @@ async function enableMFA() {
   }
 }
 
-function showDisableMFAModal() {
-  mfaDisableModalInstance.show()
-}
+async function disableMFA(mfaCode) {
+  if (!mfaCode) return
 
-async function disableMFA() {
   try {
     mfaDisableLoading.value = true
-    await profile.disableMFA({ mfa_code: mfaDisableCode.value })
+    await profile.disableMFA({ mfa_code: mfaCode.toString() })
     mfaEnabled.value = false
-    mfaDisableModalInstance.hide()
-    mfaDisableCode.value = ''
     push.success(t('settingsSecurityZone.mfaDisabledSuccess'))
   } catch (error) {
     push.error(`${t('settingsSecurityZone.errorDisableMFA')} - ${error}`)
@@ -450,20 +399,95 @@ async function disableMFA() {
   }
 }
 
+const getProviderCustomLogo = (iconName) => {
+  if (!iconName) return null
+  const logoPath = PROVIDER_CUSTOM_LOGO_MAP[iconName.toLowerCase()]
+  return logoPath || null
+}
+
+// Linked Accounts Functions
+async function loadLinkedAccounts() {
+  try {
+    isLoadingLinkedAccounts.value = true
+
+    // Fetch linked accounts and available providers in parallel
+    linkedAccounts.value = await profile.getMyIdentityProviders()
+    allProviders.value = await identityProviders.getAllProviders()
+
+    // Filter out already linked providers
+    const linkedProviderIds = new Set(linkedAccounts.value.map((account) => account.idp_id))
+    availableProviders.value = allProviders.value.filter(
+      (provider) => !linkedProviderIds.has(provider.id)
+    )
+  } catch (error) {
+    push.error(`${t('settingsSecurityZone.errorLoadingLinkedAccounts')} - ${error}`)
+  } finally {
+    isLoadingLinkedAccounts.value = false
+  }
+}
+
+async function unlinkAccount(idpId) {
+  if (!idpId) return
+
+  try {
+    await profile.unlinkIdentityProvider(idpId)
+
+    // Find the account being unlinked
+    const unlinkedAccount = linkedAccounts.value.find((account) => account.idp_id === idpId)
+
+    // Remove from linked accounts list
+    linkedAccounts.value = linkedAccounts.value.filter((account) => account.idp_id !== idpId)
+
+    // Add back to available providers
+    const unlinkedProvider = allProviders.value.find((p) => p.id === idpId)
+    if (unlinkedProvider) {
+      availableProviders.value.push(unlinkedProvider)
+    }
+
+    push.success(t('settingsSecurityZone.unlinkAccountSuccess'))
+  } catch (error) {
+    const errorMessage = error.message || error.toString()
+
+    // Check for specific error scenarios
+    if (errorMessage.includes('last authentication method') || errorMessage.includes('400')) {
+      push.error(t('settingsSecurityZone.unlinkAccountLastMethodError'))
+    } else {
+      push.error(`${t('settingsSecurityZone.unlinkAccountError')} - ${errorMessage}`)
+    }
+  }
+}
+
+function linkAccount(providerId) {
+  // This will redirect to the OAuth flow
+  profile.linkIdentityProvider(providerId)
+}
+
+// Check for OAuth link success/error in URL params
+function checkOAuthLinkStatus() {
+  const idpLink = route.query.idp_link
+  const idpName = route.query.idp_name
+
+  if (idpLink === 'success' && idpName) {
+    push.success(t('settingsSecurityZone.linkAccountSuccess', { providerName: idpName }))
+    // Reload linked accounts to show the new one
+    loadLinkedAccounts()
+  } else if (idpLink === 'error') {
+    push.error(t('settingsSecurityZone.linkAccountError'))
+  }
+}
+
 onMounted(async () => {
-  // Initialize modal instances
-  if (mfaSetupModal.value) {
-    mfaSetupModalInstance = new Modal(mfaSetupModal.value)
-  }
-  if (mfaDisableModal.value) {
-    mfaDisableModalInstance = new Modal(mfaDisableModal.value)
-  }
+  // Check for OAuth callback status
+  checkOAuthLinkStatus()
 
   // Fetch the user sessions
   userSessions.value = await profile.getProfileSessions()
 
   // Load MFA status
   await loadMFAStatus()
+
+  // Load linked accounts
+  await loadLinkedAccounts()
 
   // Set the isLoading to false
   isLoading.value = false

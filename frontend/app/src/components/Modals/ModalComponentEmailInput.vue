@@ -1,15 +1,16 @@
 <template>
   <div
+    ref="modalRef"
     class="modal fade"
-    :id="`${modalId}`"
+    :id="modalId"
     tabindex="-1"
-    :aria-labelledby="`${modalId}`"
+    :aria-labelledby="`${modalId}Title`"
     aria-hidden="true"
   >
     <div class="modal-dialog">
       <div class="modal-content">
         <div class="modal-header">
-          <h1 class="modal-title fs-5" :id="`${modalId}`">{{ title }}</h1>
+          <h1 class="modal-title fs-5" :id="`${modalId}Title`">{{ title }}</h1>
           <button
             type="button"
             class="btn-close"
@@ -20,13 +21,15 @@
         <div class="modal-body">
           <label :for="`${modalId}Email`" class="form-label">{{ emailFieldLabel }}</label>
           <input
+            :id="`${modalId}Email`"
+            v-model="emailToEmit"
             type="email"
             class="form-control"
             :class="{ 'is-invalid': !isEmailValid }"
             :name="`${modalId}Email`"
-            :id="`${modalId}Email`"
-            v-model="emailToEmit"
             :placeholder="emailFieldLabel"
+            :aria-label="emailFieldLabel"
+            aria-describedby="validationEmailFeedback"
             required
           />
           <div id="validationEmailFeedback" class="invalid-feedback" v-if="!isEmailValid">
@@ -35,12 +38,17 @@
           <div class="form-text" v-if="emailHelpText">{{ emailHelpText }}</div>
         </div>
         <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+          <button
+            type="button"
+            class="btn btn-secondary"
+            data-bs-dismiss="modal"
+            aria-label="Close modal"
+          >
             {{ $t('generalItems.buttonClose') }}
           </button>
           <button
             type="button"
-            @click="submitAction()"
+            @click="submitAction"
             class="btn"
             :class="{
               'btn-success': actionButtonType === 'success',
@@ -49,6 +57,7 @@
               'btn-primary': actionButtonType === 'primary'
             }"
             :disabled="isLoading"
+            :aria-label="actionButtonText"
           >
             <span
               v-if="isLoading"
@@ -66,92 +75,89 @@
 
 <script setup lang="ts">
 /**
- * ModalComponentEmailInput Component
+ * ModalComponentEmailInput
  *
- * A reusable Bootstrap modal component for email input operations.
+ * Reusable modal component for email input with RFC 5322 compliant validation.
+ * Follows the same structure and patterns as ModalComponent.vue.
+ *
  * Features:
- * - RFC 5322 compliant email validation
- * - Real-time validation feedback
+ * - Real-time email validation feedback
  * - Loading state support
- * - Customizable button types (success, danger, warning, primary)
  * - Input sanitization
+ * - Customizable button types (success, danger, warning, primary)
  *
  * @component
  */
 
+// ============================================================================
+// Section 1: Imports
+// ============================================================================
+
 // Vue composition API
-import { ref, computed, type Ref, type ComputedRef } from 'vue'
+import { ref, computed, onMounted, onUnmounted, type PropType } from 'vue'
+// Composables
+import { useBootstrapModal } from '@/composables/useBootstrapModal'
 // Types
 import type { ActionButtonType } from '@/types'
 // Utils
 import { isValidEmail, sanitizeInput } from '@/utils/validationUtils'
 
 // ============================================================================
-// Types
+// Section 2: Props & Emits
 // ============================================================================
 
-/**
- * Component props interface
- */
-interface Props {
-  /** Unique identifier for the modal element */
-  modalId: string
-  /** Modal header title */
-  title: string
-  /** Label for the email input field */
-  emailFieldLabel: string
-  /** Optional help text displayed below input */
-  emailHelpText?: string
-  /** Default value for email input */
-  emailDefaultValue?: string
-  /** Button style type */
-  actionButtonType: ActionButtonType
-  /** Text displayed on action button */
-  actionButtonText: string
-  /** Loading state indicator */
-  isLoading?: boolean
-}
+const props = withDefaults(
+  defineProps<{
+    /** Unique identifier for the modal element */
+    modalId: string
+    /** Modal header title */
+    title: string
+    /** Label for the email input field */
+    emailFieldLabel: string
+    /** Optional help text displayed below input */
+    emailHelpText?: string
+    /** Default value for email input */
+    emailDefaultValue?: string
+    /** Button style type */
+    actionButtonType: ActionButtonType
+    /** Text displayed on action button */
+    actionButtonText: string
+    /** Loading state indicator */
+    isLoading?: boolean
+  }>(),
+  {
+    emailHelpText: '',
+    emailDefaultValue: '',
+    isLoading: false
+  }
+)
 
-/**
- * Component emits interface
- */
-interface Emits {
-  (e: 'emailToEmitAction', email: string): void
-}
-
-// ============================================================================
-// Props & Emits
-// ============================================================================
-
-const props = withDefaults(defineProps<Props>(), {
-  emailHelpText: '',
-  emailDefaultValue: '',
-  isLoading: false
-})
-
-const emit = defineEmits<Emits>()
+const emit = defineEmits<{
+  emailToEmitAction: [email: string]
+}>()
 
 // ============================================================================
-// State
+// Section 3: Composables & Stores
 // ============================================================================
 
-/**
- * Email input value
- * Initialized with default value from props
- */
-const emailToEmit: Ref<string> = ref(props.emailDefaultValue)
+const { initializeModal, disposeModal } = useBootstrapModal()
 
 // ============================================================================
-// Computed Properties
+// Section 4: Reactive State
+// ============================================================================
+
+const modalRef = ref<HTMLDivElement | null>(null)
+const emailToEmit = ref(props.emailDefaultValue)
+
+// ============================================================================
+// Section 5: Computed Properties
 // ============================================================================
 
 /**
  * Validate email format using RFC 5322 compliant validation
  * Returns true if email is valid or empty (to avoid showing error on load)
- *
- * @returns {boolean} Email validation state
  */
-const isEmailValid: ComputedRef<boolean> = computed(() => {
+const isEmailValid = computed(() => {
   // Don't show validation error for empty input
   if (!emailToEmit.value) return true
 
@@ -159,7 +165,7 @@ const isEmailValid: ComputedRef<boolean> = computed(() => {
 })
 
 // ============================================================================
-// Actions
+// Section 8: Main Logic
 // ============================================================================
 
 /**
@@ -178,4 +184,22 @@ const submitAction = (): void => {
     emit('emailToEmitAction', sanitizedEmail)
   }
 }
+
+// ============================================================================
+// Section 9: Lifecycle Hooks
+// ============================================================================
+
+/**
+ * Initialize modal on mount
+ */
+onMounted(async () => {
+  await initializeModal(modalRef)
+})
+
+/**
+ * Clean up modal on unmount
+ */
+onUnmounted(() => {
+  disposeModal()
+})
 </script>

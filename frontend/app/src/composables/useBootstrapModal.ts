@@ -58,9 +58,34 @@ export function useBootstrapModal() {
     try {
       modalInstance.value = new Modal(element)
       isInitialized.value = true
+
+      // Listen for Bootstrap's hidden event to clean up body styles
+      element.addEventListener('hidden.bs.modal', () => {
+        cleanupBodyStyles()
+      })
     } catch (error) {
       console.error('Failed to initialize Bootstrap modal:', error)
       throw error
+    }
+  }
+
+  /**
+   * Clean up body styles and attributes left by Bootstrap
+   */
+  const cleanupBodyStyles = (): void => {
+    // Check if any other modals are still open
+    const openModals = document.querySelectorAll('.modal.show')
+    if (openModals.length === 0) {
+      // Remove all Bootstrap modal-related classes and styles
+      document.body.classList.remove('modal-open')
+      document.body.style.overflow = ''
+      document.body.style.paddingRight = ''
+      document.body.removeAttribute('data-bs-overflow')
+      document.body.removeAttribute('data-bs-padding-right')
+
+      // Clean up any remaining backdrops
+      const backdrops = document.querySelectorAll('.modal-backdrop')
+      backdrops.forEach((backdrop) => backdrop.remove())
     }
   }
 
@@ -88,20 +113,7 @@ export function useBootstrapModal() {
       return
     }
     modalInstance.value.hide()
-
-    // Clean up any remaining backdrops (Bootstrap sometimes leaves them)
-    setTimeout(() => {
-      const backdrops = document.querySelectorAll('.modal-backdrop')
-      backdrops.forEach((backdrop) => backdrop.remove())
-
-      // Reset body styles if no other modals are open
-      const openModals = document.querySelectorAll('.modal.show')
-      if (openModals.length === 0) {
-        document.body.classList.remove('modal-open')
-        document.body.style.overflow = ''
-        document.body.style.paddingRight = ''
-      }
-    }, 300) // Wait for Bootstrap's fade animation to complete
+    // Cleanup is handled by the 'hidden.bs.modal' event listener
   }
 
   /**

@@ -748,6 +748,103 @@ class IdentityProviderService:
                 detail="Failed to initiate SSO login",
             ) from err
 
+    async def initiate_link(
+        self, idp: idp_models.IdentityProvider, request: Request, user_id: int, db: Session
+    ) -> str:
+        """
+        Initiates the OAuth/OIDC authorization flow for linking an identity provider to an existing user account.
+        This method generates the authorization URL that redirects the user to the identity provider's
+        login page. It creates secure state and nonce tokens to prevent CSRF attacks and stores session
+        data to track the linking operation.
+        Args:
+            idp (idp_models.IdentityProvider): The identity provider configuration object containing
+                client credentials, endpoints, and other OAuth/OIDC settings.
+            request (Request): The FastAPI request object used to access and store session data.
+            user_id (int): The ID of the authenticated user who is linking their account to the
+                identity provider.
+            db (Session): The database session for potential database operations.
+        Returns:
+            str: The authorization URL to redirect the user to for identity provider authentication.
+        Raises:
+            HTTPException: 
+                - 500 status code if the identity provider is not properly configured (missing
+                  authorization endpoint).
+                - 500 status code if any unexpected error occurs during the OAuth flow initiation.
+        Note:
+            - If authorization_endpoint is not directly configured, the method attempts OIDC
+              discovery using the issuer_url.
+            - State data includes: random token, timestamp, idp_id, mode flag ('link'), and user_id.
+            - State is base64-encoded for URL safety.
+            - Session stores: oauth_state, oauth_nonce, oauth_idp_id, and oauth_link_user_id.
+        """
+        try:
+            client_id = idp.client_id
+
+            # Get endpoints
+            authorization_endpoint = idp.authorization_endpoint
+
+            # Try OIDC discovery if issuer URL is provided
+            if not authorization_endpoint and idp.issuer_url:
+                config = await self.get_oidc_configuration(idp)
+                if config:
+                    authorization_endpoint = config.get("authorization_endpoint")
+
+            if not authorization_endpoint:
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="Identity provider not properly configured",
+                )
+
+            # Generate state and nonce for security
+            # State includes timestamp, mode flag, and user_id for link mode
+            random_state = secrets.token_urlsafe(32)
+            state_data = {
+                "random": random_state,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "idp_id": idp.id,
+                "mode": "link",  # Indicates link mode (vs login mode)
+                "user_id": user_id,  # Ensures callback links to correct user
+            }
+            # Encode state as base64 JSON for URL safety
+            state = base64.urlsafe_b64encode(
+                json.dumps(state_data).encode()
+            ).decode()
+            
+            nonce = secrets.token_urlsafe(32)
+
+            # Store in session (using SessionMiddleware)
+            request.session[f"oauth_state_{idp.id}"] = state
+            request.session[f"oauth_nonce_{idp.id}"] = nonce
+            request.session["oauth_idp_id"] = idp.id
+            request.session["oauth_link_user_id"] = user_id  # Track linking user
+
+            # Build authorization URL
+            redirect_uri = self._get_redirect_uri(idp.slug)
+            scopes = idp.scopes or "openid profile email"
+
+            client = AsyncOAuth2Client(
+                client_id=client_id, redirect_uri=redirect_uri, scope=scopes
+            )
+
+            authorization_url, _ = client.create_authorization_url(
+                authorization_endpoint, state=state, nonce=nonce
+            )
+
+            return authorization_url
+
+        except HTTPException:
+            raise
+        except Exception as err:
+            core_logger.print_to_log(
+                f"Error initiating OAuth link for IdP {idp.name}, user {user_id}: {err}",
+                "error",
+                exc=err,
+            )
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to initiate identity provider linking",
+            ) from err
+
     async def handle_callback(
         self,
         idp: idp_models.IdentityProvider,
@@ -758,25 +855,41 @@ class IdentityProviderService:
         db: Session,
     ) -> Dict[str, Any]:
         """
-        Handles the OAuth2/OIDC callback from an external Identity Provider (IdP).
-
-        This method verifies the state parameter to prevent CSRF attacks, exchanges the authorization code
-        for tokens, retrieves user information from the IdP, and finds or creates a corresponding user in the system.
-
+        Handle the OAuth2/OIDC callback from an identity provider.
+        This method processes the authorization code received from an identity provider,
+        validates the state parameter, exchanges the code for tokens, retrieves user
+        information, and either creates/updates a user session (login mode) or links
+        the identity provider to an existing user account (link mode).
         Args:
             idp (idp_models.IdentityProvider): The identity provider configuration object.
-            code (str): The authorization code returned by the IdP.
-            state (str): The state parameter returned by the IdP for CSRF protection.
-            request (Request): The incoming HTTP request object.
-            password_hasher (session_password_hasher.PasswordHasher): The password hasher instance.
-            db (Session): The database session for user lookup/creation.
-
+            code (str): The authorization code returned by the identity provider.
+            state (str): The state parameter for CSRF protection, containing JSON with
+                timestamp, mode, and optional user_id.
+            request (Request): The FastAPI/Starlette request object containing session data.
+            password_hasher (session_password_hasher.PasswordHasher): Password hasher instance
+                for user authentication operations.
+            db (Session): SQLAlchemy database session.
         Returns:
-            Dict[str, Any]: A dictionary containing the authenticated user, token data, and userinfo.
-
+            Dict[str, Any]: A dictionary containing:
+                - user: The authenticated or linked user object
+                - token_data: OAuth2 token response (access_token, refresh_token, etc.)
+                - userinfo: User information claims from the identity provider
+                - mode (optional): "link" if this was a link operation (not present for login)
         Raises:
-            HTTPException: If the state is invalid, the IdP is misconfigured, user identifier is missing,
-                           or any other error occurs during the callback handling process.
+            HTTPException: With appropriate status codes for various error conditions:
+                - 400 BAD_REQUEST: Invalid/expired state, missing parameters, user ID mismatch
+                - 404 NOT_FOUND: User not found during link mode
+                - 409 CONFLICT: IdP account already linked to a user
+                - 500 INTERNAL_SERVER_ERROR: Unexpected errors during authentication
+                - 502 BAD_GATEWAY: IdP communication errors, invalid responses
+                - 504 GATEWAY_TIMEOUT: IdP not responding
+        Notes:
+            - State parameter must be valid and not older than 10 minutes (CSRF protection)
+            - In link mode, validates that the IdP account is not already linked to any user
+            - In login mode, creates new user accounts if they don't exist (SSO provisioning)
+            - Stores IdP tokens securely for future session renewal
+            - Performs ID token verification if JWKS URI is available
+            - Cleans up session state data after successful completion
         """
         try:
             # Verify state with timestamp expiry validation
@@ -830,6 +943,32 @@ class IdentityProviderService:
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail="Invalid state parameter format",
                 ) from err
+
+            # Detect link mode from state data
+            is_link_mode = state_data.get("mode") == "link"
+            link_user_id = None
+            
+            if is_link_mode:
+                # Validate link mode state
+                link_user_id = state_data.get("user_id")
+                session_link_user_id = request.session.get("oauth_link_user_id")
+                
+                if not link_user_id or not session_link_user_id:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail="Invalid link mode state - missing user ID",
+                    )
+                
+                if link_user_id != session_link_user_id:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail="User ID mismatch - possible session hijacking attempt",
+                    )
+                
+                core_logger.print_to_log(
+                    f"Link mode detected for IdP {idp.name}, user_id={link_user_id}",
+                    "debug"
+                )
 
             # Decrypt credentials and resolve endpoints using helper methods
             client_id = idp.client_id
@@ -955,24 +1094,83 @@ class IdentityProviderService:
                     detail=f"Identity provider {idp.name} did not provide required user identifier. Please contact administrator.",
                 )
 
-            # Find or create user
-            user = await self._find_or_create_user(
-                idp, subject, userinfo, password_hasher, db
-            )
+            # Handle link mode differently from login mode
+            if is_link_mode:
+                # LINK MODE: Associate IdP with existing authenticated user
+                
+                # Verify user exists
+                user = users_crud.get_user_by_id(link_user_id, db)
+                if not user:
+                    raise HTTPException(
+                        status_code=status.HTTP_404_NOT_FOUND,
+                        detail="User not found",
+                    )
+                
+                # Check if this IdP subject is already linked to ANY user
+                existing_link = user_idp_crud.get_user_by_idp(idp.id, subject, db)
+                if existing_link:
+                    # Check if it's already linked to THIS user
+                    if existing_link.user_id == link_user_id:
+                        raise HTTPException(
+                            status_code=status.HTTP_409_CONFLICT,
+                            detail=f"This {idp.name} account is already linked to your account",
+                        )
+                    else:
+                        # Linked to a DIFFERENT user - security issue
+                        raise HTTPException(
+                            status_code=status.HTTP_409_CONFLICT,
+                            detail=f"This {idp.name} account is already linked to another user",
+                        )
+                
+                # Create the link
+                user_idp_crud.create_user_idp_link(
+                    user_id=link_user_id,
+                    idp_id=idp.id,
+                    idp_subject=subject,
+                    db=db
+                )
+                
+                # Store IdP tokens for future use
+                await self._store_idp_tokens(link_user_id, idp.id, token_response, db)
+                
+                # Clean up session data
+                request.session.pop(f"oauth_state_{idp.id}", None)
+                request.session.pop(f"oauth_nonce_{idp.id}", None)
+                request.session.pop("oauth_idp_id", None)
+                request.session.pop("oauth_link_user_id", None)
+                
+                core_logger.print_to_log(
+                    f"User {user.username} (id={link_user_id}) linked IdP {idp.name} (subject={subject})",
+                    "info"
+                )
+                
+                # Return special structure for link mode (no new session created)
+                return {
+                    "user": user,
+                    "token_data": token_response,
+                    "userinfo": userinfo,
+                    "mode": "link"  # Indicate this was a link operation
+                }
+            
+            else:
+                # LOGIN MODE: Find or create user and establish session
+                user = await self._find_or_create_user(
+                    idp, subject, userinfo, password_hasher, db
+                )
 
-            # Store IdP tokens for future session renewal
-            await self._store_idp_tokens(user.id, idp.id, token_response, db)
+                # Store IdP tokens for future session renewal
+                await self._store_idp_tokens(user.id, idp.id, token_response, db)
 
-            # Clean up session data after successful authentication
-            request.session.pop(f"oauth_state_{idp.id}", None)
-            request.session.pop(f"oauth_nonce_{idp.id}", None)
-            request.session.pop("oauth_idp_id", None)
+                # Clean up session data after successful authentication
+                request.session.pop(f"oauth_state_{idp.id}", None)
+                request.session.pop(f"oauth_nonce_{idp.id}", None)
+                request.session.pop("oauth_idp_id", None)
 
-            core_logger.print_to_log(
-                f"User {user.username} authenticated via IdP {idp.name}", "info"
-            )
+                core_logger.print_to_log(
+                    f"User {user.username} authenticated via IdP {idp.name}", "info"
+                )
 
-            return {"user": user, "token_data": token_response, "userinfo": userinfo}
+                return {"user": user, "token_data": token_response, "userinfo": userinfo}
 
         except HTTPException:
             # Re-raise HTTPExceptions as-is (already have proper status codes and messages)

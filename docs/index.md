@@ -37,7 +37,7 @@ To deploy Endurain, a Docker image is available, and a comprehensive example can
 
 ## Developer's Note
 
-As a non-professional developer, my journey with Endurain involved learning and implementing new technologies and concepts, with invaluable assistance from ChatGPT. The primary motivation behind this project was to gain hands-on experience and expand my understanding of modern development practices. Second motivation is that I'm an amateur triathlete and I want to keep track of my gear and gear components usage.
+As a non-professional developer, my journey with Endurain involved learning and implementing new technologies and concepts, with invaluable assistance from GitHub Copilot and ChatGPT. The primary motivation behind this project was to gain hands-on experience and expand my understanding of modern development practices. Second motivation is that I'm an amateur triathlete and I want to keep track of my gear and gear components usage.
 
 If you have any recommendations or insights on improving any aspect of Endurain, whether related to technology choices, user experience, or any other relevant area, I would greatly appreciate your input. The goal is to create a reliable and user-friendly fitness tracking solution that caters to the needs of individuals who prefer self-hosted applications. Your constructive feedback will undoubtedly contribute to the refinement of Endurain.
 
@@ -105,3 +105,12 @@ Currently supported in:
 ## Star History
 
 [![Star History Chart](https://api.star-history.com/svg?repos=joaovitoriasilva/endurain&type=Date)](https://star-history.com/#joaovitoriasilva/endurain&Date)
+
+**Trademark Notice:**  
+Endurain™ is a trademark of João Vitória Silva.  
+An application for registration with the European Union Intellectual Property Office (EUIPO) is currently pending.
+
+You are welcome to self-host Endurain — including for personal, educational, research, or community (non-commercial) use — using the name and logo.  
+Commercial use of the Endurain name or Logos (such as offering paid hosting, products, or services) is **not permitted without prior written permission**.
+
+See [`TRADEMARK.md`](https://github.com/joaovitoriasilva/endurain/blob/master/TRADEMARK.md) for full details.

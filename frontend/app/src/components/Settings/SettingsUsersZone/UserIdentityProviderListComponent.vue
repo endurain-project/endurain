@@ -21,8 +21,10 @@
         <!-- IDP Details -->
         <div>
           <div class="fw-bold">
-            {{ idp.idp_name }} -
-            <span class="fw-lighter">{{ formatProviderType(idp.idp_provider_type) }}</span>
+            {{ idp.idp_name }}
+            <span v-if="showProviderType" class="fw-lighter">
+              - {{ formatProviderType(idp.idp_provider_type) }}</span
+            >
           </div>
           <div class="text-muted small">
             <span :aria-label="t('userIdentityProviderListComponent.linkedAtLabel')">
@@ -46,27 +48,25 @@
 
       <!-- Actions -->
       <div class="d-flex align-items-center">
-        <!-- Delete IDP Link Button -->
+        <!-- Delete/Unlink IDP Link Button -->
         <a
           class="btn btn-link btn-lg link-body-emphasis"
           href="#"
           role="button"
           data-bs-toggle="modal"
-          :data-bs-target="`#deleteIdpModal${idp.id}`"
-          :aria-label="
-            t('userIdentityProviderListComponent.deleteButtonAriaLabel', { provider: idp.idp_name })
-          "
+          :data-bs-target="`#idpActionModal${idp.id}`"
+          :aria-label="actionButtonAriaLabel"
         >
-          <font-awesome-icon :icon="['fas', 'fa-trash-can']" />
+          <font-awesome-icon :icon="actionIconName" />
         </a>
 
-        <!-- Delete IDP Modal -->
+        <!-- Delete/Unlink IDP Modal -->
         <ModalComponent
-          :modalId="`deleteIdpModal${idp.id}`"
-          :title="t('userIdentityProviderListComponent.modalDeleteTitle')"
-          :body="`${t('userIdentityProviderListComponent.modalDeleteBody1')} <b>${idp.idp_name}</b>${t('userIdentityProviderListComponent.modalDeleteBody2')}`"
+          :modalId="`idpActionModal${idp.id}`"
+          :title="modalTitle"
+          :body="modalBody"
           :actionButtonType="`danger`"
-          :actionButtonText="t('userIdentityProviderListComponent.modalDeleteButton')"
+          :actionButtonText="modalButtonText"
           @submitAction="submitDeleteIdp"
         />
       </div>
@@ -78,23 +78,36 @@
 /**
  * @fileoverview UserIdentityProviderListComponent - Display and manage user external authentication provider links
  *
- * This component displays a single identity provider (IDP) link for a user in the admin panel.
- * Shows IDP details (name, icon, linked date, last login) and provides delete functionality.
- * Used within the Users List component's IDP tab.
+ * This component displays a single identity provider (IDP) link for a user.
+ * Shows IDP details (name, icon, linked date, last login) and provides delete/unlink functionality.
+ * Used in both admin panel (Users List IDP tab) and user settings (Linked Accounts section).
  *
  * Features:
  * - Display IDP metadata (provider name, type, icon)
  * - Show link creation date and last login timestamp
- * - Delete IDP link with modal confirmation
+ * - Delete/unlink IDP link with modal confirmation
+ * - Context-aware: trash icon (admin) or unlink icon (self-service)
+ * - Optional provider type display
  * - Accessibility: Full ARIA support and keyboard navigation
  * - i18n: Multi-language support
  *
  * @component
  * @example
+ * // Admin context (default)
  * <UserIdentityProviderListComponent
  *   :idp="identityProvider"
  *   :userId="123"
  *   @idpDeleted="handleIdpDeleted"
+ * />
+ *
+ * @example
+ * // User settings context
+ * <UserIdentityProviderListComponent
+ *   :idp="identityProvider"
+ *   :userId="currentUser.id"
+ *   actionIcon="unlink"
+ *   :showProviderType="false"
+ *   @idpDeleted="handleUnlinkAccount"
  * />
  */
 import { computed } from 'vue'
@@ -104,12 +117,22 @@ import { PROVIDER_CUSTOM_LOGO_MAP } from '@/constants/ssoConstants'
 import type { UserIdentityProviderEnriched } from '@/types'
 import ModalComponent from '@/components/Modals/ModalComponent.vue'
 
-const props = defineProps<{
-  /** The identity provider link object with enriched metadata */
-  idp: UserIdentityProviderEnriched
-  /** The user ID who owns this IDP link */
-  userId: number
-}>()
+const props = withDefaults(
+  defineProps<{
+    /** The identity provider link object with enriched metadata */
+    idp: UserIdentityProviderEnriched
+    /** The user ID who owns this IDP link */
+    userId: number
+    /** Action icon type: 'trash' for admin delete, 'unlink' for user self-service */
+    actionIcon?: 'trash' | 'unlink'
+    /** Whether to show the provider type (e.g., "OpenID Connect") */
+    showProviderType?: boolean
+  }>(),
+  {
+    actionIcon: 'trash',
+    showProviderType: true
+  }
+)
 
 const emit = defineEmits<{
   /** Emitted when IDP link is successfully deleted */
@@ -157,6 +180,61 @@ const formatProviderType = computed(() => {
     }
   }
 })
+
+/**
+ * UI State & Computed Properties
+ */
+
+/**
+ * Action icon for delete/unlink button
+ * Returns FontAwesome icon array based on actionIcon prop
+ */
+const actionIconName = computed(() =>
+  props.actionIcon === 'unlink' ? ['fas', 'unlink'] : ['fas', 'fa-trash-can']
+)
+
+/**
+ * ARIA label for action button
+ * Context-aware label for accessibility
+ */
+const actionButtonAriaLabel = computed(() => {
+  const action = props.actionIcon === 'unlink' ? 'Unlink' : 'Delete'
+  return `${action} ${props.idp.idp_name}`
+})
+
+/**
+ * Modal title text
+ * Context-aware title based on action type
+ */
+const modalTitle = computed(() =>
+  props.actionIcon === 'unlink'
+    ? t('settingsSecurityZone.unlinkModalTitle')
+    : t('userIdentityProviderListComponent.modalDeleteTitle')
+)
+
+/**
+ * Modal body text
+ * Context-aware confirmation message
+ */
+const modalBody = computed(() =>
+  props.actionIcon === 'unlink'
+    ? t('settingsSecurityZone.unlinkModalConfirmation', { providerName: props.idp.idp_name })
+    : `${t('userIdentityProviderListComponent.modalDeleteBody1')} <b>${props.idp.idp_name}</b>${t('userIdentityProviderListComponent.modalDeleteBody2')}`
+)
+
+/**
+ * Modal button text
+ * Context-aware action button label
+ */
+const modalButtonText = computed(() =>
+  props.actionIcon === 'unlink'
+    ? t('settingsSecurityZone.unlinkAccountButton')
+    : t('userIdentityProviderListComponent.modalDeleteButton')
+)
+
+/**
+ * Main Logic
+ */
 
 /**
  * Handles IDP deletion modal submission

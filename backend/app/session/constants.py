@@ -28,6 +28,8 @@ USERS_ADMIN_SCOPE: Final[tuple[str, ...]] = (
 )
 GEARS_SCOPE: Final[tuple[str, ...]] = ("gears:read", "gears:write")
 ACTIVITIES_SCOPE: Final[tuple[str, ...]] = ("activities:read", "activities:write")
+IDENTITY_PROVIDERS_REGULAR_SCOPE: Final[tuple[str, ...]] = ("identity_providers:read",)
+IDENTITY_PROVIDERS_ADMIN_SCOPE: Final[tuple[str, ...]] = ("identity_providers:write",)
 HEALTH_SCOPE: Final[tuple[str, ...]] = (
     "health:read",
     "health:write",
@@ -57,6 +59,8 @@ SCOPE_DICT: Final[Mapping[str, str]] = MappingProxyType(
         "health_targets:write": "Write privileges over health targets data",
         "server_settings:read": "Read privileges over server settings",
         "server_settings:write": "Write privileges over server settings",
+        "idp:read": "Read privileges over identity providers",
+        "idp:write": "Write privileges over identity providers",
     }
 )
 
@@ -66,7 +70,11 @@ REGULAR_ACCESS_SCOPE: Final[tuple[str, ...]] = (
     + ACTIVITIES_SCOPE
     + HEALTH_SCOPE
     + SERVER_SETTINGS_REGULAR_SCOPE
+    + IDENTITY_PROVIDERS_REGULAR_SCOPE
 )
 ADMIN_ACCESS_SCOPE: Final[tuple[str, ...]] = (
-    REGULAR_ACCESS_SCOPE + USERS_ADMIN_SCOPE + SERVER_SETTINGS_ADMIN_SCOPE
+    REGULAR_ACCESS_SCOPE
+    + USERS_ADMIN_SCOPE
+    + IDENTITY_PROVIDERS_ADMIN_SCOPE
+    + SERVER_SETTINGS_ADMIN_SCOPE
 )

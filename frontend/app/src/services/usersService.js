@@ -3,8 +3,7 @@ import {
   fetchPostRequest,
   fetchPutRequest,
   fetchDeleteRequest,
-  fetchPostFileRequest,
-  API_URL
+  fetchPostFileRequest
 } from '@/utils/serviceUtils'
 import { fetchPublicGetRequest } from '@/utils/servicePublicUtils'
 
