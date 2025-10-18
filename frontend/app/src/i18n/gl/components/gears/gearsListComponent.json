@@ -1,0 +1,16 @@
+{
+  "gearListTypeLabel": "Type",
+  "gearListTypeOption1": "Bike",
+  "gearListTypeOption2": "Shoes",
+  "gearListTypeOption3": "Wetsuit",
+  "gearListTypeOption4": "Racquet",
+  "gearListTypeOption5": "Skis",
+  "gearListTypeOption6": "Snowboard",
+  "gearListTypeOption7": "Windsurf",
+  "gearListTypeOption8": "Water sports board",
+  "gearListGearIsInactiveBadge": "Inactive",
+  "gearListModalDeleteGearTitle": "Delete gear",
+  "gearListModalDeleteGearBody": "Are you sure you want to delete gear ",
+  "gearListGearDeleteSuccessMessage": "Gear deleted successfully",
+  "gearListGearDeleteErrorMessage": "Error deleting gear"
+}

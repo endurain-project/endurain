@@ -1,0 +1,13 @@
+{
+  "labelGear": "Equipamento",
+  "labelGearNotSet": "Non establecido",
+  "modalLabelDeleteGear": "Quitar o equipamento da actividade",
+  "modalLabelDeleteGearBody": "Tes certeza de querer retirar o equipamento desta actividade?",
+  "modalLabelDeleteGearButton": "Retirar equipamento",
+  "successMessageGearAdded": "Engadiuse o equipamento",
+  "successMessageGearDeleted": "Retirouse o equipamento",
+  "errorMessageDeleteGear": "Erro ao retirar o equipamento da actividade",
+  "errorMessageActivityNotFound": "Non se atopa a actividade",
+  "alertPrivacyMessage": "Tes información oculta nesta actividade. Podes vela, pero outras persoas non.",
+  "isHiddenMessage": "A actividade está oculta. Probablemente porque é un duplicado ou a usuaria así o decideu."
+}
