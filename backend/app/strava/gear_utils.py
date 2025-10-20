@@ -288,13 +288,12 @@ def iterate_over_shoes_csv() -> list:
     try:
         if os.path.isfile(shoes_file_path):
             core_logger.print_to_log_and_console(f"{shoesfilename} exists in the {bulk_import_dir} directory. Starting to process file.")
-            with open(shoes_file_path, "r") as shoe_file:
+            with open(shoes_file_path, "r", encoding="utf-8") as shoe_file:
                 shoes_csv = csv.DictReader(shoe_file)
-                for row in shoes_csv:    # Must process CSV file object while file is still open.
-                    # Example row: {'Shoe Name': 'New forest runners', 'Shoe Brand': 'Saucony', 'Shoe Model': 'Trail runner 2200', 'Shoe Default Sport Types': ''}
+                for row in shoes_csv:
                     if ('Shoe Name' not in row) or ('Shoe Brand' not in row) or ('Shoe Model' not in row): 
                         core_logger.print_to_log_and_console(
-                            "Aborting shoes import: Proper headers not found in {shoesfilename}. File should have 'Shoe Name', 'Shoe Brand', and 'Shoe Model'."
+                            f"Aborting shoes import: Proper headers not found in {shoesfilename}. File should have 'Shoe Name', 'Shoe Brand', and 'Shoe Model'."
                         )
                         raise HTTPException(
                             status_code=status.HTTP_424_FAILED_DEPENDENCY,
@@ -303,17 +302,16 @@ def iterate_over_shoes_csv() -> list:
                     shoes_list.append(row)
             core_logger.print_to_log_and_console(f"Strava {shoesfilename} file parsed and gear dictionary created. File was {len(shoes_list)} rows long, ignoring header row.")
             return shoes_list
-        else:
-            core_logger.print_to_log_and_console(f"No {shoesfilename} file located in the {bulk_import_dir} directory.")
-            raise HTTPException(
-                status_code=status.HTTP_424_FAILED_DEPENDENCY,
-                detail="No Strava shoes CSV file found for import.",
-            )
+        core_logger.print_to_log_and_console(f"No {shoesfilename} file located in the {bulk_import_dir} directory.")
+        raise HTTPException(
+            status_code=status.HTTP_424_FAILED_DEPENDENCY,
+            detail="No Strava shoes CSV file found for import.",
+        )
     except HTTPException as http_err:
         raise http_err
     except Exception as err:
         core_logger.print_to_log_and_console(
-            f"Error attempting to open {shoes_file_path_file_path} file:  {err}", "error"
+            f"Error attempting to open {shoes_file_path} file:  {err}", "error"
         )
         raise HTTPException(
             status_code=status.HTTP_424_FAILED_DEPENDENCY,
