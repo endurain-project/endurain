@@ -267,16 +267,6 @@ workers = 1, concurrency = 1,
 - Check password authentication method (use MD5, not SCRAM-SHA-256)
 - Verify `pg_hba.conf` allows connections from pgloader host
 
-### Large JSON Data Issues
-
-**Symptoms:** Errors processing `stream_waypoints` column in `activities_streams`.
-
-**Solutions:**
-
-- The updated `transforms.lisp` includes `stream-waypoints-to-jsonb` function
-- Use split migration approach for better memory management
-- Consider manual cleanup of very large JSON records before migration
-
 ### Migration Time Estimates
 
 - **Small databases** (< 1000 activities): 5-15 minutes
