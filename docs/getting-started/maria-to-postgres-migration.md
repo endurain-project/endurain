@@ -10,17 +10,17 @@ Refer to [pgloader docs](https://pgloader.readthedocs.io/en/latest/) for install
 
 # Migration steps
 
- 1. Stop Endurain container;
+- Stop Endurain container;
 
 ```bash
 docker compose down
 ```
 
- 2. Backup existent database - [MariaDB dump backup options](#mariadb-dump-backup-options);
- 3. Run pgloader to do the migration - [Do the migration](#do-the-migration);
- 4. Verify migration by:
+- Backup existent database - [MariaDB dump backup options](#mariadb-dump-backup-options);
+- Run pgloader to do the migration - [Do the migration](#do-the-migration);
+- Verify migration by:
     - Checking pgloader outputs and logs.
- 5. Update environment variables (adapt to your environment):
+- Update environment variables (adapt to your environment):
     
 ```bash
 DB_TYPE=postgres
@@ -28,14 +28,14 @@ DB_HOST=postgres
 DB_PORT=5432
 ```
 
- 6. Start with PostgreSQL:
+- Start with PostgreSQL:
     
 ```bash
 docker compose up -d
 ```
 
- 7. Monitor logs for any issues;
- 8. Verify application functionality:
+- Monitor logs for any issues;
+- Verify application functionality:
     - Test login;
     - Upload test activity;
     - Check activity streams display;
@@ -60,13 +60,13 @@ mariadb-dump -h 127.0.0.1 -P 3306 -u endurain -p'redacted' endurain \
 
 **Pros:**
 
- - No need to modify the container  
- - Easy to automate in cron or scripts  
+- No need to modify the container  
+- Easy to automate in cron or scripts  
 
 **Cons:**
 
- - Requires MariaDB client installed on the host
- - The container’s database port must be exposed
+- Requires MariaDB client installed on the host
+- The container’s database port must be exposed
 
 ## Option 2: Use a temporary MariaDB client container
 
@@ -135,14 +135,14 @@ sudo docker exec mariadb_endurain_prod sh -lc \
 
 Postgres dropped support for MD5 hashed passwords in favor of SHA256, however pgloader [does not support SHA256](https://github.com/dimitri/pgloader/issues/1207). What I did was:
 
- - Change password to be MD5 hashed:
+- Change password to be MD5 hashed:
 
 ```sql
 set password_encryption to 'md5';
 ALTER ROLE endurain password 'JUST_RETYPE_YOUR_EXISTING_PASSWORD';
 ```
 
- - Change `pg_hba.conf` file to allow MD5 logins:
+- Change `pg_hba.conf` file to allow MD5 logins:
     - On my machine using postgres 18 Docker image: `/opt/containers/postgres_endurain_prod/18/docker/pg_hba.conf`
 
 ```bash
@@ -163,10 +163,10 @@ host all all all scram-sha-256
 
 ⚠️ **Important Notes:**
 
- - DB passwords with special characters like `@` or `!` can cause issues;
- - Recommendation: Use simple passwords during migration, change them afterward;
- - The migration can be memory-intensive, especially for large `activities_streams` tables;
- - Ensure sufficient RAM (at least 4GB available) on the machine running pgloader.
+- DB passwords with special characters like `@` or `!` can cause issues;
+- Recommendation: Use simple passwords during migration, change them afterward;
+- The migration can be memory-intensive, especially for large `activities_streams` tables;
+- Ensure sufficient RAM (at least 4GB available) on the machine running pgloader.
 
 ## Migration Process
 
@@ -174,14 +174,14 @@ Remember: Always keep your MariaDB backup until you're confident the PostgreSQL 
 
 After [pgloader](https://pgloader.readthedocs.io/en/latest/) is installed:
 
-1. **Clone Endurain repository:**
+### Clone Endurain repository
 
 ```bash
 git clone https://github.com/joaovitoriasilva/endurain
 cd endurain/mariadb_to_postgres
 ```
 
-2. **Edit the migration configuration:**
+### Edit the migration configuration
 
 - Edit `mariadb_to_postgres_streams_only.load` and `mariadb_to_postgres_without_streams.load` to match your environment;
 - Change DB connections (adjust host, port, database, user and password).
@@ -192,19 +192,19 @@ LOAD DATABASE
     INTO postgresql://endurain:password@postgres-host:5432/endurain
 ```
 
-3. **Migration:**
+### Migration
 
-The migration is splitted because activity_streams table has large json data, causing memory issues
+The migration is splitted because activity_streams table has large json data, causing memory issues:
 
-**Step 1:** Migrate all tables except activities_streams:
+- **Step 1:** Migrate all tables except activities_streams:
 
 ```bash
 pgloader --verbose --load-lisp-file transforms.lisp mariadb_to_postgres_without_streams.load > migration_main_$(date +%Y%m%d_%H%M%S).log 2>&1
 ```
 
-This step may take several minutes to conclude (1h+ in my case. You can try to ajust load file to increase speed)
+- **Step 2:** Migrate activities_streams separately:
 
-**Step 2:** Migrate activities_streams separately:
+This step may take several minutes to conclude (1h+ in my case. You can try to ajust load file to increase speed).
 
 ```bash
 pgloader --verbose --load-lisp-file transforms.lisp mariadb_to_postgres_streams_only.load > migration_streams_$(date +%Y%m%d_%H%M%S).log 2>&1
@@ -214,14 +214,14 @@ pgloader --verbose --load-lisp-file transforms.lisp mariadb_to_postgres_streams_
 
 Revert changes made to user endurain:
 
- - Change password to be SHA256 hashed:
+- Change password to be SHA256 hashed:
 
 ```sql
 set password_encryption to 'scram-sha-256';
 ALTER ROLE endurain password 'JUST_RETYPE_YOUR_EXISTING_PASSWORD';
 ```
 
- - Change `pg_hba.conf` file to allow MD5 logins:
+- Change `pg_hba.conf` file to allow MD5 logins:
     - On my machine using postgres 18 Docker image: `/opt/containers/postgres_endurain_prod/18/docker/pg_hba.conf`
 
 ```bash
@@ -244,14 +244,14 @@ host all all all scram-sha-256
 
 **Solutions:**
 
-1. **Increase system memory** or close other applications
-2. **Reduce batch size** in the .load file:
+- **Increase system memory** or close other applications
+- **Reduce batch size** in the .load file:
 
 ```bash
 change bellow to minor, default is 10
 rows per range = 10 
 ```
-3. **Reduce workers** in the .load file:
+- **Reduce workers** in the .load file:
 
 ```bash
 workers = 1, concurrency = 1,
@@ -263,9 +263,9 @@ workers = 1, concurrency = 1,
 
 **Solutions:**
 
-1. Verify PostgreSQL is running and accessible
-2. Check password authentication method (use MD5, not SCRAM-SHA-256)
-3. Verify `pg_hba.conf` allows connections from pgloader host
+- Verify PostgreSQL is running and accessible
+- Check password authentication method (use MD5, not SCRAM-SHA-256)
+- Verify `pg_hba.conf` allows connections from pgloader host
 
 ### Large JSON Data Issues
 
@@ -273,9 +273,9 @@ workers = 1, concurrency = 1,
 
 **Solutions:**
 
-1. The updated `transforms.lisp` includes `stream-waypoints-to-jsonb` function
-2. Use split migration approach for better memory management
-3. Consider manual cleanup of very large JSON records before migration
+- The updated `transforms.lisp` includes `stream-waypoints-to-jsonb` function
+- Use split migration approach for better memory management
+- Consider manual cleanup of very large JSON records before migration
 
 ### Migration Time Estimates
 
