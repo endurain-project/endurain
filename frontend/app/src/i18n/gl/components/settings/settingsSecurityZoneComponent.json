@@ -1,8 +1,8 @@
 {
-  "subtitleChangePassword": "Change password",
-  "changeUserPasswordBodyLabel": "Change password for user ",
-  "changeUserPasswordPasswordLabel": "New password",
-  "changeUserPasswordPasswordConfirmationLabel": "Confirm new password",
+  "subtitleChangePassword": "Cambiar contrasinal",
+  "changeUserPasswordBodyLabel": "Cambiar o contrasinal da usuaria ",
+  "changeUserPasswordPasswordLabel": "Novo contrasinal",
+  "changeUserPasswordPasswordConfirmationLabel": "Confirmar o novo contrasinal",
   "changeUserPasswordFeedbackLabel": "Password does not meet requirements",
   "changeUserPasswordPasswordsDoNotMatchFeedbackLabel": "Passwords do not match",
   "subtitleMFA": "Multi-Factor Authentication (MFA)",

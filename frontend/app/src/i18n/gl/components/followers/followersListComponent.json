@@ -5,12 +5,12 @@
   "followingModalBody": "Are you sure you want to delete following user ",
   "followerModalTitle": "Delete follower",
   "followerModalBody": "Are you sure you want to delete follower user ",
-  "followerAcceptModalTitle": "Accept user request",
-  "followerAcceptModalBody": "Are you sure you want to accept follow request from user ",
-  "followerDeclineModalTitle": "Decline user request ",
-  "followerDeclineModalBody": "Are you sure you want to decline follow request from user ",
-  "errorDeleteFollowing": "Error deleting following",
-  "errorDeleteFollower": "Error deleting follower",
-  "errorUpdateFollower": "Error updating follower",
-  "errorFetchingFollowersDetails": "Error fetching followers details"
+  "followerAcceptModalTitle": "Aceptar solicitude da usuaria",
+  "followerAcceptModalBody": "Tes certeza de querer aceptar a solicitude de seguimento da usuaria ",
+  "followerDeclineModalTitle": "Rexeitar a solicitude ",
+  "followerDeclineModalBody": "Tes certeza de querer rexeitar a solicitude de seguimento da usuaria ",
+  "errorDeleteFollowing": "Erro ao eliminar o seguimento",
+  "errorDeleteFollower": "Erro ao eliminar a seguidora",
+  "errorUpdateFollower": "Erro ao actualizar a seguidora",
+  "errorFetchingFollowersDetails": "Erro ao obter detalles das seguidoras"
 }
