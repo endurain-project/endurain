@@ -10,9 +10,14 @@ Refer to [pgloader docs](https://pgloader.readthedocs.io/en/latest/) for install
 
 # Migration steps
 
- 1. Stop Endurain container (`docker compose down`);
- 2. Backup existent database [MariaDB dump backup options](#mariadb-dump-backup-options))
- 3. Run pgloader to do the migration [Do the migration](#do-the-migration);
+ 1. Stop Endurain container;
+
+```bash
+docker compose down
+```
+
+ 2. Backup existent database - [MariaDB dump backup options](#mariadb-dump-backup-options);
+ 3. Run pgloader to do the migration - [Do the migration](#do-the-migration);
  4. Verify migration by:
     - Checking pgloader outputs and logs.
  5. Update environment variables (adapt to your environment):
