@@ -4,6 +4,7 @@
     "buttonBulkImport": "Import activities",
     "loadingMessageBulkImport": "Importing activities from files...",
     "errorMessageUnableToImportActivities": "An error occurred while importing activities",
+    "importTitle": "Import",
     "stravaGearImportTitle": "Strava gear import",
     "stravaGearImportBody": "Import gear from a Strava bulk export (in the data/activity_files/bulk_import folder)",
     "stravaGearImportbuttonBikes": "Import Strava bikes",
