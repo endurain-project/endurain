@@ -9,6 +9,7 @@ nav:
   - Hosting Guide:
     - Getting started easy: getting-started/getting-started.md
     - Getting started advanced: getting-started/advanced-started.md
+    - MariaDB to Postgres migration: getting-started/maria-to-postgres-migration.md
   - Integrations:
     - 3rd party apps: integrations/3rd-party-apps.md
     - 3rd party services: integrations/3rd-party-services.md
