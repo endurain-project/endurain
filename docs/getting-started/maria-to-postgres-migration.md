@@ -38,11 +38,11 @@ Refer to [pgloader docs](https://pgloader.readthedocs.io/en/latest/) for install
 ## Option 1: Run `mysqldump` / `mariadb-dump` from the host
 Run the dump from your host machine (Ubuntu) using the MySQL or MariaDB client tools installed locally. You need to adjust host, port, database and password to match your environment.
 
-```bash
+```
 mysqldump -h 127.0.0.1 -P 3306 -u endurain -p'redacted' endurain \
 > final_backup_$(date +%Y%m%d_%H%M%S).sql
 ```
-```bash
+```
 mariadb-dump -h 127.0.0.1 -P 3306 -u endurain -p'redacted' endurain \
 > final_backup_$(date +%Y%m%d_%H%M%S).sql
 ```
@@ -58,7 +58,7 @@ mariadb-dump -h 127.0.0.1 -P 3306 -u endurain -p'redacted' endurain \
 ## Option 2: Use a temporary MariaDB client container
 Use a one-time client container that connects to your running MariaDB instance. You need to adjust container name, host, port, database and password to match your environment.
 
-```bash
+```
 sudo docker run --rm \
   --network container:mariadb_endurain_prod \
   mariadb:latest \
@@ -79,17 +79,17 @@ If you prefer to back up directly from inside the existing MariaDB container, in
 ### Installation
 Connect to the container shell and do:
 - For Debian/Ubuntu-based containers:
-  ```bash
+  ```
   apt-get update && apt-get install -y mariadb-client
   ```
 - For Alpine-based containers:
-  ```bash
+  ```
   apk add --no-cache mariadb-client
   ```
 
 ### Backup Command (Single Database, No GTID)
 You need to adjust container name, host, port, database and password to match your environment.
-```bash
+```
 sudo docker exec mariadb_endurain_prod sh -lc \
 "mariadb-dump -u endurain -p'redacted' \
   --databases endurain \
@@ -109,7 +109,7 @@ sudo docker exec mariadb_endurain_prod sh -lc \
 
 Postgres dropped support for MD5 hashed passwords in favor of SHA256, however pgloader [does not support SHA256](https://github.com/dimitri/pgloader/issues/1207). What I did was:
  - Change password to be MD5 hashed:
-    ```sql
+    ```
     set password_encryption to 'md5';
     ALTER ROLE endurain password 'JUST_RETYPE_YOUR_EXISTING_PASSWORD';
     ```
@@ -143,33 +143,33 @@ Remember: Always keep your MariaDB backup until you're confident the PostgreSQL 
 After [pgloader](https://pgloader.readthedocs.io/en/latest/) is installed:
 
 1. **Clone Endurain repository:**
-   ```bash
-   git clone https://github.com/joaovitoriasilva/endurain
-   cd endurain/mariadb_to_postgres
-   ```
+```
+git clone https://github.com/joaovitoriasilva/endurain
+cd endurain/mariadb_to_postgres
+```
 
 2. **Edit the migration configuration:**
-   Edit `mariadb_to_postgres_streams_only.load` and `mariadb_to_postgres_without_streams.load` to match your environment:
-   - Change DB connections (adjust host, port, database, user and password):
-   ```sql
-   LOAD DATABASE
-       FROM mysql://endurain:password@mariadb-host:3306/endurain
-       INTO postgresql://endurain:password@postgres-host:5432/endurain
-   ```
+Edit `mariadb_to_postgres_streams_only.load` and `mariadb_to_postgres_without_streams.load` to match your environment:
+- Change DB connections (adjust host, port, database, user and password):
+```
+LOAD DATABASE
+    FROM mysql://endurain:password@mariadb-host:3306/endurain
+    INTO postgresql://endurain:password@postgres-host:5432/endurain
+```
 
 3. **Migration:**
 
 The migration is splitted because activity_streams table has large json data, causing memory issues
 
 **Step 1:** Migrate all tables except activities_streams:
-```bash
+```
 pgloader --verbose --load-lisp-file transforms.lisp mariadb_to_postgres_without_streams.load > migration_main_$(date +%Y%m%d_%H%M%S).log 2>&1
 ```
 
 This step may take several minutes to conclude
 
 **Step 2:** Migrate activities_streams separately:
-```bash
+```
 pgloader --verbose --load-lisp-file transforms.lisp mariadb_to_postgres_streams_only.load > migration_streams_$(date +%Y%m%d_%H%M%S).log 2>&1
 ```
 
@@ -178,7 +178,7 @@ pgloader --verbose --load-lisp-file transforms.lisp mariadb_to_postgres_streams_
 Revert changes made to user endurain:
 
  - Change password to be SHA256 hashed:
-    ```sql
+    ```
     set password_encryption to 'scram-sha-256';
     ALTER ROLE endurain password 'JUST_RETYPE_YOUR_EXISTING_PASSWORD';
     ```
@@ -199,42 +199,50 @@ Revert changes made to user endurain:
 ## Troubleshooting Common Issues
 
 ### Memory Exhaustion Errors
+
 **Symptoms:** "Heap exhausted during allocation" errors, especially when processing `activities_streams` table.
 
 **Solutions:**
+
 1. **Increase system memory** or close other applications
-3. **Reduce batch size** in the .load file:
-   ```sql
+2. **Reduce batch size** in the .load file:
+   ```
    change bellow to minor, default is 10
    rows per range = 10 
    ```
-4. **Reduce workers** in the .load file:
-   ```sql
+3. **Reduce workers** in the .load file:
+   ```
    workers = 1, concurrency = 1,
    ```
 
 ### PostgreSQL Connection Issues
+
 **Symptoms:** Connection refused or authentication errors.
 
 **Solutions:**
+
 1. Verify PostgreSQL is running and accessible
 2. Check password authentication method (use MD5, not SCRAM-SHA-256)
 3. Verify `pg_hba.conf` allows connections from pgloader host
 
 ### Large JSON Data Issues
+
 **Symptoms:** Errors processing `stream_waypoints` column in `activities_streams`.
 
 **Solutions:**
+
 1. The updated `transforms.lisp` includes `stream-waypoints-to-jsonb` function
 2. Use split migration approach for better memory management
 3. Consider manual cleanup of very large JSON records before migration
 
 ### Migration Time Estimates
+
 - **Small databases** (< 1000 activities): 5-15 minutes
 - **Medium databases** (1000-5000 activities): 15-60 minutes  
 - **Large databases** (> 5000 activities): 1+ hours
 
 **Monitoring Progress:**
+
 - Monitor the log file: `tail -f migration_*.log`
 - Check PostgreSQL logs for any issues
 - Monitor system memory usage during migration
