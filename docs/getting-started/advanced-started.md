@@ -109,10 +109,10 @@ Strava allows users to create a bulk export of their historical activity on the 
 At the present time, importing bikes from a Strava bulk export is implemented as a beta feature - use with caution.  Components of bikes are not imported - just the bikes themselves.  There is no mechanism present to undo an import.
 
 To perform an import of bikes: 
-- Place the bikes.csv file from a Strava bulk export into the data/activity_files/bulk_import folder. Create the folder if needed.
-- In the "Settings" menu select "Import".
-- Click "Import Strava Bikes" next to "Strava gear import".
-- Upon successful import, the bikes.csv file is moved to /data/activity_files/processed folder.
+- Place the bikes.csv file from a Strava bulk export into the data/activity_files/bulk_import folder. Create the folder if needed;
+- In the "Settings" menu select "Import";
+- Click "Import Strava Bikes" next to "Strava gear import";
+- Upon successful import, the bikes.csv file is moved to /data/activity_files/processed folder;
 - Status messages about the import, including why any gear was not imported, can be found in the logs.
 
 Ensure the file is named "bikes.csv" and has a header row with at least the fields 'Bike Name', 'Bike Brand', and 'Bike Model'.
@@ -122,10 +122,10 @@ Ensure the file is named "bikes.csv" and has a header row with at least the fiel
 At the present time, importing shoes from a Strava bulk export is implemented as a beta feature - use with caution.  Components of shooes are not imported - just the shoes themselves. 
 
 To perform an import of shoes: 
-- Place the shoes.csv file from a Strava bulk export into the data/activity_files/bulk_import folder. Create the folder if needed.
-- In the "Settings" menu select "Import".
-- Click "Shoes import" next to "Strava gear import".
-- Upon successful import, the shoes.csv file is moved to /data/activity_files/processed folder.
+- Place the shoes.csv file from a Strava bulk export into the data/activity_files/bulk_import folder. Create the folder if needed;
+- In the "Settings" menu select "Import";
+- Click "Shoes import" next to "Strava gear import";
+- Upon successful import, the shoes.csv file is moved to /data/activity_files/processed folder;
 - Status messages about the import, including why any gear was not imported, can be found in the logs.
 
 Ensure the file is named "shoes.csv" and has a header row with at least the fields 'Shoe Name', 'Shoe Brand', and 'Shoe Model'.

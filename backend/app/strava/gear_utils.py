@@ -284,14 +284,22 @@ def iterate_over_shoes_csv() -> list:
     shoes_file_path = os.path.join(bulk_import_dir, shoesfilename)
 
     # Get file and parse it
-    shoes_list = [] # Using a list for shoes, as there is no unique value to use as a dictionary key like with bikes
+    shoes_list = (
+        []
+    )  # Using a list for shoes, as there is no unique value to use as a dictionary key like with bikes
     try:
         if os.path.isfile(shoes_file_path):
-            core_logger.print_to_log_and_console(f"{shoesfilename} exists in the {bulk_import_dir} directory. Starting to process file.")
+            core_logger.print_to_log_and_console(
+                f"{shoesfilename} exists in the {bulk_import_dir} directory. Starting to process file."
+            )
             with open(shoes_file_path, "r", encoding="utf-8") as shoe_file:
                 shoes_csv = csv.DictReader(shoe_file)
                 for row in shoes_csv:
-                    if ('Shoe Name' not in row) or ('Shoe Brand' not in row) or ('Shoe Model' not in row): 
+                    if (
+                        ("Shoe Name" not in row)
+                        or ("Shoe Brand" not in row)
+                        or ("Shoe Model" not in row)
+                    ):
                         core_logger.print_to_log_and_console(
                             f"Aborting shoes import: Proper headers not found in {shoesfilename}. File should have 'Shoe Name', 'Shoe Brand', and 'Shoe Model'."
                         )
@@ -300,9 +308,13 @@ def iterate_over_shoes_csv() -> list:
                             detail="Invalid file. Proper headers not found in Strava shoes CSV file.",
                         )
                     shoes_list.append(row)
-            core_logger.print_to_log_and_console(f"Strava {shoesfilename} file parsed and gear dictionary created. File was {len(shoes_list)} rows long, ignoring header row.")
+            core_logger.print_to_log_and_console(
+                f"Strava {shoesfilename} file parsed and gear dictionary created. File was {len(shoes_list)} rows long, ignoring header row."
+            )
             return shoes_list
-        core_logger.print_to_log_and_console(f"No {shoesfilename} file located in the {bulk_import_dir} directory.")
+        core_logger.print_to_log_and_console(
+            f"No {shoesfilename} file located in the {bulk_import_dir} directory."
+        )
         raise HTTPException(
             status_code=status.HTTP_424_FAILED_DEPENDENCY,
             detail="No Strava shoes CSV file found for import.",
@@ -317,7 +329,6 @@ def iterate_over_shoes_csv() -> list:
             status_code=status.HTTP_424_FAILED_DEPENDENCY,
             detail="Error parsing Strava shoes CSV file.",
         ) from err
-
 
 
 def transform_csv_bike_gear_to_schema_gear(
@@ -353,7 +364,7 @@ def transform_csv_shoe_gear_to_schema_gear(
     shoes_list: list, token_user_id: int, db: Session
 ) -> list[gears_schema.Gear]:
     """
-    Transforms a list of shoe data (parsed from CSV) into a list of Gear schema objects.  
+    Transforms a list of shoe data (parsed from CSV) into a list of Gear schema objects.
     Renames any name-less shoes to a default name plus a unique number, as Strava allows name-less shoes, but Endurain does not.
 
     Args:
@@ -364,30 +375,38 @@ def transform_csv_shoe_gear_to_schema_gear(
     Returns:
         list[gears_schema.Gear]: A list of Gear schema objects created from the input shoe data.
     """
-
-    # Go through shoes, fix any blank nicknames, and create a list of them to return.
     gears = []
-    newnumber = 1  # Number to append to unnamed shoes.
-    for shoerow in shoes_list:  
-        # 1 - Check for nameless shoes and add a novel name. Why?  Because Strava allows nameless shoes, but Endurain does not.  
-        if shoerow["Shoe Name"] is None or shoerow["Shoe Name"] == "" or shoerow["Shoe Name"].replace("+", " ").strip() == "":
-            # Shoe name is blank or parses to blank; assign a new, non-duplicated name. 
+    newnumber = 1
+    for shoerow in shoes_list:
+        # 1 - Check for nameless shoes and add a novel name. Why?  Because Strava allows nameless shoes, but Endurain does not.
+        if (
+            shoerow["Shoe Name"] is None
+            or shoerow["Shoe Name"] == ""
+            or shoerow["Shoe Name"].replace("+", " ").strip() == ""
+        ):
+            # Shoe name is blank or parses to blank; assign a new, non-duplicated name.
             proposed_name_is_already_present = True
             while proposed_name_is_already_present:
-                proposed_name = core_config.STRAVA_BULK_IMPORT_SHOES_UNNAMED_SHOE + str(newnumber)
-                gear_check = gears_crud.get_gear_user_by_nickname(token_user_id, proposed_name, db)
+                proposed_name = core_config.STRAVA_BULK_IMPORT_SHOES_UNNAMED_SHOE + str(
+                    newnumber
+                )
+                gear_check = gears_crud.get_gear_user_by_nickname(
+                    token_user_id, proposed_name, db
+                )
                 if gear_check is not None:
-                    newnumber+=1
+                    newnumber += 1
                 else:
                     proposed_name_is_already_present = False
                     shoe_name = proposed_name
-                    core_logger.print_to_log_and_console(f"Shoe name was blank, it has been updated to: {proposed_name}")
-                    newnumber+=1  # Iterate the number so the next unnamed shoe does not duplicate this one.                    
+                    core_logger.print_to_log_and_console(
+                        f"Shoe name was blank, it has been updated to: {proposed_name}"
+                    )
+                    newnumber += 1  # Iterate the number so the next unnamed shoe does not duplicate this one.
         else:
             # CSV data has a name for the shoe, use CSV's data as the name.
             shoe_name = shoerow["Shoe Name"]
 
-        # 2 - Add (possibly renamed) gear item to the list of gear to be added. 
+        # 2 - Add (possibly renamed) gear item to the list of gear to be added.
         new_gear = gears_schema.Gear(
             user_id=token_user_id,
             brand=shoerow["Shoe Brand"],
@@ -399,4 +418,3 @@ def transform_csv_shoe_gear_to_schema_gear(
         )
         gears.append(new_gear)
     return gears
-
