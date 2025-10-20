@@ -110,12 +110,12 @@ At the present time, importing bikes from a Strava bulk export is implemented as
 
 To perform an import of bikes: 
 - Place the bikes.csv file from a Strava bulk export into the data/activity_files/bulk_import folder. Create the folder if needed;
-- In the "Settings" menu select "Import";
-- Click "Import Strava Bikes" next to "Strava gear import";
+- In the `Settings` menu select `Import`;
+- Click `Import Strava Bikes` next to `Strava gear import`;
 - Upon successful import, the bikes.csv file is moved to /data/activity_files/processed folder;
 - Status messages about the import, including why any gear was not imported, can be found in the logs.
 
-Ensure the file is named "bikes.csv" and has a header row with at least the fields 'Bike Name', 'Bike Brand', and 'Bike Model'.
+Ensure the file is named `bikes.csv` and has a header row with at least the fields 'Bike Name', 'Bike Brand', and 'Bike Model'.
 
 #### Shoe import
 
@@ -123,14 +123,14 @@ At the present time, importing shoes from a Strava bulk export is implemented as
 
 To perform an import of shoes: 
 - Place the shoes.csv file from a Strava bulk export into the data/activity_files/bulk_import folder. Create the folder if needed;
-- In the "Settings" menu select "Import";
-- Click "Shoes import" next to "Strava gear import";
+- In the `Settings` menu select `Import`;
+- Click `Shoes import` next to `Strava gear import`;
 - Upon successful import, the shoes.csv file is moved to /data/activity_files/processed folder;
 - Status messages about the import, including why any gear was not imported, can be found in the logs.
 
-Ensure the file is named "shoes.csv" and has a header row with at least the fields 'Shoe Name', 'Shoe Brand', and 'Shoe Model'.
+Ensure the file is named `shoes.csv` and has a header row with at least the fields 'Shoe Name', 'Shoe Brand', and 'Shoe Model'.
 
-Note that Strava allows blank shoe names, but Endurain does not.  Shoes with a blank name will thus be given a default name of "Unnamed Shoe #" on import. 
+Note that Strava allows blank shoe names, but Endurain does not.  Shoes with a blank name will thus be given a default name of `Unnamed Shoe #` on import.
 
 #### Notes on importing gear
 
@@ -138,9 +138,9 @@ NOTE: There is currently no mechanism to undo a gear import.
 
 All gear will be imported as active, as Strava does not export the active/inactive status of the gear.
 
-Note that Endurain does not allow the "+" character in gear field names, and thus +'s will removed from all fields and replaced with spaces (" ") on import.  All beginning and ending space characters (" ") will be removed on import as well.
+Note that Endurain does not allow the `+` character in gear field names, and thus +'s will removed from all fields and replaced with spaces (" ") on import.  All beginning and ending space characters (" ") will be removed on import as well.
 
-Endurain does not allow duplicate gear nicknames, case insensitively (e.g., "Ilves" and "ilves" would not be allowed) and regardless of gear type (e.g., "Ilves" the bike and "ilves" the shoe would not be allowed). Gear with duplicate nicknames will not be imported (i.e., only the first item with a given nickname will be imported).
+Endurain does not allow duplicate gear nicknames, case insensitively (e.g., `Ilves` and `ilves` would not be allowed) and regardless of gear type (e.g., `Ilves` the bike and `ilves` the shoe would not be allowed). Gear with duplicate nicknames will not be imported (i.e., only the first item with a given nickname will be imported).
 
 The import routine checks for duplicate items, and should not import duplicates. Thus it should be safe to re-import the same file mulitple times. However, due to the renaming of un-named shoes, repeated imports of the same shoe file will create duplicate entries of any unnamed shoes present. 
 
