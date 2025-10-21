@@ -598,18 +598,18 @@ async def import_profile_data(
             # c) import user JSONs
             if results["user_data"]:
                 # ensure user has the correct id on import
-                results["user_data"]["id"] = token_user_id
+                results["user_data"][0]["id"] = token_user_id
                 # Split and replace only the filename part
-                photo_path = results["user_data"].get("photo_path")
+                photo_path = results["user_data"][0].get("photo_path")
                 if isinstance(photo_path, str) and photo_path.startswith(
                     "data/user_images/"
                 ):
                     extension = photo_path.split(".")[-1]
-                    results["user_data"][
+                    results["user_data"][0][
                         "photo_path"
                     ] = f"data/user_images/{token_user_id}.{extension}"
                 # convert user data to User schema
-                user = users_schema.UserRead(**results["user_data"])
+                user = users_schema.UserRead(**results["user_data"][0])
                 # Update user
                 users_crud.edit_user(token_user_id, user, db)
                 counts["user"] += 1
