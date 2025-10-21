@@ -31,10 +31,10 @@ Table below shows supported environment variables. Variables marked with optiona
 | DB_HOST | postgres | Yes | mariadb or postgres |
 | DB_PORT | 5432 | Yes | 3306 or 5432 |
 | DB_USER | endurain | Yes | N/A |
-| DB_PASSWORD | No default set | `No` | N/A |
+| DB_PASSWORD | No default set | `No` | Database password. Alternatively, use `DB_PASSWORD_FILE` for Docker secrets |
 | DB_DATABASE | endurain | Yes | N/A |
-| SECRET_KEY | No default set | `No` | Run `openssl rand -hex 32` on a terminal to get a secret |
-| FERNET_KEY | No default set | `No` | Run `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"` on a terminal to get a secret or go to [https://fernetkeygen.com](https://fernetkeygen.com). Example output is `7NfMMRSCWcoNDSjqBX8WoYH9nTFk1VdQOdZY13po53Y=` |
+| SECRET_KEY | No default set | `No` | Run `openssl rand -hex 32` on a terminal to get a secret. Alternatively, use `SECRET_KEY_FILE` for Docker secrets |
+| FERNET_KEY | No default set | `No` | Run `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"` on a terminal to get a secret or go to [https://fernetkeygen.com](https://fernetkeygen.com). Example output is `7NfMMRSCWcoNDSjqBX8WoYH9nTFk1VdQOdZY13po53Y=`. Alternatively, use `FERNET_KEY_FILE` for Docker secrets |
 | ALGORITHM | HS256 | Yes | Currently only HS256 is supported |
 | ACCESS_TOKEN_EXPIRE_MINUTES | 15 | Yes | Time in minutes |
 | REFRESH_TOKEN_EXPIRE_DAYS | 7 | Yes | Time in days |
@@ -75,6 +75,63 @@ Frontend dependencies:
 
 - To check npm dependencies used, use npm file (package.json)
 - Logo created on Canva
+
+## Docker Secrets Support
+
+Endurain supports [Docker secrets](https://docs.docker.com/compose/how-tos/use-secrets/) for securely managing sensitive environment variables. For the following environment variables, you can use `_FILE` variants that read the secret from a file instead of storing it directly in environment variables:
+
+- `DB_PASSWORD` → `DB_PASSWORD_FILE`
+- `SECRET_KEY` → `SECRET_KEY_FILE`
+- `FERNET_KEY` → `FERNET_KEY_FILE`
+
+### Using File-Based Secrets
+
+Use file-based secrets to securely manage sensitive environment variables:
+
+1. **Create a secrets directory with proper permissions:**
+
+```bash
+mkdir -p secrets
+chmod 700 secrets
+```
+
+2. **Create secret files with strong passwords:**
+
+```bash
+# Use randomly generated passwords, not hardcoded ones
+echo "$(openssl rand -base64 32)" > secrets/db_password.txt
+echo "$(openssl rand -hex 32)" > secrets/secret_key.txt
+echo "$(python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())")" > secrets/fernet_key.txt
+
+# Set secure file permissions
+chmod 600 secrets/*.txt
+chown $(id -u):$(id -g) secrets/*.txt
+```
+
+3. **Configure docker-compose.yml:**
+
+```yaml
+services:
+  endurain:
+    environment:
+      - DB_PASSWORD_FILE=/run/secrets/db_password
+      - SECRET_KEY_FILE=/run/secrets/secret_key
+      - FERNET_KEY_FILE=/run/secrets/fernet_key
+    secrets:
+      - db_password
+      - secret_key
+      - fernet_key
+
+secrets:
+  db_password:
+    file: ./secrets/db_password.txt
+  secret_key:
+    file: ./secrets/secret_key.txt
+  fernet_key:
+    file: ./secrets/fernet_key.txt
+```
+
+**Note**: When using `_FILE` variants, the original environment variables (e.g., `DB_PASSWORD`) are not needed. The application will automatically read from the file specified by the `_FILE` environment variable.
 
 ## Volumes
 

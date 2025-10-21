@@ -1,12 +1,14 @@
 import os
 
+import core.config as core_config
+
 # JWT Token constants
 JWT_ALGORITHM = os.environ.get("ALGORITHM", "HS256")
 JWT_ACCESS_TOKEN_EXPIRE_MINUTES = int(
     os.environ.get("ACCESS_TOKEN_EXPIRE_MINUTES", "15")
 )
 JWT_REFRESH_TOKEN_EXPIRE_DAYS = int(os.environ.get("REFRESH_TOKEN_EXPIRE_DAYS", "7"))
-JWT_SECRET_KEY = os.environ.get("SECRET_KEY")
+JWT_SECRET_KEY = core_config.read_secret("SECRET_KEY")
 
 # Scopes definition
 USERS_REGULAR_SCOPES = ["profile", "users:read"]

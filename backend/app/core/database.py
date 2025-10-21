@@ -4,6 +4,8 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.engine.url import URL
 
+import core.config as core_config
+
 
 # Fetch the database type (e.g., mariadb or postgresql)
 db_type = os.environ.get("DB_TYPE", "postgres").lower()
@@ -20,7 +22,7 @@ if db_type not in supported_drivers:
 db_url = URL.create(
     drivername=supported_drivers[db_type],
     username=os.environ.get("DB_USER", "endurain"),
-    password=os.environ.get("DB_PASSWORD"),
+    password=core_config.read_secret("DB_PASSWORD"),
     host=os.environ.get("DB_HOST", "postgres"),
     port=os.environ.get("DB_PORT", "5432"),
     database=os.environ.get("DB_DATABASE", "endurain"),
