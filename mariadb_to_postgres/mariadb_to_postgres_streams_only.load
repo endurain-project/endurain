@@ -4,7 +4,10 @@ LOAD DATABASE
 
 WITH include drop, create tables, create indexes, reset sequences,
     workers = 1, concurrency = 1,
-    multiple readers per thread, rows per range = 1
+    prefetch rows = 100,
+    batch rows = 100,
+    batch size = 5MB,
+    rows per range = 10
 
 INCLUDING ONLY TABLE NAMES MATCHING 'activities_streams'
 
