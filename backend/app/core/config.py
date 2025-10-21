@@ -335,9 +335,6 @@ def check_required_env_vars():
             core_logger.print_to_log_and_console(
                 "FERNET_KEY validation failed. Please check the key format and regenerate if necessary.", "warning"
             )
-            core_logger.print_to_log_and_console(
-                "To generate a new FERNET_KEY, run: python3 -c \"from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())\"", "info"
-            )
 
 
 def check_required_dirs():
