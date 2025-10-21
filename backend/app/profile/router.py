@@ -28,6 +28,15 @@ import users.user_privacy_settings.schema as users_privacy_settings_schema
 import profile.utils as profile_utils
 import profile.schema as profile_schema
 from profile.export_service import ExportService
+from profile.exceptions import (
+    handle_export_exception,
+    DatabaseConnectionError,
+    FileSystemError,
+    ZipCreationError,
+    MemoryAllocationError,
+    DataCollectionError,
+    ExportTimeoutError
+)
 
 import session.security as session_security
 import session.crud as session_crud
@@ -426,10 +435,20 @@ async def export_profile_data(
             media_type="application/zip",
             headers=headers,
         )
+    except (DatabaseConnectionError, FileSystemError, ZipCreationError, 
+            MemoryAllocationError, DataCollectionError, ExportTimeoutError) as err:
+        # Handle specific export errors with appropriate HTTP responses
+        http_exception = handle_export_exception(err, "profile data export")
+        core_logger.print_to_log(
+            f"Export error for user {token_user_id}: {err}",
+            "error",
+            exc=err,
+        )
+        raise http_exception
     except Exception as err:
         # Log the exception
         core_logger.print_to_log(
-            f"Error in export_profile_data when streaming the response: {err}",
+            f"Unexpected error in export_profile_data for user {token_user_id}: {err}",
             "error",
             exc=err,
         )
