@@ -2,6 +2,7 @@ import os
 import tempfile
 import zipfile
 import time
+import psutil
 from typing import Generator, Dict, Any, List
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
@@ -34,30 +35,176 @@ import users.user_goals.crud as user_goals_crud
 import users.user_privacy_settings.crud as users_privacy_settings_crud
 
 
+class ExportPerformanceConfig:
+    """
+    Configuration class for managing export performance parameters.
+    This class provides configuration options to optimize data export operations by
+    controlling batch sizes, memory limits, compression settings, and chunk sizes.
+    It includes an adaptive configuration factory method that automatically adjusts
+    settings based on available system memory.
+    Attributes:
+        batch_size (int): Number of records to process in a single batch. Default is 1000.
+        max_memory_mb (int): Maximum memory usage in megabytes. Default is 512.
+        compression_level (int): Compression level (0-9, where 0 is no compression and
+            9 is maximum compression). Default is 6.
+        chunk_size (int): Size of data chunks in bytes for I/O operations. Default is 8192.
+        enable_memory_monitoring (bool): Whether to enable memory usage monitoring during
+            export operations. Default is True.
+    Example:
+        >>> # Create with default settings
+        >>> config = ExportPerformanceConfig()
+        >>>
+        >>> # Create with custom settings
+        >>> config = ExportPerformanceConfig(batch_size=500, max_memory_mb=256)
+        >>>
+        >>> # Create with auto-detection based on system resources
+        >>> config = ExportPerformanceConfig.get_auto_config()
+    """
+
+    def __init__(
+        self,
+        batch_size: int = 1000,
+        max_memory_mb: int = 512,
+        compression_level: int = 6,
+        chunk_size: int = 8192,
+        enable_memory_monitoring: bool = True,
+    ):
+        """
+        Initialize the export service with configuration parameters.
+
+        Args:
+            batch_size (int, optional): Number of records to process in each batch. Defaults to 1000.
+            max_memory_mb (int, optional): Maximum memory usage in megabytes before triggering cleanup. Defaults to 512.
+            compression_level (int, optional): Compression level for export files (0-9, where 9 is maximum compression). Defaults to 6.
+            chunk_size (int, optional): Size of chunks in bytes for streaming operations. Defaults to 8192.
+            enable_memory_monitoring (bool, optional): Whether to enable memory usage monitoring during export. Defaults to True.
+        """
+        self.batch_size = batch_size
+        self.max_memory_mb = max_memory_mb
+        self.compression_level = compression_level
+        self.chunk_size = chunk_size
+        self.enable_memory_monitoring = enable_memory_monitoring
+
+    @classmethod
+    def get_auto_config(cls) -> "ExportPerformanceConfig":
+        """
+        Get automatic configuration based on available system memory.
+        This class method analyzes the system's available memory and returns an optimized
+        ExportPerformanceConfig instance with parameters tuned for the current hardware.
+        The configuration is scaled based on three memory tiers:
+        - High memory (>2GB): Large batch sizes and higher compression
+        - Medium memory (>1GB): Balanced configuration
+        - Low memory (<1GB): Conservative settings to prevent memory issues
+        Returns:
+            ExportPerformanceConfig: A configuration instance optimized for the current
+                system's available memory. Returns default configuration if system
+                resource detection fails.
+        Raises:
+            No exceptions are raised. Any errors during resource detection are logged
+            and a default configuration is returned instead.
+        Example:
+            >>> config = ExportPerformanceConfig.get_auto_config()
+            >>> print(f"Batch size: {config.batch_size}")
+        """
+        try:
+            # Get available memory
+            memory = psutil.virtual_memory()
+            available_mb = memory.available // (1024 * 1024)
+
+            # Adaptive configuration based on available memory
+            if available_mb > 2048:  # > 2GB available
+                return cls(
+                    batch_size=2000,
+                    max_memory_mb=1024,
+                    compression_level=6,
+                    chunk_size=16384,
+                )
+            elif available_mb > 1024:  # > 1GB available
+                return cls(
+                    batch_size=1000,
+                    max_memory_mb=512,
+                    compression_level=4,
+                    chunk_size=8192,
+                )
+            else:  # Low memory system
+                return cls(
+                    batch_size=500,
+                    max_memory_mb=256,
+                    compression_level=1,
+                    chunk_size=4096,
+                )
+        except Exception as err:
+            core_logger.print_to_log(
+                f"Failed to detect system resources, using defaults: {err}", "warning"
+            )
+            return cls()  # Return default configuration
+
+
 class ExportService:
     """
-    Service class responsible for exporting user profile data as ZIP archives.
-
-    This class handles the collection of user data from the database and file system,
-    and packages it into a downloadable ZIP file format.
+    Service class for exporting user data including activities, gear, health information, and media files.
+    This class handles the collection and export of comprehensive user data into a ZIP archive format.
+    It provides methods for batched data collection to optimize memory usage, with configurable
+    performance settings for handling large datasets efficiently.
+    The export process includes:
+    - User activities with associated components (laps, sets, streams, workout steps, media)
+    - Gear and gear components
+    - Health data and targets
+    - User settings (default gear, integrations, goals, privacy settings)
+    - Activity files and media files
+    - User profile images
+        user_id (int): The ID of the user whose data is being exported.
+        db (Session): SQLAlchemy database session for data access.
+        counts (Dict[str, int]): Dictionary tracking the count of each exported data type.
+        performance_config (ExportPerformanceConfig): Configuration settings for performance
+            optimization including batch size, memory limits, and compression level.
+        >>> from sqlalchemy.orm import Session
+        >>> db = Session()
+        >>> export_service = ExportService(user_id=123, db=db)
+        >>> user_data = {"id": 123, "name": "John Doe"}
+        ...     # Process each chunk of the ZIP file
+        - Uses batched processing to minimize memory usage during data collection
+        - Implements memory monitoring with configurable thresholds
+        - Provides graceful error handling with detailed logging
+        - Supports timeout enforcement for long-running operations
+        - All temporary files are automatically cleaned up after export
     """
 
-    def __init__(self, user_id: int, db: Session):
+    def __init__(
+        self,
+        user_id: int,
+        db: Session,
+        performance_config: ExportPerformanceConfig | None = None,
+    ):
         """
-        Initialize the ExportService with user ID and database session.
+        Initialize the ExportService with user ID, database session, and performance configuration.
 
         Args:
             user_id (int): The ID of the user for whom data will be exported.
             db (Session): The SQLAlchemy database session for querying data.
+            performance_config (ExportPerformanceConfig | None): Configuration for performance tuning.
+                If None, will use auto-detected configuration based on system resources.
 
         Attributes:
             user_id (int): Stores the user ID for the export operation.
             db (Session): Stores the database session for data access.
             counts (dict): Dictionary containing initialized count values for various entities.
+            performance_config (ExportPerformanceConfig): Performance configuration settings.
         """
         self.user_id = user_id
         self.db = db
         self.counts = self._initialize_counts()
+        self.performance_config = (
+            performance_config or ExportPerformanceConfig.get_auto_config()
+        )
+
+        core_logger.print_to_log(
+            f"ExportService initialized with performance config: "
+            f"batch_size={self.performance_config.batch_size}, "
+            f"max_memory_mb={self.performance_config.max_memory_mb}, "
+            f"compression_level={self.performance_config.compression_level}",
+            "info",
+        )
 
     def _initialize_counts(self) -> Dict[str, int]:
         """
@@ -90,12 +237,81 @@ class ExportService:
             "user_privacy_settings": 0,
         }
 
+    def _get_memory_usage_mb(self) -> float:
+        """
+        Get the current memory usage of the process in megabytes.
+
+        This method retrieves the Resident Set Size (RSS) memory usage of the current
+        process using psutil. The RSS represents the portion of memory occupied by the
+        process that is held in RAM.
+
+        Returns:
+            float: The memory usage in megabytes (MB). Returns 0.0 if memory monitoring
+                   is disabled or if an error occurs during retrieval.
+
+        Note:
+            - Memory monitoring must be enabled via performance_config.enable_memory_monitoring
+            - Errors during memory retrieval are logged as warnings and return 0.0
+            - RSS (Resident Set Size) includes all stack and heap memory
+        """
+        try:
+            if self.performance_config.enable_memory_monitoring:
+                process = psutil.Process()
+                memory_info = process.memory_info()
+                return memory_info.rss / (1024 * 1024)  # Convert bytes to MB
+            return 0.0
+        except Exception as e:
+            core_logger.print_to_log(f"Failed to get memory usage: {e}", "warning")
+            return 0.0
+
+    def _check_memory_usage(self, operation: str) -> None:
+        """
+        Check current memory usage and log warnings or raise errors if thresholds are exceeded.
+        This method monitors memory consumption during export operations and takes action
+        based on configured limits. It logs a warning when memory usage exceeds 80% of the
+        maximum allowed memory and raises a MemoryAllocationError when the limit is exceeded.
+        Args:
+            operation (str): Description of the current operation being performed, used for
+                logging context.
+        Raises:
+            MemoryAllocationError: When current memory usage exceeds the configured maximum
+                memory limit (max_memory_mb).
+        Note:
+            - Monitoring can be disabled via performance_config.enable_memory_monitoring
+            - Warning threshold is set at 80% of max_memory_mb
+            - Error threshold is set at 100% of max_memory_mb
+        """
+        if not self.performance_config.enable_memory_monitoring:
+            return
+
+        current_memory = self._get_memory_usage_mb()
+        max_memory = self.performance_config.max_memory_mb
+
+        if current_memory > max_memory * 0.8:  # 80% threshold
+            core_logger.print_to_log(
+                f"High memory usage during {operation}: {current_memory:.1f}MB "
+                f"(limit: {max_memory}MB)",
+                "warning",
+            )
+
+        if current_memory > max_memory:
+            core_logger.print_to_log(
+                f"Memory limit exceeded during {operation}: {current_memory:.1f}MB "
+                f"(limit: {max_memory}MB)",
+                "error",
+            )
+            raise MemoryAllocationError(
+                f"Memory usage ({current_memory:.1f}MB) exceeded limit ({max_memory}MB) during {operation}"
+            )
+
     def collect_user_activities_data(self) -> Dict[str, Any]:
         """
-        Collects all activity-related data for a user.
-        This method retrieves user activities and their associated components including laps,
-        sets, streams, workout steps, media, and exercise titles. It handles errors gracefully
-        for each component to ensure partial data collection is possible even if some components fail.
+        Collects all activity-related data for a user using batched processing for memory efficiency.
+
+        This method retrieves user activities and their associated components using pagination
+        to limit memory usage. It processes activities in batches and handles errors gracefully
+        for each component to ensure partial data collection is possible.
+
         Returns:
             Dict[str, Any]: A dictionary containing the following keys:
                 - activities (list): List of user activity objects
@@ -109,6 +325,7 @@ class ExportService:
             DatabaseConnectionError: If a database error occurs during data collection
             DataCollectionError: If an unexpected error occurs during data collection
         Note:
+            - Uses batched processing to minimize memory usage
             - Returns empty lists for each component if no activities are found
             - Filters out activities with None IDs before collecting related data
             - Logs warnings for missing data and errors for critical failures
@@ -125,20 +342,48 @@ class ExportService:
         }
 
         try:
-            # Try to get user activities
-            user_activities = activities_crud.get_user_activities(self.user_id, self.db)
+            self._check_memory_usage("activity collection start")
 
-            if not user_activities:
+            # Get activities in batches using pagination
+            all_activities = []
+            offset = 0
+            batch_size = self.performance_config.batch_size
+
+            core_logger.print_to_log(
+                f"Starting batched activity collection with batch_size={batch_size}",
+                "info",
+            )
+
+            while True:
+                # Get a batch of activities
+                batch_activities = self._get_activities_batch(offset, batch_size)
+
+                if not batch_activities:
+                    break
+
+                all_activities.extend(batch_activities)
+                offset += batch_size
+
+                # Check memory usage after each batch
+                self._check_memory_usage(f"activity batch {offset//batch_size}")
+
+                core_logger.print_to_log(
+                    f"Collected {len(batch_activities)} activities in batch "
+                    f"(total: {len(all_activities)})",
+                    "info",
+                )
+
+            if not all_activities:
                 core_logger.print_to_log(
                     f"No activities found for user {self.user_id}", "info"
                 )
                 return result
 
-            result["activities"] = user_activities
+            result["activities"] = all_activities
 
             # Filter out activities with None IDs and collect valid IDs
             activity_ids = [
-                activity.id for activity in user_activities if activity.id is not None
+                activity.id for activity in all_activities if activity.id is not None
             ]
 
             if not activity_ids:
@@ -147,55 +392,9 @@ class ExportService:
                 )
                 return result
 
-            # Collect related activity data with individual error handling
-            self._collect_activity_component(
-                result,
-                "laps",
-                activity_laps_crud.get_activities_laps,
-                activity_ids,
-                self.user_id,
-                self.db,
-                user_activities,
-            )
-
-            self._collect_activity_component(
-                result,
-                "sets",
-                activity_sets_crud.get_activities_sets,
-                activity_ids,
-                self.user_id,
-                self.db,
-                user_activities,
-            )
-
-            self._collect_activity_component(
-                result,
-                "streams",
-                activity_streams_crud.get_activities_streams,
-                activity_ids,
-                self.user_id,
-                self.db,
-                user_activities,
-            )
-
-            self._collect_activity_component(
-                result,
-                "steps",
-                activity_workout_steps_crud.get_activities_workout_steps,
-                activity_ids,
-                self.user_id,
-                self.db,
-                user_activities,
-            )
-
-            self._collect_activity_component(
-                result,
-                "media",
-                activity_media_crud.get_activities_media,
-                activity_ids,
-                self.user_id,
-                self.db,
-                user_activities,
+            # Collect related activity data with batched processing
+            self._collect_activity_components_batched(
+                result, activity_ids, all_activities
             )
 
             # Exercise titles don't depend on activity IDs
@@ -226,6 +425,186 @@ class ExportService:
             ) from err
 
         return result
+
+    def _get_activities_batch(self, offset: int, limit: int) -> List[Any]:
+        """
+        Retrieve a batch of activities for the user with pagination support.
+        This method fetches activities from the database using offset-based pagination,
+        converting the offset to a page number for use with the underlying CRUD function.
+        Activities are sorted by start_time in descending order (most recent first).
+        Args:
+            offset (int): The number of records to skip before starting to return results.
+                         Used to calculate the page number for pagination.
+            limit (int): The maximum number of activities to return in this batch.
+        Returns:
+            List[Any]: A list of activity objects for the specified page. Returns an empty
+                      list if no activities are found or if an error occurs.
+        Raises:
+            Does not raise exceptions directly. Errors are logged and an empty list is returned.
+        Example:
+            >>> activities = self._get_activities_batch(offset=0, limit=50)
+            >>> # Retrieves the first 50 activities
+            >>> activities = self._get_activities_batch(offset=50, limit=50)
+            >>> # Retrieves activities 51-100
+        """
+        try:
+            # Convert offset to page number (1-based indexing)
+            page_number = (offset // limit) + 1
+
+            # Use the existing pagination function from activities CRUD
+            activities = activities_crud.get_user_activities_with_pagination(
+                user_id=self.user_id,
+                db=self.db,
+                page_number=page_number,
+                num_records=limit,
+                # Sort by start_time descending (most recent first) for consistency
+                sort_by="start_time",
+                sort_order="desc",
+            )
+
+            return activities or []
+
+        except Exception as err:
+            core_logger.print_to_log(
+                f"Failed to get activities batch (offset={offset}, limit={limit}): {err}",
+                "warning",
+                exc=err,
+            )
+            return []
+
+    def _collect_activity_components_batched(
+        self,
+        result: Dict[str, Any],
+        activity_ids: List[int],
+        user_activities: List[Any],
+    ) -> None:
+        """
+        Collect activity components in batches to optimize memory usage.
+        This method processes activity components (laps, sets, streams, steps, media) in smaller
+        batches to reduce memory footprint during data collection. It iterates through activity IDs
+        and retrieves associated components for each batch.
+        Args:
+            result (Dict[str, Any]): Dictionary to store collected component data, organized by
+                component type (e.g., 'laps', 'sets', 'streams', 'steps', 'media').
+            activity_ids (List[int]): List of activity IDs to process.
+            user_activities (List[Any]): List of user activity objects corresponding to the activity IDs.
+        Returns:
+            None: Modifies the result dictionary in-place by adding component data.
+        Note:
+            - Uses half of the configured batch size for component processing to reduce memory usage
+            - Monitors memory usage between batches
+            - Logs progress information for each processed batch
+        """
+        # Process activity IDs in smaller batches to reduce memory usage
+        batch_size = (
+            self.performance_config.batch_size // 2
+        )  # Smaller batches for components
+
+        for i in range(0, len(activity_ids), batch_size):
+            batch_ids = activity_ids[i : i + batch_size]
+            batch_activities = user_activities[i : i + batch_size]
+
+            self._check_memory_usage(f"component batch {i//batch_size + 1}")
+
+            # Collect each component type for this batch
+            self._collect_activity_component_batch(
+                result,
+                "laps",
+                activity_laps_crud.get_activities_laps,
+                batch_ids,
+                self.user_id,
+                self.db,
+                batch_activities,
+            )
+
+            self._collect_activity_component_batch(
+                result,
+                "sets",
+                activity_sets_crud.get_activities_sets,
+                batch_ids,
+                self.user_id,
+                self.db,
+                batch_activities,
+            )
+
+            self._collect_activity_component_batch(
+                result,
+                "streams",
+                activity_streams_crud.get_activities_streams,
+                batch_ids,
+                self.user_id,
+                self.db,
+                batch_activities,
+            )
+
+            self._collect_activity_component_batch(
+                result,
+                "steps",
+                activity_workout_steps_crud.get_activities_workout_steps,
+                batch_ids,
+                self.user_id,
+                self.db,
+                batch_activities,
+            )
+
+            self._collect_activity_component_batch(
+                result,
+                "media",
+                activity_media_crud.get_activities_media,
+                batch_ids,
+                self.user_id,
+                self.db,
+                batch_activities,
+            )
+
+            core_logger.print_to_log(
+                f"Processed component batch {i//batch_size + 1} "
+                f"({len(batch_ids)} activities)",
+                "info",
+            )
+
+    def _collect_activity_component_batch(
+        self, result: Dict, key: str, crud_func, *args
+    ) -> None:
+        """
+        Collects and appends activity component data to a result dictionary.
+
+        This method executes a CRUD function to retrieve activity component data and stores it
+        in the result dictionary under the specified key. If data exists, it initializes the key
+        as a list (if not present) and extends it with the retrieved data. Any exceptions during
+        execution are logged as warnings.
+
+        Args:
+            result (Dict): The dictionary where collected data will be stored.
+            key (str): The key under which the data will be stored in the result dictionary.
+            crud_func: A callable function that retrieves the activity component data.
+            *args: Variable length argument list to be passed to the crud_func.
+
+        Returns:
+            None: This method modifies the result dictionary in-place.
+
+        Raises:
+            No exceptions are raised; all exceptions are caught and logged as warnings.
+
+        Example:
+            >>> result = {}
+            >>> self._collect_activity_component_batch(
+            ...     result,
+            ...     'streams',
+            ...     get_activity_streams,
+            ...     activity_id
+            ... )
+        """
+        try:
+            data = crud_func(*args)
+            if data:
+                if key not in result:
+                    result[key] = []
+                result[key].extend(data)
+        except Exception as err:
+            core_logger.print_to_log(
+                f"Failed to collect batch for {key}: {err}", "warning", exc=err
+            )
 
     def _collect_activity_component(self, result: Dict, key: str, crud_func, *args):
         """
@@ -630,19 +1009,25 @@ class ExportService:
 
     def add_user_images_to_zip(self, zipf: zipfile.ZipFile):
         """
-        Add user profile images to the ZIP archive.
+        Add user profile images to the ZIP archive using optimized file operations.
+
         This method searches for user profile images in the configured user images directory,
-        filters them by user ID, and adds matching images to the provided ZIP file.
+        filters them by user ID, and adds matching images to the provided ZIP file using
+        optimized directory traversal and file size monitoring.
+
         Args:
             zipf (zipfile.ZipFile): The ZIP file object to add images to.
+
         Raises:
             FileSystemError: If there's a file system error accessing the user images directory.
+
         Note:
             - Images are stored in a 'user_images' subdirectory within the ZIP archive
             - Only images whose filename (without extension) matches the user_id are included
+            - Uses os.scandir() for optimized directory traversal
+            - Includes file size monitoring and warnings for large files
             - Individual file errors are logged as warnings and don't stop the process
             - Updates self.counts["user_images"] with the number of images added
-            - If the user images directory doesn't exist, logs a warning and returns early
         """
         try:
             if not os.path.exists(core_config.USER_IMAGES_DIR):
@@ -652,49 +1037,119 @@ class ExportService:
                 )
                 return
 
-            for root, _, files in os.walk(core_config.USER_IMAGES_DIR):
-                for file in files:
-                    try:
-                        file_id, _ = os.path.splitext(file)
-                        if str(self.user_id) == file_id:
-                            file_path = os.path.join(root, file)
+            self._add_user_images_optimized(zipf, core_config.USER_IMAGES_DIR)
 
-                            # Check if file exists and is readable
-                            if not os.path.isfile(file_path):
-                                core_logger.print_to_log(
-                                    f"User image file not found: {file_path}", "warning"
-                                )
-                                continue
-
-                            arcname = os.path.join(
-                                "user_images",
-                                os.path.relpath(file_path, core_config.USER_IMAGES_DIR),
-                            )
-                            zipf.write(file_path, arcname)
-                            self.counts["user_images"] += 1
-
-                    except (OSError, IOError) as err:
-                        core_logger.print_to_log(
-                            f"Failed to add user image {file}: {err}",
-                            "warning",
-                            exc=err,
-                        )
-                        continue
-                    except Exception as err:
-                        core_logger.print_to_log(
-                            f"Unexpected error adding user image {file}: {err}",
-                            "warning",
-                            exc=err,
-                        )
-                        continue
-
-        except (OSError, IOError) as err:
+        except Exception as err:
             core_logger.print_to_log(
-                f"File system error accessing user images: {err}", "error", exc=err
+                f"Error adding user images to ZIP: {err}", "error", exc=err
             )
-            raise FileSystemError(
-                f"Cannot access user images directory: {err}"
-            ) from err
+            raise FileSystemError(f"Failed to add user images: {err}") from err
+
+    def _add_user_images_optimized(self, zipf: zipfile.ZipFile, images_dir: str):
+        """
+        Recursively adds user image files from a directory to a ZIP archive.
+
+        This method traverses the specified directory and its subdirectories, processing
+        each image file found and adding it to the provided ZIP file object. It handles
+        permission errors and OS errors gracefully by logging warnings without stopping
+        the process.
+
+        Args:
+            zipf (zipfile.ZipFile): The ZIP file object to which images will be added.
+            images_dir (str): The path to the directory containing user images to process.
+
+        Raises:
+            PermissionError: Logged as a warning when access to a directory is denied.
+            OSError: Logged as a warning when an OS-level error occurs during directory access.
+
+        Note:
+            This method follows symlinks for directory traversal but not for individual files.
+            It delegates individual file processing to _process_user_image_file().
+        """
+        try:
+            with os.scandir(images_dir) as entries:
+                for entry in entries:
+                    if entry.is_file(follow_symlinks=False):
+                        self._process_user_image_file(zipf, entry, images_dir)
+                    elif entry.is_dir(follow_symlinks=False):
+                        # Recursively process subdirectories
+                        self._add_user_images_optimized(zipf, entry.path)
+        except PermissionError as err:
+            core_logger.print_to_log(
+                f"Permission denied accessing {images_dir}: {err}", "warning"
+            )
+        except OSError as err:
+            core_logger.print_to_log(
+                f"OS error accessing {images_dir}: {err}", "warning"
+            )
+
+    def _process_user_image_file(self, zipf: zipfile.ZipFile, entry, images_dir: str):
+        """
+        Process and add a user image file to the export ZIP archive.
+        This method handles the processing of user profile image files during the export operation.
+        It performs validation, size checking, memory monitoring, and adds the file to the ZIP archive
+        with appropriate error handling.
+        Args:
+            zipf (zipfile.ZipFile): The ZIP file object to write the image to.
+            entry: A directory entry object (typically from os.scandir()) containing file information.
+                   Must have 'name', 'path', and 'stat()' methods.
+            images_dir (str): The base directory path where user images are stored. Used to calculate
+                             relative paths within the ZIP archive.
+        Returns:
+            None
+        Side Effects:
+            - Writes the user image file to the ZIP archive under 'user_images/' directory
+            - Increments self.counts["user_images"] counter on success
+            - Logs warnings for large files (>10MB), permission errors, or other issues
+            - May trigger memory usage checks for files larger than 5MB
+        Raises:
+            Does not raise exceptions - all errors are caught and logged as warnings:
+            - FileNotFoundError: When the image file cannot be found
+            - PermissionError: When access to the file is denied
+            - OSError: For other OS-level file operation errors
+            - Exception: For any unexpected errors during processing
+        Notes:
+            - Only processes files where the filename (without extension) matches self.user_id
+            - Large files (>10MB) trigger warning logs
+            - Files >5MB trigger memory usage monitoring via self._check_memory_usage()
+            - All file paths in the ZIP are relative to maintain portability
+        """
+        try:
+            file_id, _ = os.path.splitext(entry.name)
+            if str(self.user_id) == file_id:
+                # Get file size for monitoring
+                file_size = entry.stat().st_size
+
+                # Warn about large image files (>10MB)
+                if file_size > 10 * 1024 * 1024:
+                    core_logger.print_to_log(
+                        f"Large image file: {entry.path} ({file_size / (1024*1024):.1f}MB)",
+                        "warning",
+                    )
+
+                # Check memory usage before adding large files
+                if file_size > 5 * 1024 * 1024:  # 5MB threshold for images
+                    self._check_memory_usage(f"before image {entry.name}")
+
+                arcname = os.path.join(
+                    "user_images",
+                    os.path.relpath(entry.path, images_dir),
+                )
+                zipf.write(entry.path, arcname)
+                self.counts["user_images"] += 1
+
+        except FileNotFoundError:
+            core_logger.print_to_log(f"Image file not found: {entry.path}", "warning")
+        except PermissionError:
+            core_logger.print_to_log(f"Permission denied: {entry.path}", "warning")
+        except OSError as err:
+            core_logger.print_to_log(
+                f"Error processing image {entry.path}: {err}", "warning"
+            )
+        except Exception as err:
+            core_logger.print_to_log(
+                f"Unexpected error with image {entry.path}: {err}", "warning", exc=err
+            )
 
     def write_data_to_zip(
         self, zipf: zipfile.ZipFile, data_collections: Dict[str, Any]
@@ -775,7 +1230,7 @@ class ExportService:
 
         Args:
             user_dict (Dict[str, Any]): Dictionary containing user profile information.
-            timeout_seconds (int | None, optional): Maximum time in seconds allowed for
+            timeout_seconds (int | None): Maximum time in seconds allowed for
                 the export operation. If None, no timeout is enforced. Defaults to 300.
 
         Yields:
@@ -804,8 +1259,18 @@ class ExportService:
         try:
             with tempfile.NamedTemporaryFile(delete=True) as tmp:
                 try:
+                    # Use configurable compression level for performance tuning
+                    compression_level = self.performance_config.compression_level
+                    core_logger.print_to_log(
+                        f"Creating ZIP with compression level {compression_level}",
+                        "info",
+                    )
+
                     with zipfile.ZipFile(
-                        tmp, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=6
+                        tmp,
+                        "w",
+                        compression=zipfile.ZIP_DEFLATED,
+                        compresslevel=compression_level,
                     ) as zipf:
                         core_logger.print_to_log(
                             f"Starting export for user {self.user_id}", "info"
