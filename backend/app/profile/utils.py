@@ -1,6 +1,8 @@
+import json
 import pyotp
 import qrcode
 import base64
+import zipfile
 from io import BytesIO
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
@@ -214,6 +216,13 @@ def enable_user_mfa(user_id: int, secret: str, mfa_code: str, db: Session):
     # Encrypt the secret before storing
     encrypted_secret = core_cryptography.encrypt_token_fernet(secret)
 
+    # Check if encryption was successful
+    if not encrypted_secret:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to encrypt MFA secret",
+        )
+
     # Update user with MFA enabled and secret
     users_crud.enable_user_mfa(user_id, encrypted_secret, db)
 
@@ -263,6 +272,13 @@ def disable_user_mfa(user_id: int, mfa_code: str, db: Session):
     # Decrypt the secret
     secret = core_cryptography.decrypt_token_fernet(user.mfa_secret)
 
+    # Check if decryption was successful
+    if not secret:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to decrypt MFA secret",
+        )
+
     # Verify the MFA code
     if not verify_totp(secret, mfa_code):
         raise HTTPException(
@@ -308,9 +324,12 @@ def verify_user_mfa(user_id: int, mfa_code: str, db: Session) -> bool:
     # Decrypt the secret
     try:
         secret = core_cryptography.decrypt_token_fernet(user.mfa_secret)
+        if not secret:
+            core_logger.print_to_log("Failed to decrypt MFA secret", "error")
+            return False
         return verify_totp(secret, mfa_code)
     except Exception as err:
-        core_logger.print_to_log(f"Error in disable_user_mfa: {err}", "error", exc=err)
+        core_logger.print_to_log(f"Error in verify_user_mfa: {err}", "error", exc=err)
         return False
 
 
@@ -334,4 +353,50 @@ def is_mfa_enabled_for_user(user_id: int, db: Session) -> bool:
         - If the user does not exist, the function returns False.
     """
     user = users_crud.get_user_by_id(user_id, db)
-    return user and user.mfa_enabled == 1 and user.mfa_secret is not None
+    if not user:
+        return False
+    return bool(user.mfa_enabled == 1 and user.mfa_secret is not None)
+
+
+# Export utility functions
+def sqlalchemy_obj_to_dict(obj):
+    """
+    Converts a SQLAlchemy model instance into a dictionary mapping column names to their values.
+
+    Args:
+        obj: The object to convert. If the object has a __table__ attribute (i.e., is a SQLAlchemy model instance),
+             its columns and corresponding values are extracted into a dictionary. Otherwise, the object is returned as is.
+
+    Returns:
+        dict: A dictionary representation of the SQLAlchemy model instance if applicable, otherwise the original object.
+    """
+    if hasattr(obj, "__table__"):
+        return {c.name: getattr(obj, c.name) for c in obj.__table__.columns}
+    return obj
+
+
+def write_json_to_zip(
+    zipf: zipfile.ZipFile, filename: str, data, counts: dict, ensure_ascii: bool = False
+):
+    """
+    Writes JSON-serialized data to a file within a ZIP archive.
+
+    Args:
+        zipf (zipfile.ZipFile): The ZIP file object to write into.
+        filename (str): The name of the file to create within the ZIP archive.
+        data (Any): The data to serialize as JSON and write to the file.
+        counts (dict): Dictionary to track counts of exported items.
+        ensure_ascii (bool, optional): Whether to escape non-ASCII characters in the output. Defaults to False.
+
+    Notes:
+        - If data is falsy (e.g., None, empty), nothing is written.
+        - Uses json.dumps with default=str to handle non-serializable objects.
+    """
+    if data:
+        counts[filename.split("/")[-1].replace(".json", "")] = (
+            len(data) if isinstance(data, (list, tuple)) else 1
+        )
+        zipf.writestr(
+            filename,
+            json.dumps(data, default=str, ensure_ascii=ensure_ascii),
+        )
