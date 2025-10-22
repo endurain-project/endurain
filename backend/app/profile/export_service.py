@@ -2,7 +2,6 @@ import os
 import tempfile
 import zipfile
 import time
-import psutil
 from typing import Generator, Dict, Any, List
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError

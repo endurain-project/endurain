@@ -1,7 +1,6 @@
 import os
 import json
 import zipfile
-import psutil
 import time
 from io import BytesIO
 from typing import Dict, Any, List
@@ -11,18 +10,12 @@ import core.config as core_config
 import core.logger as core_logger
 
 from profile.exceptions import (
-    ImportValidationError,
     FileFormatError,
-    DataIntegrityError,
     ImportTimeoutError,
-    DiskSpaceError,
     FileSizeError,
     ActivityLimitError,
-    ZipStructureError,
     JSONParseError,
-    SchemaValidationError,
     FileSystemError,
-    MemoryAllocationError,
 )
 
 import profile.utils as profile_utils
