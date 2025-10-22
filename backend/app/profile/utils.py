@@ -8,17 +8,112 @@ import psutil
 from io import BytesIO
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
-from typing import Type, Any, Dict
+from typing import Type, Any, Dict, TypeVar
 
 import core.cryptography as core_cryptography
 import core.logger as core_logger
 import profile.schema as profile_schema
 import users.user.crud as users_crud
 from profile.exceptions import (
-    ImportTimeoutError,
-    ExportTimeoutError,
     MemoryAllocationError,
 )
+
+# Type variable for performance config classes
+T_PerformanceConfig = TypeVar("T_PerformanceConfig", bound="BasePerformanceConfig")
+
+
+class BasePerformanceConfig:
+    """
+    Base class for performance configuration with common patterns and memory-based optimization.
+
+    This abstract base class provides common configuration patterns for both import and export
+    operations, including memory-based tier detection, common parameter validation, and
+    standardized auto-configuration patterns.
+
+    Common Attributes:
+        batch_size (int): Number of records to process in a single batch
+        max_memory_mb (int): Maximum memory usage limit in megabytes
+        timeout_seconds (int): Operation timeout in seconds
+        chunk_size (int): Size of data chunks for reading/writing
+        enable_memory_monitoring (bool): Whether to enable memory monitoring
+
+    Memory Tiers:
+        High (>2GB): Optimized settings for high-performance systems
+        Medium (>1GB): Balanced settings for typical systems
+        Low (≤1GB): Conservative settings for resource-constrained systems
+    """
+
+    def __init__(
+        self,
+        batch_size: int = 1000,
+        max_memory_mb: int = 1024,
+        timeout_seconds: int = 3600,
+        chunk_size: int = 8192,
+        enable_memory_monitoring: bool = True,
+    ):
+        """
+        Initialize base performance configuration with common parameters.
+
+        Args:
+            batch_size (int): Number of items to process in a single batch. Defaults to 1000.
+            max_memory_mb (int): Maximum memory usage limit in megabytes. Defaults to 1024.
+            timeout_seconds (int): Maximum time allowed for operations in seconds. Defaults to 3600.
+            chunk_size (int): Size of data chunks for I/O operations in bytes. Defaults to 8192.
+            enable_memory_monitoring (bool): Whether to enable memory monitoring. Defaults to True.
+        """
+        self.batch_size = batch_size
+        self.max_memory_mb = max_memory_mb
+        self.timeout_seconds = timeout_seconds
+        self.chunk_size = chunk_size
+        self.enable_memory_monitoring = enable_memory_monitoring
+
+    @classmethod
+    def _get_tier_configs(cls) -> Dict[str, Dict[str, Any]]:
+        """
+        Get the tier-based configuration mappings.
+
+        This method should be overridden by subclasses to provide specific
+        configuration values for each memory tier.
+
+        Returns:
+            Dict[str, Dict[str, Any]]: Mapping of tier names to configuration dictionaries
+        """
+        raise NotImplementedError("Subclasses must implement _get_tier_configs")
+
+    @classmethod
+    def get_auto_config(cls: Type[T_PerformanceConfig]) -> T_PerformanceConfig:
+        """
+        Get automatic configuration based on available system memory.
+
+        This method uses the centralized memory detection to determine the appropriate
+        configuration tier and creates an instance with optimized settings.
+
+        Returns:
+            T_PerformanceConfig: A configuration instance of the calling class type optimized
+                for the current system's available memory. Falls back to default configuration
+                if memory detection fails.
+
+        Example:
+            >>> config = SomePerformanceConfig.get_auto_config()
+            >>> print(f"Tier: {config.batch_size}")
+        """
+        try:
+            tier, _ = detect_system_memory_tier()
+            tier_configs = cls._get_tier_configs()
+
+            if tier in tier_configs:
+                config_dict = tier_configs[tier]
+                return cls(**config_dict)
+            else:
+                core_logger.print_to_log(
+                    f"Unknown memory tier '{tier}', using default config", "warning"
+                )
+                return cls()
+        except Exception as err:
+            core_logger.print_to_log(
+                f"Failed to create auto config, using defaults: {err}", "warning"
+            )
+            return cls()
 
 
 def generate_totp_secret() -> str:
@@ -608,3 +703,46 @@ def initialize_operation_counts(include_user_count: bool = False) -> Dict[str, i
         "user_goals": 0,
         "user_privacy_settings": 0,
     }
+
+
+def detect_system_memory_tier() -> tuple[str, int]:
+    """
+    Detect the system memory tier and return the tier name and available memory.
+
+    This utility function analyzes the system's available memory and categorizes it into
+    three performance tiers for optimal configuration selection. It provides a consistent
+    memory detection approach for both import and export performance configurations.
+
+    Returns:
+        tuple[str, int]: A tuple containing:
+            - tier (str): Memory tier classification ("high", "medium", "low")
+            - available_mb (int): Available memory in megabytes
+
+    Memory Tiers:
+        - "high": > 2048 MB (2GB) available - Optimized settings for maximum performance
+        - "medium": > 1024 MB (1GB) available - Balanced settings for typical usage
+        - "low": <= 1024 MB available - Conservative settings to prevent memory issues
+
+    Raises:
+        Does not raise exceptions directly. Any exceptions during memory detection are
+        caught and logged as warnings, after which default values are returned.
+
+    Example:
+        >>> tier, available_mb = detect_system_memory_tier()
+        >>> print(f"Memory tier: {tier}, Available: {available_mb}MB")
+    """
+    try:
+        memory = psutil.virtual_memory()
+        available_mb = memory.available // (1024 * 1024)
+
+        if available_mb > 2048:  # > 2GB available
+            return "high", available_mb
+        elif available_mb > 1024:  # > 1GB available
+            return "medium", available_mb
+        else:  # Low memory system
+            return "low", available_mb
+    except Exception as err:
+        core_logger.print_to_log(
+            f"Failed to detect system memory, using defaults: {err}", "warning"
+        )
+        return "medium", 1024  # Default to medium tier with 1GB

@@ -35,7 +35,7 @@ import users.user_goals.crud as user_goals_crud
 import users.user_privacy_settings.crud as users_privacy_settings_crud
 
 
-class ExportPerformanceConfig:
+class ExportPerformanceConfig(profile_utils.BasePerformanceConfig):
     """
     Configuration class for managing export performance parameters.
     This class provides configuration options to optimize data export operations by
@@ -82,69 +82,42 @@ class ExportPerformanceConfig:
             enable_memory_monitoring (bool, optional): Whether to enable memory usage monitoring during export. Defaults to True.
             timeout_seconds (int, optional): Maximum time allowed for export operation in seconds. Defaults to 3600 (60 minutes).
         """
-        self.batch_size = batch_size
-        self.max_memory_mb = max_memory_mb
+        super().__init__(batch_size, max_memory_mb, enable_memory_monitoring, timeout_seconds)
         self.compression_level = compression_level
         self.chunk_size = chunk_size
-        self.enable_memory_monitoring = enable_memory_monitoring
-        self.timeout_seconds = timeout_seconds
 
     @classmethod
-    def get_auto_config(cls) -> "ExportPerformanceConfig":
+    def _get_tier_configs(cls) -> Dict[str, Dict[str, Any]]:
         """
-        Get automatic configuration based on available system memory.
-        This class method analyzes the system's available memory and returns an optimized
-        ExportPerformanceConfig instance with parameters tuned for the current hardware.
-        The configuration is scaled based on three memory tiers:
-        - High memory (>2GB): Large batch sizes and higher compression
-        - Medium memory (>1GB): Balanced configuration
-        - Low memory (<1GB): Conservative settings to prevent memory issues
+        Define tier-specific configuration settings for export operations.
+        
         Returns:
-            ExportPerformanceConfig: A configuration instance optimized for the current
-                system's available memory. Returns default configuration if system
-                resource detection fails.
-        Raises:
-            No exceptions are raised. Any errors during resource detection are logged
-            and a default configuration is returned instead.
-        Example:
-            >>> config = ExportPerformanceConfig.get_auto_config()
-            >>> print(f"Batch size: {config.batch_size}")
+            Dict[str, Dict[str, Any]]: Configuration dictionaries for memory tiers.
+                Each dictionary contains parameters optimized for the corresponding memory tier.
         """
-        try:
-            # Get available memory
-            memory = psutil.virtual_memory()
-            available_mb = memory.available // (1024 * 1024)
-
-            # Adaptive configuration based on available memory
-            if available_mb > 2048:  # > 2GB available
-                return cls(
-                    batch_size=2000,
-                    max_memory_mb=2048,
-                    compression_level=6,
-                    chunk_size=16384,
-                    timeout_seconds=7200,
-                )
-            elif available_mb > 1024:  # > 1GB available
-                return cls(
-                    batch_size=1000,
-                    max_memory_mb=1024,
-                    compression_level=4,
-                    chunk_size=8192,
-                    timeout_seconds=3600,
-                )
-            else:  # Low memory system
-                return cls(
-                    batch_size=500,
-                    max_memory_mb=512,
-                    compression_level=1,
-                    chunk_size=4096,
-                    timeout_seconds=1800,
-                )
-        except Exception as err:
-            core_logger.print_to_log(
-                f"Failed to detect system resources, using defaults: {err}", "warning"
-            )
-            return cls()  # Return default configuration
+        return {
+            "high": {
+                "batch_size": 2000,
+                "max_memory_mb": 2048,
+                "compression_level": 6,
+                "chunk_size": 16384,
+                "timeout_seconds": 7200,
+            },
+            "medium": {
+                "batch_size": 1000,
+                "max_memory_mb": 1024,
+                "compression_level": 4,
+                "chunk_size": 8192,
+                "timeout_seconds": 3600,
+            },
+            "low": {
+                "batch_size": 500,
+                "max_memory_mb": 512,
+                "compression_level": 1,
+                "chunk_size": 4096,
+                "timeout_seconds": 1800,
+            }
+        }
 
 
 class ExportService:
@@ -201,7 +174,7 @@ class ExportService:
         self.user_id = user_id
         self.db = db
         self.counts = profile_utils.initialize_operation_counts(include_user_count=True)
-        self.performance_config = (
+        self.performance_config: ExportPerformanceConfig = (
             performance_config or ExportPerformanceConfig.get_auto_config()
         )
 

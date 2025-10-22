@@ -46,7 +46,6 @@ import activities.activity.crud as activities_crud
 import activities.activity.schema as activity_schema
 
 import activities.activity_laps.crud as activity_laps_crud
-import activities.activity_laps.schema as activity_laps_schema
 
 import activities.activity_media.crud as activity_media_crud
 import activities.activity_media.schema as activity_media_schema
@@ -78,39 +77,29 @@ import health_targets.schema as health_targets_schema
 import websocket.schema as websocket_schema
 
 
-class ImportPerformanceConfig:
+class ImportPerformanceConfig(profile_utils.BasePerformanceConfig):
     """
     Configuration class for managing import performance parameters.
-    This class provides configuration settings for controlling the performance
-    and resource usage of import operations, including batch sizes, memory limits,
-    file size constraints, and timeout settings.
+    
+    This class extends profile_utils.BasePerformanceConfig with import-specific settings including
+    file size constraints and activity limits. It provides optimized configuration
+    based on system memory detection for import operations.
 
-    Attributes:
-        batch_size (int): Number of records to process in a single batch. Default: 1000
-        max_memory_mb (int): Maximum memory usage limit in megabytes. Default: 512
+    Import-Specific Attributes:
         max_file_size_mb (int): Maximum allowed file size in megabytes. Default: 1000
         max_activities (int): Maximum number of activities to process. Default: 10000
+
+    Inherited Attributes:
+        batch_size (int): Number of records to process in a single batch. Default: 1000
+        max_memory_mb (int): Maximum memory usage limit in megabytes. Default: 1024
         timeout_seconds (int): Operation timeout in seconds. Default: 3600 (60 minutes)
         chunk_size (int): Size of data chunks for reading/writing. Default: 8192
         enable_memory_monitoring (bool): Whether to enable memory monitoring. Default: True
 
-    Note:
-        Memory monitoring uses intelligent thresholds that account for the natural memory
-        spikes during data-intensive operations like large JSON parsing and database writes.
-        The limits are designed to prevent runaway memory usage while allowing normal
-        processing of large datasets.
-
-    Methods:
-        get_auto_config(): Class method that automatically detects system resources
-            and returns an optimized configuration based on available memory.
-            Returns:
-                ImportPerformanceConfig: A configuration instance optimized for the
-                    current system's available memory:
-                    - < 2GB RAM: Conservative settings for low-memory systems
-                    - 2-8GB RAM: Balanced settings for moderate systems
-                    - > 8GB RAM: Optimized settings for high-memory systems
-            Note:
-                Falls back to default configuration if system resource detection fails.
+    Memory Tier Configurations:
+        High (>2GB): batch_size=2000, max_memory_mb=2048, timeout_seconds=7200
+        Medium (>1GB): batch_size=1000, max_memory_mb=1024, timeout_seconds=3600  
+        Low (≤1GB): batch_size=500, max_memory_mb=512, timeout_seconds=1800
     """
 
     def __init__(
@@ -124,84 +113,64 @@ class ImportPerformanceConfig:
         enable_memory_monitoring: bool = True,
     ):
         """
-        Initialize the import service with configuration parameters.
+        Initialize the import performance configuration.
 
         Args:
-            batch_size (int, optional): Number of activities to process in a single batch. Defaults to 1000.
-            max_memory_mb (int, optional): Maximum memory usage allowed in megabytes. Defaults to 1024.
-            max_file_size_mb (int, optional): Maximum file size allowed for import in megabytes. Defaults to 1000.
-            max_activities (int, optional): Maximum number of activities that can be imported. Defaults to 10000.
-            timeout_seconds (int, optional): Maximum time allowed for import operation in seconds. Defaults to 3600 (60 minutes).
-            chunk_size (int, optional): Size of chunks for file reading/processing in bytes. Defaults to 8192.
-            enable_memory_monitoring (bool, optional): Whether to enable memory usage monitoring. Defaults to True.
+            batch_size (int): Number of activities to process in a single batch. Defaults to 1000.
+            max_memory_mb (int): Maximum memory usage allowed in megabytes. Defaults to 1024.
+            max_file_size_mb (int): Maximum file size allowed for import in megabytes. Defaults to 1000.
+            max_activities (int): Maximum number of activities that can be imported. Defaults to 10000.
+            timeout_seconds (int): Maximum time allowed for import operation in seconds. Defaults to 3600.
+            chunk_size (int): Size of chunks for file reading/processing in bytes. Defaults to 8192.
+            enable_memory_monitoring (bool): Whether to enable memory usage monitoring. Defaults to True.
         """
-        self.batch_size = batch_size
-        self.max_memory_mb = max_memory_mb
+        super().__init__(
+            batch_size=batch_size,
+            max_memory_mb=max_memory_mb,
+            timeout_seconds=timeout_seconds,
+            chunk_size=chunk_size,
+            enable_memory_monitoring=enable_memory_monitoring,
+        )
         self.max_file_size_mb = max_file_size_mb
         self.max_activities = max_activities
-        self.timeout_seconds = timeout_seconds
-        self.chunk_size = chunk_size
-        self.enable_memory_monitoring = enable_memory_monitoring
 
     @classmethod
-    def get_auto_config(cls) -> "ImportPerformanceConfig":
+    def _get_tier_configs(cls) -> Dict[str, Dict[str, Any]]:
         """
-        Automatically configure import performance settings based on available system memory.
-        This class method detects the available system memory and returns an appropriate
-        ImportPerformanceConfig instance with optimized settings for the detected hardware.
-        Three configuration tiers are provided:
-        - Low-memory systems (< 2 GB): Conservative settings to prevent out-of-memory errors
-        - Moderate systems (2-8 GB): Balanced settings for typical usage
-        - High-memory systems (>= 8 GB): Optimized settings for maximum performance
+        Get import-specific tier-based configuration mappings.
+        
         Returns:
-            ImportPerformanceConfig: A configuration instance with settings appropriate for
-                the detected system resources. If resource detection fails, returns a default
-                configuration instance.
-        Raises:
-            Does not raise exceptions directly. Any exceptions during resource detection are
-            caught and logged as warnings, after which default configuration is returned.
-        Example:
-            >>> config = ImportPerformanceConfig.get_auto_config()
-            >>> print(f"Batch size: {config.batch_size}")
+            Dict[str, Dict[str, Any]]: Mapping of memory tiers to import configuration dictionaries
         """
-        try:
-            # Get available memory in MB (similar to export service approach)
-            memory = psutil.virtual_memory()
-            available_mb = memory.available // (1024 * 1024)
-
-            if available_mb > 2048:  # > 2GB available
-                # Optimized settings for high-memory systems
-                return cls(
-                    batch_size=2000,
-                    max_memory_mb=2048,
-                    max_file_size_mb=2000,
-                    max_activities=20000,
-                    timeout_seconds=7200,
-                )
-            elif available_mb > 1024:  # > 1GB available
-                # Balanced settings for moderate systems
-                return cls(
-                    batch_size=1000,
-                    max_memory_mb=1024,
-                    max_file_size_mb=1000,
-                    max_activities=10000,
-                    timeout_seconds=3600,
-                )
-            else:  # Low memory system
-                # Conservative settings for low-memory systems
-                return cls(
-                    batch_size=500,
-                    max_memory_mb=512,
-                    max_file_size_mb=500,
-                    max_activities=5000,
-                    timeout_seconds=1800,
-                )
-        except Exception as e:
-            core_logger.print_to_log(
-                f"Failed to auto-detect system resources, using default config: {e}",
-                "warning",
-            )
-            return cls()
+        return {
+            "high": {
+                "batch_size": 2000,
+                "max_memory_mb": 2048,
+                "max_file_size_mb": 2000,
+                "max_activities": 20000,
+                "timeout_seconds": 7200,
+                "chunk_size": 8192,
+                "enable_memory_monitoring": True,
+            },
+            "medium": {
+                "batch_size": 1000,
+                "max_memory_mb": 1024,
+                "max_file_size_mb": 1000,
+                "max_activities": 10000,
+                "timeout_seconds": 3600,
+                "chunk_size": 8192,
+                "enable_memory_monitoring": True,
+            },
+            "low": {
+                "batch_size": 500,
+                "max_memory_mb": 512,
+                "max_file_size_mb": 500,
+                "max_activities": 5000,
+                "timeout_seconds": 1800,
+                "chunk_size": 8192,
+                "enable_memory_monitoring": True,
+            },
+        }
 
 
 class ImportService:
@@ -271,10 +240,8 @@ class ImportService:
         self.user_id = user_id
         self.db = db
         self.websocket_manager = websocket_manager
-        self.counts = profile_utils.initialize_operation_counts(
-            include_user_count=False
-        )
-        self.performance_config = (
+        self.counts = profile_utils.initialize_operation_counts(include_user_count=False)
+        self.performance_config: ImportPerformanceConfig = (
             performance_config or ImportPerformanceConfig.get_auto_config()
         )
 
