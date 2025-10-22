@@ -9,6 +9,21 @@ from sqlalchemy.orm import Session
 import core.config as core_config
 import core.logger as core_logger
 
+from profile.exceptions import (
+    ImportValidationError,
+    FileFormatError,
+    DataIntegrityError,
+    ImportTimeoutError,
+    DiskSpaceError,
+    FileSizeError,
+    ActivityLimitError,
+    ZipStructureError,
+    JSONParseError,
+    SchemaValidationError,
+    FileSystemError,
+    MemoryAllocationError,
+)
+
 import users.user.crud as users_crud
 import users.user.schema as users_schema
 
@@ -66,14 +81,22 @@ class ImportPerformanceConfig:
     This class provides configuration settings for controlling the performance
     and resource usage of import operations, including batch sizes, memory limits,
     file size constraints, and timeout settings.
+    
     Attributes:
-        batch_size (int): Number of records to process in a single batch. Default: 500
-        max_memory_mb (int): Maximum memory usage limit in megabytes. Default: 256
-        max_file_size_mb (int): Maximum allowed file size in megabytes. Default: 500
-        max_activities (int): Maximum number of activities to process. Default: 5000
-        timeout_seconds (int): Operation timeout in seconds. Default: 1800 (30 minutes)
+        batch_size (int): Number of records to process in a single batch. Default: 1000
+        max_memory_mb (int): Maximum memory usage limit in megabytes. Default: 1024
+        max_file_size_mb (int): Maximum allowed file size in megabytes. Default: 1000
+        max_activities (int): Maximum number of activities to process. Default: 10000
+        timeout_seconds (int): Operation timeout in seconds. Default: 3600 (60 minutes)
         chunk_size (int): Size of data chunks for reading/writing. Default: 8192
         enable_memory_monitoring (bool): Whether to enable memory monitoring. Default: True
+        
+    Note:
+        Memory monitoring uses intelligent thresholds that account for the natural memory
+        spikes during data-intensive operations like large JSON parsing and database writes.
+        The limits are designed to prevent runaway memory usage while allowing normal
+        processing of large datasets.
+    
     Methods:
         get_auto_config(): Class method that automatically detects system resources
             and returns an optimized configuration based on available memory.
@@ -89,11 +112,11 @@ class ImportPerformanceConfig:
 
     def __init__(
         self,
-        batch_size: int = 500,
-        max_memory_mb: int = 256,
-        max_file_size_mb: int = 500,
-        max_activities: int = 5000,
-        timeout_seconds: int = 1800,  # 30 minutes
+        batch_size: int = 1000,
+        max_memory_mb: int = 1024,
+        max_file_size_mb: int = 1000,
+        max_activities: int = 10000,
+        timeout_seconds: int = 3600,  # 60 minutes
         chunk_size: int = 8192,
         enable_memory_monitoring: bool = True,
     ):
@@ -101,11 +124,11 @@ class ImportPerformanceConfig:
         Initialize the import service with configuration parameters.
 
         Args:
-            batch_size (int, optional): Number of activities to process in a single batch. Defaults to 500.
-            max_memory_mb (int, optional): Maximum memory usage allowed in megabytes. Defaults to 256.
-            max_file_size_mb (int, optional): Maximum file size allowed for import in megabytes. Defaults to 500.
-            max_activities (int, optional): Maximum number of activities that can be imported. Defaults to 5000.
-            timeout_seconds (int, optional): Maximum time allowed for import operation in seconds. Defaults to 1800 (30 minutes).
+            batch_size (int, optional): Number of activities to process in a single batch. Defaults to 1000.
+            max_memory_mb (int, optional): Maximum memory usage allowed in megabytes. Defaults to 1024.
+            max_file_size_mb (int, optional): Maximum file size allowed for import in megabytes. Defaults to 1000.
+            max_activities (int, optional): Maximum number of activities that can be imported. Defaults to 10000.
+            timeout_seconds (int, optional): Maximum time allowed for import operation in seconds. Defaults to 3600 (60 minutes).
             chunk_size (int, optional): Size of chunks for file reading/processing in bytes. Defaults to 8192.
             enable_memory_monitoring (bool, optional): Whether to enable memory usage monitoring. Defaults to True.
         """
@@ -139,35 +162,36 @@ class ImportPerformanceConfig:
             >>> print(f"Batch size: {config.batch_size}")
         """
         try:
-            # Get available system memory in GB
-            available_memory_gb = psutil.virtual_memory().available / (1024**3)
+            # Get available memory in MB (similar to export service approach)
+            memory = psutil.virtual_memory()
+            available_mb = memory.available // (1024 * 1024)
 
-            if available_memory_gb < 2:
-                # Conservative settings for low-memory systems
-                return cls(
-                    batch_size=100,
-                    max_memory_mb=128,
-                    max_file_size_mb=100,
-                    max_activities=1000,
-                    timeout_seconds=900,  # 15 minutes
-                )
-            elif available_memory_gb < 8:
-                # Balanced settings for moderate systems
-                return cls(
-                    batch_size=500,
-                    max_memory_mb=256,
-                    max_file_size_mb=500,
-                    max_activities=5000,
-                    timeout_seconds=1800,  # 30 minutes
-                )
-            else:
+            if available_mb > 2048:  # > 2GB available
                 # Optimized settings for high-memory systems
                 return cls(
+                    batch_size=2000,
+                    max_memory_mb=2048,
+                    max_file_size_mb=2000,
+                    max_activities=20000,
+                    timeout_seconds=7200,  # 120 minutes
+                )
+            elif available_mb > 1024:  # > 1GB available
+                # Balanced settings for moderate systems
+                return cls(
                     batch_size=1000,
-                    max_memory_mb=512,
+                    max_memory_mb=1024,
                     max_file_size_mb=1000,
                     max_activities=10000,
                     timeout_seconds=3600,  # 60 minutes
+                )
+            else:  # Low memory system
+                # Conservative settings for low-memory systems
+                return cls(
+                    batch_size=500,
+                    max_memory_mb=512,
+                    max_file_size_mb=500,
+                    max_activities=5000,
+                    timeout_seconds=1800,  # 30 minutes
                 )
         except Exception as e:
             core_logger.print_to_log(
@@ -344,38 +368,57 @@ class ImportService:
 
     def _check_memory_usage(self, operation: str) -> None:
         """Check current memory usage and enforce limits.
-        This method monitors memory consumption during operations and takes action
-        when limits are approached or exceeded. It logs warnings when usage reaches
-        80% of the configured limit and raises a MemoryError when the limit is exceeded.
+        
+        This method monitors memory consumption during operations with a more intelligent approach:
+        - Only raises errors if memory usage is extremely high (> limit)
+        - Warns at 90% instead of 80% to reduce noise
+        - Takes into account that some operations naturally use more memory
+        
         Args:
             operation (str): Description of the current operation being performed,
                 used for logging context.
         Raises:
-            MemoryError: If current memory usage exceeds the configured maximum
-                memory limit (max_memory_mb).
+            MemoryAllocationError: If current memory usage exceeds the configured maximum
+                memory limit by a significant margin (indicating a real problem).
         Note:
             - Memory monitoring can be disabled via performance_config.enable_memory_monitoring
-            - Warning threshold is set at 80% of max_memory_mb
-            - Memory usage is measured in megabytes (MB)
+            - Warning threshold is set at 90% of max_memory_mb to reduce false positives
+            - During data-intensive operations, temporary spikes above limit are expected
         """
         if not self.performance_config.enable_memory_monitoring:
             return
 
         current_memory = self._get_memory_usage_mb()
-
-        if current_memory > self.performance_config.max_memory_mb:
+        
+        # For operations that are known to be memory-intensive, be more lenient
+        memory_intensive_operations = [
+            "ZIP file loading", 
+            "activities import", 
+            "activity components", 
+            "JSON parsing"
+        ]
+        
+        is_memory_intensive = any(op in operation.lower() for op in memory_intensive_operations)
+        
+        # Use a higher threshold for memory-intensive operations
+        effective_limit = self.performance_config.max_memory_mb
+        if is_memory_intensive:
+            effective_limit = self.performance_config.max_memory_mb * 1.5  # Allow 50% more for intensive ops
+        
+        if current_memory > effective_limit:
             error_msg = (
-                f"Memory usage ({current_memory:.1f}MB) exceeded limit "
-                f"({self.performance_config.max_memory_mb}MB) during {operation}"
+                f"Memory usage ({current_memory:.1f}MB) critically exceeded limit "
+                f"({self.performance_config.max_memory_mb}MB, effective: {effective_limit:.1f}MB) during {operation}"
             )
             core_logger.print_to_log(error_msg, "error")
-            raise MemoryError(error_msg)
+            raise MemoryAllocationError(error_msg)
 
-        if current_memory > self.performance_config.max_memory_mb * 0.8:
+        # Warn at 90% instead of 80% to reduce noise
+        if current_memory > self.performance_config.max_memory_mb * 0.9:
             core_logger.print_to_log(
-                f"High memory usage warning: {current_memory:.1f}MB "
+                f"High memory usage: {current_memory:.1f}MB "
                 f"(limit: {self.performance_config.max_memory_mb}MB) during {operation}",
-                "warning",
+                "info",  # Changed from warning to info to reduce log noise
             )
 
     async def import_from_zip_data(self, zip_data: bytes) -> Dict[str, Any]:
@@ -393,8 +436,10 @@ class ImportService:
                 - detail (str): Success message
                 - imported (dict): Counts of imported items by type
         Raises:
-            ValueError: If the ZIP file size exceeds the maximum allowed size
-            zipfile.BadZipFile: If the provided data is not a valid ZIP file
+            FileSizeError: If the ZIP file size exceeds the maximum allowed size
+            FileFormatError: If the provided data is not a valid ZIP file
+            ZipStructureError: If the ZIP structure is invalid
+            ImportTimeoutError: If the operation exceeds timeout limits
         Note:
             The import follows a strict dependency order to ensure referential integrity:
             1. Gears (independent)
@@ -407,31 +452,37 @@ class ImportService:
         # Check file size
         file_size_mb = len(zip_data) / (1024 * 1024)
         if file_size_mb > self.performance_config.max_file_size_mb:
-            raise ValueError(
+            raise FileSizeError(
                 f"ZIP file size ({file_size_mb:.1f}MB) exceeds maximum allowed "
                 f"({self.performance_config.max_file_size_mb}MB)"
             )
 
         self._check_memory_usage("ZIP file loading")
 
-        with zipfile.ZipFile(BytesIO(zip_data)) as zipf:
-            # Extract and validate ZIP structure
-            file_list = set(zipf.namelist())
-            results = self._extract_json_data(zipf, file_list)
+        try:
+            with zipfile.ZipFile(BytesIO(zip_data)) as zipf:
+                # Extract and validate ZIP structure
+                file_list = set(zipf.namelist())
+                results = self._extract_json_data(zipf, file_list)
 
-            # Create ID mappings for relationships
-            gears_id_mapping = {}
-            activities_id_mapping = {}
+                # Create ID mappings for relationships
+                gears_id_mapping = {}
+                activities_id_mapping = {}
 
-            # Import data in dependency order
-            gears_id_mapping = await self._import_gears_data(results)
-            await self._import_gear_components_data(results, gears_id_mapping)
-            await self._import_user_data(results, gears_id_mapping)
-            activities_id_mapping = await self._import_activities_data(
-                results, gears_id_mapping
-            )
-            await self._import_health_data(results)
-            await self._import_files_and_media(zipf, file_list, activities_id_mapping)
+                # Import data in dependency order
+                gears_id_mapping = await self._import_gears_data(results)
+                await self._import_gear_components_data(results, gears_id_mapping)
+                await self._import_user_data(results, gears_id_mapping)
+                activities_id_mapping = await self._import_activities_data(
+                    results, gears_id_mapping
+                )
+                await self._import_health_data(results)
+                await self._import_files_and_media(zipf, file_list, activities_id_mapping)
+
+        except zipfile.BadZipFile as e:
+            raise FileFormatError(f"Invalid ZIP file format: {str(e)}") from e
+        except (OSError, IOError) as e:
+            raise FileSystemError(f"File system error during import: {str(e)}") from e
 
         return {"detail": "Import completed", "imported": self.counts}
 
@@ -452,10 +503,9 @@ class ImportService:
                 corresponding files. If a file is missing or fails to parse, an empty list
                 is returned for that key.
         Raises:
-            None: Errors are logged but not raised. JSON parsing errors result in empty lists.
+            JSONParseError: If JSON parsing fails for any required file
         Note:
             - Debug logs are generated for successfully loaded files showing item count
-            - Error logs are generated for JSON parsing failures
             - Missing files result in empty lists without error logs
         """
         file_map = {
@@ -486,10 +536,9 @@ class ImportService:
                         f"Loaded {len(results[varname])} items from {filename}", "debug"
                     )
                 except json.JSONDecodeError as err:
-                    core_logger.print_to_log(
-                        f"Failed to parse JSON from {filename}: {err}", "error"
-                    )
-                    results[varname] = []
+                    error_msg = f"Failed to parse JSON from {filename}: {err}"
+                    core_logger.print_to_log(error_msg, "error")
+                    raise JSONParseError(error_msg) from err
             else:
                 results[varname] = []
 
@@ -867,7 +916,7 @@ class ImportService:
 
         # Check activity count limit
         if len(results["activities_data"]) > self.performance_config.max_activities:
-            raise ValueError(
+            raise ActivityLimitError(
                 f"Too many activities ({len(results['activities_data'])}). "
                 f"Maximum allowed: {self.performance_config.max_activities}"
             )

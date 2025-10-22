@@ -18,13 +18,23 @@ import profile.schema as profile_schema
 from profile.export_service import ExportService
 from profile.import_service import ImportService
 from profile.exceptions import (
-    handle_export_exception,
+    handle_import_export_exception,
     DatabaseConnectionError,
     FileSystemError,
     ZipCreationError,
     MemoryAllocationError,
     DataCollectionError,
     ExportTimeoutError,
+    ImportValidationError,
+    FileFormatError,
+    DataIntegrityError,
+    ImportTimeoutError,
+    DiskSpaceError,
+    FileSizeError,
+    ActivityLimitError,
+    ZipStructureError,
+    JSONParseError,
+    SchemaValidationError,
 )
 
 import session.security as session_security
@@ -399,7 +409,7 @@ async def export_profile_data(
         ExportTimeoutError,
     ) as err:
         # Handle specific export errors with appropriate HTTP responses
-        http_exception = handle_export_exception(err, "profile data export")
+        http_exception = handle_import_export_exception(err, "profile data export")
         core_logger.print_to_log(
             f"Export error for user {token_user_id}: {err}",
             "error",
@@ -454,7 +464,7 @@ async def import_profile_data(
             occur (e.g., file size limits, activity limits exceeded).
         HTTPException(507): If there is insufficient memory to process the import.
         HTTPException(500): If an unexpected internal error occurs during the import process.
-        HTTPException: Various status codes may be raised by handle_export_exception for
+        HTTPException: Various status codes may be raised by handle_import_export_exception for
             specific import/export errors (DatabaseConnectionError, FileSystemError,
             ZipCreationError, MemoryAllocationError, DataCollectionError, ExportTimeoutError).
     Example:
@@ -487,8 +497,34 @@ async def import_profile_data(
         )
 
         return result
+
+    except (
+        ImportValidationError,
+        FileFormatError,
+        FileSizeError,
+        ActivityLimitError,
+        ZipStructureError,
+        JSONParseError,
+        SchemaValidationError,
+    ) as err:
+        # Handle import validation and format errors
+        http_exception = handle_import_export_exception(err, "profile data import")
+        core_logger.print_to_log(
+            f"Import validation error for user {token_user_id}: {err}",
+            "warning",
+        )
+        raise http_exception
+    except (DataIntegrityError, ImportTimeoutError, DiskSpaceError) as err:
+        # Handle import operation errors
+        http_exception = handle_import_export_exception(err, "profile data import")
+        core_logger.print_to_log(
+            f"Import operation error for user {token_user_id}: {err}",
+            "error",
+            exc=err,
+        )
+        raise http_exception
     except ValueError as err:
-        # Handle validation errors (file size, activity limits, etc.)
+        # Handle remaining validation errors for backward compatibility
         core_logger.print_to_log(
             f"Validation error in import_profile_data for user {token_user_id}: {err}",
             "warning",
@@ -497,35 +533,29 @@ async def import_profile_data(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(err),
         ) from err
-
-    except MemoryError as err:
+    except (MemoryAllocationError, MemoryError) as err:
         # Handle memory-related errors
+        http_exception = handle_import_export_exception(err, "profile data import")
         core_logger.print_to_log(
-            f"Memory error in import_profile_data for user {token_user_id}: {err}",
+            f"Memory error for user {token_user_id}: {err}",
             "error",
         )
-        raise HTTPException(
-            status_code=status.HTTP_507_INSUFFICIENT_STORAGE,
-            detail="Insufficient memory to process import. Please try with a smaller file or contact support.",
-        ) from err
-
+        raise http_exception
     except (
         DatabaseConnectionError,
         FileSystemError,
         ZipCreationError,
-        MemoryAllocationError,
         DataCollectionError,
         ExportTimeoutError,
     ) as err:
         # Handle specific import/export errors with appropriate HTTP responses
-        http_exception = handle_export_exception(err, "profile data import")
+        http_exception = handle_import_export_exception(err, "profile data import")
         core_logger.print_to_log(
-            f"Import error for user {token_user_id}: {err}",
+            f"Import system error for user {token_user_id}: {err}",
             "error",
             exc=err,
         )
         raise http_exception
-
     except Exception as err:
         # Handle unexpected errors
         core_logger.print_to_log(
