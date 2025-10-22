@@ -3,14 +3,22 @@ import pyotp
 import qrcode
 import base64
 import zipfile
+import time
+import psutil
 from io import BytesIO
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
+from typing import Type, Any, Dict
 
 import core.cryptography as core_cryptography
 import core.logger as core_logger
 import profile.schema as profile_schema
 import users.user.crud as users_crud
+from profile.exceptions import (
+    ImportTimeoutError,
+    ExportTimeoutError,
+    MemoryAllocationError,
+)
 
 
 def generate_totp_secret() -> str:
@@ -400,3 +408,203 @@ def write_json_to_zip(
             filename,
             json.dumps(data, default=str, ensure_ascii=ensure_ascii),
         )
+
+
+def check_timeout(
+    timeout_seconds: int | None,
+    start_time: float,
+    exception_class: Type[Exception],
+    operation_type: str,
+) -> None:
+    """
+    Check if an operation has exceeded the specified timeout and raise the appropriate exception.
+
+    This utility function provides a generic timeout checking mechanism that can be used
+    by both import and export services. It calculates the elapsed time and raises the
+    specified exception if the timeout has been exceeded.
+
+    Args:
+        timeout_seconds (int | None): Maximum time allowed in seconds. If None, no timeout is enforced.
+        start_time (float): The time when the operation started (from time.time()).
+        exception_class (Type[Exception]): The exception class to raise if timeout is exceeded.
+        operation_type (str): Description of the operation type (e.g., "Import", "Export") for error messages.
+
+    Raises:
+        exception_class: If the operation exceeds the timeout limit.
+
+    Example:
+        >>> import time
+        >>> start = time.time()
+        >>> check_timeout(10, start, ImportTimeoutError, "Import")  # No exception if within 10 seconds
+        >>> check_timeout(1, start - 5, ImportTimeoutError, "Import")  # Raises ImportTimeoutError
+    """
+    if timeout_seconds and (time.time() - start_time) > timeout_seconds:
+        raise exception_class(f"{operation_type} exceeded {timeout_seconds} seconds")
+
+
+def get_memory_usage_mb(enable_monitoring: bool = True) -> float:
+    """
+    Get the current memory usage of the process in megabytes.
+
+    This utility function retrieves the Resident Set Size (RSS) memory usage of the current
+    process and converts it to megabytes. Memory monitoring can be disabled via parameter.
+
+    Args:
+        enable_monitoring (bool): Whether memory monitoring is enabled. Defaults to True.
+
+    Returns:
+        float: The memory usage in megabytes (MB). Returns 0.0 if memory monitoring
+               is disabled or if an error occurs during measurement.
+
+    Raises:
+        No exceptions are raised. Errors are logged as warnings and the method
+        returns 0.0 on failure.
+
+    Note:
+        - RSS (Resident Set Size) represents the portion of memory occupied by the process
+          that is held in RAM
+        - Failed memory measurements are logged but do not interrupt execution
+    """
+    try:
+        if not enable_monitoring:
+            return 0.0
+        process = psutil.Process()
+        return process.memory_info().rss / (1024 * 1024)  # Convert to MB
+    except Exception as err:
+        core_logger.print_to_log(f"Failed to get memory usage: {err}", "warning")
+        return 0.0
+
+
+def check_memory_usage(
+    operation: str,
+    max_memory_mb: int,
+    enable_monitoring: bool = True,
+    memory_intensive_operations: list[str] | None = None,
+) -> None:
+    """
+    Check current memory usage and enforce limits.
+
+    This utility function monitors memory consumption during operations with an intelligent approach:
+    - Only raises errors if memory usage is extremely high (> limit)
+    - Warns at 90% to reduce noise while still providing awareness
+    - Takes into account that some operations naturally use more memory
+
+    Args:
+        operation (str): Description of the current operation being performed,
+            used for logging context.
+        max_memory_mb (int): Maximum memory usage limit in megabytes.
+        enable_monitoring (bool): Whether memory monitoring is enabled. Defaults to True.
+        memory_intensive_operations (list[str] | None): List of operation names that are
+            known to be memory-intensive and should have higher thresholds. Defaults to None.
+
+    Raises:
+        MemoryAllocationError: If current memory usage exceeds the configured maximum
+            memory limit by a significant margin (indicating a real problem).
+
+    Note:
+        - Memory monitoring can be disabled via enable_monitoring parameter
+        - Warning threshold is set at 90% of max_memory_mb to reduce false positives
+        - During data-intensive operations, temporary spikes above limit are expected
+    """
+    if not enable_monitoring:
+        return
+
+    current_memory = get_memory_usage_mb(enable_monitoring)
+
+    # Default memory-intensive operations if none provided
+    if memory_intensive_operations is None:
+        memory_intensive_operations = [
+            "ZIP file loading",
+            "activities import",
+            "activity components",
+            "JSON parsing",
+            "activity collection",
+            "data collection",
+            "ZIP creation",
+            "file streaming",
+        ]
+
+    is_memory_intensive = any(
+        op in operation.lower() for op in memory_intensive_operations
+    )
+
+    # Use a higher threshold for memory-intensive operations
+    effective_limit = max_memory_mb
+    if is_memory_intensive:
+        effective_limit = max_memory_mb * 1.5  # Allow 50% more for intensive ops
+
+    if current_memory > effective_limit:
+        error_msg = (
+            f"Memory usage ({current_memory:.1f}MB) critically exceeded limit "
+            f"({max_memory_mb}MB, effective: {effective_limit:.1f}MB) during {operation}"
+        )
+        core_logger.print_to_log(error_msg, "error")
+        raise MemoryAllocationError(error_msg)
+
+    # Warn at 90%
+    if current_memory > max_memory_mb * 0.9:
+        core_logger.print_to_log(
+            f"High memory usage: {current_memory:.1f}MB "
+            f"(limit: {max_memory_mb}MB) during {operation}",
+            "info",
+        )
+
+
+def initialize_operation_counts(include_user_count: bool = False) -> Dict[str, int]:
+    """
+    Initialize and return a dictionary with count values for various data entities.
+
+    This utility function creates a dictionary with predefined keys representing different
+    data categories (media, activities, gears, user settings, etc.) and initializes
+    all their counts to 0. This is typically used to track the number of items
+    processed during data import/export operations.
+
+    Args:
+        include_user_count (bool): Whether to initialize the user count to 1 instead of 0.
+            This is useful for export operations where there's always 1 user being exported.
+            Defaults to False.
+
+    Returns:
+        Dict[str, int]: A dictionary containing entity names as keys and their
+            initial count values. The dictionary includes counts for:
+            - media: Media files
+            - activity_files: Activity data files
+            - activities: Activity records
+            - activity_laps: Lap data within activities
+            - activity_sets: Exercise sets within activities
+            - activity_streams: Activity stream data
+            - activity_workout_steps: Workout step records
+            - activity_media: Media associated with activities
+            - activity_exercise_titles: Exercise title records
+            - gears: Gear/equipment items
+            - gear_components: Components of gear items
+            - health_data: Health-related data records
+            - health_targets: Health target settings
+            - user_images: User profile images
+            - user: User account records (0 for import, 1 for export)
+            - user_default_gear: Default gear settings for users
+            - user_integrations: Third-party integration settings
+            - user_goals: User-defined goals
+            - user_privacy_settings: Privacy configuration settings
+    """
+    return {
+        "media": 0,
+        "activity_files": 0,
+        "activities": 0,
+        "activity_laps": 0,
+        "activity_sets": 0,
+        "activity_streams": 0,
+        "activity_workout_steps": 0,
+        "activity_media": 0,
+        "activity_exercise_titles": 0,
+        "gears": 0,
+        "gear_components": 0,
+        "health_data": 0,
+        "health_targets": 0,
+        "user_images": 0,
+        "user": 1 if include_user_count else 0,
+        "user_default_gear": 0,
+        "user_integrations": 0,
+        "user_goals": 0,
+        "user_privacy_settings": 0,
+    }

@@ -2,6 +2,7 @@ import os
 import json
 import zipfile
 import psutil
+import time
 from io import BytesIO
 from typing import Dict, Any, List
 from sqlalchemy.orm import Session
@@ -23,6 +24,8 @@ from profile.exceptions import (
     FileSystemError,
     MemoryAllocationError,
 )
+
+import profile.utils as profile_utils
 
 import users.user.crud as users_crud
 import users.user.schema as users_schema
@@ -81,22 +84,22 @@ class ImportPerformanceConfig:
     This class provides configuration settings for controlling the performance
     and resource usage of import operations, including batch sizes, memory limits,
     file size constraints, and timeout settings.
-    
+
     Attributes:
         batch_size (int): Number of records to process in a single batch. Default: 1000
-        max_memory_mb (int): Maximum memory usage limit in megabytes. Default: 1024
+        max_memory_mb (int): Maximum memory usage limit in megabytes. Default: 512
         max_file_size_mb (int): Maximum allowed file size in megabytes. Default: 1000
         max_activities (int): Maximum number of activities to process. Default: 10000
         timeout_seconds (int): Operation timeout in seconds. Default: 3600 (60 minutes)
         chunk_size (int): Size of data chunks for reading/writing. Default: 8192
         enable_memory_monitoring (bool): Whether to enable memory monitoring. Default: True
-        
+
     Note:
         Memory monitoring uses intelligent thresholds that account for the natural memory
         spikes during data-intensive operations like large JSON parsing and database writes.
         The limits are designed to prevent runaway memory usage while allowing normal
         processing of large datasets.
-    
+
     Methods:
         get_auto_config(): Class method that automatically detects system resources
             and returns an optimized configuration based on available memory.
@@ -116,7 +119,7 @@ class ImportPerformanceConfig:
         max_memory_mb: int = 1024,
         max_file_size_mb: int = 1000,
         max_activities: int = 10000,
-        timeout_seconds: int = 3600,  # 60 minutes
+        timeout_seconds: int = 3600,
         chunk_size: int = 8192,
         enable_memory_monitoring: bool = True,
     ):
@@ -173,7 +176,7 @@ class ImportPerformanceConfig:
                     max_memory_mb=2048,
                     max_file_size_mb=2000,
                     max_activities=20000,
-                    timeout_seconds=7200,  # 120 minutes
+                    timeout_seconds=7200,
                 )
             elif available_mb > 1024:  # > 1GB available
                 # Balanced settings for moderate systems
@@ -182,7 +185,7 @@ class ImportPerformanceConfig:
                     max_memory_mb=1024,
                     max_file_size_mb=1000,
                     max_activities=10000,
-                    timeout_seconds=3600,  # 60 minutes
+                    timeout_seconds=3600,
                 )
             else:  # Low memory system
                 # Conservative settings for low-memory systems
@@ -191,7 +194,7 @@ class ImportPerformanceConfig:
                     max_memory_mb=512,
                     max_file_size_mb=500,
                     max_activities=5000,
-                    timeout_seconds=1800,  # 30 minutes
+                    timeout_seconds=1800,
                 )
         except Exception as e:
             core_logger.print_to_log(
@@ -268,7 +271,9 @@ class ImportService:
         self.user_id = user_id
         self.db = db
         self.websocket_manager = websocket_manager
-        self.counts = self._initialize_counts()
+        self.counts = profile_utils.initialize_operation_counts(
+            include_user_count=False
+        )
         self.performance_config = (
             performance_config or ImportPerformanceConfig.get_auto_config()
         )
@@ -277,149 +282,10 @@ class ImportService:
             f"ImportService initialized with performance config: "
             f"batch_size={self.performance_config.batch_size}, "
             f"max_memory_mb={self.performance_config.max_memory_mb}, "
-            f"max_file_size_mb={self.performance_config.max_file_size_mb}",
+            f"max_file_size_mb={self.performance_config.max_file_size_mb}, "
+            f"timeout_seconds={self.performance_config.timeout_seconds}",
             "info",
         )
-
-    def _initialize_counts(self) -> Dict[str, int]:
-        """
-        Initialize and return a dictionary with count values for various data entities.
-
-        This method creates a dictionary with predefined keys representing different
-        data categories (media, activities, gears, user settings, etc.) and initializes
-        all their counts to 0. This is typically used to track the number of items
-        processed or imported for each category during a data import operation.
-
-        Returns:
-            Dict[str, int]: A dictionary containing entity names as keys and their
-                initial count (0) as values. The dictionary includes counts for:
-                - media: Media files
-                - activity_files: Activity data files
-                - activities: Activity records
-                - activity_laps: Lap data within activities
-                - activity_sets: Exercise sets within activities
-                - activity_streams: Activity stream data
-                - activity_workout_steps: Workout step records
-                - activity_media: Media associated with activities
-                - activity_exercise_titles: Exercise title records
-                - gears: Gear/equipment items
-                - gear_components: Components of gear items
-                - health_data: Health-related data records
-                - health_targets: Health target settings
-                - user_images: User profile images
-                - user: User account records
-                - user_default_gear: Default gear settings for users
-                - user_integrations: Third-party integration settings
-                - user_goals: User-defined goals
-                - user_privacy_settings: Privacy configuration settings
-        """
-        return {
-            "media": 0,
-            "activity_files": 0,
-            "activities": 0,
-            "activity_laps": 0,
-            "activity_sets": 0,
-            "activity_streams": 0,
-            "activity_workout_steps": 0,
-            "activity_media": 0,
-            "activity_exercise_titles": 0,
-            "gears": 0,
-            "gear_components": 0,
-            "health_data": 0,
-            "health_targets": 0,
-            "user_images": 0,
-            "user": 0,
-            "user_default_gear": 0,
-            "user_integrations": 0,
-            "user_goals": 0,
-            "user_privacy_settings": 0,
-        }
-
-    def _get_memory_usage_mb(self) -> float:
-        """
-        Get the current memory usage of the process in megabytes.
-
-        This method retrieves the Resident Set Size (RSS) memory usage of the current
-        process and converts it to megabytes. Memory monitoring can be disabled via
-        the performance configuration.
-
-        Returns:
-            float: The memory usage in megabytes (MB). Returns 0.0 if memory monitoring
-                   is disabled or if an error occurs during measurement.
-
-        Raises:
-            No exceptions are raised. Errors are logged as warnings and the method
-            returns 0.0 on failure.
-
-        Note:
-            - Memory monitoring must be enabled in performance_config for actual measurements
-            - RSS (Resident Set Size) represents the portion of memory occupied by the process
-              that is held in RAM
-            - Failed memory measurements are logged but do not interrupt execution
-        """
-        try:
-            if not self.performance_config.enable_memory_monitoring:
-                return 0.0
-            process = psutil.Process()
-            return process.memory_info().rss / (1024 * 1024)  # Convert to MB
-        except Exception as err:
-            core_logger.print_to_log(f"Failed to get memory usage: {err}", "warning")
-            return 0.0
-
-    def _check_memory_usage(self, operation: str) -> None:
-        """Check current memory usage and enforce limits.
-        
-        This method monitors memory consumption during operations with a more intelligent approach:
-        - Only raises errors if memory usage is extremely high (> limit)
-        - Warns at 90% instead of 80% to reduce noise
-        - Takes into account that some operations naturally use more memory
-        
-        Args:
-            operation (str): Description of the current operation being performed,
-                used for logging context.
-        Raises:
-            MemoryAllocationError: If current memory usage exceeds the configured maximum
-                memory limit by a significant margin (indicating a real problem).
-        Note:
-            - Memory monitoring can be disabled via performance_config.enable_memory_monitoring
-            - Warning threshold is set at 90% of max_memory_mb to reduce false positives
-            - During data-intensive operations, temporary spikes above limit are expected
-        """
-        if not self.performance_config.enable_memory_monitoring:
-            return
-
-        current_memory = self._get_memory_usage_mb()
-        
-        # For operations that are known to be memory-intensive, be more lenient
-        memory_intensive_operations = [
-            "ZIP file loading", 
-            "activities import", 
-            "activity components", 
-            "JSON parsing"
-        ]
-        
-        is_memory_intensive = any(op in operation.lower() for op in memory_intensive_operations)
-        
-        # Use a higher threshold for memory-intensive operations
-        effective_limit = self.performance_config.max_memory_mb
-        if is_memory_intensive:
-            effective_limit = self.performance_config.max_memory_mb * 1.5  # Allow 50% more for intensive ops
-        
-        if current_memory > effective_limit:
-            error_msg = (
-                f"Memory usage ({current_memory:.1f}MB) critically exceeded limit "
-                f"({self.performance_config.max_memory_mb}MB, effective: {effective_limit:.1f}MB) during {operation}"
-            )
-            core_logger.print_to_log(error_msg, "error")
-            raise MemoryAllocationError(error_msg)
-
-        # Warn at 90% instead of 80% to reduce noise
-        if current_memory > self.performance_config.max_memory_mb * 0.9:
-            core_logger.print_to_log(
-                f"High memory usage: {current_memory:.1f}MB "
-                f"(limit: {self.performance_config.max_memory_mb}MB) during {operation}",
-                "info",  # Changed from warning to info to reduce log noise
-            )
 
     async def import_from_zip_data(self, zip_data: bytes) -> Dict[str, Any]:
         """
@@ -449,6 +315,8 @@ class ImportService:
             5. Health data (independent)
             6. Files and media (depends on activities)
         """
+        start_time = time.time()
+        timeout_seconds = self.performance_config.timeout_seconds
         # Check file size
         file_size_mb = len(zip_data) / (1024 * 1024)
         if file_size_mb > self.performance_config.max_file_size_mb:
@@ -457,11 +325,18 @@ class ImportService:
                 f"({self.performance_config.max_file_size_mb}MB)"
             )
 
-        self._check_memory_usage("ZIP file loading")
+        profile_utils.check_memory_usage(
+            "ZIP file loading",
+            self.performance_config.max_memory_mb,
+            self.performance_config.enable_memory_monitoring,
+        )
 
         try:
             with zipfile.ZipFile(BytesIO(zip_data)) as zipf:
                 # Extract and validate ZIP structure
+                profile_utils.check_timeout(
+                    timeout_seconds, start_time, ImportTimeoutError, "Import"
+                )
                 file_list = set(zipf.namelist())
                 results = self._extract_json_data(zipf, file_list)
 
@@ -470,14 +345,45 @@ class ImportService:
                 activities_id_mapping = {}
 
                 # Import data in dependency order
-                gears_id_mapping = await self._import_gears_data(results)
-                await self._import_gear_components_data(results, gears_id_mapping)
-                await self._import_user_data(results, gears_id_mapping)
-                activities_id_mapping = await self._import_activities_data(
+                profile_utils.check_timeout(
+                    timeout_seconds, start_time, ImportTimeoutError, "Import"
+                )
+                gears_id_mapping = await self.collect_and_import_gears_data(results)
+
+                profile_utils.check_timeout(
+                    timeout_seconds, start_time, ImportTimeoutError, "Import"
+                )
+                await self.collect_and_import_gear_components_data(
                     results, gears_id_mapping
                 )
-                await self._import_health_data(results)
-                await self._import_files_and_media(zipf, file_list, activities_id_mapping)
+
+                profile_utils.check_timeout(
+                    timeout_seconds, start_time, ImportTimeoutError, "Import"
+                )
+                await self.collect_and_import_user_data(results, gears_id_mapping)
+
+                profile_utils.check_timeout(
+                    timeout_seconds, start_time, ImportTimeoutError, "Import"
+                )
+                activities_id_mapping = await self.collect_and_import_activities_data(
+                    results, gears_id_mapping
+                )
+
+                profile_utils.check_timeout(
+                    timeout_seconds, start_time, ImportTimeoutError, "Import"
+                )
+                await self.collect_and_import_health_data(results)
+
+                profile_utils.check_timeout(
+                    timeout_seconds, start_time, ImportTimeoutError, "Import"
+                )
+                await self.add_activity_files_from_zip(
+                    zipf, file_list, activities_id_mapping
+                )
+                await self.add_activity_media_from_zip(
+                    zipf, file_list, activities_id_mapping
+                )
+                await self.add_user_images_from_zip(zipf, file_list)
 
         except zipfile.BadZipFile as e:
             raise FileFormatError(f"Invalid ZIP file format: {str(e)}") from e
@@ -544,7 +450,9 @@ class ImportService:
 
         return results
 
-    async def _import_gears_data(self, results: Dict[str, Any]) -> Dict[int, int]:
+    async def collect_and_import_gears_data(
+        self, results: Dict[str, Any]
+    ) -> Dict[int, int]:
         """
         Import gear data from the results dictionary and create new gear records.
         This method processes gear data from an import file, creates new gear records in the database,
@@ -571,7 +479,11 @@ class ImportService:
         if not results["gears_data"]:
             return gears_id_mapping
 
-        self._check_memory_usage("gears import")
+        profile_utils.check_memory_usage(
+            "gears import",
+            self.performance_config.max_memory_mb,
+            self.performance_config.enable_memory_monitoring,
+        )
 
         for gear_data in results["gears_data"]:
             gear_data["user_id"] = self.user_id
@@ -586,7 +498,7 @@ class ImportService:
         core_logger.print_to_log(f"Imported {self.counts['gears']} gears", "info")
         return gears_id_mapping
 
-    async def _import_gear_components_data(
+    async def collect_and_import_gear_components_data(
         self, results: Dict[str, Any], gears_id_mapping: Dict[int, int]
     ) -> None:
         """
@@ -617,7 +529,11 @@ class ImportService:
         if not results["gear_components_data"]:
             return
 
-        self._check_memory_usage("gear components import")
+        profile_utils.check_memory_usage(
+            "gear components import",
+            self.performance_config.max_memory_mb,
+            self.performance_config.enable_memory_monitoring,
+        )
 
         for gear_component_data in results["gear_components_data"]:
             gear_component_data["user_id"] = self.user_id
@@ -644,7 +560,7 @@ class ImportService:
             f"Imported {self.counts['gear_components']} gear components", "info"
         )
 
-    async def _import_user_data(
+    async def collect_and_import_user_data(
         self, results: Dict[str, Any], gears_id_mapping: Dict[int, int]
     ) -> None:
         """Import user profile data and related settings from the import results.
@@ -672,7 +588,11 @@ class ImportService:
         if not results["user_data"]:
             return
 
-        self._check_memory_usage("user data import")
+        profile_utils.check_memory_usage(
+            "user data import",
+            self.performance_config.max_memory_mb,
+            self.performance_config.enable_memory_monitoring,
+        )
 
         # Import user profile
         user_data = results["user_data"][0]
@@ -689,12 +609,12 @@ class ImportService:
         self.counts["user"] += 1
 
         # Import user-related settings
-        await self._import_user_default_gear(results, gears_id_mapping)
-        await self._import_user_integrations(results)
-        await self._import_user_goals(results)
-        await self._import_user_privacy_settings(results)
+        await self.collect_and_import_user_default_gear(results, gears_id_mapping)
+        await self.collect_and_import_user_integrations(results)
+        await self.collect_and_import_user_goals(results)
+        await self.collect_and_import_user_privacy_settings(results)
 
-    async def _import_user_default_gear(
+    async def collect_and_import_user_default_gear(
         self, results: Dict[str, Any], gears_id_mapping: Dict[int, int]
     ) -> None:
         """
@@ -765,7 +685,9 @@ class ImportService:
         )
         self.counts["user_default_gear"] += 1
 
-    async def _import_user_integrations(self, results: Dict[str, Any]) -> None:
+    async def collect_and_import_user_integrations(
+        self, results: Dict[str, Any]
+    ) -> None:
         """
         Import and update user integrations from the imported data.
         This method processes user integration data from the import results and updates
@@ -804,7 +726,7 @@ class ImportService:
         )
         self.counts["user_integrations"] += 1
 
-    async def _import_user_goals(self, results: Dict[str, Any]) -> None:
+    async def collect_and_import_user_goals(self, results: Dict[str, Any]) -> None:
         """
         Import user goals from the results dictionary.
         This method processes the user goals data from the import results and creates
@@ -837,7 +759,9 @@ class ImportService:
             user_goals_crud.create_user_goal(self.user_id, goal, self.db)
             self.counts["user_goals"] += 1
 
-    async def _import_user_privacy_settings(self, results: Dict[str, Any]) -> None:
+    async def collect_and_import_user_privacy_settings(
+        self, results: Dict[str, Any]
+    ) -> None:
         """
         Import and update user privacy settings from backup data.
         This method imports user privacy settings from the backup results and updates
@@ -877,7 +801,7 @@ class ImportService:
         )
         self.counts["user_privacy_settings"] += 1
 
-    async def _import_activities_data(
+    async def collect_and_import_activities_data(
         self, results: Dict[str, Any], gears_id_mapping: Dict[int, int]
     ) -> Dict[int, int]:
         """
@@ -921,7 +845,11 @@ class ImportService:
                 f"Maximum allowed: {self.performance_config.max_activities}"
             )
 
-        self._check_memory_usage("activities import")
+        profile_utils.check_memory_usage(
+            "activities import",
+            self.performance_config.max_memory_mb,
+            self.performance_config.enable_memory_monitoring,
+        )
 
         for activity_data in results["activities_data"]:
             activity_data["user_id"] = self.user_id
@@ -941,7 +869,7 @@ class ImportService:
             if original_activity_id is not None and new_activity.id is not None:
                 activities_id_mapping[original_activity_id] = new_activity.id
                 # Import activity components
-                await self._import_activity_components(
+                await self.collect_and_import_activity_components(
                     results, original_activity_id, new_activity.id
                 )
             self.counts["activities"] += 1
@@ -951,7 +879,7 @@ class ImportService:
         )
         return activities_id_mapping
 
-    async def _import_activity_components(
+    async def collect_and_import_activity_components(
         self, results: Dict[str, Any], original_activity_id: int, new_activity_id: int
     ) -> None:
         """
@@ -1106,7 +1034,7 @@ class ImportService:
                 )
                 self.counts["activity_exercise_titles"] += len(titles)
 
-    async def _import_health_data(self, results: Dict[str, Any]) -> None:
+    async def collect_and_import_health_data(self, results: Dict[str, Any]) -> None:
         """
         Import health data and health targets for a user.
         This method processes and imports health data records and health targets from the
@@ -1129,7 +1057,11 @@ class ImportService:
         """
         # Import health data
         if results["health_data_data"]:
-            self._check_memory_usage("health data import")
+            profile_utils.check_memory_usage(
+                "health data import",
+                self.performance_config.max_memory_mb,
+                self.performance_config.enable_memory_monitoring,
+            )
 
             for health_data in results["health_data_data"]:
                 health_data["user_id"] = self.user_id
@@ -1158,54 +1090,46 @@ class ImportService:
                 health_targets_crud.edit_health_target(target, self.user_id, self.db)
                 self.counts["health_targets"] += 1
 
-    async def _import_files_and_media(
+    async def add_activity_files_from_zip(
         self,
         zipf: zipfile.ZipFile,
         file_list: set,
         activities_id_mapping: Dict[int, int],
     ) -> None:
-        """Import files and media from the ZIP archive.
-        This method processes and imports three types of files from the ZIP archive:
-        1. User profile images (PNG, JPG, JPEG) from 'user_images/' directory
-        2. Activity files (GPX, FIT, TCX) from 'activity_files/' directory
-        3. Activity media files (PNG, JPG, JPEG) from 'activity_media/' directory
-        User images are renamed using the user_id as the base name. Activity files and media
-        are remapped to new activity IDs based on the activities_id_mapping dictionary.
+        """
+        Import activity files from the ZIP archive.
+        This method processes and imports activity files (GPX, FIT, TCX) from the 'activity_files/' directory
+        within the ZIP archive. Files are remapped to new activity IDs based on the activities_id_mapping.
+
         Args:
             zipf (zipfile.ZipFile): The ZIP file object containing the files to import.
             file_list (set): Set of file paths within the ZIP archive to process.
             activities_id_mapping (Dict[int, int]): Mapping from original activity IDs to new activity IDs.
+
         Returns:
             None
+
         Side Effects:
-            - Writes files to disk in configured directories (USER_IMAGES_DIR, FILES_PROCESSED_DIR, ACTIVITY_MEDIA_DIR)
-            - Updates self.counts dictionary with import statistics
+            - Writes activity files to disk in FILES_PROCESSED_DIR
+            - Updates self.counts["activity_files"] with import statistics
             - Checks memory usage before processing
+
         Notes:
-            - Files with invalid formats or non-numeric activity IDs are silently skipped
             - Activity files are expected to be named with numeric IDs (e.g., "123.gpx")
-            - Activity media files are expected to follow the pattern "{activity_id}_{suffix}.{ext}"
+            - Files with non-numeric activity IDs are silently skipped
             - If an activity ID is not found in activities_id_mapping, the file is skipped
         """
-        self._check_memory_usage("files and media import")
+        profile_utils.check_memory_usage(
+            "activity files import",
+            self.performance_config.max_memory_mb,
+            self.performance_config.enable_memory_monitoring,
+        )
 
         for file_path in file_list:
             path = file_path.replace("\\", "/")
 
-            # Import user images
-            if path.lower().endswith((".png", ".jpg", ".jpeg")) and path.startswith(
-                "user_images/"
-            ):
-                ext = os.path.splitext(path)[1]
-                new_file_name = f"{self.user_id}{ext}"
-                user_img = os.path.join(core_config.USER_IMAGES_DIR, new_file_name)
-
-                with open(user_img, "wb") as f:
-                    f.write(zipf.read(file_path))
-                self.counts["user_images"] += 1
-
             # Import activity files
-            elif path.lower().endswith((".gpx", ".fit", ".tcx")) and path.startswith(
+            if path.lower().endswith((".gpx", ".fit", ".tcx")) and path.startswith(
                 "activity_files/"
             ):
                 file_id_str = os.path.splitext(os.path.basename(path))[0]
@@ -1229,8 +1153,47 @@ class ImportService:
                     # Skip files that don't have numeric activity IDs
                     continue
 
+    async def add_activity_media_from_zip(
+        self,
+        zipf: zipfile.ZipFile,
+        file_list: set,
+        activities_id_mapping: Dict[int, int],
+    ) -> None:
+        """
+        Import activity media files from the ZIP archive.
+        This method processes and imports activity media files (PNG, JPG, JPEG) from the 'activity_media/'
+        directory within the ZIP archive. Media files are remapped to new activity IDs based on the
+        activities_id_mapping.
+
+        Args:
+            zipf (zipfile.ZipFile): The ZIP file object containing the files to import.
+            file_list (set): Set of file paths within the ZIP archive to process.
+            activities_id_mapping (Dict[int, int]): Mapping from original activity IDs to new activity IDs.
+
+        Returns:
+            None
+
+        Side Effects:
+            - Writes media files to disk in ACTIVITY_MEDIA_DIR
+            - Updates self.counts["media"] with import statistics
+            - Checks memory usage before processing
+
+        Notes:
+            - Activity media files are expected to follow the pattern "{activity_id}_{suffix}.{ext}"
+            - Files with non-numeric activity IDs are silently skipped
+            - If an activity ID is not found in activities_id_mapping, the file is skipped
+        """
+        profile_utils.check_memory_usage(
+            "activity media import",
+            self.performance_config.max_memory_mb,
+            self.performance_config.enable_memory_monitoring,
+        )
+
+        for file_path in file_list:
+            path = file_path.replace("\\", "/")
+
             # Import activity media
-            elif path.lower().endswith((".png", ".jpg", ".jpeg")) and path.startswith(
+            if path.lower().endswith((".png", ".jpg", ".jpeg")) and path.startswith(
                 "activity_media/"
             ):
                 file_name = os.path.basename(path)
@@ -1256,3 +1219,50 @@ class ImportService:
                     except ValueError:
                         # Skip files that don't have numeric activity IDs
                         continue
+
+    async def add_user_images_from_zip(
+        self,
+        zipf: zipfile.ZipFile,
+        file_list: set,
+    ) -> None:
+        """
+        Import user profile images from the ZIP archive.
+        This method processes and imports user profile images (PNG, JPG, JPEG) from the 'user_images/'
+        directory within the ZIP archive. Images are renamed using the user_id as the base name.
+
+        Args:
+            zipf (zipfile.ZipFile): The ZIP file object containing the files to import.
+            file_list (set): Set of file paths within the ZIP archive to process.
+
+        Returns:
+            None
+
+        Side Effects:
+            - Writes user images to disk in USER_IMAGES_DIR
+            - Updates self.counts["user_images"] with import statistics
+            - Checks memory usage before processing
+
+        Notes:
+            - User images are renamed using the user_id as the base name while preserving the file extension
+            - Only processes image files in the 'user_images/' directory
+        """
+        profile_utils.check_memory_usage(
+            "user images import",
+            self.performance_config.max_memory_mb,
+            self.performance_config.enable_memory_monitoring,
+        )
+
+        for file_path in file_list:
+            path = file_path.replace("\\", "/")
+
+            # Import user images
+            if path.lower().endswith((".png", ".jpg", ".jpeg")) and path.startswith(
+                "user_images/"
+            ):
+                ext = os.path.splitext(path)[1]
+                new_file_name = f"{self.user_id}{ext}"
+                user_img = os.path.join(core_config.USER_IMAGES_DIR, new_file_name)
+
+                with open(user_img, "wb") as f:
+                    f.write(zipf.read(file_path))
+                self.counts["user_images"] += 1

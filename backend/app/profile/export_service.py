@@ -44,12 +44,13 @@ class ExportPerformanceConfig:
     settings based on available system memory.
     Attributes:
         batch_size (int): Number of records to process in a single batch. Default is 1000.
-        max_memory_mb (int): Maximum memory usage in megabytes. Default is 512.
+        max_memory_mb (int): Maximum memory usage in megabytes. Default is 1024.
         compression_level (int): Compression level (0-9, where 0 is no compression and
             9 is maximum compression). Default is 6.
         chunk_size (int): Size of data chunks in bytes for I/O operations. Default is 8192.
         enable_memory_monitoring (bool): Whether to enable memory usage monitoring during
             export operations. Default is True.
+        timeout_seconds (int): Operation timeout in seconds. Default is 3600 (60 minutes).
     Example:
         >>> # Create with default settings
         >>> config = ExportPerformanceConfig()
@@ -64,26 +65,29 @@ class ExportPerformanceConfig:
     def __init__(
         self,
         batch_size: int = 1000,
-        max_memory_mb: int = 512,
+        max_memory_mb: int = 1024,
         compression_level: int = 6,
         chunk_size: int = 8192,
         enable_memory_monitoring: bool = True,
+        timeout_seconds: int = 3600,
     ):
         """
         Initialize the export service with configuration parameters.
 
         Args:
             batch_size (int, optional): Number of records to process in each batch. Defaults to 1000.
-            max_memory_mb (int, optional): Maximum memory usage in megabytes before triggering cleanup. Defaults to 512.
+            max_memory_mb (int, optional): Maximum memory usage in megabytes before triggering cleanup. Defaults to 1024.
             compression_level (int, optional): Compression level for export files (0-9, where 9 is maximum compression). Defaults to 6.
             chunk_size (int, optional): Size of chunks in bytes for streaming operations. Defaults to 8192.
             enable_memory_monitoring (bool, optional): Whether to enable memory usage monitoring during export. Defaults to True.
+            timeout_seconds (int, optional): Maximum time allowed for export operation in seconds. Defaults to 3600 (60 minutes).
         """
         self.batch_size = batch_size
         self.max_memory_mb = max_memory_mb
         self.compression_level = compression_level
         self.chunk_size = chunk_size
         self.enable_memory_monitoring = enable_memory_monitoring
+        self.timeout_seconds = timeout_seconds
 
     @classmethod
     def get_auto_config(cls) -> "ExportPerformanceConfig":
@@ -115,23 +119,26 @@ class ExportPerformanceConfig:
             if available_mb > 2048:  # > 2GB available
                 return cls(
                     batch_size=2000,
-                    max_memory_mb=1024,
+                    max_memory_mb=2048,
                     compression_level=6,
                     chunk_size=16384,
+                    timeout_seconds=7200,
                 )
             elif available_mb > 1024:  # > 1GB available
                 return cls(
                     batch_size=1000,
-                    max_memory_mb=512,
+                    max_memory_mb=1024,
                     compression_level=4,
                     chunk_size=8192,
+                    timeout_seconds=3600,
                 )
             else:  # Low memory system
                 return cls(
                     batch_size=500,
-                    max_memory_mb=256,
+                    max_memory_mb=512,
                     compression_level=1,
                     chunk_size=4096,
+                    timeout_seconds=1800,
                 )
         except Exception as err:
             core_logger.print_to_log(
@@ -193,7 +200,7 @@ class ExportService:
         """
         self.user_id = user_id
         self.db = db
-        self.counts = self._initialize_counts()
+        self.counts = profile_utils.initialize_operation_counts(include_user_count=True)
         self.performance_config = (
             performance_config or ExportPerformanceConfig.get_auto_config()
         )
@@ -202,107 +209,10 @@ class ExportService:
             f"ExportService initialized with performance config: "
             f"batch_size={self.performance_config.batch_size}, "
             f"max_memory_mb={self.performance_config.max_memory_mb}, "
-            f"compression_level={self.performance_config.compression_level}",
+            f"compression_level={self.performance_config.compression_level}, "
+            f"timeout_seconds={self.performance_config.timeout_seconds}",
             "info",
         )
-
-    def _initialize_counts(self) -> Dict[str, int]:
-        """
-        Initialize and return a dictionary with count trackers for all exportable data types.
-
-        Returns:
-            Dict[str, int]: A dictionary mapping data type names to their initial count values.
-                All counts start at 0 except for 'user' which starts at 1 to represent
-                the single user being exported.
-        """
-        return {
-            "media": 0,
-            "activity_files": 0,
-            "activities": 0,
-            "activity_laps": 0,
-            "activity_sets": 0,
-            "activity_streams": 0,
-            "activity_workout_steps": 0,
-            "activity_media": 0,
-            "activity_exercise_titles": 0,
-            "gears": 0,
-            "gear_components": 0,
-            "health_data": 0,
-            "health_targets": 0,
-            "user_images": 0,
-            "user": 1,
-            "user_default_gear": 0,
-            "user_integrations": 0,
-            "user_goals": 0,
-            "user_privacy_settings": 0,
-        }
-
-    def _get_memory_usage_mb(self) -> float:
-        """
-        Get the current memory usage of the process in megabytes.
-
-        This method retrieves the Resident Set Size (RSS) memory usage of the current
-        process using psutil. The RSS represents the portion of memory occupied by the
-        process that is held in RAM.
-
-        Returns:
-            float: The memory usage in megabytes (MB). Returns 0.0 if memory monitoring
-                   is disabled or if an error occurs during retrieval.
-
-        Note:
-            - Memory monitoring must be enabled via performance_config.enable_memory_monitoring
-            - Errors during memory retrieval are logged as warnings and return 0.0
-            - RSS (Resident Set Size) includes all stack and heap memory
-        """
-        try:
-            if self.performance_config.enable_memory_monitoring:
-                process = psutil.Process()
-                memory_info = process.memory_info()
-                return memory_info.rss / (1024 * 1024)  # Convert bytes to MB
-            return 0.0
-        except Exception as e:
-            core_logger.print_to_log(f"Failed to get memory usage: {e}", "warning")
-            return 0.0
-
-    def _check_memory_usage(self, operation: str) -> None:
-        """
-        Check current memory usage and log warnings or raise errors if thresholds are exceeded.
-        This method monitors memory consumption during export operations and takes action
-        based on configured limits. It logs a warning when memory usage exceeds 80% of the
-        maximum allowed memory and raises a MemoryAllocationError when the limit is exceeded.
-        Args:
-            operation (str): Description of the current operation being performed, used for
-                logging context.
-        Raises:
-            MemoryAllocationError: When current memory usage exceeds the configured maximum
-                memory limit (max_memory_mb).
-        Note:
-            - Monitoring can be disabled via performance_config.enable_memory_monitoring
-            - Warning threshold is set at 80% of max_memory_mb
-            - Error threshold is set at 100% of max_memory_mb
-        """
-        if not self.performance_config.enable_memory_monitoring:
-            return
-
-        current_memory = self._get_memory_usage_mb()
-        max_memory = self.performance_config.max_memory_mb
-
-        if current_memory > max_memory * 0.8:  # 80% threshold
-            core_logger.print_to_log(
-                f"High memory usage during {operation}: {current_memory:.1f}MB "
-                f"(limit: {max_memory}MB)",
-                "warning",
-            )
-
-        if current_memory > max_memory:
-            core_logger.print_to_log(
-                f"Memory limit exceeded during {operation}: {current_memory:.1f}MB "
-                f"(limit: {max_memory}MB)",
-                "error",
-            )
-            raise MemoryAllocationError(
-                f"Memory usage ({current_memory:.1f}MB) exceeded limit ({max_memory}MB) during {operation}"
-            )
 
     def collect_user_activities_data(self) -> Dict[str, Any]:
         """
@@ -342,7 +252,11 @@ class ExportService:
         }
 
         try:
-            self._check_memory_usage("activity collection start")
+            profile_utils.check_memory_usage(
+                "activity collection start",
+                self.performance_config.max_memory_mb,
+                self.performance_config.enable_memory_monitoring,
+            )
 
             # Get activities in batches using pagination
             all_activities = []
@@ -365,7 +279,11 @@ class ExportService:
                 offset += batch_size
 
                 # Check memory usage after each batch
-                self._check_memory_usage(f"activity batch {offset//batch_size}")
+                profile_utils.check_memory_usage(
+                    f"activity batch {offset//batch_size}",
+                    self.performance_config.max_memory_mb,
+                    self.performance_config.enable_memory_monitoring,
+                )
 
                 core_logger.print_to_log(
                     f"Collected {len(batch_activities)} activities in batch "
@@ -504,7 +422,11 @@ class ExportService:
             batch_ids = activity_ids[i : i + batch_size]
             batch_activities = user_activities[i : i + batch_size]
 
-            self._check_memory_usage(f"component batch {i//batch_size + 1}")
+            profile_utils.check_memory_usage(
+                f"component batch {i//batch_size + 1}",
+                self.performance_config.max_memory_mb,
+                self.performance_config.enable_memory_monitoring,
+            )
 
             # Collect each component type for this batch
             self._collect_activity_component_batch(
@@ -1111,7 +1033,7 @@ class ExportService:
         Notes:
             - Only processes files where the filename (without extension) matches self.user_id
             - Large files (>10MB) trigger warning logs
-            - Files >5MB trigger memory usage monitoring via self._check_memory_usage()
+            - Files >5MB trigger memory usage monitoring via profile_utils.check_memory_usage()
             - All file paths in the ZIP are relative to maintain portability
         """
         try:
@@ -1129,7 +1051,11 @@ class ExportService:
 
                 # Check memory usage before adding large files
                 if file_size > 5 * 1024 * 1024:  # 5MB threshold for images
-                    self._check_memory_usage(f"before image {entry.name}")
+                    profile_utils.check_memory_usage(
+                        f"before image {entry.name}",
+                        self.performance_config.max_memory_mb,
+                        self.performance_config.enable_memory_monitoring,
+                    )
 
                 arcname = os.path.join(
                     "user_images",
@@ -1277,40 +1203,54 @@ class ExportService:
                         )
 
                         # Collect all data with timeout checks
-                        self._check_timeout(timeout_seconds, start_time)
+                        profile_utils.check_timeout(
+                            timeout_seconds, start_time, ExportTimeoutError, "Export"
+                        )
                         core_logger.print_to_log(
                             "Collecting activities data...", "info"
                         )
                         activities_data = self.collect_user_activities_data()
 
-                        self._check_timeout(timeout_seconds, start_time)
+                        profile_utils.check_timeout(
+                            timeout_seconds, start_time, ExportTimeoutError, "Export"
+                        )
                         core_logger.print_to_log("Collecting gear data...", "info")
                         gear_data = self.collect_gear_data()
 
-                        self._check_timeout(timeout_seconds, start_time)
+                        profile_utils.check_timeout(
+                            timeout_seconds, start_time, ExportTimeoutError, "Export"
+                        )
                         core_logger.print_to_log("Collecting health data...", "info")
                         health_data = self.collect_health_data()
 
-                        self._check_timeout(timeout_seconds, start_time)
+                        profile_utils.check_timeout(
+                            timeout_seconds, start_time, ExportTimeoutError, "Export"
+                        )
                         core_logger.print_to_log("Collecting settings data...", "info")
                         settings_data = self.collect_user_settings_data()
 
                         # Add files to ZIP with timeout checks
                         user_activities = activities_data["activities"]
 
-                        self._check_timeout(timeout_seconds, start_time)
+                        profile_utils.check_timeout(
+                            timeout_seconds, start_time, ExportTimeoutError, "Export"
+                        )
                         core_logger.print_to_log(
                             "Adding activity files to archive...", "info"
                         )
                         self.add_activity_files_to_zip(zipf, user_activities)
 
-                        self._check_timeout(timeout_seconds, start_time)
+                        profile_utils.check_timeout(
+                            timeout_seconds, start_time, ExportTimeoutError, "Export"
+                        )
                         core_logger.print_to_log(
                             "Adding activity media to archive...", "info"
                         )
                         self.add_activity_media_to_zip(zipf, user_activities)
 
-                        self._check_timeout(timeout_seconds, start_time)
+                        profile_utils.check_timeout(
+                            timeout_seconds, start_time, ExportTimeoutError, "Export"
+                        )
                         core_logger.print_to_log(
                             "Adding user images to archive...", "info"
                         )
@@ -1326,11 +1266,15 @@ class ExportService:
                         }
 
                         # Write all data to ZIP
-                        self._check_timeout(timeout_seconds, start_time)
+                        profile_utils.check_timeout(
+                            timeout_seconds, start_time, ExportTimeoutError, "Export"
+                        )
                         core_logger.print_to_log("Writing data to archive...", "info")
                         self.write_data_to_zip(zipf, data_collections)
 
-                        self._check_timeout(timeout_seconds, start_time)
+                        profile_utils.check_timeout(
+                            timeout_seconds, start_time, ExportTimeoutError, "Export"
+                        )
                         core_logger.print_to_log(
                             f"Export completed successfully. Counts: {self.counts}",
                             "info",
@@ -1354,7 +1298,9 @@ class ExportService:
                 chunk_count = 0
                 while True:
                     try:
-                        self._check_timeout(timeout_seconds, start_time)
+                        profile_utils.check_timeout(
+                            timeout_seconds, start_time, ExportTimeoutError, "Export"
+                        )
                         chunk = tmp.read(8192)
                         if not chunk:
                             break
@@ -1385,7 +1331,3 @@ class ExportService:
             raise MemoryAllocationError(
                 f"Insufficient memory for export: {err}"
             ) from err
-
-    def _check_timeout(self, timeout_seconds, start_time):
-        if timeout_seconds and (time.time() - start_time) > timeout_seconds:
-            raise ExportTimeoutError(f"Export exceeded {timeout_seconds} seconds")
