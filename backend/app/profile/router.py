@@ -15,33 +15,16 @@ import users.user_privacy_settings.schema as users_privacy_settings_schema
 
 import profile.utils as profile_utils
 import profile.schema as profile_schema
-from profile.export_service import ExportService
-from profile.import_service import ImportService
-from profile.exceptions import (
-    handle_import_export_exception,
-    DatabaseConnectionError,
-    FileSystemError,
-    ZipCreationError,
-    MemoryAllocationError,
-    DataCollectionError,
-    ExportTimeoutError,
-    ImportValidationError,
-    FileFormatError,
-    DataIntegrityError,
-    ImportTimeoutError,
-    DiskSpaceError,
-    FileSizeError,
-    ActivityLimitError,
-    ZipStructureError,
-    JSONParseError,
-    SchemaValidationError,
-)
+import profile.export_service as profile_export_service
+import profile.import_service as profile_import_service
+import profile.exceptions as profile_exceptions
 
 import session.security as session_security
 import session.crud as session_crud
 
 import core.database as core_database
 import core.logger as core_logger
+import core.file_security as core_file_security
 
 import websocket.schema as websocket_schema
 
@@ -163,7 +146,14 @@ async def upload_profile_image(
     ],
 ):
     """
-    Handles the upload of a user's profile image.
+    Handles the upload of a user's profile image with comprehensive security validation.
+
+    Security features:
+    - File type validation (JPEG, PNG, GIF, WebP only)
+    - File size limits (max 20MB)
+    - MIME type verification
+    - Content-based file signature validation
+    - Malicious file extension blocking
 
     Args:
         file (UploadFile): The image file to be uploaded.
@@ -174,8 +164,12 @@ async def upload_profile_image(
         The result of saving the user's image, as returned by `users_utils.save_user_image`.
 
     Raises:
-        HTTPException: If the upload or save operation fails.
+        HTTPException: If the upload validation fails or save operation fails.
     """
+    # Comprehensive security validation
+    await core_file_security.validate_profile_image_upload(file)
+
+    # If validation passes, proceed with saving
     return await users_utils.save_user_image(token_user_id, file, db)
 
 
@@ -387,7 +381,7 @@ async def export_profile_data(
     user_dict.pop("password", None)
 
     # Create export service and generate archive
-    export_service = ExportService(token_user_id, db)
+    export_service = profile_export_service.ExportService(token_user_id, db)
 
     headers = {
         "Content-Disposition": f"attachment; filename=user_{token_user_id}_export.zip",
@@ -401,15 +395,17 @@ async def export_profile_data(
             headers=headers,
         )
     except (
-        DatabaseConnectionError,
-        FileSystemError,
-        ZipCreationError,
-        MemoryAllocationError,
-        DataCollectionError,
-        ExportTimeoutError,
+        profile_exceptions.DatabaseConnectionError,
+        profile_exceptions.FileSystemError,
+        profile_exceptions.ZipCreationError,
+        profile_exceptions.MemoryAllocationError,
+        profile_exceptions.DataCollectionError,
+        profile_exceptions.ExportTimeoutError,
     ) as err:
         # Handle specific export errors with appropriate HTTP responses
-        http_exception = handle_import_export_exception(err, "profile data export")
+        http_exception = profile_exceptions.handle_import_export_exception(
+            err, "profile data export"
+        )
         core_logger.print_to_log(
             f"Export error for user {token_user_id}: {err}",
             "error",
@@ -444,29 +440,41 @@ async def import_profile_data(
     ],
 ):
     """
-    Import user profile data from a ZIP file.
+    Import user profile data from a ZIP file with comprehensive security validation.
+
     This endpoint allows users to import their profile data from a previously exported ZIP file.
     The import process is performed asynchronously and handles various types of data including
     activities, settings, and other profile-related information.
+
+    Security features:
+    - File type validation (ZIP files only)
+    - File size limits (max 500MB)
+    - MIME type verification
+    - Content-based file signature validation
+    - Malicious file extension blocking
+
     Args:
         file (UploadFile): The uploaded ZIP file containing the profile data to import.
-            Must have a .zip extension.
+            Must have a .zip extension and pass security validation.
         token_user_id (int): The ID of the authenticated user performing the import.
             Extracted from the access token.
         db (Session): Database session dependency for performing database operations.
         websocket_manager (WebSocketManager): WebSocket manager for real-time updates
             during the import process.
+
     Returns:
         dict: A dictionary containing import results with information about what was imported,
             including counts of activities, settings, and other imported items.
+
     Raises:
-        HTTPException(400): If the uploaded file is not a .zip file or if validation errors
+        HTTPException(400): If the uploaded file fails security validation or if validation errors
             occur (e.g., file size limits, activity limits exceeded).
         HTTPException(507): If there is insufficient memory to process the import.
         HTTPException(500): If an unexpected internal error occurs during the import process.
-        HTTPException: Various status codes may be raised by handle_import_export_exception for
-            specific import/export errors (DatabaseConnectionError, FileSystemError,
-            ZipCreationError, MemoryAllocationError, DataCollectionError, ExportTimeoutError).
+        HTTPException: Various status codes may be raised by profile_exceptions.handle_import_export_exception for
+            specific import/export errors (profile_exceptions.DatabaseConnectionError, profile_exceptions.FileSystemError,
+            profile_exceptions.ZipCreationError, profile_exceptions.MemoryAllocationError, profile_exceptions.DataCollectionError, profile_exceptions.ExportTimeoutError).
+
     Example:
         The endpoint expects a multipart/form-data request with a ZIP file:
         ```
@@ -476,19 +484,17 @@ async def import_profile_data(
         file: profile_export.zip
         ```
     """
-    if not file.filename or not file.filename.lower().endswith(".zip"):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Uploaded file must be a .zip",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+    # Comprehensive security validation
+    await core_file_security.validate_profile_data_upload(file)
 
     try:
         # Read the ZIP file data
         zip_data = await file.read()
 
         # Create import service and process the data
-        import_service = ImportService(token_user_id, db, websocket_manager)
+        import_service = profile_import_service.ImportService(
+            token_user_id, db, websocket_manager
+        )
         result = await import_service.import_from_zip_data(zip_data)
 
         core_logger.print_to_log(
@@ -499,24 +505,32 @@ async def import_profile_data(
         return result
 
     except (
-        ImportValidationError,
-        FileFormatError,
-        FileSizeError,
-        ActivityLimitError,
-        ZipStructureError,
-        JSONParseError,
-        SchemaValidationError,
+        profile_exceptions.ImportValidationError,
+        profile_exceptions.FileFormatError,
+        profile_exceptions.FileSizeError,
+        profile_exceptions.ActivityLimitError,
+        profile_exceptions.ZipStructureError,
+        profile_exceptions.JSONParseError,
+        profile_exceptions.SchemaValidationError,
     ) as err:
         # Handle import validation and format errors
-        http_exception = handle_import_export_exception(err, "profile data import")
+        http_exception = profile_exceptions.handle_import_export_exception(
+            err, "profile data import"
+        )
         core_logger.print_to_log(
             f"Import validation error for user {token_user_id}: {err}",
             "warning",
         )
         raise http_exception
-    except (DataIntegrityError, ImportTimeoutError, DiskSpaceError) as err:
+    except (
+        profile_exceptions.DataIntegrityError,
+        profile_exceptions.ImportTimeoutError,
+        profile_exceptions.DiskSpaceError,
+    ) as err:
         # Handle import operation errors
-        http_exception = handle_import_export_exception(err, "profile data import")
+        http_exception = profile_exceptions.handle_import_export_exception(
+            err, "profile data import"
+        )
         core_logger.print_to_log(
             f"Import operation error for user {token_user_id}: {err}",
             "error",
@@ -533,23 +547,27 @@ async def import_profile_data(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(err),
         ) from err
-    except (MemoryAllocationError, MemoryError) as err:
+    except (profile_exceptions.MemoryAllocationError, MemoryError) as err:
         # Handle memory-related errors
-        http_exception = handle_import_export_exception(err, "profile data import")
+        http_exception = profile_exceptions.handle_import_export_exception(
+            err, "profile data import"
+        )
         core_logger.print_to_log(
             f"Memory error for user {token_user_id}: {err}",
             "error",
         )
         raise http_exception
     except (
-        DatabaseConnectionError,
-        FileSystemError,
-        ZipCreationError,
-        DataCollectionError,
-        ExportTimeoutError,
+        profile_exceptions.DatabaseConnectionError,
+        profile_exceptions.FileSystemError,
+        profile_exceptions.ZipCreationError,
+        profile_exceptions.DataCollectionError,
+        profile_exceptions.ExportTimeoutError,
     ) as err:
         # Handle specific import/export errors with appropriate HTTP responses
-        http_exception = handle_import_export_exception(err, "profile data import")
+        http_exception = profile_exceptions.handle_import_export_exception(
+            err, "profile data import"
+        )
         core_logger.print_to_log(
             f"Import system error for user {token_user_id}: {err}",
             "error",
