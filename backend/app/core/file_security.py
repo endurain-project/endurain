@@ -25,6 +25,15 @@ class SecurityLimits:
     max_uncompressed_size: int = 1024 * 1024 * 1024  # 1GB max uncompressed size
     max_zip_entries: int = 10000  # Maximum number of files in ZIP archive
     zip_analysis_timeout: float = 5.0  # Maximum seconds to spend analyzing ZIP structure
+    
+    # ZIP content inspection settings
+    max_zip_depth: int = 10  # Maximum nesting depth for directories in ZIP
+    max_filename_length: int = 255  # Maximum length for individual file names
+    max_path_length: int = 1024  # Maximum length for full file paths
+    allow_nested_archives: bool = False  # Whether to allow nested archive files
+    allow_symlinks: bool = False  # Whether to allow symbolic links in ZIP
+    allow_absolute_paths: bool = False  # Whether to allow absolute paths in ZIP
+    scan_zip_content: bool = True  # Whether to perform deep content inspection
 
 
 @dataclass
@@ -191,6 +200,82 @@ class UnicodeAttackCategory(Enum):
         0x2025,  # U+2025 TWO DOT LEADER
         0x2026,  # U+2026 HORIZONTAL ELLIPSIS
         0xFF0E,  # U+FF0E FULLWIDTH FULL STOP
+    }
+
+
+class SuspiciousFilePattern(Enum):
+    
+    # Directory traversal attack patterns
+    DIRECTORY_TRAVERSAL = {
+        "../", "..\\", ".../", "...\\",
+        "....//", "....\\\\", 
+        "%2e%2e%2f", "%2e%2e%5c",  # URL encoded ../ and ..\
+        "%252e%252e%252f", "%252e%252e%255c"  # Double URL encoded
+    }
+    
+    # Suspicious filename patterns
+    SUSPICIOUS_NAMES = {
+        # Windows system files that shouldn't be in user uploads
+        "autorun.inf", "desktop.ini", "thumbs.db", ".ds_store",
+        # Common malware names
+        "install.exe", "setup.exe", "update.exe", "patch.exe",
+        "crack.exe", "keygen.exe", "loader.exe", "activator.exe",
+        # Hidden or system-like files
+        ".htaccess", ".htpasswd", "web.config", "robots.txt"
+    }
+    
+    # Dangerous file content signatures (magic bytes)
+    EXECUTABLE_SIGNATURES = {
+        # Windows PE executables
+        b"MZ", b"PE\x00\x00",
+        # ELF executables (Linux)
+        b"\x7fELF",
+        # Mach-O executables (macOS)
+        b"\xfe\xed\xfa\xce", b"\xfe\xed\xfa\xcf",
+        b"\xce\xfa\xed\xfe", b"\xcf\xfa\xed\xfe",
+        # Java class files
+        b"\xca\xfe\xba\xbe",
+        # Windows shortcuts (.lnk)
+        b"L\x00\x00\x00"
+    }
+    
+    # Suspicious path components
+    SUSPICIOUS_PATHS = {
+        # Windows system directories
+        "windows/", "system32/", "syswow64/", "programfiles/",
+        # Unix system directories
+        "/bin/", "/sbin/", "/usr/bin/", "/usr/sbin/", "/etc/",
+        # Web server directories
+        "cgi-bin/", "htdocs/", "www/", "wwwroot/",
+        # Development/build directories
+        ".git/", ".svn/", "node_modules/", "__pycache__/"
+    }
+
+
+class ZipThreatCategory(Enum):
+    
+    # Archive format threats
+    NESTED_ARCHIVES = {
+        ".zip", ".rar", ".7z", ".tar", ".gz", ".bz2", ".xz", 
+        ".tar.gz", ".tar.bz2", ".tar.xz", ".tgz", ".tbz2"
+    }
+    
+    # Executable content threats
+    EXECUTABLE_FILES = {
+        ".exe", ".com", ".bat", ".cmd", ".scr", ".pif",
+        ".bin", ".run", ".app", ".deb", ".rpm", ".msi"
+    }
+    
+    # Script and code threats
+    SCRIPT_FILES = {
+        ".js", ".vbs", ".ps1", ".sh", ".bash", ".py", ".php", 
+        ".pl", ".rb", ".lua", ".asp", ".jsp"
+    }
+    
+    # System and configuration threats
+    SYSTEM_FILES = {
+        ".dll", ".so", ".dylib", ".sys", ".drv", ".inf", 
+        ".reg", ".cfg", ".conf", ".ini"
     }
 
 
@@ -944,6 +1029,223 @@ class CompressionSecurityValidator:
             return False, f"ZIP validation failed: {str(err)}"
 
 
+class ZipContentInspector:
+
+    def __init__(self, config: FileSecurityConfig):
+        self.config = config
+
+    def inspect_zip_content(self, file_content: bytes) -> Tuple[bool, str]:
+        try:
+            zip_bytes = io.BytesIO(file_content)
+            threats_found = []
+            
+            # Start analysis timer
+            start_time = time.time()
+            
+            with zipfile.ZipFile(zip_bytes, "r") as zip_file:
+                zip_entries = zip_file.infolist()
+                
+                # Analyze each entry in the ZIP
+                for entry in zip_entries:
+                    # Check for timeout
+                    if time.time() - start_time > self.config.limits.zip_analysis_timeout:
+                        return False, f"ZIP content inspection timeout after {self.config.limits.zip_analysis_timeout}s"
+                    
+                    # Inspect individual entry
+                    entry_threats = self._inspect_zip_entry(entry, zip_file)
+                    threats_found.extend(entry_threats)
+                
+                # Check for ZIP structure threats
+                structure_threats = self._inspect_zip_structure(zip_entries)
+                threats_found.extend(structure_threats)
+                
+                # Return results
+                if threats_found:
+                    return False, f"ZIP content threats detected: {'; '.join(threats_found)}"
+                
+                core_logger.print_to_log(
+                    f"ZIP content inspection passed: {len(zip_entries)} entries analyzed",
+                    "debug"
+                )
+                return True, "ZIP content inspection passed"
+                
+        except zipfile.BadZipFile:
+            return False, "Invalid or corrupted ZIP file structure"
+        except Exception as err:
+            core_logger.print_to_log(
+                f"Error during ZIP content inspection: {err}", "warning", exc=err
+            )
+            return False, f"ZIP content inspection failed: {str(err)}"
+
+    def _inspect_zip_entry(self, entry: zipfile.ZipInfo, zip_file: zipfile.ZipFile) -> List[str]:
+        threats = []
+        filename = entry.filename
+        
+        # 1. Check for directory traversal attacks
+        if self._has_directory_traversal(filename):
+            threats.append(f"Directory traversal attack in '{filename}'")
+        
+        # 2. Check for absolute paths
+        if not self.config.limits.allow_absolute_paths and self._has_absolute_path(filename):
+            threats.append(f"Absolute path detected in '{filename}'")
+        
+        # 3. Check for symbolic links
+        if not self.config.limits.allow_symlinks and self._is_symlink(entry):
+            threats.append(f"Symbolic link detected: '{filename}'")
+        
+        # 4. Check filename length limits
+        if len(os.path.basename(filename)) > self.config.limits.max_filename_length:
+            threats.append(f"Filename too long: '{filename}' ({len(os.path.basename(filename))} chars)")
+        
+        # 5. Check path length limits
+        if len(filename) > self.config.limits.max_path_length:
+            threats.append(f"Path too long: '{filename}' ({len(filename)} chars)")
+        
+        # 6. Check for suspicious filename patterns
+        suspicious_patterns = self._check_suspicious_patterns(filename)
+        threats.extend(suspicious_patterns)
+        
+        # 7. Check for nested archives
+        if not self.config.limits.allow_nested_archives and self._is_nested_archive(filename):
+            threats.append(f"Nested archive detected: '{filename}'")
+        
+        # 8. Check file content if enabled and entry is small enough
+        if self.config.limits.scan_zip_content and not entry.is_dir() and entry.file_size < 1024 * 1024:  # 1MB limit for content scan
+            content_threats = self._inspect_entry_content(entry, zip_file)
+            threats.extend(content_threats)
+        
+        return threats
+
+    def _inspect_zip_structure(self, entries: List[zipfile.ZipInfo]) -> List[str]:
+        threats = []
+        
+        # Check directory depth
+        max_depth = 0
+        for entry in entries:
+            depth = entry.filename.count('/') + entry.filename.count('\\')
+            max_depth = max(max_depth, depth)
+        
+        if max_depth > self.config.limits.max_zip_depth:
+            threats.append(f"Excessive directory depth: {max_depth} (max: {self.config.limits.max_zip_depth})")
+        
+        # Check for suspicious file distribution
+        file_types = {}
+        for entry in entries:
+            if not entry.is_dir():
+                ext = os.path.splitext(entry.filename)[1].lower()
+                file_types[ext] = file_types.get(ext, 0) + 1
+        
+        # Check for excessive number of same-type files (potential spam/bomb)
+        for ext, count in file_types.items():
+            if count > 1000:  # More than 1000 files of same type
+                threats.append(f"Excessive number of {ext} files: {count}")
+        
+        return threats
+
+    def _has_directory_traversal(self, filename: str) -> bool:
+        filename_lower = filename.lower()
+        
+        for category in SuspiciousFilePattern:
+            if category == SuspiciousFilePattern.DIRECTORY_TRAVERSAL:
+                for pattern in category.value:
+                    if pattern.lower() in filename_lower:
+                        return True
+        
+        # Additional checks for normalized paths
+        normalized = os.path.normpath(filename)
+        if normalized.startswith('..') or '/..' in normalized or '\\..' in normalized:
+            return True
+        
+        return False
+
+    def _has_absolute_path(self, filename: str) -> bool:
+        return (
+            filename.startswith('/') or  # Unix absolute path
+            filename.startswith('\\') or  # Windows UNC path
+            (len(filename) > 1 and filename[1] == ':')  # Windows drive path
+        )
+
+    def _is_symlink(self, entry: zipfile.ZipInfo) -> bool:
+        # Check if entry has symlink attributes
+        return (entry.external_attr >> 16) & 0o120000 == 0o120000
+
+    def _check_suspicious_patterns(self, filename: str) -> List[str]:
+        threats = []
+        filename_lower = filename.lower()
+        basename = os.path.basename(filename_lower)
+        
+        # Check suspicious names
+        for pattern in SuspiciousFilePattern.SUSPICIOUS_NAMES.value:
+            if basename == pattern.lower():
+                threats.append(f"Suspicious filename pattern: '{filename}'")
+                break
+        
+        # Check suspicious path components
+        for pattern in SuspiciousFilePattern.SUSPICIOUS_PATHS.value:
+            if pattern.lower() in filename_lower:
+                threats.append(f"Suspicious path component: '{filename}' contains '{pattern}'")
+                break
+        
+        return threats
+
+    def _is_nested_archive(self, filename: str) -> bool:
+        ext = os.path.splitext(filename)[1].lower()
+        
+        for category in ZipThreatCategory:
+            if category == ZipThreatCategory.NESTED_ARCHIVES:
+                return ext in category.value
+        
+        return False
+
+    def _inspect_entry_content(self, entry: zipfile.ZipInfo, zip_file: zipfile.ZipFile) -> List[str]:
+        threats = []
+        
+        try:
+            # Read first few bytes to check for executable signatures
+            with zip_file.open(entry, 'r') as file:
+                content_sample = file.read(512)  # Read first 512 bytes
+                
+                # Check for executable signatures
+                for signature in SuspiciousFilePattern.EXECUTABLE_SIGNATURES.value:
+                    if content_sample.startswith(signature):
+                        threats.append(f"Executable content detected in '{entry.filename}'")
+                        break
+                
+                # Check for script content patterns
+                if self._contains_script_patterns(content_sample, entry.filename):
+                    threats.append(f"Script content detected in '{entry.filename}'")
+        
+        except Exception as err:
+            core_logger.print_to_log(
+                f"Warning: Could not inspect content of '{entry.filename}': {err}",
+                "warning"
+            )
+        
+        return threats
+
+    def _contains_script_patterns(self, content: bytes, filename: str) -> bool:
+        try:
+            # Try to decode as text
+            text_content = content.decode('utf-8', errors='ignore').lower()
+            
+            # Check for common script patterns
+            script_patterns = [
+                '#!/bin/', '#!/usr/bin/', 'powershell', 'cmd.exe',
+                'eval(', 'exec(', 'system(', 'shell_exec(',
+                '<script', '<?php', '<%', 'import os', 'import subprocess'
+            ]
+            
+            for pattern in script_patterns:
+                if pattern in text_content:
+                    return True
+            
+        except Exception:
+            # If we can't decode as text, it's probably binary
+            pass
+        
+        return False
+
+
 class FileValidator:
 
     def __init__(self, config: FileSecurityConfig | None = None):
@@ -954,6 +1256,7 @@ class FileValidator:
         self.extension_validator = ExtensionSecurityValidator(self.config)
         self.windows_validator = WindowsSecurityValidator(self.config)
         self.compression_validator = CompressionSecurityValidator(self.config)
+        self.zip_inspector = ZipContentInspector(self.config)
 
         # Initialize python-magic for content-based detection
         try:
@@ -1234,6 +1537,17 @@ class FileValidator:
                     return (
                         False,
                         f"ZIP compression validation failed: {compression_validation[1]}",
+                    )
+
+            # Perform ZIP content inspection if enabled
+            if self.config.limits.scan_zip_content:
+                content_inspection = self.zip_inspector.inspect_zip_content(
+                    size_validation[0]
+                )
+                if not content_inspection[0]:
+                    return (
+                        False,
+                        f"ZIP content inspection failed: {content_inspection[1]}",
                     )
 
             core_logger.print_to_log(
