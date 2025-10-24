@@ -1158,12 +1158,16 @@ class ExportService:
             with tempfile.NamedTemporaryFile(delete=True) as tmp:
                 try:
                     # Use configurable compression level for performance tuning
+                    # ZIP_DEFLATED ensures proper ZIP format with standard compression
+                    # This creates a valid ZIP file that will be correctly detected by MIME type validators
                     compression_level = self.performance_config.compression_level
                     core_logger.print_to_log(
                         f"Creating ZIP with compression level {compression_level}",
                         "info",
                     )
 
+                    # Note: Using 'w' mode creates a proper ZIP archive with correct headers
+                    # The file will have the standard ZIP magic bytes (PK\x03\x04) at the start
                     with zipfile.ZipFile(
                         tmp,
                         "w",
@@ -1264,6 +1268,18 @@ class ExportService:
                         f"ZIP file too large: {err}", "error", exc=err
                     )
                     raise ZipCreationError(f"Export archive too large: {err}") from err
+
+                # Ensure all data is written to disk before streaming
+                # This is critical for proper ZIP file structure and MIME type detection
+                tmp.flush()
+                os.fsync(tmp.fileno())
+                
+                # Get file size for logging
+                file_size = tmp.tell()
+                core_logger.print_to_log(
+                    f"ZIP archive created successfully: {file_size / (1024*1024):.2f}MB",
+                    "info",
+                )
 
                 # Stream the file with error handling
                 tmp.seek(0)

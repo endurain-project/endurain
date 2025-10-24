@@ -26,6 +26,7 @@ class SecurityLimits:
     # ZIP compression security settings
     max_compression_ratio: int = 100  # Maximum allowed expansion ratio (e.g., 100:1)
     max_uncompressed_size: int = 1024 * 1024 * 1024  # 1GB max uncompressed size
+    max_individual_file_size: int = 500 * 1024 * 1024  # 500MB max per individual file in ZIP
     max_zip_entries: int = 10000  # Maximum number of files in ZIP archive
     zip_analysis_timeout: float = 5.0  # Maximum seconds to spend analyzing ZIP structure
     
@@ -383,6 +384,27 @@ class FileSecurityConfig:
                 severity="error",
                 component="compression",
                 recommendation="Set a reasonable uncompressed size limit"
+            ))
+        
+        # Validate individual file size limit
+        if cls.limits.max_individual_file_size <= 0:
+            errors.append(ConfigValidationError(
+                error_type="invalid_individual_file_size",
+                message="max_individual_file_size must be greater than 0",
+                severity="error",
+                component="compression",
+                recommendation="Set a reasonable individual file size limit"
+            ))
+        
+        # Check individual file size doesn't exceed total uncompressed size
+        if cls.limits.max_individual_file_size > cls.limits.max_uncompressed_size:
+            errors.append(ConfigValidationError(
+                error_type="inconsistent_size_limits",
+                message=f"max_individual_file_size ({cls.limits.max_individual_file_size // (1024*1024)}MB) "
+                        f"exceeds max_uncompressed_size ({cls.limits.max_uncompressed_size // (1024*1024)}MB)",
+                severity="warning",
+                component="compression",
+                recommendation="Individual file size limit should not exceed total uncompressed size limit"
             ))
         
         # Validate ZIP entry limits

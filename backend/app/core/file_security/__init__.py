@@ -2,9 +2,6 @@
 File Security Module
 
 A comprehensive file security system for validating uploads and preventing attacks.
-
-This module provides backward compatibility with the original file_security.py API
-while implementing a modular, maintainable architecture.
 """
 
 # Core classes and configurations

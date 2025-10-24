@@ -24,7 +24,7 @@ import session.crud as session_crud
 
 import core.database as core_database
 import core.logger as core_logger
-import core.file_security as core_file_security
+import core.file_security.utils as core_file_security_utils
 
 import websocket.schema as websocket_schema
 
@@ -167,7 +167,7 @@ async def upload_profile_image(
         HTTPException: If the upload validation fails or save operation fails.
     """
     # Comprehensive security validation
-    await core_file_security.validate_profile_image_upload(file)
+    await core_file_security_utils.validate_profile_image_upload(file)
 
     # If validation passes, proceed with saving
     return await users_utils.save_user_image(token_user_id, file, db)
@@ -485,7 +485,7 @@ async def import_profile_data(
         ```
     """
     # Comprehensive security validation
-    await core_file_security.validate_profile_data_upload(file)
+    await core_file_security_utils.validate_profile_data_upload(file)
 
     try:
         # Read the ZIP file data

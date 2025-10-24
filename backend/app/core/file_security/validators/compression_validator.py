@@ -99,12 +99,12 @@ class CompressionSecurityValidator(BaseValidator):
                         nested_archives.append(entry.filename)
 
                     # Check for excessively large individual files
-                    if (
-                        uncompressed_size > self.config.limits.max_uncompressed_size // 10
-                    ):  # Individual file limit
+                    # Use the configurable max_individual_file_size limit
+                    if uncompressed_size > self.config.limits.max_individual_file_size:
                         return (
                             False,
-                            f"Individual file too large: '{entry.filename}' would expand to {uncompressed_size // (1024*1024)}MB",
+                            f"Individual file too large: '{entry.filename}' would expand to {uncompressed_size // (1024*1024)}MB. "
+                            f"Maximum allowed: {self.config.limits.max_individual_file_size // (1024*1024)}MB",
                         )
 
                 # Check total uncompressed size

@@ -49,7 +49,7 @@ class DangerousExtensionCategory(Enum):
     
     # Browser extensions and web applications
     BROWSER_EXTENSIONS = {
-        ".crx", ".xpi", ".safariextz", ".oex", ".nex", ".user.js", ".gadget"
+        ".crx", ".xpi", ".safariextz", ".oex", ".nex", ".gadget"
     }
     
     # Modern package managers and distribution formats
