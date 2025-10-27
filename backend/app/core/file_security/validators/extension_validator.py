@@ -1,48 +1,97 @@
-"""
-Extension Security Validator Module
+from __future__ import annotations
 
-Handles validation of file extensions for security threats.
-"""
+import logging
 from typing import TYPE_CHECKING
 
 from .base import BaseValidator
+from ..exceptions import ExtensionSecurityError, ErrorCode
 
 if TYPE_CHECKING:
     from ..config import FileSecurityConfig
 
 
-class ExtensionSecurityValidator(BaseValidator):
+logger = logging.getLogger(__name__)
 
-    def __init__(self, config: "FileSecurityConfig"):
+
+class ExtensionSecurityValidator(BaseValidator):
+    """
+    Validates filenames against configured forbidden extensions.
+
+    Attributes:
+        config: File security configuration settings.
+    """
+
+    def __init__(self, config: FileSecurityConfig):
+        """
+        Initialize the validator.
+
+        Args:
+            config: File security configuration settings.
+        """
         super().__init__(config)
 
     def validate_extensions(self, filename: str) -> None:
         """
-        Validate file extensions for security threats.
-        
+        Validate filename against blocked extensions.
+
         Args:
-            filename: The filename to validate
-            
+            filename: Name of the file to validate.
+
         Raises:
-            ValueError: If dangerous extensions are detected
+            ExtensionSecurityError: If blocked compound or single
+                extension detected in filename.
         """
         # Check for compound dangerous extensions first (e.g., .tar.xz, .user.js)
         filename_lower = filename.lower()
         for compound_ext in self.config.COMPOUND_BLOCKED_EXTENSIONS:
             if filename_lower.endswith(compound_ext):
-                raise ValueError(
-                    f"Dangerous compound file extension '{compound_ext}' detected in filename. Upload rejected for security."
+                logger.warning(
+                    "Dangerous compound extension detected",
+                    extra={
+                        "error_type": "compound_extension_blocked",
+                        "file_name": filename,
+                        "extension": compound_ext,
+                    },
+                )
+                raise ExtensionSecurityError(
+                    message=f"Dangerous compound file extension '{compound_ext}' detected in filename. "
+                    f"Upload rejected for security.",
+                    filename=filename,
+                    extension=compound_ext,
+                    error_code=ErrorCode.COMPOUND_EXTENSION_BLOCKED,
                 )
 
         # Check ALL extensions in the filename for dangerous ones
         parts = filename.split(".")
         if len(parts) > 1:
             for i in range(1, len(parts)):
-                if f".{parts[i].lower()}" in self.config.BLOCKED_EXTENSIONS:
-                    raise ValueError(
-                        f"Dangerous file extension '.{parts[i].lower()}' detected in filename. Upload rejected for security."
+                ext = f".{parts[i].lower()}"
+                if ext in self.config.BLOCKED_EXTENSIONS:
+                    logger.warning(
+                        "Dangerous extension detected",
+                        extra={
+                            "error_type": "extension_blocked",
+                            "file_name": filename,
+                            "extension": ext,
+                        },
                     )
-    
+                    raise ExtensionSecurityError(
+                        message=f"Dangerous file extension '{ext}' detected in filename. "
+                        f"Upload rejected for security.",
+                        filename=filename,
+                        extension=ext,
+                        error_code=ErrorCode.EXTENSION_BLOCKED,
+                    )
+
     def validate(self, filename: str) -> None:
-        """Compatibility method for base class interface."""
+        """
+        Validate the given filename.
+
+        Args:
+            filename: Name of the file to validate.
+
+        Raises:
+            ExtensionSecurityError: If filename extension is not
+                permitted.
+        """
         return self.validate_extensions(filename)

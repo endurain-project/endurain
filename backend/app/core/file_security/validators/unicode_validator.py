@@ -1,35 +1,51 @@
-"""
-Unicode Security Validator Module
+"""Unicode Security Validator Module."""
 
-Handles validation of Unicode-based attacks in filenames.
-"""
+from __future__ import annotations
+
 import unicodedata
-from typing import TYPE_CHECKING
+import logging
 
-import core.logger as core_logger
+from typing import TYPE_CHECKING
 from .base import BaseValidator
+from ..exceptions import UnicodeSecurityError
 
 if TYPE_CHECKING:
     from ..config import FileSecurityConfig
 
 
+logger = logging.getLogger(__name__)
+
+
 class UnicodeSecurityValidator(BaseValidator):
-    
-    def __init__(self, config: "FileSecurityConfig"):
+    """
+    Validates filenames for Unicode security threats.
+
+    Attributes:
+        config: Runtime configuration for file security rules.
+    """
+
+    def __init__(self, config: FileSecurityConfig):
+        """
+        Initialize the Unicode validator.
+
+        Args:
+            config: Runtime configuration that controls file security rules.
+        """
         super().__init__(config)
 
     def validate_unicode_security(self, filename: str) -> str:
         """
-        Validate and normalize Unicode characters in filenames.
-        
+        Validate filename for unsafe Unicode characters.
+
         Args:
-            filename: The filename to validate and normalize
-            
+            filename: The filename to validate and normalize.
+
         Returns:
-            str: The normalized filename
-            
+            The NFC-normalized filename.
+
         Raises:
-            ValueError: If dangerous Unicode characters are detected
+            UnicodeSecurityError: If dangerous Unicode characters are
+                detected in the filename or result from normalization.
         """
         if not filename:
             return filename
@@ -50,9 +66,20 @@ class UnicodeSecurityValidator(BaseValidator):
                     f"'{char}' (U+{code:04X}: {char_name}) at position {pos}"
                 )
 
-            raise ValueError(
-                f"Dangerous Unicode characters detected in filename: {', '.join(char_details)}. "
-                f"These characters can be used to disguise file extensions or create security vulnerabilities."
+            logger.warning(
+                "Dangerous Unicode characters detected",
+                extra={
+                    "error_type": "unicode_security",
+                    "file_name": filename,
+                    "char_codes": [code for _, code, _ in dangerous_chars_found],
+                    "positions": [pos for _, _, pos in dangerous_chars_found],
+                },
+            )
+            raise UnicodeSecurityError(
+                message=f"Dangerous Unicode characters detected in filename: {', '.join(char_details)}. "
+                f"These characters can be used to disguise file extensions or create security vulnerabilities.",
+                filename=filename,
+                dangerous_chars=dangerous_chars_found,
             )
 
         # Normalize Unicode to prevent normalization attacks
@@ -62,9 +89,10 @@ class UnicodeSecurityValidator(BaseValidator):
 
         # Check if normalization changed the filename significantly
         if normalized_filename != filename:
-            core_logger.print_to_log(
-                f"Unicode normalization applied: '{filename}' -> '{normalized_filename}'",
-                "info",
+            logger.info(
+                "Unicode normalization applied: '%s' -> '%s'",
+                filename,
+                normalized_filename,
             )
 
         # Additional check: ensure normalized filename doesn't contain dangerous chars
@@ -72,13 +100,33 @@ class UnicodeSecurityValidator(BaseValidator):
         for char in normalized_filename:
             char_code = ord(char)
             if char_code in self.config.DANGEROUS_UNICODE_CHARS:
-                raise ValueError(
-                    f"Unicode normalization resulted in dangerous character: "
-                    f"'{char}' (U+{char_code:04X}: {unicodedata.name(char, f'U+{char_code:04X}')})"
+                char_name = unicodedata.name(char, f"U+{char_code:04X}")
+                logger.error(
+                    "Unicode normalization resulted in dangerous character",
+                    extra={
+                        "error_type": "unicode_normalization_error",
+                        "file_name": filename,
+                        "normalized_filename": normalized_filename,
+                        "char_code": char_code,
+                    },
+                )
+                raise UnicodeSecurityError(
+                    message=f"Unicode normalization resulted in dangerous character: "
+                    f"'{char}' (U+{char_code:04X}: {char_name})",
+                    filename=filename,
+                    dangerous_chars=[(char, char_code, 0)],
                 )
 
         return normalized_filename
-    
+
     def validate(self, filename: str) -> str:
-        """Compatibility method for base class interface."""
+        """
+        Validate a filename for Unicode security issues.
+
+        Args:
+            filename: The name of the file to assess.
+
+        Returns:
+            The validated and normalized filename.
+        """
         return self.validate_unicode_security(filename)

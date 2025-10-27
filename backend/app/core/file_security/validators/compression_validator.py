@@ -1,37 +1,65 @@
 """
-Compression Security Validator Module
-
-Handles validation of ZIP compression ratios and zip bomb detection.
+Validates ZIP compression ratios and detects zip bombs.
 """
+
+from __future__ import annotations
+
 import io
 import time
 import zipfile
-from typing import Tuple, TYPE_CHECKING
+import logging
 
-import core.logger as core_logger
+from typing import TYPE_CHECKING
 from .base import BaseValidator
+from ..exceptions import (
+    ZipBombError,
+    CompressionSecurityError,
+    FileProcessingError,
+    ErrorCode,
+)
 
 if TYPE_CHECKING:
     from ..config import FileSecurityConfig
 
 
-class CompressionSecurityValidator(BaseValidator):
+logger = logging.getLogger(__name__)
 
-    def __init__(self, config: "FileSecurityConfig"):
+
+class CompressionSecurityValidator(BaseValidator):
+    """
+    Validates ZIP uploads against zip bombs and compression attacks.
+
+    Attributes:
+        config: Security configuration for validation limits.
+    """
+
+    def __init__(self, config: FileSecurityConfig):
+        """
+        Initialize the compression validator.
+
+        Args:
+            config: Security configuration with compression limits.
+        """
         super().__init__(config)
 
     def validate_zip_compression_ratio(
         self, file_content: bytes, compressed_size: int
-    ) -> Tuple[bool, str]:
+    ) -> None:
         """
-        Validate ZIP compression ratio to detect zip bombs.
-        
+        Validate ZIP archive against security limits.
+
         Args:
-            file_content: The ZIP file content as bytes
-            compressed_size: The compressed file size
-            
-        Returns:
-            Tuple[bool, str]: (is_valid, error_message)
+            file_content: Raw bytes of the ZIP archive.
+            compressed_size: Size of the compressed archive in bytes.
+
+        Raises:
+            ZipBombError: If compression ratio exceeds maximum allowed
+                or total uncompressed size is too large.
+            CompressionSecurityError: If ZIP structure is invalid, too
+                many entries, nested archives detected, or individual
+                file too large.
+            FileProcessingError: If unexpected error occurs during
+                validation such as memory errors or I/O errors.
         """
         try:
             # Create a BytesIO object from file content for zipfile analysis
@@ -54,18 +82,37 @@ class CompressionSecurityValidator(BaseValidator):
                 file_count = len(zip_entries)
 
                 if file_count > self.config.limits.max_zip_entries:
-                    return (
-                        False,
-                        f"ZIP contains too many files: {file_count}. Maximum allowed: {self.config.limits.max_zip_entries}",
+                    logger.warning(
+                        "ZIP contains too many files",
+                        extra={
+                            "error_type": "zip_too_many_entries",
+                            "file_count": file_count,
+                            "max_entries": self.config.limits.max_zip_entries,
+                        },
+                    )
+                    raise CompressionSecurityError(
+                        message=f"ZIP contains too many files: {file_count}. "
+                        f"Maximum allowed: {self.config.limits.max_zip_entries}",
+                        error_code=ErrorCode.ZIP_TOO_MANY_ENTRIES,
                     )
 
                 # Analyze each entry in the ZIP
                 for entry in zip_entries:
                     # Check for timeout
-                    if time.time() - start_time > self.config.limits.zip_analysis_timeout:
-                        return (
-                            False,
-                            f"ZIP analysis timeout after {self.config.limits.zip_analysis_timeout}s - potential zip bomb",
+                    if (
+                        time.time() - start_time
+                        > self.config.limits.zip_analysis_timeout
+                    ):
+                        logger.error(
+                            "ZIP analysis timeout",
+                            extra={
+                                "error_type": "zip_analysis_timeout",
+                                "timeout": self.config.limits.zip_analysis_timeout,
+                            },
+                        )
+                        raise ZipBombError(
+                            message=f"ZIP analysis timeout after {self.config.limits.zip_analysis_timeout}s - potential zip bomb",
+                            compression_ratio=0,
                         )
 
                     # Skip directories
@@ -85,9 +132,19 @@ class CompressionSecurityValidator(BaseValidator):
                         )
 
                         if compression_ratio > self.config.limits.max_compression_ratio:
-                            return (
-                                False,
-                                f"Excessive compression ratio detected: {compression_ratio:.1f}:1 for '{entry.filename}'. Maximum allowed: {self.config.limits.max_compression_ratio}:1",
+                            logger.error(
+                                "Excessive compression ratio detected",
+                                extra={
+                                    "error_type": "compression_ratio_exceeded",
+                                    "file_name": entry.filename,
+                                    "compression_ratio": compression_ratio,
+                                    "max_ratio": self.config.limits.max_compression_ratio,
+                                },
+                            )
+                            raise ZipBombError(
+                                message=f"Excessive compression ratio detected: {compression_ratio:.1f}:1 for '{entry.filename}'. "
+                                f"Maximum allowed: {self.config.limits.max_compression_ratio}:1",
+                                compression_ratio=compression_ratio,
                             )
 
                     # Check for nested archive files
@@ -101,17 +158,39 @@ class CompressionSecurityValidator(BaseValidator):
                     # Check for excessively large individual files
                     # Use the configurable max_individual_file_size limit
                     if uncompressed_size > self.config.limits.max_individual_file_size:
-                        return (
-                            False,
-                            f"Individual file too large: '{entry.filename}' would expand to {uncompressed_size // (1024*1024)}MB. "
+                        logger.warning(
+                            "Individual file too large",
+                            extra={
+                                "error_type": "file_too_large",
+                                "file_name": entry.filename,
+                                "size_mb": uncompressed_size // (1024 * 1024),
+                                "max_size_mb": self.config.limits.max_individual_file_size
+                                // (1024 * 1024),
+                            },
+                        )
+                        raise CompressionSecurityError(
+                            message=f"Individual file too large: '{entry.filename}' would expand to {uncompressed_size // (1024*1024)}MB. "
                             f"Maximum allowed: {self.config.limits.max_individual_file_size // (1024*1024)}MB",
+                            error_code=ErrorCode.FILE_TOO_LARGE,
                         )
 
                 # Check total uncompressed size
                 if total_uncompressed_size > self.config.limits.max_uncompressed_size:
-                    return (
-                        False,
-                        f"Total uncompressed size too large: {total_uncompressed_size // (1024*1024)}MB. Maximum allowed: {self.config.limits.max_uncompressed_size // (1024*1024)}MB",
+                    logger.warning(
+                        "Total uncompressed size too large",
+                        extra={
+                            "error_type": "zip_too_large",
+                            "total_size_mb": total_uncompressed_size // (1024 * 1024),
+                            "max_size_mb": self.config.limits.max_uncompressed_size
+                            // (1024 * 1024),
+                        },
+                    )
+                    raise ZipBombError(
+                        message=f"Total uncompressed size too large: {total_uncompressed_size // (1024*1024)}MB. "
+                        f"Maximum allowed: {self.config.limits.max_uncompressed_size // (1024*1024)}MB",
+                        compression_ratio=0,
+                        uncompressed_size=total_uncompressed_size,
+                        max_size=self.config.limits.max_uncompressed_size,
                     )
 
                 # Check overall compression ratio
@@ -119,44 +198,89 @@ class CompressionSecurityValidator(BaseValidator):
                     overall_compression_ratio = (
                         total_uncompressed_size / total_compressed_size
                     )
-                    if overall_compression_ratio > self.config.limits.max_compression_ratio:
-                        return (
-                            False,
-                            f"Overall compression ratio too high: {overall_compression_ratio:.1f}:1. Maximum allowed: {self.config.limits.max_compression_ratio}:1",
+                    if (
+                        overall_compression_ratio
+                        > self.config.limits.max_compression_ratio
+                    ):
+                        logger.error(
+                            "Overall compression ratio too high",
+                            extra={
+                                "error_type": "compression_ratio_exceeded",
+                                "overall_ratio": overall_compression_ratio,
+                                "max_ratio": self.config.limits.max_compression_ratio,
+                            },
+                        )
+                        raise ZipBombError(
+                            message=f"Overall compression ratio too high: {overall_compression_ratio:.1f}:1. "
+                            f"Maximum allowed: {self.config.limits.max_compression_ratio}:1",
+                            compression_ratio=overall_compression_ratio,
+                            max_ratio=self.config.limits.max_compression_ratio,
                         )
 
                 # Reject nested archives (potential security risk)
                 if nested_archives:
-                    core_logger.print_to_log(
-                        "Detected nested archives in ZIP file. Upload rejected for security.",
-                        "warning",
+                    logger.warning(
+                        "Nested archives detected",
+                        extra={
+                            "error_type": "zip_nested_archive",
+                            "nested_archives": nested_archives,
+                        },
                     )
-                    return (False, "Nested archives are not allowed")
+                    raise CompressionSecurityError(
+                        message=f"Nested archives are not allowed: {', '.join(nested_archives)}",
+                        error_code=ErrorCode.ZIP_NESTED_ARCHIVE,
+                    )
 
                 # Log analysis results
-                core_logger.print_to_log(
-                    f"ZIP analysis: {file_count} files, {total_uncompressed_size // (1024*1024)}MB uncompressed, "
-                    f"max ratio: {max_compression_ratio:.1f}:1, overall ratio: {overall_compression_ratio:.1f}:1",
-                    "debug",
+                logger.debug(
+                    "ZIP analysis: %s files, %sMB uncompressed, max ratio: %.1f:1, overall ratio: %.1f:1",
+                    file_count,
+                    total_uncompressed_size // (1024 * 1024),
+                    max_compression_ratio,
+                    overall_compression_ratio,
                 )
 
-                return True, "ZIP compression validation passed"
-
-        except zipfile.BadZipFile:
-            return False, "Invalid or corrupted ZIP file"
-        except zipfile.LargeZipFile:
-            return False, "ZIP file too large to process safely"
-        except MemoryError:
-            return (
-                False,
-                "ZIP file requires too much memory to process - potential zip bomb",
-            )
+        except zipfile.BadZipFile as err:
+            logger.error("Invalid or corrupted ZIP file", exc_info=True)
+            raise CompressionSecurityError(
+                message="Invalid or corrupted ZIP file",
+                error_code=ErrorCode.ZIP_CORRUPT,
+            ) from err
+        except zipfile.LargeZipFile as err:
+            logger.error("ZIP file too large to process", exc_info=True)
+            raise CompressionSecurityError(
+                message="ZIP file too large to process safely",
+                error_code=ErrorCode.ZIP_TOO_LARGE,
+            ) from err
+        except MemoryError as err:
+            logger.error("ZIP requires excessive memory", exc_info=True)
+            raise ZipBombError(
+                message="ZIP file requires too much memory to process - potential zip bomb",
+                compression_ratio=0,
+            ) from err
+        except (ZipBombError, CompressionSecurityError):
+            # Re-raise our own exceptions
+            raise
         except Exception as err:
-            core_logger.print_to_log(
-                f"Error during ZIP compression validation: {err}", "warning", exc=err
+            logger.error(
+                "Unexpected error during ZIP compression validation",
+                exc_info=True,
             )
-            return False, f"ZIP validation failed: {str(err)}"
-    
-    def validate(self, file_content: bytes, compressed_size: int) -> Tuple[bool, str]:
-        """Compatibility method for base class interface."""
+            raise FileProcessingError(
+                message=f"ZIP validation failed: {str(err)}",
+            ) from err
+
+    def validate(self, file_content: bytes, compressed_size: int) -> None:
+        """
+        Validate the compression ratio of a ZIP file.
+
+        Args:
+            file_content: Raw bytes of the uploaded file.
+            compressed_size: Size of the file after compression in bytes.
+
+        Raises:
+            ZipBombError: If compression ratio exceeds maximum allowed.
+            CompressionSecurityError: If ZIP structure is invalid.
+            FileProcessingError: If unexpected error occurs.
+        """
         return self.validate_zip_compression_ratio(file_content, compressed_size)

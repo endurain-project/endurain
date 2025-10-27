@@ -6,13 +6,30 @@ A comprehensive file security system for validating uploads and preventing attac
 
 # Core classes and configurations
 from .config import SecurityLimits, FileSecurityConfig
-from .exceptions import ConfigValidationError, FileSecurityConfigurationError
+from .exceptions import (
+    ConfigValidationError,
+    FileSecurityConfigurationError,
+    ErrorCode,
+    FileSecurityError,
+    FileValidationError,
+    FilenameSecurityError,
+    UnicodeSecurityError,
+    ExtensionSecurityError,
+    WindowsReservedNameError,
+    FileSizeError,
+    MimeTypeError,
+    FileSignatureError,
+    CompressionSecurityError,
+    ZipBombError,
+    ZipContentError,
+    FileProcessingError,
+)
 from .enums import (
     DangerousExtensionCategory,
     CompoundExtensionCategory,
     UnicodeAttackCategory,
     SuspiciousFilePattern,
-    ZipThreatCategory
+    ZipThreatCategory,
 )
 
 # Main validator
@@ -24,59 +41,52 @@ from .validators import (
     UnicodeSecurityValidator,
     ExtensionSecurityValidator,
     WindowsSecurityValidator,
-    CompressionSecurityValidator
+    CompressionSecurityValidator,
 )
 
 # Inspectors
 from .inspectors import ZipContentInspector
 
-# Utility functions (for backward compatibility)
-from .utils import (
-    validate_profile_image_upload,
-    validate_profile_data_upload,
-    get_secure_filename,
-    validate_configuration,
-    file_validator
-)
-
 # Perform configuration validation when module is imported
 # This ensures configuration issues are caught early during application startup
-validate_configuration(strict=False)
+FileSecurityConfig.validate_and_report(strict=False)
 
-# Export all public APIs for backward compatibility
+# Export all public APIs
 __all__ = [
     # Core configuration
     "SecurityLimits",
     "FileSecurityConfig",
-    
     # Exceptions
-    "ConfigValidationError", 
+    "ConfigValidationError",
     "FileSecurityConfigurationError",
-    
+    "ErrorCode",
+    "FileSecurityError",
+    "FileValidationError",
+    "FilenameSecurityError",
+    "UnicodeSecurityError",
+    "ExtensionSecurityError",
+    "WindowsReservedNameError",
+    "FileSizeError",
+    "MimeTypeError",
+    "FileSignatureError",
+    "CompressionSecurityError",
+    "ZipBombError",
+    "ZipContentError",
+    "FileProcessingError",
     # Enums
     "DangerousExtensionCategory",
-    "CompoundExtensionCategory", 
+    "CompoundExtensionCategory",
     "UnicodeAttackCategory",
     "SuspiciousFilePattern",
     "ZipThreatCategory",
-    
     # Main validator
     "FileValidator",
-    
     # Specialized validators
     "BaseValidator",
     "UnicodeSecurityValidator",
-    "ExtensionSecurityValidator", 
+    "ExtensionSecurityValidator",
     "WindowsSecurityValidator",
     "CompressionSecurityValidator",
-    
     # Inspectors
     "ZipContentInspector",
-    
-    # Utility functions (maintain original API)
-    "validate_profile_image_upload",
-    "validate_profile_data_upload",
-    "get_secure_filename",
-    "validate_configuration",
-    "file_validator"
 ]

@@ -24,12 +24,17 @@ import session.crud as session_crud
 
 import core.database as core_database
 import core.logger as core_logger
-import core.file_security.utils as core_file_security_utils
+
+from core.file_security.file_validator import FileValidator
+from core.file_security.exceptions import FileValidationError
 
 import websocket.schema as websocket_schema
 
 # Define the API router
 router = APIRouter()
+
+# Initialize the file validator
+file_validator = FileValidator()
 
 
 @router.get("", response_model=users_schema.UserMe)
@@ -167,7 +172,12 @@ async def upload_profile_image(
         HTTPException: If the upload validation fails or save operation fails.
     """
     # Comprehensive security validation
-    await core_file_security_utils.validate_profile_image_upload(file)
+    try:
+        await file_validator.validate_image_file(file)
+    except FileValidationError as err:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=str(err)
+        ) from err
 
     # If validation passes, proceed with saving
     return await users_utils.save_user_image(token_user_id, file, db)
@@ -485,7 +495,12 @@ async def import_profile_data(
         ```
     """
     # Comprehensive security validation
-    await core_file_security_utils.validate_profile_data_upload(file)
+    try:
+        await file_validator.validate_zip_file(file)
+    except FileValidationError as err:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=str(err)
+        ) from err
 
     try:
         # Read the ZIP file data
