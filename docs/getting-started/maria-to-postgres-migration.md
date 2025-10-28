@@ -1,280 +1,112 @@
 # MariaDB to Postgres migration guide
 
-This will guide you on how to migrate from MariaDB to Postgres. Endurain will drop support for MariaDB on v0.16.0, so you'll need to perform this migration prior to upgrade to v0.16.0
-This guide uses [pgloader](https://pgloader.io) to automate the migration.
-This guide uses some [helper files](https://github.com/joaovitoriasilva/endurain/tree/master/docs). Refer to them when needed.
+This will guide you on how to migrate from MariaDB to Postgres. Endurain will drop support for MariaDB on v0.16.0, so you'll need to perform this migration prior to upgrade to v0.16.0.
 
-# Install pgloader
+This guide uses Endurain's built-in export/import functionality to migrate your data.
 
-Refer to [pgloader docs](https://pgloader.readthedocs.io/en/latest/) for installation instructions.
+## Prerequisites
 
-# Migration steps
+- Endurain instance running with MariaDB
+- PostgreSQL database set up and accessible
+- Admin access to your Endurain instance
 
-- Stop Endurain container;
+⚠️ **Important Notes:**
+
+- The export/import process will migrate all user data **except user password**. Each user will have to do this process
+- You will need to use default credentials (admin/admin) on new setup
+- Keep your existing MariaDB database running for rollback if needed
+- The import process can take time for large databases with many activities
+
+## Migration Steps
+
+### Step 1: Export Data from MariaDB Instance
+
+1. Instruct each user to log in to Endurain instance (currently running with MariaDB)
+2. Each user should navigate to **Settings** → **My Profile** → **Export/Import**
+3. Each user should lick **Export** to download a `.zip` file containing the user data
+4. Each user should save this file in a safe location
+
+⚠️ **Do NOT delete your existing MariaDB database** - keep it for rollback if needed.
+
+### Step 2: Stop Current Endurain Instance
+
+Stop your current Endurain container:
 
 ```bash
 docker compose down
 ```
 
-- Backup existent database - [MariaDB dump backup options](#mariadb-dump-backup-options);
-- Run pgloader to do the migration - [Do the migration](#do-the-migration);
-- Verify migration by:
-    - Checking pgloader outputs and logs.
-- Update environment variables (adapt to your environment):
-    
+### Step 3: Update Environment Variables
+
+Update your environment variables to point to PostgreSQL (adapt to your environment):
+
 ```bash
 DB_TYPE=postgres
 DB_HOST=postgres
 DB_PORT=5432
+DB_USER=endurain
+DB_PASSWORD=your_postgres_password
+DB_NAME=endurain
 ```
 
-- Start with PostgreSQL:
-    
+Ensure your PostgreSQL database exists and is accessible with these credentials.
+
+### Step 4: Start Fresh Endurain with PostgreSQL
+
+Start Endurain with the new PostgreSQL configuration:
+
 ```bash
 docker compose up -d
 ```
 
-- Monitor logs for any issues;
-- Verify application functionality:
-    - Test login;
-    - Upload test activity;
-    - Check activity streams display;
-    - Verify integrations (Strava, Garmin);
-    - Others.
+This will start a fresh Endurain instance with:
+- Empty PostgreSQL database
+- Default admin credentials: **admin/admin**
 
-# MariaDB dump backup options
+### Step 5: Import Data
 
-## Option 1: Run `mysqldump` / `mariadb-dump` from the host
+1. Log in with default credentials: **admin/admin**
+2. Create a new user for each of your instance users if applicable
+3. Each user should navigate to **Settings** → **My Profile** → **Export/Import**
+4. Each user should click **Import** and select the `.zip` file exported
+5. Wait for the import to complete (this may take several minutes for large databases)
 
-Run the dump from your host machine (Ubuntu) using the MySQL or MariaDB client tools installed locally. You need to adjust host, port, database and password to match your environment.
+⚠️ **Note:** User passwords are NOT imported for security reasons. All users will need to reset their passwords.
 
-```bash
-mysqldump -h 127.0.0.1 -P 3306 -u endurain -p'redacted' endurain \
-> final_backup_$(date +%Y%m%d_%H%M%S).sql
-```
+### Step 6: Verify Migration
 
-```bash
-mariadb-dump -h 127.0.0.1 -P 3306 -u endurain -p'redacted' endurain \
-> final_backup_$(date +%Y%m%d_%H%M%S).sql
-```
+Verify the migration was successful by checking:
 
-**Pros:**
+- All activities are present
+- Activity streams display correctly
+- Activity media files load
+- Gear information is correct
+- Integrations (Strava, Garmin) are configured
+- Health data is present
 
-- No need to modify the container  
-- Easy to automate in cron or scripts  
+## Troubleshooting
 
-**Cons:**
+### If Import Fails
 
-- Requires MariaDB client installed on the host
-- The container’s database port must be exposed
+If the import process fails:
 
-## Option 2: Use a temporary MariaDB client container
+1. Check the application logs in the container
+2. Check the `app.log` file
+3. **Paste both outputs** (container logs and app.log contents) when seeking help
 
-Use a one-time client container that connects to your running MariaDB instance. You need to adjust container name, host, port, database and password to match your environment.
+### Rolling Back to MariaDB
 
-```bash
-sudo docker run --rm \
-  --network container:mariadb_endurain_prod \
-  mariadb:latest \
-  mariadb-dump -h127.0.0.1 -u endurain -p'redacted' endurain \
-  > final_backup_$(date +%Y%m%d_%H%M%S).sql
-```
+If you need to rollback:
 
-**Pros:**
-
-- Doesn’t modify your running container
-- Uses an official image that already includes `mariadb-dump`
-
-**Cons:**
-
-- Slightly longer to run (needs to pull/start the client container)
-
-## Option 3: Install `mariadb-client` inside the existing container
-
-If you prefer to back up directly from inside the existing MariaDB container, install the client tools and use `mariadb-dump`.
-
-### Installation
-
-Connect to the container shell and do:
-
-- For Debian/Ubuntu-based containers:
+1. Stop the PostgreSQL instance:
 
 ```bash
-apt-get update && apt-get install -y mariadb-client
+docker compose down
 ```
 
-- For Alpine-based containers:
+2. Restore your original environment variables (MariaDB settings)
+3. Start your original MariaDB instance:
 
 ```bash
-apk add --no-cache mariadb-client
+docker compose up -d
 ```
-
-### Backup Command (Single Database, No GTID)
-
-You need to adjust container name, host, port, database and password to match your environment.
-
-```bash
-sudo docker exec mariadb_endurain_prod sh -lc \
-"mariadb-dump -u endurain -p'redacted' \
-  --databases endurain \
-  --single-transaction --routines --triggers --events --hex-blob" \
-> final_backup_$(date +%Y%m%d_%H%M%S).sql
-```
-
-**Pros:**
-
-- All-in-one (runs inside the existing container)
-- Direct socket access to MariaDB
-
-**Cons:**
-
-- You modify the production container
-- Must remember to reinstall client tools after container rebuilds
-
-# Postgres preparation for pgloader
-
-Postgres dropped support for MD5 hashed passwords in favor of SHA256, however pgloader [does not support SHA256](https://github.com/dimitri/pgloader/issues/1207). What I did was:
-
-- Change password to be MD5 hashed:
-
-```sql
-set password_encryption to 'md5';
-ALTER ROLE endurain password 'JUST_RETYPE_YOUR_EXISTING_PASSWORD';
-```
-
-- Change `pg_hba.conf` file to allow MD5 logins:
-    - On my machine using postgres 18 Docker image: `/opt/containers/postgres_endurain_prod/18/docker/pg_hba.conf`
-
-```bash
-# replication privilege.
-local   replication     all                                     trust
-host    replication     all             127.0.0.1/32            trust
-host    replication     all             ::1/128                 trust
-
-# Allow MD5 just for endurain (IPv4 example). # Add this line
-host    all     endurain   0.0.0.0/0     md5  # Add this line
-
-host all all all scram-sha-256
-```
-
-# Do the migration
-
-## Prerequisites and Important Notes
-
-⚠️ **Important Notes:**
-
-- DB passwords with special characters like `@` or `!` can cause issues;
-- Recommendation: Use simple passwords during migration, change them afterward;
-- The migration can be memory-intensive, especially for large `activities_streams` tables;
-- Ensure sufficient RAM (at least 4GB available) on the machine running pgloader.
-
-## Migration Process
-
-Remember: Always keep your MariaDB backup until you're confident the PostgreSQL migration is successful and stable.
-
-After [pgloader](https://pgloader.readthedocs.io/en/latest/) is installed:
-
-### Clone Endurain repository
-
-```bash
-git clone https://github.com/joaovitoriasilva/endurain
-cd endurain/mariadb_to_postgres
-```
-
-### Edit the migration configuration
-
-- Edit `mariadb_to_postgres_streams_only.load` and `mariadb_to_postgres_without_streams.load` to match your environment;
-- Change DB connections (adjust host, port, database, user and password).
-
-```sql
-LOAD DATABASE
-    FROM mysql://endurain:password@mariadb-host:3306/endurain
-    INTO postgresql://endurain:password@postgres-host:5432/endurain
-```
-
-### Migration
-
-The migration is splitted because activity_streams table has large json data, causing memory issues:
-
-- **Step 1:** Migrate all tables except activities_streams:
-
-```bash
-pgloader --verbose --load-lisp-file transforms.lisp mariadb_to_postgres_without_streams.load > migration_main_$(date +%Y%m%d_%H%M%S).log 2>&1
-```
-
-- **Step 2:** Migrate activities_streams separately:
-
-This step may take several minutes to conclude (1h+ in my case. You can try to ajust load file to increase speed).
-
-```bash
-pgloader --verbose --load-lisp-file transforms.lisp mariadb_to_postgres_streams_only.load > migration_streams_$(date +%Y%m%d_%H%M%S).log 2>&1
-```
-
-## Revert Postgres changes
-
-Revert changes made to user endurain:
-
-- Change password to be SHA256 hashed:
-
-```sql
-set password_encryption to 'scram-sha-256';
-ALTER ROLE endurain password 'JUST_RETYPE_YOUR_EXISTING_PASSWORD';
-```
-
-- Change `pg_hba.conf` file to allow MD5 logins:
-    - On my machine using postgres 18 Docker image: `/opt/containers/postgres_endurain_prod/18/docker/pg_hba.conf`
-
-```bash
-# replication privilege.
-local   replication     all                                     trust
-host    replication     all             127.0.0.1/32            trust
-host    replication     all             ::1/128                 trust
-
-# Allow MD5 just for endurain (IPv4 example). # Remove this line
-host    all     endurain   0.0.0.0/0     md5  # Remove this line
-
-host all all all scram-sha-256
-```
-
-## Troubleshooting Common Issues
-
-### Memory Exhaustion Errors
-
-**Symptoms:** "Heap exhausted during allocation" errors, especially when processing `activities_streams` table.
-
-**Solutions:**
-
-- **Increase system memory** or close other applications
-- **Reduce batch size** in the .load file:
-
-```bash
-change bellow to minor, default is 10
-rows per range = 10 
-```
-- **Reduce workers** in the .load file:
-
-```bash
-workers = 1, concurrency = 1,
-```
-
-### PostgreSQL Connection Issues
-
-**Symptoms:** Connection refused or authentication errors.
-
-**Solutions:**
-
-- Verify PostgreSQL is running and accessible
-- Check password authentication method (use MD5, not SCRAM-SHA-256)
-- Verify `pg_hba.conf` allows connections from pgloader host
-
-### Migration Time Estimates
-
-- **Small databases** (< 1000 activities): 5-15 minutes
-- **Medium databases** (1000-5000 activities): 15-60 minutes  
-- **Large databases** (> 5000 activities): 1+ hours
-
-**Monitoring Progress:**
-
-- Monitor the log file: `tail -f migration_*.log`
-- Check PostgreSQL logs for any issues
-- Monitor system memory usage during migration
