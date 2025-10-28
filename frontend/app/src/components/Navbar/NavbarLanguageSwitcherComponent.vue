@@ -77,6 +77,7 @@ const languages = computed<Language[]>(() => [
   { value: 'de', label: t('generalItems.languageOption4') },
   { value: 'fr', label: t('generalItems.languageOption5') },
   { value: 'gl', label: t('generalItems.languageOption10') },
+  { value: 'gl', label: t('generalItems.languageOption10') },
   { value: 'nl', label: t('generalItems.languageOption6') },
   { value: 'pt', label: t('generalItems.languageOption3') },
   { value: 'es', label: t('generalItems.languageOption7') },

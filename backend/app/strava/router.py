@@ -213,6 +213,9 @@ async def import_bikes_from_strava_export(
 
         # Move the bikes file to the processed directory
         activities_utils.move_file(processed_dir, bikes_file_name, bikes_file_path)
+        core_logger.print_to_log_and_console(
+            f"{bikes_file_name} moved to: {processed_dir}."
+        )
 
         # Log completion of bike import
         core_logger.print_to_log_and_console("Bike import complete.")
@@ -222,6 +225,62 @@ async def import_bikes_from_strava_export(
         # Log the exception
         core_logger.print_to_log_and_console(
             f"Error in import_bikes_from_strava_export: {err}", "error"
+        )
+        # Raise an HTTPException with a 500 Internal Server Error status code
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal Server Error",
+        ) from err
+
+
+@router.post("/import/shoes", status_code=201)
+async def import_shoes_from_strava_export(
+    token_user_id: Annotated[
+        int,
+        Depends(session_security.get_user_id_from_access_token),
+    ],
+    db: Annotated[
+        Session,
+        Depends(core_database.get_db),
+    ],
+):
+    try:
+        # Log beginning of shoe import
+        core_logger.print_to_log("Entering shoe importing function")
+
+        # Get shoes from Strava export CSV file
+        shoes_list = strava_gear_utils.iterate_over_shoes_csv()
+
+        # Transform shoes list to list of Gear schema objects
+        if shoes_list:
+            shoes = strava_gear_utils.transform_csv_shoe_gear_to_schema_gear(
+                shoes_list, token_user_id, db
+            )
+
+            # Add shoes to the database
+            if shoes:
+                gears_crud.create_multiple_gears(shoes, token_user_id, db)
+
+        # Define variables for moving the shoes file
+        processed_dir = core_config.FILES_PROCESSED_DIR
+        bulk_import_dir = core_config.FILES_BULK_IMPORT_DIR
+        shoes_file_name = core_config.STRAVA_BULK_IMPORT_SHOES_FILE
+        shoes_file_path = os.path.join(bulk_import_dir, shoes_file_name)
+
+        # Move the shoes file to the processed directory and log it.
+        activities_utils.move_file(processed_dir, shoes_file_name, shoes_file_path)
+        core_logger.print_to_log_and_console(
+            f"{shoes_file_name} moved to: {processed_dir}."
+        )
+
+        # Log completion of shoe import
+        core_logger.print_to_log_and_console("Shoe import complete.")
+    except HTTPException as http_err:
+        raise http_err
+    except Exception as err:
+        # Log the exception
+        core_logger.print_to_log_and_console(
+            f"Error in import_shoes_from_strava_export: {err}", "error"
         )
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(

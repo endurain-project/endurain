@@ -1,13 +1,13 @@
 {
-  "labelGear": "Gear",
-  "labelGearNotSet": "Not set",
-  "modalLabelDeleteGear": "Delete gear from activity",
-  "modalLabelDeleteGearBody": "Are you sure you want to remove the gear from the activity?",
-  "modalLabelDeleteGearButton": "Delete gear",
-  "successMessageGearAdded": "Gear added to activity",
-  "successMessageGearDeleted": "Gear deleted from activity",
-  "errorMessageDeleteGear": "Error deleting gear from activity",
-  "errorMessageActivityNotFound": "Activity not found",
-  "alertPrivacyMessage": "You have hidden information in this activity. You can see it, but others cannot.",
-  "isHiddenMessage": "This activity is hidden. Probably because it is a duplicate or was hidden by the user."
+  "labelGear": "Equipamento",
+  "labelGearNotSet": "Non establecido",
+  "modalLabelDeleteGear": "Quitar o equipamento da actividade",
+  "modalLabelDeleteGearBody": "Tes certeza de querer retirar o equipamento desta actividade?",
+  "modalLabelDeleteGearButton": "Retirar equipamento",
+  "successMessageGearAdded": "Engadiuse o equipamento",
+  "successMessageGearDeleted": "Retirouse o equipamento",
+  "errorMessageDeleteGear": "Erro ao retirar o equipamento da actividade",
+  "errorMessageActivityNotFound": "Non se atopa a actividade",
+  "alertPrivacyMessage": "Tes información oculta nesta actividade. Podes vela, pero outras persoas non.",
+  "isHiddenMessage": "A actividade está oculta. Probablemente porque é un duplicado ou a usuaria así o decideu."
 }

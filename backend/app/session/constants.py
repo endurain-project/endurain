@@ -2,6 +2,8 @@ import os
 from typing import Final, Mapping
 from types import MappingProxyType
 
+import core.config as core_config
+
 # JWT config (typed + validated)
 JWT_ALGORITHM: Final[str] = os.environ.get("ALGORITHM", "HS256")
 JWT_ACCESS_TOKEN_EXPIRE_MINUTES: Final[int] = int(
@@ -10,7 +12,7 @@ JWT_ACCESS_TOKEN_EXPIRE_MINUTES: Final[int] = int(
 JWT_REFRESH_TOKEN_EXPIRE_DAYS: Final[int] = int(
     os.environ.get("REFRESH_TOKEN_EXPIRE_DAYS", "7")
 )
-JWT_SECRET_KEY: Final[str | None] = os.environ.get("SECRET_KEY")
+JWT_SECRET_KEY: Final[str | None] = core_config.read_secret("SECRET_KEY")
 
 if JWT_ACCESS_TOKEN_EXPIRE_MINUTES <= 0:
     raise ValueError("ACCESS_TOKEN_EXPIRE_MINUTES must be positive")

@@ -356,7 +356,6 @@ def create_multiple_gears(gears: list[gears_schema.Gear], user_id: int, db: Sess
         gears_to_create: list[gears_schema.Gear] = []
         for gear in deduped:
             gear_check = get_gear_user_by_nickname(user_id, gear.nickname, db)
-
             if gear_check is not None:
                 core_logger.print_to_log_and_console(
                     f"Gear with nickname '{gear.nickname}' already exists for user {user_id}, skipping",
