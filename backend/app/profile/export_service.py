@@ -81,7 +81,9 @@ class ExportPerformanceConfig(profile_utils.BasePerformanceConfig):
             enable_memory_monitoring (bool, optional): Whether to enable memory usage monitoring during export. Defaults to True.
             timeout_seconds (int, optional): Maximum time allowed for export operation in seconds. Defaults to 3600 (60 minutes).
         """
-        super().__init__(batch_size, max_memory_mb, enable_memory_monitoring, timeout_seconds)
+        super().__init__(
+            batch_size, max_memory_mb, enable_memory_monitoring, timeout_seconds
+        )
         self.compression_level = compression_level
         self.chunk_size = chunk_size
 
@@ -89,33 +91,33 @@ class ExportPerformanceConfig(profile_utils.BasePerformanceConfig):
     def _get_tier_configs(cls) -> Dict[str, Dict[str, Any]]:
         """
         Define tier-specific configuration settings for export operations.
-        
+
         Returns:
             Dict[str, Dict[str, Any]]: Configuration dictionaries for memory tiers.
                 Each dictionary contains parameters optimized for the corresponding memory tier.
         """
         return {
             "high": {
-                "batch_size": 2000,
+                "batch_size": 500,
                 "max_memory_mb": 2048,
                 "compression_level": 6,
                 "chunk_size": 16384,
                 "timeout_seconds": 7200,
             },
             "medium": {
-                "batch_size": 1000,
+                "batch_size": 250,
                 "max_memory_mb": 1024,
                 "compression_level": 4,
                 "chunk_size": 8192,
                 "timeout_seconds": 3600,
             },
             "low": {
-                "batch_size": 500,
+                "batch_size": 125,
                 "max_memory_mb": 512,
                 "compression_level": 1,
                 "chunk_size": 4096,
                 "timeout_seconds": 1800,
-            }
+            },
         }
 
 
@@ -1273,7 +1275,7 @@ class ExportService:
                 # This is critical for proper ZIP file structure and MIME type detection
                 tmp.flush()
                 os.fsync(tmp.fileno())
-                
+
                 # Get file size for logging
                 file_size = tmp.tell()
                 core_logger.print_to_log(

@@ -44,6 +44,7 @@ pyotp = "^2.9.0"
 qrcode = {extras = ["pil"], version = "^8.2"}
 psutil = "^7.1.1"
 python-magic = "^0.4.27"
+ijson = "^3.3.0"
 
 
 [build-system]
