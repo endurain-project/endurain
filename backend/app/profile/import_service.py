@@ -71,33 +71,9 @@ import websocket.schema as websocket_schema
 
 
 class ImportPerformanceConfig(profile_utils.BasePerformanceConfig):
-    """
-    Configuration class for managing import performance parameters.
-
-    This class extends profile_utils.BasePerformanceConfig with import-specific settings including
-    file size constraints and activity limits. It provides optimized configuration
-    based on system memory detection for import operations.
-
-    Import-Specific Attributes:
-        max_file_size_mb (int): Maximum allowed file size in megabytes. Default: 1000
-        max_activities (int): Maximum number of activities to process. Default: 10000
-
-    Inherited Attributes:
-        batch_size (int): Number of records to process in a single batch. Default: 1000
-        max_memory_mb (int): Maximum memory usage limit in megabytes. Default: 1024
-        timeout_seconds (int): Operation timeout in seconds. Default: 3600 (60 minutes)
-        chunk_size (int): Size of data chunks for reading/writing. Default: 8192
-        enable_memory_monitoring (bool): Whether to enable memory monitoring. Default: True
-
-    Memory Tier Configurations:
-        High (>2GB): batch_size=2000, max_memory_mb=2048, timeout_seconds=7200
-        Medium (>1GB): batch_size=1000, max_memory_mb=1024, timeout_seconds=3600
-        Low (≤1GB): batch_size=500, max_memory_mb=512, timeout_seconds=1800
-    """
-
     def __init__(
         self,
-        batch_size: int = 1000,
+        batch_size: int = 125,
         max_memory_mb: int = 1024,
         max_file_size_mb: int = 1000,
         max_activities: int = 10000,
@@ -105,18 +81,6 @@ class ImportPerformanceConfig(profile_utils.BasePerformanceConfig):
         chunk_size: int = 8192,
         enable_memory_monitoring: bool = True,
     ):
-        """
-        Initialize the import performance configuration.
-
-        Args:
-            batch_size (int): Number of activities to process in a single batch. Defaults to 1000.
-            max_memory_mb (int): Maximum memory usage allowed in megabytes. Defaults to 1024.
-            max_file_size_mb (int): Maximum file size allowed for import in megabytes. Defaults to 1000.
-            max_activities (int): Maximum number of activities that can be imported. Defaults to 10000.
-            timeout_seconds (int): Maximum time allowed for import operation in seconds. Defaults to 3600.
-            chunk_size (int): Size of chunks for file reading/processing in bytes. Defaults to 8192.
-            enable_memory_monitoring (bool): Whether to enable memory usage monitoring. Defaults to True.
-        """
         super().__init__(
             batch_size=batch_size,
             max_memory_mb=max_memory_mb,
@@ -129,15 +93,9 @@ class ImportPerformanceConfig(profile_utils.BasePerformanceConfig):
 
     @classmethod
     def _get_tier_configs(cls) -> dict[str, dict[str, Any]]:
-        """
-        Get import-specific tier-based configuration mappings.
-
-        Returns:
-            dict[str, dict[str, Any]]: Mapping of memory tiers to import configuration dictionaries
-        """
         return {
             "high": {
-                "batch_size": 500,
+                "batch_size": 250,
                 "max_memory_mb": 2048,
                 "max_file_size_mb": 2000,
                 "max_activities": 20000,
@@ -146,7 +104,7 @@ class ImportPerformanceConfig(profile_utils.BasePerformanceConfig):
                 "enable_memory_monitoring": True,
             },
             "medium": {
-                "batch_size": 250,
+                "batch_size": 125,
                 "max_memory_mb": 1024,
                 "max_file_size_mb": 1000,
                 "max_activities": 10000,
@@ -155,7 +113,7 @@ class ImportPerformanceConfig(profile_utils.BasePerformanceConfig):
                 "enable_memory_monitoring": True,
             },
             "low": {
-                "batch_size": 125,
+                "batch_size": 50,
                 "max_memory_mb": 512,
                 "max_file_size_mb": 500,
                 "max_activities": 5000,
@@ -167,45 +125,6 @@ class ImportPerformanceConfig(profile_utils.BasePerformanceConfig):
 
 
 class ImportService:
-    """
-    Service class for importing user data from ZIP archives containing activities, gear, health information, and media files.
-
-    This class handles the processing and import of comprehensive user data from exported ZIP files.
-    It provides methods for batched data processing to optimize memory usage, with configurable
-    performance settings for handling large datasets efficiently.
-
-    The import process includes:
-    - Validation of ZIP file structure and content
-    - User profile data and settings
-    - Gears and gear components
-    - Activities and their related components (laps, sets, streams, workout steps, media)
-    - Health data and targets
-    - Activity files and media files
-    - User profile images
-
-    Attributes:
-        user_id (int): The ID of the user for whom data is being imported.
-        db (Session): SQLAlchemy database session for data persistence.
-        websocket_manager: WebSocket manager for progress notifications.
-        counts (dict[str, int]): Dictionary tracking the count of each imported data type.
-        performance_config (ImportPerformanceConfig): Configuration settings for performance
-            optimization including batch size, memory limits, and timeouts.
-
-    Example:
-        >>> from sqlalchemy.orm import Session
-        >>> db = Session()
-        >>> import_service = ImportService(user_id=123, db=db, websocket_manager=ws_manager)
-        >>> with open('export.zip', 'rb') as f:
-        ...     result = await import_service.import_from_zip_data(f.read())
-
-    Features:
-        - Uses batched processing to minimize memory usage during data import
-        - Implements memory monitoring with configurable thresholds
-        - Provides graceful error handling with detailed logging
-        - Supports timeout enforcement for long-running operations
-        - Maintains data integrity through proper ID mapping and validation
-    """
-
     def __init__(
         self,
         user_id: int,
@@ -213,23 +132,6 @@ class ImportService:
         websocket_manager: websocket_schema.WebSocketManager,
         performance_config: ImportPerformanceConfig | None = None,
     ):
-        """
-        Initialize the ImportService with user context and configuration.
-
-        Args:
-            user_id (int): The ID of the user performing the import.
-            db (Session): Database session for performing database operations.
-            websocket_manager (websocket_schema.WebSocketManager): Manager for handling WebSocket connections and messaging.
-            performance_config (ImportPerformanceConfig | None, optional): Configuration for import performance settings
-                including batch size and memory limits. If None, uses auto-detected configuration. Defaults to None.
-
-        Attributes:
-            user_id (int): Stored user ID.
-            db (Session): Stored database session.
-            websocket_manager (websocket_schema.WebSocketManager): Stored WebSocket manager.
-            counts (dict): Initialized counter dictionary for tracking import statistics.
-            performance_config (ImportPerformanceConfig): Performance configuration settings for the import process.
-        """
         self.user_id = user_id
         self.db = db
         self.websocket_manager = websocket_manager
@@ -250,44 +152,6 @@ class ImportService:
         )
 
     async def import_from_zip_data(self, zip_data: bytes) -> dict[str, Any]:
-        """
-        Import user data from a ZIP archive containing JSON files and media.
-
-        This method orchestrates the complete import process from a ZIP file using a
-        streaming approach that loads one data type at a time to minimize memory usage.
-
-        Process includes:
-        - Validation of file size against configured limits
-        - Early memory check before loading any data
-        - Sequential loading and import of data in dependency order
-        - Creation of ID mappings to maintain relationships between entities
-        - Explicit memory cleanup between data types
-
-        Args:
-            zip_data (bytes): The ZIP file contents as bytes
-
-        Returns:
-            dict[str, Any]: A dictionary containing:
-                - detail (str): Success message
-                - imported (dict): Counts of imported items by type
-
-        Raises:
-            FileSizeError: If the ZIP file size exceeds the maximum allowed size
-            FileFormatError: If the provided data is not a valid ZIP file
-            ImportTimeoutError: If the operation exceeds timeout limits
-            MemoryError: If memory usage exceeds configured limits
-
-        Note:
-            The import follows a strict dependency order to ensure referential integrity:
-            1. Gears (independent)
-            2. Gear components (depends on gears)
-            3. User data (depends on gears)
-            4. Activities (depends on gears)
-            5. Health data (independent)
-            6. Files and media (depends on activities)
-
-            Uses streaming to load one data type at a time, freeing memory between steps.
-        """
         start_time = time.time()
         timeout_seconds = self.performance_config.timeout_seconds
 
@@ -366,41 +230,17 @@ class ImportService:
                 profile_utils.check_timeout(
                     timeout_seconds, start_time, ImportTimeoutError, "Import"
                 )
-                activities_data = self._load_single_json(zipf, "data/activities.json")
 
-                # Load activity component data
-                activity_laps_data = self._load_single_json(
-                    zipf, "data/activity_laps.json"
+                # Import activities and components using batched approach to avoid memory issues
+                activities_id_mapping = (
+                    await self.collect_and_import_activities_data_batched(
+                        zipf,
+                        file_list,
+                        gears_id_mapping,
+                        start_time,
+                        timeout_seconds,
+                    )
                 )
-                activity_sets_data = self._load_single_json(
-                    zipf, "data/activity_sets.json"
-                )
-                activity_streams_data = self._load_single_json(
-                    zipf, "data/activity_streams.json"
-                )
-                activity_workout_steps_data = self._load_single_json(
-                    zipf, "data/activity_workout_steps.json"
-                )
-                activity_media_data = self._load_single_json(
-                    zipf, "data/activity_media.json"
-                )
-                activity_exercise_titles_data = self._load_single_json(
-                    zipf, "data/activity_exercise_titles.json"
-                )
-
-                activities_id_mapping = await self.collect_and_import_activities_data(
-                    activities_data,
-                    activity_laps_data,
-                    activity_sets_data,
-                    activity_streams_data,
-                    activity_workout_steps_data,
-                    activity_media_data,
-                    activity_exercise_titles_data,
-                    gears_id_mapping,
-                )
-                del activities_data, activity_laps_data, activity_sets_data
-                del activity_streams_data, activity_workout_steps_data
-                del activity_media_data, activity_exercise_titles_data
 
                 # Load and import health data
                 profile_utils.check_timeout(
@@ -438,30 +278,6 @@ class ImportService:
     def _load_single_json(
         self, zipf: zipfile.ZipFile, filename: str, check_memory: bool = True
     ) -> list[Any]:
-        """
-        Load a single JSON file from the ZIP archive with optional memory checking.
-
-        This method provides memory-efficient loading of individual JSON files,
-        with optional memory usage validation after loading to prevent memory
-        exhaustion during large imports.
-
-        Args:
-            zipf (zipfile.ZipFile): An opened ZipFile object to read from.
-            filename (str): The path to the JSON file within the ZIP archive.
-            check_memory (bool): Whether to check memory usage after loading. Defaults to True.
-
-        Returns:
-            list[Any]: The parsed JSON data as a list. Returns empty list if file not found.
-
-        Raises:
-            JSONParseError: If JSON parsing fails for the file.
-            MemoryError: If memory usage exceeds configured limits after loading.
-
-        Note:
-            - Missing files return empty lists without error
-            - Memory check happens after loading if check_memory is True
-            - Logs the number of items loaded from each file
-        """
         try:
             file_list = set(zipf.namelist())
             if filename not in file_list:
@@ -489,33 +305,10 @@ class ImportService:
     async def collect_and_import_gears_data(
         self, gears_data: list[Any]
     ) -> dict[int, int]:
-        """
-        Import gear data and create new gear records.
-
-        This method processes gear data from an import file, creates new gear records in the database,
-        and maintains a mapping between original gear IDs and newly created gear IDs for reference
-        by other import operations.
-
-        Args:
-            gears_data (list[Any]): List of gear dictionaries to import.
-
-        Returns:
-            dict[int, int]: A mapping dictionary where keys are original gear IDs from the import
-                           data and values are the newly created gear IDs in the database.
-
-        Side Effects:
-            - Removes original 'id' field from gear data
-            - Sets 'user_id' field to the current user's ID
-            - Creates new gear records in the database via gear_crud
-            - Updates self.counts["gears"] counter
-            - Logs the number of imported gears
-
-        Note:
-            Returns an empty dictionary if no gear data is present.
-        """
         gears_id_mapping = {}
 
         if not gears_data:
+            core_logger.print_to_log("No gears data to import", "info")
             return gears_id_mapping
 
         for gear_data in gears_data:
@@ -534,35 +327,8 @@ class ImportService:
     async def collect_and_import_gear_components_data(
         self, gear_components_data: list[Any], gears_id_mapping: dict[int, int]
     ) -> None:
-        """
-        Import gear component data into the database.
-
-        This method processes gear component records, maps their gear IDs to newly created
-        gear IDs, and creates new gear component entries in the database.
-
-        Args:
-            gear_components_data (list[Any]): List of gear component records to import.
-            gears_id_mapping (dict[int, int]): A dictionary mapping original gear IDs to their
-                newly created gear IDs in the database. Used to map gear_id references in
-                components to the new gear IDs.
-
-        Returns:
-            None
-
-        Side Effects:
-            - Creates new gear component records in the database
-            - Increments the "gear_components" counter in self.counts
-            - Logs the number of imported gear components
-
-        Notes:
-            - Returns early if no gear component data is present
-            - Assigns the current user_id to each gear component
-            - Removes the original "id" field before creating new records
-            - Handles cases where gear_id mapping doesn't exist by setting it to None
-            - Gear component IDs are NOT tracked in the mapping since they are not
-              referenced by other entities
-        """
         if not gear_components_data:
+            core_logger.print_to_log("No gear components data to import", "info")
             return
 
         for gear_component_data in gear_components_data:
@@ -596,36 +362,8 @@ class ImportService:
         user_privacy_settings_data: list[Any],
         gears_id_mapping: dict[int, int],
     ) -> None:
-        """Import user profile data and related settings.
-
-        This method handles the import of user profile information, including profile data,
-        photo paths, and delegates to specialized methods for importing user-related settings
-        such as default gear, integrations, goals, and privacy settings.
-
-        Args:
-            user_data (list[Any]): List containing user profile data (expected to have one record).
-            user_default_gear_data (list[Any]): List containing user default gear settings.
-            user_integrations_data (list[Any]): List containing user integration settings.
-            user_goals_data (list[Any]): List containing user goals.
-            user_privacy_settings_data (list[Any]): List containing user privacy settings.
-            gears_id_mapping (dict[int, int]): Mapping of old gear IDs to new gear IDs for
-                maintaining references after import.
-
-        Returns:
-            None
-
-        Side Effects:
-            - Updates the user profile in the database with the imported data
-            - Modifies photo_path to match the current user_id if applicable
-            - Increments the user count in self.counts
-            - Triggers imports of user default gear, integrations, goals, and privacy settings
-
-        Note:
-            - If user_data is empty or None, the method returns early without processing
-            - Photo paths are renamed to use the current user_id while preserving the file extension
-            - Only processes the first user data record from the list
-        """
         if not user_data:
+            core_logger.print_to_log("No user data to import", "info")
             return
 
         # Import user profile
@@ -653,36 +391,8 @@ class ImportService:
     async def collect_and_import_user_default_gear(
         self, user_default_gear_data: list[Any], gears_id_mapping: dict[int, int]
     ) -> None:
-        """
-        Import and update user's default gear settings for various activity types.
-
-        This method processes the user's default gear data from an import file and updates
-        the existing user's default gear settings in the database. It maps old gear IDs to
-        new gear IDs using the provided mapping dictionary.
-
-        Args:
-            user_default_gear_data (list[Any]): List containing user's default gear configuration.
-            gears_id_mapping (dict[int, int]): Mapping of old gear IDs to new gear IDs
-                for translating gear references during import.
-
-        Returns:
-            None
-
-        Raises:
-            None explicitly, but may raise database-related exceptions from CRUD operations.
-
-        Side Effects:
-            - Updates the user's default gear settings in the database
-            - Increments the 'user_default_gear' counter in self.counts
-            - If an old gear ID is not found in the mapping, sets the field to None
-
-        Note:
-            - If no user_default_gear_data is present, the method returns early
-            - The method processes multiple gear fields for different activity types
-              (running, cycling, swimming, skiing, etc.)
-            - Uses the existing user's default gear ID to maintain database consistency
-        """
         if not user_default_gear_data:
+            core_logger.print_to_log("No user default gear data to import", "info")
             return
 
         current_user_default_gear = (
@@ -724,32 +434,14 @@ class ImportService:
         user_default_gear_crud.edit_user_default_gear(
             user_default_gear, self.user_id, self.db
         )
+        core_logger.print_to_log(f"Imported user default gear", "info")
         self.counts["user_default_gear"] += 1
 
     async def collect_and_import_user_integrations(
         self, user_integrations_data: list[Any]
     ) -> None:
-        """
-        Import and update user integrations from the imported data.
-
-        This method processes user integration data from the import and updates
-        the existing user integrations in the database. It retrieves the current user
-        integrations, updates them with the imported data while preserving the existing
-        ID and user_id, and then persists the changes.
-
-        Args:
-            user_integrations_data (list[Any]): List containing the integration data to import.
-
-        Returns:
-            None
-
-        Note:
-            - If no user_integrations_data is present, the method returns early.
-            - The method assumes only one set of integration data per user (uses index [0]).
-            - Increments the 'user_integrations' counter in self.counts upon successful import.
-            - The existing integration ID and user_id are preserved during the update.
-        """
         if not user_integrations_data:
+            core_logger.print_to_log("No user integrations data to import", "info")
             return
 
         current_user_integrations = (
@@ -768,34 +460,12 @@ class ImportService:
         user_integrations_crud.edit_user_integrations(
             user_integrations, self.user_id, self.db
         )
+        core_logger.print_to_log(f"Imported user integrations", "info")
         self.counts["user_integrations"] += 1
 
     async def collect_and_import_user_goals(self, user_goals_data: list[Any]) -> None:
-        """
-        Import user goals from the data list.
-
-        This method processes the user goals data and creates new goal records for the
-        current user. It removes the 'id' and 'user_id' fields from each goal to ensure
-        new records are created rather than attempting to update existing ones.
-
-        Args:
-            user_goals_data (list[Any]): List of goal data dictionaries to import.
-
-        Returns:
-            None
-
-        Raises:
-            None explicitly, but may raise database-related exceptions from
-            user_goals_crud.create_user_goal().
-
-        Note:
-            - If user_goals_data is empty or None, the method returns early.
-            - Each successfully imported goal increments the 'user_goals' counter
-              in self.counts.
-            - The method uses self.user_id and self.db which should be instance
-              attributes.
-        """
         if not user_goals_data:
+            core_logger.print_to_log("No user goals data to import", "info")
             return
 
         for goal_data in user_goals_data:
@@ -806,32 +476,15 @@ class ImportService:
             user_goals_crud.create_user_goal(self.user_id, goal, self.db)
             self.counts["user_goals"] += 1
 
+        core_logger.print_to_log(
+            f"Imported {self.counts['user_goals']} user goals", "info"
+        )
+
     async def collect_and_import_user_privacy_settings(
         self, user_privacy_settings_data: list[Any]
     ) -> None:
-        """
-        Import and update user privacy settings from backup data.
-
-        This method imports user privacy settings from the backup data and updates
-        the existing privacy settings for the current user. It preserves the current
-        user's ID and privacy settings ID while applying the imported configuration.
-
-        Args:
-            user_privacy_settings_data (list[Any]): List containing privacy settings data.
-                Expected structure: [dict, ...]
-
-        Returns:
-            None
-
-        Raises:
-            May raise database-related exceptions from the CRUD operations.
-
-        Note:
-            - If no privacy settings data exists, the method returns early
-            - Increments the 'user_privacy_settings' counter in self.counts upon success
-            - The imported settings are merged with the current user's ID and settings ID
-        """
         if not user_privacy_settings_data:
+            core_logger.print_to_log("No user privacy settings data to import", "info")
             return
 
         current_user_privacy_settings = (
@@ -850,105 +503,8 @@ class ImportService:
         users_privacy_settings_crud.edit_user_privacy_settings(
             self.user_id, user_privacy_settings, self.db
         )
+        core_logger.print_to_log(f"Imported user privacy settings", "info")
         self.counts["user_privacy_settings"] += 1
-
-    async def collect_and_import_activities_data(
-        self,
-        activities_data: list[Any],
-        activity_laps_data: list[Any],
-        activity_sets_data: list[Any],
-        activity_streams_data: list[Any],
-        activity_workout_steps_data: list[Any],
-        activity_media_data: list[Any],
-        activity_exercise_titles_data: list[Any],
-        gears_id_mapping: dict[int, int],
-    ) -> dict[int, int]:
-        """
-        Import activities data and their components into the database.
-
-        This method processes activity data from an import file, validates activity count limits,
-        maps gear IDs to newly created gears, creates new activity records in the database,
-        and imports associated activity components.
-
-        Args:
-            activities_data (list[Any]): List of activity records to import.
-            activity_laps_data (list[Any]): List of lap records for all activities.
-            activity_sets_data (list[Any]): List of set records for all activities.
-            activity_streams_data (list[Any]): List of stream records for all activities.
-            activity_workout_steps_data (list[Any]): List of workout step records.
-            activity_media_data (list[Any]): List of media records for activities.
-            activity_exercise_titles_data (list[Any]): List of exercise title records.
-            gears_id_mapping (dict[int, int]): Mapping of original gear IDs to newly created
-                gear IDs in the database.
-
-        Returns:
-            dict[int, int]: Mapping of original activity IDs to newly created activity IDs
-                in the database. This mapping is used to link related data like streams
-                and laps to the correct activities.
-
-        Raises:
-            ActivityLimitError: If the number of activities exceeds the configured maximum limit.
-
-        Side Effects:
-            - Creates new activity records in the database
-            - Imports activity components for each created activity
-            - Increments the activity count in self.counts["activities"]
-            - Logs the total number of imported activities
-
-        Note:
-            - Activity IDs are remapped to avoid conflicts with existing records
-            - Activities are associated with the current user (self.user_id)
-            - Gear IDs are remapped using the provided gears_id_mapping
-            - Returns an empty mapping if no activities data is present
-            - Large data (laps, sets, streams) are passed as dictionaries grouped by activity_id for memory efficiency
-        """
-        activities_id_mapping = {}
-
-        if not activities_data:
-            return activities_id_mapping
-
-        # Check activity count limit
-        if len(activities_data) > self.performance_config.max_activities:
-            raise ActivityLimitError(
-                f"Too many activities ({len(activities_data)}). "
-                f"Maximum allowed: {self.performance_config.max_activities}"
-            )
-
-        for activity_data in activities_data:
-            activity_data["user_id"] = self.user_id
-            activity_data["gear_id"] = (
-                gears_id_mapping.get(activity_data["gear_id"])
-                if activity_data.get("gear_id") in gears_id_mapping
-                else None
-            )
-
-            original_activity_id = activity_data.get("id")
-            activity_data.pop("id", None)
-
-            activity = activity_schema.Activity(**activity_data)
-            new_activity = await activities_crud.create_activity(
-                activity, self.websocket_manager, self.db, False
-            )
-            if original_activity_id is not None and new_activity.id is not None:
-                activities_id_mapping[original_activity_id] = new_activity.id
-                # Import activity components - pass full lists, will filter inside
-                await self.collect_and_import_activity_components(
-                    activity_laps_data,
-                    activity_sets_data,
-                    activity_streams_data,
-                    activity_workout_steps_data,
-                    activity_media_data,
-                    activity_exercise_titles_data,
-                    original_activity_id,
-                    new_activity.id,
-                )
-
-            self.counts["activities"] += 1
-
-        core_logger.print_to_log(
-            f"Imported {self.counts['activities']} activities", "info"
-        )
-        return activities_id_mapping
 
     async def collect_and_import_activity_components(
         self,
@@ -961,36 +517,6 @@ class ImportService:
         original_activity_id: int,
         new_activity_id: int,
     ) -> None:
-        """
-        Import all activity-related components for a newly created activity.
-
-        This method handles the import of various activity components including laps, sets,
-        streams, workout steps, media files, and exercise titles. Each component is filtered
-        by the original activity ID, updated with the new activity ID, and then created in
-        the database. The method also maintains counts of imported items.
-
-        Args:
-            activity_laps_data (list[Any]): List of lap records
-            activity_sets_data (list[Any]): List of set records
-            activity_streams_data (list[Any]): List of stream records
-            activity_workout_steps_data (list[Any]): List of workout step records
-            activity_media_data (list[Any]): List of media records
-            activity_exercise_titles_data (list[Any]): List of exercise title records
-            original_activity_id (int): The activity ID from the original/exported data
-            new_activity_id (int): The newly created activity ID in the target database
-
-        Returns:
-            None
-
-        Side Effects:
-            - Creates multiple database records for activity components
-            - Updates self.counts dictionary with imported item counts
-            - Updates media file paths to reference the new activity ID
-
-        Note:
-            All original IDs are removed from the component data before creating new records
-            to allow the database to assign new IDs automatically.
-        """
         # Import laps - filter for this activity
         if activity_laps_data:
             laps = []
@@ -1116,32 +642,191 @@ class ImportService:
                 )
                 self.counts["activity_exercise_titles"] += len(titles)
 
+    async def collect_and_import_activities_data_batched(
+        self,
+        zipf: zipfile.ZipFile,
+        file_list: set[str],
+        gears_id_mapping: dict[int, int],
+        start_time: float,
+        timeout_seconds: int,
+    ) -> dict[int, int]:
+        activities_id_mapping = {}
+
+        # Load activities list
+        activities_data = self._load_single_json(zipf, "data/activities.json")
+        if not activities_data:
+            core_logger.print_to_log("No activities data to import", "info")
+            return activities_id_mapping
+
+        # Check activity count limit
+        if len(activities_data) > self.performance_config.max_activities:
+            raise ActivityLimitError(
+                f"Too many activities ({len(activities_data)}). "
+                f"Maximum allowed: {self.performance_config.max_activities}"
+            )
+
+        # Load small component files that won't cause memory issues
+        activity_workout_steps_data = self._load_single_json(
+            zipf, "data/activity_workout_steps.json", check_memory=False
+        )
+        activity_media_data = self._load_single_json(
+            zipf, "data/activity_media.json", check_memory=False
+        )
+        activity_exercise_titles_data = self._load_single_json(
+            zipf, "data/activity_exercise_titles.json", check_memory=False
+        )
+
+        # Get list of split files for large components
+        laps_files = self._get_split_files_list(file_list, "data/activity_laps")
+        sets_files = self._get_split_files_list(file_list, "data/activity_sets")
+        streams_files = self._get_split_files_list(file_list, "data/activity_streams")
+
+        core_logger.print_to_log(
+            f"Importing {len(activities_data)} activities with batched component loading",
+            "info",
+        )
+
+        # Process activities in batches
+        batch_size = self.performance_config.batch_size
+        for batch_start in range(0, len(activities_data), batch_size):
+            profile_utils.check_timeout(
+                timeout_seconds, start_time, ImportTimeoutError, "Import"
+            )
+
+            batch_end = min(batch_start + batch_size, len(activities_data))
+            activities_batch = activities_data[batch_start:batch_end]
+
+            core_logger.print_to_log(
+                f"Processing activities batch {batch_start//batch_size + 1}: "
+                f"activities {batch_start}-{batch_end}",
+                "info",
+            )
+
+            # Load components for this batch only
+            batch_laps = self._load_components_for_batch(
+                zipf, laps_files, activities_batch, "laps"
+            )
+            batch_sets = self._load_components_for_batch(
+                zipf, sets_files, activities_batch, "sets"
+            )
+            batch_streams = self._load_components_for_batch(
+                zipf, streams_files, activities_batch, "streams"
+            )
+
+            # Import activities in this batch
+            for activity_data in activities_batch:
+                activity_data["user_id"] = self.user_id
+                activity_data["gear_id"] = (
+                    gears_id_mapping.get(activity_data["gear_id"])
+                    if activity_data.get("gear_id") in gears_id_mapping
+                    else None
+                )
+
+                original_activity_id = activity_data.get("id")
+                activity_data.pop("id", None)
+
+                activity = activity_schema.Activity(**activity_data)
+                new_activity = await activities_crud.create_activity(
+                    activity, self.websocket_manager, self.db, False
+                )
+
+                if original_activity_id is not None and new_activity.id is not None:
+                    activities_id_mapping[original_activity_id] = new_activity.id
+
+                    # Import activity components using batch-loaded data
+                    await self.collect_and_import_activity_components(
+                        batch_laps,
+                        batch_sets,
+                        batch_streams,
+                        activity_workout_steps_data,
+                        activity_media_data,
+                        activity_exercise_titles_data,
+                        original_activity_id,
+                        new_activity.id,
+                    )
+
+                self.counts["activities"] += 1
+
+            # Clear batch data from memory
+            del batch_laps, batch_sets, batch_streams
+            profile_utils.check_memory_usage(
+                f"activities batch {batch_start//batch_size + 1}",
+                self.performance_config.max_memory_mb,
+                self.performance_config.enable_memory_monitoring,
+            )
+
+        core_logger.print_to_log(
+            f"Imported {self.counts['activities']} activities", "info"
+        )
+        return activities_id_mapping
+
+    def _get_split_files_list(
+        self, file_list: set[str], base_filename: str
+    ) -> list[str]:
+        split_files = sorted(
+            [
+                f
+                for f in file_list
+                if f.startswith(f"{base_filename}_") and f.endswith(".json")
+            ]
+        )
+        if split_files:
+            return split_files
+        # Fall back to single file if no split files found
+        single_file = f"{base_filename}.json"
+        if single_file in file_list:
+            return [single_file]
+        return []
+
+    def _load_components_for_batch(
+        self,
+        zipf: zipfile.ZipFile,
+        component_files: list[str],
+        activities_batch: list[Any],
+        component_name: str,
+    ) -> list[Any]:
+        if not component_files:
+            return []
+
+        # Get activity IDs in this batch
+        batch_activity_ids = set(
+            activity.get("id")
+            for activity in activities_batch
+            if activity.get("id") is not None
+        )
+
+        all_components = []
+
+        # Load and filter components from each file
+        for filename in component_files:
+            try:
+                components = json.loads(zipf.read(filename))
+                # Only keep components for activities in this batch
+                filtered = [
+                    comp
+                    for comp in components
+                    if comp.get("activity_id") in batch_activity_ids
+                ]
+                all_components.extend(filtered)
+
+                if filtered:
+                    core_logger.print_to_log(
+                        f"Loaded {len(filtered)}/{len(components)} {component_name} "
+                        f"from {filename} for batch",
+                        "debug",
+                    )
+            except json.JSONDecodeError as err:
+                core_logger.print_to_log(
+                    f"Failed to parse {filename}: {err}", "warning"
+                )
+            except Exception as err:
+                core_logger.print_to_log(f"Error loading {filename}: {err}", "warning")
+
+        return all_components
+
     async def collect_and_import_health_data(
         self, health_data_data: list[Any], health_targets_data: list[Any]
     ) -> None:
-        """
-        Import health data and health targets for a user.
-
-        This method processes and imports health data records and health targets from the
-        provided data lists into the database for the specified user.
-
-        Args:
-            health_data_data (list[Any]): List of health data records to import
-            health_targets_data (list[Any]): List of health target records to import
-
-        Returns:
-            None
-
-        Side Effects:
-            - Creates new health data records in the database
-            - Updates or creates health target records in the database
-            - Updates self.counts dictionary with the number of imported records
-
-        Note:
-            - Each health data record has its 'id' field removed and 'user_id' set to self.user_id
-            - Health targets are either updated (if existing) or created (if new)
-            - The method modifies the input data dictionaries in place
-        """
         # Import health data
         if health_data_data:
             for health_data in health_data_data:
@@ -1151,6 +836,11 @@ class ImportService:
                 data = health_data_schema.HealthData(**health_data)
                 health_data_crud.create_health_data(self.user_id, data, self.db)
                 self.counts["health_data"] += 1
+            core_logger.print_to_log(
+                f"Imported {self.counts['health_data']} health data records", "info"
+            )
+        else:
+            core_logger.print_to_log(f"No health data to import", "debug")
 
         # Import health targets
         if health_targets_data:
@@ -1170,6 +860,11 @@ class ImportService:
                 target = health_targets_schema.HealthTargets(**target_data)
                 health_targets_crud.edit_health_target(target, self.user_id, self.db)
                 self.counts["health_targets"] += 1
+            core_logger.print_to_log(
+                f"Imported {self.counts['health_targets']} health targets", "info"
+            )
+        else:
+            core_logger.print_to_log(f"No health targets to import", "debug")
 
     async def add_activity_files_from_zip(
         self,
@@ -1177,29 +872,6 @@ class ImportService:
         file_list: set,
         activities_id_mapping: dict[int, int],
     ) -> None:
-        """
-        Import activity files from the ZIP archive.
-        This method processes and imports activity files (GPX, FIT, TCX) from the 'activity_files/' directory
-        within the ZIP archive. Files are remapped to new activity IDs based on the activities_id_mapping.
-
-        Args:
-            zipf (zipfile.ZipFile): The ZIP file object containing the files to import.
-            file_list (set): Set of file paths within the ZIP archive to process.
-            activities_id_mapping (dict[int, int]): Mapping from original activity IDs to new activity IDs.
-
-        Returns:
-            None
-
-        Side Effects:
-            - Writes activity files to disk in FILES_PROCESSED_DIR
-            - Updates self.counts["activity_files"] with import statistics
-            - Checks memory usage before processing
-
-        Notes:
-            - Activity files are expected to be named with numeric IDs (e.g., "123.gpx")
-            - Files with non-numeric activity IDs are silently skipped
-            - If an activity ID is not found in activities_id_mapping, the file is skipped
-        """
         profile_utils.check_memory_usage(
             "activity files import",
             self.performance_config.max_memory_mb,
@@ -1240,30 +912,6 @@ class ImportService:
         file_list: set,
         activities_id_mapping: dict[int, int],
     ) -> None:
-        """
-        Import activity media files from the ZIP archive.
-        This method processes and imports activity media files (PNG, JPG, JPEG) from the 'activity_media/'
-        directory within the ZIP archive. Media files are remapped to new activity IDs based on the
-        activities_id_mapping.
-
-        Args:
-            zipf (zipfile.ZipFile): The ZIP file object containing the files to import.
-            file_list (set): Set of file paths within the ZIP archive to process.
-            activities_id_mapping (dict[int, int]): Mapping from original activity IDs to new activity IDs.
-
-        Returns:
-            None
-
-        Side Effects:
-            - Writes media files to disk in ACTIVITY_MEDIA_DIR
-            - Updates self.counts["media"] with import statistics
-            - Checks memory usage before processing
-
-        Notes:
-            - Activity media files are expected to follow the pattern "{activity_id}_{suffix}.{ext}"
-            - Files with non-numeric activity IDs are silently skipped
-            - If an activity ID is not found in activities_id_mapping, the file is skipped
-        """
         profile_utils.check_memory_usage(
             "activity media import",
             self.performance_config.max_memory_mb,
@@ -1306,27 +954,6 @@ class ImportService:
         zipf: zipfile.ZipFile,
         file_list: set,
     ) -> None:
-        """
-        Import user profile images from the ZIP archive.
-        This method processes and imports user profile images (PNG, JPG, JPEG) from the 'user_images/'
-        directory within the ZIP archive. Images are renamed using the user_id as the base name.
-
-        Args:
-            zipf (zipfile.ZipFile): The ZIP file object containing the files to import.
-            file_list (set): Set of file paths within the ZIP archive to process.
-
-        Returns:
-            None
-
-        Side Effects:
-            - Writes user images to disk in USER_IMAGES_DIR
-            - Updates self.counts["user_images"] with import statistics
-            - Checks memory usage before processing
-
-        Notes:
-            - User images are renamed using the user_id as the base name while preserving the file extension
-            - Only processes image files in the 'user_images/' directory
-        """
         profile_utils.check_memory_usage(
             "user images import",
             self.performance_config.max_memory_mb,

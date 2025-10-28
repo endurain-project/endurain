@@ -2,7 +2,7 @@ import os
 import tempfile
 import zipfile
 import time
-from typing import Generator, Dict, Any, List
+from typing import Generator, Any
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -35,52 +35,15 @@ import users.user_privacy_settings.crud as users_privacy_settings_crud
 
 
 class ExportPerformanceConfig(profile_utils.BasePerformanceConfig):
-    """
-    Configuration class for managing export performance parameters.
-    This class provides configuration options to optimize data export operations by
-    controlling batch sizes, memory limits, compression settings, and chunk sizes.
-    It includes an adaptive configuration factory method that automatically adjusts
-    settings based on available system memory.
-    Attributes:
-        batch_size (int): Number of records to process in a single batch. Default is 1000.
-        max_memory_mb (int): Maximum memory usage in megabytes. Default is 1024.
-        compression_level (int): Compression level (0-9, where 0 is no compression and
-            9 is maximum compression). Default is 6.
-        chunk_size (int): Size of data chunks in bytes for I/O operations. Default is 8192.
-        enable_memory_monitoring (bool): Whether to enable memory usage monitoring during
-            export operations. Default is True.
-        timeout_seconds (int): Operation timeout in seconds. Default is 3600 (60 minutes).
-    Example:
-        >>> # Create with default settings
-        >>> config = ExportPerformanceConfig()
-        >>>
-        >>> # Create with custom settings
-        >>> config = ExportPerformanceConfig(batch_size=500, max_memory_mb=256)
-        >>>
-        >>> # Create with auto-detection based on system resources
-        >>> config = ExportPerformanceConfig.get_auto_config()
-    """
-
     def __init__(
         self,
-        batch_size: int = 1000,
+        batch_size: int = 125,
         max_memory_mb: int = 1024,
         compression_level: int = 6,
         chunk_size: int = 8192,
         enable_memory_monitoring: bool = True,
         timeout_seconds: int = 3600,
     ):
-        """
-        Initialize the export service with configuration parameters.
-
-        Args:
-            batch_size (int, optional): Number of records to process in each batch. Defaults to 1000.
-            max_memory_mb (int, optional): Maximum memory usage in megabytes before triggering cleanup. Defaults to 1024.
-            compression_level (int, optional): Compression level for export files (0-9, where 9 is maximum compression). Defaults to 6.
-            chunk_size (int, optional): Size of chunks in bytes for streaming operations. Defaults to 8192.
-            enable_memory_monitoring (bool, optional): Whether to enable memory usage monitoring during export. Defaults to True.
-            timeout_seconds (int, optional): Maximum time allowed for export operation in seconds. Defaults to 3600 (60 minutes).
-        """
         super().__init__(
             batch_size, max_memory_mb, enable_memory_monitoring, timeout_seconds
         )
@@ -88,33 +51,26 @@ class ExportPerformanceConfig(profile_utils.BasePerformanceConfig):
         self.chunk_size = chunk_size
 
     @classmethod
-    def _get_tier_configs(cls) -> Dict[str, Dict[str, Any]]:
-        """
-        Define tier-specific configuration settings for export operations.
-
-        Returns:
-            Dict[str, Dict[str, Any]]: Configuration dictionaries for memory tiers.
-                Each dictionary contains parameters optimized for the corresponding memory tier.
-        """
+    def _get_tier_configs(cls) -> dict[str, dict[str, Any]]:
         return {
             "high": {
-                "batch_size": 500,
+                "batch_size": 250,
                 "max_memory_mb": 2048,
                 "compression_level": 6,
                 "chunk_size": 16384,
                 "timeout_seconds": 7200,
             },
             "medium": {
-                "batch_size": 250,
+                "batch_size": 125,
                 "max_memory_mb": 1024,
-                "compression_level": 4,
+                "compression_level": 6,
                 "chunk_size": 8192,
                 "timeout_seconds": 3600,
             },
             "low": {
-                "batch_size": 125,
+                "batch_size": 50,
                 "max_memory_mb": 512,
-                "compression_level": 1,
+                "compression_level": 6,
                 "chunk_size": 4096,
                 "timeout_seconds": 1800,
             },
@@ -122,56 +78,12 @@ class ExportPerformanceConfig(profile_utils.BasePerformanceConfig):
 
 
 class ExportService:
-    """
-    Service class for exporting user data including activities, gear, health information, and media files.
-    This class handles the collection and export of comprehensive user data into a ZIP archive format.
-    It provides methods for batched data collection to optimize memory usage, with configurable
-    performance settings for handling large datasets efficiently.
-    The export process includes:
-    - User activities with associated components (laps, sets, streams, workout steps, media)
-    - Gear and gear components
-    - Health data and targets
-    - User settings (default gear, integrations, goals, privacy settings)
-    - Activity files and media files
-    - User profile images
-        user_id (int): The ID of the user whose data is being exported.
-        db (Session): SQLAlchemy database session for data access.
-        counts (Dict[str, int]): Dictionary tracking the count of each exported data type.
-        performance_config (ExportPerformanceConfig): Configuration settings for performance
-            optimization including batch size, memory limits, and compression level.
-        >>> from sqlalchemy.orm import Session
-        >>> db = Session()
-        >>> export_service = ExportService(user_id=123, db=db)
-        >>> user_data = {"id": 123, "name": "John Doe"}
-        ...     # Process each chunk of the ZIP file
-        - Uses batched processing to minimize memory usage during data collection
-        - Implements memory monitoring with configurable thresholds
-        - Provides graceful error handling with detailed logging
-        - Supports timeout enforcement for long-running operations
-        - All temporary files are automatically cleaned up after export
-    """
-
     def __init__(
         self,
         user_id: int,
         db: Session,
         performance_config: ExportPerformanceConfig | None = None,
     ):
-        """
-        Initialize the ExportService with user ID, database session, and performance configuration.
-
-        Args:
-            user_id (int): The ID of the user for whom data will be exported.
-            db (Session): The SQLAlchemy database session for querying data.
-            performance_config (ExportPerformanceConfig | None): Configuration for performance tuning.
-                If None, will use auto-detected configuration based on system resources.
-
-        Attributes:
-            user_id (int): Stores the user ID for the export operation.
-            db (Session): Stores the database session for data access.
-            counts (dict): Dictionary containing initialized count values for various entities.
-            performance_config (ExportPerformanceConfig): Performance configuration settings.
-        """
         self.user_id = user_id
         self.db = db
         self.counts = profile_utils.initialize_operation_counts(include_user_count=True)
@@ -188,43 +100,7 @@ class ExportService:
             "info",
         )
 
-    def collect_user_activities_data(self) -> Dict[str, Any]:
-        """
-        Collects all activity-related data for a user using batched processing for memory efficiency.
-
-        This method retrieves user activities and their associated components using pagination
-        to limit memory usage. It processes activities in batches and handles errors gracefully
-        for each component to ensure partial data collection is possible.
-
-        Returns:
-            Dict[str, Any]: A dictionary containing the following keys:
-                - activities (list): List of user activity objects
-                - laps (list): List of activity laps data
-                - sets (list): List of activity sets data
-                - streams (list): List of activity streams data
-                - steps (list): List of activity workout steps data
-                - media (list): List of activity media data
-                - exercise_titles (list): List of exercise title objects
-        Raises:
-            DatabaseConnectionError: If a database error occurs during data collection
-            DataCollectionError: If an unexpected error occurs during data collection
-        Note:
-            - Uses batched processing to minimize memory usage
-            - Returns empty lists for each component if no activities are found
-            - Filters out activities with None IDs before collecting related data
-            - Logs warnings for missing data and errors for critical failures
-            - Uses individual error handling for each component to allow partial collection
-        """
-        result = {
-            "activities": [],
-            "laps": [],
-            "sets": [],
-            "streams": [],
-            "steps": [],
-            "media": [],
-            "exercise_titles": [],
-        }
-
+    def collect_user_activities_data(self, zipf: zipfile.ZipFile) -> list[Any]:
         try:
             profile_utils.check_memory_usage(
                 "activity collection start",
@@ -269,9 +145,24 @@ class ExportService:
                 core_logger.print_to_log(
                     f"No activities found for user {self.user_id}", "info"
                 )
-                return result
+                # Write empty activities file
+                profile_utils.write_json_to_zip(
+                    zipf, "data/activities.json", [], self.counts
+                )
+                return []
 
-            result["activities"] = all_activities
+            # Write activities to ZIP immediately
+            activities_dicts = [
+                profile_utils.sqlalchemy_obj_to_dict(a) for a in all_activities
+            ]
+            profile_utils.write_json_to_zip(
+                zipf, "data/activities.json", activities_dicts, self.counts
+            )
+
+            core_logger.print_to_log(
+                f"Written {len(activities_dicts)} activities to ZIP",
+                "info",
+            )
 
             # Filter out activities with None IDs and collect valid IDs
             activity_ids = [
@@ -282,11 +173,11 @@ class ExportService:
                 core_logger.print_to_log(
                     f"No valid activity IDs found for user {self.user_id}", "warning"
                 )
-                return result
+                return all_activities
 
-            # Collect related activity data with batched processing
-            self._collect_activity_components_batched(
-                result, activity_ids, all_activities
+            # Collect and write activity components progressively
+            self._collect_and_write_activity_components(
+                zipf, activity_ids, all_activities
             )
 
             # Exercise titles don't depend on activity IDs
@@ -294,12 +185,20 @@ class ExportService:
                 exercise_titles = (
                     activity_exercise_titles_crud.get_activity_exercise_titles(self.db)
                 )
-                result["exercise_titles"] = exercise_titles or []
+                if exercise_titles:
+                    exercise_titles_dicts = [
+                        profile_utils.sqlalchemy_obj_to_dict(e) for e in exercise_titles
+                    ]
+                    profile_utils.write_json_to_zip(
+                        zipf,
+                        "data/activity_exercise_titles.json",
+                        exercise_titles_dicts,
+                        self.counts,
+                    )
             except Exception as err:
                 core_logger.print_to_log(
                     f"Failed to collect exercise titles: {err}", "warning", exc=err
                 )
-                result["exercise_titles"] = []
 
         except SQLAlchemyError as err:
             core_logger.print_to_log(
@@ -308,6 +207,13 @@ class ExportService:
             raise DatabaseConnectionError(
                 f"Failed to collect activity data: {err}"
             ) from err
+        except MemoryAllocationError as err:
+            core_logger.print_to_log(
+                f"Memory limit exceeded while collecting activities: {err}. ",
+                "error",
+                exc=err,
+            )
+            raise err
         except Exception as err:
             core_logger.print_to_log(
                 f"Unexpected error collecting activities: {err}", "error", exc=err
@@ -316,29 +222,9 @@ class ExportService:
                 f"Failed to collect activity data: {err}"
             ) from err
 
-        return result
+        return all_activities
 
-    def _get_activities_batch(self, offset: int, limit: int) -> List[Any]:
-        """
-        Retrieve a batch of activities for the user with pagination support.
-        This method fetches activities from the database using offset-based pagination,
-        converting the offset to a page number for use with the underlying CRUD function.
-        Activities are sorted by start_time in descending order (most recent first).
-        Args:
-            offset (int): The number of records to skip before starting to return results.
-                         Used to calculate the page number for pagination.
-            limit (int): The maximum number of activities to return in this batch.
-        Returns:
-            List[Any]: A list of activity objects for the specified page. Returns an empty
-                      list if no activities are found or if an error occurs.
-        Raises:
-            Does not raise exceptions directly. Errors are logged and an empty list is returned.
-        Example:
-            >>> activities = self._get_activities_batch(offset=0, limit=50)
-            >>> # Retrieves the first 50 activities
-            >>> activities = self._get_activities_batch(offset=50, limit=50)
-            >>> # Retrieves activities 51-100
-        """
+    def _get_activities_batch(self, offset: int, limit: int) -> list[Any]:
         try:
             # Convert offset to page number (1-based indexing)
             page_number = (offset // limit) + 1
@@ -364,220 +250,304 @@ class ExportService:
             )
             return []
 
-    def _collect_activity_components_batched(
+    def _collect_and_write_activity_components(
         self,
-        result: Dict[str, Any],
-        activity_ids: List[int],
-        user_activities: List[Any],
+        zipf: zipfile.ZipFile,
+        activity_ids: list[int],
+        user_activities: list[Any],
     ) -> None:
-        """
-        Collect activity components in batches to optimize memory usage.
-        This method processes activity components (laps, sets, streams, steps, media) in smaller
-        batches to reduce memory footprint during data collection. It iterates through activity IDs
-        and retrieves associated components for each batch.
-        Args:
-            result (Dict[str, Any]): Dictionary to store collected component data, organized by
-                component type (e.g., 'laps', 'sets', 'streams', 'steps', 'media').
-            activity_ids (List[int]): List of activity IDs to process.
-            user_activities (List[Any]): List of user activity objects corresponding to the activity IDs.
-        Returns:
-            None: Modifies the result dictionary in-place by adding component data.
-        Note:
-            - Uses half of the configured batch size for component processing to reduce memory usage
-            - Monitors memory usage between batches
-            - Logs progress information for each processed batch
-        """
         # Process activity IDs in smaller batches to reduce memory usage
         batch_size = (
             self.performance_config.batch_size // 2
         )  # Smaller batches for components
 
+        # Component definitions: (key, filename, crud_function, should_split)
+        component_types = [
+            (
+                "laps",
+                "data/activity_laps.json",
+                activity_laps_crud.get_activities_laps,
+                True,
+            ),
+            (
+                "sets",
+                "data/activity_sets.json",
+                activity_sets_crud.get_activities_sets,
+                True,
+            ),
+            (
+                "streams",
+                "data/activity_streams.json",
+                activity_streams_crud.get_activities_streams,
+                True,
+            ),
+            (
+                "steps",
+                "data/activity_workout_steps.json",
+                activity_workout_steps_crud.get_activities_workout_steps,
+                False,
+            ),
+            (
+                "media",
+                "data/activity_media.json",
+                activity_media_crud.get_activities_media,
+                False,
+            ),
+        ]
+
+        for component_key, base_filename, crud_func, should_split in component_types:
+            # For large splittable components, write in chunks during collection
+            if should_split:
+                self._collect_and_write_component_chunked(
+                    zipf,
+                    component_key,
+                    base_filename,
+                    crud_func,
+                    activity_ids,
+                    user_activities,
+                    batch_size,
+                )
+            else:
+                # For small components, collect all then write
+                self._collect_and_write_component_simple(
+                    zipf,
+                    component_key,
+                    base_filename,
+                    crud_func,
+                    activity_ids,
+                    user_activities,
+                    batch_size,
+                )
+
+    def _collect_and_write_component_chunked(
+        self,
+        zipf: zipfile.ZipFile,
+        component_key: str,
+        base_filename: str,
+        crud_func,
+        activity_ids: list[int],
+        user_activities: list[Any],
+        batch_size: int,
+    ) -> None:
+        chunk_buffer = []
+        file_counter = 0
+        max_items_per_file = 500
+        total_items = 0
+
+        # Collect component data in batches
         for i in range(0, len(activity_ids), batch_size):
             batch_ids = activity_ids[i : i + batch_size]
             batch_activities = user_activities[i : i + batch_size]
 
             profile_utils.check_memory_usage(
-                f"component batch {i//batch_size + 1}",
+                f"{component_key} batch {i//batch_size + 1}",
                 self.performance_config.max_memory_mb,
                 self.performance_config.enable_memory_monitoring,
             )
 
-            # Collect each component type for this batch
-            self._collect_activity_component_batch(
-                result,
-                "laps",
-                activity_laps_crud.get_activities_laps,
-                batch_ids,
-                self.user_id,
-                self.db,
-                batch_activities,
-            )
+            try:
+                data = crud_func(batch_ids, self.user_id, self.db, batch_activities)
+                if data:
+                    # Convert to dicts and add to chunk buffer
+                    batch_dicts = [
+                        profile_utils.sqlalchemy_obj_to_dict(item) for item in data
+                    ]
+                    chunk_buffer.extend(batch_dicts)
+                    total_items += len(batch_dicts)
 
-            self._collect_activity_component_batch(
-                result,
-                "sets",
-                activity_sets_crud.get_activities_sets,
-                batch_ids,
-                self.user_id,
-                self.db,
-                batch_activities,
-            )
+                    # Write chunks to ZIP when buffer reaches max size
+                    while len(chunk_buffer) >= max_items_per_file:
+                        chunk_to_write = chunk_buffer[:max_items_per_file]
+                        chunk_buffer = chunk_buffer[max_items_per_file:]
 
-            self._collect_activity_component_batch(
-                result,
-                "streams",
-                activity_streams_crud.get_activities_streams,
-                batch_ids,
-                self.user_id,
-                self.db,
-                batch_activities,
-            )
+                        # Generate filename for this chunk
+                        base_name = base_filename.rsplit(".", 1)[0]
+                        extension = (
+                            base_filename.rsplit(".", 1)[1]
+                            if "." in base_filename
+                            else "json"
+                        )
+                        chunk_filename = f"{base_name}_{file_counter:03d}.{extension}"
 
-            self._collect_activity_component_batch(
-                result,
-                "steps",
-                activity_workout_steps_crud.get_activities_workout_steps,
-                batch_ids,
-                self.user_id,
-                self.db,
-                batch_activities,
-            )
+                        profile_utils.write_json_to_zip(
+                            zipf, chunk_filename, chunk_to_write, self.counts
+                        )
+                        file_counter += 1
 
-            self._collect_activity_component_batch(
-                result,
-                "media",
-                activity_media_crud.get_activities_media,
-                batch_ids,
-                self.user_id,
-                self.db,
-                batch_activities,
-            )
+                        core_logger.print_to_log(
+                            f"Written chunk {file_counter} for {component_key} ({len(chunk_to_write)} items)",
+                            "debug",
+                        )
+
+            except Exception as err:
+                core_logger.print_to_log(
+                    f"Failed to collect batch for {component_key}: {err}",
+                    "warning",
+                    exc=err,
+                )
 
             core_logger.print_to_log(
-                f"Processed component batch {i//batch_size + 1} "
+                f"Processed {component_key} batch {i//batch_size + 1} "
                 f"({len(batch_ids)} activities)",
                 "info",
             )
 
-    def _collect_activity_component_batch(
-        self, result: Dict, key: str, crud_func, *args
+        # Write remaining data in buffer
+        if chunk_buffer:
+            if file_counter == 0:
+                # Only one chunk, use original filename
+                profile_utils.write_json_to_zip(
+                    zipf, base_filename, chunk_buffer, self.counts
+                )
+                core_logger.print_to_log(
+                    f"Written {len(chunk_buffer)} {component_key} items to single file",
+                    "info",
+                )
+            else:
+                # Multiple chunks, write with numbered filename
+                base_name = base_filename.rsplit(".", 1)[0]
+                extension = (
+                    base_filename.rsplit(".", 1)[1] if "." in base_filename else "json"
+                )
+                chunk_filename = f"{base_name}_{file_counter:03d}.{extension}"
+
+                profile_utils.write_json_to_zip(
+                    zipf, chunk_filename, chunk_buffer, self.counts
+                )
+                file_counter += 1
+                core_logger.print_to_log(
+                    f"Written final chunk for {component_key} ({len(chunk_buffer)} items)",
+                    "debug",
+                )
+
+        if total_items == 0:
+            # Write empty file for component type
+            profile_utils.write_json_to_zip(zipf, base_filename, [], self.counts)
+            core_logger.print_to_log(
+                f"No {component_key} data found, written empty file",
+                "info",
+            )
+        else:
+            core_logger.print_to_log(
+                f"Written total {total_items} {component_key} items to {file_counter} file(s)",
+                "info",
+            )
+
+    def _collect_and_write_component_simple(
+        self,
+        zipf: zipfile.ZipFile,
+        component_key: str,
+        base_filename: str,
+        crud_func,
+        activity_ids: list[int],
+        user_activities: list[Any],
+        batch_size: int,
     ) -> None:
-        """
-        Collects and appends activity component data to a result dictionary.
+        all_component_data = []
 
-        This method executes a CRUD function to retrieve activity component data and stores it
-        in the result dictionary under the specified key. If data exists, it initializes the key
-        as a list (if not present) and extends it with the retrieved data. Any exceptions during
-        execution are logged as warnings.
+        # Collect component data in batches
+        for i in range(0, len(activity_ids), batch_size):
+            batch_ids = activity_ids[i : i + batch_size]
+            batch_activities = user_activities[i : i + batch_size]
 
-        Args:
-            result (Dict): The dictionary where collected data will be stored.
-            key (str): The key under which the data will be stored in the result dictionary.
-            crud_func: A callable function that retrieves the activity component data.
-            *args: Variable length argument list to be passed to the crud_func.
-
-        Returns:
-            None: This method modifies the result dictionary in-place.
-
-        Raises:
-            No exceptions are raised; all exceptions are caught and logged as warnings.
-
-        Example:
-            >>> result = {}
-            >>> self._collect_activity_component_batch(
-            ...     result,
-            ...     'streams',
-            ...     get_activity_streams,
-            ...     activity_id
-            ... )
-        """
-        try:
-            data = crud_func(*args)
-            if data:
-                if key not in result:
-                    result[key] = []
-                result[key].extend(data)
-        except Exception as err:
-            core_logger.print_to_log(
-                f"Failed to collect batch for {key}: {err}", "warning", exc=err
+            profile_utils.check_memory_usage(
+                f"{component_key} batch {i//batch_size + 1}",
+                self.performance_config.max_memory_mb,
+                self.performance_config.enable_memory_monitoring,
             )
 
-    def _collect_activity_component(self, result: Dict, key: str, crud_func, *args):
-        """
-        Collect activity component data and store it in the result dictionary.
+            try:
+                data = crud_func(batch_ids, self.user_id, self.db, batch_activities)
+                if data:
+                    all_component_data.extend(data)
+            except Exception as err:
+                core_logger.print_to_log(
+                    f"Failed to collect batch for {component_key}: {err}",
+                    "warning",
+                    exc=err,
+                )
 
-        This method attempts to retrieve data using the provided CRUD function and stores
-        it in the result dictionary under the specified key. If the operation fails or
-        returns None, an empty list is stored instead.
-
-        Args:
-            result (Dict): The dictionary where the collected data will be stored.
-            key (str): The key under which the data will be stored in the result dictionary.
-            crud_func: The CRUD function to be called for data collection.
-            *args: Variable length argument list to be passed to the crud_func.
-
-        Returns:
-            None: The method modifies the result dictionary in place.
-
-        Raises:
-            No exceptions are raised. Exceptions from crud_func are caught and logged as warnings,
-            with an empty list stored in the result dictionary for the given key.
-
-        Side Effects:
-            - Modifies the result dictionary by adding or updating the specified key.
-            - Logs a warning message if data collection fails.
-        """
-        try:
-            data = crud_func(*args)
-            result[key] = data or []
-        except Exception as err:
             core_logger.print_to_log(
-                f"Failed to collect {key}: {err}", "warning", exc=err
+                f"Processed {component_key} batch {i//batch_size + 1} "
+                f"({len(batch_ids)} activities)",
+                "info",
             )
-            result[key] = []
 
-    def collect_gear_data(self) -> Dict[str, Any]:
-        """
-        Collects all gear and gear component data for the user.
-        This method retrieves both gear items and their associated components from the database
-        for the specified user. It handles errors gracefully by logging warnings and returning
-        empty lists for failed operations, while raising exceptions for critical database errors.
-        Returns:
-            Dict[str, Any]: A dictionary containing:
-                - gears (list): List of gear items belonging to the user. Empty list if
-                  collection fails or no gears exist.
-                - gear_components (list): List of gear components belonging to the user.
-                  Empty list if collection fails or no components exist.
-        Raises:
-            DatabaseConnectionError: If a SQLAlchemy database error occurs during data collection.
-        Note:
-            Individual collection failures (gears or components) are logged as warnings but don't
-            prevent the method from returning partial results.
-        """
-        result = {"gears": [], "gear_components": []}
+        # Write all component data to ZIP
+        if all_component_data:
+            component_dicts = [
+                profile_utils.sqlalchemy_obj_to_dict(item)
+                for item in all_component_data
+            ]
+            profile_utils.write_json_to_zip(
+                zipf, base_filename, component_dicts, self.counts
+            )
+            core_logger.print_to_log(
+                f"Written {len(component_dicts)} {component_key} items to ZIP",
+                "info",
+            )
+            # Clear from memory
+            all_component_data.clear()
+            component_dicts.clear()
+        else:
+            # Write empty file for component type
+            profile_utils.write_json_to_zip(zipf, base_filename, [], self.counts)
+            core_logger.print_to_log(
+                f"No {component_key} data found, written empty file",
+                "info",
+            )
 
+    def collect_gear_data(self, zipf: zipfile.ZipFile) -> None:
         try:
-            # Collect gears
+            # Collect and write gears
             try:
                 gears = gear_crud.get_gear_user(self.user_id, self.db)
-                result["gears"] = gears or []
+                if gears:
+                    gears_dicts = [
+                        profile_utils.sqlalchemy_obj_to_dict(g) for g in gears
+                    ]
+                    profile_utils.write_json_to_zip(
+                        zipf, "data/gears.json", gears_dicts, self.counts
+                    )
+                else:
+                    profile_utils.write_json_to_zip(
+                        zipf, "data/gears.json", [], self.counts
+                    )
             except Exception as err:
                 core_logger.print_to_log(
                     f"Failed to collect gears: {err}", "warning", exc=err
                 )
-                result["gears"] = []
+                profile_utils.write_json_to_zip(
+                    zipf, "data/gears.json", [], self.counts
+                )
 
-            # Collect gear components
+            # Collect and write gear components
             try:
                 gear_components = gear_components_crud.get_gear_components_user(
                     self.user_id, self.db
                 )
-                result["gear_components"] = gear_components or []
+                if gear_components:
+                    gear_components_dicts = [
+                        profile_utils.sqlalchemy_obj_to_dict(gc)
+                        for gc in gear_components
+                    ]
+                    profile_utils.write_json_to_zip(
+                        zipf,
+                        "data/gear_components.json",
+                        gear_components_dicts,
+                        self.counts,
+                    )
+                else:
+                    profile_utils.write_json_to_zip(
+                        zipf, "data/gear_components.json", [], self.counts
+                    )
             except Exception as err:
                 core_logger.print_to_log(
                     f"Failed to collect gear components: {err}", "warning", exc=err
                 )
-                result["gear_components"] = []
+                profile_utils.write_json_to_zip(
+                    zipf, "data/gear_components.json", [], self.counts
+                )
 
         except SQLAlchemyError as err:
             core_logger.print_to_log(
@@ -587,50 +557,59 @@ class ExportService:
                 f"Failed to collect gear data: {err}"
             ) from err
 
-        return result
-
-    def collect_health_data(self) -> Dict[str, Any]:
-        """
-        Collects health data and health targets for a specific user.
-        This method retrieves all health data records and health targets associated with
-        the user, handling errors gracefully by logging warnings and returning empty lists
-        for failed operations.
-        Returns:
-            Dict[str, Any]: A dictionary containing:
-                - health_data (list): List of health data records for the user, or empty list if retrieval fails
-                - health_targets (list): List of health targets for the user, or empty list if retrieval fails
-        Raises:
-            DatabaseConnectionError: If a SQLAlchemy database error occurs during data collection
-        Note:
-            Individual collection failures (health_data or health_targets) are logged as warnings
-            but do not raise exceptions. Only SQLAlchemy database errors will raise an exception.
-        """
-        result = {"health_data": [], "health_targets": []}
-
+    def collect_health_data(self, zipf: zipfile.ZipFile) -> None:
         try:
-            # Collect health data
+            # Collect and write health data
             try:
                 health_data = health_data_crud.get_all_health_data_by_user_id(
                     self.user_id, self.db
                 )
-                result["health_data"] = health_data or []
+                if health_data:
+                    health_data_dicts = [
+                        profile_utils.sqlalchemy_obj_to_dict(hd) for hd in health_data
+                    ]
+                    profile_utils.write_json_to_zip(
+                        zipf, "data/health_data.json", health_data_dicts, self.counts
+                    )
+                else:
+                    profile_utils.write_json_to_zip(
+                        zipf, "data/health_data.json", [], self.counts
+                    )
             except Exception as err:
                 core_logger.print_to_log(
                     f"Failed to collect health data: {err}", "warning", exc=err
                 )
-                result["health_data"] = []
+                profile_utils.write_json_to_zip(
+                    zipf, "data/health_data.json", [], self.counts
+                )
 
-            # Collect health targets
+            # Collect and write health targets
             try:
                 health_targets = health_targets_crud.get_health_targets_by_user_id(
                     self.user_id, self.db
                 )
-                result["health_targets"] = health_targets or []
+                if health_targets:
+                    # health_targets is a single object, not a list
+                    health_targets_dict = profile_utils.sqlalchemy_obj_to_dict(
+                        health_targets
+                    )
+                    profile_utils.write_json_to_zip(
+                        zipf,
+                        "data/health_targets.json",
+                        [health_targets_dict],
+                        self.counts,
+                    )
+                else:
+                    profile_utils.write_json_to_zip(
+                        zipf, "data/health_targets.json", [], self.counts
+                    )
             except Exception as err:
                 core_logger.print_to_log(
                     f"Failed to collect health targets: {err}", "warning", exc=err
                 )
-                result["health_targets"] = []
+                profile_utils.write_json_to_zip(
+                    zipf, "data/health_targets.json", [], self.counts
+                )
 
         except SQLAlchemyError as err:
             core_logger.print_to_log(
@@ -640,89 +619,120 @@ class ExportService:
                 f"Failed to collect health data: {err}"
             ) from err
 
-        return result
-
-    def collect_user_settings_data(self) -> Dict[str, Any]:
-        """
-        Collects all user settings data including default gear, goals, integrations, and privacy settings.
-        This method retrieves various user settings from the database and compiles them into a
-        dictionary. Each setting is collected individually with its own error handling to ensure
-        partial data collection even if some queries fail.
-        Returns:
-            Dict[str, Any]: A dictionary containing:
-                - user_default_gear: User's default gear settings or None if not found/error
-                - user_integrations: User's integration settings or None if not found/error
-                - user_goals: List of user goals or empty list if not found/error
-                - user_privacy_settings: User's privacy settings or None if not found/error
-        Raises:
-            DatabaseConnectionError: If a database connection error occurs during data collection.
-        Note:
-            Individual collection failures are logged as warnings and result in None or empty
-            values for the respective fields, allowing partial data collection to continue.
-        """
-        result = {
-            "user_default_gear": None,
-            "user_integrations": None,
-            "user_goals": [],
-            "user_privacy_settings": None,
-        }
-
+    def collect_user_settings_data(self, zipf: zipfile.ZipFile) -> None:
         try:
-            # Collect user default gear
+            # Collect and write user default gear
             try:
                 user_default_gear = (
                     user_default_gear_crud.get_user_default_gear_by_user_id(
                         self.user_id, self.db
                     )
                 )
-                result["user_default_gear"] = user_default_gear
+                if user_default_gear:
+                    default_gear_dict = [
+                        profile_utils.sqlalchemy_obj_to_dict(user_default_gear)
+                    ]
+                    profile_utils.write_json_to_zip(
+                        zipf,
+                        "data/user_default_gear.json",
+                        default_gear_dict,
+                        self.counts,
+                    )
+                else:
+                    profile_utils.write_json_to_zip(
+                        zipf, "data/user_default_gear.json", [], self.counts
+                    )
             except Exception as err:
                 core_logger.print_to_log(
                     f"Failed to collect user default gear: {err}", "warning", exc=err
                 )
-                result["user_default_gear"] = None
+                profile_utils.write_json_to_zip(
+                    zipf, "data/user_default_gear.json", [], self.counts
+                )
 
-            # Collect user goals
+            # Collect and write user goals
             try:
                 user_goals = user_goals_crud.get_user_goals_by_user_id(
                     self.user_id, self.db
                 )
-                result["user_goals"] = user_goals or []
+                if user_goals:
+                    user_goals_dicts = [
+                        profile_utils.sqlalchemy_obj_to_dict(ug) for ug in user_goals
+                    ]
+                    profile_utils.write_json_to_zip(
+                        zipf, "data/user_goals.json", user_goals_dicts, self.counts
+                    )
+                else:
+                    profile_utils.write_json_to_zip(
+                        zipf, "data/user_goals.json", [], self.counts
+                    )
             except Exception as err:
                 core_logger.print_to_log(
                     f"Failed to collect user goals: {err}", "warning", exc=err
                 )
-                result["user_goals"] = []
+                profile_utils.write_json_to_zip(
+                    zipf, "data/user_goals.json", [], self.counts
+                )
 
-            # Collect user integrations
+            # Collect and write user integrations
             try:
                 user_integrations = (
                     user_integrations_crud.get_user_integrations_by_user_id(
                         self.user_id, self.db
                     )
                 )
-                result["user_integrations"] = user_integrations
+                if user_integrations:
+                    integrations_dict = [
+                        profile_utils.sqlalchemy_obj_to_dict(user_integrations)
+                    ]
+                    profile_utils.write_json_to_zip(
+                        zipf,
+                        "data/user_integrations.json",
+                        integrations_dict,
+                        self.counts,
+                    )
+                else:
+                    profile_utils.write_json_to_zip(
+                        zipf, "data/user_integrations.json", [], self.counts
+                    )
             except Exception as err:
                 core_logger.print_to_log(
                     f"Failed to collect user integrations: {err}", "warning", exc=err
                 )
-                result["user_integrations"] = None
+                profile_utils.write_json_to_zip(
+                    zipf, "data/user_integrations.json", [], self.counts
+                )
 
-            # Collect user privacy settings
+            # Collect and write user privacy settings
             try:
                 user_privacy_settings = (
                     users_privacy_settings_crud.get_user_privacy_settings_by_user_id(
                         self.user_id, self.db
                     )
                 )
-                result["user_privacy_settings"] = user_privacy_settings
+                if user_privacy_settings:
+                    privacy_dict = [
+                        profile_utils.sqlalchemy_obj_to_dict(user_privacy_settings)
+                    ]
+                    profile_utils.write_json_to_zip(
+                        zipf,
+                        "data/user_privacy_settings.json",
+                        privacy_dict,
+                        self.counts,
+                    )
+                else:
+                    profile_utils.write_json_to_zip(
+                        zipf, "data/user_privacy_settings.json", [], self.counts
+                    )
             except Exception as err:
                 core_logger.print_to_log(
                     f"Failed to collect user privacy settings: {err}",
                     "warning",
                     exc=err,
                 )
-                result["user_privacy_settings"] = None
+                profile_utils.write_json_to_zip(
+                    zipf, "data/user_privacy_settings.json", [], self.counts
+                )
 
         except SQLAlchemyError as err:
             core_logger.print_to_log(
@@ -732,28 +742,9 @@ class ExportService:
                 f"Failed to collect user settings: {err}"
             ) from err
 
-        return result
-
     def add_activity_files_to_zip(
-        self, zipf: zipfile.ZipFile, user_activities: List[Any]
+        self, zipf: zipfile.ZipFile, user_activities: list[Any]
     ):
-        """
-        Add activity files to the zip archive for activities in the user's activity list.
-        This method walks through the processed files directory and adds files matching
-        activity IDs to the zip archive. Files are stored in an 'activity_files' subdirectory
-        within the archive, maintaining the original directory structure.
-        Args:
-            zipf (zipfile.ZipFile): The zip file object to add files to.
-            user_activities (List[Any]): List of activity objects containing IDs to match
-                against file names.
-        Raises:
-            FileSystemError: If there's a critical error accessing the activity files directory.
-        Notes:
-            - Files are matched by comparing their filename (without extension) to activity IDs.
-            - Missing or inaccessible files are logged as warnings and skipped.
-            - The method increments self.counts["activity_files"] for each successfully added file.
-            - Individual file errors do not stop processing of remaining files.
-        """
         if not user_activities:
             return
 
@@ -814,33 +805,8 @@ class ExportService:
             ) from err
 
     def add_activity_media_to_zip(
-        self, zipf: zipfile.ZipFile, user_activities: List[Any]
+        self, zipf: zipfile.ZipFile, user_activities: list[Any]
     ):
-        """
-        Add activity media files to the ZIP archive for the specified user activities.
-        This method walks through the activity media directory, identifies media files
-        that belong to the user's activities, and adds them to the provided ZIP file
-        under the 'activity_media' directory structure.
-        Args:
-            zipf (zipfile.ZipFile): The ZIP file object to write media files to.
-            user_activities (List[Any]): List of activity objects containing user activities.
-                Each activity must have an 'id' attribute used to match media files.
-        Returns:
-            None
-        Raises:
-            FileSystemError: If there's a file system error preventing access to the
-                media files directory.
-        Side Effects:
-            - Increments self.counts["media"] for each successfully added media file
-            - Logs warnings for missing files, read errors, or unexpected errors
-            - Logs errors for file system access issues
-        Notes:
-            - Media files are matched to activities by parsing the filename prefix
-              (before underscore) as the activity ID
-            - Files that cannot be read or don't exist are skipped with a warning
-            - Returns early if user_activities is empty or media directory doesn't exist
-            - Media files are stored in the ZIP with relative paths under 'activity_media/'
-        """
         if not user_activities:
             return
 
@@ -904,27 +870,6 @@ class ExportService:
             ) from err
 
     def add_user_images_to_zip(self, zipf: zipfile.ZipFile):
-        """
-        Add user profile images to the ZIP archive using optimized file operations.
-
-        This method searches for user profile images in the configured user images directory,
-        filters them by user ID, and adds matching images to the provided ZIP file using
-        optimized directory traversal and file size monitoring.
-
-        Args:
-            zipf (zipfile.ZipFile): The ZIP file object to add images to.
-
-        Raises:
-            FileSystemError: If there's a file system error accessing the user images directory.
-
-        Note:
-            - Images are stored in a 'user_images' subdirectory within the ZIP archive
-            - Only images whose filename (without extension) matches the user_id are included
-            - Uses os.scandir() for optimized directory traversal
-            - Includes file size monitoring and warnings for large files
-            - Individual file errors are logged as warnings and don't stop the process
-            - Updates self.counts["user_images"] with the number of images added
-        """
         try:
             if not os.path.exists(core_config.USER_IMAGES_DIR):
                 core_logger.print_to_log(
@@ -942,26 +887,6 @@ class ExportService:
             raise FileSystemError(f"Failed to add user images: {err}") from err
 
     def _add_user_images_optimized(self, zipf: zipfile.ZipFile, images_dir: str):
-        """
-        Recursively adds user image files from a directory to a ZIP archive.
-
-        This method traverses the specified directory and its subdirectories, processing
-        each image file found and adding it to the provided ZIP file object. It handles
-        permission errors and OS errors gracefully by logging warnings without stopping
-        the process.
-
-        Args:
-            zipf (zipfile.ZipFile): The ZIP file object to which images will be added.
-            images_dir (str): The path to the directory containing user images to process.
-
-        Raises:
-            PermissionError: Logged as a warning when access to a directory is denied.
-            OSError: Logged as a warning when an OS-level error occurs during directory access.
-
-        Note:
-            This method follows symlinks for directory traversal but not for individual files.
-            It delegates individual file processing to _process_user_image_file().
-        """
         try:
             with os.scandir(images_dir) as entries:
                 for entry in entries:
@@ -980,36 +905,6 @@ class ExportService:
             )
 
     def _process_user_image_file(self, zipf: zipfile.ZipFile, entry, images_dir: str):
-        """
-        Process and add a user image file to the export ZIP archive.
-        This method handles the processing of user profile image files during the export operation.
-        It performs validation, size checking, memory monitoring, and adds the file to the ZIP archive
-        with appropriate error handling.
-        Args:
-            zipf (zipfile.ZipFile): The ZIP file object to write the image to.
-            entry: A directory entry object (typically from os.scandir()) containing file information.
-                   Must have 'name', 'path', and 'stat()' methods.
-            images_dir (str): The base directory path where user images are stored. Used to calculate
-                             relative paths within the ZIP archive.
-        Returns:
-            None
-        Side Effects:
-            - Writes the user image file to the ZIP archive under 'user_images/' directory
-            - Increments self.counts["user_images"] counter on success
-            - Logs warnings for large files (>10MB), permission errors, or other issues
-            - May trigger memory usage checks for files larger than 5MB
-        Raises:
-            Does not raise exceptions - all errors are caught and logged as warnings:
-            - FileNotFoundError: When the image file cannot be found
-            - PermissionError: When access to the file is denied
-            - OSError: For other OS-level file operation errors
-            - Exception: For any unexpected errors during processing
-        Notes:
-            - Only processes files where the filename (without extension) matches self.user_id
-            - Large files (>10MB) trigger warning logs
-            - Files >5MB trigger memory usage monitoring via profile_utils.check_memory_usage()
-            - All file paths in the ZIP are relative to maintain portability
-        """
         try:
             file_id, _ = os.path.splitext(entry.name)
             if str(self.user_id) == file_id:
@@ -1051,125 +946,20 @@ class ExportService:
                 f"Unexpected error with image {entry.path}: {err}", "warning", exc=err
             )
 
-    def write_data_to_zip(
-        self, zipf: zipfile.ZipFile, data_collections: Dict[str, Any]
-    ):
-        """
-        Write collected user data to a ZIP file in JSON format.
-        This method organizes and writes various user data collections (activities, gear, health,
-        settings, and user information) into separate JSON files within a ZIP archive. Each data
-        collection is processed and converted from SQLAlchemy objects to dictionaries before being
-        written.
-        Args:
-            zipf (zipfile.ZipFile): An open ZIP file object in write mode where the data will be stored.
-            data_collections (Dict[str, Any]): A dictionary containing different categories of user data:
-                - "activities" (dict): Contains activities, laps, sets, streams, steps, media, and exercise_titles
-                - "gear" (dict): Contains gears and gear_components
-                - "health" (dict): Contains health_data and health_targets
-                - "settings" (dict): Contains user_default_gear, user_integrations, user_goals, and user_privacy_settings
-                - "user" (Any): User profile information
-        Returns:
-            None
-        Note:
-            - Each data item is converted to a dictionary using profile_utils.sqlalchemy_obj_to_dict
-            - Single objects are converted to single-item lists before processing
-            - Empty data collections are skipped
-            - All data files are written to a "data/" subdirectory within the ZIP
-            - A counts.json file is written to track the number of records for each data type
-        """
-        # Prepare data for writing
-        activities_data = data_collections.get("activities", {})
-        gear_data = data_collections.get("gear", {})
-        health_data = data_collections.get("health", {})
-        settings_data = data_collections.get("settings", {})
-        user_data = data_collections.get("user", {})
-
-        # Define data to write with their target filenames
-        data_to_write = [
-            (activities_data.get("activities", []), "data/activities.json"),
-            (activities_data.get("laps", []), "data/activity_laps.json"),
-            (activities_data.get("sets", []), "data/activity_sets.json"),
-            (activities_data.get("streams", []), "data/activity_streams.json"),
-            (activities_data.get("steps", []), "data/activity_workout_steps.json"),
-            (activities_data.get("media", []), "data/activity_media.json"),
-            (
-                activities_data.get("exercise_titles", []),
-                "data/activity_exercise_titles.json",
-            ),
-            (gear_data.get("gears", []), "data/gears.json"),
-            (gear_data.get("gear_components", []), "data/gear_components.json"),
-            (health_data.get("health_data", []), "data/health_data.json"),
-            (health_data.get("health_targets", []), "data/health_targets.json"),
-            (settings_data.get("user_default_gear"), "data/user_default_gear.json"),
-            (settings_data.get("user_integrations"), "data/user_integrations.json"),
-            (settings_data.get("user_goals"), "data/user_goals.json"),
-            (
-                settings_data.get("user_privacy_settings"),
-                "data/user_privacy_settings.json",
-            ),
-            (user_data, "data/user.json"),
-            (self.counts, "counts.json"),
-        ]
-
-        for data, filename in data_to_write:
-            if data:
-                if not isinstance(data, (list, tuple)):
-                    data = [data]
-                dicts = [profile_utils.sqlalchemy_obj_to_dict(item) for item in data]
-                profile_utils.write_json_to_zip(zipf, filename, dicts, self.counts)
-
     def generate_export_archive(
-        self, user_dict: Dict[str, Any], timeout_seconds: int | None = 300
+        self, user_dict: dict[str, Any], timeout_seconds: int | None = 300
     ) -> Generator[bytes, None, None]:
-        """
-        Generate a ZIP archive containing all user data for export.
-
-        This method creates a comprehensive archive of user data including activities,
-        gear, health information, settings, and associated media files. The archive is
-        generated as a stream to handle large datasets efficiently.
-
-        Args:
-            user_dict (Dict[str, Any]): Dictionary containing user profile information.
-            timeout_seconds (int | None): Maximum time in seconds allowed for
-                the export operation. If None, no timeout is enforced. Defaults to 300.
-
-        Yields:
-            bytes: Chunks of the ZIP archive file (8192 bytes each) for streaming.
-
-        Raises:
-            TimeoutError: If the operation exceeds the specified timeout_seconds.
-            ZipCreationError: If there's an error creating the ZIP archive, including
-                BadZipFile or LargeZipFile errors.
-            MemoryAllocationError: If there's insufficient memory during archive creation
-                or streaming.
-            FileSystemError: If there's a file system error during the export process.
-
-        Note:
-            The method performs timeout checks at various stages of the export process
-            to prevent long-running operations. All collected data is written to a
-            temporary file that is automatically deleted after streaming is complete.
-
-        Example:
-            >>> for chunk in export_service.generate_export_archive(user_data):
-            ...     # Process or send each chunk
-            ...     pass
-        """
         start_time = time.time()
 
         try:
             with tempfile.NamedTemporaryFile(delete=True) as tmp:
                 try:
-                    # Use configurable compression level for performance tuning
-                    # ZIP_DEFLATED ensures proper ZIP format with standard compression
-                    # This creates a valid ZIP file that will be correctly detected by MIME type validators
                     compression_level = self.performance_config.compression_level
                     core_logger.print_to_log(
                         f"Creating ZIP with compression level {compression_level}",
                         "info",
                     )
 
-                    # Note: Using 'w' mode creates a proper ZIP archive with correct headers
-                    # The file will have the standard ZIP magic bytes (PK\x03\x04) at the start
                     with zipfile.ZipFile(
                         tmp,
                         "w",
@@ -1180,36 +970,53 @@ class ExportService:
                             f"Starting export for user {self.user_id}", "info"
                         )
 
-                        # Collect all data with timeout checks
+                        # Collect and write activities data progressively
                         profile_utils.check_timeout(
                             timeout_seconds, start_time, ExportTimeoutError, "Export"
                         )
                         core_logger.print_to_log(
-                            "Collecting activities data...", "info"
+                            "Collecting and writing activities data...", "info"
                         )
-                        activities_data = self.collect_user_activities_data()
+                        user_activities = self.collect_user_activities_data(zipf)
 
+                        # Collect and write gear data progressively
                         profile_utils.check_timeout(
                             timeout_seconds, start_time, ExportTimeoutError, "Export"
                         )
-                        core_logger.print_to_log("Collecting gear data...", "info")
-                        gear_data = self.collect_gear_data()
+                        core_logger.print_to_log(
+                            "Collecting and writing gear data...", "info"
+                        )
+                        self.collect_gear_data(zipf)
 
+                        # Collect and write health data progressively
                         profile_utils.check_timeout(
                             timeout_seconds, start_time, ExportTimeoutError, "Export"
                         )
-                        core_logger.print_to_log("Collecting health data...", "info")
-                        health_data = self.collect_health_data()
+                        core_logger.print_to_log(
+                            "Collecting and writing health data...", "info"
+                        )
+                        self.collect_health_data(zipf)
 
+                        # Collect and write settings data progressively
                         profile_utils.check_timeout(
                             timeout_seconds, start_time, ExportTimeoutError, "Export"
                         )
-                        core_logger.print_to_log("Collecting settings data...", "info")
-                        settings_data = self.collect_user_settings_data()
+                        core_logger.print_to_log(
+                            "Collecting and writing settings data...", "info"
+                        )
+                        self.collect_user_settings_data(zipf)
+
+                        # Write user data
+                        profile_utils.check_timeout(
+                            timeout_seconds, start_time, ExportTimeoutError, "Export"
+                        )
+                        core_logger.print_to_log("Writing user data...", "info")
+                        user_dict_list = [user_dict]
+                        profile_utils.write_json_to_zip(
+                            zipf, "data/user.json", user_dict_list, self.counts
+                        )
 
                         # Add files to ZIP with timeout checks
-                        user_activities = activities_data["activities"]
-
                         profile_utils.check_timeout(
                             timeout_seconds, start_time, ExportTimeoutError, "Export"
                         )
@@ -1234,21 +1041,14 @@ class ExportService:
                         )
                         self.add_user_images_to_zip(zipf)
 
-                        # Organize data collections
-                        data_collections = {
-                            "activities": activities_data,
-                            "gear": gear_data,
-                            "health": health_data,
-                            "settings": settings_data,
-                            "user": user_dict,
-                        }
-
-                        # Write all data to ZIP
+                        # Write counts file
                         profile_utils.check_timeout(
                             timeout_seconds, start_time, ExportTimeoutError, "Export"
                         )
-                        core_logger.print_to_log("Writing data to archive...", "info")
-                        self.write_data_to_zip(zipf, data_collections)
+                        core_logger.print_to_log("Writing counts file...", "info")
+                        profile_utils.write_json_to_zip(
+                            zipf, "counts.json", [self.counts], self.counts
+                        )
 
                         profile_utils.check_timeout(
                             timeout_seconds, start_time, ExportTimeoutError, "Export"
@@ -1270,6 +1070,10 @@ class ExportService:
                         f"ZIP file too large: {err}", "error", exc=err
                     )
                     raise ZipCreationError(f"Export archive too large: {err}") from err
+                except MemoryAllocationError as err:
+                    raise err
+                except Exception as err:
+                    raise err
 
                 # Ensure all data is written to disk before streaming
                 # This is critical for proper ZIP file structure and MIME type detection
@@ -1308,7 +1112,8 @@ class ExportService:
                     f"Successfully streamed {chunk_count} chunks for user {self.user_id}",
                     "info",
                 )
-
+        except MemoryAllocationError as err:
+            raise err
         except OSError as err:
             core_logger.print_to_log(
                 f"File system error during export: {err}", "error", exc=err
