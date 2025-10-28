@@ -5,17 +5,6 @@ from sqlalchemy.engine.url import URL
 
 import core.config as core_config
 
-# Fetch the database type (e.g., mariadb or postgresql)
-db_type = os.environ.get("DB_TYPE", "postgres").lower()
-
-# Define supported database drivers
-supported_drivers = {"mariadb": "mysql+mysqldb", "postgres": "postgresql+psycopg"}
-
-if db_type not in supported_drivers:
-    raise ValueError(
-        f"Unsupported DB_TYPE: {db_type}. Supported types are {list(supported_drivers.keys())}"
-    )
-
 # Define the database connection URL using environment variables
 db_url = URL.create(
     drivername="postgresql+psycopg",

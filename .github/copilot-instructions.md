@@ -242,6 +242,57 @@ Study these files as templates when creating/refactoring components:
 - **ResetPasswordView.vue** (~320 lines) - Password reset with token validation
 - **ModalComponentEmailInput.vue** - RFC 5322 email validation
 
+### Backend Component Standards - Python Code Style Requirements
+
+#### Modern Python Syntax (Python 3.13+)
+- Use modern type hint syntax: `int | None`, `list[str]`, 
+  `dict[str, Any]`
+- Do NOT use `typing.Optional`, `typing.List`, `typing.Dict`, etc.
+- Target Python 3.13+ features and syntax
+
+#### PEP 8 Line Limits
+- Code lines: **79 characters maximum**
+- Comments and docstrings: **72 characters maximum**
+- Enforce strictly - no exceptions
+
+#### Docstring Standard (PEP 257)
+- **Always follow PEP 257** with Args/Returns/Raises sections
+- **Format**: One-line summary, blank line, then 
+  Args/Returns/Raises sections
+- **Always include Args/Returns/Raises** even when parameters seem 
+  obvious
+- **NO examples** in docstrings - keep in external docs or tests
+- **NO extended explanations** - one-line summary + sections only
+- **Keep concise** - describe what, not how
+
+**Function docstring format:**
+```python
+def function(param: str) -> int:
+    """
+    One-line summary of what this does.
+
+    Args:
+        param: Description of param.
+
+    Returns:
+        Description of return value.
+
+    Raises:
+        ValueError: When param is invalid.
+    """
+```
+
+**Class docstring format:**
+```python
+class MyClass:
+    """
+    One-line summary of the class.
+
+    Attributes:
+        attr: Description of attribute.
+    """
+```
+
 ---
 
 ## Code Review Checklist
@@ -281,66 +332,3 @@ Study these files as templates when creating/refactoring components:
 - **Deployment:** Docker multi-stage builds, multi-architecture images
 
 ---
-
-## Refactoring Priority
-
-1. Authentication flows (login/signup/reset)
-2. Settings (profile/security/integrations)
-3. Activity views (list/detail/edit)
-4. Reusable modals
-5. Utility and validation logic
-
-
-## Task Execution Guidelines
-
-
-## Python Code Style Requirements
-
-### Modern Python Syntax (Python 3.13+)
-- Use modern type hint syntax: `int | None`, `list[str]`, 
-  `dict[str, Any]`
-- Do NOT use `typing.Optional`, `typing.List`, `typing.Dict`, etc.
-- Target Python 3.13+ features and syntax
-
-### PEP 8 Line Limits
-- Code lines: **79 characters maximum**
-- Comments and docstrings: **72 characters maximum**
-- Enforce strictly - no exceptions
-
-### Docstring Standard (PEP 257)
-- **Always follow PEP 257** with Args/Returns/Raises sections
-- **Format**: One-line summary, blank line, then 
-  Args/Returns/Raises sections
-- **Always include Args/Returns/Raises** even when parameters seem 
-  obvious
-- **NO examples** in docstrings - keep in external docs or tests
-- **NO extended explanations** - one-line summary + sections only
-- **Keep concise** - describe what, not how
-
-**Function docstring format:**
-```python
-def function(param: str) -> int:
-    """
-    One-line summary of what this does.
-
-    Args:
-        param: Description of param.
-
-    Returns:
-        Description of return value.
-
-    Raises:
-        ValueError: When param is invalid.
-    """
-```
-
-**Class docstring format:**
-```python
-class MyClass:
-    """
-    One-line summary of the class.
-
-    Attributes:
-        attr: Description of attribute.
-    """
-```

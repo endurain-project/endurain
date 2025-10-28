@@ -11,7 +11,6 @@ import session.security as session_security
 import users.user_integrations.crud as user_integrations_crud
 
 import gears.gear.crud as gears_crud
-import gears.gear.utils as gears_utils
 
 import activities.activity.crud as activities_crud
 import activities.activity.utils as activities_utils
@@ -237,7 +236,7 @@ async def import_bikes_from_strava_export(
 async def import_shoes_from_strava_export(
     token_user_id: Annotated[
         int,
-        Depends(session_security.get_user_id_from_access_token),
+        Depends(session_security.get_sid_from_access_token),
     ],
     db: Annotated[
         Session,
