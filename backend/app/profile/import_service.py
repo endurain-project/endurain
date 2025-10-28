@@ -2,7 +2,6 @@ import os
 import json
 import zipfile
 import time
-import ijson
 from io import BytesIO
 from typing import Any
 from sqlalchemy.orm import Session
@@ -369,44 +368,16 @@ class ImportService:
                 )
                 activities_data = self._load_single_json(zipf, "data/activities.json")
 
-                # Use streaming for large files that can cause memory issues
-                # We'll build dictionaries grouped by activity_id as we stream
-                core_logger.print_to_log(
-                    "Loading large activity data files using streaming parser...",
-                    "info",
-                )
-
-                # Stream and organize by activity_id to avoid loading everything into memory
-                activity_laps_by_id = {}
-                for batch in self._stream_large_json_batches(
+                # Load activity component data
+                activity_laps_data = self._load_single_json(
                     zipf, "data/activity_laps.json"
-                ):
-                    for lap in batch:
-                        act_id = lap.get("activity_id")
-                        if act_id not in activity_laps_by_id:
-                            activity_laps_by_id[act_id] = []
-                        activity_laps_by_id[act_id].append(lap)
-
-                activity_sets_by_id = {}
-                for batch in self._stream_large_json_batches(
+                )
+                activity_sets_data = self._load_single_json(
                     zipf, "data/activity_sets.json"
-                ):
-                    for activity_set in batch:
-                        act_id = activity_set.get("activity_id")
-                        if act_id not in activity_sets_by_id:
-                            activity_sets_by_id[act_id] = []
-                        activity_sets_by_id[act_id].append(activity_set)
-
-                activity_streams_by_id = {}
-                for batch in self._stream_large_json_batches(
+                )
+                activity_streams_data = self._load_single_json(
                     zipf, "data/activity_streams.json"
-                ):
-                    for stream in batch:
-                        act_id = stream.get("activity_id")
-                        if act_id not in activity_streams_by_id:
-                            activity_streams_by_id[act_id] = []
-                        activity_streams_by_id[act_id].append(stream)
-
+                )
                 activity_workout_steps_data = self._load_single_json(
                     zipf, "data/activity_workout_steps.json"
                 )
@@ -419,16 +390,16 @@ class ImportService:
 
                 activities_id_mapping = await self.collect_and_import_activities_data(
                     activities_data,
-                    activity_laps_by_id,
-                    activity_sets_by_id,
-                    activity_streams_by_id,
+                    activity_laps_data,
+                    activity_sets_data,
+                    activity_streams_data,
                     activity_workout_steps_data,
                     activity_media_data,
                     activity_exercise_titles_data,
                     gears_id_mapping,
                 )
-                del activities_data, activity_laps_by_id, activity_sets_by_id
-                del activity_streams_by_id, activity_workout_steps_data
+                del activities_data, activity_laps_data, activity_sets_data
+                del activity_streams_data, activity_workout_steps_data
                 del activity_media_data, activity_exercise_titles_data
 
                 # Load and import health data
@@ -511,74 +482,6 @@ class ImportService:
 
             return data
         except json.JSONDecodeError as err:
-            error_msg = f"Failed to parse JSON from {filename}: {err}"
-            core_logger.print_to_log(error_msg, "error")
-            raise JSONParseError(error_msg) from err
-
-    def _stream_large_json_batches(self, zipf: zipfile.ZipFile, filename: str):
-        """
-        Stream a large JSON array file from the ZIP archive in batches without loading it entirely into memory.
-
-        This method uses ijson to incrementally parse large JSON array files, yielding them
-        in batches to avoid memory exhaustion. This is a generator that yields batches as they're parsed.
-
-        Args:
-            zipf (zipfile.ZipFile): An opened ZipFile object to read from.
-            filename (str): The path to the JSON file within the ZIP archive.
-
-        Yields:
-            list[Any]: Batches of parsed items from the JSON array.
-
-        Raises:
-            JSONParseError: If JSON parsing fails for the file.
-            MemoryError: If memory usage exceeds configured limits during streaming.
-
-        Note:
-            - This method is specifically designed for large array files like activity_streams
-            - Returns immediately if file not found (yields nothing)
-            - Memory is checked after yielding each batch
-            - Batches are yielded based on batch_size config
-        """
-        try:
-            file_list = set(zipf.namelist())
-            if filename not in file_list:
-                return
-
-            batch = []
-            items_processed = 0
-
-            # Open the file from ZIP and stream parse it
-            with zipf.open(filename) as f:
-                # Parse array items one at a time
-                parser = ijson.items(f, "item")
-
-                for item in parser:
-                    batch.append(item)
-                    items_processed += 1
-
-                    # When batch is full, yield it and check memory
-                    if len(batch) >= self.performance_config.batch_size:
-                        yield batch
-
-                        # Memory check after yielding (old batch can now be GC'd)
-                        profile_utils.check_memory_usage(
-                            f"streaming {filename} ({items_processed} items processed)",
-                            self.performance_config.max_memory_mb,
-                            self.performance_config.enable_memory_monitoring,
-                        )
-
-                        batch = []
-
-                # Yield remaining items
-                if batch:
-                    yield batch
-
-            core_logger.print_to_log(
-                f"Streamed {items_processed} items from {filename} in batches",
-                "debug",
-            )
-
-        except (json.JSONDecodeError, ijson.JSONError) as err:
             error_msg = f"Failed to parse JSON from {filename}: {err}"
             core_logger.print_to_log(error_msg, "error")
             raise JSONParseError(error_msg) from err
@@ -952,9 +855,9 @@ class ImportService:
     async def collect_and_import_activities_data(
         self,
         activities_data: list[Any],
-        activity_laps_by_id: dict[int, list[Any]],
-        activity_sets_by_id: dict[int, list[Any]],
-        activity_streams_by_id: dict[int, list[Any]],
+        activity_laps_data: list[Any],
+        activity_sets_data: list[Any],
+        activity_streams_data: list[Any],
         activity_workout_steps_data: list[Any],
         activity_media_data: list[Any],
         activity_exercise_titles_data: list[Any],
@@ -969,9 +872,9 @@ class ImportService:
 
         Args:
             activities_data (list[Any]): List of activity records to import.
-            activity_laps_by_id (dict[int, list[Any]]): Dictionary of lap records grouped by original activity_id.
-            activity_sets_by_id (dict[int, list[Any]]): Dictionary of set records grouped by original activity_id.
-            activity_streams_by_id (dict[int, list[Any]]): Dictionary of stream records grouped by original activity_id.
+            activity_laps_data (list[Any]): List of lap records for all activities.
+            activity_sets_data (list[Any]): List of set records for all activities.
+            activity_streams_data (list[Any]): List of stream records for all activities.
             activity_workout_steps_data (list[Any]): List of workout step records.
             activity_media_data (list[Any]): List of media records for activities.
             activity_exercise_titles_data (list[Any]): List of exercise title records.
@@ -1028,11 +931,11 @@ class ImportService:
             )
             if original_activity_id is not None and new_activity.id is not None:
                 activities_id_mapping[original_activity_id] = new_activity.id
-                # Import activity components - get data for this specific activity from dictionaries
+                # Import activity components - pass full lists, will filter inside
                 await self.collect_and_import_activity_components(
-                    activity_laps_by_id.get(original_activity_id, []),
-                    activity_sets_by_id.get(original_activity_id, []),
-                    activity_streams_by_id.get(original_activity_id, []),
+                    activity_laps_data,
+                    activity_sets_data,
+                    activity_streams_data,
                     activity_workout_steps_data,
                     activity_media_data,
                     activity_exercise_titles_data,
@@ -1088,10 +991,15 @@ class ImportService:
             All original IDs are removed from the component data before creating new records
             to allow the database to assign new IDs automatically.
         """
-        # Import laps (already filtered by activity_id when passed from dictionary)
+        # Import laps - filter for this activity
         if activity_laps_data:
             laps = []
-            for lap_data in activity_laps_data:
+            laps_for_activity = [
+                lap
+                for lap in activity_laps_data
+                if lap.get("activity_id") == original_activity_id
+            ]
+            for lap_data in laps_for_activity:
                 lap_data.pop("id", None)
                 lap_data["activity_id"] = new_activity_id
                 laps.append(lap_data)
@@ -1100,10 +1008,15 @@ class ImportService:
                 activity_laps_crud.create_activity_laps(laps, new_activity_id, self.db)
                 self.counts["activity_laps"] += len(laps)
 
-        # Import sets (already filtered by activity_id when passed from dictionary)
+        # Import sets - filter for this activity
         if activity_sets_data:
             sets = []
-            for activity_set in activity_sets_data:
+            sets_for_activity = [
+                activity_set
+                for activity_set in activity_sets_data
+                if activity_set.get("activity_id") == original_activity_id
+            ]
+            for activity_set in sets_for_activity:
                 activity_set.pop("id", None)
                 activity_set["activity_id"] = new_activity_id
                 set_activity = activity_sets_schema.ActivitySets(**activity_set)
@@ -1113,10 +1026,15 @@ class ImportService:
                 activity_sets_crud.create_activity_sets(sets, new_activity_id, self.db)
                 self.counts["activity_sets"] += len(sets)
 
-        # Import streams (already filtered by activity_id when passed from dictionary)
+        # Import streams - filter for this activity
         if activity_streams_data:
             streams = []
-            for stream_data in activity_streams_data:
+            streams_for_activity = [
+                stream
+                for stream in activity_streams_data
+                if stream.get("activity_id") == original_activity_id
+            ]
+            for stream_data in streams_for_activity:
                 stream_data.pop("id", None)
                 stream_data["activity_id"] = new_activity_id
                 stream = activity_streams_schema.ActivityStreams(**stream_data)
