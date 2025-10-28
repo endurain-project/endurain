@@ -35,6 +35,18 @@ import users.user_privacy_settings.crud as users_privacy_settings_crud
 
 
 class ExportPerformanceConfig(profile_utils.BasePerformanceConfig):
+    """
+    Performance configuration for export operations.
+
+    Attributes:
+        batch_size: Number of items per batch.
+        max_memory_mb: Maximum memory in megabytes.
+        compression_level: ZIP compression level.
+        chunk_size: Data chunk size in bytes.
+        enable_memory_monitoring: Enable memory monitoring.
+        timeout_seconds: Operation timeout in seconds.
+    """
+
     def __init__(
         self,
         batch_size: int = 125,
@@ -52,6 +64,12 @@ class ExportPerformanceConfig(profile_utils.BasePerformanceConfig):
 
     @classmethod
     def _get_tier_configs(cls) -> dict[str, dict[str, Any]]:
+        """
+        Get tier-specific configuration dictionaries.
+
+        Returns:
+            Dictionary mapping tier names to config dicts.
+        """
         return {
             "high": {
                 "batch_size": 250,
@@ -78,6 +96,16 @@ class ExportPerformanceConfig(profile_utils.BasePerformanceConfig):
 
 
 class ExportService:
+    """
+    Service for exporting user profile data to ZIP archive.
+
+    Attributes:
+        user_id: ID of user to export data for.
+        db: Database session.
+        counts: Dictionary tracking exported item counts.
+        performance_config: Performance configuration.
+    """
+
     def __init__(
         self,
         user_id: int,
@@ -101,6 +129,20 @@ class ExportService:
         )
 
     def collect_user_activities_data(self, zipf: zipfile.ZipFile) -> list[Any]:
+        """
+        Collect and write user activities to ZIP.
+
+        Args:
+            zipf: ZipFile instance to write to.
+
+        Returns:
+            List of collected activity objects.
+
+        Raises:
+            DatabaseConnectionError: If database error occurs.
+            MemoryAllocationError: If memory limit exceeded.
+            DataCollectionError: If collection fails.
+        """
         try:
             profile_utils.check_memory_usage(
                 "activity collection start",
@@ -225,6 +267,16 @@ class ExportService:
         return all_activities
 
     def _get_activities_batch(self, offset: int, limit: int) -> list[Any]:
+        """
+        Get batch of activities using pagination.
+
+        Args:
+            offset: Offset for pagination.
+            limit: Number of items per batch.
+
+        Returns:
+            List of activity objects for the batch.
+        """
         try:
             # Convert offset to page number (1-based indexing)
             page_number = (offset // limit) + 1
@@ -256,6 +308,14 @@ class ExportService:
         activity_ids: list[int],
         user_activities: list[Any],
     ) -> None:
+        """
+        Collect and write activity components to ZIP.
+
+        Args:
+            zipf: ZipFile instance to write to.
+            activity_ids: List of activity IDs to process.
+            user_activities: List of activity objects.
+        """
         # Process activity IDs in smaller batches to reduce memory usage
         batch_size = (
             self.performance_config.batch_size // 2
@@ -329,6 +389,18 @@ class ExportService:
         user_activities: list[Any],
         batch_size: int,
     ) -> None:
+        """
+        Collect and write large components in chunks.
+
+        Args:
+            zipf: ZipFile instance to write to.
+            component_key: Component type identifier.
+            base_filename: Base name for output files.
+            crud_func: CRUD function to fetch data.
+            activity_ids: List of activity IDs.
+            user_activities: List of activity objects.
+            batch_size: Number of items per batch.
+        """
         chunk_buffer = []
         file_counter = 0
         max_items_per_file = 500
@@ -443,6 +515,18 @@ class ExportService:
         user_activities: list[Any],
         batch_size: int,
     ) -> None:
+        """
+        Collect and write small components in single file.
+
+        Args:
+            zipf: ZipFile instance to write to.
+            component_key: Component type identifier.
+            base_filename: Name for output file.
+            crud_func: CRUD function to fetch data.
+            activity_ids: List of activity IDs.
+            user_activities: List of activity objects.
+            batch_size: Number of items per batch.
+        """
         all_component_data = []
 
         # Collect component data in batches
@@ -498,6 +582,15 @@ class ExportService:
             )
 
     def collect_gear_data(self, zipf: zipfile.ZipFile) -> None:
+        """
+        Collect and write gear data to ZIP.
+
+        Args:
+            zipf: ZipFile instance to write to.
+
+        Raises:
+            DatabaseConnectionError: If database error occurs.
+        """
         try:
             # Collect and write gears
             try:
@@ -558,6 +651,15 @@ class ExportService:
             ) from err
 
     def collect_health_data(self, zipf: zipfile.ZipFile) -> None:
+        """
+        Collect and write health data to ZIP.
+
+        Args:
+            zipf: ZipFile instance to write to.
+
+        Raises:
+            DatabaseConnectionError: If database error occurs.
+        """
         try:
             # Collect and write health data
             try:
@@ -620,6 +722,15 @@ class ExportService:
             ) from err
 
     def collect_user_settings_data(self, zipf: zipfile.ZipFile) -> None:
+        """
+        Collect and write user settings to ZIP.
+
+        Args:
+            zipf: ZipFile instance to write to.
+
+        Raises:
+            DatabaseConnectionError: If database error occurs.
+        """
         try:
             # Collect and write user default gear
             try:
@@ -745,6 +856,16 @@ class ExportService:
     def add_activity_files_to_zip(
         self, zipf: zipfile.ZipFile, user_activities: list[Any]
     ):
+        """
+        Add activity files to ZIP archive.
+
+        Args:
+            zipf: ZipFile instance to write to.
+            user_activities: List of activity objects.
+
+        Raises:
+            FileSystemError: If file system error occurs.
+        """
         if not user_activities:
             return
 
@@ -807,6 +928,16 @@ class ExportService:
     def add_activity_media_to_zip(
         self, zipf: zipfile.ZipFile, user_activities: list[Any]
     ):
+        """
+        Add activity media files to ZIP archive.
+
+        Args:
+            zipf: ZipFile instance to write to.
+            user_activities: List of activity objects.
+
+        Raises:
+            FileSystemError: If file system error occurs.
+        """
         if not user_activities:
             return
 
@@ -870,6 +1001,15 @@ class ExportService:
             ) from err
 
     def add_user_images_to_zip(self, zipf: zipfile.ZipFile):
+        """
+        Add user image files to ZIP archive.
+
+        Args:
+            zipf: ZipFile instance to write to.
+
+        Raises:
+            FileSystemError: If file system error occurs.
+        """
         try:
             if not os.path.exists(core_config.USER_IMAGES_DIR):
                 core_logger.print_to_log(
@@ -887,6 +1027,13 @@ class ExportService:
             raise FileSystemError(f"Failed to add user images: {err}") from err
 
     def _add_user_images_optimized(self, zipf: zipfile.ZipFile, images_dir: str):
+        """
+        Recursively add user images from directory.
+
+        Args:
+            zipf: ZipFile instance to write to.
+            images_dir: Directory path containing images.
+        """
         try:
             with os.scandir(images_dir) as entries:
                 for entry in entries:
@@ -905,6 +1052,14 @@ class ExportService:
             )
 
     def _process_user_image_file(self, zipf: zipfile.ZipFile, entry, images_dir: str):
+        """
+        Process and add single user image file to ZIP.
+
+        Args:
+            zipf: ZipFile instance to write to.
+            entry: Directory entry for the image file.
+            images_dir: Base images directory path.
+        """
         try:
             file_id, _ = os.path.splitext(entry.name)
             if str(self.user_id) == file_id:
@@ -949,6 +1104,22 @@ class ExportService:
     def generate_export_archive(
         self, user_dict: dict[str, Any], timeout_seconds: int | None = 300
     ) -> Generator[bytes, None, None]:
+        """
+        Generate and stream export archive as bytes.
+
+        Args:
+            user_dict: User data dictionary to export.
+            timeout_seconds: Optional timeout in seconds.
+
+        Yields:
+            Chunks of ZIP archive as bytes.
+
+        Raises:
+            ExportTimeoutError: If operation times out.
+            ZipCreationError: If ZIP creation fails.
+            MemoryAllocationError: If memory limit exceeded.
+            FileSystemError: If file system error occurs.
+        """
         start_time = time.time()
 
         try:

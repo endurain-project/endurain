@@ -71,6 +71,19 @@ import websocket.schema as websocket_schema
 
 
 class ImportPerformanceConfig(profile_utils.BasePerformanceConfig):
+    """
+    Performance configuration for import operations.
+
+    Attributes:
+        batch_size: Number of items per batch.
+        max_memory_mb: Maximum memory in megabytes.
+        max_file_size_mb: Maximum file size in megabytes.
+        max_activities: Maximum number of activities.
+        timeout_seconds: Operation timeout in seconds.
+        chunk_size: Data chunk size in bytes.
+        enable_memory_monitoring: Enable memory monitoring.
+    """
+
     def __init__(
         self,
         batch_size: int = 125,
@@ -93,6 +106,12 @@ class ImportPerformanceConfig(profile_utils.BasePerformanceConfig):
 
     @classmethod
     def _get_tier_configs(cls) -> dict[str, dict[str, Any]]:
+        """
+        Get tier-specific configuration dictionaries.
+
+        Returns:
+            Dictionary mapping tier names to config dicts.
+        """
         return {
             "high": {
                 "batch_size": 250,
@@ -125,6 +144,17 @@ class ImportPerformanceConfig(profile_utils.BasePerformanceConfig):
 
 
 class ImportService:
+    """
+    Service for importing user profile data from ZIP archive.
+
+    Attributes:
+        user_id: ID of user to import data for.
+        db: Database session.
+        websocket_manager: WebSocket manager for updates.
+        counts: Dictionary tracking imported item counts.
+        performance_config: Performance configuration.
+    """
+
     def __init__(
         self,
         user_id: int,
@@ -152,6 +182,21 @@ class ImportService:
         )
 
     async def import_from_zip_data(self, zip_data: bytes) -> dict[str, Any]:
+        """
+        Import profile data from ZIP file bytes.
+
+        Args:
+            zip_data: ZIP file content as bytes.
+
+        Returns:
+            Dictionary with import results and counts.
+
+        Raises:
+            FileSizeError: If file exceeds size limit.
+            FileFormatError: If ZIP format is invalid.
+            FileSystemError: If file system error occurs.
+            ImportTimeoutError: If operation times out.
+        """
         start_time = time.time()
         timeout_seconds = self.performance_config.timeout_seconds
 
@@ -278,6 +323,20 @@ class ImportService:
     def _load_single_json(
         self, zipf: zipfile.ZipFile, filename: str, check_memory: bool = True
     ) -> list[Any]:
+        """
+        Load and parse JSON file from ZIP archive.
+
+        Args:
+            zipf: ZipFile instance to read from.
+            filename: Name of JSON file to load.
+            check_memory: Whether to check memory usage.
+
+        Returns:
+            Parsed JSON data as list.
+
+        Raises:
+            JSONParseError: If JSON parsing fails.
+        """
         try:
             file_list = set(zipf.namelist())
             if filename not in file_list:
@@ -305,6 +364,15 @@ class ImportService:
     async def collect_and_import_gears_data(
         self, gears_data: list[Any]
     ) -> dict[int, int]:
+        """
+        Import gear data and create ID mappings.
+
+        Args:
+            gears_data: List of gear data dictionaries.
+
+        Returns:
+            Dictionary mapping old gear IDs to new IDs.
+        """
         gears_id_mapping = {}
 
         if not gears_data:
@@ -327,6 +395,13 @@ class ImportService:
     async def collect_and_import_gear_components_data(
         self, gear_components_data: list[Any], gears_id_mapping: dict[int, int]
     ) -> None:
+        """
+        Import gear components data with ID remapping.
+
+        Args:
+            gear_components_data: List of component dicts.
+            gears_id_mapping: Mapping of old to new gear IDs.
+        """
         if not gear_components_data:
             core_logger.print_to_log("No gear components data to import", "info")
             return
@@ -362,6 +437,17 @@ class ImportService:
         user_privacy_settings_data: list[Any],
         gears_id_mapping: dict[int, int],
     ) -> None:
+        """
+        Import user profile and related settings.
+
+        Args:
+            user_data: User profile data.
+            user_default_gear_data: Default gear settings.
+            user_integrations_data: Integration settings.
+            user_goals_data: User goals data.
+            user_privacy_settings_data: Privacy settings.
+            gears_id_mapping: Mapping of old to new gear IDs.
+        """
         if not user_data:
             core_logger.print_to_log("No user data to import", "info")
             return
@@ -391,6 +477,13 @@ class ImportService:
     async def collect_and_import_user_default_gear(
         self, user_default_gear_data: list[Any], gears_id_mapping: dict[int, int]
     ) -> None:
+        """
+        Import user default gear settings with ID remapping.
+
+        Args:
+            user_default_gear_data: Default gear data.
+            gears_id_mapping: Mapping of old to new gear IDs.
+        """
         if not user_default_gear_data:
             core_logger.print_to_log("No user default gear data to import", "info")
             return
@@ -440,6 +533,12 @@ class ImportService:
     async def collect_and_import_user_integrations(
         self, user_integrations_data: list[Any]
     ) -> None:
+        """
+        Import user integration settings.
+
+        Args:
+            user_integrations_data: Integration data.
+        """
         if not user_integrations_data:
             core_logger.print_to_log("No user integrations data to import", "info")
             return
@@ -464,6 +563,12 @@ class ImportService:
         self.counts["user_integrations"] += 1
 
     async def collect_and_import_user_goals(self, user_goals_data: list[Any]) -> None:
+        """
+        Import user goals data.
+
+        Args:
+            user_goals_data: List of user goal dictionaries.
+        """
         if not user_goals_data:
             core_logger.print_to_log("No user goals data to import", "info")
             return
@@ -483,6 +588,12 @@ class ImportService:
     async def collect_and_import_user_privacy_settings(
         self, user_privacy_settings_data: list[Any]
     ) -> None:
+        """
+        Import user privacy settings.
+
+        Args:
+            user_privacy_settings_data: Privacy settings data.
+        """
         if not user_privacy_settings_data:
             core_logger.print_to_log("No user privacy settings data to import", "info")
             return
@@ -517,6 +628,19 @@ class ImportService:
         original_activity_id: int,
         new_activity_id: int,
     ) -> None:
+        """
+        Import all components for a single activity.
+
+        Args:
+            activity_laps_data: Laps data for all activities.
+            activity_sets_data: Sets data for all activities.
+            activity_streams_data: Streams data.
+            activity_workout_steps_data: Workout steps data.
+            activity_media_data: Media data for all activities.
+            activity_exercise_titles_data: Exercise titles.
+            original_activity_id: Old activity ID.
+            new_activity_id: New activity ID.
+        """
         # Import laps - filter for this activity
         if activity_laps_data:
             laps = []
@@ -650,6 +774,23 @@ class ImportService:
         start_time: float,
         timeout_seconds: int,
     ) -> dict[int, int]:
+        """
+        Import activities in batches to manage memory.
+
+        Args:
+            zipf: ZipFile instance to read from.
+            file_list: Set of file paths in ZIP.
+            gears_id_mapping: Mapping of old to new gear IDs.
+            start_time: Import operation start time.
+            timeout_seconds: Timeout limit in seconds.
+
+        Returns:
+            Dictionary mapping old activity IDs to new IDs.
+
+        Raises:
+            ActivityLimitError: If too many activities.
+            ImportTimeoutError: If operation times out.
+        """
         activities_id_mapping = {}
 
         # Load activities list
@@ -763,6 +904,16 @@ class ImportService:
     def _get_split_files_list(
         self, file_list: set[str], base_filename: str
     ) -> list[str]:
+        """
+        Get list of split component files from ZIP.
+
+        Args:
+            file_list: Set of all file paths in ZIP.
+            base_filename: Base filename without extension.
+
+        Returns:
+            Sorted list of matching file paths.
+        """
         split_files = sorted(
             [
                 f
@@ -785,6 +936,18 @@ class ImportService:
         activities_batch: list[Any],
         component_name: str,
     ) -> list[Any]:
+        """
+        Load components only for activities in current batch.
+
+        Args:
+            zipf: ZipFile instance to read from.
+            component_files: List of component file paths.
+            activities_batch: Activities in current batch.
+            component_name: Name of component type.
+
+        Returns:
+            List of component data for batch activities.
+        """
         if not component_files:
             return []
 
@@ -827,6 +990,13 @@ class ImportService:
     async def collect_and_import_health_data(
         self, health_data_data: list[Any], health_targets_data: list[Any]
     ) -> None:
+        """
+        Import health data and targets.
+
+        Args:
+            health_data_data: List of health data records.
+            health_targets_data: List of health target records.
+        """
         # Import health data
         if health_data_data:
             for health_data in health_data_data:
@@ -872,6 +1042,14 @@ class ImportService:
         file_list: set,
         activities_id_mapping: dict[int, int],
     ) -> None:
+        """
+        Extract and import activity files from ZIP.
+
+        Args:
+            zipf: ZipFile instance to read from.
+            file_list: Set of file paths in ZIP.
+            activities_id_mapping: Mapping of old to new IDs.
+        """
         profile_utils.check_memory_usage(
             "activity files import",
             self.performance_config.max_memory_mb,
@@ -912,6 +1090,14 @@ class ImportService:
         file_list: set,
         activities_id_mapping: dict[int, int],
     ) -> None:
+        """
+        Extract and import activity media from ZIP.
+
+        Args:
+            zipf: ZipFile instance to read from.
+            file_list: Set of file paths in ZIP.
+            activities_id_mapping: Mapping of old to new IDs.
+        """
         profile_utils.check_memory_usage(
             "activity media import",
             self.performance_config.max_memory_mb,
@@ -954,6 +1140,13 @@ class ImportService:
         zipf: zipfile.ZipFile,
         file_list: set,
     ) -> None:
+        """
+        Extract and import user images from ZIP.
+
+        Args:
+            zipf: ZipFile instance to read from.
+            file_list: Set of file paths in ZIP.
+        """
         profile_utils.check_memory_usage(
             "user images import",
             self.performance_config.max_memory_mb,

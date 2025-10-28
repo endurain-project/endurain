@@ -133,3 +133,67 @@ Repository root:
 - **Deployment**: Docker containers with multi-stage builds
 
 Always prioritize frontend development workflow for UI changes and use Docker for full-stack development.
+
+## Task Execution Guidelines
+- **Do ONLY what is explicitly requested** - do not add extra 
+  documentation, summaries, or "helpful" files unless specifically 
+  asked.
+- If asked to implement a feature, implement ONLY that feature - no 
+  additional documentation beyond code comments.
+- Do not create README files, summary documents, quick reference 
+  guides, or completion reports unless explicitly requested.
+- When implementing changes, focus on the code implementation itself, 
+  not supplementary documentation.
+- Ask for clarification if the scope is unclear rather than assuming 
+  additional deliverables are wanted.
+
+## Python Code Style Requirements
+
+### Modern Python Syntax (Python 3.13+)
+- Use modern type hint syntax: `int | None`, `list[str]`, 
+  `dict[str, Any]`
+- Do NOT use `typing.Optional`, `typing.List`, `typing.Dict`, etc.
+- Target Python 3.13+ features and syntax
+
+### PEP 8 Line Limits
+- Code lines: **79 characters maximum**
+- Comments and docstrings: **72 characters maximum**
+- Enforce strictly - no exceptions
+
+### Docstring Standard (PEP 257)
+- **Always follow PEP 257** with Args/Returns/Raises sections
+- **Format**: One-line summary, blank line, then 
+  Args/Returns/Raises sections
+- **Always include Args/Returns/Raises** even when parameters seem 
+  obvious
+- **NO examples** in docstrings - keep in external docs or tests
+- **NO extended explanations** - one-line summary + sections only
+- **Keep concise** - describe what, not how
+
+**Function docstring format:**
+```python
+def function(param: str) -> int:
+    """
+    One-line summary of what this does.
+
+    Args:
+        param: Description of param.
+
+    Returns:
+        Description of return value.
+
+    Raises:
+        ValueError: When param is invalid.
+    """
+```
+
+**Class docstring format:**
+```python
+class MyClass:
+    """
+    One-line summary of the class.
+
+    Attributes:
+        attr: Description of attribute.
+    """
+```

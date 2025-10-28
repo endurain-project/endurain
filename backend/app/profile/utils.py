@@ -24,23 +24,14 @@ T_PerformanceConfig = TypeVar("T_PerformanceConfig", bound="BasePerformanceConfi
 
 class BasePerformanceConfig:
     """
-    Base class for performance configuration with common patterns and memory-based optimization.
+    Base configuration for performance settings.
 
-    This abstract base class provides common configuration patterns for both import and export
-    operations, including memory-based tier detection, common parameter validation, and
-    standardized auto-configuration patterns.
-
-    Common Attributes:
-        batch_size (int): Number of records to process in a single batch
-        max_memory_mb (int): Maximum memory usage limit in megabytes
-        timeout_seconds (int): Operation timeout in seconds
-        chunk_size (int): Size of data chunks for reading/writing
-        enable_memory_monitoring (bool): Whether to enable memory monitoring
-
-    Memory Tiers:
-        High (>2GB): Optimized settings for high-performance systems
-        Medium (>1GB): Balanced settings for typical systems
-        Low (≤1GB): Conservative settings for resource-constrained systems
+    Attributes:
+        batch_size: Number of items to process in a batch.
+        max_memory_mb: Maximum memory usage in megabytes.
+        timeout_seconds: Operation timeout in seconds.
+        chunk_size: Size of data chunks in bytes.
+        enable_memory_monitoring: Enable memory monitoring.
     """
 
     def __init__(
@@ -51,16 +42,6 @@ class BasePerformanceConfig:
         chunk_size: int = 8192,
         enable_memory_monitoring: bool = True,
     ):
-        """
-        Initialize base performance configuration with common parameters.
-
-        Args:
-            batch_size (int): Number of items to process in a single batch. Defaults to 1000.
-            max_memory_mb (int): Maximum memory usage limit in megabytes. Defaults to 1024.
-            timeout_seconds (int): Maximum time allowed for operations in seconds. Defaults to 3600.
-            chunk_size (int): Size of data chunks for I/O operations in bytes. Defaults to 8192.
-            enable_memory_monitoring (bool): Whether to enable memory monitoring. Defaults to True.
-        """
         self.batch_size = batch_size
         self.max_memory_mb = max_memory_mb
         self.timeout_seconds = timeout_seconds
@@ -70,32 +51,23 @@ class BasePerformanceConfig:
     @classmethod
     def _get_tier_configs(cls) -> Dict[str, Dict[str, Any]]:
         """
-        Get the tier-based configuration mappings.
-
-        This method should be overridden by subclasses to provide specific
-        configuration values for each memory tier.
+        Get configuration tiers for different memory levels.
 
         Returns:
-            Dict[str, Dict[str, Any]]: Mapping of tier names to configuration dictionaries
+            Dictionary mapping tier names to config dicts.
+
+        Raises:
+            NotImplementedError: Must be implemented by subclass.
         """
         raise NotImplementedError("Subclasses must implement _get_tier_configs")
 
     @classmethod
     def get_auto_config(cls: Type[T_PerformanceConfig]) -> T_PerformanceConfig:
         """
-        Get automatic configuration based on available system memory.
-
-        This method uses the centralized memory detection to determine the appropriate
-        configuration tier and creates an instance with optimized settings.
+        Create config automatically based on system memory.
 
         Returns:
-            T_PerformanceConfig: A configuration instance of the calling class type optimized
-                for the current system's available memory. Falls back to default configuration
-                if memory detection fails.
-
-        Example:
-            >>> config = SomePerformanceConfig.get_auto_config()
-            >>> print(f"Tier: {config.batch_size}")
+            Configuration instance for detected tier.
         """
         try:
             tier, _ = detect_system_memory_tier()
@@ -118,42 +90,24 @@ class BasePerformanceConfig:
 
 def generate_totp_secret() -> str:
     """
-    Generate a base32-encoded secret suitable for TOTP.
-
-    This function returns a cryptographically secure base32 string, generated via
-    pyotp.random_base32(), that can be used as the shared secret when provisioning
-    time-based one-time password (TOTP) authenticators (e.g., for 2FA).
+    Generate random TOTP secret for MFA.
 
     Returns:
-        str: A base32-encoded secret key for use with TOTP.
-
-    Notes:
-        - Treat the returned secret as sensitive; do not log or expose it.
-        - The exact length/entropy is determined by pyotp.random_base32().
+        Base32-encoded secret string.
     """
     return pyotp.random_base32()
 
 
 def verify_totp(secret: str, token: str) -> bool:
     """
-    Verify a Time-based One-Time Password (TOTP) token against a shared secret.
+    Verify TOTP token against secret.
 
-    Parameters
-    ----------
-    secret : str
-        Shared secret used to initialize the TOTP generator (as expected by pyotp, commonly a base32 string).
-    token : str
-        One-time password (OTP) provided by the user to validate.
+    Args:
+        secret: Base32-encoded TOTP secret.
+        token: TOTP token to verify.
 
-    Returns
-    -------
-    bool
-        True if the token is valid within a tolerance of one time-step (current step ±1), False otherwise.
-
-    Notes
-    -----
-    This function uses pyotp.TOTP.verify with valid_window=1 to allow for minor clock skew between client and server.
-    Ensure the secret and token are provided in the formats expected by pyotp.
+    Returns:
+        True if token is valid, False otherwise.
     """
     totp = pyotp.TOTP(secret)
     return totp.verify(token, valid_window=1)  # Allow 1 window tolerance
@@ -161,22 +115,15 @@ def verify_totp(secret: str, token: str) -> bool:
 
 def generate_qr_code(secret: str, username: str, app_name: str = "Endurain") -> str:
     """
-    Generate a base64-encoded PNG data URI containing a QR code for a TOTP provisioning URI.
-    Parameters:
-        secret (str): Base32-encoded secret key used to initialize pyotp.TOTP (the shared TOTP secret).
-        username (str): Account name (e.g., an email or username) to include in the provisioning URI and display in authenticator apps.
-        app_name (str, optional): Issuer name to include in the provisioning URI (default: "Endurain").
+    Generate QR code for MFA setup.
+
+    Args:
+        secret: TOTP secret.
+        username: User's username.
+        app_name: Application name for MFA.
+
     Returns:
-        str: A data URI string of the form "data:image/png;base64,<base64-data>" containing the generated QR code PNG.
-             This value can be used directly as the src attribute of an HTML <img> element.
-    Raises:
-        Any exceptions raised by pyotp, qrcode, or the underlying image library (Pillow) may propagate if inputs are invalid
-        or if image generation/encoding fails.
-    Notes:
-        - Builds an otpauth://totp/... provisioning URI via pyotp.TOTP.provisioning_uri(name=username, issuer_name=app_name).
-        - Renders the QR code using qrcode with version=1, error correction level L, box_size=10 and border=4.
-        - The image is written to an in-memory buffer and base64-encoded so it can be embedded in web pages without a file.
-        - Ensure dependencies are installed: pyotp, qrcode, pillow.
+        Base64-encoded PNG QR code as data URI.
     """
     totp = pyotp.TOTP(secret)
     provisioning_uri = totp.provisioning_uri(name=username, issuer_name=app_name)
@@ -205,38 +152,17 @@ def generate_qr_code(secret: str, username: str, app_name: str = "Endurain") -> 
 
 def setup_user_mfa(user_id: int, db: Session) -> profile_schema.MFASetupResponse:
     """
-    Prepare a TOTP-based MFA enrollment for a user by generating a new secret and a QR code.
+    Setup MFA for user.
 
-    Parameters
-    ----------
-    user_id : int
-        The primary key of the user to prepare MFA for.
-    db : Session
-        Database session used to look up the user.
+    Args:
+        user_id: User ID to setup MFA for.
+        db: Database session.
 
-    Returns
-    -------
-    profile_schema.MFASetupResponse
-        A response object containing:
-          - secret (str): The generated TOTP secret (typically base32).
-          - qr_code (str): A representation of the QR code (format depends on implementation;
-            commonly a data URI or base64-encoded PNG) that encodes the provisioning URI.
-          - app_name (str): Human-friendly application name (set to "Endurain").
+    Returns:
+        MFA setup response with secret and QR code.
 
-    Raises
-    ------
-    HTTPException
-        404 Not Found: if no user with the provided user_id exists.
-        400 Bad Request: if MFA is already enabled for the user.
-
-    Notes
-    -----
-    - This function only generates and returns the secret and QR code; it does not persist the
-      secret to the database or enable MFA on the user's account. The caller should verify a
-      one-time TOTP code from the user's authenticator and, upon successful verification,
-      securely store the secret and mark MFA as enabled.
-    - Secrets and QR codes should be transmitted over secure channels (e.g., TLS) and stored
-      encrypted at rest. Treat the generated secret as sensitive data.
+    Raises:
+        HTTPException: If user not found or MFA enabled.
     """
     user = users_crud.get_user_by_id(user_id, db)
     if not user:
@@ -263,40 +189,17 @@ def setup_user_mfa(user_id: int, db: Session) -> profile_schema.MFASetupResponse
 
 def enable_user_mfa(user_id: int, secret: str, mfa_code: str, db: Session):
     """
-    Enable multi-factor authentication (MFA) for a user by validating a TOTP code and storing the encrypted secret.
+    Enable MFA for user after verification.
 
-    This function:
-    - Confirms the user exists.
-    - Ensures MFA is not already enabled for the user.
-    - Verifies the provided TOTP (mfa_code) against the provided secret.
-    - Encrypts the secret and updates the user's record to enable MFA.
+    Args:
+        user_id: User ID to enable MFA for.
+        secret: TOTP secret to verify.
+        mfa_code: MFA code to verify.
+        db: Database session.
 
-    Parameters
-    ----------
-    user_id : int
-        The ID of the user for whom MFA should be enabled.
-    secret : str
-        The plain-text TOTP secret provided by the user (will be encrypted before storage).
-    mfa_code : str
-        The one-time password generated by the user's authenticator app to prove possession of the secret.
-    db : Session
-        Database session used to look up and update the user record.
-
-    Raises
-    ------
-    HTTPException
-        - 404 NOT FOUND: "User not found" if no user exists with the given user_id.
-        - 400 BAD REQUEST: "MFA is already enabled for this user" if MFA is already active for the user.
-        - 400 BAD REQUEST: "Invalid MFA code" if the provided mfa_code does not validate against the secret.
-
-    Returns
-    -------
-    None
-        The function performs side effects (encrypting the secret and updating the user's MFA state) and does not return a value.
-
-    Notes
-    -----
-    Relies on external helpers: users_crud.get_user_by_id, verify_totp, core_cryptography.encrypt_token_fernet, and users_crud.enable_user_mfa.
+    Raises:
+        HTTPException: If user not found, MFA enabled, code
+            invalid, or encryption fails.
     """
     user = users_crud.get_user_by_id(user_id, db)
     if not user:
@@ -332,33 +235,16 @@ def enable_user_mfa(user_id: int, secret: str, mfa_code: str, db: Session):
 
 def disable_user_mfa(user_id: int, mfa_code: str, db: Session):
     """
-    Disable a user's multi-factor authentication (MFA) after verifying a provided TOTP code.
-
-    This function retrieves the user by ID, ensures MFA is currently enabled, decrypts
-    the stored MFA secret, verifies the provided TOTP code, and disables MFA for the user
-    via the persistence layer.
+    Disable MFA for user after verification.
 
     Args:
-        user_id (int): ID of the user whose MFA should be disabled.
-        mfa_code (str): Time-based one-time password (TOTP) code supplied by the user.
-        db (Session): Database session used to load and update the user record.
-
-    Returns:
-        None
+        user_id: User ID to disable MFA for.
+        mfa_code: MFA code to verify.
+        db: Database session.
 
     Raises:
-        HTTPException: If the user is not found (404).
-        HTTPException: If MFA is not enabled for the user (400).
-        HTTPException: If the provided TOTP code is invalid (400).
-
-    Side effects:
-        - Decrypts the user's stored MFA secret and uses it to verify the TOTP code.
-        - Calls the users_crud layer to disable MFA for the user; commit behavior depends
-          on how the provided db session is managed.
-
-    Security considerations:
-        - Treat mfa_code and decrypted secrets as sensitive information; avoid logging them.
-        - Ensure the db session and cryptographic utilities are used in a secure context.
+        HTTPException: If user not found, MFA not enabled, code
+            invalid, or decryption fails.
     """
     user = users_crud.get_user_by_id(user_id, db)
     if not user:
@@ -394,26 +280,18 @@ def disable_user_mfa(user_id: int, mfa_code: str, db: Session):
 
 def verify_user_mfa(user_id: int, mfa_code: str, db: Session) -> bool:
     """
-    Verify a user's MFA TOTP code.
+    Verify MFA code for user.
 
     Args:
-        user_id (int): ID of the user to verify.
-        mfa_code (str): Time-based one-time password (TOTP) code provided by the user.
-        db (Session): Database session used to retrieve the user record.
+        user_id: User ID to verify MFA for.
+        mfa_code: MFA code to verify.
+        db: Database session.
 
     Returns:
-        bool: True if the provided TOTP matches the user's decrypted MFA secret;
-        False if MFA is not enabled for the user, no secret is stored, the code is invalid,
-        or if any decryption/verification error occurs.
+        True if code is valid, False otherwise.
 
     Raises:
-        HTTPException: If no user with the given user_id is found (HTTP 404).
-
-    Notes:
-        - The function loads the user from the database, ensures MFA is enabled and a secret exists,
-          decrypts the stored secret, and then verifies the provided TOTP against that secret.
-        - Any exceptions during decryption or verification are treated as verification failures
-          and result in a False return value rather than propagating the error.
+        HTTPException: If user not found.
     """
     user = users_crud.get_user_by_id(user_id, db)
     if not user:
@@ -438,22 +316,14 @@ def verify_user_mfa(user_id: int, mfa_code: str, db: Session) -> bool:
 
 def is_mfa_enabled_for_user(user_id: int, db: Session) -> bool:
     """
-    Return whether multi-factor authentication (MFA) is enabled for a given user.
-
-    This function looks up the user by ID using the provided database session and
-    returns True only if the user exists, the user's `mfa_enabled` flag equals 1,
-    and `mfa_secret` is not None.
+    Check if MFA is enabled for user.
 
     Args:
-        user_id (int): ID of the user to check.
-        db (Session): Database session used to retrieve the user record.
+        user_id: User ID to check.
+        db: Database session.
 
     Returns:
-        bool: True if MFA is enabled for the user, False otherwise.
-
-    Notes:
-        - The function treats mfa_enabled == 1 as enabled.
-        - If the user does not exist, the function returns False.
+        True if MFA is enabled, False otherwise.
     """
     user = users_crud.get_user_by_id(user_id, db)
     if not user:
@@ -464,14 +334,13 @@ def is_mfa_enabled_for_user(user_id: int, db: Session) -> bool:
 # Export utility functions
 def sqlalchemy_obj_to_dict(obj):
     """
-    Converts a SQLAlchemy model instance into a dictionary mapping column names to their values.
+    Convert SQLAlchemy object to dictionary.
 
     Args:
-        obj: The object to convert. If the object has a __table__ attribute (i.e., is a SQLAlchemy model instance),
-             its columns and corresponding values are extracted into a dictionary. Otherwise, the object is returned as is.
+        obj: SQLAlchemy model instance or other object.
 
     Returns:
-        dict: A dictionary representation of the SQLAlchemy model instance if applicable, otherwise the original object.
+        Dictionary with column names and values.
     """
     if hasattr(obj, "__table__"):
         return {c.name: getattr(obj, c.name) for c in obj.__table__.columns}
@@ -482,18 +351,14 @@ def write_json_to_zip(
     zipf: zipfile.ZipFile, filename: str, data, counts: dict, ensure_ascii: bool = False
 ):
     """
-    Writes JSON-serialized data to a file within a ZIP archive.
+    Write JSON data to ZIP file and update counts.
 
     Args:
-        zipf (zipfile.ZipFile): The ZIP file object to write into.
-        filename (str): The name of the file to create within the ZIP archive.
-        data (Any): The data to serialize as JSON and write to the file.
-        counts (dict): Dictionary to track counts of exported items.
-        ensure_ascii (bool, optional): Whether to escape non-ASCII characters in the output. Defaults to False.
-
-    Notes:
-        - If data is falsy (e.g., None, empty), nothing is written.
-        - Uses json.dumps with default=str to handle non-serializable objects.
+        zipf: ZipFile instance to write to.
+        filename: Name of file in ZIP.
+        data: Data to serialize as JSON.
+        counts: Dictionary to update with item counts.
+        ensure_ascii: Whether to ensure ASCII encoding.
     """
     if data:
         counts[filename.split("/")[-1].replace(".json", "")] = (
@@ -512,26 +377,16 @@ def check_timeout(
     operation_type: str,
 ) -> None:
     """
-    Check if an operation has exceeded the specified timeout and raise the appropriate exception.
-
-    This utility function provides a generic timeout checking mechanism that can be used
-    by both import and export services. It calculates the elapsed time and raises the
-    specified exception if the timeout has been exceeded.
+    Check if operation has exceeded timeout.
 
     Args:
-        timeout_seconds (int | None): Maximum time allowed in seconds. If None, no timeout is enforced.
-        start_time (float): The time when the operation started (from time.time()).
-        exception_class (Type[Exception]): The exception class to raise if timeout is exceeded.
-        operation_type (str): Description of the operation type (e.g., "Import", "Export") for error messages.
+        timeout_seconds: Timeout limit in seconds or None.
+        start_time: Operation start time from time.time().
+        exception_class: Exception type to raise on timeout.
+        operation_type: Description of operation for error.
 
     Raises:
-        exception_class: If the operation exceeds the timeout limit.
-
-    Example:
-        >>> import time
-        >>> start = time.time()
-        >>> check_timeout(10, start, ImportTimeoutError, "Import")  # No exception if within 10 seconds
-        >>> check_timeout(1, start - 5, ImportTimeoutError, "Import")  # Raises ImportTimeoutError
+        exception_class: If timeout is exceeded.
     """
     if timeout_seconds and (time.time() - start_time) > timeout_seconds:
         raise exception_class(f"{operation_type} exceeded {timeout_seconds} seconds")
@@ -539,26 +394,13 @@ def check_timeout(
 
 def get_memory_usage_mb(enable_monitoring: bool = True) -> float:
     """
-    Get the current memory usage of the process in megabytes.
-
-    This utility function retrieves the Resident Set Size (RSS) memory usage of the current
-    process and converts it to megabytes. Memory monitoring can be disabled via parameter.
+    Get current process memory usage in megabytes.
 
     Args:
-        enable_monitoring (bool): Whether memory monitoring is enabled. Defaults to True.
+        enable_monitoring: Whether monitoring is enabled.
 
     Returns:
-        float: The memory usage in megabytes (MB). Returns 0.0 if memory monitoring
-               is disabled or if an error occurs during measurement.
-
-    Raises:
-        No exceptions are raised. Errors are logged as warnings and the method
-        returns 0.0 on failure.
-
-    Note:
-        - RSS (Resident Set Size) represents the portion of memory occupied by the process
-          that is held in RAM
-        - Failed memory measurements are logged but do not interrupt execution
+        Memory usage in MB, or 0.0 if disabled or error.
     """
     try:
         if not enable_monitoring:
@@ -577,29 +419,16 @@ def check_memory_usage(
     memory_intensive_operations: list[str] | None = None,
 ) -> None:
     """
-    Check current memory usage and enforce limits.
-
-    This utility function monitors memory consumption during operations with an intelligent approach:
-    - Only raises errors if memory usage is extremely high (> limit)
-    - Warns at 90% to reduce noise while still providing awareness
-    - Takes into account that some operations naturally use more memory
+    Check memory usage and raise error if limit exceeded.
 
     Args:
-        operation (str): Description of the current operation being performed,
-            used for logging context.
-        max_memory_mb (int): Maximum memory usage limit in megabytes.
-        enable_monitoring (bool): Whether memory monitoring is enabled. Defaults to True.
-        memory_intensive_operations (list[str] | None): List of operation names that are
-            known to be memory-intensive and should have higher thresholds. Defaults to None.
+        operation: Description of current operation.
+        max_memory_mb: Maximum allowed memory in MB.
+        enable_monitoring: Whether monitoring is enabled.
+        memory_intensive_operations: List of intensive ops.
 
     Raises:
-        MemoryAllocationError: If current memory usage exceeds the configured maximum
-            memory limit by a significant margin (indicating a real problem).
-
-    Note:
-        - Memory monitoring can be disabled via enable_monitoring parameter
-        - Warning threshold is set at 90% of max_memory_mb to reduce false positives
-        - During data-intensive operations, temporary spikes above limit are expected
+        MemoryAllocationError: If memory limit exceeded.
     """
     if not enable_monitoring:
         return
@@ -647,40 +476,13 @@ def check_memory_usage(
 
 def initialize_operation_counts(include_user_count: bool = False) -> Dict[str, int]:
     """
-    Initialize and return a dictionary with count values for various data entities.
-
-    This utility function creates a dictionary with predefined keys representing different
-    data categories (media, activities, gears, user settings, etc.) and initializes
-    all their counts to 0. This is typically used to track the number of items
-    processed during data import/export operations.
+    Initialize dictionary for tracking operation counts.
 
     Args:
-        include_user_count (bool): Whether to initialize the user count to 1 instead of 0.
-            This is useful for export operations where there's always 1 user being exported.
-            Defaults to False.
+        include_user_count: Whether to include user count.
 
     Returns:
-        Dict[str, int]: A dictionary containing entity names as keys and their
-            initial count values. The dictionary includes counts for:
-            - media: Media files
-            - activity_files: Activity data files
-            - activities: Activity records
-            - activity_laps: Lap data within activities
-            - activity_sets: Exercise sets within activities
-            - activity_streams: Activity stream data
-            - activity_workout_steps: Workout step records
-            - activity_media: Media associated with activities
-            - activity_exercise_titles: Exercise title records
-            - gears: Gear/equipment items
-            - gear_components: Components of gear items
-            - health_data: Health-related data records
-            - health_targets: Health target settings
-            - user_images: User profile images
-            - user: User account records (0 for import, 1 for export)
-            - user_default_gear: Default gear settings for users
-            - user_integrations: Third-party integration settings
-            - user_goals: User-defined goals
-            - user_privacy_settings: Privacy configuration settings
+        Dictionary with all count keys initialized to 0.
     """
     return {
         "media": 0,
@@ -707,29 +509,10 @@ def initialize_operation_counts(include_user_count: bool = False) -> Dict[str, i
 
 def detect_system_memory_tier() -> tuple[str, int]:
     """
-    Detect the system memory tier and return the tier name and available memory.
-
-    This utility function analyzes the system's available memory and categorizes it into
-    three performance tiers for optimal configuration selection. It provides a consistent
-    memory detection approach for both import and export performance configurations.
+    Detect system memory tier based on available memory.
 
     Returns:
-        tuple[str, int]: A tuple containing:
-            - tier (str): Memory tier classification ("high", "medium", "low")
-            - available_mb (int): Available memory in megabytes
-
-    Memory Tiers:
-        - "high": > 2048 MB (2GB) available - Optimized settings for maximum performance
-        - "medium": > 1024 MB (1GB) available - Balanced settings for typical usage
-        - "low": <= 1024 MB available - Conservative settings to prevent memory issues
-
-    Raises:
-        Does not raise exceptions directly. Any exceptions during memory detection are
-        caught and logged as warnings, after which default values are returned.
-
-    Example:
-        >>> tier, available_mb = detect_system_memory_tier()
-        >>> print(f"Memory tier: {tier}, Available: {available_mb}MB")
+        Tuple of tier name and available memory in MB.
     """
     try:
         memory = psutil.virtual_memory()

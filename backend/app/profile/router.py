@@ -49,21 +49,17 @@ async def read_users_me(
     ],
 ):
     """
-    Retrieve the current authenticated user's profile, including integration and privacy settings.
-
-    This endpoint extracts the user ID from the access token, fetches the user from the database,
-    and enriches the user object with integration status (Strava, Garmin Connect) and privacy settings.
-    Raises HTTP 401 errors if the user, user integrations, or privacy settings are not found.
+    Retrieve authenticated user profile with integrations.
 
     Args:
-        token_user_id (int): The user ID extracted from the access token.
-        db (Session): SQLAlchemy database session dependency.
+        token_user_id: User ID from access token.
+        db: Database session.
 
     Returns:
-        User: The user object with additional integration and privacy attributes.
+        User object with integration and privacy settings.
 
     Raises:
-        HTTPException: If the user, user integrations, or privacy settings are not found.
+        HTTPException: If user or settings not found.
     """
     # Get the user from the database
     user = users_crud.get_user_by_id(token_user_id, db)
@@ -121,14 +117,14 @@ async def read_sessions_me(
     ],
 ):
     """
-    Retrieve all sessions associated with the currently authenticated user.
+    Retrieve all sessions for authenticated user.
 
     Args:
-        token_user_id (int): The ID of the user extracted from the access token.
-        db (Session): The database session dependency.
+        token_user_id: User ID from access token.
+        db: Database session.
 
     Returns:
-        List[Session]: A list of session objects belonging to the authenticated user.
+        List of session objects for the user.
     """
     # Get the sessions from the database
     return session_crud.get_user_sessions(token_user_id, db)
@@ -151,25 +147,18 @@ async def upload_profile_image(
     ],
 ):
     """
-    Handles the upload of a user's profile image with comprehensive security validation.
-
-    Security features:
-    - File type validation (JPEG, PNG, GIF, WebP only)
-    - File size limits (max 20MB)
-    - MIME type verification
-    - Content-based file signature validation
-    - Malicious file extension blocking
+    Upload user profile image with security validation.
 
     Args:
-        file (UploadFile): The image file to be uploaded.
-        token_user_id (int): The ID of the user, extracted from the access token.
-        db (Session): The database session dependency.
+        file: Image file to upload.
+        token_user_id: User ID from access token.
+        db: Database session.
 
     Returns:
-        The result of saving the user's image, as returned by `users_utils.save_user_image`.
+        Result of save operation.
 
     Raises:
-        HTTPException: If the upload validation fails or save operation fails.
+        HTTPException: If validation or save fails.
     """
     # Comprehensive security validation
     try:
@@ -196,15 +185,15 @@ async def edit_user(
     ],
 ):
     """
-    Edits the attributes of an existing user in the database.
+    Edit user attributes in database.
 
     Args:
-        user_attributtes (users_schema.UserRead): The updated user attributes to be saved.
-        token_user_id (int): The ID of the user extracted from the access token.
-        db (Session): The database session dependency.
+        user_attributtes: Updated user attributes.
+        token_user_id: User ID from access token.
+        db: Database session.
 
     Returns:
-        dict: A dictionary containing a success message with the updated user's ID.
+        Success message with user ID.
     """
     # Update the user in the database
     users_crud.edit_user(token_user_id, user_attributtes, db)
@@ -226,15 +215,15 @@ async def edit_profile_privacy_settings(
     ],
 ):
     """
-    Edits the privacy settings for the currently authenticated user.
+    Edit privacy settings for authenticated user.
 
     Args:
-        user_privacy_settings (users_privacy_settings_schema.UsersPrivacySettings): The new privacy settings to apply to the user.
-        token_user_id (int): The ID of the user extracted from the access token.
-        db (Session): The database session dependency.
+        user_privacy_settings: New privacy settings.
+        token_user_id: User ID from access token.
+        db: Database session.
 
     Returns:
-        dict: A message indicating that the user's privacy settings were updated successfully.
+        Success message.
     """
     # Edit the user privacy settings in the database
     users_privacy_settings_crud.edit_user_privacy_settings(
@@ -258,18 +247,18 @@ async def edit_profile_password(
     ],
 ):
     """
-    Asynchronously updates the password for the authenticated user after validating password complexity.
+    Update user password after validation.
 
     Args:
-        user_attributtes (users_schema.UserEditPassword): The new password data provided by the user.
-        token_user_id (int): The ID of the authenticated user, extracted from the access token.
-        db (Session): The database session dependency.
-
-    Raises:
-        HTTPException: If the new password does not meet complexity requirements.
+        user_attributtes: New password data.
+        token_user_id: User ID from access token.
+        db: Database session.
 
     Returns:
-        dict: A success message indicating the user's password was updated.
+        Success message.
+
+    Raises:
+        HTTPException: If password complexity invalid.
     """
     # Check if the password meets the complexity requirements
     is_valid, message = session_security.is_password_complexity_valid(
@@ -300,14 +289,14 @@ async def delete_profile_photo(
     ],
 ):
     """
-    Deletes the profile photo of the authenticated user.
+    Delete authenticated user's profile photo.
 
     Args:
-        token_user_id (int): The ID of the user obtained from the access token.
-        db (Session): The database session dependency.
+        token_user_id: User ID from access token.
+        db: Database session.
 
     Returns:
-        str: Success message indicating the user's photo was deleted.
+        Success message.
     """
     # Update the user photo_path in the database
     users_crud.delete_user_photo(token_user_id, db)
@@ -329,15 +318,15 @@ async def delete_profile_session(
     ],
 ):
     """
-    Deletes a user session from the database.
+    Delete user session from database.
 
     Args:
-        session_id (str): The unique identifier of the session to be deleted.
-        token_user_id (int): The ID of the user extracted from the access token.
-        db (Session): The database session dependency.
+        session_id: Session identifier to delete.
+        token_user_id: User ID from access token.
+        db: Database session.
 
     Returns:
-        Any: The result of the session deletion operation, as returned by `session_crud.delete_session`.
+        Result of deletion operation.
     """
     # Delete the session from the database
     return session_crud.delete_session(session_id, token_user_id, db)
@@ -358,22 +347,17 @@ async def export_profile_data(
     ],
 ):
     """
-    Exports all profile-related data for the authenticated user as a ZIP archive.
-
-    This endpoint collects and packages the user's activities, associated files (such as GPX/FIT tracks),
-    laps, sets, streams, workout steps, exercise titles, gears, health data, health targets, user information,
-    user images, default gear, integrations, goals, and privacy settings into a single ZIP file.
-    The resulting archive contains JSON files for structured data and includes any relevant user or activity files found on disk.
+    Export all profile data as ZIP archive.
 
     Args:
-        token_user_id (int): The ID of the authenticated user, extracted from the access token.
-        db (Session): SQLAlchemy database session dependency.
+        token_user_id: User ID from access token.
+        db: Database session.
 
     Returns:
-        StreamingResponse: A streaming response containing the ZIP archive with all exported user data, suitable for download.
+        Streaming response with ZIP archive.
 
     Raises:
-        HTTPException: If the user is not found in the database (404 Not Found).
+        HTTPException: If user not found or export fails.
     """
     # Get the user from the database
     user = users_crud.get_user_by_id(token_user_id, db)
@@ -450,49 +434,19 @@ async def import_profile_data(
     ],
 ):
     """
-    Import user profile data from a ZIP file with comprehensive security validation.
-
-    This endpoint allows users to import their profile data from a previously exported ZIP file.
-    The import process is performed asynchronously and handles various types of data including
-    activities, settings, and other profile-related information.
-
-    Security features:
-    - File type validation (ZIP files only)
-    - File size limits (max 500MB)
-    - MIME type verification
-    - Content-based file signature validation
-    - Malicious file extension blocking
+    Import profile data from ZIP with security validation.
 
     Args:
-        file (UploadFile): The uploaded ZIP file containing the profile data to import.
-            Must have a .zip extension and pass security validation.
-        token_user_id (int): The ID of the authenticated user performing the import.
-            Extracted from the access token.
-        db (Session): Database session dependency for performing database operations.
-        websocket_manager (WebSocketManager): WebSocket manager for real-time updates
-            during the import process.
+        file: ZIP file containing profile data.
+        token_user_id: User ID from access token.
+        db: Database session.
+        websocket_manager: WebSocket manager for updates.
 
     Returns:
-        dict: A dictionary containing import results with information about what was imported,
-            including counts of activities, settings, and other imported items.
+        Import results with counts of imported items.
 
     Raises:
-        HTTPException(400): If the uploaded file fails security validation or if validation errors
-            occur (e.g., file size limits, activity limits exceeded).
-        HTTPException(507): If there is insufficient memory to process the import.
-        HTTPException(500): If an unexpected internal error occurs during the import process.
-        HTTPException: Various status codes may be raised by profile_exceptions.handle_import_export_exception for
-            specific import/export errors (profile_exceptions.DatabaseConnectionError, profile_exceptions.FileSystemError,
-            profile_exceptions.ZipCreationError, profile_exceptions.MemoryAllocationError, profile_exceptions.DataCollectionError, profile_exceptions.ExportTimeoutError).
-
-    Example:
-        The endpoint expects a multipart/form-data request with a ZIP file:
-        ```
-        POST /profile/import
-        Content-Type: multipart/form-data
-        Authorization: Bearer <token>
-        file: profile_export.zip
-        ```
+        HTTPException: If validation or import fails.
     """
     # Comprehensive security validation
     try:
@@ -612,33 +566,14 @@ async def get_mfa_status(
     db: Annotated[Session, Depends(core_database.get_db)],
 ):
     """
-    Return the multi-factor authentication (MFA) enabled status for the authenticated user.
-
-    This async route handler expects the authenticated user's ID to be injected from an access
-    token and a database session to be provided via dependency injection. It checks whether the
-    user has MFA enabled by delegating to profile_utils.is_mfa_enabled_for_user and returns the
-    result wrapped in the profile_schema.MFAStatusResponse model.
+    Return MFA enabled status for authenticated user.
 
     Args:
-        token_user_id (int): User ID extracted from the access token (provided by
-            session_security.get_user_id_from_access_token dependency).
-        db (Session): SQLAlchemy database session (provided by core_database.get_db dependency).
+        token_user_id: User ID from access token.
+        db: Database session.
 
     Returns:
-        profile_schema.MFAStatusResponse: Response object with a single attribute:
-            - mfa_enabled (bool): True if the user has MFA enabled, False otherwise.
-
-    Raises:
-        HTTPException: If authentication fails or the access token is invalid (raised by the
-            dependency that extracts the user ID).
-        sqlalchemy.exc.SQLAlchemyError: On database-related errors originating from the DB session
-            or helper functions.
-
-    Notes:
-        - This function performs a read-only check and does not modify persistent state.
-        - Intended to be used as a FastAPI route handler; the dependencies supply authentication
-          and the DB session automatically.
-        - Example serialized response: {"mfa_enabled": true}
+        MFA status response with enabled flag.
     """
     is_enabled = profile_utils.is_mfa_enabled_for_user(token_user_id, db)
     return profile_schema.MFAStatusResponse(mfa_enabled=is_enabled)
@@ -656,47 +591,15 @@ async def setup_mfa(
     ],
 ):
     """
-    Initiate MFA setup for the authenticated user.
-
-    Generates a new TOTP secret and associated provisioning data for the user identified
-    by token_user_id, persists any required MFA metadata using the provided database
-    session, and temporarily stores the raw secret in mfa_secret_store for the
-    subsequent enable/verification step.
+    Initiate MFA setup for authenticated user.
 
     Args:
-        token_user_id (int): User ID extracted from the access token via
-            session_security.get_user_id_from_access_token. The MFA setup will be
-            performed for this user.
-        db (Session): Database session (injected via core_database.get_db) used by
-            profile_utils.setup_user_mfa to persist user MFA metadata.
-        mfa_secret_store (profile_schema.MFASecretStore): Ephemeral secret store (injected
-            via profile_schema.get_mfa_secret_store). The generated raw secret is added
-            with mfa_secret_store.add_secret(token_user_id, secret) so it can be
-            verified in a subsequent request that enables MFA.
+        token_user_id: User ID from access token.
+        db: Database session.
+        mfa_secret_store: Temporary secret storage.
 
     Returns:
-        object: The response returned by profile_utils.setup_user_mfa. Typically this
-        contains the information needed by the client to configure an authenticator
-        app (for example: secret or masked secret, otpauth URI, and/or QR code data).
-
-    Side effects:
-        - Persists MFA-related metadata in the database via profile_utils.setup_user_mfa.
-        - Temporarily stores the raw TOTP secret in mfa_secret_store; callers should
-          ensure secrets are removed or expired after successful verification to avoid
-          long-lived plaintext secrets.
-
-    Errors/Exceptions:
-        - Authentication/authorization errors if the access token is invalid or does not
-          resolve to a user id (raised by the dependency).
-        - Database-related errors from profile_utils.setup_user_mfa or the db session.
-        - Storage errors from mfa_secret_store.add_secret (e.g., failure to persist the secret).
-        Callers (API layer) should translate these into appropriate HTTP responses.
-
-    Notes:
-        - Intended to be used as a FastAPI endpoint where token_user_id and db are
-          provided via Depends().
-        - Ensure mfa_secret_store implements appropriate concurrency control and TTL/expiry
-          for stored secrets.
+        MFA setup response with secret and QR code.
     """
     response = profile_utils.setup_user_mfa(token_user_id, db)
 
@@ -719,39 +622,19 @@ async def enable_mfa(
     ],
 ):
     """
-    Enable Multi-Factor Authentication (MFA) for the authenticated user.
+    Enable MFA for authenticated user.
 
-    Completes an in-progress MFA setup by retrieving the temporary secret for the user,
-    validating the provided one-time code (TOTP) and persisting the MFA configuration.
-    The temporary secret is removed from the store on success or error to avoid leaking secrets.
+    Args:
+        request: MFA setup request with code.
+        token_user_id: User ID from access token.
+        db: Database session.
+        mfa_secret_store: Temporary secret storage.
 
-    Parameters
-    ----------
-    request : profile_schema.MFASetupRequest
-        Request body containing the MFA code (TOTP) submitted by the user.
-    token_user_id : int
-        ID of the authenticated user, injected from the access token dependency.
-    db : Session
-        Database session used to persist the user's MFA settings.
-    mfa_secret_store : profile_schema.MFASecretStore
-        Temporary storage used to retrieve and delete the user's MFA secret during setup.
+    Returns:
+        Success message.
 
-    Returns
-    -------
-    dict
-        JSON-serializable success message: {"message": "MFA enabled successfully"}.
-
-    Raises
-    ------
-    HTTPException
-        - 400 Bad Request if there is no MFA setup in progress (no temporary secret available).
-        - Propagates HTTPException raised by the underlying validation/persistence (e.g., invalid TOTP,
-          database errors). On any error the temporary secret is removed to ensure cleanup.
-
-    Side effects
-    ------------
-    - Calls profile_utils.enable_user_mfa(...) to validate and enable MFA for the user.
-    - Deletes the temporary MFA secret from mfa_secret_store in both success and error paths.
+    Raises:
+        HTTPException: If no setup in progress or invalid.
     """
     # Get the secret from temporary storage
     secret = mfa_secret_store.get_secret(token_user_id)
@@ -781,34 +664,16 @@ async def disable_mfa(
     ],
     db: Annotated[Session, Depends(core_database.get_db)],
 ):
-    """Disable multi-factor authentication (MFA) for the authenticated user.
-
-    Asynchronous FastAPI route handler that disables MFA for the user identified by
-    the access token. It validates the MFA code provided in the request and delegates
-    the disabling operation to profile_utils.disable_user_mfa, persisting the change
-    using the supplied database session.
+    """
+    Disable MFA for authenticated user.
 
     Args:
-        request (profile_schema.MFADisableRequest): Request payload containing the MFA code
-            (expected attribute: `mfa_code`).
-        token_user_id (int): ID of the authenticated user, resolved from the access token
-            via dependency injection.
-        db (Session): SQLAlchemy database session provided by dependency injection.
+        request: MFA disable request with code.
+        token_user_id: User ID from access token.
+        db: Database session.
 
     Returns:
-        dict: A JSON-serializable dict with a success message, e.g.:
-            {"message": "MFA disabled successfully"}
-
-    Raises:
-        fastapi.HTTPException: If authentication fails or required dependencies cannot be resolved.
-        ValueError: If the provided MFA code is invalid (actual exception type may vary
-            depending on profile_utils implementation).
-        sqlalchemy.exc.SQLAlchemyError: If a database error occurs while updating the user's record.
-        Exception: Propagates other unexpected errors thrown by profile_utils.disable_user_mfa.
-
-    Notes:
-        - This function relies on FastAPI's Depends to supply token_user_id and db.
-        - Side effects: updates the user's MFA state in the database.
+        Success message.
     """
     profile_utils.disable_user_mfa(token_user_id, request.mfa_code, db)
     return {"message": "MFA disabled successfully"}
@@ -823,6 +688,20 @@ async def verify_mfa(
     ],
     db: Annotated[Session, Depends(core_database.get_db)],
 ):
+    """
+    Verify MFA code for authenticated user.
+
+    Args:
+        request: MFA request with code to verify.
+        token_user_id: User ID from access token.
+        db: Database session.
+
+    Returns:
+        Success message.
+
+    Raises:
+        HTTPException: If MFA code is invalid.
+    """
     is_valid = profile_utils.verify_user_mfa(token_user_id, request.mfa_code, db)
     if not is_valid:
         raise HTTPException(

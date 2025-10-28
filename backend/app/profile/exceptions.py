@@ -1,141 +1,171 @@
-"""
-Custom exceptions for profile import and export operations.
-
-This module defines specific exception types to provide better error handling
-and more informative error messages for different failure scenarios in both
-import and export operations.
-"""
-
 from fastapi import HTTPException, status
 
 
 # Base exceptions
 class ProfileOperationError(Exception):
-    """Base exception for all profile operations."""
+    """
+    Base exception for all profile operations.
+    """
 
     pass
 
 
 class ExportError(ProfileOperationError):
-    """Base exception for export operations."""
+    """
+    Base exception for export operations.
+    """
 
     pass
 
 
 class ImportError(ProfileOperationError):
-    """Base exception for import operations."""
+    """
+    Base exception for import operations.
+    """
 
     pass
 
 
 # Export-specific exceptions
 class DatabaseConnectionError(ExportError):
-    """Raised when database connection fails during export."""
+    """
+    Raised when database connection fails during export.
+    """
 
     pass
 
 
 class FileSystemError(ProfileOperationError):
-    """Raised when file system operations fail during import/export."""
+    """
+    Raised when file system operations fail.
+    """
 
     pass
 
 
 class ZipCreationError(ExportError):
-    """Raised when ZIP file creation or writing fails."""
+    """
+    Raised when ZIP file creation or writing fails.
+    """
 
     pass
 
 
 class MemoryAllocationError(ProfileOperationError):
-    """Raised when memory allocation fails during import/export."""
+    """
+    Raised when memory allocation fails.
+    """
 
     pass
 
 
 class DataCollectionError(ExportError):
-    """Raised when data collection from database fails."""
+    """
+    Raised when data collection from database fails.
+    """
 
     pass
 
 
 class ExportTimeoutError(ExportError):
-    """Raised when export operation exceeds time limit."""
+    """
+    Raised when export operation exceeds time limit.
+    """
 
     pass
 
 
 # Import-specific exceptions
 class ImportValidationError(ImportError):
-    """Raised when import data fails validation checks."""
+    """
+    Raised when import data fails validation checks.
+    """
 
     pass
 
 
 class FileFormatError(ImportError):
-    """Raised when imported file format is invalid or corrupted."""
+    """
+    Raised when imported file format is invalid or corrupted.
+    """
 
     pass
 
 
 class DataIntegrityError(ImportError):
-    """Raised when imported data has integrity issues or inconsistencies."""
+    """
+    Raised when imported data has integrity issues.
+    """
 
     pass
 
 
 class ImportTimeoutError(ImportError):
-    """Raised when import operation exceeds time limit."""
+    """
+    Raised when import operation exceeds time limit.
+    """
 
     pass
 
 
 class DiskSpaceError(ImportError):
-    """Raised when insufficient disk space is available for import operation."""
+    """
+    Raised when insufficient disk space is available.
+    """
 
     pass
 
 
 class FileSizeError(ImportError):
-    """Raised when imported file exceeds size limits."""
+    """
+    Raised when imported file exceeds size limits.
+    """
 
     pass
 
 
 class ActivityLimitError(ImportError):
-    """Raised when import contains too many activities."""
+    """
+    Raised when import contains too many activities.
+    """
 
     pass
 
 
 class ZipStructureError(ImportError):
-    """Raised when ZIP file structure is invalid or missing required files."""
+    """
+    Raised when ZIP file structure is invalid.
+    """
 
     pass
 
 
 class JSONParseError(ImportError):
-    """Raised when JSON data in import file cannot be parsed."""
+    """
+    Raised when JSON data cannot be parsed.
+    """
 
     pass
 
 
 class SchemaValidationError(ImportError):
-    """Raised when imported data doesn't match expected schema."""
+    """
+    Raised when imported data doesn't match expected schema.
+    """
 
     pass
 
 
 def handle_import_export_exception(error: Exception, operation: str) -> HTTPException:
     """
-    Convert import/export-specific exceptions to appropriate HTTP exceptions.
+    Convert exceptions to appropriate HTTP exceptions.
 
     Args:
-        error (Exception): The original exception
-        operation (str): Description of the operation that failed
+        error: The original exception.
+        operation: Description of the operation that failed.
 
     Returns:
-        HTTPException: Appropriate HTTP exception with descriptive message
+        Appropriate HTTP exception with descriptive message.
     """
     # Export-specific exceptions
     if isinstance(error, DatabaseConnectionError):
