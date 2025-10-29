@@ -118,7 +118,7 @@ async def handle_callback(
         response (Response | None): The HTTP response object. Defaults to None.
     Returns:
         RedirectResponse: A redirect response to either:
-            - Settings page (link mode): /settings/security with success parameters
+            - Settings page (link mode): /settings with success parameters
             - Login page (login mode): /login with session_id
             - Error page: /login with error parameter if callback fails
     Raises:
@@ -149,9 +149,7 @@ async def handle_callback(
         # Handle link mode differently - redirect to settings without creating new session
         if is_link_mode:
             frontend_url = core_config.ENDURAIN_HOST
-            redirect_url = (
-                f"{frontend_url}/settings/security?idp_link=success&idp_name={idp.name}"
-            )
+            redirect_url = f"{frontend_url}/settings?tab=security&idp_link=success&idp_name={idp.name}"
 
             core_logger.print_to_log(
                 f"IdP link successful for user {user.username}, IdP {idp.name}", "info"
