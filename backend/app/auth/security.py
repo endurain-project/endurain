@@ -22,6 +22,11 @@ oauth2_scheme = OAuth2PasswordBearer(
 # Define the API key header for the client type
 header_client_type_scheme = APIKeyHeader(name="X-Client-Type")
 
+# Define the API key header for the client type for OAuth redirects
+header_client_type_scheme_optional = APIKeyHeader(
+    name="X-Client-Type", auto_error=False
+)
+
 # Define the API key cookie for the access token
 cookie_access_token_scheme = APIKeyCookie(
     name="endurain_access_token",
@@ -98,6 +103,47 @@ def get_access_token(
     )
 
 
+def get_access_token_for_browser_redirect(
+    non_cookie_access_token: Annotated[Union[str, None], Depends(oauth2_scheme)],
+    cookie_access_token: Union[str, None] = Depends(cookie_access_token_scheme),
+    client_type: str | None = Depends(header_client_type_scheme_optional),
+) -> str | None:
+    """
+    Retrieve the access token for browser redirect scenarios.
+
+    This function handles token retrieval during OAuth redirects and browser navigation,
+    prioritizing the appropriate token source based on the client type.
+
+    Args:
+        non_cookie_access_token (Union[str, None]): The access token from the Authorization header
+            or query parameter, extracted via OAuth2 scheme dependency.
+        cookie_access_token (Union[str, None], optional): The access token from cookies.
+            Defaults to the result of cookie_access_token_scheme dependency.
+        client_type (str | None, optional): The type of client making the request
+            (e.g., "web", "mobile"). Defaults to "web" if not provided, as browser
+            redirects typically originate from web clients.
+
+    Returns:
+        str | None: The access token if found and valid, None otherwise.
+
+    Note:
+        This function defaults client_type to "web" when None is provided,
+        specifically to handle OAuth redirect scenarios where the client type
+        may not be explicitly specified.
+    """
+    print("Client type for browser redirect:", client_type)
+    if client_type is None:
+        client_type = "web"
+    print("Client type for browser redirect:", client_type)
+
+    return get_token(
+        non_cookie_access_token,
+        cookie_access_token,
+        client_type,
+        "access",
+    )
+
+
 def validate_access_token(
     # access_token: Annotated[str, Depends(get_access_token_from_cookies)]
     access_token: Annotated[str, Depends(get_access_token)],
@@ -108,6 +154,52 @@ def validate_access_token(
 ) -> None:
     """
     Validates the provided access token for expiration.
+
+    This function checks whether the given access token is still valid by verifying its expiration.
+    If the token is expired or invalid, an HTTPException is raised and the error is logged.
+    Any unexpected errors during validation are also logged and result in a 500 Internal Server Error.
+
+    Args:
+        access_token (str): The access token to be validated.
+        token_manager (auth_token_manager.TokenManager): The token manager instance used for validation.
+
+    Raises:
+        HTTPException: If the token is expired, invalid, or an unexpected error occurs during validation.
+    """
+    try:
+        # Validate the token expiration
+        token_manager.validate_token_expiration(access_token)
+    except HTTPException as http_err:
+        core_logger.print_to_log(
+            f"Access token validation failed: {http_err.detail}",
+            "error",
+            exc=http_err,
+            context={"access_token": "[REDACTED]"},
+        )
+        raise
+    except Exception as err:
+        core_logger.print_to_log(
+            f"Unexpected error during access token validation: {err}",
+            "error",
+            exc=err,
+            context={"access_token": "[REDACTED]"},
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An unexpected error occurred during access token validation.",
+        ) from err
+
+
+def validate_access_token_for_browser_redirect(
+    # access_token: Annotated[str, Depends(get_access_token_from_cookies)]
+    access_token: Annotated[str, Depends(get_access_token_for_browser_redirect)],
+    token_manager: Annotated[
+        auth_token_manager.TokenManager,
+        Depends(auth_token_manager.get_token_manager),
+    ],
+) -> None:
+    """
+    Validates the provided access token for expiration for browser redirects.
 
     This function checks whether the given access token is still valid by verifying its expiration.
     If the token is expired or invalid, an HTTPException is raised and the error is logged.
@@ -165,6 +257,35 @@ def get_sub_from_access_token(
         Exception: If the token is invalid or the 'sub' claim is missing.
     """
     # Return the user ID associated with the token
+    sub = token_manager.get_token_claim(access_token, "sub")
+    if not isinstance(sub, int):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token: 'sub' claim must be an integer",
+        )
+    return sub
+
+
+def get_sub_from_access_token_for_browser_redirect(
+    access_token: Annotated[str, Depends(get_access_token_for_browser_redirect)],
+    token_manager: Annotated[
+        auth_token_manager.TokenManager,
+        Depends(auth_token_manager.get_token_manager),
+    ],
+) -> int:
+    """
+    Retrieves the user ID ('sub' claim) from the provided access token for browser redirects.
+
+    Args:
+        access_token (str): The access token from which to extract the claim.
+        token_manager (auth_token_manager.TokenManager): The token manager instance used to decode and validate the token.
+
+    Returns:
+        int: The user ID associated with the access token.
+
+    Raises:
+        Exception: If the token is invalid or the 'sub' claim is missing.
+    """
     sub = token_manager.get_token_claim(access_token, "sub")
     if not isinstance(sub, int):
         raise HTTPException(
@@ -376,6 +497,71 @@ def check_scopes(
 ) -> None:
     """
     Validates that the access token contains all required security scopes.
+
+    Args:
+        access_token (str): The access token extracted from the request.
+        token_manager (auth_token_manager.TokenManager): Instance responsible for managing and validating tokens.
+        security_scopes (SecurityScopes): Required scopes for the endpoint.
+
+    Raises:
+        HTTPException: If any required scope is missing, raises 403 Forbidden with details.
+        HTTPException: If an unexpected error occurs during scope validation, raises 500 Internal Server Error.
+
+    Logs:
+        Errors and exceptions are logged using core_logger for debugging and auditing purposes.
+    """
+    # Get the scope from the token
+    scope = token_manager.get_token_claim(access_token, "scope")
+
+    # Ensure the scope is a list
+    if not isinstance(scope, list):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Unauthorized Access - Invalid scope format",
+            headers={"WWW-Authenticate": f'Bearer scope="{security_scopes.scopes}"'},
+        )
+
+    try:
+        # Use set operations to find missing scope
+        missing_scopes = set(security_scopes.scopes) - set(scope)
+        if missing_scopes:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Unauthorized Access - Missing permissions: {missing_scopes}",
+                headers={
+                    "WWW-Authenticate": f'Bearer scope="{security_scopes.scopes}"'
+                },
+            )
+    except HTTPException as http_err:
+        core_logger.print_to_log(
+            f"Scope validation failed: {http_err}",
+            "error",
+            exc=http_err,
+        )
+        raise http_err
+    except Exception as err:
+        core_logger.print_to_log(
+            f"Unexpected error during scope validation: {err}",
+            "error",
+            exc=err,
+            context={"scope": scope, "required_scope": security_scopes.scopes},
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An unexpected error occurred during scope validation.",
+        ) from err
+
+
+def check_scopes_for_browser_redirect(
+    access_token: Annotated[str, Depends(get_access_token_for_browser_redirect)],
+    token_manager: Annotated[
+        auth_token_manager.TokenManager,
+        Depends(auth_token_manager.get_token_manager),
+    ],
+    security_scopes: SecurityScopes,
+) -> None:
+    """
+    Validates that the access token contains all required security scopes for browser redirection.
 
     Args:
         access_token (str): The access token extracted from the request.

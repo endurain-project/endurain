@@ -197,3 +197,7 @@ export async function fetchDeleteRequest(url) {
   }
   return fetchWithRetry(url, options)
 }
+
+export async function fetchGetRequestWithRedirect(url) {
+  window.location.href = `${API_URL}${url}`
+}

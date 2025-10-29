@@ -4,7 +4,7 @@ import {
   fetchPutRequest,
   fetchDeleteRequest,
   fetchPostFileRequest,
-  API_URL
+  fetchGetRequestWithRedirect
 } from '@/utils/serviceUtils'
 
 export const profile = {
@@ -67,6 +67,6 @@ export const profile = {
     return fetchDeleteRequest(`profile/idp/${idpId}`)
   },
   linkIdentityProvider(idpId) {
-    window.location.href = `${API_URL}profile/idp/${idpId}/link`
+    return fetchGetRequestWithRedirect(`profile/idp/${idpId}/link`)
   }
 }
