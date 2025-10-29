@@ -6,13 +6,13 @@ from sqlalchemy.orm import Session
 
 import core.database as core_database
 import core.rate_limit as core_rate_limit
-import session.password_hasher as session_password_hasher
-import session.token_manager as session_token_manager
+import auth.password_hasher as auth_password_hasher
+import auth.token_manager as auth_token_manager
+import auth.utils as auth_utils
 import session.utils as session_utils
-import session.crud as session_crud
-import identity_providers.crud as idp_crud
-import identity_providers.schema as idp_schema
-import identity_providers.service as idp_service
+import auth.identity_providers.crud as idp_crud
+import auth.identity_providers.schema as idp_schema
+import auth.identity_providers.service as idp_service
 import users.user.schema as users_schema
 import core.config as core_config
 import core.logger as core_logger
@@ -58,7 +58,7 @@ async def initiate_login(
 ):
     """
     Initiates the login process for a given identity provider using OAuth.
-    
+
     Rate Limit: 10 requests per minute per IP
     Args:
         idp_slug (str): The slug identifier for the identity provider.
@@ -88,20 +88,20 @@ async def initiate_login(
 @router.get("/callback/{idp_slug}", status_code=status.HTTP_307_TEMPORARY_REDIRECT)
 @core_rate_limit.limiter.limit(core_rate_limit.OAUTH_CALLBACK_LIMIT)
 async def handle_callback(
+    request: Request,
+    response: Response,
     idp_slug: str,
     password_hasher: Annotated[
-        session_password_hasher.PasswordHasher,
-        Depends(session_password_hasher.get_password_hasher),
+        auth_password_hasher.PasswordHasher,
+        Depends(auth_password_hasher.get_password_hasher),
     ],
     token_manager: Annotated[
-        session_token_manager.TokenManager,
-        Depends(session_token_manager.get_token_manager),
+        auth_token_manager.TokenManager,
+        Depends(auth_token_manager.get_token_manager),
     ],
     db: Annotated[Session, Depends(core_database.get_db)],
     code: str = Query(..., description="Authorization code from IdP"),
     state: str = Query(..., description="State parameter for CSRF protection"),
-    request: Request = None,
-    response: Response = None,
 ):
     """
     Handle OAuth callback from an identity provider.
@@ -109,13 +109,13 @@ async def handle_callback(
     It supports two modes: login mode (default) and link mode (for linking IdP to existing account).
     Args:
         idp_slug (str): The slug identifier of the identity provider.
-        password_hasher (session_password_hasher.PasswordHasher): Password hasher dependency for session management.
-        token_manager (session_token_manager.TokenManager): Token manager dependency for creating session tokens.
+        password_hasher (auth_password_hasher.PasswordHasher): Password hasher dependency for session management.
+        token_manager (auth_token_manager.TokenManager): Token manager dependency for creating session tokens.
         db (Session): Database session dependency.
         code (str): Authorization code received from the identity provider.
         state (str): State parameter used for CSRF protection.
-        request (Request, optional): The incoming HTTP request. Defaults to None.
-        response (Response, optional): The HTTP response object. Defaults to None.
+        request (Request | None): The incoming HTTP request. Defaults to None.
+        response (Response | None): The HTTP response object. Defaults to None.
     Returns:
         RedirectResponse: A redirect response to either:
             - Settings page (link mode): /settings/security with success parameters
@@ -149,12 +149,14 @@ async def handle_callback(
         # Handle link mode differently - redirect to settings without creating new session
         if is_link_mode:
             frontend_url = core_config.ENDURAIN_HOST
-            redirect_url = f"{frontend_url}/settings/security?idp_link=success&idp_name={idp.name}"
-            
+            redirect_url = (
+                f"{frontend_url}/settings/security?idp_link=success&idp_name={idp.name}"
+            )
+
             core_logger.print_to_log(
                 f"IdP link successful for user {user.username}, IdP {idp.name}", "info"
             )
-            
+
             return RedirectResponse(
                 url=redirect_url,
                 status_code=status.HTTP_307_TEMPORARY_REDIRECT,
@@ -172,7 +174,7 @@ async def handle_callback(
             refresh_token_exp,
             refresh_token,
             csrf_token,
-        ) = session_utils.create_tokens(user_read, token_manager)
+        ) = auth_utils.create_tokens(user_read, token_manager)
 
         # Create the session and store it in the database
         session_utils.create_session(
@@ -180,7 +182,7 @@ async def handle_callback(
         )
 
         # Set authentication cookies
-        response = session_utils.create_response_with_tokens(
+        response = auth_utils.create_response_with_tokens(
             response,
             access_token,
             refresh_token,

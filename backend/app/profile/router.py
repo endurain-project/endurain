@@ -11,8 +11,8 @@ import users.user.utils as users_utils
 import users.user_identity_providers.crud as user_idp_crud
 import users.user_identity_providers.schema as user_idp_schema
 
-import identity_providers.crud as idp_crud
-import identity_providers.service as idp_service
+import auth.identity_providers.crud as idp_crud
+import auth.identity_providers.service as idp_service
 
 import users.user_integrations.crud as user_integrations_crud
 
@@ -25,9 +25,9 @@ import profile.export_service as profile_export_service
 import profile.import_service as profile_import_service
 import profile.exceptions as profile_exceptions
 
-import session.security as session_security
+import auth.security as auth_security
 import session.crud as session_crud
-import session.password_hasher as session_password_hasher
+import auth.password_hasher as auth_password_hasher
 
 import core.database as core_database
 import core.logger as core_logger
@@ -48,7 +48,7 @@ file_validator = FileValidator()
 async def read_users_me(
     token_user_id: Annotated[
         int,
-        Depends(session_security.get_sub_from_access_token),
+        Depends(auth_security.get_sub_from_access_token),
     ],
     db: Annotated[
         Session,
@@ -116,7 +116,7 @@ async def read_users_me(
 async def read_sessions_me(
     token_user_id: Annotated[
         int,
-        Depends(session_security.get_sub_from_access_token),
+        Depends(auth_security.get_sub_from_access_token),
     ],
     db: Annotated[
         Session,
@@ -146,7 +146,7 @@ async def upload_profile_image(
     file: UploadFile,
     token_user_id: Annotated[
         int,
-        Depends(session_security.get_sub_from_access_token),
+        Depends(auth_security.get_sub_from_access_token),
     ],
     db: Annotated[
         Session,
@@ -184,7 +184,7 @@ async def edit_user(
     user_attributtes: users_schema.UserRead,
     token_user_id: Annotated[
         int,
-        Depends(session_security.get_sub_from_access_token),
+        Depends(auth_security.get_sub_from_access_token),
     ],
     db: Annotated[
         Session,
@@ -214,7 +214,7 @@ async def edit_profile_privacy_settings(
     user_privacy_settings: users_privacy_settings_schema.UsersPrivacySettings,
     token_user_id: Annotated[
         int,
-        Depends(session_security.get_sub_from_access_token),
+        Depends(auth_security.get_sub_from_access_token),
     ],
     db: Annotated[
         Session,
@@ -246,11 +246,11 @@ async def edit_profile_password(
     user_attributtes: users_schema.UserEditPassword,
     token_user_id: Annotated[
         int,
-        Depends(session_security.get_sub_from_access_token),
+        Depends(auth_security.get_sub_from_access_token),
     ],
     password_hasher: Annotated[
-        session_password_hasher.PasswordHasher,
-        Depends(session_password_hasher.get_password_hasher),
+        auth_password_hasher.PasswordHasher,
+        Depends(auth_password_hasher.get_password_hasher),
     ],
     db: Annotated[
         Session,
@@ -263,7 +263,7 @@ async def edit_profile_password(
     Args:
         user_attributtes (users_schema.UserEditPassword): Schema containing the new password.
         token_user_id (int): ID of the user extracted from the access token.
-        password_hasher (session_password_hasher.PasswordHasher): Password hasher dependency.
+        password_hasher (auth_password_hasher.PasswordHasher): Password hasher dependency.
         db (Session): Database session dependency.
 
     Returns:
@@ -282,7 +282,7 @@ async def edit_profile_password(
 async def delete_profile_photo(
     token_user_id: Annotated[
         int,
-        Depends(session_security.get_sub_from_access_token),
+        Depends(auth_security.get_sub_from_access_token),
     ],
     db: Annotated[
         Session,
@@ -311,7 +311,7 @@ async def delete_profile_session(
     session_id: str,
     token_user_id: Annotated[
         int,
-        Depends(session_security.get_sub_from_access_token),
+        Depends(auth_security.get_sub_from_access_token),
     ],
     db: Annotated[
         Session,
@@ -340,7 +340,7 @@ async def delete_profile_session(
 async def export_profile_data(
     token_user_id: Annotated[
         int,
-        Depends(session_security.get_sub_from_access_token),
+        Depends(auth_security.get_sub_from_access_token),
     ],
     db: Annotated[
         Session,
@@ -426,7 +426,7 @@ async def import_profile_data(
     file: UploadFile,
     token_user_id: Annotated[
         int,
-        Depends(session_security.get_sub_from_access_token),
+        Depends(auth_security.get_sub_from_access_token),
     ],
     db: Annotated[Session, Depends(core_database.get_db)],
     websocket_manager: Annotated[
@@ -562,7 +562,7 @@ async def import_profile_data(
 async def get_mfa_status(
     token_user_id: Annotated[
         int,
-        Depends(session_security.get_sub_from_access_token),
+        Depends(auth_security.get_sub_from_access_token),
     ],
     db: Annotated[Session, Depends(core_database.get_db)],
 ):
@@ -584,7 +584,7 @@ async def get_mfa_status(
 async def setup_mfa(
     token_user_id: Annotated[
         int,
-        Depends(session_security.get_sub_from_access_token),
+        Depends(auth_security.get_sub_from_access_token),
     ],
     db: Annotated[Session, Depends(core_database.get_db)],
     mfa_secret_store: Annotated[
@@ -615,7 +615,7 @@ async def enable_mfa(
     request: profile_schema.MFASetupRequest,
     token_user_id: Annotated[
         int,
-        Depends(session_security.get_sub_from_access_token),
+        Depends(auth_security.get_sub_from_access_token),
     ],
     db: Annotated[Session, Depends(core_database.get_db)],
     mfa_secret_store: Annotated[
@@ -661,7 +661,7 @@ async def disable_mfa(
     request: profile_schema.MFADisableRequest,
     token_user_id: Annotated[
         int,
-        Depends(session_security.get_sub_from_access_token),
+        Depends(auth_security.get_sub_from_access_token),
     ],
     db: Annotated[Session, Depends(core_database.get_db)],
 ):
@@ -685,7 +685,7 @@ async def verify_mfa(
     request: profile_schema.MFARequest,
     token_user_id: Annotated[
         int,
-        Depends(session_security.get_sub_from_access_token),
+        Depends(auth_security.get_sub_from_access_token),
     ],
     db: Annotated[Session, Depends(core_database.get_db)],
 ):
@@ -720,7 +720,7 @@ async def verify_mfa(
 async def get_my_identity_providers(
     token_user_id: Annotated[
         int,
-        Depends(session_security.get_sub_from_access_token),
+        Depends(auth_security.get_sub_from_access_token),
     ],
     db: Annotated[
         Session,
@@ -755,7 +755,7 @@ async def get_my_identity_providers(
         HTTPException: May raise authentication/authorization errors via the dependency injection.
     """
     # Get user's IdP links
-    idp_links = user_idp_crud.get_user_idp_links(token_user_id, db)
+    idp_links = user_idp_crud.get_user_identity_providers_by_user_id(token_user_id, db)
 
     # Enrich with IDP details (reuse logic from admin endpoint)
     enriched_links = []
@@ -792,7 +792,7 @@ async def delete_my_identity_provider(
     idp_id: int,
     token_user_id: Annotated[
         int,
-        Depends(session_security.get_sub_from_access_token),
+        Depends(auth_security.get_sub_from_access_token),
     ],
     db: Annotated[
         Session,
@@ -837,7 +837,9 @@ async def delete_my_identity_provider(
         )
 
     # Check if link exists for this user
-    link = user_idp_crud.get_user_idp_link(token_user_id, idp_id, db)
+    link = user_idp_crud.get_user_identity_provider_by_user_id_and_idp_id(
+        token_user_id, idp_id, db
+    )
     if not link:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -849,7 +851,9 @@ async def delete_my_identity_provider(
     user = users_crud.get_user_by_id(token_user_id, db)
 
     # Count remaining IdP links after deletion
-    all_idp_links = user_idp_crud.get_user_idp_links(token_user_id, db)
+    all_idp_links = user_idp_crud.get_user_identity_providers_by_user_id(
+        token_user_id, db
+    )
     remaining_idp_count = len(all_idp_links) - 1
 
     # User must have either:
@@ -864,7 +868,7 @@ async def delete_my_identity_provider(
         )
 
     # Proceed with deletion
-    success = user_idp_crud.delete_user_idp_link(token_user_id, idp_id, db)
+    success = user_idp_crud.delete_user_identity_provider(token_user_id, idp_id, db)
 
     if not success:
         raise HTTPException(
@@ -890,7 +894,7 @@ async def link_identity_provider(
     request: Request,
     token_user_id: Annotated[
         int,
-        Depends(session_security.get_sub_from_access_token),
+        Depends(auth_security.get_sub_from_access_token),
     ],
     db: Annotated[
         Session,
@@ -930,7 +934,9 @@ async def link_identity_provider(
         )
 
     # Check if already linked
-    existing_link = user_idp_crud.get_user_idp_link(token_user_id, idp_id, db)
+    existing_link = user_idp_crud.get_user_identity_provider_by_user_id_and_idp_id(
+        token_user_id, idp_id, db
+    )
     if existing_link:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,

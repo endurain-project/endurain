@@ -3,7 +3,7 @@ from typing import Annotated, Callable
 from fastapi import APIRouter, Depends, HTTPException, status, Security
 from sqlalchemy.orm import Session
 
-import session.security as session_security
+import auth.security as auth_security
 
 import notifications.dependencies as notifications_dependencies
 import notifications.crud as notifications_crud
@@ -21,9 +21,7 @@ router = APIRouter()
     response_model=int,
 )
 async def read_notifications_number(
-    token_user_id: Annotated[
-        int, Depends(session_security.get_sub_from_access_token)
-    ],
+    token_user_id: Annotated[int, Depends(auth_security.get_sub_from_access_token)],
     db: Annotated[
         Session,
         Depends(core_database.get_db),
@@ -54,9 +52,7 @@ async def read_notifications_by_id(
     validate_notification_id: Annotated[
         Callable, Depends(notifications_dependencies.validate_notification_id)
     ],
-    token_user_id: Annotated[
-        int, Depends(session_security.get_sub_from_access_token)
-    ],
+    token_user_id: Annotated[int, Depends(auth_security.get_sub_from_access_token)],
     db: Annotated[
         Session,
         Depends(core_database.get_db),
@@ -88,9 +84,7 @@ async def read_notifications_user_pagination(
     validate_pagination_values: Annotated[
         Callable, Depends(core_dependencies.validate_pagination_values)
     ],
-    token_user_id: Annotated[
-        int, Depends(session_security.get_sub_from_access_token)
-    ],
+    token_user_id: Annotated[int, Depends(auth_security.get_sub_from_access_token)],
     db: Annotated[
         Session,
         Depends(core_database.get_db),
@@ -122,9 +116,7 @@ async def mark_notification_as_read(
     validate_notification_id: Annotated[
         Callable, Depends(notifications_dependencies.validate_notification_id)
     ],
-    token_user_id: Annotated[
-        int, Depends(session_security.get_sub_from_access_token)
-    ],
+    token_user_id: Annotated[int, Depends(auth_security.get_sub_from_access_token)],
     db: Annotated[
         Session,
         Depends(core_database.get_db),

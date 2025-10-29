@@ -7,15 +7,15 @@ from fastapi.security import (
     APIKeyCookie,
 )
 
-import session.constants as session_constants
-import session.token_manager as session_token_manager
+import auth.constants as auth_constants
+import auth.token_manager as auth_token_manager
 
 import core.logger as core_logger
 
 # Define the OAuth2 scheme for handling bearer tokens
 oauth2_scheme = OAuth2PasswordBearer(
     tokenUrl="token",
-    scopes=session_constants.SCOPE_DICT,
+    scopes=auth_constants.SCOPE_DICT,
     auto_error=False,
 )
 
@@ -39,7 +39,7 @@ def get_token(
     cookie_token: Union[str, None],
     client_type: str,
     token_type: str,
-) -> str:
+) -> str | None:
     """
     Retrieves the authentication token based on client type and available sources.
 
@@ -78,7 +78,7 @@ def get_access_token(
     non_cookie_access_token: Annotated[Union[str, None], Depends(oauth2_scheme)],
     cookie_access_token: Union[str, None] = Depends(cookie_access_token_scheme),
     client_type: str = Depends(header_client_type_scheme),
-) -> str:
+) -> str | None:
     """
     Retrieves the access token from either the Authorization header or a cookie, depending on the client type.
 
@@ -102,8 +102,8 @@ def validate_access_token(
     # access_token: Annotated[str, Depends(get_access_token_from_cookies)]
     access_token: Annotated[str, Depends(get_access_token)],
     token_manager: Annotated[
-        session_token_manager.TokenManager,
-        Depends(session_token_manager.get_token_manager),
+        auth_token_manager.TokenManager,
+        Depends(auth_token_manager.get_token_manager),
     ],
 ) -> None:
     """
@@ -115,7 +115,7 @@ def validate_access_token(
 
     Args:
         access_token (str): The access token to be validated.
-        token_manager (session_token_manager.TokenManager): The token manager instance used for validation.
+        token_manager (auth_token_manager.TokenManager): The token manager instance used for validation.
 
     Raises:
         HTTPException: If the token is expired, invalid, or an unexpected error occurs during validation.
@@ -147,8 +147,8 @@ def validate_access_token(
 def get_sub_from_access_token(
     access_token: Annotated[str, Depends(get_access_token)],
     token_manager: Annotated[
-        session_token_manager.TokenManager,
-        Depends(session_token_manager.get_token_manager),
+        auth_token_manager.TokenManager,
+        Depends(auth_token_manager.get_token_manager),
     ],
 ) -> int:
     """
@@ -156,7 +156,7 @@ def get_sub_from_access_token(
 
     Args:
         access_token (str): The access token from which to extract the claim.
-        token_manager (session_token_manager.TokenManager): The token manager instance used to decode and validate the token.
+        token_manager (auth_token_manager.TokenManager): The token manager instance used to decode and validate the token.
 
     Returns:
         int: The user ID associated with the access token.
@@ -165,22 +165,28 @@ def get_sub_from_access_token(
         Exception: If the token is invalid or the 'sub' claim is missing.
     """
     # Return the user ID associated with the token
-    return token_manager.get_token_claim(access_token, "sub")
+    sub = token_manager.get_token_claim(access_token, "sub")
+    if not isinstance(sub, int):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token: 'sub' claim must be an integer",
+        )
+    return sub
 
 
 def get_sid_from_access_token(
     access_token: Annotated[str, Depends(get_access_token)],
     token_manager: Annotated[
-        session_token_manager.TokenManager,
-        Depends(session_token_manager.get_token_manager),
+        auth_token_manager.TokenManager,
+        Depends(auth_token_manager.get_token_manager),
     ],
-) -> int:
+) -> str:
     """
     Retrieves the session ID ('sid') from the provided access token.
 
     Args:
         access_token (str): The access token from which to extract the session ID.
-        token_manager (session_token_manager.TokenManager): The token manager used to validate and extract claims from the token.
+        token_manager (auth_token_manager.TokenManager): The token manager used to validate and extract claims from the token.
 
     Returns:
         int: The session ID ('sid') associated with the access token.
@@ -188,8 +194,14 @@ def get_sid_from_access_token(
     Raises:
         Exception: If the token is invalid or the 'sid' claim is not present.
     """
-    # Return the user ID associated with the token
-    return token_manager.get_token_claim(access_token, "sid")
+    # Return the session ID associated with the token
+    sid = token_manager.get_token_claim(access_token, "sid")
+    if not isinstance(sid, str):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token: 'sid' claim must be a string",
+        )
+    return sid
 
 
 def get_and_return_access_token(
@@ -213,7 +225,7 @@ def get_refresh_token(
     non_cookie_refresh_token: Annotated[Union[str, None], Depends(oauth2_scheme)],
     cookie_refresh_token: Union[str, None] = Depends(cookie_refresh_token_scheme),
     client_type: str = Depends(header_client_type_scheme),
-) -> str:
+) -> str | None:
     """
     Retrieves the refresh token from either the Authorization header or a cookie, depending on the client type.
 
@@ -237,8 +249,8 @@ def validate_refresh_token(
     # access_token: Annotated[str, Depends(get_access_token_from_cookies)]
     refresh_token: Annotated[str, Depends(get_refresh_token)],
     token_manager: Annotated[
-        session_token_manager.TokenManager,
-        Depends(session_token_manager.get_token_manager),
+        auth_token_manager.TokenManager,
+        Depends(auth_token_manager.get_token_manager),
     ],
 ) -> None:
     """
@@ -246,7 +258,7 @@ def validate_refresh_token(
 
     Args:
         refresh_token (str): The refresh token to be validated, extracted via dependency injection.
-        token_manager (session_token_manager.TokenManager): The token manager instance used to validate the token, injected via dependency.
+        token_manager (auth_token_manager.TokenManager): The token manager instance used to validate the token, injected via dependency.
 
     Raises:
         HTTPException: If the refresh token is expired or invalid, or if an unexpected error occurs during validation.
@@ -281,8 +293,8 @@ def validate_refresh_token(
 def get_sub_from_refresh_token(
     refresh_token: Annotated[str, Depends(get_refresh_token)],
     token_manager: Annotated[
-        session_token_manager.TokenManager,
-        Depends(session_token_manager.get_token_manager),
+        auth_token_manager.TokenManager,
+        Depends(auth_token_manager.get_token_manager),
     ],
 ) -> int:
     """
@@ -290,7 +302,7 @@ def get_sub_from_refresh_token(
 
     Args:
         refresh_token (str): The refresh token from which to extract the user ID.
-        token_manager (session_token_manager.TokenManager): The token manager instance used to validate and parse the token.
+        token_manager (auth_token_manager.TokenManager): The token manager instance used to validate and parse the token.
 
     Returns:
         int: The user ID associated with the provided refresh token.
@@ -299,14 +311,20 @@ def get_sub_from_refresh_token(
         Exception: If the token is invalid or the 'sub' claim is not found.
     """
     # Return the user ID associated with the token
-    return token_manager.get_token_claim(refresh_token, "sub")
+    sub = token_manager.get_token_claim(refresh_token, "sub")
+    if not isinstance(sub, int):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token: 'sub' claim must be an integer",
+        )
+    return sub
 
 
 def get_sid_from_refresh_token(
     refresh_token: Annotated[str, Depends(get_refresh_token)],
     token_manager: Annotated[
-        session_token_manager.TokenManager,
-        Depends(session_token_manager.get_token_manager),
+        auth_token_manager.TokenManager,
+        Depends(auth_token_manager.get_token_manager),
     ],
 ) -> str:
     """
@@ -314,7 +332,7 @@ def get_sid_from_refresh_token(
 
     Args:
         refresh_token (str): The refresh token from which to extract the session ID.
-        token_manager (session_token_manager.TokenManager): The token manager used to validate and extract claims from the token.
+        token_manager (auth_token_manager.TokenManager): The token manager used to validate and extract claims from the token.
 
     Returns:
         str: The session ID associated with the provided refresh token.
@@ -323,7 +341,13 @@ def get_sid_from_refresh_token(
         Exception: If the token is invalid or the 'sid' claim is not present.
     """
     # Return the session ID associated with the token
-    return token_manager.get_token_claim(refresh_token, "sid")
+    sid = token_manager.get_token_claim(refresh_token, "sid")
+    if not isinstance(sid, str):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token: 'sid' claim must be a string",
+        )
+    return sid
 
 
 def get_and_return_refresh_token(
@@ -345,8 +369,8 @@ def get_and_return_refresh_token(
 def check_scopes(
     access_token: Annotated[str, Depends(get_access_token)],
     token_manager: Annotated[
-        session_token_manager.TokenManager,
-        Depends(session_token_manager.get_token_manager),
+        auth_token_manager.TokenManager,
+        Depends(auth_token_manager.get_token_manager),
     ],
     security_scopes: SecurityScopes,
 ) -> None:
@@ -355,7 +379,7 @@ def check_scopes(
 
     Args:
         access_token (str): The access token extracted from the request.
-        token_manager (session_token_manager.TokenManager): Instance responsible for managing and validating tokens.
+        token_manager (auth_token_manager.TokenManager): Instance responsible for managing and validating tokens.
         security_scopes (SecurityScopes): Required scopes for the endpoint.
 
     Raises:
@@ -367,6 +391,14 @@ def check_scopes(
     """
     # Get the scope from the token
     scope = token_manager.get_token_claim(access_token, "scope")
+
+    # Ensure the scope is a list
+    if not isinstance(scope, list):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Unauthorized Access - Invalid scope format",
+            headers={"WWW-Authenticate": f'Bearer scope="{security_scopes.scopes}"'},
+        )
 
     try:
         # Use set operations to find missing scope

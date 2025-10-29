@@ -52,12 +52,12 @@ class TestLoginEndpointSecurity:
             returns_tokens: Boolean indicating if the endpoint should return tokens or just a session ID.
         """
         fast_api_app.state._client_type = client_type
-        with patch(
-            "session.router.session_utils.authenticate_user"
-        ) as mock_auth, patch("session.router.users_utils.check_user_is_active"), patch(
+        with patch("session.router.auth_utils.authenticate_user") as mock_auth, patch(
+            "session.router.users_utils.check_user_is_active"
+        ), patch(
             "session.router.profile_utils.is_mfa_enabled_for_user"
         ) as mock_mfa, patch(
-            "session.router.session_utils.complete_login"
+            "session.router.auth_utils.complete_login"
         ) as mock_complete:
             mock_auth.return_value = sample_user_read
             mock_mfa.return_value = False
@@ -127,11 +127,9 @@ class TestLoginEndpointSecurity:
             - The fake_store in the app state records the correct call.
         """
         fast_api_app.state._client_type = client_type
-        with patch(
-            "session.router.session_utils.authenticate_user"
-        ) as mock_auth, patch("session.router.users_utils.check_user_is_active"), patch(
-            "session.router.profile_utils.is_mfa_enabled_for_user"
-        ) as mock_mfa:
+        with patch("session.router.auth_utils.authenticate_user") as mock_auth, patch(
+            "session.router.users_utils.check_user_is_active"
+        ), patch("session.router.profile_utils.is_mfa_enabled_for_user") as mock_mfa:
             mock_auth.return_value = sample_user_read
             mock_mfa.return_value = True
 
@@ -166,12 +164,12 @@ class TestLoginEndpointSecurity:
             sample_user_read: A sample user object returned by the authentication mock.
         """
         fast_api_app.state._client_type = "desktop"
-        with patch(
-            "session.router.session_utils.authenticate_user"
-        ) as mock_auth, patch("session.router.users_utils.check_user_is_active"), patch(
+        with patch("session.router.auth_utils.authenticate_user") as mock_auth, patch(
+            "session.router.users_utils.check_user_is_active"
+        ), patch(
             "session.router.profile_utils.is_mfa_enabled_for_user"
         ) as mock_mfa, patch(
-            "session.router.session_utils.create_tokens"
+            "session.router.auth_utils.create_tokens"
         ) as mock_create_tokens, patch(
             "session.router.session_utils.create_session"
         ) as mock_create_session:
@@ -204,7 +202,7 @@ class TestLoginEndpointSecurity:
         to simulate authentication failure and verifies that the exception is raised
         with the correct status code and detail.
         """
-        with patch("session.router.session_utils.authenticate_user") as mock_auth:
+        with patch("session.router.auth_utils.authenticate_user") as mock_auth:
             mock_auth.side_effect = HTTPException(
                 status_code=401, detail="Invalid username"
             )
@@ -223,7 +221,7 @@ class TestLoginEndpointSecurity:
         the scenario where a user is found but is inactive. It asserts that the correct
         exception is raised with the expected status code.
         """
-        with patch("session.router.session_utils.authenticate_user") as mock_auth:
+        with patch("session.router.auth_utils.authenticate_user") as mock_auth:
             with patch("session.router.users_utils.check_user_is_active") as mock_check:
                 mock_auth.return_value = sample_inactive_user
                 mock_check.side_effect = HTTPException(
@@ -283,7 +281,7 @@ class TestMFAVerifyEndpoint:
             returns_tokens: Boolean indicating if tokens should be returned.
         """
         fast_api_app.state._client_type = client_type
-        
+
         # Setup pending MFA login
         pending_store = fast_api_app.state.fake_store
         pending_store._store = {"testuser": sample_user_read.id}
@@ -295,7 +293,7 @@ class TestMFAVerifyEndpoint:
         ) as mock_get_user, patch(
             "session.router.users_utils.check_user_is_active"
         ), patch(
-            "session.router.session_utils.complete_login"
+            "session.router.auth_utils.complete_login"
         ) as mock_complete:
             mock_verify_mfa.return_value = True
             mock_get_user.return_value = sample_user_read
@@ -488,7 +486,9 @@ class TestRefreshTokenEndpoint:
 
         mock_session = MagicMock()
         mock_session.id = "test-session-id"
-        mock_session.refresh_token = password_hasher.hash_password("refresh_token_value")
+        mock_session.refresh_token = password_hasher.hash_password(
+            "refresh_token_value"
+        )
 
         with patch(
             "session.router.session_crud.get_session_by_id", return_value=mock_session
@@ -497,11 +497,11 @@ class TestRefreshTokenEndpoint:
         ), patch(
             "session.router.users_utils.check_user_is_active"
         ), patch(
-            "session.router.session_utils.create_tokens"
+            "session.router.auth_utils.create_tokens"
         ) as mock_create_tokens, patch(
             "session.router.session_utils.edit_session"
         ), patch(
-            "session.router.session_utils.create_response_with_tokens",
+            "session.router.auth_utils.create_response_with_tokens",
             side_effect=lambda r, a, rf, c: r,
         ):
             # Set up proper mock for create_tokens with timestamp
@@ -516,10 +516,10 @@ class TestRefreshTokenEndpoint:
                 "new_refresh_token",
                 "new_csrf_token",
             )
-            
+
             # Set cookies on client instance (new API)
             fast_api_client.cookies.set("endurain_refresh_token", "refresh_token_value")
-            
+
             resp = fast_api_client.post(
                 "/refresh",
                 headers={"X-Client-Type": client_type},
@@ -547,12 +547,10 @@ class TestRefreshTokenEndpoint:
         fast_api_app.state.mock_session_id = "nonexistent-session"
         fast_api_app.state.mock_refresh_token = "refresh_token_value"
 
-        with patch(
-            "session.router.session_crud.get_session_by_id", return_value=None
-        ):
+        with patch("session.router.session_crud.get_session_by_id", return_value=None):
             # Set cookies on client instance (new API)
             fast_api_client.cookies.set("endurain_refresh_token", "refresh_token_value")
-            
+
             resp = fast_api_client.post(
                 "/refresh",
                 headers={"X-Client-Type": "web"},
@@ -584,7 +582,7 @@ class TestRefreshTokenEndpoint:
         ):
             # Set cookies on client instance (new API)
             fast_api_client.cookies.set("endurain_refresh_token", "wrong_token_value")
-            
+
             resp = fast_api_client.post(
                 "/refresh",
                 headers={"X-Client-Type": "web"},
@@ -609,7 +607,9 @@ class TestRefreshTokenEndpoint:
 
         mock_session = MagicMock()
         mock_session.id = "test-session-id"
-        mock_session.refresh_token = password_hasher.hash_password("refresh_token_value")
+        mock_session.refresh_token = password_hasher.hash_password(
+            "refresh_token_value"
+        )
 
         with patch(
             "session.router.session_crud.get_session_by_id", return_value=mock_session
@@ -624,7 +624,7 @@ class TestRefreshTokenEndpoint:
         ):
             # Set cookies on client instance (new API)
             fast_api_client.cookies.set("endurain_refresh_token", "refresh_token_value")
-            
+
             resp = fast_api_client.post(
                 "/refresh",
                 headers={"X-Client-Type": "web"},
@@ -648,7 +648,9 @@ class TestRefreshTokenEndpoint:
 
         mock_session = MagicMock()
         mock_session.id = "test-session-id"
-        mock_session.refresh_token = password_hasher.hash_password("refresh_token_value")
+        mock_session.refresh_token = password_hasher.hash_password(
+            "refresh_token_value"
+        )
 
         with patch(
             "session.router.session_crud.get_session_by_id", return_value=mock_session
@@ -657,7 +659,7 @@ class TestRefreshTokenEndpoint:
         ), patch(
             "session.router.users_utils.check_user_is_active"
         ), patch(
-            "session.router.session_utils.create_tokens"
+            "session.router.auth_utils.create_tokens"
         ) as mock_create_tokens, patch(
             "session.router.session_utils.edit_session"
         ):
@@ -673,10 +675,10 @@ class TestRefreshTokenEndpoint:
                 "new_refresh_token",
                 "new_csrf_token",
             )
-            
+
             # Set cookies on client instance (new API)
             fast_api_client.cookies.set("endurain_refresh_token", "refresh_token_value")
-            
+
             resp = fast_api_client.post(
                 "/refresh",
                 headers={"X-Client-Type": "desktop"},
@@ -735,17 +737,17 @@ class TestLogoutEndpoint:
 
         mock_session = MagicMock()
         mock_session.id = "test-session-id"
-        mock_session.refresh_token = password_hasher.hash_password("refresh_token_value")
+        mock_session.refresh_token = password_hasher.hash_password(
+            "refresh_token_value"
+        )
 
         with patch(
             "session.router.session_crud.get_session_by_id", return_value=mock_session
-        ), patch(
-            "session.router.session_crud.delete_session"
-        ) as mock_delete:
+        ), patch("session.router.session_crud.delete_session") as mock_delete:
             # Set cookies on client instance (new API)
             fast_api_client.cookies.set("endurain_access_token", "access_token")
             fast_api_client.cookies.set("endurain_refresh_token", "refresh_token_value")
-            
+
             resp = fast_api_client.post(
                 "/logout",
                 headers={"X-Client-Type": client_type},
@@ -784,7 +786,7 @@ class TestLogoutEndpoint:
             # Set cookies on client instance (new API)
             fast_api_client.cookies.set("endurain_access_token", "access_token")
             fast_api_client.cookies.set("endurain_refresh_token", "wrong_token_value")
-            
+
             resp = fast_api_client.post(
                 "/logout",
                 headers={"X-Client-Type": "web"},
@@ -807,13 +809,11 @@ class TestLogoutEndpoint:
         fast_api_app.state.mock_user_id = 1
         fast_api_app.state.mock_refresh_token = "refresh_token_value"
 
-        with patch(
-            "session.router.session_crud.get_session_by_id", return_value=None
-        ):
+        with patch("session.router.session_crud.get_session_by_id", return_value=None):
             # Set cookies on client instance (new API)
             fast_api_client.cookies.set("endurain_access_token", "access_token")
             fast_api_client.cookies.set("endurain_refresh_token", "refresh_token_value")
-            
+
             resp = fast_api_client.post(
                 "/logout",
                 headers={"X-Client-Type": "web"},
@@ -844,7 +844,7 @@ class TestLogoutEndpoint:
             # Set cookies on client instance (new API)
             fast_api_client.cookies.set("endurain_access_token", "access_token")
             fast_api_client.cookies.set("endurain_refresh_token", "refresh_token_value")
-            
+
             resp = fast_api_client.post(
                 "/logout",
                 headers={"X-Client-Type": "desktop"},
@@ -921,9 +921,7 @@ class TestSessionsEndpoints:
         """
         fast_api_app.state._client_type = "web"
 
-        with patch(
-            "session.router.session_crud.get_user_sessions", return_value=[]
-        ):
+        with patch("session.router.session_crud.get_user_sessions", return_value=[]):
             resp = fast_api_client.get(
                 f"/sessions/user/{sample_user_read.id}",
                 headers={

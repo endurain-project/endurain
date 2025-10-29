@@ -1,6 +1,5 @@
 import os
-from typing import Final, Mapping
-from types import MappingProxyType
+from typing import Final
 
 import core.config as core_config
 
@@ -44,27 +43,25 @@ SERVER_SETTINGS_ADMIN_SCOPE: Final[tuple[str, ...]] = (
     "server_settings:write",
 )
 
-SCOPE_DICT: Final[Mapping[str, str]] = MappingProxyType(
-    {
-        "profile": "Privileges over user's own profile",
-        "users:read": "Read privileges over users",
-        "users:write": "Write privileges over users",
-        "sessions:read": "Read privileges over sessions",
-        "sessions:write": "Create/edit/delete privileges over sessions",
-        "gears:read": "Read privileges over gears",
-        "gears:write": "Write privileges over gears",
-        "activities:read": "Read privileges over activities",
-        "activities:write": "Write privileges over activities",
-        "health:read": "Read privileges over health data",
-        "health:write": "Write privileges over health data",
-        "health_targets:read": "Read privileges over health targets data",
-        "health_targets:write": "Write privileges over health targets data",
-        "server_settings:read": "Read privileges over server settings",
-        "server_settings:write": "Write privileges over server settings",
-        "idp:read": "Read privileges over identity providers",
-        "idp:write": "Write privileges over identity providers",
-    }
-)
+SCOPE_DICT: Final[dict[str, str]] = {
+    "profile": "Privileges over user's own profile",
+    "users:read": "Read privileges over users",
+    "users:write": "Write privileges over users",
+    "sessions:read": "Read privileges over sessions",
+    "sessions:write": "Create/edit/delete privileges over sessions",
+    "gears:read": "Read privileges over gears",
+    "gears:write": "Write privileges over gears",
+    "activities:read": "Read privileges over activities",
+    "activities:write": "Write privileges over activities",
+    "health:read": "Read privileges over health data",
+    "health:write": "Write privileges over health data",
+    "health_targets:read": "Read privileges over health targets data",
+    "health_targets:write": "Write privileges over health targets data",
+    "server_settings:read": "Read privileges over server settings",
+    "server_settings:write": "Write privileges over server settings",
+    "idp:read": "Read privileges over identity providers",
+    "idp:write": "Write privileges over identity providers",
+}
 
 REGULAR_ACCESS_SCOPE: Final[tuple[str, ...]] = (
     USERS_REGULAR_SCOPE

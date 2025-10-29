@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 import health_data.schema as health_data_schema
 import health_data.crud as health_data_crud
 
-import session.security as session_security
+import auth.security as auth_security
 
 import core.database as core_database
 import core.dependencies as core_dependencies
@@ -23,11 +23,11 @@ router = APIRouter()
 )
 async def read_health_data_number(
     _check_scopes: Annotated[
-        Callable, Security(session_security.check_scopes, scopes=["health:read"])
+        Callable, Security(auth_security.check_scopes, scopes=["health:read"])
     ],
     token_user_id: Annotated[
         int,
-        Depends(session_security.get_sub_from_access_token),
+        Depends(auth_security.get_sub_from_access_token),
     ],
     db: Annotated[
         Session,
@@ -44,11 +44,11 @@ async def read_health_data_number(
 )
 async def read_health_data_all(
     _check_scopes: Annotated[
-        Callable, Security(session_security.check_scopes, scopes=["health:read"])
+        Callable, Security(auth_security.check_scopes, scopes=["health:read"])
     ],
     token_user_id: Annotated[
         int,
-        Depends(session_security.get_sub_from_access_token),
+        Depends(auth_security.get_sub_from_access_token),
     ],
     db: Annotated[
         Session,
@@ -67,14 +67,14 @@ async def read_health_data_all_pagination(
     page_number: int,
     num_records: int,
     _check_scopes: Annotated[
-        Callable, Security(session_security.check_scopes, scopes=["health:read"])
+        Callable, Security(auth_security.check_scopes, scopes=["health:read"])
     ],
     validate_pagination_values: Annotated[
         Callable, Depends(core_dependencies.validate_pagination_values)
     ],
     token_user_id: Annotated[
         int,
-        Depends(session_security.get_sub_from_access_token),
+        Depends(auth_security.get_sub_from_access_token),
     ],
     db: Annotated[
         Session,
@@ -91,11 +91,11 @@ async def read_health_data_all_pagination(
 async def create_health_data(
     health_data: health_data_schema.HealthData,
     _check_scopes: Annotated[
-        Callable, Security(session_security.check_scopes, scopes=["health:write"])
+        Callable, Security(auth_security.check_scopes, scopes=["health:write"])
     ],
     token_user_id: Annotated[
         int,
-        Depends(session_security.get_sub_from_access_token),
+        Depends(auth_security.get_sub_from_access_token),
     ],
     db: Annotated[
         Session,
@@ -120,11 +120,11 @@ async def create_health_data(
 async def edit_health_data(
     health_data: health_data_schema.HealthData,
     _check_scopes: Annotated[
-        Callable, Security(session_security.check_scopes, scopes=["health:write"])
+        Callable, Security(auth_security.check_scopes, scopes=["health:write"])
     ],
     token_user_id: Annotated[
         int,
-        Depends(session_security.get_sub_from_access_token),
+        Depends(auth_security.get_sub_from_access_token),
     ],
     db: Annotated[
         Session,
@@ -139,11 +139,11 @@ async def edit_health_data(
 async def delete_health_data(
     health_data_id: int,
     _check_scopes: Annotated[
-        Callable, Security(session_security.check_scopes, scopes=["health:write"])
+        Callable, Security(auth_security.check_scopes, scopes=["health:write"])
     ],
     token_user_id: Annotated[
         int,
-        Depends(session_security.get_sub_from_access_token),
+        Depends(auth_security.get_sub_from_access_token),
     ],
     db: Annotated[
         Session,

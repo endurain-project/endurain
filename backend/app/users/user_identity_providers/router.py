@@ -10,18 +10,19 @@ Security:
     - Does NOT expose refresh tokens (security)
     - Audit logging handled by CRUD layer
 """
+
 from typing import Annotated, List
 from fastapi import APIRouter, Depends, HTTPException, status, Security
 from sqlalchemy.orm import Session
 
 import core.database as core_database
 import core.logger as core_logger
-import session.security as session_security
+import auth.security as auth_security
 import users.user_identity_providers.crud as user_idp_crud
 import users.user_identity_providers.schema as user_idp_schema
 import users.user.schema as users_schema
 import users.user.crud as users_crud
-import identity_providers.crud as idp_crud
+import auth.identity_providers.crud as idp_crud
 
 
 # Define the API router
@@ -38,7 +39,7 @@ async def get_user_identity_providers(
     db: Annotated[Session, Depends(core_database.get_db)],
     _check_scopes: Annotated[
         users_schema.UserRead,
-        Security(session_security.check_scopes, scopes=["sessions:read"]),
+        Security(auth_security.check_scopes, scopes=["sessions:read"]),
     ],
 ):
     """
@@ -88,12 +89,12 @@ async def get_user_identity_providers(
     if user is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"User with id {user_id} not found"
+            detail=f"User with id {user_id} not found",
         )
-    
+
     # Get user's identity provider links
-    idp_links = user_idp_crud.get_user_idp_links(user_id, db)
-    
+    idp_links = user_idp_crud.get_user_identity_providers_by_user_id(user_id, db)
+
     # Enrich with IDP details for frontend display
     enriched_links = []
     for link in idp_links:
@@ -108,7 +109,7 @@ async def get_user_identity_providers(
             "idp_access_token_expires_at": link.idp_access_token_expires_at,
             "idp_refresh_token_updated_at": link.idp_refresh_token_updated_at,
         }
-        
+
         # Fetch IDP details for display
         idp = idp_crud.get_identity_provider(link.idp_id, db)
         if idp:
@@ -116,9 +117,9 @@ async def get_user_identity_providers(
             link_dict["idp_slug"] = idp.slug
             link_dict["idp_icon"] = idp.icon
             link_dict["idp_provider_type"] = idp.provider_type
-        
+
         enriched_links.append(link_dict)
-    
+
     return enriched_links
 
 
@@ -129,12 +130,10 @@ async def get_user_identity_providers(
 async def delete_user_identity_provider(
     user_id: int,
     idp_id: int,
-    token_user_id: Annotated[
-        int, Depends(session_security.get_sub_from_access_token)
-    ],
+    token_user_id: Annotated[int, Depends(auth_security.get_sub_from_access_token)],
     _check_scopes: Annotated[
         users_schema.UserRead,
-        Security(session_security.check_scopes, scopes=["sessions:write"]),
+        Security(auth_security.check_scopes, scopes=["sessions:write"]),
     ],
     db: Annotated[Session, Depends(core_database.get_db)],
 ):
@@ -164,31 +163,31 @@ async def delete_user_identity_provider(
     if user is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"User with id {user_id} not found"
+            detail=f"User with id {user_id} not found",
         )
-    
+
     # Validate IDP exists
     idp = idp_crud.get_identity_provider(idp_id, db)
     if idp is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Identity provider with id {idp_id} not found"
+            detail=f"Identity provider with id {idp_id} not found",
         )
-    
+
     # Attempt to delete the link
-    success = user_idp_crud.delete_user_idp_link(user_id, idp_id, db)
-    
+    success = user_idp_crud.delete_user_identity_provider(user_id, idp_id, db)
+
     if not success:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Identity provider link not found for user {user_id} and IDP {idp_id}"
+            detail=f"Identity provider link not found for user {user_id} and IDP {idp_id}",
         )
-    
+
     # Audit logging
     core_logger.print_to_log(
         f"Admin user {token_user_id} deleted IDP link: "
         f"user_id={user_id}, idp_id={idp_id} ({idp.name})"
     )
-    
+
     # Return 204 No Content (successful deletion)
     return None

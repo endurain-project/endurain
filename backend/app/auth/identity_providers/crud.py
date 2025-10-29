@@ -4,8 +4,8 @@ from sqlalchemy.orm import Session
 from typing import List
 from fastapi import HTTPException, status
 
-import identity_providers.models as idp_models
-import identity_providers.schema as idp_schema
+import auth.identity_providers.models as idp_models
+import auth.identity_providers.schema as idp_schema
 import core.cryptography as core_cryptography
 import core.logger as core_logger
 import users.user_identity_providers.crud as user_identity_providers_crud
@@ -355,7 +355,11 @@ def delete_identity_provider(idp_id: int, db: Session) -> None:
             )
 
         # Check if any users are linked to this provider
-        db_user_idp = user_identity_providers_crud.get_idp_has_user_links(idp_id, db)
+        db_user_idp = (
+            user_identity_providers_crud.check_user_identity_providers_by_idp_id(
+                idp_id, db
+            )
+        )
         if db_user_idp:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,

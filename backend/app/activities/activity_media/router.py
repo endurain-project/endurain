@@ -11,7 +11,7 @@ import activities.activity_media.dependencies as activities_media_dependencies
 import activities.activity_media.crud as activity_media_crud
 import activities.activity_media.schema as activity_media_schema
 
-import session.security as session_security
+import auth.security as auth_security
 
 import core.config as core_config
 import core.logger as core_logger
@@ -32,11 +32,11 @@ async def read_activities_media_user(
         Callable, Depends(activities_dependencies.validate_activity_id)
     ],
     _check_scopes: Annotated[
-        Callable, Security(session_security.check_scopes, scopes=["activities:read"])
+        Callable, Security(auth_security.check_scopes, scopes=["activities:read"])
     ],
     token_user_id: Annotated[
         int,
-        Depends(session_security.get_sub_from_access_token),
+        Depends(auth_security.get_sub_from_access_token),
     ],
     db: Annotated[
         Session,
@@ -58,7 +58,7 @@ async def upload_media(
     ],
     _check_scopes: Annotated[
         Callable,
-        Security(session_security.check_scopes, scopes=["activities:write"]),
+        Security(auth_security.check_scopes, scopes=["activities:write"]),
     ],
     db: Annotated[
         Session,
@@ -88,7 +88,7 @@ async def upload_media(
 
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise err
-    
+
 
 @router.delete(
     "/{media_id}",
@@ -99,11 +99,11 @@ async def delete_activity_media(
         Callable, Depends(activities_media_dependencies.validate_media_id)
     ],
     _check_scopes: Annotated[
-        Callable, Security(session_security.check_scopes, scopes=["activities:write"])
+        Callable, Security(auth_security.check_scopes, scopes=["activities:write"])
     ],
     token_user_id: Annotated[
         int,
-        Depends(session_security.get_sub_from_access_token),
+        Depends(auth_security.get_sub_from_access_token),
     ],
     db: Annotated[
         Session,

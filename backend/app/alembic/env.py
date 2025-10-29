@@ -18,7 +18,7 @@ import gears.gear.models
 import gears.gear_components.models
 import health_data.models
 import health_targets.models
-import identity_providers.models
+import auth.identity_providers.models
 import migrations.models
 import notifications.models
 import password_reset_tokens.models
@@ -41,7 +41,7 @@ config = context.config
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
-if config.attributes.get('configure_logger', True):
+if config.attributes.get("configure_logger", True):
     fileConfig(config.config_file_name)
 
 # add your model's MetaData object here

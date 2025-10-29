@@ -17,7 +17,7 @@ import notifications.utils as notifications_utils
 import sign_up_tokens.utils as sign_up_tokens_utils
 import sign_up_tokens.schema as sign_up_tokens_schema
 
-import session.password_hasher as session_password_hasher
+import auth.password_hasher as auth_password_hasher
 
 import server_settings.utils as server_settings_utils
 
@@ -38,8 +38,8 @@ async def signup(
         Depends(core_apprise.get_email_service),
     ],
     password_hasher: Annotated[
-        session_password_hasher.PasswordHasher,
-        Depends(session_password_hasher.get_password_hasher),
+        auth_password_hasher.PasswordHasher,
+        Depends(auth_password_hasher.get_password_hasher),
     ],
     db: Annotated[
         Session,
@@ -56,7 +56,7 @@ async def signup(
         verification and admin approval emails.
     - websocket_manager (websocket_schema.WebSocketManager): Injected manager used to send
         real-time notifications (e.g., admin approval requests).
-    - password_hasher (session_password_hasher.PasswordHasher): Injected password hasher used to hash user passwords.
+    - password_hasher (auth_password_hasher.PasswordHasher): Injected password hasher used to hash user passwords.
     - db (Session): Database session/connection used to create the user and related records.
 
     Behavior and side effects

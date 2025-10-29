@@ -3,7 +3,7 @@ from typing import Annotated, Callable
 from fastapi import APIRouter, Depends, HTTPException, status, Security
 from sqlalchemy.orm import Session
 
-import session.security as session_security
+import auth.security as auth_security
 
 import gears.gear.schema as gears_schema
 import gears.gear.crud as gears_crud
@@ -21,11 +21,9 @@ router = APIRouter()
 )
 async def read_gears(
     _check_scopes: Annotated[
-        Callable, Security(session_security.check_scopes, scopes=["gears:read"])
+        Callable, Security(auth_security.check_scopes, scopes=["gears:read"])
     ],
-    token_user_id: Annotated[
-        int, Depends(session_security.get_sub_from_access_token)
-    ],
+    token_user_id: Annotated[int, Depends(auth_security.get_sub_from_access_token)],
     db: Annotated[Session, Depends(core_database.get_db)],
 ):
     # Return the gear
@@ -40,11 +38,9 @@ async def read_gear_id(
     gear_id: int,
     validate_gear_id: Annotated[Callable, Depends(gears_dependencies.validate_gear_id)],
     _check_scopes: Annotated[
-        Callable, Security(session_security.check_scopes, scopes=["gears:read"])
+        Callable, Security(auth_security.check_scopes, scopes=["gears:read"])
     ],
-    token_user_id: Annotated[
-        int, Depends(session_security.get_sub_from_access_token)
-    ],
+    token_user_id: Annotated[int, Depends(auth_security.get_sub_from_access_token)],
     db: Annotated[Session, Depends(core_database.get_db)],
 ):
     # Return the gear
@@ -59,11 +55,9 @@ async def read_gear_user_pagination(
     page_number: int,
     num_records: int,
     _check_scopes: Annotated[
-        Callable, Security(session_security.check_scopes, scopes=["gears:read"])
+        Callable, Security(auth_security.check_scopes, scopes=["gears:read"])
     ],
-    token_user_id: Annotated[
-        int, Depends(session_security.get_sub_from_access_token)
-    ],
+    token_user_id: Annotated[int, Depends(auth_security.get_sub_from_access_token)],
     db: Annotated[
         Session,
         Depends(core_database.get_db),
@@ -81,11 +75,9 @@ async def read_gear_user_pagination(
 )
 async def read_gear_user_number(
     _check_scopes: Annotated[
-        Callable, Security(session_security.check_scopes, scopes=["gears:read"])
+        Callable, Security(auth_security.check_scopes, scopes=["gears:read"])
     ],
-    token_user_id: Annotated[
-        int, Depends(session_security.get_sub_from_access_token)
-    ],
+    token_user_id: Annotated[int, Depends(auth_security.get_sub_from_access_token)],
     db: Annotated[
         Session,
         Depends(core_database.get_db),
@@ -109,11 +101,9 @@ async def read_gear_user_number(
 async def read_gear_user_contains_nickname(
     nickname: str,
     _check_scopes: Annotated[
-        Callable, Security(session_security.check_scopes, scopes=["gears:read"])
+        Callable, Security(auth_security.check_scopes, scopes=["gears:read"])
     ],
-    token_user_id: Annotated[
-        int, Depends(session_security.get_sub_from_access_token)
-    ],
+    token_user_id: Annotated[int, Depends(auth_security.get_sub_from_access_token)],
     db: Annotated[
         Session,
         Depends(core_database.get_db),
@@ -130,11 +120,9 @@ async def read_gear_user_contains_nickname(
 async def read_gear_user_by_nickname(
     nickname: str,
     _check_scopes: Annotated[
-        Callable, Security(session_security.check_scopes, scopes=["gears:read"])
+        Callable, Security(auth_security.check_scopes, scopes=["gears:read"])
     ],
-    token_user_id: Annotated[
-        int, Depends(session_security.get_sub_from_access_token)
-    ],
+    token_user_id: Annotated[int, Depends(auth_security.get_sub_from_access_token)],
     db: Annotated[
         Session,
         Depends(core_database.get_db),
@@ -152,11 +140,9 @@ async def read_gear_user_by_type(
     gear_type: int,
     validate_type: Annotated[Callable, Depends(gears_dependencies.validate_gear_type)],
     _check_scopes: Annotated[
-        Callable, Security(session_security.check_scopes, scopes=["gears:read"])
+        Callable, Security(auth_security.check_scopes, scopes=["gears:read"])
     ],
-    token_user_id: Annotated[
-        int, Depends(session_security.get_sub_from_access_token)
-    ],
+    token_user_id: Annotated[int, Depends(auth_security.get_sub_from_access_token)],
     db: Annotated[
         Session,
         Depends(core_database.get_db),
@@ -174,11 +160,9 @@ async def read_gear_user_by_type(
 async def create_gear(
     gear: gears_schema.Gear,
     _check_scopes: Annotated[
-        Callable, Security(session_security.check_scopes, scopes=["gears:write"])
+        Callable, Security(auth_security.check_scopes, scopes=["gears:write"])
     ],
-    token_user_id: Annotated[
-        int, Depends(session_security.get_sub_from_access_token)
-    ],
+    token_user_id: Annotated[int, Depends(auth_security.get_sub_from_access_token)],
     db: Annotated[
         Session,
         Depends(core_database.get_db),
@@ -194,11 +178,9 @@ async def edit_gear(
     validate_id: Annotated[Callable, Depends(gears_dependencies.validate_gear_id)],
     gear: gears_schema.Gear,
     _check_scopes: Annotated[
-        Callable, Security(session_security.check_scopes, scopes=["gears:write"])
+        Callable, Security(auth_security.check_scopes, scopes=["gears:write"])
     ],
-    token_user_id: Annotated[
-        int, Depends(session_security.get_sub_from_access_token)
-    ],
+    token_user_id: Annotated[int, Depends(auth_security.get_sub_from_access_token)],
     db: Annotated[
         Session,
         Depends(core_database.get_db),
@@ -232,11 +214,9 @@ async def delete_gear(
     gear_id: int,
     validate_id: Annotated[Callable, Depends(gears_dependencies.validate_gear_id)],
     _check_scopes: Annotated[
-        Callable, Security(session_security.check_scopes, scopes=["gears:write"])
+        Callable, Security(auth_security.check_scopes, scopes=["gears:write"])
     ],
-    token_user_id: Annotated[
-        int, Depends(session_security.get_sub_from_access_token)
-    ],
+    token_user_id: Annotated[int, Depends(auth_security.get_sub_from_access_token)],
     db: Annotated[
         Session,
         Depends(core_database.get_db),

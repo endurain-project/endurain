@@ -1,33 +1,21 @@
-import os
+"""Session utility functions and classes"""
 
 from enum import Enum
 from datetime import datetime, timedelta, timezone
 from dataclasses import dataclass
-from typing import Tuple
 from fastapi import (
-    HTTPException,
-    status,
-    Response,
     Request,
 )
 from user_agents import parse
-from uuid import uuid4
 
 from sqlalchemy.orm import Session
 
-import session.constants as session_constants
+import auth.constants as auth_constants
 import session.schema as session_schema
 import session.crud as session_crud
-import session.password_hasher as session_password_hasher
-import session.token_manager as session_token_manager
+import auth.password_hasher as auth_password_hasher
 
-import users.user.crud as users_crud
 import users.user.schema as users_schema
-import users.user_identity_providers.crud as user_idp_crud
-
-import identity_providers.service as idp_service
-from identity_providers.service import TokenAction
-import core.logger as core_logger
 
 
 class DeviceType(Enum):
@@ -93,7 +81,7 @@ def create_session_object(
         user_id=user.id,
         refresh_token=hashed_refresh_token,
         ip_address=get_ip_address(request),
-        device_type=device_info.device_type,
+        device_type=device_info.device_type.value,
         operating_system=device_info.operating_system,
         operating_system_version=device_info.operating_system_version,
         browser=device_info.browser,
@@ -129,7 +117,7 @@ def edit_session_object(
         user_id=session.user_id,
         refresh_token=hashed_refresh_token,
         ip_address=get_ip_address(request),
-        device_type=device_info.device_type,
+        device_type=device_info.device_type.value,
         operating_system=device_info.operating_system,
         operating_system_version=device_info.operating_system_version,
         browser=device_info.browser,
@@ -139,164 +127,12 @@ def edit_session_object(
     )
 
 
-def authenticate_user(
-    username: str,
-    password: str,
-    password_hasher: session_password_hasher.PasswordHasher,
-    db: Session,
-) -> users_schema.UserRead:
-    """
-    Authenticates a user by verifying the provided username and password.
-
-    Args:
-        username (str): The username of the user attempting to authenticate.
-        password (str): The plaintext password provided by the user.
-        password_hasher (session_password_hasher.PasswordHasher): An instance of the password hasher for verifying and updating password hashes.
-        db (Session): The database session used for querying and updating user data.
-
-    Returns:
-        users_schema.UserRead: The authenticated user object if authentication is successful.
-
-    Raises:
-        HTTPException: If the username does not exist or the password is invalid.
-    """
-    # Get the user from the database
-    user = users_crud.authenticate_user(username, db)
-
-    # Check if the user exists and if the password is correct
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid username",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-
-    # Verify password and get updated hash if applicable
-    is_password_valid, updated_hash = password_hasher.verify_and_update(
-        password, user.password
-    )
-    if not is_password_valid:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid password",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-
-    # Update user hash if applicable
-    if updated_hash:
-        users_crud.edit_user_password(
-            user.id, updated_hash, password_hasher, db, is_hashed=True
-        )
-
-    # Return the user if the password is correct
-    return user
-
-
-def create_tokens(
-    user: users_schema.UserRead,
-    token_manager: session_token_manager.TokenManager,
-    session_id: str | None = None,
-) -> Tuple[str, datetime, str, datetime, str, str]:
-    """
-    Generates session tokens for a user, including access token, refresh token, and CSRF token.
-
-    Args:
-        user (users_schema.UserRead): The user object for whom the tokens are being created.
-        token_manager (session_token_manager.TokenManager): The token manager responsible for token creation.
-        session_id (str | None, optional): An optional session ID. If not provided, a new unique session ID is generated.
-
-    Returns:
-        Tuple[str, datetime, str, datetime, str, str]: 
-            A tuple containing:
-                - session_id (str): The session identifier.
-                - access_token_exp (datetime): Expiration datetime of the access token.
-                - access_token (str): The access token string.
-                - refresh_token_exp (datetime): Expiration datetime of the refresh token.
-                - refresh_token (str): The refresh token string.
-                - csrf_token (str): The CSRF token string.
-    """
-    if session_id is None:
-        # Generate a unique session ID
-        session_id = str(uuid4())
-
-    # Create the access, refresh tokens and csrf token
-    access_token_exp, access_token = token_manager.create_token(
-        session_id, user, session_token_manager.TokenType.ACCESS
-    )
-
-    refresh_token_exp, refresh_token = token_manager.create_token(
-        session_id, user, session_token_manager.TokenType.REFRESH
-    )
-
-    csrf_token = token_manager.create_csrf_token()
-
-    return (
-        session_id,
-        access_token_exp,
-        access_token,
-        refresh_token_exp,
-        refresh_token,
-        csrf_token,
-    )
-
-
-def create_response_with_tokens(
-    response: Response, access_token: str, refresh_token: str, csrf_token: str
-) -> Response:
-    """
-    Sets access, refresh, and CSRF tokens as cookies on the given response object.
-
-    Args:
-        response (Response): The response object to set cookies on.
-        access_token (str): The JWT access token to be set as a cookie.
-        refresh_token (str): The JWT refresh token to be set as a cookie.
-        csrf_token (str): The CSRF token to be set as a cookie.
-
-    Returns:
-        Response: The response object with the tokens set as cookies.
-    """
-    secure = os.environ.get("FRONTEND_PROTOCOL") == "https"
-
-    # Set the cookies with the tokens
-    response.set_cookie(
-        key="endurain_access_token",
-        value=access_token,
-        expires=datetime.now(timezone.utc)
-        + timedelta(minutes=session_constants.JWT_ACCESS_TOKEN_EXPIRE_MINUTES),
-        httponly=True,
-        path="/",
-        secure=secure,
-        samesite="Lax",
-    )
-    response.set_cookie(
-        key="endurain_refresh_token",
-        value=refresh_token,
-        expires=datetime.now(timezone.utc)
-        + timedelta(days=session_constants.JWT_REFRESH_TOKEN_EXPIRE_DAYS),
-        httponly=True,
-        path="/",
-        secure=secure,
-        samesite="Lax",
-    )
-    response.set_cookie(
-        key="endurain_csrf_token",
-        value=csrf_token,
-        httponly=False,
-        path="/",
-        secure=secure,
-        samesite="Lax",
-    )
-
-    # Return the response
-    return response
-
-
 def create_session(
     session_id: str,
     user: users_schema.UserRead,
     request: Request,
     refresh_token: str,
-    password_hasher: session_password_hasher.PasswordHasher,
+    password_hasher: auth_password_hasher.PasswordHasher,
     db: Session,
 ) -> None:
     """
@@ -307,7 +143,7 @@ def create_session(
         user (users_schema.UserRead): The user for whom the session is being created.
         request (Request): The incoming HTTP request object.
         refresh_token (str): The refresh token to be associated with the session.
-        password_hasher (session_password_hasher.PasswordHasher): Utility to hash the refresh token.
+        password_hasher (auth_password_hasher.PasswordHasher): Utility to hash the refresh token.
         db (Session): Database session for storing the session.
 
     Returns:
@@ -315,7 +151,7 @@ def create_session(
     """
     # Calculate the refresh token expiration date
     exp = datetime.now(timezone.utc) + timedelta(
-        days=session_constants.JWT_REFRESH_TOKEN_EXPIRE_DAYS
+        days=auth_constants.JWT_REFRESH_TOKEN_EXPIRE_DAYS
     )
 
     # Create a new session
@@ -335,7 +171,7 @@ def edit_session(
     session: session_schema.UsersSessions,
     request: Request,
     new_refresh_token: str,
-    password_hasher: session_password_hasher.PasswordHasher,
+    password_hasher: auth_password_hasher.PasswordHasher,
     db: Session,
 ) -> None:
     """
@@ -345,7 +181,7 @@ def edit_session(
         session (session_schema.UsersSessions): The current user session object to be edited.
         request (Request): The incoming request object containing session context.
         new_refresh_token (str): The new refresh token to be set for the session.
-        password_hasher (session_password_hasher.PasswordHasher): Utility for hashing the refresh token.
+        password_hasher (auth_password_hasher.PasswordHasher): Utility for hashing the refresh token.
         db (Session): Database session for committing changes.
 
     Returns:
@@ -353,7 +189,7 @@ def edit_session(
     """
     # Calculate the refresh token expiration date
     exp = datetime.now(timezone.utc) + timedelta(
-        days=session_constants.JWT_REFRESH_TOKEN_EXPIRE_DAYS
+        days=auth_constants.JWT_REFRESH_TOKEN_EXPIRE_DAYS
     )
 
     # Update the session
@@ -366,73 +202,6 @@ def edit_session(
 
     # Update the session in the database
     session_crud.edit_session(updated_session, db)
-
-
-def complete_login(
-    response: Response,
-    request: Request,
-    user: users_schema.UserRead,
-    client_type: str,
-    password_hasher: session_password_hasher.PasswordHasher,
-    token_manager: session_token_manager.TokenManager,
-    db: Session,
-) -> dict | str:
-    """
-    Handles the completion of the login process by generating session and authentication tokens,
-    storing the session in the database, and returning appropriate responses based on client type.
-
-    Args:
-        response (Response): The HTTP response object to set cookies for web clients.
-        request (Request): The HTTP request object containing client information.
-        user (users_schema.UserRead): The authenticated user object.
-        client_type (str): The type of client ("web" or "mobile").
-        password_hasher (session_password_hasher.PasswordHasher): Utility for password hashing.
-        token_manager (session_token_manager.TokenManager): Utility for token generation and management.
-        db (Session): Database session for storing session information.
-
-    Returns:
-        dict | str: For web clients, returns the session ID as a string.
-                    For mobile clients, returns a dictionary containing tokens and session info.
-
-    Raises:
-        HTTPException: If the client type is invalid, raises a 403 Forbidden error.
-    """
-    # Create the tokens
-    (
-        session_id,
-        access_token_exp,
-        access_token,
-        _refresh_token_exp,
-        refresh_token,
-        csrf_token,
-    ) = create_tokens(user, token_manager)
-
-    # Create the session and store it in the database
-    create_session(session_id, user, request, refresh_token, password_hasher, db)
-
-    if client_type == "web":
-        # Set response cookies with tokens
-        create_response_with_tokens(response, access_token, refresh_token, csrf_token)
-
-        # Return the session_id
-        return {
-            "session_id": session_id,
-        }
-    if client_type == "mobile":
-        # Return the tokens directly (no cookies for mobile)
-        return {
-            "access_token": access_token,
-            "refresh_token": refresh_token,
-            "session_id": session_id,
-            "token_type": "Bearer",
-            "expires_in": int(access_token_exp.timestamp()),
-        }
-
-    raise HTTPException(
-        status_code=status.HTTP_403_FORBIDDEN,
-        detail="Invalid client type",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
 
 
 def get_user_agent(request: Request) -> str:
@@ -511,219 +280,3 @@ def parse_user_agent(user_agent: str) -> DeviceInfo:
         browser=ua.browser.family or "Unknown",
         browser_version=ua.browser.version_string or "Unknown",
     )
-
-
-async def refresh_idp_tokens_if_needed(user_id: int, db: Session) -> None:
-    """
-    Refreshes identity provider (IdP) tokens for a user if needed based on token expiration policies.
-
-    This function retrieves all IdP links associated with a user and evaluates each token's
-    state to determine the appropriate action: refresh if nearing expiry, clear if maximum
-    age is exceeded, or skip if still valid.
-
-    The function is designed to be non-blocking and opportunistic - errors during token
-    refresh or clearing are logged but do not raise exceptions, allowing the application
-    to continue normal operation even if IdP token management fails.
-
-    Args:
-        user_id (int): The ID of the user whose IdP tokens should be checked and refreshed.
-        db (Session): SQLAlchemy database session for performing database operations.
-
-    Returns:
-        None: This function performs side effects (token refresh/clearing) but returns nothing.
-
-    Raises:
-        Does not raise exceptions. All errors are caught, logged, and suppressed to ensure
-        IdP token management does not disrupt normal application flow.
-
-    Notes:
-        - If a user has no IdP links, the function returns early without performing any operations.
-        - Token refresh attempts that fail are logged but the user session remains valid.
-        - Tokens exceeding maximum age are cleared for security, requiring user re-authentication.
-        - Individual IdP operation failures do not prevent checking other IdP links.
-    """
-    try:
-        # Get all IdP links for this user
-        idp_links = user_idp_crud.get_user_idp_links(user_id, db)
-
-        if not idp_links:
-            # User has no IdP links - nothing to refresh
-            return
-
-        # Check each IdP link and take appropriate action
-        for link in idp_links:
-            try:
-                # Determine what action to take for this IdP token (policy-based)
-                action = idp_service.idp_service._should_refresh_idp_token(link)
-
-                if action == TokenAction.REFRESH:
-                    # Token is close to expiry - attempt to refresh
-                    core_logger.print_to_log(
-                        f"Attempting to refresh IdP token for user {user_id}, idp {link.idp_id}",
-                        "debug",
-                    )
-
-                    # Attempt to refresh the IdP session
-                    result = await idp_service.idp_service.refresh_idp_session(
-                        user_id, link.idp_id, db
-                    )
-
-                    if result:
-                        core_logger.print_to_log(
-                            f"Successfully refreshed IdP token for user {user_id}, idp {link.idp_id}",
-                            "debug",
-                        )
-                    else:
-                        core_logger.print_to_log(
-                            f"IdP token refresh failed for user {user_id}, idp {link.idp_id}. "
-                            "User may need to re-authenticate with IdP later.",
-                            "debug",
-                        )
-
-                elif action == TokenAction.CLEAR:
-                    # Token has exceeded maximum age - clear it for security
-                    core_logger.print_to_log(
-                        f"Clearing expired IdP token (max age exceeded) for user {user_id}, idp {link.idp_id}",
-                        "info",
-                    )
-
-                    success = user_idp_crud.clear_idp_refresh_token(
-                        user_id, link.idp_id, db
-                    )
-
-                    if success:
-                        core_logger.print_to_log(
-                            f"Successfully cleared expired IdP token for user {user_id}, idp {link.idp_id}. "
-                            "User will need to re-authenticate with IdP.",
-                            "info",
-                        )
-                    else:
-                        core_logger.print_to_log(
-                            f"Failed to clear expired IdP token for user {user_id}, idp {link.idp_id}",
-                            "warning",
-                        )
-
-                else:  # TokenAction.SKIP
-                    # Token is still valid and not close to expiry - no action needed
-                    pass
-
-            except Exception as err:
-                # Log individual IdP operation failure but continue with other IdPs
-                core_logger.print_to_log(
-                    f"Error checking/refreshing IdP token for user {user_id}, idp {link.idp_id}: {err}",
-                    "warning",
-                    exc=err,
-                )
-                # Continue to next IdP link
-
-    except Exception as err:
-        # Catch-all for unexpected errors (e.g., database query failure)
-        core_logger.print_to_log(
-            f"Error retrieving IdP links for user {user_id}: {err}",
-            "warning",
-            exc=err,
-        )
-        # Don't raise - IdP token refresh is opportunistic and non-blocking
-
-
-async def clear_all_idp_tokens(
-    user_id: int, db: Session, revoke_at_idp: bool = False
-) -> None:
-    """
-    Clear all IdP (Identity Provider) refresh tokens for a user.
-
-    This function retrieves all IdP links associated with a user and clears their
-    refresh tokens. It supports optional revocation at the IdP level before clearing
-    tokens locally.
-
-    Args:
-        user_id (int): The ID of the user whose IdP tokens should be cleared.
-        db (Session): The database session to use for queries.
-        revoke_at_idp (bool, optional): If True, attempts to revoke tokens at the
-            IdP provider level (RFC 7009) before clearing locally. Defaults to False.
-
-    Returns:
-        None
-
-    Raises:
-        This function does not raise exceptions. All errors are logged and handled
-        gracefully to ensure logout processes are not interrupted.
-
-    Notes:
-        - If no IdP links exist for the user, the function returns early.
-        - Token revocation at the IdP is best-effort; local clearing always proceeds
-          regardless of revocation success or failure.
-        - Individual IdP token clearing failures do not prevent clearing tokens for
-          other IdPs.
-        - All errors are logged with appropriate severity levels (debug, info, warning).
-    """
-    try:
-        # Get all IdP links for this user
-        idp_links = user_idp_crud.get_user_idp_links(user_id, db)
-
-        if not idp_links:
-            # User has no IdP links - nothing to clear
-            return
-
-        # Clear tokens for each IdP link
-        for link in idp_links:
-            try:
-                # Optionally attempt to revoke token at IdP first (RFC 7009)
-                if revoke_at_idp:
-                    try:
-                        revoked = await idp_service.idp_service.revoke_idp_token(
-                            user_id, link.idp_id, db
-                        )
-                        if revoked:
-                            core_logger.print_to_log(
-                                f"Revoked IdP token at provider for user {user_id}, idp {link.idp_id}",
-                                "info",
-                            )
-                        else:
-                            core_logger.print_to_log(
-                                f"IdP token revocation not supported or failed for user {user_id}, idp {link.idp_id}. "
-                                "Will clear locally.",
-                                "debug",
-                            )
-                    except Exception as revoke_err:
-                        # Log revocation failure but continue with local clearing
-                        core_logger.print_to_log(
-                            f"Error revoking IdP token for user {user_id}, idp {link.idp_id}: {revoke_err}. "
-                            "Will clear locally.",
-                            "warning",
-                            exc=revoke_err,
-                        )
-
-                # Always clear locally regardless of revocation result
-                success = user_idp_crud.clear_idp_refresh_token(
-                    user_id, link.idp_id, db
-                )
-
-                if success:
-                    core_logger.print_to_log(
-                        f"Cleared IdP refresh token for user {user_id}, idp {link.idp_id} on logout",
-                        "debug",
-                    )
-                else:
-                    core_logger.print_to_log(
-                        f"No IdP refresh token to clear for user {user_id}, idp {link.idp_id}",
-                        "debug",
-                    )
-
-            except Exception as err:
-                # Log individual IdP token clearing failure but continue with other IdPs
-                core_logger.print_to_log(
-                    f"Error clearing IdP token for user {user_id}, idp {link.idp_id}: {err}",
-                    "warning",
-                    exc=err,
-                )
-                # Continue to next IdP link
-
-    except Exception as err:
-        # Catch-all for unexpected errors (e.g., database query failure)
-        core_logger.print_to_log(
-            f"Error retrieving IdP links for user {user_id} during logout: {err}",
-            "warning",
-            exc=err,
-        )
-        # Don't raise - IdP token clearing is a best-effort security measure

@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 import users.user_default_gear.schema as user_default_gear_schema
 import users.user_default_gear.crud as user_default_gear_crud
 
-import session.security as session_security
+import auth.security as auth_security
 
 import core.database as core_database
 
@@ -16,9 +16,7 @@ router = APIRouter()
 
 @router.get("", response_model=user_default_gear_schema.UserDefaultGear)
 async def read_user_default_gear(
-    token_user_id: Annotated[
-        int, Depends(session_security.get_sub_from_access_token)
-    ],
+    token_user_id: Annotated[int, Depends(auth_security.get_sub_from_access_token)],
     db: Annotated[
         Session,
         Depends(core_database.get_db),
@@ -31,9 +29,7 @@ async def read_user_default_gear(
 @router.put("", response_model=user_default_gear_schema.UserDefaultGear)
 async def edit_user_default_gear(
     user_default_gear: user_default_gear_schema.UserDefaultGear,
-    token_user_id: Annotated[
-        int, Depends(session_security.get_sub_from_access_token)
-    ],
+    token_user_id: Annotated[int, Depends(auth_security.get_sub_from_access_token)],
     db: Annotated[
         Session,
         Depends(core_database.get_db),

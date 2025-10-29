@@ -18,8 +18,8 @@ load_dotenv(dotenv_path=env_test_path)
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "app"))
 
 import session.router as session_router
-import session.password_hasher as session_password_hasher
-import session.token_manager as session_token_manager
+import auth.password_hasher as auth_password_hasher
+import auth.token_manager as auth_token_manager
 import users.user.schema as user_schema
 
 # Variables and constants
@@ -29,25 +29,25 @@ DEFAULT_ROUTER_MODULES = [
 
 
 @pytest.fixture
-def password_hasher() -> session_password_hasher.PasswordHasher:
+def password_hasher() -> auth_password_hasher.PasswordHasher:
     """
-    Creates and returns an instance of session_password_hasher.PasswordHasher using the get_password_hasher function.
+    Creates and returns an instance of auth_password_hasher.PasswordHasher using the get_password_hasher function.
 
     Returns:
-        session_password_hasher.PasswordHasher: An instance of the password hasher utility.
+        auth_password_hasher.PasswordHasher: An instance of the password hasher utility.
     """
-    return session_password_hasher.get_password_hasher()
+    return auth_password_hasher.get_password_hasher()
 
 
 @pytest.fixture
-def token_manager() -> session_token_manager.TokenManager:
+def token_manager() -> auth_token_manager.TokenManager:
     """
-    Creates and returns a session_token_manager.TokenManager instance configured with a test secret key.
+    Creates and returns a auth_token_manager.TokenManager instance configured with a test secret key.
 
     Returns:
-        session_token_manager.TokenManager: An instance of session_token_manager.TokenManager initialized with a test secret key for use in testing.
+        auth_token_manager.TokenManager: An instance of auth_token_manager.TokenManager initialized with a test secret key for use in testing.
     """
-    return session_token_manager.TokenManager(
+    return auth_token_manager.TokenManager(
         secret_key="test-secret-key-for-testing-only-min-32-chars"
     )
 
@@ -329,64 +329,64 @@ def fast_api_app(password_hasher, token_manager, mock_db) -> FastAPI:
 
     try:
         app.dependency_overrides[
-            session_router.session_security.header_client_type_scheme
+            session_router.auth_security.header_client_type_scheme
         ] = _client_type_override
         app.dependency_overrides[
             session_router.session_schema.get_pending_mfa_store
         ] = lambda: fake_store
 
         # Override security dependencies for authenticated endpoint testing
+        app.dependency_overrides[session_router.auth_security.validate_access_token] = (
+            _mock_validate_access_token
+        )
         app.dependency_overrides[
-            session_router.session_security.validate_access_token
-        ] = _mock_validate_access_token
-        app.dependency_overrides[
-            session_router.session_security.validate_refresh_token
+            session_router.auth_security.validate_refresh_token
         ] = _mock_validate_refresh_token
+        app.dependency_overrides[session_router.auth_security.get_access_token] = (
+            _mock_get_access_token
+        )
+        app.dependency_overrides[session_router.auth_security.get_refresh_token] = (
+            _mock_get_refresh_token
+        )
         app.dependency_overrides[
-            session_router.session_security.get_access_token
-        ] = _mock_get_access_token
-        app.dependency_overrides[
-            session_router.session_security.get_refresh_token
-        ] = _mock_get_refresh_token
-        app.dependency_overrides[
-            session_router.session_security.get_sub_from_access_token
+            session_router.auth_security.get_sub_from_access_token
         ] = _mock_get_sub_from_access_token
         app.dependency_overrides[
-            session_router.session_security.get_sid_from_access_token
+            session_router.auth_security.get_sid_from_access_token
         ] = _mock_get_sid_from_access_token
         app.dependency_overrides[
-            session_router.session_security.get_sub_from_refresh_token
+            session_router.auth_security.get_sub_from_refresh_token
         ] = _mock_get_sub_from_refresh_token
         app.dependency_overrides[
-            session_router.session_security.get_sid_from_refresh_token
+            session_router.auth_security.get_sid_from_refresh_token
         ] = _mock_get_sid_from_refresh_token
         app.dependency_overrides[
-            session_router.session_security.get_and_return_access_token
+            session_router.auth_security.get_and_return_access_token
         ] = _mock_get_and_return_access_token
         app.dependency_overrides[
-            session_router.session_security.get_and_return_refresh_token
+            session_router.auth_security.get_and_return_refresh_token
         ] = _mock_get_and_return_refresh_token
-        app.dependency_overrides[
-            session_router.session_security.check_scopes
-        ] = _mock_check_scopes
+        app.dependency_overrides[session_router.auth_security.check_scopes] = (
+            _mock_check_scopes
+        )
     except Exception:
         pass
 
     # Generic overrides
     _override_if_exists(
-        app, "session.password_hasher", "get_password_hasher", lambda: password_hasher
+        app, "auth.password_hasher", "get_password_hasher", lambda: password_hasher
     )
     _override_if_exists(
         app,
-        "session.session_password_hasher",
+        "session.auth_password_hasher",
         "get_password_hasher",
         lambda: password_hasher,
     )
     _override_if_exists(
-        app, "session.token_manager", "get_token_manager", lambda: token_manager
+        app, "auth.token_manager", "get_token_manager", lambda: token_manager
     )
     _override_if_exists(
-        app, "session.session_token_manager", "get_token_manager", lambda: token_manager
+        app, "session.auth_token_manager", "get_token_manager", lambda: token_manager
     )
     _override_if_exists(
         app, "core.database", "get_db", lambda: mock_db

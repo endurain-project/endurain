@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from stravalib.exc import AccessUnauthorized
 
-import session.security as session_security
+import auth.security as auth_security
 
 import users.user_integrations.crud as user_integrations_crud
 
@@ -109,15 +109,15 @@ async def strava_retrieve_activities_days(
     days: int,
     validate_access_token: Annotated[
         Callable,
-        Depends(session_security.validate_access_token),
+        Depends(auth_security.validate_access_token),
     ],
     _check_scopes: Annotated[
         Callable,
-        Security(session_security.check_scopes, scopes=["profile"]),
+        Security(auth_security.check_scopes, scopes=["profile"]),
     ],
     token_user_id: Annotated[
         int,
-        Depends(session_security.get_sub_from_access_token),
+        Depends(auth_security.get_sub_from_access_token),
     ],
     websocket_manager: Annotated[
         websocket_schema.WebSocketManager,
@@ -149,15 +149,15 @@ async def strava_retrieve_activities_days(
 async def strava_retrieve_gear(
     validate_access_token: Annotated[
         Callable,
-        Depends(session_security.validate_access_token),
+        Depends(auth_security.validate_access_token),
     ],
     _check_scopes: Annotated[
         Callable,
-        Security(session_security.check_scopes, scopes=["profile"]),
+        Security(auth_security.check_scopes, scopes=["profile"]),
     ],
     token_user_id: Annotated[
         int,
-        Depends(session_security.get_sub_from_access_token),
+        Depends(auth_security.get_sub_from_access_token),
     ],
     background_tasks: BackgroundTasks,
 ):
@@ -180,7 +180,7 @@ async def strava_retrieve_gear(
 async def import_bikes_from_strava_export(
     token_user_id: Annotated[
         int,
-        Depends(session_security.get_sub_from_access_token),
+        Depends(auth_security.get_sub_from_access_token),
     ],
     db: Annotated[
         Session,
@@ -236,7 +236,7 @@ async def import_bikes_from_strava_export(
 async def import_shoes_from_strava_export(
     token_user_id: Annotated[
         int,
-        Depends(session_security.get_sid_from_access_token),
+        Depends(auth_security.get_sid_from_access_token),
     ],
     db: Annotated[
         Session,
@@ -293,15 +293,15 @@ async def strava_set_user_client(
     client: strava_schema.StravaClient,
     validate_access_token: Annotated[
         Callable,
-        Depends(session_security.validate_access_token),
+        Depends(auth_security.validate_access_token),
     ],
     _check_scopes: Annotated[
         Callable,
-        Security(session_security.check_scopes, scopes=["profile"]),
+        Security(auth_security.check_scopes, scopes=["profile"]),
     ],
     token_user_id: Annotated[
         int,
-        Depends(session_security.get_sub_from_access_token),
+        Depends(auth_security.get_sub_from_access_token),
     ],
     db: Annotated[Session, Depends(core_database.get_db)],
 ):
@@ -321,15 +321,15 @@ async def strava_set_user_unique_state(
     state: str | None,
     validate_access_token: Annotated[
         Callable,
-        Depends(session_security.validate_access_token),
+        Depends(auth_security.validate_access_token),
     ],
     _check_scopes: Annotated[
         Callable,
-        Security(session_security.check_scopes, scopes=["profile"]),
+        Security(auth_security.check_scopes, scopes=["profile"]),
     ],
     token_user_id: Annotated[
         int,
-        Depends(session_security.get_sub_from_access_token),
+        Depends(auth_security.get_sub_from_access_token),
     ],
     db: Annotated[Session, Depends(core_database.get_db)],
 ):
@@ -344,15 +344,15 @@ async def strava_set_user_unique_state(
 async def strava_unlink(
     validate_access_token: Annotated[
         Callable,
-        Depends(session_security.validate_access_token),
+        Depends(auth_security.validate_access_token),
     ],
     _check_scopes: Annotated[
         Callable,
-        Security(session_security.check_scopes, scopes=["profile"]),
+        Security(auth_security.check_scopes, scopes=["profile"]),
     ],
     token_user_id: Annotated[
         int,
-        Depends(session_security.get_sub_from_access_token),
+        Depends(auth_security.get_sub_from_access_token),
     ],
     db: Annotated[
         Session,

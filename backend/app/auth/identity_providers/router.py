@@ -9,10 +9,10 @@ from fastapi import (
 from sqlalchemy.orm import Session
 
 import core.database as core_database
-import session.security as session_security
-import identity_providers.crud as idp_crud
-import identity_providers.schema as idp_schema
-import identity_providers.utils as idp_utils
+import auth.security as auth_security
+import auth.identity_providers.crud as idp_crud
+import auth.identity_providers.schema as idp_schema
+import auth.identity_providers.utils as idp_utils
 import users.user.schema as users_schema
 
 
@@ -29,7 +29,7 @@ async def list_identity_providers(
     db: Annotated[Session, Depends(core_database.get_db)],
     _check_scopes: Annotated[
         users_schema.UserRead,
-        Security(session_security.check_scopes, scopes=["identity_providers:read"]),
+        Security(auth_security.check_scopes, scopes=["identity_providers:read"]),
     ],
 ):
     """
@@ -53,7 +53,7 @@ async def list_identity_providers(
 async def list_idp_templates(
     _check_scopes: Annotated[
         users_schema.UserRead,
-        Security(session_security.check_scopes, scopes=["identity_providers:read"]),
+        Security(auth_security.check_scopes, scopes=["identity_providers:read"]),
     ],
 ):
     """
@@ -72,7 +72,7 @@ async def create_identity_provider(
     db: Annotated[Session, Depends(core_database.get_db)],
     _check_scopes: Annotated[
         users_schema.UserRead,
-        Security(session_security.check_scopes, scopes=["identity_providers:write"]),
+        Security(auth_security.check_scopes, scopes=["identity_providers:write"]),
     ],
 ):
     """
@@ -103,7 +103,7 @@ async def update_identity_provider(
     db: Annotated[Session, Depends(core_database.get_db)],
     _check_scopes: Annotated[
         users_schema.UserRead,
-        Security(session_security.check_scopes, scopes=["identity_providers:write"]),
+        Security(auth_security.check_scopes, scopes=["identity_providers:write"]),
     ],
 ):
     """
@@ -129,7 +129,7 @@ async def delete_identity_provider(
     idp_id: int,
     _check_scopes: Annotated[
         users_schema.UserRead,
-        Security(session_security.check_scopes, scopes=["identity_providers:write"]),
+        Security(auth_security.check_scopes, scopes=["identity_providers:write"]),
     ],
     db: Annotated[Session, Depends(core_database.get_db)],
 ):

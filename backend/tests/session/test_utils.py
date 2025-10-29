@@ -7,7 +7,8 @@ from fastapi import HTTPException, Response
 from pwdlib.hashers.bcrypt import BcryptHasher
 from pwdlib import PasswordHash
 
-import session.password_hasher as session_password_hasher
+import auth.password_hasher as auth_password_hasher
+import auth.utils as auth_utils
 import session.utils as session_utils
 
 
@@ -144,17 +145,16 @@ class TestAuthenticationSecurity:
         ), "Operating system should be set"
         assert updated_session.browser is not None, "Browser should be set"
 
-
     def test_authenticate_user_with_valid_credentials(
         self, password_hasher, mock_db, sample_user_read
     ):
         """
-        Test that the `session_utils.authenticate_user` function successfully authenticates a user with valid credentials.
+        Test that the `auth_utils.authenticate_user` function successfully authenticates a user with valid credentials.
         This test:
         - Hashes a sample password using the provided password hasher.
         - Mocks a user ORM object with the hashed password and sample user data.
-        - Patches the `session_utils.authenticate_user` function in the users CRUD utility to return the mocked user.
-        - Calls the actual `session_utils.authenticate_user` function with valid credentials.
+        - Patches the `auth_utils.authenticate_user` function in the users CRUD utility to return the mocked user.
+        - Calls the actual `auth_utils.authenticate_user` function with valid credentials.
         - Asserts that authentication succeeds and the returned user matches the expected sample user.
         Args:
             password_hasher: Fixture or mock for password hashing utilities.
@@ -177,7 +177,7 @@ class TestAuthenticationSecurity:
         with patch("session.utils.users_crud.authenticate_user") as mock_auth:
             mock_auth.return_value = mock_user_orm
 
-            result = session_utils.authenticate_user(
+            result = auth_utils.authenticate_user(
                 "testuser", password, password_hasher, mock_db
             )
 
@@ -187,7 +187,7 @@ class TestAuthenticationSecurity:
 
     def test_authenticate_user_with_invalid_username(self, password_hasher, mock_db):
         """
-        Test that the `session_utils.authenticate_user` function raises an HTTPException with status code 401
+        Test that the `auth_utils.authenticate_user` function raises an HTTPException with status code 401
         when provided with an invalid (nonexistent) username. Ensures that the exception detail
         contains information about the username.
         """
@@ -195,7 +195,7 @@ class TestAuthenticationSecurity:
             mock_auth.return_value = None
 
             with pytest.raises(HTTPException) as exc_info:
-                session_utils.authenticate_user(
+                auth_utils.authenticate_user(
                     "nonexistent", "password", password_hasher, mock_db
                 )
 
@@ -206,7 +206,7 @@ class TestAuthenticationSecurity:
         self, password_hasher, mock_db, sample_user_read
     ):
         """
-        Test that the `session_utils.authenticate_user` function raises an HTTPException with status code 401
+        Test that the `auth_utils.authenticate_user` function raises an HTTPException with status code 401
         when an incorrect password is provided for an existing user.
         This test mocks the user retrieval and password hashing process, simulating a scenario
         where the user exists but the provided password does not match the stored hash.
@@ -225,7 +225,7 @@ class TestAuthenticationSecurity:
             mock_auth.return_value = mock_user_orm
 
             with pytest.raises(HTTPException) as exc_info:
-                session_utils.authenticate_user(
+                auth_utils.authenticate_user(
                     "testuser", wrong_password, password_hasher, mock_db
                 )
 
@@ -236,7 +236,7 @@ class TestAuthenticationSecurity:
         self, password_hasher, mock_db, sample_user_read
     ):
         """
-        Test that the `session_utils.authenticate_user` function updates the user's password hash if the current hash is outdated.
+        Test that the `auth_utils.authenticate_user` function updates the user's password hash if the current hash is outdated.
         This test simulates a scenario where a user's password is hashed with an old hasher. It mocks the authentication and password update functions to verify that authentication succeeds and that the system is prepared to update the password hash if necessary.
         Args:
             self: The test case instance.
@@ -248,9 +248,7 @@ class TestAuthenticationSecurity:
         """
         password = "TestPassword123!"
 
-        old_hasher = session_password_hasher.PasswordHasher(
-            PasswordHash([BcryptHasher()])
-        )
+        old_hasher = auth_password_hasher.PasswordHasher(PasswordHash([BcryptHasher()]))
 
         # Create ORM-like object with password attribute
         mock_user_orm = MagicMock()
@@ -262,7 +260,7 @@ class TestAuthenticationSecurity:
             with patch("session.utils.users_crud.edit_user_password") as _mock_edit:
                 mock_auth.return_value = mock_user_orm
 
-                result = session_utils.authenticate_user(
+                result = auth_utils.authenticate_user(
                     "testuser", password, password_hasher, mock_db
                 )
 
@@ -297,7 +295,7 @@ class TestAuthenticationSecurity:
 
             for username in malicious_usernames:
                 with pytest.raises(HTTPException) as exc_info:
-                    session_utils.authenticate_user(
+                    auth_utils.authenticate_user(
                         username, "password", password_hasher, mock_db
                     )
                 assert exc_info.value.status_code == 401
@@ -323,15 +321,11 @@ class TestAuthenticationSecurity:
             mock_auth.return_value = mock_user_orm
 
             with pytest.raises(HTTPException) as exc_info:
-                session_utils.authenticate_user(
-                    "testuser", "", password_hasher, mock_db
-                )
+                auth_utils.authenticate_user("testuser", "", password_hasher, mock_db)
 
             assert exc_info.value.status_code == 401
 
-    def test_empty_username_authentication(
-        self, password_hasher, mock_db
-    ):
+    def test_empty_username_authentication(self, password_hasher, mock_db):
         """
         Test that authentication fails with an empty username.
 
@@ -345,7 +339,7 @@ class TestAuthenticationSecurity:
             mock_auth.return_value = None
 
             with pytest.raises(HTTPException) as exc_info:
-                session_utils.authenticate_user(
+                auth_utils.authenticate_user(
                     "", "RealPassword123!", password_hasher, mock_db
                 )
 
@@ -379,7 +373,7 @@ class TestAuthenticationSecurity:
             mock_auth.return_value = mock_user_orm
 
             with pytest.raises(HTTPException) as exc_info:
-                session_utils.authenticate_user(
+                auth_utils.authenticate_user(
                     "testuser", "    ", password_hasher, mock_db
                 )
 
@@ -389,7 +383,7 @@ class TestAuthenticationSecurity:
         self, token_manager, sample_user_read
     ):
         """
-        Test that the `session_utils.create_tokens` function generates all required tokens and their expirations.
+        Test that the `auth_utils.create_tokens` function generates all required tokens and their expirations.
 
         This test verifies that:
         - A session ID is generated.
@@ -412,7 +406,7 @@ class TestAuthenticationSecurity:
             refresh_token_exp,
             refresh_token,
             csrf_token,
-        ) = session_utils.create_tokens(sample_user_read, token_manager)
+        ) = auth_utils.create_tokens(sample_user_read, token_manager)
 
         assert session_id is not None, "Session ID should be generated"
         assert access_token is not None, "Access token should be generated"
@@ -429,14 +423,14 @@ class TestAuthenticationSecurity:
         self, token_manager, sample_user_read
     ):
         """
-        Test that the `session_utils.create_tokens` function uses the provided session ID when one is supplied.
+        Test that the `auth_utils.create_tokens` function uses the provided session ID when one is supplied.
 
         Args:
             token_manager: The token manager fixture or mock used to generate tokens.
             sample_user_read: A sample user object used for token creation.
 
         Asserts:
-            The returned session ID from `session_utils.create_tokens` matches the provided session ID.
+            The returned session ID from `auth_utils.create_tokens` matches the provided session ID.
         """
         provided_session_id = "custom-session-id-123"
 
@@ -447,7 +441,7 @@ class TestAuthenticationSecurity:
             _,
             _,
             _,
-        ) = session_utils.create_tokens(
+        ) = auth_utils.create_tokens(
             sample_user_read, token_manager, session_id=provided_session_id
         )
 
@@ -457,9 +451,9 @@ class TestAuthenticationSecurity:
         self, token_manager, sample_user_read
     ):
         """
-        Test that the `session_utils.create_tokens` function generates unique session IDs for each invocation.
+        Test that the `auth_utils.create_tokens` function generates unique session IDs for each invocation.
 
-        This test calls `session_utils.create_tokens` multiple times with the same user and token manager,
+        This test calls `auth_utils.create_tokens` multiple times with the same user and token manager,
         collects the returned session IDs, and asserts that all session IDs are unique.
 
         Args:
@@ -472,7 +466,7 @@ class TestAuthenticationSecurity:
         """
         session_ids = set()
         for _ in range(10):
-            session_id, _, _, _, _, _ = session_utils.create_tokens(
+            session_id, _, _, _, _, _ = auth_utils.create_tokens(
                 sample_user_read, token_manager
             )
             session_ids.add(session_id)
@@ -496,7 +490,7 @@ class TestAuthenticationSecurity:
         mock_request.headers["X-Client-Type"] = "web"
 
         with patch("session.utils.create_session") as mock_create_session:
-            result = session_utils.complete_login(
+            result = auth_utils.complete_login(
                 response,
                 mock_request,
                 sample_user_read,
@@ -532,7 +526,7 @@ class TestAuthenticationSecurity:
         mock_request.headers["X-Client-Type"] = "mobile"
 
         with patch("session.utils.create_session") as mock_create_session:
-            result = session_utils.complete_login(
+            result = auth_utils.complete_login(
                 response,
                 mock_request,
                 sample_user_read,
@@ -573,7 +567,7 @@ class TestAuthenticationSecurity:
 
         with patch("session.utils.create_session"):
             with pytest.raises(HTTPException) as exc_info:
-                session_utils.complete_login(
+                auth_utils.complete_login(
                     response,
                     mock_request,
                     sample_user_read,
@@ -900,7 +894,7 @@ class TestAuthenticationSecurity:
         refresh_token = "test-refresh-token"
 
         with patch("session.utils.session_crud.create_session") as mock_create:
-            with patch("session.utils.session_constants") as mock_constants:
+            with patch("session.utils.auth_constants") as mock_constants:
                 # Set the expiration days
                 mock_constants.JWT_REFRESH_TOKEN_EXPIRE_DAYS = 30
 
@@ -917,9 +911,7 @@ class TestAuthenticationSecurity:
                 session_obj = mock_create.call_args[0][0]
 
                 # Verify expiration is set and is in the future
-                assert (
-                    session_obj.expires_at is not None
-                ), "Expiration should be set"
+                assert session_obj.expires_at is not None, "Expiration should be set"
                 assert isinstance(
                     session_obj.expires_at, datetime
                 ), "Expiration should be a datetime"
@@ -1040,8 +1032,8 @@ class TestAuthenticationSecurity:
             assert (
                 updated_session.expires_at != old_expiration
             ), "Expiration should be updated"
-            assert (
-                updated_session.expires_at > datetime.now(timezone.utc)
+            assert updated_session.expires_at > datetime.now(
+                timezone.utc
             ), "New expiration should be in the future"
             assert isinstance(
                 updated_session.expires_at, datetime
@@ -1140,15 +1132,9 @@ class TestAuthenticationSecurity:
             updated_session = mock_edit.call_args[0][0]
 
             # Verify device information is set (updated from mock_request)
-            assert (
-                updated_session.ip_address is not None
-            ), "IP address should be set"
-            assert (
-                updated_session.device_type is not None
-            ), "Device type should be set"
+            assert updated_session.ip_address is not None, "IP address should be set"
+            assert updated_session.device_type is not None, "Device type should be set"
             assert (
                 updated_session.operating_system is not None
             ), "Operating system should be set"
             assert updated_session.browser is not None, "Browser should be set"
-
-

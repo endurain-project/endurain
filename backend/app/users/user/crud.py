@@ -4,8 +4,8 @@ from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from urllib.parse import unquote
 
-import session.security as session_security
-import session.password_hasher as session_password_hasher
+import auth.security as auth_security
+import auth.password_hasher as auth_password_hasher
 
 import users.user.schema as users_schema
 import users.user.utils as users_utils
@@ -86,7 +86,9 @@ def get_users_with_pagination(db: Session, page_number: int = 1, num_records: in
 
         # Enrich users with IDP count
         for user in users:
-            idp_links = user_idp_crud.get_user_idp_links(user.id, db)
+            idp_links = user_idp_crud.get_user_identity_providers_by_user_id(
+                user.id, db
+            )
             user.external_auth_count = len(idp_links)
 
         # Return the users
@@ -288,7 +290,7 @@ def get_users_admin(db: Session):
 
 def create_user(
     user: users_schema.UserCreate,
-    password_hasher: session_password_hasher.PasswordHasher,
+    password_hasher: auth_password_hasher.PasswordHasher,
     db: Session,
 ):
     try:
@@ -566,7 +568,7 @@ def verify_user_email(
 def edit_user_password(
     user_id: int,
     password: str,
-    password_hasher: session_password_hasher.PasswordHasher,
+    password_hasher: auth_password_hasher.PasswordHasher,
     db: Session,
     is_hashed: bool = False,
 ):
@@ -805,7 +807,7 @@ def disable_user_mfa(user_id: int, db: Session):
 def create_signup_user(
     user: users_schema.UserSignup,
     server_settings: server_settings_schema.ServerSettingsRead,
-    password_hasher: session_password_hasher.PasswordHasher,
+    password_hasher: auth_password_hasher.PasswordHasher,
     db: Session,
 ):
     """
@@ -814,7 +816,7 @@ def create_signup_user(
     Args:
         user (users_schema.UserSignup): The user signup data containing user details.
         server_settings (server_settings_schema.ServerSettingsRead): Server settings used to determine if email verification or admin approval is required.
-        password_hasher (session_password_hasher.PasswordHasher): Password hasher used to hash the user's password.
+        password_hasher (auth_password_hasher.PasswordHasher): Password hasher used to hash the user's password.
         db (Session): SQLAlchemy database session.
 
     Returns:

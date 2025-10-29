@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 import pytest
 from fastapi import HTTPException
 
-import session.token_manager as session_token_manager
+import authtoken_manager as auth_token_manager
 
 
 class TestTokenManagerSecurity:
@@ -36,7 +36,7 @@ class TestTokenManagerSecurity:
         """
         session_id = "test-session-123"
         _, token = token_manager.create_token(
-            session_id, sample_user_read, session_token_manager.TokenType.ACCESS
+            session_id, sample_user_read, auth_token_manager.TokenType.ACCESS
         )
 
         sub_claim = token_manager.get_token_claim(token, "sub")
@@ -54,7 +54,7 @@ class TestTokenManagerSecurity:
         """
         session_id = "test-session-id"
         _, token = token_manager.create_token(
-            session_id, sample_user_read, session_token_manager.TokenType.ACCESS
+            session_id, sample_user_read, auth_token_manager.TokenType.ACCESS
         )
 
         with pytest.raises(HTTPException) as exc_info:
@@ -78,7 +78,7 @@ class TestTokenManagerSecurity:
         """
         session_id = "test-session-id"
         _, token = token_manager.create_token(
-            session_id, sample_user_read, session_token_manager.TokenType.ACCESS
+            session_id, sample_user_read, auth_token_manager.TokenType.ACCESS
         )
 
         payload = token_manager.decode_token(token)
@@ -109,7 +109,7 @@ class TestTokenManagerSecurity:
         """
         session_id = "test-session-id"
         _, token = token_manager.create_token(
-            session_id, sample_user_read, session_token_manager.TokenType.ACCESS
+            session_id, sample_user_read, auth_token_manager.TokenType.ACCESS
         )
 
         payload = token_manager.decode_token(token)
@@ -151,15 +151,15 @@ class TestTokenManagerSecurity:
         This test creates a token using one instance of TokenManager with a specific secret key, then attempts to decode the token using another TokenManager instance with a different secret key. It asserts that an HTTPException with status code 401 is raised, indicating unauthorized access due to the wrong secret.
         """
         # Create token with one manager
-        manager1 = session_token_manager.TokenManager(
+        manager1 = auth_token_manager.TokenManager(
             secret_key="secret-key-one-min-32-characters-long"
         )
         _, token = manager1.create_token(
-            "session-id", sample_user_read, session_token_manager.TokenType.ACCESS
+            "session-id", sample_user_read, auth_token_manager.TokenType.ACCESS
         )
 
         # Try to decode with different manager
-        manager2 = session_token_manager.TokenManager(
+        manager2 = auth_token_manager.TokenManager(
             secret_key="secret-key-two-min-32-characters-long"
         )
         with pytest.raises(HTTPException) as exc_info:
@@ -178,7 +178,7 @@ class TestTokenManagerSecurity:
         """
         session_id = "test-session-id"
         _, token = token_manager.create_token(
-            session_id, sample_user_read, session_token_manager.TokenType.ACCESS
+            session_id, sample_user_read, auth_token_manager.TokenType.ACCESS
         )
 
         # Should not raise an exception
@@ -223,7 +223,7 @@ class TestTokenManagerSecurity:
         """
         session_id = "test-session-id"
         exp_time, token = token_manager.create_token(
-            session_id, sample_user_read, session_token_manager.TokenType.ACCESS
+            session_id, sample_user_read, auth_token_manager.TokenType.ACCESS
         )
 
         assert token is not None, "Token should not be None"
@@ -254,7 +254,7 @@ class TestTokenManagerSecurity:
         """
         session_id = "test-session-id"
         exp_time, token = token_manager.create_token(
-            session_id, sample_user_read, session_token_manager.TokenType.REFRESH
+            session_id, sample_user_read, auth_token_manager.TokenType.REFRESH
         )
 
         assert token is not None, "Token should not be None"
@@ -276,10 +276,10 @@ class TestTokenManagerSecurity:
         """
         session_id = "test-session-id"
         access_exp, _ = token_manager.create_token(
-            session_id, sample_user_read, session_token_manager.TokenType.ACCESS
+            session_id, sample_user_read, auth_token_manager.TokenType.ACCESS
         )
         refresh_exp, _ = token_manager.create_token(
-            session_id, sample_user_read, session_token_manager.TokenType.REFRESH
+            session_id, sample_user_read, auth_token_manager.TokenType.REFRESH
         )
 
         assert (
@@ -335,10 +335,10 @@ class TestTokenManagerSecurity:
         """
         session_id = "test-session-id"
         _, token1 = token_manager.create_token(
-            session_id, sample_user_read, session_token_manager.TokenType.ACCESS
+            session_id, sample_user_read, auth_token_manager.TokenType.ACCESS
         )
         _, token2 = token_manager.create_token(
-            session_id, sample_user_read, session_token_manager.TokenType.ACCESS
+            session_id, sample_user_read, auth_token_manager.TokenType.ACCESS
         )
 
         assert token1 != token2, "Tokens should be unique even for the same user"
@@ -361,7 +361,7 @@ class TestTokenManagerSecurity:
         """
         session_id = "test-session-id"
         _, token = token_manager.create_token(
-            session_id, sample_user_read, session_token_manager.TokenType.ACCESS
+            session_id, sample_user_read, auth_token_manager.TokenType.ACCESS
         )
 
         # Tamper with the token
@@ -418,10 +418,10 @@ class TestTokenManagerSecurity:
             The tokens generated for different session IDs are not equal.
         """
         _, token1 = token_manager.create_token(
-            "session-id-1", sample_user_read, session_token_manager.TokenType.ACCESS
+            "session-id-1", sample_user_read, auth_token_manager.TokenType.ACCESS
         )
         _, token2 = token_manager.create_token(
-            "session-id-2", sample_user_read, session_token_manager.TokenType.ACCESS
+            "session-id-2", sample_user_read, auth_token_manager.TokenType.ACCESS
         )
 
         assert token1 != token2, "Different session IDs should produce different tokens"
@@ -435,7 +435,7 @@ class TestTokenManagerSecurity:
         """
         session_id = "test-session-id"
         exp_time, _ = token_manager.create_token(
-            session_id, sample_user_read, session_token_manager.TokenType.ACCESS
+            session_id, sample_user_read, auth_token_manager.TokenType.ACCESS
         )
 
         assert (

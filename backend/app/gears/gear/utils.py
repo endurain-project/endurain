@@ -3,7 +3,7 @@ from urllib.parse import unquote
 from typing import Annotated
 from fastapi import Depends
 from sqlalchemy.orm import Session
-import session.security as session_security
+import auth.security as auth_security
 import core.database as core_database
 
 import gears.gear.models as gears_models

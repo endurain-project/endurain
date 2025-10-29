@@ -275,22 +275,24 @@ def upgrade() -> None:
         unique=False,
     )
     # Add the new entry to the migrations table
-    op.execute("""
+    op.execute(
+        """
     INSERT INTO migrations (id, name, description, executed) VALUES
     (6, 'v0.15.0', 'Lowercase user usernames', false);
-    """)
+    """
+    )
 
 
 def downgrade() -> None:
     # Remove the entry from the migrations table
-    op.execute("""
+    op.execute(
+        """
     DELETE FROM migrations 
     WHERE id = 6;
-    """)
-    # Drop sign up tokens table
-    op.drop_index(
-        op.f("ix_sign_up_tokens_user_id"), table_name="sign_up_tokens"
+    """
     )
+    # Drop sign up tokens table
+    op.drop_index(op.f("ix_sign_up_tokens_user_id"), table_name="sign_up_tokens")
     op.drop_table("sign_up_tokens")
     # Remove columns from gear_components table
     op.add_column(

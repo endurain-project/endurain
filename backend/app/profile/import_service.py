@@ -23,14 +23,17 @@ import profile.utils as profile_utils
 import users.user.crud as users_crud
 import users.user.schema as users_schema
 
-import users.user_integrations.crud as user_integrations_crud
-import users.user_integrations.schema as users_integrations_schema
-
 import users.user_default_gear.crud as user_default_gear_crud
 import users.user_default_gear.schema as user_default_gear_schema
 
 import users.user_goals.crud as user_goals_crud
 import users.user_goals.schema as user_goals_schema
+
+import users.user_identity_providers.crud as user_identity_providers_crud
+import users.user_identity_providers.schema as user_identity_providers_schema
+
+import users.user_integrations.crud as user_integrations_crud
+import users.user_integrations.schema as users_integrations_schema
 
 import users.user_privacy_settings.crud as users_privacy_settings_crud
 import users.user_privacy_settings.schema as users_privacy_settings_schema
@@ -60,6 +63,9 @@ import gears.gear.schema as gear_schema
 
 import gears.gear_components.crud as gear_components_crud
 import gears.gear_components.schema as gear_components_schema
+
+import notifications.crud as notifications_crud
+import notifications.schema as notifications_schema
 
 import health_data.crud as health_data_crud
 import health_data.schema as health_data_schema
@@ -252,10 +258,13 @@ class ImportService:
                 user_default_gear_data = self._load_single_json(
                     zipf, "data/user_default_gear.json"
                 )
+                user_goals_data = self._load_single_json(zipf, "data/user_goals.json")
+                user_identity_providers_data = self._load_single_json(
+                    zipf, "data/user_identity_providers.json"
+                )
                 user_integrations_data = self._load_single_json(
                     zipf, "data/user_integrations.json"
                 )
-                user_goals_data = self._load_single_json(zipf, "data/user_goals.json")
                 user_privacy_settings_data = self._load_single_json(
                     zipf, "data/user_privacy_settings.json"
                 )
@@ -263,8 +272,9 @@ class ImportService:
                 await self.collect_and_import_user_data(
                     user_data,
                     user_default_gear_data,
-                    user_integrations_data,
                     user_goals_data,
+                    user_identity_providers_data,
+                    user_integrations_data,
                     user_privacy_settings_data,
                     gears_id_mapping,
                 )
@@ -286,6 +296,17 @@ class ImportService:
                         timeout_seconds,
                     )
                 )
+
+                # Load and import notifications
+                profile_utils.check_timeout(
+                    timeout_seconds, start_time, ImportTimeoutError, "Import"
+                )
+                notifications_data = self._load_single_json(
+                    zipf, "data/notifications.json"
+                )
+
+                await self.collect_and_import_notifications_data(notifications_data)
+                del notifications_data
 
                 # Load and import health data
                 profile_utils.check_timeout(
@@ -432,8 +453,9 @@ class ImportService:
         self,
         user_data: list[Any],
         user_default_gear_data: list[Any],
-        user_integrations_data: list[Any],
         user_goals_data: list[Any],
+        user_identity_providers_data: list[Any],
+        user_integrations_data: list[Any],
         user_privacy_settings_data: list[Any],
         gears_id_mapping: dict[int, int],
     ) -> None:
@@ -443,8 +465,9 @@ class ImportService:
         Args:
             user_data: User profile data.
             user_default_gear_data: Default gear settings.
-            user_integrations_data: Integration settings.
             user_goals_data: User goals data.
+            user_identity_providers_data: Identity providers data.
+            user_integrations_data: Integration settings.
             user_privacy_settings_data: Privacy settings.
             gears_id_mapping: Mapping of old to new gear IDs.
         """
@@ -470,8 +493,11 @@ class ImportService:
         await self.collect_and_import_user_default_gear(
             user_default_gear_data, gears_id_mapping
         )
-        await self.collect_and_import_user_integrations(user_integrations_data)
         await self.collect_and_import_user_goals(user_goals_data)
+        await self.collect_and_import_user_identity_providers(
+            user_identity_providers_data
+        )
+        await self.collect_and_import_user_integrations(user_integrations_data)
         await self.collect_and_import_user_privacy_settings(user_privacy_settings_data)
 
     async def collect_and_import_user_default_gear(
@@ -583,6 +609,29 @@ class ImportService:
 
         core_logger.print_to_log(
             f"Imported {self.counts['user_goals']} user goals", "info"
+        )
+
+    async def collect_and_import_user_identity_providers(
+        self, user_identity_providers_data: list[Any]
+    ) -> None:
+        if not user_identity_providers_data:
+            core_logger.print_to_log(
+                "No user identity providers data to import", "info"
+            )
+            return
+
+        for provider_data in user_identity_providers_data:
+            provider_data.pop("id", None)
+            provider_data.pop("user_id", None)
+
+            user_identity_providers_crud.create_user_identity_provider(
+                self.user_id, provider_data.id, provider_data.idp_subject, self.db
+            )
+            self.counts["user_identity_providers"] += 1
+
+        core_logger.print_to_log(
+            f"Imported {self.counts['user_identity_providers']} user identity providers",
+            "info",
         )
 
     async def collect_and_import_user_privacy_settings(
@@ -986,6 +1035,25 @@ class ImportService:
                 core_logger.print_to_log(f"Error loading {filename}: {err}", "warning")
 
         return all_components
+
+    async def collect_and_import_notifications_data(
+        self, notifications_data: list[Any]
+    ) -> None:
+        if not notifications_data:
+            core_logger.print_to_log("No notifications data to import", "info")
+            return
+
+        for notification_data in notifications_data:
+            notification_data["user_id"] = self.user_id
+            notification_data.pop("id", None)
+
+            notification = notifications_schema.Notification(**notification_data)
+            notifications_crud.create_notification(notification, self.db)
+            self.counts["notifications"] += 1
+
+        core_logger.print_to_log(
+            f"Imported {self.counts['notifications']} notifications", "info"
+        )
 
     async def collect_and_import_health_data(
         self, health_data_data: list[Any], health_targets_data: list[Any]

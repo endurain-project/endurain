@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 import password_reset_tokens.schema as password_reset_tokens_schema
 import password_reset_tokens.utils as password_reset_tokens_utils
 
-import session.password_hasher as session_password_hasher
+import auth.password_hasher as auth_password_hasher
 
 import core.database as core_database
 import core.apprise as core_apprise
@@ -92,8 +92,8 @@ async def request_password_reset(
 async def confirm_password_reset(
     confirm_data: password_reset_tokens_schema.PasswordResetConfirm,
     password_hasher: Annotated[
-        session_password_hasher.PasswordHasher,
-        Depends(session_password_hasher.get_password_hasher),
+        auth_password_hasher.PasswordHasher,
+        Depends(auth_password_hasher.get_password_hasher),
     ],
     db: Annotated[
         Session,
@@ -104,11 +104,11 @@ async def confirm_password_reset(
     Confirms a password reset using the provided token and new password.
 
     Args:
-        confirm_data (password_reset_tokens_schema.PasswordResetConfirm): 
+        confirm_data (password_reset_tokens_schema.PasswordResetConfirm):
             Data containing the password reset token and the new password.
-        password_hasher (session_password_hasher.PasswordHasher): 
+        password_hasher (auth_password_hasher.PasswordHasher):
             An instance of the password hasher to use for hashing the new password.
-        db (Session): 
+        db (Session):
             Database session dependency.
 
     Returns:

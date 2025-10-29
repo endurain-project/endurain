@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 import shutil
 
-import session.password_hasher as session_password_hasher
+import auth.password_hasher as auth_password_hasher
 
 import users.user.crud as users_crud
 import users.user.schema as users_schema
@@ -36,13 +36,13 @@ def create_user_default_data(user_id: int, db: Session) -> None:
 
 def check_password_and_hash(
     password: str,
-    password_hasher: session_password_hasher.PasswordHasher,
+    password_hasher: auth_password_hasher.PasswordHasher,
     min_length: int = 8,
 ) -> str:
     # Check if password meets requirements
     try:
         password_hasher.validate_password(password, min_length)
-    except session_password_hasher.PasswordPolicyError as err:
+    except auth_password_hasher.PasswordPolicyError as err:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(err),

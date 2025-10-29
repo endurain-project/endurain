@@ -5,7 +5,7 @@ from sqlalchemy.sql import func
 from users.user_identity_providers import models as user_idp_models
 
 
-def get_idp_has_user_links(idp_id: int, db: Session) -> bool:
+def check_user_identity_providers_by_idp_id(idp_id: int, db: Session) -> bool:
     """
     Checks if there are any user links associated with a given identity provider ID.
 
@@ -21,7 +21,7 @@ def get_idp_has_user_links(idp_id: int, db: Session) -> bool:
     ).scalar()
 
 
-def get_user_idp_link(
+def get_user_identity_provider_by_user_id_and_idp_id(
     user_id: int, idp_id: int, db: Session
 ) -> user_idp_models.UserIdentityProvider | None:
     """
@@ -45,7 +45,7 @@ def get_user_idp_link(
     )
 
 
-def get_user_idp_link_by_subject(
+def get_user_identity_provider_by_subject_and_idp_id(
     idp_id: int, idp_subject: str, db: Session
 ) -> user_idp_models.UserIdentityProvider | None:
     """
@@ -69,7 +69,7 @@ def get_user_idp_link_by_subject(
     )
 
 
-def get_user_idp_links(
+def get_user_identity_providers_by_user_id(
     user_id: int, db: Session
 ) -> list[user_idp_models.UserIdentityProvider]:
     """
@@ -89,7 +89,35 @@ def get_user_idp_links(
     )
 
 
-def create_user_idp_link(
+def get_user_identity_provider_refresh_token_by_user_id_and_idp_id(
+    user_id: int, idp_id: int, db: Session
+) -> str | None:
+    """
+    Get the encrypted refresh token for a user-IdP link.
+
+    This function retrieves the encrypted refresh token. The caller is responsible
+    for decrypting it using Fernet before use.
+
+    Args:
+        user_id (int): The ID of the user.
+        idp_id (int): The ID of the identity provider.
+        db (Session): The SQLAlchemy database session.
+
+    Returns:
+        str | None: The encrypted refresh token string if found, otherwise None.
+
+    Security Note:
+        - Returns the encrypted token (not plaintext)
+        - Caller must decrypt using Fernet
+        - Returns None if link doesn't exist or token is not set
+    """
+    db_link = get_user_identity_provider_by_user_id_and_idp_id(user_id, idp_id, db)
+    if db_link:
+        return db_link.idp_refresh_token
+    return None
+
+
+def create_user_identity_provider(
     user_id: int, idp_id: int, idp_subject: str, db: Session
 ) -> user_idp_models.UserIdentityProvider:
     """
@@ -113,7 +141,7 @@ def create_user_idp_link(
     return db_link
 
 
-def update_user_idp_last_login(
+def update_user_identity_provider_last_login(
     user_id: int, idp_id: int, db: Session
 ) -> user_idp_models.UserIdentityProvider | None:
     """
@@ -127,7 +155,7 @@ def update_user_idp_last_login(
     Returns:
         user_idp_models.UserIdentityProvider | None: The updated UserIdentityProvider link if found, otherwise None.
     """
-    db_link = get_user_idp_link(user_id, idp_id, db)
+    db_link = get_user_identity_provider_by_user_id_and_idp_id(user_id, idp_id, db)
     if db_link:
         db_link.last_login = datetime.now(timezone.utc)
         db.commit()
@@ -135,7 +163,7 @@ def update_user_idp_last_login(
     return db_link
 
 
-def store_idp_tokens(
+def store_user_identity_provider_tokens(
     user_id: int,
     idp_id: int,
     encrypted_refresh_token: str,
@@ -162,7 +190,7 @@ def store_idp_tokens(
         The refresh_token parameter must be pre-encrypted with Fernet before calling this function.
         Never pass plaintext tokens to this function.
     """
-    db_link = get_user_idp_link(user_id, idp_id, db)
+    db_link = get_user_identity_provider_by_user_id_and_idp_id(user_id, idp_id, db)
     if db_link:
         db_link.idp_refresh_token = encrypted_refresh_token
         db_link.idp_access_token_expires_at = access_token_expires_at
@@ -172,35 +200,9 @@ def store_idp_tokens(
     return db_link
 
 
-def get_idp_refresh_token(
+def clear_user_identity_provider_refresh_token_by_user_id_and_idp_id(
     user_id: int, idp_id: int, db: Session
-) -> str | None:
-    """
-    Get the encrypted refresh token for a user-IdP link.
-
-    This function retrieves the encrypted refresh token. The caller is responsible
-    for decrypting it using Fernet before use.
-
-    Args:
-        user_id (int): The ID of the user.
-        idp_id (int): The ID of the identity provider.
-        db (Session): The SQLAlchemy database session.
-
-    Returns:
-        str | None: The encrypted refresh token string if found, otherwise None.
-
-    Security Note:
-        - Returns the encrypted token (not plaintext)
-        - Caller must decrypt using Fernet
-        - Returns None if link doesn't exist or token is not set
-    """
-    db_link = get_user_idp_link(user_id, idp_id, db)
-    if db_link:
-        return db_link.idp_refresh_token
-    return None
-
-
-def clear_idp_refresh_token(user_id: int, idp_id: int, db: Session) -> bool:
+) -> bool:
     """
     Clear the IdP refresh token and related metadata.
 
@@ -218,7 +220,7 @@ def clear_idp_refresh_token(user_id: int, idp_id: int, db: Session) -> bool:
     Returns:
         bool: True if the token was cleared, False if the link was not found.
     """
-    db_link = get_user_idp_link(user_id, idp_id, db)
+    db_link = get_user_identity_provider_by_user_id_and_idp_id(user_id, idp_id, db)
     if db_link:
         db_link.idp_refresh_token = None
         db_link.idp_access_token_expires_at = None
@@ -228,7 +230,7 @@ def clear_idp_refresh_token(user_id: int, idp_id: int, db: Session) -> bool:
     return False
 
 
-def delete_user_idp_link(user_id: int, idp_id: int, db: Session) -> bool:
+def delete_user_identity_provider(user_id: int, idp_id: int, db: Session) -> bool:
     """
     Deletes the link between a user and an identity provider (IDP) from the database.
 
@@ -246,7 +248,7 @@ def delete_user_idp_link(user_id: int, idp_id: int, db: Session) -> bool:
     Security Note:
         Sensitive token data is explicitly cleared before deletion as a defense-in-depth measure.
     """
-    db_link = get_user_idp_link(user_id, idp_id, db)
+    db_link = get_user_identity_provider_by_user_id_and_idp_id(user_id, idp_id, db)
     if db_link:
         # Clear sensitive data first (defense in depth)
         db_link.idp_refresh_token = None

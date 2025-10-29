@@ -4,7 +4,7 @@ from typing import Annotated, Callable, Union
 from datetime import date, datetime, timezone
 
 import core.database as core_database
-import session.security as session_security
+import auth.security as auth_security
 import activities.activity.dependencies as activities_dependencies
 import activities.activity_summaries.crud as activities_summary_crud
 import activities.activity_summaries.schema as activities_summary_schema
@@ -28,11 +28,11 @@ async def read_activity_summary(
         Callable, Depends(activities_summary_dependencies.validate_view_type)
     ],
     _check_scopes: Annotated[
-        Callable, Security(session_security.check_scopes, scopes=["activities:read"])
+        Callable, Security(auth_security.check_scopes, scopes=["activities:read"])
     ],
     token_user_id: Annotated[
         int,
-        Depends(session_security.get_sub_from_access_token),
+        Depends(auth_security.get_sub_from_access_token),
     ],
     db: Annotated[
         Session,

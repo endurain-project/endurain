@@ -13,7 +13,7 @@ import core.dependencies as core_dependencies
 import core.logger as core_logger
 import core.config as core_config
 import gears.gear.dependencies as gears_dependencies
-import session.security as session_security
+import auth.security as auth_security
 import users.user.dependencies as users_dependencies
 import garmin.activity_utils as garmin_activity_utils
 import strava.activity_utils as strava_activity_utils
@@ -48,11 +48,11 @@ async def read_activities_user_activities_week(
         Callable, Depends(activities_dependencies.validate_week_number)
     ],
     _check_scopes: Annotated[
-        Callable, Security(session_security.check_scopes, scopes=["activities:read"])
+        Callable, Security(auth_security.check_scopes, scopes=["activities:read"])
     ],
     token_user_id: Annotated[
         int,
-        Depends(session_security.get_sub_from_access_token),
+        Depends(auth_security.get_sub_from_access_token),
     ],
     db: Annotated[
         Session,
@@ -94,11 +94,11 @@ async def read_activities_user_activities_this_week_distances(
         Callable, Depends(users_dependencies.validate_user_id)
     ],
     _check_scopes: Annotated[
-        Callable, Security(session_security.check_scopes, scopes=["activities:read"])
+        Callable, Security(auth_security.check_scopes, scopes=["activities:read"])
     ],
     token_user_id: Annotated[
         int,
-        Depends(session_security.get_sub_from_access_token),
+        Depends(auth_security.get_sub_from_access_token),
     ],
     db: Annotated[
         Session,
@@ -135,11 +135,11 @@ async def read_activities_user_activities_this_month_distances(
         Callable, Depends(users_dependencies.validate_user_id)
     ],
     _check_scopes: Annotated[
-        Callable, Security(session_security.check_scopes, scopes=["activities:read"])
+        Callable, Security(auth_security.check_scopes, scopes=["activities:read"])
     ],
     token_user_id: Annotated[
         int,
-        Depends(session_security.get_sub_from_access_token),
+        Depends(auth_security.get_sub_from_access_token),
     ],
     db: Annotated[
         Session,
@@ -182,11 +182,11 @@ async def read_activities_user_activities_this_month_number(
         Callable, Depends(users_dependencies.validate_user_id)
     ],
     _check_scopes: Annotated[
-        Callable, Security(session_security.check_scopes, scopes=["activities:read"])
+        Callable, Security(auth_security.check_scopes, scopes=["activities:read"])
     ],
     token_user_id: Annotated[
         Callable,
-        Depends(session_security.get_sub_from_access_token),
+        Depends(auth_security.get_sub_from_access_token),
     ],
     db: Annotated[
         Session,
@@ -229,11 +229,11 @@ async def read_activities_gear_activities(
         Callable, Depends(gears_dependencies.validate_gear_id)
     ],
     _check_scopes: Annotated[
-        Callable, Security(session_security.check_scopes, scopes=["activities:read"])
+        Callable, Security(auth_security.check_scopes, scopes=["activities:read"])
     ],
     token_user_id: Annotated[
         Callable,
-        Depends(session_security.get_sub_from_access_token),
+        Depends(auth_security.get_sub_from_access_token),
     ],
     db: Annotated[
         Session,
@@ -256,11 +256,11 @@ async def read_activities_gear_activities_number(
         Callable, Depends(gears_dependencies.validate_gear_id)
     ],
     _check_scopes: Annotated[
-        Callable, Security(session_security.check_scopes, scopes=["activities:read"])
+        Callable, Security(auth_security.check_scopes, scopes=["activities:read"])
     ],
     token_user_id: Annotated[
         Callable,
-        Depends(session_security.get_sub_from_access_token),
+        Depends(auth_security.get_sub_from_access_token),
     ],
     db: Annotated[
         Session,
@@ -291,11 +291,11 @@ async def read_activities_gear_activities_with_pagination(
         Callable, Depends(core_dependencies.validate_pagination_values)
     ],
     _check_scopes: Annotated[
-        Callable, Security(session_security.check_scopes, scopes=["activities:read"])
+        Callable, Security(auth_security.check_scopes, scopes=["activities:read"])
     ],
     token_user_id: Annotated[
         Callable,
-        Depends(session_security.get_sub_from_access_token),
+        Depends(auth_security.get_sub_from_access_token),
     ],
     db: Annotated[
         Session,
@@ -314,11 +314,11 @@ async def read_activities_gear_activities_with_pagination(
 )
 async def read_activities_user_activities_number(
     _check_scopes: Annotated[
-        Callable, Security(session_security.check_scopes, scopes=["activities:read"])
+        Callable, Security(auth_security.check_scopes, scopes=["activities:read"])
     ],
     token_user_id: Annotated[
         int,
-        Depends(session_security.get_sub_from_access_token),
+        Depends(auth_security.get_sub_from_access_token),
     ],
     db: Annotated[
         Session,
@@ -358,11 +358,11 @@ async def read_activities_user_activities_number(
 )
 async def read_activities_types(
     _check_scopes: Annotated[
-        Callable, Security(session_security.check_scopes, scopes=["activities:read"])
+        Callable, Security(auth_security.check_scopes, scopes=["activities:read"])
     ],
     token_user_id: Annotated[
         int,
-        Depends(session_security.get_sub_from_access_token),
+        Depends(auth_security.get_sub_from_access_token),
     ],
     db: Annotated[
         Session,
@@ -387,11 +387,11 @@ async def read_activities_user_activities_pagination(
         Callable, Depends(core_dependencies.validate_pagination_values)
     ],
     _check_scopes: Annotated[
-        Callable, Security(session_security.check_scopes, scopes=["activities:read"])
+        Callable, Security(auth_security.check_scopes, scopes=["activities:read"])
     ],
     token_user_id: Annotated[
         int,
-        Depends(session_security.get_sub_from_access_token),
+        Depends(auth_security.get_sub_from_access_token),
     ],
     db: Annotated[
         Session,
@@ -450,7 +450,7 @@ async def read_activities_followed_user_activities_pagination(
         Callable, Depends(core_dependencies.validate_pagination_values)
     ],
     _check_scopes: Annotated[
-        Callable, Security(session_security.check_scopes, scopes=["activities:read"])
+        Callable, Security(auth_security.check_scopes, scopes=["activities:read"])
     ],
     db: Annotated[
         Session,
@@ -473,7 +473,7 @@ async def read_activities_followed_user_activities_number(
         Callable, Depends(users_dependencies.validate_user_id)
     ],
     _check_scopes: Annotated[
-        Callable, Security(session_security.check_scopes, scopes=["activities:read"])
+        Callable, Security(auth_security.check_scopes, scopes=["activities:read"])
     ],
     db: Annotated[
         Session,
@@ -497,11 +497,11 @@ async def read_activities_followed_user_activities_number(
 )
 async def read_activities_user_activities_refresh(
     _check_scopes: Annotated[
-        Callable, Security(session_security.check_scopes, scopes=["activities:read"])
+        Callable, Security(auth_security.check_scopes, scopes=["activities:read"])
     ],
     token_user_id: Annotated[
         int,
-        Depends(session_security.get_sub_from_access_token),
+        Depends(auth_security.get_sub_from_access_token),
     ],
     db: Annotated[
         Session,
@@ -559,11 +559,11 @@ async def read_activities_activity_from_id(
         Callable, Depends(activities_dependencies.validate_activity_id)
     ],
     _check_scopes: Annotated[
-        Callable, Security(session_security.check_scopes, scopes=["activities:read"])
+        Callable, Security(auth_security.check_scopes, scopes=["activities:read"])
     ],
     token_user_id: Annotated[
         int,
-        Depends(session_security.get_sub_from_access_token),
+        Depends(auth_security.get_sub_from_access_token),
     ],
     db: Annotated[
         Session,
@@ -583,11 +583,11 @@ async def read_activities_activity_from_id(
 async def read_activities_contain_name(
     name: str,
     _check_scopes: Annotated[
-        Callable, Security(session_security.check_scopes, scopes=["activities:read"])
+        Callable, Security(auth_security.check_scopes, scopes=["activities:read"])
     ],
     token_user_id: Annotated[
         int,
-        Depends(session_security.get_sub_from_access_token),
+        Depends(auth_security.get_sub_from_access_token),
     ],
     db: Annotated[
         Session,
@@ -606,11 +606,11 @@ async def read_activities_contain_name(
 async def create_activity_with_uploaded_file(
     token_user_id: Annotated[
         int,
-        Depends(session_security.get_sub_from_access_token),
+        Depends(auth_security.get_sub_from_access_token),
     ],
     file: UploadFile,
     _check_scopes: Annotated[
-        Callable, Security(session_security.check_scopes, scopes=["activities:write"])
+        Callable, Security(auth_security.check_scopes, scopes=["activities:write"])
     ],
     websocket_manager: Annotated[
         websocket_schema.WebSocketManager,
@@ -642,10 +642,10 @@ async def create_activity_with_uploaded_file(
 async def create_activity_with_bulk_import(
     token_user_id: Annotated[
         int,
-        Depends(session_security.get_sub_from_access_token),
+        Depends(auth_security.get_sub_from_access_token),
     ],
     _check_scopes: Annotated[
-        Callable, Security(session_security.check_scopes, scopes=["activities:write"])
+        Callable, Security(auth_security.check_scopes, scopes=["activities:write"])
     ],
     db: Annotated[
         Session,
@@ -721,11 +721,11 @@ async def create_activity_with_bulk_import(
 async def edit_activity(
     token_user_id: Annotated[
         int,
-        Depends(session_security.get_sub_from_access_token),
+        Depends(auth_security.get_sub_from_access_token),
     ],
     activity_attributes: activities_schema.ActivityEdit,
     _check_scopes: Annotated[
-        Callable, Security(session_security.check_scopes, scopes=["activities:write"])
+        Callable, Security(auth_security.check_scopes, scopes=["activities:write"])
     ],
     db: Annotated[
         Session,
@@ -749,10 +749,10 @@ async def edit_activity_visibility(
     ],
     token_user_id: Annotated[
         int,
-        Depends(session_security.get_sub_from_access_token),
+        Depends(auth_security.get_sub_from_access_token),
     ],
     _check_scopes: Annotated[
-        Callable, Security(session_security.check_scopes, scopes=["activities:write"])
+        Callable, Security(auth_security.check_scopes, scopes=["activities:write"])
     ],
     db: Annotated[
         Session,
@@ -775,11 +775,11 @@ async def delete_activity(
         Callable, Depends(activities_dependencies.validate_activity_id)
     ],
     _check_scopes: Annotated[
-        Callable, Security(session_security.check_scopes, scopes=["activities:write"])
+        Callable, Security(auth_security.check_scopes, scopes=["activities:write"])
     ],
     token_user_id: Annotated[
         int,
-        Depends(session_security.get_sub_from_access_token),
+        Depends(auth_security.get_sub_from_access_token),
     ],
     db: Annotated[
         Session,

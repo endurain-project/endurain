@@ -9,7 +9,7 @@ import activities.activity_streams.dependencies as activity_streams_dependencies
 
 import activities.activity.dependencies as activities_dependencies
 
-import session.security as session_security
+import auth.security as auth_security
 
 import core.database as core_database
 
@@ -27,11 +27,11 @@ async def read_activities_streams_for_activity_all(
         Callable, Depends(activities_dependencies.validate_activity_id)
     ],
     _check_scopes: Annotated[
-        Callable, Security(session_security.check_scopes, scopes=["activities:read"])
+        Callable, Security(auth_security.check_scopes, scopes=["activities:read"])
     ],
     token_user_id: Annotated[
         int,
-        Depends(session_security.get_sub_from_access_token),
+        Depends(auth_security.get_sub_from_access_token),
     ],
     db: Annotated[
         Session,
@@ -56,11 +56,11 @@ async def read_activities_streams_for_activity_stream_type(
         Callable, Depends(activity_streams_dependencies.validate_activity_stream_type)
     ],
     _check_scopes: Annotated[
-        Callable, Security(session_security.check_scopes, scopes=["activities:read"])
+        Callable, Security(auth_security.check_scopes, scopes=["activities:read"])
     ],
     token_user_id: Annotated[
         int,
-        Depends(session_security.get_sub_from_access_token),
+        Depends(auth_security.get_sub_from_access_token),
     ],
     db: Annotated[
         Session,

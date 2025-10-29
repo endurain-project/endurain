@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 import health_targets.schema as health_targets_schema
 import health_targets.crud as health_targets_crud
 
-import session.security as session_security
+import auth.security as auth_security
 
 import core.database as core_database
 
@@ -20,11 +20,11 @@ router = APIRouter()
 )
 async def read_health_data_all_pagination(
     _check_scopes: Annotated[
-        Callable, Security(session_security.check_scopes, scopes=["health:read"])
+        Callable, Security(auth_security.check_scopes, scopes=["health:read"])
     ],
     token_user_id: Annotated[
         int,
-        Depends(session_security.get_sub_from_access_token),
+        Depends(auth_security.get_sub_from_access_token),
     ],
     db: Annotated[
         Session,

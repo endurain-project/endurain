@@ -17,7 +17,7 @@ from joserfc.errors import (
 )
 from joserfc.jwk import OctKey
 
-import session.constants as session_constants
+import auth.constants as auth_constants
 
 import users.user.schema as users_schema
 
@@ -278,16 +278,16 @@ class TokenManager:
         """
         # Check user access level and set scope accordingly
         if user.access_type == users_schema.UserAccessType.REGULAR:
-            scope = session_constants.REGULAR_ACCESS_SCOPE
+            scope = auth_constants.REGULAR_ACCESS_SCOPE
         else:
-            scope = session_constants.ADMIN_ACCESS_SCOPE
+            scope = auth_constants.ADMIN_ACCESS_SCOPE
 
         exp = datetime.now(timezone.utc) + timedelta(
-            minutes=session_constants.JWT_ACCESS_TOKEN_EXPIRE_MINUTES
+            minutes=auth_constants.JWT_ACCESS_TOKEN_EXPIRE_MINUTES
         )
         if token_type == TokenType.REFRESH:
             exp = datetime.now(timezone.utc) + timedelta(
-                days=session_constants.JWT_REFRESH_TOKEN_EXPIRE_DAYS
+                days=auth_constants.JWT_REFRESH_TOKEN_EXPIRE_DAYS
             )
 
         # Set now
@@ -338,6 +338,13 @@ def get_token_manager() -> TokenManager:
     return token_manager
 
 
+# Validate required configuration before creating token manager
+if auth_constants.JWT_SECRET_KEY is None:
+    raise ValueError("JWT_SECRET_KEY must be set in environment variables")
+
+if auth_constants.JWT_ALGORITHM is None:
+    raise ValueError("JWT_ALGORITHM must be set in environment variables")
+
 token_manager = TokenManager(
-    session_constants.JWT_SECRET_KEY, session_constants.JWT_ALGORITHM
+    auth_constants.JWT_SECRET_KEY, auth_constants.JWT_ALGORITHM
 )

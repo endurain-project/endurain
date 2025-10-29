@@ -14,7 +14,7 @@ import password_reset_tokens.crud as password_reset_tokens_crud
 
 import users.user.crud as users_crud
 
-import session.password_hasher as session_password_hasher
+import auth.password_hasher as auth_password_hasher
 
 import core.apprise as core_apprise
 import core.logger as core_logger
@@ -176,7 +176,7 @@ async def send_password_reset_email(
 def use_password_reset_token(
     token: str,
     new_password: str,
-    password_hasher: session_password_hasher.PasswordHasher,
+    password_hasher: auth_password_hasher.PasswordHasher,
     db: Session,
 ):
     """
@@ -195,7 +195,7 @@ def use_password_reset_token(
         function will hash it before database lookup.
     - new_password (str): The new plain-text password to set for the user. Password
         validation/hashing is expected to be handled by the underlying users_crud.
-    - password_hasher (session_password_hasher.PasswordHasher): An instance of the
+    - password_hasher (auth_password_hasher.PasswordHasher): An instance of the
         password hasher to use when updating the user's password.
     - db (Session): An active SQLAlchemy Session (or equivalent) used for DB operations.
         Transaction management (commit/rollback) is expected to be handled by the caller
