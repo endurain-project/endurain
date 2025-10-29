@@ -126,6 +126,7 @@ export function useBootstrapModal() {
       } catch (error) {
         console.error('Error disposing modal:', error)
       } finally {
+        cleanupBodyStyles()
         modalInstance.value = null
         isInitialized.value = false
       }
