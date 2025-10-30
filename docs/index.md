@@ -14,6 +14,9 @@
     <a href="https://github.com/joaovitoriasilva/endurain/stargazers">
       <img src="https://img.shields.io/github/stars/joaovitoriasilva/endurain.svg?style=social&label=Star" alt="GitHub stars">
     </a>
+    <a href="https://github.com/joaovitoriasilva/endurain/blob/master/TRADEMARK.md">
+      <img src="https://img.shields.io/badge/trademark-Endurain%E2%84%A2-blue" alt="Trademark Policy">
+    </a>
   </p>
 
   <h2>
