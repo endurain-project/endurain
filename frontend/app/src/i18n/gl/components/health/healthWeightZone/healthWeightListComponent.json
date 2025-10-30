@@ -1,9 +1,9 @@
 {
   "labelGarminConnect": "Garmin Connect",
-  "modalDeleteWeightTitle": "Delete weight",
-  "modalDeleteWeightBody": "Are you sure you want to delete weight entry for ",
-  "successDeleteWeight": "Weight deleted",
-  "errorDeleteWeight": "It was not possible to delete weight entry",
-  "successEditWeight": "Weight edited",
-  "errorEditWeight": "It was not possible to edit weight entry"
+  "modalDeleteWeightTitle": "Eliminar peso",
+  "modalDeleteWeightBody": "Tes certeza de querer eliminar o peso de ",
+  "successDeleteWeight": "Peso eliminado",
+  "errorDeleteWeight": "Non foi posible eliminar o peso",
+  "successEditWeight": "Peso editado",
+  "errorEditWeight": "Non foi posible editar o peso"
 }

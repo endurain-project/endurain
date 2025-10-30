@@ -1,12 +1,12 @@
 {
-  "headerType": "Type",
-  "headerName": "Name",
-  "headerLocation": "Location",
-  "headerStartTime": "Start time",
-  "headerDuration": "Duration",
-  "headerDistance": "Distance",
-  "headerPace": "Pace/Speed",
-  "headerCalories": "Calories",
-  "headerElevation": "Elevation",
-  "headerAvgHr": "Avg HR"
+  "headerType": "类型",
+  "headerName": "名称",
+  "headerLocation": "位置",
+  "headerStartTime": "起始时间",
+  "headerDuration": "经过时间",
+  "headerDistance": "距离",
+  "headerPace": "配速/速度",
+  "headerCalories": "卡路里",
+  "headerElevation": "海拔",
+  "headerAvgHr": "平均心率"
 }
