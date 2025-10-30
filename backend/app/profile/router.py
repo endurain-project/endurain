@@ -4,6 +4,9 @@ from fastapi import APIRouter, Depends, HTTPException, status, UploadFile
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
+from safeuploads import FileValidator
+from safeuploads.exceptions import FileValidationError
+
 import users.user.schema as users_schema
 import users.user.crud as users_crud
 import users.user.utils as users_utils
@@ -30,9 +33,6 @@ import auth.password_hasher as auth_password_hasher
 
 import core.database as core_database
 import core.logger as core_logger
-
-from core.file_security.file_validator import FileValidator
-from core.file_security.exceptions import FileValidationError
 
 import websocket.schema as websocket_schema
 
