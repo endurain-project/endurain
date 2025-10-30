@@ -4,7 +4,6 @@ from pydantic import (
     BaseModel,
     EmailStr,
     field_validator,
-    field_serializer,
     StrictInt,
     ConfigDict,
 )
