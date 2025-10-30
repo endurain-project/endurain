@@ -2,68 +2,17 @@
   <li class="list-group-item d-flex justify-content-between px-0 bg-body-tertiary">
     <div class="d-flex align-items-center">
       <img
-        src="/src/assets/avatar/bicycle1.png"
-        alt="Bycicle avatar"
+        :src="getGearAvatar(gear.gear_type)"
+        :alt="
+          $t(
+            `gearsListComponent.gearListTypeOption${
+              gear.gear_type >= 1 && gear.gear_type <= 8 ? gear.gear_type : 8
+            }`
+          ) + ' avatar'
+        "
         width="55"
         height="55"
         class="rounded-circle"
-        v-if="gear.gear_type == 1"
-      />
-      <img
-        src="/src/assets/avatar/running_shoe1.png"
-        alt="running shoe avatar"
-        width="55"
-        height="55"
-        class="rounded-circle"
-        v-else-if="gear.gear_type == 2"
-      />
-      <img
-        src="/src/assets/avatar/wetsuit1.png"
-        alt="wetsuit avatar"
-        width="55"
-        height="55"
-        class="rounded-circle"
-        v-else-if="gear.gear_type == 3"
-      />
-      <img
-        src="/src/assets/avatar/racquet1.png"
-        alt="racquet avatar"
-        width="55"
-        height="55"
-        class="rounded-circle"
-        v-else-if="gear.gear_type == 4"
-      />
-      <img
-        src="/src/assets/avatar/skis1.png"
-        alt="skis avatar"
-        width="55"
-        height="55"
-        class="rounded-circle"
-        v-else-if="gear.gear_type == 5"
-      />
-      <img
-        src="/src/assets/avatar/snowboard1.png"
-        alt="snowboard avatar"
-        width="55"
-        height="55"
-        class="rounded-circle"
-        v-else-if="gear.gear_type == 6"
-      />
-      <img
-        src="/src/assets/avatar/windsurf1.png"
-        alt="windsurf avatar"
-        width="55"
-        height="55"
-        class="rounded-circle"
-        v-else-if="gear.gear_type == 7"
-      />
-      <img
-        src="/src/assets/avatar/waterSportsBoard1.png"
-        alt="water sports board avatar"
-        width="55"
-        height="55"
-        class="rounded-circle"
-        v-else
       />
       <div class="ms-3">
         <div class="fw-bold">
@@ -103,11 +52,7 @@
         <font-awesome-icon :icon="['fab', 'fa-strava']" />
       </span>
       <span class="align-middle me-3 d-none d-sm-inline" v-if="gear.garminconnect_gear_id">
-        <img
-          src="/src/assets/garminconnect/Garmin_Connect_app_1024x1024-02.png"
-          alt="Garmin Connect logo"
-          height="22"
-        />
+        <img :src="INTEGRATION_LOGOS.garminConnectApp" alt="Garmin Connect logo" height="22" />
       </span>
       <span
         class="badge bg-danger-subtle border border-danger-subtle text-danger-emphasis align-middle d-none d-sm-inline"
@@ -156,6 +101,8 @@ import { gears } from '@/services/gearsService'
 import { push } from 'notivue'
 import ModalComponent from '@/components/Modals/ModalComponent.vue'
 import GearsAddEditGearModalComponent from '@/components/Gears/GearsAddEditGearModalComponent.vue'
+import { getGearAvatar } from '@/constants/gearAvatarConstants'
+import { INTEGRATION_LOGOS } from '@/constants/integrationLogoConstants'
 
 const props = defineProps({
   gear: {

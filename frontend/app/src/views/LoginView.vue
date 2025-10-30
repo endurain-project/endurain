@@ -5,7 +5,7 @@
         <img
           width="auto"
           height="auto"
-          :src="loginPhotoUrl || '/src/assets/login.png'"
+          :src="loginPhotoUrl"
           alt="Endurain login illustration"
           class="img-fluid rounded"
         />
@@ -191,6 +191,8 @@ import { HTTP_STATUS, QUERY_PARAM_TRUE, extractStatusCode } from '@/constants/ht
 import { PROVIDER_CUSTOM_LOGO_MAP } from '@/constants/ssoConstants'
 // Utils
 import { isNotEmpty, sanitizeInput } from '@/utils/validationUtils'
+// Assets
+import defaultLoginImage from '@/assets/login.png'
 
 /**
  * Route query parameter handlers configuration
@@ -262,12 +264,12 @@ const serverSettings = computed(() => serverSettingsStore.serverSettings)
 
 /**
  * Compute the login photo URL from server settings
- * Returns null if no custom photo is set, triggering fallback to default
+ * Returns custom photo from server if set, otherwise default image
  */
-const loginPhotoUrl = computed<string | null>(() =>
+const loginPhotoUrl = computed<string>(() =>
   serverSettings.value.login_photo_set
     ? `${window.env.ENDURAIN_HOST}/server_images/login.png`
-    : null
+    : defaultLoginImage
 )
 
 // ============================================================================

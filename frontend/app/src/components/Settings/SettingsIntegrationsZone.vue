@@ -91,7 +91,7 @@
           <div class="d-flex align-items-center">
             <!--<font-awesome-icon :icon="['fas', 'file-import']" size="2x" />-->
             <img
-              src="/src/assets/garminconnect/Garmin_Connect_app_1024x1024-02.png"
+              :src="INTEGRATION_LOGOS.garminConnectApp"
               alt="Garmin Connect logo"
               height="32"
             />
@@ -298,6 +298,7 @@ import ModalComponentNumberAndStringInput from '@/components/Modals/ModalCompone
 import ModalComponentNumberInput from '@/components/Modals/ModalComponentNumberInput.vue'
 import ModalComponentDateRangeInput from '@/components/Modals/ModalComponentDateRangeInput.vue'
 import GarminConnectLoginModalComponent from './SettingsIntegrations/GarminConnectLoginModalComponent.vue'
+import { INTEGRATION_LOGOS } from '@/constants/integrationLogoConstants'
 
 const authStore = useAuthStore()
 const { locale, t } = useI18n()

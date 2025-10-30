@@ -15,68 +15,17 @@
         <div v-else>
           <div class="justify-content-center align-items-center d-flex">
             <img
-              src="/src/assets/avatar/bicycle1.png"
-              alt="Bicycle avatar"
+              :src="getGearAvatar(gear?.gear_type)"
+              :alt="
+                $t(
+                  `gearView.gearTypeOption${
+                    gear?.gear_type >= 1 && gear?.gear_type <= 8 ? gear?.gear_type : 8
+                  }`
+                ) + ' avatar'
+              "
               width="180"
               height="180"
               class="rounded-circle"
-              v-if="gear?.gear_type == 1"
-            />
-            <img
-              src="/src/assets/avatar/running_shoe1.png"
-              alt="Shoes avatar"
-              width="180"
-              height="180"
-              class="rounded-circle"
-              v-else-if="gear?.gear_type == 2"
-            />
-            <img
-              src="/src/assets/avatar/wetsuit1.png"
-              alt="Wetsuit avatar"
-              width="180"
-              height="180"
-              class="rounded-circle"
-              v-else-if="gear?.gear_type == 3"
-            />
-            <img
-              src="/src/assets/avatar/racquet1.png"
-              alt="Racquet avatar"
-              width="180"
-              height="180"
-              class="rounded-circle"
-              v-else-if="gear?.gear_type == 4"
-            />
-            <img
-              src="/src/assets/avatar/skis1.png"
-              alt="Ski avatar"
-              width="180"
-              height="180"
-              class="rounded-circle"
-              v-else-if="gear?.gear_type == 5"
-            />
-            <img
-              src="/src/assets/avatar/snowboard1.png"
-              alt="Snowboard avatar"
-              width="180"
-              height="180"
-              class="rounded-circle"
-              v-else-if="gear?.gear_type == 6"
-            />
-            <img
-              src="/src/assets/avatar/windsurf1.png"
-              alt="Windsurf avatar"
-              width="180"
-              height="180"
-              class="rounded-circle"
-              v-else-if="gear?.gear_type == 7"
-            />
-            <img
-              src="/src/assets/avatar/waterSportsBoard1.png"
-              alt="Water sports board avatar"
-              width="180"
-              height="180"
-              class="rounded-circle"
-              v-else
             />
           </div>
           <br />
@@ -386,6 +335,7 @@ import { activities } from '@/services/activitiesService'
 import { formatDateMed, formatTime, formatSecondsToMinutes } from '@/utils/dateTimeUtils'
 import { kmToMiles } from '@/utils/unitsUtils'
 import { formatName } from '@/utils/activityUtils'
+import { getGearAvatar } from '@/constants/gearAvatarConstants'
 
 const { t } = useI18n()
 const authStore = useAuthStore()

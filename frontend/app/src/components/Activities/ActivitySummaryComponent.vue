@@ -74,7 +74,7 @@
           v-if="activity.garminconnect_activity_id"
         >
           <img
-            src="/src/assets/garminconnect/Garmin_Connect_app_1024x1024-02.png"
+            :src="INTEGRATION_LOGOS.garminConnectApp"
             alt="Garmin Connect logo"
             height="22"
           />
@@ -336,6 +336,8 @@ import UserAvatarComponent from '@/components/Users/UserAvatarComponent.vue'
 import ModalComponentUploadFile from '@/components/Modals/ModalComponentUploadFile.vue'
 import EditActivityModalComponent from '@/components/Activities/Modals/EditActivityModalComponent.vue'
 import ModalComponent from '@/components/Modals/ModalComponent.vue'
+// Importing constants
+import { INTEGRATION_LOGOS } from '@/constants/integrationLogoConstants'
 // Importing the services
 import { users } from '@/services/usersService'
 import { activities } from '@/services/activitiesService'

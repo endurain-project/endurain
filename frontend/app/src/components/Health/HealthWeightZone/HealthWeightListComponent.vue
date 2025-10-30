@@ -22,7 +22,7 @@
         v-if="data.garminconnect_body_composition_id"
       >
         <img
-          src="/src/assets/garminconnect/Garmin_Connect_app_1024x1024-02.png"
+          :src="INTEGRATION_LOGOS.garminConnectApp"
           alt="Garmin Connect logo"
           height="22"
         />
@@ -77,6 +77,8 @@ import { health_data } from '@/services/health_dataService'
 // Import the components
 import HealthWeightAddEditModalComponent from './HealthWeightAddEditModalComponent.vue'
 import ModalComponent from '@/components/Modals/ModalComponent.vue'
+// Import constants
+import { INTEGRATION_LOGOS } from '@/constants/integrationLogoConstants'
 
 import { formatDateShort } from '@/utils/dateTimeUtils'
 import { kgToLbs } from '@/utils/unitsUtils'
@@ -133,7 +135,8 @@ export default {
       updateWeightListEdited,
       submitDeleteWeight,
       formatDateShort,
-      kgToLbs
+      kgToLbs,
+      INTEGRATION_LOGOS
     }
   }
 }

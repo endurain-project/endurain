@@ -5,8 +5,8 @@
         <img
           width="auto"
           height="auto"
-          :src="loginPhotoUrl || '/src/assets/login.png'"
-          alt="Endurain login illustration"
+          :src="loginPhotoUrl"
+          alt="Endurain sign up illustration"
           class="img-fluid rounded"
         />
       </div>
@@ -317,6 +317,7 @@ import { cmToFeetInches, feetAndInchesToCm } from '@/utils/unitsUtils'
 import { isValidEmail, sanitizeInput, isValidPassword } from '@/utils/validationUtils'
 import { HTTP_STATUS, QUERY_PARAM_TRUE, extractStatusCode } from '@/constants/httpConstants'
 import type { ErrorWithResponse } from '@/types'
+import defaultLoginImage from '@/assets/login.png'
 
 // ============================================================================
 // Interfaces
@@ -484,12 +485,12 @@ const isPasswordValid: ComputedRef<boolean> = computed(() => {
 
 /**
  * Compute the login photo URL from server settings
- * Returns null if no custom photo is set, triggering fallback to default
+ * Returns custom photo from server if set, otherwise default image
  */
-const loginPhotoUrl: ComputedRef<string | null> = computed(() => {
+const loginPhotoUrl: ComputedRef<string> = computed(() => {
   return serverSettingsStore.serverSettings.login_photo_set
     ? `${window.env.ENDURAIN_HOST}/server_images/login.png`
-    : null
+    : defaultLoginImage
 })
 
 // ============================================================================

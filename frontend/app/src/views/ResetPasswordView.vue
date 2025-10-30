@@ -5,8 +5,8 @@
         <img
           width="auto"
           height="auto"
-          :src="loginPhotoUrl || '/src/assets/login.png'"
-          alt="Endurain login illustration"
+          :src="loginPhotoUrl"
+          alt="Endurain reset password illustration"
           class="img-fluid rounded"
         />
       </div>
@@ -160,6 +160,7 @@ import { passwordReset } from '@/services/passwordResetService'
 import { isValidPassword, passwordsMatch } from '@/utils/validationUtils'
 import { HTTP_STATUS, extractStatusCode } from '@/constants/httpConstants'
 import type { ErrorWithResponse } from '@/types'
+import defaultLoginImage from '@/assets/login.png'
 
 // ============================================================================
 // Composables & Stores
@@ -191,12 +192,12 @@ const token: Ref<string | undefined> = ref(route.query.token as string | undefin
 
 /**
  * Compute the login photo URL from server settings
- * Returns null if no custom photo is set, triggering fallback to default
+ * Returns custom photo from server if set, otherwise default image
  */
-const loginPhotoUrl: ComputedRef<string | null> = computed(() => {
+const loginPhotoUrl: ComputedRef<string> = computed(() => {
   return serverSettingsStore.serverSettings.login_photo_set
     ? `${window.env.ENDURAIN_HOST}/server_images/login.png`
-    : null
+    : defaultLoginImage
 })
 
 /**

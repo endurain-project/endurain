@@ -27,14 +27,14 @@
       </p>
       <p class="text-center text-muted">
         <img
-          src="/src/assets/strava/api_logo_cptblWith_strava_horiz_light.png"
+          :src="INTEGRATION_LOGOS.strava"
           alt="Compatible with STRAVA image"
           height="25"
         />
         •
         <img
           class="ms-2"
-          src="/src/assets/garminconnect/Garmin_connect_badge_print_RESOURCE_FILE-01.png"
+          :src="INTEGRATION_LOGOS.garminConnectBadge"
           alt="Works with Garmin Connect image"
           height="25"
         />
@@ -43,13 +43,13 @@
   </footer>
 </template>
 
-<script>
-export default {
-  props: {
-    enableBackground: {
-      type: Boolean,
-      default: true
-    }
+<script setup>
+import { INTEGRATION_LOGOS } from '@/constants/integrationLogoConstants'
+
+defineProps({
+  enableBackground: {
+    type: Boolean,
+    default: true
   }
-}
+})
 </script>
