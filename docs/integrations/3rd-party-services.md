@@ -1,7 +1,5 @@
 # 3rd party services
 
----
-
 ## Garmin Connect Integration
 
 To enable Garmin Connect integration, Endurain will ask for your Garmin Connect credentials. These credentials are not stored, but the authentication tokens (access and refresh tokens) are stored in the DB, similar to the Strava integration. The credentials are sent from the frontend to the backend in plain text, so the use of HTTPS is highly recommended.
