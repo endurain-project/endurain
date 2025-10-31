@@ -220,8 +220,10 @@ class ZipContentInspector:
 
         # Check for excessive number of same-type files (potential spam/bomb)
         for ext, count in file_types.items():
-            if count > 1000:  # More than 1000 files of same type
-                threats.append(f"Excessive number of {ext} files: {count}")
+            if count > self.config.limits.max_number_files_same_type:
+                threats.append(
+                    f"Excessive number of {ext} files: {self.config.limits.max_number_files_same_type}"
+                )
 
         return threats
 

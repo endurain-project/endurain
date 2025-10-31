@@ -36,6 +36,7 @@ router = APIRouter()
 
 custom_limits = SecurityLimits(
     max_uncompressed_size=2 * 1024 * 1024 * 1024,
+    max_number_files_same_type=2000,
 )
 custom_config = FileSecurityConfig()
 custom_config.limits = custom_limits

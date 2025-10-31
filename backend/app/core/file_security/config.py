@@ -57,6 +57,7 @@ class SecurityLimits:
     max_zip_depth: int = 10  # Maximum nesting depth for directories in ZIP
     max_filename_length: int = 255  # Maximum length for individual file names
     max_path_length: int = 1024  # Maximum length for full file paths
+    max_number_files_same_type: int = 1000  # Maximum number of files of the same type
     allow_nested_archives: bool = False  # Whether to allow nested archive files
     allow_symlinks: bool = False  # Whether to allow symbolic links in ZIP
     allow_absolute_paths: bool = False  # Whether to allow absolute paths in ZIP
