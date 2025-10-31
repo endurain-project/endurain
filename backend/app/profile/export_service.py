@@ -292,6 +292,7 @@ class ExportService:
                 # Sort by start_time descending (most recent first) for consistency
                 sort_by="start_time",
                 sort_order="desc",
+                user_is_owner=True,
             )
 
             return activities or []

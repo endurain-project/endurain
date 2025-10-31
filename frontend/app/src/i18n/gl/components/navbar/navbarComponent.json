@@ -1,13 +1,13 @@
 {
-  "search": "Search",
-  "activities": "Activities",
-  "activitiesList": "List",
-  "summary": "Summary",
-  "gear": "Gear",
-  "health": "Health",
-  "profile": "Profile",
-  "settings": "Settings",
-  "login": "Login",
-  "logout": "Logout",
-  "errorLogout": "Error logging out"
+  "search": "Buscar",
+  "activities": "Actividades",
+  "activitiesList": "Lista",
+  "summary": "Resumo",
+  "gear": "Equipamento",
+  "health": "Saúde",
+  "profile": "Perfil",
+  "settings": "Axustes",
+  "login": "Acceder",
+  "logout": "Fechar sesión",
+  "errorLogout": "Erro ao fechar sesión"
 }

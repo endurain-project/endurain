@@ -1,14 +1,14 @@
 {
-  "title": "Activities",
-  "filterLabelType": "Type",
-  "filterOptionAllTypes": "All types",
-  "filterLabelFromDate": "From date",
-  "filterLabelToDate": "To date",
-  "filterLabelNameLocation": "Name or location",
-  "filterPlaceholderNameLocation": "e.g., Morning run",
-  "buttonClear": "Clear",
-  "buttonApply": "Apply",
-  "errorFailedFetchActivityTypes": "Failed to fetch activity types",
-  "errorUpdatingActivities": "Failed to updated activities",
-  "errorFetchingActivities": "Failed to fetch user activities"
+  "title": "活动",
+  "filterLabelType": "类型",
+  "filterOptionAllTypes": "所有类型",
+  "filterLabelFromDate": "开始日期",
+  "filterLabelToDate": "结束日期",
+  "filterLabelNameLocation": "名称或位置",
+  "filterPlaceholderNameLocation": "例如：「早晨跑步」",
+  "buttonClear": "清除",
+  "buttonApply": "应用",
+  "errorFailedFetchActivityTypes": "获取活动类型失败",
+  "errorUpdatingActivities": "更新活动失败",
+  "errorFetchingActivities": "获取用户活动失败"
 }

@@ -1,11 +1,10 @@
 {
-  "usersSection": "Users",
-  "serverSettingsSection": "Server Settings",
-  "identityProvidersSection": "Identity Providers",
-  "generalSection": "General",
-  "myProfileSection": "My Profile",
-  "myGoals": "My Goals",
-  "securitySection": "Security",
-  "integrationsSection": "Integrations",
-  "importSection": "Import"
+  "usersSection": "Contas",
+  "serverSettingsSection": "Axustes do servidor",
+  "generalSection": "Xerais",
+  "myProfileSection": "O meu perfil",
+  "myGoals": "Obxectivos",
+  "securitySection": "Seguridade",
+  "integrationsSection": "Integracións",
+  "importSection": "Importar"
 }

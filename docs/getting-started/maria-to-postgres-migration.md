@@ -16,6 +16,7 @@ This guide uses Endurain's built-in export/import functionality to migrate your 
 - You will need to use default credentials (admin/admin) on new setup
 - Keep your existing MariaDB database running for rollback if needed
 - The import process can take time for large databases with many activities
+- Server settings are not migrated
 
 ## Migration Steps
 
