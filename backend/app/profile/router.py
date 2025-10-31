@@ -25,6 +25,7 @@ import session.crud as session_crud
 import core.database as core_database
 import core.logger as core_logger
 
+from core.file_security.config import FileSecurityConfig, SecurityLimits
 from core.file_security.file_validator import FileValidator
 from core.file_security.exceptions import FileValidationError
 
@@ -33,8 +34,14 @@ import websocket.schema as websocket_schema
 # Define the API router
 router = APIRouter()
 
+custom_limits = SecurityLimits(
+    max_uncompressed_size=2 * 1024 * 1024 * 1024,
+)
+custom_config = FileSecurityConfig()
+custom_config.limits = custom_limits
+
 # Initialize the file validator
-file_validator = FileValidator()
+file_validator = FileValidator(config=custom_config)
 
 
 @router.get("", response_model=users_schema.UserMe)
