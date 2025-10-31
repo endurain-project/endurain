@@ -406,7 +406,7 @@ class ExportService:
         """
         chunk_buffer = []
         file_counter = 0
-        max_items_per_file = 500
+        max_items_per_file = batch_size
         total_items = 0
 
         # Collect component data in batches

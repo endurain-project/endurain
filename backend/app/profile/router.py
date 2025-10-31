@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, UploadFile
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
-from safeuploads import FileValidator
+from safeuploads import FileValidator, FileSecurityConfig, SecurityLimits
 from safeuploads.exceptions import FileValidationError
 
 import users.user.schema as users_schema
@@ -39,8 +39,15 @@ import websocket.schema as websocket_schema
 # Define the API router
 router = APIRouter()
 
+custom_limits = SecurityLimits(
+    max_uncompressed_size=2 * 1024 * 1024 * 1024,
+    max_number_files_same_type=2000,
+)
+custom_config = FileSecurityConfig()
+custom_config.limits = custom_limits
+
 # Initialize the file validator
-file_validator = FileValidator()
+file_validator = FileValidator(config=custom_config)
 
 
 @router.get("", response_model=users_schema.UserMe)

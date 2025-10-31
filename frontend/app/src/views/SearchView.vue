@@ -258,7 +258,7 @@ const fetchGearResults = debounce(async (query) => {
 function updateSearchResultsBasedOnActivityType() {
   if (searchSelectActivityType.value === '1') {
     searchResults.value = searchResultsOriginal.value.filter((user) =>
-      [1, 2, 3, 34].includes(user.activity_type)
+      [1, 2, 3, 34, 40].includes(user.activity_type)
     )
   } else if (searchSelectActivityType.value === '2') {
     searchResults.value = searchResultsOriginal.value.filter((user) =>

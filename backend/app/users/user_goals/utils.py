@@ -40,8 +40,7 @@ def calculate_user_goals(
             return None
 
         return [
-            calculate_goal_progress_by_activity_type(goal, date, db)
-            for goal in goals
+            calculate_goal_progress_by_activity_type(goal, date, db) for goal in goals
         ]
     except HTTPException as http_err:
         raise http_err
@@ -76,19 +75,19 @@ def calculate_goal_progress_by_activity_type(
         user_goals_schema.UserGoalProgress | None: An object containing progress details for the goal, or None if no activities are found.
     Raises:
         HTTPException: If an error occurs during processing or database access.
-    """  
+    """
     try:
         start_date, end_date = get_start_end_date_by_interval(goal.interval, date)
 
         # Define activity type mappings
         TYPE_MAP = {
-            user_goals_schema.ActivityType.RUN: [1, 2, 3, 34],
+            user_goals_schema.ActivityType.RUN: [1, 2, 3, 34, 40],
             user_goals_schema.ActivityType.BIKE: [4, 5, 6, 7, 27, 28, 29, 35, 36],
             user_goals_schema.ActivityType.SWIM: [8, 9],
             user_goals_schema.ActivityType.WALK: [11, 12],
         }
         DEFAULT_TYPES = (19, 20)
-        
+
         # Get activity types based on goal.activity_type, default to [10, 19, 20]
         activity_types = TYPE_MAP.get(goal.activity_type, DEFAULT_TYPES)
 
@@ -96,7 +95,7 @@ def calculate_goal_progress_by_activity_type(
         activities = activity_crud.get_user_activities_per_timeframe_and_activity_types(
             goal.user_id, activity_types, start_date, end_date, db, True
         )
-        
+
         # Calculate totals based on goal type
         percentage_completed = 0
         total_calories = 0
@@ -113,14 +112,20 @@ def calculate_goal_progress_by_activity_type(
                 total_distance = sum(activity.distance or 0 for activity in activities)
                 percentage_completed = (total_distance / goal.goal_distance) * 100
             elif goal.goal_type == user_goals_schema.GoalType.ELEVATION:
-                total_elevation = sum(activity.elevation_gain or 0 for activity in activities)
+                total_elevation = sum(
+                    activity.elevation_gain or 0 for activity in activities
+                )
                 percentage_completed = (total_elevation / goal.goal_elevation) * 100
             elif goal.goal_type == user_goals_schema.GoalType.DURATION:
-                total_duration = sum(activity.total_elapsed_time or 0 for activity in activities)
+                total_duration = sum(
+                    activity.total_elapsed_time or 0 for activity in activities
+                )
                 percentage_completed = (total_duration / goal.goal_duration) * 100
             elif goal.goal_type == user_goals_schema.GoalType.ACTIVITIES:
                 total_activities_number = len(activities)
-                percentage_completed = (total_activities_number / goal.goal_activities_number) * 100
+                percentage_completed = (
+                    total_activities_number / goal.goal_activities_number
+                ) * 100
 
         if percentage_completed > 100:
             percentage_completed = 100
@@ -208,7 +213,9 @@ def get_start_end_date_by_interval(
     """
     date_obj = datetime.strptime(date, "%Y-%m-%d")
     if interval == "yearly":
-        start_date = date_obj.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
+        start_date = date_obj.replace(
+            month=1, day=1, hour=0, minute=0, second=0, microsecond=0
+        )
         # Calculate the last second of December 31st of the same year
         end_date = datetime(date_obj.year, 12, 31, 23, 59, 59)
     elif interval == "weekly":
