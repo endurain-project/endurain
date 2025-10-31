@@ -3,6 +3,18 @@
 from enum import Enum
 
 
+class BinaryFileCategory(Enum):
+    """
+    Enumeration of binary file categories.
+
+    Attributes:
+        FITNESS_FILES: Set of file extensions representing fitness or activity binary files (e.g., '.fit').
+    """
+
+    # Fitness/activity binary files
+    FITNESS_FILES = {".fit"}
+
+
 class DangerousExtensionCategory(Enum):
     """
     File extension categories considered potentially dangerous for uploads.

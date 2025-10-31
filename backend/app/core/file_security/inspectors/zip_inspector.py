@@ -9,7 +9,7 @@ import zipfile
 from typing import TYPE_CHECKING
 
 import logging
-from ..enums import SuspiciousFilePattern, ZipThreatCategory
+from ..enums import SuspiciousFilePattern, ZipThreatCategory, BinaryFileCategory
 from ..exceptions import ZipContentError, FileProcessingError, ErrorCode
 
 if TYPE_CHECKING:
@@ -357,9 +357,15 @@ class ZipContentInspector:
                         )
                         break
 
-                # Check for script content patterns
-                if self._contains_script_patterns(content_sample, entry.filename):
-                    threats.append(f"Script content detected in '{entry.filename}'")
+                binary_exts = set()
+                for category in BinaryFileCategory:
+                    binary_exts.update(category.value)
+
+                ext = os.path.splitext(entry.filename)[1].lower()
+                if ext not in binary_exts:
+                    # Check for script content patterns
+                    if self._contains_script_patterns(content_sample, entry.filename):
+                        threats.append(f"Script content detected in '{entry.filename}'")
 
         except Exception as err:
             logger.warning(
