@@ -20,11 +20,12 @@ from fastapi import (
     Security,
     Query,
     status,
-    )
+)
 from sqlalchemy.orm import Session
 
 # Define the API router
 router = APIRouter()
+
 
 @router.post(
     "",
@@ -34,11 +35,9 @@ router = APIRouter()
 async def create_segment(
     segment: segments_schema.Segments,
     check_scopes: Annotated[
-        Callable, Security(session_security.check_scopes, scopes=["segments:write"])
+        Callable, Security(session_security.check_scopes, scopes=["activities:write"])
     ],
-    user_id: Annotated[
-        int, Depends(session_security.get_user_id_from_access_token)
-    ],
+    user_id: Annotated[int, Depends(session_security.get_user_id_from_access_token)],
     db: Annotated[
         Session,
         Depends(core_database.get_db),
@@ -48,64 +47,68 @@ async def create_segment(
     # Create the segment and return it
     return segments_crud.create_segment(segment, user_id, db)
 
+
 @router.get(
     "/activity_id/{activity_id}/all",
     response_model=list[segments_schema.Segments] | None,
 )
 async def get_activity_segments(
-        activity_id: int,
-        check_scopes: Annotated[
-            Callable, Security(session_security.check_scopes, scopes=["segments:read"])
-        ],
-        user_id: Annotated[
-            int, Depends(session_security.get_user_id_from_access_token)
-        ],
-        db: Annotated[
-            Session,
-            Depends(core_database.get_db),
-        ],
+    activity_id: int,
+    check_scopes: Annotated[
+        Callable, Security(session_security.check_scopes, scopes=["activities:read"])
+    ],
+    user_id: Annotated[int, Depends(session_security.get_user_id_from_access_token)],
+    db: Annotated[
+        Session,
+        Depends(core_database.get_db),
+    ],
 ):
     # Return segments that correspond to the specified activity
-    return segments_crud.get_segments_from_activity_segments_by_activity(activity_id, user_id, db)
+    return segments_crud.get_segments_from_activity_segments_by_activity(
+        activity_id, user_id, db
+    )
+
 
 @router.get(
-        "/{segment_id}/intersections",
-        response_model=List[segments_schema.ActivitySegment] | None,
+    "/{segment_id}/intersections",
+    response_model=List[segments_schema.ActivitySegment] | None,
 )
 async def get_all_activity_segment_intersections(
-        segment_id: int,
-        check_scopes: Annotated[
-            Callable, Security(session_security.check_scopes, scopes=["segments:read"])
-        ],
-        user_id: Annotated[
-            int, Depends(session_security.get_user_id_from_access_token)
-        ],
-        db: Annotated[
-            Session,
-            Depends(core_database.get_db),
-        ],
+    segment_id: int,
+    check_scopes: Annotated[
+        Callable, Security(session_security.check_scopes, scopes=["activities:read"])
+    ],
+    user_id: Annotated[int, Depends(session_security.get_user_id_from_access_token)],
+    db: Annotated[
+        Session,
+        Depends(core_database.get_db),
+    ],
 ):
-    return segments_crud.get_all_activity_segment_data_by_segment(segment_id, user_id, db)
+    return segments_crud.get_all_activity_segment_data_by_segment(
+        segment_id, user_id, db
+    )
+
 
 @router.get(
     "/activity_id/{activity_id}/intersections",
     response_model=List[segments_schema.ActivitySegment] | None,
 )
 async def get_activity_segment_intersections(
-        activity_id: int,
-        check_scopes: Annotated[
-            Callable, Security(session_security.check_scopes, scopes=["segments:read"])
-        ],
-        user_id: Annotated[
-            int, Depends(session_security.get_user_id_from_access_token)
-        ],
-        db: Annotated[
-            Session,
-            Depends(core_database.get_db),
-        ],
+    activity_id: int,
+    check_scopes: Annotated[
+        Callable, Security(session_security.check_scopes, scopes=["activities:read"])
+    ],
+    user_id: Annotated[int, Depends(session_security.get_user_id_from_access_token)],
+    db: Annotated[
+        Session,
+        Depends(core_database.get_db),
+    ],
 ):
     # Return segments that correspond to the specified activity and segment
-    return segments_crud.get_activity_segments_data_for_activity_by_segment(activity_id, user_id, db)
+    return segments_crud.get_activity_segments_data_for_activity_by_segment(
+        activity_id, user_id, db
+    )
+
 
 @router.get(
     "/user/{user_id}/page_number/{page_number}/num_records/{num_records}",
@@ -120,7 +123,7 @@ async def read_segments_user_segments_pagination(
         Callable, Depends(core_dependencies.validate_pagination_values)
     ],
     check_scopes: Annotated[
-        Callable, Security(session_security.check_scopes, scopes=["segments:read"])
+        Callable, Security(session_security.check_scopes, scopes=["activities:read"])
     ],
     token_user_id: Annotated[
         int,
@@ -159,8 +162,9 @@ async def read_segments_user_segments_pagination(
         name_search=name_search,
         sort_by=sort_by,
         sort_order=sort_order,
-        user_is_owner=user_is_owner
+        user_is_owner=user_is_owner,
     )
+
 
 @router.get(
     "/types",
@@ -168,7 +172,7 @@ async def read_segments_user_segments_pagination(
 )
 async def read_segments_types(
     check_scopes: Annotated[
-        Callable, Security(session_security.check_scopes, scopes=["segments:read"])
+        Callable, Security(session_security.check_scopes, scopes=["activities:read"])
     ],
     token_user_id: Annotated[
         int,
@@ -181,13 +185,14 @@ async def read_segments_types(
 ):
     return segments_crud.get_distinct_segment_types_for_user(token_user_id, db)
 
+
 @router.get(
     "/number",
     response_model=int,
 )
 async def read_segments_user_segments_number(
     check_scopes: Annotated[
-        Callable, Security(session_security.check_scopes, scopes=["segments:read"])
+        Callable, Security(session_security.check_scopes, scopes=["activities:read"])
     ],
     token_user_id: Annotated[
         int,
@@ -216,46 +221,46 @@ async def read_segments_user_segments_number(
         user_id=token_user_id,
         db=db,
         activity_type=activity_type,
-        name_search=name_search
+        name_search=name_search,
     )
 
     # check if segments is None
     if segments is None:
         return 0
-    
+
     # Return the number of segments
     return len(segments)
 
+
 @router.get(
-        "/{segment_id}",
-        response_model=segments_schema.Segments | None,
+    "/{segment_id}",
+    response_model=segments_schema.Segments | None,
 )
 async def read_segments_segment_from_id(
     segment_id: int,
     check_scopes: Annotated[
-        Callable, Security(session_security.check_scopes, scopes=["segments:read"])
+        Callable, Security(session_security.check_scopes, scopes=["activities:read"])
     ],
-    user_id: Annotated[
-        int, Depends(session_security.get_user_id_from_access_token)
-    ],
+    user_id: Annotated[int, Depends(session_security.get_user_id_from_access_token)],
     db: Annotated[
         Session,
         Depends(core_database.get_db),
     ],
 ):
     # Get the segment by id
-    return segments_crud.get_segment_by_id(segment_id=segment_id, user_id=user_id, db=db)
+    return segments_crud.get_segment_by_id(
+        segment_id=segment_id, user_id=user_id, db=db
+    )
 
-@router.get(
-        "/{segment_id}/refresh"
-)
+
+@router.get("/{segment_id}/refresh")
 async def refresh_segment_intersections(
     segment_id: int,
     validate_segment_id: Annotated[
         Callable, Depends(segments_dependencies.validate_segment_id)
     ],
     check_scopes: Annotated[
-        Callable, Security(session_security.check_scopes, scopes=["segments:write"])
+        Callable, Security(session_security.check_scopes, scopes=["activities:write"])
     ],
     token_user_id: Annotated[
         int,
@@ -266,7 +271,10 @@ async def refresh_segment_intersections(
         Depends(core_database.get_db),
     ],
 ):
-    return segments_crud.refresh_segment_intersections_by_id(segment_id=segment_id, user_id=token_user_id, db=db)
+    return segments_crud.refresh_segment_intersections_by_id(
+        segment_id=segment_id, user_id=token_user_id, db=db
+    )
+
 
 @router.delete(
     "/{segment_id}/delete",
@@ -277,7 +285,7 @@ async def delete_segment(
         Callable, Depends(segments_dependencies.validate_segment_id)
     ],
     check_scopes: Annotated[
-        Callable, Security(session_security.check_scopes, scopes=["segments:write"])
+        Callable, Security(session_security.check_scopes, scopes=["activities:write"])
     ],
     token_user_id: Annotated[
         int,

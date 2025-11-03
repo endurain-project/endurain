@@ -14,7 +14,6 @@ JWT_SECRET_KEY = core_config.read_secret("SECRET_KEY")
 USERS_REGULAR_SCOPES = ["profile", "users:read"]
 USERS_ADMIN_SCOPES = ["users:write", "sessions:read", "sessions:write"]
 GEARS_SCOPES = ["gears:read", "gears:write"]
-SEGMENTS_SCOPES = ["segments:read", "segments:write"]
 ACTIVITIES_SCOPES = ["activities:read", "activities:write"]
 HEALTH_SCOPES = [
     "health:read",
@@ -48,7 +47,6 @@ SCOPES_DICT = {
 REGULAR_ACCESS_SCOPES = (
     USERS_REGULAR_SCOPES
     + GEARS_SCOPES
-    + SEGMENTS_SCOPES
     + ACTIVITIES_SCOPES
     + HEALTH_SCOPES
     + SERVER_SETTINGS_REGULAR_SCOPES
