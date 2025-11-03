@@ -98,12 +98,6 @@ router.include_router(
     dependencies=[Depends(session_security.validate_access_token)],
 )
 router.include_router(
-    gears_router.router,
-    prefix=core_config.ROOT_PATH + "/gears",
-    tags=["gears"],
-    dependencies=[Depends(session_security.validate_access_token)],
-)
-router.include_router(
     followers_router.router,
     prefix=core_config.ROOT_PATH + "/followers",
     tags=["followers"],
