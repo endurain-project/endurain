@@ -1,0 +1,13 @@
+{
+  "search": "Cerca",
+  "activities": "Attività",
+  "activitiesList": "Lista",
+  "summary": "Riepilogo",
+  "gear": "Attrezzatura",
+  "health": "Salute",
+  "profile": "Profilo",
+  "settings": "Impostazioni",
+  "login": "Accedi",
+  "logout": "Esci",
+  "errorLogout": "Errore durante la disconnessione"
+}

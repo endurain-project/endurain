@@ -1,0 +1,20 @@
+{
+  "labelWorkoutStepType": "Tipo di passaggio",
+  "labelWorkoutStepTime": "Tempo passaggio",
+  "labelWorkoutStepReps": "Ripetizioni passaggio",
+  "labelWorkoutStepIntensity": "Intensità",
+  "labelWorkoutStepNotes": "Note",
+  "labelWorkoutStepExerciseName": "Nome passaggio",
+  "labelWorkoutStepExerciseWeight": "Peso",
+  "labelWorkoutStepSwimStroke": "Stile nuoto passaggio",
+  "labelWorkoutSetType": "Tipo di serie",
+  "labelWorkoutSetTime": "Tempo serie",
+  "labelWorkoutSetReps": "Ripetizioni serie",
+  "labelWorkoutSetExerciseName": "Nome serie",
+  "labelWorkoutSetExerciseWeight": "Peso serie",
+  "labelWorkoutSetTypeMobile": "Tipo",
+  "labelWorkoutSetTimeMobile": "Tempo",
+  "labelWorkoutSetRepsMobile": "Ripet.",
+  "labelWorkoutSetExerciseNameMobile": "Nome",
+  "labelWorkoutSetExerciseWeightMobile": "Peso"
+}

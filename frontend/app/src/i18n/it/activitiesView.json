@@ -1,0 +1,14 @@
+{
+  "title": "Attività",
+  "filterLabelType": "Tipo",
+  "filterOptionAllTypes": "Tutti i tipi",
+  "filterLabelFromDate": "Data da",
+  "filterLabelToDate": "Data a",
+  "filterLabelNameLocation": "Nome o località",
+  "filterPlaceholderNameLocation": "es., Corsa mattutina",
+  "buttonClear": "Cancella",
+  "buttonApply": "Applica",
+  "errorFailedFetchActivityTypes": "Impossibile recuperare i tipi di attività",
+  "errorUpdatingActivities": "Impossibile aggiornare le attività",
+  "errorFetchingActivities": "Impossibile recuperare le attività utente"
+}

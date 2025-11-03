@@ -1,0 +1,13 @@
+{
+  "labelGear": "Attrezzatura",
+  "labelGearNotSet": "Non impostata",
+  "modalLabelDeleteGear": "Elimina attrezzatura dall'attività",
+  "modalLabelDeleteGearBody": "Sei sicuro di voler rimuovere l'attrezzatura dall'attività?",
+  "modalLabelDeleteGearButton": "Elimina attrezzatura",
+  "successMessageGearAdded": "Attrezzatura aggiunta all'attività",
+  "successMessageGearDeleted": "Attrezzatura eliminata dall'attività",
+  "errorMessageDeleteGear": "Errore nell'eliminazione dell'attrezzatura dall'attività",
+  "errorMessageActivityNotFound": "Attività non trovata",
+  "alertPrivacyMessage": "Hai nascosto informazioni in questa attività. Puoi vederle tu, ma gli altri no.",
+  "isHiddenMessage": "Questa attività è nascosta. Probabilmente perché è un duplicato o è stata nascosta dall'utente."
+}

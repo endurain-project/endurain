@@ -1,0 +1,13 @@
+{
+  "title": "Obiettivi",
+  "activityTypeRun": "Corsa",
+  "activityTypeBike": "Ciclismo",
+  "activityTypeSwim": "Nuoto",
+  "activityTypeWalk": "Camminata",
+  "activityTypeStrength": "Forza",
+  "intervalOption1": "Giornaliero",
+  "intervalOption2": "Settimanale",
+  "intervalOption3": "Mensile",
+  "intervalOption4": "Annuale",
+  "activities": "attività"
+}
