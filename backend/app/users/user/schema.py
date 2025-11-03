@@ -119,6 +119,7 @@ class UserBase(BaseModel):
     gender: Gender = Gender.MALE
     units: server_settings_schema.Units = server_settings_schema.Units.METRIC
     height: int | None = None
+    max_heart_rate: int | None = None
     first_day_of_week: WeekDay = WeekDay.MONDAY
     currency: server_settings_schema.Currency = server_settings_schema.Currency.EURO
 

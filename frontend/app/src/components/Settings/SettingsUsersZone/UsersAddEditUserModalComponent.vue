@@ -310,6 +310,27 @@
                 </div>
               </div>
             </div>
+            <!-- max heart rate fields -->
+            <label for="userMaxHeartRateAddEdit"
+              ><b>{{
+                $t('usersAddEditUserModalComponent.addEditUserModalMaxHeartRateLabel')
+              }}</b></label
+            >
+            <div class="input-group">
+              <input
+                class="form-control"
+                type="number"
+                name="userMaxHeartRateAddEdit"
+                :placeholder="
+                  $t('usersAddEditUserModalComponent.addEditUserModalMaxHeartRatePlaceholder')
+                "
+                v-model="newEditUserMaxHeartRate"
+                min="100"
+                max="250"
+                step="1"
+              />
+              <span class="input-group-text">{{ $t('generalItems.unitsBpm') }}</span>
+            </div>
             <!-- preferred language fields -->
             <label for="userPreferredLanguageAddEdit"
               ><b
@@ -495,6 +516,7 @@ const newEditUserCurrency = ref(serverSettingsStore.serverSettings.currency)
 const newEditUserHeightCms = ref(null)
 const newEditUserHeightFeet = ref(null)
 const newEditUserHeightInches = ref(null)
+const newEditUserMaxHeartRate = ref(null)
 const newEditUserFirstDayOfWeek = ref(1)
 const isFeetValid = computed(
   () => newEditUserHeightFeet.value >= 0 && newEditUserHeightFeet.value <= 10
@@ -538,6 +560,7 @@ if (props.user) {
   newEditUserUnits.value = props.user.units
   newEditUserCurrency.value = props.user.currency
   newEditUserHeightCms.value = props.user.height
+  newEditUserMaxHeartRate.value = props.user.max_heart_rate
   newEditUserPreferredLanguage.value = props.user.preferred_language
   newEditUserFirstDayOfWeek.value = props.user.first_day_of_week
   newEditUserAccessType.value = props.user.access_type
@@ -646,6 +669,7 @@ async function submitAddUserForm() {
         units: newEditUserUnits.value,
         currency: newEditUserCurrency.value,
         height: newEditUserHeightCms.value,
+        max_heart_rate: newEditUserMaxHeartRate.value,
         access_type: newEditUserAccessType.value,
         photo_path: null,
         first_day_of_week: newEditUserFirstDayOfWeek.value,
@@ -689,6 +713,7 @@ async function submitEditUserForm() {
       units: newEditUserUnits.value,
       currency: newEditUserCurrency.value,
       height: newEditUserHeightCms.value,
+      max_heart_rate: newEditUserMaxHeartRate.value,
       preferred_language: newEditUserPreferredLanguage.value,
       first_day_of_week: newEditUserFirstDayOfWeek.value,
       access_type: newEditUserAccessType.value,

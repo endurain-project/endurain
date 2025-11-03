@@ -142,6 +142,15 @@
             </span>
             <span v-else>{{ $t('generalItems.labelNotApplicable') }}</span>
           </p>
+          <!-- user max heart rate -->
+          <p>
+            <font-awesome-icon :icon="['fas', 'heart-pulse']" class="me-2" />
+            <b>{{ $t('settingsUserProfileZone.maxHeartRateLabel') }}: </b>
+            <span v-if="authStore.user.max_heart_rate"
+              >{{ authStore.user.max_heart_rate }} {{ $t('generalItems.unitsBpm') }}</span
+            >
+            <span v-else>{{ $t('generalItems.labelNotApplicable') }}</span>
+          </p>
           <!-- user preferred language -->
           <p>
             <font-awesome-icon :icon="['fas', 'language']" class="me-2" />
