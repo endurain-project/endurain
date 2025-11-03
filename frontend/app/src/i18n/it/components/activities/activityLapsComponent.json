@@ -1,0 +1,14 @@
+{
+  "labelLapNumber": "Giro",
+  "labelLapIntensity": "Intensità",
+  "labelLapDistance": "Distanza",
+  "labelLapTime": "Tempo",
+  "labelLapPace": "Ritmo",
+  "labelLapSpeed": "Velocità",
+  "labelLapElevation": "Elevazione",
+  "labelLapElev": "Elev",
+  "labelLapAvgHr": "Frequenza cardiaca media",
+  "labelLapHR": "FC",
+  "labelLapStrokeRate": "Frequenza di bracciata",
+  "labelLapSR": "FB"
+}

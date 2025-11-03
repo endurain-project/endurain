@@ -1,0 +1,19 @@
+{
+  "addEditGearComponentModalAddTitle": "Aggiungi componente attrezzatura",
+  "addEditGearComponentModalEditTitle": "Modifica componente attrezzatura",
+  "addEditGearComponentModalAddEditTypeLabel": "Tipo",
+  "addEditGearComponentModalAddEditBrandLabel": "Marca",
+  "addEditGearComponentModalAddEditModelLabel": "Modello",
+  "addEditGearComponentModalAddEditPurchaseDateLabel": "Data di acquisto",
+  "addEditGearComponentModalAddEditExpectedDistanceLabel": "Distanza prevista",
+  "addEditGearComponentModalAddEditExpectedTimeLabel": "Tempo previsto",
+  "addEditGearComponentModalAddEditPurchaseValueLabel": "Valore d'acquisto",
+  "addEditGearComponentModalAddEditRetiredDateLabel": "Data di ritiro",
+  "addEditGearComponentModalAddEditIsActiveLabel": "È attivo",
+  "successGearComponentAdded": "Componente attrezzatura aggiunto con successo",
+  "successGearComponentEdited": "Componente attrezzatura modificato con successo",
+  "errorGearComponentAdd": "Errore nell'aggiunta del componente attrezzatura",
+  "gearComponentListGearEditSuccessMessage": "Componente attrezzatura modificato con successo",
+  "gearComponentListGearEditErrorMessage": "Errore nella modifica del componente attrezzatura",
+  "retiredDateAfterPurchaseDateError": "La data di ritiro deve essere successiva alla data d'acquisto"
+}

@@ -1,0 +1,13 @@
+{
+  "title": "Attrezzatura",
+  "buttonAddGear": "Aggiungi attrezzatura",
+  "subTitleSearchGearByNickname": "Cerca attrezzatura per soprannome",
+  "placeholderSearchGearByNickname": "Soprannome",
+  "buttonSearchGear": "Cerca attrezzatura",
+  "displayUserNumberOfGears1": "C'è un totale di ",
+  "displayUserNumberOfGears2": " attrezzatura/e (",
+  "displayUserNumberOfGears3": " caricate):",
+  "successGearDeleted": "Attrezzatura eliminata con successo",
+  "errorGearNotFound": "Attrezzatura non trovata",
+  "errorFetchingGears": "Errore nel recupero dell'attrezzatura"
+}

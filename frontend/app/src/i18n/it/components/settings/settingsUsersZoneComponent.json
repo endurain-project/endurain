@@ -1,0 +1,10 @@
+{
+  "buttonAddUser": "Aggiungi utente",
+  "labelSearchUsersByUsername": "Cerca utenti per nome utente",
+  "labelNumberOfUsers1": "C'è un totale di ",
+  "labelNumberOfUsers2": " utente/i (",
+  "labelNumberOfUsers3": " caricati):",
+  "successUserAdded": "Utente aggiunto con successo",
+  "successUserDeleted": "Utente eliminato con successo",
+  "errorFetchingUsers": "Errore nel recupero degli utenti"
+}

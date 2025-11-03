@@ -1,0 +1,16 @@
+{
+  "gearListTypeLabel": "Tipo",
+  "gearListTypeOption1": "Bici",
+  "gearListTypeOption2": "Scarpe",
+  "gearListTypeOption3": "Muta",
+  "gearListTypeOption4": "Racchetta",
+  "gearListTypeOption5": "Sci",
+  "gearListTypeOption6": "Snowboard",
+  "gearListTypeOption7": "Windsurf",
+  "gearListTypeOption8": "Tavola per sport acquatici",
+  "gearListGearIsInactiveBadge": "Inattiva",
+  "gearListModalDeleteGearTitle": "Elimina attrezzatura",
+  "gearListModalDeleteGearBody": "Sei sicuro di voler eliminare l'attrezzatura ",
+  "gearListGearDeleteSuccessMessage": "Attrezzatura eliminata con successo",
+  "gearListGearDeleteErrorMessage": "Errore nell'eliminazione dell'attrezzatura"
+}

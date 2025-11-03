@@ -1,5 +1,5 @@
 {
-  "run": "Córrer",
+  "run": "Correr",
   "trailRun": "Trail Run",
   "virtualRun": "Cursa virtual",
   "ride": "Muntar",
@@ -38,5 +38,6 @@
   "iceSkate": "Patinatge sobre gel",
   "soccer": "Futbol",
   "padel": "Pàdel",
+  "treadmillRun": "Correr en cinta",
   "labelWorkout": " entrenament"
 }

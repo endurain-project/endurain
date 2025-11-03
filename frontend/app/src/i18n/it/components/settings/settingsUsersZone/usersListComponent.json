@@ -1,0 +1,22 @@
+{
+  "userListAccessTypeOption1": "Utente normale",
+  "userListAccessTypeOption2": "Amministratore",
+  "userListUserIsMeBadge": "Io",
+  "userListUserIsAdminBadge": "Admin",
+  "userListUserIsInactiveBadge": "Inattivo",
+  "userListUserHasUnverifiedEmailBadge": "Email non verificata",
+  "modalApproveSignUpTitle": "Approva registrazione utente",
+  "modalApproveSignUpBody": "Sei sicuro di voler approvare l'utente ",
+  "processingApproval": "Elaborazione approvazione...",
+  "userApproveSuccessMessage": "Utente approvato con successo.",
+  "userApproveErrorMessage": "Errore nell'approvazione dell'utente",
+  "modalRejectSignUpTitle": "Rifiuta registrazione utente",
+  "modalRejectSignUpBody1": "Sei sicuro di voler rifiutare l'utente ",
+  "modalRejectSignUpBody2": "L'utente verrà eliminato, questa azione non può essere annullata.",
+  "userEditErrorMessage": "Errore nella modifica dell'utente",
+  "modalDeleteUserTitle": "Elimina utente",
+  "modalDeleteUserBody": "Sei sicuro di voler eliminare l'utente ",
+  "userListUserSessionsTitle": "Sessioni utente",
+  "userSessionDeleteSuccessMessage": "Sessione eliminata con successo",
+  "userSessionDeleteErrorMessage": "Errore nell'eliminazione della sessione"
+}
