@@ -1,0 +1,18 @@
+{
+  "title": "Endurain",
+  "buttonAddActivity": "Engadir actividade",
+  "fieldLabelUploadFileType": "Subir ficheiro .gpx, .fit, .tcx ou .gz",
+  "radioUserActivities": "As miñas actividades",
+  "radioFollowerActivities": "Actividades das amizades",
+  "pillIsHidden": "Oculto",
+  "successActivityAdded": "Actividade engadida correctamente",
+  "errorActivityAdded": "Erro ao engadir a actividade",
+  "refreshingActivities": "Actualizando actividades desde os servizos ligados",
+  "successActivitiesRefreshed": "Actividades actualizadas correctamente",
+  "errorActivityNotFound": "Non se atopa a actividade",
+  "processingActivity": "Procesando a actividade",
+  "successActivityDeleted": "Actividade eliminada correctamente",
+  "errorFetchingUserStats": "Erro ao obter estatísticas da usuaria",
+  "errorFetchingUserActivities": "Erro ao obter as actividades da usuaria",
+  "errorFetchingMedia": "Erro ao obter multimedia da actividade"
+}

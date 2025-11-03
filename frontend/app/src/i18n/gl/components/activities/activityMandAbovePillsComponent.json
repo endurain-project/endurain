@@ -1,0 +1,17 @@
+{
+  "labelPillGraphs": "Gráficos",
+  "labelPillLaps": "Voltas",
+  "labelPillWorkoutSets": "Repeticións",
+  "labelGraph": "Gráficos da actividade",
+  "labelGraphHR": "Frecuencia cardíaca",
+  "labelHRZones": "Zonas da frecuencia cardíaca",
+  "labelGraphPower": "Potencia",
+  "labelGraphCadence": "Cadencia",
+  "labelGraphElevation": "Elevación",
+  "labelGraphVelocity": "Velocidade",
+  "labelGraphPace": "Ritmo",
+  "labelGraphHRZone": "Zona",
+  "labelDownsampling": "Datos reducidos a ~200 puntos",
+  "errorMessageProcessingActivityStreams": "Erro ao procesar os fluxos da actividade",
+  "labelGraphStrokeRate": "Frec. brazada"
+}

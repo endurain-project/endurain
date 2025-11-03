@@ -1,0 +1,10 @@
+{
+  "buttonAddUser": "Engadir persoa usuaria",
+  "labelSearchUsersByUsername": "Buscar usuarias polo identificador",
+  "labelNumberOfUsers1": "Hai un total de ",
+  "labelNumberOfUsers2": " usuaria(s) (",
+  "labelNumberOfUsers3": " cargadas):",
+  "successUserAdded": "Engadiuse a usuaria correctamente",
+  "successUserDeleted": "Eliminouse a usuaria correctamente",
+  "errorFetchingUsers": "Erro ao obter as usuarias"
+}

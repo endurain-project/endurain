@@ -1,0 +1,8 @@
+{
+  "title1": "Xestión da verificación do correo",
+  "title2": "Agarda mentras se verifica o teu correo. Non actualices esta páxina.",
+  "emailVerified": "Enderezo de correo verficado!",
+  "tokenNotFound": "Non se atopa o token",
+  "tokenExpired": "Token caducado",
+  "verificationFailed": "Fallou a verificación do correo"
+}

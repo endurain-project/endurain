@@ -30,6 +30,8 @@ export default {
       { value: 'tw', label: t('generalItems.languageOption9') },
       { value: 'de', label: t('generalItems.languageOption4') },
       { value: 'fr', label: t('generalItems.languageOption5') },
+      { value: 'gl', label: t('generalItems.languageOption10') },
+      { value: 'it', label: t('generalItems.languageOption11') },
       { value: 'nl', label: t('generalItems.languageOption6') },
       { value: 'pt', label: t('generalItems.languageOption3') },
       { value: 'es', label: t('generalItems.languageOption7') },

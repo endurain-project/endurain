@@ -96,8 +96,11 @@ Endurain has multi-language support, and you can help translate it into more lan
 Currently supported in:
 
  - Catalan by [@rubenixnagios](https://github.com/rubenixnagios)
+ - Chinese Simplified
+ - Chinese Traditional
  - German by [@ThreeCO](https://github.com/ThreeCO)
  - French (FR) [@gwenvador](https://github.com/gwenvador)
+ - GALICIAN (GL)
  - Dutch (NL) [@woutvanderaa](https://github.com/woutvanderaa)
  - Portuguese (PT)
  - Spanish (ES) [@rgmelkor](https://github.com/rgmelkor) and [@tinchodin](https://github.com/tinchodin)

@@ -1,0 +1,19 @@
+{
+  "addEditGearComponentModalAddTitle": "Engadir compoñente do equipamento",
+  "addEditGearComponentModalEditTitle": "Editar compoñente do equipamento",
+  "addEditGearComponentModalAddEditTypeLabel": "Tipo",
+  "addEditGearComponentModalAddEditBrandLabel": "Marca",
+  "addEditGearComponentModalAddEditModelLabel": "Modelo",
+  "addEditGearComponentModalAddEditPurchaseDateLabel": "Data de compra",
+  "addEditGearComponentModalAddEditExpectedDistanceLabel": "Distancia prevista",
+  "addEditGearComponentModalAddEditExpectedTimeLabel": "Duración prevista",
+  "addEditGearComponentModalAddEditPurchaseValueLabel": "Prezo de compra",
+  "addEditGearComponentModalAddEditRetiredDateLabel": "Data de retirada",
+  "addEditGearComponentModalAddEditIsActiveLabel": "Está activo",
+  "successGearComponentAdded": "Gear component added successfully",
+  "successGearComponentEdited": "Gear component edited successfully",
+  "errorGearComponentAdd": "Error adding gear component",
+  "gearComponentListGearEditSuccessMessage": "Gear component edited successfully",
+  "gearComponentListGearEditErrorMessage": "Error editing gear component",
+  "retiredDateAfterPurchaseDateError": "A data de retirada ten que ser posterior á de adquisición"
+}

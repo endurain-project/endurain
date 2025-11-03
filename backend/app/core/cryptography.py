@@ -3,17 +3,20 @@ from cryptography.fernet import Fernet
 from fastapi import HTTPException, status
 
 import core.logger as core_logger
+import core.config as core_config
 
 
 def create_fernet_cipher():
     try:
-        # Get the key from environment variable and encode it to bytes
-        key = os.environ["FERNET_KEY"].encode()
-        return Fernet(key)
+        # Get the key from environment variable or file and encode it to bytes
+        key = core_config.read_secret("FERNET_KEY")
+        if key is None:
+            raise ValueError("FERNET_KEY not found in environment or secrets file")
+        return Fernet(key.encode())
     except Exception as err:
         # Log the exception
         core_logger.print_to_log(
-            f"Error in encrypt_token_fernet: {err}", "error", exc=err
+            f"Error in create_fernet_cipher: {err}", "error", exc=err
         )
 
         # Raise an HTTPException with a 500 Internal Server Error status code

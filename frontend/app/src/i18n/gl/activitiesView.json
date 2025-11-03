@@ -1,0 +1,14 @@
+{
+  "title": "Actividades",
+  "filterLabelType": "Tipo",
+  "filterOptionAllTypes": "Todos os tipos",
+  "filterLabelFromDate": "Desde a data",
+  "filterLabelToDate": "Ata a data",
+  "filterLabelNameLocation": "Nome ou localización",
+  "filterPlaceholderNameLocation": "Ex., Paseo pola mañán",
+  "buttonClear": "Limpar",
+  "buttonApply": "Aplicar",
+  "errorFailedFetchActivityTypes": "Non se obtiveron os tipos de actividade",
+  "errorUpdatingActivities": "Non se actualizaron as actividades",
+  "errorFetchingActivities": "Non de obtiveron as actividades da usuaria"
+}

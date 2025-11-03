@@ -1,0 +1,8 @@
+{
+  "modalMediaDeleteTitle": "Eliminar multimedia",
+  "modalMediaDeleteBody1": "Tes certeza de querer eliminar o multimedia con ID ",
+  "modalMediaDeleteBody2": " e nome ",
+  "errorFetchingActivityStream": "Erro ao obter o fluxo de datos da actividade",
+  "mediaDeletedSuccessfully": "Multimedia eliminado correctamente",
+  "errorDeletingMedia": "Erro ao eliminar o multimedia"
+}

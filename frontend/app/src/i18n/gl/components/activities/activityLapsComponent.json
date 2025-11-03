@@ -1,0 +1,14 @@
+{
+  "labelLapNumber": "Volta",
+  "labelLapIntensity": "Intensidade",
+  "labelLapDistance": "Distancia",
+  "labelLapTime": "Tempo",
+  "labelLapPace": "Ritmo",
+  "labelLapSpeed": "Velocidade",
+  "labelLapElevation": "Elevación",
+  "labelLapElev": "Elev",
+  "labelLapAvgHr": "Valor medio do pulso",
+  "labelLapHR": "PC",
+  "labelLapStrokeRate": "Frec. brazada",
+  "labelLapSR": "FB"
+}

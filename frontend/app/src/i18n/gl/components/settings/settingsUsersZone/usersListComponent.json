@@ -1,0 +1,22 @@
+{
+  "userListAccessTypeOption1": "Usuaria normal",
+  "userListAccessTypeOption2": "Administradora",
+  "userListUserIsMeBadge": "Eu",
+  "userListUserIsAdminBadge": "Administradora",
+  "userListUserIsInactiveBadge": "Inactiva",
+  "userListUserHasUnverifiedEmailBadge": "Correo non verificado",
+  "modalApproveSignUpTitle": "Aprobar conta da usuaria",
+  "modalApproveSignUpBody": "Tes certeza de querer aprobar a conta da usuaria ",
+  "processingApproval": "Procesando a aprobación…",
+  "userApproveSuccessMessage": "Conta aprobada correctamente.",
+  "userApproveErrorMessage": "Erro ao aprobar a conta",
+  "modalRejectSignUpTitle": "Rexeitar a creación da conta",
+  "modalRejectSignUpBody1": "Tes certeza de querer rexeitar a creación da conta ",
+  "modalRejectSignUpBody2": "A conta vaise eliminar, non se pode desfacer esta acción.",
+  "userEditErrorMessage": "Erro ao editar a usuaria",
+  "modalDeleteUserTitle": "Eliminar usuaria",
+  "modalDeleteUserBody": "Tes certeza de querer eliminar a usuaria ",
+  "userListUserSessionsTitle": "Sesións abertas",
+  "userSessionDeleteSuccessMessage": "Sesión eliminada correctamente",
+  "userSessionDeleteErrorMessage": "Erro ao eliminar a sesión"
+}

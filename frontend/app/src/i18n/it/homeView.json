@@ -1,0 +1,18 @@
+{
+  "title": "Endurain",
+  "buttonAddActivity": "Aggiungi attività",
+  "fieldLabelUploadFileType": "Carica file .gpx, .fit, .tcx o .gz",
+  "radioUserActivities": "Le mie attività",
+  "radioFollowerActivities": "Attività dei follower",
+  "pillIsHidden": "Nascosto",
+  "successActivityAdded": "Attività aggiunta con successo",
+  "errorActivityAdded": "Errore nell'aggiunta dell'attività",
+  "refreshingActivities": "Aggiornamento attività dai servizi collegati",
+  "successActivitiesRefreshed": "Attività aggiornate con successo",
+  "errorActivityNotFound": "Attività non trovata",
+  "processingActivity": "Elaborazione attività",
+  "successActivityDeleted": "Attività eliminata con successo",
+  "errorFetchingUserStats": "Errore nel recupero delle statistiche utente",
+  "errorFetchingUserActivities": "Errore nel recupero delle attività utente",
+  "errorFetchingMedia": "Errore nel recupero dei media per l'attività"
+}

@@ -1,0 +1,20 @@
+{
+  "labelWorkoutStepType": "Tipo de etapa",
+  "labelWorkoutStepTime": "Tempo na etapa",
+  "labelWorkoutStepReps": "Repeticións da etapa",
+  "labelWorkoutStepIntensity": "Intensidade",
+  "labelWorkoutStepNotes": "Notas",
+  "labelWorkoutStepExerciseName": "Nome da etapa",
+  "labelWorkoutStepExerciseWeight": "Peso",
+  "labelWorkoutStepSwimStroke": "Brazada na etapa de natación",
+  "labelWorkoutSetType": "Tipo de exercicio",
+  "labelWorkoutSetTime": "Tempo no exercicio",
+  "labelWorkoutSetReps": "Número de repeticións",
+  "labelWorkoutSetExerciseName": "Nome do exercicio",
+  "labelWorkoutSetExerciseWeight": "Peso do exercicio",
+  "labelWorkoutSetTypeMobile": "Tipo",
+  "labelWorkoutSetTimeMobile": "Tempo",
+  "labelWorkoutSetRepsMobile": "Repeticións",
+  "labelWorkoutSetExerciseNameMobile": "Nome",
+  "labelWorkoutSetExerciseWeightMobile": "Peso"
+}

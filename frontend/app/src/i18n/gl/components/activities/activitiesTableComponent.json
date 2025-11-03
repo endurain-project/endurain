@@ -1,0 +1,12 @@
+{
+  "headerType": "Tipo",
+  "headerName": "Nome",
+  "headerLocation": "Localización",
+  "headerStartTime": "Hora de inicio",
+  "headerDuration": "Duración",
+  "headerDistance": "Distancia",
+  "headerPace": "Ritmo/Velocidade",
+  "headerCalories": "Calorías",
+  "headerElevation": "Desnivel",
+  "headerAvgHr": "Pulso medio"
+}

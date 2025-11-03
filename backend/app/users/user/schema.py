@@ -30,6 +30,7 @@ class Language(Enum):
         DUTCH: Dutch language code ("nl").
         GERMAN: German language code ("de").
         FRENCH: French language code ("fr").
+        GALICIAN: Galician language code ("gl").
         SPANISH: Spanish language code ("es").
         PORTUGUESE: Portuguese language code ("pt").
         ENGLISH_USA: US English language code ("us").
@@ -41,6 +42,7 @@ class Language(Enum):
     DUTCH = "nl"
     GERMAN = "de"
     FRENCH = "fr"
+    GALICIAN = "gl"
     SPANISH = "es"
     PORTUGUESE = "pt"
     ENGLISH_USA = "us"

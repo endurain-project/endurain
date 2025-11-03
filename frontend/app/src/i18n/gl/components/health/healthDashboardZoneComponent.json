@@ -1,0 +1,13 @@
+{
+  "weight": "Peso",
+  "noWeightData": "Sen datos do peso",
+  "noWeightTarget": "Sen obxectivo de peso",
+  "noHeightDefined": "Altura da usuaria sen establecer",
+  "bmi": "IMC",
+  "bmiUnderweight": "Por embaixo do peso",
+  "bmiNormalWeight": "Normativo",
+  "bmiOverweight": "Sobrepeso",
+  "bmiObesityClass1": "Obesidade (clase 1)",
+  "bmiObesityClass2": "Obesidade (clase 2)",
+  "bmiObesityClass3": "Obesidade extrema (clase 3)"
+}

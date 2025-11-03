@@ -1,0 +1,16 @@
+{
+  "requestAccepted": "Accettato",
+  "requestPending": "Richiesta in sospeso",
+  "followingModalTitle": "Elimina seguito",
+  "followingModalBody": "Sei sicuro di voler eliminare l'utente seguito ",
+  "followerModalTitle": "Elimina follower",
+  "followerModalBody": "Sei sicuro di voler eliminare l'utente follower ",
+  "followerAcceptModalTitle": "Accetta richiesta utente",
+  "followerAcceptModalBody": "Sei sicuro di voler accettare la richiesta di seguito dall'utente ",
+  "followerDeclineModalTitle": "Rifiuta richiesta utente ",
+  "followerDeclineModalBody": "Sei sicuro di voler rifiutare la richiesta di seguito dall'utente ",
+  "errorDeleteFollowing": "Errore nell'eliminazione del seguito",
+  "errorDeleteFollower": "Errore nell'eliminazione del follower",
+  "errorUpdateFollower": "Errore nell'aggiornamento del follower",
+  "errorFetchingFollowersDetails": "Errore nel recupero dei dettagli dei follower"
+}

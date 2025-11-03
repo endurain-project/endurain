@@ -1,0 +1,9 @@
+{
+  "labelGarminConnect": "Garmin Connect",
+  "modalDeleteWeightTitle": "Eliminar peso",
+  "modalDeleteWeightBody": "Tes certeza de querer eliminar o peso de ",
+  "successDeleteWeight": "Peso eliminado",
+  "errorDeleteWeight": "Non foi posible eliminar o peso",
+  "successEditWeight": "Peso editado",
+  "errorEditWeight": "Non foi posible editar o peso"
+}

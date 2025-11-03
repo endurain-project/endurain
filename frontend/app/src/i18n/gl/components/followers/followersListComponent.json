@@ -1,0 +1,16 @@
+{
+  "requestAccepted": "Aceptada",
+  "requestPending": "Solicitude pendente",
+  "followingModalTitle": "Eliminar seguimento",
+  "followingModalBody": "Tes certeza de querer deixar de seguir ",
+  "followerModalTitle": "Eliminar seguimento",
+  "followerModalBody": "Tes certeza de querer eliminar a usuaria que te segue ",
+  "followerAcceptModalTitle": "Aceptar solicitude da usuaria",
+  "followerAcceptModalBody": "Tes certeza de querer aceptar a solicitude de seguimento da usuaria ",
+  "followerDeclineModalTitle": "Rexeitar a solicitude ",
+  "followerDeclineModalBody": "Tes certeza de querer rexeitar a solicitude de seguimento da usuaria ",
+  "errorDeleteFollowing": "Erro ao eliminar o seguimento",
+  "errorDeleteFollower": "Erro ao eliminar a seguidora",
+  "errorUpdateFollower": "Erro ao actualizar a seguidora",
+  "errorFetchingFollowersDetails": "Erro ao obter detalles das seguidoras"
+}

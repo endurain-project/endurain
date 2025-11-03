@@ -1,6 +1,6 @@
 {
-  "modalLabelAddGear": "Add gear to activity",
-  "modalLabelSelectGear": "Select gear",
-  "modalButtonAddGear": "Add gear",
-  "errorEditingGear": "Error editing gear"
+  "modalLabelAddGear": "添加装备到活动",
+  "modalLabelSelectGear": "请选择装备",
+  "modalButtonAddGear": "添加装备",
+  "errorEditingGear": "编辑装备时出错"
 }

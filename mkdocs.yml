@@ -1,14 +1,27 @@
 site_name: Endurain documentation
 repo_url: https://github.com/joaovitoriasilva/endurain
 theme:
-  name: mkdocs
-  color_mode: auto
-  user_color_mode_toggle: true
+  name: material
+  palette:
+    # Palette toggle for light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+
+    # Palette toggle for dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
 nav:
   - Home: index.md
   - Hosting Guide:
     - Getting started easy: getting-started/getting-started.md
     - Getting started advanced: getting-started/advanced-started.md
+    - MariaDB to Postgres migration: getting-started/maria-to-postgres-migration.md
   - Integrations:
     - 3rd party apps: integrations/3rd-party-apps.md
     - 3rd party services: integrations/3rd-party-services.md

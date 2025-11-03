@@ -8,7 +8,7 @@ import { formatDateMed, formatTime, formatSecondsToMinutes } from '@/utils/dateT
  */
 const ACTIVITY_TYPES = [
   1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27,
-  28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39
+  28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40
 ]
 
 /**
@@ -60,7 +60,8 @@ const activityLabelMap = {
   36: (t) => t('activityItems.ebikeMountainRide'),
   37: (t) => t('activityItems.iceSkate'),
   38: (t) => t('activityItems.soccer'),
-  39: (t) => t('activityItems.padel')
+  39: (t) => t('activityItems.padel'),
+  40: (t) => t('activityItems.treadmillRun')
 }
 
 /**
@@ -282,7 +283,8 @@ export function activityTypeIsRunning(activity) {
     activity.activity_type === 1 ||
     activity.activity_type === 2 ||
     activity.activity_type === 3 ||
-    activity.activity_type === 34
+    activity.activity_type === 34 ||
+    activity.activity_type === 40
   )
 }
 /**
@@ -290,14 +292,15 @@ export function activityTypeIsRunning(activity) {
  *
  * @param {Object} activity - The activity object to check.
  * @param {number} activity.activity_type - The type identifier of the activity.
- * @returns {boolean} Returns true if the activity is not running-related (types 1,2,3 or 34), otherwise false.
+ * @returns {boolean} Returns true if the activity is not running-related (types 1,2,3,34 and 40), otherwise false.
  */
 export function activityTypeNotRunning(activity) {
   return (
     activity.activity_type !== 1 &&
     activity.activity_type !== 2 &&
     activity.activity_type !== 3 &&
-    activity.activity_type !== 34
+    activity.activity_type !== 34 &&
+    activity.activity_type !== 40
   )
 }
 
@@ -710,7 +713,8 @@ export function getIcon(typeId) {
     36: ['fas', 'person-biking'],
     37: ['fas', 'person-skating'],
     38: ['fas', 'futbol'],
-    39: ['fas', 'table-tennis-paddle-ball']
+    39: ['fas', 'table-tennis-paddle-ball'],
+    40: ['fas', 'person-running'], // Treadmill run icon might be better if available
   }
 
   return iconMap[typeId] || ['fas', 'dumbbell']

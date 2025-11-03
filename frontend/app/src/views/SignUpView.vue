@@ -125,6 +125,8 @@
                 <option value="tw">{{ $t('generalItems.languageOption9') }}</option>
                 <option value="de">{{ $t('generalItems.languageOption4') }}</option>
                 <option value="fr">{{ $t('generalItems.languageOption5') }}</option>
+                <option value="gl">{{ $t('generalItems.languageOption10') }}</option>
+                <option value="it">{{ $t('generalItems.languageOption11') }}</option>
                 <option value="nl">{{ $t('generalItems.languageOption6') }}</option>
                 <option value="pt">{{ $t('generalItems.languageOption3') }}</option>
                 <option value="es">{{ $t('generalItems.languageOption7') }}</option>

@@ -1,54 +1,113 @@
+import json
 import pyotp
 import qrcode
 import base64
+import zipfile
+import time
+import psutil
 from io import BytesIO
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
+from typing import Type, Any, Dict, TypeVar
 
 import core.cryptography as core_cryptography
 import core.logger as core_logger
 import profile.schema as profile_schema
 import users.user.crud as users_crud
+from profile.exceptions import (
+    MemoryAllocationError,
+)
+
+# Type variable for performance config classes
+T_PerformanceConfig = TypeVar("T_PerformanceConfig", bound="BasePerformanceConfig")
+
+
+class BasePerformanceConfig:
+    """
+    Base configuration for performance settings.
+
+    Attributes:
+        batch_size: Number of items to process in a batch.
+        max_memory_mb: Maximum memory usage in megabytes.
+        timeout_seconds: Operation timeout in seconds.
+        chunk_size: Size of data chunks in bytes.
+        enable_memory_monitoring: Enable memory monitoring.
+    """
+
+    def __init__(
+        self,
+        batch_size: int = 1000,
+        max_memory_mb: int = 1024,
+        timeout_seconds: int = 3600,
+        chunk_size: int = 8192,
+        enable_memory_monitoring: bool = True,
+    ):
+        self.batch_size = batch_size
+        self.max_memory_mb = max_memory_mb
+        self.timeout_seconds = timeout_seconds
+        self.chunk_size = chunk_size
+        self.enable_memory_monitoring = enable_memory_monitoring
+
+    @classmethod
+    def _get_tier_configs(cls) -> Dict[str, Dict[str, Any]]:
+        """
+        Get configuration tiers for different memory levels.
+
+        Returns:
+            Dictionary mapping tier names to config dicts.
+
+        Raises:
+            NotImplementedError: Must be implemented by subclass.
+        """
+        raise NotImplementedError("Subclasses must implement _get_tier_configs")
+
+    @classmethod
+    def get_auto_config(cls: Type[T_PerformanceConfig]) -> T_PerformanceConfig:
+        """
+        Create config automatically based on system memory.
+
+        Returns:
+            Configuration instance for detected tier.
+        """
+        try:
+            tier, _ = detect_system_memory_tier()
+            tier_configs = cls._get_tier_configs()
+
+            if tier in tier_configs:
+                config_dict = tier_configs[tier]
+                return cls(**config_dict)
+            else:
+                core_logger.print_to_log(
+                    f"Unknown memory tier '{tier}', using default config", "warning"
+                )
+                return cls()
+        except Exception as err:
+            core_logger.print_to_log(
+                f"Failed to create auto config, using defaults: {err}", "warning"
+            )
+            return cls()
 
 
 def generate_totp_secret() -> str:
     """
-    Generate a base32-encoded secret suitable for TOTP.
-
-    This function returns a cryptographically secure base32 string, generated via
-    pyotp.random_base32(), that can be used as the shared secret when provisioning
-    time-based one-time password (TOTP) authenticators (e.g., for 2FA).
+    Generate random TOTP secret for MFA.
 
     Returns:
-        str: A base32-encoded secret key for use with TOTP.
-
-    Notes:
-        - Treat the returned secret as sensitive; do not log or expose it.
-        - The exact length/entropy is determined by pyotp.random_base32().
+        Base32-encoded secret string.
     """
     return pyotp.random_base32()
 
 
 def verify_totp(secret: str, token: str) -> bool:
     """
-    Verify a Time-based One-Time Password (TOTP) token against a shared secret.
+    Verify TOTP token against secret.
 
-    Parameters
-    ----------
-    secret : str
-        Shared secret used to initialize the TOTP generator (as expected by pyotp, commonly a base32 string).
-    token : str
-        One-time password (OTP) provided by the user to validate.
+    Args:
+        secret: Base32-encoded TOTP secret.
+        token: TOTP token to verify.
 
-    Returns
-    -------
-    bool
-        True if the token is valid within a tolerance of one time-step (current step ±1), False otherwise.
-
-    Notes
-    -----
-    This function uses pyotp.TOTP.verify with valid_window=1 to allow for minor clock skew between client and server.
-    Ensure the secret and token are provided in the formats expected by pyotp.
+    Returns:
+        True if token is valid, False otherwise.
     """
     totp = pyotp.TOTP(secret)
     return totp.verify(token, valid_window=1)  # Allow 1 window tolerance
@@ -56,22 +115,15 @@ def verify_totp(secret: str, token: str) -> bool:
 
 def generate_qr_code(secret: str, username: str, app_name: str = "Endurain") -> str:
     """
-    Generate a base64-encoded PNG data URI containing a QR code for a TOTP provisioning URI.
-    Parameters:
-        secret (str): Base32-encoded secret key used to initialize pyotp.TOTP (the shared TOTP secret).
-        username (str): Account name (e.g., an email or username) to include in the provisioning URI and display in authenticator apps.
-        app_name (str, optional): Issuer name to include in the provisioning URI (default: "Endurain").
+    Generate QR code for MFA setup.
+
+    Args:
+        secret: TOTP secret.
+        username: User's username.
+        app_name: Application name for MFA.
+
     Returns:
-        str: A data URI string of the form "data:image/png;base64,<base64-data>" containing the generated QR code PNG.
-             This value can be used directly as the src attribute of an HTML <img> element.
-    Raises:
-        Any exceptions raised by pyotp, qrcode, or the underlying image library (Pillow) may propagate if inputs are invalid
-        or if image generation/encoding fails.
-    Notes:
-        - Builds an otpauth://totp/... provisioning URI via pyotp.TOTP.provisioning_uri(name=username, issuer_name=app_name).
-        - Renders the QR code using qrcode with version=1, error correction level L, box_size=10 and border=4.
-        - The image is written to an in-memory buffer and base64-encoded so it can be embedded in web pages without a file.
-        - Ensure dependencies are installed: pyotp, qrcode, pillow.
+        Base64-encoded PNG QR code as data URI.
     """
     totp = pyotp.TOTP(secret)
     provisioning_uri = totp.provisioning_uri(name=username, issuer_name=app_name)
@@ -100,38 +152,17 @@ def generate_qr_code(secret: str, username: str, app_name: str = "Endurain") -> 
 
 def setup_user_mfa(user_id: int, db: Session) -> profile_schema.MFASetupResponse:
     """
-    Prepare a TOTP-based MFA enrollment for a user by generating a new secret and a QR code.
+    Setup MFA for user.
 
-    Parameters
-    ----------
-    user_id : int
-        The primary key of the user to prepare MFA for.
-    db : Session
-        Database session used to look up the user.
+    Args:
+        user_id: User ID to setup MFA for.
+        db: Database session.
 
-    Returns
-    -------
-    profile_schema.MFASetupResponse
-        A response object containing:
-          - secret (str): The generated TOTP secret (typically base32).
-          - qr_code (str): A representation of the QR code (format depends on implementation;
-            commonly a data URI or base64-encoded PNG) that encodes the provisioning URI.
-          - app_name (str): Human-friendly application name (set to "Endurain").
+    Returns:
+        MFA setup response with secret and QR code.
 
-    Raises
-    ------
-    HTTPException
-        404 Not Found: if no user with the provided user_id exists.
-        400 Bad Request: if MFA is already enabled for the user.
-
-    Notes
-    -----
-    - This function only generates and returns the secret and QR code; it does not persist the
-      secret to the database or enable MFA on the user's account. The caller should verify a
-      one-time TOTP code from the user's authenticator and, upon successful verification,
-      securely store the secret and mark MFA as enabled.
-    - Secrets and QR codes should be transmitted over secure channels (e.g., TLS) and stored
-      encrypted at rest. Treat the generated secret as sensitive data.
+    Raises:
+        HTTPException: If user not found or MFA enabled.
     """
     user = users_crud.get_user_by_id(user_id, db)
     if not user:
@@ -158,40 +189,17 @@ def setup_user_mfa(user_id: int, db: Session) -> profile_schema.MFASetupResponse
 
 def enable_user_mfa(user_id: int, secret: str, mfa_code: str, db: Session):
     """
-    Enable multi-factor authentication (MFA) for a user by validating a TOTP code and storing the encrypted secret.
+    Enable MFA for user after verification.
 
-    This function:
-    - Confirms the user exists.
-    - Ensures MFA is not already enabled for the user.
-    - Verifies the provided TOTP (mfa_code) against the provided secret.
-    - Encrypts the secret and updates the user's record to enable MFA.
+    Args:
+        user_id: User ID to enable MFA for.
+        secret: TOTP secret to verify.
+        mfa_code: MFA code to verify.
+        db: Database session.
 
-    Parameters
-    ----------
-    user_id : int
-        The ID of the user for whom MFA should be enabled.
-    secret : str
-        The plain-text TOTP secret provided by the user (will be encrypted before storage).
-    mfa_code : str
-        The one-time password generated by the user's authenticator app to prove possession of the secret.
-    db : Session
-        Database session used to look up and update the user record.
-
-    Raises
-    ------
-    HTTPException
-        - 404 NOT FOUND: "User not found" if no user exists with the given user_id.
-        - 400 BAD REQUEST: "MFA is already enabled for this user" if MFA is already active for the user.
-        - 400 BAD REQUEST: "Invalid MFA code" if the provided mfa_code does not validate against the secret.
-
-    Returns
-    -------
-    None
-        The function performs side effects (encrypting the secret and updating the user's MFA state) and does not return a value.
-
-    Notes
-    -----
-    Relies on external helpers: users_crud.get_user_by_id, verify_totp, core_cryptography.encrypt_token_fernet, and users_crud.enable_user_mfa.
+    Raises:
+        HTTPException: If user not found, MFA enabled, code
+            invalid, or encryption fails.
     """
     user = users_crud.get_user_by_id(user_id, db)
     if not user:
@@ -214,39 +222,29 @@ def enable_user_mfa(user_id: int, secret: str, mfa_code: str, db: Session):
     # Encrypt the secret before storing
     encrypted_secret = core_cryptography.encrypt_token_fernet(secret)
 
+    # Check if encryption was successful
+    if not encrypted_secret:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to encrypt MFA secret",
+        )
+
     # Update user with MFA enabled and secret
     users_crud.enable_user_mfa(user_id, encrypted_secret, db)
 
 
 def disable_user_mfa(user_id: int, mfa_code: str, db: Session):
     """
-    Disable a user's multi-factor authentication (MFA) after verifying a provided TOTP code.
-
-    This function retrieves the user by ID, ensures MFA is currently enabled, decrypts
-    the stored MFA secret, verifies the provided TOTP code, and disables MFA for the user
-    via the persistence layer.
+    Disable MFA for user after verification.
 
     Args:
-        user_id (int): ID of the user whose MFA should be disabled.
-        mfa_code (str): Time-based one-time password (TOTP) code supplied by the user.
-        db (Session): Database session used to load and update the user record.
-
-    Returns:
-        None
+        user_id: User ID to disable MFA for.
+        mfa_code: MFA code to verify.
+        db: Database session.
 
     Raises:
-        HTTPException: If the user is not found (404).
-        HTTPException: If MFA is not enabled for the user (400).
-        HTTPException: If the provided TOTP code is invalid (400).
-
-    Side effects:
-        - Decrypts the user's stored MFA secret and uses it to verify the TOTP code.
-        - Calls the users_crud layer to disable MFA for the user; commit behavior depends
-          on how the provided db session is managed.
-
-    Security considerations:
-        - Treat mfa_code and decrypted secrets as sensitive information; avoid logging them.
-        - Ensure the db session and cryptographic utilities are used in a secure context.
+        HTTPException: If user not found, MFA not enabled, code
+            invalid, or decryption fails.
     """
     user = users_crud.get_user_by_id(user_id, db)
     if not user:
@@ -263,6 +261,13 @@ def disable_user_mfa(user_id: int, mfa_code: str, db: Session):
     # Decrypt the secret
     secret = core_cryptography.decrypt_token_fernet(user.mfa_secret)
 
+    # Check if decryption was successful
+    if not secret:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to decrypt MFA secret",
+        )
+
     # Verify the MFA code
     if not verify_totp(secret, mfa_code):
         raise HTTPException(
@@ -275,26 +280,18 @@ def disable_user_mfa(user_id: int, mfa_code: str, db: Session):
 
 def verify_user_mfa(user_id: int, mfa_code: str, db: Session) -> bool:
     """
-    Verify a user's MFA TOTP code.
+    Verify MFA code for user.
 
     Args:
-        user_id (int): ID of the user to verify.
-        mfa_code (str): Time-based one-time password (TOTP) code provided by the user.
-        db (Session): Database session used to retrieve the user record.
+        user_id: User ID to verify MFA for.
+        mfa_code: MFA code to verify.
+        db: Database session.
 
     Returns:
-        bool: True if the provided TOTP matches the user's decrypted MFA secret;
-        False if MFA is not enabled for the user, no secret is stored, the code is invalid,
-        or if any decryption/verification error occurs.
+        True if code is valid, False otherwise.
 
     Raises:
-        HTTPException: If no user with the given user_id is found (HTTP 404).
-
-    Notes:
-        - The function loads the user from the database, ensures MFA is enabled and a secret exists,
-          decrypts the stored secret, and then verifies the provided TOTP against that secret.
-        - Any exceptions during decryption or verification are treated as verification failures
-          and result in a False return value rather than propagating the error.
+        HTTPException: If user not found.
     """
     user = users_crud.get_user_by_id(user_id, db)
     if not user:
@@ -308,30 +305,227 @@ def verify_user_mfa(user_id: int, mfa_code: str, db: Session) -> bool:
     # Decrypt the secret
     try:
         secret = core_cryptography.decrypt_token_fernet(user.mfa_secret)
+        if not secret:
+            core_logger.print_to_log("Failed to decrypt MFA secret", "error")
+            return False
         return verify_totp(secret, mfa_code)
     except Exception as err:
-        core_logger.print_to_log(f"Error in disable_user_mfa: {err}", "error", exc=err)
+        core_logger.print_to_log(f"Error in verify_user_mfa: {err}", "error", exc=err)
         return False
 
 
 def is_mfa_enabled_for_user(user_id: int, db: Session) -> bool:
     """
-    Return whether multi-factor authentication (MFA) is enabled for a given user.
-
-    This function looks up the user by ID using the provided database session and
-    returns True only if the user exists, the user's `mfa_enabled` flag equals 1,
-    and `mfa_secret` is not None.
+    Check if MFA is enabled for user.
 
     Args:
-        user_id (int): ID of the user to check.
-        db (Session): Database session used to retrieve the user record.
+        user_id: User ID to check.
+        db: Database session.
 
     Returns:
-        bool: True if MFA is enabled for the user, False otherwise.
-
-    Notes:
-        - The function treats mfa_enabled == 1 as enabled.
-        - If the user does not exist, the function returns False.
+        True if MFA is enabled, False otherwise.
     """
     user = users_crud.get_user_by_id(user_id, db)
-    return user and user.mfa_enabled == 1 and user.mfa_secret is not None
+    if not user:
+        return False
+    return bool(user.mfa_enabled == 1 and user.mfa_secret is not None)
+
+
+# Export utility functions
+def sqlalchemy_obj_to_dict(obj):
+    """
+    Convert SQLAlchemy object to dictionary.
+
+    Args:
+        obj: SQLAlchemy model instance or other object.
+
+    Returns:
+        Dictionary with column names and values.
+    """
+    if hasattr(obj, "__table__"):
+        return {c.name: getattr(obj, c.name) for c in obj.__table__.columns}
+    return obj
+
+
+def write_json_to_zip(
+    zipf: zipfile.ZipFile, filename: str, data, counts: dict, ensure_ascii: bool = False
+):
+    """
+    Write JSON data to ZIP file and update counts.
+
+    Args:
+        zipf: ZipFile instance to write to.
+        filename: Name of file in ZIP.
+        data: Data to serialize as JSON.
+        counts: Dictionary to update with item counts.
+        ensure_ascii: Whether to ensure ASCII encoding.
+    """
+    if data:
+        counts[filename.split("/")[-1].replace(".json", "")] = (
+            len(data) if isinstance(data, (list, tuple)) else 1
+        )
+        zipf.writestr(
+            filename,
+            json.dumps(data, default=str, ensure_ascii=ensure_ascii),
+        )
+
+
+def check_timeout(
+    timeout_seconds: int | None,
+    start_time: float,
+    exception_class: Type[Exception],
+    operation_type: str,
+) -> None:
+    """
+    Check if operation has exceeded timeout.
+
+    Args:
+        timeout_seconds: Timeout limit in seconds or None.
+        start_time: Operation start time from time.time().
+        exception_class: Exception type to raise on timeout.
+        operation_type: Description of operation for error.
+
+    Raises:
+        exception_class: If timeout is exceeded.
+    """
+    if timeout_seconds and (time.time() - start_time) > timeout_seconds:
+        raise exception_class(f"{operation_type} exceeded {timeout_seconds} seconds")
+
+
+def get_memory_usage_mb(enable_monitoring: bool = True) -> float:
+    """
+    Get current process memory usage in megabytes.
+
+    Args:
+        enable_monitoring: Whether monitoring is enabled.
+
+    Returns:
+        Memory usage in MB, or 0.0 if disabled or error.
+    """
+    try:
+        if not enable_monitoring:
+            return 0.0
+        process = psutil.Process()
+        return process.memory_info().rss / (1024 * 1024)  # Convert to MB
+    except Exception as err:
+        core_logger.print_to_log(f"Failed to get memory usage: {err}", "warning")
+        return 0.0
+
+
+def check_memory_usage(
+    operation: str,
+    max_memory_mb: int,
+    enable_monitoring: bool = True,
+    memory_intensive_operations: list[str] | None = None,
+) -> None:
+    """
+    Check memory usage and raise error if limit exceeded.
+
+    Args:
+        operation: Description of current operation.
+        max_memory_mb: Maximum allowed memory in MB.
+        enable_monitoring: Whether monitoring is enabled.
+        memory_intensive_operations: List of intensive ops.
+
+    Raises:
+        MemoryAllocationError: If memory limit exceeded.
+    """
+    if not enable_monitoring:
+        return
+
+    current_memory = get_memory_usage_mb(enable_monitoring)
+
+    # Default memory-intensive operations if none provided
+    if memory_intensive_operations is None:
+        memory_intensive_operations = [
+            "ZIP file loading",
+            "activities import",
+            "activity components",
+            "JSON parsing",
+            "activity collection",
+            "data collection",
+            "ZIP creation",
+            "file streaming",
+        ]
+
+    is_memory_intensive = any(
+        op in operation.lower() for op in memory_intensive_operations
+    )
+
+    # Use a higher threshold for memory-intensive operations
+    effective_limit = max_memory_mb
+    if is_memory_intensive:
+        effective_limit = max_memory_mb * 1.5  # Allow 50% more for intensive ops
+
+    if current_memory > effective_limit:
+        error_msg = (
+            f"Memory usage ({current_memory:.1f}MB) critically exceeded limit "
+            f"({max_memory_mb}MB, effective: {effective_limit:.1f}MB) during {operation}"
+        )
+        core_logger.print_to_log(error_msg, "error")
+        raise MemoryAllocationError(error_msg)
+
+    # Warn at 90%
+    if current_memory > max_memory_mb * 0.9:
+        core_logger.print_to_log(
+            f"High memory usage: {current_memory:.1f}MB "
+            f"(limit: {max_memory_mb}MB) during {operation}",
+            "info",
+        )
+
+
+def initialize_operation_counts(include_user_count: bool = False) -> Dict[str, int]:
+    """
+    Initialize dictionary for tracking operation counts.
+
+    Args:
+        include_user_count: Whether to include user count.
+
+    Returns:
+        Dictionary with all count keys initialized to 0.
+    """
+    return {
+        "media": 0,
+        "activity_files": 0,
+        "activities": 0,
+        "activity_laps": 0,
+        "activity_sets": 0,
+        "activity_streams": 0,
+        "activity_workout_steps": 0,
+        "activity_media": 0,
+        "activity_exercise_titles": 0,
+        "gears": 0,
+        "gear_components": 0,
+        "health_data": 0,
+        "health_targets": 0,
+        "user_images": 0,
+        "user": 1 if include_user_count else 0,
+        "user_default_gear": 0,
+        "user_integrations": 0,
+        "user_goals": 0,
+        "user_privacy_settings": 0,
+    }
+
+
+def detect_system_memory_tier() -> tuple[str, int]:
+    """
+    Detect system memory tier based on available memory.
+
+    Returns:
+        Tuple of tier name and available memory in MB.
+    """
+    try:
+        memory = psutil.virtual_memory()
+        available_mb = memory.available // (1024 * 1024)
+
+        if available_mb > 2048:  # > 2GB available
+            return "high", available_mb
+        elif available_mb > 1024:  # > 1GB available
+            return "medium", available_mb
+        else:  # Low memory system
+            return "low", available_mb
+    except Exception as err:
+        core_logger.print_to_log(
+            f"Failed to detect system memory, using defaults: {err}", "warning"
+        )
+        return "medium", 1024  # Default to medium tier with 1GB

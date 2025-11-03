@@ -1,0 +1,17 @@
+{
+  "labelPillGraphs": "Grafici",
+  "labelPillLaps": "Giri",
+  "labelPillWorkoutSets": "Serie",
+  "labelGraph": "Grafici dati attività",
+  "labelGraphHR": "Frequenza cardiaca",
+  "labelHRZones": "Zone frequenza cardiaca",
+  "labelGraphPower": "Potenza",
+  "labelGraphCadence": "Cadenza",
+  "labelGraphElevation": "Elevazione",
+  "labelGraphVelocity": "Velocità",
+  "labelGraphPace": "Ritmo",
+  "labelGraphHRZone": "Zona",
+  "labelDownsampling": "Dati ridotti a ~200 punti",
+  "errorMessageProcessingActivityStreams": "Errore nell'elaborazione dei flussi di attività",
+  "labelGraphStrokeRate": "Frequenza di bracciata"
+}

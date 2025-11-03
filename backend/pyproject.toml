@@ -1,13 +1,13 @@
 [tool.poetry]
 name = "endurain"
-version = "0.15.0"
+version = "0.15.6"
 description = "Endurain API for the Endurain app"
 authors = ["João Vitória Silva <8648976+joaovitoriasilva@users.noreply.github.com>"]
 readme = "README.md"
 package-mode = false
 
 [tool.poetry.dependencies]
-python = "^3.12"
+python = "^3.13"
 fastapi = "^0.115.6"
 uvicorn = "^0.34.0"
 python-dotenv = "^1.0.1"
@@ -24,7 +24,7 @@ tcxreader = "^0.4.11"
 alembic = "^1.14.0"
 joserfc = "^1.0.1"
 bcrypt = "^4.2.1"
-mysqlclient = "^2.2.6"
+mysqlclient = "^2.2.7"
 fitdecode = "^0.10.0"
 numpy = "^2.2.1"
 geopy = "^2.4.1"
@@ -42,6 +42,8 @@ garth = "^0.5.16"
 apprise = "^1.8.0"
 pyotp = "^2.9.0"
 qrcode = {extras = ["pil"], version = "^8.2"}
+psutil = "^7.1.1"
+python-magic = "^0.4.27"
 
 
 [build-system]

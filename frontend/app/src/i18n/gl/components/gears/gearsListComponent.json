@@ -1,0 +1,16 @@
+{
+  "gearListTypeLabel": "Tipo",
+  "gearListTypeOption1": "Bicicleta",
+  "gearListTypeOption2": "Zapatillas",
+  "gearListTypeOption3": "Neopreno",
+  "gearListTypeOption4": "Raqueta",
+  "gearListTypeOption5": "Esquís",
+  "gearListTypeOption6": "Táboa para neve",
+  "gearListTypeOption7": "Windsurf",
+  "gearListTypeOption8": "Táboa deportes na auga",
+  "gearListGearIsInactiveBadge": "Retirado",
+  "gearListModalDeleteGearTitle": "Eliminar equipamento",
+  "gearListModalDeleteGearBody": "Tes certeza de querer eliminar o equipamento ",
+  "gearListGearDeleteSuccessMessage": "Equipamento eliminado correctamente",
+  "gearListGearDeleteErrorMessage": "Erro ao eliminar o equipamento"
+}

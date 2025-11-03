@@ -1,0 +1,13 @@
+{
+  "title": "Equipamento",
+  "buttonAddGear": "Engadir equipamento",
+  "subTitleSearchGearByNickname": "Buscar equipamento polo alcume",
+  "placeholderSearchGearByNickname": "Alcume",
+  "buttonSearchGear": "Buscar Equipamento",
+  "displayUserNumberOfGears1": "Hai un total de ",
+  "displayUserNumberOfGears2": " equipamento(s) (",
+  "displayUserNumberOfGears3": " cargados):",
+  "successGearDeleted": "Equipamento eliminado correctamente",
+  "errorGearNotFound": "Non se atopa equipamento",
+  "errorFetchingGears": "Erro ao obter equipamentos"
+}
