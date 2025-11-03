@@ -728,7 +728,6 @@ async def store_activity(
         # Create activity streams in the database
         activity_streams_crud.create_activity_streams(activity_streams, db)
 
-    if activity_streams is not None:
         # Add add to segments cache if gps trace passes through defined segments
         for stream in activity_streams:
             if stream.stream_type == 7:

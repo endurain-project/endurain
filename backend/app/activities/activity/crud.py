@@ -18,11 +18,14 @@ import websocket.schema as websocket_schema
 from fastapi import HTTPException, status
 from pydantic import BaseModel
 from sqlalchemy import and_, desc, func, or_
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session
+
 
 def get_activity_timezone(activity_id: int, db: Session):
     try:
-        activity = db.query(activities_models.Activity).filter_by(id=activity_id).first()
+        activity = (
+            db.query(activities_models.Activity).filter_by(id=activity_id).first()
+        )
         if activity:
             return activity.timezone.strip()
         else:
@@ -478,7 +481,7 @@ def get_user_activities_per_timeframe(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal Server Error",
         ) from err
-    
+
 
 def get_user_activities_per_timeframe_and_activity_type(
     user_id: int,
@@ -527,14 +530,16 @@ def get_user_activities_per_timeframe_and_activity_type(
     except Exception as err:
         # Log the exception
         core_logger.print_to_log(
-            f"Error in get_user_activities_per_timeframe_and_activity_type: {err}", "error", exc=err
+            f"Error in get_user_activities_per_timeframe_and_activity_type: {err}",
+            "error",
+            exc=err,
         )
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal Server Error",
         ) from err
-    
+
 
 def get_user_activities_per_timeframe_and_activity_types(
     user_id: int,
@@ -583,7 +588,9 @@ def get_user_activities_per_timeframe_and_activity_types(
     except Exception as err:
         # Log the exception
         core_logger.print_to_log(
-            f"Error in get_user_activities_per_timeframe_and_activity_types: {err}", "error", exc=err
+            f"Error in get_user_activities_per_timeframe_and_activity_types: {err}",
+            "error",
+            exc=err,
         )
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
@@ -968,7 +975,9 @@ def get_activity_by_id_if_is_public(activity_id: int, db: Session):
         ) from err
 
 
-def get_activity_by_id(activity_id: int, db: Session) -> activities_schema.Activity | None:
+def get_activity_by_id(
+    activity_id: int, db: Session
+) -> activities_schema.Activity | None:
     try:
         # Get the activities from the database
         activity = (
