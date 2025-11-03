@@ -151,52 +151,27 @@
 </template>
 
 <script setup lang="ts">
-/**
- * LoginView Component
- *
- * Handles user authentication with support for:
- * - Standard username/password login
- * - Multi-Factor Authentication (MFA)
- * - Password reset functionality
- * - Route-based notification handling
- *
- * @component
- */
-
-// Vue composition API
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-// Router
 import { useRoute, useRouter } from 'vue-router'
-// Internationalization
 import { useI18n } from 'vue-i18n'
-// Notifications
 import { push } from 'notivue'
-// Stores
 import { useAuthStore } from '@/stores/authStore'
 import { useServerSettingsStore } from '@/stores/serverSettingsStore'
-// Services
 import { session } from '@/services/sessionService'
 import { passwordReset } from '@/services/passwordResetService'
 import { profile } from '@/services/profileService'
 import { identityProviders } from '@/services/identityProvidersService'
-// Components
 import ModalComponentEmailInput from '@/components/Modals/ModalComponentEmailInput.vue'
 import LoadingComponent from '@/components/GeneralComponents/LoadingComponent.vue'
-// Composables
 import { useBootstrapModal } from '@/composables/useBootstrapModal'
-// Types
 import type { RouteQueryHandlers, LoginResponse, ErrorWithResponse, SSOProvider } from '@/types'
-// Constants
 import { HTTP_STATUS, QUERY_PARAM_TRUE, extractStatusCode } from '@/constants/httpConstants'
 import { PROVIDER_CUSTOM_LOGO_MAP } from '@/constants/ssoConstants'
-// Utils
 import { isNotEmpty, sanitizeInput } from '@/utils/validationUtils'
-// Assets
 import defaultLoginImage from '@/assets/login.png'
 
 /**
- * Route query parameter handlers configuration
- * Maps URL query parameters to notification types and i18n keys
+ * Maps URL query parameters to notification types and i18n translation keys.
  */
 const ROUTE_QUERY_HANDLERS: RouteQueryHandlers = {
   sessionExpired: { type: 'warning', key: 'loginView.sessionExpired' },
@@ -210,19 +185,11 @@ const ROUTE_QUERY_HANDLERS: RouteQueryHandlers = {
   verifyEmailInvalidLink: { type: 'error', key: 'loginView.verifyEmailInvalidLink' }
 } as const
 
-// ============================================================================
-// Composables & Store Initialization
-// ============================================================================
-
 const route = useRoute()
 const router = useRouter()
 const { locale, t } = useI18n()
 const authStore = useAuthStore()
 const serverSettingsStore = useServerSettingsStore()
-
-// ============================================================================
-// Modal Management
-// ============================================================================
 
 const forgotPasswordModalRef = ref<typeof ModalComponentEmailInput | null>(null)
 const {
@@ -233,10 +200,6 @@ const {
 } = useBootstrapModal()
 const forgotPasswordLoading = ref(false)
 
-// ============================================================================
-// Form State
-// ============================================================================
-
 const username = ref('')
 const password = ref('')
 const mfaCode = ref('')
@@ -245,26 +208,20 @@ const loading = ref(false)
 const pendingUsername = ref('')
 const showPassword = ref(false)
 
-// ============================================================================
-// SSO State
-// ============================================================================
-
 const ssoProviders = ref<SSOProvider[]>([])
 const loadingSSOProviders = ref(true)
 
-// ============================================================================
-// Computed Properties
-// ============================================================================
-
 /**
- * Shorthand for server settings
- * Reduces verbosity and improves reactivity tracking
+ * Computed reference to server settings from the store.
+ *
+ * @returns The current server settings object.
  */
 const serverSettings = computed(() => serverSettingsStore.serverSettings)
 
 /**
- * Compute the login photo URL from server settings
- * Returns custom photo from server if set, otherwise default image
+ * Computes the login photo URL based on server settings.
+ *
+ * @returns The URL of the custom login photo or default image.
  */
 const loginPhotoUrl = computed<string>(() =>
   serverSettings.value.login_photo_set
@@ -272,31 +229,28 @@ const loginPhotoUrl = computed<string>(() =>
     : defaultLoginImage
 )
 
-// ============================================================================
-// UI Interaction Handlers
-// ============================================================================
-
 /**
- * Show the forgot password modal
+ * Shows the forgot password modal.
+ *
+ * @returns void
  */
 const showForgotPasswordModal = (): void => {
   showForgotModal()
 }
 
 /**
- * Toggle password field visibility
+ * Toggles the visibility of the password field.
+ *
+ * @returns void
  */
 const togglePasswordVisibility = (): void => {
   showPassword.value = !showPassword.value
 }
 
-// ============================================================================
-// Authentication Logic
-// ============================================================================
-
 /**
- * Main form submission handler
- * Routes to either MFA verification or standard login based on state
+ * Handles form submission by routing to either standard login or MFA verification.
+ *
+ * @returns A promise that resolves when submission is complete.
  */
 const submitForm = async (): Promise<void> => {
   if (mfaRequired.value) {
@@ -307,8 +261,10 @@ const submitForm = async (): Promise<void> => {
 }
 
 /**
- * Handle standard username/password login
- * Initiates authentication and checks for MFA requirement
+ * Handles standard username/password login authentication.
+ *
+ * @returns A promise that resolves when login attempt is complete.
+ * @throws {ErrorWithResponse} When authentication fails.
  */
 const submitLogin = async (): Promise<void> => {
   // Create the form data
@@ -340,8 +296,10 @@ const submitLogin = async (): Promise<void> => {
 }
 
 /**
- * Handle Multi-Factor Authentication verification
- * Validates MFA code and completes login if successful
+ * Handles multi-factor authentication verification.
+ *
+ * @returns A promise that resolves when MFA verification is complete.
+ * @throws {ErrorWithResponse} When MFA verification fails.
  */
 const submitMFAVerification = async (): Promise<void> => {
   try {
@@ -366,10 +324,11 @@ const submitMFAVerification = async (): Promise<void> => {
 }
 
 /**
- * Complete the login process after successful authentication
- * Fetches user profile, updates auth store, and redirects to home
+ * Completes the login process after successful authentication.
  *
- * @param session_id - Session identifier from authentication response
+ * @param session_id - The session identifier from authentication response.
+ * @returns A promise that resolves when login completion and redirect are done.
+ * @throws {Error} When profile fetch or navigation fails.
  */
 const completeLogin = async (session_id: string): Promise<void> => {
   // Get logged user information
@@ -382,15 +341,11 @@ const completeLogin = async (session_id: string): Promise<void> => {
   await router.push('/')
 }
 
-// ============================================================================
-// Error Handling
-// ============================================================================
-
 /**
- * Handle login errors with appropriate user feedback
- * Maps HTTP status codes to localized error messages
+ * Handles login errors and displays appropriate user-friendly messages.
  *
- * @param error - Error object from authentication attempt
+ * @param error - The error object from authentication attempt.
+ * @returns void
  */
 const handleLoginError = (error: ErrorWithResponse): void => {
   const statusCode = extractStatusCode(error)
@@ -410,15 +365,12 @@ const handleLoginError = (error: ErrorWithResponse): void => {
   }
 }
 
-// ============================================================================
-// Password Reset Logic
-// ============================================================================
-
 /**
- * Handle forgot password form submission
- * Validates email and sends password reset request
+ * Handles forgot password form submission.
  *
- * @param email - User's email address for password reset
+ * @param email - The user's email address for password reset.
+ * @returns A promise that resolves when the reset request is complete.
+ * @throws {Error} When the password reset request fails.
  */
 const handleForgotPasswordSubmit = async (email: string): Promise<void> => {
   // Validate email input
@@ -449,16 +401,12 @@ const handleForgotPasswordSubmit = async (email: string): Promise<void> => {
   }
 }
 
-// ============================================================================
-// SSO Logic
-// ============================================================================
-
 /**
- * Fetch enabled SSO providers from the API
- * Loads public list of identity providers for display on login page
+ * Fetches enabled SSO providers from the API.
+ *
+ * @returns A promise that resolves when providers are fetched.
  */
 const fetchSSOProviders = async (): Promise<void> => {
-  // Only fetch if SSO is enabled
   if (!serverSettings.value.sso_enabled) {
     loadingSSOProviders.value = false
     return
@@ -467,7 +415,6 @@ const fetchSSOProviders = async (): Promise<void> => {
   try {
     ssoProviders.value = await identityProviders.getEnabledProviders()
   } catch (error) {
-    // Silent fail - login page should still work without SSO
     ssoProviders.value = []
   } finally {
     loadingSSOProviders.value = false
@@ -475,11 +422,10 @@ const fetchSSOProviders = async (): Promise<void> => {
 }
 
 /**
- * Check if a provider has a custom logo
- * Returns the logo path if available
+ * Gets the custom logo path for an SSO provider.
  *
- * @param iconName - Provider icon name
- * @returns Custom logo path or null
+ * @param iconName - The provider icon name.
+ * @returns The custom logo path or `null` if not available.
  */
 const getProviderCustomLogo = (iconName?: string): string | null => {
   if (!iconName) return null
@@ -489,26 +435,21 @@ const getProviderCustomLogo = (iconName?: string): string | null => {
 }
 
 /**
- * Handle SSO login button click
- * Redirects to SSO provider authorization page
+ * Initiates SSO login for the specified provider.
  *
- * @param slug - Provider slug identifier
+ * @param slug - The provider slug identifier.
+ * @returns void
  */
 const handleSSOLogin = (slug: string): void => {
   identityProviders.initiateLogin(slug)
 }
 
 /**
- * Check for SSO auto-redirect
- * Automatically redirects to SSO provider if:
- * - SSO is enabled
- * - Auto-redirect is enabled
- * - Exactly one provider is configured
- * - Local login is disabled
- * - No query parameters present (to avoid redirect loops)
+ * Checks if SSO auto-redirect should occur and redirects if conditions are met.
+ *
+ * @returns void
  */
 const checkSSOAutoRedirect = (): void => {
-  // Check all conditions for auto-redirect
   if (
     serverSettings.value.sso_enabled &&
     serverSettings.value.sso_auto_redirect &&
@@ -516,7 +457,6 @@ const checkSSOAutoRedirect = (): void => {
     ssoProviders.value.length === 1 &&
     Object.keys(route.query).length === 0
   ) {
-    // Auto-redirect to the single SSO provider
     const provider = ssoProviders.value[0]
     if (provider) {
       handleSSOLogin(provider.slug)
@@ -525,11 +465,11 @@ const checkSSOAutoRedirect = (): void => {
 }
 
 /**
- * Process SSO callback query parameters
- * Handles success and error states from SSO authentication
+ * Processes SSO callback query parameters and handles success or error states.
+ *
+ * @returns A promise that resolves when callback processing is complete.
  */
 const processSSOCallback = async (): Promise<void> => {
-  // Check for SSO success
   if (route.query.sso === 'success' && route.query.session_id) {
     push.success(t('loginView.ssoSuccess'))
 
@@ -541,7 +481,6 @@ const processSSOCallback = async (): Promise<void> => {
     }
   }
 
-  // Check for SSO error
   if (route.query.error) {
     const errorType = route.query.error as string
     switch (errorType) {
@@ -566,13 +505,10 @@ const processSSOCallback = async (): Promise<void> => {
   }
 }
 
-// ============================================================================
-// Route & Notification Handling
-// ============================================================================
-
 /**
- * Process route query parameters and display appropriate notifications
- * Checks for specific query parameters and shows corresponding messages
+ * Processes route query parameters and displays appropriate notifications.
+ *
+ * @returns A promise that resolves when all query parameters are processed.
  */
 const processRouteQueryParameters = async (): Promise<void> => {
   Object.entries(ROUTE_QUERY_HANDLERS).forEach(([param, config]) => {
@@ -581,35 +517,27 @@ const processRouteQueryParameters = async (): Promise<void> => {
     }
   })
 
-  // Process SSO-specific callbacks
   await processSSOCallback()
 }
 
-// ============================================================================
-// Lifecycle Hooks
-// ============================================================================
-
 /**
- * Component mounted lifecycle hook
- * Initializes modal, fetches SSO providers, and processes route parameters
+ * Lifecycle hook that runs when the component is mounted.
+ * Initializes modal, fetches SSO providers, processes route parameters, and checks for auto-redirect.
+ *
+ * @returns A promise that resolves when initialization is complete.
  */
 onMounted(async () => {
-  // Initialize forgot password modal
   await initializeModal(forgotPasswordModalRef)
-
-  // Fetch SSO providers if enabled
   await fetchSSOProviders()
-
-  // Process any route query parameters for notifications
   await processRouteQueryParameters()
-
-  // Check for SSO auto-redirect (must be after providers are fetched)
   checkSSOAutoRedirect()
 })
 
 /**
- * Component unmounted lifecycle hook
- * Cleanup modal resources
+ * Lifecycle hook that runs when the component is unmounted.
+ * Cleans up modal resources.
+ *
+ * @returns void
  */
 onUnmounted(() => {
   disposeModal()

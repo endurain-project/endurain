@@ -66,29 +66,12 @@
 </template>
 
 <script setup lang="ts">
-/**
- * ModalComponentSelectInput
- *
- * Reusable modal component for dropdown/select input with configurable action button types.
- * Follows the same structure and patterns as ModalComponent.vue.
- *
- * @component
- */
-
-// ============================================================================
-// Section 1: Imports
-// ============================================================================
-
 // Vue composition API
 import { ref, onMounted, onUnmounted, type PropType } from 'vue'
 // Composables
 import { useBootstrapModal } from '@/composables/useBootstrapModal'
 // Types
 import type { ActionButtonType } from '@/types'
-
-// ============================================================================
-// Section 2: Props & Emits
-// ============================================================================
 
 interface SelectOption {
   id: number
@@ -131,44 +114,19 @@ const emit = defineEmits<{
   optionToEmitAction: [value: number]
 }>()
 
-// ============================================================================
-// Section 3: Composables & Stores
-// ============================================================================
-
 const { initializeModal, disposeModal } = useBootstrapModal()
-
-// ============================================================================
-// Section 4: Reactive State
-// ============================================================================
 
 const modalRef = ref<HTMLDivElement | null>(null)
 const optionToEmit = ref(props.selectCurrentOption)
 
-// ============================================================================
-// Section 8: Main Logic
-// ============================================================================
-
-/**
- * Handle submit action and emit the selected option value
- */
 const submitAction = (): void => {
   emit('optionToEmitAction', optionToEmit.value)
 }
 
-// ============================================================================
-// Section 9: Lifecycle Hooks
-// ============================================================================
-
-/**
- * Initialize modal on mount
- */
 onMounted(async () => {
   await initializeModal(modalRef)
 })
 
-/**
- * Clean up modal on unmount
- */
 onUnmounted(() => {
   disposeModal()
 })

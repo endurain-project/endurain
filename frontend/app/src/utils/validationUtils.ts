@@ -1,14 +1,8 @@
 /**
- * Validation Utilities
+ * Validates an email address using RFC 5322 compliant regex.
  *
- * Common validation helpers for form inputs and data validation.
- */
-
-/**
- * Validate email format using RFC 5322 standard
- *
- * @param email - Email address to validate
- * @returns True if email is valid, false otherwise
+ * @param email - The email address to validate.
+ * @returns `true` if the email is valid, `false` otherwise.
  */
 export const isValidEmail = (email: string): boolean => {
   if (!email || typeof email !== 'string') {
@@ -21,42 +15,42 @@ export const isValidEmail = (email: string): boolean => {
 }
 
 /**
- * Validate that a string is not empty or only whitespace
+ * Checks if a string value is not empty after trimming whitespace.
  *
- * @param value - String to validate
- * @returns True if string has content, false otherwise
+ * @param value - The string to check.
+ * @returns `true` if the value is non-empty, `false` otherwise.
  */
 export const isNotEmpty = (value: string): boolean => {
   return typeof value === 'string' && value.trim().length > 0
 }
 
 /**
- * Validate minimum length for a string
+ * Checks if a string meets a minimum length requirement.
  *
- * @param value - String to validate
- * @param minLength - Minimum required length
- * @returns True if string meets minimum length, false otherwise
+ * @param value - The string to check.
+ * @param minLength - The minimum required length.
+ * @returns `true` if the value meets the minimum length, `false` otherwise.
  */
 export const hasMinLength = (value: string, minLength: number): boolean => {
   return typeof value === 'string' && value.length >= minLength
 }
 
 /**
- * Validate maximum length for a string
+ * Checks if a string does not exceed a maximum length.
  *
- * @param value - String to validate
- * @param maxLength - Maximum allowed length
- * @returns True if string is within max length, false otherwise
+ * @param value - The string to check.
+ * @param maxLength - The maximum allowed length.
+ * @returns `true` if the value is within the maximum length, `false` otherwise.
  */
 export const hasMaxLength = (value: string, maxLength: number): boolean => {
   return typeof value === 'string' && value.length <= maxLength
 }
 
 /**
- * Validate MFA code format (typically 6 digits)
+ * Validates a multi-factor authentication code.
  *
- * @param code - MFA code to validate
- * @returns True if code is valid format, false otherwise
+ * @param code - The MFA code to validate.
+ * @returns `true` if the code is valid (4-8 digits), `false` otherwise.
  */
 export const isValidMFACode = (code: string): boolean => {
   if (!code || typeof code !== 'string') {
@@ -68,10 +62,10 @@ export const isValidMFACode = (code: string): boolean => {
 }
 
 /**
- * Sanitize input string by trimming whitespace and removing potentially harmful characters
+ * Sanitizes user input by trimming whitespace.
  *
- * @param input - String to sanitize
- * @returns Sanitized string
+ * @param input - The input string to sanitize.
+ * @returns The trimmed string, or empty string if input is not a string.
  */
 export const sanitizeInput = (input: string): string => {
   if (typeof input !== 'string') {
@@ -80,67 +74,55 @@ export const sanitizeInput = (input: string): string => {
   return input.trim()
 }
 
-// ============================================================================
-// Password Validation
-// ============================================================================
-
 /**
- * Password validation requirements interface
- * @interface PasswordRequirements
+ * Defines password validation requirements.
+ *
+ * @property minLength - Minimum password length.
+ * @property requireUppercase - Whether uppercase letters are required.
+ * @property requireLowercase - Whether lowercase letters are required.
+ * @property requireDigit - Whether digits are required.
+ * @property requireSpecialChar - Whether special characters are required.
  */
 export interface PasswordRequirements {
-  /** Minimum password length */
   minLength: number
-  /** Requires at least one uppercase letter */
   requireUppercase: boolean
-  /** Requires at least one lowercase letter */
   requireLowercase: boolean
-  /** Requires at least one digit */
   requireDigit: boolean
-  /** Requires at least one special character */
   requireSpecialChar: boolean
 }
 
 /**
- * Password strength analysis result
- * @interface PasswordStrength
+ * Describes password strength assessment results.
+ *
+ * @property isValid - Whether the password meets all requirements.
+ * @property score - Numeric strength score.
+ * @property failures - List of failed validation criteria.
+ * @property strengthLevel - Overall strength level classification.
  */
 export interface PasswordStrength {
-  /** Whether password meets all requirements */
   isValid: boolean
-  /** Overall strength score (0-100) */
   score: number
-  /** Specific requirement failures */
   failures: string[]
-  /** Descriptive strength level */
   strengthLevel: 'weak' | 'fair' | 'good' | 'strong' | 'very-strong'
 }
 
 /**
- * Default password requirements matching backend validation
- * Requirements: min 8 chars, 1 uppercase, 1 digit, 1 special character
+ * Default password validation requirements for the application.
  */
 export const DEFAULT_PASSWORD_REQUIREMENTS: PasswordRequirements = {
   minLength: 8,
   requireUppercase: true,
-  requireLowercase: false, // Not explicitly required but usually present
+  requireLowercase: true,
   requireDigit: true,
   requireSpecialChar: true
 }
 
 /**
- * Validate password against standard requirements
- * Default requirements: min 8 chars, 1 uppercase, 1 digit, 1 special character
+ * Validates a password against specified requirements.
  *
- * @param password - Password to validate
- * @param requirements - Optional custom requirements (defaults to standard)
- * @returns True if password meets requirements, false otherwise
- *
- * @example
- * ```typescript
- * isValidPassword('MyPass123!') // true
- * isValidPassword('weakpass') // false - no uppercase, digit, or special char
- * ```
+ * @param password - The password to validate.
+ * @param requirements - The password requirements to check against.
+ * @returns `true` if the password meets all requirements, `false` otherwise.
  */
 export const isValidPassword = (
   password: string,
@@ -180,17 +162,11 @@ export const isValidPassword = (
 }
 
 /**
- * Validate that two passwords match (for confirmation fields)
+ * Checks if two password strings match exactly.
  *
- * @param password - Original password
- * @param confirmPassword - Confirmation password
- * @returns True if passwords match, false otherwise
- *
- * @example
- * ```typescript
- * passwordsMatch('MyPass123!', 'MyPass123!') // true
- * passwordsMatch('MyPass123!', 'DifferentPass') // false
- * ```
+ * @param password - The original password.
+ * @param confirmPassword - The confirmation password.
+ * @returns `true` if both passwords match, `false` otherwise.
  */
 export const passwordsMatch = (password: string, confirmPassword: string): boolean => {
   return (

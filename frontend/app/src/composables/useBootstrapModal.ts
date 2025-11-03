@@ -1,48 +1,33 @@
-/**
- * Bootstrap Modal Composable
- *
- * Provides a type-safe wrapper for Bootstrap Modal component lifecycle management.
- * Handles initialization, show/hide operations, and cleanup.
- *
- * @example
- * ```typescript
- * const { modalInstance, initializeModal, showModal, hideModal } = useBootstrapModal()
- *
- * // In component setup
- * const modalRef = ref(null)
- * await initializeModal(modalRef)
- *
- * // Show/hide modal
- * showModal()
- * hideModal()
- * ```
- */
-
 import { ref, nextTick, type Ref } from 'vue'
 import { Modal } from 'bootstrap'
 
 /**
- * Modal instance reference type
+ * Type representing a Bootstrap Modal instance or null.
  */
 export type BootstrapModalInstance = Modal | null
 
 /**
- * Bootstrap Modal composable hook
+ * Composable for managing Bootstrap 5 modal lifecycle and cleanup.
  *
- * @returns Modal management functions and state
+ * @returns Object containing modal instance, initialization state, and control methods.
+ *
+ * @remarks
+ * Provides centralized modal management with proper cleanup of Bootstrap's
+ * body styles and backdrops when modals are closed.
  */
 export function useBootstrapModal() {
   const modalInstance: Ref<BootstrapModalInstance> = ref(null)
   const isInitialized: Ref<boolean> = ref(false)
 
   /**
-   * Initialize the Bootstrap Modal instance
+   * Initializes the Bootstrap modal instance from a Vue ref.
    *
-   * Supports both component refs (with $el property) and template refs (direct DOM elements)
+   * @param modalRef - Vue ref containing the modal element or component.
+   * @returns Promise that resolves when initialization is complete.
    *
-   * @param modalRef - Vue ref containing either a component instance or HTMLElement
-   * @returns Promise that resolves when modal is initialized
-   * @throws Error if modal element is not found or initialization fails
+   * @remarks
+   * Handles both component refs (`modalRef.value.$el`) and template refs (`modalRef.value`).
+   * Sets up automatic cleanup on modal hide event.
    */
   const initializeModal = async (modalRef: Ref<any>): Promise<void> => {
     await nextTick()
@@ -70,7 +55,11 @@ export function useBootstrapModal() {
   }
 
   /**
-   * Clean up body styles and attributes left by Bootstrap
+   * Cleans up Bootstrap-applied body styles and backdrops.
+   *
+   * @remarks
+   * Only performs cleanup if no other modals are currently open.
+   * Removes modal-related classes, inline styles, and any remaining backdrop elements.
    */
   const cleanupBodyStyles = (): void => {
     // Check if any other modals are still open
@@ -90,9 +79,10 @@ export function useBootstrapModal() {
   }
 
   /**
-   * Show the modal
+   * Shows the modal.
    *
-   * @throws Error if modal is not initialized
+   * @remarks
+   * Logs a warning if the modal is not initialized.
    */
   const showModal = (): void => {
     if (!isInitialized.value || !modalInstance.value) {
@@ -103,9 +93,11 @@ export function useBootstrapModal() {
   }
 
   /**
-   * Hide the modal and clean up backdrop
+   * Hides the modal.
    *
-   * @throws Error if modal is not initialized
+   * @remarks
+   * Logs a warning if the modal is not initialized.
+   * Cleanup is automatically handled by the `hidden.bs.modal` event listener.
    */
   const hideModal = (): void => {
     if (!isInitialized.value || !modalInstance.value) {
@@ -117,7 +109,11 @@ export function useBootstrapModal() {
   }
 
   /**
-   * Dispose of the modal instance and clean up resources
+   * Disposes of the modal instance and performs cleanup.
+   *
+   * @remarks
+   * Calls Bootstrap's `dispose()` method, cleans up body styles,
+   * and resets the modal instance and initialization state.
    */
   const disposeModal = (): void => {
     if (modalInstance.value) {

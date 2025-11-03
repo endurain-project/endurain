@@ -1,10 +1,3 @@
-/**
- * Gear Avatar Constants
- *
- * Centralized constants for gear type avatar images.
- * Maps gear types to their corresponding avatar images.
- */
-
 import bicycle1 from '@/assets/avatar/bicycle1.png'
 import runningShoe1 from '@/assets/avatar/running_shoe1.png'
 import wetsuit1 from '@/assets/avatar/wetsuit1.png'
@@ -15,8 +8,18 @@ import windsurf1 from '@/assets/avatar/windsurf1.png'
 import waterSportsBoard1 from '@/assets/avatar/waterSportsBoard1.png'
 
 /**
- * Gear type avatar mapping
- * Maps gear type IDs to their avatar image paths
+ * Maps gear type IDs to their corresponding avatar image paths.
+ *
+ * @remarks
+ * The mapping includes:
+ * - 1: Bicycle
+ * - 2: Running shoe
+ * - 3: Wetsuit
+ * - 4: Racquet
+ * - 5: Skis
+ * - 6: Snowboard
+ * - 7: Windsurf
+ * - 8: Water sports board
  */
 export const GEAR_AVATAR_MAP: Record<number, string> = {
     1: bicycle1,
@@ -30,9 +33,10 @@ export const GEAR_AVATAR_MAP: Record<number, string> = {
 } as const
 
 /**
- * Get avatar image for a specific gear type
- * @param gearType - The gear type ID (1-8)
- * @returns The avatar image path
+ * Retrieves the avatar image path for a given gear type.
+ *
+ * @param gearType - The numeric identifier for the gear type.
+ * @returns The image path for the specified gear type, or the default bicycle avatar if not found.
  */
 export function getGearAvatar(gearType: number): string {
     return GEAR_AVATAR_MAP[gearType] ?? bicycle1

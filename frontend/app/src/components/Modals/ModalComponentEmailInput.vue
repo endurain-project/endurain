@@ -74,25 +74,6 @@
 </template>
 
 <script setup lang="ts">
-/**
- * ModalComponentEmailInput
- *
- * Reusable modal component for email input with RFC 5322 compliant validation.
- * Follows the same structure and patterns as ModalComponent.vue.
- *
- * Features:
- * - Real-time email validation feedback
- * - Loading state support
- * - Input sanitization
- * - Customizable button types (success, danger, warning, primary)
- *
- * @component
- */
-
-// ============================================================================
-// Section 1: Imports
-// ============================================================================
-
 // Vue composition API
 import { ref, computed, onMounted, onUnmounted, type PropType } from 'vue'
 // Composables
@@ -101,10 +82,6 @@ import { useBootstrapModal } from '@/composables/useBootstrapModal'
 import type { ActionButtonType } from '@/types'
 // Utils
 import { isValidEmail, sanitizeInput } from '@/utils/validationUtils'
-
-// ============================================================================
-// Section 2: Props & Emits
-// ============================================================================
 
 const props = withDefaults(
   defineProps<{
@@ -136,27 +113,11 @@ const emit = defineEmits<{
   emailToEmitAction: [email: string]
 }>()
 
-// ============================================================================
-// Section 3: Composables & Stores
-// ============================================================================
-
 const { initializeModal, disposeModal } = useBootstrapModal()
-
-// ============================================================================
-// Section 4: Reactive State
-// ============================================================================
 
 const modalRef = ref<HTMLDivElement | null>(null)
 const emailToEmit = ref(props.emailDefaultValue)
 
-// ============================================================================
-// Section 5: Computed Properties
-// ============================================================================
-
-/**
- * Validate email format using RFC 5322 compliant validation
- * Returns true if email is valid or empty (to avoid showing error on load)
- */
 const isEmailValid = computed(() => {
   // Don't show validation error for empty input
   if (!emailToEmit.value) return true
@@ -164,15 +125,6 @@ const isEmailValid = computed(() => {
   return isValidEmail(emailToEmit.value)
 })
 
-// ============================================================================
-// Section 8: Main Logic
-// ============================================================================
-
-/**
- * Handle form submission
- * Validates and sanitizes email before emitting to parent
- * Only emits if email is non-empty and valid
- */
 const submitAction = (): void => {
   if (!emailToEmit.value) return
 
@@ -185,20 +137,10 @@ const submitAction = (): void => {
   }
 }
 
-// ============================================================================
-// Section 9: Lifecycle Hooks
-// ============================================================================
-
-/**
- * Initialize modal on mount
- */
 onMounted(async () => {
   await initializeModal(modalRef)
 })
 
-/**
- * Clean up modal on unmount
- */
 onUnmounted(() => {
   disposeModal()
 })

@@ -65,29 +65,12 @@
 </template>
 
 <script setup lang="ts">
-/**
- * ModalComponentNumberInput
- *
- * Reusable modal component for numeric input with configurable action button types.
- * Follows the same structure and patterns as ModalComponent.vue.
- *
- * @component
- */
-
-// ============================================================================
-// Section 1: Imports
-// ============================================================================
-
 // Vue composition API
 import { ref, onMounted, onUnmounted, computed, type PropType } from 'vue'
 // Composables
 import { useBootstrapModal } from '@/composables/useBootstrapModal'
 // Types
 import type { ActionButtonType } from '@/types'
-
-// ============================================================================
-// Section 2: Props & Emits
-// ============================================================================
 
 const props = defineProps({
   modalId: {
@@ -121,55 +104,23 @@ const emit = defineEmits<{
   numberToEmitAction: [value: number]
 }>()
 
-// ============================================================================
-// Section 3: Composables & Stores
-// ============================================================================
-
 const { initializeModal, disposeModal } = useBootstrapModal()
-
-// ============================================================================
-// Section 4: Reactive State
-// ============================================================================
 
 const modalRef = ref<HTMLDivElement | null>(null)
 const numberToEmit = ref<number | null>(props.numberDefaultValue)
 
-// ============================================================================
-// Section 7: Validation Logic
-// ============================================================================
-
-/**
- * Check if the input has a valid numeric value
- */
 const isValid = computed(() => numberToEmit.value !== null && numberToEmit.value !== undefined)
 
-// ============================================================================
-// Section 8: Main Logic
-// ============================================================================
-
-/**
- * Handle submit action and emit the numeric value
- */
 const submitAction = (): void => {
   if (isValid.value && numberToEmit.value !== null && numberToEmit.value !== undefined) {
     emit('numberToEmitAction', numberToEmit.value)
   }
 }
 
-// ============================================================================
-// Section 9: Lifecycle Hooks
-// ============================================================================
-
-/**
- * Initialize modal on mount
- */
 onMounted(async () => {
   await initializeModal(modalRef)
 })
 
-/**
- * Clean up modal on unmount
- */
 onUnmounted(() => {
   disposeModal()
 })

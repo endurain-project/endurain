@@ -65,29 +65,12 @@
 </template>
 
 <script setup lang="ts">
-/**
- * ModalComponentUploadFile
- *
- * Reusable modal component for file upload with configurable accepted file types.
- * Follows the same structure and patterns as ModalComponent.vue.
- *
- * @component
- */
-
-// ============================================================================
-// Section 1: Imports
-// ============================================================================
-
 // Vue composition API
 import { ref, onMounted, onUnmounted, type PropType } from 'vue'
 // Composables
 import { useBootstrapModal } from '@/composables/useBootstrapModal'
 // Types
 import type { ActionButtonType } from '@/types'
-
-// ============================================================================
-// Section 2: Props & Emits
-// ============================================================================
 
 const props = defineProps({
   modalId: {
@@ -121,27 +104,12 @@ const emit = defineEmits<{
   fileToEmitAction: [file: File]
 }>()
 
-// ============================================================================
-// Section 3: Composables & Stores
-// ============================================================================
-
 const { initializeModal, disposeModal } = useBootstrapModal()
-
-// ============================================================================
-// Section 4: Reactive State
-// ============================================================================
 
 const modalRef = ref<HTMLDivElement | null>(null)
 const fileInputRef = ref<HTMLInputElement | null>(null)
 const selectedFile = ref<File | null>(null)
 
-// ============================================================================
-// Section 6: UI Interaction Handlers
-// ============================================================================
-
-/**
- * Handle file input change event
- */
 const handleFileChange = (event: Event): void => {
   const target = event.target as HTMLInputElement
   const file = target.files?.[0]
@@ -150,14 +118,6 @@ const handleFileChange = (event: Event): void => {
   }
 }
 
-// ============================================================================
-// Section 8: Main Logic
-// ============================================================================
-
-/**
- * Handle submit action and emit the selected file
- * Clears the file input after emission
- */
 const submitAction = (): void => {
   if (selectedFile.value) {
     emit('fileToEmitAction', selectedFile.value)
@@ -170,20 +130,10 @@ const submitAction = (): void => {
   }
 }
 
-// ============================================================================
-// Section 9: Lifecycle Hooks
-// ============================================================================
-
-/**
- * Initialize modal on mount
- */
 onMounted(async () => {
   await initializeModal(modalRef)
 })
 
-/**
- * Clean up modal on unmount
- */
 onUnmounted(() => {
   disposeModal()
 })

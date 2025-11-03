@@ -1,12 +1,8 @@
 /**
- * HTTP Status Codes and Error Handling Utilities
+ * Standard HTTP status codes used throughout the application.
  *
- * Centralized constants and utilities for HTTP status codes and error handling
- * across the Endurain application.
- */
-
-/**
- * Common HTTP status codes used throughout the application
+ * @remarks
+ * Includes common success (2xx), client error (4xx), and server error (5xx) status codes.
  */
 export const HTTP_STATUS = {
   OK: 200,
@@ -22,20 +18,27 @@ export const HTTP_STATUS = {
 } as const
 
 /**
- * Type for HTTP status code values
+ * Type representing valid HTTP status code values from the `HTTP_STATUS` constant.
  */
 export type HttpStatusCode = (typeof HTTP_STATUS)[keyof typeof HTTP_STATUS]
 
 /**
- * Common query parameter constant for boolean 'true' values
+ * Constant string value for boolean query parameters.
+ *
+ * @remarks
+ * Use this for URL query parameters that represent `true` values.
  */
 export const QUERY_PARAM_TRUE = 'true' as const
 
 /**
- * Extract status code from error response or error string
+ * Extracts the HTTP status code from an error object.
  *
- * @param error - Error object that may contain a response with status code
- * @returns The extracted status code or null if not found
+ * @param error - The error object to extract the status code from.
+ * @returns The HTTP status code if found, or `null` if not extractable.
+ *
+ * @remarks
+ * First attempts to extract from `error.response.status`, then falls back to
+ * pattern matching common status codes in the error string.
  */
 export const extractStatusCode = (error: unknown): number | null => {
   // Try to get status from response object
@@ -59,21 +62,30 @@ export const extractStatusCode = (error: unknown): number | null => {
 }
 
 /**
- * Check if status code is a client error (4xx)
+ * Checks if the status code represents a client error (4xx).
+ *
+ * @param statusCode - The HTTP status code to check.
+ * @returns `true` if the status code is between 400 and 499, `false` otherwise.
  */
 export const isClientError = (statusCode: number): boolean => {
   return statusCode >= 400 && statusCode < 500
 }
 
 /**
- * Check if status code is a server error (5xx)
+ * Checks if the status code represents a server error (5xx).
+ *
+ * @param statusCode - The HTTP status code to check.
+ * @returns `true` if the status code is between 500 and 599, `false` otherwise.
  */
 export const isServerError = (statusCode: number): boolean => {
   return statusCode >= 500 && statusCode < 600
 }
 
 /**
- * Check if status code is successful (2xx)
+ * Checks if the status code represents a successful response (2xx).
+ *
+ * @param statusCode - The HTTP status code to check.
+ * @returns `true` if the status code is between 200 and 299, `false` otherwise.
  */
 export const isSuccessStatus = (statusCode: number): boolean => {
   return statusCode >= 200 && statusCode < 300

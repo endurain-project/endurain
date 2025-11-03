@@ -1,17 +1,15 @@
-/**
- * User Avatar Constants
- *
- * Centralized constants for user avatar images by gender.
- * Maps gender types to their corresponding default avatar images.
- */
-
 import maleAvatar from '@/assets/avatar/male1.png'
 import femaleAvatar from '@/assets/avatar/female1.png'
 import unspecifiedAvatar from '@/assets/avatar/unspecified1.png'
 
 /**
- * User avatar mapping by gender
- * Maps gender IDs to their default avatar image paths
+ * Maps gender identifiers to their corresponding default avatar image paths.
+ *
+ * @remarks
+ * Gender mappings:
+ * - **1**: Male avatar
+ * - **2**: Female avatar
+ * - **3**: Unspecified/neutral avatar
  */
 export const USER_AVATAR_MAP: Record<number, string> = {
     1: maleAvatar,
@@ -20,9 +18,14 @@ export const USER_AVATAR_MAP: Record<number, string> = {
 } as const
 
 /**
- * Get default avatar image for a specific gender
- * @param gender - The gender ID (1=male, 2=female, 3=unspecified)
- * @returns The default avatar image path
+ * Retrieves the default avatar image path for a given gender.
+ *
+ * @param gender - The numeric gender identifier (1-3). Optional.
+ * @returns The avatar image path corresponding to the gender, or the male avatar as default.
+ *
+ * @remarks
+ * Returns male avatar if gender is undefined, null, or out of range (< 1 or > 3).
+ * Falls back to unspecified avatar if the gender value is not found in the map.
  */
 export function getUserDefaultAvatar(gender?: number): string {
     if (!gender || gender < 1 || gender > 3) {

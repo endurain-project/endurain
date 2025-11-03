@@ -294,20 +294,11 @@
 
 <script setup lang="ts">
 /**
- * @fileoverview SignUpView Component
- *
- * User registration view with comprehensive form validation and optional profile fields.
+ * User registration view with form validation and optional profile fields.
  * Handles user signup with required and optional information including personal details,
  * preferences, and physical attributes. Supports both metric and imperial unit systems.
- *
- * @component
- * @example
- * <SignUpView />
  */
 
-// ============================================================================
-// Imports
-// ============================================================================
 import { ref, computed, onMounted, type Ref, type ComputedRef } from 'vue'
 import { useRouter, type Router } from 'vue-router'
 import { useI18n } from 'vue-i18n'
@@ -320,186 +311,170 @@ import { HTTP_STATUS, QUERY_PARAM_TRUE, extractStatusCode } from '@/constants/ht
 import type { ErrorWithResponse } from '@/types'
 import defaultLoginImage from '@/assets/login.png'
 
-// ============================================================================
-// Interfaces
-// ============================================================================
-
 /**
- * User signup request data structure
- * @interface SignUpRequestData
+ * User signup request data structure.
+ *
+ * @property name - User's full name.
+ * @property username - Unique username (lowercase).
+ * @property email - User's email address (lowercase).
+ * @property password - User's password.
+ * @property preferred_language - Preferred language code (e.g., 'us', 'pt', 'es').
+ * @property city - User's city of residence.
+ * @property birthdate - User's birth date in ISO format.
+ * @property gender - Gender identifier (1=male, 2=female, 3=unspecified).
+ * @property units - Unit system preference (1=metric, 2=imperial).
+ * @property height - User's height in centimeters.
+ * @property first_day_of_week - First day of week (0=Sunday, 1=Monday, etc.).
+ * @property currency - Currency preference (1=Euro, 2=Dollar, 3=Pound).
  */
 interface SignUpRequestData {
-  /** User's full name */
   name: string
-  /** Unique username (lowercase) */
   username: string
-  /** User's email address (lowercase) */
   email: string
-  /** User's password */
   password: string
-  /** Preferred language code (e.g., 'us', 'pt', 'es') */
   preferred_language: string
-  /** User's city of residence */
   city: string | null
-  /** User's birth date in ISO format */
   birthdate: string | null
-  /** Gender identifier (1=male, 2=female, 3=unspecified) */
   gender: number
-  /** Unit system preference (1=metric, 2=imperial) */
   units: number
-  /** User's height in centimeters */
   height: number | null
-  /** First day of week (0=Sunday, 1=Monday, etc.) */
   first_day_of_week: number
-  /** Currency preference (1=Euro, 2=Dollar, 3=Pound) */
   currency: number
 }
 
 /**
- * Signup API response structure
- * @interface SignUpResponse
+ * Signup API response structure.
+ *
+ * @property email_verification_required - Whether email verification is required.
+ * @property admin_approval_required - Whether admin approval is required.
  */
 interface SignUpResponse {
-  /** Whether email verification is required */
   email_verification_required: boolean
-  /** Whether admin approval is required */
   admin_approval_required: boolean
 }
 
 /**
- * Login route query parameters for post-signup redirect
- * @interface LoginQueryParams
+ * Login route query parameters for post-signup redirect.
+ *
+ * @property emailVerificationSent - Email verification status flag.
+ * @property adminApprovalRequired - Admin approval status flag.
  */
 interface LoginQueryParams {
-  /** Email verification status flag */
   emailVerificationSent?: string
-  /** Admin approval status flag */
   adminApprovalRequired?: string
-  /** Index signature for Vue Router compatibility */
   [key: string]: string | undefined
 }
 
-// ============================================================================
-// Composables & Stores
-// ============================================================================
 const router: Router = useRouter()
 const { t } = useI18n()
 const serverSettingsStore = useServerSettingsStore()
 
-// ============================================================================
-// Reactive State - Form Data
-// ============================================================================
+/** Loading state during form submission. */
+const isLoading = ref(false)
 
-/** Loading state during form submission */
-const isLoading: Ref<boolean> = ref(false)
+/** User's full name. */
+const signUpName = ref('')
 
-/** User's full name */
-const signUpName: Ref<string> = ref('')
+/** User's username. */
+const signUpUsername = ref('')
 
-/** User's username */
-const signUpUsername: Ref<string> = ref('')
+/** User's email address. */
+const signUpEmail = ref('')
 
-/** User's email address */
-const signUpEmail: Ref<string> = ref('')
+/** User's password. */
+const signUpPassword = ref('')
 
-/** User's password */
-const signUpPassword: Ref<string> = ref('')
+/** User's preferred language. */
+const signUpPreferredLanguage = ref('us')
 
-/** User's preferred language */
-const signUpPreferredLanguage: Ref<string> = ref('us')
+/** User's city. */
+const signUpCity = ref('')
 
-/** User's city */
-const signUpCity: Ref<string> = ref('')
+/** User's birth date. */
+const signUpBirthdate = ref('')
 
-/** User's birth date */
-const signUpBirthdate: Ref<string> = ref('')
+/** User's gender (1=male, 2=female, 3=unspecified). */
+const signUpGender = ref(1)
 
-/** User's gender (1=male, 2=female, 3=unspecified) */
-const signUpGender: Ref<number> = ref(1)
+/** User's unit preference (1=metric, 2=imperial). */
+const signUpUnits = ref(Number(serverSettingsStore.serverSettings.units))
 
-/** User's unit preference (1=metric, 2=imperial) */
-const signUpUnits: Ref<number> = ref(Number(serverSettingsStore.serverSettings.units))
+/** User's height in centimeters. */
+const signUpHeightCms = ref<number | null>(null)
 
-/** User's height in centimeters */
-const signUpHeightCms: Ref<number | null> = ref(null)
+/** User's height in feet (imperial). */
+const signUpHeightFeet = ref<number | null>(null)
 
-/** User's height in feet (imperial) */
-const signUpHeightFeet: Ref<number | null> = ref(null)
+/** User's height in inches (imperial). */
+const signUpHeightInches = ref<number | null>(null)
 
-/** User's height in inches (imperial) */
-const signUpHeightInches: Ref<number | null> = ref(null)
+/** First day of week preference (0=Sunday, 1=Monday, etc.). */
+const signUpFirstDayOfWeek = ref(1)
 
-/** First day of week preference (0=Sunday, 1=Monday, etc.) */
-const signUpFirstDayOfWeek: Ref<number> = ref(1)
+/** Currency preference (1=Euro, 2=Dollar, 3=Pound). */
+const signUpCurrency = ref(Number(serverSettingsStore.serverSettings.currency))
 
-/** Currency preference (1=Euro, 2=Dollar, 3=Pound) */
-const signUpCurrency: Ref<number> = ref(Number(serverSettingsStore.serverSettings.currency))
+/** Password visibility toggle state. */
+const showPassword = ref(false)
 
-// ============================================================================
-// Reactive State - UI State
-// ============================================================================
-
-/** Password visibility toggle state */
-const showPassword: Ref<boolean> = ref(false)
-
-/** Optional fields section visibility state */
-const showOptionalFields: Ref<boolean> = ref(false)
-
-// ============================================================================
-// Computed Properties - Validation
-// ============================================================================
+/** Optional fields section visibility state. */
+const showOptionalFields = ref(false)
 
 /**
- * Validates feet input for imperial height
- * Range: 0-10 feet
+ * Validates feet input for imperial height.
+ *
+ * @returns `true` if feet value is between 0 and 10, or `null`.
  */
-const isFeetValid: ComputedRef<boolean> = computed(() => {
+const isFeetValid = computed(() => {
   if (signUpHeightFeet.value === null) return true
   return signUpHeightFeet.value >= 0 && signUpHeightFeet.value <= 10
 })
 
 /**
- * Validates inches input for imperial height
- * Range: 0-11 inches
+ * Validates inches input for imperial height.
+ *
+ * @returns `true` if inches value is between 0 and 11, or `null`.
  */
-const isInchesValid: ComputedRef<boolean> = computed(() => {
+const isInchesValid = computed(() => {
   if (signUpHeightInches.value === null) return true
   return signUpHeightInches.value >= 0 && signUpHeightInches.value <= 11
 })
 
 /**
- * Validates email format using RFC 5322 compliant regex
+ * Validates email format using RFC 5322 compliant regex.
+ *
+ * @returns `true` if email is valid or empty.
  */
-const isEmailValid: ComputedRef<boolean> = computed(() => {
+const isEmailValid = computed(() => {
   if (!signUpEmail.value) return true
   return isValidEmail(signUpEmail.value)
 })
 
 /**
- * Validates password strength using centralized validation
- * Requirements: min 8 chars, 1 uppercase, 1 digit, 1 special character
+ * Validates password strength using centralized validation.
+ *
+ * @returns `true` if password meets requirements (min 8 chars, 1 uppercase, 1 digit, 1 special character) or is empty.
  */
-const isPasswordValid: ComputedRef<boolean> = computed(() => {
+const isPasswordValid = computed(() => {
   if (!signUpPassword.value) return true
   return isValidPassword(signUpPassword.value)
 })
 
 /**
- * Compute the login photo URL from server settings
- * Returns custom photo from server if set, otherwise default image
+ * Computes the login photo URL from server settings.
+ *
+ * @returns Custom photo URL from server if set, otherwise default image.
  */
-const loginPhotoUrl: ComputedRef<string> = computed(() => {
+const loginPhotoUrl = computed(() => {
   return serverSettingsStore.serverSettings.login_photo_set
     ? `${window.env.ENDURAIN_HOST}/server_images/login.png`
     : defaultLoginImage
 })
 
-// ============================================================================
-// Methods - UI Interactions
-// ============================================================================
-
 /**
- * Toggles password visibility between plain text and masked
+ * Toggles password visibility between plain text and masked.
+ *
+ * @returns void
  */
 const togglePasswordVisibility = (): void => {
   showPassword.value = !showPassword.value
@@ -510,11 +485,11 @@ const togglePasswordVisibility = (): void => {
 // ============================================================================
 
 /**
- * Handles form submission for user signup
- * Converts height units, sanitizes inputs, submits data, and redirects on success
+ * Handles form submission for user signup.
+ * Converts height units, sanitizes inputs, submits data, and redirects on success.
  *
- * @async
- * @throws {Error} When signup fails or validation errors occur
+ * @returns A promise that resolves when signup is complete.
+ * @throws {ErrorWithResponse} When signup fails or validation errors occur.
  */
 const submitForm = async (): Promise<void> => {
   // Convert height units based on server settings
@@ -574,9 +549,10 @@ const submitForm = async (): Promise<void> => {
 }
 
 /**
- * Handles signup errors and displays appropriate error messages
+ * Handles signup errors and displays appropriate error messages.
  *
- * @param {ErrorWithResponse} error - Error object with response data
+ * @param error - Error object with response data.
+ * @returns void
  */
 const handleSignUpError = (error: ErrorWithResponse): void => {
   const statusCode = extractStatusCode(error)
@@ -601,8 +577,10 @@ const handleSignUpError = (error: ErrorWithResponse): void => {
 // ============================================================================
 
 /**
- * Component mounted lifecycle hook
- * Checks if signup is enabled and redirects to login if disabled
+ * Component mounted lifecycle hook.
+ * Checks if signup is enabled and redirects to login if disabled.
+ *
+ * @returns void
  */
 onMounted(() => {
   if (!serverSettingsStore.serverSettings.signup_enabled) {

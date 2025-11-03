@@ -52,25 +52,12 @@
 </template>
 
 <script setup lang="ts">
-/**
- * ModalComponent
- *
- * Generic reusable modal component with configurable action button types.
- * Supports custom actions with optional value emission.
- *
- * @component
- */
-
 // Vue composition API
 import { ref, onMounted, onUnmounted, type PropType } from 'vue'
 // Composables
 import { useBootstrapModal } from '@/composables/useBootstrapModal'
 // Types
 import type { ActionButtonType } from '@/types'
-
-// ============================================================================
-// Props & Emits
-// ============================================================================
 
 const props = defineProps({
   modalId: {
@@ -108,25 +95,10 @@ const emit = defineEmits<{
   submitAction: [value: number | string | boolean | null]
 }>()
 
-// ============================================================================
-// Composables & State
-// ============================================================================
-
 const { initializeModal, disposeModal } = useBootstrapModal()
-
-// ============================================================================
-// Reactive State
-// ============================================================================
 
 const modalRef = ref<HTMLDivElement | null>(null)
 
-// ============================================================================
-// Main Logic
-// ============================================================================
-
-/**
- * Handle submit action and emit appropriate value
- */
 const submitAction = (): void => {
   if (props.emitValue) {
     emit('submitAction', props.valueToEmit)
@@ -135,20 +107,10 @@ const submitAction = (): void => {
   }
 }
 
-// ============================================================================
-// Lifecycle Hooks
-// ============================================================================
-
-/**
- * Initialize modal on mount
- */
 onMounted(async () => {
   await initializeModal(modalRef)
 })
 
-/**
- * Clean up modal on unmount
- */
 onUnmounted(() => {
   disposeModal()
 })

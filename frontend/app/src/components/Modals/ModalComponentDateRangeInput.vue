@@ -75,29 +75,12 @@
 </template>
 
 <script setup lang="ts">
-/**
- * ModalComponentDateRangeInput
- *
- * Reusable modal component for selecting a date range with start and end dates.
- * Defaults to last 7 days when mounted. Follows the same structure and patterns as ModalComponent.vue.
- *
- * @component
- */
-
-// ============================================================================
-// Section 1: Imports
-// ============================================================================
-
 // Vue composition API
 import { ref, onMounted, onUnmounted, type PropType } from 'vue'
 // Composables
 import { useBootstrapModal } from '@/composables/useBootstrapModal'
 // Types
 import type { ActionButtonType } from '@/types'
-
-// ============================================================================
-// Section 2: Props & Emits
-// ============================================================================
 
 interface DateRange {
   startDate: string
@@ -128,27 +111,12 @@ const emit = defineEmits<{
   datesToEmitAction: [dateRange: DateRange]
 }>()
 
-// ============================================================================
-// Section 3: Composables & Stores
-// ============================================================================
-
 const { initializeModal, disposeModal } = useBootstrapModal()
-
-// ============================================================================
-// Section 4: Reactive State
-// ============================================================================
 
 const modalRef = ref<HTMLDivElement | null>(null)
 const startDate = ref('')
 const endDate = ref('')
 
-// ============================================================================
-// Section 7: Validation Logic
-// ============================================================================
-
-/**
- * Set default date range to last 7 days
- */
 const setDefaultDates = (): void => {
   const today = new Date()
   const sevenDaysAgo = new Date(today)
@@ -159,13 +127,6 @@ const setDefaultDates = (): void => {
   endDate.value = today.toISOString().split('T')[0] || ''
 }
 
-// ============================================================================
-// Section 8: Main Logic
-// ============================================================================
-
-/**
- * Emit selected date range to parent component
- */
 const emitDates = (): void => {
   emit('datesToEmitAction', {
     startDate: startDate.value,
@@ -173,21 +134,11 @@ const emitDates = (): void => {
   })
 }
 
-// ============================================================================
-// Section 9: Lifecycle Hooks
-// ============================================================================
-
-/**
- * Initialize modal and set default dates on mount
- */
 onMounted(async () => {
   await initializeModal(modalRef)
   setDefaultDates()
 })
 
-/**
- * Clean up modal on unmount
- */
 onUnmounted(() => {
   disposeModal()
 })

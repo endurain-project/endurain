@@ -1,25 +1,21 @@
 /**
- * Common type definitions for the Endurain application
- *
- * This file serves as a starting point for TypeScript type definitions.
- * As you migrate JavaScript code to TypeScript, add relevant types here.
- */
-
-/**
- * Notification Types
- * Used by the notivue library for displaying different types of notifications
+ * Notification type for the notivue library.
  */
 export type NotificationType = 'warning' | 'success' | 'error' | 'info'
 
 /**
- * Action Button Types
- * Bootstrap button style variants for action buttons in modals and forms
+ * Bootstrap button style variant for action buttons.
  */
 export type ActionButtonType = 'success' | 'danger' | 'warning' | 'primary'
 
 /**
- * Error object with optional response property
- * Common structure for API errors
+ * Error object structure for API errors.
+ *
+ * @property response - Optional response object from the API.
+ * @property response.status - HTTP status code.
+ * @property response.data - Response data payload.
+ * @property message - Optional error message.
+ * @property toString - Converts the error to a string representation.
  */
 export interface ErrorWithResponse {
   response?: {
@@ -31,8 +27,10 @@ export interface ErrorWithResponse {
 }
 
 /**
- * Route Query Handler
- * Configuration for handling route query parameters with notifications
+ * Configuration for handling route query parameters with notifications.
+ *
+ * @property type - The notification type to display.
+ * @property key - The query parameter key name.
  */
 export interface RouteQueryHandler {
   type: NotificationType
@@ -40,16 +38,18 @@ export interface RouteQueryHandler {
 }
 
 /**
- * Route Query Handlers Map
- * Map of query parameter names to their handler configurations
+ * Map of query parameter names to their handler configurations.
  */
 export interface RouteQueryHandlers {
   [key: string]: RouteQueryHandler
 }
 
 /**
- * Login Response
- * Response structure from authentication endpoints
+ * Response structure from authentication endpoints.
+ *
+ * @property mfa_required - Whether MFA verification is required.
+ * @property username - The authenticated username.
+ * @property session_id - The session identifier token.
  */
 export interface LoginResponse {
   mfa_required?: boolean
@@ -58,8 +58,15 @@ export interface LoginResponse {
 }
 
 /**
- * Identity Provider Template
- * Configuration template for identity providers (OIDC, OAuth2, etc.)
+ * Configuration template for identity providers.
+ *
+ * @property name - The display name of the provider.
+ * @property provider_type - The type of provider (OIDC, OAuth2, etc.).
+ * @property issuer_url - The issuer URL for the identity provider.
+ * @property scopes - The OAuth scopes requested.
+ * @property icon - The icon identifier for the provider.
+ * @property description - A description of the provider.
+ * @property configuration_notes - Additional configuration notes.
  */
 export interface IdentityProviderTemplate {
   name: string
@@ -72,9 +79,23 @@ export interface IdentityProviderTemplate {
 }
 
 /**
- * Identity Provider
- * Represents a configured external identity provider for SSO authentication
- * Combines properties used for both editing and displaying providers
+ * Configured external identity provider for SSO authentication.
+ *
+ * @property id - Unique identifier for the provider.
+ * @property name - The display name of the provider.
+ * @property slug - URL-friendly identifier for the provider.
+ * @property provider_type - The type of provider (OIDC, OAuth2, etc.).
+ * @property icon - Optional icon identifier for the provider.
+ * @property enabled - Whether the provider is currently enabled.
+ * @property issuer_url - The issuer URL for the identity provider.
+ * @property client_id - The OAuth client ID.
+ * @property client_secret - The OAuth client secret (edit only).
+ * @property scopes - The OAuth scopes requested (edit only).
+ * @property auto_create_users - Whether to automatically create users (edit only).
+ * @property sync_user_info - Whether to sync user information (edit only).
+ * @property authorization_endpoint - The authorization endpoint URL (display only).
+ * @property token_endpoint - The token endpoint URL (display only).
+ * @property userinfo_endpoint - The userinfo endpoint URL (display only).
  */
 export interface IdentityProvider {
   id: number
@@ -97,9 +118,12 @@ export interface IdentityProvider {
 }
 
 /**
- * SSO Provider (Public)
- * Lightweight representation of an identity provider for the login page
- * Contains only the public information needed for display and authentication
+ * Public identity provider information for the login page.
+ *
+ * @property id - Unique identifier for the provider.
+ * @property name - The display name of the provider.
+ * @property slug - URL-friendly identifier for the provider.
+ * @property icon - Optional icon identifier for the provider.
  */
 export interface SSOProvider {
   id: number
@@ -109,13 +133,19 @@ export interface SSOProvider {
 }
 
 /**
- * User Identity Provider Link
- * Represents a user's connection to an external identity provider (SSO)
- * Used for displaying and managing user authentication methods in admin panel
+ * User's connection to an external identity provider (SSO).
  *
- * Security Note:
- *   - Refresh tokens are NOT included in this interface (handled securely on backend)
- *   - Only metadata and non-sensitive information is exposed
+ * @property id - Unique identifier for the link.
+ * @property user_id - The user's unique identifier.
+ * @property idp_id - The identity provider's unique identifier.
+ * @property idp_subject - The subject identifier from the identity provider.
+ * @property linked_at - ISO 8601 datetime when the link was created.
+ * @property last_login - ISO 8601 datetime of last login, or null if never logged in.
+ * @property idp_access_token_expires_at - ISO 8601 datetime when the access token expires, or null.
+ * @property idp_refresh_token_updated_at - ISO 8601 datetime when the refresh token was last updated, or null.
+ *
+ * @remarks
+ * Refresh tokens are NOT included in this interface and are handled securely on the backend.
  */
 export interface UserIdentityProvider {
   id: number
@@ -129,14 +159,16 @@ export interface UserIdentityProvider {
 }
 
 /**
- * User Identity Provider Enriched
- * Extended version of UserIdentityProvider that includes IDP details for display
- * The backend enriches responses with IDP information joined from identity_providers table
- * This is the primary interface used in the admin UI for displaying user SSO connections
+ * Extended user identity provider with IDP details for display.
  *
- * Usage:
- *   - UserIdentityProviderListComponent (display individual IDP link)
- *   - UsersListComponent (display user's IDPs in tab)
+ * @property idp_name - The name of the identity provider.
+ * @property idp_slug - URL-friendly identifier for the identity provider.
+ * @property idp_icon - Optional icon identifier for the identity provider.
+ * @property idp_provider_type - The type of the identity provider.
+ *
+ * @remarks
+ * The backend enriches responses with IDP information from the identity_providers table.
+ * Used in UserIdentityProviderListComponent and UsersListComponent.
  */
 export interface UserIdentityProviderEnriched extends UserIdentityProvider {
   idp_name: string
@@ -146,8 +178,10 @@ export interface UserIdentityProviderEnriched extends UserIdentityProvider {
 }
 
 /**
- * Window Environment Extension
- * Extends the global Window interface to include custom env property
+ * Global Window interface extension for environment configuration.
+ *
+ * @property env - Environment configuration object.
+ * @property env.ENDURAIN_HOST - The host URL for the Endurain API.
  */
 declare global {
   interface Window {

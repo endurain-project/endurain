@@ -82,30 +82,12 @@
 </template>
 
 <script setup lang="ts">
-/**
- * ModalComponentMFASetup
- *
- * Reusable modal component for MFA (Multi-Factor Authentication) setup.
- * Displays QR code, secret key, and verification code input.
- * Follows the same structure and patterns as ModalComponent.vue.
- *
- * @component
- */
-
-// ============================================================================
-// Section 1: Imports
-// ============================================================================
-
 // Vue composition API
 import { ref, onMounted, onUnmounted, type PropType } from 'vue'
 // Composables
 import { useBootstrapModal } from '@/composables/useBootstrapModal'
 // Types
 import type { ActionButtonType } from '@/types'
-
-// ============================================================================
-// Section 2: Props & Emits
-// ============================================================================
 
 const props = defineProps({
   modalId: {
@@ -167,65 +149,30 @@ const emit = defineEmits<{
   submitAction: [verificationCode: string]
 }>()
 
-// ============================================================================
-// Section 3: Composables & Stores
-// ============================================================================
-
 const { modalInstance, initializeModal, showModal, hideModal, disposeModal } = useBootstrapModal()
-
-// ============================================================================
-// Section 4: Reactive State
-// ============================================================================
 
 const modalRef = ref<HTMLDivElement | null>(null)
 const verificationCode = ref('')
 
-// ============================================================================
-// Section 6: UI Interaction Handlers
-// ============================================================================
-
-/**
- * Reset verification code when modal is hidden
- */
 const handleModalHidden = (): void => {
   verificationCode.value = ''
 }
 
-// ============================================================================
-// Section 8: Main Logic
-// ============================================================================
-
-/**
- * Handle form submission and emit verification code
- */
 const handleSubmit = (): void => {
   if (verificationCode.value) {
     emit('submitAction', verificationCode.value)
   }
 }
 
-/**
- * Show the modal (exposed for parent component)
- */
 const show = (): void => {
   showModal()
 }
 
-/**
- * Hide the modal (exposed for parent component)
- */
 const hide = (): void => {
   hideModal()
   verificationCode.value = ''
 }
 
-// ============================================================================
-// Section 9: Lifecycle Hooks
-// ============================================================================
-
-/**
- * Initialize modal on mount
- */
 onMounted(async () => {
   await initializeModal(modalRef)
 
@@ -235,19 +182,12 @@ onMounted(async () => {
   }
 })
 
-/**
- * Clean up modal on unmount
- */
 onUnmounted(() => {
   if (modalRef.value) {
     modalRef.value.removeEventListener('hidden.bs.modal', handleModalHidden)
   }
   disposeModal()
 })
-
-// ============================================================================
-// Section 10: Component Definition (Expose methods)
-// ============================================================================
 
 defineExpose({
   show,

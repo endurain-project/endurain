@@ -83,29 +83,12 @@
 </template>
 
 <script setup lang="ts">
-/**
- * ModalComponentNumberAndStringInput
- *
- * Reusable modal component for combined numeric and text input with configurable action button types.
- * Follows the same structure and patterns as ModalComponent.vue.
- *
- * @component
- */
-
-// ============================================================================
-// Section 1: Imports
-// ============================================================================
-
 // Vue composition API
 import { ref, onMounted, onUnmounted, type PropType } from 'vue'
 // Composables
 import { useBootstrapModal } from '@/composables/useBootstrapModal'
 // Types
 import type { ActionButtonType } from '@/types'
-
-// ============================================================================
-// Section 2: Props & Emits
-// ============================================================================
 
 interface FieldsEmitPayload {
   numberToEmit: number
@@ -152,27 +135,12 @@ const emit = defineEmits<{
   fieldsToEmitAction: [payload: FieldsEmitPayload]
 }>()
 
-// ============================================================================
-// Section 3: Composables & Stores
-// ============================================================================
-
 const { initializeModal, disposeModal } = useBootstrapModal()
-
-// ============================================================================
-// Section 4: Reactive State
-// ============================================================================
 
 const modalRef = ref<HTMLDivElement | null>(null)
 const numberToEmit = ref(props.numberDefaultValue)
 const stringToEmit = ref(props.stringDefaultValue)
 
-// ============================================================================
-// Section 8: Main Logic
-// ============================================================================
-
-/**
- * Handle submit action and emit both field values
- */
 const submitAction = (): void => {
   emit('fieldsToEmitAction', {
     numberToEmit: numberToEmit.value,
@@ -180,20 +148,10 @@ const submitAction = (): void => {
   })
 }
 
-// ============================================================================
-// Section 9: Lifecycle Hooks
-// ============================================================================
-
-/**
- * Initialize modal on mount
- */
 onMounted(async () => {
   await initializeModal(modalRef)
 })
 
-/**
- * Clean up modal on unmount
- */
 onUnmounted(() => {
   disposeModal()
 })
