@@ -57,11 +57,12 @@ Endurain has multi-language support, and you can help translate it into more lan
 
 This project is licensed under the AGPL-3.0 License - see the [LICENSE](LICENSE) file for details.
 
-**Trademark Notice:**  
+## Trademark Notice
+
 Endurain™ is a trademark of João Vitória Silva.  
 An application for registration with the European Union Intellectual Property Office (EUIPO) is currently pending.
 
-You are welcome to self-host Endurain — including for personal, educational, research, or community (non-commercial) use — using the name and logo.  
-Commercial use of the Endurain name or Logos (such as offering paid hosting, products, or services) is **not permitted without prior written permission**.
+You are welcome to self-host Endurain and use the name and logo, including for personal, educational, research, or community (non-commercial) use.  
+Commercial use of the Endurain name or logos (such as offering paid hosting, products, or services) is **not permitted without prior written permission**.
 
 See [`TRADEMARK.md`](./TRADEMARK.md) for full details.

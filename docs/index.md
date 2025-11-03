@@ -112,11 +112,12 @@ Currently supported in:
 
 [![Star History Chart](https://api.star-history.com/svg?repos=joaovitoriasilva/endurain&type=Date)](https://star-history.com/#joaovitoriasilva/endurain&Date)
 
-**Trademark Notice:**  
+## Trademark Notice
+
 Endurain™ is a trademark of João Vitória Silva.  
 An application for registration with the European Union Intellectual Property Office (EUIPO) is currently pending.
 
-You are welcome to self-host Endurain — including for personal, educational, research, or community (non-commercial) use — using the name and logo.  
-Commercial use of the Endurain name or Logos (such as offering paid hosting, products, or services) is **not permitted without prior written permission**.
+You are welcome to self-host Endurain and use the name and logo, including for personal, educational, research, or community (non-commercial) use.  
+Commercial use of the Endurain name or logos (such as offering paid hosting, products, or services) is **not permitted without prior written permission**.
 
 See [`TRADEMARK.md`](https://github.com/joaovitoriasilva/endurain/blob/master/TRADEMARK.md) for full details.
