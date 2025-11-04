@@ -38,6 +38,7 @@ from core.database import SessionLocal
 async def fetch_and_process_activities(
     strava_client: Client,
     start_date: datetime,
+    end_date: datetime,
     user_id: int,
     user_integrations: user_integrations_schema.UsersIntegrations,
     websocket_manager: websocket_schema.WebSocketManager,
@@ -49,7 +50,9 @@ async def fetch_and_process_activities(
 
     # Fetch Strava activities after the specified start date
     try:
-        strava_activities = list(strava_client.get_activities(after=start_date))
+        strava_activities = list(
+            strava_client.get_activities(after=start_date, before=end_date)
+        )
     except AccessUnauthorized as auth_err:
         # Log a more specific error message for authentication issues
         core_logger.print_to_log(
@@ -699,14 +702,17 @@ async def retrieve_strava_users_activities_for_days(
         # Get all users
         users = users_crud.get_all_users(db)
 
+        # Calculate the start date and end date
+        calculated_start_date = datetime.now(timezone.utc) - timedelta(days=days)
+        calculated_end_date = datetime.now(timezone.utc)
+
         # Process the activities for each user
         if users:
             for user in users:
                 try:
-                    await get_user_strava_activities_by_days(
-                        (datetime.now(timezone.utc) - timedelta(days=days)).strftime(
-                            "%Y-%m-%dT%H:%M:%S"
-                        ),
+                    await get_user_garminconnect_activities_by_dates(
+                        calculated_start_date,
+                        calculated_end_date,
                         user.id,
                         None,
                         None,
@@ -764,8 +770,9 @@ async def retrieve_strava_users_activities_for_days(
             db.close()
 
 
-async def get_user_strava_activities_by_days(
+async def get_user_garminconnect_activities_by_dates(
     start_date: datetime,
+    end_date: datetime,
     user_id: int,
     websocket_manager: websocket_schema.WebSocketManager = None,
     db: Session = None,
@@ -804,6 +811,7 @@ async def get_user_strava_activities_by_days(
             strava_activities_processed = await fetch_and_process_activities(
                 strava_client,
                 start_date,
+                end_date,
                 user_id,
                 user_integrations,
                 websocket_manager,

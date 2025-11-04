@@ -1,4 +1,3 @@
-import logging
 from typing import Annotated
 from fastapi import APIRouter, Depends, BackgroundTasks
 from sqlalchemy.orm import Session

@@ -49,6 +49,17 @@
                   >
                 </li>
                 <li>
+                  <!-- retrieve strava activities by date range -->
+                  <a
+                    class="dropdown-item"
+                    href="#"
+                    role="button"
+                    data-bs-toggle="modal"
+                    data-bs-target="#retrieveStravaActivitiesByDateRangeModal"
+                    >{{ $t('settingsIntegrationsZone.modalRetrieveActivitiesByDateRangeTitle') }}</a
+                  >
+                </li>
+                <li>
                   <!-- retrieve gear -->
                   <a href="#" class="dropdown-item" @click="submitRetrieveStravaGear">{{
                     $t('settingsIntegrationsZone.buttonRetrieveGear')
@@ -219,7 +230,16 @@
         :numberFieldLabel="`${t('settingsIntegrationsZone.modalRetrieveActivitiesByDaysLabel')}`"
         :actionButtonType="`success`"
         :actionButtonText="t('settingsIntegrationsZone.modalRetrieveButton')"
-        @numberToEmitAction="submitRetrieveStravaActivities"
+        @numberToEmitAction="submitRetrieveStravaActivitiesDays"
+      />
+
+      <!-- modal retrieve Strava activities by date range -->
+      <ModalComponentDateRangeInput
+        modalId="retrieveStravaActivitiesByDateRangeModal"
+        :title="t('settingsIntegrationsZone.modalRetrieveActivitiesByDateRangeTitle')"
+        :actionButtonType="`success`"
+        :actionButtonText="t('settingsIntegrationsZone.modalRetrieveButton')"
+        @datesToEmitAction="submitRetrieveStravaActivitiesDataRange"
       />
 
       <!-- modal unlink Strava -->
@@ -303,6 +323,15 @@ import { INTEGRATION_LOGOS } from '@/constants/integrationLogoConstants'
 const authStore = useAuthStore()
 const { locale, t } = useI18n()
 
+function getStartAndEndDateFromDaysAgo(days) {
+  const endDate = new Date()
+  const startDate = new Date()
+  startDate.setDate(endDate.getDate() - days)
+  const formattedStartDate = startDate.toISOString().split('T')[0]
+  const formattedEndDate = endDate.toISOString().split('T')[0]
+  return { startDate: formattedStartDate, endDate: formattedEndDate }
+}
+
 async function submitConnectStrava(stravaClient) {
   const array = new Uint8Array(16)
   window.crypto.getRandomValues(array)
@@ -326,9 +355,21 @@ async function submitConnectStrava(stravaClient) {
   }
 }
 
-async function submitRetrieveStravaActivities(daysToRetrieveStrava) {
+async function submitRetrieveStravaActivitiesDays(days) {
   try {
-    await strava.getStravaActivitiesLastDays(daysToRetrieveStrava)
+    const dates = getStartAndEndDateFromDaysAgo(days)
+    await strava.getStravaActivitiesByDates(dates.startDate, dates.endDate)
+    push.info(t('settingsIntegrationsZone.loadingMessageRetrievingStravaActivities'))
+  } catch (error) {
+    push.error(
+      `${t('settingsIntegrationsZone.errorMessageUnableToGetStravaActivities')} - ${error}`
+    )
+  }
+}
+
+async function submitRetrieveStravaActivitiesDataRange(dateRange) {
+  try {
+    await strava.getStravaActivitiesByDates(dateRange.startDate, dateRange.endDate)
     push.info(t('settingsIntegrationsZone.loadingMessageRetrievingStravaActivities'))
   } catch (error) {
     push.error(
@@ -363,12 +404,8 @@ async function buttonStravaUnlink() {
 
 async function submitRetrieveGarminConnectActivitiesDays(days) {
   try {
-    const endDate = new Date()
-    const startDate = new Date()
-    startDate.setDate(endDate.getDate() - days)
-    const formattedStartDate = startDate.toISOString().split('T')[0]
-    const formattedEndDate = endDate.toISOString().split('T')[0]
-    await garminConnect.getGarminConnectActivitiesByDates(formattedStartDate, formattedEndDate)
+    const dates = getStartAndEndDateFromDaysAgo(days)
+    await garminConnect.getGarminConnectActivitiesByDates(dates.startDate, dates.endDate)
     push.info(t('settingsIntegrationsZone.loadingMessageRetrievingGarminConnectActivities'))
   } catch (error) {
     push.error(
@@ -412,12 +449,8 @@ async function submitRetrieveGarminConnectHealthDataDataRange(dateRange) {
 
 async function submitRetrieveGarminConnectHealthDataDays(days) {
   try {
-    const endDate = new Date()
-    const startDate = new Date()
-    startDate.setDate(endDate.getDate() - days)
-    const formattedStartDate = startDate.toISOString().split('T')[0]
-    const formattedEndDate = endDate.toISOString().split('T')[0]
-    await garminConnect.getGarminConnectHealthDataByDates(formattedStartDate, formattedEndDate)
+    const dates = getStartAndEndDateFromDaysAgo(days)
+    await garminConnect.getGarminConnectHealthDataByDates(dates.startDate, dates.endDate)
     push.info(t('settingsIntegrationsZone.loadingMessageRetrievingGarminConnectHealthData'))
   } catch (error) {
     push.error(

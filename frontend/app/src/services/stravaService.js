@@ -35,8 +35,8 @@ export const strava = {
   linkStravaCallback(state, code, scope) {
     return fetchPutRequest(`strava/link?state=${state}&code=${code}&scope=${scope}`)
   },
-  getStravaActivitiesLastDays(days) {
-    return fetchGetRequest(`strava/activities/days/${days}`)
+  getStravaActivitiesByDates(startDate, endDate) {
+    return fetchGetRequest(`strava/activities?start_date=${startDate}&end_date=${endDate}`)
   },
   getStravaGear() {
     return fetchGetRequest('strava/gear')
