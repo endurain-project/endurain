@@ -1,18 +1,21 @@
-import keycloakLogo from '@/assets/sso/keycloak.svg'
-import authentikLogo from '@/assets/sso/authentik.svg'
 import autheliaLogo from '@/assets/sso/authelia.svg'
+import authentikLogo from '@/assets/sso/authentik.svg'
+import casdoorLogo from '@/assets/sso/casdoor.svg'
+import keycloakLogo from '@/assets/sso/keycloak.svg'
 
 /**
  * Maps SSO provider names to their corresponding logo image paths.
  *
  * @remarks
  * Supported SSO providers:
- * - **keycloak**: Keycloak identity and access management
- * - **authentik**: Authentik authentication provider
  * - **authelia**: Authelia authentication and authorization server
+ * - **authentik**: Authentik authentication provider
+ * - **casdoor**: Casdoor identity and access management
+ * - **keycloak**: Keycloak identity and access management
  */
 export const PROVIDER_CUSTOM_LOGO_MAP: Record<string, string> = {
-  keycloak: keycloakLogo,
+  authelia: autheliaLogo,
   authentik: authentikLogo,
-  authelia: autheliaLogo
+  casdoor: casdoorLogo,
+  keycloak: keycloakLogo,
 } as const

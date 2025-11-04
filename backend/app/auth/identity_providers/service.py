@@ -514,6 +514,39 @@ class IdentityProviderService:
         base_url = core_config.ENDURAIN_HOST
         return f"{base_url}/api/v1/public/idp/callback/{idp_slug}"
 
+    def _decrypt_client_id(self, idp: idp_models.IdentityProvider) -> str:
+        """
+        Decrypts the client ID of the given identity provider.
+
+        Attempts to decrypt the `client_id` attribute of the provided `IdentityProvider` instance
+        using Fernet symmetric encryption. If decryption fails or returns an empty value, logs the error
+        and raises an HTTP 500 exception indicating a configuration error.
+
+        Args:
+            idp (idp_models.IdentityProvider): The identity provider instance containing the encrypted client ID.
+
+        Returns:
+            str: The decrypted client ID.
+
+        Raises:
+            HTTPException: If decryption fails or returns an empty value, an HTTP 500 error is raised.
+        """
+        try:
+            client_id = core_cryptography.decrypt_token_fernet(idp.client_id)
+            if not client_id:
+                raise ValueError("Decryption returned empty value")
+            return client_id
+        except Exception as err:
+            core_logger.print_to_log(
+                f"Failed to decrypt client ID for IdP {idp.name}: {err}",
+                "error",
+                exc=err,
+            )
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Identity provider {idp.name} configuration error. Please contact administrator.",
+            ) from err
+
     def _decrypt_client_secret(self, idp: idp_models.IdentityProvider) -> str:
         """
         Decrypt the IdP client secret using Fernet encryption.
@@ -647,7 +680,7 @@ class IdentityProviderService:
             HTTPException: If the identity provider is not properly configured or if an error occurs during initiation.
         """
         try:
-            client_id = idp.client_id
+            client_id = self._decrypt_client_id(idp)
 
             # Get endpoints
             authorization_endpoint = idp.authorization_endpoint
@@ -743,7 +776,7 @@ class IdentityProviderService:
             - Session stores: oauth_state, oauth_nonce, oauth_idp_id, and oauth_link_user_id.
         """
         try:
-            client_id = idp.client_id
+            client_id = self._decrypt_client_id(idp)
 
             # Get endpoints
             authorization_endpoint = idp.authorization_endpoint
@@ -932,7 +965,7 @@ class IdentityProviderService:
                 )
 
             # Decrypt credentials and resolve endpoints using helper methods
-            client_id = idp.client_id
+            client_id = self._decrypt_client_id(idp)
             client_secret = self._decrypt_client_secret(idp)
             token_endpoint = await self._resolve_token_endpoint(idp)
 
@@ -1706,12 +1739,13 @@ class IdentityProviderService:
 
         # Resolve endpoints and credentials using helper methods
         token_endpoint = await self._resolve_token_endpoint(idp)
+        client_id = self._decrypt_client_id(idp)
         client_secret = self._decrypt_client_secret(idp)
 
         # Create OAuth client for token refresh
         try:
             client = self._create_oauth_client(
-                client_id=idp.client_id,
+                client_id=client_id,
                 client_secret=client_secret,
                 redirect_uri=None,  # Not needed for refresh token flow
             )
@@ -1893,12 +1927,13 @@ class IdentityProviderService:
                 )
                 return False
 
-            # Decrypt client secret for authentication
+            # Decrypt client secret and id for authentication
             try:
+                client_id = self._decrypt_client_id(idp)
                 client_secret = self._decrypt_client_secret(idp)
             except Exception as err:
                 core_logger.print_to_log(
-                    f"Failed to decrypt client secret for revocation: {err}",
+                    f"Failed to decrypt client secret or id for revocation: {err}",
                     "warning",
                     exc=err,
                 )
@@ -1912,7 +1947,7 @@ class IdentityProviderService:
                     data={
                         "token": refresh_token,
                         "token_type_hint": "refresh_token",
-                        "client_id": idp.client_id,
+                        "client_id": client_id,
                         "client_secret": client_secret,
                     },
                     headers={"Content-Type": "application/x-www-form-urlencoded"},

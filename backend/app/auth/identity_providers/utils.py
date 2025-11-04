@@ -13,19 +13,19 @@ import core.logger as core_logger
 
 # Pre-configured templates for common IdPs
 IDP_TEMPLATES = {
-    "keycloak": {
-        "name": "Keycloak",
+    "authelia": {
+        "name": "Authelia",
         "provider_type": "oidc",
-        "issuer_url": "https://{your-keycloak-domain}/realms/{realm}",
+        "issuer_url": "https://{your-authelia-domain}",
         "scopes": "openid profile email",
-        "icon": "keycloak",
+        "icon": "authelia",
         "user_mapping": {
             "username": ["preferred_username", "username", "email"],
-            "email": ["email", "mail"],
-            "name": ["name", "display_name", "full_name"],
+            "email": ["email"],
+            "name": ["name"],
         },
-        "description": "Keycloak - Open Source Identity and Access Management",
-        "configuration_notes": "Replace {your-keycloak-domain} with your Keycloak server domain (e.g., keycloak.example.com) and {realm} with your realm name. Create an OIDC client in Keycloak admin console.",
+        "description": "Authelia - Open-source authentication and authorization server",
+        "configuration_notes": "Replace {your-authelia-domain} with your Authelia server domain (e.g., auth.example.com). Configure an OIDC client in your Authelia configuration file.",
     },
     "authentik": {
         "name": "Authentik",
@@ -41,19 +41,33 @@ IDP_TEMPLATES = {
         "description": "Authentik - Open-source Identity Provider",
         "configuration_notes": "Replace {your-authentik-domain} with your Authentik server domain (e.g., authentik.example.com) and {slug} with your application slug. Create an OAuth2/OIDC provider in Authentik.",
     },
-    "authelia": {
-        "name": "Authelia",
+    "casdoor": {
+        "name": "Casdoor",
         "provider_type": "oidc",
-        "issuer_url": "https://{your-authelia-domain}",
+        "issuer_url": "https://{your-casdoor-domain}",
         "scopes": "openid profile email",
-        "icon": "authelia",
+        "icon": "casdoor",
+        "user_mapping": {
+            "username": ["preferred_username", "username", "name"],
+            "email": ["email"],
+            "name": ["name", "displayName"],
+        },
+        "description": "Casdoor - Open-source Identity and Access Management (IAM) / Single-Sign-On (SSO) platform",
+        "configuration_notes": "Replace {your-casdoor-domain} with your Casdoor server domain (e.g., casdoor.example.com). Create an OAuth2/OIDC application in Casdoor admin console.",
+    },
+    "keycloak": {
+        "name": "Keycloak",
+        "provider_type": "oidc",
+        "issuer_url": "https://{your-keycloak-domain}/realms/{realm}",
+        "scopes": "openid profile email",
+        "icon": "keycloak",
         "user_mapping": {
             "username": ["preferred_username", "username", "email"],
-            "email": ["email"],
-            "name": ["name"],
+            "email": ["email", "mail"],
+            "name": ["name", "display_name", "full_name"],
         },
-        "description": "Authelia - Open-source authentication and authorization server",
-        "configuration_notes": "Replace {your-authelia-domain} with your Authelia server domain (e.g., auth.example.com). Configure an OIDC client in your Authelia configuration file.",
+        "description": "Keycloak - Open Source Identity and Access Management",
+        "configuration_notes": "Replace {your-keycloak-domain} with your Keycloak server domain (e.g., keycloak.example.com) and {realm} with your realm name. Create an OIDC client in Keycloak admin console.",
     },
 }
 

@@ -352,16 +352,6 @@
 </template>
 
 <script setup lang="ts">
-/**
- * IdentityProvidersAddEditModalComponent
- *
- * Modal component for adding or editing identity provider configurations.
- * Supports template-based setup for common providers (Keycloak, Authentik, etc.)
- * and custom manual configuration.
- *
- * @component
- */
-
 // Vue composition API
 import { ref, computed, watch, onMounted, onUnmounted, type PropType } from 'vue'
 // Internationalization
@@ -376,10 +366,6 @@ import { identityProviders } from '@/services/identityProvidersService'
 import type { IdentityProviderTemplate, IdentityProvider } from '@/types'
 // Constants
 import { HTTP_STATUS, extractStatusCode } from '@/constants/httpConstants'
-
-// ============================================================================
-// Props & Emits
-// ============================================================================
 
 const props = defineProps({
   action: {
@@ -402,16 +388,8 @@ const emit = defineEmits<{
   providerUpdated: [provider: IdentityProvider]
 }>()
 
-// ============================================================================
-// Composables & State
-// ============================================================================
-
 const { t } = useI18n()
 const { initializeModal, hideModal, disposeModal } = useBootstrapModal()
-
-// ============================================================================
-// Reactive State
-// ============================================================================
 
 const modalRef = ref<HTMLDivElement | null>(null)
 const selectedTemplate = ref('')
@@ -435,10 +413,6 @@ const formData = ref({
   auto_create_users: true,
   sync_user_info: true
 })
-
-// ============================================================================
-// Computed Properties
-// ============================================================================
 
 const editModalId = computed(() => {
   return props.provider
@@ -465,13 +439,6 @@ const templateNotes = computed(() => {
   return template ? template.configuration_notes : ''
 })
 
-// ============================================================================
-// UI Interaction Handlers
-// ============================================================================
-
-/**
- * Apply selected template configuration to form
- */
 const applyTemplate = (): void => {
   if (selectedTemplate.value === '') {
     return
@@ -491,19 +458,6 @@ const applyTemplate = (): void => {
   formData.value.icon = template.icon
 }
 
-// ============================================================================
-// Validation Logic
-// ============================================================================
-
-// (Validation is handled via computed properties above)
-
-// ============================================================================
-// Main Logic
-// ============================================================================
-
-/**
- * Reset form to initial state
- */
 const resetForm = (): void => {
   selectedTemplate.value = ''
   formData.value = {
@@ -521,9 +475,6 @@ const resetForm = (): void => {
   }
 }
 
-/**
- * Load provider data into form (for edit mode)
- */
 const loadProviderData = (): void => {
   if (props.action === 'edit' && props.provider) {
     formData.value = {
@@ -542,9 +493,6 @@ const loadProviderData = (): void => {
   }
 }
 
-/**
- * Handle form submission
- */
 const handleSubmit = async (): Promise<void> => {
   if (!isSlugValid.value) {
     push.error(t('identityProvidersAddEditModal.slugInvalid'))
@@ -564,9 +512,6 @@ const handleSubmit = async (): Promise<void> => {
   }
 }
 
-/**
- * Create new identity provider
- */
 const createProvider = async (): Promise<void> => {
   const notification = push.promise(t('identityProvidersAddEditModal.creatingProvider'))
 
@@ -601,9 +546,6 @@ const createProvider = async (): Promise<void> => {
   }
 }
 
-/**
- * Update existing identity provider
- */
 const updateProvider = async (): Promise<void> => {
   if (!props.provider) return
 
@@ -612,6 +554,7 @@ const updateProvider = async (): Promise<void> => {
   try {
     const updateData: any = {
       name: formData.value.name,
+      slug: formData.value.slug.toLowerCase(),
       provider_type: formData.value.provider_type,
       enabled: formData.value.enabled,
       issuer_url: formData.value.issuer_url,
@@ -643,27 +586,14 @@ const updateProvider = async (): Promise<void> => {
   }
 }
 
-// ============================================================================
-// Lifecycle & Watchers
-// ============================================================================
-
-/**
- * Initialize modal on mount
- */
 onMounted(async () => {
   await initializeModal(modalRef)
 })
 
-/**
- * Clean up modal on unmount
- */
 onUnmounted(() => {
   disposeModal()
 })
 
-/**
- * Watch for provider prop changes (edit mode)
- */
 watch(
   () => props.provider,
   () => {

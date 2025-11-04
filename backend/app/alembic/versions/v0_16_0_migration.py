@@ -189,7 +189,7 @@ def upgrade() -> None:
         ),
         sa.Column(
             "idp_refresh_token",
-            sa.String(length=2000),
+            sa.Text(),
             nullable=True,
             comment="Encrypted refresh token",
         ),

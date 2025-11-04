@@ -163,18 +163,6 @@
 </template>
 
 <script setup lang="ts">
-/**
- * IdentityProviderListComponent
- *
- * Displays a single identity provider in a list with actions for:
- * - Viewing provider details
- * - Toggling enabled/disabled status
- * - Editing provider configuration
- * - Deleting provider
- *
- * @component
- */
-
 // Vue composition API
 import { ref, onMounted, type Ref } from 'vue'
 // Internationalization
@@ -192,10 +180,6 @@ import { PROVIDER_CUSTOM_LOGO_MAP } from '@/constants/ssoConstants'
 // Types
 import type { IdentityProviderTemplate, IdentityProvider } from '@/types'
 
-// ============================================================================
-// Props & Emits
-// ============================================================================
-
 const props = defineProps<{
   provider: IdentityProvider
   templates: IdentityProviderTemplate[]
@@ -206,29 +190,10 @@ const emit = defineEmits<{
   providerUpdated: [provider: IdentityProvider]
 }>()
 
-// ============================================================================
-// Composables & State
-// ============================================================================
-
 const { t } = useI18n()
-
-// ============================================================================
-// Component State
-// ============================================================================
 
 const providerDetails: Ref<boolean> = ref(false)
 
-// ============================================================================
-// Icon & Logo Helpers
-// ============================================================================
-
-/**
- * Check if a provider has a custom logo
- * Returns the logo path if available
- *
- * @param iconName - Provider icon name
- * @returns Custom logo path or null
- */
 const getProviderCustomLogo = (iconName?: string): string | null => {
   if (!iconName) return null
   const logoPath =
@@ -236,32 +201,14 @@ const getProviderCustomLogo = (iconName?: string): string | null => {
   return logoPath || null
 }
 
-// ============================================================================
-// Action Handlers
-// ============================================================================
-
-/**
- * Handle edit provider button click
- * Modal is triggered by data-bs-toggle and data-bs-target attributes
- */
 const handleEditProvider = (): void => {
   // Modal is triggered by data-bs-toggle and data-bs-target attributes
 }
 
-/**
- * Handle provider updated event from modal
- * Updates parent component with new provider data
- *
- * @param updatedProvider - Updated provider data
- */
 const handleProviderUpdated = (updatedProvider: IdentityProvider): void => {
   emit('providerUpdated', updatedProvider)
 }
 
-/**
- * Handle toggle enable/disable provider
- * Updates provider enabled status
- */
 const handleToggleProvider = async (): Promise<void> => {
   const newStatus = !props.provider.enabled
   const notification = push.promise(
@@ -299,10 +246,6 @@ const handleToggleProvider = async (): Promise<void> => {
   }
 }
 
-/**
- * Confirm and execute provider deletion
- * Removes provider from database and notifies parent
- */
 const handleDeleteProvider = async (): Promise<void> => {
   const notification = push.promise(
     t('settingsIdentityProvidersZone.deletingProvider', { name: props.provider.name })
@@ -326,14 +269,6 @@ const handleDeleteProvider = async (): Promise<void> => {
   }
 }
 
-// ============================================================================
-// Lifecycle Hooks
-// ============================================================================
-
-/**
- * Component mounted lifecycle hook
- * Attaches Bootstrap collapse event listeners to sync icon state
- */
 onMounted(() => {
   const collapseElement = document.getElementById(`collapseProviderDetails${props.provider.id}`)
   if (collapseElement) {

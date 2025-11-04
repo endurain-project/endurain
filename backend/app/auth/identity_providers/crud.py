@@ -29,24 +29,11 @@ def get_identity_provider(
     """
     try:
         # Get IDP from database
-        db_idp = (
+        return (
             db.query(idp_models.IdentityProvider)
             .filter(idp_models.IdentityProvider.id == idp_id)
             .first()
         )
-
-        # Return None if not found
-        if not db_idp:
-            return None
-
-        # Expunge from session to prevent accidental persistence of decrypted values
-        db.expunge(db_idp)
-
-        # Unencrypt client_id
-        db_idp.client_id = core_cryptography.decrypt_token_fernet(db_idp.client_id)
-
-        # Return IDP
-        return db_idp
     except Exception as err:
         core_logger.print_to_log(
             f"Error in get_identity_provider: {err}", "error", exc=err
@@ -75,24 +62,11 @@ def get_identity_provider_by_slug(
     """
     try:
         # Get IDP from database
-        db_idp = (
+        return (
             db.query(idp_models.IdentityProvider)
             .filter(idp_models.IdentityProvider.slug == slug)
             .first()
         )
-
-        # Return None if not found
-        if not db_idp:
-            return None
-
-        # Expunge from session to prevent accidental persistence of decrypted values
-        db.expunge(db_idp)
-
-        # Unencrypt client_id
-        db_idp.client_id = core_cryptography.decrypt_token_fernet(db_idp.client_id)
-
-        # Return IDP
-        return db_idp
     except Exception as err:
         core_logger.print_to_log(
             f"Error in get_identity_provider_by_slug: {err}", "error", exc=err
@@ -123,26 +97,11 @@ def get_all_identity_providers(db: Session) -> List[idp_models.IdentityProvider]
     """
     try:
         # Get IDPs from database
-        db_idps = (
+        return (
             db.query(idp_models.IdentityProvider)
             .order_by(idp_models.IdentityProvider.name)
             .all()
         )
-
-        # Return empty list if no IDPs found
-        if not db_idps:
-            return []
-
-        # Expunge all objects from session to prevent accidental persistence of decrypted values
-        for idp in db_idps:
-            db.expunge(idp)
-
-        # Unencrypt client_id
-        for idp in db_idps:
-            idp.client_id = core_cryptography.decrypt_token_fernet(idp.client_id)
-
-        # Return IDPs
-        return db_idps
     except Exception as err:
         core_logger.print_to_log(
             f"Error in get_all_identity_providers: {err}", "error", exc=err
@@ -242,12 +201,6 @@ def create_identity_provider(
         core_logger.print_to_log(
             f"Created identity provider: {db_idp.name} (ID: {db_idp.id})", "info"
         )
-
-        # Expunge from session before modifying to prevent accidental re-persistence
-        db.expunge(db_idp)
-
-        # Set client_id not encrypted for return
-        db_idp.client_id = idp_data.client_id
 
         return db_idp
     except HTTPException:

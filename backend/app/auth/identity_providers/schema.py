@@ -1,7 +1,9 @@
-from pydantic import BaseModel, Field, field_validator, ConfigDict
+from pydantic import BaseModel, Field, field_validator, field_serializer, ConfigDict
 from typing import Dict, Any
 from datetime import datetime
 import re
+
+import core.cryptography as core_cryptography
 
 
 class IdentityProviderBase(BaseModel):
@@ -134,29 +136,15 @@ class IdentityProviderUpdate(IdentityProviderBase):
         IdentityProviderBase
 
     Attributes:
-        name (str | None): The display name of the identity provider (1-100 characters).
-        slug (str | None): A unique slug identifier for the provider (1-50 characters).
-        provider_type (str | None): The type of identity provider (e.g., 'oauth', 'saml').
-        enabled (bool | None): Whether the provider is enabled.
-        scopes (str | None): Scopes to request from the provider (up to 500 characters).
-        auto_create_users (bool | None): Whether to automatically create users upon authentication.
-        sync_user_info (bool | None): Whether to synchronize user information on login.
         client_secret (str | None): The client secret for the provider (1-512 characters).
     """
 
-    name: str | None = Field(None, max_length=100, min_length=1)
-    slug: str | None = Field(None, max_length=50, min_length=1)
-    provider_type: str | None = Field(None)
-    enabled: bool | None = None
-    scopes: str | None = Field(None, max_length=500)
-    auto_create_users: bool | None = None
-    sync_user_info: bool | None = None
     client_secret: str | None = Field(None, min_length=1, max_length=512)
 
 
 class IdentityProvider(IdentityProviderBase):
     """
-    Represents an identity provider entity with metadata.
+    Represents an identity provider with decrypted client credentials.
 
     Inherits from:
         IdentityProviderBase
@@ -167,7 +155,14 @@ class IdentityProvider(IdentityProviderBase):
         updated_at (datetime): Timestamp when the identity provider was last updated.
 
     Config:
-        model_config (dict): Configuration dictionary with 'from_attributes' set to True.
+        model_config (ConfigDict): Pydantic model configuration to enable attribute-based initialization,
+            forbid extra fields, and validate assignment.
+
+    Methods:
+        decrypt_client_id():
+            Decrypts the `client_id` attribute after loading from the database.
+
+                IdentityProvider: The instance with the decrypted `client_id`.
     """
 
     id: int
@@ -177,6 +172,13 @@ class IdentityProvider(IdentityProviderBase):
     model_config = ConfigDict(
         from_attributes=True, extra="forbid", validate_assignment=True
     )
+
+    @field_serializer("client_id")
+    def serialize_client_id(self, value: str | None) -> str | None:
+        """Decrypt client_id for serialization."""
+        if value and value.startswith("gAAAAAB"):
+            return core_cryptography.decrypt_token_fernet(value)
+        return value
 
 
 class IdentityProviderPublic(BaseModel):
