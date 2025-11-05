@@ -210,30 +210,29 @@ const handleProviderUpdated = (updatedProvider: IdentityProvider): void => {
 }
 
 const handleToggleProvider = async (): Promise<void> => {
-  const newStatus = !props.provider.enabled
+  const providerToUpodate = props.provider
+  providerToUpodate.enabled = !props.provider.enabled
   const notification = push.promise(
     t(
-      newStatus
+      providerToUpodate.enabled
         ? 'settingsIdentityProvidersZone.enablingProvider'
         : 'settingsIdentityProvidersZone.disablingProvider',
-      { name: props.provider.name }
+      { name: providerToUpodate.name }
     )
   )
 
   try {
-    await identityProviders.updateProvider(props.provider.id, {
-      enabled: newStatus
-    })
+    await identityProviders.updateProvider(props.provider.id, providerToUpodate)
 
     // Update local state by emitting to parent
-    emit('providerUpdated', { ...props.provider, enabled: newStatus })
+    emit('providerUpdated', { ...props.provider, enabled: providerToUpodate.enabled })
 
     notification.resolve(
       t(
-        newStatus
+        providerToUpodate.enabled
           ? 'settingsIdentityProvidersZone.providerEnabled'
           : 'settingsIdentityProvidersZone.providerDisabled',
-        { name: props.provider.name }
+        { name: providerToUpodate.name }
       )
     )
   } catch (error) {
