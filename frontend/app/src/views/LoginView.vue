@@ -16,7 +16,7 @@
           <p class="mb-4">{{ $t('loginView.subtitle') }}</p>
 
           <!-- Local Login Form (shown when local login is enabled or during MFA) -->
-          <template v-if="serverSettings.local_login_enabled || mfaRequired">
+          <template v-if="serverSettings.local_login_enabled || mfaRequired || forceLocalLogin">
             <div class="form-floating mb-3" v-if="!mfaRequired">
               <input
                 type="text"
@@ -182,7 +182,9 @@ const ROUTE_QUERY_HANDLERS: RouteQueryHandlers = {
   passwordResetInvalidLink: { type: 'error', key: 'loginView.passwordResetInvalidLink' },
   emailVerificationSent: { type: 'info', key: 'loginView.emailVerificationSent' },
   adminApprovalRequired: { type: 'info', key: 'loginView.adminApprovalRequired' },
-  verifyEmailInvalidLink: { type: 'error', key: 'loginView.verifyEmailInvalidLink' }
+  verifyEmailInvalidLink: { type: 'error', key: 'loginView.verifyEmailInvalidLink' },
+  forceLocalLogin: { type: 'info', key: 'loginView.forceLocalLogin' },
+  redirect: { type: 'info', key: '' } // Special handling below
 } as const
 
 const route = useRoute()
@@ -210,6 +212,10 @@ const showPassword = ref(false)
 
 const ssoProviders = ref<SSOProvider[]>([])
 const loadingSSOProviders = ref(true)
+
+const forceLocalLogin = ref(false)
+
+const redirectTo = ref('')
 
 /**
  * Computed reference to server settings from the store.
@@ -338,7 +344,11 @@ const completeLogin = async (session_id: string): Promise<void> => {
   authStore.setUser(userProfile, session_id, locale)
 
   // Redirect to the home page
-  await router.push('/')
+  if (isNotEmpty(redirectTo.value)) {
+    await router.push(redirectTo.value)
+  } else {
+    await router.push('/')
+  }
 }
 
 /**
@@ -441,7 +451,11 @@ const getProviderCustomLogo = (iconName?: string): string | null => {
  * @returns void
  */
 const handleSSOLogin = (slug: string): void => {
-  identityProviders.initiateLogin(slug)
+  let params: string = ''
+  if (isNotEmpty(redirectTo.value)) {
+    params = `?redirect=${encodeURIComponent(redirectTo.value)}`
+  }
+  identityProviders.initiateLogin(slug, params)
 }
 
 /**
@@ -455,7 +469,7 @@ const checkSSOAutoRedirect = (): void => {
     serverSettings.value.sso_auto_redirect &&
     !serverSettings.value.local_login_enabled &&
     ssoProviders.value.length === 1 &&
-    Object.keys(route.query).length === 0
+    !forceLocalLogin.value
   ) {
     const provider = ssoProviders.value[0]
     if (provider) {
@@ -514,6 +528,15 @@ const processRouteQueryParameters = async (): Promise<void> => {
   Object.entries(ROUTE_QUERY_HANDLERS).forEach(([param, config]) => {
     if (route.query[param] === QUERY_PARAM_TRUE) {
       push[config.type](t(config.key))
+    }
+    if (param === 'forceLocalLogin' && route.query[param] === QUERY_PARAM_TRUE) {
+      forceLocalLogin.value = true
+    }
+    if (param === 'redirect') {
+      const redirectValue = route.query[param]
+      if (typeof redirectValue === 'string' && isNotEmpty(redirectValue)) {
+        redirectTo.value = redirectValue
+      }
     }
   })
 

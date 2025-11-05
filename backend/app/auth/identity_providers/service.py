@@ -659,7 +659,11 @@ class IdentityProviderService:
         )
 
     async def initiate_login(
-        self, idp: idp_models.IdentityProvider, request: Request, db: Session
+        self,
+        idp: idp_models.IdentityProvider,
+        request: Request,
+        db: Session,
+        redirect_path: str | None = None,
     ) -> str:
         """
         Initiates the OAuth2/OIDC login process for the given identity provider.
@@ -672,6 +676,7 @@ class IdentityProviderService:
             idp (idp_models.IdentityProvider): The identity provider instance containing configuration details.
             request (Request): The current HTTP request object, used to store session data.
             db (Session): The database session (not directly used in this method).
+            redirect_path (str | None): Optional frontend path to redirect to after successful login.
 
         Returns:
             str: The authorization URL to which the user should be redirected to initiate login.
@@ -705,6 +710,11 @@ class IdentityProviderService:
                 "timestamp": datetime.now(timezone.utc).isoformat(),
                 "idp_id": idp.id,
             }
+
+            # Add redirect path to state if provided
+            if redirect_path:
+                state_data["redirect"] = redirect_path
+
             # Encode state as base64 JSON for URL safety
             state = base64.urlsafe_b64encode(json.dumps(state_data).encode()).decode()
 
@@ -938,6 +948,9 @@ class IdentityProviderService:
                     detail="Invalid state parameter format",
                 ) from err
 
+            # Extract redirect path from state if present
+            redirect_path = state_data.get("redirect")
+
             # Detect link mode from state data
             is_link_mode = state_data.get("mode") == "link"
             link_user_id = None
@@ -1169,6 +1182,7 @@ class IdentityProviderService:
                     "user": user,
                     "token_data": token_response,
                     "userinfo": userinfo,
+                    "redirect_path": redirect_path,
                 }
 
         except HTTPException:

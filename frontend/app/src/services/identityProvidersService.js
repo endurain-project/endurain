@@ -26,7 +26,7 @@ export const identityProviders = {
   deleteProvider(idpId) {
     return fetchDeleteRequest(`idp/${idpId}`)
   },
-  initiateLogin(slug) {
-    window.location.href = `${API_URL}public/idp/login/${slug}`
+  initiateLogin(slug, params) {
+    window.location.href = `${API_URL}public/idp/login/${slug}${params}`
   }
 }

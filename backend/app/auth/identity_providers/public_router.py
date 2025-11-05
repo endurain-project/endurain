@@ -55,6 +55,13 @@ async def initiate_login(
     idp_slug: str,
     request: Request,
     db: Annotated[Session, Depends(core_database.get_db)],
+    redirect: Annotated[
+        str | None,
+        Query(
+            alias="redirect",
+            description="Frontend redirect path after successful login",
+        ),
+    ] = None,
 ):
     """
     Initiates the login process for a given identity provider using OAuth.
@@ -64,6 +71,7 @@ async def initiate_login(
         idp_slug (str): The slug identifier for the identity provider.
         request (Request): The incoming HTTP request object.
         db (Session): Database session dependency.
+        redirect (str | None): Optional frontend path to redirect to after login.
     Raises:
         HTTPException: If the identity provider is not found or is disabled.
     Returns:
@@ -78,7 +86,9 @@ async def initiate_login(
         )
 
     # Initiate the OAuth flow
-    authorization_url = await idp_service.idp_service.initiate_login(idp, request, db)
+    authorization_url = await idp_service.idp_service.initiate_login(
+        idp, request, db, redirect
+    )
 
     return RedirectResponse(
         url=authorization_url, status_code=status.HTTP_307_TEMPORARY_REDIRECT
@@ -190,6 +200,10 @@ async def handle_callback(
         # Redirect to frontend
         frontend_url = core_config.ENDURAIN_HOST
         redirect_url = f"{frontend_url}/login?sso=success&session_id={session_id}"
+
+        redirect_path = result.get("redirect_path")
+        if redirect_path:
+            redirect_url += f"&redirect={redirect_path}"
 
         core_logger.print_to_log(
             f"SSO login successful for user {user.username} via {idp.name}", "info"
