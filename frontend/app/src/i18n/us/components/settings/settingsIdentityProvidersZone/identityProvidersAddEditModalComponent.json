@@ -24,7 +24,7 @@
   "scopesHelp": "Space-separated list of OAuth scopes to request.",
   "appearanceSection": "Appearance",
   "iconLabel": "Icon",
-  "iconPlaceholder": "keycloak, authentik, authelia, google, microsoft, or custom",
+  "iconPlaceholder": "authelia, authentik, casdoor, keycloak, or custom",
   "iconHelp": "Icon name for SSO button. Leave blank for default.",
   "buttonTextLabel": "Button Text",
   "buttonTextPlaceholder": "Sign in with Provider",
