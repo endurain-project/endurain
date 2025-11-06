@@ -19,10 +19,8 @@ from core.database import SessionLocal
 
 
 def refresh_strava_tokens(is_startup: bool = False):
-    # Create a new database session
-    db = SessionLocal()
-
-    try:
+    # Create a new database session using context manager
+    with SessionLocal() as db:
         # Get all users
         users = users_crud.get_all_users(db)
 
@@ -30,9 +28,6 @@ def refresh_strava_tokens(is_startup: bool = False):
         if users:
             for user in users:
                 refresh_user_strava_token(user.id, db, is_startup)
-    finally:
-        # Ensure the session is closed after use
-        db.close()
 
 
 def refresh_user_strava_token(user_id: int, db: Session, is_startup: bool = False):

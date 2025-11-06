@@ -161,10 +161,8 @@ def set_activities_gear(user_id: int, db: Session) -> int:
 
 
 def get_user_gear(user_id: int):
-    # Create a new database session
-    db = SessionLocal()
-
-    try:
+    # Create a new database session using context manager
+    with SessionLocal() as db:
         # Get the user integrations by user ID
         user_integrations = strava_utils.fetch_user_integrations_and_validate_token(
             user_id, db
@@ -198,8 +196,6 @@ def get_user_gear(user_id: int):
         core_logger.print_to_log(
             f"User {user_id}: {num_gear_activities_set} activities where gear was set"
         )
-    finally:
-        db.close()
 
 
 def iterate_over_bikes_csv() -> dict:

@@ -60,7 +60,9 @@ def process_gear(gear, user_id: int, db: Session) -> gears_schema.Gear | None:
     new_gear = gears_schema.Gear(
         brand=gear["gearMakeName"] if gear["gearMakeName"] else None,
         model=gear["gearModelName"] if gear["gearModelName"] else None,
-        nickname=gear["displayName"] if gear["displayName"] else gear["customMakeModel"],
+        nickname=(
+            gear["displayName"] if gear["displayName"] else gear["customMakeModel"]
+        ),
         gear_type=1 if gear["gearTypeName"] == "Bike" else 2,
         user_id=user_id,
         active=True if gear["gearStatusName"] == "active" else False,
@@ -130,10 +132,8 @@ def set_activities_gear(user_id: int, db: Session) -> int:
 
 
 def get_user_gear(user_id: int):
-    # Create a new database session
-    db = SessionLocal()
-
-    try:
+    # Create a new database session using context manager
+    with SessionLocal() as db:
         # Log the start of the activities processing
         core_logger.print_to_log(
             f"User {user_id}: Started Garmin Connect gear processing"
@@ -178,6 +178,3 @@ def get_user_gear(user_id: int):
         core_logger.print_to_log(
             f"User {user_id}: {num_gear_activities_set} activities where gear was set"
         )
-    finally:
-        # Ensure the session is closed after use
-        db.close()

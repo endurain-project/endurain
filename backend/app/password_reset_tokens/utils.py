@@ -263,7 +263,6 @@ def delete_invalid_tokens_from_db():
     closed whether the operation succeeds or an exception is raised.
 
     Behavior:
-    - Creates a SessionLocal() session.
     - Invokes password_reset_tokens_crud.delete_expired_password_reset_tokens(db),
         which should return the number of deleted tokens (int).
     - If the returned count is greater than zero, logs an informational message
@@ -283,10 +282,8 @@ def delete_invalid_tokens_from_db():
     - The operation is effectively idempotent: running it repeatedly when there
         are no expired tokens will have no further effect.
     """
-    # Create a new database session
-    db = SessionLocal()
-
-    try:
+    # Create a new database session using context manager
+    with SessionLocal() as db:
         # Get num tokens deleted
         num_deleted = password_reset_tokens_crud.delete_expired_password_reset_tokens(
             db
@@ -297,6 +294,3 @@ def delete_invalid_tokens_from_db():
             core_logger.print_to_log_and_console(
                 f"Deleted {num_deleted} expired password reset tokens", "info"
             )
-    finally:
-        # Ensure the session is closed after use
-        db.close()

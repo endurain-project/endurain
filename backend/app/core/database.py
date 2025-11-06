@@ -17,7 +17,12 @@ db_url = URL.create(
 
 # Create the SQLAlchemy engine
 engine = create_engine(
-    db_url, pool_size=10, max_overflow=20, pool_timeout=180, pool_recycle=3600
+    db_url,
+    pool_size=20,
+    max_overflow=40,
+    pool_timeout=180,
+    pool_recycle=3600,
+    pool_pre_ping=True,
 )
 
 # Create a session factory

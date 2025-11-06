@@ -695,79 +695,74 @@ def fetch_and_process_activity_laps(
 async def retrieve_strava_users_activities_for_days(
     days: int, is_startup: bool = False
 ):
-    # Create a new database session
-    db = SessionLocal()
+    # Create a new database session using context manager
+    with SessionLocal() as db:
+        try:
+            # Get all users
+            users = users_crud.get_all_users(db)
 
-    try:
-        # Get all users
-        users = users_crud.get_all_users(db)
+            # Calculate the start date and end date
+            calculated_start_date = datetime.now(timezone.utc) - timedelta(days=days)
+            calculated_end_date = datetime.now(timezone.utc)
 
-        # Calculate the start date and end date
-        calculated_start_date = datetime.now(timezone.utc) - timedelta(days=days)
-        calculated_end_date = datetime.now(timezone.utc)
-
-        # Process the activities for each user
-        if users:
-            for user in users:
-                try:
-                    await get_user_garminconnect_activities_by_dates(
-                        calculated_start_date,
-                        calculated_end_date,
-                        user.id,
-                        None,
-                        None,
-                        is_startup,
-                    )
-                except HTTPException as err:
-                    # Log the error but continue processing other users
-                    core_logger.print_to_log(
-                        f"User {user.id}: Error processing Strava activities: {str(err)}",
-                        "error",
-                        exc=err,
-                    )
-                    # Don't reraise the exception if we're in startup mode
-                    if not is_startup:
-                        raise err
-                except Exception as err:
-                    # Log the error but continue processing other users
-                    core_logger.print_to_log(
-                        f"User {user.id}: Unexpected error processing Strava activities: {str(err)}",
-                        "error",
-                        exc=err,
-                    )
-                    # Don't reraise the exception if we're in startup mode
-                    if not is_startup:
-                        raise HTTPException(
-                            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                            detail="Internal Server Error",
-                        ) from err
-    except HTTPException as err:
-        # Log an error event if an HTTPException occurred
-        core_logger.print_to_log(
-            f"Error retrieving users: {str(err)}",
-            "error",
-            exc=err,
-        )
-        # Raise the HTTPException to propagate the error
-        if not is_startup:
-            raise err
-    except Exception as err:
-        # Log an error event if an exception occurred
-        core_logger.print_to_log(
-            f"Error retrieving users: {str(err)}",
-            "error",
-            exc=err,
-        )
-        # Raise an HTTPException with a 500 Internal Server Error status code
-        if not is_startup:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Internal Server Error",
-            ) from err
-    finally:
-        # Ensure the session is closed after use
-        if db is not None:
-            db.close()
+            # Process the activities for each user
+            if users:
+                for user in users:
+                    try:
+                        await get_user_garminconnect_activities_by_dates(
+                            calculated_start_date,
+                            calculated_end_date,
+                            user.id,
+                            None,
+                            None,
+                            is_startup,
+                        )
+                    except HTTPException as err:
+                        # Log the error but continue processing other users
+                        core_logger.print_to_log(
+                            f"User {user.id}: Error processing Strava activities: {str(err)}",
+                            "error",
+                            exc=err,
+                        )
+                        # Don't reraise the exception if we're in startup mode
+                        if not is_startup:
+                            raise err
+                    except Exception as err:
+                        # Log the error but continue processing other users
+                        core_logger.print_to_log(
+                            f"User {user.id}: Unexpected error processing Strava activities: {str(err)}",
+                            "error",
+                            exc=err,
+                        )
+                        # Don't reraise the exception if we're in startup mode
+                        if not is_startup:
+                            raise HTTPException(
+                                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                                detail="Internal Server Error",
+                            ) from err
+        except HTTPException as err:
+            # Log an error event if an HTTPException occurred
+            core_logger.print_to_log(
+                f"Error retrieving users: {str(err)}",
+                "error",
+                exc=err,
+            )
+            # Raise the HTTPException to propagate the error
+            if not is_startup:
+                raise err
+        except Exception as err:
+            # Log an error event if an exception occurred
+            core_logger.print_to_log(
+                f"Error retrieving users: {str(err)}",
+                "error",
+                exc=err,
+            )
+            # Raise an HTTPException with a 500 Internal Server Error status code
+            if not is_startup:
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="Internal Server Error",
+                ) from err
 
 
 async def get_user_garminconnect_activities_by_dates(

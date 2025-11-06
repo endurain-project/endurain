@@ -92,81 +92,75 @@ def fetch_and_process_bc_by_dates(
 
 
 def retrieve_garminconnect_users_bc_for_days(days: int):
-    # Create a new database session
-    db = SessionLocal()
-    try:
-        # Get all users
-        users = users_crud.get_all_users(db)
-        # Calculate the start and end dates
-        calculated_start_date = datetime.now(timezone.utc) - timedelta(days=days)
-        calculated_end_date = datetime.now(timezone.utc)
+    # Create a new database session using context manager
+    with SessionLocal() as db:
+        try:
+            # Get all users
+            users = users_crud.get_all_users(db)
+            # Calculate the start and end dates
+            calculated_start_date = datetime.now(timezone.utc) - timedelta(days=days)
+            calculated_end_date = datetime.now(timezone.utc)
 
-        # Iterate through all users
-        for user in users:
-            try:
-                # Get the user's Garmin Connect body composition data
-                get_user_garminconnect_bc_by_dates(
-                    calculated_start_date,
-                    calculated_end_date,
-                    user.id,
-                )
-            except Exception as err:
-                core_logger.print_to_log(
-                    f"Error processing body composition for user {user.id} in retrieve_garminconnect_users_bc_for_days: {err}",
-                    "error",
-                    exc=err,
-                )
-    except Exception as err:
-        core_logger.print_to_log(
-            f"Error getting users in retrieve_garminconnect_users_bc_for_days: {err}",
-            "error",
-            exc=err,
-        )
-    finally:
-        # Ensure the session is closed after use
-        db.close()
+            # Iterate through all users
+            for user in users:
+                try:
+                    # Get the user's Garmin Connect body composition data
+                    get_user_garminconnect_bc_by_dates(
+                        calculated_start_date,
+                        calculated_end_date,
+                        user.id,
+                    )
+                except Exception as err:
+                    core_logger.print_to_log(
+                        f"Error processing body composition for user {user.id} in retrieve_garminconnect_users_bc_for_days: {err}",
+                        "error",
+                        exc=err,
+                    )
+        except Exception as err:
+            core_logger.print_to_log(
+                f"Error getting users in retrieve_garminconnect_users_bc_for_days: {err}",
+                "error",
+                exc=err,
+            )
 
 
 def get_user_garminconnect_bc_by_dates(
     start_date: datetime, end_date: datetime, user_id: int
 ):
-    # Create a new database session
-    db = SessionLocal()
-    try:
-        # Get the user integrations by user ID
-        user_integrations = garmin_utils.fetch_user_integrations_and_validate_token(
-            user_id, db
-        )
+    # Create a new database session using context manager
+    with SessionLocal() as db:
+        try:
+            # Get the user integrations by user ID
+            user_integrations = garmin_utils.fetch_user_integrations_and_validate_token(
+                user_id, db
+            )
 
-        if user_integrations is None:
-            core_logger.print_to_log(f"User {user_id}: Garmin Connect not linked")
-            return None
+            if user_integrations is None:
+                core_logger.print_to_log(f"User {user_id}: Garmin Connect not linked")
+                return None
 
-        # Log the start of the body composition processing
-        core_logger.print_to_log(
-            f"User {user_id}: Started Garmin Connect body composition processing for date range {start_date.date()} to {end_date.date()}"
-        )
+            # Log the start of the body composition processing
+            core_logger.print_to_log(
+                f"User {user_id}: Started Garmin Connect body composition processing for date range {start_date.date()} to {end_date.date()}"
+            )
 
-        # Create a Garmin Connect client with the user's access token
-        garminconnect_client = garmin_utils.login_garminconnect_using_tokens(
-            user_integrations.garminconnect_oauth1,
-            user_integrations.garminconnect_oauth2,
-        )
+            # Create a Garmin Connect client with the user's access token
+            garminconnect_client = garmin_utils.login_garminconnect_using_tokens(
+                user_integrations.garminconnect_oauth1,
+                user_integrations.garminconnect_oauth2,
+            )
 
-        # Fetch Garmin Connect body composition for the specified date range
-        num_garminconnect_bc_processed = fetch_and_process_bc_by_dates(
-            garminconnect_client, start_date, end_date, user_id, db
-        )
+            # Fetch Garmin Connect body composition for the specified date range
+            num_garminconnect_bc_processed = fetch_and_process_bc_by_dates(
+                garminconnect_client, start_date, end_date, user_id, db
+            )
 
-        core_logger.print_to_log(
-            f"User {user_id}: {num_garminconnect_bc_processed} Garmin Connect body composition processed"
-        )
-    except Exception as err:
-        core_logger.print_to_log(
-            f"Error in get_user_garminconnect_bc_by_dates: {err}",
-            "error",
-            exc=err,
-        )
-    finally:
-        # Ensure the session is closed after use
-        db.close()
+            core_logger.print_to_log(
+                f"User {user_id}: {num_garminconnect_bc_processed} Garmin Connect body composition processed"
+            )
+        except Exception as err:
+            core_logger.print_to_log(
+                f"Error in get_user_garminconnect_bc_by_dates: {err}",
+                "error",
+                exc=err,
+            )
