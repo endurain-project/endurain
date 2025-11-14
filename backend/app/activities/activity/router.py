@@ -521,12 +521,11 @@ async def read_activities_user_activities_refresh(
     if garmin_activities is not None:
         activities.extend(garmin_activities)
 
-    # Check if activities is None and return None if it is
-    if activities is None:
-        return None
+    # Filter out None values from the activities list
+    activities = [activity for activity in activities if activity is not None]
 
-    # Return the activities
-    return activities
+    # Return the activities or None if the list is empty
+    return activities if activities else None
 
 
 @router.get(
@@ -654,13 +653,17 @@ async def create_activity_with_bulk_import(
             # Check if file is one we can process
             _, file_extension = os.path.splitext(file_path)
             if file_extension not in supported_file_formats:
-                core_logger.print_to_log_and_console(f"Skipping file {file_path} due to not having a supported file extension. Supported extensions are: {supported_file_formats}.")
+                core_logger.print_to_log_and_console(
+                    f"Skipping file {file_path} due to not having a supported file extension. Supported extensions are: {supported_file_formats}."
+                )
                 # Might be good to notify the user, but background tasks cannot raise HTTPExceptions
                 continue
 
             if os.path.isfile(file_path):
                 # Log the file being processed
-                core_logger.print_to_log_and_console(f"Queuing file for processing: {file_path}")
+                core_logger.print_to_log_and_console(
+                    f"Queuing file for processing: {file_path}"
+                )
                 # Parse and store the activity
                 background_tasks.add_task(
                     activities_utils.parse_and_store_activity_from_file,
@@ -671,10 +674,14 @@ async def create_activity_with_bulk_import(
                 )
 
         # Log a success message that explains processing will continue elsewhere.
-        core_logger.print_to_log_and_console("Bulk import initiated for all files found in the bulk_import directory. Processing of files will continue in the background.")
+        core_logger.print_to_log_and_console(
+            "Bulk import initiated for all files found in the bulk_import directory. Processing of files will continue in the background."
+        )
 
         # Return a success message
-        return {"Bulk import initiated for all files found in the bulk_import directory. Processing of files will continue in the background."}
+        return {
+            "Bulk import initiated for all files found in the bulk_import directory. Processing of files will continue in the background."
+        }
     except Exception as err:
         # Log the exception
         core_logger.print_to_log(
