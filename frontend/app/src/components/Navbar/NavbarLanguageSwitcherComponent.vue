@@ -7,9 +7,10 @@
       data-bs-toggle="dropdown"
       aria-expanded="false"
     >
-      <span :class="'fi fi-' + currentLanguage" v-if="currentLanguage !== 'ca'"></span>
+      <span :class="'fi fi-' + currentLanguage" v-if="currentLanguage !== 'ca' && currentLanguage !== 'gl' && currentLanguage !== 'sl'"></span>
       <span class="fi fi-es-ct" v-else-if="currentLanguage === 'ca'"></span>
       <span class="fi fi-es-ga" v-else-if="currentLanguage === 'gl'"></span>
+      <span class="fi fi-si" v-else-if="currentLanguage === 'sl'"></span>
     </a>
 
     <!-- dropdown menu -->
@@ -21,9 +22,10 @@
           :aria-pressed="currentLanguage === language.value ? 'true' : 'false'"
         >
           <span class="me-2">{{ language.label }}</span>
-          <span :class="'fi fi-' + language.value" v-if="language.value !== 'ca' && language.value !== 'gl'"></span>
+          <span :class="'fi fi-' + language.value" v-if="language.value !== 'ca' && language.value !== 'gl' && language.value !== 'sl'"></span>
           <span class="fi fi-es-ct" v-else-if="language.value === 'ca'"></span>
           <span class="fi fi-es-ga" v-else-if="language.value === 'gl'"></span>
+          <span class="fi fi-si" v-else-if="language.value === 'sl'"></span>
           <span v-if="currentLanguage === language.value" class="ms-3"
             ><font-awesome-icon :icon="['fas', 'check']"
           /></span>
