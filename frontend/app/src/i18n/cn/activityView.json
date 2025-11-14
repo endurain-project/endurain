@@ -1,13 +1,13 @@
 {
-  "labelGear": "Gear",
-  "labelGearNotSet": "Not set",
-  "modalLabelDeleteGear": "Delete gear from activity",
-  "modalLabelDeleteGearBody": "Are you sure you want to remove the gear from the activity?",
-  "modalLabelDeleteGearButton": "Delete gear",
-  "successMessageGearAdded": "Gear added to activity",
-  "successMessageGearDeleted": "Gear deleted from activity",
-  "errorMessageDeleteGear": "Error deleting gear from activity",
-  "errorMessageActivityNotFound": "Activity not found",
-  "alertPrivacyMessage": "You have hidden information in this activity. You can see it, but others cannot.",
-  "isHiddenMessage": "This activity is hidden. Probably because it is a duplicate or was hidden by the user."
+  "labelGear": "装备",
+  "labelGearNotSet": "未设置",
+  "modalLabelDeleteGear": "从活动中移除装备",
+  "modalLabelDeleteGearBody": "确定要从该活动中移除装备吗？",
+  "modalLabelDeleteGearButton": "移除装备",
+  "successMessageGearAdded": "装备已添加到活动",
+  "successMessageGearDeleted": "装备已从活动中移除",
+  "errorMessageDeleteGear": "从活动中移除装备时出错",
+  "errorMessageActivityNotFound": "未找到活动",
+  "alertPrivacyMessage": "此活动中包含隐藏信息，仅你可见，其他人无法查看。",
+  "isHiddenMessage": "此活动已被隐藏，可能是重复活动或由用户手动隐藏。"
 }

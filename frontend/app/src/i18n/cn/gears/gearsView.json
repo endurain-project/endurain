@@ -1,13 +1,13 @@
 {
-  "title": "Gear",
-  "buttonAddGear": "Add Gear",
-  "subTitleSearchGearByNickname": "Search gear by nickname",
-  "placeholderSearchGearByNickname": "Nickname",
-  "buttonSearchGear": "Search Gear",
-  "displayUserNumberOfGears1": "There is a total of ",
-  "displayUserNumberOfGears2": " gear(s) (",
-  "displayUserNumberOfGears3": " loaded):",
-  "successGearDeleted": "Gear deleted successfully",
-  "errorGearNotFound": "Gear not found",
-  "errorFetchingGears": "Error fetching gears"
+  "title": "装备",
+  "buttonAddGear": "添加装备",
+  "subTitleSearchGearByNickname": "按昵称搜索装备",
+  "placeholderSearchGearByNickname": "昵称",
+  "buttonSearchGear": "搜索装备",
+  "displayUserNumberOfGears1": "共有",
+  "displayUserNumberOfGears2": "装备",
+  "displayUserNumberOfGears3": "已载入",
+  "successGearDeleted": "装备已成功删除",
+  "errorGearNotFound": "未发现装备",
+  "errorFetchingGears": "获取装备信息时出错"
 }

@@ -30,7 +30,7 @@
   "forgotPasswordModalRequestError": "Anfrage zur Passwortzurücksetzung konnte nicht verarbeitet werden",
   "forgotPasswordModalEmailNotConfigured": "Der E-Mail-Dienst ist nicht konfiguriert. Bitte wenden Sie sich an den Administrator",
   "forgotPasswordModalUnableToSendEmail": "E-Mail kann nicht gesendet werden. Bitte versuchen Sie es später erneut oder wenden Sie sich an den Administrator",
-  "signUpLink": "Don't have an account? Sign up",
+  "signUpLink": "Kein Konto? Jetzt registrieren",
   "emailVerificationSent": "Please check your email for verification instructions",
   "adminApprovalRequired": "Your account is pending admin approval",
   "verifyEmailInvalidLink": "Invalid email verification link"

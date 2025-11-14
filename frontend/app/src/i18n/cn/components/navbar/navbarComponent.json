@@ -1,13 +1,13 @@
 {
-  "search": "Search",
-  "activities": "Activities",
-  "activitiesList": "List",
-  "summary": "Summary",
-  "gear": "Gear",
-  "health": "Health",
-  "profile": "Profile",
-  "settings": "Settings",
-  "login": "Login",
-  "logout": "Logout",
-  "errorLogout": "Error logging out"
+  "search": "搜索",
+  "activities": "活动",
+  "activitiesList": "列表",
+  "summary": "摘要",
+  "gear": "装备",
+  "health": "健康",
+  "profile": "个人资料",
+  "settings": "设置",
+  "login": "登录",
+  "logout": "注销",
+  "errorLogout": "注销错误"
 }
