@@ -9,7 +9,8 @@ import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/authStore'
 import { useServerSettingsStore } from '@/stores/serverSettingsStore'
 import { Chart, registerables } from 'chart.js'
-Chart.register(...registerables)
+import zoomPlugin from 'chartjs-plugin-zoom'
+Chart.register(...registerables, zoomPlugin)
 
 import {
   formatAverageSpeedMetric,
@@ -50,6 +51,22 @@ export default {
       gradient.addColorStop(0, 'rgba(54, 162, 235, 0.4)') // More opaque at top
       gradient.addColorStop(1, 'rgba(54, 162, 235, 0.0)') // Transparent at bottom
       return gradient
+    }
+
+    // Function to format pace values as MM:SS
+    function formatPaceForTooltip(value) {
+      if (value === null || value === undefined) return 'N/A'
+      const totalMinutes = Math.floor(value)
+      let seconds = Math.round((value - totalMinutes) * 60)
+      
+      // Handle case where seconds round to 60 (should be next minute)
+      let minutes = totalMinutes
+      if (seconds >= 60) {
+        minutes += 1
+        seconds = 0
+      }
+      
+      return `${minutes}:${seconds.toString().padStart(2, '0')}`
     }
 
     const computedChartData = computed(() => {
@@ -289,6 +306,71 @@ export default {
               ticks: {
                 maxTicksLimit: 10, // Limit x-axis labels to approximately 10 for better readability
                 autoSkip: true
+              }
+            }
+          },
+          plugins: {
+            tooltip: {
+              callbacks: {
+                title: function(context) {
+                  // Show the distance label as the title
+                  return context[0].label
+                },
+                label: function(context) {
+                  const label = context.dataset.label || ''
+                  let value = context.parsed.y
+                  
+                  if (value === null || value === undefined) {
+                    return `${label}: N/A`
+                  }
+                  
+                  // Format based on the type of data
+                  if (props.graphSelection === 'pace') {
+                    // Format pace as MM:SS
+                    const formatted = formatPaceForTooltip(value)
+                    return `${label}: ${formatted}`
+                  } else if (props.graphSelection === 'hr') {
+                    // Heart rate - whole number
+                    return `${label}: ${Math.round(value)}`
+                  } else if (props.graphSelection === 'power') {
+                    // Power - whole number
+                    return `${label}: ${Math.round(value)} W`
+                  } else if (props.graphSelection === 'cad') {
+                    // Cadence/Stroke Rate - whole number
+                    return `${label}: ${Math.round(value)}`
+                  } else if (props.graphSelection === 'ele') {
+                    // Elevation - 1 decimal
+                    return `${label}: ${value.toFixed(1)}`
+                  } else if (props.graphSelection === 'vel') {
+                    // Velocity - 1 decimal
+                    return `${label}: ${value.toFixed(1)}`
+                  }
+                  
+                  return `${label}: ${value}`
+                }
+              }
+            },
+            zoom: {
+              pan: {
+                enabled: true,
+                mode: 'x', // Only pan horizontally
+                modifierKey: 'shift' // Hold shift to pan
+              },
+              zoom: {
+                wheel: {
+                  enabled: true, // Enable zoom with mouse wheel
+                  speed: 0.1
+                },
+                pinch: {
+                  enabled: true // Enable pinch zoom on touch devices
+                },
+                mode: 'x' // Only zoom horizontally
+              },
+              limits: {
+                x: {
+                  min: 'original', // Can't pan/zoom beyond original data
+                  max: 'original'
+                }
               }
             }
           }
