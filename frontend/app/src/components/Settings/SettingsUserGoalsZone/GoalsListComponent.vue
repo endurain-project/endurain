@@ -43,6 +43,9 @@
             <span v-if="goal.activity_type == 5">{{
               $t('goalsAddEditGoalModalComponent.activityTypeStrength')
             }}</span>
+            <span v-if="goal.activity_type == 6">{{
+              $t('goalsAddEditGoalModalComponent.activityTypeCardio')
+            }}</span>
           </div>
           <span v-if="goal.interval == 'daily'">{{
             $t('goalsAddEditGoalModalComponent.intervalOption1')

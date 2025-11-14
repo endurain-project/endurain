@@ -18,7 +18,8 @@
             v-if="
               (activity.activity_type === 10 ||
                 activity.activity_type === 19 ||
-                activity.activity_type === 20) &&
+                activity.activity_type === 20 ||
+                activity.activity_type === 41) &&
               activityActivityWorkoutSteps &&
               activityActivityWorkoutSteps.length > 0
             "
@@ -29,7 +30,8 @@
             v-if="
               (activity.activity_type === 10 ||
                 activity.activity_type === 19 ||
-                activity.activity_type === 20) &&
+                activity.activity_type === 20 ||
+                activity.activity_type === 41) &&
               activityActivityWorkoutSteps &&
               activityActivityWorkoutSteps.length > 0
             "
@@ -96,7 +98,8 @@
             v-if="
               (activity.activity_type === 10 ||
                 activity.activity_type === 19 ||
-                activity.activity_type === 20) &&
+                activity.activity_type === 20 ||
+                activity.activity_type === 41) &&
               activityActivityWorkoutSteps &&
               activityActivityWorkoutSteps.length > 0
             "
@@ -114,7 +117,8 @@
             v-if="
               (activity.activity_type === 10 ||
                 activity.activity_type === 19 ||
-                activity.activity_type === 20) &&
+                activity.activity_type === 20 ||
+                activity.activity_type === 41) &&
               activityActivityWorkoutSteps &&
               activityActivityWorkoutSteps.length > 0
             "
@@ -203,7 +207,8 @@
             v-if="
               (activity.activity_type === 10 ||
                 activity.activity_type === 19 ||
-                activity.activity_type === 20) &&
+                activity.activity_type === 20 ||
+                activity.activity_type === 41) &&
               activityActivitySets &&
               activityActivitySets.length > 0
             "
@@ -240,7 +245,8 @@
             v-if="
               (activity.activity_type === 10 ||
                 activity.activity_type === 19 ||
-                activity.activity_type === 20) &&
+                activity.activity_type === 20 ||
+                activity.activity_type === 41) &&
               activityActivitySets &&
               activityActivitySets.length > 0
             "

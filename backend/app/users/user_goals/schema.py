@@ -49,6 +49,7 @@ class ActivityType(IntEnum):
         SWIM (3): Swimming activities.
         WALK (4): Walking or hiking activities.
         STRENGTH (5): Strength or resistance training sessions.
+        CARDIO (6): Cardiovascular training activities.
     """
 
     RUN = 1
@@ -56,6 +57,7 @@ class ActivityType(IntEnum):
     SWIM = 3
     WALK = 4
     STRENGTH = 5
+    CARDIO = 6
 
 
 class GoalType(IntEnum):

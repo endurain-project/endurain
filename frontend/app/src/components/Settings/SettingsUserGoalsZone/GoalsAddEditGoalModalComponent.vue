@@ -76,6 +76,9 @@
               <option :value="5">
                 {{ $t('goalsAddEditGoalModalComponent.activityTypeStrength') }}
               </option>
+              <option :value="6">
+                {{ $t('goalsAddEditGoalModalComponent.activityTypeCardio') }}
+              </option>
             </select>
             <!-- goal type fields -->
             <label for="goalTypeAddEdit"

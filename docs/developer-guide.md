@@ -281,6 +281,7 @@ The table bellow details the activity types supported by Endurain.
 | Stand up paddling | 32 |
 | Surf | 33 |
 | Soccer | 38 |
+| Cardio training | 41 |
 
 
 ## Supported gear types
