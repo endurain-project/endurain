@@ -4,6 +4,7 @@ docker-compose.yml
 .env
 
 # aux folder
+.garminconnect
 aux_scripts/.garminconnect
 
 # Python
