@@ -41,6 +41,17 @@ export default {
     const chartCanvas = ref(null)
     const units = ref(1)
     let myChart = null
+
+    // Function to create gradient fill for chart
+    function createGradient(ctx, chartArea) {
+      if (!chartArea) return 'rgba(54, 162, 235, 0.2)'
+      
+      const gradient = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom)
+      gradient.addColorStop(0, 'rgba(54, 162, 235, 0.4)') // More opaque at top
+      gradient.addColorStop(1, 'rgba(54, 162, 235, 0.0)') // Transparent at bottom
+      return gradient
+    }
+
     const computedChartData = computed(() => {
       const data = []
       let label = ''
@@ -116,19 +127,36 @@ export default {
           roundValues = false
           for (const paceData of stream.stream_waypoints) {
             if (paceData.pace === 0 || paceData.pace === null) {
-              data.push(0)
+              // Use null so Chart.js will gap missing/invalid pace points
+              data.push(null)
             } else {
+              // Compute converted pace (minutes per km or per mile for running, minutes per 100m/100yd for swimming)
+              let converted = null
               if (activityTypeIsRunning(props.activity)) {
                 if (Number(units.value) === 1) {
-                  data.push((paceData.pace * 1000) / 60)
+                  converted = (paceData.pace * 1000) / 60 // min/km
                 } else {
-                  data.push((paceData.pace * 1609.34) / 60)
+                  converted = (paceData.pace * 1609.34) / 60 // min/mile
+                }
+                // Apply a hard cap: ignore implausible paces > 20 min/km (or equivalent in min/mile)
+                const threshold = Number(units.value) === 1 ? 20 : 20 * 1.60934
+                if (converted > threshold || Number.isNaN(converted)) {
+                  data.push(null)
+                } else {
+                  data.push(converted)
                 }
               } else if (activityTypeIsSwimming(props.activity)) {
                 if (Number(units.value) === 1) {
-                  data.push((paceData.pace * 100) / 60)
+                  converted = (paceData.pace * 100) / 60 // min/100m
                 } else {
-                  data.push((paceData.pace * 100 * 0.9144) / 60)
+                  converted = (paceData.pace * 100 * 0.9144) / 60 // min/100yd
+                }
+                // Apply a hard cap for swimming: ignore implausible paces > 10 min/100m (or equivalent in min/100yd)
+                const swimThreshold = Number(units.value) === 1 ? 10 : 10 * 1.0936
+                if (converted > swimThreshold || Number.isNaN(converted)) {
+                  data.push(null)
+                } else {
+                  data.push(converted)
                 }
               }
             }
@@ -149,11 +177,8 @@ export default {
         }
       }
 
-      const dataDS = downsampleData(data, 200, roundValues)
-      const cadDataDS = downsampleData(cadData, 200, true)
-
       const totalDistance = props.activity.distance / 1000
-      const numberOfDataPoints = dataDS.length
+      const numberOfDataPoints = data.length
       const distanceInterval = totalDistance / numberOfDataPoints
 
       for (let i = 0; i < numberOfDataPoints; i++) {
@@ -175,21 +200,27 @@ export default {
       const datasets = [
         {
           label: label,
-          data: dataDS,
+          data: data,
           yAxisID: 'y',
-          backgroundColor: 'transparent',
+          backgroundColor: function(context) {
+            const chart = context.chart
+            const {ctx, chartArea} = chart
+            if (!chartArea) {
+              return 'rgba(54, 162, 235, 0.2)'
+            }
+            return createGradient(ctx, chartArea)
+          },
           borderColor: 'rgba(54, 162, 235, 0.8)',
-          fill: true,
-          fillColor: 'rgba(54, 162, 235, 0.2)'
+          fill: true
         }
       ]
 
       // Only push laps 'background shading' if there is cadence data and indoor swimming activity
-      if (cadDataDS.length > 0 && props.activity.activity_type === 8) {
+      if (cadData.length > 0 && props.activity.activity_type === 8) {
         datasets.push({
           type: 'bar',
           label: t('generalItems.labelLaps'),
-          data: cadDataDS.map((d) => (d === 0 ? 0 : 1)),
+          data: cadData.map((d) => (d === 0 ? 0 : 1)),
           yAxisID: 'y1',
           backgroundColor: 'rgba(0, 0, 0, 0.2)',
           fill: true,
@@ -208,35 +239,18 @@ export default {
     watch(
       computedChartData,
       (newChartData) => {
-        if (myChart.value) {
-          myChart.value.data.datasets = newChartData.datasets
+        if (myChart) {
+          myChart.data.datasets = newChartData.datasets
           myChart.data.labels = newChartData.labels
-          myChart.value.update()
+          // Ensure pace graphs are inverted so lower min/km/min/100m appear higher
+          if (myChart.options && myChart.options.scales && myChart.options.scales.y) {
+            myChart.options.scales.y.reverse = props.graphSelection === 'pace'
+          }
+          myChart.update()
         }
       },
       { deep: true }
     )
-
-    function downsampleData(data, threshold, roundValues) {
-      if (data.length <= threshold) {
-        return data
-      }
-
-      const factor = Math.ceil(data.length / threshold)
-      const downsampledData = []
-
-      for (let i = 0; i < data.length; i += factor) {
-        const chunk = data.slice(i, i + factor)
-        const average = chunk.reduce((a, b) => a + b) / chunk.length
-        if (roundValues) {
-          downsampledData.push(Number.parseInt(average))
-        } else {
-          downsampledData.push(average)
-        }
-      }
-
-      return downsampledData
-    }
 
     onMounted(() => {
       myChart = new Chart(chartCanvas.value.getContext('2d'), {
@@ -244,10 +258,27 @@ export default {
         data: computedChartData.value,
         options: {
           responsive: true,
+          animation: false, // Disable animations for faster rendering with many points
+          interaction: {
+            mode: 'index', // Show tooltip for all datasets at the same x position
+            intersect: false // Don't require hovering exactly on a point
+          },
+          elements: {
+            point: {
+              radius: 0, // Hide points by default (keeps line visible)
+              hitRadius: 10, // Large invisible hover area for easier interaction
+              hoverRadius: 4 // Show small point when hovering
+            },
+            line: {
+              tension: 0.4 // Smooth curves instead of straight lines (0 = angular, 0.4 = smooth)
+            }
+          },
           scales: {
             y: {
               beginAtZero: false,
-              position: 'left'
+              position: 'left',
+              // Reverse the y-axis for pace so that lower times plot higher
+              reverse: props.graphSelection === 'pace'
             },
             y1: {
               beginAtZero: true,
@@ -255,7 +286,10 @@ export default {
               display: false
             },
             x: {
-              autoSkip: true
+              ticks: {
+                maxTicksLimit: 10, // Limit x-axis labels to approximately 10 for better readability
+                autoSkip: true
+              }
             }
           }
         }
@@ -263,8 +297,8 @@ export default {
     })
 
     onUnmounted(() => {
-      if (myChart.value) {
-        myChart.value.destroy()
+      if (myChart) {
+        myChart.destroy()
       }
     })
 

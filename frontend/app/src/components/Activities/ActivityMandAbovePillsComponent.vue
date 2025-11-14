@@ -79,7 +79,6 @@
               </a>
             </li>
           </ul>
-          <p class="mt-2">{{ $t('activityMandAbovePillsComponent.labelDownsampling') }}</p>
         </div>
         <div class="col">
           <div if="activity">
