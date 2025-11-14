@@ -102,6 +102,7 @@ Currently supported in:
  - GALICIAN (GL)
  - Dutch (NL) [@woutvanderaa](https://github.com/woutvanderaa)
  - Portuguese (PT)
+ - Slovenian (SL) [@thehijacker](https://github.com/thehijacker)
  - Spanish (ES) [@rgmelkor](https://github.com/rgmelkor) and [@tinchodin](https://github.com/tinchodin)
  - English (US)
 

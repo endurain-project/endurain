@@ -31,6 +31,7 @@ class Language(Enum):
         GERMAN: German language code ("de").
         FRENCH: French language code ("fr").
         GALICIAN: Galician language code ("gl").
+        SLOVENIAN: Slovenian language code ("sl").
         SPANISH: Spanish language code ("es").
         PORTUGUESE: Portuguese language code ("pt").
         ENGLISH_USA: US English language code ("us").
@@ -43,6 +44,7 @@ class Language(Enum):
     GERMAN = "de"
     FRENCH = "fr"
     GALICIAN = "gl"
+    SLOVENIAN = "sl"
     SPANISH = "es"
     PORTUGUESE = "pt"
     ENGLISH_USA = "us"
@@ -139,6 +141,7 @@ class User(UserBase):
     model_config = ConfigDict(
         from_attributes=True, extra="forbid", validate_assignment=True
     )
+
 
 class UserRead(User):
     id: StrictInt
