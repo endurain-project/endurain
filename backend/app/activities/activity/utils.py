@@ -364,7 +364,7 @@ async def parse_and_store_activity_from_file(
     websocket_manager: websocket_schema.WebSocketManager,
     db: Session,
     from_garmin: bool = False,
-    garminconnect_gear: dict = None,
+    garminconnect_gear: dict | None = None,
 ):
     try:
         core_logger.print_to_log_and_console(
