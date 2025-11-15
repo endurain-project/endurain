@@ -407,7 +407,12 @@ export default {
               beginAtZero: false,
               position: 'left',
               // Reverse the y-axis for pace so that lower times plot higher
-              reverse: props.graphSelection === 'pace'
+              reverse: props.graphSelection === 'pace',
+              grid: {
+                lineWidth: 1,
+                drawBorder: true,
+                borderWidth: 1
+              },
             },
             y1: {
               beginAtZero: true,
@@ -417,7 +422,12 @@ export default {
             x: {
               ticks: {
                 maxTicksLimit: 10, // Limit x-axis labels to approximately 10 for better readability
-                autoSkip: true
+                autoSkip: true,
+              },
+              grid: {
+                lineWidth: 1,
+                drawBorder: true,
+                borderWidth: 1
               }
             }
           },
