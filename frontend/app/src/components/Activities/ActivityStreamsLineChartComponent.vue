@@ -255,14 +255,23 @@ export default {
         }
       }
 
-      // Calculate average and max for reference lines (excluding null values)
+      // Calculate average and max/min for reference lines (excluding null values)
       const validData = data.filter((v) => v !== null && !Number.isNaN(v))
       let avgValue = null
-      let maxValue = null
+      let extremeValue = null
+      let extremeLabel = ''
       
       if (validData.length > 0) {
         avgValue = validData.reduce((a, b) => a + b, 0) / validData.length
-        maxValue = Math.max(...validData)
+        
+        // For pace, show minimum (best/fastest). For others, show maximum (best/highest)
+        if (props.graphSelection === 'pace') {
+          extremeValue = Math.min(...validData)
+          extremeLabel = 'Best'
+        } else {
+          extremeValue = Math.max(...validData)
+          extremeLabel = 'Maximum'
+        }
       }
 
       const datasets = [
@@ -280,7 +289,7 @@ export default {
             return createGradient(ctx, chartArea, props.graphSelection)
           },
           borderColor: getGraphColors(props.graphSelection).border,
-          fill: true,
+          fill: props.graphSelection === 'pace' ? 'start' : true, // For pace, fill from line to top (outside)
           pointHoverRadius: 4,
           pointHoverBackgroundColor: getGraphColors(props.graphSelection).border
         }
@@ -302,11 +311,11 @@ export default {
         })
       }
 
-      // Add max reference line if we have valid data
-      if (maxValue !== null) {
+      // Add extreme value reference line if we have valid data (max for most, min/best for pace)
+      if (extremeValue !== null) {
         datasets.push({
-          label: t('generalItems.labelMaximum'),
-          data: Array(data.length).fill(maxValue),
+          label: extremeLabel,
+          data: Array(data.length).fill(extremeValue),
           yAxisID: 'y',
           borderColor: 'rgba(220, 38, 38, 0.5)', // Red color, more transparent
           borderWidth: 1.5,
