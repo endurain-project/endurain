@@ -255,6 +255,16 @@ export default {
         }
       }
 
+      // Calculate average and max for reference lines (excluding null values)
+      const validData = data.filter((v) => v !== null && !Number.isNaN(v))
+      let avgValue = null
+      let maxValue = null
+      
+      if (validData.length > 0) {
+        avgValue = validData.reduce((a, b) => a + b, 0) / validData.length
+        maxValue = Math.max(...validData)
+      }
+
       const datasets = [
         {
           label: label,
@@ -270,9 +280,43 @@ export default {
             return createGradient(ctx, chartArea, props.graphSelection)
           },
           borderColor: getGraphColors(props.graphSelection).border,
-          fill: true
+          fill: true,
+          pointHoverRadius: 4,
+          pointHoverBackgroundColor: getGraphColors(props.graphSelection).border
         }
       ]
+
+      // Add average reference line if we have valid data
+      if (avgValue !== null) {
+        datasets.push({
+          label: t('generalItems.labelAverage'),
+          data: Array(data.length).fill(avgValue),
+          yAxisID: 'y',
+          borderColor: 'rgba(156, 163, 175, 0.6)', // Gray color
+          borderWidth: 2,
+          borderDash: [10, 5], // Dashed line
+          fill: false,
+          pointRadius: 0,
+          pointHoverRadius: 0,
+          tension: 0
+        })
+      }
+
+      // Add max reference line if we have valid data
+      if (maxValue !== null) {
+        datasets.push({
+          label: t('generalItems.labelMaximum'),
+          data: Array(data.length).fill(maxValue),
+          yAxisID: 'y',
+          borderColor: 'rgba(220, 38, 38, 0.5)', // Red color, more transparent
+          borderWidth: 1.5,
+          borderDash: [5, 5], // Shorter dashes
+          fill: false,
+          pointRadius: 0,
+          pointHoverRadius: 0,
+          tension: 0
+        })
+      }
 
       // Only push laps 'background shading' if there is cadence data and indoor swimming activity
       if (cadData.length > 0 && props.activity.activity_type === 8) {
@@ -311,10 +355,36 @@ export default {
       { deep: true }
     )
 
+    // Custom crosshair plugin
+    const crosshairPlugin = {
+      id: 'customCrosshair',
+      afterDraw: (chart) => {
+        if (chart.tooltip?._active && chart.tooltip._active.length) {
+          const ctx = chart.ctx
+          const activePoint = chart.tooltip._active[0]
+          const x = activePoint.element.x
+          const topY = chart.scales.y.top
+          const bottomY = chart.scales.y.bottom
+
+          // Draw vertical line
+          ctx.save()
+          ctx.beginPath()
+          ctx.setLineDash([5, 5])
+          ctx.moveTo(x, topY)
+          ctx.lineTo(x, bottomY)
+          ctx.lineWidth = 1
+          ctx.strokeStyle = 'rgba(0, 0, 0, 0.3)'
+          ctx.stroke()
+          ctx.restore()
+        }
+      }
+    }
+
     onMounted(() => {
       myChart = new Chart(chartCanvas.value.getContext('2d'), {
         type: 'line',
         data: computedChartData.value,
+        plugins: [crosshairPlugin],
         options: {
           responsive: true,
           animation: false, // Disable animations for faster rendering with many points
@@ -353,6 +423,7 @@ export default {
           },
           plugins: {
             tooltip: {
+              enabled: true,
               callbacks: {
                 title: function(context) {
                   // Show the distance label as the title
