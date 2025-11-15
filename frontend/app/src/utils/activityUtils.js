@@ -716,7 +716,7 @@ export function getIcon(typeId) {
     38: ['fas', 'futbol'],
     39: ['fas', 'table-tennis-paddle-ball'],
     40: ['fas', 'person-running'], // Treadmill run icon might be better if available
-    41: ['fas', 'heart-pulse'], // Cardio training icon might be better if available
+    41: ['fas', 'heart-pulse'] // Cardio training icon might be better if available
   }
 
   return iconMap[typeId] || ['fas', 'dumbbell']

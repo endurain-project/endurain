@@ -16,8 +16,8 @@
           </div>
           <div class="d-flex align-items-center">
             <!-- import button -->
-            <a href="#" class="btn btn-primary" role="button" @click="submitBulkImport">{{
-              $t('settingsImportZone.buttonBulkImport') }}
+            <a href="#" class="btn btn-primary" role="button" @click="submitBulkImport"
+              >{{ $t('settingsImportZone.buttonBulkImport') }}
             </a>
           </div>
         </li>
@@ -35,16 +35,27 @@
           </div>
           <div class="d-flex align-items-center">
             <div class="dropdown">
-              <a class="btn btn-secondary dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown"
-                aria-expanded="false">
+              <a
+                class="btn btn-secondary dropdown-toggle"
+                href="#"
+                role="button"
+                data-bs-toggle="dropdown"
+                aria-expanded="false"
+              >
                 {{ $t('settingsImportZone.importTitle') }}
               </a>
 
               <ul class="dropdown-menu">
-                <li><a class="dropdown-item" @click="submitStravaBikesImport">{{
-                  $t("settingsImportZone.stravaGearImportbuttonBikes") }}</a></li>
-                <li><a class="dropdown-item" @click="submitStravaShoesImport">{{
-                  $t("settingsImportZone.stravaImportbuttonShoes") }}</a></li>
+                <li>
+                  <a class="dropdown-item" @click="submitStravaBikesImport">{{
+                    $t('settingsImportZone.stravaGearImportbuttonBikes')
+                  }}</a>
+                </li>
+                <li>
+                  <a class="dropdown-item" @click="submitStravaShoesImport">{{
+                    $t('settingsImportZone.stravaImportbuttonShoes')
+                  }}</a>
+                </li>
               </ul>
             </div>
           </div>
@@ -90,14 +101,12 @@ async function submitStravaShoesImport() {
   // Set the loading message
   const notification = push.promise(t('settingsImportZone.loadingMessageStravaShoesImport'))
   try {
-    await stravaService.importShoes();
+    await stravaService.importShoes()
     // Resolve the loading message with a success message
-    notification.resolve(t("settingsImportZone.successMessageStravaShoesImport"));
+    notification.resolve(t('settingsImportZone.successMessageStravaShoesImport'))
   } catch (error) {
     // Reject the loading message with an error message
-    notification.reject(
-      `${t("settingsImportZone.errorMessageUnableToImportShoes")} - ${error}`,
-    );
+    notification.reject(`${t('settingsImportZone.errorMessageUnableToImportShoes')} - ${error}`)
   }
 }
 </script>

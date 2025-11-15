@@ -49,7 +49,7 @@ export default {
         const colors = getGraphColors(graphSelection)
         return colors.gradientStart
       }
-      
+
       const colors = getGraphColors(graphSelection)
       const gradient = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom)
       gradient.addColorStop(0, colors.gradientStart) // More opaque at top
@@ -62,14 +62,14 @@ export default {
       if (value === null || value === undefined) return 'N/A'
       const totalMinutes = Math.floor(value)
       let seconds = Math.round((value - totalMinutes) * 60)
-      
+
       // Handle case where seconds round to 60 (should be next minute)
       let minutes = totalMinutes
       if (seconds >= 60) {
         minutes += 1
         seconds = 0
       }
-      
+
       return `${minutes}:${seconds.toString().padStart(2, '0')}`
     }
 
@@ -260,10 +260,10 @@ export default {
       let avgValue = null
       let extremeValue = null
       let extremeLabel = ''
-      
+
       if (validData.length > 0) {
         avgValue = validData.reduce((a, b) => a + b, 0) / validData.length
-        
+
         // For pace, show minimum (best/fastest). For others, show maximum (best/highest)
         if (props.graphSelection === 'pace') {
           extremeValue = Math.min(...validData)
@@ -279,9 +279,9 @@ export default {
           label: label,
           data: data,
           yAxisID: 'y',
-          backgroundColor: function(context) {
+          backgroundColor: function (context) {
             const chart = context.chart
-            const {ctx, chartArea} = chart
+            const { ctx, chartArea } = chart
             if (!chartArea) {
               const colors = getGraphColors(props.graphSelection)
               return colors.gradientStart
@@ -421,7 +421,7 @@ export default {
                 lineWidth: 1,
                 drawBorder: true,
                 borderWidth: 1
-              },
+              }
             },
             y1: {
               beginAtZero: true,
@@ -431,7 +431,7 @@ export default {
             x: {
               ticks: {
                 maxTicksLimit: 10, // Limit x-axis labels to approximately 10 for better readability
-                autoSkip: true,
+                autoSkip: true
               },
               grid: {
                 lineWidth: 1,
@@ -444,18 +444,18 @@ export default {
             tooltip: {
               enabled: true,
               callbacks: {
-                title: function(context) {
+                title: function (context) {
                   // Show the distance label as the title
                   return context[0].label
                 },
-                label: function(context) {
+                label: function (context) {
                   const label = context.dataset.label || ''
                   let value = context.parsed.y
-                  
+
                   if (value === null || value === undefined) {
                     return `${label}: N/A`
                   }
-                  
+
                   // Format based on the type of data
                   if (props.graphSelection === 'pace') {
                     // Format pace as MM:SS
@@ -477,7 +477,7 @@ export default {
                     // Velocity - 1 decimal
                     return `${label}: ${value.toFixed(1)}`
                   }
-                  
+
                   return `${label}: ${value}`
                 }
               }
