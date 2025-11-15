@@ -698,6 +698,11 @@ async function submitEditUserForm() {
       photo_path: newEditUserPhotoPath.value,
       active: newEditUserActive.value
     }
+    if (props.action === 'profile') {
+      await profile.editProfile(data)
+    } else {
+      await users.editUser(data.id, data)
+    }
     if (newEditUserPhotoFile.value) {
       try {
         if (props.action === 'profile') {
@@ -710,11 +715,6 @@ async function submitEditUserForm() {
           `${t('usersAddEditUserModalComponent.addEditUserModalErrorUploadingUserPhoto')} - ${error}`
         )
       }
-    }
-    if (props.action === 'profile') {
-      await profile.editProfile(data)
-    } else {
-      await users.editUser(data.id, data)
     }
     if (props.action === 'edit') {
       emit('editedUser', data)

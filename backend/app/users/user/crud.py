@@ -340,8 +340,8 @@ def edit_user(user_id: int, user: users_schema.UserRead, db: Session):
 
         height_before = db_user.height
 
-        # If the user photo path is different, delete the user photo in the filesystem
-        if db_user.photo_path != user.photo_path:
+        # Check if the photo_path is being updated
+        if user.photo_path:
             # Delete the user photo in the filesystem
             users_utils.delete_user_photo_filesystem(db_user.id)
 
@@ -388,9 +388,7 @@ def edit_user(user_id: int, user: users_schema.UserRead, db: Session):
         ) from err
 
 
-def approve_user(
-    user_id: int, db: Session
-):
+def approve_user(user_id: int, db: Session):
     """
     Approve a user by ID.
 
