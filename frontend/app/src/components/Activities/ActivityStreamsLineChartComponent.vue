@@ -44,12 +44,16 @@ export default {
     let myChart = null
 
     // Function to create gradient fill for chart
-    function createGradient(ctx, chartArea) {
-      if (!chartArea) return 'rgba(54, 162, 235, 0.2)'
+    function createGradient(ctx, chartArea, graphSelection) {
+      if (!chartArea) {
+        const colors = getGraphColors(graphSelection)
+        return colors.gradientStart
+      }
       
+      const colors = getGraphColors(graphSelection)
       const gradient = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom)
-      gradient.addColorStop(0, 'rgba(54, 162, 235, 0.4)') // More opaque at top
-      gradient.addColorStop(1, 'rgba(54, 162, 235, 0.0)') // Transparent at bottom
+      gradient.addColorStop(0, colors.gradientStart) // More opaque at top
+      gradient.addColorStop(1, colors.gradientEnd) // Transparent at bottom
       return gradient
     }
 
@@ -67,6 +71,43 @@ export default {
       }
       
       return `${minutes}:${seconds.toString().padStart(2, '0')}`
+    }
+
+    // Function to get colors based on graph type
+    function getGraphColors(graphSelection) {
+      const colors = {
+        hr: {
+          border: 'rgba(239, 68, 68, 0.8)', // Red
+          gradientStart: 'rgba(239, 68, 68, 0.4)',
+          gradientEnd: 'rgba(239, 68, 68, 0.0)'
+        },
+        power: {
+          border: 'rgba(251, 191, 36, 0.8)', // Yellow/Gold
+          gradientStart: 'rgba(251, 191, 36, 0.4)',
+          gradientEnd: 'rgba(251, 191, 36, 0.0)'
+        },
+        cad: {
+          border: 'rgba(168, 85, 247, 0.8)', // Purple
+          gradientStart: 'rgba(168, 85, 247, 0.4)',
+          gradientEnd: 'rgba(168, 85, 247, 0.0)'
+        },
+        ele: {
+          border: 'rgba(34, 197, 94, 0.8)', // Green
+          gradientStart: 'rgba(34, 197, 94, 0.4)',
+          gradientEnd: 'rgba(34, 197, 94, 0.0)'
+        },
+        vel: {
+          border: 'rgba(59, 130, 246, 0.8)', // Blue
+          gradientStart: 'rgba(59, 130, 246, 0.4)',
+          gradientEnd: 'rgba(59, 130, 246, 0.0)'
+        },
+        pace: {
+          border: 'rgba(236, 72, 153, 0.8)', // Pink
+          gradientStart: 'rgba(236, 72, 153, 0.4)',
+          gradientEnd: 'rgba(236, 72, 153, 0.0)'
+        }
+      }
+      return colors[graphSelection] || colors.vel // Default to blue
     }
 
     const computedChartData = computed(() => {
@@ -223,11 +264,12 @@ export default {
             const chart = context.chart
             const {ctx, chartArea} = chart
             if (!chartArea) {
-              return 'rgba(54, 162, 235, 0.2)'
+              const colors = getGraphColors(props.graphSelection)
+              return colors.gradientStart
             }
-            return createGradient(ctx, chartArea)
+            return createGradient(ctx, chartArea, props.graphSelection)
           },
-          borderColor: 'rgba(54, 162, 235, 0.8)',
+          borderColor: getGraphColors(props.graphSelection).border,
           fill: true
         }
       ]
