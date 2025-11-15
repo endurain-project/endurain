@@ -326,6 +326,7 @@ function updateActivityFieldsOnEdit(data) {
   activity.value.private_notes = data.private_notes
   activity.value.activity_type = data.activity_type
   activity.value.visibility = data.visibility
+  activity.value.is_hidden = data.is_hidden
   activity.value.hide_start_time = data.hide_start_time
   activity.value.location = data.location
   activity.value.hide_map = data.hide_map

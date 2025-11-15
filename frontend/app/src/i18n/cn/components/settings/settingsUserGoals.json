@@ -1,7 +1,7 @@
 {
-  "addNewGoal": "Add new goal",
-  "labelNumberOfGoals1": "You have ",
-  "labelNumberOfGoals2": " goal(s) set:",
-  "successGoalDeleted": "Goal deleted successfully",
-  "errorFetchingGoals": "Error fetching goals"
+  "addNewGoal": "添加新的目标",
+  "labelNumberOfGoals1": "你有 ",
+  "labelNumberOfGoals2": "个目标设置：",
+  "successGoalDeleted": "目标删除完成",
+  "errorFetchingGoals": "获取目标信息时出错"
 }

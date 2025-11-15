@@ -232,19 +232,35 @@ const initMap = () => {
     attribution: '© OpenStreetMap contributors'
   }).addTo(leafletMap.value)
 
-  L.polyline(latlngs, { color: 'blue' }).addTo(leafletMap.value)
+  
+  const polyline = L.polyline(latlngs, {
+    color: '#2563eb',
+    weight: 4,
+    opacity: 0.8,
+    lineJoin: 'round',
+    lineCap: 'round'
+  }).addTo(leafletMap.value)
 
   // Fit map to polyline bounds
   if (latlngs.length > 0) {
     leafletMap.value.fitBounds(latlngs)
 
-    // Add start and end markers
+    // Add start marker with custom styling
     L.marker(latlngs[0], {
-      icon: L.divIcon({ className: 'bg-success dot' })
+      icon: L.divIcon({
+        className: 'start-marker',
+        iconSize: [16, 16],
+        iconAnchor: [8, 8]
+      })
     }).addTo(leafletMap.value)
 
+    // Add end marker with custom styling
     L.marker(latlngs[latlngs.length - 1], {
-      icon: L.divIcon({ className: 'bg-danger dot' })
+      icon: L.divIcon({
+        className: 'end-marker',
+        iconSize: [16, 16],
+        iconAnchor: [8, 8]
+      })
     }).addTo(leafletMap.value)
   }
 }
@@ -260,3 +276,29 @@ watch(
   { deep: true }
 )
 </script>
+
+<style scoped>
+/* Start marker - green dot */
+:deep(.start-marker) {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background-color: #28a745;
+  border: 3px solid white;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+  margin-left: -8px;
+  margin-top: -8px;
+}
+
+/* End marker - red dot */
+:deep(.end-marker) {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background-color: #dc3545;
+  border: 3px solid white;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+  margin-left: -8px;
+  margin-top: -8px;
+}
+</style>

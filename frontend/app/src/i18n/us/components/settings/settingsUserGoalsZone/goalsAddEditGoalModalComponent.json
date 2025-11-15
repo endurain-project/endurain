@@ -12,6 +12,7 @@
   "activityTypeSwim": "Swim",
   "activityTypeWalk": "Walk",
   "activityTypeStrength": "Strength",
+  "activityTypeCardio": "Cardio",
   "addEditGoalModalGoalTypeLabel": "Type",
   "addEditGoalModalCaloriesLabel": "Calories",
   "addEditGoalModalCaloriesPlaceholder": "Target calories",

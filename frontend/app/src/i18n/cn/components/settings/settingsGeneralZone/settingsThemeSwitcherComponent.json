@@ -1,6 +1,6 @@
 {
-  "formLabel": "Theme",
-  "themeLight": "Light",
-  "themeDark": "Dark",
-  "themeAuto": "Auto"
+  "formLabel": "主题",
+  "themeLight": "浅色",
+  "themeDark": "深色",
+  "themeAuto": "自动"
 }

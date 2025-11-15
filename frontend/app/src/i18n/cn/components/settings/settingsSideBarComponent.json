@@ -1,10 +1,10 @@
 {
-  "usersSection": "Users",
-  "serverSettingsSection": "Server Settings",
-  "generalSection": "General",
-  "myProfileSection": "My Profile",
-  "myGoals": "My Goals",
-  "securitySection": "Security",
-  "integrationsSection": "Integrations",
-  "importSection": "Import"
+  "usersSection": "用户",
+  "serverSettingsSection": "服务器设置",
+  "generalSection": "通用设置",
+  "myProfileSection": "我的资料",
+  "myGoals": "我的目标",
+  "securitySection": "安全设置",
+  "integrationsSection": "服务集成",
+  "importSection": "数据导入"
 }

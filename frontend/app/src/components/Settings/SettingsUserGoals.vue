@@ -81,6 +81,9 @@ function updateGoalList(goalDeletedId) {
 }
 
 function addGoalList(createdGoal) {
+  if (!Array.isArray(goalsArray.value)) {
+    goalsArray.value = []
+  }
   goalsArray.value.unshift(createdGoal)
 }
 

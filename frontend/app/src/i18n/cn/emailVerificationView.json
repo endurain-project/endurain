@@ -1,8 +1,8 @@
 {
-  "title1": "Handling verify email",
-  "title2": "Please wait while your email is being verified. Do not refresh this page.",
-  "emailVerified": "Email verified successfully!",
-  "tokenNotFound": "Token not found",
-  "tokenExpired": "Token expired",
-  "verificationFailed": "Email verification failed"
+  "title1": "正在处理邮箱验证",
+  "title2": "正在验证您的邮箱，请稍候。请勿刷新此页面。",
+  "emailVerified": "邮箱验证成功！",
+  "tokenNotFound": "验证令牌未找到",
+  "tokenExpired": "验证令牌已过期",
+  "verificationFailed": "邮箱验证失败"
 }

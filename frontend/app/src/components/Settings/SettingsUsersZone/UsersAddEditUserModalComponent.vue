@@ -334,6 +334,7 @@
               <option value="it">{{ $t('generalItems.languageOption11') }}</option>
               <option value="nl">{{ $t('generalItems.languageOption6') }}</option>
               <option value="pt">{{ $t('generalItems.languageOption3') }}</option>
+              <option value="sl">{{ $t('generalItems.languageOption12') }}</option>
               <option value="es">{{ $t('generalItems.languageOption7') }}</option>
               <option value="us">{{ $t('generalItems.languageOption1') }}</option>
             </select>
@@ -696,6 +697,11 @@ async function submitEditUserForm() {
       photo_path: newEditUserPhotoPath.value,
       active: newEditUserActive.value
     }
+    if (props.action === 'profile') {
+      await profile.editProfile(data)
+    } else {
+      await users.editUser(data.id, data)
+    }
     if (newEditUserPhotoFile.value) {
       try {
         if (props.action === 'profile') {
@@ -708,11 +714,6 @@ async function submitEditUserForm() {
           `${t('usersAddEditUserModalComponent.addEditUserModalErrorUploadingUserPhoto')} - ${error}`
         )
       }
-    }
-    if (props.action === 'profile') {
-      await profile.editProfile(data)
-    } else {
-      await users.editUser(data.id, data)
     }
     if (props.action === 'edit') {
       emit('editedUser', data)

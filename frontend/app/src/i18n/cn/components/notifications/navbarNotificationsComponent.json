@@ -1,6 +1,6 @@
 {
-  "errorFetchingNotificationsPagination": "Error fetching notifications with pagination",
-  "errorFetchingNotificationsNumber": "Error fetching notifications number",
-  "errorFetchingNotificationById": "Error fetching notification by ID",
-  "errorFetchingMessageFromWebSocket": "Error fetching message from WebSocket"
+  "errorFetchingNotificationsPagination": "获取带分页的通知时出错",
+  "errorFetchingNotificationsNumber": "获取通知数量时出错",
+  "errorFetchingNotificationById": "根据 ID 获取通知时出错",
+  "errorFetchingMessageFromWebSocket": "从 WebSocket 获取消息时出错"
 }

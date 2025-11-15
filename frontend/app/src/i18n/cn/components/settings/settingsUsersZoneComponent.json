@@ -1,10 +1,10 @@
 {
-  "buttonAddUser": "Add user",
-  "labelSearchUsersByUsername": "Search users by username",
-  "labelNumberOfUsers1": "There is a total of ",
-  "labelNumberOfUsers2": " user(s) (",
-  "labelNumberOfUsers3": " loaded):",
-  "successUserAdded": "User added successfully",
-  "successUserDeleted": "User deleted successfully",
-  "errorFetchingUsers": "Error fetching users"
+  "buttonAddUser": "添加用户",
+  "labelSearchUsersByUsername": "按用户名搜索用户",
+  "labelNumberOfUsers1": "共计 ",
+  "labelNumberOfUsers2": " 位用户（",
+  "labelNumberOfUsers3": " 已加载）：",
+  "successUserAdded": "用户添加成功",
+  "successUserDeleted": "用户删除成功",
+  "errorFetchingUsers": "获取用户列表时出错"
 }

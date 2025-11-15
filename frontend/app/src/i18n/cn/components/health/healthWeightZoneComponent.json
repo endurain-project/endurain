@@ -1,6 +1,6 @@
 {
-  "buttonAddWeight": "Add weight",
-  "labelNumberOfHealthDataWeight1": "There is a total of ",
-  "labelNumberOfHealthDataWeight2": " weight measure(s) inserted (",
-  "labelNumberOfHealthDataWeight3": " loaded):"
+  "buttonAddWeight": "添加体重",
+  "labelNumberOfHealthDataWeight1": "共有",
+  "labelNumberOfHealthDataWeight2": "条体重记录（",
+  "labelNumberOfHealthDataWeight3": "条已加载）："
 }

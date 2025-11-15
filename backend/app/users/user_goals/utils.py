@@ -85,10 +85,11 @@ def calculate_goal_progress_by_activity_type(
             user_goals_schema.ActivityType.BIKE: [4, 5, 6, 7, 27, 28, 29, 35, 36],
             user_goals_schema.ActivityType.SWIM: [8, 9],
             user_goals_schema.ActivityType.WALK: [11, 12],
+            user_goals_schema.ActivityType.CARDIO: [20, 41],
         }
-        DEFAULT_TYPES = (19, 20)
+        DEFAULT_TYPES = (10, 19)
 
-        # Get activity types based on goal.activity_type, default to [10, 19, 20]
+        # Get activity types based on goal.activity_type, default to [10, 19]
         activity_types = TYPE_MAP.get(goal.activity_type, DEFAULT_TYPES)
 
         # Fetch all activities in a single query

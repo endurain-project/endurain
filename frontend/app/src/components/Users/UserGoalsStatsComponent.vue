@@ -19,6 +19,9 @@
           <span v-if="goal.activity_type == 5">{{
             $t('userGoalsStatsComponent.activityTypeStrength')
           }}</span>
+          <span v-if="goal.activity_type == 6">{{
+            $t('userGoalsStatsComponent.activityTypeCardio')
+          }}</span>
           <span> | </span>
           <span v-if="goal.interval == 'daily'">{{
             $t('userGoalsStatsComponent.intervalOption1')

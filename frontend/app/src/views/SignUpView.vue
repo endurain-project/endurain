@@ -120,6 +120,7 @@
                 <option value="it">{{ $t('generalItems.languageOption11') }}</option>
                 <option value="nl">{{ $t('generalItems.languageOption6') }}</option>
                 <option value="pt">{{ $t('generalItems.languageOption3') }}</option>
+                <option value="sl">{{ $t('generalItems.languageOption12') }}</option>
                 <option value="es">{{ $t('generalItems.languageOption7') }}</option>
                 <option value="us">{{ $t('generalItems.languageOption1') }}</option>
               </select>

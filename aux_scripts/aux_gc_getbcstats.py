@@ -82,12 +82,13 @@ def init_api(email, password):
 
 date = get_date()
 date_object = datetime.datetime.strptime(date, "%d-%m-%Y")
+date_string = date_object.strftime("%Y-%m-%d")
 
 if not api:
     api = init_api(email, password)
 
 if api:
-    garmin_bc = api.get_body_composition(date_object, date_object)
+    garmin_bc = api.get_body_composition(date_string, date_string)
 
     if garmin_bc is None:
         # Log an informational event if no body composition were found

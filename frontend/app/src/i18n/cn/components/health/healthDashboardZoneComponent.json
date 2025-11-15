@@ -1,13 +1,13 @@
 {
-  "weight": "Weight",
-  "noWeightData": "No weight data",
-  "noWeightTarget": "No weight target",
-  "noHeightDefined": "No height defined for user",
+  "weight": "体重",
+  "noWeightData": "没有体重数据",
+  "noWeightTarget": "没有体量目标",
+  "noHeightDefined": "用户未设置身高",
   "bmi": "BMI",
-  "bmiUnderweight": "Underweight",
-  "bmiNormalWeight": "Normal weight",
-  "bmiOverweight": "Overweight",
-  "bmiObesityClass1": "Obesity (Class 1)",
-  "bmiObesityClass2": "Obesity (Class 2)",
-  "bmiObesityClass3": "Extreme Obesity (Class 3)"
+  "bmiUnderweight": "偏瘦",
+  "bmiNormalWeight": "正常体重",
+  "bmiOverweight": "超重",
+  "bmiObesityClass1": "一级肥胖",
+  "bmiObesityClass2": "二级肥胖",
+  "bmiObesityClass3": "三级肥胖（极度肥胖）"
 }

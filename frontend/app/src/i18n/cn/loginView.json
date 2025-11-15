@@ -5,7 +5,7 @@
   "error403": "你没有权限访问该资源",
   "error500": "无法连接到服务器。请稍后再试",
   "errorUndefined": "无法连接到服务器。请稍后再试",
-  "subtitle": "Sign-in below",
+  "subtitle": "在下方登录",
   "username": "用户名",
   "password": "密码",
   "mfaCode": "两步验证代码",

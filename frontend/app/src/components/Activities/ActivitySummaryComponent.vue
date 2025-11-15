@@ -195,6 +195,7 @@
           activity.activity_type != 18 &&
           activity.activity_type != 19 &&
           activity.activity_type != 20 &&
+          activity.activity_type != 41 &&
           activityTypeNotRacquet(activity)
         "
       >
@@ -237,6 +238,7 @@
             activity.activity_type != 18 &&
             activity.activity_type != 19 &&
             activity.activity_type != 20 &&
+            activity.activity_type != 41 &&
             activityTypeNotRacquet(activity)
           "
         >
@@ -265,6 +267,7 @@
         activity.activity_type != 18 &&
         activity.activity_type != 19 &&
         activity.activity_type != 20 &&
+        activity.activity_type != 41 &&
         activityTypeNotRacquet(activity)
       "
     >

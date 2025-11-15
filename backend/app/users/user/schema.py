@@ -34,24 +34,28 @@ class Language(Enum):
         CATALAN: Catalan language code ("ca-ES").
         CHINESE_SIMPLIFIED: Simplified Chinese language code ("cn").
         CHINESE_TRADITIONAL: Traditional Chinese language code ("tw").
-        DUTCH: Dutch language code ("nl").
         GERMAN: German language code ("de").
         FRENCH: French language code ("fr").
         GALICIAN: Galician language code ("gl").
-        SPANISH: Spanish language code ("es").
+        ITALIAN: Italian language code ("it").
+        DUTCH: Dutch language code ("nl").
         PORTUGUESE: Portuguese language code ("pt").
+        SLOVENIAN: Slovenian language code ("sl").
+        SPANISH: Spanish language code ("es").
         ENGLISH_USA: US English language code ("us").
     """
 
     CATALAN = "ca"
     CHINESE_SIMPLIFIED = "cn"
     CHINESE_TRADITIONAL = "tw"
-    DUTCH = "nl"
     GERMAN = "de"
     FRENCH = "fr"
     GALICIAN = "gl"
-    SPANISH = "es"
+    ITALIAN = "it"
+    DUTCH = "nl"
     PORTUGUESE = "pt"
+    SLOVENIAN = "sl"
+    SPANISH = "es"
     ENGLISH_USA = "us"
 
 

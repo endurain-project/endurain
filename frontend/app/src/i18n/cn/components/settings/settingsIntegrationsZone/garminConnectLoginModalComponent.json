@@ -1,14 +1,14 @@
 {
-  "garminConnectAuthModalTitle": "Link Garmin Connect account",
-  "garminConnectAuthModalUsernameLabel": "Garmin Connect email",
-  "garminConnectAuthModalUsernamePlaceholder": "Garmin Connect email",
-  "garminConnectAuthModalPasswordLabel": "Garmin Connect password",
-  "garminConnectAuthModalPasswordPlaceholder": "Garmin Connect password",
-  "garminConnectAuthModalMfaCodeLabel": "MFA code",
-  "garminConnectAuthModalMfaCodePlaceholder": "MFA code",
-  "buttonSubmitMfaCode": "Submit MFA code",
-  "garminConnectAuthModalLoginButton": "Login",
-  "processingMessageLinkGarminConnect": "Linking Garmin Connect account...",
-  "successMessageLinkGarminConnect": "Garmin Connect account linked",
-  "errorMessageUnableToLinkGarminConnect": "Unable to link Garmin Connect account"
+  "garminConnectAuthModalTitle": "连接 Garmin Connect 账户",
+  "garminConnectAuthModalUsernameLabel": "Garmin Connect 邮箱",
+  "garminConnectAuthModalUsernamePlaceholder": "Garmin Connect 邮箱",
+  "garminConnectAuthModalPasswordLabel": "Garmin Connect 密码",
+  "garminConnectAuthModalPasswordPlaceholder": "Garmin Connect 密码",
+  "garminConnectAuthModalMfaCodeLabel": "两步验证代码",
+  "garminConnectAuthModalMfaCodePlaceholder": "两步验证代码",
+  "buttonSubmitMfaCode": "提交两步验证代码",
+  "garminConnectAuthModalLoginButton": "登录",
+  "processingMessageLinkGarminConnect": "正在连接 Garmin Connect 账户……",
+  "successMessageLinkGarminConnect": "Garmin Connect 账户已连接",
+  "errorMessageUnableToLinkGarminConnect": "无法连接 Garmin Connect 账户"
 }

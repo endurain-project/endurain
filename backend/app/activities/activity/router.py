@@ -541,12 +541,11 @@ async def read_activities_user_activities_refresh(
     if garmin_activities is not None:
         activities.extend(garmin_activities)
 
-    # Check if activities is None and return None if it is
-    if activities is None:
-        return None
+    # Filter out None values from the activities list
+    activities = [activity for activity in activities if activity is not None]
 
-    # Return the activities
-    return activities
+    # Return the activities or None if the list is empty
+    return activities if activities else None
 
 
 @router.get(
