@@ -22,6 +22,7 @@ def parse_gpx_file(
     user_id: int,
     user_privacy_settings: users_privacy_settings_schema.UsersPrivacySettings,
     db: Session,
+    activity_name_input: str | None = None,
 ) -> dict:
     try:
         # Create an instance of TimezoneFinder
@@ -45,7 +46,7 @@ def parse_gpx_file(
         np = None
         avg_speed = None
         max_speed = None
-        activity_name = "Workout"
+        activity_name = activity_name_input if activity_name_input else "Workout"
         activity_description = None
         process_one_time_fields = 0
         gear_id = None
@@ -105,7 +106,7 @@ def parse_gpx_file(
 
                                 # Extract elevation, time, and location details
                                 elevation, time = point.elevation, point.time
-                                
+
                                 # Skip trackpoints without time data (common in some OsmAnd exports)
                                 if time is None:
                                     continue

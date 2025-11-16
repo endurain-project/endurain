@@ -56,6 +56,7 @@ async def fetch_and_process_activities_by_dates(
     for activity in garmin_activities:
         # Get the activity ID
         activity_id = activity["activityId"]
+        activity_name = activity["activityName"]
 
         # Check if the activity is already stored in the database
         activity_db = activities_crud.get_activity_by_garminconnect_id_from_user_id(
@@ -114,6 +115,7 @@ async def fetch_and_process_activities_by_dates(
                     db,
                     True,
                     activity_gear,
+                    activity_name,
                 )
                 or []
             )
@@ -205,8 +207,15 @@ async def get_user_garminconnect_activities_by_dates(
 
         if garminconnect_client is not None:
             # Fetch Garmin Connect activities for the specified date range
-            garminconnect_activities_processed = await fetch_and_process_activities_by_dates(
-                garminconnect_client, start_date, end_date, user_id, websocket_manager, db
+            garminconnect_activities_processed = (
+                await fetch_and_process_activities_by_dates(
+                    garminconnect_client,
+                    start_date,
+                    end_date,
+                    user_id,
+                    websocket_manager,
+                    db,
+                )
             )
 
             # Log the start of the activities processing

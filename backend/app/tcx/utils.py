@@ -12,7 +12,9 @@ import core.logger as core_logger
 import core.config as core_config
 
 
-def parse_tcx_file(file, user_id, user_privacy_settings, db):
+def parse_tcx_file(
+    file, user_id, user_privacy_settings, db, activity_name_input: str | None = None
+) -> dict:
     tcx_file = tcxreader.TCXReader().read(file)
     trackpoints = tcx_file.trackpoints_to_dict()
 
@@ -26,7 +28,7 @@ def parse_tcx_file(file, user_id, user_privacy_settings, db):
     city = None
     town = None
     country = None
-    activity_name = "Workout"
+    activity_name = activity_name_input if activity_name_input else "Workout"
     avg_power = None
     max_power = None
     np = None

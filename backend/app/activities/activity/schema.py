@@ -71,6 +71,7 @@ class ActivityDistances(BaseModel):
     rowing: float
     snow_ski: float
     snowboard: float
+    windsurf: float
 
 
 class ActivityEdit(BaseModel):

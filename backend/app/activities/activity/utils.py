@@ -300,7 +300,9 @@ def serialize_activity(activity: activities_schema.Activity):
             dt = dt.replace(tzinfo=ZoneInfo("UTC"))
         return dt.astimezone(timezone).strftime("%Y-%m-%dT%H:%M:%S")
 
-    def convert_to_datetime_if_string(dt):
+    def convert_to_datetime_if_string(dt: str | datetime | None) -> datetime:
+        if dt is None:
+            raise ValueError("Datetime cannot be None")
         if isinstance(dt, str):
             return datetime.fromisoformat(dt)
         return dt
@@ -364,7 +366,8 @@ async def parse_and_store_activity_from_file(
     websocket_manager: websocket_schema.WebSocketManager,
     db: Session,
     from_garmin: bool = False,
-    garminconnect_gear: dict = None,
+    garminconnect_gear: dict | None = None,
+    activity_name: str | None = None,
 ):
     try:
         core_logger.print_to_log_and_console(
@@ -403,6 +406,7 @@ async def parse_and_store_activity_from_file(
                 file_extension,
                 file_path,
                 db,
+                activity_name,
             )
 
             if parsed_info is not None:
@@ -430,8 +434,12 @@ async def parse_and_store_activity_from_file(
                             split_records_by_activity,
                             token_user_id,
                             user_privacy_settings,
-                            int(garmin_connect_activity_id),
-                            garminconnect_gear,
+                            (
+                                int(garmin_connect_activity_id)
+                                if garmin_connect_activity_id
+                                else None
+                            ),
+                            garminconnect_gear if garminconnect_gear else None,
                             db,
                         )
                     else:
@@ -509,6 +517,12 @@ async def parse_and_store_activity_from_uploaded_file(
     websocket_manager: websocket_schema.WebSocketManager,
     db: Session,
 ):
+    # Validate filename exists
+    if file.filename is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Filename is required",
+        )
 
     # Get file extension
     _, file_extension = os.path.splitext(file.filename)
@@ -654,7 +668,8 @@ def parse_file(
     file_extension: str,
     filename: str,
     db: Session,
-) -> dict:
+    activity_name: str | None = None,
+) -> dict | None:
     try:
         if filename.lower() != "bulk_import/__init__.py":
             core_logger.print_to_log(f"Parsing file: {filename}")
@@ -666,6 +681,7 @@ def parse_file(
                     token_user_id,
                     user_privacy_settings,
                     db,
+                    activity_name,
                 )
             elif file_extension.lower() == ".tcx":
                 parsed_info = tcx_utils.parse_tcx_file(
@@ -673,17 +689,17 @@ def parse_file(
                     token_user_id,
                     user_privacy_settings,
                     db,
+                    activity_name,
                 )
             elif file_extension.lower() == ".fit":
                 # Parse the FIT file
-                parsed_info = fit_utils.parse_fit_file(filename, db)
+                parsed_info = fit_utils.parse_fit_file(filename, db, activity_name)
             else:
                 # file extension not supported raise an HTTPException with a 406 Not Acceptable status code
                 raise HTTPException(
                     status_code=status.HTTP_406_NOT_ACCEPTABLE,
                     detail="File extension not supported. Supported file extensions are .gpx, .fit and .tcx",
                 )
-                return None  # Can't return parsed info if we haven't parsed anything
             return parsed_info
         else:
             return None
@@ -708,7 +724,7 @@ async def store_activity(
     )
 
     # Check if created_activity is None
-    if created_activity is None:
+    if created_activity is None or created_activity.id is None:
         # Log the error
         core_logger.print_to_log(
             "Error in store_activity - activity is None, error creating activity",
