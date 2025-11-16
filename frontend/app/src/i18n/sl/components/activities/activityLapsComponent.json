@@ -1,14 +1,14 @@
 {
-  "labelLapNumber": "Lap",
-  "labelLapIntensity": "Intensity",
-  "labelLapDistance": "Distance",
-  "labelLapTime": "Time",
-  "labelLapPace": "Pace",
-  "labelLapSpeed": "Speed",
-  "labelLapElevation": "Elevation",
+  "labelLapNumber": "Krog",
+  "labelLapIntensity": "Intenzivnost",
+  "labelLapDistance": "Razdalja",
+  "labelLapTime": "Čas",
+  "labelLapPace": "Tempo",
+  "labelLapSpeed": "Hitrost",
+  "labelLapElevation": "Nadmorska višina",
   "labelLapElev": "Elev",
-  "labelLapAvgHr": "Avg heart rate",
+  "labelLapAvgHr": "Povprečen srčni utrip",
   "labelLapHR": "HR",
-  "labelLapStrokeRate": "Stroke rate",
+  "labelLapStrokeRate": "Frekvenca zamahov",
   "labelLapSR": "SR"
 }

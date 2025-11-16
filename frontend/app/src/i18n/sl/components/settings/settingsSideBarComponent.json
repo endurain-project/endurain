@@ -1,10 +1,10 @@
 {
-  "usersSection": "Users",
-  "serverSettingsSection": "Server Settings",
-  "generalSection": "General",
-  "myProfileSection": "My Profile",
-  "myGoals": "My Goals",
-  "securitySection": "Security",
-  "integrationsSection": "Integrations",
-  "importSection": "Import"
+  "usersSection": "Uporabniki",
+  "serverSettingsSection": "Nastavitve strežnika",
+  "generalSection": "Splošno",
+  "myProfileSection": "Moj profil",
+  "myGoals": "Moji cilji",
+  "securitySection": "Varnost",
+  "integrationsSection": "Integracije",
+  "importSection": "Uvoz"
 }

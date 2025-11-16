@@ -1,4 +1,4 @@
 {
-  "newActivityDuplicateStartTimeTitle": "New activity with duplicated start time",
-  "newActivityDuplicateStartTimeSubTitle": "A new activity has been added with a start time that overlaps with an existing activity. Please review it"
+  "newActivityDuplicateStartTimeTitle": "Nova aktivnost s podvojenim začetnim časom",
+  "newActivityDuplicateStartTimeSubTitle": "Dodana je nova aktivnost z začetnim časom, ki se prekriva z obstoječo aktivnostjo. Prosimo, preglejte jo"
 }

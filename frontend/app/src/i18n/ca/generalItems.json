@@ -17,7 +17,7 @@
   "languageOption9": "Xinès (Tradicional)",
   "languageOption10": "Gallec (GL)",
   "languageOption11": "Italià (IT)",
-  "languageOption12": "Slovenian (SL)",
+  "languageOption12": "Eslovac (SL)",
   "firstDayOfWeekOption0": "Diumenge",
   "firstDayOfWeekOption1": "Dilluns",
   "firstDayOfWeekOption2": "Dimarts",
@@ -76,5 +76,7 @@
   "currencyPoundSymbol": "£",
   "genderMale": "Home",
   "genderFemale": "Dona",
-  "genderUnspecified": "Sense especificar"
+  "genderUnspecified": "Sense especificar",
+  "labelAverage": "Mitja",
+  "labelMaximum": "Màxim"
 }

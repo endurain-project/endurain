@@ -76,5 +76,7 @@
   "currencyPoundSymbol": "£",
   "genderMale": "Maschio",
   "genderFemale": "Femmina",
-  "genderUnspecified": "Non specificato"
+  "genderUnspecified": "Non specificato",
+  "labelAverage": "Average",
+  "labelMaximum": "Maximum"
 }

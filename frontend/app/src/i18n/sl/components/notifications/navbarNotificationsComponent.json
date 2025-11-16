@@ -1,6 +1,6 @@
 {
-  "errorFetchingNotificationsPagination": "Error fetching notifications with pagination",
-  "errorFetchingNotificationsNumber": "Error fetching notifications number",
-  "errorFetchingNotificationById": "Error fetching notification by ID",
-  "errorFetchingMessageFromWebSocket": "Error fetching message from WebSocket"
+  "errorFetchingNotificationsPagination": "Napaka pri pridobivanju obvestil s strani",
+  "errorFetchingNotificationsNumber": "Napaka pri pridobivanju števila obvestil",
+  "errorFetchingNotificationById": "Napaka pri pridobivanju obvestila po ID-ju",
+  "errorFetchingMessageFromWebSocket": "Napaka pri pridobivanju sporočila iz WebSocket-a"
 }

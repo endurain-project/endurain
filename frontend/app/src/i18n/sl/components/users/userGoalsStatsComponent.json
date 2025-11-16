@@ -1,14 +1,14 @@
 {
-  "title": "Goals",
-  "activityTypeRun": "Run",
-  "activityTypeBike": "Bike",
-  "activityTypeSwim": "Swim",
-  "activityTypeWalk": "Walk",
-  "activityTypeStrength": "Strength",
-  "activityTypeCardio": "Cardio",
-  "intervalOption1": "Daily",
-  "intervalOption2": "Weekly",
-  "intervalOption3": "Monthly",
-  "intervalOption4": "Yearly",
-  "activities": "activities"
+  "title": "Cilji",
+  "activityTypeRun": "Tek",
+  "activityTypeBike": "Kolesarjenje",
+  "activityTypeSwim": "Plavanje",
+  "activityTypeWalk": "Hoja",
+  "activityTypeStrength": "Vadba za moč",
+  "activityTypeCardio": "Kardio",
+  "intervalOption1": "Dnevno",
+  "intervalOption2": "Tedensko",
+  "intervalOption3": "Mesečno",
+  "intervalOption4": "Letno",
+  "activities": "aktivnosti"
 }
