@@ -285,6 +285,7 @@ The table bellow details the activity types supported by Endurain.
 | Kayaking | 42 |
 | Sailing | 43 |
 | Snow shoeing | 44 |
+| Inline skating | 45 |
 
 
 ## Supported gear types

@@ -77,6 +77,7 @@ class ActivityDistances(BaseModel):
     kayaking: float
     sailing: float
     snowshoeing: float
+    inline_skating: float
 
 
 class ActivityEdit(BaseModel):

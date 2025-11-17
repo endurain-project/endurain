@@ -91,6 +91,7 @@ ACTIVITY_ID_TO_NAME = {
     42: "Kayaking",
     43: "Sailing",
     44: "Snow shoeing",
+    45: "Inline skating",
     # Add other mappings as needed based on the full list in define_activity_type comments if required
     # "AlpineSki",
     # "BackcountrySki",
@@ -223,6 +224,8 @@ ACTIVITY_NAME_TO_ID.update(
         "sail": 43,
         "snowshoeing": 44,
         "snowshoe": 44,
+        "inline_skating": 45,
+        "inlineskate": 45,
     }
 )
 
@@ -820,7 +823,7 @@ def calculate_activity_distances(activities: list[activities_schema.Activity]):
     # Initialize the distances
     run = bike = swim = walk = hike = rowing = snow_ski = snowboard = windsurf = (
         stand_up_paddleboarding
-    ) = surfing = kayaking = sailing = snowshoeing = 0.0
+    ) = surfing = kayaking = sailing = snowshoeing = inline_skating = 0.0
 
     if activities is not None:
         # Calculate the distances
@@ -853,6 +856,8 @@ def calculate_activity_distances(activities: list[activities_schema.Activity]):
                 sailing += activity.distance
             elif activity.activity_type in [44]:
                 snowshoeing += activity.distance
+            elif activity.activity_type in [45]:
+                inline_skating += activity.distance
 
     # Return the distances
     return activities_schema.ActivityDistances(
@@ -870,6 +875,7 @@ def calculate_activity_distances(activities: list[activities_schema.Activity]):
         kayaking=kayaking,
         sailing=sailing,
         snowshoeing=snowshoeing,
+        inline_skating=inline_skating,
     )
 
 

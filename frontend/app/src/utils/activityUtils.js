@@ -8,7 +8,7 @@ import { formatDateMed, formatTime, formatSecondsToMinutes } from '@/utils/dateT
  */
 const ACTIVITY_TYPES = [
   1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27,
-  28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44
+  28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45
 ]
 
 /**
@@ -66,6 +66,7 @@ const activityLabelMap = {
   42: (t) => t('activityItems.kayaking'),
   43: (t) => t('activityItems.sailing'),
   44: (t) => t('activityItems.snowShoeing'),
+  45: (t) => t('activityItems.inlineSkating'),
 }
 
 /**
@@ -468,6 +469,28 @@ export function activityTypeNotRowing(activity) {
 }
 
 /**
+ * Checks if the given activity is of type Rowing.
+ *
+ * @param {Object} activity - The activity object to check.
+ * @param {number} activity.activity_type - The type identifier of the activity.
+ * @returns {boolean} Returns true if the activity type is skating (45), otherwise false.
+ */
+export function activityTypeIsSkating(activity) {
+  return activity.activity_type === 45
+}
+
+/**
+ * Checks if the activity type is not skating (activity_type !== 45).
+ *
+ * @param {Object} activity - The activity object to check.
+ * @param {number} activity.activity_type - The type of the activity.
+ * @returns {boolean} Returns true if the activity type is not skating, false otherwise.
+ */
+export function activityTypeNotSkating(activity) {
+  return activity.activity_type !== 45
+}
+
+/**
  * Formats the pace of an activity based on its type and the specified unit system.
  *
  * @param {Object} t - The translation function.
@@ -744,7 +767,8 @@ export function getIcon(typeId) {
     41: ['fas', 'heart-pulse'], // Cardio training icon might be better if available
     42: ['fas', 'sailboat'], // Kayaking icon might be better if available
     43: ['fas', 'wind'], // Sailing icon might be better if available
-    44: ['fas', 'person-hiking']
+    44: ['fas', 'person-hiking'],
+    45: ['fas', 'person-skating'],
   }
 
   return iconMap[typeId] || ['fas', 'dumbbell']
