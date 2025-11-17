@@ -8,7 +8,7 @@ import { formatDateMed, formatTime, formatSecondsToMinutes } from '@/utils/dateT
  */
 const ACTIVITY_TYPES = [
   1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27,
-  28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42
+  28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43
 ]
 
 /**
@@ -63,7 +63,8 @@ const activityLabelMap = {
   39: (t) => t('activityItems.padel'),
   40: (t) => t('activityItems.treadmillRun'),
   41: (t) => t('activityItems.cardioTraining'),
-  42: (t) => t('activityItems.kayaking')
+  42: (t) => t('activityItems.kayaking'),
+  43: (t) => t('activityItems.sailing'),
 }
 
 /**
@@ -400,6 +401,28 @@ export function activityTypeNotRacquet(activity) {
 }
 
 /**
+ * Checks if the given activity is of type Sailing.
+ *
+ * @param {Object} activity - The activity object to check.
+ * @param {number} activity.activity_type - The type identifier of the activity.
+ * @returns {boolean} Returns true if the activity type is Sailing (43), otherwise false.
+ */
+export function activityTypeIsSailing(activity) {
+  return activity.activity_type === 43
+}
+
+/**
+ * Checks if the activity type is not sailing (activity_type !== 43).
+ *
+ * @param {Object} activity - The activity object to check.
+ * @param {number} activity.activity_type - The type of the activity.
+ * @returns {boolean} Returns true if the activity type is not sailing, false otherwise.
+ */
+export function activityTypeNotSailing(activity) {
+  return activity.activity_type !== 43
+}
+
+/**
  * Checks if the given activity is of type Windsurf.
  *
  * @param {Object} activity - The activity object to check.
@@ -706,7 +729,7 @@ export function getIcon(typeId) {
     27: ['fas', 'person-biking'],
     28: ['fas', 'person-biking'],
     29: ['fas', 'person-biking'],
-    30: ['fas', 'wind'],
+    30: ['fas', 'wind'], // Windsurf icon might be better if available
     31: ['fas', 'person-walking'],
     32: ['fas', 'person-snowboarding'],
     33: ['fas', 'person-snowboarding'],
@@ -718,7 +741,8 @@ export function getIcon(typeId) {
     39: ['fas', 'table-tennis-paddle-ball'],
     40: ['fas', 'person-running'], // Treadmill run icon might be better if available
     41: ['fas', 'heart-pulse'], // Cardio training icon might be better if available
-    42: ['fas', 'sailboat'] // Kayaking icon might be better if available
+    42: ['fas', 'sailboat'], // Kayaking icon might be better if available
+    43: ['fas', 'wind'] // Sailing icon might be better if available
   }
 
   return iconMap[typeId] || ['fas', 'dumbbell']

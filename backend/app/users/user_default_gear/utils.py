@@ -6,7 +6,7 @@ import users.user_default_gear.crud as user_default_gear_crud
 
 def get_user_default_gear_by_activity_type(
     user_id: int, activity_type: int, db: Session
-) -> int:
+) -> int | None:
     try:
         user_default_gear = user_default_gear_crud.get_user_default_gear_by_user_id(
             user_id, db
