@@ -72,7 +72,7 @@ export default {
         for (const data of props.userHealthData) {
           if (data.weight) {
             currentWeight.value = data.weight
-            currentBMI.value = data.bmi.toFixed(2)
+            currentBMI.value = data.bmi ? data.bmi.toFixed(2) : null
             break
           }
         }
