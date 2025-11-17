@@ -90,6 +90,7 @@ ACTIVITY_ID_TO_NAME = {
     41: "Cardio training",
     42: "Kayaking",
     43: "Sailing",
+    44: "Snow shoeing",
     # Add other mappings as needed based on the full list in define_activity_type comments if required
     # "AlpineSki",
     # "BackcountrySki",
@@ -220,6 +221,8 @@ ACTIVITY_NAME_TO_ID.update(
         "kayaking": 42,
         "sailing": 43,
         "sail": 43,
+        "snowshoeing": 44,
+        "snowshoe": 44,
     }
 )
 
@@ -817,7 +820,7 @@ def calculate_activity_distances(activities: list[activities_schema.Activity]):
     # Initialize the distances
     run = bike = swim = walk = hike = rowing = snow_ski = snowboard = windsurf = (
         stand_up_paddleboarding
-    ) = surfing = 0.0
+    ) = surfing = kayaking = sailing = snowshoeing = 0.0
 
     if activities is not None:
         # Calculate the distances
@@ -832,18 +835,24 @@ def calculate_activity_distances(activities: list[activities_schema.Activity]):
                 walk += activity.distance
             elif activity.activity_type in [12]:
                 hike += activity.distance
-            elif activity.activity_type in [13, 42]:
+            elif activity.activity_type in [13]:
                 rowing += activity.distance
             elif activity.activity_type in [15, 16]:
                 snow_ski += activity.distance
             elif activity.activity_type in [17]:
                 snowboard += activity.distance
-            elif activity.activity_type in [30, 43]:
+            elif activity.activity_type in [30]:
                 windsurf += activity.distance
             elif activity.activity_type in [32]:
                 stand_up_paddleboarding += activity.distance
             elif activity.activity_type in [33]:
                 surfing += activity.distance
+            elif activity.activity_type in [42]:
+                kayaking += activity.distance
+            elif activity.activity_type in [43]:
+                sailing += activity.distance
+            elif activity.activity_type in [44]:
+                snowshoeing += activity.distance
 
     # Return the distances
     return activities_schema.ActivityDistances(
@@ -856,6 +865,11 @@ def calculate_activity_distances(activities: list[activities_schema.Activity]):
         snow_ski=snow_ski,
         snowboard=snowboard,
         windsurf=windsurf,
+        stand_up_paddleboarding=stand_up_paddleboarding,
+        surfing=surfing,
+        kayaking=kayaking,
+        sailing=sailing,
+        snowshoeing=snowshoeing,
     )
 
 

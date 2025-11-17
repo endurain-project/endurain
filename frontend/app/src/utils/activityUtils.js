@@ -8,7 +8,7 @@ import { formatDateMed, formatTime, formatSecondsToMinutes } from '@/utils/dateT
  */
 const ACTIVITY_TYPES = [
   1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27,
-  28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43
+  28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44
 ]
 
 /**
@@ -65,6 +65,7 @@ const activityLabelMap = {
   41: (t) => t('activityItems.cardioTraining'),
   42: (t) => t('activityItems.kayaking'),
   43: (t) => t('activityItems.sailing'),
+  44: (t) => t('activityItems.snowShoeing'),
 }
 
 /**
@@ -358,7 +359,7 @@ export function activityTypeNotCycling(activity) {
  */
 export function activityTypeIsWalking(activity) {
   return (
-    activity.activity_type === 11 || activity.activity_type === 12 || activity.activity_type === 31
+    activity.activity_type === 11 || activity.activity_type === 12 || activity.activity_type === 31 || activity.activity_type === 44
   )
 }
 
@@ -742,7 +743,8 @@ export function getIcon(typeId) {
     40: ['fas', 'person-running'], // Treadmill run icon might be better if available
     41: ['fas', 'heart-pulse'], // Cardio training icon might be better if available
     42: ['fas', 'sailboat'], // Kayaking icon might be better if available
-    43: ['fas', 'wind'] // Sailing icon might be better if available
+    43: ['fas', 'wind'], // Sailing icon might be better if available
+    44: ['fas', 'person-hiking']
   }
 
   return iconMap[typeId] || ['fas', 'dumbbell']
