@@ -88,6 +88,7 @@ ACTIVITY_ID_TO_NAME = {
     39: "Padel",
     40: "Treadmill",
     41: "Cardio training",
+    42: "Kayaking",
     # Add other mappings as needed based on the full list in define_activity_type comments if required
     # "AlpineSki",
     # "BackcountrySki",
@@ -215,6 +216,7 @@ ACTIVITY_NAME_TO_ID.update(
         "paddelball": 39,
         "treadmill": 40,
         "cardio_training": 41,
+        "kayaking": 42,
     }
 )
 
@@ -827,7 +829,7 @@ def calculate_activity_distances(activities: list[activities_schema.Activity]):
                 walk += activity.distance
             elif activity.activity_type in [12]:
                 hike += activity.distance
-            elif activity.activity_type in [13]:
+            elif activity.activity_type in [13, 42]:
                 rowing += activity.distance
             elif activity.activity_type in [15, 16]:
                 snow_ski += activity.distance

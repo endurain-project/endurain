@@ -282,7 +282,7 @@ function updateSearchResultsBasedOnActivityType() {
     )
   } else if (searchSelectActivityType.value === '7') {
     searchResults.value = searchResultsOriginal.value.filter((user) =>
-      [13].includes(user.activity_type)
+      [13, 42].includes(user.activity_type)
     )
   } else if (searchSelectActivityType.value === '8') {
     searchResults.value = searchResultsOriginal.value.filter((user) =>
