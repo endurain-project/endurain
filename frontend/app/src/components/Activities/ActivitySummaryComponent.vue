@@ -238,7 +238,9 @@
             activity.activity_type != 18 &&
             activity.activity_type != 19 &&
             activity.activity_type != 20 &&
+            activityTypeNotWindsurf(activity) &&
             activity.activity_type != 41 &&
+            activityTypeNotSailing(activity) &&
             activityTypeNotRacquet(activity)
           "
         >
@@ -247,6 +249,19 @@
           </span>
           <br />
           {{ formatPace(t, activity, authStore.user.units) }}
+        </div>
+        <!-- avg_speed sailing activities -->
+        <div
+          v-else-if="
+            activityTypeIsWindsurf(activity) ||
+            activityTypeIsSailing(activity)
+          "
+        >
+          <span class="fw-lighter">
+            {{ $t('activitySummaryComponent.activityAvgSpeed') }}
+          </span>
+          <br />
+          <span>{{ formatAverageSpeed(t, activity, authStore.user.units) }}</span>
         </div>
         <!-- avg_hr -->
         <div v-else>
@@ -359,6 +374,10 @@ import {
   activityTypeIsRunning,
   activityTypeNotRunning,
   activityTypeNotRacquet,
+  activityTypeNotWindsurf,
+  activityTypeIsWindsurf,
+  activityTypeNotSailing,
+  activityTypeIsSailing,
   formatName
 } from '@/utils/activityUtils'
 import { formatDateMed, formatTime, formatSecondsToMinutes } from '@/utils/dateTimeUtils'

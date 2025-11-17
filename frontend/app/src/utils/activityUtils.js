@@ -524,7 +524,7 @@ export function formatAverageSpeed(t, activity, unitSystem, lap = null, units = 
   )
     return t('generalItems.labelNoData')
 
-  if (activityTypeIsCycling(activity)) {
+  if (activityTypeIsCycling(activity) || activityTypeIsWindsurf(activity) || activityTypeIsSailing(activity)) {
     if (Number(unitSystem) === 1) {
       if (units) {
         return `${formatAverageSpeedMetric(speed)} ${t('generalItems.unitsKmH')}`
