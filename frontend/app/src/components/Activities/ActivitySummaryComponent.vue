@@ -412,7 +412,7 @@ onMounted(async () => {
 // Methods
 async function submitDeleteActivity() {
   try {
-    userActivity.value = await activities.deleteActivity(props.activity.id)
+    await activities.deleteActivity(props.activity.id)
     if (props.source === 'activity') {
       return router.push({
         path: '/',

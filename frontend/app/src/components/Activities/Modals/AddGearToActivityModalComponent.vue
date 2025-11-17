@@ -65,7 +65,7 @@ export default {
       required: true
     },
     gearsByType: {
-      type: Object,
+      type: Array,
       required: true
     },
     gear: {

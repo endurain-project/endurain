@@ -149,7 +149,12 @@ export default {
           }
         } else if (stream.stream_type === 3 && props.graphSelection === 'cad') {
           for (const streamPoint of stream.stream_waypoints) {
-            data.push(Number.parseInt(streamPoint.cad))
+            let cadence = Number.parseInt(streamPoint.cad)
+            // For running, double the cadence to get total steps per minute (SPM)
+            if (activityTypeIsRunning(props.activity)) {
+              cadence = cadence * 2
+            }
+            data.push(cadence)
             // Label as "Stroke Rate" over "Cadence" for swimming activities
             label = activityTypeIsSwimming(props.activity)
               ? t('generalItems.labelStrokeRateInSpm')
