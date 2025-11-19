@@ -1,13 +1,13 @@
 {
-  "title": "Gear",
-  "buttonAddGear": "Add Gear",
-  "subTitleSearchGearByNickname": "Search gear by nickname",
-  "placeholderSearchGearByNickname": "Nickname",
-  "buttonSearchGear": "Search Gear",
-  "displayUserNumberOfGears1": "There is a total of ",
-  "displayUserNumberOfGears2": " gear(s) (",
-  "displayUserNumberOfGears3": " loaded):",
-  "successGearDeleted": "Gear deleted successfully",
-  "errorGearNotFound": "Gear not found",
-  "errorFetchingGears": "Error fetching gears"
+  "title": "Oprema",
+  "buttonAddGear": "Dodaj opremo",
+  "subTitleSearchGearByNickname": "Išči opremo po vzdevku",
+  "placeholderSearchGearByNickname": "Vzdevek",
+  "buttonSearchGear": "Išči opremo",
+  "displayUserNumberOfGears1": "Skupno število opreme je ",
+  "displayUserNumberOfGears2": " kosov opreme (",
+  "displayUserNumberOfGears3": " naloženo):",
+  "successGearDeleted": "Oprema uspešno izbrisana",
+  "errorGearNotFound": "Oprema ni najdena",
+  "errorFetchingGears": "Napaka pri pridobivanju opreme"
 }

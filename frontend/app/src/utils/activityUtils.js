@@ -8,7 +8,7 @@ import { formatDateMed, formatTime, formatSecondsToMinutes } from '@/utils/dateT
  */
 const ACTIVITY_TYPES = [
   1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27,
-  28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41
+  28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45
 ]
 
 /**
@@ -62,7 +62,11 @@ const activityLabelMap = {
   38: (t) => t('activityItems.soccer'),
   39: (t) => t('activityItems.padel'),
   40: (t) => t('activityItems.treadmillRun'),
-  41: (t) => t('activityItems.cardioTraining')
+  41: (t) => t('activityItems.cardioTraining'),
+  42: (t) => t('activityItems.kayaking'),
+  43: (t) => t('activityItems.sailing'),
+  44: (t) => t('activityItems.snowShoeing'),
+  45: (t) => t('activityItems.inlineSkating'),
 }
 
 /**
@@ -356,7 +360,7 @@ export function activityTypeNotCycling(activity) {
  */
 export function activityTypeIsWalking(activity) {
   return (
-    activity.activity_type === 11 || activity.activity_type === 12 || activity.activity_type === 31
+    activity.activity_type === 11 || activity.activity_type === 12 || activity.activity_type === 31 || activity.activity_type === 44
   )
 }
 
@@ -399,6 +403,28 @@ export function activityTypeNotRacquet(activity) {
 }
 
 /**
+ * Checks if the given activity is of type Sailing.
+ *
+ * @param {Object} activity - The activity object to check.
+ * @param {number} activity.activity_type - The type identifier of the activity.
+ * @returns {boolean} Returns true if the activity type is Sailing (43), otherwise false.
+ */
+export function activityTypeIsSailing(activity) {
+  return activity.activity_type === 43
+}
+
+/**
+ * Checks if the activity type is not sailing (activity_type !== 43).
+ *
+ * @param {Object} activity - The activity object to check.
+ * @param {number} activity.activity_type - The type of the activity.
+ * @returns {boolean} Returns true if the activity type is not sailing, false otherwise.
+ */
+export function activityTypeNotSailing(activity) {
+  return activity.activity_type !== 43
+}
+
+/**
  * Checks if the given activity is of type Windsurf.
  *
  * @param {Object} activity - The activity object to check.
@@ -425,21 +451,43 @@ export function activityTypeNotWindsurf(activity) {
  *
  * @param {Object} activity - The activity object to check.
  * @param {number} activity.activity_type - The type identifier of the activity.
- * @returns {boolean} Returns true if the activity type is rowing (13), otherwise false.
+ * @returns {boolean} Returns true if the activity type is rowing (13, 42), otherwise false.
  */
 export function activityTypeIsRowing(activity) {
-  return activity.activity_type === 13
+  return activity.activity_type === 13 || activity.activity_type === 42
 }
 
 /**
- * Checks if the activity type is not rowing (activity_type !== 13).
+ * Checks if the activity type is not rowing (activity_type !== 13, 42).
  *
  * @param {Object} activity - The activity object to check.
  * @param {number} activity.activity_type - The type of the activity.
  * @returns {boolean} Returns true if the activity type is not rowing, false otherwise.
  */
 export function activityTypeNotRowing(activity) {
-  return activity.activity_type !== 13
+  return activity.activity_type !== 13 && activity.activity_type !== 42
+}
+
+/**
+ * Checks if the given activity is of type Rowing.
+ *
+ * @param {Object} activity - The activity object to check.
+ * @param {number} activity.activity_type - The type identifier of the activity.
+ * @returns {boolean} Returns true if the activity type is skating (45), otherwise false.
+ */
+export function activityTypeIsSkating(activity) {
+  return activity.activity_type === 45
+}
+
+/**
+ * Checks if the activity type is not skating (activity_type !== 45).
+ *
+ * @param {Object} activity - The activity object to check.
+ * @param {number} activity.activity_type - The type of the activity.
+ * @returns {boolean} Returns true if the activity type is not skating, false otherwise.
+ */
+export function activityTypeNotSkating(activity) {
+  return activity.activity_type !== 45
 }
 
 /**
@@ -499,7 +547,7 @@ export function formatAverageSpeed(t, activity, unitSystem, lap = null, units = 
   )
     return t('generalItems.labelNoData')
 
-  if (activityTypeIsCycling(activity)) {
+  if (activityTypeIsCycling(activity) || activityTypeIsWindsurf(activity) || activityTypeIsSailing(activity)) {
     if (Number(unitSystem) === 1) {
       if (units) {
         return `${formatAverageSpeedMetric(speed)} ${t('generalItems.unitsKmH')}`
@@ -705,7 +753,7 @@ export function getIcon(typeId) {
     27: ['fas', 'person-biking'],
     28: ['fas', 'person-biking'],
     29: ['fas', 'person-biking'],
-    30: ['fas', 'wind'],
+    30: ['fas', 'wind'], // Windsurf icon might be better if available
     31: ['fas', 'person-walking'],
     32: ['fas', 'person-snowboarding'],
     33: ['fas', 'person-snowboarding'],
@@ -716,7 +764,11 @@ export function getIcon(typeId) {
     38: ['fas', 'futbol'],
     39: ['fas', 'table-tennis-paddle-ball'],
     40: ['fas', 'person-running'], // Treadmill run icon might be better if available
-    41: ['fas', 'heart-pulse'] // Cardio training icon might be better if available
+    41: ['fas', 'heart-pulse'], // Cardio training icon might be better if available
+    42: ['fas', 'sailboat'], // Kayaking icon might be better if available
+    43: ['fas', 'wind'], // Sailing icon might be better if available
+    44: ['fas', 'person-hiking'],
+    45: ['fas', 'person-skating'],
   }
 
   return iconMap[typeId] || ['fas', 'dumbbell']

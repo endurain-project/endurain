@@ -1,10 +1,10 @@
 {
-  "buttonAddUser": "Add user",
-  "labelSearchUsersByUsername": "Search users by username",
-  "labelNumberOfUsers1": "There is a total of ",
-  "labelNumberOfUsers2": " user(s) (",
-  "labelNumberOfUsers3": " loaded):",
-  "successUserAdded": "User added successfully",
-  "successUserDeleted": "User deleted successfully",
-  "errorFetchingUsers": "Error fetching users"
+  "buttonAddUser": "Dodaj uporabnika",
+  "labelSearchUsersByUsername": "Išči uporabnike po uporabniškem imenu",
+  "labelNumberOfUsers1": "Skupno število uporabnikov je ",
+  "labelNumberOfUsers2": " uporabnik(ov) (",
+  "labelNumberOfUsers3": " naloženo):",
+  "successUserAdded": "Uporabnik uspešno dodan",
+  "successUserDeleted": "Uporabnik uspešno izbrisan",
+  "errorFetchingUsers": "Napaka pri pridobivanju uporabnikov"
 }

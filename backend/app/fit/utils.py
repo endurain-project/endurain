@@ -32,8 +32,8 @@ def create_activity_objects(
     sessions_records: dict,
     user_id: int,
     user_privacy_settings: users_privacy_settings_schema.UsersPrivacySettings,
-    garmin_activity_id: int = None,
-    garminconnect_gear: dict = None,
+    garmin_activity_id: int | None = None,
+    garminconnect_gear: dict | None = None,
     db: Session = None,
 ) -> list:
     try:
@@ -428,13 +428,15 @@ def split_records_by_activity(parsed_data: dict) -> dict:
     return sessions_records
 
 
-def parse_fit_file(file: str, db: Session) -> dict:
+def parse_fit_file(
+    file: str, db: Session, activity_name_input: str | None = None
+) -> dict:
     try:
         # Initialize default values for various variables
         sessions = []
         time_offset = 0
         last_waypoint_time = None
-        activity_name = "Workout"
+        activity_name = activity_name_input if activity_name_input else "Workout"
 
         # Arrays to store waypoint data
         lat_lon_waypoints = []

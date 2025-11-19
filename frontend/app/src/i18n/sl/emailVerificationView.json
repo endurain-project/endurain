@@ -1,8 +1,8 @@
 {
-  "title1": "Handling verify email",
-  "title2": "Please wait while your email is being verified. Do not refresh this page.",
-  "emailVerified": "Email verified successfully!",
-  "tokenNotFound": "Token not found",
-  "tokenExpired": "Token expired",
-  "verificationFailed": "Email verification failed"
+  "title1": "Obravnavanje preverjanja e-pošte",
+  "title2": "Prosimo, počakajte, da se vaša e-pošta preveri. Ne osvežujte strani.",
+  "emailVerified": "E-pošta uspešno preverjena!",
+  "tokenNotFound": "Žeton ni najden",
+  "tokenExpired": "Žeton je potekel",
+  "verificationFailed": "Preverjanje e-pošte ni uspelo"
 }

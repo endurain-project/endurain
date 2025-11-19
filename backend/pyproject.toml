@@ -8,8 +8,8 @@ package-mode = false
 
 [tool.poetry.dependencies]
 python = "^3.13"
-fastapi = "^0.121.0"
-uvicorn = "^0.38.0"
+fastapi = "^0.121.2"
+uvicorn = "^0.34.0"
 python-dotenv = "^1.0.1"
 sqlalchemy = "^2.0.36"
 apscheduler = "^3.11.0"

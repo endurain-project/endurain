@@ -56,6 +56,7 @@ async def fetch_and_process_activities_by_dates(
     for activity in garmin_activities:
         # Get the activity ID
         activity_id = activity["activityId"]
+        activity_name = activity["activityName"]
 
         # Check if the activity is already stored in the database
         activity_db = activities_crud.get_activity_by_garminconnect_id_from_user_id(
@@ -114,6 +115,7 @@ async def fetch_and_process_activities_by_dates(
                     db,
                     True,
                     activity_gear,
+                    activity_name,
                 )
                 or []
             )

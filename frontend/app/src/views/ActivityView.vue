@@ -319,12 +319,17 @@ async function updateGearIdOnAddGearToActivity(gearId) {
   push.success(t('activityView.successMessageGearAdded'))
 }
 
-function updateActivityFieldsOnEdit(data) {
+async function updateActivityFieldsOnEdit(data) {
+  let activityTypeChanged = false
+  if(activity.value.activity_type !== data.activity_type) {
+    activityTypeChanged = true
+  }
+
   // Update the activity fields
   activity.value.name = data.name
   activity.value.description = data.description
   activity.value.private_notes = data.private_notes
-  activity.value.activity_type = data.activity_type
+  activity.value.activity_type = Number(data.activity_type)
   activity.value.visibility = data.visibility
   activity.value.is_hidden = data.is_hidden
   activity.value.hide_start_time = data.hide_start_time
@@ -339,6 +344,10 @@ function updateActivityFieldsOnEdit(data) {
   activity.value.hide_laps = data.hide_laps
   activity.value.hide_workout_sets_steps = data.hide_workout_sets_steps
   activity.value.hide_gear = data.hide_gear
+
+  if (activityTypeChanged) {
+    await getGearsByActivityType()
+  }
 }
 
 function addMediaToActivity(media) {
@@ -355,6 +364,22 @@ function removeMediaFromActivity(mediaId) {
     activityActivityMedia.value = activityActivityMedia.value.filter(
       (media) => media.id !== mediaId
     )
+  }
+}
+
+async function getGearsByActivityType() {
+  if (activityTypeIsRunning(activity.value) || activityTypeIsWalking(activity.value)) {
+    gearsByType.value = await gears.getGearFromType(2)
+  } else if (activityTypeIsCycling(activity.value)) {
+    gearsByType.value = await gears.getGearFromType(1)
+  } else if (activityTypeIsSwimming(activity.value)) {
+    gearsByType.value = await gears.getGearFromType(3)
+  } else if (activityTypeIsRacquet(activity.value)) {
+    gearsByType.value = await gears.getGearFromType(4)
+  } else if (activityTypeIsWindsurf(activity.value)) {
+    gearsByType.value = await gears.getGearFromType(7)
+  } else {
+    gearsByType.value = []
   }
 }
 
@@ -449,25 +474,7 @@ onMounted(async () => {
         gearId.value = activity.value.gear_id
       }
 
-      if (activityTypeIsRunning(activity.value) || activityTypeIsWalking(activity.value)) {
-        gearsByType.value = await gears.getGearFromType(2)
-      } else {
-        if (activityTypeIsCycling(activity.value)) {
-          gearsByType.value = await gears.getGearFromType(1)
-        } else {
-          if (activityTypeIsSwimming(activity.value)) {
-            gearsByType.value = await gears.getGearFromType(3)
-          } else {
-            if (activityTypeIsRacquet(activity.value)) {
-              gearsByType.value = await gears.getGearFromType(4)
-            } else {
-              if (activityTypeIsWindsurf(activity.value)) {
-                gearsByType.value = await gears.getGearFromType(7)
-              }
-            }
-          }
-        }
-      }
+      await getGearsByActivityType()
     }
   } catch (error) {
     if (error.toString().includes('422')) {

@@ -28,15 +28,20 @@
           <option value="5">{{ $t('searchView.searchSelectActivityType5') }}</option>
           <option value="6">{{ $t('searchView.searchSelectActivityType6') }}</option>
           <option value="7">{{ $t('searchView.searchSelectActivityType7') }}</option>
+          <option value="18">{{ $t('searchView.searchSelectActivityType18') }}</option>
           <option value="8">{{ $t('searchView.searchSelectActivityType8') }}</option>
           <option value="9">{{ $t('searchView.searchSelectActivityType9') }}</option>
           <option value="10">{{ $t('searchView.searchSelectActivityType10') }}</option>
           <option value="15">{{ $t('searchView.searchSelectActivityType15') }}</option>
+          <option value="20">{{ $t('searchView.searchSelectActivityType20') }}</option>
           <option value="11">{{ $t('searchView.searchSelectActivityType11') }}</option>
           <option value="12">{{ $t('searchView.searchSelectActivityType12') }}</option>
           <option value="13">{{ $t('searchView.searchSelectActivityType13') }}</option>
+          <option value="19">{{ $t('searchView.searchSelectActivityType19') }}</option>
           <option value="14">{{ $t('searchView.searchSelectActivityType14') }}</option>
           <option value="16">{{ $t('searchView.searchSelectActivityType16') }}</option>
+          <option value="17">{{ $t('searchView.searchSelectActivityType17') }}</option>
+          <option value="21">{{ $t('searchView.searchSelectActivityType21') }}</option>
         </select>
         <!-- Gear type area -->
         <select
@@ -218,7 +223,7 @@ const fetchUserResults = debounce(async (query) => {
     searchResultsOriginal.value = await users.getUserContainsUsername(query)
     searchResults.value = searchResultsOriginal.value
   } catch (error) {
-    push.error(`${t('navbarSearchComponent.errorFetchingUserWithUsernameContains')} - ${error}`)
+    push.error(`${t('searchView.errorFetchingUserWithUsernameContains')} - ${error}`)
   }
   isLoading.value = false
 }, 500)
@@ -234,7 +239,7 @@ const fetchActivityResults = debounce(async (query) => {
     searchResultsOriginal.value = await activities.getActivityByName(query)
     updateSearchResultsBasedOnActivityType()
   } catch (error) {
-    push.error(`${t('navbarSearchComponent.errorFetchingActivityWithNameContains')} - ${error}`)
+    push.error(`${t('searchView.errorFetchingActivityWithNameContains')} - ${error}`)
   }
   isLoading.value = false
 }, 500)
@@ -250,7 +255,7 @@ const fetchGearResults = debounce(async (query) => {
     searchResultsOriginal.value = await gears.getGearContainsNickname(query)
     updateSearchResultsBasedOnGearType()
   } catch (error) {
-    push.error(`${t('navbarSearchComponent.errorFetchingGearWithNicknameContains')} - ${error}`)
+    push.error(`${t('searchView.errorFetchingGearWithNicknameContains')} - ${error}`)
   }
   isLoading.value = false
 }, 500)
@@ -270,7 +275,7 @@ function updateSearchResultsBasedOnActivityType() {
     )
   } else if (searchSelectActivityType.value === '4') {
     searchResults.value = searchResultsOriginal.value.filter((user) =>
-      [10, 19, 20, 41].includes(user.activity_type)
+      [10, 19, 20].includes(user.activity_type)
     )
   } else if (searchSelectActivityType.value === '5') {
     searchResults.value = searchResultsOriginal.value.filter((user) =>
@@ -282,7 +287,7 @@ function updateSearchResultsBasedOnActivityType() {
     )
   } else if (searchSelectActivityType.value === '7') {
     searchResults.value = searchResultsOriginal.value.filter((user) =>
-      [13].includes(user.activity_type)
+      [13, 42].includes(user.activity_type)
     )
   } else if (searchSelectActivityType.value === '8') {
     searchResults.value = searchResultsOriginal.value.filter((user) =>
@@ -319,6 +324,26 @@ function updateSearchResultsBasedOnActivityType() {
   } else if (searchSelectActivityType.value === '16') {
     searchResults.value = searchResultsOriginal.value.filter((user) =>
       [39].includes(user.activity_type)
+    )
+  } else if (searchSelectActivityType.value === '17') {
+    searchResults.value = searchResultsOriginal.value.filter((user) =>
+      [41].includes(user.activity_type)
+    )
+  } else if (searchSelectActivityType.value === '18') {
+    searchResults.value = searchResultsOriginal.value.filter((user) =>
+      [42].includes(user.activity_type)
+    )
+  } else if (searchSelectActivityType.value === '19') {
+    searchResults.value = searchResultsOriginal.value.filter((user) =>
+      [43].includes(user.activity_type)
+    )
+  } else if (searchSelectActivityType.value === '20') {
+    searchResults.value = searchResultsOriginal.value.filter((user) =>
+      [44].includes(user.activity_type)
+    )
+  } else if (searchSelectActivityType.value === '21') {
+    searchResults.value = searchResultsOriginal.value.filter((user) =>
+      [45].includes(user.activity_type)
     )
   } else {
     searchResults.value = searchResultsOriginal.value

@@ -11,7 +11,6 @@
   "labelGraphVelocity": "Speed",
   "labelGraphPace": "Pace",
   "labelGraphHRZone": "Zone",
-  "labelDownsampling": "Data downsampled to ~200 points",
   "errorMessageProcessingActivityStreams": "Error processing activity streams",
   "labelGraphStrokeRate": "Stroke rate"
 }

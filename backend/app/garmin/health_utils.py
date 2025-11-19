@@ -58,15 +58,17 @@ def fetch_and_process_bc_by_dates(
         health_data = health_data_schema.HealthData(
             user_id=user_id,
             date=bc["calendarDate"],
-            weight=bc["weight"] / 1000,
+            weight=bc["weight"] / 1000 if bc["weight"] is not None else None,
             bmi=bc["bmi"],
-            # body_fat=bc["bodyFat"],
-            # body_water=bc["bodyWater"],
-            # bone_mass=bc["boneMass"],
-            # muscle_mass=bc["muscleMass"],
-            # physique_rating=bc["physiqueRating"],
-            # visceral_fat=bc["visceralFat"],
-            # metabolic_age=bc["metabolicAge"],
+            body_fat=bc["bodyFat"],
+            body_water=bc["bodyWater"],
+            bone_mass=(bc["boneMass"] / 1000 if bc["boneMass"] is not None else None),
+            muscle_mass=(
+                bc["muscleMass"] / 1000 if bc["muscleMass"] is not None else None
+            ),
+            physique_rating=bc["physiqueRating"],
+            visceral_fat=bc["visceralFat"],
+            metabolic_age=bc["metabolicAge"],
             garminconnect_body_composition_id=str(bc["samplePk"]),
         )
 

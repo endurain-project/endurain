@@ -283,6 +283,10 @@ The table bellow details the activity types supported by Endurain.
 | Surf | 33 |
 | Soccer | 38 |
 | Cardio training | 41 |
+| Kayaking | 42 |
+| Sailing | 43 |
+| Snow shoeing | 44 |
+| Inline skating | 45 |
 
 
 ## Supported gear types

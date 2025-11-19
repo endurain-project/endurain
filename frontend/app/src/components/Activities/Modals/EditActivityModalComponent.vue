@@ -153,6 +153,9 @@
               <option value="13">
                 {{ $t('editActivityModalComponent.modalEditActivityTypeOption13') }}
               </option>
+              <option value="42">
+                {{ $t('editActivityModalComponent.modalEditActivityTypeOption42') }}
+              </option>
               <hr />
               <option value="14">
                 {{ $t('editActivityModalComponent.modalEditActivityTypeOption14') }}
@@ -169,6 +172,9 @@
               </option>
               <option value="37">
                 {{ $t('editActivityModalComponent.modalEditActivityTypeOption37') }}
+              </option>
+              <option value="44">
+                {{ $t('editActivityModalComponent.modalEditActivityTypeOption44') }}
               </option>
               <hr />
               <option value="21">
@@ -202,9 +208,16 @@
               <option value="33">
                 {{ $t('editActivityModalComponent.modalEditActivityTypeOption33') }}
               </option>
+              <option value="43">
+                {{ $t('editActivityModalComponent.modalEditActivityTypeOption43') }}
+              </option>
               <hr />
               <option value="38">
                 {{ $t('editActivityModalComponent.modalEditActivityTypeOption38') }}
+              </option>
+              <hr />
+              <option value="45">
+                {{ $t('editActivityModalComponent.modalEditActivityTypeOption45') }}
               </option>
             </select>
             <!-- visibility fields -->

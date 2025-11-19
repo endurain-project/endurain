@@ -1,13 +1,13 @@
 {
-  "search": "Search",
-  "activities": "Activities",
-  "activitiesList": "List",
-  "summary": "Summary",
-  "gear": "Gear",
-  "health": "Health",
-  "profile": "Profile",
-  "settings": "Settings",
-  "login": "Login",
-  "logout": "Logout",
-  "errorLogout": "Error logging out"
+  "search": "Iskanje",
+  "activities": "Aktivnosti",
+  "activitiesList": "Seznam",
+  "summary": "Povzetek",
+  "gear": "Oprema",
+  "health": "Zdravje",
+  "profile": "Profil",
+  "settings": "Nastavitve",
+  "login": "Prijava",
+  "logout": "Odjava",
+  "errorLogout": "Napaka pri odjavi"
 }

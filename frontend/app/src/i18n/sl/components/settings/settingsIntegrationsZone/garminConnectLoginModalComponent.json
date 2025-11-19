@@ -1,14 +1,14 @@
 {
-  "garminConnectAuthModalTitle": "Link Garmin Connect account",
-  "garminConnectAuthModalUsernameLabel": "Garmin Connect email",
-  "garminConnectAuthModalUsernamePlaceholder": "Garmin Connect email",
-  "garminConnectAuthModalPasswordLabel": "Garmin Connect password",
-  "garminConnectAuthModalPasswordPlaceholder": "Garmin Connect password",
-  "garminConnectAuthModalMfaCodeLabel": "MFA code",
-  "garminConnectAuthModalMfaCodePlaceholder": "MFA code",
-  "buttonSubmitMfaCode": "Submit MFA code",
-  "garminConnectAuthModalLoginButton": "Login",
-  "processingMessageLinkGarminConnect": "Linking Garmin Connect account...",
-  "successMessageLinkGarminConnect": "Garmin Connect account linked",
-  "errorMessageUnableToLinkGarminConnect": "Unable to link Garmin Connect account"
+  "garminConnectAuthModalTitle": "Poveži račun Garmin Connect",
+  "garminConnectAuthModalUsernameLabel": "E-pošta Garmin Connect",
+  "garminConnectAuthModalUsernamePlaceholder": "E-pošta Garmin Connect",
+  "garminConnectAuthModalPasswordLabel": "Geslo Garmin Connect",
+  "garminConnectAuthModalPasswordPlaceholder": "Geslo Garmin Connect",
+  "garminConnectAuthModalMfaCodeLabel": "MFA koda",
+  "garminConnectAuthModalMfaCodePlaceholder": "MFA koda",
+  "buttonSubmitMfaCode": "Oddaj MFA kodo",
+  "garminConnectAuthModalLoginButton": "Prijava",
+  "processingMessageLinkGarminConnect": "Povezovanje računa Garmin Connect...",
+  "successMessageLinkGarminConnect": "Račun Garmin Connect je povezan",
+  "errorMessageUnableToLinkGarminConnect": "Povezava računa Garmin Connect ni uspela"
 }

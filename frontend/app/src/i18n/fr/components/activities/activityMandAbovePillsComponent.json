@@ -11,7 +11,6 @@
   "labelGraphVelocity": "Vitesse",
   "labelGraphPace": "Allure",
   "labelGraphHRZone": "Zone",
-  "labelDownsampling": "Données sous-échantillonnées à ~200 points",
   "errorMessageProcessingActivityStreams": "Erreur lors du traitement des flux d'activité",
   "labelGraphStrokeRate": "Stroke rate"
 }

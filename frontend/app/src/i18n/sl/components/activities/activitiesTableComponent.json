@@ -1,12 +1,12 @@
 {
-  "headerType": "Type",
-  "headerName": "Name",
-  "headerLocation": "Location",
-  "headerStartTime": "Start time",
-  "headerDuration": "Duration",
-  "headerDistance": "Distance",
-  "headerPace": "Pace/Speed",
-  "headerCalories": "Calories",
-  "headerElevation": "Elevation",
-  "headerAvgHr": "Avg HR"
+  "headerType": "Vrsta",
+  "headerName": "Ime",
+  "headerLocation": "Lokacija",
+  "headerStartTime": "Začetni čas",
+  "headerDuration": "Trajanje",
+  "headerDistance": "Razdalja",
+  "headerPace": "Tempo/Hitrost",
+  "headerCalories": "Kalorije",
+  "headerElevation": "Višinska razlika",
+  "headerAvgHr": "Povpr. SR"
 }

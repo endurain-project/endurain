@@ -17,7 +17,7 @@
   "languageOption9": "中文（繁体）",
   "languageOption10": "加利西亚语",
   "languageOption11": "意大利语",
-  "languageOption12": "Slovenian (SL)",
+  "languageOption12": "斯洛文尼亚语",
   "firstDayOfWeekOption0": "星期日",
   "firstDayOfWeekOption1": "星期一",
   "firstDayOfWeekOption2": "星期二",
@@ -76,5 +76,7 @@
   "currencyPoundSymbol": "£",
   "genderMale": "男",
   "genderFemale": "女",
-  "genderUnspecified": "未指定"
+  "genderUnspecified": "未指定",
+  "labelAverage": "平均",
+  "labelMaximum": "最大值"
 }
