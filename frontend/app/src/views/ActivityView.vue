@@ -178,7 +178,8 @@
         activity &&
         ((activityActivityLaps && activityActivityLaps.length > 0) ||
           (activityActivityWorkoutSteps && activityActivityWorkoutSteps.length > 0) ||
-          (activityActivitySets && activityActivitySets.length > 0))
+          (activityActivitySets && activityActivitySets.length > 0) ||
+          (activityActivityStreams && activityActivityStreams.length > 0))
       "
     />
 
@@ -192,7 +193,8 @@
         activity &&
         ((activityActivityLaps && activityActivityLaps.length > 0) ||
           (activityActivityWorkoutSteps && activityActivityWorkoutSteps.length > 0) ||
-          (activityActivitySets && activityActivitySets.length > 0))
+          (activityActivitySets && activityActivitySets.length > 0) ||
+          (activityActivityStreams && activityActivityStreams.length > 0))
       "
     >
       <ActivityMandAbovePillsComponent
@@ -216,7 +218,8 @@
         activity &&
         ((activityActivityLaps && activityActivityLaps.length > 0) ||
           (activityActivityWorkoutSteps && activityActivityWorkoutSteps.length > 0) ||
-          (activityActivitySets && activityActivitySets.length > 0))
+          (activityActivitySets && activityActivitySets.length > 0) ||
+          (activityActivityStreams && activityActivityStreams.length > 0))
       "
     >
       <ActivityBellowMPillsComponent

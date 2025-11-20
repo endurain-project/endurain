@@ -16,7 +16,9 @@ import {
   formatAverageSpeedMetric,
   formatAverageSpeedImperial,
   activityTypeIsSwimming,
-  activityTypeIsRunning
+  activityTypeIsRunning,
+  activityTypeIsRowing,
+  activityTypeIsWalking,
 } from '@/utils/activityUtils'
 import { metersToFeet, kmToMiles } from '@/utils/unitsUtils'
 
@@ -193,9 +195,9 @@ export default {
               // Use null so Chart.js will gap missing/invalid pace points
               data.push(null)
             } else {
-              // Compute converted pace (minutes per km or per mile for running, minutes per 100m/100yd for swimming)
+              // Compute converted pace (minutes per km or per mile for running, walking and rowing, minutes per 100m/100yd for swimming)
               let converted = null
-              if (activityTypeIsRunning(props.activity)) {
+              if (activityTypeIsRunning(props.activity) || activityTypeIsWalking(props.activity) || activityTypeIsRowing(props.activity)) {
                 if (Number(units.value) === 1) {
                   converted = (paceData.pace * 1000) / 60 // min/km
                 } else {
@@ -224,7 +226,7 @@ export default {
               }
             }
           }
-          if (activityTypeIsRunning(props.activity)) {
+          if (activityTypeIsRunning(props.activity) || activityTypeIsWalking(props.activity) || activityTypeIsRowing(props.activity)) {
             if (Number(units.value) === 1) {
               label = t('generalItems.labelPaceInMinKm')
             } else {
