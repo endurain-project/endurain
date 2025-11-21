@@ -256,7 +256,7 @@
               <option :value="false">{{ $t('generalItems.no') }}</option>
             </select>
             <div class="d-flex justify-content-start align-items-center">
-              <span>Activity hidden fields</span>
+              <span>{{ $t('editActivityModalComponent.modalEditActivityHiddenItemsLabel') }}</span>
               <!-- button toggle hidden fields -->
               <a
                 class="btn btn-link btn-lg link-body-emphasis"
