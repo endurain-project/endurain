@@ -39,9 +39,9 @@
   "errorMessageUnableToUnlinkGarminConnect": "无法解除 Garmin Connect 账户连接",
   "errorMessageUnableToGetGarminConnectGear": "无法获取 Garmin Connect 装备数据",
   "loadingMessageRetrievingGarminConnectGear": "正在获取 Garmin Connect 装备数据",
-  "modalRetrieveHealthDataByDaysTitle": "按天获取健康数据",
-  "modalRetrieveHealthDataByDateRangeTitle": "按日期范围获取健康数据",
-  "errorMessageUnableToGetGarminConnectHealthDataDays": "无法按天获取 Garmin Connect 健康数据",
-  "errorMessageUnableToGetGarminConnectHealthDataDateRange": "无法按日期范围获取 Garmin Connect 健康数据",
-  "loadingMessageRetrievingGarminConnectHealthData": "正在获取 Garmin Connect 健康数据"
+  "modalRetrieveHealthWeightByDaysTitle": "按天获取健康数据",
+  "modalRetrieveHealthWeightByDateRangeTitle": "按日期范围获取健康数据",
+  "errorMessageUnableToGetGarminConnectHealthWeightDays": "无法按天获取 Garmin Connect 健康数据",
+  "errorMessageUnableToGetGarminConnectHealthWeightDateRange": "无法按日期范围获取 Garmin Connect 健康数据",
+  "loadingMessageRetrievingGarminConnectHealthWeight": "正在获取 Garmin Connect 健康数据"
 }

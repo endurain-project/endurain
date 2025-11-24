@@ -51,7 +51,7 @@ import { kgToLbs } from '@/utils/unitsUtils'
 export default {
   components: {},
   props: {
-    userHealthData: {
+    userHealthWeight: {
       type: [Object, null],
       required: true
     },
@@ -68,8 +68,8 @@ export default {
     const bmiDescription = ref(null)
 
     onMounted(async () => {
-      if (props.userHealthData) {
-        for (const data of props.userHealthData) {
+      if (props.userHealthWeight) {
+        for (const data of props.userHealthWeight) {
           if (data.weight) {
             currentWeight.value = data.weight
             currentBMI.value = data.bmi ? data.bmi.toFixed(2) : null

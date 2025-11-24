@@ -5,8 +5,8 @@ from typing import Annotated, Callable
 from fastapi import APIRouter, Depends, UploadFile, Security, HTTPException, status
 from sqlalchemy.orm import Session
 
-import health_data.schema as health_data_schema
-import health_data.crud as health_data_crud
+import health_weight.schema as health_weight_schema
+import health_weight.crud as health_weight_crud
 
 import auth.security as auth_security
 
@@ -21,7 +21,7 @@ router = APIRouter()
     "/number",
     response_model=int,
 )
-async def read_health_data_number(
+async def read_health_weight_number(
     _check_scopes: Annotated[
         Callable, Security(auth_security.check_scopes, scopes=["health:read"])
     ],
@@ -34,15 +34,15 @@ async def read_health_data_number(
         Depends(core_database.get_db),
     ],
 ):
-    # Get the health_data number from the database
-    return health_data_crud.get_health_data_number(token_user_id, db)
+    # Get the health_weight number from the database
+    return health_weight_crud.get_health_weight_number(token_user_id, db)
 
 
 @router.get(
     "",
-    response_model=list[health_data_schema.HealthData] | None,
+    response_model=list[health_weight_schema.HealthWeight] | None,
 )
-async def read_health_data_all(
+async def read_health_weight_all(
     _check_scopes: Annotated[
         Callable, Security(auth_security.check_scopes, scopes=["health:read"])
     ],
@@ -55,15 +55,15 @@ async def read_health_data_all(
         Depends(core_database.get_db),
     ],
 ):
-    # Get the health_data from the database
-    return health_data_crud.get_all_health_data_by_user_id(token_user_id, db)
+    # Get the health_weight from the database
+    return health_weight_crud.get_all_health_weight_by_user_id(token_user_id, db)
 
 
 @router.get(
     "/page_number/{page_number}/num_records/{num_records}",
-    response_model=list[health_data_schema.HealthData] | None,
+    response_model=list[health_weight_schema.HealthWeight] | None,
 )
-async def read_health_data_all_pagination(
+async def read_health_weight_all_pagination(
     page_number: int,
     num_records: int,
     _check_scopes: Annotated[
@@ -81,15 +81,15 @@ async def read_health_data_all_pagination(
         Depends(core_database.get_db),
     ],
 ):
-    # Get the health_data from the database with pagination
-    return health_data_crud.get_health_data_with_pagination(
+    # Get the health_weight from the database with pagination
+    return health_weight_crud.get_health_weight_with_pagination(
         token_user_id, db, page_number, num_records
     )
 
 
 @router.post("", status_code=201)
-async def create_health_data(
-    health_data: health_data_schema.HealthData,
+async def create_health_weight(
+    health_weight: health_weight_schema.HealthWeight,
     _check_scopes: Annotated[
         Callable, Security(auth_security.check_scopes, scopes=["health:write"])
     ],
@@ -102,23 +102,23 @@ async def create_health_data(
         Depends(core_database.get_db),
     ],
 ):
-    # Check if health_data for this date already exists
-    health_for_date = health_data_crud.get_health_data_by_date(
-        token_user_id, health_data.date, db
+    # Check if health_weight for this date already exists
+    health_for_date = health_weight_crud.get_health_weight_by_date(
+        token_user_id, health_weight.date, db
     )
 
     if health_for_date:
-        health_data.id = health_for_date.id
-        # Updates the health_data in the database and returns it
-        return health_data_crud.edit_health_data(token_user_id, health_data, db)
+        health_weight.id = health_for_date.id
+        # Updates the health_weight in the database and returns it
+        return health_weight_crud.edit_health_weight(token_user_id, health_weight, db)
     else:
-        # Creates the health_data in the database and returns it
-        return health_data_crud.create_health_data(token_user_id, health_data, db)
+        # Creates the health_weight in the database and returns it
+        return health_weight_crud.create_health_weight(token_user_id, health_weight, db)
 
 
 @router.put("")
-async def edit_health_data(
-    health_data: health_data_schema.HealthData,
+async def edit_health_weight(
+    health_weight: health_weight_schema.HealthWeight,
     _check_scopes: Annotated[
         Callable, Security(auth_security.check_scopes, scopes=["health:write"])
     ],
@@ -131,13 +131,13 @@ async def edit_health_data(
         Depends(core_database.get_db),
     ],
 ):
-    # Updates the health_data in the database and returns it
-    return health_data_crud.edit_health_data(token_user_id, health_data, db)
+    # Updates the health_weight in the database and returns it
+    return health_weight_crud.edit_health_weight(token_user_id, health_weight, db)
 
 
-@router.delete("/{health_data_id}")
-async def delete_health_data(
-    health_data_id: int,
+@router.delete("/{health_weight_id}")
+async def delete_health_weight(
+    health_weight_id: int,
     _check_scopes: Annotated[
         Callable, Security(auth_security.check_scopes, scopes=["health:write"])
     ],
@@ -151,4 +151,4 @@ async def delete_health_data(
     ],
 ):
     # Deletes entry from database
-    return health_data_crud.delete_health_data(token_user_id, health_data_id, db)
+    return health_weight_crud.delete_health_weight(token_user_id, health_weight_id, db)

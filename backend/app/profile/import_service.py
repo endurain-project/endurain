@@ -67,8 +67,8 @@ import gears.gear_components.schema as gear_components_schema
 import notifications.crud as notifications_crud
 import notifications.schema as notifications_schema
 
-import health_data.crud as health_data_crud
-import health_data.schema as health_data_schema
+import health_weight.crud as health_weight_crud
+import health_weight.schema as health_weight_schema
 
 import health_targets.crud as health_targets_crud
 import health_targets.schema as health_targets_schema
@@ -312,15 +312,17 @@ class ImportService:
                 profile_utils.check_timeout(
                     timeout_seconds, start_time, ImportTimeoutError, "Import"
                 )
-                health_data_data = self._load_single_json(zipf, "data/health_data.json")
+                health_weight_data = self._load_single_json(
+                    zipf, "data/health_weight.json"
+                )
                 health_targets_data = self._load_single_json(
                     zipf, "data/health_targets.json"
                 )
 
-                await self.collect_and_import_health_data(
-                    health_data_data, health_targets_data
+                await self.collect_and_import_health_weight(
+                    health_weight_data, health_targets_data
                 )
-                del health_data_data, health_targets_data
+                del health_weight_data, health_targets_data
 
                 # Import files and media
                 profile_utils.check_timeout(
@@ -1055,30 +1057,30 @@ class ImportService:
             f"Imported {self.counts['notifications']} notifications", "info"
         )
 
-    async def collect_and_import_health_data(
-        self, health_data_data: list[Any], health_targets_data: list[Any]
+    async def collect_and_import_health_weight(
+        self, health_weight_data: list[Any], health_targets_data: list[Any]
     ) -> None:
         """
         Import health data and targets.
 
         Args:
-            health_data_data: List of health data records.
+            health_weight_data: List of health data records.
             health_targets_data: List of health target records.
         """
         # Import health data
-        if health_data_data:
-            for health_data in health_data_data:
-                health_data["user_id"] = self.user_id
-                health_data.pop("id", None)
+        if health_weight_data:
+            for health_weight in health_weight_data:
+                health_weight["user_id"] = self.user_id
+                health_weight.pop("id", None)
 
-                data = health_data_schema.HealthData(**health_data)
-                health_data_crud.create_health_data(self.user_id, data, self.db)
-                self.counts["health_data"] += 1
+                data = health_weight_schema.HealthWeight(**health_weight)
+                health_weight_crud.create_health_weight(self.user_id, data, self.db)
+                self.counts["health_weight"] += 1
             core_logger.print_to_log(
-                f"Imported {self.counts['health_data']} health data records", "info"
+                f"Imported {self.counts['health_weight']} health weight records", "info"
             )
         else:
-            core_logger.print_to_log(f"No health data to import", "debug")
+            core_logger.print_to_log(f"No health weight data to import", "debug")
 
         # Import health targets
         if health_targets_data:

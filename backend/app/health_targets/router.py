@@ -18,7 +18,7 @@ router = APIRouter()
     "/",
     response_model=health_targets_schema.HealthTargets | None,
 )
-async def read_health_data_all_pagination(
+async def read_health_targets_all_pagination(
     _check_scopes: Annotated[
         Callable, Security(auth_security.check_scopes, scopes=["health:read"])
     ],

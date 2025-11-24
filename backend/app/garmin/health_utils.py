@@ -9,8 +9,8 @@ import core.logger as core_logger
 
 import garmin.utils as garmin_utils
 
-import health_data.crud as health_data_crud
-import health_data.schema as health_data_schema
+import health_weight.crud as health_weight_crud
+import health_weight.schema as health_weight_schema
 
 import users.user.crud as users_crud
 
@@ -55,7 +55,7 @@ def fetch_and_process_bc_by_dates(
     count_processed = 0
     # Process body composition
     for bc in garmin_bc["dateWeightList"]:
-        health_data = health_data_schema.HealthData(
+        health_weight = health_weight_schema.HealthWeight(
             user_id=user_id,
             date=bc["calendarDate"],
             weight=bc["weight"] / 1000 if bc["weight"] is not None else None,
@@ -72,20 +72,20 @@ def fetch_and_process_bc_by_dates(
             garminconnect_body_composition_id=str(bc["samplePk"]),
         )
 
-        health_data_db = health_data_crud.get_health_data_by_date(
-            user_id, health_data.date, db
+        health_weight_db = health_weight_crud.get_health_weight_by_date(
+            user_id, health_weight.date, db
         )
 
-        if health_data_db:
-            health_data.id = health_data_db.id
-            health_data_crud.edit_health_data(user_id, health_data, db)
+        if health_weight_db:
+            health_weight.id = health_weight_db.id
+            health_weight_crud.edit_health_weight(user_id, health_weight, db)
             core_logger.print_to_log(
-                f"User {user_id}: Body composition edited for date {health_data.date}"
+                f"User {user_id}: Body composition edited for date {health_weight.date}"
             )
         else:
-            health_data_crud.create_health_data(user_id, health_data, db)
+            health_weight_crud.create_health_weight(user_id, health_weight, db)
             core_logger.print_to_log(
-                f"User {user_id}: Body composition created for date {health_data.date}"
+                f"User {user_id}: Body composition created for date {health_weight.date}"
             )
         # Increment the count of processed body composition
         count_processed += 1

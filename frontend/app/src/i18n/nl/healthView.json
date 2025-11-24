@@ -1,5 +1,5 @@
 {
   "title": "Gezondheid",
-  "errorFetchingHealthData": "Fout bij het ophalen van gezondheidsgegevens",
+  "errorFetchingHealthWeight": "Fout bij het ophalen van gezondheidsgegevens",
   "errorFetchingHealthTargets": "Fout bij ophalen van gezondheidsdoelen"
 }

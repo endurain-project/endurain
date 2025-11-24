@@ -1,8 +1,8 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from datetime import date as datetime_date
 
 
-class HealthData(BaseModel):
+class HealthWeight(BaseModel):
     id: int | None = None
     user_id: int | None = None
     date: datetime_date | None = None
@@ -17,4 +17,6 @@ class HealthData(BaseModel):
     metabolic_age: int | None = None
     garminconnect_body_composition_id: str | None = None
 
-    model_config = {"from_attributes": True}
+    model_config = ConfigDict(
+        from_attributes=True, extra="forbid", validate_assignment=True
+    )

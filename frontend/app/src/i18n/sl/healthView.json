@@ -1,5 +1,5 @@
 {
   "title": "Zdravje",
-  "errorFetchingHealthData": "Napaka pri pridobivanju zdravstvenih podatkov",
+  "errorFetchingHealthWeight": "Napaka pri pridobivanju zdravstvenih podatkov",
   "errorFetchingHealthTargets": "Napaka pri pridobivanju zdravstvenih ciljev"
 }

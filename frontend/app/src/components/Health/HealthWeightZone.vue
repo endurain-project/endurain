@@ -24,15 +24,15 @@
         class="mt-3 p-3 bg-body-tertiary rounded shadow-sm"
       >
         <!-- show graph -->
-        <HealthWeightLineChartComponent :userHealthData="dataWithWeight" :isLoading="isLoading" />
+        <HealthWeightLineChartComponent :userHealthWeight="dataWithWeight" :isLoading="isLoading" />
 
         <br />
         <p>
-          {{ $t('healthWeightZoneComponent.labelNumberOfHealthDataWeight1')
-          }}{{ userHealthData.length
-          }}{{ $t('healthWeightZoneComponent.labelNumberOfHealthDataWeight2')
-          }}{{ userHealthDataPagination.length
-          }}{{ $t('healthWeightZoneComponent.labelNumberOfHealthDataWeight3') }}
+          {{ $t('healthWeightZoneComponent.labelNumberOfHealthWeightWeight1')
+          }}{{ userHealthWeight.length
+          }}{{ $t('healthWeightZoneComponent.labelNumberOfHealthWeightWeight2')
+          }}{{ userHealthWeightPagination.length
+          }}{{ $t('healthWeightZoneComponent.labelNumberOfHealthWeightWeight3') }}
         </p>
 
         <!-- Displaying loading new gear if applicable -->
@@ -82,11 +82,11 @@ import NoItemsFoundComponent from '../GeneralComponents/NoItemsFoundComponents.v
 import PaginationComponent from '../GeneralComponents/PaginationComponent.vue'
 
 const props = defineProps({
-  userHealthData: {
+  userHealthWeight: {
     type: [Object, null],
     required: true
   },
-  userHealthDataPagination: {
+  userHealthWeightPagination: {
     type: [Object, null],
     required: true
   },
@@ -117,15 +117,15 @@ const isLoadingNewWeight = ref(false)
 function updatedDataWithWeightArray() {
   dataWithWeightPagination.value = []
   dataWithWeight.value = []
-  if (props.userHealthDataPagination) {
-    for (const data of props.userHealthDataPagination) {
+  if (props.userHealthWeightPagination) {
+    for (const data of props.userHealthWeightPagination) {
       if (data.weight) {
         dataWithWeightPagination.value.push(data)
       }
     }
   }
-  if (props.userHealthData) {
-    for (const data of props.userHealthData) {
+  if (props.userHealthWeight) {
+    for (const data of props.userHealthWeight) {
       if (data.weight) {
         dataWithWeight.value.push(data)
       }
@@ -154,7 +154,7 @@ function setPageNumber(page) {
 }
 
 watchEffect(() => {
-  if (props.userHealthDataPagination) {
+  if (props.userHealthWeightPagination) {
     updatedDataWithWeightArray()
   }
 })

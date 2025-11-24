@@ -39,9 +39,9 @@
   "errorMessageUnableToUnlinkGarminConnect": "Unable to unlink Garmin Connect account",
   "errorMessageUnableToGetGarminConnectGear": "Unable to get Garmin Connect gear",
   "loadingMessageRetrievingGarminConnectGear": "Retrieving Garmin Connect gear",
-  "modalRetrieveHealthDataByDaysTitle": "Retrieve health data by days",
-  "modalRetrieveHealthDataByDateRangeTitle": "Retrieve health data by date range",
-  "errorMessageUnableToGetGarminConnectHealthDataDays": "Unable to get Garmin Connect health data by days",
-  "errorMessageUnableToGetGarminConnectHealthDataDateRange": "Unable to get Garmin Connect health data using date range",
-  "loadingMessageRetrievingGarminConnectHealthData": "Retrieving Garmin Connect health data"
+  "modalRetrieveHealthWeightByDaysTitle": "Retrieve health data by days",
+  "modalRetrieveHealthWeightByDateRangeTitle": "Retrieve health data by date range",
+  "errorMessageUnableToGetGarminConnectHealthWeightDays": "Unable to get Garmin Connect health data by days",
+  "errorMessageUnableToGetGarminConnectHealthWeightDateRange": "Unable to get Garmin Connect health data using date range",
+  "loadingMessageRetrievingGarminConnectHealthWeight": "Retrieving Garmin Connect health data"
 }

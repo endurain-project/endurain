@@ -1,6 +1,6 @@
 {
   "buttonAddWeight": "Gewicht Toevoegen",
-  "labelNumberOfHealthDataWeight1": "Er is een totaal van ",
-  "labelNumberOfHealthDataWeight2": " gewicht afmeting(en) ingevoegd (",
-  "labelNumberOfHealthDataWeight3": " geladen):"
+  "labelNumberOfHealthWeightWeight1": "Er is een totaal van ",
+  "labelNumberOfHealthWeightWeight2": " gewicht afmeting(en) ingevoegd (",
+  "labelNumberOfHealthWeightWeight3": " geladen):"
 }

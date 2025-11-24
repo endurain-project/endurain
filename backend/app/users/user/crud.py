@@ -12,7 +12,7 @@ import users.user.utils as users_utils
 import users.user.models as users_models
 import users.user_identity_providers.crud as user_idp_crud
 
-import health_data.utils as health_data_utils
+import health_weight.utils as health_weight_utils
 
 import server_settings.utils as server_settings_utils
 import server_settings.schema as server_settings_schema
@@ -378,7 +378,7 @@ def edit_user(user_id: int, user: users_schema.UserRead, db: Session):
 
         if height_before != db_user.height:
             # Update the user's health data
-            health_data_utils.calculate_bmi_all_user_entries(user_id, db)
+            health_weight_utils.calculate_bmi_all_user_entries(user_id, db)
 
         if db_user.photo_path is None:
             # Delete the user photo in the filesystem

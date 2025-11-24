@@ -44,7 +44,7 @@ class User(Base):
         activities: List of activities performed by the user.
         followers: List of Follower objects representing users who follow this user.
         following: List of Follower objects representing users this user is following.
-        health_data: List of health data records for the user.
+        health_weight: List of health weight records for the user.
         health_targets: List of health targets for the user.
         notifications: List of notifications for the user.
         goals: List of user goals.
@@ -213,9 +213,9 @@ class User(Base):
         foreign_keys=[followers_models.Follower.follower_id],
     )
 
-    # Establish a one-to-many relationship with 'health_data'
-    health_data = relationship(
-        "HealthData",
+    # Establish a one-to-many relationship with 'health_weight'
+    health_weight = relationship(
+        "HealthWeight",
         back_populates="user",
         cascade="all, delete-orphan",
     )

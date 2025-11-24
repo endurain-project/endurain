@@ -1,5 +1,5 @@
 {
   "title": "Salut",
-  "errorFetchingHealthData": "Error recollint dades de salut",
+  "errorFetchingHealthWeight": "Error recollint dades de salut",
   "errorFetchingHealthTargets": "Error recollint objectius de salut"
 }

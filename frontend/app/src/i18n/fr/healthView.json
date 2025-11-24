@@ -1,5 +1,5 @@
 {
   "title": "Santé",
-  "errorFetchingHealthData": "Erreur lors de la récupération des données de santé",
+  "errorFetchingHealthWeight": "Erreur lors de la récupération des données de santé",
   "errorFetchingHealthTargets": "Erreur lors de la récupération des objectifs de santé"
 }

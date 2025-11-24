@@ -13,7 +13,7 @@ export const garminConnect = {
   getGarminConnectGear() {
     return fetchGetRequest('garminconnect/gear')
   },
-  getGarminConnectHealthDataByDates(startDate, endDate) {
+  getGarminConnectHealthWeightByDates(startDate, endDate) {
     return fetchGetRequest(`garminconnect/health?start_date=${startDate}&end_date=${endDate}`)
   },
   unlinkGarminConnect() {

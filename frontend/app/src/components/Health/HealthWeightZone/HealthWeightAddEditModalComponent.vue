@@ -79,7 +79,7 @@ import { useI18n } from 'vue-i18n'
 // Import Notivue push
 import { push } from 'notivue'
 // Importing the services
-import { health_data } from '@/services/health_dataService'
+import { health_weight } from '@/services/health_weightService'
 // Import the stores
 import { useAuthStore } from '@/stores/authStore'
 // Importing the utils
@@ -124,7 +124,7 @@ export default {
           date: newEditWeightDate.value
         }
 
-        const createdWeight = await health_data.createHealthData(data)
+        const createdWeight = await health_weight.createHealthWeight(data)
 
         // Set the loading variable to false.
         emit('isLoadingNewWeight', false)

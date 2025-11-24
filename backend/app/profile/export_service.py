@@ -26,7 +26,7 @@ import activities.activity_media.crud as activity_media_crud
 import activities.activity_exercise_titles.crud as activity_exercise_titles_crud
 import gears.gear.crud as gear_crud
 import gears.gear_components.crud as gear_components_crud
-import health_data.crud as health_data_crud
+import health_weight.crud as health_weight_crud
 import health_targets.crud as health_targets_crud
 import notifications.crud as notifications_crud
 import users.user_default_gear.crud as user_default_gear_crud
@@ -653,7 +653,7 @@ class ExportService:
                 f"Failed to collect gear data: {err}"
             ) from err
 
-    def collect_health_data(self, zipf: zipfile.ZipFile) -> None:
+    def collect_health_weight(self, zipf: zipfile.ZipFile) -> None:
         """
         Collect and write health data to ZIP.
 
@@ -666,26 +666,29 @@ class ExportService:
         try:
             # Collect and write health data
             try:
-                health_data = health_data_crud.get_all_health_data_by_user_id(
+                health_weight = health_weight_crud.get_all_health_weight_by_user_id(
                     self.user_id, self.db
                 )
-                if health_data:
-                    health_data_dicts = [
-                        profile_utils.sqlalchemy_obj_to_dict(hd) for hd in health_data
+                if health_weight:
+                    health_weight_dicts = [
+                        profile_utils.sqlalchemy_obj_to_dict(hd) for hd in health_weight
                     ]
                     profile_utils.write_json_to_zip(
-                        zipf, "data/health_data.json", health_data_dicts, self.counts
+                        zipf,
+                        "data/health_weight.json",
+                        health_weight_dicts,
+                        self.counts,
                     )
                 else:
                     profile_utils.write_json_to_zip(
-                        zipf, "data/health_data.json", [], self.counts
+                        zipf, "data/health_weight.json", [], self.counts
                     )
             except Exception as err:
                 core_logger.print_to_log(
                     f"Failed to collect health data: {err}", "warning", exc=err
                 )
                 profile_utils.write_json_to_zip(
-                    zipf, "data/health_data.json", [], self.counts
+                    zipf, "data/health_weight.json", [], self.counts
                 )
 
             # Collect and write health targets
@@ -1236,7 +1239,7 @@ class ExportService:
                         core_logger.print_to_log(
                             "Collecting and writing health data...", "info"
                         )
-                        self.collect_health_data(zipf)
+                        self.collect_health_weight(zipf)
 
                         # Collect and write notifications progressively
                         profile_utils.check_timeout(

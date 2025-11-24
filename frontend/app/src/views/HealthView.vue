@@ -11,15 +11,15 @@
 
     <!-- Include the HealthDashboardZone -->
     <HealthDashboardZone
-      :userHealthData="userHealthData"
+      :userHealthWeight="userHealthWeight"
       :userHealthTargets="userHealthTargets"
       v-if="activeSection === 'dashboard' && !isLoading"
     />
 
     <!-- Include the SettingsUserProfileZone -->
     <HealthWeightZone
-      :userHealthData="userHealthData"
-      :userHealthDataPagination="userHealthDataPagination"
+      :userHealthWeight="userHealthWeight"
+      :userHealthWeightPagination="userHealthWeightPagination"
       :userHealthTargets="userHealthTargets"
       :isLoading="isLoading"
       :totalPages="totalPages"
@@ -44,7 +44,7 @@ import HealthDashboardZone from '../components/Health/HealthDashboardZoneCompone
 import HealthWeightZone from '../components/Health/HealthWeightZone.vue'
 import BackButtonComponent from '@/components/GeneralComponents/BackButtonComponent.vue'
 import LoadingComponent from '@/components/GeneralComponents/LoadingComponent.vue'
-import { health_data } from '@/services/health_dataService'
+import { health_weight } from '@/services/health_weightService'
 import { health_targets } from '@/services/health_targetsService'
 import { useServerSettingsStore } from '@/stores/serverSettingsStore'
 
@@ -52,10 +52,10 @@ const { t } = useI18n()
 const serverSettingsStore = useServerSettingsStore()
 const activeSection = ref('dashboard')
 const isLoading = ref(true)
-const isHealthDataUpdatingLoading = ref(true)
-const userHealthDataNumber = ref(0)
-const userHealthData = ref([])
-const userHealthDataPagination = ref([])
+const isHealthWeightUpdatingLoading = ref(true)
+const userHealthWeightNumber = ref(0)
+const userHealthWeight = ref([])
+const userHealthWeightPagination = ref([])
 const userHealthTargets = ref(null)
 const pageNumber = ref(1)
 const totalPages = ref(1)
@@ -65,31 +65,31 @@ function updateActiveSection(section) {
   activeSection.value = section
   if (pageNumber.value !== 1) {
     pageNumber.value = 1
-    updateHealthData()
+    updateHealthWeight()
   }
 }
 
-async function updateHealthData() {
+async function updateHealthWeight() {
   try {
-    isHealthDataUpdatingLoading.value = true
-    userHealthDataPagination.value = await health_data.getUserHealthDataWithPagination(
+    isHealthWeightUpdatingLoading.value = true
+    userHealthWeightPagination.value = await health_weight.getUserHealthWeightWithPagination(
       pageNumber.value,
       numRecords
     )
-    isHealthDataUpdatingLoading.value = false
+    isHealthWeightUpdatingLoading.value = false
   } catch (error) {
-    push.error(`${t('healthView.errorFetchingHealthData')} - ${error}`)
+    push.error(`${t('healthView.errorFetchingHealthWeight')} - ${error}`)
   }
 }
 
-async function fetchHealthData() {
+async function fetchHealthWeight() {
   try {
-    userHealthDataNumber.value = await health_data.getUserHealthDataNumber()
-    userHealthData.value = await health_data.getUserHealthData()
-    await updateHealthData()
-    totalPages.value = Math.ceil(userHealthDataNumber.value / numRecords)
+    userHealthWeightNumber.value = await health_weight.getUserHealthWeightNumber()
+    userHealthWeight.value = await health_weight.getUserHealthWeight()
+    await updateHealthWeight()
+    totalPages.value = Math.ceil(userHealthWeightNumber.value / numRecords)
   } catch (error) {
-    push.error(`${t('healthView.errorFetchingHealthData')} - ${error}`)
+    push.error(`${t('healthView.errorFetchingHealthWeight')} - ${error}`)
   }
 }
 
@@ -110,26 +110,26 @@ function updateWeightListAdded(createdWeight) {
       array.unshift(newEntry)
     }
   }
-  if (userHealthDataPagination.value) {
-    updateOrAdd(userHealthDataPagination.value, createdWeight)
+  if (userHealthWeightPagination.value) {
+    updateOrAdd(userHealthWeightPagination.value, createdWeight)
   } else {
-    userHealthDataPagination.value = [createdWeight]
+    userHealthWeightPagination.value = [createdWeight]
   }
-  if (userHealthData.value) {
-    updateOrAdd(userHealthData.value, createdWeight)
+  if (userHealthWeight.value) {
+    updateOrAdd(userHealthWeight.value, createdWeight)
   } else {
-    userHealthData.value = [createdWeight]
+    userHealthWeight.value = [createdWeight]
   }
-  userHealthDataNumber.value = userHealthData.value.length
+  userHealthWeightNumber.value = userHealthWeight.value.length
 }
 
 function updateWeightListDeleted(deletedWeight) {
-  for (const data of userHealthDataPagination.value) {
+  for (const data of userHealthWeightPagination.value) {
     if (data.id === deletedWeight) {
       data.weight = null
     }
   }
-  for (const data of userHealthData.value) {
+  for (const data of userHealthWeight.value) {
     if (data.id === deletedWeight) {
       data.weight = null
     }
@@ -137,13 +137,13 @@ function updateWeightListDeleted(deletedWeight) {
 }
 
 function updateWeightListEdited(editedWeight) {
-  for (const data of userHealthDataPagination.value) {
+  for (const data of userHealthWeightPagination.value) {
     if (data.id === editedWeight.id) {
       data.weight = editedWeight.weight
       data.created_at = editedWeight.created_at
     }
   }
-  for (const data of userHealthData.value) {
+  for (const data of userHealthWeight.value) {
     if (data.id === editedWeight.id) {
       data.weight = editedWeight.weight
       data.created_at = editedWeight.created_at
@@ -155,12 +155,12 @@ function setPageNumber(page) {
   pageNumber.value = page
 }
 
-watch(pageNumber, updateHealthData, { immediate: false })
+watch(pageNumber, updateHealthWeight, { immediate: false })
 
 onMounted(async () => {
-  await fetchHealthData()
+  await fetchHealthWeight()
   await fetchHealthTargets()
-  isHealthDataUpdatingLoading.value = false
+  isHealthWeightUpdatingLoading.value = false
   isLoading.value = false
 })
 </script>

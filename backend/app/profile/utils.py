@@ -496,7 +496,7 @@ def initialize_operation_counts(include_user_count: bool = False) -> Dict[str, i
         "activity_exercise_titles": 0,
         "gears": 0,
         "gear_components": 0,
-        "health_data": 0,
+        "health_weight": 0,
         "health_targets": 0,
         "notifications": 0,
         "user_images": 0,

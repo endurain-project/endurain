@@ -73,7 +73,7 @@ import { useAuthStore } from '@/stores/authStore'
 // Import Notivue push
 import { push } from 'notivue'
 // Importing the services
-import { health_data } from '@/services/health_dataService'
+import { health_weight } from '@/services/health_weightService'
 // Import the components
 import HealthWeightAddEditModalComponent from './HealthWeightAddEditModalComponent.vue'
 import ModalComponent from '@/components/Modals/ModalComponent.vue'
@@ -101,7 +101,7 @@ export default {
 
     async function updateWeightListEdited(editedWeight) {
       try {
-        await health_data.editHealthData(editedWeight)
+        await health_weight.editHealthWeight(editedWeight)
 
         emit('editedWeight', editedWeight)
 
@@ -119,7 +119,7 @@ export default {
           weight: null,
           bmi: null
         }
-        await health_data.editHealthData(data)
+        await health_weight.editHealthWeight(data)
 
         emit('deletedWeight', data.id)
 

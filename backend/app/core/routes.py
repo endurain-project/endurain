@@ -22,7 +22,7 @@ import followers.router as followers_router
 import garmin.router as garmin_router
 import gears.gear.router as gears_router
 import gears.gear_components.router as gear_components_router
-import health_data.router as health_data_router
+import health_weight.router as health_weight_router
 import health_targets.router as health_targets_router
 import auth.identity_providers.router as identity_providers_router
 import auth.identity_providers.public_router as identity_providers_public_router
@@ -128,9 +128,9 @@ router.include_router(
     dependencies=[Depends(auth_security.validate_access_token)],
 )
 router.include_router(
-    health_data_router.router,
-    prefix=core_config.ROOT_PATH + "/health",
-    tags=["health"],
+    health_weight_router.router,
+    prefix=core_config.ROOT_PATH + "/health/weight",
+    tags=["health_weight"],
     dependencies=[Depends(auth_security.validate_access_token)],
 )
 router.include_router(

@@ -1,6 +1,6 @@
 {
   "buttonAddWeight": "Gewicht hinzufügen",
-  "labelNumberOfHealthDataWeight1": "Insgesamt ",
-  "labelNumberOfHealthDataWeight2": " Gewichtsmessung(en) hinzugefügt (",
-  "labelNumberOfHealthDataWeight3": " geladen):"
+  "labelNumberOfHealthWeightWeight1": "Insgesamt ",
+  "labelNumberOfHealthWeightWeight2": " Gewichtsmessung(en) hinzugefügt (",
+  "labelNumberOfHealthWeightWeight3": " geladen):"
 }
