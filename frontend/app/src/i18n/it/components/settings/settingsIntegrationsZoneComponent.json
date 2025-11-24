@@ -39,9 +39,9 @@
   "errorMessageUnableToUnlinkGarminConnect": "Impossibile scollegare l'account Garmin Connect",
   "errorMessageUnableToGetGarminConnectGear": "Impossibile ottenere l'attrezzatura Garmin Connect",
   "loadingMessageRetrievingGarminConnectGear": "Recupero attrezzatura Garmin Connect",
-  "modalRetrieveHealthWeightByDaysTitle": "Recupera dati sulla salute per giorni",
-  "modalRetrieveHealthWeightByDateRangeTitle": "Recupera dati sulla salute per intervallo di date",
-  "errorMessageUnableToGetGarminConnectHealthWeightDays": "Impossibile ottenere i dati sulla salute Garmin Connect per giorni",
-  "errorMessageUnableToGetGarminConnectHealthWeightDateRange": "Impossibile ottenere i dati sulla salute Garmin Connect usando l'intervallo di date",
-  "loadingMessageRetrievingGarminConnectHealthWeight": "Recupero dati sulla salute Garmin Connect"
+  "modalRetrieveHealthDataByDaysTitle": "Recupera dati sulla salute per giorni",
+  "modalRetrieveHealthDataByDateRangeTitle": "Recupera dati sulla salute per intervallo di date",
+  "errorMessageUnableToGetGarminConnectHealthDataDays": "Impossibile ottenere i dati sulla salute Garmin Connect per giorni",
+  "errorMessageUnableToGetGarminConnectHealthDataDateRange": "Impossibile ottenere i dati sulla salute Garmin Connect usando l'intervallo di date",
+  "loadingMessageRetrievingGarminConnectHealthData": "Recupero dati sulla salute Garmin Connect"
 }

@@ -39,9 +39,9 @@
   "errorMessageUnableToUnlinkGarminConnect": "No es pot desenllaçar el compte de Garmin Connect",
   "errorMessageUnableToGetGarminConnectGear": "No es pot obtenir equipament de Garmin Connect",
   "loadingMessageRetrievingGarminConnectGear": "Obtenint equipament de Garmin Connect",
-  "modalRetrieveHealthWeightByDaysTitle": "Recupera dades de salut per dies",
-  "modalRetrieveHealthWeightByDateRangeTitle": "Recupera dades de salut per rang de dates",
-  "errorMessageUnableToGetGarminConnectHealthWeightDays": "No es poden obtenir dades de salut de GC",
-  "errorMessageUnableToGetGarminConnectHealthWeightDateRange": "No es poden obtenir dades de salut de GC",
-  "loadingMessageRetrievingGarminConnectHealthWeight": "Recuperant dades de salut de Garmin Connect"
+  "modalRetrieveHealthDataByDaysTitle": "Recupera dades de salut per dies",
+  "modalRetrieveHealthDataByDateRangeTitle": "Recupera dades de salut per rang de dates",
+  "errorMessageUnableToGetGarminConnectHealthDataDays": "No es poden obtenir dades de salut de GC",
+  "errorMessageUnableToGetGarminConnectHealthDataDateRange": "No es poden obtenir dades de salut de GC",
+  "loadingMessageRetrievingGarminConnectHealthData": "Recuperant dades de salut de Garmin Connect"
 }

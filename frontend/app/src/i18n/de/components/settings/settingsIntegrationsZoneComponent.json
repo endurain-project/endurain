@@ -39,9 +39,9 @@
   "errorMessageUnableToUnlinkGarminConnect": "Die Verbindung zum Garmin Connect Konto konnte nicht getrennt werden",
   "errorMessageUnableToGetGarminConnectGear": "Garmin Connect Ausrüstung konnte nicht geladen werden",
   "loadingMessageRetrievingGarminConnectGear": "Garmin Connect Ausrüstung abrufen",
-  "modalRetrieveHealthWeightByDaysTitle": "Gesundheitsdaten nach Tagen abrufen",
-  "modalRetrieveHealthWeightByDateRangeTitle": "Gesundheitsdaten nach Datumsbereich abrufen",
-  "errorMessageUnableToGetGarminConnectHealthWeightDays": "Garmin Connect Gesundheitsdaten konnten nicht nach Tagen abgerufen werden",
-  "errorMessageUnableToGetGarminConnectHealthWeightDateRange": "Garmin Connect Gesundheitsdaten konnten nicht nach Datumsbereich abgerufen werden",
-  "loadingMessageRetrievingGarminConnectHealthWeight": "Gesundheitsdaten von Garmin Connect abrufen"
+  "modalRetrieveHealthDataByDaysTitle": "Gesundheitsdaten nach Tagen abrufen",
+  "modalRetrieveHealthDataByDateRangeTitle": "Gesundheitsdaten nach Datumsbereich abrufen",
+  "errorMessageUnableToGetGarminConnectHealthDataDays": "Garmin Connect Gesundheitsdaten konnten nicht nach Tagen abgerufen werden",
+  "errorMessageUnableToGetGarminConnectHealthDataDateRange": "Garmin Connect Gesundheitsdaten konnten nicht nach Datumsbereich abgerufen werden",
+  "loadingMessageRetrievingGarminConnectHealthData": "Gesundheitsdaten von Garmin Connect abrufen"
 }

@@ -39,9 +39,9 @@
   "errorMessageUnableToUnlinkGarminConnect": "Povezave z računom Garmin Connect ni bilo mogoče odstraniti",
   "errorMessageUnableToGetGarminConnectGear": "Opreme Garmin Connect ni bilo mogoče pridobiti",
   "loadingMessageRetrievingGarminConnectGear": "Pridobivanje opreme Garmin Connect",
-  "modalRetrieveHealthWeightByDaysTitle": "Pridobi zdravstvene podatke po dnevih",
-  "modalRetrieveHealthWeightByDateRangeTitle": "Pridobi zdravstvene podatke po časovnem obdobju",
-  "errorMessageUnableToGetGarminConnectHealthWeightDays": "Zdravstvenih podatkov Garmin Connect po dnevih ni bilo mogoče pridobiti",
-  "errorMessageUnableToGetGarminConnectHealthWeightDateRange": "Zdravstvenih podatkov Garmin Connect z uporabo časovnega obdobja ni bilo mogoče pridobiti",
-  "loadingMessageRetrievingGarminConnectHealthWeight": "Pridobivanje zdravstvenih podatkov Garmin Connect"
+  "modalRetrieveHealthDataByDaysTitle": "Pridobi zdravstvene podatke po dnevih",
+  "modalRetrieveHealthDataByDateRangeTitle": "Pridobi zdravstvene podatke po časovnem obdobju",
+  "errorMessageUnableToGetGarminConnectHealthDataDays": "Zdravstvenih podatkov Garmin Connect po dnevih ni bilo mogoče pridobiti",
+  "errorMessageUnableToGetGarminConnectHealthDataDateRange": "Zdravstvenih podatkov Garmin Connect z uporabo časovnega obdobja ni bilo mogoče pridobiti",
+  "loadingMessageRetrievingGarminConnectHealthData": "Pridobivanje zdravstvenih podatkov Garmin Connect"
 }

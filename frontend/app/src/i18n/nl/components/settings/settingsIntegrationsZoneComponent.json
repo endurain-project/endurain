@@ -39,9 +39,9 @@
   "errorMessageUnableToUnlinkGarminConnect": "Kan Garmin Connect account niet ontkoppelen",
   "errorMessageUnableToGetGarminConnectGear": "Kan geen Garmin Connect uitrusting krijgen",
   "loadingMessageRetrievingGarminConnectGear": "Ophalen van Garmin Connect uitrusting",
-  "modalRetrieveHealthWeightByDaysTitle": "Gezondheidsgegevens ophalen per dag",
-  "modalRetrieveHealthWeightByDateRangeTitle": "Retrieve health data by date range",
-  "errorMessageUnableToGetGarminConnectHealthWeightDays": "Unable to get Garmin Connect health data by days",
-  "errorMessageUnableToGetGarminConnectHealthWeightDateRange": "Garmin Connect gezondheidsgegevens ophalen voor datumbereik is niet gelukt",
-  "loadingMessageRetrievingGarminConnectHealthWeight": "Ophalen van Garmin Connect gezondheidsgegevens"
+  "modalRetrieveHealthDataByDaysTitle": "Gezondheidsgegevens ophalen per dag",
+  "modalRetrieveHealthDataByDateRangeTitle": "Retrieve health data by date range",
+  "errorMessageUnableToGetGarminConnectHealthDataDays": "Unable to get Garmin Connect health data by days",
+  "errorMessageUnableToGetGarminConnectHealthDataDateRange": "Garmin Connect gezondheidsgegevens ophalen voor datumbereik is niet gelukt",
+  "loadingMessageRetrievingGarminConnectHealthData": "Ophalen van Garmin Connect gezondheidsgegevens"
 }
