@@ -24,11 +24,11 @@ class HealthWeight(Base):
     date = Column(
         Date,
         nullable=False,
-        comment="Health weight creation date (date)",
+        comment="Health weight date (date)",
     )
     weight = Column(
         DECIMAL(precision=10, scale=2),
-        nullable=True,
+        nullable=False,
         comment="Weight in kg",
     )
     bmi = Column(

@@ -16,8 +16,9 @@ import activities.activity_workout_steps.models
 import followers.models
 import gears.gear.models
 import gears.gear_components.models
-import health_weight.models
+import health_steps.models
 import health_targets.models
+import health_weight.models
 import auth.identity_providers.models
 import migrations.models
 import notifications.models

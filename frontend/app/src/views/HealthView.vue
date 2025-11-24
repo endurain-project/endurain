@@ -12,6 +12,7 @@
     <!-- Include the HealthDashboardZone -->
     <HealthDashboardZone
       :userHealthWeight="userHealthWeight"
+      :userHealthSteps="userHealthSteps"
       :userHealthTargets="userHealthTargets"
       v-if="activeSection === 'dashboard' && !isLoading"
     />
@@ -22,12 +23,12 @@
       :userHealthWeightPagination="userHealthWeightPagination"
       :userHealthTargets="userHealthTargets"
       :isLoading="isLoading"
-      :totalPages="totalPages"
-      :pageNumber="pageNumber"
+      :totalPages="totalPagesWeight"
+      :pageNumber="pageNumberWeight"
       @createdWeight="updateWeightListAdded"
       @deletedWeight="updateWeightListDeleted"
       @editedWeight="updateWeightListEdited"
-      @pageNumberChanged="setPageNumber"
+      @pageNumberChanged="setPageNumberWeight"
       v-if="activeSection === 'weight' && !isLoading"
     />
   </div>
@@ -45,6 +46,7 @@ import HealthWeightZone from '../components/Health/HealthWeightZone.vue'
 import BackButtonComponent from '@/components/GeneralComponents/BackButtonComponent.vue'
 import LoadingComponent from '@/components/GeneralComponents/LoadingComponent.vue'
 import { health_weight } from '@/services/health_weightService'
+import { health_steps } from '@/services/health_stepsService'
 import { health_targets } from '@/services/health_targetsService'
 import { useServerSettingsStore } from '@/stores/serverSettingsStore'
 
@@ -53,19 +55,27 @@ const serverSettingsStore = useServerSettingsStore()
 const activeSection = ref('dashboard')
 const isLoading = ref(true)
 const isHealthWeightUpdatingLoading = ref(true)
+const isHealthStepsUpdatingLoading = ref(true)
 const userHealthWeightNumber = ref(0)
 const userHealthWeight = ref([])
 const userHealthWeightPagination = ref([])
+const userHealthStepsNumber = ref(0)
+const userHealthSteps = ref([])
+const userHealthStepsPagination = ref([])
 const userHealthTargets = ref(null)
-const pageNumber = ref(1)
-const totalPages = ref(1)
+const pageNumberWeight = ref(1)
+const totalPagesWeight = ref(1)
+const pageNumberSteps = ref(1)
+const totalPagesSteps = ref(1)
 const numRecords = serverSettingsStore.serverSettings.num_records_per_page || 25
 
 function updateActiveSection(section) {
   activeSection.value = section
-  if (pageNumber.value !== 1) {
-    pageNumber.value = 1
+  if (pageNumberWeight.value !== 1 || pageNumberSteps.value !== 1) {
+    pageNumberWeight.value = 1
+    pageNumberSteps.value = 1
     updateHealthWeight()
+    updateHealthSteps()
   }
 }
 
@@ -73,7 +83,7 @@ async function updateHealthWeight() {
   try {
     isHealthWeightUpdatingLoading.value = true
     userHealthWeightPagination.value = await health_weight.getUserHealthWeightWithPagination(
-      pageNumber.value,
+      pageNumberWeight.value,
       numRecords
     )
     isHealthWeightUpdatingLoading.value = false
@@ -82,14 +92,38 @@ async function updateHealthWeight() {
   }
 }
 
+async function updateHealthSteps() {
+  try {
+    isHealthStepsUpdatingLoading.value = true
+    userHealthStepsPagination.value = await health_steps.getUserHealthStepsWithPagination(
+      pageNumberSteps.value,
+      numRecords
+    )
+    isHealthStepsUpdatingLoading.value = false
+  } catch (error) {
+    push.error(`${t('healthView.errorFetchingHealthSteps')} - ${error}`)
+  }
+}
+
 async function fetchHealthWeight() {
   try {
     userHealthWeightNumber.value = await health_weight.getUserHealthWeightNumber()
     userHealthWeight.value = await health_weight.getUserHealthWeight()
     await updateHealthWeight()
-    totalPages.value = Math.ceil(userHealthWeightNumber.value / numRecords)
+    totalPagesWeight.value = Math.ceil(userHealthWeightNumber.value / numRecords)
   } catch (error) {
     push.error(`${t('healthView.errorFetchingHealthWeight')} - ${error}`)
+  }
+}
+
+async function fetchHealthSteps() {
+  try {
+    userHealthStepsNumber.value = await health_steps.getUserHealthStepsNumber()
+    userHealthSteps.value = await health_steps.getUserHealthSteps()
+    await updateHealthSteps()
+    totalPagesSteps.value = Math.ceil(userHealthStepsNumber.value / numRecords)
+  } catch (error) {
+    push.error(`${t('healthView.errorFetchingHealthSteps')} - ${error}`)
   }
 }
 
@@ -151,16 +185,19 @@ function updateWeightListEdited(editedWeight) {
   }
 }
 
-function setPageNumber(page) {
-  pageNumber.value = page
+function setPageNumberWeight(page) {
+  pageNumberWeight.value = page
 }
 
-watch(pageNumber, updateHealthWeight, { immediate: false })
+watch(pageNumberWeight, updateHealthWeight, { immediate: false })
+watch(pageNumberSteps, updateHealthSteps, { immediate: false })
 
 onMounted(async () => {
   await fetchHealthWeight()
+  await fetchHealthSteps()
   await fetchHealthTargets()
   isHealthWeightUpdatingLoading.value = false
+  isHealthStepsUpdatingLoading.value = false
   isLoading.value = false
 })
 </script>

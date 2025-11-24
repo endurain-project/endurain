@@ -113,15 +113,9 @@ export default {
 
     async function submitDeleteWeight() {
       try {
-        const data = {
-          id: props.data.id,
-          user_id: props.data.user_id,
-          weight: null,
-          bmi: null
-        }
-        await health_weight.editHealthWeight(data)
+        await health_weight.deleteHealthWeight(props.data.id)
 
-        emit('deletedWeight', data.id)
+        emit('deletedWeight', props.data.id)
 
         push.success(t('healthWeightListComponent.successDeleteWeight'))
       } catch (error) {

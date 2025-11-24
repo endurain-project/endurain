@@ -164,18 +164,8 @@ def create_health_weight(
 
         # Create a new health_weight
         db_health_weight = health_weight_models.HealthWeight(
+            **health_weight.model_dump(exclude={"id", "user_id"}, exclude_none=False),
             user_id=user_id,
-            date=health_weight.date,
-            weight=health_weight.weight,
-            bmi=health_weight.bmi,
-            body_fat=health_weight.body_fat,
-            body_water=health_weight.body_water,
-            bone_mass=health_weight.bone_mass,
-            muscle_mass=health_weight.muscle_mass,
-            physique_rating=health_weight.physique_rating,
-            visceral_fat=health_weight.visceral_fat,
-            metabolic_age=health_weight.metabolic_age,
-            garminconnect_body_composition_id=health_weight.garminconnect_body_composition_id,
         )
 
         # Add the health_weight to the database
@@ -195,7 +185,7 @@ def create_health_weight(
         # Raise an HTTPException with a 409 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="Duplicate entry error. Check if there is already a entry created for today",
+            detail=f"Duplicate entry error. Check if there is already a entry created for {health_weight.date}",
         ) from integrity_error
     except Exception as err:
         # Rollback the transaction
@@ -229,7 +219,7 @@ def edit_health_weight(
         if db_health_weight is None:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="Health data not found",
+                detail="Health weight not found",
                 headers={"WWW-Authenticate": "Bearer"},
             )
 
@@ -283,7 +273,7 @@ def delete_health_weight(user_id: int, health_weight_id: int, db: Session):
         if num_deleted == 0:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Health data with id {health_weight_id} for user {user_id} not found",
+                detail=f"Health weight with id {health_weight_id} for user {user_id} not found",
             )
 
         # Commit the transaction
@@ -296,7 +286,7 @@ def delete_health_weight(user_id: int, health_weight_id: int, db: Session):
 
         # Log the exception
         core_logger.print_to_log(
-            f"Error in delete_health_weight_data: {err}", "error", exc=err
+            f"Error in delete_health_weight: {err}", "error", exc=err
         )
 
         # Raise an HTTPException with a 500 Internal Server Error status code

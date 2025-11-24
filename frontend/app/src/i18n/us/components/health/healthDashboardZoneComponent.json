@@ -9,5 +9,7 @@
   "bmiOverweight": "Overweight",
   "bmiObesityClass1": "Obesity (Class 1)",
   "bmiObesityClass2": "Obesity (Class 2)",
-  "bmiObesityClass3": "Extreme Obesity (Class 3)"
+  "bmiObesityClass3": "Extreme Obesity (Class 3)",
+  "steps": "Steps",
+  "noStepsTarget": "No steps target"
 }

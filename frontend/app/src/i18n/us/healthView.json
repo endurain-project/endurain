@@ -1,5 +1,6 @@
 {
   "title": "Health",
   "errorFetchingHealthWeight": "Error fetching health data",
+  "errorFetchingHealthSteps": "Error fetching health steps",
   "errorFetchingHealthTargets": "Error fetching health targets"
 }

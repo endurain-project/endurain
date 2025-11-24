@@ -20,5 +20,8 @@ export const health_weight = {
   },
   editHealthWeight(data) {
     return fetchPutRequest('health/weight', data)
+  },
+  deleteHealthWeight(healthWeightId) {
+    return fetchDeleteRequest(`health/weight/${healthWeightId}`)
   }
 }

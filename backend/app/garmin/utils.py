@@ -138,10 +138,11 @@ def login_garminconnect_using_tokens(oauth1_token, oauth2_token):
         # Create a new Garmin object
         garmin = garminconnect.Garmin()
 
-        # Set the tokens directly into the Garmin object
-        garmin.garth.oauth1_token = deserialize_oauth1_token(oauth1_token)
-        garmin.garth.oauth2_token = deserialize_oauth2_token(oauth2_token)
-
+        # Configure the Garmin object with the tokens
+        garmin.garth.configure(
+            oauth1_token=deserialize_oauth1_token(oauth1_token),
+            oauth2_token=deserialize_oauth2_token(oauth2_token),
+        )
         return garmin
     except (
         garminconnect.GarminConnectAuthenticationError,

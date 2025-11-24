@@ -157,7 +157,7 @@ async def garminconnect_retrieve_health_days(
 
     # Process Garmin Connect activities in the background
     background_tasks.add_task(
-        garmin_health_utils.get_user_garminconnect_bc_by_dates,
+        garmin_health_utils.get_user_garminconnect_health_by_dates,
         start_datetime,
         end_datetime,
         token_user_id,

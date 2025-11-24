@@ -1,4 +1,4 @@
-"""your_migration_message
+"""v0.16.0 migration health data to weight
 
 Revision ID: 9ca353e5d874
 Revises: 2af2c0629b37
@@ -28,18 +28,18 @@ def upgrade() -> None:
             "user_id",
             sa.Integer(),
             nullable=False,
-            comment="User ID that the health_data belongs",
+            comment="User ID that the health_weight belongs",
         ),
         sa.Column(
             "date",
             sa.Date(),
             nullable=False,
-            comment="Health data creation date (date)",
+            comment="Health weight date (date)",
         ),
         sa.Column(
             "weight",
             sa.DECIMAL(precision=10, scale=2),
-            nullable=True,
+            nullable=False,
             comment="Weight in kg",
         ),
         sa.Column(

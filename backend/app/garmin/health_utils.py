@@ -12,6 +12,9 @@ import garmin.utils as garmin_utils
 import health_weight.crud as health_weight_crud
 import health_weight.schema as health_weight_schema
 
+import health_steps.crud as health_steps_crud
+import health_steps.schema as health_steps_schema
+
 import users.user.crud as users_crud
 
 from core.database import SessionLocal
@@ -93,7 +96,72 @@ def fetch_and_process_bc_by_dates(
     return count_processed
 
 
-def retrieve_garminconnect_users_bc_for_days(days: int):
+def fetch_and_process_ds_by_dates(
+    garminconnect_client: garminconnect.Garmin,
+    start_date: datetime,
+    end_date: datetime,
+    user_id: int,
+    db: Session,
+) -> int:
+    try:
+        # Fetch Garmin Connect daily steps data for the specified date range
+        garmin_ds = garminconnect_client.get_daily_steps(
+            str(start_date.date()), str(end_date.date())
+        )
+    except Exception as err:
+        # Log an informational event if no daily steps were found
+        core_logger.print_to_log(
+            f"Error fetching daily steps for user {user_id} between {start_date.date()} and {end_date.date()}: {err}",
+            "error",
+            exc=err,
+        )
+        # Return 0 to indicate no daily steps were processed
+        return 0
+
+    if (
+        garmin_ds is None
+        or "totalSteps" not in garmin_ds[0]
+        or not garmin_ds[0]["totalSteps"]
+    ):
+        # Log an informational event if no daily steps were found
+        core_logger.print_to_log_and_console(
+            f"User {user_id}: No new Garmin Connect daily steps found between {start_date.date()} and {end_date.date()}: garmin_ds is None or empty"
+        )
+        # Return 0 to indicate no daily steps were processed
+        return 0
+
+    # Set the count of processed steps to 0
+    count_processed = 0
+    # Process steps
+    for ds in garmin_ds:
+        health_steps = health_steps_schema.HealthSteps(
+            user_id=user_id,
+            date=ds["calendarDate"],
+            steps=ds["totalSteps"],
+        )
+
+        health_steps_db = health_steps_crud.get_health_steps_by_date(
+            user_id, health_steps.date, db
+        )
+
+        if health_steps_db:
+            health_steps.id = health_steps_db.id
+            health_steps_crud.edit_health_steps(user_id, health_steps, db)
+            core_logger.print_to_log(
+                f"User {user_id}: Daily steps edited for date {health_steps.date}"
+            )
+        else:
+            health_steps_crud.create_health_steps(user_id, health_steps, db)
+            core_logger.print_to_log(
+                f"User {user_id}: Daily steps created for date {health_steps.date}"
+            )
+        # Increment the count of processed steps
+        count_processed += 1
+    # Return the count of processed steps
+    return count_processed
+
+
+def retrieve_garminconnect_users_health_for_days(days: int):
     # Create a new database session using context manager
     with SessionLocal() as db:
         try:
@@ -107,26 +175,26 @@ def retrieve_garminconnect_users_bc_for_days(days: int):
             for user in users:
                 try:
                     # Get the user's Garmin Connect body composition data
-                    get_user_garminconnect_bc_by_dates(
+                    get_user_garminconnect_health_by_dates(
                         calculated_start_date,
                         calculated_end_date,
                         user.id,
                     )
                 except Exception as err:
                     core_logger.print_to_log(
-                        f"Error processing body composition for user {user.id} in retrieve_garminconnect_users_bc_for_days: {err}",
+                        f"Error processing health data for user {user.id} in retrieve_garminconnect_users_health_for_days: {err}",
                         "error",
                         exc=err,
                     )
         except Exception as err:
             core_logger.print_to_log(
-                f"Error getting users in retrieve_garminconnect_users_bc_for_days: {err}",
+                f"Error getting users in retrieve_garminconnect_users_health_for_days: {err}",
                 "error",
                 exc=err,
             )
 
 
-def get_user_garminconnect_bc_by_dates(
+def get_user_garminconnect_health_by_dates(
     start_date: datetime, end_date: datetime, user_id: int
 ):
     # Create a new database session using context manager
@@ -141,9 +209,9 @@ def get_user_garminconnect_bc_by_dates(
                 core_logger.print_to_log(f"User {user_id}: Garmin Connect not linked")
                 return None
 
-            # Log the start of the body composition processing
+            # Log the start of the health processing
             core_logger.print_to_log(
-                f"User {user_id}: Started Garmin Connect body composition processing for date range {start_date.date()} to {end_date.date()}"
+                f"User {user_id}: Started Garmin Connect health processing for date range {start_date.date()} to {end_date.date()}"
             )
 
             # Create a Garmin Connect client with the user's access token
@@ -157,12 +225,20 @@ def get_user_garminconnect_bc_by_dates(
                 garminconnect_client, start_date, end_date, user_id, db
             )
 
+            # Fetch Garmin Connect daily steps for the specified date range
+            num_garminconnect_ds_processed = fetch_and_process_ds_by_dates(
+                garminconnect_client, start_date, end_date, user_id, db
+            )
+
             core_logger.print_to_log(
                 f"User {user_id}: {num_garminconnect_bc_processed} Garmin Connect body composition processed"
             )
+            core_logger.print_to_log(
+                f"User {user_id}: {num_garminconnect_ds_processed} Garmin Connect daily steps processed"
+            )
         except Exception as err:
             core_logger.print_to_log(
-                f"Error in get_user_garminconnect_bc_by_dates: {err}",
+                f"Error in get_user_garminconnect_health_by_dates: {err}",
                 "error",
                 exc=err,
             )

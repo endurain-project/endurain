@@ -59,11 +59,11 @@ async def startup_event():
     await garmin_activity_utils.retrieve_garminconnect_users_activities_for_days(1)
     await strava_activity_utils.retrieve_strava_users_activities_for_days(1, True)
 
-    # Retrieve last day body composition from Garmin Connect
+    # Retrieve last day health stats from Garmin Connect
     core_logger.print_to_log_and_console(
-        "Retrieving last day body composition from Garmin Connect on startup"
+        "Retrieving last day health stats from Garmin Connect on startup"
     )
-    garmin_health_utils.retrieve_garminconnect_users_bc_for_days(1)
+    garmin_health_utils.retrieve_garminconnect_users_health_for_days(1)
 
     # Delete invalid password reset tokens
     core_logger.print_to_log_and_console(

@@ -39,69 +39,87 @@
       </div>
     </div>
   </div>
+  <div class="col">
+    <div class="card mb-3 text-center shadow-sm">
+      <div class="card-header">
+        <h4>{{ $t('healthDashboardZoneComponent.steps') }}</h4>
+      </div>
+      <div class="card-body">
+        <h1 v-if="todaySteps">{{ todaySteps }}</h1>
+        <h1 v-else>{{ $t('generalItems.labelNotApplicable') }}</h1>
+      </div>
+      <div class="card-footer text-body-secondary">
+        <span v-if="userHealthTargets && userHealthTargets['steps']">{{
+          userHealthTargets.steps
+        }}</span>
+        <span v-else>{{ $t('healthDashboardZoneComponent.noStepsTarget') }}</span>
+      </div>
+    </div>
+  </div>
 </template>
 
-<script>
+<script setup>
 import { ref, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 // Importing the stores
 import { useAuthStore } from '@/stores/authStore'
 import { kgToLbs } from '@/utils/unitsUtils'
 
-export default {
-  components: {},
-  props: {
-    userHealthWeight: {
-      type: [Object, null],
-      required: true
-    },
-    userHealthTargets: {
-      type: [Object, null],
-      required: true
-    }
+const props = defineProps({
+  userHealthWeight: {
+    type: [Object, null],
+    required: true
   },
-  setup(props) {
-    const { t } = useI18n()
-    const authStore = useAuthStore()
-    const currentWeight = ref(null)
-    const currentBMI = ref(null)
-    const bmiDescription = ref(null)
+  userHealthSteps: {
+    type: [Object, null],
+    required: true
+  },
+  userHealthTargets: {
+    type: [Object, null],
+    required: true
+  }
+})
 
-    onMounted(async () => {
-      if (props.userHealthWeight) {
-        for (const data of props.userHealthWeight) {
-          if (data.weight) {
-            currentWeight.value = data.weight
-            currentBMI.value = data.bmi ? data.bmi.toFixed(2) : null
-            break
-          }
-        }
+const { t } = useI18n()
+const authStore = useAuthStore()
+const currentWeight = ref(null)
+const currentBMI = ref(null)
+const bmiDescription = ref(null)
+const todaySteps = ref(null)
 
-        if (currentBMI.value) {
-          if (currentBMI.value < 18.5) {
-            bmiDescription.value = t('healthDashboardZoneComponent.bmiUnderweight')
-          } else if (currentBMI.value >= 18.5 && currentBMI.value < 24.9) {
-            bmiDescription.value = t('healthDashboardZoneComponent.bmiNormalWeight')
-          } else if (currentBMI.value >= 25 && currentBMI.value < 29.9) {
-            bmiDescription.value = t('healthDashboardZoneComponent.bmiOverweight')
-          } else if (currentBMI.value >= 30 && currentBMI.value < 34.9) {
-            bmiDescription.value = t('healthDashboardZoneComponent.bmiObesityClass1')
-          } else if (currentBMI.value >= 35 && currentBMI.value < 39.9) {
-            bmiDescription.value = t('healthDashboardZoneComponent.bmiObesityClass2')
-          } else if (currentBMI.value >= 40) {
-            bmiDescription.value = t('healthDashboardZoneComponent.bmiObesityClass3')
-          }
-        }
+onMounted(async () => {
+  if (props.userHealthWeight) {
+    for (const data of props.userHealthWeight) {
+      if (data.weight) {
+        currentWeight.value = data.weight
+        currentBMI.value = data.bmi ? data.bmi.toFixed(2) : null
+        break
       }
-    })
+    }
 
-    return {
-      authStore,
-      currentWeight,
-      currentBMI,
-      bmiDescription,
-      kgToLbs
+    if (currentBMI.value) {
+      if (currentBMI.value < 18.5) {
+        bmiDescription.value = t('healthDashboardZoneComponent.bmiUnderweight')
+      } else if (currentBMI.value >= 18.5 && currentBMI.value < 24.9) {
+        bmiDescription.value = t('healthDashboardZoneComponent.bmiNormalWeight')
+      } else if (currentBMI.value >= 25 && currentBMI.value < 29.9) {
+        bmiDescription.value = t('healthDashboardZoneComponent.bmiOverweight')
+      } else if (currentBMI.value >= 30 && currentBMI.value < 34.9) {
+        bmiDescription.value = t('healthDashboardZoneComponent.bmiObesityClass1')
+      } else if (currentBMI.value >= 35 && currentBMI.value < 39.9) {
+        bmiDescription.value = t('healthDashboardZoneComponent.bmiObesityClass2')
+      } else if (currentBMI.value >= 40) {
+        bmiDescription.value = t('healthDashboardZoneComponent.bmiObesityClass3')
+      }
     }
   }
-}
+  if (props.userHealthSteps) {
+    for (const data of props.userHealthSteps) {
+      if (data.steps) {
+        todaySteps.value = data.steps
+        break
+      }
+    }
+  }
+})
 </script>

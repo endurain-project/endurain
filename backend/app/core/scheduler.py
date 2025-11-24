@@ -21,7 +21,7 @@ def start_scheduler():
     if not scheduler.running:
         # Start the scheduler
         scheduler.start()
-    
+
     add_scheduler_job(
         strava_utils.refresh_strava_tokens,
         "interval",
@@ -47,11 +47,11 @@ def start_scheduler():
     )
 
     add_scheduler_job(
-        garmin_health_utils.retrieve_garminconnect_users_bc_for_days,
+        garmin_health_utils.retrieve_garminconnect_users_health_for_days,
         "interval",
         240,
         [1],
-        "retrieve last day Garmin Connect users body composition",
+        "retrieve last day Garmin Connect users health data",
     )
 
     add_scheduler_job(
