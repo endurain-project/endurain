@@ -45,6 +45,7 @@
       @deletedSteps="updateStepsListDeleted"
       @editedSteps="updateStepsListEdited"
       @pageNumberChanged="setPageNumberSteps"
+      @setStepsTarget="setStepsTarget"
       v-if="activeSection === 'steps' && !isLoading"
     />
   </div>
@@ -276,6 +277,22 @@ function setWeightTarget(weightTarget) {
     push.success(t('healthView.successUpdatingWeightTarget'))
   } catch (error) {
     push.error(`${t('healthView.errorUpdatingWeightTarget')} - ${error}`)
+  }
+}
+
+function setStepsTarget(stepsTarget) {
+  const data = {
+    id: userHealthTargets.value.id,
+    user_id: userHealthTargets.value.user_id,
+    weight: userHealthTargets.value.weight,
+    steps: stepsTarget,
+  }
+  try {
+    health_targets.setUserHealthTargets(data)
+    userHealthTargets.value.steps = stepsTarget
+    push.success(t('healthView.successUpdatingStepsTarget'))
+  } catch (error) {
+    push.error(`${t('healthView.errorUpdatingStepsTarget')} - ${error}`)
   }
 }
 

@@ -3,19 +3,39 @@
     <LoadingComponent v-if="isLoading" />
     <div v-else>
       <!-- add weight button -->
-      <a
-        class="w-100 btn btn-primary shadow-sm"
-        href="#"
-        role="button"
-        data-bs-toggle="modal"
-        data-bs-target="#addStepsModal"
-        >{{ $t('healthStepsZoneComponent.buttonAddSteps') }}</a
-      >
+      <div class="d-flex">
+        <a
+          class="w-100 btn btn-primary shadow-sm me-1"
+          href="#"
+          role="button"
+          data-bs-toggle="modal"
+          data-bs-target="#addStepsModal"
+          >{{ $t('healthStepsZoneComponent.buttonAddSteps') }}</a
+        >
+        <a
+          class="w-100 btn btn-primary shadow-sm ms-1"
+          href="#"
+          role="button"
+          data-bs-toggle="modal"
+          data-bs-target="#addStepsTargetModal"
+          >{{ $t('healthStepsZoneComponent.buttonStepsTarget') }}</a
+        >
+      </div>
 
       <HealthStepsAddEditModalComponent
         :action="'add'"
         @isLoadingNewSteps="updateIsLoadingNewSteps"
         @createdSteps="updateStepsListAdded"
+      />
+
+      <ModalComponentNumberInput 
+        modalId="addStepsTargetModal" 
+        :title="t('healthStepsZoneComponent.buttonStepsTarget')" 
+        :numberFieldLabel="t('healthStepsZoneComponent.modalStepsTargetLabel')"
+        actionButtonType="success"
+        :actionButtonText="t('generalItems.buttonSubmit')"
+        :numberDefaultValue="props.userHealthTargets?.steps || parseInt(10000)"
+        @numberToEmitAction="submitSetStepsTarget"
       />
 
       <!-- Checking if dataWithSteps is loaded and has length -->
@@ -74,12 +94,14 @@
 
 <script setup>
 import { ref, watchEffect, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import HealthStepsAddEditModalComponent from './HealthStepsZone/HealthStepsAddEditModalComponent.vue'
 import HealthStepsBarChartComponent from './HealthStepsZone/HealthStepsBarChartComponent.vue'
 import HealthStepsListComponent from './HealthStepsZone/HealthStepsListComponent.vue'
 import LoadingComponent from '../GeneralComponents/LoadingComponent.vue'
 import NoItemsFoundComponent from '../GeneralComponents/NoItemsFoundComponents.vue'
 import PaginationComponent from '../GeneralComponents/PaginationComponent.vue'
+import ModalComponentNumberInput from '../Modals/ModalComponentNumberInput.vue'
 
 const props = defineProps({
   userHealthSteps: {
@@ -108,8 +130,9 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['createdSteps', 'deletedSteps', 'editedSteps', 'pageNumberChanged'])
+const emit = defineEmits(['createdSteps', 'deletedSteps', 'editedSteps', 'pageNumberChanged', 'setStepsTarget'])
 
+const { t } = useI18n()
 const dataWithSteps = ref([])
 const dataWithStepsPagination = ref([])
 const isLoadingNewSteps = ref(false)
@@ -151,6 +174,10 @@ function updateStepsListEdited(editedSteps) {
 
 function setPageNumber(page) {
   emit('pageNumberChanged', page)
+}
+
+function submitSetStepsTarget(stepsTarget) {
+  emit('setStepsTarget', stepsTarget)
 }
 
 watchEffect(() => {

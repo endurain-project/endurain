@@ -4,5 +4,7 @@
   "errorFetchingHealthSteps": "Error fetching health steps",
   "errorFetchingHealthTargets": "Error fetching health targets",
   "successUpdatingWeightTarget": "Successfully updated weight target",
-  "errorUpdatingWeightTarget": "Error updating weight target"
+  "errorUpdatingWeightTarget": "Error updating weight target",
+  "successUpdatingStepsTarget": "Successfully updated steps target",
+  "errorUpdatingStepsTarget": "Error updating steps target"
 }

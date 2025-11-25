@@ -34,7 +34,7 @@
         :numberFieldLabel="t('healthWeightZoneComponent.modalWeightTargetLabel')"
         actionButtonType="success"
         :actionButtonText="t('generalItems.buttonSubmit')"
-        :numberDefaultValue="props.userHealthTargets?.weight || null"
+        :numberDefaultValue="props.userHealthTargets?.weight || parseInt(70)"
         @numberToEmitAction="submitSetWeightTarget"
       />
 
