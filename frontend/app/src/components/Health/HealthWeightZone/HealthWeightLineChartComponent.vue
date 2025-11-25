@@ -17,6 +17,10 @@ import zoomPlugin from 'chartjs-plugin-zoom'
 Chart.register(...registerables, zoomPlugin)
 
 const props = defineProps({
+  userHealthTargets: {
+    type: [Object, null],
+    required: true
+  },
   userHealthWeight: {
     type: Object,
     required: true
@@ -100,25 +104,51 @@ function updatedSortedArray() {
         label = t('generalItems.labelWeightInLbs')
       }
 
+      const datasets = [
+        {
+          label: label,
+          data: data,
+          backgroundColor: function (context) {
+            const chart = context.chart
+            const { ctx, chartArea } = chart
+            if (!chartArea) {
+              return 'rgba(59, 130, 246, 0.4)'
+            }
+            return createGradient(ctx, chartArea)
+          },
+          borderColor: 'rgba(59, 130, 246, 0.8)', // Blue border
+          fill: true,
+          pointHoverRadius: 4,
+          pointHoverBackgroundColor: 'rgba(59, 130, 246, 0.8)'
+        }
+      ]
+
+      // Add target line if weight target exists
+      if (props.userHealthTargets?.weight != null) {
+        const targetWeight =
+          Number(authStore?.user?.units) === 1
+            ? props.userHealthTargets.weight
+            : kgToLbs(props.userHealthTargets.weight)
+
+        const targetLabel =
+          Number(authStore?.user?.units) === 1
+            ? t('generalItems.labelWeightTargetInKg')
+            : t('generalItems.labelWeightTargetInLbs')
+
+        datasets.push({
+          label: targetLabel,
+          data: Array(labels.length).fill(targetWeight),
+          borderColor: 'rgba(107, 114, 128, 0.9)',
+          borderWidth: 2,
+          borderDash: [5, 5],
+          fill: false,
+          pointRadius: 0,
+          pointHoverRadius: 0
+        })
+      }
+
       return {
-        datasets: [
-          {
-            label: label,
-            data: data,
-            backgroundColor: function (context) {
-              const chart = context.chart
-              const { ctx, chartArea } = chart
-              if (!chartArea) {
-                return 'rgba(59, 130, 246, 0.4)'
-              }
-              return createGradient(ctx, chartArea)
-            },
-            borderColor: 'rgba(59, 130, 246, 0.8)', // Blue border
-            fill: true,
-            pointHoverRadius: 4,
-            pointHoverBackgroundColor: 'rgba(59, 130, 246, 0.8)'
-          }
-        ],
+        datasets: datasets,
         labels: labels
       }
     })

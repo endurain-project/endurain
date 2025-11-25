@@ -24,7 +24,7 @@
         class="mt-3 p-3 bg-body-tertiary rounded shadow-sm"
       >
         <!-- show graph -->
-        <HealthStepsBarChartComponent :userHealthSteps="dataWithSteps" :isLoading="isLoading" />
+        <HealthStepsBarChartComponent :userHealthTargets="userHealthTargets":userHealthSteps="dataWithSteps" :isLoading="isLoading" />
 
         <br />
         <p>

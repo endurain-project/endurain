@@ -14,6 +14,10 @@ import zoomPlugin from 'chartjs-plugin-zoom'
 Chart.register(...registerables, zoomPlugin)
 
 const props = defineProps({
+  userHealthTargets: {
+    type: [Object, null],
+    required: true
+  },
   userHealthSteps: {
     type: Object,
     required: true
@@ -73,20 +77,38 @@ function updatedSortedArray() {
           `${createdAt.getDate()}/${createdAt.getMonth() + 1}/${createdAt.getFullYear()}`
         )
       }
+
+      const datasets = [
+        {
+          label: t('generalItems.labelSteps'),
+          data: data,
+          backgroundColor: function (context) {
+            const chart = context.chart
+            const { ctx, chartArea } = chart
+            return 'rgba(59, 130, 246, 0.4)'
+          },
+          borderColor: 'rgba(59, 130, 246, 0.8)', // Blue border
+          borderWidth: 1
+        }
+      ]
+
+      // Add target line if steps target exists
+      if (props.userHealthTargets?.steps != null) {
+        datasets.push({
+          label: t('generalItems.labelStepsTarget'),
+          data: Array(labels.length).fill(props.userHealthTargets.steps),
+          type: 'line',
+          borderColor: 'rgba(107, 114, 128, 0.9)',
+          borderWidth: 2,
+          borderDash: [5, 5],
+          fill: false,
+          pointRadius: 0,
+          pointHoverRadius: 0
+        })
+      }
+
       return {
-        datasets: [
-          {
-            label: t('healthStepsListComponent.labelSteps'),
-            data: data,
-            backgroundColor: function (context) {
-              const chart = context.chart
-              const { ctx, chartArea } = chart
-              return 'rgba(59, 130, 246, 0.4)'
-            },
-            borderColor: 'rgba(59, 130, 246, 0.8)', // Blue border
-            borderWidth: 1
-          }
-        ],
+        datasets: datasets,
         labels: labels
       }
     })
@@ -167,7 +189,7 @@ onMounted(() => {
               }
 
               // Format weight with 1 decimal place
-              return `${label}: ${value.toFixed(1)}`
+              return `${label}: ${value}`
             }
           }
         },

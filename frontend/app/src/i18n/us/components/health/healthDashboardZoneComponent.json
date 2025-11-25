@@ -11,5 +11,6 @@
   "bmiObesityClass2": "Obesity (Class 2)",
   "bmiObesityClass3": "Extreme Obesity (Class 3)",
   "steps": "Today's steps",
+  "stepsTargetLabel": "steps",
   "noStepsTarget": "No steps target"
 }

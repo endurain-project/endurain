@@ -24,7 +24,7 @@
         class="mt-3 p-3 bg-body-tertiary rounded shadow-sm"
       >
         <!-- show graph -->
-        <HealthWeightLineChartComponent :userHealthWeight="dataWithWeight" :isLoading="isLoading" />
+        <HealthWeightLineChartComponent :userHealthTargets="userHealthTargets" :userHealthWeight="dataWithWeight" :isLoading="isLoading" />
 
         <br />
         <p>
