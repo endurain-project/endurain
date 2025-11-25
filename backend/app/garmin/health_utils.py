@@ -72,7 +72,7 @@ def fetch_and_process_bc_by_dates(
             physique_rating=bc["physiqueRating"],
             visceral_fat=bc["visceralFat"],
             metabolic_age=bc["metabolicAge"],
-            garminconnect_body_composition_id=str(bc["samplePk"]),
+            source=health_weight_schema.Source.GARMIN,
         )
 
         health_weight_db = health_weight_crud.get_health_weight_by_date(
@@ -138,6 +138,7 @@ def fetch_and_process_ds_by_dates(
             user_id=user_id,
             date=ds["calendarDate"],
             steps=ds["totalSteps"],
+            source=health_steps_schema.Source.GARMIN,
         )
 
         health_steps_db = health_steps_crud.get_health_steps_by_date(

@@ -42,7 +42,7 @@ def calculate_bmi_all_user_entries(user_id: int, db: Session):
                 date=health_weight.date,
                 weight=health_weight.weight,
                 bmi=health_weight.bmi,
-                garminconnect_body_composition_id=health_weight.garminconnect_body_composition_id,
+                source=health_weight.source,
             )
             aux_health_weight = calculate_bmi(aux_health_weight, user_id, db)
             health_weight_crud.edit_health_weight(user_id, aux_health_weight, db)

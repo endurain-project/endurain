@@ -71,8 +71,8 @@ class HealthWeight(Base):
         nullable=True,
         comment="Metabolic age",
     )
-    garminconnect_body_composition_id = Column(
-        String(length=45), nullable=True, comment="Garmin Connect body composition ID"
+    source = Column(
+        String(length=250), nullable=True, comment="Source of the health weight data"
     )
 
     # Define a relationship to the User model

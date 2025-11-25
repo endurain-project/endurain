@@ -25,6 +25,11 @@ class HealthTargets(Base):
         nullable=True,
         comment="Weight in kg",
     )
+    steps = Column(
+        Integer,
+        nullable=True,
+        comment="Number of steps taken",
+    )
 
     # Define a relationship to the User model
     user = relationship("User", back_populates="health_targets")

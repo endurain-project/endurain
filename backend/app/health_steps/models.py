@@ -31,6 +31,11 @@ class HealthSteps(Base):
         nullable=False,
         comment="Number of steps taken",
     )
+    source = Column(
+        String(250),
+        nullable=True,
+        comment="Source of the health steps data",
+    )
 
     # Define a relationship to the User model
     user = relationship("User", back_populates="health_steps")

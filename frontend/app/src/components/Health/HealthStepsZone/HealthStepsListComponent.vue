@@ -12,10 +12,9 @@
       </div>
     </div>
     <div>
-      <!--<span class="badge bg-primary-subtle border border-primary-subtle text-primary-emphasis align-middle ms-2" v-if="data.garminconnect_body_composition_id">{{ $t("healthWeightListComponent.labelGarminConnect") }}</span>-->
       <span
         class="align-middle me-3 d-none d-sm-inline"
-        v-if="data.garminconnect_body_composition_id"
+        v-if="data.source === 'garmin'"
       >
         <img
           :src="INTEGRATION_LOGOS.garminConnectApp"
