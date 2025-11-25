@@ -16,6 +16,7 @@ import activities.activity_workout_steps.models
 import followers.models
 import gears.gear.models
 import gears.gear_components.models
+import health_sleep.models
 import health_steps.models
 import health_targets.models
 import health_weight.models

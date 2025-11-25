@@ -38,6 +38,17 @@
           <span class="ms-1">{{ $t('healthSideBarComponent.stepsSection') }}</span>
         </a>
       </li>
+      <li class="nav-item">
+        <a
+          href="#"
+          class="nav-link link-body-emphasis"
+          :class="{ active: activeSection === 'sleep' }"
+          @click.prevent="changeActive('sleep')"
+        >
+          <font-awesome-icon :icon="['fas', 'bed']" />
+          <span class="ms-1">{{ $t('healthSideBarComponent.sleepSection') }}</span>
+        </a>
+      </li>
     </ul>
   </div>
 </template>
