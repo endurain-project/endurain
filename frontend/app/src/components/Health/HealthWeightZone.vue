@@ -3,19 +3,39 @@
     <LoadingComponent v-if="isLoading" />
     <div v-else>
       <!-- add weight button -->
-      <a
-        class="w-100 btn btn-primary shadow-sm"
-        href="#"
-        role="button"
-        data-bs-toggle="modal"
-        data-bs-target="#addWeightModal"
-        >{{ $t('healthWeightZoneComponent.buttonAddWeight') }}</a
-      >
+       <div class="d-flex">
+        <a
+          class="w-100 btn btn-primary shadow-sm me-1"
+          href="#"
+          role="button"
+          data-bs-toggle="modal"
+          data-bs-target="#addWeightModal"
+          >{{ $t('healthWeightZoneComponent.buttonAddWeight') }}</a
+        >
+        <a
+          class="w-100 btn btn-primary shadow-sm ms-1"
+          href="#"
+          role="button"
+          data-bs-toggle="modal"
+          data-bs-target="#addWeightTargetModal"
+          >{{ $t('healthWeightZoneComponent.buttonWeightTarget') }}</a
+        >
+      </div>
 
       <HealthWeightAddEditModalComponent
         :action="'add'"
         @isLoadingNewWeight="updateIsLoadingNewWeight"
         @createdWeight="updateWeightListAdded"
+      />
+
+      <ModalComponentNumberInput 
+        modalId="addWeightTargetModal" 
+        :title="t('healthWeightZoneComponent.buttonWeightTarget')" 
+        :numberFieldLabel="t('healthWeightZoneComponent.modalWeightTargetLabel')"
+        actionButtonType="success"
+        :actionButtonText="t('generalItems.buttonSubmit')"
+        :numberDefaultValue="props.userHealthTargets?.weight || null"
+        @numberToEmitAction="submitSetWeightTarget"
       />
 
       <!-- Checking if dataWithWeight is loaded and has length -->
@@ -74,12 +94,14 @@
 
 <script setup>
 import { ref, watchEffect, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import HealthWeightAddEditModalComponent from './HealthWeightZone/HealthWeightAddEditModalComponent.vue'
 import HealthWeightLineChartComponent from './HealthWeightZone/HealthWeightLineChartComponent.vue'
 import HealthWeightListComponent from './HealthWeightZone/HealthWeightListComponent.vue'
 import LoadingComponent from '../GeneralComponents/LoadingComponent.vue'
 import NoItemsFoundComponent from '../GeneralComponents/NoItemsFoundComponents.vue'
 import PaginationComponent from '../GeneralComponents/PaginationComponent.vue'
+import ModalComponentNumberInput from '../Modals/ModalComponentNumberInput.vue'
 
 const props = defineProps({
   userHealthWeight: {
@@ -108,8 +130,9 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['createdWeight', 'deletedWeight', 'editedWeight', 'pageNumberChanged'])
+const emit = defineEmits(['createdWeight', 'deletedWeight', 'editedWeight', 'pageNumberChanged', 'setWeightTarget'])
 
+const { t } = useI18n()
 const dataWithWeight = ref([])
 const dataWithWeightPagination = ref([])
 const isLoadingNewWeight = ref(false)
@@ -151,6 +174,10 @@ function updateWeightListEdited(editedWeight) {
 
 function setPageNumber(page) {
   emit('pageNumberChanged', page)
+}
+
+function submitSetWeightTarget(weightTarget) {
+  emit('setWeightTarget', weightTarget)
 }
 
 watchEffect(() => {

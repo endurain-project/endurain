@@ -29,6 +29,7 @@
       @deletedWeight="updateWeightListDeleted"
       @editedWeight="updateWeightListEdited"
       @pageNumberChanged="setPageNumberWeight"
+      @setWeightTarget="setWeightTarget"
       v-if="activeSection === 'weight' && !isLoading"
     />
 
@@ -259,6 +260,22 @@ async function fetchHealthTargets() {
     userHealthTargets.value = await health_targets.getUserHealthTargets()
   } catch (error) {
     push.error(`${t('healthView.errorFetchingHealthTargets')} - ${error}`)
+  }
+}
+
+function setWeightTarget(weightTarget) {
+  const data = {
+    id: userHealthTargets.value.id,
+    user_id: userHealthTargets.value.user_id,
+    weight: weightTarget,
+    steps: userHealthTargets.value.steps,
+  }
+  try {
+    health_targets.setUserHealthTargets(data)
+    userHealthTargets.value.weight = weightTarget
+    push.success(t('healthView.successUpdatingWeightTarget'))
+  } catch (error) {
+    push.error(`${t('healthView.errorUpdatingWeightTarget')} - ${error}`)
   }
 }
 

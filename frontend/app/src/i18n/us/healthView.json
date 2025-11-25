@@ -2,5 +2,7 @@
   "title": "Health",
   "errorFetchingHealthWeight": "Error fetching health data",
   "errorFetchingHealthSteps": "Error fetching health steps",
-  "errorFetchingHealthTargets": "Error fetching health targets"
+  "errorFetchingHealthTargets": "Error fetching health targets",
+  "successUpdatingWeightTarget": "Successfully updated weight target",
+  "errorUpdatingWeightTarget": "Error updating weight target"
 }
