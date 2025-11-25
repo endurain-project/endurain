@@ -29,14 +29,18 @@
             <label for="weightWeightAdd"
               ><b>* {{ $t('healthWeightAddEditModalComponent.addWeightWeightLabel') }}</b></label
             >
-            <input
-              class="form-control"
-              type="number"
-              step="0.1"
-              name="weightWeightAdd"
-              v-model="newEditWeightWeight"
-              required
-            />
+            <div class="input-group">
+              <input
+                class="form-control"
+                type="number"
+                step="0.1"
+                name="weightWeightAdd"
+                v-model="newEditWeightWeight"
+                required
+              />
+              <span class="input-group-text" v-if="Number(authStore?.user?.units) === 1">{{ $t('generalItems.unitsKg') }}</span>
+              <span class="input-group-text" v-else>{{ $t('generalItems.unitsLbs') }}</span>
+            </div>
             <!-- date fields -->
             <label for="weightDateAdd"
               ><b>* {{ $t('healthWeightAddEditModalComponent.addWeightDateLabel') }}</b></label
@@ -73,7 +77,7 @@
   </div>
 </template>
 
-<script>
+<script setup>
 import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 // Import Notivue push
@@ -85,85 +89,76 @@ import { useAuthStore } from '@/stores/authStore'
 // Importing the utils
 import { lbsToKg, kgToLbs } from '@/utils/unitsUtils'
 
-export default {
-  props: {
-    action: {
-      type: String,
-      required: true
-    },
-    data: {
-      type: Object,
-      required: false
-    }
+const props = defineProps({
+  action: {
+    type: String,
+    required: true
   },
-  emits: ['isLoadingNewWeight', 'createdWeight', 'editedWeight'],
-  setup(props, { emit }) {
-    const authStore = useAuthStore()
-    const { t } = useI18n()
-    const newEditWeightWeight = ref(50)
-    const newEditWeightDate = ref(new Date().toISOString().split('T')[0])
-    const editWeightId = ref('')
+  data: {
+    type: Object,
+    required: false
+  }
+})
 
-    if (props.data) {
-      newEditWeightWeight.value =
-        Number(authStore?.user?.units) === 1 ? props.data.weight : kgToLbs(props.data.weight)
-      newEditWeightDate.value = props.data.date
-      editWeightId.value = `editWeightId${props.data.id}`
+const emit = defineEmits(['isLoadingNewWeight', 'createdWeight', 'editedWeight'])
+
+const authStore = useAuthStore()
+const { t } = useI18n()
+const newEditWeightWeight = ref(50)
+const newEditWeightDate = ref(new Date().toISOString().split('T')[0])
+const editWeightId = ref('')
+
+if (props.data) {
+  newEditWeightWeight.value =
+    Number(authStore?.user?.units) === 1 ? props.data.weight : kgToLbs(props.data.weight)
+  newEditWeightDate.value = props.data.date
+  editWeightId.value = `editWeightId${props.data.id}`
+}
+
+async function submitAddWeight() {
+  // Set the loading variable to true.
+  emit('isLoadingNewWeight', true)
+  try {
+    // Create the weight data object.
+    const data = {
+      weight:
+        Number(authStore?.user?.units) === 1
+          ? newEditWeightWeight.value
+          : lbsToKg(newEditWeightWeight.value),
+      date: newEditWeightDate.value
     }
 
-    async function submitAddWeight() {
-      // Set the loading variable to true.
-      emit('isLoadingNewWeight', true)
-      try {
-        // Create the weight data object.
-        const data = {
-          weight:
-            Number(authStore?.user?.units) === 1
-              ? newEditWeightWeight.value
-              : lbsToKg(newEditWeightWeight.value),
-          date: newEditWeightDate.value
-        }
+    const createdWeight = await health_weight.createHealthWeight(data)
 
-        const createdWeight = await health_weight.createHealthWeight(data)
+    // Set the loading variable to false.
+    emit('isLoadingNewWeight', false)
 
-        // Set the loading variable to false.
-        emit('isLoadingNewWeight', false)
+    // Get the created weight and emit it
+    emit('createdWeight', createdWeight)
 
-        // Get the created weight and emit it
-        emit('createdWeight', createdWeight)
+    push.success(t('healthWeightAddEditModalComponent.successAddWeight'))
+  } catch (error) {
+    // If there is an error, show toast with error message
+    // Set the loading variable to false.
+    emit('isLoadingNewWeight', false)
+    push.error(`${t('healthWeightAddEditModalComponent.errorAddWeight')} - ${error.toString()}`)
+  }
+}
 
-        push.success(t('healthWeightAddEditModalComponent.successAddWeight'))
-      } catch (error) {
-        // If there is an error, show toast with error message
-        // Set the loading variable to false.
-        emit('isLoadingNewWeight', false)
-        push.error(`${t('healthWeightAddEditModalComponent.errorAddWeight')} - ${error.toString()}`)
-      }
-    }
+function submitEditWeight() {
+  emit('editedWeight', {
+    id: props.data.id,
+    user_id: props.data.user_id,
+    weight: newEditWeightWeight.value,
+    date: newEditWeightDate.value
+  })
+}
 
-    function submitEditWeight() {
-      emit('editedWeight', {
-        id: props.data.id,
-        user_id: props.data.user_id,
-        weight: newEditWeightWeight.value,
-        date: newEditWeightDate.value
-      })
-    }
-
-    function handleSubmit() {
-      if (props.action === 'add') {
-        submitAddWeight()
-      } else {
-        submitEditWeight()
-      }
-    }
-
-    return {
-      newEditWeightWeight,
-      newEditWeightDate,
-      editWeightId,
-      handleSubmit
-    }
+function handleSubmit() {
+  if (props.action === 'add') {
+    submitAddWeight()
+  } else {
+    submitEditWeight()
   }
 }
 </script>

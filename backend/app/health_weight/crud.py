@@ -259,7 +259,7 @@ def edit_health_weight(
 
 def delete_health_weight(user_id: int, health_weight_id: int, db: Session):
     try:
-        # Delete the gear
+        # Delete the health_weight
         num_deleted = (
             db.query(health_weight_models.HealthWeight)
             .filter(

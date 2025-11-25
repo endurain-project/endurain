@@ -213,3 +213,42 @@ def edit_health_steps(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal Server Error",
         ) from err
+
+
+def delete_health_steps(user_id: int, health_steps_id: int, db: Session):
+    try:
+        # Delete the health_steps
+        num_deleted = (
+            db.query(health_steps_models.HealthSteps)
+            .filter(
+                health_steps_models.HealthSteps.id == health_steps_id,
+                health_steps_models.HealthSteps.user_id == user_id,
+            )
+            .delete()
+        )
+
+        # Check if the health_steps was found and deleted
+        if num_deleted == 0:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Health steps with id {health_steps_id} for user {user_id} not found",
+            )
+
+        # Commit the transaction
+        db.commit()
+    except HTTPException as http_err:
+        raise http_err
+    except Exception as err:
+        # Rollback the transaction
+        db.rollback()
+
+        # Log the exception
+        core_logger.print_to_log(
+            f"Error in delete_health_steps: {err}", "error", exc=err
+        )
+
+        # Raise an HTTPException with a 500 Internal Server Error status code
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal Server Error",
+        ) from err

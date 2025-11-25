@@ -35,7 +35,7 @@
           }}{{ $t('healthWeightZoneComponent.labelNumberOfHealthWeightWeight3') }}
         </p>
 
-        <!-- Displaying loading new gear if applicable -->
+        <!-- Displaying loading new weight if applicable -->
         <ul class="mt-3 list-group list-group-flush" v-if="isLoadingNewWeight">
           <li class="list-group-item rounded">
             <LoadingComponent />

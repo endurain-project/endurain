@@ -85,3 +85,70 @@ async def read_health_steps_all_pagination(
     return health_steps_crud.get_health_steps_with_pagination(
         token_user_id, db, page_number, num_records
     )
+
+
+@router.post("", status_code=201)
+async def create_health_steps(
+    health_steps: health_steps_schema.HealthSteps,
+    _check_scopes: Annotated[
+        Callable, Security(auth_security.check_scopes, scopes=["health:write"])
+    ],
+    token_user_id: Annotated[
+        int,
+        Depends(auth_security.get_sub_from_access_token),
+    ],
+    db: Annotated[
+        Session,
+        Depends(core_database.get_db),
+    ],
+):
+    # Check if health_steps for this date already exists
+    steps_for_date = health_steps_crud.get_health_steps_by_date(
+        token_user_id, health_steps.date, db
+    )
+
+    if steps_for_date:
+        health_steps.id = steps_for_date.id
+        # Updates the health_steps in the database and returns it
+        return health_steps_crud.edit_health_steps(token_user_id, health_steps, db)
+    else:
+        # Creates the health_steps in the database and returns it
+        return health_steps_crud.create_health_steps(token_user_id, health_steps, db)
+
+
+@router.put("")
+async def edit_health_steps(
+    health_steps: health_steps_schema.HealthSteps,
+    _check_scopes: Annotated[
+        Callable, Security(auth_security.check_scopes, scopes=["health:write"])
+    ],
+    token_user_id: Annotated[
+        int,
+        Depends(auth_security.get_sub_from_access_token),
+    ],
+    db: Annotated[
+        Session,
+        Depends(core_database.get_db),
+    ],
+):
+    # Updates the health_steps in the database and returns it
+    return health_steps_crud.edit_health_steps(token_user_id, health_steps, db)
+
+
+@router.delete("/{health_steps_id}")
+async def delete_health_steps(
+    health_steps_id: int,
+    _check_scopes: Annotated[
+        Callable, Security(auth_security.check_scopes, scopes=["health:write"])
+    ],
+    token_user_id: Annotated[
+        int,
+        Depends(auth_security.get_sub_from_access_token),
+    ],
+    db: Annotated[
+        Session,
+        Depends(core_database.get_db),
+    ],
+):
+    # Deletes entry from database
+    return health_steps_crud.delete_health_steps(token_user_id, health_steps_id, db)

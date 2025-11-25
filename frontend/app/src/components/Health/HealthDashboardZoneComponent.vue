@@ -1,58 +1,62 @@
 <template>
   <div class="col">
-    <div class="card mb-3 text-center shadow-sm">
-      <div class="card-header">
-        <h4>{{ $t('healthDashboardZoneComponent.weight') }}</h4>
+    <div class="row">
+      <div class="col-lg-4 col-md-12">
+        <div class="card mb-3 text-center shadow-sm">
+          <div class="card-header">
+            <h4>{{ $t('healthDashboardZoneComponent.weight') }}</h4>
+          </div>
+          <div class="card-body">
+            <h1 v-if="currentWeight && Number(authStore?.user?.units) === 1">
+              {{ currentWeight }} {{ $t('generalItems.unitsKg') }}
+            </h1>
+            <h1 v-else-if="currentWeight && authStore.user.units == 2">
+              {{ kgToLbs(currentWeight) }} {{ $t('generalItems.unitsLbs') }}
+            </h1>
+            <h1 v-else>{{ $t('generalItems.labelNotApplicable') }}</h1>
+          </div>
+          <div class="card-footer text-body-secondary">
+            <span v-if="userHealthTargets && userHealthTargets['weight']">{{
+              userHealthTargets.weight
+            }}</span>
+            <span v-else>{{ $t('healthDashboardZoneComponent.noWeightTarget') }}</span>
+          </div>
+        </div>
       </div>
-      <div class="card-body">
-        <h1 v-if="currentWeight && Number(authStore?.user?.units) === 1">
-          {{ currentWeight }} {{ $t('generalItems.unitsKg') }}
-        </h1>
-        <h1 v-else-if="currentWeight && authStore.user.units == 2">
-          {{ kgToLbs(currentWeight) }} {{ $t('generalItems.unitsLbs') }}
-        </h1>
-        <h1 v-else>{{ $t('generalItems.labelNotApplicable') }}</h1>
+      <div class="col-lg-4 col-md-12">
+        <div class="card mb-3 text-center shadow-sm">
+          <div class="card-header">
+            <h4>{{ $t('healthDashboardZoneComponent.bmi') }}</h4>
+          </div>
+          <div class="card-body">
+            <h1 v-if="currentBMI">{{ currentBMI }}</h1>
+            <h1 v-else>{{ $t('generalItems.labelNotApplicable') }}</h1>
+          </div>
+          <div class="card-footer text-body-secondary">
+            <span v-if="currentBMI">{{ bmiDescription }}</span>
+            <span v-else-if="!currentBMI && currentWeight">{{
+              $t('healthDashboardZoneComponent.noHeightDefined')
+            }}</span>
+            <span v-else>{{ $t('healthDashboardZoneComponent.noWeightData') }}</span>
+          </div>
+        </div>
       </div>
-      <div class="card-footer text-body-secondary">
-        <span v-if="userHealthTargets && userHealthTargets['weight']">{{
-          userHealthTargets.weight
-        }}</span>
-        <span v-else>{{ $t('healthDashboardZoneComponent.noWeightTarget') }}</span>
-      </div>
-    </div>
-  </div>
-  <div class="col">
-    <div class="card mb-3 text-center shadow-sm">
-      <div class="card-header">
-        <h4>{{ $t('healthDashboardZoneComponent.bmi') }}</h4>
-      </div>
-      <div class="card-body">
-        <h1 v-if="currentBMI">{{ currentBMI }}</h1>
-        <h1 v-else>{{ $t('generalItems.labelNotApplicable') }}</h1>
-      </div>
-      <div class="card-footer text-body-secondary">
-        <span v-if="currentBMI">{{ bmiDescription }}</span>
-        <span v-else-if="!currentBMI && currentWeight">{{
-          $t('healthDashboardZoneComponent.noHeightDefined')
-        }}</span>
-        <span v-else>{{ $t('healthDashboardZoneComponent.noWeightData') }}</span>
-      </div>
-    </div>
-  </div>
-  <div class="col">
-    <div class="card mb-3 text-center shadow-sm">
-      <div class="card-header">
-        <h4>{{ $t('healthDashboardZoneComponent.steps') }}</h4>
-      </div>
-      <div class="card-body">
-        <h1 v-if="todaySteps">{{ todaySteps }}</h1>
-        <h1 v-else>{{ $t('generalItems.labelNotApplicable') }}</h1>
-      </div>
-      <div class="card-footer text-body-secondary">
-        <span v-if="userHealthTargets && userHealthTargets['steps']">{{
-          userHealthTargets.steps
-        }}</span>
-        <span v-else>{{ $t('healthDashboardZoneComponent.noStepsTarget') }}</span>
+      <div class="col-lg-4 col-md-12">
+        <div class="card mb-3 text-center shadow-sm">
+          <div class="card-header">
+            <h4>{{ $t('healthDashboardZoneComponent.steps') }}</h4>
+          </div>
+          <div class="card-body">
+            <h1 v-if="todaySteps">{{ todaySteps }}</h1>
+            <h1 v-else>{{ $t('generalItems.labelNotApplicable') }}</h1>
+          </div>
+          <div class="card-footer text-body-secondary">
+            <span v-if="userHealthTargets && userHealthTargets['steps']">{{
+              userHealthTargets.steps
+            }}</span>
+            <span v-else>{{ $t('healthDashboardZoneComponent.noStepsTarget') }}</span>
+          </div>
+        </div>
       </div>
     </div>
   </div>

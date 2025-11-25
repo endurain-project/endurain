@@ -6,9 +6,6 @@
 <script setup>
 import { ref, onMounted, onUnmounted, computed, watch, watchEffect } from 'vue'
 import { useI18n } from 'vue-i18n'
-// Importing the stores
-import { useAuthStore } from '@/stores/authStore'
-import { kgToLbs } from '@/utils/unitsUtils'
 // Import the components
 import LoadingComponent from '@/components/GeneralComponents/LoadingComponent.vue'
 
@@ -17,7 +14,7 @@ import zoomPlugin from 'chartjs-plugin-zoom'
 Chart.register(...registerables, zoomPlugin)
 
 const props = defineProps({
-  userHealthWeight: {
+  userHealthSteps: {
     type: Object,
     required: true
   },
@@ -28,23 +25,10 @@ const props = defineProps({
 })
 
 const { t } = useI18n()
-const authStore = useAuthStore()
-const sortedHealthWeightArray = ref([])
+const sortedHealthStepsArray = ref([])
 const chartCanvas = ref(null)
 let myChart = null
 const computedChartData = ref(null)
-
-// Function to create gradient fill for chart
-function createGradient(ctx, chartArea) {
-  if (!chartArea) {
-    return 'rgba(59, 130, 246, 0.4)'
-  }
-
-  const gradient = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom)
-  gradient.addColorStop(0, 'rgba(59, 130, 246, 0.4)') // Blue, more opaque at top
-  gradient.addColorStop(1, 'rgba(59, 130, 246, 0.0)') // Transparent at bottom
-  return gradient
-}
 
 // Custom crosshair plugin
 const crosshairPlugin = {
@@ -72,51 +56,35 @@ const crosshairPlugin = {
 }
 
 function updatedSortedArray() {
-  sortedHealthWeightArray.value = props.userHealthWeight
-  sortedHealthWeightArray.value.sort((a, b) => {
+  sortedHealthStepsArray.value = props.userHealthSteps
+  sortedHealthStepsArray.value.sort((a, b) => {
     return new Date(a.date) - new Date(b.date)
   })
 
-  if (sortedHealthWeightArray.value) {
+  if (sortedHealthStepsArray.value) {
     computedChartData.value = computed(() => {
       const data = []
       const labels = []
-      for (const HealthWeight of sortedHealthWeightArray.value) {
-        if (Number(authStore?.user?.units) === 1) {
-          data.push(HealthWeight.weight)
-        } else {
-          data.push(kgToLbs(HealthWeight.weight))
-        }
+      for (const healthSteps of sortedHealthStepsArray.value) {
+        data.push(healthSteps.steps)
 
-        const createdAt = new Date(HealthWeight.date)
+        const createdAt = new Date(healthSteps.date)
         labels.push(
           `${createdAt.getDate()}/${createdAt.getMonth() + 1}/${createdAt.getFullYear()}`
         )
       }
-      let label = ''
-      if (Number(authStore?.user?.units) === 1) {
-        label = t('generalItems.labelWeightInKg')
-      } else {
-        label = t('generalItems.labelWeightInLbs')
-      }
-
       return {
         datasets: [
           {
-            label: label,
+            label: t('healthStepsListComponent.labelSteps'),
             data: data,
             backgroundColor: function (context) {
               const chart = context.chart
               const { ctx, chartArea } = chart
-              if (!chartArea) {
-                return 'rgba(59, 130, 246, 0.4)'
-              }
-              return createGradient(ctx, chartArea)
+              return 'rgba(59, 130, 246, 0.4)'
             },
             borderColor: 'rgba(59, 130, 246, 0.8)', // Blue border
-            fill: true,
-            pointHoverRadius: 4,
-            pointHoverBackgroundColor: 'rgba(59, 130, 246, 0.8)'
+            borderWidth: 1
           }
         ],
         labels: labels
@@ -126,7 +94,7 @@ function updatedSortedArray() {
 }
 
 watchEffect(() => {
-  if (props.userHealthWeight) {
+  if (props.userHealthSteps) {
     updatedSortedArray()
   }
 })
@@ -144,7 +112,7 @@ watch(
 
 onMounted(() => {
   myChart = new Chart(chartCanvas.value.getContext('2d'), {
-    type: 'line',
+    type: 'bar',
     data: computedChartData.value,
     plugins: [crosshairPlugin],
     options: {
@@ -155,13 +123,9 @@ onMounted(() => {
         intersect: false // Don't require hovering exactly on a point
       },
       elements: {
-        point: {
-          radius: 0, // Hide points by default (keeps line visible)
-          hitRadius: 10, // Large invisible hover area for easier interaction
-          hoverRadius: 4 // Show small point when hovering
-        },
-        line: {
-          tension: 0.4 // Smooth curves instead of straight lines (0 = angular, 0.4 = smooth)
+        bar: {
+          borderRadius: 4, // Rounded corners for bars
+          borderWidth: 1
         }
       },
       scales: {

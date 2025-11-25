@@ -17,7 +17,7 @@
       v-if="activeSection === 'dashboard' && !isLoading"
     />
 
-    <!-- Include the SettingsUserProfileZone -->
+    <!-- Include the HealthWeightZone -->
     <HealthWeightZone
       :userHealthWeight="userHealthWeight"
       :userHealthWeightPagination="userHealthWeightPagination"
@@ -31,6 +31,21 @@
       @pageNumberChanged="setPageNumberWeight"
       v-if="activeSection === 'weight' && !isLoading"
     />
+
+    <!-- Include the HealthStepsZone -->
+    <HealthStepsZone
+      :userHealthSteps="userHealthSteps"
+      :userHealthStepsPagination="userHealthStepsPagination"
+      :userHealthTargets="userHealthTargets"
+      :isLoading="isLoading"
+      :totalPages="totalPagesSteps"
+      :pageNumber="pageNumberSteps"
+      @createdSteps="updateStepsListAdded"
+      @deletedSteps="updateStepsListDeleted"
+      @editedSteps="updateStepsListEdited"
+      @pageNumberChanged="setPageNumberSteps"
+      v-if="activeSection === 'steps' && !isLoading"
+    />
   </div>
   <!-- back button -->
   <BackButtonComponent />
@@ -43,6 +58,7 @@ import { push } from 'notivue'
 import HealthSideBarComponent from '../components/Health/HealthSideBarComponent.vue'
 import HealthDashboardZone from '../components/Health/HealthDashboardZoneComponent.vue'
 import HealthWeightZone from '../components/Health/HealthWeightZone.vue'
+import HealthStepsZone from '../components/Health/HealthStepsZone.vue'
 import BackButtonComponent from '@/components/GeneralComponents/BackButtonComponent.vue'
 import LoadingComponent from '@/components/GeneralComponents/LoadingComponent.vue'
 import { health_weight } from '@/services/health_weightService'
@@ -79,6 +95,7 @@ function updateActiveSection(section) {
   }
 }
 
+// Weight functions
 async function updateHealthWeight() {
   try {
     isHealthWeightUpdatingLoading.value = true
@@ -92,19 +109,6 @@ async function updateHealthWeight() {
   }
 }
 
-async function updateHealthSteps() {
-  try {
-    isHealthStepsUpdatingLoading.value = true
-    userHealthStepsPagination.value = await health_steps.getUserHealthStepsWithPagination(
-      pageNumberSteps.value,
-      numRecords
-    )
-    isHealthStepsUpdatingLoading.value = false
-  } catch (error) {
-    push.error(`${t('healthView.errorFetchingHealthSteps')} - ${error}`)
-  }
-}
-
 async function fetchHealthWeight() {
   try {
     userHealthWeightNumber.value = await health_weight.getUserHealthWeightNumber()
@@ -113,25 +117,6 @@ async function fetchHealthWeight() {
     totalPagesWeight.value = Math.ceil(userHealthWeightNumber.value / numRecords)
   } catch (error) {
     push.error(`${t('healthView.errorFetchingHealthWeight')} - ${error}`)
-  }
-}
-
-async function fetchHealthSteps() {
-  try {
-    userHealthStepsNumber.value = await health_steps.getUserHealthStepsNumber()
-    userHealthSteps.value = await health_steps.getUserHealthSteps()
-    await updateHealthSteps()
-    totalPagesSteps.value = Math.ceil(userHealthStepsNumber.value / numRecords)
-  } catch (error) {
-    push.error(`${t('healthView.errorFetchingHealthSteps')} - ${error}`)
-  }
-}
-
-async function fetchHealthTargets() {
-  try {
-    userHealthTargets.value = await health_targets.getUserHealthTargets()
-  } catch (error) {
-    push.error(`${t('healthView.errorFetchingHealthTargets')} - ${error}`)
   }
 }
 
@@ -188,6 +173,96 @@ function updateWeightListEdited(editedWeight) {
 function setPageNumberWeight(page) {
   pageNumberWeight.value = page
 }
+
+// Steps functions
+async function updateHealthSteps() {
+  try {
+    isHealthStepsUpdatingLoading.value = true
+    userHealthStepsPagination.value = await health_steps.getUserHealthStepsWithPagination(
+      pageNumberSteps.value,
+      numRecords
+    )
+    isHealthStepsUpdatingLoading.value = false
+  } catch (error) {
+    push.error(`${t('healthView.errorFetchingHealthSteps')} - ${error}`)
+  }
+}
+
+async function fetchHealthSteps() {
+  try {
+    userHealthStepsNumber.value = await health_steps.getUserHealthStepsNumber()
+    userHealthSteps.value = await health_steps.getUserHealthSteps()
+    await updateHealthSteps()
+    totalPagesSteps.value = Math.ceil(userHealthStepsNumber.value / numRecords)
+  } catch (error) {
+    push.error(`${t('healthView.errorFetchingHealthSteps')} - ${error}`)
+  }
+}
+
+function updateStepsListAdded(createdStep) {
+  const updateOrAdd = (array, newEntry) => {
+    const index = array.findIndex((item) => item.id === newEntry.id)
+    if (index !== -1) {
+      array[index] = newEntry
+    } else {
+      array.unshift(newEntry)
+    }
+  }
+  if (userHealthStepsPagination.value) {
+    updateOrAdd(userHealthStepsPagination.value, createdStep)
+  } else {
+    userHealthStepsPagination.value = [createdStep]
+  }
+  if (userHealthSteps.value) {
+    updateOrAdd(userHealthSteps.value, createdStep)
+  } else {
+    userHealthSteps.value = [createdStep]
+  }
+  userHealthStepsNumber.value = userHealthSteps.value.length
+}
+
+function updateStepsListDeleted(deletedStep) {
+  for (const data of userHealthStepsPagination.value) {
+    if (data.id === deletedStep) {
+      data.steps = null
+    }
+  }
+  for (const data of userHealthSteps.value) {
+    if (data.id === deletedStep) {
+      data.steps = null
+    }
+  }
+}
+
+function updateStepsListEdited(editedStep) {
+  for (const data of userHealthStepsPagination.value) {
+    if (data.id === editedStep.id) {
+      data.steps = editedStep.steps
+      data.created_at = editedStep.created_at
+    }
+  }
+  for (const data of userHealthSteps.value) {
+    if (data.id === editedStep.id) {
+      data.steps = editedStep.steps
+      data.created_at = editedStep.created_at
+    }
+  }
+}
+
+function setPageNumberSteps(page) {
+  pageNumberSteps.value = page
+}
+
+// Health Targets functions
+async function fetchHealthTargets() {
+  try {
+    userHealthTargets.value = await health_targets.getUserHealthTargets()
+  } catch (error) {
+    push.error(`${t('healthView.errorFetchingHealthTargets')} - ${error}`)
+  }
+}
+
+// Watch functions
 
 watch(pageNumberWeight, updateHealthWeight, { immediate: false })
 watch(pageNumberSteps, updateHealthSteps, { immediate: false })

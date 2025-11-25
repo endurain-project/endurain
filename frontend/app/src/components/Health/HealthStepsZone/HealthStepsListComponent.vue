@@ -3,14 +3,11 @@
     <div class="d-flex align-items-center">
       <div>
         <div class="fw-bold">
-          <span v-if="Number(authStore?.user?.units) === 1"
-            >{{ data.weight }} {{ $t('generalItems.unitsKg') }}</span
+          <span>{{ data.steps }} {{ $t('healthStepsListComponent.labelSteps') }}</span
           >
-          <span v-else>{{ kgToLbs(data.weight) }} {{ $t('generalItems.unitsLbs') }}</span>
         </div>
         <span>
           Date: {{ formatDateShort(data.date) }}
-          <span v-if="data.bmi"> | BMI: {{ data.bmi.toFixed(2) }}</span>
         </span>
       </div>
     </div>
@@ -33,14 +30,14 @@
         href="#"
         role="button"
         data-bs-toggle="modal"
-        :data-bs-target="`#editWeightId${data.id}`"
+        :data-bs-target="`#editStepsId${data.id}`"
         ><font-awesome-icon :icon="['fas', 'fa-pen-to-square']"
       /></a>
 
-      <HealthWeightAddEditModalComponent
+      <HealthStepsAddEditModalComponent
         :action="'edit'"
         :data="data"
-        @editedWeight="updateWeightListEdited"
+        @editedSteps="updateStepsListEdited"
       />
 
       <!-- delete weight button -->
@@ -49,17 +46,17 @@
         href="#"
         role="button"
         data-bs-toggle="modal"
-        :data-bs-target="`#deleteWeightModal${data.id}`"
+        :data-bs-target="`#deleteStepsModal${data.id}`"
         ><font-awesome-icon :icon="['fas', 'fa-trash-can']"
       /></a>
 
       <ModalComponent
-        :modalId="`deleteWeightModal${data.id}`"
-        :title="t('healthWeightListComponent.modalDeleteWeightTitle')"
-        :body="`${t('healthWeightListComponent.modalDeleteWeightBody')}<b>${data.date}</b>?`"
+        :modalId="`deleteStepsModal${data.id}`"
+        :title="t('healthStepsListComponent.modalDeleteStepsTitle')"
+        :body="`${t('healthStepsListComponent.modalDeleteStepsBody')}<b>${data.date}</b>?`"
         :actionButtonType="`danger`"
-        :actionButtonText="t('healthWeightListComponent.modalDeleteWeightTitle')"
-        @submitAction="submitDeleteWeight"
+        :actionButtonText="t('healthStepsListComponent.modalDeleteStepsTitle')"
+        @submitAction="submitDeleteSteps"
       />
     </div>
   </li>
@@ -67,20 +64,17 @@
 
 <script setup>
 import { useI18n } from 'vue-i18n'
-// Importing the stores
-import { useAuthStore } from '@/stores/authStore'
 // Import Notivue push
 import { push } from 'notivue'
 // Importing the services
-import { health_weight } from '@/services/health_weightService'
+import { health_steps } from '@/services/health_stepsService'
 // Import the components
-import HealthWeightAddEditModalComponent from './HealthWeightAddEditModalComponent.vue'
+import HealthStepsAddEditModalComponent from './HealthStepsAddEditModalComponent.vue'
 import ModalComponent from '@/components/Modals/ModalComponent.vue'
 // Import constants
 import { INTEGRATION_LOGOS } from '@/constants/integrationLogoConstants'
 
 import { formatDateShort } from '@/utils/dateTimeUtils'
-import { kgToLbs } from '@/utils/unitsUtils'
 
 const props = defineProps({
   data: {
@@ -89,32 +83,31 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['editedWeight', 'deletedWeight'])
+const emit = defineEmits(['editedSteps', 'deletedSteps'])
 
 const { t } = useI18n()
-const authStore = useAuthStore()
 
-async function updateWeightListEdited(editedWeight) {
+async function updateStepsListEdited(editedSteps) {
   try {
-    await health_weight.editHealthWeight(editedWeight)
+    await health_steps.editHealthSteps(editedSteps)
 
-    emit('editedWeight', editedWeight)
+    emit('editedSteps', editedSteps)
 
-    push.success(t('healthWeightListComponent.successEditWeight'))
+    push.success(t('healthStepsListComponent.successEditSteps'))
   } catch (error) {
-    push.error(`${t('healthWeightListComponent.errorEditWeight')} - ${error.toString()}`)
+    push.error(`${t('healthStepsListComponent.errorEditSteps')} - ${error.toString()}`)
   }
 }
 
-async function submitDeleteWeight() {
+async function submitDeleteSteps() {
   try {
-    await health_weight.deleteHealthWeight(props.data.id)
+    await health_steps.deleteHealthSteps(props.data.id)
 
-    emit('deletedWeight', props.data.id)
+    emit('deletedSteps', props.data.id)
 
-    push.success(t('healthWeightListComponent.successDeleteWeight'))
+    push.success(t('healthStepsListComponent.successDeleteSteps'))
   } catch (error) {
-    push.error(`${t('healthWeightListComponent.errorDeleteWeight')} - ${error.toString()}`)
+    push.error(`${t('healthStepsListComponent.errorDeleteSteps')} - ${error.toString()}`)
   }
 }
 </script>
