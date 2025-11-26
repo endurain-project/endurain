@@ -38,13 +38,13 @@
         @numberToEmitAction="submitSetWeightTarget"
       />
 
-      <!-- Checking if dataWithWeight is loaded and has length -->
+      <!-- Checking if userHealthWeight is loaded and has length -->
       <div
-        v-if="dataWithWeight && dataWithWeight.length"
+        v-if="userHealthWeight && userHealthWeight.length"
         class="mt-3 p-3 bg-body-tertiary rounded shadow-sm"
       >
         <!-- show graph -->
-        <HealthWeightLineChartComponent :userHealthTargets="userHealthTargets" :userHealthWeight="dataWithWeight" :isLoading="isLoading" />
+        <HealthWeightLineChartComponent :userHealthTargets="userHealthTargets" :userHealthWeight="userHealthWeight" :isLoading="isLoading" />
 
         <br />
         <p>
@@ -65,7 +65,7 @@
         <!-- list zone -->
         <ul
           class="my-3 list-group list-group-flush"
-          v-for="data in dataWithWeightPagination"
+          v-for="data in userHealthWeightPagination"
           :key="data.id"
           :data="data"
         >
@@ -93,7 +93,7 @@
 </template>
 
 <script setup>
-import { ref, watchEffect, onMounted } from 'vue'
+import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import HealthWeightAddEditModalComponent from './HealthWeightZone/HealthWeightAddEditModalComponent.vue'
 import HealthWeightLineChartComponent from './HealthWeightZone/HealthWeightLineChartComponent.vue'
@@ -133,28 +133,7 @@ const props = defineProps({
 const emit = defineEmits(['createdWeight', 'deletedWeight', 'editedWeight', 'pageNumberChanged', 'setWeightTarget'])
 
 const { t } = useI18n()
-const dataWithWeight = ref([])
-const dataWithWeightPagination = ref([])
 const isLoadingNewWeight = ref(false)
-
-function updatedDataWithWeightArray() {
-  dataWithWeightPagination.value = []
-  dataWithWeight.value = []
-  if (props.userHealthWeightPagination) {
-    for (const data of props.userHealthWeightPagination) {
-      if (data.weight) {
-        dataWithWeightPagination.value.push(data)
-      }
-    }
-  }
-  if (props.userHealthWeight) {
-    for (const data of props.userHealthWeight) {
-      if (data.weight) {
-        dataWithWeight.value.push(data)
-      }
-    }
-  }
-}
 
 function updateIsLoadingNewWeight(isLoadingNewWeightNewValue) {
   isLoadingNewWeight.value = isLoadingNewWeightNewValue
@@ -179,14 +158,4 @@ function setPageNumber(page) {
 function submitSetWeightTarget(weightTarget) {
   emit('setWeightTarget', weightTarget)
 }
-
-watchEffect(() => {
-  if (props.userHealthWeightPagination) {
-    updatedDataWithWeightArray()
-  }
-})
-
-onMounted(() => {
-  updatedDataWithWeightArray()
-})
 </script>

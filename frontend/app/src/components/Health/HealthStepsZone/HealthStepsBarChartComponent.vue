@@ -4,7 +4,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, computed, watch, watchEffect } from 'vue'
+import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 // Import the components
 import LoadingComponent from '@/components/GeneralComponents/LoadingComponent.vue'
@@ -19,7 +19,7 @@ const props = defineProps({
     required: true
   },
   userHealthSteps: {
-    type: Object,
+    type: Array,
     required: true
   },
   isLoading: {
@@ -29,10 +29,8 @@ const props = defineProps({
 })
 
 const { t } = useI18n()
-const sortedHealthStepsArray = ref([])
 const chartCanvas = ref(null)
 let myChart = null
-const computedChartData = ref(null)
 
 // Custom crosshair plugin
 const crosshairPlugin = {
@@ -59,73 +57,68 @@ const crosshairPlugin = {
   }
 }
 
-function updatedSortedArray() {
-  sortedHealthStepsArray.value = props.userHealthSteps
-  sortedHealthStepsArray.value.sort((a, b) => {
+const chartData = computed(() => {
+  if (!props.userHealthSteps || props.userHealthSteps.length === 0) {
+    return {
+      datasets: [],
+      labels: []
+    }
+  }
+
+  // Sort health steps by date
+  const sortedSteps = [...props.userHealthSteps].sort((a, b) => {
     return new Date(a.date) - new Date(b.date)
   })
 
-  if (sortedHealthStepsArray.value) {
-    computedChartData.value = computed(() => {
-      const data = []
-      const labels = []
-      for (const healthSteps of sortedHealthStepsArray.value) {
-        data.push(healthSteps.steps)
+  const data = []
+  const labels = []
+  
+  for (const healthSteps of sortedSteps) {
+    data.push(healthSteps.steps)
 
-        const createdAt = new Date(healthSteps.date)
-        labels.push(
-          `${createdAt.getDate()}/${createdAt.getMonth() + 1}/${createdAt.getFullYear()}`
-        )
-      }
+    const createdAt = new Date(healthSteps.date)
+    labels.push(
+      `${createdAt.getDate()}/${createdAt.getMonth() + 1}/${createdAt.getFullYear()}`
+    )
+  }
 
-      const datasets = [
-        {
-          label: t('generalItems.labelSteps'),
-          data: data,
-          backgroundColor: function (context) {
-            const chart = context.chart
-            const { ctx, chartArea } = chart
-            return 'rgba(59, 130, 246, 0.4)'
-          },
-          borderColor: 'rgba(59, 130, 246, 0.8)', // Blue border
-          borderWidth: 1
-        }
-      ]
+  const datasets = [
+    {
+      label: t('generalItems.labelSteps'),
+      data: data,
+      backgroundColor: 'rgba(59, 130, 246, 0.4)',
+      borderColor: 'rgba(59, 130, 246, 0.8)', // Blue border
+      borderWidth: 0,
+      borderRadius: 4
+    }
+  ]
 
-      // Add target line if steps target exists
-      if (props.userHealthTargets?.steps != null) {
-        datasets.push({
-          label: t('generalItems.labelStepsTarget'),
-          data: Array(labels.length).fill(props.userHealthTargets.steps),
-          type: 'line',
-          borderColor: 'rgba(107, 114, 128, 0.9)',
-          borderWidth: 2,
-          borderDash: [5, 5],
-          fill: false,
-          pointRadius: 0,
-          pointHoverRadius: 0
-        })
-      }
-
-      return {
-        datasets: datasets,
-        labels: labels
-      }
+  // Add target line if steps target exists
+  if (props.userHealthTargets?.steps != null) {
+    datasets.push({
+      label: t('generalItems.labelStepsTarget'),
+      data: Array(labels.length).fill(props.userHealthTargets.steps),
+      type: 'line',
+      borderColor: 'rgba(107, 114, 128, 0.9)',
+      borderWidth: 2,
+      borderDash: [5, 5],
+      fill: false,
+      pointRadius: 0,
+      pointHoverRadius: 0
     })
   }
-}
 
-watchEffect(() => {
-  if (props.userHealthSteps) {
-    updatedSortedArray()
+  return {
+    datasets: datasets,
+    labels: labels
   }
 })
 
 watch(
-  computedChartData.value,
+  chartData,
   (newChartData) => {
     if (myChart) {
-      myChart.config.data = newChartData
+      myChart.data = newChartData
       myChart.update()
     }
   },
@@ -135,7 +128,7 @@ watch(
 onMounted(() => {
   myChart = new Chart(chartCanvas.value.getContext('2d'), {
     type: 'bar',
-    data: computedChartData.value,
+    data: chartData.value,
     plugins: [crosshairPlugin],
     options: {
       responsive: true,
@@ -144,15 +137,9 @@ onMounted(() => {
         mode: 'index', // Show tooltip for all datasets at the same x position
         intersect: false // Don't require hovering exactly on a point
       },
-      elements: {
-        bar: {
-          borderRadius: 4, // Rounded corners for bars
-          borderWidth: 1
-        }
-      },
       scales: {
         y: {
-          beginAtZero: false,
+          beginAtZero: true,
           grid: {
             lineWidth: 1,
             drawBorder: true,
@@ -188,7 +175,7 @@ onMounted(() => {
                 return `${label}: N/A`
               }
 
-              // Format weight with 1 decimal place
+              // Format steps value
               return `${label}: ${value}`
             }
           }
@@ -219,12 +206,11 @@ onMounted(() => {
       }
     }
   })
-  updatedSortedArray()
 })
 
 onUnmounted(() => {
-  if (myChart.value) {
-    myChart.value.destroy()
+  if (myChart) {
+    myChart.destroy()
   }
 })
 </script>

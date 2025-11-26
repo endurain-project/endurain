@@ -6,22 +6,20 @@
 <script setup>
 import { ref, onMounted, onUnmounted, computed, watch, watchEffect } from 'vue'
 import { useI18n } from 'vue-i18n'
-// Importing the stores
-import { useAuthStore } from '@/stores/authStore'
-import { kgToLbs } from '@/utils/unitsUtils'
 // Import the components
 import LoadingComponent from '@/components/GeneralComponents/LoadingComponent.vue'
 
 import { Chart, registerables } from 'chart.js'
 import zoomPlugin from 'chartjs-plugin-zoom'
 Chart.register(...registerables, zoomPlugin)
+import { formatDuration, formatDurationHHmm } from '@/utils/dateTimeUtils'
 
 const props = defineProps({
   userHealthTargets: {
     type: [Object, null],
     required: true
   },
-  userHealthWeight: {
+  userHealthSleep: {
     type: Array,
     required: true
   },
@@ -32,21 +30,8 @@ const props = defineProps({
 })
 
 const { t } = useI18n()
-const authStore = useAuthStore()
 const chartCanvas = ref(null)
 let myChart = null
-
-// Function to create gradient fill for chart
-function createGradient(ctx, chartArea) {
-  if (!chartArea) {
-    return 'rgba(59, 130, 246, 0.4)'
-  }
-
-  const gradient = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom)
-  gradient.addColorStop(0, 'rgba(59, 130, 246, 0.4)') // Blue, more opaque at top
-  gradient.addColorStop(1, 'rgba(59, 130, 246, 0.0)') // Transparent at bottom
-  return gradient
-}
 
 // Custom crosshair plugin
 const crosshairPlugin = {
@@ -74,75 +59,47 @@ const crosshairPlugin = {
 }
 
 const chartData = computed(() => {
-  if (!props.userHealthWeight || props.userHealthWeight.length === 0) {
+  if (!props.userHealthSleep || props.userHealthSleep.length === 0) {
     return {
       datasets: [],
       labels: []
     }
   }
 
-  // Sort health weight by date
-  const sortedWeight = [...props.userHealthWeight].sort((a, b) => {
+  // Sort health sleep by date
+  const sortedSleep = [...props.userHealthSleep].sort((a, b) => {
     return new Date(a.date) - new Date(b.date)
   })
 
   const data = []
   const labels = []
   
-  for (const HealthWeight of sortedWeight) {
-    if (Number(authStore?.user?.units) === 1) {
-      data.push(HealthWeight.weight)
-    } else {
-      data.push(kgToLbs(HealthWeight.weight))
-    }
+  for (const healthSleep of sortedSleep) {
+    data.push(healthSleep.total_sleep_seconds)
 
-    const createdAt = new Date(HealthWeight.date)
+    const createdAt = new Date(healthSleep.date)
     labels.push(
       `${createdAt.getDate()}/${createdAt.getMonth() + 1}/${createdAt.getFullYear()}`
     )
   }
-  
-  let label = ''
-  if (Number(authStore?.user?.units) === 1) {
-    label = t('generalItems.labelWeightInKg')
-  } else {
-    label = t('generalItems.labelWeightInLbs')
-  }
 
   const datasets = [
     {
-      label: label,
+      label: t('generalItems.labelSleep'),
       data: data,
-      backgroundColor: function (context) {
-        const chart = context.chart
-        const { ctx, chartArea } = chart
-        if (!chartArea) {
-          return 'rgba(59, 130, 246, 0.4)'
-        }
-        return createGradient(ctx, chartArea)
-      },
+      backgroundColor: 'rgba(59, 130, 246, 0.4)',
       borderColor: 'rgba(59, 130, 246, 0.8)', // Blue border
-      fill: true,
-      pointHoverRadius: 4,
-      pointHoverBackgroundColor: 'rgba(59, 130, 246, 0.8)'
+      borderWidth: 0,
+      borderRadius: 4
     }
   ]
 
-  // Add target line if weight target exists
-  if (props.userHealthTargets?.weight != null) {
-    const targetWeight =
-      Number(authStore?.user?.units) === 1
-        ? props.userHealthTargets.weight
-        : kgToLbs(props.userHealthTargets.weight)
-
-    const targetLabel =
-      Number(authStore?.user?.units) === 1
-        ? t('generalItems.labelWeightTargetInKg')
-        : t('generalItems.labelWeightTargetInLbs')
-
+  // Add target line if sleep target exists
+  if (props.userHealthTargets?.sleep != null) {
     datasets.push({
-      label: targetLabel,
-      data: Array(labels.length).fill(targetWeight),
+      label: t('generalItems.labelSleepTarget'),
+      data: Array(labels.length).fill(props.userHealthTargets.sleep),
+      type: 'line',
       borderColor: 'rgba(107, 114, 128, 0.9)',
       borderWidth: 2,
       borderDash: [5, 5],
@@ -171,7 +128,7 @@ watch(
 
 onMounted(() => {
   myChart = new Chart(chartCanvas.value.getContext('2d'), {
-    type: 'line',
+    type: 'bar',
     data: chartData.value,
     plugins: [crosshairPlugin],
     options: {
@@ -181,19 +138,15 @@ onMounted(() => {
         mode: 'index', // Show tooltip for all datasets at the same x position
         intersect: false // Don't require hovering exactly on a point
       },
-      elements: {
-        point: {
-          radius: 0, // Hide points by default (keeps line visible)
-          hitRadius: 10, // Large invisible hover area for easier interaction
-          hoverRadius: 4 // Show small point when hovering
-        },
-        line: {
-          tension: 0.4 // Smooth curves instead of straight lines (0 = angular, 0.4 = smooth)
-        }
-      },
       scales: {
         y: {
-          beginAtZero: false,
+          beginAtZero: true,
+          ticks: {
+            stepSize: 3600, // 1 hour in seconds
+            callback: function(value) {
+              return formatDurationHHmm(value)
+            }
+          },
           grid: {
             lineWidth: 1,
             drawBorder: true,
@@ -228,9 +181,8 @@ onMounted(() => {
               if (value === null || value === undefined) {
                 return `${label}: N/A`
               }
-
-              // Format weight with 1 decimal place
-              return `${label}: ${value.toFixed(1)}`
+              
+              return `${label}: ${formatDuration(value)}`
             }
           }
         },

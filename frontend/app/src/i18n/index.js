@@ -40,6 +40,7 @@ const componentPaths = {
   healthStepsListComponent: 'components/health/healthStepsZone/healthStepsListComponent.json',
   healthStepsAddEditModalComponent:
     'components/health/healthStepsZone/healthStepsAddEditModalComponent.json',
+  healthSleepZoneComponent: 'components/health/healthSleepZoneComponent.json',
   // Navbar components
   navbarBottomMobileComponent: 'components/navbar/navbarBottomMobileComponent.json',
   navbarComponent: 'components/navbar/navbarComponent.json',

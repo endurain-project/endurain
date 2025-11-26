@@ -1,5 +1,6 @@
 {
   "labelSteps": "steps",
+  "labelDate": "Date",
   "labelGarminConnect": "Garmin Connect",
   "modalDeleteStepsTitle": "Delete steps entry",
   "modalDeleteStepsBody": "Are you sure you want to delete steps entry for ",

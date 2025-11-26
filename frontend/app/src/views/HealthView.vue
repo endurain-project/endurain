@@ -48,6 +48,18 @@
       @setStepsTarget="setStepsTarget"
       v-if="activeSection === 'steps' && !isLoading"
     />
+
+    <!-- Include the HealthSleepZone -->
+    <HealthSleepZone
+      :userHealthSleep="userHealthSleep"
+      :userHealthSleepPagination="userHealthSleepPagination"
+      :userHealthTargets="userHealthTargets"
+      :isLoading="isLoading"
+      :totalPages="totalPagesSleep"
+      :pageNumber="pageNumberSleep"
+      @pageNumberChanged="setPageNumberSleep"
+      v-if="activeSection === 'sleep' && !isLoading"
+    />
   </div>
   <!-- back button -->
   <BackButtonComponent />
@@ -59,10 +71,12 @@ import { useI18n } from 'vue-i18n'
 import { push } from 'notivue'
 import HealthSideBarComponent from '../components/Health/HealthSideBarComponent.vue'
 import HealthDashboardZone from '../components/Health/HealthDashboardZoneComponent.vue'
-import HealthWeightZone from '../components/Health/HealthWeightZone.vue'
+import HealthSleepZone from '../components/Health/HealthSleepZone.vue'
 import HealthStepsZone from '../components/Health/HealthStepsZone.vue'
+import HealthWeightZone from '../components/Health/HealthWeightZone.vue'
 import BackButtonComponent from '@/components/GeneralComponents/BackButtonComponent.vue'
 import LoadingComponent from '@/components/GeneralComponents/LoadingComponent.vue'
+import { health_sleep } from '@/services/health_sleepService'
 import { health_weight } from '@/services/health_weightService'
 import { health_steps } from '@/services/health_stepsService'
 import { health_targets } from '@/services/health_targetsService'
@@ -72,20 +86,30 @@ const { t } = useI18n()
 const serverSettingsStore = useServerSettingsStore()
 const activeSection = ref('dashboard')
 const isLoading = ref(true)
+const numRecords = serverSettingsStore.serverSettings.num_records_per_page || 25
+// Sleep variables
+const isHealthSleepUpdatingLoading = ref(true)
+const userHealthSleepNumber = ref(0)
+const userHealthSleep = ref([])
+const userHealthSleepPagination = ref([])
+const pageNumberSleep = ref(1)
+const totalPagesSleep = ref(1)
+// Weight variables
 const isHealthWeightUpdatingLoading = ref(true)
-const isHealthStepsUpdatingLoading = ref(true)
 const userHealthWeightNumber = ref(0)
 const userHealthWeight = ref([])
 const userHealthWeightPagination = ref([])
+const pageNumberWeight = ref(1)
+const totalPagesWeight = ref(1)
+// Steps variables
+const isHealthStepsUpdatingLoading = ref(true)
 const userHealthStepsNumber = ref(0)
 const userHealthSteps = ref([])
 const userHealthStepsPagination = ref([])
-const userHealthTargets = ref(null)
-const pageNumberWeight = ref(1)
-const totalPagesWeight = ref(1)
 const pageNumberSteps = ref(1)
 const totalPagesSteps = ref(1)
-const numRecords = serverSettingsStore.serverSettings.num_records_per_page || 25
+// Targets variables
+const userHealthTargets = ref(null)
 
 function updateActiveSection(section) {
   activeSection.value = section
@@ -95,6 +119,35 @@ function updateActiveSection(section) {
     updateHealthWeight()
     updateHealthSteps()
   }
+}
+
+// Sleep functions
+async function updateHealthSleep() {
+  try {
+    isHealthSleepUpdatingLoading.value = true
+    userHealthSleepPagination.value = await health_sleep.getUserHealthSleepWithPagination(
+      pageNumberSleep.value,
+      numRecords
+    )
+    isHealthSleepUpdatingLoading.value = false
+  } catch (error) {
+    push.error(`${t('healthView.errorFetchingHealthSleep')} - ${error}`)
+  }
+}
+
+async function fetchHealthSleep() {
+  try {
+    userHealthSleepNumber.value = await health_sleep.getUserHealthSleepNumber()
+    userHealthSleep.value = await health_sleep.getUserHealthSleep()
+    await updateHealthSleep()
+    totalPagesSleep.value = Math.ceil(userHealthSleepNumber.value / numRecords)
+  } catch (error) {
+    push.error(`${t('healthView.errorFetchingHealthSleep')} - ${error}`)
+  }
+}
+
+function setPageNumberSleep(page) {
+  pageNumberSleep.value = page
 }
 
 // Weight functions
@@ -297,16 +350,18 @@ function setStepsTarget(stepsTarget) {
 }
 
 // Watch functions
-
-watch(pageNumberWeight, updateHealthWeight, { immediate: false })
+watch(pageNumberSleep, updateHealthSleep, { immediate: false })
 watch(pageNumberSteps, updateHealthSteps, { immediate: false })
+watch(pageNumberWeight, updateHealthWeight, { immediate: false })
 
 onMounted(async () => {
-  await fetchHealthWeight()
+  await fetchHealthSleep()
   await fetchHealthSteps()
+  await fetchHealthWeight()
   await fetchHealthTargets()
-  isHealthWeightUpdatingLoading.value = false
+  isHealthSleepUpdatingLoading.value = false
   isHealthStepsUpdatingLoading.value = false
+  isHealthWeightUpdatingLoading.value = false
   isLoading.value = false
 })
 </script>

@@ -50,6 +50,8 @@
   "labelWeightTargetInLbs": "Weight target in lbs",
   "labelSteps": "Steps",
   "labelStepsTarget": "Steps target",
+  "labelSleep": "Sleep",
+  "labelSleepTarget": "Sleep target",
   "unitsCalories": "kcal",
   "unitsBpm": "bpm",
   "labelHRinBpm": "Heart rate in bpm",

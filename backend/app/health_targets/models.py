@@ -30,6 +30,11 @@ class HealthTargets(Base):
         nullable=True,
         comment="Number of steps taken",
     )
+    sleep = Column(
+        Integer,
+        nullable=True,
+        comment="Number of hours slept in seconds",
+    )
 
     # Define a relationship to the User model
     user = relationship("User", back_populates="health_targets")

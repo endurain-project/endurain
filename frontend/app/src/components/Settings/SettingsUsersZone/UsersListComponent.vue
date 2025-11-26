@@ -1,5 +1,5 @@
 <template>
-  <li class="list-group-item bg-body-tertiary rounded px-0">
+  <li class="list-group-item bg-body-tertiary rounded px-0" :class="{ 'shadow rounded px-3 mb-3': userDetails }">
     <div class="d-flex justify-content-between">
       <div class="d-flex align-items-center">
         <UserAvatarComponent :user="user" :width="55" :height="55" />
@@ -231,7 +231,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, type Ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { users } from '@/services/usersService'
 import { useAuthStore } from '@/stores/authStore'

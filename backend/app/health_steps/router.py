@@ -1,8 +1,6 @@
-import logging
-
 from typing import Annotated, Callable
 
-from fastapi import APIRouter, Depends, UploadFile, Security, HTTPException, status
+from fastapi import APIRouter, Depends, Security
 from sqlalchemy.orm import Session
 
 import health_steps.schema as health_steps_schema

@@ -9,8 +9,8 @@
           <span v-else>{{ kgToLbs(data.weight) }} {{ $t('generalItems.unitsLbs') }}</span>
         </div>
         <span>
-          Date: {{ formatDateShort(data.date) }}
-          <span v-if="data.bmi"> | BMI: {{ data.bmi.toFixed(2) }}</span>
+          {{ $t('healthWeightListComponent.dateLabel') }}: {{ formatDateShort(data.date) }}
+          <span v-if="data.bmi"> | {{ $t('healthWeightListComponent.bmiLabel') }} {{ data.bmi.toFixed(2) }}</span>
         </span>
       </div>
     </div>

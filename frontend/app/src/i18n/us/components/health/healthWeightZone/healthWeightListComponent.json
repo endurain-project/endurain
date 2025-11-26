@@ -1,4 +1,6 @@
 {
+  "dateLabel": "Date",
+  "bmiLabel": "BMI",
   "labelGarminConnect": "Garmin Connect",
   "modalDeleteWeightTitle": "Delete weight",
   "modalDeleteWeightBody": "Are you sure you want to delete weight entry for ",

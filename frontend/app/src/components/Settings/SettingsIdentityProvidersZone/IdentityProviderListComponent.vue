@@ -1,5 +1,5 @@
 <template>
-  <li class="list-group-item bg-body-tertiary rounded px-0">
+  <li class="list-group-item bg-body-tertiary rounded px-0" :class="{ 'shadow rounded px-3 mb-3': providerDetails }">
     <div class="d-flex justify-content-between">
       <div class="d-flex align-items-center">
         <!-- Provider Icon/Logo -->

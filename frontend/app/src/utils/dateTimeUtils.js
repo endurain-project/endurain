@@ -67,6 +67,41 @@ export function formatSecondsToOnlyHours(totalSeconds) {
   return 0
 }
 
+/**
+ * Formats seconds into a human-readable duration string without seconds.
+ *
+ * @param {number} seconds - The total number of seconds to format.
+ * @returns {string} Formatted duration string (e.g., "2h 30m" or "45m").
+ */
+export function formatDuration(seconds) {
+  const hours = Math.floor(seconds / 3600)
+  const minutes = Math.floor((seconds % 3600) / 60)
+  if (hours > 0) {
+    return `${hours}h ${minutes}m`
+  }
+  return `${minutes}m`
+}
+
+/**
+ * Formats a duration in seconds to a HH:mm string format.
+ * 
+ * @param {number} seconds - The duration in seconds to format.
+ * @returns {string} The formatted duration as a string in HH:mm format (e.g., "02:30").
+ * 
+ * @example
+ * formatDurationHHmm(9000) // Returns "02:30"
+ * formatDurationHHmm(3661) // Returns "01:01"
+ */
+export function formatDurationHHmm(seconds) {
+  const hours = Math.floor(seconds / 3600)
+  const minutes = Math.floor((seconds % 3600) / 60)
+
+  const formattedHours = String(hours).padStart(2, '0')
+  const formattedMinutes = String(minutes).padStart(2, '0')
+
+  return `${formattedHours}:${formattedMinutes}`
+}
+
 export function getWeekStartDate(date, firstDayOfWeek = 0) {
   const dt = DateTime.fromJSDate(date, { zone: 'utc' })
 

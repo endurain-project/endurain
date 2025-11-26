@@ -37,10 +37,13 @@
               }}{{ $t('settingsIdentityProvidersZone.labelNumberOfProviders2') }}</span
             >
             <!-- List Zone -->
-            <ul class="list-group list-group-flush">
+            <ul
+              class="list-group list-group-flush"
+              v-for="provider in providers"
+              :key="provider.id"
+              :provider="provider"
+            >
               <IdentityProviderListComponent
-                v-for="provider in providers"
-                :key="provider.id"
                 :provider="provider"
                 :templates="templates"
                 @providerDeleted="handleProviderDeleted"

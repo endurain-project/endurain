@@ -9,6 +9,86 @@ import health_sleep.models as health_sleep_models
 import core.logger as core_logger
 
 
+def get_health_sleep_number(user_id: int, db: Session):
+    try:
+        # Get the number of health_sleep from the database
+        return (
+            db.query(health_sleep_models.HealthSleep)
+            .filter(health_sleep_models.HealthSleep.user_id == user_id)
+            .count()
+        )
+    except Exception as err:
+        # Log the exception
+        core_logger.print_to_log(
+            f"Error in get_health_sleep_number: {err}", "error", exc=err
+        )
+        # Raise an HTTPException with a 500 Internal Server Error status code
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal Server Error",
+        ) from err
+
+
+def get_all_health_sleep_by_user_id(user_id: int, db: Session):
+    try:
+        # Get the health_sleep from the database
+        health_sleep = (
+            db.query(health_sleep_models.HealthSleep)
+            .filter(health_sleep_models.HealthSleep.user_id == user_id)
+            .order_by(desc(health_sleep_models.HealthSleep.date))
+            .all()
+        )
+
+        # Check if there are health_sleep if not return None
+        if not health_sleep:
+            return None
+
+        # Return the health_sleep
+        return health_sleep
+    except Exception as err:
+        # Log the exception
+        core_logger.print_to_log(
+            f"Error in get_all_health_sleep_by_user_id: {err}", "error", exc=err
+        )
+        # Raise an HTTPException with a 500 Internal Server Error status code
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal Server Error",
+        ) from err
+
+
+def get_health_sleep_with_pagination(
+    user_id: int, db: Session, page_number: int = 1, num_records: int = 5
+):
+    try:
+        # Get the health_sleep from the database
+        health_sleep = (
+            db.query(health_sleep_models.HealthSleep)
+            .filter(health_sleep_models.HealthSleep.user_id == user_id)
+            .order_by(desc(health_sleep_models.HealthSleep.date))
+            .offset((page_number - 1) * num_records)
+            .limit(num_records)
+            .all()
+        )
+
+        # Check if there are health_sleep if not return None
+        if not health_sleep:
+            return None
+
+        # Return the health_sleep
+        return health_sleep
+    except Exception as err:
+        # Log the exception
+        core_logger.print_to_log(
+            f"Error in get_health_sleep_with_pagination: {err}", "error", exc=err
+        )
+        # Raise an HTTPException with a 500 Internal Server Error status code
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal Server Error",
+        ) from err
+
+
 def get_health_sleep_by_date(user_id: int, date: str, db: Session):
     try:
         # Get the health_sleep from the database

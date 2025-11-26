@@ -2,7 +2,7 @@
   <div class="col">
     <LoadingComponent v-if="isLoading" />
     <div v-else>
-      <!-- add weight button -->
+      <!-- add steps button -->
       <div class="d-flex">
         <a
           class="w-100 btn btn-primary shadow-sm me-1"
@@ -38,13 +38,13 @@
         @numberToEmitAction="submitSetStepsTarget"
       />
 
-      <!-- Checking if dataWithSteps is loaded and has length -->
+      <!-- Checking if userHealthSteps is loaded and has length -->
       <div
-        v-if="dataWithSteps && dataWithSteps.length"
+        v-if="userHealthSteps && userHealthSteps.length"
         class="mt-3 p-3 bg-body-tertiary rounded shadow-sm"
       >
         <!-- show graph -->
-        <HealthStepsBarChartComponent :userHealthTargets="userHealthTargets":userHealthSteps="dataWithSteps" :isLoading="isLoading" />
+        <HealthStepsBarChartComponent :userHealthTargets="userHealthTargets":userHealthSteps="userHealthSteps" :isLoading="isLoading" />
 
         <br />
         <p>
@@ -65,7 +65,7 @@
         <!-- list zone -->
         <ul
           class="my-3 list-group list-group-flush"
-          v-for="data in dataWithStepsPagination"
+          v-for="data in userHealthStepsPagination"
           :key="data.id"
           :data="data"
         >
@@ -93,7 +93,7 @@
 </template>
 
 <script setup>
-import { ref, watchEffect, onMounted } from 'vue'
+import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import HealthStepsAddEditModalComponent from './HealthStepsZone/HealthStepsAddEditModalComponent.vue'
 import HealthStepsBarChartComponent from './HealthStepsZone/HealthStepsBarChartComponent.vue'
@@ -133,28 +133,7 @@ const props = defineProps({
 const emit = defineEmits(['createdSteps', 'deletedSteps', 'editedSteps', 'pageNumberChanged', 'setStepsTarget'])
 
 const { t } = useI18n()
-const dataWithSteps = ref([])
-const dataWithStepsPagination = ref([])
 const isLoadingNewSteps = ref(false)
-
-function updatedDataWithStepsArray() {
-  dataWithStepsPagination.value = []
-  dataWithSteps.value = []
-  if (props.userHealthStepsPagination) {
-    for (const data of props.userHealthStepsPagination) {
-      if (data.steps) {
-        dataWithStepsPagination.value.push(data)
-      }
-    }
-  }
-  if (props.userHealthSteps) {
-    for (const data of props.userHealthSteps) {
-      if (data.steps) {
-        dataWithSteps.value.push(data)
-      }
-    }
-  }
-}
 
 function updateIsLoadingNewSteps(isLoadingNewStepsNewValue) {
   isLoadingNewSteps.value = isLoadingNewStepsNewValue
@@ -179,14 +158,4 @@ function setPageNumber(page) {
 function submitSetStepsTarget(stepsTarget) {
   emit('setStepsTarget', stepsTarget)
 }
-
-watchEffect(() => {
-  if (props.userHealthStepsPagination) {
-    updatedDataWithStepsArray()
-  }
-})
-
-onMounted(() => {
-  updatedDataWithStepsArray()
-})
 </script>

@@ -7,7 +7,7 @@
           >
         </div>
         <span>
-          Date: {{ formatDateShort(data.date) }}
+          {{ $t('healthStepsListComponent.labelDate') }}: {{ formatDateShort(data.date) }}
         </span>
       </div>
     </div>
