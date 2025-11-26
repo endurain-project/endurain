@@ -147,9 +147,8 @@
       </div>
     </div>
     <div class="collapse" :id="`collapseUserDetails${user.id}`">
-      <br />
       <!-- Bootstrap Tabs Navigation -->
-      <ul class="nav nav-tabs" role="tablist">
+      <ul class="nav nav-tabs mt-3" role="tablist">
         <li class="nav-item" role="presentation">
           <button
             class="nav-link active link-body-emphasis link-underline-opacity-0 link-underline-opacity-100-hover"
@@ -269,8 +268,8 @@ const emit = defineEmits<{
 const { t } = useI18n()
 const authStore = useAuthStore()
 const userDetails = ref(false)
-const userSessions: Ref<any[]> = ref([])
-const userIdps: Ref<UserIdentityProviderEnriched[]> = ref([])
+const userSessions = ref([])
+const userIdps = ref([])
 const isLoadingSessions = ref(true)
 const isLoadingIdps = ref(false)
 const idpsLoaded = ref(false)

@@ -41,6 +41,8 @@ const componentPaths = {
   healthStepsAddEditModalComponent:
     'components/health/healthStepsZone/healthStepsAddEditModalComponent.json',
   healthSleepZoneComponent: 'components/health/healthSleepZoneComponent.json',
+  healthSleepListComponent: 'components/health/healthSleepZone/healthSleepListComponent.json',
+  healthSleepListTabsComponent: 'components/health/healthSleepZone/healthSleepListTabsComponent.json',
   // Navbar components
   navbarBottomMobileComponent: 'components/navbar/navbarBottomMobileComponent.json',
   navbarComponent: 'components/navbar/navbarComponent.json',

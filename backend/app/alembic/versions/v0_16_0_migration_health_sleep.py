@@ -210,6 +210,48 @@ def upgrade() -> None:
             nullable=True,
             comment="Source of the health sleep data",
         ),
+        sa.Column(
+            "hrv_status",
+            sa.String(length=50),
+            nullable=True,
+            comment="Heart rate variability status",
+        ),
+        sa.Column(
+            "resting_heart_rate",
+            sa.Integer(),
+            nullable=True,
+            comment="Resting heart rate during sleep",
+        ),
+        sa.Column(
+            "avg_skin_temp_deviation",
+            sa.DECIMAL(precision=10, scale=2),
+            nullable=True,
+            comment="Average skin temperature deviation during sleep in Celsius",
+        ),
+        sa.Column(
+            "awake_count_score",
+            sa.String(length=50),
+            nullable=True,
+            comment="Awake count score",
+        ),
+        sa.Column(
+            "rem_percentage_score",
+            sa.String(length=50),
+            nullable=True,
+            comment="REM sleep percentage score",
+        ),
+        sa.Column(
+            "deep_percentage_score",
+            sa.String(length=50),
+            nullable=True,
+            comment="Deep sleep percentage score",
+        ),
+        sa.Column(
+            "light_percentage_score",
+            sa.String(length=50),
+            nullable=True,
+            comment="Light sleep percentage score",
+        ),
         sa.ForeignKeyConstraint(["user_id"], ["users.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),
     )

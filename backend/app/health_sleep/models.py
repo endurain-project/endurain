@@ -174,6 +174,41 @@ class HealthSleep(Base):
         nullable=True,
         comment="Source of the health sleep data",
     )
+    hrv_status = Column(
+        String(50),
+        nullable=True,
+        comment="Heart rate variability status",
+    )
+    resting_heart_rate = Column(
+        Integer,
+        nullable=True,
+        comment="Resting heart rate during sleep",
+    )
+    avg_skin_temp_deviation = Column(
+        DECIMAL(precision=10, scale=2),
+        nullable=True,
+        comment="Average skin temperature deviation during sleep in Celsius",
+    )
+    awake_count_score = Column(
+        String(50),
+        nullable=True,
+        comment="Awake count score",
+    )
+    rem_percentage_score = Column(
+        String(50),
+        nullable=True,
+        comment="REM sleep percentage score",
+    )
+    deep_percentage_score = Column(
+        String(50),
+        nullable=True,
+        comment="Deep sleep percentage score",
+    )
+    light_percentage_score = Column(
+        String(50),
+        nullable=True,
+        comment="Light sleep percentage score",
+    )
 
     # Define a relationship to the User model
     user = relationship("User", back_populates="health_sleep")

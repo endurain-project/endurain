@@ -49,7 +49,7 @@
             :data="data.sleep_stages"
           />-->
           <HealthSleepListComponent
-            :data="data"
+            :userHealthSleep="data"
           />
         </ul>
 

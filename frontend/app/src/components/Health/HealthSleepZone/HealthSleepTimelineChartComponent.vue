@@ -13,7 +13,7 @@ import { formatTime, formatDuration } from '@/utils/dateTimeUtils'
 Chart.register(...registerables)
 
 const props = defineProps({
-  data: {
+  sleepStages: {
     type: Array,
     required: true
   },
@@ -57,12 +57,12 @@ const crosshairPlugin = {
 }
 
 function prepareChartData() {
-  if (!props.data || props.data.length === 0) {
+  if (!props.sleepStages || props.sleepStages.length === 0) {
     return { datasets: [] }
   }
 
   // Sort stages by time
-  const sortedStages = [...props.data].sort((a, b) => 
+  const sortedStages = [...props.sleepStages].sort((a, b) => 
     new Date(a.start_time_gmt) - new Date(b.start_time_gmt)
   )
 
@@ -105,7 +105,7 @@ function updateChart() {
   }
 }
 
-watch(() => props.data, () => {
+watch(() => props.sleepStages, () => {
   updateChart()
 }, { deep: true })
 

@@ -302,6 +302,19 @@ def fetch_and_process_sleep_by_dates(
             "totalDuration",
             {},
         )
+        awake_count_score = sleep_scores.get("awakeCount", {})
+        deep_percentage_score = sleep_scores.get(
+            "deepPercentage",
+            {},
+        )
+        light_percentage_score = sleep_scores.get(
+            "lightPercentage",
+            {},
+        )
+        rem_percentage_score = sleep_scores.get(
+            "remPercentage",
+            {},
+        )
 
         health_sleep = health_sleep_schema.HealthSleep(
             user_id=user_id,
@@ -335,6 +348,37 @@ def fetch_and_process_sleep_by_dates(
             garminconnect_sleep_id=str(sleep_dto.get("id")),
             sleep_stages=sleep_stages if sleep_stages else None,
             source=health_sleep_schema.Source.GARMIN,
+            hrv_status=(
+                health_sleep_schema.HRVStatus(garmin_sleep.get("hrvStatus"))
+                if garmin_sleep.get("hrvStatus")
+                else None
+            ),
+            resting_heart_rate=garmin_sleep.get("restingHeartRate"),
+            avg_skin_temp_deviation=garmin_sleep.get("avgSkinTempDeviationC"),
+            awake_count_score=(
+                health_sleep_schema.SleepScore(awake_count_score.get("qualifierKey"))
+                if awake_count_score
+                else None
+            ),
+            rem_percentage_score=(
+                health_sleep_schema.SleepScore(rem_percentage_score.get("qualifierKey"))
+                if rem_percentage_score
+                else None
+            ),
+            deep_percentage_score=(
+                health_sleep_schema.SleepScore(
+                    deep_percentage_score.get("qualifierKey")
+                )
+                if deep_percentage_score
+                else None
+            ),
+            light_percentage_score=(
+                health_sleep_schema.SleepScore(
+                    light_percentage_score.get("qualifierKey")
+                )
+                if light_percentage_score
+                else None
+            ),
         )
 
         health_sleep_db = health_sleep_crud.get_health_sleep_by_date(

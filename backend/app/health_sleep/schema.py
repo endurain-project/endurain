@@ -32,6 +32,45 @@ class SleepStageType(Enum):
     AWAKE = 3
 
 
+class HRVStatus(Enum):
+    """
+    Enum representing the status of Heart Rate Variability (HRV).
+
+    This enum defines the possible HRV status values that can be associated with
+    sleep or health data.
+
+    Attributes:
+        BALANCED: Indicates optimal HRV, suggesting good recovery and readiness.
+        UNBALANCED: Indicates HRV is outside the normal range, suggesting stress or incomplete recovery.
+        LOW: Indicates HRV is lower than normal, suggesting fatigue or increased stress.
+        POOR: Indicates significantly low HRV, suggesting poor recovery or health concerns.
+    """
+
+    BALANCED = "BALANCED"
+    UNBALANCED = "UNBALANCED"
+    LOW = "LOW"
+    POOR = "POOR"
+
+
+class SleepScore(Enum):
+    """
+    Enum representing sleep score categories.
+
+    This enum defines the possible sleep score categories based on sleep quality.
+
+    Attributes:
+        EXCELLENT: Indicates excellent sleep quality 90-100.
+        GOOD: Indicates good sleep quality ~70-89.
+        FAIR: Indicates fair sleep quality ~50-69.
+        POOR: Indicates poor sleep quality <50.
+    """
+
+    EXCELLENT = "EXCELLENT"
+    GOOD = "GOOD"
+    FAIR = "FAIR"
+    POOR = "POOR"
+
+
 class HealthSleepStage(BaseModel):
     """
     Represents individual sleep stage interval.
@@ -93,8 +132,9 @@ class HealthSleep(BaseModel):
         garminconnect_sleep_id: External Garmin Connect sleep ID.
         sleep_stages: List of sleep stage intervals as JSON.
         source: Data source of the sleep session.
-        created_at: Timestamp when record was created.
-        updated_at: Timestamp when record was last updated.
+        hrvStatus: Heart rate variability status.
+        resting_heart_rate: Resting heart rate during sleep.
+        avgSkinTempDeviation: Average skin temperature deviation during sleep.
     """
 
     id: int | None = None
@@ -124,11 +164,18 @@ class HealthSleep(BaseModel):
     awake_count: int | None = None
     restless_moments_count: int | None = None
     sleep_score_overall: int | None = None
-    sleep_score_duration: str | None = None
-    sleep_score_quality: str | None = None
+    sleep_score_duration: SleepScore | None = None
+    sleep_score_quality: SleepScore | None = None
     garminconnect_sleep_id: str | None = None
     sleep_stages: list[HealthSleepStage] | None = None
     source: Source | None = None
+    hrv_status: HRVStatus | None = None
+    resting_heart_rate: int | None = None
+    avg_skin_temp_deviation: Decimal | None = None
+    awake_count_score: SleepScore | None = None
+    rem_percentage_score: SleepScore | None = None
+    deep_percentage_score: SleepScore | None = None
+    light_percentage_score: SleepScore | None = None
 
     model_config = ConfigDict(
         from_attributes=True,

@@ -4,10 +4,10 @@
       <div class="d-flex align-items-center">
         <div>
           <div class="fw-bold">
-            <span>{{ formatDuration(data.total_sleep_seconds) }}</span>
+            <span>{{ formatDuration(userHealthSleep.total_sleep_seconds) }}</span>
           </div>
           <span>
-            {{ $t('healthStepsListComponent.labelDate') }}: {{ formatDateShort(data.date) }}
+            {{ $t('healthSleepListComponent.labelDate') }}: {{ formatDateShort(userHealthSleep.date) }}
           </span>
         </div>
       </div>
@@ -16,10 +16,10 @@
         <a
           class="btn btn-link btn-lg link-body-emphasis"
           data-bs-toggle="collapse"
-          :href="`#collapseSleepDetails${data.id}`"
+          :href="`#collapseSleepDetails${userHealthSleep.id}`"
           role="button"
           aria-expanded="false"
-          :aria-controls="`collapseSleepDetails${data.id}`"
+          :aria-controls="`collapseSleepDetails${userHealthSleep.id}`"
         >
           <font-awesome-icon :icon="['fas', 'caret-down']" v-if="!sleepDetails" />
           <font-awesome-icon :icon="['fas', 'caret-up']" v-else />
@@ -27,7 +27,7 @@
         <!-- source logo -->
         <span
           class="align-middle me-3 d-none d-sm-inline"
-          v-if="data.source === 'garmin'"
+          v-if="userHealthSleep.source === 'garmin'"
         >
           <img
             :src="INTEGRATION_LOGOS.garminConnectApp"
@@ -37,21 +37,10 @@
         </span>
       </div>
     </div>
-    <div class="collapse" :id="`collapseSleepDetails${data.id}`">
-      <div class="row">
-        <div class="col">
-          <p>Overall</p>
-          <p>Score: {{ data.sleep_score_overall }}</p>
-          <p>Quality: {{ data.sleep_score_quality }}</p>
-          <p>Duration: {{ formatDuration(data.total_sleep_seconds) }}</p>
-        </div>
-        <div class="col">
-          <p>Stats</p>
-
-        </div>
-      </div>
+    <div class="collapse" :id="`collapseSleepDetails${userHealthSleep.id}`">
+      <HealthSleepListTabsComponent :userHealthSleep="userHealthSleep" />
       <HealthSleepTimelineChartComponent
-        :data="data.sleep_stages"
+        :sleepStages="userHealthSleep.sleep_stages"
       />
     </div>
   </li>
@@ -59,24 +48,25 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
+import HealthSleepListTabsComponent from './HealthSleepListTabsComponent.vue'
 import HealthSleepTimelineChartComponent from './HealthSleepTimelineChartComponent.vue'
 // Import constants
 import { INTEGRATION_LOGOS } from '@/constants/integrationLogoConstants'
 import { formatDuration, formatDateShort } from '@/utils/dateTimeUtils'
 
 const props = defineProps({
-  data: {
+  userHealthSleep: {
     type: Object,
     required: true
   }
 })
 
 const sleepDetails = ref(false)
-console.log(props.data)
+console.log(props.userHealthSleep)
 
 onMounted(async () => {
   // Attach Bootstrap collapse event listeners to sync icon state
-  const collapseElement = document.getElementById(`collapseSleepDetails${props.data.id}`)
+  const collapseElement = document.getElementById(`collapseSleepDetails${props.userHealthSleep.id}`)
   if (collapseElement) {
     collapseElement.addEventListener('show.bs.collapse', () => {
       sleepDetails.value = true
