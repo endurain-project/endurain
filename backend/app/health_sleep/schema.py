@@ -176,6 +176,8 @@ class HealthSleep(BaseModel):
     rem_percentage_score: SleepScore | None = None
     deep_percentage_score: SleepScore | None = None
     light_percentage_score: SleepScore | None = None
+    avg_sleep_stress: Decimal | None = None
+    sleep_stress_score: SleepScore | None = None
 
     model_config = ConfigDict(
         from_attributes=True,

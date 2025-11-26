@@ -252,6 +252,18 @@ def upgrade() -> None:
             nullable=True,
             comment="Light sleep percentage score",
         ),
+        sa.Column(
+            "avg_sleep_stress",
+            sa.DECIMAL(precision=10, scale=2),
+            nullable=True,
+            comment="Average sleep stress level",
+        ),
+        sa.Column(
+            "sleep_stress_score",
+            sa.String(length=50),
+            nullable=True,
+            comment="Sleep stress score",
+        ),
         sa.ForeignKeyConstraint(["user_id"], ["users.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),
     )

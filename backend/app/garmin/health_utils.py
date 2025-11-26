@@ -315,6 +315,7 @@ def fetch_and_process_sleep_by_dates(
             "remPercentage",
             {},
         )
+        sleep_stress_score = sleep_scores.get("stress", {})
 
         health_sleep = health_sleep_schema.HealthSleep(
             user_id=user_id,
@@ -377,6 +378,12 @@ def fetch_and_process_sleep_by_dates(
                     light_percentage_score.get("qualifierKey")
                 )
                 if light_percentage_score
+                else None
+            ),
+            avg_sleep_stress=sleep_dto.get("avgSleepStress"),
+            sleep_stress_score=(
+                health_sleep_schema.SleepScore(sleep_stress_score.get("qualifierKey"))
+                if sleep_stress_score
                 else None
             ),
         )

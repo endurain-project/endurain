@@ -209,6 +209,16 @@ class HealthSleep(Base):
         nullable=True,
         comment="Light sleep percentage score",
     )
+    avg_sleep_stress = Column(
+        DECIMAL(precision=10, scale=2),
+        nullable=True,
+        comment="Average sleep stress level",
+    )
+    sleep_stress_score = Column(
+        String(50),
+        nullable=True,
+        comment="Sleep stress score",
+    )
 
     # Define a relationship to the User model
     user = relationship("User", back_populates="health_sleep")
