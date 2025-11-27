@@ -67,6 +67,17 @@ export function formatSecondsToOnlyHours(totalSeconds) {
   return 0
 }
 
+export function returnHoursMinutesFromSeconds(totalSeconds) {
+  const hours = Math.floor(totalSeconds / 3600)
+  const minutes = Math.floor((totalSeconds % 3600) / 60)
+
+  return { hours, minutes }
+}
+
+export function returnSecondsFromHoursMinutes(hours, minutes) {
+  return hours * 3600 + minutes * 60
+}
+
 /**
  * Formats seconds into a human-readable duration string without seconds.
  *

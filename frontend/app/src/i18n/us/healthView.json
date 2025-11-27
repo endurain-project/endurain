@@ -7,5 +7,7 @@
   "successUpdatingWeightTarget": "Successfully updated weight target",
   "errorUpdatingWeightTarget": "Error updating weight target",
   "successUpdatingStepsTarget": "Successfully updated steps target",
-  "errorUpdatingStepsTarget": "Error updating steps target"
+  "errorUpdatingStepsTarget": "Error updating steps target",
+  "successUpdatingSleepTarget": "Successfully updated sleep target",
+  "errorUpdatingSleepTarget": "Error updating sleep target"
 }

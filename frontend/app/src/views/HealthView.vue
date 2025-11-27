@@ -58,6 +58,7 @@
       :totalPages="totalPagesSleep"
       :pageNumber="pageNumberSleep"
       @pageNumberChanged="setPageNumberSleep"
+      @setSleepTarget="setSleepTarget"
       v-if="activeSection === 'sleep' && !isLoading"
     />
   </div>
@@ -322,7 +323,6 @@ function setWeightTarget(weightTarget) {
     id: userHealthTargets.value.id,
     user_id: userHealthTargets.value.user_id,
     weight: weightTarget,
-    steps: userHealthTargets.value.steps,
   }
   try {
     health_targets.setUserHealthTargets(data)
@@ -337,7 +337,6 @@ function setStepsTarget(stepsTarget) {
   const data = {
     id: userHealthTargets.value.id,
     user_id: userHealthTargets.value.user_id,
-    weight: userHealthTargets.value.weight,
     steps: stepsTarget,
   }
   try {
@@ -346,6 +345,21 @@ function setStepsTarget(stepsTarget) {
     push.success(t('healthView.successUpdatingStepsTarget'))
   } catch (error) {
     push.error(`${t('healthView.errorUpdatingStepsTarget')} - ${error}`)
+  }
+}
+
+function setSleepTarget(sleepTarget) {
+  const data = {
+    id: userHealthTargets.value.id,
+    user_id: userHealthTargets.value.user_id,
+    sleep: sleepTarget,
+  }
+  try {
+    health_targets.setUserHealthTargets(data)
+    userHealthTargets.value.sleep = sleepTarget
+    push.success(t('healthView.successUpdatingSleepTarget'))
+  } catch (error) {
+    push.error(`${t('healthView.errorUpdatingSleepTarget')} - ${error}`)
   }
 }
 

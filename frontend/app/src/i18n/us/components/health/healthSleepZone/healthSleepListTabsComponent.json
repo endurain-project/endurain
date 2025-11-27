@@ -1,4 +1,14 @@
 {
     "sleepScoreLabel": "Sleep score",
-    "sleepDetailsLabel": "Sleep details"
+    "sleepDetailsLabel": "Sleep details",
+    "scoreLabel": "Score",
+    "qualityLabel": "Quality",
+    "durationLabel": "Duration",
+    "balancedLabel": "Balanced",
+    "unbalancedLabel": "Unbalanced",
+    "lowLabel": "Low",
+    "poorLabel": "Poor",
+    "excellentLabel": "Excellent",
+    "goodLabel": "Good",
+    "fairLabel": "Fair"
 }

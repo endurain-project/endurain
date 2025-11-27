@@ -12,7 +12,32 @@
           data-bs-target="#addSleepModal"
           >{{ t('healthSleepZoneComponent.buttonAddSleep') }}</a
         >
+        <a
+          class="w-100 btn btn-primary shadow-sm ms-1"
+          href="#"
+          role="button"
+          data-bs-toggle="modal"
+          data-bs-target="#addSleepTargetModal"
+          >{{ $t('healthSleepZoneComponent.buttonSleepTarget') }}</a
+        >
       </div>
+
+      <!--<HealthStepsAddEditModalComponent
+        :action="'add'"
+        @isLoadingNewSteps="updateIsLoadingNewSteps"
+        @createdSteps="updateStepsListAdded"
+      />-->
+
+      <ModalComponentHoursMinutesInput 
+        modalId="addSleepTargetModal" 
+        :title="t('healthSleepZoneComponent.buttonSleepTarget')" 
+        :hoursFieldLabel="t('healthSleepZoneComponent.modalSleepTargetHoursLabel')"
+        :minutesFieldLabel="t('healthSleepZoneComponent.modalSleepTargetMinutesLabel')"
+        actionButtonType="success"
+        :actionButtonText="t('generalItems.buttonSubmit')"
+        :secondsDefaultValue="props.userHealthTargets?.sleep || 28800"
+        @fieldsToEmitAction="submitSetSleepTarget"
+      />
 
       <!-- Checking if userHealthSleepPagination is loaded and has length -->
       <div
@@ -73,6 +98,7 @@
 import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import ModalComponentHoursMinutesInput from '../Modals/ModalComponentHoursMinutesInput.vue'
 import HealthSleepBarChartComponent from './HealthSleepZone/HealthSleepBarChartComponent.vue'
 import HealthSleepListComponent from './HealthSleepZone/HealthSleepListComponent.vue'
 import HealthSleepTimelineChartComponent from './HealthSleepZone/HealthSleepTimelineChartComponent.vue'
@@ -107,8 +133,6 @@ const props = defineProps({
   }
 })
 
-console.log(props.userHealthSleep)
-
 const emit = defineEmits(['pageNumberChanged'])
 
 const { t } = useI18n()
@@ -116,5 +140,9 @@ const isLoadingNewSleep = ref(false)
 
 function setPageNumber(page) {
   emit('pageNumberChanged', page)
+}
+
+function submitSetSleepTarget(sleepTarget) {
+  emit('setSleepTarget', sleepTarget)
 }
 </script>

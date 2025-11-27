@@ -42,10 +42,12 @@
     >
       <div class="row">
         <div class="col">
-          <p>Score: {{ userHealthSleep.sleep_score_overall }}</p>
-          <p>Quality: {{ userHealthSleep.sleep_score_quality }}</p>
-          <p>Duration: {{ userHealthSleep.sleep_score_duration }}</p>
-          <p>Duration: {{ formatDuration(userHealthSleep.total_sleep_seconds) }}</p>
+          <p v-if="userHealthSleep.sleep_score_overall">{{ $t('healthSleepListTabsComponent.scoreLabel') }}: {{ userHealthSleep.sleep_score_overall }}</p>
+          <p v-if="userHealthSleep.sleep_score_quality">{{ $t('healthSleepListTabsComponent.qualityLabel') }}: {{ userHealthSleep.sleep_score_quality }}</p>
+          <p v-if="userHealthSleep.sleep_score_duration">{{ $t('healthSleepListTabsComponent.durationLabel') }}: {{ $t(getScoreStatusI18nKey(userHealthSleep.sleep_score_duration)) }}</p>
+          <p v-if="userHealthSleep.hrv_status">
+            HRV Status: {{ $t(getHrvStatusI18nKey(userHealthSleep.hrv_status)) }}
+          </p>
         </div>
         <div class="col">
           <p>Deep: {{ formatDuration(userHealthSleep.deep_sleep_seconds) }}</p>
@@ -61,6 +63,7 @@
 
 <script setup>
 import { formatDuration, formatDateShort } from '@/utils/dateTimeUtils'
+import { getHrvStatusI18nKey, getScoreStatusI18nKey } from '@/utils/healthUtils'
 
 const props = defineProps({
   userHealthSleep: {
