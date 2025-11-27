@@ -1,4 +1,7 @@
 {
+  "sleep": "Today's sleep",
+  "restingHeartRate": "Resting heart rate",
+  "avgSkinTemperatureDeviation": "Skin temp. dev.",
   "weight": "Weight",
   "noWeightData": "No weight data",
   "noWeightTarget": "No weight target",

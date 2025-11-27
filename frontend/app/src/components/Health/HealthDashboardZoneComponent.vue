@@ -1,6 +1,59 @@
 <template>
   <div class="col">
     <div class="row">
+      <!-- Today's sleep -->
+      <div class="col-lg-4 col-md-12">
+        <div class="card mb-3 text-center shadow-sm">
+          <div class="card-header">
+            <h4>{{ $t('healthDashboardZoneComponent.sleep') }}</h4>
+          </div>
+          <div class="card-body">
+            <h1 v-if="todaySleep">{{ formatDuration(todaySleep) }}</h1>
+            <h1 v-else>{{ $t('generalItems.labelNoData') }}</h1>
+          </div>
+          <div class="card-footer text-body-secondary">
+            <span v-if="userHealthTargets && userHealthTargets['sleep']">
+              <font-awesome-icon :icon="['fas', 'angle-down']" class="me-1"
+                v-if="todaySleep < userHealthTargets.sleep" />
+              <font-awesome-icon :icon="['fas', 'angle-up']" class="me-1" v-else />
+              {{ formatDuration(userHealthTargets.sleep) }}
+            </span>
+            <span v-else>{{ $t('healthDashboardZoneComponent.noSleepTarget') }}</span>
+          </div>
+        </div>
+      </div>
+      <!-- resting heart rate -->
+      <div class="col-lg-4 col-md-12">
+        <div class="card mb-3 text-center shadow-sm">
+          <div class="card-header">
+            <h4>{{ $t('healthDashboardZoneComponent.restingHeartRate') }}</h4>
+          </div>
+          <div class="card-body">
+            <h1 v-if="restingHeartRate">{{ restingHeartRate }} {{ $t('generalItems.unitsBpm') }}</h1>
+            <h1 v-else>{{ $t('generalItems.labelNoData') }}</h1>
+          </div>
+          <div class="card-footer text-body-secondary">
+            <span v-if="hrvStatus">{{ $t(getHrvStatusI18nKey(hrvStatus)) }}</span>
+            <span v-else>{{ $t('generalItems.labelNoData') }}</span>
+          </div>
+        </div>
+      </div>
+      <!-- avg skin temperature deviation -->
+      <div class="col-lg-4 col-md-12">
+        <div class="card mb-3 text-center shadow-sm">
+          <div class="card-header">
+            <h4>{{ $t('healthDashboardZoneComponent.avgSkinTemperatureDeviation') }}</h4>
+          </div>
+          <div class="card-body">
+            <h1 v-if="avgSkinTempDeviation">{{ avgSkinTempDeviation }} {{ $t('generalItems.unitsCelsius') }}</h1>
+            <h1 v-else>{{ $t('generalItems.labelNoData') }}</h1>
+          </div>
+          <div class="card-footer text-body-secondary">
+            <span>{{ $t('generalItems.labelNoData') }}</span>
+          </div>
+        </div>
+      </div>
+      <!-- weight -->
       <div class="col-lg-4 col-md-12">
         <div class="card mb-3 text-center shadow-sm">
           <div class="card-header">
@@ -16,8 +69,9 @@
             <h1 v-else>{{ $t('generalItems.labelNotApplicable') }}</h1>
           </div>
           <div class="card-footer text-body-secondary">
-            <font-awesome-icon :icon="['fas', 'angle-down']" class="me-1" v-if="currentWeight > userHealthTargets.weight" />
-            <font-awesome-icon :icon="['fas', 'angle-up']" class="me-1" v-else/>
+            <font-awesome-icon :icon="['fas', 'angle-down']" class="me-1"
+              v-if="currentWeight > userHealthTargets.weight" />
+            <font-awesome-icon :icon="['fas', 'angle-up']" class="me-1" v-else />
             <span v-if="userHealthTargets && userHealthTargets['weight'] && Number(authStore?.user?.units) === 1">
               {{ userHealthTargets.weight }} {{ $t('generalItems.unitsKg') }}
             </span>
@@ -28,6 +82,7 @@
           </div>
         </div>
       </div>
+      <!-- BMI -->
       <div class="col-lg-4 col-md-12">
         <div class="card mb-3 text-center shadow-sm">
           <div class="card-header">
@@ -41,11 +96,12 @@
             <span v-if="currentBMI">{{ bmiDescription }}</span>
             <span v-else-if="!currentBMI && currentWeight">{{
               $t('healthDashboardZoneComponent.noHeightDefined')
-            }}</span>
+              }}</span>
             <span v-else>{{ $t('healthDashboardZoneComponent.noWeightData') }}</span>
           </div>
         </div>
       </div>
+      <!-- Today's steps -->
       <div class="col-lg-4 col-md-12">
         <div class="card mb-3 text-center shadow-sm">
           <div class="card-header">
@@ -57,8 +113,9 @@
           </div>
           <div class="card-footer text-body-secondary">
             <span v-if="userHealthTargets && userHealthTargets['steps']">
-              <font-awesome-icon :icon="['fas', 'angle-down']" class="me-1" v-if="todaySteps < userHealthTargets.steps" />
-              <font-awesome-icon :icon="['fas', 'angle-up']" class="me-1" v-else/>
+              <font-awesome-icon :icon="['fas', 'angle-down']" class="me-1"
+                v-if="todaySteps < userHealthTargets.steps" />
+              <font-awesome-icon :icon="['fas', 'angle-up']" class="me-1" v-else />
               {{ userHealthTargets.steps }} {{ $t('healthDashboardZoneComponent.stepsTargetLabel') }}
             </span>
             <span v-else>{{ $t('healthDashboardZoneComponent.noStepsTarget') }}</span>
@@ -75,6 +132,8 @@ import { useI18n } from 'vue-i18n'
 // Importing the stores
 import { useAuthStore } from '@/stores/authStore'
 import { kgToLbs } from '@/utils/unitsUtils'
+import { formatDuration } from '@/utils/dateTimeUtils'
+import { getHrvStatusI18nKey } from '@/utils/healthUtils'
 
 const props = defineProps({
   userHealthWeight: {
@@ -82,6 +141,10 @@ const props = defineProps({
     required: true
   },
   userHealthSteps: {
+    type: [Object, null],
+    required: true
+  },
+  userHealthSleep: {
     type: [Object, null],
     required: true
   },
@@ -97,6 +160,10 @@ const currentWeight = ref(null)
 const currentBMI = ref(null)
 const bmiDescription = ref(null)
 const todaySteps = ref(null)
+const todaySleep = ref(null)
+const restingHeartRate = ref(null)
+const hrvStatus = ref(null)
+const avgSkinTempDeviation = ref(null)
 
 onMounted(async () => {
   if (props.userHealthWeight) {
@@ -128,6 +195,17 @@ onMounted(async () => {
     for (const data of props.userHealthSteps) {
       if (data.steps) {
         todaySteps.value = data.steps
+        break
+      }
+    }
+  }
+  if (props.userHealthSleep) {
+    for (const data of props.userHealthSleep) {
+      if (data.total_sleep_seconds) {
+        todaySleep.value = data.total_sleep_seconds
+        restingHeartRate.value = data.resting_heart_rate
+        hrvStatus.value = data.hrv_status
+        avgSkinTempDeviation.value = data.avg_skin_temp_deviation
         break
       }
     }

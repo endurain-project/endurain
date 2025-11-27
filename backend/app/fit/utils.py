@@ -805,7 +805,7 @@ def parse_frame_session(frame):
         get_value_from_frame(frame, "normalized_power"),
         get_value_from_frame(frame, "enhanced_avg_speed"),
         get_value_from_frame(frame, "enhanced_max_speed"),
-        get_value_from_frame(frame, "workout_feeling"),
+        get_value_from_frame(frame, "workout_feel"),
         get_value_from_frame(frame, "workout_rpe"),
     )
 

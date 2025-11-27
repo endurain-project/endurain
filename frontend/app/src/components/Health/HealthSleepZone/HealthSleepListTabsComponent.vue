@@ -3,16 +3,17 @@
   <ul class="nav nav-tabs mt-3" role="tablist">
     <li class="nav-item" role="presentation">
       <button class="nav-link active link-body-emphasis link-underline-opacity-0 link-underline-opacity-100-hover"
-        :id="`sessions-tab-${userHealthSleep.id}`" data-bs-toggle="tab"
-        :data-bs-target="`#sessions-${userHealthSleep.id}`" type="button" role="tab"
-        :aria-controls="`sessions-${userHealthSleep.id}`" aria-selected="true">
+        :id="`sleep-score-tab-${userHealthSleep.id}`" data-bs-toggle="tab"
+        :data-bs-target="`#sleep-score-${userHealthSleep.id}`" type="button" role="tab"
+        :aria-controls="`sleep-score-${userHealthSleep.id}`" aria-selected="true">
         {{ $t('healthSleepListTabsComponent.sleepScoreLabel') }}
       </button>
     </li>
     <li class="nav-item" role="presentation">
       <button class="nav-link link-body-emphasis link-underline-opacity-0 link-underline-opacity-100-hover"
-        :id="`idps-tab-${userHealthSleep.id}`" data-bs-toggle="tab" :data-bs-target="`#idps-${userHealthSleep.id}`"
-        type="button" role="tab" :aria-controls="`idps-${userHealthSleep.id}`" aria-selected="false">
+        :id="`sleep-details-tab-${userHealthSleep.id}`" data-bs-toggle="tab"
+        :data-bs-target="`#sleep-details-${userHealthSleep.id}`" type="button" role="tab"
+        :aria-controls="`sleep-details-${userHealthSleep.id}`" aria-selected="false">
         {{ $t('healthSleepListTabsComponent.sleepDetailsLabel') }}
       </button>
     </li>
@@ -21,8 +22,8 @@
   <!-- Tab Content -->
   <div class="tab-content mt-3">
     <!-- Score tab -->
-    <div class="tab-pane fade show active" :id="`sessions-${userHealthSleep.id}`" role="tabpanel"
-      :aria-labelledby="`sessions-tab-${userHealthSleep.id}`">
+    <div class="tab-pane fade show active" :id="`sleep-score-${userHealthSleep.id}`" role="tabpanel"
+      :aria-labelledby="`sleep-score-tab-${userHealthSleep.id}`">
       <!-- Sleep summary -->
       <section class="pb-3 mb-3 border-bottom">
         <h6 class="fw-semibold mb-2">
@@ -30,32 +31,42 @@
         </h6>
         <div class="row">
           <div class="col-12 col-md-6">
-            <p v-if="userHealthSleep.sleep_score_overall" class="mb-1">
+            <!-- sleep_score_overall -->
+            <p class="mb-1">
               <span class="fw-semibold">
                 {{ $t('healthSleepListTabsComponent.scoreLabel') }}:
               </span>
-              {{ userHealthSleep.sleep_score_overall }}
+              <span v-if="userHealthSleep.sleep_score_overall">{{ userHealthSleep.sleep_score_overall }}</span>
+              <span v-else>{{ $t('generalItems.labelNoData') }}</span>
             </p>
-            <p v-if="userHealthSleep.sleep_score_quality" class="mb-1">
+            <!-- sleep_score_quality -->
+            <p class="mb-1">
               <span class="fw-semibold">
                 {{ $t('healthSleepListTabsComponent.qualityLabel') }}:
               </span>
-              {{ $t(getScoreStatusI18nKey(userHealthSleep.sleep_score_quality)) }}
+              <span v-if="userHealthSleep.sleep_score_quality">{{
+                $t(getScoreStatusI18nKey(userHealthSleep.sleep_score_quality)) }}</span>
+              <span v-else>{{ $t('generalItems.labelNoData') }}</span>
             </p>
           </div>
 
           <div class="col-12 col-md-6">
-            <p v-if="userHealthSleep.sleep_score_duration" class="mb-1">
+            <!-- sleep_score_duration-->
+            <p class="mb-1">
               <span class="fw-semibold">
                 {{ $t('healthSleepListTabsComponent.durationLabel') }}:
               </span>
-              {{ $t(getScoreStatusI18nKey(userHealthSleep.sleep_score_duration)) }}
+              <span v-if="userHealthSleep.sleep_score_duration">{{
+                $t(getScoreStatusI18nKey(userHealthSleep.sleep_score_duration)) }}</span>
+              <span v-else>{{ $t('generalItems.labelNoData') }}</span>
             </p>
-            <p v-if="userHealthSleep.hrv_status" class="mb-0">
+            <!-- hrv_status -->
+            <p class="mb-0">
               <span class="fw-semibold">
                 {{ $t('healthSleepListTabsComponent.HRVLabel') }}:
               </span>
-              {{ $t(getHrvStatusI18nKey(userHealthSleep.hrv_status)) }}
+              <span v-if="userHealthSleep.hrv_status">{{ $t(getHrvStatusI18nKey(userHealthSleep.hrv_status)) }}</span>
+              <span v-else>{{ $t('generalItems.labelNoData') }}</span>
             </p>
           </div>
         </div>
@@ -68,40 +79,228 @@
         </h6>
         <div class="row">
           <div class="col-12 col-md-6">
+            <!-- deep_sleep_seconds -->
             <p class="mb-1">
               <span class="fw-semibold">
                 {{ $t('healthSleepListTabsComponent.deepLabel') }}:
               </span>
-              {{ formatDuration(userHealthSleep.deep_sleep_seconds) }}
-              -
-              {{ $t(getScoreStatusI18nKey(userHealthSleep.deep_percentage_score)) }}
+              <span v-if="userHealthSleep.deep_sleep_seconds">
+                {{ formatDuration(userHealthSleep.deep_sleep_seconds) }}
+                -
+                {{ $t(getScoreStatusI18nKey(userHealthSleep.deep_percentage_score)) }}
+              </span>
+              <span v-else>{{ $t('generalItems.labelNoData') }}</span>
             </p>
+            <!-- rem_sleep_seconds-->
             <p class="mb-1">
               <span class="fw-semibold">
                 {{ $t('healthSleepListTabsComponent.REMLabel') }}:
               </span>
-              {{ formatDuration(userHealthSleep.rem_sleep_seconds) }}
-              -
-              {{ $t(getScoreStatusI18nKey(userHealthSleep.rem_percentage_score)) }}
+              <span v-if="userHealthSleep.rem_sleep_seconds">
+                {{ formatDuration(userHealthSleep.rem_sleep_seconds) }}
+                -
+                {{ $t(getScoreStatusI18nKey(userHealthSleep.rem_percentage_score)) }}
+              </span>
+              <span v-else>{{ $t('generalItems.labelNoData') }}</span>
             </p>
           </div>
 
           <div class="col-12 col-md-6">
+            <!-- light_sleep_seconds -->
             <p class="mb-1">
               <span class="fw-semibold">
                 {{ $t('healthSleepListTabsComponent.lightLabel') }}:
               </span>
-              {{ formatDuration(userHealthSleep.light_sleep_seconds) }}
-              -
-              {{ $t(getScoreStatusI18nKey(userHealthSleep.light_percentage_score)) }}
+              <span v-if="userHealthSleep.light_sleep_seconds">
+                {{ formatDuration(userHealthSleep.light_sleep_seconds) }}
+                -
+                {{ $t(getScoreStatusI18nKey(userHealthSleep.light_percentage_score)) }}
+              </span>
+              <span v-else>{{ $t('generalItems.labelNoData') }}</span>
             </p>
+            <!-- awake_sleep_seconds -->
             <p class="mb-1">
               <span class="fw-semibold">
                 {{ $t('healthSleepListTabsComponent.awakeLabel') }}:
               </span>
-              {{ formatDuration(userHealthSleep.awake_sleep_seconds) }}
-              -
-              {{ $t(getScoreStatusI18nKey(userHealthSleep.awake_count_score)) }}
+              <span v-if="userHealthSleep.awake_sleep_seconds">
+                {{ formatDuration(userHealthSleep.awake_sleep_seconds) }}
+                -
+                {{ $t(getScoreStatusI18nKey(userHealthSleep.awake_count_score)) }}
+              </span>
+              <span v-else>{{ $t('generalItems.labelNoData') }}</span>
+            </p>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- Sleep Details Tab -->
+    <div class="tab-pane fade" :id="`sleep-details-${userHealthSleep.id}`" role="tabpanel"
+      :aria-labelledby="`sleep-details-tab-${userHealthSleep.id}`">
+      <!-- Heart Rate -->
+      <section class="pb-3 mb-3 border-bottom">
+        <div class="row">
+          <div class="col-12 col-md-6">
+            <!-- resting_heart_rate -->
+            <p class="mb-1">
+              <span class="fw-semibold">
+                {{ $t('healthSleepListTabsComponent.restingHeartRateLabel') }}:
+              </span>
+              <span v-if="userHealthSleep.resting_heart_rate">
+                {{ Number(userHealthSleep.resting_heart_rate) }} {{ $t('generalItems.unitsBpm') }}
+              </span>
+              <span v-else>{{ $t('generalItems.labelNoData') }}</span>
+            </p>
+            <!-- avg_skin_temp_deviation -->
+            <p class="mb-1">
+              <span class="fw-semibold">
+                {{ $t('healthSleepListTabsComponent.avgSkinTempDeviationLabel') }}:
+              </span>
+              <span v-if="userHealthSleep.avg_skin_temp_deviation">
+                {{ parseFloat(userHealthSleep.avg_skin_temp_deviation) }} {{ $t('generalItems.unitsCelsius') }}
+              </span>
+              <span v-else>{{ $t('generalItems.labelNoData') }}</span>
+            </p>
+          </div>
+          <div class="col-12 col-md-6">
+            <!-- avg_sleep_stress -->
+            <p class="mb-1">
+              <span class="fw-semibold">
+                {{ $t('healthSleepListTabsComponent.avgSleepStressLabel') }}:
+              </span>
+              <span v-if="userHealthSleep.avg_sleep_stress">
+                {{ Number(userHealthSleep.avg_sleep_stress) }}
+              </span>
+              <span v-else>{{ $t('generalItems.labelNoData') }}</span>
+            </p>
+          </div>
+        </div>
+      </section>
+      <!-- Heart Rate -->
+      <section class="pb-3 mb-3 border-bottom">
+        <h6 class="fw-semibold mb-2">
+          {{ $t('healthSleepListTabsComponent.heartRateTitle') }}
+        </h6>
+        <div class="row">
+          <div class="col-12 col-md-6">
+            <!-- avg_heart_rate -->
+            <p class="mb-1">
+              <span class="fw-semibold">
+                {{ $t('healthSleepListTabsComponent.avgHeartRateLabel') }}:
+              </span>
+              <span v-if="userHealthSleep.avg_heart_rate">
+                {{ Number(userHealthSleep.avg_heart_rate) }} {{ $t('generalItems.unitsBpm') }}
+              </span>
+              <span v-else>{{ $t('generalItems.labelNoData') }}</span>
+            </p>
+            <!-- max_heart_rate -->
+            <p class="mb-1">
+              <span class="fw-semibold">
+                {{ $t('healthSleepListTabsComponent.maxHeartRateLabel') }}:
+              </span>
+              <span v-if="userHealthSleep.max_heart_rate">
+                {{ Number(userHealthSleep.max_heart_rate) }} {{ $t('generalItems.unitsBrpm') }}
+              </span>
+              <span v-else>{{ $t('generalItems.labelNoData') }}</span>
+            </p>
+          </div>
+          <div class="col-12 col-md-6">
+            <!-- min_heart_rate -->
+            <p class="mb-1">
+              <span class="fw-semibold">
+                {{ $t('healthSleepListTabsComponent.minHeartRateLabel') }}:
+              </span>
+              <span v-if="userHealthSleep.min_heart_rate">
+                {{ Number(userHealthSleep.min_heart_rate) }} {{ $t('generalItems.unitsBrpm') }}
+              </span>
+              <span v-else>{{ $t('generalItems.labelNoData') }}</span>
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- SpO2 -->
+      <section class="pb-3 mb-3 border-bottom">
+        <h6 class="fw-semibold mb-2">
+          {{ $t('healthSleepListTabsComponent.spo2Title') }}
+        </h6>
+        <div class="row">
+          <div class="col-12 col-md-6">
+            <!-- avg_spo2 -->
+            <p class="mb-1">
+              <span class="fw-semibold">
+                {{ $t('healthSleepListTabsComponent.avgSpo2Label') }}:
+              </span>
+              <span v-if="userHealthSleep.avg_spo2">
+                {{ Number(userHealthSleep.avg_spo2) }}%
+              </span>
+              <span v-else>{{ $t('generalItems.labelNoData') }}</span>
+            </p>
+            <!-- highest_spo2 -->
+            <p class="mb-1">
+              <span class="fw-semibold">
+                {{ $t('healthSleepListTabsComponent.maxSpo2Label') }}:
+              </span>
+              <span v-if="userHealthSleep.highest_spo2">
+                {{ Number(userHealthSleep.highest_spo2) }}%
+              </span>
+              <span v-else>{{ $t('generalItems.labelNoData') }}</span>
+            </p>
+          </div>
+          <div class="col-12 col-md-6">
+            <!-- lowest_spo2 -->
+            <p class="mb-1">
+              <span class="fw-semibold">
+                {{ $t('healthSleepListTabsComponent.minSpo2Label') }}:
+              </span>
+              <span v-if="userHealthSleep.lowest_spo2">
+                {{ Number(userHealthSleep.lowest_spo2) }}%
+              </span>
+              <span v-else>{{ $t('generalItems.labelNoData') }}</span>
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Respiratory Rate -->
+      <section class="pb-3 mb-3 border-bottom">
+        <h6 class="fw-semibold mb-2">
+          {{ $t('healthSleepListTabsComponent.respiratoryTitle') }}
+        </h6>
+        <div class="row">
+          <div class="col-12 col-md-6">
+            <!-- avg_respiration -->
+            <p class="mb-1">
+              <span class="fw-semibold">
+                {{ $t('healthSleepListTabsComponent.avgRespiratoryRateLabel') }}:
+              </span>
+              <span v-if="userHealthSleep.avg_respiration">
+                {{ Number(userHealthSleep.avg_respiration) }} {{ $t('generalItems.unitsBrpm') }}
+              </span>
+              <span v-else>{{ $t('generalItems.labelNoData') }}</span>
+            </p>
+            <!-- highest_respiration -->
+            <p class="mb-1">
+              <span class="fw-semibold">
+                {{ $t('healthSleepListTabsComponent.maxRespiratoryRateLabel') }}:
+              </span>
+              <span v-if="userHealthSleep.highest_respiration">
+                {{ Number(userHealthSleep.highest_respiration) }} {{ $t('generalItems.unitsBrpm') }}
+              </span>
+              <span v-else>{{ $t('generalItems.labelNoData') }}</span>
+            </p>
+          </div>
+          <div class="col-12 col-md-6">
+            <!-- lowest_respiration -->
+            <p class="mb-1">
+              <span class="fw-semibold">
+                {{ $t('healthSleepListTabsComponent.minRespiratoryRateLabel') }}:
+              </span>
+              <span v-if="userHealthSleep.lowest_respiration">
+                {{ Number(userHealthSleep.lowest_respiration) }} {{ $t('generalItems.unitsBrpm') }}
+              </span>
+              <span v-else>{{ $t('generalItems.labelNoData') }}</span>
             </p>
           </div>
         </div>
@@ -111,7 +310,7 @@
 </template>
 
 <script setup>
-import { formatDuration, formatDateShort } from '@/utils/dateTimeUtils'
+import { formatDuration } from '@/utils/dateTimeUtils'
 import { getHrvStatusI18nKey, getScoreStatusI18nKey } from '@/utils/healthUtils'
 
 const props = defineProps({

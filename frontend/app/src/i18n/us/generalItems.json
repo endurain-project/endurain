@@ -89,5 +89,8 @@
   "genderFemale": "Female",
   "genderUnspecified": "Unspecified",
   "labelAverage": "Average",
-  "labelMaximum": "Maximum"
+  "labelMaximum": "Maximum",
+  "unitsBrpm": "brpm",
+  "unitsCelsius": "°C",
+  "unitsFahrenheit": "°F"
 }
