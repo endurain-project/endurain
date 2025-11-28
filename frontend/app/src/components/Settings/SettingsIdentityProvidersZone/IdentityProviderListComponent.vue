@@ -4,11 +4,11 @@
       <div class="d-flex align-items-center">
         <!-- Provider Icon/Logo -->
         <div class="me-3">
-          <img
-            :src="getProviderCustomLogo(provider.icon)!"
-            :alt="`${provider.name} logo`"
+          <img :src="getProviderCustomLogo(provider.icon)!" :alt="`${provider.name} logo`"
             style="height: 55px; width: 55px; object-fit: contain"
-          />
+            v-if="provider.icon === 'authelia' || provider.icon === 'authentik' || provider.icon === 'casdoor' || provider.icon === 'keycloak'" />
+          <img :src="provider.icon" :alt="`${provider.name} logo`"
+            style="height: 55px; width: 55px; object-fit: contain" v-else />
         </div>
 
         <!-- Provider Info -->
@@ -30,71 +30,43 @@
 
       <div class="d-flex align-items-center">
         <!-- Status Badge -->
-        <span
-          v-if="provider.enabled"
+        <span v-if="provider.enabled"
           class="badge bg-success-subtle border border-success-subtle text-success-emphasis me-2 d-none d-sm-inline"
-          :aria-label="$t('settingsIdentityProvidersZone.enabledBadge')"
-          >{{ $t('settingsIdentityProvidersZone.enabledBadge') }}</span
-        >
-        <span
-          v-else
+          :aria-label="$t('settingsIdentityProvidersZone.enabledBadge')">{{
+            $t('settingsIdentityProvidersZone.enabledBadge') }}</span>
+        <span v-else
           class="badge bg-danger-subtle border border-danger-subtle text-danger-emphasis me-2 d-none d-sm-inline"
-          :aria-label="$t('settingsIdentityProvidersZone.disabledBadge')"
-          >{{ $t('settingsIdentityProvidersZone.disabledBadge') }}</span
-        >
+          :aria-label="$t('settingsIdentityProvidersZone.disabledBadge')">{{
+            $t('settingsIdentityProvidersZone.disabledBadge') }}</span>
 
         <!-- Toggle Collapse Details -->
-        <a
-          class="btn btn-link btn-lg link-body-emphasis"
-          data-bs-toggle="collapse"
-          :href="`#collapseProviderDetails${provider.id}`"
-          role="button"
-          aria-expanded="false"
-          :aria-controls="`collapseProviderDetails${provider.id}`"
-        >
+        <a class="btn btn-link btn-lg link-body-emphasis" data-bs-toggle="collapse"
+          :href="`#collapseProviderDetails${provider.id}`" role="button" aria-expanded="false"
+          :aria-controls="`collapseProviderDetails${provider.id}`">
           <font-awesome-icon :icon="['fas', 'caret-down']" v-if="!providerDetails" />
           <font-awesome-icon :icon="['fas', 'caret-up']" v-else />
         </a>
 
         <!-- Toggle Enable/Disable Button -->
-        <a
-          class="btn btn-link btn-lg link-body-emphasis"
-          href="#"
-          role="button"
-          @click.prevent="handleToggleProvider"
-          :aria-label="
-            provider.enabled
-              ? $t('settingsIdentityProvidersZone.disableButton')
-              : $t('settingsIdentityProvidersZone.enableButton')
-          "
-        >
-          <font-awesome-icon
-            :icon="provider.enabled ? ['fas', 'toggle-on'] : ['fas', 'toggle-off']"
-          />
+        <a class="btn btn-link btn-lg link-body-emphasis" href="#" role="button" @click.prevent="handleToggleProvider"
+          :aria-label="provider.enabled
+            ? $t('settingsIdentityProvidersZone.disableButton')
+            : $t('settingsIdentityProvidersZone.enableButton')
+            ">
+          <font-awesome-icon :icon="provider.enabled ? ['fas', 'toggle-on'] : ['fas', 'toggle-off']" />
         </a>
 
         <!-- Edit Button -->
-        <a
-          class="btn btn-link btn-lg link-body-emphasis"
-          href="#"
-          role="button"
-          data-bs-toggle="modal"
-          :data-bs-target="`#editIdentityProviderModal${provider.id}`"
-          @click="handleEditProvider"
-          :aria-label="$t('settingsIdentityProvidersZone.editButton')"
-        >
+        <a class="btn btn-link btn-lg link-body-emphasis" href="#" role="button" data-bs-toggle="modal"
+          :data-bs-target="`#editIdentityProviderModal${provider.id}`" @click="handleEditProvider"
+          :aria-label="$t('settingsIdentityProvidersZone.editButton')">
           <font-awesome-icon :icon="['fas', 'edit']" />
         </a>
 
         <!-- Delete Button -->
-        <a
-          class="btn btn-link btn-lg link-body-emphasis"
-          href="#"
-          role="button"
-          data-bs-toggle="modal"
+        <a class="btn btn-link btn-lg link-body-emphasis" href="#" role="button" data-bs-toggle="modal"
           :data-bs-target="`#deleteIdentityProviderModal${provider.id}`"
-          :aria-label="$t('settingsIdentityProvidersZone.deleteButton')"
-        >
+          :aria-label="$t('settingsIdentityProvidersZone.deleteButton')">
           <font-awesome-icon :icon="['fas', 'trash-can']" />
         </a>
       </div>
@@ -143,22 +115,14 @@
     </div>
 
     <!-- Edit Identity Provider Modal -->
-    <IdentityProvidersAddEditModalComponent
-      :action="'edit'"
-      :provider="provider"
-      :templates="templates"
-      @providerUpdated="handleProviderUpdated"
-    />
+    <IdentityProvidersAddEditModalComponent :action="'edit'" :provider="provider" :templates="templates"
+      @providerUpdated="handleProviderUpdated" />
 
     <!-- Delete Confirmation Modal -->
-    <ModalComponent
-      :modalId="`deleteIdentityProviderModal${provider.id}`"
+    <ModalComponent :modalId="`deleteIdentityProviderModal${provider.id}`"
       :title="$t('settingsIdentityProvidersZone.deleteModalTitle')"
-      :body="$t('settingsIdentityProvidersZone.deleteModalBody', { name: provider.name })"
-      actionButtonType="danger"
-      :actionButtonText="$t('settingsIdentityProvidersZone.deleteModalConfirm')"
-      @submitAction="handleDeleteProvider"
-    />
+      :body="$t('settingsIdentityProvidersZone.deleteModalBody', { name: provider.name })" actionButtonType="danger"
+      :actionButtonText="$t('settingsIdentityProvidersZone.deleteModalConfirm')" @submitAction="handleDeleteProvider" />
   </li>
 </template>
 
