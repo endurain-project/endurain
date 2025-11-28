@@ -1,7 +1,12 @@
 {
   "dateLabel": "Date",
-  "bmiLabel": "BMI",
   "labelGarminConnect": "Garmin Connect",
+  "detailsTitle": "Details",
+  "bmiLabel": "BMI",
+  "bodyFatLabel": "Body fat",
+  "bodyWaterLabel": "Body water",
+  "boneMassLabel": "Bone mass",
+  "muscleMassLabel": "Muscle mass",
   "modalDeleteWeightTitle": "Delete weight",
   "modalDeleteWeightBody": "Are you sure you want to delete weight entry for ",
   "successDeleteWeight": "Weight deleted",

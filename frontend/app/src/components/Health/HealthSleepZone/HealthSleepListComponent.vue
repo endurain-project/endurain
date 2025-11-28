@@ -52,7 +52,6 @@ const props = defineProps({
 })
 
 const sleepDetails = ref(false)
-console.log(props.userHealthSleep)
 
 onMounted(async () => {
   // Attach Bootstrap collapse event listeners to sync icon state

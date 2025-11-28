@@ -1,12 +1,7 @@
 <template>
   <!-- Modal add/edit weight -->
-  <div
-    class="modal fade"
-    :id="action == 'add' ? 'addWeightModal' : action == 'edit' ? editWeightId : ''"
-    tabindex="-1"
-    :aria-labelledby="action == 'add' ? 'addWeightModal' : action == 'edit' ? editWeightId : ''"
-    aria-hidden="true"
-  >
+  <div class="modal fade" :id="action == 'add' ? 'addWeightModal' : action == 'edit' ? editWeightId : ''" tabindex="-1"
+    :aria-labelledby="action == 'add' ? 'addWeightModal' : action == 'edit' ? editWeightId : ''" aria-hidden="true">
     <div class="modal-dialog">
       <div class="modal-content">
         <div class="modal-header">
@@ -16,42 +11,23 @@
           <h1 class="modal-title fs-5" :id="editWeightId" v-else>
             {{ $t('healthWeightAddEditModalComponent.editWeightModalTitle') }}
           </h1>
-          <button
-            type="button"
-            class="btn-close"
-            data-bs-dismiss="modal"
-            aria-label="Close"
-          ></button>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
         <form @submit.prevent="handleSubmit">
           <div class="modal-body">
             <!-- weight fields -->
-            <label for="weightWeightAdd"
-              ><b>* {{ $t('healthWeightAddEditModalComponent.addWeightWeightLabel') }}</b></label
-            >
+            <label for="weightWeightAdd"><b>* {{ $t('healthWeightAddEditModalComponent.addWeightWeightLabel')
+                }}</b></label>
             <div class="input-group">
-              <input
-                class="form-control"
-                type="number"
-                step="0.1"
-                name="weightWeightAdd"
-                v-model="newEditWeightWeight"
-                required
-              />
-              <span class="input-group-text" v-if="Number(authStore?.user?.units) === 1">{{ $t('generalItems.unitsKg') }}</span>
+              <input class="form-control" type="number" step="0.1" name="weightWeightAdd" v-model="newEditWeightWeight"
+                required />
+              <span class="input-group-text" v-if="Number(authStore?.user?.units) === 1">{{ $t('generalItems.unitsKg')
+                }}</span>
               <span class="input-group-text" v-else>{{ $t('generalItems.unitsLbs') }}</span>
             </div>
             <!-- date fields -->
-            <label for="weightDateAdd"
-              ><b>* {{ $t('healthWeightAddEditModalComponent.addWeightDateLabel') }}</b></label
-            >
-            <input
-              class="form-control"
-              type="date"
-              name="weightDateAdd"
-              v-model="newEditWeightDate"
-              required
-            />
+            <label for="weightDateAdd"><b>* {{ $t('healthWeightAddEditModalComponent.addWeightDateLabel') }}</b></label>
+            <input class="form-control" type="date" name="weightDateAdd" v-model="newEditWeightDate" required />
 
             <p>* {{ $t('generalItems.requiredField') }}</p>
           </div>
@@ -59,12 +35,7 @@
             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
               {{ $t('generalItems.buttonClose') }}
             </button>
-            <button
-              type="submit"
-              class="btn btn-success"
-              data-bs-dismiss="modal"
-              v-if="action == 'add'"
-            >
+            <button type="submit" class="btn btn-success" data-bs-dismiss="modal" v-if="action == 'add'">
               {{ $t('healthWeightAddEditModalComponent.addWeightModalTitle') }}
             </button>
             <button type="submit" class="btn btn-success" data-bs-dismiss="modal" v-else>
@@ -94,7 +65,7 @@ const props = defineProps({
     type: String,
     required: true
   },
-  data: {
+  userHealthWeight: {
     type: Object,
     required: false
   }
@@ -108,11 +79,11 @@ const newEditWeightWeight = ref(50)
 const newEditWeightDate = ref(new Date().toISOString().split('T')[0])
 const editWeightId = ref('')
 
-if (props.data) {
+if (props.userHealthWeight) {
   newEditWeightWeight.value =
-    Number(authStore?.user?.units) === 1 ? props.data.weight : kgToLbs(props.data.weight)
-  newEditWeightDate.value = props.data.date
-  editWeightId.value = `editWeightId${props.data.id}`
+    Number(authStore?.user?.units) === 1 ? props.userHealthWeight.weight : kgToLbs(props.userHealthWeight.weight)
+  newEditWeightDate.value = props.userHealthWeight.date
+  editWeightId.value = `editWeightId${props.userHealthWeight.id}`
 }
 
 async function submitAddWeight() {
@@ -147,8 +118,8 @@ async function submitAddWeight() {
 
 function submitEditWeight() {
   emit('editedWeight', {
-    id: props.data.id,
-    user_id: props.data.user_id,
+    id: props.userHealthWeight.id,
+    user_id: props.userHealthWeight.user_id,
     weight: newEditWeightWeight.value,
     date: newEditWeightDate.value
   })
