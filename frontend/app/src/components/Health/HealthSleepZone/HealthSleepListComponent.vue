@@ -31,7 +31,8 @@
       <h6 class="fw-semibold mb-2">
         {{ $t('healthSleepListComponent.sleepStagesTitle') }}
       </h6>
-      <HealthSleepTimelineChartComponent :sleepStages="userHealthSleep.sleep_stages" />
+      <HealthSleepTimelineChartComponent :sleepStages="userHealthSleep.sleep_stages"
+        v-if="userHealthSleep.sleep_stages" />
     </div>
   </li>
 </template>

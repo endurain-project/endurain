@@ -261,49 +261,47 @@ def fetch_and_process_sleep_by_dates(
         if "sleepLevels" in garmin_sleep and garmin_sleep["sleepLevels"]:
             for level in garmin_sleep["sleepLevels"]:
                 activity_level = level.get("activityLevel")
-                if (
-                    activity_level is not None
-                    and activity_level in health_sleep_schema.SleepStageType
-                ):
+
+                # Validate and convert activity_level to enum
+                try:
                     # Map Garmin activity levels to sleep stage types
                     # 0=deep, 1=light, 2=REM, 3=awake
-                    stage_type = (
-                        health_sleep_schema.SleepStageType(activity_level)
-                        if activity_level
-                        else None
-                    )
+                    stage_type = health_sleep_schema.SleepStageType(activity_level)
+                except (TypeError, ValueError):
+                    # Skip unknown or missing levels
+                    continue
 
-                    start_gmt_str = level.get("startGMT")
-                    end_gmt_str = level.get("endGMT")
+                start_gmt_str = level.get("startGMT")
+                end_gmt_str = level.get("endGMT")
 
-                    start_gmt = (
-                        datetime.strptime(
-                            start_gmt_str,
-                            "%Y-%m-%dT%H:%M:%S.%f",
-                        ).replace(tzinfo=timezone.utc)
-                        if start_gmt_str
-                        else None
-                    )
-                    end_gmt = (
-                        datetime.strptime(
-                            end_gmt_str,
-                            "%Y-%m-%dT%H:%M:%S.%f",
-                        ).replace(tzinfo=timezone.utc)
-                        if end_gmt_str
-                        else None
-                    )
+                start_gmt = (
+                    datetime.strptime(
+                        start_gmt_str,
+                        "%Y-%m-%dT%H:%M:%S.%f",
+                    ).replace(tzinfo=timezone.utc)
+                    if start_gmt_str
+                    else None
+                )
+                end_gmt = (
+                    datetime.strptime(
+                        end_gmt_str,
+                        "%Y-%m-%dT%H:%M:%S.%f",
+                    ).replace(tzinfo=timezone.utc)
+                    if end_gmt_str
+                    else None
+                )
 
-                    duration_seconds = None
-                    if start_gmt and end_gmt:
-                        duration_seconds = int((end_gmt - start_gmt).total_seconds())
+                duration_seconds = None
+                if start_gmt and end_gmt:
+                    duration_seconds = int((end_gmt - start_gmt).total_seconds())
 
-                    sleep_stage = health_sleep_schema.HealthSleepStage(
-                        stage_type=stage_type,
-                        start_time_gmt=start_gmt,
-                        end_time_gmt=end_gmt,
-                        duration_seconds=duration_seconds,
-                    )
-                    sleep_stages.append(sleep_stage)
+                sleep_stage = health_sleep_schema.HealthSleepStage(
+                    stage_type=stage_type,
+                    start_time_gmt=start_gmt,
+                    end_time_gmt=end_gmt,
+                    duration_seconds=duration_seconds,
+                )
+                sleep_stages.append(sleep_stage)
 
         # Extract sleep scores
         sleep_scores = sleep_dto.get("sleepScores", {})
@@ -362,7 +360,8 @@ def fetch_and_process_sleep_by_dates(
             hrv_status=(
                 health_sleep_schema.HRVStatus(garmin_sleep.get("hrvStatus"))
                 if garmin_sleep.get("hrvStatus")
-                and garmin_sleep.get("hrvStatus") in health_sleep_schema.HRVStatus
+                and garmin_sleep.get("hrvStatus")
+                in health_sleep_schema.HRVStatus._value2member_map_
                 else None
             ),
             resting_heart_rate=garmin_sleep.get("restingHeartRate"),
@@ -371,14 +370,14 @@ def fetch_and_process_sleep_by_dates(
                 health_sleep_schema.SleepScore(awake_count_score.get("qualifierKey"))
                 if awake_count_score
                 and awake_count_score.get("qualifierKey")
-                in health_sleep_schema.SleepScore
+                in health_sleep_schema.SleepScore._value2member_map_
                 else None
             ),
             rem_percentage_score=(
                 health_sleep_schema.SleepScore(rem_percentage_score.get("qualifierKey"))
                 if rem_percentage_score
                 and rem_percentage_score.get("qualifierKey")
-                in health_sleep_schema.SleepScore
+                in health_sleep_schema.SleepScore._value2member_map_
                 else None
             ),
             deep_percentage_score=(
@@ -387,7 +386,7 @@ def fetch_and_process_sleep_by_dates(
                 )
                 if deep_percentage_score
                 and deep_percentage_score.get("qualifierKey")
-                in health_sleep_schema.SleepScore
+                in health_sleep_schema.SleepScore._value2member_map_
                 else None
             ),
             light_percentage_score=(
@@ -396,7 +395,7 @@ def fetch_and_process_sleep_by_dates(
                 )
                 if light_percentage_score
                 and light_percentage_score.get("qualifierKey")
-                in health_sleep_schema.SleepScore
+                in health_sleep_schema.SleepScore._value2member_map_
                 else None
             ),
             avg_sleep_stress=sleep_dto.get("avgSleepStress"),
@@ -404,7 +403,7 @@ def fetch_and_process_sleep_by_dates(
                 health_sleep_schema.SleepScore(sleep_stress_score.get("qualifierKey"))
                 if sleep_stress_score
                 and sleep_stress_score.get("qualifierKey")
-                in health_sleep_schema.SleepScore
+                in health_sleep_schema.SleepScore._value2member_map_
                 else None
             ),
         )
