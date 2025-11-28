@@ -185,12 +185,22 @@ function updateWeightListEdited(editedWeight) {
     if (data.id === editedWeight.id) {
       data.weight = editedWeight.weight
       data.created_at = editedWeight.created_at
+      data.bmi = editedWeight.bmi
+      data.body_fat = editedWeight.body_fat
+      data.body_water = editedWeight.body_water
+      data.bone_mass = editedWeight.bone_mass
+      data.muscle_mass = editedWeight.muscle_mass
     }
   }
   for (const data of userHealthWeight.value) {
     if (data.id === editedWeight.id) {
       data.weight = editedWeight.weight
       data.created_at = editedWeight.created_at
+      data.bmi = editedWeight.bmi
+      data.body_fat = editedWeight.body_fat
+      data.body_water = editedWeight.body_water
+      data.bone_mass = editedWeight.bone_mass
+      data.muscle_mass = editedWeight.muscle_mass
     }
   }
 }
