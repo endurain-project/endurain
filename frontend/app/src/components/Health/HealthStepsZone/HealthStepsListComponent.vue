@@ -3,60 +3,36 @@
     <div class="d-flex align-items-center">
       <div>
         <div class="fw-bold">
-          <span>{{ data.steps }} {{ $t('healthStepsListComponent.labelSteps') }}</span
-          >
+          <span>{{ userHealthStep.steps }} {{ $t('healthStepsListComponent.labelSteps') }}</span>
         </div>
         <span>
-          {{ $t('healthStepsListComponent.labelDate') }}: {{ formatDateShort(data.date) }}
+          {{ $t('healthStepsListComponent.labelDate') }}: {{ formatDateShort(userHealthStep.date) }}
         </span>
       </div>
     </div>
     <div>
-      <span
-        class="align-middle me-3 d-none d-sm-inline"
-        v-if="data.source === 'garmin'"
-      >
-        <img
-          :src="INTEGRATION_LOGOS.garminConnectApp"
-          alt="Garmin Connect logo"
-          height="22"
-        />
+      <span class="align-middle me-3 d-none d-sm-inline" v-if="userHealthStep.source === 'garmin'">
+        <img :src="INTEGRATION_LOGOS.garminConnectApp" alt="Garmin Connect logo" height="22" />
       </span>
 
       <!-- edit weight button -->
-      <a
-        class="btn btn-link btn-lg link-body-emphasis"
-        href="#"
-        role="button"
-        data-bs-toggle="modal"
-        :data-bs-target="`#editStepsId${data.id}`"
-        ><font-awesome-icon :icon="['fas', 'fa-pen-to-square']"
-      /></a>
+      <a class="btn btn-link btn-lg link-body-emphasis" href="#" role="button" data-bs-toggle="modal"
+        :data-bs-target="`#editStepsId${userHealthStep.id}`"><font-awesome-icon
+          :icon="['fas', 'fa-pen-to-square']" /></a>
 
-      <HealthStepsAddEditModalComponent
-        :action="'edit'"
-        :data="data"
-        @editedSteps="updateStepsListEdited"
-      />
+      <HealthStepsAddEditModalComponent :action="'edit'" :userHealthStep="userHealthStep"
+        @editedSteps="updateStepsListEdited" />
 
       <!-- delete weight button -->
-      <a
-        class="btn btn-link btn-lg link-body-emphasis"
-        href="#"
-        role="button"
-        data-bs-toggle="modal"
-        :data-bs-target="`#deleteStepsModal${data.id}`"
-        ><font-awesome-icon :icon="['fas', 'fa-trash-can']"
-      /></a>
+      <a class="btn btn-link btn-lg link-body-emphasis" href="#" role="button" data-bs-toggle="modal"
+        :data-bs-target="`#deleteStepsModal${userHealthStep.id}`"><font-awesome-icon
+          :icon="['fas', 'fa-trash-can']" /></a>
 
-      <ModalComponent
-        :modalId="`deleteStepsModal${data.id}`"
+      <ModalComponent :modalId="`deleteStepsModal${userHealthStep.id}`"
         :title="t('healthStepsListComponent.modalDeleteStepsTitle')"
-        :body="`${t('healthStepsListComponent.modalDeleteStepsBody')}<b>${data.date}</b>?`"
-        :actionButtonType="`danger`"
-        :actionButtonText="t('healthStepsListComponent.modalDeleteStepsTitle')"
-        @submitAction="submitDeleteSteps"
-      />
+        :body="`${t('healthStepsListComponent.modalDeleteStepsBody')}<b>${userHealthStep.date}</b>?`"
+        :actionButtonType="`danger`" :actionButtonText="t('healthStepsListComponent.modalDeleteStepsTitle')"
+        @submitAction="submitDeleteSteps" />
     </div>
   </li>
 </template>
@@ -76,7 +52,7 @@ import { INTEGRATION_LOGOS } from '@/constants/integrationLogoConstants'
 import { formatDateShort } from '@/utils/dateTimeUtils'
 
 const props = defineProps({
-  data: {
+  userHealthStep: {
     type: Object,
     required: true
   }
@@ -100,9 +76,9 @@ async function updateStepsListEdited(editedSteps) {
 
 async function submitDeleteSteps() {
   try {
-    await health_steps.deleteHealthSteps(props.data.id)
+    await health_steps.deleteHealthSteps(props.userHealthStep.id)
 
-    emit('deletedSteps', props.data.id)
+    emit('deletedSteps', props.userHealthStep.id)
 
     push.success(t('healthStepsListComponent.successDeleteSteps'))
   } catch (error) {

@@ -92,5 +92,6 @@
   "labelMaximum": "Maximum",
   "unitsBrpm": "brpm",
   "unitsCelsius": "°C",
-  "unitsFahrenheit": "°F"
+  "unitsFahrenheit": "°F",
+  "RHRLabel": "Resting heart rate"
 }

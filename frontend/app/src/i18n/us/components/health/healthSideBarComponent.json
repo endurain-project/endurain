@@ -1,6 +1,7 @@
 {
   "dashboardSection": "Dashboard",
-  "weightSection": "Weight",
+  "sleepSection": "Sleep",
+  "RHRSection": "Resting heart rate",
   "stepsSection": "Steps",
-  "sleepSection": "Sleep"
+  "weightSection": "Weight"
 }

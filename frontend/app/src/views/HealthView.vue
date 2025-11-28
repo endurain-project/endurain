@@ -11,12 +11,16 @@
       :userHealthSleep="userHealthSleep" :userHealthTargets="userHealthTargets"
       v-if="activeSection === 'dashboard' && !isLoading" />
 
-    <!-- Include the HealthWeightZone -->
-    <HealthWeightZone :userHealthWeight="userHealthWeight" :userHealthWeightPagination="userHealthWeightPagination"
-      :userHealthTargets="userHealthTargets" :isLoading="isLoading" :totalPages="totalPagesWeight"
-      :pageNumber="pageNumberWeight" @createdWeight="updateWeightListAdded" @deletedWeight="updateWeightListDeleted"
-      @editedWeight="updateWeightListEdited" @pageNumberChanged="setPageNumberWeight" @setWeightTarget="setWeightTarget"
-      v-if="activeSection === 'weight' && !isLoading" />
+    <!-- Include the HealthSleepZone -->
+    <HealthSleepZone :userHealthSleep="userHealthSleep" :userHealthSleepPagination="userHealthSleepPagination"
+      :userHealthTargets="userHealthTargets" :isLoading="isLoading" :totalPages="totalPagesSleep"
+      :pageNumber="pageNumberSleep" @pageNumberChanged="setPageNumberSleep" @setSleepTarget="setSleepTarget"
+      v-if="activeSection === 'sleep' && !isLoading" />
+
+    <!-- Include the HealthRHRZone -->
+    <HealthRHRZone :userHealthSleep="userHealthSleep" :userHealthSleepPagination="userHealthSleepPagination"
+      :isLoading="isLoading" :totalPages="totalPagesRHR" :pageNumber="pageNumberRHR"
+      @pageNumberChanged="setPageNumberRHR" v-if="activeSection === 'rhr' && !isLoading" />
 
     <!-- Include the HealthStepsZone -->
     <HealthStepsZone :userHealthSteps="userHealthSteps" :userHealthStepsPagination="userHealthStepsPagination"
@@ -25,11 +29,12 @@
       @editedSteps="updateStepsListEdited" @pageNumberChanged="setPageNumberSteps" @setStepsTarget="setStepsTarget"
       v-if="activeSection === 'steps' && !isLoading" />
 
-    <!-- Include the HealthSleepZone -->
-    <HealthSleepZone :userHealthSleep="userHealthSleep" :userHealthSleepPagination="userHealthSleepPagination"
-      :userHealthTargets="userHealthTargets" :isLoading="isLoading" :totalPages="totalPagesSleep"
-      :pageNumber="pageNumberSleep" @pageNumberChanged="setPageNumberSleep" @setSleepTarget="setSleepTarget"
-      v-if="activeSection === 'sleep' && !isLoading" />
+    <!-- Include the HealthWeightZone -->
+    <HealthWeightZone :userHealthWeight="userHealthWeight" :userHealthWeightPagination="userHealthWeightPagination"
+      :userHealthTargets="userHealthTargets" :isLoading="isLoading" :totalPages="totalPagesWeight"
+      :pageNumber="pageNumberWeight" @createdWeight="updateWeightListAdded" @deletedWeight="updateWeightListDeleted"
+      @editedWeight="updateWeightListEdited" @pageNumberChanged="setPageNumberWeight" @setWeightTarget="setWeightTarget"
+      v-if="activeSection === 'weight' && !isLoading" />
   </div>
   <!-- back button -->
   <BackButtonComponent />
@@ -42,6 +47,7 @@ import { push } from 'notivue'
 import HealthSideBarComponent from '../components/Health/HealthSideBarComponent.vue'
 import HealthDashboardZone from '../components/Health/HealthDashboardZoneComponent.vue'
 import HealthSleepZone from '../components/Health/HealthSleepZone.vue'
+import HealthRHRZone from '@/components/Health/HealthRHRZone.vue'
 import HealthStepsZone from '../components/Health/HealthStepsZone.vue'
 import HealthWeightZone from '../components/Health/HealthWeightZone.vue'
 import BackButtonComponent from '@/components/GeneralComponents/BackButtonComponent.vue'
@@ -64,6 +70,9 @@ const userHealthSleep = ref([])
 const userHealthSleepPagination = ref([])
 const pageNumberSleep = ref(1)
 const totalPagesSleep = ref(1)
+// RHR variables
+const pageNumberRHR = ref(1)
+const totalPagesRHR = ref(1)
 // Weight variables
 const isHealthWeightUpdatingLoading = ref(true)
 const userHealthWeightNumber = ref(0)
@@ -118,6 +127,11 @@ async function fetchHealthSleep() {
 
 function setPageNumberSleep(page) {
   pageNumberSleep.value = page
+}
+
+// RHR functions
+function setPageNumberRHR(page) {
+  pageNumberRHR.value = page
 }
 
 // Weight functions

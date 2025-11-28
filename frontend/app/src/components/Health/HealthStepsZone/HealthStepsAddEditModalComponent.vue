@@ -1,12 +1,7 @@
 <template>
   <!-- Modal add/edit steps -->
-  <div
-    class="modal fade"
-    :id="action == 'add' ? 'addStepsModal' : action == 'edit' ? editStepsId : ''"
-    tabindex="-1"
-    :aria-labelledby="action == 'add' ? 'addStepsModal' : action == 'edit' ? editStepsId : ''"
-    aria-hidden="true"
-  >
+  <div class="modal fade" :id="action == 'add' ? 'addStepsModal' : action == 'edit' ? editStepsId : ''" tabindex="-1"
+    :aria-labelledby="action == 'add' ? 'addStepsModal' : action == 'edit' ? editStepsId : ''" aria-hidden="true">
     <div class="modal-dialog">
       <div class="modal-content">
         <div class="modal-header">
@@ -16,38 +11,16 @@
           <h1 class="modal-title fs-5" :id="editStepsId" v-else>
             {{ $t('healthStepsAddEditModalComponent.editStepsModalTitle') }}
           </h1>
-          <button
-            type="button"
-            class="btn-close"
-            data-bs-dismiss="modal"
-            aria-label="Close"
-          ></button>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
         <form @submit.prevent="handleSubmit">
           <div class="modal-body">
             <!-- steps fields -->
-            <label for="stepsAdd"
-              ><b>* {{ $t('healthStepsAddEditModalComponent.addStepsLabel') }}</b></label
-            >
-            <input
-              class="form-control"
-              type="number"
-              step="0.1"
-              name="stepsAdd"
-              v-model="newEditSteps"
-              required
-            />
+            <label for="stepsAdd"><b>* {{ $t('healthStepsAddEditModalComponent.addStepsLabel') }}</b></label>
+            <input class="form-control" type="number" step="0.1" name="stepsAdd" v-model="newEditSteps" required />
             <!-- date fields -->
-            <label for="stepsDateAdd"
-              ><b>* {{ $t('healthStepsAddEditModalComponent.addStepsDateLabel') }}</b></label
-            >
-            <input
-              class="form-control"
-              type="date"
-              name="stepsDateAdd"
-              v-model="newEditStepsDate"
-              required
-            />
+            <label for="stepsDateAdd"><b>* {{ $t('healthStepsAddEditModalComponent.addStepsDateLabel') }}</b></label>
+            <input class="form-control" type="date" name="stepsDateAdd" v-model="newEditStepsDate" required />
 
             <p>* {{ $t('generalItems.requiredField') }}</p>
           </div>
@@ -55,12 +28,7 @@
             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
               {{ $t('generalItems.buttonClose') }}
             </button>
-            <button
-              type="submit"
-              class="btn btn-success"
-              data-bs-dismiss="modal"
-              v-if="action == 'add'"
-            >
+            <button type="submit" class="btn btn-success" data-bs-dismiss="modal" v-if="action == 'add'">
               {{ $t('healthStepsAddEditModalComponent.addStepsModalTitle') }}
             </button>
             <button type="submit" class="btn btn-success" data-bs-dismiss="modal" v-else>
@@ -86,7 +54,7 @@ const props = defineProps({
     type: String,
     required: true
   },
-  data: {
+  userHealthStep: {
     type: Object,
     required: false
   }
@@ -99,10 +67,10 @@ const newEditSteps = ref(5000)
 const newEditStepsDate = ref(new Date().toISOString().split('T')[0])
 const editStepsId = ref('')
 
-if (props.data) {
-  newEditSteps.value = props.data.steps
-  newEditStepsDate.value = props.data.date
-  editStepsId.value = `editStepsId${props.data.id}`
+if (props.userHealthStep) {
+  newEditSteps.value = props.userHealthStep.steps
+  newEditStepsDate.value = props.userHealthStep.date
+  editStepsId.value = `editStepsId${props.userHealthStep.id}`
 }
 
 async function submitAddSteps() {
@@ -134,8 +102,8 @@ async function submitAddSteps() {
 
 function submitEditSteps() {
   emit('editedSteps', {
-    id: props.data.id,
-    user_id: props.data.user_id,
+    id: props.userHealthStep.id,
+    user_id: props.userHealthStep.user_id,
     steps: newEditSteps.value,
     date: newEditStepsDate.value
   })

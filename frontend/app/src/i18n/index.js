@@ -43,6 +43,7 @@ const componentPaths = {
   healthSleepZoneComponent: 'components/health/healthSleepZoneComponent.json',
   healthSleepListComponent: 'components/health/healthSleepZone/healthSleepListComponent.json',
   healthSleepListTabsComponent: 'components/health/healthSleepZone/healthSleepListTabsComponent.json',
+  healthRHRZoneComponent: 'components/health/healthRHRZoneComponent.json',
   // Navbar components
   navbarBottomMobileComponent: 'components/navbar/navbarBottomMobileComponent.json',
   navbarComponent: 'components/navbar/navbarComponent.json',

@@ -96,7 +96,7 @@
             <span v-if="currentBMI">{{ bmiDescription }}</span>
             <span v-else-if="!currentBMI && currentWeight">{{
               $t('healthDashboardZoneComponent.noHeightDefined')
-              }}</span>
+            }}</span>
             <span v-else>{{ $t('healthDashboardZoneComponent.noWeightData') }}</span>
           </div>
         </div>

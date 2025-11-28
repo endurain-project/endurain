@@ -17,10 +17,10 @@
         </a>
       </li>
       <li class="nav-item">
-        <a href="#" class="nav-link link-body-emphasis" :class="{ active: activeSection === 'weight' }"
-          @click.prevent="changeActive('weight')">
-          <font-awesome-icon :icon="['fas', 'weight']" />
-          <span class="ms-2">{{ $t('healthSideBarComponent.weightSection') }}</span>
+        <a href="#" class="nav-link link-body-emphasis" :class="{ active: activeSection === 'rhr' }"
+          @click.prevent="changeActive('rhr')">
+          <font-awesome-icon :icon="['fas', 'heart-pulse']" />
+          <span class="ms-1">{{ $t('healthSideBarComponent.RHRSection') }}</span>
         </a>
       </li>
       <li class="nav-item">
@@ -28,6 +28,13 @@
           @click.prevent="changeActive('steps')">
           <font-awesome-icon :icon="['fas', 'shoe-prints']" />
           <span class="ms-1">{{ $t('healthSideBarComponent.stepsSection') }}</span>
+        </a>
+      </li>
+      <li class="nav-item">
+        <a href="#" class="nav-link link-body-emphasis" :class="{ active: activeSection === 'weight' }"
+          @click.prevent="changeActive('weight')">
+          <font-awesome-icon :icon="['fas', 'weight']" />
+          <span class="ms-2">{{ $t('healthSideBarComponent.weightSection') }}</span>
         </a>
       </li>
     </ul>

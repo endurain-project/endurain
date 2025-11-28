@@ -4,22 +4,10 @@
     <div v-else>
       <!-- add sleep button -->
       <div class="d-flex">
-        <a
-          class="w-100 btn btn-primary shadow-sm me-1"
-          href="#"
-          role="button"
-          data-bs-toggle="modal"
-          data-bs-target="#addSleepModal"
-          >{{ t('healthSleepZoneComponent.buttonAddSleep') }}</a
-        >
-        <a
-          class="w-100 btn btn-primary shadow-sm ms-1"
-          href="#"
-          role="button"
-          data-bs-toggle="modal"
-          data-bs-target="#addSleepTargetModal"
-          >{{ $t('healthSleepZoneComponent.buttonSleepTarget') }}</a
-        >
+        <a class="w-100 btn btn-primary shadow-sm me-1 disabled" href="#" role="button" data-bs-toggle="modal"
+          data-bs-target="#addSleepModal">{{ t('healthSleepZoneComponent.buttonAddSleep') }}</a>
+        <a class="w-100 btn btn-primary shadow-sm ms-1" href="#" role="button" data-bs-toggle="modal"
+          data-bs-target="#addSleepTargetModal">{{ $t('healthSleepZoneComponent.buttonSleepTarget') }}</a>
       </div>
 
       <!--<HealthStepsAddEditModalComponent
@@ -28,24 +16,19 @@
         @createdSteps="updateStepsListAdded"
       />-->
 
-      <ModalComponentHoursMinutesInput 
-        modalId="addSleepTargetModal" 
-        :title="t('healthSleepZoneComponent.buttonSleepTarget')" 
+      <ModalComponentHoursMinutesInput modalId="addSleepTargetModal"
+        :title="t('healthSleepZoneComponent.buttonSleepTarget')"
         :hoursFieldLabel="t('healthSleepZoneComponent.modalSleepTargetHoursLabel')"
-        :minutesFieldLabel="t('healthSleepZoneComponent.modalSleepTargetMinutesLabel')"
-        actionButtonType="success"
+        :minutesFieldLabel="t('healthSleepZoneComponent.modalSleepTargetMinutesLabel')" actionButtonType="success"
         :actionButtonText="t('generalItems.buttonSubmit')"
-        :secondsDefaultValue="props.userHealthTargets?.sleep || 28800"
-        @fieldsToEmitAction="submitSetSleepTarget"
-      />
+        :secondsDefaultValue="props.userHealthTargets?.sleep || 28800" @fieldsToEmitAction="submitSetSleepTarget" />
 
       <!-- Checking if userHealthSleepPagination is loaded and has length -->
-      <div
-        v-if="userHealthSleepPagination && userHealthSleepPagination.length"
-        class="mt-3 p-3 bg-body-tertiary rounded shadow-sm"
-      >
+      <div v-if="userHealthSleepPagination && userHealthSleepPagination.length"
+        class="mt-3 p-3 bg-body-tertiary rounded shadow-sm">
         <!-- show graph -->
-        <HealthSleepBarChartComponent :userHealthTargets="userHealthTargets" :userHealthSleep="userHealthSleep" :isLoading="isLoading" />
+        <HealthSleepBarChartComponent :userHealthTargets="userHealthTargets" :userHealthSleep="userHealthSleep"
+          :isLoading="isLoading" />
 
         <br />
         <p>
@@ -64,26 +47,16 @@
         </ul>
 
         <!-- list zone -->
-        <ul
-          class="my-3 list-group list-group-flush"
-          v-for="data in userHealthSleepPagination"
-          :key="data.id"
-          :data="data"
-        >
+        <ul class="my-3 list-group list-group-flush" v-for="data in userHealthSleepPagination" :key="data.id"
+          :data="data">
           <!--<HealthSleepTimelineChartComponent
             :data="data.sleep_stages"
           />-->
-          <HealthSleepListComponent
-            :userHealthSleep="data"
-          />
+          <HealthSleepListComponent :userHealthSleep="data" />
         </ul>
 
         <!-- pagination area -->
-        <PaginationComponent
-          :totalPages="totalPages"
-          :pageNumber="pageNumber"
-          @pageNumberChanged="setPageNumber"
-        />
+        <PaginationComponent :totalPages="totalPages" :pageNumber="pageNumber" @pageNumberChanged="setPageNumber" />
       </div>
       <!-- Displaying a message or component when there are no weight measurements -->
       <div v-else class="mt-3">
