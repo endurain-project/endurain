@@ -86,33 +86,53 @@ const chartData = computed(() => {
     return new Date(a.date) - new Date(b.date)
   })
 
-  const data = []
+  const weightData = []
+  const bmiData = []
+  const bodyFatData = []
+  const bodyWaterData = []
+  const boneMassData = []
+  const muscleMassData = []
   const labels = []
-  
+
   for (const HealthWeight of sortedWeight) {
     if (Number(authStore?.user?.units) === 1) {
-      data.push(HealthWeight.weight)
+      weightData.push(HealthWeight.weight)
     } else {
-      data.push(kgToLbs(HealthWeight.weight))
+      weightData.push(kgToLbs(HealthWeight.weight))
     }
+
+    // Add other metrics
+    bmiData.push(HealthWeight.bmi || null)
+    bodyFatData.push(HealthWeight.body_fat || null)
+    bodyWaterData.push(HealthWeight.body_water || null)
+    boneMassData.push(HealthWeight.bone_mass || null)
+    muscleMassData.push(HealthWeight.muscle_mass || null)
 
     const createdAt = new Date(HealthWeight.date)
     labels.push(
       `${createdAt.getDate()}/${createdAt.getMonth() + 1}/${createdAt.getFullYear()}`
     )
   }
-  
-  let label = ''
+
+  let weightLabel = ''
+  let unitsLabel = ''
   if (Number(authStore?.user?.units) === 1) {
-    label = t('generalItems.labelWeightInKg')
+    weightLabel = t('generalItems.labelWeightInKg')
+    unitsLabel = t('generalItems.unitsKg')
   } else {
-    label = t('generalItems.labelWeightInLbs')
+    weightLabel = t('generalItems.labelWeightInLbs')
+    unitsLabel = t('generalItems.unitsLbs')
   }
+  const BMILabel = t('healthWeightAddEditModalComponent.addWeightBMILabel')
+  const bodyFatLabel = t('healthWeightAddEditModalComponent.addWeightBodyFatLabel')
+  const bodyWaterLabel = t('healthWeightAddEditModalComponent.addWeightBodyWaterLabel')
+  const boneMassLabel = t('healthWeightAddEditModalComponent.addWeightBoneMassLabel')
+  const muscleMassLabel = t('healthWeightAddEditModalComponent.addWeightMuscleMassLabel')
 
   const datasets = [
     {
-      label: label,
-      data: data,
+      label: weightLabel,
+      data: weightData,
       backgroundColor: function (context) {
         const chart = context.chart
         const { ctx, chartArea } = chart
@@ -121,10 +141,61 @@ const chartData = computed(() => {
         }
         return createGradient(ctx, chartArea)
       },
-      borderColor: 'rgba(59, 130, 246, 0.8)', // Blue border
+      borderColor: 'rgba(59, 130, 246, 0.8)', // Blue
       fill: true,
       pointHoverRadius: 4,
-      pointHoverBackgroundColor: 'rgba(59, 130, 246, 0.8)'
+      pointHoverBackgroundColor: 'rgba(59, 130, 246, 0.8)',
+      yAxisID: 'y'
+    },
+    {
+      label: BMILabel,
+      data: bmiData,
+      borderColor: 'rgba(34, 197, 94, 0.8)', // Green
+      backgroundColor: 'rgba(34, 197, 94, 0.1)',
+      fill: false,
+      pointHoverRadius: 4,
+      pointHoverBackgroundColor: 'rgba(34, 197, 94, 0.8)',
+      yAxisID: 'y1'
+    },
+    {
+      label: bodyFatLabel + ' (%)',
+      data: bodyFatData,
+      borderColor: 'rgba(251, 146, 60, 0.8)', // Orange
+      backgroundColor: 'rgba(251, 146, 60, 0.1)',
+      fill: false,
+      pointHoverRadius: 4,
+      pointHoverBackgroundColor: 'rgba(251, 146, 60, 0.8)',
+      yAxisID: 'y1'
+    },
+    {
+      label: bodyWaterLabel + ' (%)',
+      data: bodyWaterData,
+      borderColor: 'rgba(14, 165, 233, 0.8)', // Cyan
+      backgroundColor: 'rgba(14, 165, 233, 0.1)',
+      fill: false,
+      pointHoverRadius: 4,
+      pointHoverBackgroundColor: 'rgba(14, 165, 233, 0.8)',
+      yAxisID: 'y1'
+    },
+    {
+      label: boneMassLabel + ' (' + unitsLabel + ')',
+      data: boneMassData,
+      borderColor: 'rgba(168, 85, 247, 0.8)', // Purple
+      backgroundColor: 'rgba(168, 85, 247, 0.1)',
+      fill: false,
+      pointHoverRadius: 4,
+      pointHoverBackgroundColor: 'rgba(168, 85, 247, 0.8)',
+      yAxisID: 'y'
+    },
+    {
+      label: muscleMassLabel + ' (' + unitsLabel + ')',
+      data: muscleMassData,
+      borderColor: 'rgba(236, 72, 153, 0.8)', // Pink
+      backgroundColor: 'rgba(236, 72, 153, 0.1)',
+      fill: false,
+      pointHoverRadius: 4,
+      pointHoverBackgroundColor: 'rgba(236, 72, 153, 0.8)',
+      yAxisID: 'y'
     }
   ]
 
@@ -193,11 +264,31 @@ onMounted(() => {
       },
       scales: {
         y: {
+          type: 'linear',
+          display: true,
+          position: 'left',
           beginAtZero: false,
           grid: {
             lineWidth: 1,
             drawBorder: true,
             borderWidth: 1
+          },
+          title: {
+            display: true,
+            text: 'Weight / Mass'
+          }
+        },
+        y1: {
+          type: 'linear',
+          display: true,
+          position: 'right',
+          beginAtZero: false,
+          grid: {
+            drawOnChartArea: false
+          },
+          title: {
+            display: true,
+            text: 'Percentage (%)'
           }
         },
         x: {
@@ -229,8 +320,11 @@ onMounted(() => {
                 return `${label}: N/A`
               }
 
-              // Format weight with 1 decimal place
-              return `${label}: ${value.toFixed(1)}`
+              // Format values with appropriate decimal places
+              if (label.includes('%')) {
+                return `${label}: ${value.toFixed(1)}%`
+              }
+              return `${label}: ${value.toFixed(2)}`
             }
           }
         },
@@ -272,6 +366,7 @@ onUnmounted(() => {
 <style scoped>
 .chart-canvas {
   max-height: 300px;
-  width: 100%; /* Ensures the canvas stretches across the available width */
+  width: 100%;
+  /* Ensures the canvas stretches across the available width */
 }
 </style>

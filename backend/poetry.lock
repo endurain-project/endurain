@@ -1159,14 +1159,14 @@ test = ["pytest", "pytest-cov", "pytest-mpl", "pytest-subtests"]
 
 [[package]]
 name = "garminconnect"
-version = "0.2.34"
+version = "0.2.35"
 description = "Python 3 API wrapper for Garmin Connect"
 optional = false
 python-versions = ">=3.10"
 groups = ["main"]
 files = [
-    {file = "garminconnect-0.2.34-py3-none-any.whl", hash = "sha256:347fdca2ddcba50c62583b5d64fd1696cf8956e246b4a860641520726eb00874"},
-    {file = "garminconnect-0.2.34.tar.gz", hash = "sha256:cc58b28b4dd65142f325f061e31afc8ec6b3b1414ad8fbeb47c025608aa16f5f"},
+    {file = "garminconnect-0.2.35-py3-none-any.whl", hash = "sha256:8ad92b21d0e769cd6d31c190659188e816c1f8cec8117c6c1aaffd8c48898555"},
+    {file = "garminconnect-0.2.35.tar.gz", hash = "sha256:5623d7d4d0ee68b30db92aa2fd6ed070ecef9ccfbdea663bc0e61f2918b96985"},
 ]
 
 [package.dependencies]
@@ -2757,14 +2757,14 @@ files = [
 
 [[package]]
 name = "pydantic"
-version = "2.12.4"
+version = "2.12.5"
 description = "Data validation using Python type hints"
 optional = false
 python-versions = ">=3.9"
 groups = ["main"]
 files = [
-    {file = "pydantic-2.12.4-py3-none-any.whl", hash = "sha256:92d3d202a745d46f9be6df459ac5a064fdaa3c1c4cd8adcfa332ccf3c05f871e"},
-    {file = "pydantic-2.12.4.tar.gz", hash = "sha256:0f8cb9555000a4b5b617f66bfd2566264c4984b27589d3b845685983e8ea85ac"},
+    {file = "pydantic-2.12.5-py3-none-any.whl", hash = "sha256:e561593fccf61e8a20fc46dfc2dfe075b8be7d0188df33f221ad1f0139180f9d"},
+    {file = "pydantic-2.12.5.tar.gz", hash = "sha256:4d351024c75c0f085a9febbb665ce8c0c6ec5d30e903bdb6394b7ede26aebb49"},
 ]
 
 [package.dependencies]

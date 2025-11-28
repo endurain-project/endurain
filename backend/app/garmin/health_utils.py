@@ -137,6 +137,9 @@ def fetch_and_process_ds_by_dates(
     count_processed = 0
     # Process steps
     for ds in garmin_ds:
+        if ds["totalSteps"] is None:
+            continue
+
         health_steps = health_steps_schema.HealthSteps(
             user_id=user_id,
             date=ds["calendarDate"],
@@ -255,13 +258,20 @@ def fetch_and_process_sleep_by_dates(
 
         # Process sleep stages from sleepLevels array
         sleep_stages = []
-        if "sleepLevels" in garmin_sleep:
+        if "sleepLevels" in garmin_sleep and garmin_sleep["sleepLevels"]:
             for level in garmin_sleep["sleepLevels"]:
                 activity_level = level.get("activityLevel")
-                if activity_level is not None:
+                if (
+                    activity_level is not None
+                    and activity_level in health_sleep_schema.SleepStageType
+                ):
                     # Map Garmin activity levels to sleep stage types
                     # 0=deep, 1=light, 2=REM, 3=awake
-                    stage_type = health_sleep_schema.SleepStageType(activity_level)
+                    stage_type = (
+                        health_sleep_schema.SleepStageType(activity_level)
+                        if activity_level
+                        else None
+                    )
 
                     start_gmt_str = level.get("startGMT")
                     end_gmt_str = level.get("endGMT")
@@ -352,6 +362,7 @@ def fetch_and_process_sleep_by_dates(
             hrv_status=(
                 health_sleep_schema.HRVStatus(garmin_sleep.get("hrvStatus"))
                 if garmin_sleep.get("hrvStatus")
+                and garmin_sleep.get("hrvStatus") in health_sleep_schema.HRVStatus
                 else None
             ),
             resting_heart_rate=garmin_sleep.get("restingHeartRate"),
@@ -359,11 +370,15 @@ def fetch_and_process_sleep_by_dates(
             awake_count_score=(
                 health_sleep_schema.SleepScore(awake_count_score.get("qualifierKey"))
                 if awake_count_score
+                and awake_count_score.get("qualifierKey")
+                in health_sleep_schema.SleepScore
                 else None
             ),
             rem_percentage_score=(
                 health_sleep_schema.SleepScore(rem_percentage_score.get("qualifierKey"))
                 if rem_percentage_score
+                and rem_percentage_score.get("qualifierKey")
+                in health_sleep_schema.SleepScore
                 else None
             ),
             deep_percentage_score=(
@@ -371,6 +386,8 @@ def fetch_and_process_sleep_by_dates(
                     deep_percentage_score.get("qualifierKey")
                 )
                 if deep_percentage_score
+                and deep_percentage_score.get("qualifierKey")
+                in health_sleep_schema.SleepScore
                 else None
             ),
             light_percentage_score=(
@@ -378,12 +395,16 @@ def fetch_and_process_sleep_by_dates(
                     light_percentage_score.get("qualifierKey")
                 )
                 if light_percentage_score
+                and light_percentage_score.get("qualifierKey")
+                in health_sleep_schema.SleepScore
                 else None
             ),
             avg_sleep_stress=sleep_dto.get("avgSleepStress"),
             sleep_stress_score=(
                 health_sleep_schema.SleepScore(sleep_stress_score.get("qualifierKey"))
                 if sleep_stress_score
+                and sleep_stress_score.get("qualifierKey")
+                in health_sleep_schema.SleepScore
                 else None
             ),
         )
