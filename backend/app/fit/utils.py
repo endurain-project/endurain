@@ -1087,7 +1087,7 @@ def append_if_not_none(waypoint_list, time, value, key):
 
 def calculate_pace(distance, total_timer_time, activity_type, split_summary):
     if distance:
-        if activity_type != "lap_swimming":
+        if activity_type != "lap_swimming" or not split_summary:
             return total_timer_time, total_timer_time / distance
         time_active = 0
         for split in split_summary:
