@@ -1110,10 +1110,11 @@ def append_if_not_none(waypoint_list, time, value, key):
 
 def calculate_pace(distance, total_timer_time, activity_type, split_summary, lengths):
     if distance:
-        if activity_type != "lap_swimming":
+        if activity_type != "lap_swimming" or (
+            activity_type == "lap_swimming" and not split_summary and not lengths
+        ):
             return total_timer_time, total_timer_time / distance
         if activity_type == "lap_swimming" and lengths:
-            core_logger.print_to_log("Calculating swimming pace based on lengths")
             # Swimming pace calculation based on lengths
             time_active = 0
             for length in lengths:
