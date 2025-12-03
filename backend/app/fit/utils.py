@@ -1,4 +1,5 @@
 import fitdecode
+from enum import Enum
 
 from fastapi import HTTPException, status
 from datetime import datetime, timedelta
@@ -188,6 +189,10 @@ def create_activity_objects(
                     hide_workout_sets_steps=user_privacy_settings.hide_activity_workout_sets_steps
                     or False,
                     hide_gear=user_privacy_settings.hide_activity_gear or False,
+                    tracker_manufacturer=session_record["file_id"].get(
+                        "manufacturer", None
+                    ),
+                    tracker_model=str(session_record["file_id"].get("product", None)),
                 ),
                 "is_elevation_set": session_record["is_elevation_set"],
                 "ele_waypoints": session_record["ele_waypoints"],
@@ -305,6 +310,7 @@ def split_records_by_activity(parsed_data: dict) -> dict:
             "workout_steps": parsed_data["workout_steps"],
             "sets": parsed_data["sets"],
             "lengths": parsed_data["lengths"],
+            "file_id": parsed_data["file_id"],
         }
 
         # Only parse arrays if the respective flag is set
@@ -469,6 +475,9 @@ def parse_fit_file(
 
         # Array to store lengths
         lengths = []
+
+        # Dictionary to store file ID data
+        file_id = {}
 
         # Initialize variables to store previous latitude and longitude
         prev_latitude, prev_longitude = None, None
@@ -721,6 +730,9 @@ def parse_fit_file(
                     if frame.name == "length":
                         lengths.append(parse_frame_length(frame))
 
+                    if frame.name == "file_id":
+                        file_id = parse_frame_file_id(frame)
+
         # Check if exercises titles is not none
         if exercises_titles:
             activity_exercise_titles_crud.create_activity_exercise_titles(
@@ -751,6 +763,7 @@ def parse_fit_file(
             "sets": sets,
             "workout_steps": workout_steps,
             "lengths": lengths,
+            "file_id": file_id,
         }
     except HTTPException as http_err:
         raise http_err
@@ -1067,6 +1080,16 @@ def parse_frame_length(frame):
         "swim_stroke": get_value_from_frame(frame, "swim_stroke"),
         "avg_swimming_cadence": get_value_from_frame(frame, "avg_swimming_cadence"),
         "length_type": get_value_from_frame(frame, "length_type"),
+    }
+
+
+def parse_frame_file_id(frame):
+    return {
+        "type": get_value_from_frame(frame, "type"),
+        "manufacturer": get_value_from_frame(frame, "manufacturer"),
+        "product": get_value_from_frame(frame, "product"),
+        "serial_number": get_value_from_frame(frame, "serial_number"),
+        "time_created": get_value_from_frame(frame, "time_created"),
     }
 
 
