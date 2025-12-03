@@ -2,67 +2,67 @@
 
 This guide explains how to install **Endurain** bare-metal on Debian without Docker.
 
----
-
 ## 1. Install Required Dependencies
 
 ```bash
 apt install -y \
   default-libmysqlclient-dev \
   build-essential \
-  pkg-config
+  pkg-config  \
   git \
-  curl
+  curl \
+  python3-dev
 ```
-
----
 
 ## 2. Install Required Runtime Tools
 
 Install the required tools from their official sources:
 
-uv (Python) → https://docs.astral.sh/uv/
-
-Node.js 22 → https://nodejs.org/en/download
-
-PostgreSQL 17 → https://www.postgresql.org/download/
-
----
+- uv (Python) → https://docs.astral.sh/uv/
+- Node.js 22 → https://nodejs.org/en/download
+- PostgreSQL 17 → https://www.postgresql.org/download/
 
 ## 3. Download Endurain Release
+
+Run the following command to download and unpack the latest release.
 
 ```bash
 mkdir -p /path/to/endurain
 cd /path/to/endurain
 
-curl -L https://github.com/joaovitoriasilva/endurain/archive/refs/tags/latest.tar.gz \
-  | tar xz --strip-components=1 -C /path/to/endurain
+TAG=$(curl -s https://api.github.com/repos/joaovitoriasilva/endurain/releases/latest \
+  | grep -oP '"tag_name": "\K(.*)(?=")')
+curl -L "https://github.com/joaovitoriasilva/endurain/archive/refs/tags/$TAG.tar.gz" \
+  | tar xz
+EXTRACTED=$(ls -d endurain-*)
+shopt -s dotglob
+mv "$EXTRACTED"/* .
+shopt -u dotglob
+rm -rf "$EXTRACTED"
 ```
-
----
 
 ## 4. Create Environment Configuration
 
-Copy the provided example:
+Prepare data storage.
 
 ```bash
-cp /path/to/endurain/example.env /path/to/endurain/.env
+mkdir -p /path/to/endurain_data/{data,logs}
 ```
 
-Genrate keys:
+Copy the provided example.
+
+```bash
+cp /path/to/endurain/.env.example /path/to/endurain/.env
+```
+
+Generate your `SECRET_KEY` and `FERNET_KEY`. These keys are required for Endurain to work, so be sure to paste them into your `.env` file.
 
 ```bash
 openssl rand -hex 32 # SECRET_KEY
 openssl rand -base64 32 # FERNET_KEY
 ```
 
-Prepare data storage:
-
-```bash
-mkdir -p /path/to/endurain_data/{data,logs}
-```
-
-Edit `.env`:
+Edit `.env` file.
 
 ```bash
 nano /path/to/endurain/.env
@@ -79,8 +79,6 @@ DATA_DIR="/path/to/endurain_data/data"
 LOGS_DIR="/path/to/endurain_data/logs"
 ```
 
----
-
 ## 5. Build the Frontend
 
 ```bash
@@ -89,21 +87,15 @@ npm ci
 npm run build
 ```
 
-Create `env.js`:
+Create `env.js`. Edit the URL if you use a reverse proxy.
 
 ```bash
-nano /path/to/endurain/frontend/app/dist/env.js
-```
-
-Insert:
-
-```javascript
+cat << 'EOF' > /path/to/endurain/frontend/app/dist/env.js
 window.env = {
   ENDURAIN_HOST: "http://YOUR_SERVER_IP:8080",
 };
+EOF
 ```
-
----
 
 ## 6. Set Up the Backend
 
@@ -121,17 +113,37 @@ uv venv
 uv pip install -r requirements.txt
 ```
 
----
+## 7. Setup Postgres Database
 
-## 7. Create systemd Service
+Run the following commands to create a PostgreSQL user and database for Endurain:
 
 ```bash
-nano /etc/systemd/system/endurain.service
+sudo -u postgres createuser -P endurain
+sudo -u postgres createdb -O endurain endurain
 ```
 
-Paste:
+Check that the PostgreSQL client and server encodings are set to UTF-8.
 
-```ini
+```bash
+sudo -u postgres psql -c "SHOW client_encoding;"
+sudo -u postgres psql -c "SHOW server_encoding;"
+```
+
+If either value is SQL_ASCII, set UTF-8 explicitly for the user and the database.
+
+```bash
+sudo -u postgres psql -c "ALTER ROLE endurain SET client_encoding = 'UTF8';"
+sudo -u postgres psql -c "ALTER DATABASE endurain SET client_encoding = 'UTF8';"
+```
+
+This ensures that all connections to the endurain database default to proper UTF-8 encoding.
+
+## 8. Systemd Service
+
+This is an example how you could set up your systemd service.
+
+```bash
+cat << 'EOF' > /etc/systemd/system/endurain.service
 [Unit]
 Description=Endurain FastAPI Backend
 After=network.target postgresql.service
@@ -148,24 +160,13 @@ StandardError=journal
 
 [Install]
 WantedBy=multi-user.target
+EOF
 ```
 
-Enable and start:
+Enable and start the service.
 
 ```bash
 systemctl daemon-reload
 systemctl enable endurain
 systemctl start endurain
 ```
-
-Check status:
-
-```bash
-systemctl status endurain
-```
-
----
-
-## ✔️ Installation Complete
-
-Endurain is now installed bare-metal on Debian and runs as a persistent systemd service.
