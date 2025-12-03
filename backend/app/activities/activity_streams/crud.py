@@ -383,14 +383,21 @@ def transform_activity_streams_hr(activity_stream, activity, db):
 
     # Get the user details to calculate heart rate zones
     detail_user = users_crud.get_user_by_id(activity.user_id, db)
-    if not detail_user or not detail_user.birthdate:
-        # If user details are not available or birthdate is missing, return the activity stream as is
+    if not detail_user:
+        # If user details are not available, return the activity stream as is
         return activity_stream
 
-    # Calculate the maximum heart rate based on the user's birthdate
-    year = int(detail_user.birthdate.split("-")[0])
-    current_year = datetime.datetime.now().year
-    max_heart_rate = 220 - (current_year - year)
+    # Use user's max_heart_rate if set, otherwise calculate based on age formula
+    if detail_user.max_heart_rate:
+        max_heart_rate = detail_user.max_heart_rate
+    elif detail_user.birthdate:
+        # Calculate the maximum heart rate based on the user's birthdate
+        year = int(detail_user.birthdate.split("-")[0])
+        current_year = datetime.datetime.now().year
+        max_heart_rate = 220 - (current_year - year)
+    else:
+        # If neither max_heart_rate nor birthdate is available, return the activity stream as is
+        return activity_stream
 
     # Calculate heart rate zones based on the maximum heart rate
     zone_1 = max_heart_rate * 0.6

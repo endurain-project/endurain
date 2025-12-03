@@ -26,6 +26,8 @@
   "addEditUserModalCurrencyLabel": "Währung",
   "addEditUserModalHeightLabel": "Größe",
   "addEditUserModalHeightPlaceholder": "Größe",
+  "addEditUserModalMaxHeartRateLabel": "Maximale Herzfrequenz (optional)",
+  "addEditUserModalMaxHeartRatePlaceholder": "Maximale Herzfrequenz",
   "addEditUserModalFeetValidationLabel": "Ungültige Höhe. Bitte geben Sie eine gültige Höhe in Fuß ein.",
   "addEditUserModalInchesValidationLabel": "Ungültige Höhe. Bitte geben Sie eine gültige Höhe in Zoll ein.",
   "addEditUserModalUserPreferredLanguageLabel": "Bevorzugte Sprache",

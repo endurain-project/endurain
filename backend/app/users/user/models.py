@@ -98,6 +98,9 @@ class User(Base):
         comment="User units (one digit)(1 - metric, 2 - imperial)",
     )
     height = Column(Integer, nullable=True, comment="User height in centimeters")
+    max_heart_rate = Column(
+        Integer, nullable=True, comment="User maximum heart rate (bpm)"
+    )
     access_type = Column(
         Integer, nullable=False, comment="User type (one digit)(1 - user, 2 - admin)"
     )
