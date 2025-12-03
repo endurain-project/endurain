@@ -3,7 +3,6 @@ from enum import Enum
 
 from fastapi import HTTPException, status
 from datetime import datetime, timedelta
-import time as timelib
 from sqlalchemy.orm import Session
 from timezonefinder import TimezoneFinder
 from zoneinfo import ZoneInfo, available_timezones

@@ -19,6 +19,10 @@ Table below shows supported environment variables. Variables marked with optiona
 | UID | 1000 | Yes | User ID for mounted volumes. Default is 1000 |
 | GID | 1000 | Yes | Group ID for mounted volumes. Default is 1000 |
 | TZ | UTC | Yes | Timezone definition. Useful for TZ calculation for activities that do not have coordinates associated, like indoor swim or weight training. If not specified UTC will be used. List of available time zones [here](https://en.wikipedia.org/wiki/List_of_tz_database_time_zones). Format `Europe/Lisbon` expected |
+| FRONTEND_DIR | `/app/frontend/dist` | Yes | You will only need to change this value if installing using bare metal method |
+| BACKEND_DIR | `/app/backend` | Yes | You will only need to change this value if installing using bare metal method |
+| DATA_DIR | `/app/backend/data` | Yes | You will only need to change this value if installing using bare metal method |
+| LOGS_DIR | `/app/backend/logs` | Yes | You will only need to change this value if installing using bare metal method |
 | ENDURAIN_HOST | No default set | `No` | Required for internal communication and Strava. For Strava https must be used. Host or local ip (example: http://192.168.1.10:8080 or https://endurain.com) |
 | REVERSE_GEO_PROVIDER | nominatim | Yes | Defines reverse geo provider. Expects <a href="https://geocode.maps.co/">geocode</a>, photon or nominatim. photon can be the <a href="https://photon.komoot.io">SaaS by komoot</a> or a self hosted version like a <a href="https://github.com/rtuszik/photon-docker">self hosted version</a>. Like photon, Nominatim can be the <a href="https://nominatim.openstreetmap.org/">SaaS</a> or a self hosted version |
 | PHOTON_API_HOST | photon.komoot.io | Yes | API host for photon. By default it uses the <a href="https://photon.komoot.io">SaaS by komoot</a> |
