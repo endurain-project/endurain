@@ -12,14 +12,6 @@
     "translation": "/frontend/app/src/i18n/%two_letters_code%/components/%original_file_name%"
   },
   {
-    "source": "/frontend/app/src/i18n/us/gears/*.json",
-    "translation": "/frontend/app/src/i18n/%two_letters_code%/gears/%original_file_name%"
-  },
-  {
-    "source": "/frontend/app/src/i18n/us/strava/*.json",
-    "translation": "/frontend/app/src/i18n/%two_letters_code%/strava/%original_file_name%"
-  },
-  {
     "source": "/frontend/app/src/i18n/us/components/activities/*.json",
     "translation": "/frontend/app/src/i18n/%two_letters_code%/components/activities/%original_file_name%"
   },
@@ -40,6 +32,14 @@
     "translation": "/frontend/app/src/i18n/%two_letters_code%/components/health/%original_file_name%"
   },
   {
+    "source": "/frontend/app/src/i18n/us/components/health/healthSleepZone/*.json",
+    "translation": "/frontend/app/src/i18n/%two_letters_code%/components/health/healthSleepZone/%original_file_name%"
+  },
+  {
+    "source": "/frontend/app/src/i18n/us/components/health/healthStepsZone/*.json",
+    "translation": "/frontend/app/src/i18n/%two_letters_code%/components/health/healthStepsZone/%original_file_name%"
+  },
+  {
     "source": "/frontend/app/src/i18n/us/components/health/healthWeightZone/*.json",
     "translation": "/frontend/app/src/i18n/%two_letters_code%/components/health/healthWeightZone/%original_file_name%"
   },
@@ -56,23 +56,39 @@
     "translation": "/frontend/app/src/i18n/%two_letters_code%/components/settings/%original_file_name%"
   },
   {
-    "source": "/frontend/app/src/i18n/us/components/users/*.json",
-    "translation": "/frontend/app/src/i18n/%two_letters_code%/components/users/%original_file_name%"
-  },
-  {
     "source": "/frontend/app/src/i18n/us/components/settings/settingsGeneralZone/*.json",
     "translation": "/frontend/app/src/i18n/%two_letters_code%/components/settings/settingsGeneralZone/%original_file_name%"
+  },
+  {
+    "source": "/frontend/app/src/i18n/us/components/settings/settingsIdentityProvidersZone/*.json",
+    "translation": "/frontend/app/src/i18n/%two_letters_code%/components/settings/settingsIdentityProvidersZone/%original_file_name%"
   },
   {
     "source": "/frontend/app/src/i18n/us/components/settings/settingsIntegrationsZone/*.json",
     "translation": "/frontend/app/src/i18n/%two_letters_code%/components/settings/settingsIntegrationsZone/%original_file_name%"
   },
   {
-    "source": "/frontend/app/src/i18n/us/components/settings/settingsUsersZone/*.json",
-    "translation": "/frontend/app/src/i18n/%two_letters_code%/components/settings/settingsUsersZone/%original_file_name%"
+    "source": "/frontend/app/src/i18n/us/components/settings/settingsUserGoalsZone/*.json",
+    "translation": "/frontend/app/src/i18n/%two_letters_code%/components/settings/settingsUserGoalsZone/%original_file_name%"
   },
   {
     "source": "/frontend/app/src/i18n/us/components/settings/settingsUserSessionsZone/*.json",
     "translation": "/frontend/app/src/i18n/%two_letters_code%/components/settings/settingsUserSessionsZone/%original_file_name%"
-  }
+  },
+  {
+    "source": "/frontend/app/src/i18n/us/components/settings/settingsUsersZone/*.json",
+    "translation": "/frontend/app/src/i18n/%two_letters_code%/components/settings/settingsUsersZone/%original_file_name%"
+  },
+  {
+    "source": "/frontend/app/src/i18n/us/components/users/*.json",
+    "translation": "/frontend/app/src/i18n/%two_letters_code%/components/users/%original_file_name%"
+  },
+  {
+    "source": "/frontend/app/src/i18n/us/gears/*.json",
+    "translation": "/frontend/app/src/i18n/%two_letters_code%/gears/%original_file_name%"
+  },
+  {
+    "source": "/frontend/app/src/i18n/us/strava/*.json",
+    "translation": "/frontend/app/src/i18n/%two_letters_code%/strava/%original_file_name%"
+  },
 ]
