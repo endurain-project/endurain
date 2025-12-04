@@ -5,7 +5,7 @@
   "userListUserIsAdminBadge": "Admin",
   "userListUserIsInactiveBadge": "Inactive",
   "userListUserHasUnverifiedEmailBadge": "Unverified email",
-  "userListUserHasExternalAuthBadge": "External Auth",
+  "userListUserHasExternalAuthBadge": "External auth",
   "modalApproveSignUpTitle": "Approve user sign up",
   "modalApproveSignUpBody": "Are you sure you want to approve user ",
   "processingApproval": "Processing approval...",
@@ -21,7 +21,7 @@
   "userSessionDeleteSuccessMessage": "Session deleted successfully",
   "userSessionDeleteErrorMessage": "Error deleting session",
   "tabSessions": "Sessions",
-  "tabIdentityProviders": "Identity Providers",
+  "tabIdentityProviders": "Identity providers",
   "userIdpsLoadErrorMessage": "Error loading identity providers",
   "userIdpDeleteSuccessMessage": "Identity provider unlinked successfully",
   "userIdpDeleteErrorMessage": "Error unlinking identity provider"
