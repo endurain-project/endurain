@@ -187,7 +187,7 @@
             <!-- avg_heart_rate -->
             <p class="mb-1">
               <span class="fw-semibold">
-                {{ $t('healthSleepListTabsComponent.avgHeartRateLabel') }}:
+                {{ $t('healthSleepListTabsComponent.avgLabel') }}:
               </span>
               <span v-if="userHealthSleep.avg_heart_rate">
                 {{ Number(userHealthSleep.avg_heart_rate) }} {{ $t('generalItems.unitsBpm') }}
@@ -197,7 +197,7 @@
             <!-- max_heart_rate -->
             <p class="mb-1">
               <span class="fw-semibold">
-                {{ $t('healthSleepListTabsComponent.maxHeartRateLabel') }}:
+                {{ $t('healthSleepListTabsComponent.maxLabel') }}:
               </span>
               <span v-if="userHealthSleep.max_heart_rate">
                 {{ Number(userHealthSleep.max_heart_rate) }} {{ $t('generalItems.unitsBrpm') }}
@@ -209,7 +209,7 @@
             <!-- min_heart_rate -->
             <p class="mb-1">
               <span class="fw-semibold">
-                {{ $t('healthSleepListTabsComponent.minHeartRateLabel') }}:
+                {{ $t('healthSleepListTabsComponent.minLabel') }}:
               </span>
               <span v-if="userHealthSleep.min_heart_rate">
                 {{ Number(userHealthSleep.min_heart_rate) }} {{ $t('generalItems.unitsBrpm') }}
@@ -230,7 +230,7 @@
             <!-- avg_spo2 -->
             <p class="mb-1">
               <span class="fw-semibold">
-                {{ $t('healthSleepListTabsComponent.avgSpo2Label') }}:
+                {{ $t('healthSleepListTabsComponent.avgLabel') }}:
               </span>
               <span v-if="userHealthSleep.avg_spo2">
                 {{ Number(userHealthSleep.avg_spo2) }}%
@@ -240,7 +240,7 @@
             <!-- highest_spo2 -->
             <p class="mb-1">
               <span class="fw-semibold">
-                {{ $t('healthSleepListTabsComponent.maxSpo2Label') }}:
+                {{ $t('healthSleepListTabsComponent.maxLabel') }}:
               </span>
               <span v-if="userHealthSleep.highest_spo2">
                 {{ Number(userHealthSleep.highest_spo2) }}%
@@ -252,7 +252,7 @@
             <!-- lowest_spo2 -->
             <p class="mb-1">
               <span class="fw-semibold">
-                {{ $t('healthSleepListTabsComponent.minSpo2Label') }}:
+                {{ $t('healthSleepListTabsComponent.minLabel') }}:
               </span>
               <span v-if="userHealthSleep.lowest_spo2">
                 {{ Number(userHealthSleep.lowest_spo2) }}%
@@ -273,7 +273,7 @@
             <!-- avg_respiration -->
             <p class="mb-1">
               <span class="fw-semibold">
-                {{ $t('healthSleepListTabsComponent.avgRespiratoryRateLabel') }}:
+                {{ $t('healthSleepListTabsComponent.avgLabel') }}:
               </span>
               <span v-if="userHealthSleep.avg_respiration">
                 {{ Number(userHealthSleep.avg_respiration) }} {{ $t('generalItems.unitsBrpm') }}
@@ -283,7 +283,7 @@
             <!-- highest_respiration -->
             <p class="mb-1">
               <span class="fw-semibold">
-                {{ $t('healthSleepListTabsComponent.maxRespiratoryRateLabel') }}:
+                {{ $t('healthSleepListTabsComponent.maxLabel') }}:
               </span>
               <span v-if="userHealthSleep.highest_respiration">
                 {{ Number(userHealthSleep.highest_respiration) }} {{ $t('generalItems.unitsBrpm') }}
@@ -295,7 +295,7 @@
             <!-- lowest_respiration -->
             <p class="mb-1">
               <span class="fw-semibold">
-                {{ $t('healthSleepListTabsComponent.minRespiratoryRateLabel') }}:
+                {{ $t('healthSleepListTabsComponent.minLabel') }}:
               </span>
               <span v-if="userHealthSleep.lowest_respiration">
                 {{ Number(userHealthSleep.lowest_respiration) }} {{ $t('generalItems.unitsBrpm') }}
