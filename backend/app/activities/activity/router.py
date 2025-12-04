@@ -1,8 +1,11 @@
 import calendar
 import glob
 import os
+import asyncio
 from datetime import date, datetime, timedelta, timezone
 from typing import Annotated, Callable
+from concurrent.futures import ThreadPoolExecutor
+from functools import partial
 
 import activities.activity.crud as activities_crud
 import activities.activity.dependencies as activities_dependencies
@@ -20,7 +23,6 @@ import strava.activity_utils as strava_activity_utils
 import websocket.schema as websocket_schema
 from fastapi import (
     APIRouter,
-    BackgroundTasks,
     Depends,
     HTTPException,
     Security,
@@ -32,6 +34,9 @@ from sqlalchemy.orm import Session
 
 # Define the API router
 router = APIRouter()
+
+# Define the thread pool executor with 2 workers
+executor = ThreadPoolExecutor(max_workers=2)
 
 
 @router.get(
@@ -646,15 +651,10 @@ async def create_activity_with_bulk_import(
     _check_scopes: Annotated[
         Callable, Security(auth_security.check_scopes, scopes=["activities:write"])
     ],
-    db: Annotated[
-        Session,
-        Depends(core_database.get_db),
-    ],
     websocket_manager: Annotated[
         websocket_schema.WebSocketManager,
         Depends(websocket_schema.get_websocket_manager),
     ],
-    background_tasks: BackgroundTasks,
 ):
     try:
         core_logger.print_to_log_and_console("Bulk import initiated.")
@@ -667,6 +667,7 @@ async def create_activity_with_bulk_import(
         supported_file_formats = core_config.SUPPORTED_FILE_FORMATS
 
         # Iterate over each file in the 'bulk_import' directory
+        files_to_process = []
         for filename in os.listdir(bulk_import_dir):
             file_path = os.path.join(bulk_import_dir, filename)
 
@@ -680,18 +681,23 @@ async def create_activity_with_bulk_import(
                 continue
 
             if os.path.isfile(file_path):
+                files_to_process.append(file_path)
                 # Log the file being processed
                 core_logger.print_to_log_and_console(
                     f"Queuing file for processing: {file_path}"
                 )
-                # Parse and store the activity
-                background_tasks.add_task(
-                    activities_utils.parse_and_store_activity_from_file,
-                    token_user_id,
-                    file_path,
-                    websocket_manager,
-                    db,
-                )
+
+        # Submit ONE task that processes all files
+        loop = asyncio.get_event_loop()
+        loop.run_in_executor(
+            executor,
+            partial(
+                activities_utils.process_all_files_sync,
+                token_user_id,
+                files_to_process,
+                websocket_manager,
+            ),
+        )
 
         # Log a success message that explains processing will continue elsewhere.
         core_logger.print_to_log_and_console(

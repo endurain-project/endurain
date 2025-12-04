@@ -1,6 +1,7 @@
 import gzip
 import os
 import shutil
+import asyncio
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 
@@ -44,6 +45,7 @@ import fit.utils as fit_utils
 
 import core.logger as core_logger
 import core.config as core_config
+import core.database as core_database
 
 # Global Activity Type Mappings (ID to Name)
 ACTIVITY_ID_TO_NAME = {
@@ -1171,3 +1173,42 @@ def set_activity_name_based_on_activity_type(activity_type_id: int) -> str:
 
     # If type is not 10 (Workout), return the mapping with " workout" suffix
     return mapping + " workout" if mapping != "Workout" else mapping
+
+
+def process_all_files_sync(
+    user_id: int,
+    file_paths: list[str],
+    websocket_manager: websocket_schema.WebSocketManager,
+):
+    """
+    Process all files sequentially in single thread.
+
+    Args:
+        user_id: User ID.
+        file_paths: List of file paths to process.
+        websocket_manager: WebSocket manager instance.
+    """
+    db = next(core_database.get_db())
+    try:
+        total_files = len(file_paths)
+        for idx, file_path in enumerate(file_paths, 1):
+            core_logger.print_to_log_and_console(
+                f"Processing file {idx}/{total_files}: " f"{file_path}"
+            )
+            asyncio.run(
+                parse_and_store_activity_from_file(
+                    user_id,
+                    file_path,
+                    websocket_manager,
+                    db,
+                )
+            )
+            # Small delay between files
+            time.sleep(0.1)
+
+        core_logger.print_to_log_and_console(
+            f"Bulk import completed: {total_files} files "
+            f"processed for user {user_id}"
+        )
+    finally:
+        db.close()
