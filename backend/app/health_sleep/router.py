@@ -1,6 +1,6 @@
 from typing import Annotated, Callable
 
-from fastapi import APIRouter, Depends, Security
+from fastapi import APIRouter, Depends, Security, HTTPException
 from sqlalchemy.orm import Session
 
 import health_sleep.schema as health_sleep_schema
@@ -112,6 +112,105 @@ async def read_health_sleep_all_pagination(
     return health_sleep_schema.HealthSleepListResponse(total=total, records=records)
 
 
+@router.post("", status_code=201)
+async def create_health_sleep(
+    health_sleep: health_sleep_schema.HealthSleep,
+    _check_scopes: Annotated[
+        Callable, Security(auth_security.check_scopes, scopes=["health:write"])
+    ],
+    token_user_id: Annotated[
+        int,
+        Depends(auth_security.get_sub_from_access_token),
+    ],
+    db: Annotated[
+        Session,
+        Depends(core_database.get_db),
+    ],
+) -> health_sleep_schema.HealthSleep:
+    """
+    Create or update health sleep data for a user.
+
+    This endpoint creates new health sleep data or updates existing data if an entry
+    for the specified date already exists. The operation is determined automatically
+    based on whether sleep data exists for the given date.
+
+    Args:
+        health_sleep (health_sleep_schema.HealthSleep): The health sleep data to create
+            or update, including the date and sleep duration.
+        _check_scopes (Callable): Security dependency that verifies the user has
+            'health:write' scope.
+        token_user_id (int): The ID of the authenticated user extracted from the
+            access token.
+        db (Session): Database session dependency for database operations.
+
+    Returns:
+        health_sleep_schema.HealthSleep: The created or updated health sleep data.
+
+    Raises:
+        HTTPException: 400 error if the date field is not provided in the request.
+    """
+    if not health_sleep.date:
+        raise HTTPException(status_code=400, detail="Date field is required.")
+
+    # Convert date to string format for CRUD function
+    date_str = health_sleep.date.isoformat()
+
+    # Check if health_sleep for this date already exists
+    sleep_for_date = health_sleep_crud.get_health_sleep_by_date(
+        token_user_id, date_str, db
+    )
+
+    if sleep_for_date:
+        health_sleep.id = sleep_for_date.id
+        # Updates the health_sleep in the database and returns it
+        return health_sleep_crud.edit_health_sleep(token_user_id, health_sleep, db)
+    else:
+        # Creates the health_sleep in the database and returns it
+        return health_sleep_crud.create_health_sleep(token_user_id, health_sleep, db)
+
+
+@router.put("")
+async def edit_health_sleep(
+    health_sleep: health_sleep_schema.HealthSleep,
+    _check_scopes: Annotated[
+        Callable, Security(auth_security.check_scopes, scopes=["health:write"])
+    ],
+    token_user_id: Annotated[
+        int,
+        Depends(auth_security.get_sub_from_access_token),
+    ],
+    db: Annotated[
+        Session,
+        Depends(core_database.get_db),
+    ],
+) -> health_sleep_schema.HealthSleep:
+    """
+    Edit health sleep data for a user.
+
+    This endpoint updates existing health sleep records in the database for the authenticated user.
+    Requires 'health:write' scope for authorization.
+
+    Args:
+        health_sleep (health_sleep_schema.HealthSleep): The health sleep data to be updated,
+            containing the new values for the health sleep record.
+        _check_scopes (Callable): Security dependency that verifies the user has 'health:write'
+            scope permission.
+        token_user_id (int): The user ID extracted from the JWT access token, used to identify
+            the user making the request.
+        db (Session): Database session dependency for performing database operations.
+
+    Returns:
+        health_sleep_schema.HealthSleep: The updated health sleep record with the new values
+            as stored in the database.
+
+    Raises:
+        HTTPException: May raise various HTTP exceptions if authorization fails, user is not
+            found, or database operations fail.
+    """
+    # Updates the health_sleep in the database and returns it
+    return health_sleep_crud.edit_health_sleep(token_user_id, health_sleep, db)
+
+
 @router.delete("/{health_sleep_id}", status_code=204)
 async def delete_health_sleep(
     health_sleep_id: int,
@@ -146,7 +245,7 @@ async def delete_health_sleep(
         HTTPException: May be raised by dependencies if:
             - The access token is invalid or expired
             - The user lacks required 'health:write' scope
-            - The health steps record doesn't exist or doesn't belong to the user
+            - The health sleep record doesn't exist or doesn't belong to the user
     """
     # Deletes entry from database
     health_sleep_crud.delete_health_sleep(token_user_id, health_sleep_id, db)
