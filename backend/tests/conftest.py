@@ -20,11 +20,13 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "app"))
 import session.router as session_router
 import auth.password_hasher as auth_password_hasher
 import auth.token_manager as auth_token_manager
+import auth.security as auth_security
 import users.user.schema as user_schema
 
 # Variables and constants
 DEFAULT_ROUTER_MODULES = [
     "session.router",
+    "health_weight.router",
 ]
 
 
@@ -128,12 +130,17 @@ def _include_router_if_exists(app: FastAPI, dotted: str):
     Notes:
         - If the module does not exist or does not have a 'router' attribute, the function silently ignores the error.
         - This is useful for conditionally including routers in a modular FastAPI project.
+        - For health_weight router, adds /health_weight prefix to match expected test URLs
     """
     try:
         mod = import_module(dotted)
         router = getattr(mod, "router", None)
         if router is not None:
-            app.include_router(router)
+            # Add prefix for health_weight router
+            if dotted == "health_weight.router":
+                app.include_router(router, prefix="/health_weight")
+            else:
+                app.include_router(router)
     except Exception:
         # Silently ignore if module isn't present in this project
         pass
@@ -368,6 +375,15 @@ def fast_api_app(password_hasher, token_manager, mock_db) -> FastAPI:
         ] = _mock_get_and_return_refresh_token
         app.dependency_overrides[session_router.auth_security.check_scopes] = (
             _mock_check_scopes
+        )
+    except Exception:
+        pass
+
+    # Override auth_security for health_weight router
+    try:
+        app.dependency_overrides[auth_security.check_scopes] = _mock_check_scopes
+        app.dependency_overrides[auth_security.get_sub_from_access_token] = (
+            _mock_get_sub_from_access_token
         )
     except Exception:
         pass

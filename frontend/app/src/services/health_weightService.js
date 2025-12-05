@@ -6,9 +6,6 @@ import {
 } from '@/utils/serviceUtils'
 
 export const health_weight = {
-  getUserHealthWeightNumber() {
-    return fetchGetRequest('health/weight/number')
-  },
   getUserHealthWeight() {
     return fetchGetRequest('health/weight')
   },

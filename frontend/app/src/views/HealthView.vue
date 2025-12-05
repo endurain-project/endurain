@@ -95,7 +95,7 @@ function updateActiveSection(section) {
   if (pageNumberWeight.value !== 1 || pageNumberSteps.value !== 1) {
     pageNumberWeight.value = 1
     pageNumberSteps.value = 1
-    updateHealthWeight()
+    updateHealthWeightPagination()
     updateHealthSteps()
   }
 }
@@ -135,13 +135,14 @@ function setPageNumberRHR(page) {
 }
 
 // Weight functions
-async function updateHealthWeight() {
+async function updateHealthWeightPagination() {
   try {
     isHealthWeightUpdatingLoading.value = true
-    userHealthWeightPagination.value = await health_weight.getUserHealthWeightWithPagination(
+    const weightDataPagination = await health_weight.getUserHealthWeightWithPagination(
       pageNumberWeight.value,
       numRecords
     )
+    userHealthWeightPagination.value = weightDataPagination.records
     isHealthWeightUpdatingLoading.value = false
   } catch (error) {
     push.error(`${t('healthView.errorFetchingHealthWeight')} - ${error}`)
@@ -150,9 +151,10 @@ async function updateHealthWeight() {
 
 async function fetchHealthWeight() {
   try {
-    userHealthWeightNumber.value = await health_weight.getUserHealthWeightNumber()
-    userHealthWeight.value = await health_weight.getUserHealthWeight()
-    await updateHealthWeight()
+    const weightData = await health_weight.getUserHealthWeight()
+    userHealthWeight.value = weightData.records
+    userHealthWeightNumber.value = weightData.total
+    await updateHealthWeightPagination()
     totalPagesWeight.value = Math.ceil(userHealthWeightNumber.value / numRecords)
   } catch (error) {
     push.error(`${t('healthView.errorFetchingHealthWeight')} - ${error}`)
@@ -359,7 +361,7 @@ function setSleepTarget(sleepTarget) {
 // Watch functions
 watch(pageNumberSleep, updateHealthSleep, { immediate: false })
 watch(pageNumberSteps, updateHealthSteps, { immediate: false })
-watch(pageNumberWeight, updateHealthWeight, { immediate: false })
+watch(pageNumberWeight, updateHealthWeightPagination, { immediate: false })
 
 onMounted(async () => {
   await fetchHealthSleep()

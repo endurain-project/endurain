@@ -5,16 +5,44 @@ from datetime import date as datetime_date
 
 class Source(Enum):
     """
-    An enumeration representing supported sources for the application.
+    Enumeration representing the source of health weight data.
 
-    Members:
-        GARMIN: Garmin health data source
+    Attributes:
+        GARMIN (str): Indicates that the weight data comes from Garmin devices or services.
     """
 
     GARMIN = "garmin"
 
 
 class HealthWeight(BaseModel):
+    """
+    Schema for health weight measurements.
+
+    This class represents a comprehensive set of body composition and health metrics
+    for a user at a specific point in time.
+
+    Attributes:
+        id (int | None): Unique identifier for the health weight record.
+        user_id (int | None): Identifier of the user associated with this measurement.
+        date (datetime_date | None): Date when the measurement was taken.
+        weight (float | None): Body weight measurement.
+        bmi (float | None): Body Mass Index calculated from height and weight.
+        body_fat (float | None): Body fat percentage.
+        body_water (float | None): Body water percentage.
+        bone_mass (float | None): Bone mass measurement.
+        muscle_mass (float | None): Muscle mass measurement.
+        physique_rating (int | None): Overall physique rating score.
+        visceral_fat (float | None): Visceral fat level measurement.
+        metabolic_age (int | None): Estimated metabolic age based on body composition.
+        source (Source | None): Source or origin of the measurement data.
+
+    Configuration:
+        - from_attributes: Enables population from ORM models
+        - extra: Forbids extra fields not defined in the schema
+        - validate_assignment: Validates values on assignment
+        - use_enum_values: Uses enum values instead of enum instances
+    """
+
     id: int | None = None
     user_id: int | None = None
     date: datetime_date | None = None
@@ -34,4 +62,31 @@ class HealthWeight(BaseModel):
         extra="forbid",
         validate_assignment=True,
         use_enum_values=True,
+    )
+
+
+class HealthWeightListResponse(BaseModel):
+    """
+    Response schema for health weight list with total count.
+
+    This class wraps a list of health weight records along with the total count,
+    providing a complete response for list endpoints.
+
+    Attributes:
+        total (int): Total number of weight records for the user.
+        records (list[HealthWeight]): List of health weight measurements.
+
+    Configuration:
+        - from_attributes: Enables population from ORM models
+        - extra: Forbids extra fields not defined in the schema
+        - validate_assignment: Validates values on assignment
+    """
+
+    total: int
+    records: list[HealthWeight]
+
+    model_config = ConfigDict(
+        from_attributes=True,
+        extra="forbid",
+        validate_assignment=True,
     )
