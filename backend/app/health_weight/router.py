@@ -69,7 +69,7 @@ async def read_health_weight_all_pagination(
     _check_scopes: Annotated[
         Callable, Security(auth_security.check_scopes, scopes=["health:read"])
     ],
-    validate_pagination_values: Annotated[
+    _validate_pagination_values: Annotated[
         Callable, Depends(core_dependencies.validate_pagination_values)
     ],
     token_user_id: Annotated[

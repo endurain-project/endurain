@@ -26,6 +26,7 @@ import users.user.schema as user_schema
 # Variables and constants
 DEFAULT_ROUTER_MODULES = [
     "session.router",
+    "health_steps.router",
     "health_weight.router",
 ]
 
@@ -139,6 +140,8 @@ def _include_router_if_exists(app: FastAPI, dotted: str):
             # Add prefix for health_weight router
             if dotted == "health_weight.router":
                 app.include_router(router, prefix="/health_weight")
+            elif dotted == "health_steps.router":
+                app.include_router(router, prefix="/health_steps")
             else:
                 app.include_router(router)
     except Exception:

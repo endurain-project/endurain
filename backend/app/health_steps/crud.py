@@ -9,7 +9,21 @@ import health_steps.models as health_steps_models
 import core.logger as core_logger
 
 
-def get_health_steps_number(user_id: int, db: Session):
+def get_health_steps_number(user_id: int, db: Session) -> int:
+    """
+    Retrieves the total count of health steps records for a specific user.
+
+    Args:
+        user_id (int): The unique identifier of the user whose health steps count is to be retrieved.
+        db (Session): The database session object used to query the database.
+
+    Returns:
+        int: The total number of health steps records associated with the specified user.
+
+    Raises:
+        HTTPException: If a database error or any other exception occurs during the query execution,
+                       an HTTPException with status code 500 (Internal Server Error) is raised.
+    """
     try:
         # Get the number of health_steps from the database
         return (
@@ -29,22 +43,38 @@ def get_health_steps_number(user_id: int, db: Session):
         ) from err
 
 
-def get_all_health_steps_by_user_id(user_id: int, db: Session):
+def get_all_health_steps_by_user_id(
+    user_id: int, db: Session
+) -> list[health_steps_models.HealthSteps]:
+    """
+    Retrieve all health steps records for a specific user from the database.
+
+    This function queries the database to fetch all health steps entries associated
+    with the given user ID, ordered by date in descending order (most recent first).
+
+    Args:
+        user_id (int): The unique identifier of the user whose health steps records
+                       are to be retrieved.
+        db (Session): The SQLAlchemy database session used to execute the query.
+
+    Returns:
+        list[HealthSteps]: A list of HealthSteps model instances representing all
+                           health steps records for the specified user, ordered by
+                           date in descending order.
+
+    Raises:
+        HTTPException: A 500 Internal Server Error exception is raised if any
+                       database or unexpected error occurs during the query execution.
+                       The original exception is logged before being re-raised.
+    """
     try:
         # Get the health_steps from the database
-        health_steps = (
+        return (
             db.query(health_steps_models.HealthSteps)
             .filter(health_steps_models.HealthSteps.user_id == user_id)
             .order_by(desc(health_steps_models.HealthSteps.date))
             .all()
         )
-
-        # Check if there are health_steps if not return None
-        if not health_steps:
-            return None
-
-        # Return the health_steps
-        return health_steps
     except Exception as err:
         # Log the exception
         core_logger.print_to_log(
@@ -59,10 +89,30 @@ def get_all_health_steps_by_user_id(user_id: int, db: Session):
 
 def get_health_steps_with_pagination(
     user_id: int, db: Session, page_number: int = 1, num_records: int = 5
-):
+) -> list[health_steps_models.HealthSteps]:
+    """
+    Retrieve paginated health steps records for a specific user.
+
+    This function queries the database to fetch health steps records for a given user,
+    with support for pagination. Results are ordered by date in descending order.
+
+    Args:
+        user_id (int): The ID of the user whose health steps records are to be retrieved.
+        db (Session): The database session object used for querying.
+        page_number (int, optional): The page number to retrieve. Defaults to 1.
+        num_records (int, optional): The number of records per page. Defaults to 5.
+
+    Returns:
+        list[health_steps_models.HealthSteps]: A list of HealthSteps model instances
+            representing the user's health steps records for the specified page.
+
+    Raises:
+        HTTPException: A 500 Internal Server Error exception is raised if any
+            database operation fails or an unexpected error occurs during execution.
+    """
     try:
         # Get the health_steps from the database
-        health_steps = (
+        return (
             db.query(health_steps_models.HealthSteps)
             .filter(health_steps_models.HealthSteps.user_id == user_id)
             .order_by(desc(health_steps_models.HealthSteps.date))
@@ -70,13 +120,6 @@ def get_health_steps_with_pagination(
             .limit(num_records)
             .all()
         )
-
-        # Check if there are health_steps if not return None
-        if not health_steps:
-            return None
-
-        # Return the health_steps
-        return health_steps
     except Exception as err:
         # Log the exception
         core_logger.print_to_log(
@@ -89,10 +132,31 @@ def get_health_steps_with_pagination(
         ) from err
 
 
-def get_health_steps_by_date(user_id: int, date: str, db: Session):
+def get_health_steps_by_date(
+    user_id: int, date: str, db: Session
+) -> health_steps_models.HealthSteps | None:
+    """
+    Retrieve health steps data for a specific user and date.
+
+    This function queries the database to find health steps records matching
+    the specified user ID and date.
+
+    Args:
+        user_id (int): The unique identifier of the user.
+        date (str): The date for which to retrieve health steps data (format: YYYY-MM-DD).
+        db (Session): The database session object for executing queries.
+
+    Returns:
+        health_steps_models.HealthSteps | None: The health steps record if found,
+            otherwise None.
+
+    Raises:
+        HTTPException: A 500 Internal Server Error if an exception occurs during
+            the database query operation.
+    """
     try:
         # Get the health_steps from the database
-        health_steps = (
+        return (
             db.query(health_steps_models.HealthSteps)
             .filter(
                 health_steps_models.HealthSteps.date == date,
@@ -100,13 +164,6 @@ def get_health_steps_by_date(user_id: int, date: str, db: Session):
             )
             .first()
         )
-
-        # Check if there are health_steps if not return None
-        if not health_steps:
-            return None
-
-        # Return the health_steps
-        return health_steps
     except Exception as err:
         # Log the exception
         core_logger.print_to_log(
@@ -121,7 +178,27 @@ def get_health_steps_by_date(user_id: int, date: str, db: Session):
 
 def create_health_steps(
     user_id: int, health_steps: health_steps_schema.HealthSteps, db: Session
-):
+) -> health_steps_schema.HealthSteps:
+    """
+    Create a new health steps record for a user.
+
+    This function creates a new health steps entry in the database for the specified user.
+    If no date is provided, it defaults to the current date/time.
+
+    Args:
+        user_id (int): The ID of the user for whom the health steps record is being created.
+        health_steps (health_steps_schema.HealthSteps): The health steps data to be created.
+            The 'id' and 'user_id' fields are excluded from the input as they are set internally.
+        db (Session): The database session for executing the database operations.
+
+    Returns:
+        health_steps_schema.HealthSteps: The created health steps record with the assigned ID.
+
+    Raises:
+        HTTPException:
+            - 409 Conflict: If a health steps entry already exists for the given date.
+            - 500 Internal Server Error: If any other unexpected error occurs during creation.
+    """
     try:
         # Check if date is None
         if health_steps.date is None:
@@ -170,7 +247,30 @@ def create_health_steps(
 
 def edit_health_steps(
     user_id, health_steps: health_steps_schema.HealthSteps, db: Session
-):
+) -> health_steps_schema.HealthSteps:
+    """
+    Edit health steps record for a specific user.
+
+    This function updates an existing health steps record in the database for a given user.
+    It performs validation to ensure the record exists and belongs to the specified user
+    before applying updates.
+
+    Args:
+        user_id: The ID of the user who owns the health steps record.
+        health_steps (health_steps_schema.HealthSteps): The health steps object containing
+            the ID of the record to update and the fields to be modified.
+        db (Session): The database session used for querying and committing changes.
+
+    Returns:
+        health_steps_schema.HealthSteps: The updated health steps object.
+
+    Raises:
+        HTTPException:
+            - 404 NOT_FOUND: If the health steps record is not found or doesn't belong
+              to the specified user.
+            - 500 INTERNAL_SERVER_ERROR: If an unexpected error occurs during the update
+              process.
+    """
     try:
         # Get the health_steps from the database
         db_health_steps = (
@@ -215,7 +315,29 @@ def edit_health_steps(
         ) from err
 
 
-def delete_health_steps(user_id: int, health_steps_id: int, db: Session):
+def delete_health_steps(user_id: int, health_steps_id: int, db: Session) -> None:
+    """
+    Delete a health steps record for a specific user.
+
+    This function deletes a health steps entry from the database based on the provided
+    health_steps_id and user_id. It ensures that the record belongs to the specified user
+    before deletion.
+
+    Args:
+        user_id (int): The ID of the user who owns the health steps record.
+        health_steps_id (int): The ID of the health steps record to delete.
+        db (Session): The database session object for executing queries.
+
+    Returns:
+        None
+
+    Raises:
+        HTTPException:
+            - 404 NOT FOUND if the health steps record with the given ID
+              for the specified user is not found.
+            - 500 INTERNAL SERVER ERROR if any other exception occurs during
+              the deletion process.
+    """
     try:
         # Delete the health_steps
         num_deleted = (

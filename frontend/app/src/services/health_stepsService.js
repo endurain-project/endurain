@@ -6,9 +6,6 @@ import {
 } from '@/utils/serviceUtils'
 
 export const health_steps = {
-    getUserHealthStepsNumber() {
-        return fetchGetRequest('health/steps/number')
-    },
     getUserHealthSteps() {
         return fetchGetRequest('health/steps')
     },

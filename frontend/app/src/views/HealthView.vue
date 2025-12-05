@@ -96,7 +96,7 @@ function updateActiveSection(section) {
     pageNumberWeight.value = 1
     pageNumberSteps.value = 1
     updateHealthWeightPagination()
-    updateHealthSteps()
+    updateHealthStepsPagination()
   }
 }
 
@@ -226,13 +226,14 @@ function setPageNumberWeight(page) {
 }
 
 // Steps functions
-async function updateHealthSteps() {
+async function updateHealthStepsPagination() {
   try {
     isHealthStepsUpdatingLoading.value = true
-    userHealthStepsPagination.value = await health_steps.getUserHealthStepsWithPagination(
+    const stepsDataPagination = await health_steps.getUserHealthStepsWithPagination(
       pageNumberSteps.value,
       numRecords
     )
+    userHealthStepsPagination.value = stepsDataPagination.records
     isHealthStepsUpdatingLoading.value = false
   } catch (error) {
     push.error(`${t('healthView.errorFetchingHealthSteps')} - ${error}`)
@@ -241,9 +242,10 @@ async function updateHealthSteps() {
 
 async function fetchHealthSteps() {
   try {
-    userHealthStepsNumber.value = await health_steps.getUserHealthStepsNumber()
-    userHealthSteps.value = await health_steps.getUserHealthSteps()
-    await updateHealthSteps()
+    const stepsData = await health_steps.getUserHealthSteps()
+    userHealthStepsNumber.value = stepsData.total
+    userHealthSteps.value = stepsData.records
+    await updateHealthStepsPagination()
     totalPagesSteps.value = Math.ceil(userHealthStepsNumber.value / numRecords)
   } catch (error) {
     push.error(`${t('healthView.errorFetchingHealthSteps')} - ${error}`)
@@ -360,7 +362,7 @@ function setSleepTarget(sleepTarget) {
 
 // Watch functions
 watch(pageNumberSleep, updateHealthSleep, { immediate: false })
-watch(pageNumberSteps, updateHealthSteps, { immediate: false })
+watch(pageNumberSteps, updateHealthStepsPagination, { immediate: false })
 watch(pageNumberWeight, updateHealthWeightPagination, { immediate: false })
 
 onMounted(async () => {
