@@ -232,7 +232,6 @@ const initMap = () => {
     attribution: '© OpenStreetMap contributors'
   }).addTo(leafletMap.value)
 
-  
   const polyline = L.polyline(latlngs, {
     color: '#2563eb',
     weight: 4,

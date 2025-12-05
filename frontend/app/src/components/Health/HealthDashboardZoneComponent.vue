@@ -13,8 +13,11 @@
           </div>
           <div class="card-footer text-body-secondary">
             <span v-if="userHealthTargets && userHealthTargets['sleep']">
-              <font-awesome-icon :icon="['fas', 'angle-down']" class="me-1"
-                v-if="todaySleep < userHealthTargets.sleep" />
+              <font-awesome-icon
+                :icon="['fas', 'angle-down']"
+                class="me-1"
+                v-if="todaySleep < userHealthTargets.sleep"
+              />
               <font-awesome-icon :icon="['fas', 'angle-up']" class="me-1" v-else />
               {{ formatDuration(userHealthTargets.sleep) }}
             </span>
@@ -29,7 +32,9 @@
             <h4>{{ $t('healthDashboardZoneComponent.restingHeartRate') }}</h4>
           </div>
           <div class="card-body">
-            <h1 v-if="restingHeartRate">{{ restingHeartRate }} {{ $t('generalItems.unitsBpm') }}</h1>
+            <h1 v-if="restingHeartRate">
+              {{ restingHeartRate }} {{ $t('generalItems.unitsBpm') }}
+            </h1>
             <h1 v-else>{{ $t('generalItems.labelNoData') }}</h1>
           </div>
           <div class="card-footer text-body-secondary">
@@ -45,7 +50,9 @@
             <h4>{{ $t('healthDashboardZoneComponent.avgSkinTemperatureDeviation') }}</h4>
           </div>
           <div class="card-body">
-            <h1 v-if="avgSkinTempDeviation">{{ avgSkinTempDeviation }} {{ $t('generalItems.unitsCelsius') }}</h1>
+            <h1 v-if="avgSkinTempDeviation">
+              {{ avgSkinTempDeviation }} {{ $t('generalItems.unitsCelsius') }}
+            </h1>
             <h1 v-else>{{ $t('generalItems.labelNoData') }}</h1>
           </div>
           <div class="card-footer text-body-secondary">
@@ -69,13 +76,28 @@
             <h1 v-else>{{ $t('generalItems.labelNotApplicable') }}</h1>
           </div>
           <div class="card-footer text-body-secondary">
-            <font-awesome-icon :icon="['fas', 'angle-down']" class="me-1"
-              v-if="currentWeight > userHealthTargets.weight" />
+            <font-awesome-icon
+              :icon="['fas', 'angle-down']"
+              class="me-1"
+              v-if="currentWeight > userHealthTargets.weight"
+            />
             <font-awesome-icon :icon="['fas', 'angle-up']" class="me-1" v-else />
-            <span v-if="userHealthTargets && userHealthTargets['weight'] && Number(authStore?.user?.units) === 1">
+            <span
+              v-if="
+                userHealthTargets &&
+                userHealthTargets['weight'] &&
+                Number(authStore?.user?.units) === 1
+              "
+            >
               {{ userHealthTargets.weight }} {{ $t('generalItems.unitsKg') }}
             </span>
-            <span v-else-if="userHealthTargets && userHealthTargets['weight'] && Number(authStore?.user?.units) === 2">
+            <span
+              v-else-if="
+                userHealthTargets &&
+                userHealthTargets['weight'] &&
+                Number(authStore?.user?.units) === 2
+              "
+            >
               {{ kgToLbs(userHealthTargets.weight) }} {{ $t('generalItems.unitsLbs') }}
             </span>
             <span v-else>{{ $t('healthDashboardZoneComponent.noWeightTarget') }}</span>
@@ -113,10 +135,14 @@
           </div>
           <div class="card-footer text-body-secondary">
             <span v-if="userHealthTargets && userHealthTargets['steps']">
-              <font-awesome-icon :icon="['fas', 'angle-down']" class="me-1"
-                v-if="todaySteps < userHealthTargets.steps" />
+              <font-awesome-icon
+                :icon="['fas', 'angle-down']"
+                class="me-1"
+                v-if="todaySteps < userHealthTargets.steps"
+              />
               <font-awesome-icon :icon="['fas', 'angle-up']" class="me-1" v-else />
-              {{ userHealthTargets.steps }} {{ $t('healthDashboardZoneComponent.stepsTargetLabel') }}
+              {{ userHealthTargets.steps }}
+              {{ $t('healthDashboardZoneComponent.stepsTargetLabel') }}
             </span>
             <span v-else>{{ $t('healthDashboardZoneComponent.noStepsTarget') }}</span>
           </div>

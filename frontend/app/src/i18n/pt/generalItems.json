@@ -78,5 +78,7 @@
   "genderFemale": "Feminino",
   "genderUnspecified": "Não especificado",
   "labelAverage": "Average",
-  "labelMaximum": "Maximum"
+  "labelMaximum": "Maximum",
+  "labelHours": "Horas",
+  "labelMinutes": "Minutos"
 }

@@ -1,5 +1,8 @@
 <template>
-  <li class="list-group-item bg-body-tertiary rounded px-0" :class="{ 'shadow rounded px-3 mb-3': userDetails }">
+  <li
+    class="list-group-item bg-body-tertiary rounded px-0"
+    :class="{ 'shadow rounded px-3 mb-3': userDetails }"
+  >
     <div class="d-flex justify-content-between">
       <div class="d-flex align-items-center">
         <UserAvatarComponent :user="user" :width="55" :height="55" />
@@ -9,97 +12,172 @@
           </div>
           <span v-if="user.access_type == 1">{{
             $t('usersListComponent.userListAccessTypeOption1')
-            }}</span>
+          }}</span>
           <span v-else>{{ $t('usersListComponent.userListAccessTypeOption2') }}</span>
         </div>
       </div>
       <div>
         <span
           class="badge bg-secondary-subtle border border-secondary-subtle text-secondary-emphasis me-2 d-none d-sm-inline"
-          v-if="user.id == authStore.user.id">{{ $t('usersListComponent.userListUserIsMeBadge') }}</span>
-        <span class="badge bg-warning-subtle border border-warning-subtle text-warning-emphasis me-2 d-none d-sm-inline"
-          v-if="user.access_type == 2">{{ $t('usersListComponent.userListUserIsAdminBadge') }}</span>
-        <span class="badge bg-danger-subtle border border-danger-subtle text-danger-emphasis me-2 d-none d-sm-inline"
-          v-if="user.active == false">{{ $t('usersListComponent.userListUserIsInactiveBadge') }}</span>
-        <span class="badge bg-danger-subtle border border-danger-subtle text-danger-emphasis me-2 d-none d-sm-inline"
-          v-if="user.email_verified == false">{{ $t('usersListComponent.userListUserHasUnverifiedEmailBadge') }}</span>
-        <span class="badge bg-info-subtle border border-info-subtle text-info-emphasis d-none d-sm-inline"
+          v-if="user.id == authStore.user.id"
+          >{{ $t('usersListComponent.userListUserIsMeBadge') }}</span
+        >
+        <span
+          class="badge bg-warning-subtle border border-warning-subtle text-warning-emphasis me-2 d-none d-sm-inline"
+          v-if="user.access_type == 2"
+          >{{ $t('usersListComponent.userListUserIsAdminBadge') }}</span
+        >
+        <span
+          class="badge bg-danger-subtle border border-danger-subtle text-danger-emphasis me-2 d-none d-sm-inline"
+          v-if="user.active == false"
+          >{{ $t('usersListComponent.userListUserIsInactiveBadge') }}</span
+        >
+        <span
+          class="badge bg-danger-subtle border border-danger-subtle text-danger-emphasis me-2 d-none d-sm-inline"
+          v-if="user.email_verified == false"
+          >{{ $t('usersListComponent.userListUserHasUnverifiedEmailBadge') }}</span
+        >
+        <span
+          class="badge bg-info-subtle border border-info-subtle text-info-emphasis d-none d-sm-inline"
           v-if="user.external_auth_count && user.external_auth_count > 0"
-          :aria-label="$t('usersListComponent.userListUserHasExternalAuthBadge')">{{
-            $t('usersListComponent.userListUserHasExternalAuthBadge') }}</span>
+          :aria-label="$t('usersListComponent.userListUserHasExternalAuthBadge')"
+          >{{ $t('usersListComponent.userListUserHasExternalAuthBadge') }}</span
+        >
 
         <!-- button toggle user details -->
-        <a class="btn btn-link btn-lg link-body-emphasis" data-bs-toggle="collapse"
-          :href="`#collapseUserDetails${user.id}`" role="button" aria-expanded="false"
-          :aria-controls="`collapseUserDetails${user.id}`">
+        <a
+          class="btn btn-link btn-lg link-body-emphasis"
+          data-bs-toggle="collapse"
+          :href="`#collapseUserDetails${user.id}`"
+          role="button"
+          aria-expanded="false"
+          :aria-controls="`collapseUserDetails${user.id}`"
+        >
           <font-awesome-icon :icon="['fas', 'caret-down']" v-if="!userDetails" />
           <font-awesome-icon :icon="['fas', 'caret-up']" v-else />
         </a>
 
         <!-- approve sign-up button -->
-        <a class="btn btn-link btn-lg link-body-emphasis" href="#" role="button" data-bs-toggle="modal"
+        <a
+          class="btn btn-link btn-lg link-body-emphasis"
+          href="#"
+          role="button"
+          data-bs-toggle="modal"
           :data-bs-target="`#approveSignUpModal${user.id}`"
-          v-if="user.pending_admin_approval && user.email_verified"><font-awesome-icon
-            :icon="['fas', 'fa-check']" /></a>
+          v-if="user.pending_admin_approval && user.email_verified"
+          ><font-awesome-icon :icon="['fas', 'fa-check']"
+        /></a>
 
         <!-- approve sign up modal -->
-        <ModalComponent :modalId="`approveSignUpModal${user.id}`"
+        <ModalComponent
+          :modalId="`approveSignUpModal${user.id}`"
           :title="t('usersListComponent.modalApproveSignUpTitle')"
           :body="`${t('usersListComponent.modalApproveSignUpBody')}<b>${user.username}</b>?`"
-          :actionButtonType="`success`" :actionButtonText="t('usersListComponent.modalApproveSignUpTitle')"
-          @submitAction="submitApproveSignUp" v-if="user.pending_admin_approval && user.email_verified" />
+          :actionButtonType="`success`"
+          :actionButtonText="t('usersListComponent.modalApproveSignUpTitle')"
+          @submitAction="submitApproveSignUp"
+          v-if="user.pending_admin_approval && user.email_verified"
+        />
 
         <!-- reject sign-up button -->
-        <a class="btn btn-link btn-lg link-body-emphasis" href="#" role="button" data-bs-toggle="modal"
+        <a
+          class="btn btn-link btn-lg link-body-emphasis"
+          href="#"
+          role="button"
+          data-bs-toggle="modal"
           :data-bs-target="`#rejectSignUpModal${user.id}`"
-          v-if="user.pending_admin_approval && user.email_verified"><font-awesome-icon
-            :icon="['fas', 'fa-xmark']" /></a>
+          v-if="user.pending_admin_approval && user.email_verified"
+          ><font-awesome-icon :icon="['fas', 'fa-xmark']"
+        /></a>
 
         <!-- reject sign up modal -->
-        <ModalComponent :modalId="`rejectSignUpModal${user.id}`" :title="t('usersListComponent.modalRejectSignUpTitle')"
+        <ModalComponent
+          :modalId="`rejectSignUpModal${user.id}`"
+          :title="t('usersListComponent.modalRejectSignUpTitle')"
           :body="`${t('usersListComponent.modalRejectSignUpBody1')}<b>${user.username}</b>? ${t('usersListComponent.modalRejectSignUpBody2')}`"
-          :actionButtonType="`danger`" :actionButtonText="t('usersListComponent.modalRejectSignUpTitle')"
-          @submitAction="submitDeleteUser" v-if="user.pending_admin_approval && user.email_verified" />
+          :actionButtonType="`danger`"
+          :actionButtonText="t('usersListComponent.modalRejectSignUpTitle')"
+          @submitAction="submitDeleteUser"
+          v-if="user.pending_admin_approval && user.email_verified"
+        />
 
         <!-- change user password button -->
-        <a class="btn btn-link btn-lg link-body-emphasis" href="#" role="button" data-bs-toggle="modal"
-          :data-bs-target="`#editUserPasswordModal${user.id}`"><font-awesome-icon :icon="['fas', 'fa-key']" /></a>
+        <a
+          class="btn btn-link btn-lg link-body-emphasis"
+          href="#"
+          role="button"
+          data-bs-toggle="modal"
+          :data-bs-target="`#editUserPasswordModal${user.id}`"
+          ><font-awesome-icon :icon="['fas', 'fa-key']"
+        /></a>
 
         <!-- change user password Modal -->
         <UsersChangeUserPasswordModalComponent :user="user" />
 
         <!-- edit user button -->
-        <a class="btn btn-link btn-lg link-body-emphasis" href="#" role="button" data-bs-toggle="modal"
-          :data-bs-target="`#editUserModal${user.id}`"><font-awesome-icon :icon="['fas', 'fa-pen-to-square']" /></a>
+        <a
+          class="btn btn-link btn-lg link-body-emphasis"
+          href="#"
+          role="button"
+          data-bs-toggle="modal"
+          :data-bs-target="`#editUserModal${user.id}`"
+          ><font-awesome-icon :icon="['fas', 'fa-pen-to-square']"
+        /></a>
 
         <!-- edit user modal -->
         <UsersAddEditUserModalComponent :action="'edit'" :user="user" @editedUser="editUserList" />
 
         <!-- delete user button -->
-        <a class="btn btn-link btn-lg link-body-emphasis" href="#" role="button" data-bs-toggle="modal"
-          :data-bs-target="`#deleteUserModal${user.id}`" v-if="authStore.user.id != user.id"><font-awesome-icon
-            :icon="['fas', 'fa-trash-can']" /></a>
+        <a
+          class="btn btn-link btn-lg link-body-emphasis"
+          href="#"
+          role="button"
+          data-bs-toggle="modal"
+          :data-bs-target="`#deleteUserModal${user.id}`"
+          v-if="authStore.user.id != user.id"
+          ><font-awesome-icon :icon="['fas', 'fa-trash-can']"
+        /></a>
 
         <!-- delete user modal -->
-        <ModalComponent :modalId="`deleteUserModal${user.id}`" :title="t('usersListComponent.modalDeleteUserTitle')"
-          :body="`${t('usersListComponent.modalDeleteUserBody')}<b>${user.username}</b>?`" :actionButtonType="`danger`"
-          :actionButtonText="t('usersListComponent.modalDeleteUserTitle')" @submitAction="submitDeleteUser" />
+        <ModalComponent
+          :modalId="`deleteUserModal${user.id}`"
+          :title="t('usersListComponent.modalDeleteUserTitle')"
+          :body="`${t('usersListComponent.modalDeleteUserBody')}<b>${user.username}</b>?`"
+          :actionButtonType="`danger`"
+          :actionButtonText="t('usersListComponent.modalDeleteUserTitle')"
+          @submitAction="submitDeleteUser"
+        />
       </div>
     </div>
     <div class="collapse" :id="`collapseUserDetails${user.id}`">
       <!-- Bootstrap Tabs Navigation -->
       <ul class="nav nav-tabs mt-3" role="tablist">
         <li class="nav-item" role="presentation">
-          <button class="nav-link active link-body-emphasis link-underline-opacity-0 link-underline-opacity-100-hover"
-            :id="`sessions-tab-${user.id}`" data-bs-toggle="tab" :data-bs-target="`#sessions-${user.id}`" type="button"
-            role="tab" :aria-controls="`sessions-${user.id}`" aria-selected="true">
+          <button
+            class="nav-link active link-body-emphasis link-underline-opacity-0 link-underline-opacity-100-hover"
+            :id="`sessions-tab-${user.id}`"
+            data-bs-toggle="tab"
+            :data-bs-target="`#sessions-${user.id}`"
+            type="button"
+            role="tab"
+            :aria-controls="`sessions-${user.id}`"
+            aria-selected="true"
+          >
             {{ $t('usersListComponent.tabSessions') }}
           </button>
         </li>
         <li class="nav-item" role="presentation">
-          <button class="nav-link link-body-emphasis link-underline-opacity-0 link-underline-opacity-100-hover"
-            :id="`idps-tab-${user.id}`" data-bs-toggle="tab" :data-bs-target="`#idps-${user.id}`" type="button"
-            role="tab" :aria-controls="`idps-${user.id}`" aria-selected="false" @click="loadUserIdpsIfNeeded">
+          <button
+            class="nav-link link-body-emphasis link-underline-opacity-0 link-underline-opacity-100-hover"
+            :id="`idps-tab-${user.id}`"
+            data-bs-toggle="tab"
+            :data-bs-target="`#idps-${user.id}`"
+            type="button"
+            role="tab"
+            :aria-controls="`idps-${user.id}`"
+            aria-selected="false"
+            @click="loadUserIdpsIfNeeded"
+          >
             {{ $t('usersListComponent.tabIdentityProviders') }}
           </button>
         </li>
@@ -108,26 +186,44 @@
       <!-- Tab Content -->
       <div class="tab-content mt-3">
         <!-- Sessions Tab -->
-        <div class="tab-pane fade show active" :id="`sessions-${user.id}`" role="tabpanel"
-          :aria-labelledby="`sessions-tab-${user.id}`">
+        <div
+          class="tab-pane fade show active"
+          :id="`sessions-${user.id}`"
+          role="tabpanel"
+          :aria-labelledby="`sessions-tab-${user.id}`"
+        >
           <div v-if="isLoadingSessions">
             <LoadingComponent />
           </div>
           <div v-else-if="userSessions && userSessions.length > 0">
-            <UserSessionsListComponent v-for="session in userSessions" :key="session.id" :session="session"
-              @sessionDeleted="updateSessionListDeleted" />
+            <UserSessionsListComponent
+              v-for="session in userSessions"
+              :key="session.id"
+              :session="session"
+              @sessionDeleted="updateSessionListDeleted"
+            />
           </div>
           <NoItemsFoundComponents :show-shadow="false" v-else />
         </div>
 
         <!-- Identity Providers Tab -->
-        <div class="tab-pane fade" :id="`idps-${user.id}`" role="tabpanel" :aria-labelledby="`idps-tab-${user.id}`">
+        <div
+          class="tab-pane fade"
+          :id="`idps-${user.id}`"
+          role="tabpanel"
+          :aria-labelledby="`idps-tab-${user.id}`"
+        >
           <div v-if="isLoadingIdps">
             <LoadingComponent />
           </div>
           <div v-else-if="userIdps && userIdps.length > 0">
-            <UserIdentityProviderListComponent v-for="idp in userIdps" :key="idp.id" :idp="idp" :userId="user.id"
-              @idpDeleted="updateIdpListDeleted" />
+            <UserIdentityProviderListComponent
+              v-for="idp in userIdps"
+              :key="idp.id"
+              :idp="idp"
+              :userId="user.id"
+              @idpDeleted="updateIdpListDeleted"
+            />
           </div>
           <NoItemsFoundComponents :show-shadow="false" v-else />
         </div>

@@ -1,7 +1,12 @@
 <template>
   <!-- Modal add/edit steps -->
-  <div class="modal fade" :id="action == 'add' ? 'addStepsModal' : action == 'edit' ? editStepsId : ''" tabindex="-1"
-    :aria-labelledby="action == 'add' ? 'addStepsModal' : action == 'edit' ? editStepsId : ''" aria-hidden="true">
+  <div
+    class="modal fade"
+    :id="action == 'add' ? 'addStepsModal' : action == 'edit' ? editStepsId : ''"
+    tabindex="-1"
+    :aria-labelledby="action == 'add' ? 'addStepsModal' : action == 'edit' ? editStepsId : ''"
+    aria-hidden="true"
+  >
     <div class="modal-dialog">
       <div class="modal-content">
         <div class="modal-header">
@@ -11,16 +16,38 @@
           <h1 class="modal-title fs-5" :id="editStepsId" v-else>
             {{ $t('healthStepsAddEditModalComponent.editStepsModalTitle') }}
           </h1>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          <button
+            type="button"
+            class="btn-close"
+            data-bs-dismiss="modal"
+            aria-label="Close"
+          ></button>
         </div>
         <form @submit.prevent="handleSubmit">
           <div class="modal-body">
             <!-- steps fields -->
-            <label for="stepsAdd"><b>* {{ $t('healthStepsAddEditModalComponent.addStepsLabel') }}</b></label>
-            <input class="form-control" type="number" step="0.1" name="stepsAdd" v-model="newEditSteps" required />
+            <label for="stepsAdd"
+              ><b>* {{ $t('healthStepsAddEditModalComponent.addStepsLabel') }}</b></label
+            >
+            <input
+              class="form-control"
+              type="number"
+              step="0.1"
+              name="stepsAdd"
+              v-model="newEditSteps"
+              required
+            />
             <!-- date fields -->
-            <label for="stepsDateAdd"><b>* {{ $t('healthStepsAddEditModalComponent.addStepsDateLabel') }}</b></label>
-            <input class="form-control" type="date" name="stepsDateAdd" v-model="newEditStepsDate" required />
+            <label for="stepsDateAdd"
+              ><b>* {{ $t('healthStepsAddEditModalComponent.addStepsDateLabel') }}</b></label
+            >
+            <input
+              class="form-control"
+              type="date"
+              name="stepsDateAdd"
+              v-model="newEditStepsDate"
+              required
+            />
 
             <p>* {{ $t('generalItems.requiredField') }}</p>
           </div>
@@ -28,7 +55,12 @@
             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
               {{ $t('generalItems.buttonClose') }}
             </button>
-            <button type="submit" class="btn btn-success" data-bs-dismiss="modal" v-if="action == 'add'">
+            <button
+              type="submit"
+              class="btn btn-success"
+              data-bs-dismiss="modal"
+              v-if="action == 'add'"
+            >
               {{ $t('healthStepsAddEditModalComponent.addStepsModalTitle') }}
             </button>
             <button type="submit" class="btn btn-success" data-bs-dismiss="modal" v-else>

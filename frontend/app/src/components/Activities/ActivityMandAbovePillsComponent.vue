@@ -181,7 +181,7 @@ import {
   activityTypeIsSailing,
   activityTypeNotSailing,
   activityTypeIsWindsurf,
-  activityTypeNotWindsurf,
+  activityTypeNotWindsurf
 } from '@/utils/activityUtils'
 // Import Notivue push
 import { push } from 'notivue'
@@ -299,7 +299,11 @@ onMounted(async () => {
         }
         if (element.stream_type === 5) {
           velPresent.value = true
-          if (activityTypeIsCycling(props.activity) || activityTypeIsSailing(props.activity) || activityTypeIsWindsurf(props.activity)) {
+          if (
+            activityTypeIsCycling(props.activity) ||
+            activityTypeIsSailing(props.activity) ||
+            activityTypeIsWindsurf(props.activity)
+          ) {
             graphItems.value.push({
               type: 'vel',
               label: `${t('activityMandAbovePillsComponent.labelGraphVelocity')}`
@@ -308,7 +312,11 @@ onMounted(async () => {
         }
         if (element.stream_type === 6) {
           pacePresent.value = true
-          if (activityTypeNotCycling(props.activity) && activityTypeNotSailing(props.activity) && activityTypeNotWindsurf(props.activity)) {
+          if (
+            activityTypeNotCycling(props.activity) &&
+            activityTypeNotSailing(props.activity) &&
+            activityTypeNotWindsurf(props.activity)
+          ) {
             graphItems.value.push({
               type: 'pace',
               label: `${t('activityMandAbovePillsComponent.labelGraphPace')}`

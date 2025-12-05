@@ -2,40 +2,79 @@
   <h1>{{ $t('healthView.title') }}</h1>
   <div class="row row-gap-3">
     <!-- Include the HealthSideBarComponent -->
-    <HealthSideBarComponent :activeSection="activeSection" @update-active-section="updateActiveSection" />
+    <HealthSideBarComponent
+      :activeSection="activeSection"
+      @update-active-section="updateActiveSection"
+    />
 
     <LoadingComponent v-if="isLoading" />
 
     <!-- Include the HealthDashboardZone -->
-    <HealthDashboardZone :userHealthWeight="userHealthWeight" :userHealthSteps="userHealthSteps"
-      :userHealthSleep="userHealthSleep" :userHealthTargets="userHealthTargets"
-      v-if="activeSection === 'dashboard' && !isLoading" />
+    <HealthDashboardZone
+      :userHealthWeight="userHealthWeight"
+      :userHealthSteps="userHealthSteps"
+      :userHealthSleep="userHealthSleep"
+      :userHealthTargets="userHealthTargets"
+      v-if="activeSection === 'dashboard' && !isLoading"
+    />
 
     <!-- Include the HealthSleepZone -->
-    <HealthSleepZone :userHealthSleep="userHealthSleep" :userHealthSleepPagination="userHealthSleepPagination"
-      :userHealthTargets="userHealthTargets" :isLoading="isLoading" :totalPages="totalPagesSleep"
-      :pageNumber="pageNumberSleep" @deletedSleep="updateSleepListDeleted" @editedSleep="updateSleepListEdited"
-      @pageNumberChanged="setPageNumberSleep" @setSleepTarget="setSleepTarget"
-      v-if="activeSection === 'sleep' && !isLoading" />
+    <HealthSleepZone
+      :userHealthSleep="userHealthSleep"
+      :userHealthSleepPagination="userHealthSleepPagination"
+      :userHealthTargets="userHealthTargets"
+      :isLoading="isLoading"
+      :totalPages="totalPagesSleep"
+      :pageNumber="pageNumberSleep"
+      @deletedSleep="updateSleepListDeleted"
+      @editedSleep="updateSleepListEdited"
+      @pageNumberChanged="setPageNumberSleep"
+      @setSleepTarget="setSleepTarget"
+      v-if="activeSection === 'sleep' && !isLoading"
+    />
 
     <!-- Include the HealthRHRZone -->
-    <HealthRHRZone :userHealthSleep="userHealthSleep" :userHealthSleepPagination="userHealthSleepPagination"
-      :isLoading="isLoading" :totalPages="totalPagesRHR" :pageNumber="pageNumberRHR"
-      @pageNumberChanged="setPageNumberRHR" v-if="activeSection === 'rhr' && !isLoading" />
+    <HealthRHRZone
+      :userHealthSleep="userHealthSleep"
+      :userHealthSleepPagination="userHealthSleepPagination"
+      :isLoading="isLoading"
+      :totalPages="totalPagesRHR"
+      :pageNumber="pageNumberRHR"
+      @pageNumberChanged="setPageNumberRHR"
+      v-if="activeSection === 'rhr' && !isLoading"
+    />
 
     <!-- Include the HealthStepsZone -->
-    <HealthStepsZone :userHealthSteps="userHealthSteps" :userHealthStepsPagination="userHealthStepsPagination"
-      :userHealthTargets="userHealthTargets" :isLoading="isLoading" :totalPages="totalPagesSteps"
-      :pageNumber="pageNumberSteps" @createdSteps="updateStepsListAdded" @deletedSteps="updateStepsListDeleted"
-      @editedSteps="updateStepsListEdited" @pageNumberChanged="setPageNumberSteps" @setStepsTarget="setStepsTarget"
-      v-if="activeSection === 'steps' && !isLoading" />
+    <HealthStepsZone
+      :userHealthSteps="userHealthSteps"
+      :userHealthStepsPagination="userHealthStepsPagination"
+      :userHealthTargets="userHealthTargets"
+      :isLoading="isLoading"
+      :totalPages="totalPagesSteps"
+      :pageNumber="pageNumberSteps"
+      @createdSteps="updateStepsListAdded"
+      @deletedSteps="updateStepsListDeleted"
+      @editedSteps="updateStepsListEdited"
+      @pageNumberChanged="setPageNumberSteps"
+      @setStepsTarget="setStepsTarget"
+      v-if="activeSection === 'steps' && !isLoading"
+    />
 
     <!-- Include the HealthWeightZone -->
-    <HealthWeightZone :userHealthWeight="userHealthWeight" :userHealthWeightPagination="userHealthWeightPagination"
-      :userHealthTargets="userHealthTargets" :isLoading="isLoading" :totalPages="totalPagesWeight"
-      :pageNumber="pageNumberWeight" @createdWeight="updateWeightListAdded" @deletedWeight="updateWeightListDeleted"
-      @editedWeight="updateWeightListEdited" @pageNumberChanged="setPageNumberWeight" @setWeightTarget="setWeightTarget"
-      v-if="activeSection === 'weight' && !isLoading" />
+    <HealthWeightZone
+      :userHealthWeight="userHealthWeight"
+      :userHealthWeightPagination="userHealthWeightPagination"
+      :userHealthTargets="userHealthTargets"
+      :isLoading="isLoading"
+      :totalPages="totalPagesWeight"
+      :pageNumber="pageNumberWeight"
+      @createdWeight="updateWeightListAdded"
+      @deletedWeight="updateWeightListDeleted"
+      @editedWeight="updateWeightListEdited"
+      @pageNumberChanged="setPageNumberWeight"
+      @setWeightTarget="setWeightTarget"
+      v-if="activeSection === 'weight' && !isLoading"
+    />
   </div>
   <!-- back button -->
   <BackButtonComponent />
@@ -129,14 +168,18 @@ async function fetchHealthSleep() {
 }
 
 function updateSleepListEdited(editedSleep) {
-  const indexPagination = userHealthSleepPagination.value.findIndex((sleep) => sleep.id === editedSleep.id)
+  const indexPagination = userHealthSleepPagination.value.findIndex(
+    (sleep) => sleep.id === editedSleep.id
+  )
   const index = userHealthSleep.value.findIndex((sleep) => sleep.id === editedSleep.id)
   userHealthSleepPagination.value[indexPagination] = editedSleep
   userHealthSleep.value[index] = editedSleep
 }
 
 function updateSleepListDeleted(deletedSleep) {
-  userHealthSleepPagination.value = userHealthSleepPagination.value.filter((sleep) => sleep.id !== deletedSleep)
+  userHealthSleepPagination.value = userHealthSleepPagination.value.filter(
+    (sleep) => sleep.id !== deletedSleep
+  )
   userHealthSleep.value = userHealthSleep.value.filter((sleep) => sleep.id !== deletedSleep)
   userHealthSleepNumber.value--
 }
@@ -200,14 +243,18 @@ function updateWeightListAdded(createdWeight) {
 }
 
 function updateWeightListEdited(editedWeight) {
-  const indexPagination = userHealthWeightPagination.value.findIndex((weight) => weight.id === editedWeight.id)
+  const indexPagination = userHealthWeightPagination.value.findIndex(
+    (weight) => weight.id === editedWeight.id
+  )
   const index = userHealthWeight.value.findIndex((weight) => weight.id === editedWeight.id)
   userHealthWeightPagination.value[indexPagination] = editedWeight
   userHealthWeight.value[index] = editedWeight
 }
 
 function updateWeightListDeleted(deletedWeight) {
-  userHealthWeightPagination.value = userHealthWeightPagination.value.filter((weight) => weight.id !== deletedWeight)
+  userHealthWeightPagination.value = userHealthWeightPagination.value.filter(
+    (weight) => weight.id !== deletedWeight
+  )
   userHealthWeight.value = userHealthWeight.value.filter((weight) => weight.id !== deletedWeight)
   userHealthWeightNumber.value--
 }
@@ -266,14 +313,18 @@ function updateStepsListAdded(createdStep) {
 }
 
 function updateStepsListEdited(editedStep) {
-  const indexPagination = userHealthStepsPagination.value.findIndex((step) => step.id === editedStep.id)
+  const indexPagination = userHealthStepsPagination.value.findIndex(
+    (step) => step.id === editedStep.id
+  )
   const index = userHealthSteps.value.findIndex((step) => step.id === editedStep.id)
   userHealthStepsPagination.value[indexPagination] = editedStep
   userHealthSteps.value[index] = editedStep
 }
 
 function updateStepsListDeleted(deletedStep) {
-  userHealthStepsPagination.value = userHealthStepsPagination.value.filter((step) => step.id !== deletedStep)
+  userHealthStepsPagination.value = userHealthStepsPagination.value.filter(
+    (step) => step.id !== deletedStep
+  )
   userHealthSteps.value = userHealthSteps.value.filter((step) => step.id !== deletedStep)
   userHealthStepsNumber.value--
 }
@@ -295,7 +346,7 @@ function setWeightTarget(weightTarget) {
   const data = {
     id: userHealthTargets.value.id,
     user_id: userHealthTargets.value.user_id,
-    weight: weightTarget,
+    weight: weightTarget
   }
   try {
     health_targets.setUserHealthTargets(data)
@@ -310,7 +361,7 @@ function setStepsTarget(stepsTarget) {
   const data = {
     id: userHealthTargets.value.id,
     user_id: userHealthTargets.value.user_id,
-    steps: stepsTarget,
+    steps: stepsTarget
   }
   try {
     health_targets.setUserHealthTargets(data)
@@ -325,7 +376,7 @@ function setSleepTarget(sleepTarget) {
   const data = {
     id: userHealthTargets.value.id,
     user_id: userHealthTargets.value.user_id,
-    sleep: sleepTarget,
+    sleep: sleepTarget
   }
   try {
     health_targets.setUserHealthTargets(data)

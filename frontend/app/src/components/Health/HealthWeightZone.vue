@@ -4,27 +4,51 @@
     <div v-else>
       <!-- add weight button -->
       <div class="d-flex">
-        <a class="w-100 btn btn-primary shadow-sm me-1" href="#" role="button" data-bs-toggle="modal"
-          data-bs-target="#addWeightModal">{{ $t('healthWeightZoneComponent.buttonAddWeight') }}</a>
-        <a class="w-100 btn btn-primary shadow-sm ms-1" href="#" role="button" data-bs-toggle="modal"
-          data-bs-target="#addWeightTargetModal">{{ $t('healthWeightZoneComponent.buttonWeightTarget') }}</a>
+        <a
+          class="w-100 btn btn-primary shadow-sm me-1"
+          href="#"
+          role="button"
+          data-bs-toggle="modal"
+          data-bs-target="#addWeightModal"
+          >{{ $t('healthWeightZoneComponent.buttonAddWeight') }}</a
+        >
+        <a
+          class="w-100 btn btn-primary shadow-sm ms-1"
+          href="#"
+          role="button"
+          data-bs-toggle="modal"
+          data-bs-target="#addWeightTargetModal"
+          >{{ $t('healthWeightZoneComponent.buttonWeightTarget') }}</a
+        >
       </div>
 
-      <HealthWeightAddEditModalComponent :action="'add'" @isLoadingNewWeight="updateIsLoadingNewWeight"
-        @createdWeight="updateWeightListAdded" />
+      <HealthWeightAddEditModalComponent
+        :action="'add'"
+        @isLoadingNewWeight="updateIsLoadingNewWeight"
+        @createdWeight="updateWeightListAdded"
+      />
 
-      <ModalComponentNumberInput modalId="addWeightTargetModal"
+      <ModalComponentNumberInput
+        modalId="addWeightTargetModal"
         :title="t('healthWeightZoneComponent.buttonWeightTarget')"
-        :numberFieldLabel="t('healthWeightZoneComponent.modalWeightTargetLabel')" actionButtonType="success"
+        :numberFieldLabel="t('healthWeightZoneComponent.modalWeightTargetLabel')"
+        actionButtonType="success"
         :actionButtonText="t('generalItems.buttonSubmit')"
         :numberDefaultValue="props.userHealthTargets?.weight || parseInt(70)"
-        @numberToEmitAction="submitSetWeightTarget" />
+        @numberToEmitAction="submitSetWeightTarget"
+      />
 
       <!-- Checking if userHealthWeight is loaded and has length -->
-      <div v-if="userHealthWeight && userHealthWeight.length" class="mt-3 p-3 bg-body-tertiary rounded shadow-sm">
+      <div
+        v-if="userHealthWeight && userHealthWeight.length"
+        class="mt-3 p-3 bg-body-tertiary rounded shadow-sm"
+      >
         <!-- show graph -->
-        <HealthWeightLineChartComponent :userHealthTargets="userHealthTargets" :userHealthWeight="userHealthWeight"
-          :isLoading="isLoading" />
+        <HealthWeightLineChartComponent
+          :userHealthTargets="userHealthTargets"
+          :userHealthWeight="userHealthWeight"
+          :isLoading="isLoading"
+        />
 
         <br />
         <p>
@@ -43,14 +67,25 @@
         </ul>
 
         <!-- list zone -->
-        <ul class="my-3 list-group list-group-flush" v-for="userHealthWeight in userHealthWeightPagination"
-          :key="userHealthWeight.id" :userHealthWeight="userHealthWeight">
-          <HealthWeightListComponent :userHealthWeight="userHealthWeight" @deletedWeight="updateWeightListDeleted"
-            @editedWeight="updateWeightListEdited" />
+        <ul
+          class="my-3 list-group list-group-flush"
+          v-for="userHealthWeight in userHealthWeightPagination"
+          :key="userHealthWeight.id"
+          :userHealthWeight="userHealthWeight"
+        >
+          <HealthWeightListComponent
+            :userHealthWeight="userHealthWeight"
+            @deletedWeight="updateWeightListDeleted"
+            @editedWeight="updateWeightListEdited"
+          />
         </ul>
 
         <!-- pagination area -->
-        <PaginationComponent :totalPages="totalPages" :pageNumber="pageNumber" @pageNumberChanged="setPageNumber" />
+        <PaginationComponent
+          :totalPages="totalPages"
+          :pageNumber="pageNumber"
+          @pageNumberChanged="setPageNumber"
+        />
       </div>
       <!-- Displaying a message or component when there are no weight measurements -->
       <div v-else class="mt-3">
@@ -99,7 +134,13 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['createdWeight', 'deletedWeight', 'editedWeight', 'pageNumberChanged', 'setWeightTarget'])
+const emit = defineEmits([
+  'createdWeight',
+  'deletedWeight',
+  'editedWeight',
+  'pageNumberChanged',
+  'setWeightTarget'
+])
 
 const { t } = useI18n()
 const isLoadingNewWeight = ref(false)

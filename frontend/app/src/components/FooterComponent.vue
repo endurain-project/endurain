@@ -26,11 +26,7 @@
         • v0.16.0
       </p>
       <p class="text-center text-muted">
-        <img
-          :src="INTEGRATION_LOGOS.strava"
-          alt="Compatible with STRAVA image"
-          height="25"
-        />
+        <img :src="INTEGRATION_LOGOS.strava" alt="Compatible with STRAVA image" height="25" />
         •
         <img
           class="ms-2"

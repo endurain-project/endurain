@@ -5,27 +5,27 @@
  * @returns {string} The i18n translation key for the HRV status
  */
 export function getHrvStatusI18nKey(hrvStatus) {
-    if (!hrvStatus) return ''
+  if (!hrvStatus) return ''
 
-    const statusMap = {
-        'BALANCED': 'healthSleepListTabsComponent.balancedLabel',
-        'UNBALANCED': 'healthSleepListTabsComponent.unbalancedLabel',
-        'LOW': 'healthSleepListTabsComponent.lowLabel',
-        'POOR': 'healthSleepListTabsComponent.poorLabel'
-    }
+  const statusMap = {
+    BALANCED: 'healthSleepListTabsComponent.balancedLabel',
+    UNBALANCED: 'healthSleepListTabsComponent.unbalancedLabel',
+    LOW: 'healthSleepListTabsComponent.lowLabel',
+    POOR: 'healthSleepListTabsComponent.poorLabel'
+  }
 
-    return statusMap[hrvStatus] || ''
+  return statusMap[hrvStatus] || ''
 }
 
 export function getScoreStatusI18nKey(scoreStatus) {
-    if (!scoreStatus) return ''
+  if (!scoreStatus) return ''
 
-    const statusMap = {
-        'EXCELLENT': 'healthSleepListTabsComponent.excellentLabel',
-        'GOOD': 'healthSleepListTabsComponent.goodLabel',
-        'FAIR': 'healthSleepListTabsComponent.fairLabel',
-        'POOR': 'healthSleepListTabsComponent.poorLabel'
-    }
+  const statusMap = {
+    EXCELLENT: 'healthSleepListTabsComponent.excellentLabel',
+    GOOD: 'healthSleepListTabsComponent.goodLabel',
+    FAIR: 'healthSleepListTabsComponent.fairLabel',
+    POOR: 'healthSleepListTabsComponent.poorLabel'
+  }
 
-    return statusMap[scoreStatus] || ''
+  return statusMap[scoreStatus] || ''
 }

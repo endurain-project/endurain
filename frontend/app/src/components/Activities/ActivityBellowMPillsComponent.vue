@@ -298,7 +298,7 @@ import {
   activityTypeIsSailing,
   activityTypeNotSailing,
   activityTypeIsWindsurf,
-  activityTypeNotWindsurf,
+  activityTypeNotWindsurf
 } from '@/utils/activityUtils'
 import { formatSecondsToMinutes } from '@/utils/dateTimeUtils'
 import { metersToFeet } from '@/utils/unitsUtils'
@@ -370,12 +370,20 @@ onMounted(async () => {
           elePresent.value = true
         }
         if (props.activityActivityStreams[i].stream_type === 5) {
-          if (activityTypeIsCycling(props.activity) || activityTypeIsSailing(props.activity) || activityTypeIsWindsurf(props.activity)) {
+          if (
+            activityTypeIsCycling(props.activity) ||
+            activityTypeIsSailing(props.activity) ||
+            activityTypeIsWindsurf(props.activity)
+          ) {
             velPresent.value = true
           }
         }
         if (props.activityActivityStreams[i].stream_type === 6) {
-          if (activityTypeNotCycling(props.activity) && activityTypeNotSailing(props.activity) && activityTypeNotWindsurf(props.activity)) {
+          if (
+            activityTypeNotCycling(props.activity) &&
+            activityTypeNotSailing(props.activity) &&
+            activityTypeNotWindsurf(props.activity)
+          ) {
             pacePresent.value = true
           }
         }

@@ -12,9 +12,9 @@ import unspecifiedAvatar from '@/assets/avatar/unspecified1.png'
  * - **3**: Unspecified/neutral avatar
  */
 export const USER_AVATAR_MAP: Record<number, string> = {
-    1: maleAvatar,
-    2: femaleAvatar,
-    3: unspecifiedAvatar
+  1: maleAvatar,
+  2: femaleAvatar,
+  3: unspecifiedAvatar
 } as const
 
 /**
@@ -28,8 +28,8 @@ export const USER_AVATAR_MAP: Record<number, string> = {
  * Falls back to unspecified avatar if the gender value is not found in the map.
  */
 export function getUserDefaultAvatar(gender?: number): string {
-    if (!gender || gender < 1 || gender > 3) {
-        return maleAvatar // Default to male avatar
-    }
-    return USER_AVATAR_MAP[gender] ?? unspecifiedAvatar
+  if (!gender || gender < 1 || gender > 3) {
+    return maleAvatar // Default to male avatar
+  }
+  return USER_AVATAR_MAP[gender] ?? unspecifiedAvatar
 }

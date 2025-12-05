@@ -7,7 +7,8 @@
             <span>{{ formatDuration(userHealthSleep.total_sleep_seconds) }}</span>
           </div>
           <span>
-            {{ $t('healthSleepListComponent.labelDate') }}: {{ formatDateShort(userHealthSleep.date) }}
+            {{ $t('healthSleepListComponent.labelDate') }}:
+            {{ formatDateShort(userHealthSleep.date) }}
           </span>
         </div>
       </div>
@@ -23,6 +24,14 @@
         <span class="align-middle me-3 d-none d-sm-inline" v-if="userHealthSleep.source === 'garmin'">
           <img :src="INTEGRATION_LOGOS.garminConnectApp" alt="Garmin Connect logo" height="22" />
         </span>
+
+        <!-- edit weight button -->
+        <a class="btn btn-link btn-lg link-body-emphasis" href="#" role="button" data-bs-toggle="modal"
+          :data-bs-target="`#editSleepId${userHealthSleep.id}`"><font-awesome-icon
+            :icon="['fas', 'fa-pen-to-square']" /></a>
+
+        <HealthSleepAddEditModalComponent :action="'edit'" :userHealthSleep="userHealthSleep"
+          @editedSleep="updateSleepListEdited" />
 
         <!-- delete weight button -->
         <a class="btn btn-link btn-lg link-body-emphasis" href="#" role="button" data-bs-toggle="modal"
@@ -51,6 +60,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
+import HealthSleepAddEditModalComponent from './HealthSleepAddEditModalComponent.vue'
 import HealthSleepListTabsComponent from './HealthSleepListTabsComponent.vue'
 import HealthSleepTimelineChartComponent from './HealthSleepTimelineChartComponent.vue'
 import ModalComponent from '@/components/Modals/ModalComponent.vue'

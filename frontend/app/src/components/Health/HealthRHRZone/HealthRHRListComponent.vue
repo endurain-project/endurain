@@ -6,7 +6,8 @@
           <span>{{ userHealthSleep.resting_heart_rate }} {{ $t('generalItems.unitsBpm') }}</span>
         </div>
         <span>
-          {{ $t('healthStepsListComponent.labelDate') }}: {{ formatDateShort(userHealthSleep.date) }}
+          {{ $t('healthStepsListComponent.labelDate') }}:
+          {{ formatDateShort(userHealthSleep.date) }}
         </span>
       </div>
     </div>

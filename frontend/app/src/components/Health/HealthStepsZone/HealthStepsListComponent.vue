@@ -16,23 +16,39 @@
       </span>
 
       <!-- edit weight button -->
-      <a class="btn btn-link btn-lg link-body-emphasis" href="#" role="button" data-bs-toggle="modal"
-        :data-bs-target="`#editStepsId${userHealthStep.id}`"><font-awesome-icon
-          :icon="['fas', 'fa-pen-to-square']" /></a>
+      <a
+        class="btn btn-link btn-lg link-body-emphasis"
+        href="#"
+        role="button"
+        data-bs-toggle="modal"
+        :data-bs-target="`#editStepsId${userHealthStep.id}`"
+        ><font-awesome-icon :icon="['fas', 'fa-pen-to-square']"
+      /></a>
 
-      <HealthStepsAddEditModalComponent :action="'edit'" :userHealthStep="userHealthStep"
-        @editedSteps="updateStepsListEdited" />
+      <HealthStepsAddEditModalComponent
+        :action="'edit'"
+        :userHealthStep="userHealthStep"
+        @editedSteps="updateStepsListEdited"
+      />
 
       <!-- delete weight button -->
-      <a class="btn btn-link btn-lg link-body-emphasis" href="#" role="button" data-bs-toggle="modal"
-        :data-bs-target="`#deleteStepsModal${userHealthStep.id}`"><font-awesome-icon
-          :icon="['fas', 'fa-trash-can']" /></a>
+      <a
+        class="btn btn-link btn-lg link-body-emphasis"
+        href="#"
+        role="button"
+        data-bs-toggle="modal"
+        :data-bs-target="`#deleteStepsModal${userHealthStep.id}`"
+        ><font-awesome-icon :icon="['fas', 'fa-trash-can']"
+      /></a>
 
-      <ModalComponent :modalId="`deleteStepsModal${userHealthStep.id}`"
+      <ModalComponent
+        :modalId="`deleteStepsModal${userHealthStep.id}`"
         :title="t('healthStepsListComponent.modalDeleteStepsTitle')"
         :body="`${t('healthStepsListComponent.modalDeleteStepsBody')}<b>${userHealthStep.date}</b>?`"
-        :actionButtonType="`danger`" :actionButtonText="t('healthStepsListComponent.modalDeleteStepsTitle')"
-        @submitAction="submitDeleteSteps" />
+        :actionButtonType="`danger`"
+        :actionButtonText="t('healthStepsListComponent.modalDeleteStepsTitle')"
+        @submitAction="submitDeleteSteps"
+      />
     </div>
   </li>
 </template>

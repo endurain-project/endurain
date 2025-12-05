@@ -95,10 +95,10 @@ export function formatDuration(seconds) {
 
 /**
  * Formats a duration in seconds to a HH:mm string format.
- * 
+ *
  * @param {number} seconds - The duration in seconds to format.
  * @returns {string} The formatted duration as a string in HH:mm format (e.g., "02:30").
- * 
+ *
  * @example
  * formatDurationHHmm(9000) // Returns "02:30"
  * formatDurationHHmm(3661) // Returns "01:01"

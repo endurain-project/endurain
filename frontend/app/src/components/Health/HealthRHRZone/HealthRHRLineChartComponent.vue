@@ -84,14 +84,11 @@ const chartData = computed(() => {
   for (const healthSleep of sortedSleep) {
     data.push(healthSleep.resting_heart_rate)
 
-
     const createdAt = new Date(healthSleep.date)
-    labels.push(
-      `${createdAt.getDate()}/${createdAt.getMonth() + 1}/${createdAt.getFullYear()}`
-    )
+    labels.push(`${createdAt.getDate()}/${createdAt.getMonth() + 1}/${createdAt.getFullYear()}`)
   }
 
-  const label = t('generalItems.RHRLabel') + " (" + t('generalItems.unitsBpm') + ")"
+  const label = t('generalItems.RHRLabel') + ' (' + t('generalItems.unitsBpm') + ')'
 
   const datasets = [
     {

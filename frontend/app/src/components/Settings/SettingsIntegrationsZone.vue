@@ -101,11 +101,7 @@
         <li class="list-group-item d-flex justify-content-between bg-body-tertiary px-0 pb-0">
           <div class="d-flex align-items-center">
             <!--<font-awesome-icon :icon="['fas', 'file-import']" size="2x" />-->
-            <img
-              :src="INTEGRATION_LOGOS.garminConnectApp"
-              alt="Garmin Connect logo"
-              height="32"
-            />
+            <img :src="INTEGRATION_LOGOS.garminConnectApp" alt="Garmin Connect logo" height="32" />
             <div class="ms-3">
               <div class="fw-bold">
                 {{ $t('settingsIntegrationsZone.garminConnectIntegrationTitle') }}

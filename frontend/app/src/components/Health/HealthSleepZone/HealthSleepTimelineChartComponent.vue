@@ -16,7 +16,7 @@ const props = defineProps({
   sleepStages: {
     type: Array,
     required: true
-  },
+  }
 })
 
 const { t } = useI18n()
@@ -33,10 +33,10 @@ const yAxisLabels = computed(() => [
 
 // Sleep stage mapping with vertical positioning
 const SLEEP_STAGES = {
-  3: { name: 'Awake', color: 'rgba(156, 163, 175, 0.8)', yPos: 3, label: yAxisLabels.value[3] },    // Gray
-  2: { name: 'REM', color: 'rgba(96, 165, 250, 0.8)', yPos: 2, label: yAxisLabels.value[2] },       // Light Blue
-  1: { name: 'Light', color: 'rgba(37, 99, 235, 0.8)', yPos: 1, label: yAxisLabels.value[1] },      // Medium Blue
-  0: { name: 'Deep', color: 'rgba(30, 64, 175, 0.8)', yPos: 0, label: yAxisLabels.value[0] }        // Dark Blue
+  3: { name: 'Awake', color: 'rgba(156, 163, 175, 0.8)', yPos: 3, label: yAxisLabels.value[3] }, // Gray
+  2: { name: 'REM', color: 'rgba(96, 165, 250, 0.8)', yPos: 2, label: yAxisLabels.value[2] }, // Light Blue
+  1: { name: 'Light', color: 'rgba(37, 99, 235, 0.8)', yPos: 1, label: yAxisLabels.value[1] }, // Medium Blue
+  0: { name: 'Deep', color: 'rgba(30, 64, 175, 0.8)', yPos: 0, label: yAxisLabels.value[0] } // Dark Blue
 }
 
 const chartData = computed(() => {
@@ -45,12 +45,12 @@ const chartData = computed(() => {
   }
 
   // Sort stages by time
-  const sortedStages = [...props.sleepStages].sort((a, b) =>
-    new Date(a.start_time_gmt) - new Date(b.start_time_gmt)
+  const sortedStages = [...props.sleepStages].sort(
+    (a, b) => new Date(a.start_time_gmt) - new Date(b.start_time_gmt)
   )
 
   // Create segments with all necessary data
-  const allSegments = sortedStages.map(stage => {
+  const allSegments = sortedStages.map((stage) => {
     const startTime = new Date(stage.start_time_gmt)
     const endTime = new Date(stage.end_time_gmt)
     const stageInfo = SLEEP_STAGES[stage.stage_type]
@@ -69,16 +69,18 @@ const chartData = computed(() => {
 
   // Return single dataset with all segments
   return {
-    datasets: [{
-      label: t('generalItems.labelSleep'),
-      data: allSegments,
-      backgroundColor: function (context) {
-        return context.raw?.backgroundColor || 'rgba(59, 130, 246, 0.8)'
-      },
-      borderWidth: 0,
-      borderRadius: 0,
-      barThickness: 40
-    }]
+    datasets: [
+      {
+        label: t('generalItems.labelSleep'),
+        data: allSegments,
+        backgroundColor: function (context) {
+          return context.raw?.backgroundColor || 'rgba(59, 130, 246, 0.8)'
+        },
+        borderWidth: 0,
+        borderRadius: 0,
+        barThickness: 40
+      }
+    ]
   }
 })
 
@@ -93,14 +95,18 @@ watch(
   { deep: true }
 )
 
-watch(() => props.sleepStages, () => {
-  if (myChart) {
-    myChart.options.scales.y.ticks.callback = function (value) {
-      return yAxisLabels.value[value] || ''
+watch(
+  () => props.sleepStages,
+  () => {
+    if (myChart) {
+      myChart.options.scales.y.ticks.callback = function (value) {
+        return yAxisLabels.value[value] || ''
+      }
+      myChart.update()
     }
-    myChart.update()
-  }
-}, { deep: true })
+  },
+  { deep: true }
+)
 
 // Watch for language changes to update y-axis labels and legend
 watch(yAxisLabels, () => {
@@ -162,7 +168,7 @@ onMounted(() => {
             drawBorder: true,
             color: 'rgba(200, 200, 200, 0.3)'
           }
-        },
+        }
       },
       plugins: {
         legend: {

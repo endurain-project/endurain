@@ -93,5 +93,9 @@
   "unitsBrpm": "brpm",
   "unitsCelsius": "°C",
   "unitsFahrenheit": "°F",
-  "RHRLabel": "Resting heart rate"
+  "RHRLabel": "Resting heart rate",
+  "labelHours": "Hours",
+  "labelMinutes": "Minutes",
+  "labelHoursShort": "h",
+  "labelMinutesShort": "min"
 }

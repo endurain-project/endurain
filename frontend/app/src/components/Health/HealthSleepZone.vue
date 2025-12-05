@@ -4,36 +4,56 @@
     <div v-else>
       <!-- add sleep button -->
       <div class="d-flex">
-        <a class="w-100 btn btn-primary shadow-sm me-1 disabled" href="#" role="button" data-bs-toggle="modal"
-          data-bs-target="#addSleepModal">{{ t('healthSleepZoneComponent.buttonAddSleep') }}</a>
-        <a class="w-100 btn btn-primary shadow-sm ms-1" href="#" role="button" data-bs-toggle="modal"
-          data-bs-target="#addSleepTargetModal">{{ $t('healthSleepZoneComponent.buttonSleepTarget') }}</a>
+        <a
+          class="w-100 btn btn-primary shadow-sm me-1"
+          href="#"
+          role="button"
+          data-bs-toggle="modal"
+          data-bs-target="#addSleepModal"
+          >{{ t('healthSleepZoneComponent.buttonAddSleep') }}</a
+        >
+        <a
+          class="w-100 btn btn-primary shadow-sm ms-1"
+          href="#"
+          role="button"
+          data-bs-toggle="modal"
+          data-bs-target="#addSleepTargetModal"
+          >{{ $t('healthSleepZoneComponent.buttonSleepTarget') }}</a
+        >
       </div>
 
-      <!--<HealthStepsAddEditModalComponent
+      <HealthSleepAddEditModalComponent
         :action="'add'"
-        @isLoadingNewSteps="updateIsLoadingNewSteps"
-        @createdSteps="updateStepsListAdded"
-      />-->
+        @isLoadingNewSleep="updateIsLoadingNewSleep"
+        @createdSleep="updateSleepListAdded"
+      />
 
-      <ModalComponentHoursMinutesInput modalId="addSleepTargetModal"
+      <ModalComponentHoursMinutesInput
+        modalId="addSleepTargetModal"
         :title="t('healthSleepZoneComponent.buttonSleepTarget')"
         :hoursFieldLabel="t('healthSleepZoneComponent.modalSleepTargetHoursLabel')"
-        :minutesFieldLabel="t('healthSleepZoneComponent.modalSleepTargetMinutesLabel')" actionButtonType="success"
+        :minutesFieldLabel="t('healthSleepZoneComponent.modalSleepTargetMinutesLabel')"
+        actionButtonType="success"
         :actionButtonText="t('generalItems.buttonSubmit')"
-        :secondsDefaultValue="props.userHealthTargets?.sleep || 28800" @fieldsToEmitAction="submitSetSleepTarget" />
+        :secondsDefaultValue="props.userHealthTargets?.sleep || 28800"
+        @fieldsToEmitAction="submitSetSleepTarget"
+      />
 
       <!-- Checking if userHealthSleepPagination is loaded and has length -->
-      <div v-if="userHealthSleepPagination && userHealthSleepPagination.length"
-        class="mt-3 p-3 bg-body-tertiary rounded shadow-sm">
+      <div
+        v-if="userHealthSleepPagination && userHealthSleepPagination.length"
+        class="mt-3 p-3 bg-body-tertiary rounded shadow-sm"
+      >
         <!-- show graph -->
-        <HealthSleepBarChartComponent :userHealthTargets="userHealthTargets" :userHealthSleep="userHealthSleep"
-          :isLoading="isLoading" />
+        <HealthSleepBarChartComponent
+          :userHealthTargets="userHealthTargets"
+          :userHealthSleep="userHealthSleep"
+          :isLoading="isLoading"
+        />
 
         <br />
         <p>
-          {{ $t('healthSleepZoneComponent.labelNumberOfHealthSleep1')
-          }}{{ userHealthSleep.length
+          {{ $t('healthSleepZoneComponent.labelNumberOfHealthSleep1') }}{{ userHealthSleep.length
           }}{{ $t('healthSleepZoneComponent.labelNumberOfHealthSleep2')
           }}{{ userHealthSleepPagination.length
           }}{{ $t('healthSleepZoneComponent.labelNumberOfHealthSleep3') }}
@@ -47,17 +67,28 @@
         </ul>
 
         <!-- list zone -->
-        <ul class="my-3 list-group list-group-flush" v-for="userHealthSleep in userHealthSleepPagination"
-          :key="userHealthSleep.id" :data="userHealthSleep">
+        <ul
+          class="my-3 list-group list-group-flush"
+          v-for="userHealthSleep in userHealthSleepPagination"
+          :key="userHealthSleep.id"
+          :data="userHealthSleep"
+        >
           <!--<HealthSleepTimelineChartComponent
             :data="userHealthSleep.sleep_stages"
           />-->
-          <HealthSleepListComponent :userHealthSleep="userHealthSleep" @deletedSleep="updateSleepListDeleted"
-            @editedSleep="updateSleepListEdited" />
+          <HealthSleepListComponent
+            :userHealthSleep="userHealthSleep"
+            @deletedSleep="updateSleepListDeleted"
+            @editedSleep="updateSleepListEdited"
+          />
         </ul>
 
         <!-- pagination area -->
-        <PaginationComponent :totalPages="totalPages" :pageNumber="pageNumber" @pageNumberChanged="setPageNumber" />
+        <PaginationComponent
+          :totalPages="totalPages"
+          :pageNumber="pageNumber"
+          @pageNumberChanged="setPageNumber"
+        />
       </div>
       <!-- Displaying a message or component when there are no weight measurements -->
       <div v-else class="mt-3">
@@ -72,6 +103,7 @@
 import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import HealthSleepAddEditModalComponent from './HealthSleepZone/HealthSleepAddEditModalComponent.vue'
 import ModalComponentHoursMinutesInput from '../Modals/ModalComponentHoursMinutesInput.vue'
 import HealthSleepBarChartComponent from './HealthSleepZone/HealthSleepBarChartComponent.vue'
 import HealthSleepListComponent from './HealthSleepZone/HealthSleepListComponent.vue'
@@ -106,10 +138,24 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['deletedSleep', 'editedSleep', 'pageNumberChanged', 'setSleepTarget'])
+const emit = defineEmits([
+  'createdSleep',
+  'deletedSleep',
+  'editedSleep',
+  'pageNumberChanged',
+  'setSleepTarget'
+])
 
 const { t } = useI18n()
 const isLoadingNewSleep = ref(false)
+
+function updateIsLoadingNewSleep(isLoadingNewSleepNewValue) {
+  isLoadingNewSleep.value = isLoadingNewSleepNewValue
+}
+
+function updateSleepListAdded(createdSleep) {
+  emit('createdSleep', createdSleep)
+}
 
 function updateSleepListDeleted(deletedSleep) {
   emit('deletedSleep', deletedSleep)

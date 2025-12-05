@@ -3,27 +3,40 @@
     <LoadingComponent v-if="isLoading" />
     <div v-else>
       <!-- Checking if userHealthSleep is loaded and has length -->
-      <div v-if="userHealthSleep && userHealthSleep.length" class="p-3 bg-body-tertiary rounded shadow-sm">
+      <div
+        v-if="userHealthSleep && userHealthSleep.length"
+        class="p-3 bg-body-tertiary rounded shadow-sm"
+      >
         <!-- show graph -->
         <HealthRHRLineChartComponent :userHealthSleep="userHealthSleep" :isLoading="isLoading" />
 
         <br />
         <p>
-          {{ $t('healthRHRZoneComponent.labelNumberOfHealthRHR1')
-          }}{{ userHealthSleep.length
+          {{ $t('healthRHRZoneComponent.labelNumberOfHealthRHR1') }}{{ userHealthSleep.length
           }}{{ $t('healthRHRZoneComponent.labelNumberOfHealthRHR2')
           }}{{ userHealthSleepPagination.length
           }}{{ $t('healthRHRZoneComponent.labelNumberOfHealthRHR3') }}
         </p>
 
         <!-- list zone -->
-        <ul class="my-3 list-group list-group-flush" v-for="userHealthSleep in userHealthSleepPagination"
-          :key="userHealthSleep.id" :userHealthSleep="userHealthSleep">
-          <HealthRHRListComponent :userHealthSleep="userHealthSleep" v-if="userHealthSleep.resting_heart_rate" />
+        <ul
+          class="my-3 list-group list-group-flush"
+          v-for="userHealthSleep in userHealthSleepPagination"
+          :key="userHealthSleep.id"
+          :userHealthSleep="userHealthSleep"
+        >
+          <HealthRHRListComponent
+            :userHealthSleep="userHealthSleep"
+            v-if="userHealthSleep.resting_heart_rate"
+          />
         </ul>
 
         <!-- pagination area -->
-        <PaginationComponent :totalPages="totalPages" :pageNumber="pageNumber" @pageNumberChanged="setPageNumber" />
+        <PaginationComponent
+          :totalPages="totalPages"
+          :pageNumber="pageNumber"
+          @pageNumberChanged="setPageNumber"
+        />
       </div>
       <!-- Displaying a message or component when there are no RHR measurements -->
       <div v-else>

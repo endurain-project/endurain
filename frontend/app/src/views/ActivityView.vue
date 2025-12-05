@@ -324,7 +324,7 @@ async function updateGearIdOnAddGearToActivity(gearId) {
 
 async function updateActivityFieldsOnEdit(data) {
   let activityTypeChanged = false
-  if(activity.value.activity_type !== data.activity_type) {
+  if (activity.value.activity_type !== data.activity_type) {
     activityTypeChanged = true
   }
 

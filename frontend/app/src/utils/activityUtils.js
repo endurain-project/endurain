@@ -66,7 +66,7 @@ const activityLabelMap = {
   42: (t) => t('activityItems.kayaking'),
   43: (t) => t('activityItems.sailing'),
   44: (t) => t('activityItems.snowShoeing'),
-  45: (t) => t('activityItems.inlineSkating'),
+  45: (t) => t('activityItems.inlineSkating')
 }
 
 /**
@@ -360,7 +360,10 @@ export function activityTypeNotCycling(activity) {
  */
 export function activityTypeIsWalking(activity) {
   return (
-    activity.activity_type === 11 || activity.activity_type === 12 || activity.activity_type === 31 || activity.activity_type === 44
+    activity.activity_type === 11 ||
+    activity.activity_type === 12 ||
+    activity.activity_type === 31 ||
+    activity.activity_type === 44
   )
 }
 
@@ -547,7 +550,11 @@ export function formatAverageSpeed(t, activity, unitSystem, lap = null, units = 
   )
     return t('generalItems.labelNoData')
 
-  if (activityTypeIsCycling(activity) || activityTypeIsWindsurf(activity) || activityTypeIsSailing(activity)) {
+  if (
+    activityTypeIsCycling(activity) ||
+    activityTypeIsWindsurf(activity) ||
+    activityTypeIsSailing(activity)
+  ) {
     if (Number(unitSystem) === 1) {
       if (units) {
         return `${formatAverageSpeedMetric(speed)} ${t('generalItems.unitsKmH')}`
@@ -768,7 +775,7 @@ export function getIcon(typeId) {
     42: ['fas', 'sailboat'], // Kayaking icon might be better if available
     43: ['fas', 'wind'], // Sailing icon might be better if available
     44: ['fas', 'person-hiking'],
-    45: ['fas', 'person-skating'],
+    45: ['fas', 'person-skating']
   }
 
   return iconMap[typeId] || ['fas', 'dumbbell']

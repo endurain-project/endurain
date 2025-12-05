@@ -17,5 +17,5 @@ export const PROVIDER_CUSTOM_LOGO_MAP: Record<string, string> = {
   authelia: autheliaLogo,
   authentik: authentikLogo,
   casdoor: casdoorLogo,
-  keycloak: keycloakLogo,
+  keycloak: keycloakLogo
 } as const

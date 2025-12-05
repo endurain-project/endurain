@@ -1,7 +1,12 @@
 <template>
   <!-- Modal add/edit weight -->
-  <div class="modal fade" :id="action == 'add' ? 'addWeightModal' : action == 'edit' ? editWeightId : ''" tabindex="-1"
-    :aria-labelledby="action == 'add' ? 'addWeightModal' : action == 'edit' ? editWeightId : ''" aria-hidden="true">
+  <div
+    class="modal fade"
+    :id="action == 'add' ? 'addWeightModal' : action == 'edit' ? editWeightId : ''"
+    tabindex="-1"
+    :aria-labelledby="action == 'add' ? 'addWeightModal' : action == 'edit' ? editWeightId : ''"
+    aria-hidden="true"
+  >
     <div class="modal-dialog">
       <div class="modal-content">
         <div class="modal-header">
@@ -11,78 +16,138 @@
           <h1 class="modal-title fs-5" :id="editWeightId" v-else>
             {{ $t('healthWeightAddEditModalComponent.editWeightModalTitle') }}
           </h1>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          <button
+            type="button"
+            class="btn-close"
+            data-bs-dismiss="modal"
+            aria-label="Close"
+          ></button>
         </div>
         <form @submit.prevent="handleSubmit">
           <div class="modal-body">
             <!-- weight fields -->
-            <label for="weightWeightAddEdit"><b>* {{ $t('healthWeightAddEditModalComponent.addWeightWeightLabel')
-                }}</b></label>
+            <label for="weightWeightAddEdit"
+              ><b>* {{ $t('healthWeightAddEditModalComponent.addWeightWeightLabel') }}</b></label
+            >
             <div class="input-group">
-              <input class="form-control" type="number" step="0.01" name="weightWeightAddEdit"
-                v-model="newEditWeightWeight" required />
-              <span class="input-group-text" v-if="Number(authStore?.user?.units) === 1">{{ $t('generalItems.unitsKg')
-                }}</span>
+              <input
+                class="form-control"
+                type="number"
+                step="0.01"
+                name="weightWeightAddEdit"
+                v-model="newEditWeightWeight"
+                required
+              />
+              <span class="input-group-text" v-if="Number(authStore?.user?.units) === 1">{{
+                $t('generalItems.unitsKg')
+              }}</span>
               <span class="input-group-text" v-else>{{ $t('generalItems.unitsLbs') }}</span>
             </div>
             <!-- date fields -->
-            <label for="weightDateAddEdit"><b>* {{ $t('healthWeightAddEditModalComponent.addWeightDateLabel')
-            }}</b></label>
-            <input class="form-control" type="date" name="weightDateAddEdit" v-model="newEditWeightDate" required />
-
+            <label for="weightDateAddEdit"
+              ><b>* {{ $t('healthWeightAddEditModalComponent.addWeightDateLabel') }}</b></label
+            >
+            <input
+              class="form-control"
+              type="date"
+              name="weightDateAddEdit"
+              v-model="newEditWeightDate"
+              required
+            />
 
             <div class="d-flex justify-content-start align-items-center">
               <span>{{ $t('healthWeightAddEditModalComponent.addWeightHiddenItemsLabel') }}</span>
               <!-- button toggle hidden fields -->
-              <a class="btn btn-link btn-lg link-body-emphasis" data-bs-toggle="collapse"
-                :href="`#collapseAddEditWeightDetailsFields`" role="button" aria-expanded="false"
-                :aria-controls="`collapseAddEditWeightDetailsFields`">
+              <a
+                class="btn btn-link btn-lg link-body-emphasis"
+                data-bs-toggle="collapse"
+                :href="`#collapseAddEditWeightDetailsFields`"
+                role="button"
+                aria-expanded="false"
+                :aria-controls="`collapseAddEditWeightDetailsFields`"
+              >
                 <font-awesome-icon :icon="['fas', 'caret-down']" v-if="!detailFields" />
                 <font-awesome-icon :icon="['fas', 'caret-up']" v-else />
               </a>
             </div>
             <div class="collapse" id="collapseAddEditWeightDetailsFields">
               <!-- bmi fields -->
-              <label for="weightBMIAddEdit"><b>* {{ $t('healthWeightAddEditModalComponent.addWeightBMILabel')
-                  }}</b></label>
-              <input class="form-control" type="number" step="0.01" name="weightBMIAddEdit"
-                v-model="newEditWeightBMI" />
+              <label for="weightBMIAddEdit"
+                ><b>* {{ $t('healthWeightAddEditModalComponent.addWeightBMILabel') }}</b></label
+              >
+              <input
+                class="form-control"
+                type="number"
+                step="0.01"
+                name="weightBMIAddEdit"
+                v-model="newEditWeightBMI"
+              />
               <!-- body fat fields -->
-              <label for="weightBodyFatAddEdit"><b>* {{ $t('healthWeightAddEditModalComponent.addWeightBodyFatLabel')
-                  }}</b></label>
+              <label for="weightBodyFatAddEdit"
+                ><b>* {{ $t('healthWeightAddEditModalComponent.addWeightBodyFatLabel') }}</b></label
+              >
               <div class="input-group">
-                <input class="form-control" type="number" step="0.01" name="weightBodyFatAddEdit"
-                  v-model="newEditWeightBodyFat" />
+                <input
+                  class="form-control"
+                  type="number"
+                  step="0.01"
+                  name="weightBodyFatAddEdit"
+                  v-model="newEditWeightBodyFat"
+                />
                 <span class="input-group-text">%</span>
               </div>
               <!-- body water fields -->
-              <label for="weightBodyWaterAddEdit"><b>* {{
-                $t('healthWeightAddEditModalComponent.addWeightBodyWaterLabel')
-                  }}</b></label>
+              <label for="weightBodyWaterAddEdit"
+                ><b
+                  >* {{ $t('healthWeightAddEditModalComponent.addWeightBodyWaterLabel') }}</b
+                ></label
+              >
               <div class="input-group">
-                <input class="form-control" type="number" step="0.01" name="weightBodyWaterAddEdit"
-                  v-model="newEditWeightBodyWater" />
+                <input
+                  class="form-control"
+                  type="number"
+                  step="0.01"
+                  name="weightBodyWaterAddEdit"
+                  v-model="newEditWeightBodyWater"
+                />
                 <span class="input-group-text">%</span>
               </div>
               <!-- bone mass fields -->
-              <label for="weightBoneMassAddEdit"><b>* {{ $t('healthWeightAddEditModalComponent.addWeightBoneMassLabel')
-                  }}</b></label>
+              <label for="weightBoneMassAddEdit"
+                ><b
+                  >* {{ $t('healthWeightAddEditModalComponent.addWeightBoneMassLabel') }}</b
+                ></label
+              >
               <div class="input-group">
-                <input class="form-control" type="number" step="0.01" name="weightBoneMassAddEdit"
-                  v-model="newEditWeightBoneMass" />
-                <span class="input-group-text" v-if="Number(authStore?.user?.units) === 1">{{ $t('generalItems.unitsKg')
-                  }}</span>
+                <input
+                  class="form-control"
+                  type="number"
+                  step="0.01"
+                  name="weightBoneMassAddEdit"
+                  v-model="newEditWeightBoneMass"
+                />
+                <span class="input-group-text" v-if="Number(authStore?.user?.units) === 1">{{
+                  $t('generalItems.unitsKg')
+                }}</span>
                 <span class="input-group-text" v-else>{{ $t('generalItems.unitsLbs') }}</span>
               </div>
               <!-- muscle mass fields -->
-              <label for="weightMuscleMassAddEdit"><b>* {{
-                $t('healthWeightAddEditModalComponent.addWeightMuscleMassLabel')
-                  }}</b></label>
+              <label for="weightMuscleMassAddEdit"
+                ><b
+                  >* {{ $t('healthWeightAddEditModalComponent.addWeightMuscleMassLabel') }}</b
+                ></label
+              >
               <div class="input-group">
-                <input class="form-control" type="number" step="0.01" name="weightMuscleMassAddEdit"
-                  v-model="newEditWeightMuscleMass" />
-                <span class="input-group-text" v-if="Number(authStore?.user?.units) === 1">{{ $t('generalItems.unitsKg')
-                  }}</span>
+                <input
+                  class="form-control"
+                  type="number"
+                  step="0.01"
+                  name="weightMuscleMassAddEdit"
+                  v-model="newEditWeightMuscleMass"
+                />
+                <span class="input-group-text" v-if="Number(authStore?.user?.units) === 1">{{
+                  $t('generalItems.unitsKg')
+                }}</span>
                 <span class="input-group-text" v-else>{{ $t('generalItems.unitsLbs') }}</span>
               </div>
             </div>
@@ -93,7 +158,12 @@
             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
               {{ $t('generalItems.buttonClose') }}
             </button>
-            <button type="submit" class="btn btn-success" data-bs-dismiss="modal" v-if="action == 'add'">
+            <button
+              type="submit"
+              class="btn btn-success"
+              data-bs-dismiss="modal"
+              v-if="action == 'add'"
+            >
               {{ $t('healthWeightAddEditModalComponent.addWeightModalTitle') }}
             </button>
             <button type="submit" class="btn btn-success" data-bs-dismiss="modal" v-else>
@@ -145,7 +215,9 @@ const detailFields = ref(false)
 
 if (props.userHealthWeight) {
   newEditWeightWeight.value =
-    Number(authStore?.user?.units) === 1 ? props.userHealthWeight.weight : kgToLbs(props.userHealthWeight.weight)
+    Number(authStore?.user?.units) === 1
+      ? props.userHealthWeight.weight
+      : kgToLbs(props.userHealthWeight.weight)
   newEditWeightDate.value = props.userHealthWeight.date
   newEditWeightBMI.value = props.userHealthWeight.bmi
   newEditWeightBodyFat.value = props.userHealthWeight.body_fat
@@ -167,13 +239,13 @@ async function submitAddWeight() {
   try {
     let bone_mass = null
     let muscle_mass = null
-    if (newEditWeightBoneMass.value !== null && newEditWeightBoneMass.value !== "") {
+    if (newEditWeightBoneMass.value !== null && newEditWeightBoneMass.value !== '') {
       bone_mass =
         Number(authStore?.user?.units) === 1
           ? newEditWeightBoneMass.value
           : lbsToKg(newEditWeightBoneMass.value)
     }
-    if (newEditWeightMuscleMass.value !== null && newEditWeightMuscleMass.value !== "") {
+    if (newEditWeightMuscleMass.value !== null && newEditWeightMuscleMass.value !== '') {
       muscle_mass =
         Number(authStore?.user?.units) === 1
           ? newEditWeightMuscleMass.value
@@ -186,11 +258,20 @@ async function submitAddWeight() {
           ? newEditWeightWeight.value
           : lbsToKg(newEditWeightWeight.value),
       date: newEditWeightDate.value,
-      bmi: newEditWeightBMI.value !== null && newEditWeightBMI.value !== "" ? newEditWeightBMI.value : null,
-      body_fat: newEditWeightBodyFat.value !== null && newEditWeightBodyFat.value !== "" ? newEditWeightBodyFat.value : null,
-      body_water: newEditWeightBodyWater.value !== null && newEditWeightBodyWater.value !== "" ? newEditWeightBodyWater.value : null,
+      bmi:
+        newEditWeightBMI.value !== null && newEditWeightBMI.value !== ''
+          ? newEditWeightBMI.value
+          : null,
+      body_fat:
+        newEditWeightBodyFat.value !== null && newEditWeightBodyFat.value !== ''
+          ? newEditWeightBodyFat.value
+          : null,
+      body_water:
+        newEditWeightBodyWater.value !== null && newEditWeightBodyWater.value !== ''
+          ? newEditWeightBodyWater.value
+          : null,
       bone_mass: bone_mass,
-      muscle_mass: muscle_mass,
+      muscle_mass: muscle_mass
     }
 
     const createdWeight = await health_weight.createHealthWeight(data)
@@ -214,13 +295,13 @@ function submitEditWeight() {
   console.log(newEditWeightBodyFat.value)
   let bone_mass = null
   let muscle_mass = null
-  if (newEditWeightBoneMass.value !== null && newEditWeightBoneMass.value !== "") {
+  if (newEditWeightBoneMass.value !== null && newEditWeightBoneMass.value !== '') {
     bone_mass =
       Number(authStore?.user?.units) === 1
         ? newEditWeightBoneMass.value
         : lbsToKg(newEditWeightBoneMass.value)
   }
-  if (newEditWeightMuscleMass.value !== null && newEditWeightMuscleMass.value !== "") {
+  if (newEditWeightMuscleMass.value !== null && newEditWeightMuscleMass.value !== '') {
     muscle_mass =
       Number(authStore?.user?.units) === 1
         ? newEditWeightMuscleMass.value
@@ -234,11 +315,20 @@ function submitEditWeight() {
         ? newEditWeightWeight.value
         : lbsToKg(newEditWeightWeight.value),
     date: newEditWeightDate.value,
-    bmi: newEditWeightBMI.value !== null && newEditWeightBMI.value !== "" ? newEditWeightBMI.value : null,
-    body_fat: newEditWeightBodyFat.value !== null && newEditWeightBodyFat.value !== "" ? newEditWeightBodyFat.value : null,
-    body_water: newEditWeightBodyWater.value !== null && newEditWeightBodyWater.value !== "" ? newEditWeightBodyWater.value : null,
+    bmi:
+      newEditWeightBMI.value !== null && newEditWeightBMI.value !== ''
+        ? newEditWeightBMI.value
+        : null,
+    body_fat:
+      newEditWeightBodyFat.value !== null && newEditWeightBodyFat.value !== ''
+        ? newEditWeightBodyFat.value
+        : null,
+    body_water:
+      newEditWeightBodyWater.value !== null && newEditWeightBodyWater.value !== ''
+        ? newEditWeightBodyWater.value
+        : null,
     bone_mass: bone_mass,
-    muscle_mass: muscle_mass,
+    muscle_mass: muscle_mass
   })
 }
 

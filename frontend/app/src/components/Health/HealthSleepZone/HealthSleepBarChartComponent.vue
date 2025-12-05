@@ -73,14 +73,12 @@ const chartData = computed(() => {
 
   const data = []
   const labels = []
-  
+
   for (const healthSleep of sortedSleep) {
     data.push(healthSleep.total_sleep_seconds)
 
     const createdAt = new Date(healthSleep.date)
-    labels.push(
-      `${createdAt.getDate()}/${createdAt.getMonth() + 1}/${createdAt.getFullYear()}`
-    )
+    labels.push(`${createdAt.getDate()}/${createdAt.getMonth() + 1}/${createdAt.getFullYear()}`)
   }
 
   const datasets = [
@@ -143,7 +141,7 @@ onMounted(() => {
           beginAtZero: true,
           ticks: {
             stepSize: 3600, // 1 hour in seconds
-            callback: function(value) {
+            callback: function (value) {
               return formatDurationHHmm(value)
             }
           },
@@ -181,7 +179,7 @@ onMounted(() => {
               if (value === null || value === undefined) {
                 return `${label}: N/A`
               }
-              
+
               return `${label}: ${formatDuration(value)}`
             }
           }

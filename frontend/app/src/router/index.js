@@ -128,7 +128,8 @@ router.beforeEach((to, from, next) => {
 
   if (requiresAuth && !authStore.isAuthenticated) {
     next({
-      name: 'login', query: {
+      name: 'login',
+      query: {
         redirect: to.path,
         ...to.query
       }

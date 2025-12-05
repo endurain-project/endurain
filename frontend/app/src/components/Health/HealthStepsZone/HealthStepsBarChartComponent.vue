@@ -72,14 +72,12 @@ const chartData = computed(() => {
 
   const data = []
   const labels = []
-  
+
   for (const healthSteps of sortedSteps) {
     data.push(healthSteps.steps)
 
     const createdAt = new Date(healthSteps.date)
-    labels.push(
-      `${createdAt.getDate()}/${createdAt.getMonth() + 1}/${createdAt.getFullYear()}`
-    )
+    labels.push(`${createdAt.getDate()}/${createdAt.getMonth() + 1}/${createdAt.getFullYear()}`)
   }
 
   const datasets = [

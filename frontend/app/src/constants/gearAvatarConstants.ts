@@ -22,14 +22,14 @@ import waterSportsBoard1 from '@/assets/avatar/waterSportsBoard1.png'
  * - 8: Water sports board
  */
 export const GEAR_AVATAR_MAP: Record<number, string> = {
-    1: bicycle1,
-    2: runningShoe1,
-    3: wetsuit1,
-    4: racquet1,
-    5: skis1,
-    6: snowboard1,
-    7: windsurf1,
-    8: waterSportsBoard1
+  1: bicycle1,
+  2: runningShoe1,
+  3: wetsuit1,
+  4: racquet1,
+  5: skis1,
+  6: snowboard1,
+  7: windsurf1,
+  8: waterSportsBoard1
 } as const
 
 /**
@@ -39,5 +39,5 @@ export const GEAR_AVATAR_MAP: Record<number, string> = {
  * @returns The image path for the specified gear type, or the default bicycle avatar if not found.
  */
 export function getGearAvatar(gearType: number): string {
-    return GEAR_AVATAR_MAP[gearType] ?? bicycle1
+  return GEAR_AVATAR_MAP[gearType] ?? bicycle1
 }

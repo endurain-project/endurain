@@ -73,11 +73,7 @@
           role="button"
           v-if="activity.garminconnect_activity_id"
         >
-          <img
-            :src="INTEGRATION_LOGOS.garminConnectApp"
-            alt="Garmin Connect logo"
-            height="22"
-          />
+          <img :src="INTEGRATION_LOGOS.garminConnectApp" alt="Garmin Connect logo" height="22" />
         </a>
         <div>
           <button
@@ -251,12 +247,7 @@
           {{ formatPace(t, activity, authStore.user.units) }}
         </div>
         <!-- avg_speed sailing activities -->
-        <div
-          v-else-if="
-            activityTypeIsWindsurf(activity) ||
-            activityTypeIsSailing(activity)
-          "
-        >
+        <div v-else-if="activityTypeIsWindsurf(activity) || activityTypeIsSailing(activity)">
           <span class="fw-lighter">
             {{ $t('activitySummaryComponent.activityAvgSpeed') }}
           </span>

@@ -25,7 +25,12 @@
             <!-- Username field -->
             <div class="mb-3">
               <label for="garminConnectUsername" class="form-label">
-                <b>* {{ $t('garminConnectLoginModalComponent.garminConnectAuthModalUsernameLabel') }}</b>
+                <b
+                  >*
+                  {{
+                    $t('garminConnectLoginModalComponent.garminConnectAuthModalUsernameLabel')
+                  }}</b
+                >
               </label>
               <input
                 id="garminConnectUsername"
@@ -33,8 +38,12 @@
                 class="form-control"
                 type="text"
                 name="garminConnectUsername"
-                :placeholder="$t('garminConnectLoginModalComponent.garminConnectAuthModalUsernamePlaceholder')"
-                :aria-label="$t('garminConnectLoginModalComponent.garminConnectAuthModalUsernameLabel')"
+                :placeholder="
+                  $t('garminConnectLoginModalComponent.garminConnectAuthModalUsernamePlaceholder')
+                "
+                :aria-label="
+                  $t('garminConnectLoginModalComponent.garminConnectAuthModalUsernameLabel')
+                "
                 required
               />
             </div>
@@ -42,7 +51,12 @@
             <!-- Password field -->
             <div class="mb-3">
               <label for="garminConnectPassword" class="form-label">
-                <b>* {{ $t('garminConnectLoginModalComponent.garminConnectAuthModalPasswordLabel') }}</b>
+                <b
+                  >*
+                  {{
+                    $t('garminConnectLoginModalComponent.garminConnectAuthModalPasswordLabel')
+                  }}</b
+                >
               </label>
               <input
                 id="garminConnectPassword"
@@ -50,8 +64,12 @@
                 class="form-control"
                 type="password"
                 name="garminConnectPassword"
-                :placeholder="$t('garminConnectLoginModalComponent.garminConnectAuthModalPasswordPlaceholder')"
-                :aria-label="$t('garminConnectLoginModalComponent.garminConnectAuthModalPasswordLabel')"
+                :placeholder="
+                  $t('garminConnectLoginModalComponent.garminConnectAuthModalPasswordPlaceholder')
+                "
+                :aria-label="
+                  $t('garminConnectLoginModalComponent.garminConnectAuthModalPasswordLabel')
+                "
                 required
               />
             </div>
@@ -60,7 +78,12 @@
             <div v-if="mfaRequired" class="row g-3 align-items-end">
               <div class="col">
                 <label for="garminConnectMfaCode" class="form-label">
-                  <b>* {{ $t('garminConnectLoginModalComponent.garminConnectAuthModalMfaCodeLabel') }}</b>
+                  <b
+                    >*
+                    {{
+                      $t('garminConnectLoginModalComponent.garminConnectAuthModalMfaCodeLabel')
+                    }}</b
+                  >
                 </label>
                 <input
                   id="garminConnectMfaCode"
@@ -68,8 +91,12 @@
                   class="form-control"
                   type="text"
                   name="garminConnectMfaCode"
-                  :placeholder="$t('garminConnectLoginModalComponent.garminConnectAuthModalMfaCodePlaceholder')"
-                  :aria-label="$t('garminConnectLoginModalComponent.garminConnectAuthModalMfaCodeLabel')"
+                  :placeholder="
+                    $t('garminConnectLoginModalComponent.garminConnectAuthModalMfaCodePlaceholder')
+                  "
+                  :aria-label="
+                    $t('garminConnectLoginModalComponent.garminConnectAuthModalMfaCodeLabel')
+                  "
                 />
               </div>
               <div class="col">
@@ -199,17 +226,17 @@ const handleWebSocketMessage = (event: MessageEvent): void => {
  */
 const submitConnectGarminConnect = async (): Promise<void> => {
   loadingLogin.value = true
-  
+
   const notification = push.promise(
     t('garminConnectLoginModalComponent.processingMessageLinkGarminConnect')
   )
-  
+
   try {
     const data = {
       username: garminConnectUsername.value,
       password: garminConnectPassword.value
     }
-    
+
     await garminConnect.linkGarminConnect(data)
 
     // Update user object with linked status
@@ -219,7 +246,7 @@ const submitConnectGarminConnect = async (): Promise<void> => {
 
     // Show success message
     notification.resolve(t('garminConnectLoginModalComponent.successMessageLinkGarminConnect'))
-    
+
     // Hide modal and reset form
     hideModal()
     resetForm()
@@ -237,16 +264,18 @@ const submitConnectGarminConnect = async (): Promise<void> => {
  */
 const submitMfaCode = async (): Promise<void> => {
   if (!mfaCode.value) return
-  
+
   loadingLoginWithMfa.value = true
-  
+
   try {
     const data = {
       mfa_code: mfaCode.value
     }
     await garminConnect.mfaGarminConnect(data)
   } catch (error) {
-    push.error(`${t('garminConnectLoginModalComponent.errorMessageUnableToLinkGarminConnect')} - ${error}`)
+    push.error(
+      `${t('garminConnectLoginModalComponent.errorMessageUnableToLinkGarminConnect')} - ${error}`
+    )
     loadingLoginWithMfa.value = false
   }
 }
@@ -272,7 +301,7 @@ const resetForm = (): void => {
  */
 onMounted(async () => {
   await initializeModal(modalRef)
-  
+
   // Set up WebSocket message handler for MFA
   const websocket = authStore.user_websocket as WebSocket | null
   if (websocket) {
@@ -289,7 +318,7 @@ onUnmounted(() => {
   if (websocket) {
     websocket.onmessage = null
   }
-  
+
   disposeModal()
 })
 </script>

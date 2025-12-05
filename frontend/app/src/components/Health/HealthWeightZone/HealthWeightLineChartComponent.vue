@@ -97,9 +97,7 @@ const chartData = computed(() => {
     }
 
     const createdAt = new Date(HealthWeight.date)
-    labels.push(
-      `${createdAt.getDate()}/${createdAt.getMonth() + 1}/${createdAt.getFullYear()}`
-    )
+    labels.push(`${createdAt.getDate()}/${createdAt.getMonth() + 1}/${createdAt.getFullYear()}`)
   }
 
   let label = ''

@@ -303,7 +303,9 @@
               </select>
               <!-- hide map fields -->
               <label for="activityHideMapEdit"
-                ><b>* {{ $t('editActivityModalComponent.modalEditActivityHideMapLabel') }}</b></label
+                ><b
+                  >* {{ $t('editActivityModalComponent.modalEditActivityHideMapLabel') }}</b
+                ></label
               >
               <select
                 class="form-select"
@@ -416,7 +418,9 @@
               </div>
               <!-- hide laps fields -->
               <label for="activityHideLapsEdit"
-                ><b>* {{ $t('editActivityModalComponent.modalEditActivityHideLapsLabel') }}</b></label
+                ><b
+                  >* {{ $t('editActivityModalComponent.modalEditActivityHideLapsLabel') }}</b
+                ></label
               >
               <select
                 class="form-select"
@@ -431,7 +435,9 @@
               <label for="activityHideWorkoutSetsStepsEdit"
                 ><b
                   >*
-                  {{ $t('editActivityModalComponent.modalEditActivityHideWorkoutSetsStepsLabel') }}</b
+                  {{
+                    $t('editActivityModalComponent.modalEditActivityHideWorkoutSetsStepsLabel')
+                  }}</b
                 ></label
               >
               <select
@@ -445,7 +451,9 @@
               </select>
               <!-- hide gear fields -->
               <label for="activityHideGearEdit"
-                ><b>* {{ $t('editActivityModalComponent.modalEditActivityHideGearLabel') }}</b></label
+                ><b
+                  >* {{ $t('editActivityModalComponent.modalEditActivityHideGearLabel') }}</b
+                ></label
               >
               <select
                 class="form-select"

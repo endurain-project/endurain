@@ -12,7 +12,7 @@ import garminConnectApp from '@/assets/garminconnect/Garmin_Connect_app_1024x102
  * - **garminConnectApp**: Garmin Connect app icon (1024x1024)
  */
 export const INTEGRATION_LOGOS = {
-    strava: stravaLogo,
-    garminConnectBadge: garminConnectBadge,
-    garminConnectApp: garminConnectApp
+  strava: stravaLogo,
+  garminConnectBadge: garminConnectBadge,
+  garminConnectApp: garminConnectApp
 } as const
