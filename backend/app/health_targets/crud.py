@@ -8,22 +8,16 @@ import health_targets.schema as health_targets_schema
 import core.logger as core_logger
 
 
-def get_health_targets_by_user_id(user_id: int, db: Session):
+def get_health_targets_by_user_id(
+    user_id: int, db: Session
+) -> health_targets_models.HealthTargets | None:
     try:
         # Get the health_targets from the database
-        health_targets = (
+        return (
             db.query(health_targets_models.HealthTargets)
             .filter(health_targets_models.HealthTargets.user_id == user_id)
             .first()
         )
-
-        # Check if there are health_targets if not return None
-        if not health_targets:
-            return None
-
-        # Return the health_targets
-        return health_targets
-
     except Exception as err:
         # Log the exception
         core_logger.print_to_log(
@@ -36,7 +30,9 @@ def get_health_targets_by_user_id(user_id: int, db: Session):
         ) from err
 
 
-def create_health_targets(user_id: int, db: Session):
+def create_health_targets(
+    user_id: int, db: Session
+) -> health_targets_schema.HealthTargets:
     try:
         # Create a new health_target
         db_health_targets = health_targets_models.HealthTargets(
@@ -84,7 +80,7 @@ def edit_health_target(
     health_target: health_targets_schema.HealthTargets,
     user_id: int,
     db: Session,
-):
+) -> health_targets_models.HealthTargets:
     try:
         # Get the user health target from the database
         db_health_target = (

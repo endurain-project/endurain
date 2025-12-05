@@ -74,7 +74,6 @@ import { useI18n } from 'vue-i18n'
 import ModalComponentHoursMinutesInput from '../Modals/ModalComponentHoursMinutesInput.vue'
 import HealthSleepBarChartComponent from './HealthSleepZone/HealthSleepBarChartComponent.vue'
 import HealthSleepListComponent from './HealthSleepZone/HealthSleepListComponent.vue'
-import HealthSleepTimelineChartComponent from './HealthSleepZone/HealthSleepTimelineChartComponent.vue'
 import LoadingComponent from '../GeneralComponents/LoadingComponent.vue'
 import NoItemsFoundComponent from '../GeneralComponents/NoItemsFoundComponents.vue'
 import PaginationComponent from '../GeneralComponents/PaginationComponent.vue'
@@ -106,7 +105,7 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['pageNumberChanged'])
+const emit = defineEmits(['pageNumberChanged', 'setSleepTarget'])
 
 const { t } = useI18n()
 const isLoadingNewSleep = ref(false)

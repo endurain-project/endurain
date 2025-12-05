@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 import pytest
 from fastapi import HTTPException
 
-import authtoken_manager as auth_token_manager
+import auth.token_manager as auth_token_manager
 
 
 class TestTokenManagerSecurity:
