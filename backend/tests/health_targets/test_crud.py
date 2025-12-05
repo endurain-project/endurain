@@ -154,9 +154,7 @@ class TestEditHealthTarget:
         mock_query.filter.return_value.first.return_value = mock_db_target
 
         # Act
-        result = health_targets_crud.edit_health_target(
-            health_target, user_id, mock_db
-        )
+        result = health_targets_crud.edit_health_target(health_target, user_id, mock_db)
 
         # Assert
         assert result == mock_db_target
@@ -201,9 +199,7 @@ class TestEditHealthTarget:
         mock_query.filter.return_value.first.return_value = mock_db_target
 
         # Act
-        result = health_targets_crud.edit_health_target(
-            health_target, user_id, mock_db
-        )
+        result = health_targets_crud.edit_health_target(health_target, user_id, mock_db)
 
         # Assert
         mock_db.commit.assert_called_once()
@@ -221,9 +217,7 @@ class TestEditHealthTarget:
         mock_query.filter.return_value.first.return_value = mock_db_target
 
         # Act
-        result = health_targets_crud.edit_health_target(
-            health_target, user_id, mock_db
-        )
+        result = health_targets_crud.edit_health_target(health_target, user_id, mock_db)
 
         # Assert
         mock_db.commit.assert_called_once()
@@ -260,9 +254,7 @@ class TestEditHealthTarget:
         mock_query.filter.return_value.first.return_value = mock_db_target
 
         # Act
-        result = health_targets_crud.edit_health_target(
-            health_target, user_id, mock_db
-        )
+        result = health_targets_crud.edit_health_target(health_target, user_id, mock_db)
 
         # Assert
         mock_db.commit.assert_called_once()

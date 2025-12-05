@@ -228,3 +228,30 @@ class HealthSleep(BaseModel):
                 )
 
         return self
+
+
+class HealthSleepListResponse(BaseModel):
+    """
+    Response schema for health sleep list with total count.
+
+    This class wraps a list of health sleep records along with the total count,
+    providing a complete response for list endpoints.
+
+    Attributes:
+        total (int): Total number of sleep records for the user.
+        records (list[HealthSleep]): List of health sleep measurements.
+
+    Configuration:
+        - from_attributes: Enables population from ORM models
+        - extra: Forbids extra fields not defined in the schema
+        - validate_assignment: Validates values on assignment
+    """
+
+    total: int
+    records: list[HealthSleep]
+
+    model_config = ConfigDict(
+        from_attributes=True,
+        extra="forbid",
+        validate_assignment=True,
+    )

@@ -13,6 +13,58 @@ from core.database import Base
 
 
 class HealthSleep(Base):
+    """
+    SQLAlchemy model representing health sleep data for users.
+
+    This model stores comprehensive sleep tracking information including sleep duration,
+    sleep stages, heart rate metrics, SpO2 levels, respiration rates, and sleep quality scores.
+    It supports integration with external sources like Garmin Connect.
+
+    Attributes:
+        id (int): Primary key for the health sleep record.
+        user_id (int): Foreign key referencing the user who owns this sleep data.
+        date (Date): Calendar date of the sleep session.
+        sleep_start_time_gmt (DateTime): Start time of sleep in GMT timezone.
+        sleep_end_time_gmt (DateTime): End time of sleep in GMT timezone.
+        sleep_start_time_local (DateTime): Start time of sleep in local timezone.
+        sleep_end_time_local (DateTime): End time of sleep in local timezone.
+        total_sleep_seconds (int): Total duration of sleep in seconds.
+        nap_time_seconds (int): Duration of naps in seconds.
+        unmeasurable_sleep_seconds (int): Unmeasurable sleep duration in seconds.
+        deep_sleep_seconds (int): Duration of deep sleep in seconds.
+        light_sleep_seconds (int): Duration of light sleep in seconds.
+        rem_sleep_seconds (int): Duration of REM sleep in seconds.
+        awake_sleep_seconds (int): Duration of awake time in seconds.
+        avg_heart_rate (Decimal): Average heart rate during sleep.
+        min_heart_rate (int): Minimum heart rate during sleep.
+        max_heart_rate (int): Maximum heart rate during sleep.
+        avg_spo2 (Decimal): Average SpO2 oxygen saturation percentage.
+        lowest_spo2 (int): Lowest SpO2 reading during sleep.
+        highest_spo2 (int): Highest SpO2 reading during sleep.
+        avg_respiration (Decimal): Average respiration rate.
+        lowest_respiration (Decimal): Lowest respiration rate.
+        highest_respiration (Decimal): Highest respiration rate.
+        avg_stress_level (Decimal): Average stress level during sleep.
+        awake_count (int): Number of times awakened during sleep.
+        restless_moments_count (int): Count of restless moments.
+        sleep_score_overall (int): Overall sleep score (0-100).
+        sleep_score_duration (str): Sleep duration score (e.g., GOOD, EXCELLENT, POOR).
+        sleep_score_quality (str): Sleep quality score.
+        garminconnect_sleep_id (str): External Garmin Connect sleep ID.
+        sleep_stages (JSON): List of sleep stage intervals as JSON.
+        source (str): Source of the health sleep data.
+        hrv_status (str): Heart rate variability status.
+        resting_heart_rate (int): Resting heart rate during sleep.
+        avg_skin_temp_deviation (Decimal): Average skin temperature deviation in Celsius.
+        awake_count_score (str): Awake count score.
+        rem_percentage_score (str): REM sleep percentage score.
+        deep_percentage_score (str): Deep sleep percentage score.
+        light_percentage_score (str): Light sleep percentage score.
+        avg_sleep_stress (Decimal): Average sleep stress level.
+        sleep_stress_score (str): Sleep stress score.
+        user (relationship): SQLAlchemy relationship to the User model.
+    """
+
     __tablename__ = "health_sleep"
 
     id = Column(Integer, primary_key=True, autoincrement=True)

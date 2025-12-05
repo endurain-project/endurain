@@ -6,9 +6,6 @@ import {
 } from '@/utils/serviceUtils'
 
 export const health_sleep = {
-    getUserHealthSleepNumber() {
-        return fetchGetRequest('health/sleep/number')
-    },
     getUserHealthSleep() {
         return fetchGetRequest('health/sleep')
     },

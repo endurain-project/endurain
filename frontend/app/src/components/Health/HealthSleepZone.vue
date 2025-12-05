@@ -47,12 +47,13 @@
         </ul>
 
         <!-- list zone -->
-        <ul class="my-3 list-group list-group-flush" v-for="data in userHealthSleepPagination" :key="data.id"
-          :data="data">
+        <ul class="my-3 list-group list-group-flush" v-for="userHealthSleep in userHealthSleepPagination"
+          :key="userHealthSleep.id" :data="userHealthSleep">
           <!--<HealthSleepTimelineChartComponent
-            :data="data.sleep_stages"
+            :data="userHealthSleep.sleep_stages"
           />-->
-          <HealthSleepListComponent :userHealthSleep="data" />
+          <HealthSleepListComponent :userHealthSleep="userHealthSleep" @deletedSleep="updateSleepListDeleted"
+            @editedSleep="updateSleepListEdited" />
         </ul>
 
         <!-- pagination area -->
@@ -105,10 +106,18 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['pageNumberChanged', 'setSleepTarget'])
+const emit = defineEmits(['deletedSleep', 'editedSleep', 'pageNumberChanged', 'setSleepTarget'])
 
 const { t } = useI18n()
 const isLoadingNewSleep = ref(false)
+
+function updateSleepListDeleted(deletedSleep) {
+  emit('deletedSleep', deletedSleep)
+}
+
+function updateSleepListEdited(editedSleep) {
+  emit('editedSleep', editedSleep)
+}
 
 function setPageNumber(page) {
   emit('pageNumberChanged', page)

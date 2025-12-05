@@ -14,7 +14,8 @@
     <!-- Include the HealthSleepZone -->
     <HealthSleepZone :userHealthSleep="userHealthSleep" :userHealthSleepPagination="userHealthSleepPagination"
       :userHealthTargets="userHealthTargets" :isLoading="isLoading" :totalPages="totalPagesSleep"
-      :pageNumber="pageNumberSleep" @pageNumberChanged="setPageNumberSleep" @setSleepTarget="setSleepTarget"
+      :pageNumber="pageNumberSleep" @deletedSleep="updateSleepListDeleted" @editedSleep="updateSleepListEdited"
+      @pageNumberChanged="setPageNumberSleep" @setSleepTarget="setSleepTarget"
       v-if="activeSection === 'sleep' && !isLoading" />
 
     <!-- Include the HealthRHRZone -->
@@ -101,13 +102,14 @@ function updateActiveSection(section) {
 }
 
 // Sleep functions
-async function updateHealthSleep() {
+async function updateHealthSleepPagination() {
   try {
     isHealthSleepUpdatingLoading.value = true
-    userHealthSleepPagination.value = await health_sleep.getUserHealthSleepWithPagination(
+    const sleepDataPagination = await health_sleep.getUserHealthSleepWithPagination(
       pageNumberSleep.value,
       numRecords
     )
+    userHealthSleepPagination.value = sleepDataPagination.records
     isHealthSleepUpdatingLoading.value = false
   } catch (error) {
     push.error(`${t('healthView.errorFetchingHealthSleep')} - ${error}`)
@@ -116,13 +118,27 @@ async function updateHealthSleep() {
 
 async function fetchHealthSleep() {
   try {
-    userHealthSleepNumber.value = await health_sleep.getUserHealthSleepNumber()
-    userHealthSleep.value = await health_sleep.getUserHealthSleep()
-    await updateHealthSleep()
+    const sleepData = await health_sleep.getUserHealthSleep()
+    userHealthSleepNumber.value = sleepData.total
+    userHealthSleep.value = sleepData.records
+    await updateHealthSleepPagination()
     totalPagesSleep.value = Math.ceil(userHealthSleepNumber.value / numRecords)
   } catch (error) {
     push.error(`${t('healthView.errorFetchingHealthSleep')} - ${error}`)
   }
+}
+
+function updateSleepListEdited(editedSleep) {
+  const indexPagination = userHealthSleepPagination.value.findIndex((sleep) => sleep.id === editedSleep.id)
+  const index = userHealthSleep.value.findIndex((sleep) => sleep.id === editedSleep.id)
+  userHealthSleepPagination.value[indexPagination] = editedSleep
+  userHealthSleep.value[index] = editedSleep
+}
+
+function updateSleepListDeleted(deletedSleep) {
+  userHealthSleepPagination.value = userHealthSleepPagination.value.filter((sleep) => sleep.id !== deletedSleep)
+  userHealthSleep.value = userHealthSleep.value.filter((sleep) => sleep.id !== deletedSleep)
+  userHealthSleepNumber.value--
 }
 
 function setPageNumberSleep(page) {
@@ -183,42 +199,17 @@ function updateWeightListAdded(createdWeight) {
   userHealthWeightNumber.value = userHealthWeight.value.length
 }
 
-function updateWeightListDeleted(deletedWeight) {
-  for (const data of userHealthWeightPagination.value) {
-    if (data.id === deletedWeight) {
-      data.weight = null
-    }
-  }
-  for (const data of userHealthWeight.value) {
-    if (data.id === deletedWeight) {
-      data.weight = null
-    }
-  }
+function updateWeightListEdited(editedWeight) {
+  const indexPagination = userHealthWeightPagination.value.findIndex((weight) => weight.id === editedWeight.id)
+  const index = userHealthWeight.value.findIndex((weight) => weight.id === editedWeight.id)
+  userHealthWeightPagination.value[indexPagination] = editedWeight
+  userHealthWeight.value[index] = editedWeight
 }
 
-function updateWeightListEdited(editedWeight) {
-  for (const data of userHealthWeightPagination.value) {
-    if (data.id === editedWeight.id) {
-      data.weight = editedWeight.weight
-      data.created_at = editedWeight.created_at
-      data.bmi = editedWeight.bmi
-      data.body_fat = editedWeight.body_fat
-      data.body_water = editedWeight.body_water
-      data.bone_mass = editedWeight.bone_mass
-      data.muscle_mass = editedWeight.muscle_mass
-    }
-  }
-  for (const data of userHealthWeight.value) {
-    if (data.id === editedWeight.id) {
-      data.weight = editedWeight.weight
-      data.created_at = editedWeight.created_at
-      data.bmi = editedWeight.bmi
-      data.body_fat = editedWeight.body_fat
-      data.body_water = editedWeight.body_water
-      data.bone_mass = editedWeight.bone_mass
-      data.muscle_mass = editedWeight.muscle_mass
-    }
-  }
+function updateWeightListDeleted(deletedWeight) {
+  userHealthWeightPagination.value = userHealthWeightPagination.value.filter((weight) => weight.id !== deletedWeight)
+  userHealthWeight.value = userHealthWeight.value.filter((weight) => weight.id !== deletedWeight)
+  userHealthWeightNumber.value--
 }
 
 function setPageNumberWeight(page) {
@@ -274,32 +265,17 @@ function updateStepsListAdded(createdStep) {
   userHealthStepsNumber.value = userHealthSteps.value.length
 }
 
-function updateStepsListDeleted(deletedStep) {
-  for (const data of userHealthStepsPagination.value) {
-    if (data.id === deletedStep) {
-      data.steps = null
-    }
-  }
-  for (const data of userHealthSteps.value) {
-    if (data.id === deletedStep) {
-      data.steps = null
-    }
-  }
+function updateStepsListEdited(editedStep) {
+  const indexPagination = userHealthStepsPagination.value.findIndex((step) => step.id === editedStep.id)
+  const index = userHealthSteps.value.findIndex((step) => step.id === editedStep.id)
+  userHealthStepsPagination.value[indexPagination] = editedStep
+  userHealthSteps.value[index] = editedStep
 }
 
-function updateStepsListEdited(editedStep) {
-  for (const data of userHealthStepsPagination.value) {
-    if (data.id === editedStep.id) {
-      data.steps = editedStep.steps
-      data.created_at = editedStep.created_at
-    }
-  }
-  for (const data of userHealthSteps.value) {
-    if (data.id === editedStep.id) {
-      data.steps = editedStep.steps
-      data.created_at = editedStep.created_at
-    }
-  }
+function updateStepsListDeleted(deletedStep) {
+  userHealthStepsPagination.value = userHealthStepsPagination.value.filter((step) => step.id !== deletedStep)
+  userHealthSteps.value = userHealthSteps.value.filter((step) => step.id !== deletedStep)
+  userHealthStepsNumber.value--
 }
 
 function setPageNumberSteps(page) {
@@ -361,7 +337,7 @@ function setSleepTarget(sleepTarget) {
 }
 
 // Watch functions
-watch(pageNumberSleep, updateHealthSleep, { immediate: false })
+watch(pageNumberSleep, updateHealthSleepPagination, { immediate: false })
 watch(pageNumberSteps, updateHealthStepsPagination, { immediate: false })
 watch(pageNumberWeight, updateHealthWeightPagination, { immediate: false })
 

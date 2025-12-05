@@ -92,7 +92,7 @@ async def read_health_weight_all_pagination(
         page_number (int): The page number to retrieve (1-indexed).
         num_records (int): The number of records to return per page.
         _check_scopes (Callable): Security dependency that validates the required scopes.
-        validate_pagination_values (Callable): Dependency that validates pagination parameters.
+        _validate_pagination_values (Callable): Dependency that validates pagination parameters.
         token_user_id (int): The user ID extracted from the access token.
         db (Session): The database session dependency.
 

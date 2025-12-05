@@ -23,6 +23,17 @@
         <span class="align-middle me-3 d-none d-sm-inline" v-if="userHealthSleep.source === 'garmin'">
           <img :src="INTEGRATION_LOGOS.garminConnectApp" alt="Garmin Connect logo" height="22" />
         </span>
+
+        <!-- delete weight button -->
+        <a class="btn btn-link btn-lg link-body-emphasis" href="#" role="button" data-bs-toggle="modal"
+          :data-bs-target="`#deleteSleepModal${userHealthSleep.id}`"><font-awesome-icon
+            :icon="['fas', 'fa-trash-can']" /></a>
+
+        <ModalComponent :modalId="`deleteSleepModal${userHealthSleep.id}`"
+          :title="t('healthSleepListComponent.modalDeleteSleepTitle')"
+          :body="`${t('healthSleepListComponent.modalDeleteSleepBody')}<b>${userHealthSleep.date}</b>?`"
+          :actionButtonType="`danger`" :actionButtonText="t('healthSleepListComponent.modalDeleteSleepTitle')"
+          @submitAction="submitDeleteSleep" />
       </div>
     </div>
     <div class="collapse" :id="`collapseSleepDetails${userHealthSleep.id}`">
@@ -39,8 +50,14 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import HealthSleepListTabsComponent from './HealthSleepListTabsComponent.vue'
 import HealthSleepTimelineChartComponent from './HealthSleepTimelineChartComponent.vue'
+import ModalComponent from '@/components/Modals/ModalComponent.vue'
+// Import Notivue push
+import { push } from 'notivue'
+// Importing the services
+import { health_sleep } from '@/services/health_sleepService'
 // Import constants
 import { INTEGRATION_LOGOS } from '@/constants/integrationLogoConstants'
 import { formatDuration, formatDateShort } from '@/utils/dateTimeUtils'
@@ -52,7 +69,34 @@ const props = defineProps({
   }
 })
 
+const emit = defineEmits(['editedSleep', 'deletedSleep'])
+
+const { t } = useI18n()
 const sleepDetails = ref(false)
+
+async function updateSleepListEdited(editedSleep) {
+  try {
+    await health_sleep.editHealthSleep(editedSleep)
+
+    emit('editedSleep', editedSleep)
+
+    push.success(t('healthSleepListComponent.successEditSleep'))
+  } catch (error) {
+    push.error(`${t('healthSleepListComponent.errorEditSleep')} - ${error.toString()}`)
+  }
+}
+
+async function submitDeleteSleep() {
+  try {
+    await health_sleep.deleteHealthSleep(props.userHealthSleep.id)
+
+    emit('deletedSleep', props.userHealthSleep.id)
+
+    push.success(t('healthSleepListComponent.successDeleteSleep'))
+  } catch (error) {
+    push.error(`${t('healthSleepListComponent.errorDeleteSleep')} - ${error.toString()}`)
+  }
+}
 
 onMounted(async () => {
   // Attach Bootstrap collapse event listeners to sync icon state
