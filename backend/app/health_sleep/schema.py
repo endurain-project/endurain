@@ -151,16 +151,16 @@ class HealthSleep(BaseModel):
     light_sleep_seconds: int | None = None
     rem_sleep_seconds: int | None = None
     awake_sleep_seconds: int | None = None
-    avg_heart_rate: Decimal | None = None
+    avg_heart_rate: int | None = None
     min_heart_rate: int | None = None
     max_heart_rate: int | None = None
-    avg_spo2: Decimal | None = None
+    avg_spo2: int | None = None
     lowest_spo2: int | None = None
     highest_spo2: int | None = None
-    avg_respiration: Decimal | None = None
-    lowest_respiration: Decimal | None = None
-    highest_respiration: Decimal | None = None
-    avg_stress_level: Decimal | None = None
+    avg_respiration: int | None = None
+    lowest_respiration: int | None = None
+    highest_respiration: int | None = None
+    avg_stress_level: int | None = None
     awake_count: int | None = None
     restless_moments_count: int | None = None
     sleep_score_overall: int | None = None
@@ -194,6 +194,15 @@ class HealthSleep(BaseModel):
             value = float(v) if isinstance(v, Decimal) else v
             if value < 20 or value > 220:
                 raise ValueError("Heart rate must be between 20 and 220 bpm")
+        return v
+
+    @field_validator("sleep_score_overall")
+    @classmethod
+    def validate_sleep_score_overall(cls, v: int | None) -> int | None:
+        """Validate sleep score is within reasonable range (0-100)."""
+        if v is not None:
+            if v <= 0 or v >= 100:
+                raise ValueError("Sleep score must be between 0 and 100.")
         return v
 
     @field_validator("avg_spo2", "lowest_spo2", "highest_spo2")

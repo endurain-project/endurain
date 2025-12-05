@@ -137,7 +137,7 @@ class HealthSleep(Base):
         comment="Duration of awake time in seconds",
     )
     avg_heart_rate = Column(
-        DECIMAL(precision=10, scale=2),
+        Integer,
         nullable=True,
         comment="Average heart rate during sleep",
     )
@@ -152,7 +152,7 @@ class HealthSleep(Base):
         comment="Maximum heart rate during sleep",
     )
     avg_spo2 = Column(
-        DECIMAL(precision=10, scale=2),
+        Integer,
         nullable=True,
         comment="Average SpO2 oxygen saturation percentage",
     )
@@ -167,22 +167,22 @@ class HealthSleep(Base):
         comment="Highest SpO2 reading during sleep",
     )
     avg_respiration = Column(
-        DECIMAL(precision=10, scale=2),
+        Integer,
         nullable=True,
         comment="Average respiration rate",
     )
     lowest_respiration = Column(
-        DECIMAL(precision=10, scale=2),
+        Integer,
         nullable=True,
         comment="Lowest respiration rate",
     )
     highest_respiration = Column(
-        DECIMAL(precision=10, scale=2),
+        Integer,
         nullable=True,
         comment="Highest respiration rate",
     )
     avg_stress_level = Column(
-        DECIMAL(precision=10, scale=2),
+        Integer,
         nullable=True,
         comment="Average stress level during sleep",
     )

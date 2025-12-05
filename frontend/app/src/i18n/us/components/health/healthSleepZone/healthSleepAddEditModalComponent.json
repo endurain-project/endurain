@@ -9,7 +9,7 @@
     "lightSleepLabel": "Light sleep",
     "remSleepLabel": "REM sleep",
     "awakeSleepLabel": "Awake sleep",
-    "napTimeLabel": "Nap time",
+    "unmeasurableSleepLabel": "Unmeasurable sleep",
     "avgHeartRateLabel": "Avg HR",
     "minHeartRateLabel": "Min HR",
     "maxHeartRateLabel": "Max HR",

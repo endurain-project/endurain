@@ -9,7 +9,7 @@
     "lightSleepLabel": "Sono Leve",
     "remSleepLabel": "Sono REM",
     "awakeSleepLabel": "Sono Acordado",
-    "napTimeLabel": "Tempo de Sesta",
+    "unmeasurableSleepLabel": "Sono Não Mensurável",
     "avgHeartRateLabel": "Frequência cardíaca média",
     "minHeartRateLabel": "Frequência cardíaca mínima",
     "maxHeartRateLabel": "Frequência cardíaca máxima",
