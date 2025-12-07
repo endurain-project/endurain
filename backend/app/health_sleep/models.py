@@ -35,16 +35,16 @@ class HealthSleep(Base):
         light_sleep_seconds (int): Duration of light sleep in seconds.
         rem_sleep_seconds (int): Duration of REM sleep in seconds.
         awake_sleep_seconds (int): Duration of awake time in seconds.
-        avg_heart_rate (Decimal): Average heart rate during sleep.
+        avg_heart_rate (int): Average heart rate during sleep.
         min_heart_rate (int): Minimum heart rate during sleep.
         max_heart_rate (int): Maximum heart rate during sleep.
-        avg_spo2 (Decimal): Average SpO2 oxygen saturation percentage.
+        avg_spo2 (int): Average SpO2 oxygen saturation percentage.
         lowest_spo2 (int): Lowest SpO2 reading during sleep.
         highest_spo2 (int): Highest SpO2 reading during sleep.
-        avg_respiration (Decimal): Average respiration rate.
-        lowest_respiration (Decimal): Lowest respiration rate.
-        highest_respiration (Decimal): Highest respiration rate.
-        avg_stress_level (Decimal): Average stress level during sleep.
+        avg_respiration (int): Average respiration rate.
+        lowest_respiration (int): Lowest respiration rate.
+        highest_respiration (int): Highest respiration rate.
+        avg_stress_level (int): Average stress level during sleep.
         awake_count (int): Number of times awakened during sleep.
         restless_moments_count (int): Count of restless moments.
         sleep_score_overall (int): Overall sleep score (0-100).
@@ -60,7 +60,7 @@ class HealthSleep(Base):
         rem_percentage_score (str): REM sleep percentage score.
         deep_percentage_score (str): Deep sleep percentage score.
         light_percentage_score (str): Light sleep percentage score.
-        avg_sleep_stress (Decimal): Average sleep stress level.
+        avg_sleep_stress (int): Average sleep stress level.
         sleep_stress_score (str): Sleep stress score.
         user (relationship): SQLAlchemy relationship to the User model.
     """
@@ -262,7 +262,7 @@ class HealthSleep(Base):
         comment="Light sleep percentage score",
     )
     avg_sleep_stress = Column(
-        DECIMAL(precision=10, scale=2),
+        Integer,
         nullable=True,
         comment="Average sleep stress level",
     )

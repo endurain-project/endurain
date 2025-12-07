@@ -159,7 +159,7 @@ def get_health_steps_by_date(
         return (
             db.query(health_steps_models.HealthSteps)
             .filter(
-                health_steps_models.HealthSteps.date == date,
+                health_steps_models.HealthSteps.date == func.date(date),
                 health_steps_models.HealthSteps.user_id == user_id,
             )
             .first()

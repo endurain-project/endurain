@@ -97,19 +97,17 @@ class TestHealthSleepModel:
         # Assert
         assert hasattr(health_sleep_models.HealthSleep, "user")
 
-    def test_health_sleep_model_decimal_precision(self):
+    def test_health_sleep_model_integer_fields(self):
         """
-        Test HealthSleep model decimal fields precision.
+        Test HealthSleep model integer fields.
         """
         # Arrange
         avg_heart_rate_column = health_sleep_models.HealthSleep.avg_heart_rate
         avg_spo2_column = health_sleep_models.HealthSleep.avg_spo2
 
         # Assert
-        assert avg_heart_rate_column.type.precision == 10
-        assert avg_heart_rate_column.type.scale == 2
-        assert avg_spo2_column.type.precision == 10
-        assert avg_spo2_column.type.scale == 2
+        assert avg_heart_rate_column.type.python_type == int
+        assert avg_spo2_column.type.python_type == int
 
     def test_health_sleep_model_string_field_lengths(self):
         """

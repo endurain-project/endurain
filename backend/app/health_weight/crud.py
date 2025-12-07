@@ -197,7 +197,7 @@ def get_health_weight_by_date(
         return (
             db.query(health_weight_models.HealthWeight)
             .filter(
-                health_weight_models.HealthWeight.date == date,
+                health_weight_models.HealthWeight.date == func.date(date),
                 health_weight_models.HealthWeight.user_id == user_id,
             )
             .first()

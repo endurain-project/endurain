@@ -26,7 +26,7 @@ class TestHealthSleepSchema:
             deep_sleep_seconds=7200,
             light_sleep_seconds=14400,
             rem_sleep_seconds=7200,
-            avg_heart_rate=Decimal("55.5"),
+            avg_heart_rate=55,
             min_heart_rate=45,
             max_heart_rate=75,
             sleep_score_overall=85,
@@ -109,10 +109,10 @@ class TestHealthSleepSchema:
             light_sleep_seconds = 14400
             rem_sleep_seconds = 7200
             awake_sleep_seconds = 0
-            avg_heart_rate = Decimal("55.5")
+            avg_heart_rate = 55
             min_heart_rate = 45
             max_heart_rate = 75
-            avg_spo2 = Decimal("97.5")
+            avg_spo2 = 97
             lowest_spo2 = 95
             highest_spo2 = 99
             avg_respiration = None
@@ -166,13 +166,13 @@ class TestHealthSleepSchema:
         """
         # Arrange & Act
         health_sleep = health_sleep_schema.HealthSleep(
-            avg_heart_rate=Decimal("60.5"),
+            avg_heart_rate=60,
             min_heart_rate=45,
             max_heart_rate=85,
         )
 
         # Assert
-        assert health_sleep.avg_heart_rate == Decimal("60.5")
+        assert health_sleep.avg_heart_rate == 60
         assert health_sleep.min_heart_rate == 45
         assert health_sleep.max_heart_rate == 85
 
@@ -202,13 +202,13 @@ class TestHealthSleepSchema:
         """
         # Arrange & Act
         health_sleep = health_sleep_schema.HealthSleep(
-            avg_spo2=Decimal("97.5"),
+            avg_spo2=97,
             lowest_spo2=95,
             highest_spo2=99,
         )
 
         # Assert
-        assert health_sleep.avg_spo2 == Decimal("97.5")
+        assert health_sleep.avg_spo2 == 97
         assert health_sleep.lowest_spo2 == 95
         assert health_sleep.highest_spo2 == 99
 

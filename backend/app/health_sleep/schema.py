@@ -176,7 +176,7 @@ class HealthSleep(BaseModel):
     rem_percentage_score: SleepScore | None = None
     deep_percentage_score: SleepScore | None = None
     light_percentage_score: SleepScore | None = None
-    avg_sleep_stress: Decimal | None = None
+    avg_sleep_stress: int | None = None
     sleep_stress_score: SleepScore | None = None
 
     model_config = ConfigDict(
@@ -188,11 +188,10 @@ class HealthSleep(BaseModel):
 
     @field_validator("avg_heart_rate", "min_heart_rate", "max_heart_rate")
     @classmethod
-    def validate_heart_rate(cls, v: int | Decimal | None) -> int | Decimal | None:
+    def validate_heart_rate(cls, v: int | None) -> int | None:
         """Validate heart rate is within reasonable range (20-220 bpm)."""
         if v is not None:
-            value = float(v) if isinstance(v, Decimal) else v
-            if value < 20 or value > 220:
+            if v < 20 or v > 220:
                 raise ValueError("Heart rate must be between 20 and 220 bpm")
         return v
 
@@ -207,11 +206,10 @@ class HealthSleep(BaseModel):
 
     @field_validator("avg_spo2", "lowest_spo2", "highest_spo2")
     @classmethod
-    def validate_spo2(cls, v: int | Decimal | None) -> int | Decimal | None:
+    def validate_spo2(cls, v: int | None) -> int | None:
         """Validate SpO2 is within reasonable range (70-100%)."""
         if v is not None:
-            value = float(v) if isinstance(v, Decimal) else v
-            if value < 70 or value > 100:
+            if v < 70 or v > 100:
                 raise ValueError("SpO2 must be between 70 and 100%")
         return v
 

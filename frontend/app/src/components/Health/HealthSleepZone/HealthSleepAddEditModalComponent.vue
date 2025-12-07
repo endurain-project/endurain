@@ -124,38 +124,21 @@
               </div>
             </div>
 
-            <!-- Unmeasurable Sleep -->
-            <div class="mb-3">
-              <label class="form-label">
-                <b>{{ $t('healthSleepAddEditModalComponent.unmeasurableSleepLabel') }}</b>
-              </label>
-              <div class="input-group">
-                <input id="unmeasurableSleepHours" v-model.number="formData.unmeasurableSleepHours" class="form-control"
-                  type="number" :placeholder="$t('generalItems.labelHours')"
-                  :aria-label="$t('generalItems.labelHours')" />
-                <span class="input-group-text">{{ $t('generalItems.labelHours') }}</span>
-                <input id="unmeasurableSleepMinutes" v-model.number="formData.unmeasurableSleepMinutes"
-                  class="form-control" type="number" :placeholder="$t('generalItems.labelMinutes')"
-                  :aria-label="$t('generalItems.labelMinutes')" />
-                <span class="input-group-text">{{ $t('generalItems.labelMinutes') }}</span>
-              </div>
-            </div>
-
             <!-- Awake count section -->
             <div class="row mb-3">
               <div class="col-md-6">
                 <label for="awakeCount" class="form-label">
                   <b>{{ $t('healthSleepAddEditModalComponent.awakeCountLabel') }}</b>
                 </label>
-                <input id="awakeCount" placeholder="..." class="form-control" type="number"
-                  v-model.number="formData.awakeCount" />
+                <input id="awakeCount" :placeholder="$t('healthSleepAddEditModalComponent.awakeCountLabel')"
+                  class="form-control" type="number" v-model.number="formData.awakeCount" />
               </div>
               <div class="col-md-6">
-                <label for="restlessMomentsCount" class="form-label">
-                  <b>{{ $t('healthSleepAddEditModalComponent.restlessMomentsCountLabel') }}</b>
+                <label for="avgSleepStress" class="form-label">
+                  <b>{{ $t('healthSleepAddEditModalComponent.avgSleepStressLabel') }}</b>
                 </label>
-                <input id="restlessMomentsCount" placeholder="..." class="form-control" type="number"
-                  v-model.number="formData.restlessMomentsCount" />
+                <input id="avgSleepStress" :placeholder="$t('healthSleepAddEditModalComponent.avgSleepStressLabel')"
+                  class="form-control" type="number" v-model.number="formData.avgSleepStress" />
               </div>
             </div>
 
@@ -166,7 +149,7 @@
                   <b>{{ $t('healthSleepAddEditModalComponent.avgHeartRateLabel') }}</b>
                 </label>
                 <input id="avgHeartRate" :placeholder="$t('healthSleepAddEditModalComponent.avgHeartRateLabel')"
-                  class="form-control" type="number" step="0.01" v-model.number="formData.avgHeartRate" />
+                  class="form-control" type="number" v-model.number="formData.avgHeartRate" />
               </div>
               <div class="col-md-4">
                 <label for="minHeartRate" class="form-label">
@@ -191,7 +174,7 @@
                   <b>{{ $t('healthSleepAddEditModalComponent.avgSpo2Label') }}</b>
                 </label>
                 <input id="avgSpo2" :placeholder="$t('healthSleepAddEditModalComponent.avgSpo2Label')"
-                  class="form-control" type="number" step="0.01" v-model.number="formData.avgSpo2" />
+                  class="form-control" type="number" v-model.number="formData.avgSpo2" />
               </div>
               <div class="col-md-4">
                 <label for="lowestSpo2" class="form-label">
@@ -230,12 +213,12 @@
                     </h6>
                     <button type="button" class="btn btn-sm btn-danger" @click="removeSleepStage(index)"
                       :aria-label="`Remove stage ${index + 1}`">
-                      <i class="bi bi-trash"></i>
+                      <font-awesome-icon :icon="['fas', 'trash']" />
                     </button>
                   </div>
 
                   <div class="row">
-                    <div class="col-md-3">
+                    <div class="col-md-4">
                       <label :for="`stageType${index}`" class="form-label">
                         <b>{{ $t('healthSleepAddEditModalComponent.stageTypeLabel') }}</b>
                       </label>
@@ -255,7 +238,7 @@
                       </select>
                     </div>
 
-                    <div class="col-md-3">
+                    <div class="col-md-4">
                       <label :for="`stageStartTime${index}`" class="form-label">
                         <b>{{ $t('healthSleepAddEditModalComponent.stageStartTimeLabel') }}</b>
                       </label>
@@ -263,20 +246,29 @@
                         v-model="stage.startTimeGmt" />
                     </div>
 
-                    <div class="col-md-3">
+                    <div class="col-md-4">
                       <label :for="`stageEndTime${index}`" class="form-label">
                         <b>{{ $t('healthSleepAddEditModalComponent.stageEndTimeLabel') }}</b>
                       </label>
                       <input :id="`stageEndTime${index}`" class="form-control" type="datetime-local"
                         v-model="stage.endTimeGmt" />
                     </div>
-
-                    <div class="col-md-3">
-                      <label :for="`stageDuration${index}`" class="form-label">
+                  </div>
+                  <div class="row mt-2">
+                    <div class="col">
+                      <label class="form-label">
                         <b>{{ $t('healthSleepAddEditModalComponent.stageDurationLabel') }}</b>
                       </label>
-                      <input :id="`stageDuration${index}`" class="form-control" type="number"
-                        v-model.number="stage.durationSeconds" placeholder="Seconds" />
+                      <div class="input-group">
+                        <input :id="`stageDurationHours${index}`" v-model.number="stage.durationHours"
+                          class="form-control" type="number" :placeholder="$t('generalItems.labelHours')"
+                          :aria-label="$t('generalItems.labelHours')" />
+                        <span class="input-group-text">{{ $t('generalItems.labelHoursShort') }}</span>
+                        <input :id="`stageDurationMinutes${index}`" v-model.number="stage.durationMinutes"
+                          class="form-control" type="number" :placeholder="$t('generalItems.labelMinutes')"
+                          :aria-label="$t('generalItems.labelMinutes')" />
+                        <span class="input-group-text">{{ $t('generalItems.labelMinutesShort') }}</span>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -318,7 +310,8 @@ interface SleepStage {
   stageType: number | null
   startTimeGmt: string | null
   endTimeGmt: string | null
-  durationSeconds: number | null
+  durationHours: number | null
+  durationMinutes: number | null
 }
 
 interface SleepFormData {
@@ -327,8 +320,6 @@ interface SleepFormData {
   sleepEndTime: string
   totalSleepHours: number | null
   totalSleepMinutes: number | null
-  unmeasurableSleepHours: number | null
-  unmeasurableSleepMinutes: number | null
   deepSleepHours: number | null
   deepSleepMinutes: number | null
   lightSleepHours: number | null
@@ -344,7 +335,7 @@ interface SleepFormData {
   lowestSpo2: number | null
   highestSpo2: number | null
   awakeCount: number | null
-  restlessMomentsCount: number | null
+  avgSleepStress: number | null
   sleepStages: SleepStage[]
 }
 
@@ -354,8 +345,8 @@ interface UserHealthSleep {
   date: string
   sleep_start_time_gmt: string
   sleep_end_time_gmt: string
-  sleep_start_time_local?: string
-  sleep_end_time_local?: string
+  sleep_start_time_local: string
+  sleep_end_time_local: string
   total_sleep_seconds?: number
   unmeasurable_sleep_seconds?: number
   deep_sleep_seconds?: number
@@ -369,7 +360,7 @@ interface UserHealthSleep {
   lowest_spo2?: number
   highest_spo2?: number
   awake_count?: number
-  restless_moments_count?: number
+  avg_sleep_stress?: number
   sleep_stages?: Array<{
     stage_type: number | null
     start_time_gmt: string | null
@@ -397,8 +388,6 @@ const formData = ref<SleepFormData>({
   sleepEndTime: '',
   totalSleepHours: null,
   totalSleepMinutes: null,
-  unmeasurableSleepHours: null,
-  unmeasurableSleepMinutes: null,
   deepSleepHours: null,
   deepSleepMinutes: null,
   lightSleepHours: null,
@@ -414,7 +403,7 @@ const formData = ref<SleepFormData>({
   lowestSpo2: null,
   highestSpo2: null,
   awakeCount: null,
-  restlessMomentsCount: null,
+  avgSleepStress: null,
   sleepStages: []
 })
 
@@ -433,12 +422,10 @@ onMounted(() => {
 
     formData.value = {
       date: props.userHealthSleep.date,
-      sleepStartTime: formatDateTimeForInput(props.userHealthSleep.sleep_start_time_gmt),
-      sleepEndTime: formatDateTimeForInput(props.userHealthSleep.sleep_end_time_gmt),
+      sleepStartTime: formatDateTimeForInput(props.userHealthSleep.sleep_start_time_local),
+      sleepEndTime: formatDateTimeForInput(props.userHealthSleep.sleep_end_time_local),
       totalSleepHours: totalSleep.hours,
       totalSleepMinutes: totalSleep.minutes,
-      unmeasurableSleepHours: unmeasurableSleep.hours,
-      unmeasurableSleepMinutes: unmeasurableSleep.minutes,
       deepSleepHours: deepSleep.hours,
       deepSleepMinutes: deepSleep.minutes,
       lightSleepHours: lightSleep.hours,
@@ -454,14 +441,18 @@ onMounted(() => {
       lowestSpo2: props.userHealthSleep.lowest_spo2 ?? null,
       highestSpo2: props.userHealthSleep.highest_spo2 ?? null,
       awakeCount: props.userHealthSleep.awake_count ?? null,
-      restlessMomentsCount: props.userHealthSleep.restless_moments_count ?? null,
+      avgSleepStress: props.userHealthSleep.avg_sleep_stress ?? null,
       sleepStages:
-        props.userHealthSleep.sleep_stages?.map((stage) => ({
-          stageType: stage.stage_type,
-          startTimeGmt: stage.start_time_gmt ? formatDateTimeForInput(stage.start_time_gmt) : null,
-          endTimeGmt: stage.end_time_gmt ? formatDateTimeForInput(stage.end_time_gmt) : null,
-          durationSeconds: stage.duration_seconds
-        })) ?? []
+        props.userHealthSleep.sleep_stages?.map((stage) => {
+          const duration = returnHoursMinutesFromSeconds(stage.duration_seconds ?? 0)
+          return {
+            stageType: stage.stage_type,
+            startTimeGmt: stage.start_time_gmt ? formatDateTimeForInput(stage.start_time_gmt) : null,
+            endTimeGmt: stage.end_time_gmt ? formatDateTimeForInput(stage.end_time_gmt) : null,
+            durationHours: duration.hours,
+            durationMinutes: duration.minutes
+          }
+        }) ?? []
     }
     editSleepId.value = `editSleepId${props.userHealthSleep.id}`
   }
@@ -485,7 +476,8 @@ function addSleepStage(): void {
     stageType: 1,
     startTimeGmt: null,
     endTimeGmt: null,
-    durationSeconds: null
+    durationHours: null,
+    durationMinutes: null
   })
 }
 
@@ -508,21 +500,13 @@ async function submitAddSleep(): Promise<void> {
   try {
     const data = {
       date: formData.value.date,
-      sleep_start_time_gmt: formData.value.sleepStartTime,
-      sleep_end_time_gmt: formData.value.sleepEndTime,
+      sleep_start_time_local: formData.value.sleepStartTime,
+      sleep_end_time_local: formData.value.sleepEndTime,
       total_sleep_seconds:
         formData.value.totalSleepHours !== null && formData.value.totalSleepMinutes !== null
           ? returnSecondsFromHoursMinutes(
             formData.value.totalSleepHours,
             formData.value.totalSleepMinutes
-          )
-          : null,
-      unmeasurable_sleep_seconds:
-        formData.value.unmeasurableSleepHours !== null &&
-          formData.value.unmeasurableSleepMinutes !== null
-          ? returnSecondsFromHoursMinutes(
-            formData.value.unmeasurableSleepHours,
-            formData.value.unmeasurableSleepMinutes
           )
           : null,
       deep_sleep_seconds:
@@ -560,12 +544,15 @@ async function submitAddSleep(): Promise<void> {
       lowest_spo2: formData.value.lowestSpo2,
       highest_spo2: formData.value.highestSpo2,
       awake_count: formData.value.awakeCount,
-      restless_moments_count: formData.value.restlessMomentsCount,
+      avg_sleep_stress: formData.value.avgSleepStress,
       sleep_stages: formData.value.sleepStages.map((stage) => ({
         stage_type: stage.stageType,
         start_time_gmt: stage.startTimeGmt,
         end_time_gmt: stage.endTimeGmt,
-        duration_seconds: stage.durationSeconds
+        duration_seconds:
+          stage.durationHours !== null && stage.durationMinutes !== null
+            ? returnSecondsFromHoursMinutes(stage.durationHours, stage.durationMinutes)
+            : null
       }))
     }
 
@@ -593,21 +580,13 @@ function submitEditSleep(): void {
     id: props.userHealthSleep.id,
     user_id: props.userHealthSleep.user_id,
     date: formData.value.date,
-    sleep_start_time_gmt: formData.value.sleepStartTime,
-    sleep_end_time_gmt: formData.value.sleepEndTime,
+    sleep_start_time_local: formData.value.sleepStartTime,
+    sleep_end_time_local: formData.value.sleepEndTime,
     total_sleep_seconds:
       formData.value.totalSleepHours !== null && formData.value.totalSleepMinutes !== null
         ? returnSecondsFromHoursMinutes(
           formData.value.totalSleepHours,
           formData.value.totalSleepMinutes
-        )
-        : null,
-    unmeasurable_sleep_seconds:
-      formData.value.unmeasurableSleepHours !== null &&
-        formData.value.unmeasurableSleepMinutes !== null
-        ? returnSecondsFromHoursMinutes(
-          formData.value.unmeasurableSleepHours,
-          formData.value.unmeasurableSleepMinutes
         )
         : null,
     deep_sleep_seconds:
@@ -645,12 +624,15 @@ function submitEditSleep(): void {
     lowest_spo2: formData.value.lowestSpo2,
     highest_spo2: formData.value.highestSpo2,
     awake_count: formData.value.awakeCount,
-    restless_moments_count: formData.value.restlessMomentsCount,
+    avg_sleep_stress: formData.value.avgSleepStress,
     sleep_stages: formData.value.sleepStages.map((stage) => ({
       stage_type: stage.stageType,
       start_time_gmt: stage.startTimeGmt,
       end_time_gmt: stage.endTimeGmt,
-      duration_seconds: stage.durationSeconds
+      duration_seconds:
+        stage.durationHours !== null && stage.durationMinutes !== null
+          ? returnSecondsFromHoursMinutes(stage.durationHours, stage.durationMinutes)
+          : null
     }))
   }
 

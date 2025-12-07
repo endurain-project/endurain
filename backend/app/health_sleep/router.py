@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 import health_sleep.schema as health_sleep_schema
 import health_sleep.crud as health_sleep_crud
+import health_sleep.sleep_scoring as sleep_scoring
 
 import auth.security as auth_security
 
@@ -152,6 +153,9 @@ async def create_health_sleep(
     if not health_sleep.date:
         raise HTTPException(status_code=400, detail="Date field is required.")
 
+    # Calculate sleep scores before saving
+    sleep_scoring._calculate_and_set_sleep_scores(health_sleep)
+
     # Convert date to string format for CRUD function
     date_str = health_sleep.date.isoformat()
 
@@ -207,6 +211,9 @@ async def edit_health_sleep(
         HTTPException: May raise various HTTP exceptions if authorization fails, user is not
             found, or database operations fail.
     """
+    # Recalculate sleep scores when editing
+    sleep_scoring._calculate_and_set_sleep_scores(health_sleep)
+
     # Updates the health_sleep in the database and returns it
     return health_sleep_crud.edit_health_sleep(token_user_id, health_sleep, db)
 

@@ -18,7 +18,7 @@
     "highestSpo2Label": "SpO2 máximo",
     "sleepScoreOverallLabel": "Pontuação geral do sono",
     "awakeCountLabel": "Número de despertares",
-    "restlessMomentsCountLabel": "Momentos inquietos",
+    "avgSleepStressLabel": "Stress Médio do Sono",
     "sleepStagesLabel": "Fases do sono",
     "addStageButton": "Adicionar fase",
     "stageLabel": "Fase",
@@ -29,7 +29,7 @@
     "stageTypeAwake": "Acordado",
     "stageStartTimeLabel": "Hora de início",
     "stageEndTimeLabel": "Hora de fim",
-    "stageDurationLabel": "Duração (segundos)",
+    "stageDurationLabel": "Duração",
     "noStagesMessage": "Nenhuma fase de sono adicionada ainda. Clique em 'Adicionar fase' para adicionar uma fase de sono.",
     "successAddSleep": "Sono adicionado com sucesso",
     "errorAddSleep": "Erro ao adicionar sono"

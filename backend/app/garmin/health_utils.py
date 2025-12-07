@@ -398,7 +398,7 @@ def fetch_and_process_sleep_by_dates(
                 in health_sleep_schema.SleepScore._value2member_map_
                 else None
             ),
-            avg_sleep_stress=sleep_dto.get("avgSleepStress"),
+            avg_sleep_stress=int(sleep_dto.get("avgSleepStress")),
             sleep_stress_score=(
                 health_sleep_schema.SleepScore(sleep_stress_score.get("qualifierKey"))
                 if sleep_stress_score

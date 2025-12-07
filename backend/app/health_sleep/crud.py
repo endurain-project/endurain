@@ -157,7 +157,7 @@ def get_health_sleep_by_date(
         return (
             db.query(health_sleep_models.HealthSleep)
             .filter(
-                health_sleep_models.HealthSleep.date == date,
+                health_sleep_models.HealthSleep.date == func.date(date),
                 health_sleep_models.HealthSleep.user_id == user_id,
             )
             .first()
