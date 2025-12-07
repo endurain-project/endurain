@@ -68,11 +68,11 @@ Edit `.env` file.
 nano /path/to/endurain/.env
 ```
 
-Adjust the environment variables and set keys. You definitely have to adjust `FRONTEND_DIR` and `BACKEND_DIR`.  
-Environment variables are explained in the  
-[Environment Variables Guide](advanced-started.md).
+Adjust the environment variables and set keys. You definitely have to adjust `FRONTEND_DIR`, `BACKEND_DIR` and `DB_HOST`.  
+Environment variables are explained in the [Environment Variables Guide](advanced-started.md).
 
 ```env
+DB_HOST=localhost
 BACKEND_DIR="/path/to/endurain/backend/app"
 FRONTEND_DIR="/path/to/endurain/frontend/app/dist"
 DATA_DIR="/path/to/endurain_data/data"

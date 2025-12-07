@@ -124,7 +124,7 @@
               </div>
             </div>
 
-            <!-- Awake count section -->
+            <!-- Awake count and avg sleep stress section -->
             <div class="row mb-3">
               <div class="col-md-6">
                 <label for="awakeCount" class="form-label">
@@ -139,6 +139,25 @@
                 </label>
                 <input id="avgSleepStress" :placeholder="$t('healthSleepAddEditModalComponent.avgSleepStressLabel')"
                   class="form-control" type="number" v-model.number="formData.avgSleepStress" />
+              </div>
+            </div>
+
+            <!-- Resting HR and Avg. Skin Temp. Deviation section -->
+            <div class="row mb-3">
+              <div class="col-md-6">
+                <label for="restingHeartRate" class="form-label">
+                  <b>{{ $t('healthSleepAddEditModalComponent.restingHeartRateLabel') }}</b>
+                </label>
+                <input id="restingHeartRate" :placeholder="$t('healthSleepAddEditModalComponent.restingHeartRateLabel')"
+                  class="form-control" type="number" v-model.number="formData.restingHeartRate" />
+              </div>
+              <div class="col-md-6">
+                <label for="avgSkinTempDeviation" class="form-label">
+                  <b>{{ $t('healthSleepAddEditModalComponent.avgSkinTempDeviationLabel') }}</b>
+                </label>
+                <input id="avgSkinTempDeviation"
+                  :placeholder="$t('healthSleepAddEditModalComponent.avgSkinTempDeviationLabel')" class="form-control"
+                  type="number" step="0.01" v-model.number="formData.avgSkinTempDeviation" />
               </div>
             </div>
 
@@ -336,6 +355,8 @@ interface SleepFormData {
   highestSpo2: number | null
   awakeCount: number | null
   avgSleepStress: number | null
+  restingHeartRate: number | null
+  avgSkinTempDeviation: number | null
   sleepStages: SleepStage[]
 }
 
@@ -361,6 +382,8 @@ interface UserHealthSleep {
   highest_spo2?: number
   awake_count?: number
   avg_sleep_stress?: number
+  resting_heart_rate?: number
+  avg_skin_temp_deviation?: number
   sleep_stages?: Array<{
     stage_type: number | null
     start_time_gmt: string | null
@@ -404,6 +427,8 @@ const formData = ref<SleepFormData>({
   highestSpo2: null,
   awakeCount: null,
   avgSleepStress: null,
+  restingHeartRate: null,
+  avgSkinTempDeviation: null,
   sleepStages: []
 })
 
@@ -442,6 +467,8 @@ onMounted(() => {
       highestSpo2: props.userHealthSleep.highest_spo2 ?? null,
       awakeCount: props.userHealthSleep.awake_count ?? null,
       avgSleepStress: props.userHealthSleep.avg_sleep_stress ?? null,
+      restingHeartRate: props.userHealthSleep.resting_heart_rate ?? null,
+      avgSkinTempDeviation: props.userHealthSleep.avg_skin_temp_deviation ?? null,
       sleepStages:
         props.userHealthSleep.sleep_stages?.map((stage) => {
           const duration = returnHoursMinutesFromSeconds(stage.duration_seconds ?? 0)
@@ -545,6 +572,8 @@ async function submitAddSleep(): Promise<void> {
       highest_spo2: formData.value.highestSpo2,
       awake_count: formData.value.awakeCount,
       avg_sleep_stress: formData.value.avgSleepStress,
+      resting_heart_rate: formData.value.restingHeartRate,
+      avg_skin_temp_deviation: formData.value.avgSkinTempDeviation,
       sleep_stages: formData.value.sleepStages.map((stage) => ({
         stage_type: stage.stageType,
         start_time_gmt: stage.startTimeGmt,
@@ -625,6 +654,8 @@ function submitEditSleep(): void {
     highest_spo2: formData.value.highestSpo2,
     awake_count: formData.value.awakeCount,
     avg_sleep_stress: formData.value.avgSleepStress,
+    resting_heart_rate: formData.value.restingHeartRate,
+    avg_skin_temp_deviation: formData.value.avgSkinTempDeviation,
     sleep_stages: formData.value.sleepStages.map((stage) => ({
       stage_type: stage.stageType,
       start_time_gmt: stage.startTimeGmt,

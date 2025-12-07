@@ -19,6 +19,8 @@
     "sleepScoreOverallLabel": "Pontuação geral do sono",
     "awakeCountLabel": "Número de despertares",
     "avgSleepStressLabel": "Stress Médio do Sono",
+    "restingHeartRateLabel": "Frequência Cardíaca em Repouso",
+    "avgSkinTempDeviationLabel": "Desvio Médio da Temp. da Pele",
     "sleepStagesLabel": "Fases do sono",
     "addStageButton": "Adicionar fase",
     "stageLabel": "Fase",
