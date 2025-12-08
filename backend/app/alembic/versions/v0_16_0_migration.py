@@ -530,7 +530,7 @@ def upgrade() -> None:
         ),
         sa.Column(
             "avg_heart_rate",
-            sa.DECIMAL(precision=10, scale=2),
+            sa.Integer(),
             nullable=True,
             comment="Average heart rate during sleep",
         ),
@@ -548,7 +548,7 @@ def upgrade() -> None:
         ),
         sa.Column(
             "avg_spo2",
-            sa.DECIMAL(precision=10, scale=2),
+            sa.Integer(),
             nullable=True,
             comment="Average SpO2 oxygen saturation percentage",
         ),
@@ -566,25 +566,25 @@ def upgrade() -> None:
         ),
         sa.Column(
             "avg_respiration",
-            sa.DECIMAL(precision=10, scale=2),
+            sa.Integer(),
             nullable=True,
             comment="Average respiration rate",
         ),
         sa.Column(
             "lowest_respiration",
-            sa.DECIMAL(precision=10, scale=2),
+            sa.Integer(),
             nullable=True,
             comment="Lowest respiration rate",
         ),
         sa.Column(
             "highest_respiration",
-            sa.DECIMAL(precision=10, scale=2),
+            sa.Integer(),
             nullable=True,
             comment="Highest respiration rate",
         ),
         sa.Column(
             "avg_stress_level",
-            sa.DECIMAL(precision=10, scale=2),
+            sa.Integer(),
             nullable=True,
             comment="Average stress level during sleep",
         ),
@@ -680,7 +680,7 @@ def upgrade() -> None:
         ),
         sa.Column(
             "avg_sleep_stress",
-            sa.DECIMAL(precision=10, scale=2),
+            sa.Integer(),
             nullable=True,
             comment="Average sleep stress level",
         ),
