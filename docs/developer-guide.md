@@ -1,7 +1,5 @@
 # Developer guide
 
----
-
 ## Setup a dev environment
 
 Bellow are the steps to create a dev environment. Examples bellow will use Endurain repo, but you should adapt those for your scenario (forked repo, etc).

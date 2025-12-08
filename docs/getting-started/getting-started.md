@@ -1,7 +1,5 @@
 # Getting started
 
----
-
 Welcome to the guide for getting started on hosting your own production instance of Endurain. Like many other services, Endurain is easiest to get up and running trough Docker compose. It is possible to get Endurain up and running without a domain and reverse proxy, but this guide assumes you want to use a reverse proxy and your domain. Endurain can run on any computer that support OCI containers, but in this guide we are using Debian 13 (should also work with 12).
 
 ## Prerequisites
