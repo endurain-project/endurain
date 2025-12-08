@@ -19,12 +19,14 @@ theme:
 nav:
   - Home: index.md
   - Hosting Guide:
-      - Getting started easy: getting-started/getting-started.md
-      - Getting started advanced: getting-started/advanced-started.md
-      - Bare-Metal Installation Guide: getting-started/bare-metal.md
-      - MariaDB to Postgres migration: getting-started/maria-to-postgres-migration.md
+    - Getting started easy: getting-started/getting-started.md
+    - Getting started advanced: getting-started/advanced-started.md
+    - Bare-Metal Installation Guide: getting-started/bare-metal.md
+    - MariaDB to Postgres migration: getting-started/maria-to-postgres-migration.md
+  - Features:
+    - Sleep Scoring: features/sleep-scoring.md
   - Integrations:
-      - 3rd party apps: integrations/3rd-party-apps.md
-      - 3rd party services: integrations/3rd-party-services.md
+    - 3rd party apps: integrations/3rd-party-apps.md
+    - 3rd party services: integrations/3rd-party-services.md
   - Developer guide: developer-guide.md
   - Gallery: gallery.md
