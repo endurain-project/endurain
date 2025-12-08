@@ -99,6 +99,8 @@ async def read_health_steps_all_pagination(
     Returns:
         HealthStepsListResponse: A response object containing:
             - total (int): The total number of health steps records for the user.
+            - num_records (int): Number of records returned in this response.
+            - page_number (int): Page number of the current response.
             - records (list): A list of paginated health steps records.
 
     Raises:
@@ -111,7 +113,9 @@ async def read_health_steps_all_pagination(
         token_user_id, db, page_number, num_records
     )
 
-    return health_steps_schema.HealthStepsListResponse(total=total, records=records)
+    return health_steps_schema.HealthStepsListResponse(
+        total=total, num_records=num_records, page_number=page_number, records=records
+    )
 
 
 @router.post("", status_code=201)

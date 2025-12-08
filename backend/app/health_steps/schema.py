@@ -51,10 +51,12 @@ class HealthStepsListResponse(BaseModel):
     Response schema for health steps list with total count.
 
     This class wraps a list of health steps records along with the total count,
-    providing a complete response for list endpoints.
+    number of records, and page number providing a complete response for list endpoints.
 
     Attributes:
         total (int): Total number of steps records for the user.
+        num_records (int | None): Number of records returned in this response.
+        page_number (int | None): Page number of the current response.
         records (list[HealthSteps]): List of health steps measurements.
 
     Configuration:
@@ -64,6 +66,8 @@ class HealthStepsListResponse(BaseModel):
     """
 
     total: int
+    num_records: int | None = None
+    page_number: int | None = None
     records: list[HealthSteps]
 
     model_config = ConfigDict(

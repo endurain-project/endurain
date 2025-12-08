@@ -97,8 +97,11 @@ async def read_health_weight_all_pagination(
         db (Session): The database session dependency.
 
     Returns:
-        HealthWeightListResponse: An object containing the total count and paginated list
-            of health weight records for the user.
+        HealthWeightListResponse: A response object containing:
+            - total (int): The total number of health weight records for the user.
+            - num_records (int): Number of records returned in this response.
+            - page_number (int): Page number of the current response.
+            - records (list): A list of paginated health weight records.
 
     Raises:
         HTTPException: If authentication fails or user lacks required permissions.
@@ -110,7 +113,9 @@ async def read_health_weight_all_pagination(
         token_user_id, db, page_number, num_records
     )
 
-    return health_weight_schema.HealthWeightListResponse(total=total, records=records)
+    return health_weight_schema.HealthWeightListResponse(
+        total=total, num_records=num_records, page_number=page_number, records=records
+    )
 
 
 @router.post("", status_code=201)

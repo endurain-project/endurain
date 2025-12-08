@@ -242,10 +242,12 @@ class HealthSleepListResponse(BaseModel):
     Response schema for health sleep list with total count.
 
     This class wraps a list of health sleep records along with the total count,
-    providing a complete response for list endpoints.
+    number of records, and page number providing a complete response for list endpoints.
 
     Attributes:
         total (int): Total number of sleep records for the user.
+        num_records (int | None): Number of records returned in this response.
+        page_number (int | None): Page number of the current response.
         records (list[HealthSleep]): List of health sleep measurements.
 
     Configuration:
@@ -255,6 +257,8 @@ class HealthSleepListResponse(BaseModel):
     """
 
     total: int
+    num_records: int | None = None
+    page_number: int | None = None
     records: list[HealthSleep]
 
     model_config = ConfigDict(

@@ -98,6 +98,8 @@ async def read_health_sleep_all_pagination(
     Returns:
         HealthSleepListResponse: Response containing:
             - total (int): Total number of health sleep records for the user.
+            - num_records (int): Number of records returned in this response.
+            - page_number (int): Page number of the current response.
             - records (list): List of health sleep records for the requested page.
 
     Raises:
@@ -110,7 +112,9 @@ async def read_health_sleep_all_pagination(
         token_user_id, db, page_number, num_records
     )
 
-    return health_sleep_schema.HealthSleepListResponse(total=total, records=records)
+    return health_sleep_schema.HealthSleepListResponse(
+        total=total, num_records=num_records, page_number=page_number, records=records
+    )
 
 
 @router.post("", status_code=201)
