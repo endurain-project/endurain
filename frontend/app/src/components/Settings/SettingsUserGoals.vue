@@ -1,22 +1,26 @@
 <template>
   <div class="col">
     <div class="bg-body-tertiary rounded p-3 shadow-sm">
-      <!-- add goal button -->
-      <a
-        class="w-100 btn btn-primary"
-        href="#"
-        role="button"
-        data-bs-toggle="modal"
-        data-bs-target="#addGoalModal"
-        >{{ $t('settingsUserGoalsZone.addNewGoal') }}</a
-      >
+      <div class="row row-gap-3">
+        <div class="col-lg-4 col-md-12">
+          <!-- add goal button -->
+          <a
+            class="w-100 btn btn-primary"
+            href="#"
+            role="button"
+            data-bs-toggle="modal"
+            data-bs-target="#addGoalModal"
+            >{{ $t('settingsUserGoalsZone.addNewGoal') }}</a
+          >
 
-      <!-- Modal goal user -->
-      <GoalsAddEditGoalModalComponent
-        :action="'add'"
-        @createdGoal="addGoalList"
-        @isLoadingNewGoal="setIsLoadingNewGoal"
-      />
+          <!-- Modal goal user -->
+          <GoalsAddEditGoalModalComponent
+            :action="'add'"
+            @createdGoal="addGoalList"
+            @isLoadingNewGoal="setIsLoadingNewGoal"
+          />
+        </div>
+      </div>
 
       <!-- loading state -->
       <LoadingComponent class="mt-3" v-if="isLoading" />

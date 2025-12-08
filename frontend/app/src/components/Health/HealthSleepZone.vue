@@ -1,7 +1,6 @@
 <template>
   <div class="col">
-    <LoadingComponent v-if="isLoading" />
-    <div v-else>
+    <div class="bg-body-tertiary rounded p-3 shadow-sm">
       <!-- add sleep button -->
       <div class="d-flex">
         <a
@@ -39,60 +38,58 @@
         @fieldsToEmitAction="submitSetSleepTarget"
       />
 
-      <!-- Checking if userHealthSleepPagination is loaded and has length -->
-      <div
-        v-if="userHealthSleepPagination && userHealthSleepPagination.length"
-        class="mt-3 p-3 bg-body-tertiary rounded shadow-sm"
-      >
-        <!-- show graph -->
-        <HealthSleepBarChartComponent
-          :userHealthTargets="userHealthTargets"
-          :userHealthSleep="userHealthSleep"
-          :isLoading="isLoading"
-        />
-
-        <br />
-        <p>
-          {{ $t('healthSleepZoneComponent.labelNumberOfHealthSleep1') }}{{ userHealthSleep.length
-          }}{{ $t('healthSleepZoneComponent.labelNumberOfHealthSleep2')
-          }}{{ userHealthSleepPagination.length
-          }}{{ $t('healthSleepZoneComponent.labelNumberOfHealthSleep3') }}
-        </p>
-
-        <!-- Displaying loading new sleep if applicable -->
-        <ul class="mt-3 list-group list-group-flush" v-if="isLoadingNewSleep">
-          <li class="list-group-item rounded">
-            <LoadingComponent />
-          </li>
-        </ul>
-
-        <!-- list zone -->
-        <ul
-          class="my-3 list-group list-group-flush"
-          v-for="userHealthSleep in userHealthSleepPagination"
-          :key="userHealthSleep.id"
-          :data="userHealthSleep"
-        >
-          <!--<HealthSleepTimelineChartComponent
-            :data="userHealthSleep.sleep_stages"
-          />-->
-          <HealthSleepListComponent
+      <LoadingComponent v-if="isLoading" />
+      <div v-else>
+        <!-- Checking if userHealthSleepPagination is loaded and has length -->
+        <div v-if="userHealthSleepPagination && userHealthSleepPagination.length" class="mt-3">
+          <!-- show graph -->
+          <HealthSleepBarChartComponent
+            :userHealthTargets="userHealthTargets"
             :userHealthSleep="userHealthSleep"
-            @deletedSleep="updateSleepListDeleted"
-            @editedSleep="updateSleepListEdited"
+            :isLoading="isLoading"
           />
-        </ul>
 
-        <!-- pagination area -->
-        <PaginationComponent
-          :totalPages="totalPages"
-          :pageNumber="pageNumber"
-          @pageNumberChanged="setPageNumber"
-        />
-      </div>
-      <!-- Displaying a message or component when there are no weight measurements -->
-      <div v-else class="mt-3">
-        <NoItemsFoundComponent />
+          <br />
+          <p>
+            {{ $t('healthSleepZoneComponent.labelNumberOfHealthSleep1') }}{{ userHealthSleep.length
+            }}{{ $t('healthSleepZoneComponent.labelNumberOfHealthSleep2')
+            }}{{ userHealthSleepPagination.length
+            }}{{ $t('healthSleepZoneComponent.labelNumberOfHealthSleep3') }}
+          </p>
+
+          <!-- Displaying loading new sleep if applicable -->
+          <ul class="mt-3 list-group list-group-flush" v-if="isLoadingNewSleep">
+            <li class="list-group-item rounded">
+              <LoadingComponent />
+            </li>
+          </ul>
+
+          <!-- list zone -->
+          <ul
+            class="my-3 list-group list-group-flush"
+            v-for="userHealthSleep in userHealthSleepPagination"
+            :key="userHealthSleep.id"
+            :data="userHealthSleep"
+          >
+            <!--<HealthSleepTimelineChartComponent
+              :data="userHealthSleep.sleep_stages"
+            />-->
+            <HealthSleepListComponent
+              :userHealthSleep="userHealthSleep"
+              @deletedSleep="updateSleepListDeleted"
+              @editedSleep="updateSleepListEdited"
+            />
+          </ul>
+
+          <!-- pagination area -->
+          <PaginationComponent
+            :totalPages="totalPages"
+            :pageNumber="pageNumber"
+            @pageNumberChanged="setPageNumber"
+          />
+        </div>
+        <!-- Displaying a message or component when there are no weight measurements -->
+        <NoItemsFoundComponent class="mt-3" :show-shadow="false" v-else />
       </div>
     </div>
   </div>

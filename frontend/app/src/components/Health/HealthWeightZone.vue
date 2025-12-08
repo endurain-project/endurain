@@ -1,7 +1,6 @@
 <template>
   <div class="col">
-    <LoadingComponent v-if="isLoading" />
-    <div v-else>
+    <div class="bg-body-tertiary rounded p-3 shadow-sm">
       <!-- add weight button -->
       <div class="d-flex">
         <a
@@ -38,58 +37,58 @@
         @numberToEmitAction="submitSetWeightTarget"
       />
 
-      <!-- Checking if userHealthWeight is loaded and has length -->
-      <div
-        v-if="userHealthWeight && userHealthWeight.length"
-        class="mt-3 p-3 bg-body-tertiary rounded shadow-sm"
-      >
-        <!-- show graph -->
-        <HealthWeightLineChartComponent
-          :userHealthTargets="userHealthTargets"
-          :userHealthWeight="userHealthWeight"
-          :isLoading="isLoading"
-        />
-
-        <br />
-        <p>
-          {{ $t('healthWeightZoneComponent.labelNumberOfHealthWeightWeight1')
-          }}{{ userHealthWeight.length
-          }}{{ $t('healthWeightZoneComponent.labelNumberOfHealthWeightWeight2')
-          }}{{ userHealthWeightPagination.length
-          }}{{ $t('healthWeightZoneComponent.labelNumberOfHealthWeightWeight3') }}
-        </p>
-
-        <!-- Displaying loading new weight if applicable -->
-        <ul class="mt-3 list-group list-group-flush" v-if="isLoadingNewWeight">
-          <li class="list-group-item rounded">
-            <LoadingComponent />
-          </li>
-        </ul>
-
-        <!-- list zone -->
-        <ul
-          class="my-3 list-group list-group-flush"
-          v-for="userHealthWeight in userHealthWeightPagination"
-          :key="userHealthWeight.id"
-          :userHealthWeight="userHealthWeight"
-        >
-          <HealthWeightListComponent
+      <LoadingComponent v-if="isLoading" />
+      <div v-else>
+        <!-- Checking if userHealthWeight is loaded and has length -->
+        <div v-if="userHealthWeight && userHealthWeight.length" class="mt-3">
+          <!-- show graph -->
+          <HealthWeightLineChartComponent
+            :userHealthTargets="userHealthTargets"
             :userHealthWeight="userHealthWeight"
-            @deletedWeight="updateWeightListDeleted"
-            @editedWeight="updateWeightListEdited"
+            :isLoading="isLoading"
           />
-        </ul>
 
-        <!-- pagination area -->
-        <PaginationComponent
-          :totalPages="totalPages"
-          :pageNumber="pageNumber"
-          @pageNumberChanged="setPageNumber"
-        />
-      </div>
-      <!-- Displaying a message or component when there are no weight measurements -->
-      <div v-else class="mt-3">
-        <NoItemsFoundComponent />
+          <br />
+          <p>
+            {{ $t('healthWeightZoneComponent.labelNumberOfHealthWeightWeight1')
+            }}{{ userHealthWeight.length
+            }}{{ $t('healthWeightZoneComponent.labelNumberOfHealthWeightWeight2')
+            }}{{ userHealthWeightPagination.length
+            }}{{ $t('healthWeightZoneComponent.labelNumberOfHealthWeightWeight3') }}
+          </p>
+
+          <!-- Displaying loading new weight if applicable -->
+          <ul class="mt-3 list-group list-group-flush" v-if="isLoadingNewWeight">
+            <li class="list-group-item rounded">
+              <LoadingComponent />
+            </li>
+          </ul>
+
+          <!-- list zone -->
+          <ul
+            class="my-3 list-group list-group-flush"
+            v-for="userHealthWeight in userHealthWeightPagination"
+            :key="userHealthWeight.id"
+            :userHealthWeight="userHealthWeight"
+          >
+            <HealthWeightListComponent
+              :userHealthWeight="userHealthWeight"
+              @deletedWeight="updateWeightListDeleted"
+              @editedWeight="updateWeightListEdited"
+            />
+          </ul>
+
+          <!-- pagination area -->
+          <PaginationComponent
+            :totalPages="totalPages"
+            :pageNumber="pageNumber"
+            @pageNumberChanged="setPageNumber"
+          />
+        </div>
+        <!-- Displaying a message or component when there are no weight measurements -->
+        <div v-else class="mt-3">
+          <NoItemsFoundComponent />
+        </div>
       </div>
     </div>
   </div>
