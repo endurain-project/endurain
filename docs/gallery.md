@@ -1,7 +1,7 @@
 # Gallery
 
 ##### Login and sign-up page
-**Image can be changed**
+**Image can be changed. Image with a size of 1000x1000 pixels is expected.**
 ![Login](assets/gallery/screenshot_login.png)
 ![Password reset modal](assets/gallery/screenshot_reset_password_modal.png)
 ![Sign Up](assets/gallery/screenshot_sign_up.png)
