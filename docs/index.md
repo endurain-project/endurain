@@ -63,19 +63,17 @@ Endurain currently supports:
 - Imperial and metric units support
 - Dark/light theme switcher
 - Third-party app support
-- Weight logging
+- Weight, steps and sleep logging
 - Notification system
 - Define and track goals
 - MFA TOTP support
 - Password reset through email link. Uses Apprise for email notifications
+- Sign-up with configurable email verification and admin approva
+- SSO support (OIDC/SAML)
 
 ## Planned Features
 
-Upcoming features (in no particular order):
-
-- Live tracking
-- Activity comments and likes
-- Potential ActivityPub integration
+Please visit the [ROADMAP.md file on GitHub](https://github.com/joaovitoriasilva/endurain/blob/master/ROADMAP.md).
 
 ## Sponsors
 
@@ -115,8 +113,7 @@ Currently supported in:
 
 ## Trademark Notice
 
-Endurain™ is a trademark of João Vitória Silva.  
-An application for registration with the European Union Intellectual Property Office (EUIPO) is currently pending.
+Endurain® is a trademark of João Vitória Silva.  
 
 You are welcome to self-host Endurain and use the name and logo, including for personal, educational, research, or community (non-commercial) use.  
 Commercial use of the Endurain name or logos (such as offering paid hosting, products, or services) is **not permitted without prior written permission**.

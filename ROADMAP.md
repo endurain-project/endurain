@@ -4,13 +4,7 @@ This is a list of desired features; more of a wishlist than a time-oriented list
 
 ## Security
 
-- OAuth2 support
-- MFA support
-- User verification via email
-- Password reset via email
-- User registration
-- User registration with admin approval
-- User registration via one-time-use invite link
+- Passkey support
 
 ## Social
 
