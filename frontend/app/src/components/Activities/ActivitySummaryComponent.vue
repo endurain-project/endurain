@@ -10,10 +10,8 @@
         <div class="ms-3 me-3">
           <div class="fw-bold">
             <span v-if="userActivity">
-              <router-link
-                :to="{ name: 'user', params: { id: userActivity.id } }"
-                class="link-body-emphasis link-underline-opacity-0 link-underline-opacity-100-hover"
-              >
+              <router-link :to="{ name: 'user', params: { id: userActivity.id } }"
+                class="link-body-emphasis link-underline-opacity-0 link-underline-opacity-100-hover">
                 {{ userActivity.name }}
               </router-link>
             </span>
@@ -42,7 +40,7 @@
               <font-awesome-icon class="me-1" :icon="getIcon(activity.activity_type)" />
               <span v-if="activity.activity_type === 3 || activity.activity_type === 7">{{
                 $t('activitySummaryComponent.labelVirtual')
-              }}</span>
+                }}</span>
             </span>
 
             <!-- Display the date and time -->
@@ -59,39 +57,24 @@
         </div>
       </div>
       <div class="dropdown d-flex" v-if="activity.user_id == authStore.user.id">
-        <a
-          class="btn btn-link btn-lg link-body-emphasis"
-          :href="`https://www.strava.com/activities/${activity.strava_activity_id}`"
-          role="button"
-          v-if="activity.strava_activity_id"
-        >
+        <a class="btn btn-link btn-lg link-body-emphasis"
+          :href="`https://www.strava.com/activities/${activity.strava_activity_id}`" role="button"
+          v-if="activity.strava_activity_id">
           <font-awesome-icon :icon="['fab', 'fa-strava']" />
         </a>
-        <a
-          class="btn btn-link btn-lg link-body-emphasis"
-          :href="`https://connect.garmin.com/modern/activity/${activity.garminconnect_activity_id}`"
-          role="button"
-          v-if="activity.garminconnect_activity_id"
-        >
+        <a class="btn btn-link btn-lg link-body-emphasis"
+          :href="`https://connect.garmin.com/modern/activity/${activity.garminconnect_activity_id}`" role="button"
+          v-if="activity.garminconnect_activity_id">
           <img :src="INTEGRATION_LOGOS.garminConnectApp" alt="Garmin Connect logo" height="22" />
         </a>
         <div>
-          <button
-            class="btn btn-link btn-lg link-body-emphasis"
-            type="button"
-            data-bs-toggle="dropdown"
-            aria-expanded="false"
-          >
+          <button class="btn btn-link btn-lg link-body-emphasis" type="button" data-bs-toggle="dropdown"
+            aria-expanded="false">
             <font-awesome-icon :icon="['fas', 'fa-ellipsis-vertical']" />
           </button>
           <ul class="dropdown-menu">
             <li v-if="source === 'activity'">
-              <a
-                class="dropdown-item"
-                href="#"
-                data-bs-toggle="modal"
-                data-bs-target="#addActivityMediaModal"
-              >
+              <a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#addActivityMediaModal">
                 {{ $t('activitySummaryComponent.buttonAddActivityMedia') }}
               </a>
             </li>
@@ -99,12 +82,7 @@
               <hr class="dropdown-divider" />
             </li>
             <li v-if="source === 'activity'">
-              <a
-                class="dropdown-item"
-                href="#"
-                data-bs-toggle="modal"
-                data-bs-target="#editActivityModal"
-              >
+              <a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#editActivityModal">
                 {{ $t('activitySummaryComponent.buttonEditActivity') }}
               </a>
             </li>
@@ -112,12 +90,8 @@
               <hr class="dropdown-divider" />
             </li>
             <li>
-              <a
-                class="dropdown-item"
-                href="#"
-                data-bs-toggle="modal"
-                :data-bs-target="`#deleteActivityModal${activity.id}`"
-              >
+              <a class="dropdown-item" href="#" data-bs-toggle="modal"
+                :data-bs-target="`#deleteActivityModal${activity.id}`">
                 {{ $t('activitySummaryComponent.buttonDeleteActivity') }}
               </a>
             </li>
@@ -127,38 +101,25 @@
     </div>
 
     <!-- Modal add media -->
-    <ModalComponentUploadFile
-      modalId="addActivityMediaModal"
-      :title="$t('activitySummaryComponent.modalAddMediaTitle')"
-      :fileFieldLabel="$t('activitySummaryComponent.modalAddMediaBody')"
-      filesAccepted=".png, .jpg, .jpeg"
-      actionButtonType="success"
-      :actionButtonText="$t('activitySummaryComponent.modalAddMediaTitle')"
-      @fileToEmitAction="submitUploadMediaForm"
-    />
+    <ModalComponentUploadFile modalId="addActivityMediaModal" :title="$t('activitySummaryComponent.modalAddMediaTitle')"
+      :fileFieldLabel="$t('activitySummaryComponent.modalAddMediaBody')" filesAccepted=".png, .jpg, .jpeg"
+      actionButtonType="success" :actionButtonText="$t('activitySummaryComponent.modalAddMediaTitle')"
+      @fileToEmitAction="submitUploadMediaForm" />
 
     <!-- Modal edit activity -->
-    <EditActivityModalComponent
-      :activity="activity"
-      @activityEditedFields="updateActivityFieldsOnEdit"
-    />
+    <EditActivityModalComponent :activity="activity" @activityEditedFields="updateActivityFieldsOnEdit" />
 
     <!-- Modal delete activity -->
-    <ModalComponent
-      :modalId="`deleteActivityModal${activity.id}`"
+    <ModalComponent :modalId="`deleteActivityModal${activity.id}`"
       :title="t('activitySummaryComponent.buttonDeleteActivity')"
       :body="`${t('activitySummaryComponent.modalDeleteBody1')}<b>${activity.name}</b>?<br>${t('activitySummaryComponent.modalDeleteBody2')}`"
-      :actionButtonType="`danger`"
-      :actionButtonText="t('activitySummaryComponent.buttonDeleteActivity')"
-      @submitAction="submitDeleteActivity"
-    />
+      :actionButtonType="`danger`" :actionButtonText="t('activitySummaryComponent.buttonDeleteActivity')"
+      @submitAction="submitDeleteActivity" />
 
     <!-- Activity title -->
     <h5 class="mt-3" v-if="source === 'home'">
-      <router-link
-        :to="{ name: 'activity', params: { id: activity.id } }"
-        class="link-body-emphasis link-underline-opacity-0 link-underline-opacity-100-hover"
-      >
+      <router-link :to="{ name: 'activity', params: { id: activity.id } }"
+        class="link-body-emphasis link-underline-opacity-0 link-underline-opacity-100-hover">
         <span v-if="activity.name === 'Workout'">{{ formatName(activity, t) }}</span>
         <span v-else>{{ activity.name }}</span>
       </router-link>
@@ -183,23 +144,20 @@
     <!-- Activity summary -->
     <div class="row mt-3 align-items-center text-start">
       <!-- distance -->
-      <div
-        class="col"
-        v-if="
-          activity.activity_type != 10 &&
-          activity.activity_type != 14 &&
-          activity.activity_type != 18 &&
-          activity.activity_type != 19 &&
-          activity.activity_type != 20 &&
-          activity.activity_type != 41 &&
-          activityTypeNotRacquet(activity)
-        "
-      >
+      <div class="col" v-if="
+        activity.activity_type != 10 &&
+        activity.activity_type != 14 &&
+        activity.activity_type != 18 &&
+        activity.activity_type != 19 &&
+        activity.activity_type != 20 &&
+        activity.activity_type != 41 &&
+        activityTypeNotRacquet(activity)
+      ">
         <span class="fw-lighter">
           {{ $t('activitySummaryComponent.activityDistance') }}
         </span>
         <br />
-        <span>{{ formatDistance(t, activity, authStore.user.units) }}</span>
+        <span>{{ formatDistance(t, activity, units) }}</span>
       </div>
       <!-- calories -->
       <div class="col" v-else>
@@ -224,27 +182,25 @@
             {{ $t('activitySummaryComponent.activityEleGain') }}
           </span>
           <br />
-          <span>{{ formatElevation(t, activity.elevation_gain, authStore.user.units) }}</span>
+          <span>{{ formatElevation(t, activity.elevation_gain, units) }}</span>
         </div>
         <!-- pace -->
-        <div
-          v-else-if="
-            activity.activity_type != 10 &&
-            activity.activity_type != 14 &&
-            activity.activity_type != 18 &&
-            activity.activity_type != 19 &&
-            activity.activity_type != 20 &&
-            activityTypeNotWindsurf(activity) &&
-            activity.activity_type != 41 &&
-            activityTypeNotSailing(activity) &&
-            activityTypeNotRacquet(activity)
-          "
-        >
+        <div v-else-if="
+          activity.activity_type != 10 &&
+          activity.activity_type != 14 &&
+          activity.activity_type != 18 &&
+          activity.activity_type != 19 &&
+          activity.activity_type != 20 &&
+          activityTypeNotWindsurf(activity) &&
+          activity.activity_type != 41 &&
+          activityTypeNotSailing(activity) &&
+          activityTypeNotRacquet(activity)
+        ">
           <span class="fw-lighter">
             {{ $t('activitySummaryComponent.activityPace') }}
           </span>
           <br />
-          {{ formatPace(t, activity, authStore.user.units) }}
+          {{ formatPace(t, activity, units) }}
         </div>
         <!-- avg_speed sailing activities -->
         <div v-else-if="activityTypeIsWindsurf(activity) || activityTypeIsSailing(activity)">
@@ -252,7 +208,7 @@
             {{ $t('activitySummaryComponent.activityAvgSpeed') }}
           </span>
           <br />
-          <span>{{ formatAverageSpeed(t, activity, authStore.user.units) }}</span>
+          <span>{{ formatAverageSpeed(t, activity, units) }}</span>
         </div>
         <!-- avg_hr -->
         <div v-else>
@@ -264,19 +220,16 @@
         </div>
       </div>
     </div>
-    <div
-      class="row d-flex mt-3"
-      v-if="
-        source === 'activity' &&
-        activity.activity_type != 10 &&
-        activity.activity_type != 14 &&
-        activity.activity_type != 18 &&
-        activity.activity_type != 19 &&
-        activity.activity_type != 20 &&
-        activity.activity_type != 41 &&
-        activityTypeNotRacquet(activity)
-      "
-    >
+    <div class="row d-flex mt-3" v-if="
+      source === 'activity' &&
+      activity.activity_type != 10 &&
+      activity.activity_type != 14 &&
+      activity.activity_type != 18 &&
+      activity.activity_type != 19 &&
+      activity.activity_type != 20 &&
+      activity.activity_type != 41 &&
+      activityTypeNotRacquet(activity)
+    ">
       <!-- avg_power running and cycling activities-->
       <div class="col" v-if="activityTypeIsCycling(activity) || activityTypeIsRunning(activity)">
         <span class="fw-lighter">
@@ -294,10 +247,8 @@
         <span>{{ formatHr(t, activity.average_hr) }}</span>
       </div>
       <!-- max_hr not running and cycling activities-->
-      <div
-        class="col border-start border-opacity-50"
-        v-if="activityTypeNotCycling(activity) && activityTypeNotRunning(activity)"
-      >
+      <div class="col border-start border-opacity-50"
+        v-if="activityTypeNotCycling(activity) && activityTypeNotRunning(activity)">
         <span class="fw-lighter">
           {{ $t('activitySummaryComponent.activityMaxHR') }}
         </span>
@@ -308,7 +259,7 @@
       <div class="col border-start border-opacity-50" v-if="activityTypeIsRunning(activity)">
         <span class="fw-lighter">{{ $t('activitySummaryComponent.activityEleGain') }}</span>
         <br />
-        <span>{{ formatElevation(t, activity.elevation_gain, authStore.user.units) }}</span>
+        <span>{{ formatElevation(t, activity.elevation_gain, units) }}</span>
       </div>
       <!-- avg_speed cycling activities -->
       <div class="col border-start border-opacity-50" v-if="activityTypeIsCycling(activity)">
@@ -316,7 +267,7 @@
           {{ $t('activitySummaryComponent.activityAvgSpeed') }}
         </span>
         <br />
-        <span>{{ formatAverageSpeed(t, activity, authStore.user.units) }}</span>
+        <span>{{ formatAverageSpeed(t, activity, units) }}</span>
       </div>
       <!-- calories -->
       <div class="col border-start border-opacity-50">
