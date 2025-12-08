@@ -1,7 +1,12 @@
 <template>
   <!-- Modal add/edit sleep -->
-  <div class="modal fade" :id="action === 'add' ? 'addSleepModal' : action === 'edit' ? editSleepId : ''" tabindex="-1"
-    :aria-labelledby="action === 'add' ? 'addSleepModal' : action === 'edit' ? editSleepId : ''" aria-hidden="true">
+  <div
+    class="modal fade"
+    :id="action === 'add' ? 'addSleepModal' : action === 'edit' ? editSleepId : ''"
+    tabindex="-1"
+    :aria-labelledby="action === 'add' ? 'addSleepModal' : action === 'edit' ? editSleepId : ''"
+    aria-hidden="true"
+  >
     <div class="modal-dialog">
       <div class="modal-content">
         <div class="modal-header">
@@ -11,7 +16,12 @@
           <h1 class="modal-title fs-5" :id="editSleepId" v-else>
             {{ $t('healthSleepAddEditModalComponent.editSleepModalTitle') }}
           </h1>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          <button
+            type="button"
+            class="btn-close"
+            data-bs-dismiss="modal"
+            aria-label="Close"
+          ></button>
         </div>
         <form @submit.prevent="handleSubmit">
           <div class="modal-body">
@@ -20,7 +30,13 @@
               <label for="sleepDate" class="form-label">
                 <b>* {{ $t('healthSleepAddEditModalComponent.dateLabel') }}</b>
               </label>
-              <input id="sleepDate" class="form-control" type="date" v-model="formData.date" required />
+              <input
+                id="sleepDate"
+                class="form-control"
+                type="date"
+                v-model="formData.date"
+                required
+              />
             </div>
 
             <!-- Sleep times section -->
@@ -29,15 +45,25 @@
                 <label for="sleepStartTime" class="form-label">
                   <b>* {{ $t('healthSleepAddEditModalComponent.sleepStartTimeLabel') }}</b>
                 </label>
-                <input id="sleepStartTime" class="form-control" type="datetime-local" v-model="formData.sleepStartTime"
-                  required />
+                <input
+                  id="sleepStartTime"
+                  class="form-control"
+                  type="datetime-local"
+                  v-model="formData.sleepStartTime"
+                  required
+                />
               </div>
               <div class="col-md-6">
                 <label for="sleepEndTime" class="form-label">
                   <b>* {{ $t('healthSleepAddEditModalComponent.sleepEndTimeLabel') }}</b>
                 </label>
-                <input id="sleepEndTime" class="form-control" type="datetime-local" v-model="formData.sleepEndTime"
-                  required />
+                <input
+                  id="sleepEndTime"
+                  class="form-control"
+                  type="datetime-local"
+                  v-model="formData.sleepEndTime"
+                  required
+                />
               </div>
             </div>
 
@@ -48,12 +74,23 @@
                 <b>{{ $t('healthSleepAddEditModalComponent.totalSleepLabel') }}</b>
               </label>
               <div class="input-group">
-                <input id="totalSleepHours" v-model.number="formData.totalSleepHours" class="form-control" type="number"
-                  :placeholder="$t('generalItems.labelHours')" :aria-label="$t('generalItems.labelHours')" />
+                <input
+                  id="totalSleepHours"
+                  v-model.number="formData.totalSleepHours"
+                  class="form-control"
+                  type="number"
+                  :placeholder="$t('generalItems.labelHours')"
+                  :aria-label="$t('generalItems.labelHours')"
+                />
                 <span class="input-group-text">{{ $t('generalItems.labelHoursShort') }}</span>
-                <input id="totalSleepMinutes" v-model.number="formData.totalSleepMinutes" class="form-control"
-                  type="number" :placeholder="$t('generalItems.labelMinutes')"
-                  :aria-label="$t('generalItems.labelMinutes')" />
+                <input
+                  id="totalSleepMinutes"
+                  v-model.number="formData.totalSleepMinutes"
+                  class="form-control"
+                  type="number"
+                  :placeholder="$t('generalItems.labelMinutes')"
+                  :aria-label="$t('generalItems.labelMinutes')"
+                />
                 <span class="input-group-text">{{ $t('generalItems.labelMinutesShort') }}</span>
               </div>
             </div>
@@ -65,12 +102,23 @@
                   <b>{{ $t('healthSleepAddEditModalComponent.deepSleepLabel') }}</b>
                 </label>
                 <div class="input-group">
-                  <input id="deepSleepHours" v-model.number="formData.deepSleepHours" class="form-control" type="number"
-                    :placeholder="$t('generalItems.labelHours')" :aria-label="$t('generalItems.labelHours')" />
+                  <input
+                    id="deepSleepHours"
+                    v-model.number="formData.deepSleepHours"
+                    class="form-control"
+                    type="number"
+                    :placeholder="$t('generalItems.labelHours')"
+                    :aria-label="$t('generalItems.labelHours')"
+                  />
                   <span class="input-group-text">{{ $t('generalItems.labelHoursShort') }}</span>
-                  <input id="deepSleepMinutes" v-model.number="formData.deepSleepMinutes" class="form-control"
-                    type="number" :placeholder="$t('generalItems.labelMinutes')"
-                    :aria-label="$t('generalItems.labelMinutes')" />
+                  <input
+                    id="deepSleepMinutes"
+                    v-model.number="formData.deepSleepMinutes"
+                    class="form-control"
+                    type="number"
+                    :placeholder="$t('generalItems.labelMinutes')"
+                    :aria-label="$t('generalItems.labelMinutes')"
+                  />
                   <span class="input-group-text">{{ $t('generalItems.labelMinutesShort') }}</span>
                 </div>
               </div>
@@ -79,13 +127,23 @@
                   <b>{{ $t('healthSleepAddEditModalComponent.lightSleepLabel') }}</b>
                 </label>
                 <div class="input-group">
-                  <input id="lightSleepHours" v-model.number="formData.lightSleepHours" class="form-control"
-                    type="number" :placeholder="$t('generalItems.labelHours')"
-                    :aria-label="$t('generalItems.labelHours')" />
+                  <input
+                    id="lightSleepHours"
+                    v-model.number="formData.lightSleepHours"
+                    class="form-control"
+                    type="number"
+                    :placeholder="$t('generalItems.labelHours')"
+                    :aria-label="$t('generalItems.labelHours')"
+                  />
                   <span class="input-group-text">{{ $t('generalItems.labelHoursShort') }}</span>
-                  <input id="lightSleepMinutes" v-model.number="formData.lightSleepMinutes" class="form-control"
-                    type="number" :placeholder="$t('generalItems.labelMinutes')"
-                    :aria-label="$t('generalItems.labelMinutes')" />
+                  <input
+                    id="lightSleepMinutes"
+                    v-model.number="formData.lightSleepMinutes"
+                    class="form-control"
+                    type="number"
+                    :placeholder="$t('generalItems.labelMinutes')"
+                    :aria-label="$t('generalItems.labelMinutes')"
+                  />
                   <span class="input-group-text">{{ $t('generalItems.labelMinutesShort') }}</span>
                 </div>
               </div>
@@ -98,12 +156,23 @@
                   <b>{{ $t('healthSleepAddEditModalComponent.remSleepLabel') }}</b>
                 </label>
                 <div class="input-group">
-                  <input id="remSleepHours" v-model.number="formData.remSleepHours" class="form-control" type="number"
-                    :placeholder="$t('generalItems.labelHours')" :aria-label="$t('generalItems.labelHours')" />
+                  <input
+                    id="remSleepHours"
+                    v-model.number="formData.remSleepHours"
+                    class="form-control"
+                    type="number"
+                    :placeholder="$t('generalItems.labelHours')"
+                    :aria-label="$t('generalItems.labelHours')"
+                  />
                   <span class="input-group-text">{{ $t('generalItems.labelHoursShort') }}</span>
-                  <input id="remSleepMinutes" v-model.number="formData.remSleepMinutes" class="form-control"
-                    type="number" :placeholder="$t('generalItems.labelMinutes')"
-                    :aria-label="$t('generalItems.labelMinutes')" />
+                  <input
+                    id="remSleepMinutes"
+                    v-model.number="formData.remSleepMinutes"
+                    class="form-control"
+                    type="number"
+                    :placeholder="$t('generalItems.labelMinutes')"
+                    :aria-label="$t('generalItems.labelMinutes')"
+                  />
                   <span class="input-group-text">{{ $t('generalItems.labelMinutesShort') }}</span>
                 </div>
               </div>
@@ -112,13 +181,23 @@
                   <b>{{ $t('healthSleepAddEditModalComponent.awakeSleepLabel') }}</b>
                 </label>
                 <div class="input-group">
-                  <input id="awakeSleepHours" v-model.number="formData.awakeSleepHours" class="form-control"
-                    type="number" :placeholder="$t('generalItems.labelHours')"
-                    :aria-label="$t('generalItems.labelHours')" />
+                  <input
+                    id="awakeSleepHours"
+                    v-model.number="formData.awakeSleepHours"
+                    class="form-control"
+                    type="number"
+                    :placeholder="$t('generalItems.labelHours')"
+                    :aria-label="$t('generalItems.labelHours')"
+                  />
                   <span class="input-group-text">{{ $t('generalItems.labelHoursShort') }}</span>
-                  <input id="awakeSleepMinutes" v-model.number="formData.awakeSleepMinutes" class="form-control"
-                    type="number" :placeholder="$t('generalItems.labelMinutes')"
-                    :aria-label="$t('generalItems.labelMinutes')" />
+                  <input
+                    id="awakeSleepMinutes"
+                    v-model.number="formData.awakeSleepMinutes"
+                    class="form-control"
+                    type="number"
+                    :placeholder="$t('generalItems.labelMinutes')"
+                    :aria-label="$t('generalItems.labelMinutes')"
+                  />
                   <span class="input-group-text">{{ $t('generalItems.labelMinutesShort') }}</span>
                 </div>
               </div>
@@ -130,15 +209,25 @@
                 <label for="awakeCount" class="form-label">
                   <b>{{ $t('healthSleepAddEditModalComponent.awakeCountLabel') }}</b>
                 </label>
-                <input id="awakeCount" :placeholder="$t('healthSleepAddEditModalComponent.awakeCountLabel')"
-                  class="form-control" type="number" v-model.number="formData.awakeCount" />
+                <input
+                  id="awakeCount"
+                  :placeholder="$t('healthSleepAddEditModalComponent.awakeCountLabel')"
+                  class="form-control"
+                  type="number"
+                  v-model.number="formData.awakeCount"
+                />
               </div>
               <div class="col-md-6">
                 <label for="avgSleepStress" class="form-label">
                   <b>{{ $t('healthSleepAddEditModalComponent.avgSleepStressLabel') }}</b>
                 </label>
-                <input id="avgSleepStress" :placeholder="$t('healthSleepAddEditModalComponent.avgSleepStressLabel')"
-                  class="form-control" type="number" v-model.number="formData.avgSleepStress" />
+                <input
+                  id="avgSleepStress"
+                  :placeholder="$t('healthSleepAddEditModalComponent.avgSleepStressLabel')"
+                  class="form-control"
+                  type="number"
+                  v-model.number="formData.avgSleepStress"
+                />
               </div>
             </div>
 
@@ -148,16 +237,26 @@
                 <label for="restingHeartRate" class="form-label">
                   <b>{{ $t('healthSleepAddEditModalComponent.restingHeartRateLabel') }}</b>
                 </label>
-                <input id="restingHeartRate" :placeholder="$t('healthSleepAddEditModalComponent.restingHeartRateLabel')"
-                  class="form-control" type="number" v-model.number="formData.restingHeartRate" />
+                <input
+                  id="restingHeartRate"
+                  :placeholder="$t('healthSleepAddEditModalComponent.restingHeartRateLabel')"
+                  class="form-control"
+                  type="number"
+                  v-model.number="formData.restingHeartRate"
+                />
               </div>
               <div class="col-md-6">
                 <label for="avgSkinTempDeviation" class="form-label">
                   <b>{{ $t('healthSleepAddEditModalComponent.avgSkinTempDeviationLabel') }}</b>
                 </label>
-                <input id="avgSkinTempDeviation"
-                  :placeholder="$t('healthSleepAddEditModalComponent.avgSkinTempDeviationLabel')" class="form-control"
-                  type="number" step="0.01" v-model.number="formData.avgSkinTempDeviation" />
+                <input
+                  id="avgSkinTempDeviation"
+                  :placeholder="$t('healthSleepAddEditModalComponent.avgSkinTempDeviationLabel')"
+                  class="form-control"
+                  type="number"
+                  step="0.01"
+                  v-model.number="formData.avgSkinTempDeviation"
+                />
               </div>
             </div>
 
@@ -167,22 +266,37 @@
                 <label for="avgHeartRate" class="form-label">
                   <b>{{ $t('healthSleepAddEditModalComponent.avgHeartRateLabel') }}</b>
                 </label>
-                <input id="avgHeartRate" :placeholder="$t('healthSleepAddEditModalComponent.avgHeartRateLabel')"
-                  class="form-control" type="number" v-model.number="formData.avgHeartRate" />
+                <input
+                  id="avgHeartRate"
+                  :placeholder="$t('healthSleepAddEditModalComponent.avgHeartRateLabel')"
+                  class="form-control"
+                  type="number"
+                  v-model.number="formData.avgHeartRate"
+                />
               </div>
               <div class="col-md-4">
                 <label for="minHeartRate" class="form-label">
                   <b>{{ $t('healthSleepAddEditModalComponent.minHeartRateLabel') }}</b>
                 </label>
-                <input id="minHeartRate" :placeholder="$t('healthSleepAddEditModalComponent.minHeartRateLabel')"
-                  class="form-control" type="number" v-model.number="formData.minHeartRate" />
+                <input
+                  id="minHeartRate"
+                  :placeholder="$t('healthSleepAddEditModalComponent.minHeartRateLabel')"
+                  class="form-control"
+                  type="number"
+                  v-model.number="formData.minHeartRate"
+                />
               </div>
               <div class="col-md-4">
                 <label for="maxHeartRate" class="form-label">
                   <b>{{ $t('healthSleepAddEditModalComponent.maxHeartRateLabel') }}</b>
                 </label>
-                <input id="maxHeartRate" :placeholder="$t('healthSleepAddEditModalComponent.maxHeartRateLabel')"
-                  class="form-control" type="number" v-model.number="formData.maxHeartRate" />
+                <input
+                  id="maxHeartRate"
+                  :placeholder="$t('healthSleepAddEditModalComponent.maxHeartRateLabel')"
+                  class="form-control"
+                  type="number"
+                  v-model.number="formData.maxHeartRate"
+                />
               </div>
             </div>
 
@@ -192,22 +306,37 @@
                 <label for="avgSpo2" class="form-label">
                   <b>{{ $t('healthSleepAddEditModalComponent.avgSpo2Label') }}</b>
                 </label>
-                <input id="avgSpo2" :placeholder="$t('healthSleepAddEditModalComponent.avgSpo2Label')"
-                  class="form-control" type="number" v-model.number="formData.avgSpo2" />
+                <input
+                  id="avgSpo2"
+                  :placeholder="$t('healthSleepAddEditModalComponent.avgSpo2Label')"
+                  class="form-control"
+                  type="number"
+                  v-model.number="formData.avgSpo2"
+                />
               </div>
               <div class="col-md-4">
                 <label for="lowestSpo2" class="form-label">
                   <b>{{ $t('healthSleepAddEditModalComponent.lowestSpo2Label') }}</b>
                 </label>
-                <input id="lowestSpo2" :placeholder="$t('healthSleepAddEditModalComponent.lowestSpo2Label')"
-                  class="form-control" type="number" v-model.number="formData.lowestSpo2" />
+                <input
+                  id="lowestSpo2"
+                  :placeholder="$t('healthSleepAddEditModalComponent.lowestSpo2Label')"
+                  class="form-control"
+                  type="number"
+                  v-model.number="formData.lowestSpo2"
+                />
               </div>
               <div class="col-md-4">
                 <label for="highestSpo2" class="form-label">
                   <b>{{ $t('healthSleepAddEditModalComponent.highestSpo2Label') }}</b>
                 </label>
-                <input id="highestSpo2" :placeholder="$t('healthSleepAddEditModalComponent.highestSpo2Label')"
-                  class="form-control" type="number" v-model.number="formData.highestSpo2" />
+                <input
+                  id="highestSpo2"
+                  :placeholder="$t('healthSleepAddEditModalComponent.highestSpo2Label')"
+                  class="form-control"
+                  type="number"
+                  v-model.number="formData.highestSpo2"
+                />
               </div>
             </div>
 
@@ -217,8 +346,12 @@
                 <label class="form-label mb-0">
                   <b>{{ $t('healthSleepAddEditModalComponent.sleepStagesLabel') }}</b>
                 </label>
-                <button type="button" class="btn btn-sm btn-primary" @click="addSleepStage"
-                  aria-label="Add sleep stage">
+                <button
+                  type="button"
+                  class="btn btn-sm btn-primary"
+                  @click="addSleepStage"
+                  aria-label="Add sleep stage"
+                >
                   <i class="bi bi-plus-circle"></i>
                   {{ $t('healthSleepAddEditModalComponent.addStageButton') }}
                 </button>
@@ -230,8 +363,12 @@
                     <h6 class="card-title mb-0">
                       {{ $t('healthSleepAddEditModalComponent.stageLabel') }} {{ index + 1 }}
                     </h6>
-                    <button type="button" class="btn btn-sm btn-danger" @click="removeSleepStage(index)"
-                      :aria-label="`Remove stage ${index + 1}`">
+                    <button
+                      type="button"
+                      class="btn btn-sm btn-danger"
+                      @click="removeSleepStage(index)"
+                      :aria-label="`Remove stage ${index + 1}`"
+                    >
                       <font-awesome-icon :icon="['fas', 'trash']" />
                     </button>
                   </div>
@@ -241,7 +378,11 @@
                       <label :for="`stageType${index}`" class="form-label">
                         <b>{{ $t('healthSleepAddEditModalComponent.stageTypeLabel') }}</b>
                       </label>
-                      <select :id="`stageType${index}`" class="form-select" v-model.number="stage.stageType">
+                      <select
+                        :id="`stageType${index}`"
+                        class="form-select"
+                        v-model.number="stage.stageType"
+                      >
                         <option :value="0">
                           {{ $t('healthSleepAddEditModalComponent.stageTypeDeep') }}
                         </option>
@@ -261,16 +402,24 @@
                       <label :for="`stageStartTime${index}`" class="form-label">
                         <b>{{ $t('healthSleepAddEditModalComponent.stageStartTimeLabel') }}</b>
                       </label>
-                      <input :id="`stageStartTime${index}`" class="form-control" type="datetime-local"
-                        v-model="stage.startTimeGmt" />
+                      <input
+                        :id="`stageStartTime${index}`"
+                        class="form-control"
+                        type="datetime-local"
+                        v-model="stage.startTimeGmt"
+                      />
                     </div>
 
                     <div class="col-md-4">
                       <label :for="`stageEndTime${index}`" class="form-label">
                         <b>{{ $t('healthSleepAddEditModalComponent.stageEndTimeLabel') }}</b>
                       </label>
-                      <input :id="`stageEndTime${index}`" class="form-control" type="datetime-local"
-                        v-model="stage.endTimeGmt" />
+                      <input
+                        :id="`stageEndTime${index}`"
+                        class="form-control"
+                        type="datetime-local"
+                        v-model="stage.endTimeGmt"
+                      />
                     </div>
                   </div>
                   <div class="row mt-2">
@@ -279,14 +428,28 @@
                         <b>{{ $t('healthSleepAddEditModalComponent.stageDurationLabel') }}</b>
                       </label>
                       <div class="input-group">
-                        <input :id="`stageDurationHours${index}`" v-model.number="stage.durationHours"
-                          class="form-control" type="number" :placeholder="$t('generalItems.labelHours')"
-                          :aria-label="$t('generalItems.labelHours')" />
-                        <span class="input-group-text">{{ $t('generalItems.labelHoursShort') }}</span>
-                        <input :id="`stageDurationMinutes${index}`" v-model.number="stage.durationMinutes"
-                          class="form-control" type="number" :placeholder="$t('generalItems.labelMinutes')"
-                          :aria-label="$t('generalItems.labelMinutes')" />
-                        <span class="input-group-text">{{ $t('generalItems.labelMinutesShort') }}</span>
+                        <input
+                          :id="`stageDurationHours${index}`"
+                          v-model.number="stage.durationHours"
+                          class="form-control"
+                          type="number"
+                          :placeholder="$t('generalItems.labelHours')"
+                          :aria-label="$t('generalItems.labelHours')"
+                        />
+                        <span class="input-group-text">{{
+                          $t('generalItems.labelHoursShort')
+                        }}</span>
+                        <input
+                          :id="`stageDurationMinutes${index}`"
+                          v-model.number="stage.durationMinutes"
+                          class="form-control"
+                          type="number"
+                          :placeholder="$t('generalItems.labelMinutes')"
+                          :aria-label="$t('generalItems.labelMinutes')"
+                        />
+                        <span class="input-group-text">{{
+                          $t('generalItems.labelMinutesShort')
+                        }}</span>
                       </div>
                     </div>
                   </div>
@@ -305,7 +468,12 @@
             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
               {{ $t('generalItems.buttonClose') }}
             </button>
-            <button type="submit" class="btn btn-success" data-bs-dismiss="modal" v-if="action === 'add'">
+            <button
+              type="submit"
+              class="btn btn-success"
+              data-bs-dismiss="modal"
+              v-if="action === 'add'"
+            >
               {{ $t('healthSleepAddEditModalComponent.addSleepModalTitle') }}
             </button>
             <button type="submit" class="btn btn-success" data-bs-dismiss="modal" v-else>
@@ -474,7 +642,9 @@ onMounted(() => {
           const duration = returnHoursMinutesFromSeconds(stage.duration_seconds ?? 0)
           return {
             stageType: stage.stage_type,
-            startTimeGmt: stage.start_time_gmt ? formatDateTimeForInput(stage.start_time_gmt) : null,
+            startTimeGmt: stage.start_time_gmt
+              ? formatDateTimeForInput(stage.start_time_gmt)
+              : null,
             endTimeGmt: stage.end_time_gmt ? formatDateTimeForInput(stage.end_time_gmt) : null,
             durationHours: duration.hours,
             durationMinutes: duration.minutes
@@ -532,37 +702,37 @@ async function submitAddSleep(): Promise<void> {
       total_sleep_seconds:
         formData.value.totalSleepHours !== null && formData.value.totalSleepMinutes !== null
           ? returnSecondsFromHoursMinutes(
-            formData.value.totalSleepHours,
-            formData.value.totalSleepMinutes
-          )
+              formData.value.totalSleepHours,
+              formData.value.totalSleepMinutes
+            )
           : null,
       deep_sleep_seconds:
         formData.value.deepSleepHours !== null && formData.value.deepSleepMinutes !== null
           ? returnSecondsFromHoursMinutes(
-            formData.value.deepSleepHours,
-            formData.value.deepSleepMinutes
-          )
+              formData.value.deepSleepHours,
+              formData.value.deepSleepMinutes
+            )
           : null,
       light_sleep_seconds:
         formData.value.lightSleepHours !== null && formData.value.lightSleepMinutes !== null
           ? returnSecondsFromHoursMinutes(
-            formData.value.lightSleepHours,
-            formData.value.lightSleepMinutes
-          )
+              formData.value.lightSleepHours,
+              formData.value.lightSleepMinutes
+            )
           : null,
       rem_sleep_seconds:
         formData.value.remSleepHours !== null && formData.value.remSleepMinutes !== null
           ? returnSecondsFromHoursMinutes(
-            formData.value.remSleepHours,
-            formData.value.remSleepMinutes
-          )
+              formData.value.remSleepHours,
+              formData.value.remSleepMinutes
+            )
           : null,
       awake_sleep_seconds:
         formData.value.awakeSleepHours !== null && formData.value.awakeSleepMinutes !== null
           ? returnSecondsFromHoursMinutes(
-            formData.value.awakeSleepHours,
-            formData.value.awakeSleepMinutes
-          )
+              formData.value.awakeSleepHours,
+              formData.value.awakeSleepMinutes
+            )
           : null,
       avg_heart_rate: formData.value.avgHeartRate,
       min_heart_rate: formData.value.minHeartRate,
@@ -614,37 +784,37 @@ function submitEditSleep(): void {
     total_sleep_seconds:
       formData.value.totalSleepHours !== null && formData.value.totalSleepMinutes !== null
         ? returnSecondsFromHoursMinutes(
-          formData.value.totalSleepHours,
-          formData.value.totalSleepMinutes
-        )
+            formData.value.totalSleepHours,
+            formData.value.totalSleepMinutes
+          )
         : null,
     deep_sleep_seconds:
       formData.value.deepSleepHours !== null && formData.value.deepSleepMinutes !== null
         ? returnSecondsFromHoursMinutes(
-          formData.value.deepSleepHours,
-          formData.value.deepSleepMinutes
-        )
+            formData.value.deepSleepHours,
+            formData.value.deepSleepMinutes
+          )
         : null,
     light_sleep_seconds:
       formData.value.lightSleepHours !== null && formData.value.lightSleepMinutes !== null
         ? returnSecondsFromHoursMinutes(
-          formData.value.lightSleepHours,
-          formData.value.lightSleepMinutes
-        )
+            formData.value.lightSleepHours,
+            formData.value.lightSleepMinutes
+          )
         : null,
     rem_sleep_seconds:
       formData.value.remSleepHours !== null && formData.value.remSleepMinutes !== null
         ? returnSecondsFromHoursMinutes(
-          formData.value.remSleepHours,
-          formData.value.remSleepMinutes
-        )
+            formData.value.remSleepHours,
+            formData.value.remSleepMinutes
+          )
         : null,
     awake_sleep_seconds:
       formData.value.awakeSleepHours !== null && formData.value.awakeSleepMinutes !== null
         ? returnSecondsFromHoursMinutes(
-          formData.value.awakeSleepHours,
-          formData.value.awakeSleepMinutes
-        )
+            formData.value.awakeSleepHours,
+            formData.value.awakeSleepMinutes
+          )
         : null,
     avg_heart_rate: formData.value.avgHeartRate,
     min_heart_rate: formData.value.minHeartRate,

@@ -1,66 +1,96 @@
 <template>
-  <div class="bg-body-tertiary rounded p-3 shadow-sm"
-    :class="{ 'border border-warning border-2': activity?.is_hidden }">
+  <div
+    class="bg-body-tertiary rounded p-3 shadow-sm"
+    :class="{ 'border border-warning border-2': activity?.is_hidden }"
+  >
     <LoadingComponent v-if="isLoading" />
 
     <div v-else>
-      <ActivitySummaryComponent v-if="activity" :activity="activity" :source="'activity'"
-        @activityEditedFields="updateActivityFieldsOnEdit" @activityNewActivityMedia="addMediaToActivity"
-        :units="units" />
-      <AlertComponent v-if="activity && activity.user_id === authStore.user.id && activity.is_hidden"
-        :message="isHiddenMessage" :dismissible="true" :type="'warning'" class="mt-2" />
-      <AlertComponent v-if="
-        activity &&
-        activity.user_id === authStore.user.id &&
-        (activity.hide_start_time ||
-          activity.hide_location ||
-          activity.hide_map ||
-          activity.hide_hr ||
-          activity.hide_power ||
-          activity.hide_cadence ||
-          activity.hide_elevation ||
-          activity.hide_speed ||
-          activity.hide_pace ||
-          activity.hide_laps ||
-          activity.hide_workout_sets_steps ||
-          activity.hide_gear)
-      " :message="alertPrivacyMessage" :dismissible="true" class="mt-2" />
+      <ActivitySummaryComponent
+        v-if="activity"
+        :activity="activity"
+        :source="'activity'"
+        @activityEditedFields="updateActivityFieldsOnEdit"
+        @activityNewActivityMedia="addMediaToActivity"
+        :units="units"
+      />
+      <AlertComponent
+        v-if="activity && activity.user_id === authStore.user.id && activity.is_hidden"
+        :message="isHiddenMessage"
+        :dismissible="true"
+        :type="'warning'"
+        class="mt-2"
+      />
+      <AlertComponent
+        v-if="
+          activity &&
+          activity.user_id === authStore.user.id &&
+          (activity.hide_start_time ||
+            activity.hide_location ||
+            activity.hide_map ||
+            activity.hide_hr ||
+            activity.hide_power ||
+            activity.hide_cadence ||
+            activity.hide_elevation ||
+            activity.hide_speed ||
+            activity.hide_pace ||
+            activity.hide_laps ||
+            activity.hide_workout_sets_steps ||
+            activity.hide_gear)
+        "
+        :message="alertPrivacyMessage"
+        :dismissible="true"
+        class="mt-2"
+      />
     </div>
 
     <!-- map zone -->
     <div class="mt-3 mb-3" v-if="isLoading">
       <LoadingComponent />
     </div>
-    <div class="mt-3 mb-3" v-else-if="
-      activity &&
-      ((authStore.isAuthenticated && authStore.user.id === activity.user_id) ||
-        (authStore.isAuthenticated &&
-          authStore.user.id !== activity.user_id &&
-          activity.hide_map === false) ||
-        (!authStore.isAuthenticated && activity.hide_map === false))
-    ">
-      <ActivityMapComponent :activity="activity" :activityActivityMedia="activityActivityMedia" :source="'activity'"
-        @activityMediaDeleted="removeMediaFromActivity" />
+    <div
+      class="mt-3 mb-3"
+      v-else-if="
+        activity &&
+        ((authStore.isAuthenticated && authStore.user.id === activity.user_id) ||
+          (authStore.isAuthenticated &&
+            authStore.user.id !== activity.user_id &&
+            activity.hide_map === false) ||
+          (!authStore.isAuthenticated && activity.hide_map === false))
+      "
+    >
+      <ActivityMapComponent
+        :activity="activity"
+        :activityActivityMedia="activityActivityMedia"
+        :source="'activity'"
+        @activityMediaDeleted="removeMediaFromActivity"
+      />
     </div>
 
     <!-- gear zone -->
-    <hr class="mb-2 mt-2" v-if="
-      activity &&
-      ((authStore.isAuthenticated && authStore.user.id === activity.user_id) ||
-        (authStore.isAuthenticated &&
-          authStore.user.id !== activity.user_id &&
-          activity.hide_gear === false))
-    " />
+    <hr
+      class="mb-2 mt-2"
+      v-if="
+        activity &&
+        ((authStore.isAuthenticated && authStore.user.id === activity.user_id) ||
+          (authStore.isAuthenticated &&
+            authStore.user.id !== activity.user_id &&
+            activity.hide_gear === false))
+      "
+    />
     <div class="mt-3 mb-3" v-if="isLoading && authStore.isAuthenticated">
       <LoadingComponent />
     </div>
-    <div class="d-flex justify-content-between align-items-center" v-else-if="
-      activity &&
-      ((authStore.isAuthenticated && authStore.user.id === activity.user_id) ||
-        (authStore.isAuthenticated &&
-          authStore.user.id !== activity.user_id &&
-          activity.hide_gear === false))
-    ">
+    <div
+      class="d-flex justify-content-between align-items-center"
+      v-else-if="
+        activity &&
+        ((authStore.isAuthenticated && authStore.user.id === activity.user_id) ||
+          (authStore.isAuthenticated &&
+            authStore.user.id !== activity.user_id &&
+            activity.hide_gear === false))
+      "
+    >
       <p class="pt-2">
         <span class="fw-lighter">
           {{ $t('activityView.labelGear') }}
@@ -86,76 +116,121 @@
       </p>
       <div class="justify-content-end">
         <!-- add gear button -->
-        <a class="btn btn-link btn-lg link-body-emphasis" href="#" role="button" data-bs-toggle="modal"
-          data-bs-target="#addGearToActivityModal" v-if="!activity.gear_id && activity.user_id === authStore.user.id">
+        <a
+          class="btn btn-link btn-lg link-body-emphasis"
+          href="#"
+          role="button"
+          data-bs-toggle="modal"
+          data-bs-target="#addGearToActivityModal"
+          v-if="!activity.gear_id && activity.user_id === authStore.user.id"
+        >
           <font-awesome-icon :icon="['fas', 'fa-plus']" />
         </a>
 
         <!-- add gear to activity modal -->
-        <AddGearToActivityModalComponent :activity="activity" :gearsByType="gearsByType" :gear="gearId"
-          @gearId="updateGearIdOnAddGearToActivity" />
+        <AddGearToActivityModalComponent
+          :activity="activity"
+          :gearsByType="gearsByType"
+          :gear="gearId"
+          @gearId="updateGearIdOnAddGearToActivity"
+        />
 
         <!-- edit gear button -->
-        <a class="btn btn-link btn-lg link-body-emphasis" href="#" role="button" data-bs-toggle="modal"
-          data-bs-target="#addGearToActivityModal" v-if="activity.gear_id && activity.user_id === authStore.user.id">
+        <a
+          class="btn btn-link btn-lg link-body-emphasis"
+          href="#"
+          role="button"
+          data-bs-toggle="modal"
+          data-bs-target="#addGearToActivityModal"
+          v-if="activity.gear_id && activity.user_id === authStore.user.id"
+        >
           <font-awesome-icon :icon="['far', 'fa-pen-to-square']" />
         </a>
 
         <!-- Delete zone -->
-        <a class="btn btn-link btn-lg link-body-emphasis" href="#" role="button" data-bs-toggle="modal"
-          data-bs-target="#deleteGearActivityModal" v-if="activity.gear_id && activity.user_id === authStore.user.id">
+        <a
+          class="btn btn-link btn-lg link-body-emphasis"
+          href="#"
+          role="button"
+          data-bs-toggle="modal"
+          data-bs-target="#deleteGearActivityModal"
+          v-if="activity.gear_id && activity.user_id === authStore.user.id"
+        >
           <font-awesome-icon :icon="['fas', 'fa-trash']" />
         </a>
 
         <!-- Modal delete gear -->
-        <ModalComponent modalId="deleteGearActivityModal" :title="t('activityView.modalLabelDeleteGear')"
-          :body="`${t('activityView.modalLabelDeleteGearBody')}`" actionButtonType="danger"
+        <ModalComponent
+          modalId="deleteGearActivityModal"
+          :title="t('activityView.modalLabelDeleteGear')"
+          :body="`${t('activityView.modalLabelDeleteGearBody')}`"
+          actionButtonType="danger"
           :actionButtonText="t('activityView.modalLabelDeleteGearButton')"
-          @submitAction="submitDeleteGearFromActivity" />
+          @submitAction="submitDeleteGearFromActivity"
+        />
       </div>
     </div>
 
     <!-- graphs -->
-    <hr class="mb-2 mt-2" v-if="
-      activity &&
-      ((activityActivityLaps && activityActivityLaps.length > 0) ||
-        (activityActivityWorkoutSteps && activityActivityWorkoutSteps.length > 0) ||
-        (activityActivitySets && activityActivitySets.length > 0) ||
-        (activityActivityStreams && activityActivityStreams.length > 0))
-    " />
+    <hr
+      class="mb-2 mt-2"
+      v-if="
+        activity &&
+        ((activityActivityLaps && activityActivityLaps.length > 0) ||
+          (activityActivityWorkoutSteps && activityActivityWorkoutSteps.length > 0) ||
+          (activityActivitySets && activityActivitySets.length > 0) ||
+          (activityActivityStreams && activityActivityStreams.length > 0))
+      "
+    />
 
     <!-- graphs and laps medium and above screens -->
     <div class="d-none d-lg-block" v-if="isLoading">
       <LoadingComponent />
     </div>
-    <div class="d-none d-lg-block" v-else-if="
-      activity &&
-      ((activityActivityLaps && activityActivityLaps.length > 0) ||
-        (activityActivityWorkoutSteps && activityActivityWorkoutSteps.length > 0) ||
-        (activityActivitySets && activityActivitySets.length > 0) ||
-        (activityActivityStreams && activityActivityStreams.length > 0))
-    ">
-      <ActivityMandAbovePillsComponent :activity="activity" :activityActivityLaps="activityActivityLaps"
-        :activityActivityWorkoutSteps="activityActivityWorkoutSteps" :activityActivityStreams="activityActivityStreams"
-        :units="units" :activityActivityExerciseTitles="activityActivityExerciseTitles"
-        :activityActivitySets="activityActivitySets" />
+    <div
+      class="d-none d-lg-block"
+      v-else-if="
+        activity &&
+        ((activityActivityLaps && activityActivityLaps.length > 0) ||
+          (activityActivityWorkoutSteps && activityActivityWorkoutSteps.length > 0) ||
+          (activityActivitySets && activityActivitySets.length > 0) ||
+          (activityActivityStreams && activityActivityStreams.length > 0))
+      "
+    >
+      <ActivityMandAbovePillsComponent
+        :activity="activity"
+        :activityActivityLaps="activityActivityLaps"
+        :activityActivityWorkoutSteps="activityActivityWorkoutSteps"
+        :activityActivityStreams="activityActivityStreams"
+        :units="units"
+        :activityActivityExerciseTitles="activityActivityExerciseTitles"
+        :activityActivitySets="activityActivitySets"
+      />
     </div>
 
     <!-- graphs and laps screens bellow medium -->
     <div class="d-lg-none d-block" v-if="isLoading">
       <LoadingComponent />
     </div>
-    <div class="d-lg-none d-block" v-else-if="
-      activity &&
-      ((activityActivityLaps && activityActivityLaps.length > 0) ||
-        (activityActivityWorkoutSteps && activityActivityWorkoutSteps.length > 0) ||
-        (activityActivitySets && activityActivitySets.length > 0) ||
-        (activityActivityStreams && activityActivityStreams.length > 0))
-    ">
-      <ActivityBellowMPillsComponent :activity="activity" :activityActivityLaps="activityActivityLaps"
-        :activityActivityWorkoutSteps="activityActivityWorkoutSteps" :activityActivityStreams="activityActivityStreams"
-        :units="units" :activityActivityExerciseTitles="activityActivityExerciseTitles"
-        :activityActivitySets="activityActivitySets" />
+    <div
+      class="d-lg-none d-block"
+      v-else-if="
+        activity &&
+        ((activityActivityLaps && activityActivityLaps.length > 0) ||
+          (activityActivityWorkoutSteps && activityActivityWorkoutSteps.length > 0) ||
+          (activityActivitySets && activityActivitySets.length > 0) ||
+          (activityActivityStreams && activityActivityStreams.length > 0))
+      "
+    >
+      <ActivityBellowMPillsComponent
+        :activity="activity"
+        :activityActivityLaps="activityActivityLaps"
+        :activityActivityWorkoutSteps="activityActivityWorkoutSteps"
+        :activityActivityStreams="activityActivityStreams"
+        :units="units"
+        :activityActivityExerciseTitles="activityActivityExerciseTitles"
+        :activityActivitySets="activityActivitySets"
+      />
     </div>
 
     <!-- back button -->
