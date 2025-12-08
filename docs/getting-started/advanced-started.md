@@ -50,7 +50,7 @@ Table below shows supported environment variables. Variables marked with optiona
 | SMTP_HOST | No default set | Yes | The SMTP host of your email provider. Example `smtp.protonmail.ch` |
 | SMTP_PORT | 587 | Yes | The SMTP port of your email provider. Default is 587 |
 | SMTP_USERNAME | No default set | Yes | The username of your SMTP email provider, probably your email address |
-| SMTP_PASSWORD | No default set | Yes | The password of your SMTP email provider. Some providers allow the use of your account password, others require the creation of an app password. Please refer to your provider documentation |
+| SMTP_PASSWORD | No default set | Yes | The password of your SMTP email provider. Some providers allow the use of your account password, others require the creation of an app password. Please refer to your provider documentation. Alternatively, use `SMTP_PASSWORD_FILE` for Docker secrets |
 | SMTP_SECURE | true | Yes | By default it uses secure communications. Accepted values are `true` and `false` |
 | SMTP_SECURE_TYPE | starttls | Yes | If SMTP_SECURE is set you can set the communication type. Accepted values are `starttls` and `ssl` |
 
@@ -77,6 +77,7 @@ Endurain supports [Docker secrets](https://docs.docker.com/compose/how-tos/use-s
 - `DB_PASSWORD` → `DB_PASSWORD_FILE`
 - `SECRET_KEY` → `SECRET_KEY_FILE`
 - `FERNET_KEY` → `FERNET_KEY_FILE`
+- `SMTP_PASSWORD` → `SMTP_PASSWORD_FILE`
 
 ### Using File-Based Secrets
 

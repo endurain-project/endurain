@@ -249,7 +249,8 @@ def check_required_env_vars():
     # Email is optional but warn if not configured
     email_vars = ["SMTP_HOST", "SMTP_USERNAME", "SMTP_PASSWORD"]
     for var in email_vars:
-        if var not in os.environ:
+        value = read_secret(var) if var == "SMTP_PASSWORD" else os.getenv(var)
+        if not value:
             core_logger.print_to_log_and_console(
                 f"Email not configured (missing: {var}). Password reset feature will not work.",
                 "info",
