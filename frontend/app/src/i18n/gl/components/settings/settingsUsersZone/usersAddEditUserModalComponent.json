@@ -26,6 +26,8 @@
   "addEditUserModalCurrencyLabel": "Moeda",
   "addEditUserModalHeightLabel": "Altura",
   "addEditUserModalHeightPlaceholder": "Altura",
+  "addEditUserModalMaxHeartRateLabel": "Max heart rate (optional)",
+  "addEditUserModalMaxHeartRatePlaceholder": "Max heart rate",
   "addEditUserModalFeetValidationLabel": "Altura non válida. Escribe unha altura en pés.",
   "addEditUserModalInchesValidationLabel": "Altura non válida. Escribe unha altura en pulgadas.",
   "addEditUserModalUserPreferredLanguageLabel": "Idioma preferido",

@@ -1,15 +1,15 @@
 {
-  "unknownProviderIcon": "未知提供者圖示",
-  "providerTypeBadgeLabel": "身分驗證提供者類型",
-  "linkedAtLabel": "提供者連結的日期和時間",
-  "linkedAt": "已連結",
-  "lastLoginLabel": "使用此提供者最後一次登入的日期和時間",
-  "lastLogin": "最後使用",
-  "neverUsedLabel": "此提供者從未用於登入",
-  "neverUsed": "從未使用",
-  "deleteButtonAriaLabel": "刪除 {provider} 身份提供者連結",
-  "modalDeleteTitle": "刪除身份提供者",
-  "modalDeleteBody1": "確定要取消連結",
-  "modalDeleteBody2": " 嗎？使用者將無法再使用此提供者登入。",
-  "modalDeleteButton": "刪除提供者連結"
+  "unknownProviderIcon": "Unknown provider icon",
+  "providerTypeBadgeLabel": "Authentication provider type",
+  "linkedAtLabel": "Date and time when provider was linked",
+  "linkedAt": "Linked",
+  "lastLoginLabel": "Date and time of last login with this provider",
+  "lastLogin": "Last used",
+  "neverUsedLabel": "This provider has never been used for login",
+  "neverUsed": "Never used",
+  "deleteButtonAriaLabel": "Delete {provider} identity provider link",
+  "modalDeleteTitle": "Delete identity provider",
+  "modalDeleteBody1": "Are you sure you want to unlink",
+  "modalDeleteBody2": "? The user will no longer be able to log in using this provider.",
+  "modalDeleteButton": "Delete provider link"
 }

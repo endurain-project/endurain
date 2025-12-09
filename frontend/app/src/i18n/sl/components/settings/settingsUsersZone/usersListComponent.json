@@ -5,6 +5,7 @@
   "userListUserIsAdminBadge": "Administrator",
   "userListUserIsInactiveBadge": "Neaktiven",
   "userListUserHasUnverifiedEmailBadge": "Nepreverjen e-poštni naslov",
+  "userListUserHasExternalAuthBadge": "External auth",
   "modalApproveSignUpTitle": "Odobri registracijo uporabnika",
   "modalApproveSignUpBody": "Ali ste prepričani, da želite odobriti uporabnika ",
   "processingApproval": "Obdelava odobritve...",
@@ -18,5 +19,10 @@
   "modalDeleteUserBody": "Ali ste prepričani, da želite izbrisati uporabnika ",
   "userListUserSessionsTitle": "Uporabniške seje",
   "userSessionDeleteSuccessMessage": "Seja uspešno izbrisana",
-  "userSessionDeleteErrorMessage": "Napaka pri brisanju seje"
+  "userSessionDeleteErrorMessage": "Napaka pri brisanju seje",
+  "tabSessions": "Sessions",
+  "tabIdentityProviders": "Identity providers",
+  "userIdpsLoadErrorMessage": "Error loading identity providers",
+  "userIdpDeleteSuccessMessage": "Identity provider unlinked successfully",
+  "userIdpDeleteErrorMessage": "Error unlinking identity provider"
 }

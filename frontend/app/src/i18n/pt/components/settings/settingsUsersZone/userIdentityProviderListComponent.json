@@ -1,15 +1,15 @@
 {
-  "unknownProviderIcon": "Ícone de fornecedor desconhecido",
-  "providerTypeBadgeLabel": "Tipo de fornecedor de autenticação",
-  "linkedAtLabel": "Data e hora em que o fornecedor foi vinculado",
-  "linkedAt": "Vinculado",
-  "lastLoginLabel": "Data e hora do último login com este fornecedor",
-  "lastLogin": "Último uso",
-  "neverUsedLabel": "Este fornecedor nunca foi usado para fazer login",
-  "neverUsed": "Nunca usado",
-  "deleteButtonAriaLabel": "Remover vínculo do fornecedor de identidade {provider}",
-  "modalDeleteTitle": "Remover fornecedor de identidade",
+  "unknownProviderIcon": "Ícone desconhecido",
+  "providerTypeBadgeLabel": "Tipo de autenticação",
+  "linkedAtLabel": "Data e hora de vínculo",
+  "linkedAt": "Ligado",
+  "lastLoginLabel": "Data e hora da última autenticação",
+  "lastLogin": "Última utilização",
+  "neverUsedLabel": "Este fornecedor nunca foi usado para autenticação",
+  "neverUsed": "Nunca utilizado",
+  "deleteButtonAriaLabel": "Excluir vínculo de fornecedor de identidade {provider}",
+  "modalDeleteTitle": "Eliminar fornecedor de identidade",
   "modalDeleteBody1": "Tem certeza de que deseja desvincular",
-  "modalDeleteBody2": "? O utilizador não poderá mais fazer login usando este fornecedor.",
-  "modalDeleteButton": "Remover vínculo do fornecedor"
+  "modalDeleteBody2": "? O utilizador não conseguirá autenticar-se com este fornecedor de identidade.",
+  "modalDeleteButton": "Eliminar link do fornecedor"
 }

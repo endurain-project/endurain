@@ -57,6 +57,7 @@
   "modalEditActivityVisibilityOption1": "Abonnés",
   "modalEditActivityVisibilityOption2": "Privé",
   "modalEditActivityIsHiddenLabel": "Is hidden",
+  "modalEditActivityHiddenItemsLabel": "Activity hidden fields",
   "modalEditActivityHideStartTimeLabel": "Masquer l'heure de début",
   "modalEditActivityHideLocationLabel": "Masquer le lieu",
   "modalEditActivityHideMapLabel": "Masquer la carte",

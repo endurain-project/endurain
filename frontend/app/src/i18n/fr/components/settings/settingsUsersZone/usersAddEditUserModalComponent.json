@@ -26,6 +26,8 @@
   "addEditUserModalCurrencyLabel": "Currency",
   "addEditUserModalHeightLabel": "Taille",
   "addEditUserModalHeightPlaceholder": "Taille",
+  "addEditUserModalMaxHeartRateLabel": "Max heart rate (optional)",
+  "addEditUserModalMaxHeartRatePlaceholder": "Max heart rate",
   "addEditUserModalFeetValidationLabel": "Taille non valide. Veuillez entrer une taille valide en pieds.",
   "addEditUserModalInchesValidationLabel": "Taille non valide. Veuillez entrer une taille valide en pieds.",
   "addEditUserModalUserPreferredLanguageLabel": "Langue préférée",

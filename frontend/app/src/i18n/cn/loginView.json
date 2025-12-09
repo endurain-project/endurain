@@ -8,6 +8,8 @@
   "subtitle": "在下方登录",
   "username": "用户名",
   "password": "密码",
+  "hidePassword": "Hide password",
+  "showPassword": "Show password",
   "mfaCode": "两步验证代码",
   "mfaRequired": "需要两步验证。请输入您的 6 位数字代码。",
   "verifyMFAButton": "验证 MFA",
@@ -33,5 +35,15 @@
   "signUpLink": "还没有账户？请注册",
   "emailVerificationSent": "请检查您的电子邮箱以获取验证说明",
   "adminApprovalRequired": "您的帐户正在等待管理员批准",
-  "verifyEmailInvalidLink": "无效的电子邮件验证链接"
+  "verifyEmailInvalidLink": "无效的电子邮件验证链接",
+  "ssoSection": "Or sign in with",
+  "ssoButton": "Sign in with {provider}",
+  "ssoSuccess": "Successfully authenticated via SSO",
+  "ssoFailed": "SSO authentication failed. Please try again",
+  "ssoCancelled": "SSO authentication was cancelled",
+  "ssoAccountNotFound": "No account found. Please contact your administrator",
+  "ssoAccountDisabled": "Your account has been disabled. Please contact your administrator",
+  "ssoAutoCreateDisabled": "Account auto-creation is disabled. Please contact your administrator",
+  "ssoErrorUndefined": "An unexpected error occurred during SSO authentication",
+  "forceLocalLogin": "Local login flag enabled. Please use your username and password to log in."
 }

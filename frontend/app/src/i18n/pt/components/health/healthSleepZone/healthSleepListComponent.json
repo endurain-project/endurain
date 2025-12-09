@@ -1,0 +1,10 @@
+{
+  "labelDate": "Data",
+  "sleepStagesTitle": "Estágios de sono",
+  "modalDeleteSleepTitle": "Excluir entrada de sono",
+  "modalDeleteSleepBody": "Tem a certeza que deseja eliminar a entrada de sono para ",
+  "successDeleteSleep": "Sono eliminado",
+  "errorDeleteSleep": "Não foi possível eliminar a entrada de sono",
+  "successEditSleep": "Sono editado",
+  "errorEditSleep": "Não foi possível editar a entrada de sono"
+}

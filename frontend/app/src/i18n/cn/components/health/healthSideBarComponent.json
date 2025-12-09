@@ -1,4 +1,7 @@
 {
   "dashboardSection": "仪表板",
+  "sleepSection": "Sleep",
+  "RHRSection": "Resting heart rate",
+  "stepsSection": "Steps",
   "weightSection": "体重"
 }

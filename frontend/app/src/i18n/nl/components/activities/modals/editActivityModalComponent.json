@@ -57,6 +57,7 @@
   "modalEditActivityVisibilityOption1": "Volgers",
   "modalEditActivityVisibilityOption2": "Privé",
   "modalEditActivityIsHiddenLabel": "Is verborgen",
+  "modalEditActivityHiddenItemsLabel": "Activity hidden fields",
   "modalEditActivityHideStartTimeLabel": "Verberg begintijd",
   "modalEditActivityHideLocationLabel": "Verberg locatie",
   "modalEditActivityHideMapLabel": "Verberg kaart",

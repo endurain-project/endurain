@@ -3,6 +3,12 @@
   "editWeightModalTitle": "Editar peso",
   "addWeightWeightLabel": "Peso",
   "addWeightDateLabel": "Data",
+  "addWeightHiddenItemsLabel": "Detalhes",
+  "addWeightBMILabel": "IMC",
+  "addWeightBodyFatLabel": "Gordura corporal",
+  "addWeightBodyWaterLabel": "Água corporal",
+  "addWeightBoneMassLabel": "Massa óssea",
+  "addWeightMuscleMassLabel": "Massa muscular",
   "successAddWeight": "Peso adicionado",
   "errorAddWeight": "Erro ao adicionar peso"
 }

@@ -8,6 +8,8 @@
   "subtitle": "Connectez-vous ci-dessous",
   "username": "Identifiant",
   "password": "Mot de passe",
+  "hidePassword": "Hide password",
+  "showPassword": "Show password",
   "mfaCode": "MFA Code",
   "mfaRequired": "Multi-factor authentication required. Please enter your 6-digit code.",
   "verifyMFAButton": "Verify MFA",
@@ -33,5 +35,15 @@
   "signUpLink": "Don't have an account? Sign up",
   "emailVerificationSent": "Please check your email for verification instructions",
   "adminApprovalRequired": "Your account is pending admin approval",
-  "verifyEmailInvalidLink": "Invalid email verification link"
+  "verifyEmailInvalidLink": "Invalid email verification link",
+  "ssoSection": "Or sign in with",
+  "ssoButton": "Sign in with {provider}",
+  "ssoSuccess": "Successfully authenticated via SSO",
+  "ssoFailed": "SSO authentication failed. Please try again",
+  "ssoCancelled": "SSO authentication was cancelled",
+  "ssoAccountNotFound": "No account found. Please contact your administrator",
+  "ssoAccountDisabled": "Your account has been disabled. Please contact your administrator",
+  "ssoAutoCreateDisabled": "Account auto-creation is disabled. Please contact your administrator",
+  "ssoErrorUndefined": "An unexpected error occurred during SSO authentication",
+  "forceLocalLogin": "Local login flag enabled. Please use your username and password to log in."
 }

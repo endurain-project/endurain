@@ -1,5 +1,13 @@
 {
   "title": "Saúde",
+  "errorFetchingHealthSteps": "Erro ao obter dados de passos",
   "errorFetchingHealthWeight": "Erro ao obter dados de saúde",
-  "errorFetchingHealthTargets": "Erro ao obter metas de saúde"
+  "errorFetchingHealthSleep": "Erro ao obter dados de sono",
+  "errorFetchingHealthTargets": "Erro ao obter metas de saúde",
+  "successUpdatingWeightTarget": "Meta de peso atualizada com sucesso",
+  "errorUpdatingWeightTarget": "Erro ao atualizar meta de peso",
+  "successUpdatingStepsTarget": "Meta de peso atualizada com sucesso",
+  "errorUpdatingStepsTarget": "Erro ao atualizar meta de passos",
+  "successUpdatingSleepTarget": "Meta de sono atualizada com sucesso",
+  "errorUpdatingSleepTarget": "Erro ao atualizar meta de sono"
 }

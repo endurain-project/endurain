@@ -57,6 +57,7 @@
   "modalEditActivityVisibilityOption1": "Follower",
   "modalEditActivityVisibilityOption2": "Privato",
   "modalEditActivityIsHiddenLabel": "È nascosta",
+  "modalEditActivityHiddenItemsLabel": "Activity hidden fields",
   "modalEditActivityHideStartTimeLabel": "Nascondi ora di inizio",
   "modalEditActivityHideLocationLabel": "Nascondi località",
   "modalEditActivityHideMapLabel": "Nascondi mappa",

@@ -1,6 +1,8 @@
 {
   "buttonAddWeight": "Añadir peso",
-  "labelNumberOfHealthWeightWeight1": "Hay un total de ",
-  "labelNumberOfHealthWeightWeight2": " medición(es) de peso insertado(s) (",
-  "labelNumberOfHealthWeightWeight3": " cargado):"
+  "buttonWeightTarget": "Weight target",
+  "modalWeightTargetLabel": "Enter your weight target",
+  "labelNumberOfHealthWeightWeight1": "There is a total of ",
+  "labelNumberOfHealthWeightWeight2": " weight measure(s) inserted (",
+  "labelNumberOfHealthWeightWeight3": " loaded):"
 }

@@ -8,6 +8,8 @@
   "subtitle": "Inici de sessió",
   "username": "Nom d’usuari",
   "password": "Contrasenya",
+  "hidePassword": "Amaga contrasenya",
+  "showPassword": "Mostra contrasenya",
   "mfaCode": "Codi MFA",
   "mfaRequired": "Autenticació multifactor requerida. Si us plau entra el codi de 6 dígits.",
   "verifyMFAButton": "Verificar MFA",
@@ -33,5 +35,15 @@
   "signUpLink": "No tens compte? Registre",
   "emailVerificationSent": "Reviseu el correu electrònic per obtenir instruccions de verificació",
   "adminApprovalRequired": "Compte pendent d'aprovació d''administració",
-  "verifyEmailInvalidLink": "Enllaç de verificació d'email invàlid"
+  "verifyEmailInvalidLink": "Enllaç de verificació d'email invàlid",
+  "ssoSection": "O accedeix amb",
+  "ssoButton": "Inicia sessió amb {provider}",
+  "ssoSuccess": "Autenticat correctament amb SSO",
+  "ssoFailed": "Autenticació SSO fallida. Torna a provar",
+  "ssoCancelled": "Autenticació SSO cancel•lada",
+  "ssoAccountNotFound": "Compte no trobat. Contacta amb l'admin",
+  "ssoAccountDisabled": "Compte deshabilitat. Contacta amb l'admin",
+  "ssoAutoCreateDisabled": "Auto creació de comptes deshabilitat. Contacta amn l'admin",
+  "ssoErrorUndefined": "Error durant autenticació SSO",
+  "forceLocalLogin": "Usa usuari i contrasenya per accedir."
 }

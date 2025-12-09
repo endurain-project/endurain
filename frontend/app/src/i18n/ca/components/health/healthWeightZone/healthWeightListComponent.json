@@ -1,5 +1,12 @@
 {
+  "dateLabel": "Date",
   "labelGarminConnect": "Garmin Connect",
+  "detailsTitle": "Detalls",
+  "bmiLabel": "BMI",
+  "bodyFatLabel": "Body fat",
+  "bodyWaterLabel": "Body water",
+  "boneMassLabel": "Bone mass",
+  "muscleMassLabel": "Muscle mass",
   "modalDeleteWeightTitle": "Esborrar pes",
   "modalDeleteWeightBody": "Segur que vols suprimir l'entrada de pes per ",
   "successDeleteWeight": "Pes esborrat",

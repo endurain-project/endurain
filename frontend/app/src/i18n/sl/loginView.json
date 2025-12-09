@@ -8,6 +8,8 @@
   "subtitle": "Prijavite se spodaj",
   "username": "Uporabniško ime",
   "password": "Geslo",
+  "hidePassword": "Hide password",
+  "showPassword": "Show password",
   "mfaCode": "MFA koda",
   "mfaRequired": "Zahteva se večfaktorska avtentikacija. Vnesite svojo 6-mestno kodo.",
   "verifyMFAButton": "Preveri MFA",
@@ -33,5 +35,15 @@
   "signUpLink": "Nimate računa? Registrirajte se",
   "emailVerificationSent": "Za navodila za preverjanje preverite svoj e-poštni naslov",
   "adminApprovalRequired": "Vaš račun čaka na odobritev skrbnika",
-  "verifyEmailInvalidLink": "Neveljavna povezava za preverjanje e-pošte"
+  "verifyEmailInvalidLink": "Neveljavna povezava za preverjanje e-pošte",
+  "ssoSection": "Or sign in with",
+  "ssoButton": "Sign in with {provider}",
+  "ssoSuccess": "Successfully authenticated via SSO",
+  "ssoFailed": "SSO authentication failed. Please try again",
+  "ssoCancelled": "SSO authentication was cancelled",
+  "ssoAccountNotFound": "No account found. Please contact your administrator",
+  "ssoAccountDisabled": "Your account has been disabled. Please contact your administrator",
+  "ssoAutoCreateDisabled": "Account auto-creation is disabled. Please contact your administrator",
+  "ssoErrorUndefined": "An unexpected error occurred during SSO authentication",
+  "forceLocalLogin": "Local login flag enabled. Please use your username and password to log in."
 }

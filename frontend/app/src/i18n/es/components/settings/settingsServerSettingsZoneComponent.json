@@ -5,11 +5,17 @@
   "unitsImperial": "Imperial",
   "currencyLabel": "Moneda predeterminada",
   "numRecordsLabel": "Número de registros por página",
-  "signupTitle": "Sign-up",
-  "adminApprovalLabel": "Admin approval",
-  "emailConfirmationLabel": "Email confirmation",
+  "signupTitle": "Registrarse",
+  "adminApprovalLabel": "Aprobación del administrador",
+  "emailConfirmationLabel": "Confirmación de correo electrónico",
+  "ssoTitle": "Single Sign-On (SSO)",
+  "ssoEnabledInfoAlert": "Enable SSO to allow users to authenticate using external identity providers.",
+  "localLoginEnabledLabel": "Local login enabled",
+  "localLoginEnabledWarningAlert": "Disabling local login will prevent users from logging in with username/password. Ensure at least one SSO provider is configured before disabling.",
+  "ssoAutoRedirectLabel": "Auto-redirect to SSO",
+  "ssoAutoRedirectInfoAlert": "Automatically redirect to SSO provider when only one provider is configured and local login is disabled.",
   "publicShareableLinksLabel": "Enlace público para compartir",
-  "enabledLabel": "Enabled",
+  "enabledLabel": "Activado",
   "serverSettingsPublicShareableLinksEnabledWarningAlert": "Habilitar esto hará que todas las actividades publicadas sean visibles sin autenticación.",
   "publicShareableLinksShowUserInfoLabel": "Mostrar información del usuario",
   "serverSettingsPublicShareableLinksShowUserWarningAlert": "Habilitar esto mostrará la información del usuario en todos los enlaces públicos",
@@ -25,5 +31,5 @@
   "successPhotoDelete": "Foto eliminada con éxito",
   "successUpdateServerSettings": "Ajustes del servidor actualizados correctamente",
   "errorUpdateServerSettings": "Error al actualizar los ajustes del servidor",
-  "errorFetchingServerSettings": "Error fetching server settings"
+  "errorFetchingServerSettings": "Error obteniendo la configuración del servidor"
 }

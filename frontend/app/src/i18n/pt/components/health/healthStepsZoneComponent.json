@@ -1,0 +1,8 @@
+{
+  "buttonAddSteps": "Adicionar passos",
+  "buttonStepsTarget": "Meta de passos",
+  "modalStepsTargetLabel": "Digite a sua meta de passos",
+  "labelNumberOfHealthSteps1": "Existe um total de ",
+  "labelNumberOfHealthSteps2": " entradas de passos inseridas (",
+  "labelNumberOfHealthSteps3": " carregada(s)):"
+}

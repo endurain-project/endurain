@@ -1,0 +1,9 @@
+{
+  "buttonAddSleep": "Adicionar sono",
+  "buttonSleepTarget": "Meta de sono",
+  "modalSleepTargetHoursLabel": "horas",
+  "modalSleepTargetMinutesLabel": "minutos",
+  "labelNumberOfHealthSleep1": "Existe um total de ",
+  "labelNumberOfHealthSleep2": " entradas de sono inseridas (",
+  "labelNumberOfHealthSleep3": " carregada(s)):"
+}

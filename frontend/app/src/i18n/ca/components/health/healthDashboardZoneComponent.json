@@ -1,4 +1,8 @@
 {
+  "sleep": "Son d'Avui",
+  "noSleepTarget": "Sense objectiu de son",
+  "restingHeartRate": "Freqüència cardíaca en repòs",
+  "avgSkinTemperatureDeviation": "Temp. dev. pell.",
   "weight": "Pes",
   "noWeightData": "Sense dades de Pes",
   "noWeightTarget": "Cap objectiu de pes",
@@ -9,5 +13,8 @@
   "bmiOverweight": "Sobrepès",
   "bmiObesityClass1": "Obesitat (Classe 1)",
   "bmiObesityClass2": "Obesitat (Classe 2)",
-  "bmiObesityClass3": "Obessitat Extrema (Classe 3)"
+  "bmiObesityClass3": "Obessitat Extrema (Classe 3)",
+  "steps": "Passes d'avui",
+  "stepsTargetLabel": "passos",
+  "noStepsTarget": "Sense objectiu de passos"
 }

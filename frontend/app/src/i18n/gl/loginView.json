@@ -8,6 +8,8 @@
   "subtitle": "Accede abaixo",
   "username": "Indentificador",
   "password": "Contrasinal",
+  "hidePassword": "Ocultar contrasinal",
+  "showPassword": "Mostrar contrasinal",
   "mfaCode": "Código AMF",
   "mfaRequired": "Requírese a Autenticación Multi-Factor. Escribe o código de 6 díxitos.",
   "verifyMFAButton": "Verificar AMF",
@@ -33,5 +35,15 @@
   "signUpLink": "Non tes unha conta? Crea unha",
   "emailVerificationSent": "Mira no teu correo para ler as instruccións de verificación",
   "adminApprovalRequired": "A túa conta está pendente de ser aprobada pola administración",
-  "verifyEmailInvalidLink": "Ligazón de verificación de correo non válida"
+  "verifyEmailInvalidLink": "Ligazón de verificación de correo non válida",
+  "ssoSection": "Ou inicia sesión con",
+  "ssoButton": "Inicia sesión con {provider}",
+  "ssoSuccess": "Autenticación correcta usando SSO",
+  "ssoFailed": "Fallou a autenticación SSO. Volve a intentalo",
+  "ssoCancelled": "Cancelouse a autenticación SSO",
+  "ssoAccountNotFound": "Non se atopa a conta. Contacta coa administración",
+  "ssoAccountDisabled": "A túa conta está desactivada. Contacta coa administración",
+  "ssoAutoCreateDisabled": "A creación automática de contas está desactivada. Contacta coa administración",
+  "ssoErrorUndefined": "Aconteceu un fallo descoñecido durante a autenticación SSO",
+  "forceLocalLogin": "Activada a marca de acceso local. Utiliza identificador e contrasinal para acceder."
 }

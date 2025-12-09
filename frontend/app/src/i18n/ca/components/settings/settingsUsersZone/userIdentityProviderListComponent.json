@@ -1,15 +1,15 @@
 {
-  "unknownProviderIcon": "Icona de proveïdor desconegut",
-  "providerTypeBadgeLabel": "Tipus de proveïdor d'autenticació",
-  "linkedAtLabel": "Data i hora quan es va enllaçar el proveïdor",
-  "linkedAt": "Enllaçat",
-  "lastLoginLabel": "Data i hora de l'últim inici de sessió amb aquest proveïdor",
+  "unknownProviderIcon": "Icona de proveidor desconeguda",
+  "providerTypeBadgeLabel": "Tipus proveidor autentificació",
+  "linkedAtLabel": "Data i hora de proveidor linkat",
+  "linkedAt": "Linkat",
+  "lastLoginLabel": "Data i hora de l'últim accés amb el proveidor",
   "lastLogin": "Últim ús",
-  "neverUsedLabel": "Aquest proveïdor mai s'ha utilitzat per iniciar sessió",
-  "neverUsed": "Mai utilitzat",
-  "deleteButtonAriaLabel": "Eliminar l'enllaç del proveïdor d'identitat {provider}",
-  "modalDeleteTitle": "Eliminar proveïdor d'identitat",
-  "modalDeleteBody1": "Estàs segur que vols desenllaçar",
-  "modalDeleteBody2": "? L'usuari ja no podrà iniciar sessió utilitzant aquest proveïdor.",
-  "modalDeleteButton": "Eliminar enllaç del proveïdor"
+  "neverUsedLabel": "Proveidor mai utilitzat per accedir",
+  "neverUsed": "Mai usat",
+  "deleteButtonAriaLabel": "Esborra {provider} link de proveidor",
+  "modalDeleteTitle": "Esborra proveidor d'identitat",
+  "modalDeleteBody1": "Segur que vols deslinkar",
+  "modalDeleteBody2": "? L'usuari no podrà accedir amb aquest proveidor.",
+  "modalDeleteButton": "Suprimeix link proveïdor"
 }

@@ -1,6 +1,6 @@
 {
-  "modalLabelAddGear": "Add gear to activity",
-  "modalLabelSelectGear": "Select gear",
-  "modalButtonAddGear": "Add gear",
-  "errorEditingGear": "Error editing gear"
+  "modalLabelAddGear": "為活動添加裝備",
+  "modalLabelSelectGear": "請選擇裝備",
+  "modalButtonAddGear": "添加裝備",
+  "errorEditingGear": "編輯裝備時出錯"
 }

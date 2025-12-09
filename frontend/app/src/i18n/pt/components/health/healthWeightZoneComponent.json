@@ -1,5 +1,7 @@
 {
   "buttonAddWeight": "Adicionar peso",
+  "buttonWeightTarget": "Meta de peso",
+  "modalWeightTargetLabel": "Digite a sua meta de peso",
   "labelNumberOfHealthWeightWeight1": "Existe um total de ",
   "labelNumberOfHealthWeightWeight2": " medida(s) de peso inserida(s) (",
   "labelNumberOfHealthWeightWeight3": " carregada(s)):"

@@ -5,7 +5,7 @@
   "userListUserIsAdminBadge": "Administrador",
   "userListUserIsInactiveBadge": "Inativo",
   "userListUserHasUnverifiedEmailBadge": "E-mail não verificado",
-  "userListUserHasExternalAuthBadge": "Auth Externa",
+  "userListUserHasExternalAuthBadge": "Autenticação externa",
   "modalApproveSignUpTitle": "Aprovar inscrição de utilizador",
   "modalApproveSignUpBody": "Tem certeza de que deseja aprovar o utilizador ",
   "processingApproval": "A processar aprovação...",

@@ -8,6 +8,8 @@
   "subtitle": "Accedi qui sotto",
   "username": "Nome utente",
   "password": "Password",
+  "hidePassword": "Hide password",
+  "showPassword": "Show password",
   "mfaCode": "Codice MFA",
   "mfaRequired": "Autenticazione a più fattori richiesta. Inserisci il tuo codice a 6 cifre.",
   "verifyMFAButton": "Verifica MFA",
@@ -33,5 +35,15 @@
   "signUpLink": "Non hai un account? Registrati",
   "emailVerificationSent": "Controlla la tua email per le istruzioni di verifica",
   "adminApprovalRequired": "Il tuo account è in attesa di approvazione dell'amministratore",
-  "verifyEmailInvalidLink": "Link di verifica email non valido"
+  "verifyEmailInvalidLink": "Link di verifica email non valido",
+  "ssoSection": "Or sign in with",
+  "ssoButton": "Sign in with {provider}",
+  "ssoSuccess": "Successfully authenticated via SSO",
+  "ssoFailed": "SSO authentication failed. Please try again",
+  "ssoCancelled": "SSO authentication was cancelled",
+  "ssoAccountNotFound": "No account found. Please contact your administrator",
+  "ssoAccountDisabled": "Your account has been disabled. Please contact your administrator",
+  "ssoAutoCreateDisabled": "Account auto-creation is disabled. Please contact your administrator",
+  "ssoErrorUndefined": "An unexpected error occurred during SSO authentication",
+  "forceLocalLogin": "Local login flag enabled. Please use your username and password to log in."
 }

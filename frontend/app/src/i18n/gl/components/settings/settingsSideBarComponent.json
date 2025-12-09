@@ -1,6 +1,7 @@
 {
   "usersSection": "Contas",
   "serverSettingsSection": "Axustes do servidor",
+  "identityProvidersSection": "Identity Providers",
   "generalSection": "Xerais",
   "myProfileSection": "O meu perfil",
   "myGoals": "Obxectivos",

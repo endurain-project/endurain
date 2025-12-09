@@ -26,6 +26,8 @@
   "addEditUserModalCurrencyLabel": "Divisa",
   "addEditUserModalHeightLabel": "Alçada",
   "addEditUserModalHeightPlaceholder": "Alçada",
+  "addEditUserModalMaxHeartRateLabel": "Max heart rate (optional)",
+  "addEditUserModalMaxHeartRatePlaceholder": "Max heart rate",
   "addEditUserModalFeetValidationLabel": "Alçada invàlida. Insereix una alçada en peus vàlida.",
   "addEditUserModalInchesValidationLabel": "Alçada invàlida. Insereix una alçada en polzades vàlida.",
   "addEditUserModalUserPreferredLanguageLabel": "Idioma preferit",

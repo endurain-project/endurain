@@ -8,6 +8,8 @@
   "subtitle": "Unten anmelden",
   "username": "Benutzername",
   "password": "Passwort",
+  "hidePassword": "Hide password",
+  "showPassword": "Show password",
   "mfaCode": "MFA-Code",
   "mfaRequired": "Mehrstufige Authentifizierung erforderlich. Bitte geben Sie Ihren 6-stelligen Code ein.",
   "verifyMFAButton": "MFA überprüfen",
@@ -33,5 +35,15 @@
   "signUpLink": "Kein Konto? Jetzt registrieren",
   "emailVerificationSent": "Please check your email for verification instructions",
   "adminApprovalRequired": "Your account is pending admin approval",
-  "verifyEmailInvalidLink": "Invalid email verification link"
+  "verifyEmailInvalidLink": "Ungültiger E-Mail Bestätigungslink",
+  "ssoSection": "Or sign in with",
+  "ssoButton": "Sign in with {provider}",
+  "ssoSuccess": "Successfully authenticated via SSO",
+  "ssoFailed": "SSO authentication failed. Please try again",
+  "ssoCancelled": "SSO authentication was cancelled",
+  "ssoAccountNotFound": "No account found. Please contact your administrator",
+  "ssoAccountDisabled": "Your account has been disabled. Please contact your administrator",
+  "ssoAutoCreateDisabled": "Account auto-creation is disabled. Please contact your administrator",
+  "ssoErrorUndefined": "An unexpected error occurred during SSO authentication",
+  "forceLocalLogin": "Local login flag enabled. Please use your username and password to log in."
 }

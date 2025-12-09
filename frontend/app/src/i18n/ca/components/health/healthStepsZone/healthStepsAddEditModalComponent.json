@@ -1,0 +1,8 @@
+{
+  "addStepsModalTitle": "Afegir passos",
+  "editStepsModalTitle": "Edita passos",
+  "addStepsLabel": "Passos",
+  "addStepsDateLabel": "Data",
+  "successAddSteps": "Passos afegits",
+  "errorAddSteps": "Error afegint passos"
+}

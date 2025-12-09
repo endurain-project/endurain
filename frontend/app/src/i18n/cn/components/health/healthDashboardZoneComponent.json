@@ -1,4 +1,8 @@
 {
+  "sleep": "Today's sleep",
+  "noSleepTarget": "No sleep target",
+  "restingHeartRate": "Resting heart rate",
+  "avgSkinTemperatureDeviation": "Skin temp. dev.",
   "weight": "体重",
   "noWeightData": "没有体重数据",
   "noWeightTarget": "没有体量目标",
@@ -9,5 +13,8 @@
   "bmiOverweight": "超重",
   "bmiObesityClass1": "一级肥胖",
   "bmiObesityClass2": "二级肥胖",
-  "bmiObesityClass3": "三级肥胖（极度肥胖）"
+  "bmiObesityClass3": "三级肥胖（极度肥胖）",
+  "steps": "Today's steps",
+  "stepsTargetLabel": "steps",
+  "noStepsTarget": "No steps target"
 }

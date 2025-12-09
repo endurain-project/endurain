@@ -1,6 +1,7 @@
 {
   "usersSection": "Gebruikers",
   "serverSettingsSection": "Serverinstellingen",
+  "identityProvidersSection": "Identity Providers",
   "generalSection": "Algemeen",
   "myProfileSection": "Mijn profiel",
   "myGoals": "My Goals",

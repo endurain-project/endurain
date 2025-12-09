@@ -16,6 +16,7 @@
   "unitsOption2": "Imperial",
   "currencyLabel": "Moneda",
   "heightLabel": "Altura",
+  "maxHeartRateLabel": "Max heart rate",
   "preferredLanguageLabel": "Idioma preferido",
   "firstDayOfWeekLabel": "Primer día de la semana",
   "accessTypeLabel": "Tipo de acceso",

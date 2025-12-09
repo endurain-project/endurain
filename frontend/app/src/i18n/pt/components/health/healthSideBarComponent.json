@@ -1,4 +1,7 @@
 {
   "dashboardSection": "Painel de controlo",
+  "sleepSection": "Sono",
+  "RHRSection": "FC em repouso",
+  "stepsSection": "Passos",
   "weightSection": "Peso"
 }

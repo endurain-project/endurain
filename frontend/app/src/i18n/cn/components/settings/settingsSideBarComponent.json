@@ -1,6 +1,7 @@
 {
   "usersSection": "用户",
   "serverSettingsSection": "服务器设置",
+  "identityProvidersSection": "Identity Providers",
   "generalSection": "通用设置",
   "myProfileSection": "我的资料",
   "myGoals": "我的目标",

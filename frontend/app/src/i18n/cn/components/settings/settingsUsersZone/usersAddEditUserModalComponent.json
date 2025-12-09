@@ -26,6 +26,8 @@
   "addEditUserModalCurrencyLabel": "货币",
   "addEditUserModalHeightLabel": "身高",
   "addEditUserModalHeightPlaceholder": "身高",
+  "addEditUserModalMaxHeartRateLabel": "Max heart rate (optional)",
+  "addEditUserModalMaxHeartRatePlaceholder": "Max heart rate",
   "addEditUserModalFeetValidationLabel": "身高无效。请输入以英尺为单位的有效身高。",
   "addEditUserModalInchesValidationLabel": "身高无效。请输入以英寸为单位的有效身高。",
   "addEditUserModalUserPreferredLanguageLabel": "首选语言",

@@ -1,6 +1,7 @@
 {
   "usersSection": "Usuaris",
   "serverSettingsSection": "Opcions servidor",
+  "identityProvidersSection": "Identity Providers",
   "generalSection": "General",
   "myProfileSection": "El meu perfil",
   "myGoals": "Objectius",

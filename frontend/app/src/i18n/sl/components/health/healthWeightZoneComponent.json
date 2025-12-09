@@ -1,6 +1,8 @@
 {
   "buttonAddWeight": "Dodaj težo",
-  "labelNumberOfHealthWeightWeight1": "Skupaj je ",
-  "labelNumberOfHealthWeightWeight2": " vstavljenih meritev teže (",
-  "labelNumberOfHealthWeightWeight3": " naloženo):"
+  "buttonWeightTarget": "Weight target",
+  "modalWeightTargetLabel": "Enter your weight target",
+  "labelNumberOfHealthWeightWeight1": "There is a total of ",
+  "labelNumberOfHealthWeightWeight2": " weight measure(s) inserted (",
+  "labelNumberOfHealthWeightWeight3": " loaded):"
 }

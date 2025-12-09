@@ -26,6 +26,8 @@
   "addEditUserModalCurrencyLabel": "Currency",
   "addEditUserModalHeightLabel": "Hoogte",
   "addEditUserModalHeightPlaceholder": "Hoogte",
+  "addEditUserModalMaxHeartRateLabel": "Max heart rate (optional)",
+  "addEditUserModalMaxHeartRatePlaceholder": "Max heart rate",
   "addEditUserModalFeetValidationLabel": "Ongeldige hoogte. Voer een geldige hoogte in voeten in..",
   "addEditUserModalInchesValidationLabel": "Ongeldige hoogte. Voer een geldige hoogte in inch in",
   "addEditUserModalUserPreferredLanguageLabel": "Taalvoorkeur",

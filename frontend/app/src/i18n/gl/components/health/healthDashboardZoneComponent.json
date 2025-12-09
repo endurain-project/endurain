@@ -1,4 +1,8 @@
 {
+  "sleep": "Tempo durmindo hoxe",
+  "noSleepTarget": "No sleep target",
+  "restingHeartRate": "Pulso en repouso",
+  "avgSkinTemperatureDeviation": "Desv. da temp. da pel",
   "weight": "Peso",
   "noWeightData": "Sen datos do peso",
   "noWeightTarget": "Sen obxectivo de peso",
@@ -9,5 +13,8 @@
   "bmiOverweight": "Sobrepeso",
   "bmiObesityClass1": "Obesidade (clase 1)",
   "bmiObesityClass2": "Obesidade (clase 2)",
-  "bmiObesityClass3": "Obesidade extrema (clase 3)"
+  "bmiObesityClass3": "Obesidade extrema (clase 3)",
+  "steps": "Pasos de hoxe",
+  "stepsTargetLabel": "pasos",
+  "noStepsTarget": "Sen obxectivo de pasos"
 }

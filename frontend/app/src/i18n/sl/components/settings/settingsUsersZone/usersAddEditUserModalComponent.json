@@ -26,6 +26,8 @@
   "addEditUserModalCurrencyLabel": "Valuta",
   "addEditUserModalHeightLabel": "Višina",
   "addEditUserModalHeightPlaceholder": "Višina",
+  "addEditUserModalMaxHeartRateLabel": "Max heart rate (optional)",
+  "addEditUserModalMaxHeartRatePlaceholder": "Max heart rate",
   "addEditUserModalFeetValidationLabel": "Neveljavna višina. Vnesite veljavno višino v čevljih.",
   "addEditUserModalInchesValidationLabel": "Neveljavna višina. Vnesite veljavno višino v palcih.",
   "addEditUserModalUserPreferredLanguageLabel": "Želeni jezik",
