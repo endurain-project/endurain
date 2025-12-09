@@ -109,6 +109,8 @@ class TestReadHealthStepsAllPagination:
         assert response.status_code == 200
         data = response.json()
         assert data["total"] == 10
+        assert data["num_records"] == 5
+        assert data["page_number"] == 1
         assert len(data["records"]) == 1
 
     @patch("health_steps.router.health_steps_crud.get_health_steps_number")
@@ -133,6 +135,8 @@ class TestReadHealthStepsAllPagination:
         assert response.status_code == 200
         data = response.json()
         assert data["total"] == 20
+        assert data["num_records"] == 10
+        assert data["page_number"] == 2
         assert data["records"] == []
         mock_get_paginated.assert_called_once_with(1, ANY, 2, 10)
 
