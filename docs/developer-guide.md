@@ -164,6 +164,7 @@ username=user@example.com&password=userpassword
 ```
 
 **Response (when MFA is enabled):**
+
 - **Web clients**: HTTP 202 Accepted
   ```json
   {
@@ -197,6 +198,7 @@ X-Client-Type: web|mobile
 ```
 
 **Response (successful verification):**
+
 - **Web clients**: Tokens are set as HTTP-only cookies
   ```json
   {
