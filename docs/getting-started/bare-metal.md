@@ -6,9 +6,7 @@ This guide explains how to install **Endurain** bare-metal on Debian without Doc
 
 ```bash
 apt install -y \
-  default-libmysqlclient-dev \
   build-essential \
-  pkg-config  \
   git \
   curl \
   python3-dev
