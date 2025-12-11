@@ -77,6 +77,7 @@
               >
               <input
                 class="form-control"
+                placeholder="20"
                 type="number"
                 step="0.01"
                 name="weightBMIAddEdit"
@@ -89,6 +90,7 @@
               <div class="input-group">
                 <input
                   class="form-control"
+                  placeholder="15"
                   type="number"
                   step="0.01"
                   name="weightBodyFatAddEdit"
@@ -105,6 +107,7 @@
               <div class="input-group">
                 <input
                   class="form-control"
+                  placeholder="60"
                   type="number"
                   step="0.01"
                   name="weightBodyWaterAddEdit"
@@ -121,6 +124,7 @@
               <div class="input-group">
                 <input
                   class="form-control"
+                  placeholder="5"
                   type="number"
                   step="0.01"
                   name="weightBoneMassAddEdit"
@@ -140,6 +144,7 @@
               <div class="input-group">
                 <input
                   class="form-control"
+                  placeholder="30"
                   type="number"
                   step="0.01"
                   name="weightMuscleMassAddEdit"
@@ -205,11 +210,11 @@ const authStore = useAuthStore()
 const { t } = useI18n()
 const newEditWeightWeight = ref(50)
 const newEditWeightDate = ref(new Date().toISOString().split('T')[0])
-const newEditWeightBMI = ref(20)
-const newEditWeightBodyFat = ref(15)
-const newEditWeightBodyWater = ref(60)
-const newEditWeightBoneMass = ref(5)
-const newEditWeightMuscleMass = ref(30)
+const newEditWeightBMI = ref(null)
+const newEditWeightBodyFat = ref(null)
+const newEditWeightBodyWater = ref(null)
+const newEditWeightBoneMass = ref(null)
+const newEditWeightMuscleMass = ref(null)
 const editWeightId = ref('')
 const detailFields = ref(false)
 

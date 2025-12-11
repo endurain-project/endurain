@@ -1,6 +1,6 @@
 # MariaDB to Postgres migration guide
 
-This will guide you on how to migrate from MariaDB to Postgres. Endurain will drop support for MariaDB on v0.16.0, so you'll need to perform this migration prior to upgrade to v0.16.0.
+This will guide you on how to migrate from MariaDB to Postgres. Endurain will drop support for MariaDB on v0.16.0, so you'll need to perform this migration prior to upgrade to v0.16.0 or higher.
 
 This guide uses Endurain's built-in export/import functionality to migrate your data.
 
