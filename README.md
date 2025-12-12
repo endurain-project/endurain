@@ -65,3 +65,7 @@ You are welcome to self-host Endurain and use the name and logo, including for p
 Commercial use of the Endurain name or logos (such as offering paid hosting, products, or services) is **not permitted without prior written permission**.
 
 See [`TRADEMARK.md`](./TRADEMARK.md) for full details.
+
+<div align="center">
+  <sub>Built with ❤️ from Portugal | Part of the <a href="https://github.com/endurain-project">Endurain</a> ecosystem</sub>
+</div>
