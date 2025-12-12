@@ -7,7 +7,7 @@
         Endurain •
         <a
           class="link-body-emphasis"
-          href="https://github.com/joaovitoriasilva/endurain"
+          href="https://github.com/endurain-project/endurain"
           role="button"
           ><font-awesome-icon :icon="['fab', 'fa-github']"
         /></a>

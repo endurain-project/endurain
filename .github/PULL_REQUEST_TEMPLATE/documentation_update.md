@@ -15,7 +15,7 @@ Explain why these changes are necessary.
 
 ## Checklist
 
-- [ ] Followed the repo [contributions guidelines](https://github.com/joaovitoriasilva/endurain/blob/master/CONTRIBUTING.md)
+- [ ] Followed the repo [contributions guidelines](https://github.com/endurain-project/endurain/blob/master/CONTRIBUTING.md)
 - [ ] Documentation is clear and concise
 - [ ] The changes align with the project's documentation standards
 - [ ] The PR has been self-reviewed

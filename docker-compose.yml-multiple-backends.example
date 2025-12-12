@@ -1,7 +1,7 @@
 services:
   endurain:
     container_name: endurain
-    image: ghcr.io/joaovitoriasilva/endurain:latest
+    image: ghcr.io/endurain-project/endurain:latest
     environment:
       # Read the Getting Started section on https://docs.endurain.com for all available env variables
       - TZ=Europe/Lisbon

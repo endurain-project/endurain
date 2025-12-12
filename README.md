@@ -4,9 +4,9 @@
   # Endurain
 
   <a title="Crowdin" target="_blank" href="https://crowdin.com/project/endurain"><img src="https://badges.crowdin.net/endurain/localized.svg"></a>
-  ![License](https://img.shields.io/github/license/joaovitoriasilva/endurain)
-  [![GitHub release](https://img.shields.io/github/v/release/joaovitoriasilva/endurain)](https://github.com/joaovitoriasilva/endurain/releases)
-  [![GitHub stars](https://img.shields.io/github/stars/joaovitoriasilva/endurain.svg?style=social&label=Star)](https://github.com/joaovitoriasilva/endurain/stargazers)
+  ![License](https://img.shields.io/github/license/endurain-project/endurain)
+  [![GitHub release](https://img.shields.io/github/v/release/endurain-project/endurain)](https://github.com/endurain-project/endurain/releases)
+  [![GitHub stars](https://img.shields.io/github/stars/endurain-project/endurain.svg?style=social&label=Star)](https://github.com/endurain-project/endurain/stargazers)
   [![Trademark Policy](https://img.shields.io/badge/trademark-Endurain%E2%84%A2-blue)](./TRADEMARK.md)
 
   **A self-hosted fitness tracking service**  

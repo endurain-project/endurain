@@ -23,7 +23,7 @@ Include visual representations of the new feature.
 
 ## Checklist
 
-- [ ] Followed the repo [contributions guidelines](https://github.com/joaovitoriasilva/endurain/blob/master/CONTRIBUTING.md)
+- [ ] Followed the repo [contributions guidelines](https://github.com/endurain-project/endurain/blob/master/CONTRIBUTING.md)
 - [ ] The feature aligns with the project's roadmap
 - [ ] Unit tests have been added
 - [ ] Documentation has been updated

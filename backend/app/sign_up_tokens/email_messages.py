@@ -43,7 +43,7 @@ def get_signup_confirmation_email_en(
     <div style="background-color: #ffffff; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);">
         <div style="text-align: center; margin-bottom: 30px;">
             <div style="font-size: 34px; font-weight: bold; margin-bottom: 10px; display: flex; align-items: center; justify-content: center; gap: 10px;">
-                <img src="https://github.com/joaovitoriasilva/endurain/blob/0e17fafe450b66eda7982311e6f94cee44316684/frontend/app/public/logo/logo.svg?raw=true"
+                <img src="https://github.com/endurain-project/endurain/blob/0e17fafe450b66eda7982311e6f94cee44316684/frontend/app/public/logo/logo.svg?raw=true"
                     alt="Endurain logo" style="height: 32px; width: auto;">
                 <span>Endurain</span>
             </div>
@@ -73,7 +73,7 @@ def get_signup_confirmation_email_en(
             <p>Best regards,<br>The Endurain team</p>
             <p>Visit Endurain at: <a style="color: #198754;" href="{email_service.frontend_host}">{email_service.frontend_host}</a> -
                 Source code at: <a style="color: #198754;"
-                    href="https://github.com/joaovitoriasilva/endurain">GitHub</a></p>
+                    href="https://github.com/endurain-project/endurain">GitHub</a></p>
         </div>
     </div>
 </body>
@@ -123,7 +123,7 @@ def get_admin_signup_notification_email_en(
     <div style="background-color: #ffffff; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);">
         <div style="text-align: center; margin-bottom: 30px;">
             <div style="font-size: 34px; font-weight: bold; margin-bottom: 10px; display: flex; align-items: center; justify-content: center; gap: 10px;">
-                <img src="https://github.com/joaovitoriasilva/endurain/blob/0e17fafe450b66eda7982311e6f94cee44316684/frontend/app/public/logo/logo.svg?raw=true"
+                <img src="https://github.com/endurain-project/endurain/blob/0e17fafe450b66eda7982311e6f94cee44316684/frontend/app/public/logo/logo.svg?raw=true"
                     alt="Endurain logo" style="height: 32px; width: auto;">
                 <span>Endurain</span>
             </div>
@@ -153,7 +153,7 @@ def get_admin_signup_notification_email_en(
             <p>Best regards,<br>The Endurain system</p>
             <p>Visit Endurain at: <a style="color: #198754;" href="{email_service.frontend_host}">{email_service.frontend_host}</a> -
                 Source code at: <a style="color: #198754;"
-                    href="https://github.com/joaovitoriasilva/endurain">GitHub</a></p>
+                    href="https://github.com/endurain-project/endurain">GitHub</a></p>
         </div>
     </div>
 </body>
@@ -199,7 +199,7 @@ def get_user_signup_approved_email_en(
     <div style="background-color: #ffffff; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);">
         <div style="text-align: center; margin-bottom: 30px;">
             <div style="font-size: 34px; font-weight: bold; margin-bottom: 10px; display: flex; align-items: center; justify-content: center; gap: 10px;">
-                <img src="https://github.com/joaovitoriasilva/endurain/blob/0e17fafe450b66eda7982311e6f94cee44316684/frontend/app/public/logo/logo.svg?raw=true"
+                <img src="https://github.com/endurain-project/endurain/blob/0e17fafe450b66eda7982311e6f94cee44316684/frontend/app/public/logo/logo.svg?raw=true"
                     alt="Endurain logo" style="height: 32px; width: auto;">
                 <span>Endurain</span>
             </div>
@@ -229,7 +229,7 @@ def get_user_signup_approved_email_en(
             <p>Best regards,<br>The Endurain team</p>
             <p>Visit Endurain at: <a style="color: #198754;" href="{email_service.frontend_host}">{email_service.frontend_host}</a> -
                 Source code at: <a style="color: #198754;"
-                    href="https://github.com/joaovitoriasilva/endurain">GitHub</a></p>
+                    href="https://github.com/endurain-project/endurain">GitHub</a></p>
         </div>
     </div>
 </body>

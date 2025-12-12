@@ -1,5 +1,5 @@
 site_name: Endurain documentation
-repo_url: https://github.com/joaovitoriasilva/endurain
+repo_url: https://github.com/endurain-project/endurain
 theme:
   name: material
   palette:
