@@ -127,6 +127,9 @@
               :datalabelsFormatter="
                 (value, context) => {
                   const timeSeconds = getHrBarChartData(hrZones, t).timeSeconds[context.dataIndex]
+                  if (!timeSeconds || timeSeconds === 0) {
+                    return `${Math.round(value)}%`
+                  }
                   const hours = Math.floor(timeSeconds / 3600)
                   const minutes = Math.floor((timeSeconds % 3600) / 60)
                   const timeStr = hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`

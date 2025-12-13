@@ -425,14 +425,13 @@ def transform_activity_streams_hr(activity_stream, activity, db):
     ]
     zone_percentages = [round((count / total) * 100, 2) for count in zone_counts]
     
-    # Calculate time in seconds for each zone
-    # Use the same logic as percentage: distribute total_timer_time based on waypoint ratio
-    if hasattr(activity, 'total_timer_time') and activity.total_timer_time and total > 0:
+    # Calculate time in seconds for each zone using the percentage of total_timer_time
+    if hasattr(activity, 'total_timer_time') and activity.total_timer_time:
         total_time_seconds = activity.total_timer_time
-        zone_time_seconds = [int((count / total) * total_time_seconds) for count in zone_counts]
+        zone_time_seconds = [int((percent / 100) * total_time_seconds) for percent in zone_percentages]
     else:
-        # Fallback: assume waypoints represent equal time intervals
-        zone_time_seconds = [int(count) for count in zone_counts]
+        # Fallback: no time calculation possible without total_timer_time
+        zone_time_seconds = [0, 0, 0, 0, 0]
 
     # Calculate zone HR boundaries for display
     zone_hr = {
