@@ -141,7 +141,16 @@
         :labels="getHrBarChartData(hrZones, t).labels"
         :values="getHrBarChartData(hrZones, t).values"
         :barColors="getHrBarChartData(hrZones, t).barColors"
-        :datalabelsFormatter="(value) => `${Math.round(value)}%`"
+        :timeSeconds="getHrBarChartData(hrZones, t).timeSeconds"
+        :datalabelsFormatter="
+          (value, context) => {
+            const timeSeconds = getHrBarChartData(hrZones, t).timeSeconds[context.dataIndex]
+            const hours = Math.floor(timeSeconds / 3600)
+            const minutes = Math.floor((timeSeconds % 3600) / 60)
+            const timeStr = hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`
+            return `${Math.round(value)}% (${timeStr})`
+          }
+        "
         :title="$t('activityMandAbovePillsComponent.labelHRZones')"
       />
       <hr />

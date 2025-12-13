@@ -424,6 +424,15 @@ def transform_activity_streams_hr(activity_stream, activity, db):
         np.sum(hr_values >= zone_4),
     ]
     zone_percentages = [round((count / total) * 100, 2) for count in zone_counts]
+    
+    # Calculate time in seconds for each zone
+    # Use the same logic as percentage: distribute total_timer_time based on waypoint ratio
+    if hasattr(activity, 'total_timer_time') and activity.total_timer_time and total > 0:
+        total_time_seconds = activity.total_timer_time
+        zone_time_seconds = [int((count / total) * total_time_seconds) for count in zone_counts]
+    else:
+        # Fallback: assume waypoints represent equal time intervals
+        zone_time_seconds = [int(count) for count in zone_counts]
 
     # Calculate zone HR boundaries for display
     zone_hr = {
@@ -434,11 +443,11 @@ def transform_activity_streams_hr(activity_stream, activity, db):
         "zone_5": f">= {int(zone_4)}",
     }
     activity_stream.hr_zone_percentages = {
-        "zone_1": {"percent": zone_percentages[0], "hr": zone_hr["zone_1"]},
-        "zone_2": {"percent": zone_percentages[1], "hr": zone_hr["zone_2"]},
-        "zone_3": {"percent": zone_percentages[2], "hr": zone_hr["zone_3"]},
-        "zone_4": {"percent": zone_percentages[3], "hr": zone_hr["zone_4"]},
-        "zone_5": {"percent": zone_percentages[4], "hr": zone_hr["zone_5"]},
+        "zone_1": {"percent": zone_percentages[0], "hr": zone_hr["zone_1"], "time_seconds": zone_time_seconds[0]},
+        "zone_2": {"percent": zone_percentages[1], "hr": zone_hr["zone_2"], "time_seconds": zone_time_seconds[1]},
+        "zone_3": {"percent": zone_percentages[2], "hr": zone_hr["zone_3"], "time_seconds": zone_time_seconds[2]},
+        "zone_4": {"percent": zone_percentages[3], "hr": zone_hr["zone_4"], "time_seconds": zone_time_seconds[3]},
+        "zone_5": {"percent": zone_percentages[4], "hr": zone_hr["zone_5"], "time_seconds": zone_time_seconds[4]},
     }
 
     return activity_stream
