@@ -28,7 +28,7 @@
       </div>
       <div class="d-flex justify-content-between mt-3" v-if="activity.total_elapsed_time">
         <span>
-          {{ $t('activityBellowMPillsComponent.labelMovingTime') }}
+          {{ $t('activityBellowMPillsComponent.labelElapsedTime') }}
         </span>
         <span>
           <b>{{ formatSecondsToMinutes(activity.total_elapsed_time) }}</b>
@@ -36,7 +36,7 @@
       </div>
       <div class="d-flex justify-content-between mt-3" v-if="activity.total_timer_time">
         <span>
-          {{ $t('activityBellowMPillsComponent.labelElapsedTime') }}
+          {{ $t('activityBellowMPillsComponent.labelMovingTime') }}
         </span>
         <span>
           <b>{{ formatSecondsToMinutes(activity.total_timer_time) }}</b>
