@@ -2,6 +2,11 @@ site_name: Endurain documentation
 repo_url: https://github.com/endurain-project/endurain
 theme:
   name: material
+  icon:
+    admonition:
+      alert: material/alert
+      note: material/information
+      tip: material/lightbulb-on
   palette:
     # Palette toggle for light mode
     - media: "(prefers-color-scheme: light)"
@@ -16,6 +21,10 @@ theme:
       toggle:
         icon: material/brightness-4
         name: Switch to light mode
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
 nav:
   - Home: index.md
   - Hosting Guide:
@@ -24,6 +33,7 @@ nav:
     - Bare-Metal Installation Guide: getting-started/bare-metal.md
     - MariaDB to Postgres migration: getting-started/maria-to-postgres-migration.md
   - Features:
+    - Single Sign-On (SSO): features/single-sign-on.md
     - Sleep Scoring: features/sleep-scoring.md
   - Integrations:
     - 3rd party apps: integrations/3rd-party-apps.md
