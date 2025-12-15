@@ -2,13 +2,9 @@
   <footer :class="{ 'py-5 bg-body-tertiary': enableBackground }">
     <div class="container">
       <p class="text-center text-muted">
-        &copy;
         {{ new Date().getFullYear() === 2023 ? '2023' : '2023 - ' + new Date().getFullYear() }}
-        Endurain •
-        <a
-          class="link-body-emphasis"
-          href="https://github.com/joaovitoriasilva/endurain"
-          role="button"
+        Endurain&reg; •
+        <a class="link-body-emphasis" href="https://github.com/endurain-project" role="button"
           ><font-awesome-icon :icon="['fab', 'fa-github']"
         /></a>
         •
@@ -23,7 +19,7 @@
         <a class="link-body-emphasis" href="https://discord.gg/6VUjUq2uZR"
           ><font-awesome-icon :icon="['fab', 'fa-discord']"
         /></a>
-        • v0.16.0
+        • v0.16.3
       </p>
       <p class="text-center text-muted">
         <img :src="INTEGRATION_LOGOS.strava" alt="Compatible with STRAVA image" height="25" />
