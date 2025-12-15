@@ -94,8 +94,8 @@
   "unitsCelsius": "°C",
   "unitsFahrenheit": "°F",
   "RHRLabel": "Pulso en repouso",
-  "labelHours": "Hours",
-  "labelMinutes": "Minutes",
+  "labelHours": "Horas",
+  "labelMinutes": "Minutos",
   "labelHoursShort": "h",
   "labelMinutesShort": "min"
 }

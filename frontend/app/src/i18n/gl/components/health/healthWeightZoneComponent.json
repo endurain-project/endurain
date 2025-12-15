@@ -1,8 +1,8 @@
 {
   "buttonAddWeight": "Engadir peso",
   "buttonWeightTarget": "Obxectivo de peso",
-  "modalWeightTargetLabel": "Enter your weight target",
-  "labelNumberOfHealthWeightWeight1": "There is a total of ",
-  "labelNumberOfHealthWeightWeight2": " weight measure(s) inserted (",
-  "labelNumberOfHealthWeightWeight3": " loaded):"
+  "modalWeightTargetLabel": "Escribe o obxectivo de peso",
+  "labelNumberOfHealthWeightWeight1": "Hai un total de ",
+  "labelNumberOfHealthWeightWeight2": " medida(s) do peso engadidas (",
+  "labelNumberOfHealthWeightWeight3": " cargadas):"
 }
