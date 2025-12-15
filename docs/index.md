@@ -7,14 +7,14 @@
     <a href="https://crowdin.com/project/endurain">
       <img src="https://badges.crowdin.net/endurain/localized.svg" alt="Crowdin">
     </a>
-    <img src="https://img.shields.io/github/license/joaovitoriasilva/endurain" alt="License">
-    <a href="https://github.com/joaovitoriasilva/endurain/releases">
-      <img src="https://img.shields.io/github/v/release/joaovitoriasilva/endurain" alt="GitHub release">
+    <img src="https://img.shields.io/github/license/endurain-project/endurain" alt="License">
+    <a href="https://github.com/endurain-project/endurain/releases">
+      <img src="https://img.shields.io/github/v/release/endurain-project/endurain" alt="GitHub release">
     </a>
-    <a href="https://github.com/joaovitoriasilva/endurain/stargazers">
-      <img src="https://img.shields.io/github/stars/joaovitoriasilva/endurain.svg?style=social&label=Star" alt="GitHub stars">
+    <a href="https://github.com/endurain-project/endurain/stargazers">
+      <img src="https://img.shields.io/github/stars/endurain-project/endurain.svg?style=social&label=Star" alt="GitHub stars">
     </a>
-    <a href="https://github.com/joaovitoriasilva/endurain/blob/master/TRADEMARK.md">
+    <a href="https://github.com/endurain-project/endurain/blob/master/TRADEMARK.md">
       <img src="https://img.shields.io/badge/trademark-Endurain%E2%84%A2-blue" alt="Trademark Policy">
     </a>
   </p>
@@ -73,7 +73,7 @@ Endurain currently supports:
 
 ## Planned Features
 
-Please visit the [ROADMAP.md file on GitHub](https://github.com/joaovitoriasilva/endurain/blob/master/ROADMAP.md).
+Please visit the [ROADMAP.md file on GitHub](https://github.com/endurain-project/endurain/blob/master/ROADMAP.md).
 
 ## Sponsors
 
@@ -83,7 +83,7 @@ Consider [sponsoring Endurain on GitHub](https://github.com/sponsors/joaovitoria
 
 ## Contributing
 
-Contributions are welcomed! Please open an issue to discuss any changes or improvements before submitting a PR. Check out the [Contributing Guidelines](https://github.com/joaovitoriasilva/endurain/blob/master/CONTRIBUTING.md) for more details.
+Contributions are welcomed! Please open an issue to discuss any changes or improvements before submitting a PR. Check out the [Contributing Guidelines](https://github.com/endurain-project/endurain/blob/master/CONTRIBUTING.md) for more details.
 
 ## License
 
@@ -109,7 +109,7 @@ Currently supported in:
 
 ## Star History
 
-[![Star History Chart](https://api.star-history.com/svg?repos=joaovitoriasilva/endurain&type=Date)](https://star-history.com/#joaovitoriasilva/endurain&Date)
+[![Star History Chart](https://api.star-history.com/svg?repos=endurain-project/endurain&type=Date)](https://star-history.com/#endurain-project/endurain&Date)
 
 ## Trademark Notice
 
@@ -118,4 +118,8 @@ Endurain® is a trademark of João Vitória Silva.
 You are welcome to self-host Endurain and use the name and logo, including for personal, educational, research, or community (non-commercial) use.  
 Commercial use of the Endurain name or logos (such as offering paid hosting, products, or services) is **not permitted without prior written permission**.
 
-See [`TRADEMARK.md`](https://github.com/joaovitoriasilva/endurain/blob/master/TRADEMARK.md) for full details.
+See [`TRADEMARK.md`](https://github.com/endurain-project/endurain/blob/master/TRADEMARK.md) for full details.
+
+<div align="center">
+  <sub>Built with ❤️ from Portugal | Part of the <a href="https://github.com/endurain-project">Endurain</a> ecosystem</sub>
+</div>

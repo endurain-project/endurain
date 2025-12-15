@@ -15,7 +15,7 @@ Explain how the refactoring improves the codebase (e.g., readability, performanc
 
 ## Checklist
 
-- [ ] Followed the repo [contributions guidelines](https://github.com/joaovitoriasilva/endurain/blob/master/CONTRIBUTING.md)
+- [ ] Followed the repo [contributions guidelines](https://github.com/endurain-project/endurain/blob/master/CONTRIBUTING.md)
 - [ ] No functional changes have been introduced
 - [ ] Existing tests pass
 - [ ] The code follows the project's coding standards

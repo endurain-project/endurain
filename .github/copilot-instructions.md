@@ -48,7 +48,7 @@ Endurain is a self-hosted fitness tracking application with:
 
 ### Quick Start
 
-1. Clone repository: `git clone https://github.com/joaovitoriasilva/endurain.git`
+1. Clone repository: `git clone https://github.com/endurain-project/endurain.git`
 2. Navigate to the project root
 3. Choose development approach:
    - **Frontend Only** – see _Frontend Development_ below

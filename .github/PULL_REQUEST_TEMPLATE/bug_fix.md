@@ -27,7 +27,7 @@ Provide screenshots or logs that demonstrate the fix.
 
 ## Checklist
 
-- [ ] Followed the repo [contributions guidelines](https://github.com/joaovitoriasilva/endurain/blob/master/CONTRIBUTING.md)
+- [ ] Followed the repo [contributions guidelines](https://github.com/endurain-project/endurain/blob/master/CONTRIBUTING.md)
 - [ ] The code follows the project's coding standards
 - [ ] Tests have been added/updated
 - [ ] Documentation has been updated (if necessary)

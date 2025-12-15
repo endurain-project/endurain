@@ -85,7 +85,7 @@ class IdentityProviderService:
                 limits=httpx.Limits(max_keepalive_connections=5, max_connections=10),
                 follow_redirects=True,
                 headers={
-                    "User-Agent": "Endurain/0.16.0 (OIDC Client)",
+                    "User-Agent": f"Endurain/{core_config.API_VERSION} (OIDC Client)",
                     "Accept": "application/json",
                 },
             )

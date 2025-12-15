@@ -6,9 +6,7 @@ This guide explains how to install **Endurain** bare-metal on Debian without Doc
 
 ```bash
 apt install -y \
-  default-libmysqlclient-dev \
   build-essential \
-  pkg-config  \
   git \
   curl \
   python3-dev
@@ -30,9 +28,9 @@ Run the following command to download and unpack the latest release.
 mkdir -p /path/to/endurain
 cd /path/to/endurain
 
-TAG=$(curl -s https://api.github.com/repos/joaovitoriasilva/endurain/releases/latest \
+TAG=$(curl -s https://api.github.com/repos/endurain-project/endurain/releases/latest \
   | grep -oP '"tag_name": "\K(.*)(?=")')
-curl -L "https://github.com/joaovitoriasilva/endurain/archive/refs/tags/$TAG.tar.gz" \
+curl -L "https://github.com/endurain-project/endurain/archive/refs/tags/$TAG.tar.gz" \
   | tar xz
 EXTRACTED=$(ls -d endurain-*)
 shopt -s dotglob

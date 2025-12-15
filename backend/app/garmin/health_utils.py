@@ -339,16 +339,40 @@ def fetch_and_process_sleep_by_dates(
             light_sleep_seconds=sleep_dto.get("lightSleepSeconds"),
             rem_sleep_seconds=sleep_dto.get("remSleepSeconds"),
             awake_sleep_seconds=sleep_dto.get("awakeSleepSeconds"),
-            avg_heart_rate=int(sleep_dto.get("avgHeartRate")),
+            avg_heart_rate=(
+                int(sleep_dto.get("avgHeartRate"))
+                if sleep_dto.get("avgHeartRate") is not None
+                else None
+            ),
             min_heart_rate=None,
             max_heart_rate=None,
-            avg_spo2=int(sleep_dto.get("averageSpO2Value")),
+            avg_spo2=(
+                int(sleep_dto.get("averageSpO2Value"))
+                if sleep_dto.get("averageSpO2Value") is not None
+                else None
+            ),
             lowest_spo2=sleep_dto.get("lowestSpO2Value"),
             highest_spo2=sleep_dto.get("highestSpO2Value"),
-            avg_respiration=int(sleep_dto.get("averageRespirationValue")),
-            lowest_respiration=int(sleep_dto.get("lowestRespirationValue")),
-            highest_respiration=int(sleep_dto.get("highestRespirationValue")),
-            avg_stress_level=int(sleep_dto.get("avgSleepStress")),
+            avg_respiration=(
+                int(sleep_dto.get("averageRespirationValue"))
+                if sleep_dto.get("averageRespirationValue") is not None
+                else None
+            ),
+            lowest_respiration=(
+                int(sleep_dto.get("lowestRespirationValue"))
+                if sleep_dto.get("lowestRespirationValue") is not None
+                else None
+            ),
+            highest_respiration=(
+                int(sleep_dto.get("highestRespirationValue"))
+                if sleep_dto.get("highestRespirationValue") is not None
+                else None
+            ),
+            avg_stress_level=(
+                int(sleep_dto.get("avgSleepStress"))
+                if sleep_dto.get("avgSleepStress") is not None
+                else None
+            ),
             awake_count=sleep_dto.get("awakeCount"),
             restless_moments_count=None,
             sleep_score_overall=overall_score.get("value"),
@@ -398,7 +422,11 @@ def fetch_and_process_sleep_by_dates(
                 in health_sleep_schema.SleepScore._value2member_map_
                 else None
             ),
-            avg_sleep_stress=int(sleep_dto.get("avgSleepStress")),
+            avg_sleep_stress=(
+                int(sleep_dto.get("avgSleepStress"))
+                if sleep_dto.get("avgSleepStress") is not None
+                else None
+            ),
             sleep_stress_score=(
                 health_sleep_schema.SleepScore(sleep_stress_score.get("qualifierKey"))
                 if sleep_stress_score

@@ -8,7 +8,7 @@ Bellow are the steps to create a dev environment. Examples bellow will use Endur
 
 ```
 $ cd <folder_to_store_code>
-$ git clone https://github.com/joaovitoriasilva/endurain.git # this will clone the repo structure to the previous folder inside a folder called endurain
+$ git clone https://github.com/endurain-project/endurain.git # this will clone the repo structure to the previous folder inside a folder called endurain
 ```
 
 ### Docker image and backend logic
@@ -164,6 +164,7 @@ username=user@example.com&password=userpassword
 ```
 
 **Response (when MFA is enabled):**
+
 - **Web clients**: HTTP 202 Accepted
   ```json
   {
@@ -197,6 +198,7 @@ X-Client-Type: web|mobile
 ```
 
 **Response (successful verification):**
+
 - **Web clients**: Tokens are set as HTTP-only cookies
   ```json
   {

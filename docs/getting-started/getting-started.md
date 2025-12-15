@@ -9,25 +9,39 @@ Welcome to the guide for getting started on hosting your own production instance
 * A Linux distro that has `docker compose` cli, and `caddy` in the repositories.
 
 
-## Installing docker and Caddy reverse proxy
+## Installing Docker and Caddy reverse proxy
 
 Note:
-If you have a old-ish distro (Ubuntu 22.04 and older) you need to add the repos for caddy and docker. Read how to do it for [docker](https://docs.docker.com/compose/install/linux/), and [caddy](https://caddyserver.com/docs/install#debian-ubuntu-raspbian). Fore newer distroes (Debian 13 and Ubuntu 24.04 you do not have to do this step).
+If you have a old-ish distro (Ubuntu 22.04 and older) you need to add the repo for Docker. Read how to do it on [Docker](https://docs.docker.com/compose/install/linux/) documentation. For newer distroes (Debian 13 and Ubuntu 24.04 it is not expected for you to have to do this step).
 
-We use apt to do this:
+Install Docker:
 
-```
+```bash
 sudo apt update -y
-sudo apt install docker.io docker-compose caddy -y
+sudo apt install docker.io docker-compose -y
 ```
 
 Confirm your user has the id 1000:
 
-```
+```bash
 id
 ```
 
 If you are not the user 1000, you need to set the `UID` and `GID` to your id in the .env file. But to keep this guide as easy to follow as possible, we will assume that you are user 1000.
+
+## Installing Caddy reverse proxy
+
+Note:
+If you have a old-ish distro (Ubuntu 22.04 and older) you need to add the repo for Caddy. Read how to do it on [Caddy](https://caddyserver.com/docs/install#debian-ubuntu-raspbian) documentation. For newer distroes (Debian 13 and Ubuntu 24.04 it is not expected for you to have to do this step).
+
+```bash
+sudo apt update -y
+sudo apt install caddy -y
+```
+
+## Installing Nginx Proxy Manager reverse proxy
+
+Nginx Proxy Manager comes as a pre-built Docker image. Please refer to the [docs](https://nginxproxymanager.com/guide/) for details on how to install it.
 
 ## Create directory structure
 
@@ -54,13 +68,13 @@ Splitting up the setup like this make it easy to handle updates to the container
 
 To make it as easy as possible for selfhoster to get up and running examples of docker-compose.yml and .env is on the git repo. Here are links to the files on the repo:
 
-* [docker-compose.yml.example](https://raw.githubusercontent.com/joaovitoriasilva/endurain/refs/heads/master/docker-compose.yml.example)
-* [.env.example](https://raw.githubusercontent.com/joaovitoriasilva/endurain/refs/heads/master/.env.example)
+* [docker-compose.yml.example](https://raw.githubusercontent.com/endurain-project/endurain/refs/heads/master/docker-compose.yml.example)
+* [.env.example](https://raw.githubusercontent.com/endurain-project/endurain/refs/heads/master/.env.example)
 
 ```bash
 cd /opt/endurain
-wget https://raw.githubusercontent.com/joaovitoriasilva/endurain/refs/heads/master/docker-compose.yml.example
-wget https://raw.githubusercontent.com/joaovitoriasilva/endurain/refs/heads/master/.env.example
+wget https://raw.githubusercontent.com/endurain-project/endurain/refs/heads/master/docker-compose.yml.example
+wget https://raw.githubusercontent.com/endurain-project/endurain/refs/heads/master/.env.example
 
 mv docker-compose.yml.example docker-compose.yml
 mv .env.example .env
@@ -84,7 +98,7 @@ Environment variable  | How to set it |
 
 **Please note:**
 
-POSTGRES_DB and POSTGRES_USER is values for the database. If you change it from endurain, you also need to set the environment variables for the app image. Please leave them as `endurain` if you are unsure.
+`POSTGRES_DB` and `POSTGRES_USER` are values for the database. If you change it from endurain, you also need to set the environment variables for the app image. Please leave them as `endurain` if you are unsure.
 
 ### Start the stack
 
@@ -97,7 +111,7 @@ sudo docker compose up -d
 
 Check the log output:
 
-```
+```bash
 docker compose logs -f
 ```
 
@@ -105,50 +119,123 @@ If you do not get any errors, continue to next step.
 
 ### Visit the site
 
-* Visit the site insecurly on http://`IP-OF-YOUR-SERVER`:8080
+* Visit the site insecurly on `http://<IP-OF-YOUR-SERVER>:8080`
 * We still can not login to the site, because the `ENDURAIN_HOST` doesn't match our local URL.
 
-##  Configure Caddy as reverse proxy and get SSL cert from letsencrypt
+## Configure a reverse proxy
 
-* Before we configure caddy you need to set your DNS provider to point your domain to your external IP.
+* Before we configure a reverse proxy you need to set your DNS provider to point your domain to your external IP.
 * You also need to open your firewall on port 443 and 80 to the server.
 
-We use caddy outside docker. This way Debian handles the updates (you just need to run `sudo apt get update -y` and `sudo apt get upgrade -y`)
+###  Configure Caddy as reverse proxy and get SSL cert from letsencrypt
+
+We use Caddy outside docker. This way Debian handles the updates (you just need to run `sudo apt update -y` and `sudo apt upgrade -y`)
 
 Caddy is configured in the file `/etc/caddy/Caddyfile`
 
 Open the file in your favourite editor, delete the default text, and paste in this:
 
-```
+```conf
 endurain.yourdomain.com {
         reverse_proxy localhost:8080
 }
 ```
 
-Restart caddy
+Restart Caddy
 
-```
+```bash
 sudo systemctl restart caddy
 ```
 
-Check the ouput of caddy with:
+Check the ouput of Caddy with:
 
-```
+```bash
 sudo journalctl -u caddy
 ```
+
+###  Configure Nginx Proxy Manager as reverse proxy and get SSL cert from letsencrypt
+
+Bellow is an example config file for Endurain:
+```conf
+------------------------------------------------------------
+endurain.yourdomain.com
+------------------------------------------------------------
+
+map $scheme $hsts_header {
+    https "max-age=63072000; preload";
+}
+
+server {
+    set $forward_scheme http;
+    set $server "your_server_ip";
+    set $port 8884;
+
+    listen 80;
+    listen [::]:80;
+
+    listen 443 ssl;
+    listen [::]:443 ssl;
+
+    server_name endurain.yourdomain.com;
+
+    http2 on;
+    Let's Encrypt SSL
+
+    include conf.d/include/letsencrypt-acme-challenge.conf;
+    include conf.d/include/ssl-cache.conf;
+    include conf.d/include/ssl-ciphers.conf;
+    ssl_certificate /etc/letsencrypt/live/npm-21/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/npm-21/privkey.pem;
+    Asset Caching
+
+    include conf.d/include/assets.conf;
+    Block Exploits
+
+    include conf.d/include/block-exploits.conf;
+    HSTS (ngx_http_headers_module is required) (63072000 seconds = 2 years)
+
+    add_header Strict-Transport-Security $hsts_header always;
+    Force SSL
+
+    include conf.d/include/force-ssl.conf;
+
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection $http_connection;
+    proxy_http_version 1.1;
+
+    access_log /data/logs/proxy-host-18_access.log proxy;
+    error_log /data/logs/proxy-host-18_error.log warn;
+
+    location / {
+        HSTS (ngx_http_headers_module is required) (63072000 seconds = 2 years)
+
+        add_header Strict-Transport-Security $hsts_header always;
+
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $http_connection;
+        proxy_http_version 1.1;
+        Proxy!
+
+        include conf.d/include/proxy.conf;
+    }
+    Custom
+
+    include /data/nginx/custom/server_proxy[.]conf;
+}
+```
+
+## Access your Endurain instance
 
 You should now be able to access your site on endurain.yourdomain.com
 
 **Log in with username: admin password: admin, and remember to change the password**
-
-
 
 🎉 **Weee** 🎉 You now have your own instance of Endurain up and running!
 
 ## How to update
 
 * Take a backup of your files and db.
-* Check for new releases of the container image [here](https://github.com/joaovitoriasilva/endurain). Read release notes carefully for breaking changes.
+* Check for new releases of the container image [here](https://github.com/endurain-project/endurain). Read release notes carefully for breaking changes.
 * Log on your server and run:
 * Inside `/opt/endurain/docker-compose.yml`, change out the version tag (the version after `:`). If you are running `:latest` tag on the docker image, you do not have to edit anything in the docker-compose.yml file. 
 
@@ -168,7 +255,7 @@ The same is the case for Postgres. Check for breaking changes in release notes o
 
 You should implement backup strategy for the following directories:
 
-```
+```bash
 /opt/endurain/app/data
 /opt/endurain/app/logs
 ```
