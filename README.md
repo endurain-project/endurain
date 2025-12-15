@@ -15,6 +15,18 @@
   <img src="screenshot_01.png" alt="Endurain Screenshot">
 </div>
 
+## 🚀 Try the Demo
+
+Experience Endurain without installation:
+
+**Demo URL:** [https://demo.endurain.com](https://demo.endurain.com)
+
+- **Username:** `admin`
+- **Password:** `admin`
+- **Reset Schedule:** Daily at midnight (Europe/Lisbon timezone)
+
+> ⚠️ **Note:** The demo environment resets every day. Do not store important data.
+
 ## Table of Contents
 
 - [Endurain documentation](https://docs.endurain.com)
