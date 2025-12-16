@@ -11,6 +11,8 @@ import password_reset_tokens.utils as password_reset_tokens_utils
 
 import sign_up_tokens.utils as sign_up_tokens_utils
 
+import auth.oauth_state.utils as oauth_state_utils
+
 import core.logger as core_logger
 
 # scheduler = BackgroundScheduler()
@@ -68,6 +70,14 @@ def start_scheduler():
         60,
         [],
         "delete invalid sign-up tokens from the database",
+    )
+
+    add_scheduler_job(
+        oauth_state_utils.delete_expired_oauth_states_from_db,
+        "interval",
+        5,
+        [],
+        "delete expired OAuth states from the database",
     )
 
 

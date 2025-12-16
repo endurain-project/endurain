@@ -26,6 +26,8 @@ import password_reset_tokens.utils as password_reset_tokens_utils
 
 import sign_up_tokens.utils as sign_up_tokens_utils
 
+import auth.oauth_state.utils as oauth_state_utils
+
 from core.routes import router as api_router
 
 
@@ -77,6 +79,12 @@ async def startup_event():
     )
     sign_up_tokens_utils.delete_invalid_tokens_from_db()
 
+    # Delete expired OAuth states
+    core_logger.print_to_log_and_console(
+        "Deleting expired OAuth states from the database"
+    )
+    oauth_state_utils.delete_expired_oauth_states_from_db()
+
 
 def shutdown_event():
     # Log the shutdown event
@@ -104,7 +112,7 @@ def create_app() -> FastAPI:
     # Add session middleware for OAuth state management
     fastapi_app.add_middleware(
         SessionMiddleware,
-        secret_key=os.environ.get("SECRET_KEY"),
+        secret_key=core_config.read_secret("SECRET_KEY"),
         session_cookie="endurain_session",
         max_age=3600,  # 1 hour session timeout
         same_site="lax",

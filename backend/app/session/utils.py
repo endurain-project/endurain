@@ -59,6 +59,7 @@ def create_session_object(
     request: Request,
     hashed_refresh_token: str,
     refresh_token_exp: datetime,
+    oauth_state_id: str | None = None,
 ) -> session_schema.UsersSessions:
     """
     Creates a UsersSessions object representing a user session with device and request metadata.
@@ -69,6 +70,7 @@ def create_session_object(
         request (Request): The HTTP request object containing client information.
         hashed_refresh_token (str): The hashed refresh token for the session.
         refresh_token_exp (datetime): The expiration datetime for the refresh token.
+        oauth_state_id (str | None): Optional OAuth state ID for PKCE mobile flows.
 
     Returns:
         session_schema.UsersSessions: The session object populated with user, device, and request details.
@@ -88,6 +90,8 @@ def create_session_object(
         browser_version=device_info.browser_version,
         created_at=datetime.now(timezone.utc),
         expires_at=refresh_token_exp,
+        oauth_state_id=oauth_state_id,
+        tokens_exchanged=False,
     )
 
 
@@ -124,6 +128,8 @@ def edit_session_object(
         browser_version=device_info.browser_version,
         created_at=session.created_at,
         expires_at=refresh_token_exp,
+        oauth_state_id=session.oauth_state_id,
+        tokens_exchanged=session.tokens_exchanged,
     )
 
 
@@ -134,6 +140,7 @@ def create_session(
     refresh_token: str,
     password_hasher: auth_password_hasher.PasswordHasher,
     db: Session,
+    oauth_state_id: str | None = None,
 ) -> None:
     """
     Creates a new user session and stores it in the database.
@@ -145,6 +152,7 @@ def create_session(
         refresh_token (str): The refresh token to be associated with the session.
         password_hasher (auth_password_hasher.PasswordHasher): Utility to hash the refresh token.
         db (Session): Database session for storing the session.
+        oauth_state_id (str | None): Optional OAuth state ID for PKCE mobile flows.
 
     Returns:
         None
@@ -161,6 +169,7 @@ def create_session(
         request,
         password_hasher.hash_password(refresh_token),
         exp,
+        oauth_state_id,
     )
 
     # Add the session to the database

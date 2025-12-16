@@ -36,6 +36,12 @@ class UsersSessions(BaseModel):
     browser_version: str = Field(..., max_length=45, description="Browser version")
     created_at: datetime = Field(..., description="Session creation timestamp")
     expires_at: datetime = Field(..., description="Session expiration timestamp")
+    oauth_state_id: str | None = Field(
+        None, max_length=64, description="Link to OAuth state for PKCE validation"
+    )
+    tokens_exchanged: bool = Field(
+        default=False, description="Prevents duplicate token exchange for mobile"
+    )
 
     model_config = ConfigDict(
         from_attributes=True, extra="forbid", validate_assignment=True

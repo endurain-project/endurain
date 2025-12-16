@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
+import auth.oauth_state.models as oauth_state_models
 import session.models as session_models
 import session.schema as session_schema
 
@@ -95,9 +96,7 @@ def get_session_by_id(
         return db_session
     except Exception as err:
         # Log the exception
-        core_logger.print_to_log(
-            f"Error in get_session_by_id: {err}", "error", exc=err
-        )
+        core_logger.print_to_log(f"Error in get_session_by_id: {err}", "error", exc=err)
 
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
@@ -250,4 +249,113 @@ def delete_session(session_id: str, user_id: int, db: Session) -> None:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to delete session",
+        ) from err
+
+
+def mark_tokens_exchanged(session_id: str, db: Session) -> None:
+    """
+    Atomically mark tokens as exchanged for a session to prevent duplicate mobile token exchanges.
+
+    This function sets the tokens_exchanged flag to True for a specific session.
+    Prevents replay attacks where multiple token exchange requests could be made
+    for the same session.
+
+    Args:
+        session_id (str): The unique identifier of the session.
+        db (Session): The SQLAlchemy database session.
+
+    Raises:
+        SessionNotFoundError: If the session does not exist.
+        HTTPException: If an error occurs during the update (500).
+    """
+    try:
+        # Get the session from the database
+        db_session = (
+            db.query(session_models.UsersSessions)
+            .filter(session_models.UsersSessions.id == session_id)
+            .first()
+        )
+
+        # Check if the session exists
+        if not db_session:
+            raise SessionNotFoundError(f"Session {session_id} not found")
+
+        # Mark tokens as exchanged
+        db_session.tokens_exchanged = True
+        db.commit()
+    except SessionNotFoundError as err:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=str(err)
+        ) from err
+    except Exception as err:
+        # Rollback the transaction
+        db.rollback()
+
+        # Log the exception
+        core_logger.print_to_log(
+            f"Error in mark_tokens_exchanged: {err}", "error", exc=err
+        )
+
+        # Raise an HTTPException with a 500 Internal Server Error status code
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to mark tokens as exchanged",
+        ) from err
+
+
+def get_session_with_oauth_state(
+    session_id: str, db: Session
+) -> tuple[session_models.UsersSessions, oauth_state_models.OAuthState | None] | None:
+    """
+    Retrieve a session with its associated OAuthState for token exchange validation.
+
+    This function performs a query to retrieve a session along with its
+    linked OAuth state record (if any). Used during mobile token exchange to
+    validate PKCE and ensure the session is valid.
+
+    Args:
+        session_id (str): The unique identifier of the session.
+        db (Session): The SQLAlchemy database session.
+
+    Returns:
+        tuple[UsersSessions, OAuthState | None] | None: A tuple of (session, oauth_state)
+            where oauth_state may be None if not linked. Returns None if session not found.
+
+    Raises:
+        HTTPException: If an error occurs during retrieval (500).
+    """
+    try:
+        # Query session
+        db_session = (
+            db.query(session_models.UsersSessions)
+            .filter(session_models.UsersSessions.id == session_id)
+            .filter(
+                session_models.UsersSessions.expires_at > datetime.now(timezone.utc)
+            )
+            .first()
+        )
+
+        if not db_session:
+            return None
+
+        # Get OAuth state if linked
+        oauth_state = None
+        if db_session.oauth_state_id:
+            oauth_state = (
+                db.query(oauth_state_models.OAuthState)
+                .filter(oauth_state_models.OAuthState.id == db_session.oauth_state_id)
+                .first()
+            )
+
+        return (db_session, oauth_state)
+    except Exception as err:
+        # Log the exception
+        core_logger.print_to_log(
+            f"Error in get_session_with_oauth_state: {err}", "error", exc=err
+        )
+
+        # Raise an HTTPException with a 500 Internal Server Error status code
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to retrieve session with OAuth state",
         ) from err

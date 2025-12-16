@@ -61,8 +61,9 @@ The API is reachable under `/api/v1`. Below are the authentication-related endpo
 | What | Url | Expected Information | Rate Limit |
 | ---- | --- | -------------------- | ---------- |
 | **Get Enabled Providers** | `/public/idp` | None (public endpoint) | - |
-| **Initiate OAuth Login** | `/public/idp/login/{idp_slug}` | Query param: `redirect=<path>` (optional) | 10 requests/min per IP |
-| **OAuth Callback** | `/public/idp/callback/{idp_slug}` | Query params: `code=<code>`, `state=<state>` | Configurable |
+| **Initiate OAuth Login** | `/public/idp/login/{idp_slug}` | Query params: `redirect`, `code_challenge`, `code_challenge_method` | 10 requests/min per IP |
+| **OAuth Callback** | `/public/idp/callback/{idp_slug}` | Query params: `code=<code>`, `state=<state>` | 10 requests/min per IP |
+| **Token Exchange (PKCE)** | `/public/idp/session/{session_id}/tokens` | JSON: `{"code_verifier": "<verifier>"}` | 10 requests/min per IP |
 | **Link IdP to Account** | `/profile/idp/{idp_id}/link` | Requires authenticated session | 10 requests/min per IP |
 
 ### Example Resource Endpoints
@@ -143,7 +144,7 @@ X-Client-Type: web|mobile
   "refresh_token": "eyJ...",
   "session_id": "unique_session_id",
   "token_type": "Bearer",
-  "expires_in": 900,
+  "expires_in": 900
 }
 ```
 
@@ -210,122 +211,171 @@ Users can link their Endurain account to an OAuth provider:
 When authenticating via OAuth, the response format matches the standard authentication:
 
 - **Web clients**: Tokens set as HTTP-only cookies, redirected to app
-- **Mobile clients using WebView**: Tokens set as HTTP-only cookies in WebView, redirected to app
+- **Mobile clients**: Must use PKCE flow (see [Mobile SSO with PKCE](#mobile-sso-with-pkce) below)
 
-!!! warning "Mobile clients using WebView"
-    Mobile apps must use WebView for OAuth/SSO flows to properly handle redirects and cookies. Tokens returned in JSON format is not currently supported for SSO.
+!!! info "Mobile OAuth/SSO"
+    Mobile apps must use the PKCE flow for OAuth/SSO authentication. This provides enhanced security and a cleaner separation between the WebView and native app.
 
-## Mobile SSO Implementation Guide
+## Mobile SSO with PKCE
 
 ### Overview
-Mobile applications must use an embedded WebView (or in-app browser) to handle OAuth/SSO authentication. The flow leverages browser-based redirects and cookie storage that are part of the OAuth 2.0 standard.
+PKCE (Proof Key for Code Exchange, RFC 7636) is required for mobile OAuth/SSO authentication. It provides enhanced security by eliminating the need to extract tokens from WebView cookies, preventing authorization code interception attacks, and enabling a cleaner separation between the WebView and native app.
 
-### Prerequisites
+### Why Use PKCE?
 
-- WebView component that supports:
-    - Cookie storage and management
-    - JavaScript execution
-    - URL interception/monitoring
-    - Custom headers (for subsequent API calls)
-- Secure storage for tokens (Keychain on iOS, KeyStore on Android)
+| Traditional WebView Flow | PKCE Flow |
+| ------------------------ | --------- |
+| Extract tokens from cookies | Tokens delivered via secure API |
+| Cookies may leak across contexts | No cookie extraction needed |
+| Complex WebView cookie management | Simple token exchange |
+| Potential timing issues | Atomic token exchange |
 
-### Step-by-Step Implementation
+### PKCE Flow Overview
 
-#### Step 1: Fetch Available Identity Providers
-Before presenting SSO options to users, fetch the list of enabled providers:
-
-**Request:**
-
-```http
-GET /api/v1/public/idp
+```
+┌─────────────┐     ┌─────────────┐     ┌─────────────┐     ┌─────────────┐
+│  Mobile App │     │   Backend   │     │   WebView   │     │     IdP     │
+└──────┬──────┘     └──────┬──────┘     └──────┬──────┘     └──────┬──────┘
+       │                   │                   │                   │
+       │ Generate verifier │                   │                   │
+       │ & challenge       │                   │                   │
+       │──────────────────>│                   │                   │
+       │                   │                   │                   │
+       │     Open WebView with challenge       │                   │
+       │──────────────────────────────────────>│                   │
+       │                   │                   │                   │
+       │                   │      Redirect to IdP                  │
+       │                   │──────────────────────────────────────>│
+       │                   │                   │                   │
+       │                   │                   │   User logs in    │
+       │                   │                   │<─────────────────>│
+       │                   │                   │                   │
+       │                   │   Callback with code & state          │
+       │                   │<──────────────────────────────────────│
+       │                   │                   │                   │
+       │     Redirect with session_id          │                   │
+       │<──────────────────────────────────────│                   │
+       │                   │                   │                   │
+       │ POST token exchange with verifier     │                   │
+       │──────────────────>│                   │                   │
+       │                   │                   │                   │
+       │   Return tokens   │                   │                   │
+       │<──────────────────│                   │                   │
+       │                   │                   │                   │
 ```
 
-**Response:**
+### Step-by-Step PKCE Implementation
 
-```json
-[
-  {
-    "id": 1,
-    "name": "Keycloak",
-    "slug": "keycloak",
-    "icon": "keycloak"
-  },
-  {
-    "id": 2,
-    "name": "Pocket ID",
-    "slug": "pocket-id",
-    "icon": "pocketid"
-  }
-]
+#### Step 1: Generate PKCE Code Verifier and Challenge
+
+Before initiating the OAuth flow, generate a cryptographically random code verifier and compute its SHA256 challenge:
+
+**Code Verifier Requirements (RFC 7636):**
+
+- Length: 43-128 characters
+- Characters: `A-Z`, `a-z`, `0-9`, `-`, `.`, `_`, `~`
+- Cryptographically random
+
+**Code Challenge Computation:**
+
+```
+code_challenge = BASE64URL(SHA256(code_verifier))
 ```
 
-#### Step 2: Initialize WebView and Load SSO URL
-When user selects an SSO provider, open a WebView with the SSO initiation URL:
+#### Step 2: Initiate OAuth with PKCE Challenge
+
+Open a WebView with the SSO URL including PKCE parameters:
 
 **URL to Load:**
 
-```conf
-https://your-endurain-instance.com/api/v1/public/idp/login/{idp_slug}?redirect=/dashboard
+```http
+https://your-endurain-instance.com/api/v1/public/idp/login/{idp_slug}?code_challenge={challenge}&code_challenge_method=S256&redirect=/dashboard
 ```
 
-**Parameters:**
+**Query Parameters:**
 
-- `{idp_slug}`: The provider slug from Step 1 (e.g., "google", "keycloak")
-- `redirect` (optional): Frontend path to navigate to after successful login
+| Parameter | Required | Description |
+| --------- | -------- | ----------- |
+| `code_challenge` | Yes (PKCE) | Base64url-encoded SHA256 hash of code_verifier |
+| `code_challenge_method` | Yes (PKCE) | Must be `S256` |
+| `redirect` | No | Frontend path after successful login |
 
-**What Happens:**
+#### Step 3: Monitor WebView for Callback
 
-1. Backend generates OAuth state and authorization URL
-2. WebView redirects to the identity provider's login page
-3. User authenticates with the provider (enters credentials, 2FA, etc.)
+The OAuth flow proceeds as normal. Monitor the WebView URL for the success redirect:
 
-#### Step 3: Monitor WebView URL Changes
-Set up URL interception to detect when the OAuth callback completes:
-
-**URLs to Monitor:**
-
-- Success: `https://your-endurain-instance.com/login?sso=success&session_id={uuid}`
-- Success with redirect: `https://your-endurain-instance.com/login?sso=success&session_id={uuid}&redirect=/dashboard`
-- Error: `https://your-endurain-instance.com/login?error=sso_failed`
-
-#### Step 4: Extract tokens from WebView Cookies, store tokens securely and clean up the WebView
-When SSO succeeds, extract authentication tokens from the WebView's cookie store and store them securely:
-
-**Cookies to Extract:**
-
-- `endurain_access_token`: JWT access token (15 min expiry)
-- `endurain_refresh_token`: JWT refresh token (7 day expiry)
-
-#### Step 5: Make Authenticated API Requests
-Use extracted tokens for subsequent API calls with the required headers:
-
-**Required Headers:**
-
-- `Authorization: Bearer {access_token}`
-- `X-Client-Type: mobile`
-
-#### Step 6: Implement Token Refresh
-Access tokens expire after 15 minutes. Implement automatic refresh logic:
-
-**Refresh Request:**
+**Success URL Pattern:**
 
 ```http
-POST /api/v1/refresh
-Authorization: Bearer {refresh_token}
-X-Client-Type: mobile
+https://your-endurain-instance.com/login?sso=success&session_id={uuid}&redirect=/dashboard
 ```
 
-**Response:**
+Extract the `session_id` from the URL - this is needed for token exchange.
+
+#### Step 4: Exchange Session for Tokens (PKCE Verification)
+
+After obtaining the `session_id`, close the WebView and exchange it for tokens using the code verifier:
+
+**Token Exchange Request:**
+
+```http
+POST /api/v1/public/idp/session/{session_id}/tokens
+Content-Type: application/json
+X-Client-Type: mobile
+
+{
+  "code_verifier": "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
+}
+```
+
+**Successful Response (HTTP 200):**
 
 ```json
 {
-  "access_token": "eyJ...",
-  "refresh_token": "eyJ...",
-  "session_id": "uuid",
-  "token_type": "Bearer",
-  "expires_in": 900
+  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "csrf_token": "abc123def456...",
+  "expires_in": 900,
+  "token_type": "Bearer"
 }
 ```
+
+**Error Responses:**
+
+| Status | Error | Description |
+| ------ | ----- | ----------- |
+| 400 | Invalid code_verifier | Verifier doesn't match the challenge |
+| 404 | Session not found | Invalid session_id or not a PKCE flow |
+| 409 | Tokens already exchanged | Replay attack prevention |
+| 429 | Rate limit exceeded | Max 10 requests/minute per IP |
+
+#### Step 5: Store Tokens Securely
+
+Store the received tokens in secure platform storage:
+
+- **iOS**: Keychain Services
+- **Android**: EncryptedSharedPreferences or Android Keystore
+
+#### Step 6: Use Tokens for API Requests
+
+Use the tokens for authenticated API calls:
+
+```http
+GET /api/v1/activities
+Authorization: Bearer {access_token}
+X-Client-Type: mobile
+X-CSRF-Token: {csrf_token}
+```
+
+### Security Features
+
+| Feature | Description |
+| ------- | ----------- |
+| **PKCE S256** | SHA256 challenge prevents code interception |
+| **One-time exchange** | Tokens can only be exchanged once per session |
+| **10-minute expiry** | OAuth state expires after 10 minutes |
+| **Rate limiting** | 10 token exchange requests per minute |
+| **Session linking** | Session is cryptographically bound to OAuth state |
 
 ## Configuration
 

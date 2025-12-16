@@ -234,3 +234,66 @@ class IdentityProviderTemplate(BaseModel):
     configuration_notes: str | None = Field(
         None, description="Setup instructions for this IdP"
     )
+
+
+class TokenExchangeRequest(BaseModel):
+    """
+    Request schema for mobile PKCE token exchange.
+
+    After OAuth callback completes, mobile clients exchange the session_id
+    for actual JWT tokens by proving they possess the code_verifier that
+    matches the code_challenge sent during login initiation.
+
+    Attributes:
+        code_verifier (str): PKCE code verifier (43-128 chars, base64url).
+            Must hash to the code_challenge stored in OAuth state.
+    """
+
+    code_verifier: str = Field(
+        ...,
+        min_length=43,
+        max_length=128,
+        description="PKCE code verifier (base64url, 43-128 chars)",
+    )
+
+    @field_validator("code_verifier")
+    @classmethod
+    def validate_code_verifier(cls, v: str) -> str:
+        """
+        Validate PKCE code_verifier format according to RFC 7636.
+
+        Args:
+            v (str): The code verifier string.
+
+        Returns:
+            str: The validated code verifier.
+
+        Raises:
+            ValueError: If format is invalid (wrong length or characters).
+        """
+        if not re.match(r"^[A-Za-z0-9_-]+$", v):
+            raise ValueError("code_verifier must be valid base64url")
+        return v
+
+
+class TokenExchangeResponse(BaseModel):
+    """
+    Response schema for successful mobile PKCE token exchange.
+
+    Returns the actual JWT tokens that mobile clients need for API access.
+    After receiving these tokens, mobile apps should store them securely
+    and use them for authenticated requests.
+
+    Attributes:
+        access_token (str): JWT access token (15-minute expiry).
+        refresh_token (str): JWT refresh token (7-day expiry).
+        csrf_token (str): CSRF protection token (required for mutation requests).
+        expires_in (int): Access token lifetime in seconds (900 = 15 minutes).
+        token_type (str): Token type, always "Bearer".
+    """
+
+    access_token: str = Field(..., description="JWT access token")
+    refresh_token: str = Field(..., description="JWT refresh token")
+    csrf_token: str = Field(..., description="CSRF protection token")
+    expires_in: int = Field(default=900, description="Access token lifetime in seconds")
+    token_type: str = Field(default="Bearer", description="Token type")

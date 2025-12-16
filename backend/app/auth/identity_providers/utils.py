@@ -1,6 +1,10 @@
 """Identity Provider utility functions and templates"""
 
+import re
+import hashlib
+import base64
 from typing import Any
+from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 import auth.identity_providers.schema as idp_schema
@@ -9,6 +13,119 @@ import auth.identity_providers.service as idp_service
 import users.user_identity_providers.crud as user_idp_crud
 
 import core.logger as core_logger
+
+
+def validate_pkce_challenge(code_challenge: str, code_challenge_method: str) -> None:
+    """
+    Validate PKCE code_challenge format according to RFC 7636.
+
+    This function enforces RFC 7636 compliance for PKCE code challenges,
+    ensuring that mobile clients provide properly formatted S256 challenges.
+
+    Args:
+        code_challenge (str): Base64url-encoded SHA256 hash of code verifier.
+        code_challenge_method (str): PKCE method identifier (must be "S256").
+
+    Raises:
+        HTTPException: 400 Bad Request if validation fails (method not S256,
+            length out of range, or invalid base64url characters).
+    """
+    # Only S256 is supported (SHA256)
+    if code_challenge_method != "S256":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Only S256 PKCE method is supported",
+        )
+
+    # RFC 7636: code_challenge length must be 43-128 characters (base64url)
+    if not (43 <= len(code_challenge) <= 128):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="code_challenge must be 43-128 characters",
+        )
+
+    # Validate base64url format (alphanumeric, dash, underscore only)
+    if not re.match(r"^[A-Za-z0-9_-]+$", code_challenge):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="code_challenge must be valid base64url",
+        )
+
+
+def validate_pkce_verifier(
+    code_verifier: str, code_challenge: str, code_challenge_method: str
+) -> None:
+    """
+    Validate PKCE code_verifier and verify it matches the code_challenge.
+
+    This function implements RFC 7636 PKCE verification by computing the
+    SHA256 hash of the verifier and comparing it to the stored challenge.
+    This proves the client possesses the secret used during login initiation.
+
+    Args:
+        code_verifier (str): Base64url-encoded verifier from mobile client.
+        code_challenge (str): Base64url-encoded SHA256 hash stored in DB.
+        code_challenge_method (str): PKCE method (must be "S256").
+
+    Raises:
+        HTTPException: 400 Bad Request if verifier format is invalid,
+            method is not S256, or verifier doesn't match challenge.
+    """
+    # Validate verifier format
+    if not (43 <= len(code_verifier) <= 128):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="code_verifier must be 43-128 characters",
+        )
+
+    if not re.match(r"^[A-Za-z0-9_-]+$", code_verifier):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="code_verifier must be valid base64url",
+        )
+
+    # Verify method is S256
+    if code_challenge_method != "S256":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Only S256 PKCE method is supported",
+        )
+
+    # Compute SHA256 hash of verifier
+    verifier_hash = hashlib.sha256(code_verifier.encode("ascii")).digest()
+    computed_challenge = (
+        base64.urlsafe_b64encode(verifier_hash).decode("ascii").rstrip("=")
+    )
+
+    # Constant-time comparison to prevent timing attacks
+    if not _secure_compare(computed_challenge, code_challenge):
+        core_logger.print_to_log(
+            f"PKCE verification failed: computed={computed_challenge[:10]}..., expected={code_challenge[:10]}...",
+            "warning",
+        )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid code_verifier",
+        )
+
+
+def _secure_compare(a: str, b: str) -> bool:
+    """
+    Constant-time string comparison to prevent timing attacks.
+
+    Args:
+        a (str): First string.
+        b (str): Second string.
+
+    Returns:
+        bool: True if strings are equal, False otherwise.
+    """
+    if len(a) != len(b):
+        return False
+    result = 0
+    for x, y in zip(a, b):
+        result |= ord(x) ^ ord(y)
+    return result == 0
 
 
 # Pre-configured templates for common IdPs

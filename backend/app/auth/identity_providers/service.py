@@ -31,6 +31,7 @@ import users.user.utils as users_utils
 import users.user_identity_providers.crud as user_idp_crud
 import users.user_identity_providers.models as user_idp_models
 import auth.password_hasher as auth_password_hasher
+import auth.oauth_state.models as oauth_state_models
 import server_settings.schema as server_settings_schema
 
 
@@ -664,19 +665,24 @@ class IdentityProviderService:
         request: Request,
         db: Session,
         redirect_path: str | None = None,
+        oauth_state_id: str | None = None,
     ) -> str:
         """
         Initiates the OAuth2/OIDC login process for the given identity provider.
 
         This method prepares the authorization URL for the user to authenticate with the specified
-        identity provider (IdP). It handles endpoint discovery, state and nonce generation for security,
-        and session storage of relevant OAuth parameters.
+        identity provider (IdP). It handles endpoint discovery and authorization URL construction.
+
+        For web clients: Uses traditional cookie-based state (backward compatible).
+        For mobile clients: Uses oauth_state_id from database-backed OAuth state with PKCE.
 
         Args:
             idp (idp_models.IdentityProvider): The identity provider instance containing configuration details.
-            request (Request): The current HTTP request object, used to store session data.
-            db (Session): The database session (not directly used in this method).
+            request (Request): The current HTTP request object.
+            db (Session): The database session.
             redirect_path (str | None): Optional frontend path to redirect to after successful login.
+            oauth_state_id (str | None): Database OAuth state ID (from PKCE flow). If provided, uses database state.
+                If None, falls back to cookie-based state for backward compatibility.
 
         Returns:
             str: The authorization URL to which the user should be redirected to initiate login.
@@ -702,28 +708,41 @@ class IdentityProviderService:
                     detail="Identity provider not properly configured",
                 )
 
-            # Generate state and nonce for security
-            # State includes timestamp for expiry validation (10 minutes)
-            random_state = secrets.token_urlsafe(32)
-            state_data = {
-                "random": random_state,
-                "timestamp": datetime.now(timezone.utc).isoformat(),
-                "idp_id": idp.id,
-            }
+            # Determine which state to use
+            if oauth_state_id:
+                # Mobile flow: Use database-backed state with PKCE
+                state = oauth_state_id
+                # Retrieve OAuth state to get nonce (nonce is from database)
+                from auth.oauth_state.crud import get_oauth_state_by_id
 
-            # Add redirect path to state if provided
-            if redirect_path:
-                state_data["redirect"] = redirect_path
+                oauth_state_obj = get_oauth_state_by_id(oauth_state_id, db)
+                if not oauth_state_obj:
+                    raise HTTPException(
+                        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                        detail="OAuth state not found",
+                    )
+                nonce = oauth_state_obj.nonce
+            else:
+                # Web flow (backward compatibility): Use cookie-based state
+                random_state = secrets.token_urlsafe(32)
+                state_data = {
+                    "random": random_state,
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                    "idp_id": idp.id,
+                }
 
-            # Encode state as base64 JSON for URL safety
-            state = base64.urlsafe_b64encode(json.dumps(state_data).encode()).decode()
+                if redirect_path:
+                    state_data["redirect"] = redirect_path
 
-            nonce = secrets.token_urlsafe(32)
+                state = base64.urlsafe_b64encode(
+                    json.dumps(state_data).encode()
+                ).decode()
+                nonce = secrets.token_urlsafe(32)
 
-            # Store in session (using SessionMiddleware)
-            request.session[f"oauth_state_{idp.id}"] = state
-            request.session[f"oauth_nonce_{idp.id}"] = nonce
-            request.session["oauth_idp_id"] = idp.id
+                # Store in session (using SessionMiddleware)
+                request.session[f"oauth_state_{idp.id}"] = state
+                request.session[f"oauth_nonce_{idp.id}"] = nonce
+                request.session["oauth_idp_id"] = idp.id
 
             # Build authorization URL
             redirect_uri = self._get_redirect_uri(idp.slug)
@@ -859,6 +878,7 @@ class IdentityProviderService:
         request: Request,
         password_hasher: auth_password_hasher.PasswordHasher,
         db: Session,
+        oauth_state: oauth_state_models.OAuthState | None = None,
     ) -> Dict[str, Any]:
         """
         Handle the OAuth2/OIDC callback from an identity provider.
@@ -875,6 +895,8 @@ class IdentityProviderService:
             password_hasher (auth_password_hasher.PasswordHasher): Password hasher instance
                 for user authentication operations.
             db (Session): SQLAlchemy database session.
+            oauth_state (oauth_state_models.OAuthState | None): Database OAuth state object
+                for mobile PKCE flows. When None, falls back to cookie-based state (web).
         Returns:
             Dict[str, Any]: A dictionary containing:
                 - user: The authenticated or linked user object
@@ -898,58 +920,74 @@ class IdentityProviderService:
             - Cleans up session state data after successful completion
         """
         try:
-            # Verify state with timestamp expiry validation
-            stored_state = request.session.get(f"oauth_state_{idp.id}")
-            if not stored_state or state != stored_state:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Invalid state parameter",
-                )
-
-            # Decode and validate state timestamp (10-minute expiry)
-            try:
-                state_json = base64.urlsafe_b64decode(state.encode()).decode()
-                state_data = json.loads(state_json)
-
-                # Validate timestamp exists
-                if "timestamp" not in state_data:
-                    raise HTTPException(
-                        status_code=status.HTTP_400_BAD_REQUEST,
-                        detail="State parameter missing timestamp",
-                    )
-
-                # Parse timestamp and check expiry
-                state_timestamp = datetime.fromisoformat(state_data["timestamp"])
-                now = datetime.now(timezone.utc)
-                age = now - state_timestamp
-
-                # Reject states older than 10 minutes (CSRF protection)
-                if age > timedelta(minutes=10):
-                    core_logger.print_to_log(
-                        f"Expired state detected for IdP {idp.name}: age={age.total_seconds():.1f}s",
-                        "warning",
-                    )
-                    raise HTTPException(
-                        status_code=status.HTTP_400_BAD_REQUEST,
-                        detail="State parameter expired. Please try logging in again.",
-                    )
+            # Dual-mode state handling: database (mobile PKCE) or cookie (web)
+            if oauth_state:
+                # DATABASE MODE: Use OAuth state from database (mobile PKCE flow)
+                state_data = {
+                    "redirect": oauth_state.redirect_path,
+                    "timestamp": oauth_state.created_at.isoformat(),
+                }
+                redirect_path = oauth_state.redirect_path
+                client_type = oauth_state.client_type
 
                 core_logger.print_to_log(
-                    f"State validation successful for IdP {idp.name}: age={age.total_seconds():.1f}s",
+                    f"Using database OAuth state for IdP {idp.name} (client_type={client_type})",
                     "debug",
                 )
+            else:
+                # COOKIE MODE: Fall back to session cookie-based state (web flow)
+                stored_state = request.session.get(f"oauth_state_{idp.id}")
+                if not stored_state or state != stored_state:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail="Invalid state parameter",
+                    )
 
-            except (json.JSONDecodeError, ValueError, KeyError) as err:
-                core_logger.print_to_log(
-                    f"Failed to decode state parameter: {err}", "error", exc=err
-                )
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Invalid state parameter format",
-                ) from err
+                # Decode and validate state timestamp (10-minute expiry)
+                try:
+                    state_json = base64.urlsafe_b64decode(state.encode()).decode()
+                    state_data = json.loads(state_json)
 
-            # Extract redirect path from state if present
-            redirect_path = state_data.get("redirect")
+                    # Validate timestamp exists
+                    if "timestamp" not in state_data:
+                        raise HTTPException(
+                            status_code=status.HTTP_400_BAD_REQUEST,
+                            detail="State parameter missing timestamp",
+                        )
+
+                    # Parse timestamp and check expiry
+                    state_timestamp = datetime.fromisoformat(state_data["timestamp"])
+                    now = datetime.now(timezone.utc)
+                    age = now - state_timestamp
+
+                    # Reject states older than 10 minutes (CSRF protection)
+                    if age > timedelta(minutes=10):
+                        core_logger.print_to_log(
+                            f"Expired state detected for IdP {idp.name}: age={age.total_seconds():.1f}s",
+                            "warning",
+                        )
+                        raise HTTPException(
+                            status_code=status.HTTP_400_BAD_REQUEST,
+                            detail="State parameter expired. Please try logging in again.",
+                        )
+
+                    core_logger.print_to_log(
+                        f"State validation successful for IdP {idp.name}: age={age.total_seconds():.1f}s",
+                        "debug",
+                    )
+
+                except (json.JSONDecodeError, ValueError, KeyError) as err:
+                    core_logger.print_to_log(
+                        f"Failed to decode state parameter: {err}", "error", exc=err
+                    )
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail="Invalid state parameter format",
+                    ) from err
+
+                # Extract redirect path from state if present
+                redirect_path = state_data.get("redirect")
+                client_type = "web"
 
             # Detect link mode from state data
             is_link_mode = state_data.get("mode") == "link"
@@ -1013,8 +1051,11 @@ class IdentityProviderService:
                         exc=err,
                     )
 
-            # Retrieve nonce from session for ID token verification
-            expected_nonce = request.session.get(f"oauth_nonce_{idp.id}")
+            # Retrieve nonce: from database state (mobile) or session cookie (web)
+            if oauth_state:
+                expected_nonce = oauth_state.nonce
+            else:
+                expected_nonce = request.session.get(f"oauth_nonce_{idp.id}")
 
             # Exchange code for tokens
             redirect_uri = self._get_redirect_uri(idp.slug)
@@ -1183,6 +1224,7 @@ class IdentityProviderService:
                     "token_data": token_response,
                     "userinfo": userinfo,
                     "redirect_path": redirect_path,
+                    "client_type": client_type,
                 }
 
         except HTTPException:

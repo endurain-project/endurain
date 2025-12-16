@@ -4,6 +4,7 @@ from sqlalchemy import (
     String,
     DateTime,
     ForeignKey,
+    Boolean,
 )
 from sqlalchemy.orm import relationship
 from core.database import Base
@@ -27,6 +28,7 @@ class UsersSessions(Base):
         expires_at (datetime): Timestamp when the session expires.
         user (User): Relationship to the User model.
     """
+
     __tablename__ = "users_sessions"
 
     id = Column(String(length=36), nullable=False, primary_key=True)
@@ -58,6 +60,22 @@ class UsersSessions(Base):
     expires_at = Column(
         DateTime, nullable=False, comment="Session expiration date (datetime)"
     )
+    oauth_state_id = Column(
+        String(64),
+        ForeignKey("oauth_states.id"),
+        nullable=True,
+        index=True,
+        comment="Link to OAuth state for PKCE validation",
+    )
+    tokens_exchanged = Column(
+        Boolean,
+        default=False,
+        nullable=False,
+        comment="Prevents duplicate token exchange for mobile",
+    )
 
     # Define a relationship to the User model
     user = relationship("User", back_populates="users_sessions")
+
+    # Define a relationship to the OAuthState model
+    oauth_state = relationship("OAuthState", back_populates="users_sessions")

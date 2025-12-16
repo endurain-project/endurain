@@ -6,6 +6,8 @@ from sqlalchemy import pool
 from alembic import context
 
 
+import auth.identity_providers.models
+import auth.oauth_state.models
 import activities.activity.models
 import activities.activity_exercise_titles.models
 import activities.activity_laps.models
@@ -20,7 +22,6 @@ import health_sleep.models
 import health_steps.models
 import health_targets.models
 import health_weight.models
-import auth.identity_providers.models
 import migrations.models
 import notifications.models
 import password_reset_tokens.models

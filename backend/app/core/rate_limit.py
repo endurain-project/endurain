@@ -40,6 +40,7 @@ import session.utils as session_utils
 OAUTH_AUTHORIZE_LIMIT = "10/minute"  # Authorization initiation
 OAUTH_CALLBACK_LIMIT = "10/minute"  # Callback handling after IdP redirect
 OAUTH_DISCONNECT_LIMIT = "5/minute"  # Account disconnection (less frequent)
+PKCE_TOKEN_EXCHANGE_LIMIT = "10/minute"  # Mobile PKCE token exchange
 
 # Session endpoints - stricter protection (potential brute-force target)
 SESSION_LOGIN_LIMIT = "5/minute"  # Login attempts
