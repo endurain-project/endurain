@@ -210,7 +210,122 @@ Users can link their Endurain account to an OAuth provider:
 When authenticating via OAuth, the response format matches the standard authentication:
 
 - **Web clients**: Tokens set as HTTP-only cookies, redirected to app
-- **Mobile clients**: Tokens returned in JSON format
+- **Mobile clients using WebView**: Tokens set as HTTP-only cookies in WebView, redirected to app
+
+!!! warning "Mobile clients using WebView"
+    Mobile apps must use WebView for OAuth/SSO flows to properly handle redirects and cookies. Tokens returned in JSON format is not currently supported for SSO.
+
+## Mobile SSO Implementation Guide
+
+### Overview
+Mobile applications must use an embedded WebView (or in-app browser) to handle OAuth/SSO authentication. The flow leverages browser-based redirects and cookie storage that are part of the OAuth 2.0 standard.
+
+### Prerequisites
+
+- WebView component that supports:
+    - Cookie storage and management
+    - JavaScript execution
+    - URL interception/monitoring
+    - Custom headers (for subsequent API calls)
+- Secure storage for tokens (Keychain on iOS, KeyStore on Android)
+
+### Step-by-Step Implementation
+
+#### Step 1: Fetch Available Identity Providers
+Before presenting SSO options to users, fetch the list of enabled providers:
+
+**Request:**
+
+```http
+GET /api/v1/public/idp
+```
+
+**Response:**
+
+```json
+[
+  {
+    "id": 1,
+    "name": "Keycloak",
+    "slug": "keycloak",
+    "icon": "keycloak"
+  },
+  {
+    "id": 2,
+    "name": "Pocket ID",
+    "slug": "pocket-id",
+    "icon": "pocketid"
+  }
+]
+```
+
+#### Step 2: Initialize WebView and Load SSO URL
+When user selects an SSO provider, open a WebView with the SSO initiation URL:
+
+**URL to Load:**
+
+```conf
+https://your-endurain-instance.com/api/v1/public/idp/login/{idp_slug}?redirect=/dashboard
+```
+
+**Parameters:**
+
+- `{idp_slug}`: The provider slug from Step 1 (e.g., "google", "keycloak")
+- `redirect` (optional): Frontend path to navigate to after successful login
+
+**What Happens:**
+
+1. Backend generates OAuth state and authorization URL
+2. WebView redirects to the identity provider's login page
+3. User authenticates with the provider (enters credentials, 2FA, etc.)
+
+#### Step 3: Monitor WebView URL Changes
+Set up URL interception to detect when the OAuth callback completes:
+
+**URLs to Monitor:**
+
+- Success: `https://your-endurain-instance.com/login?sso=success&session_id={uuid}`
+- Success with redirect: `https://your-endurain-instance.com/login?sso=success&session_id={uuid}&redirect=/dashboard`
+- Error: `https://your-endurain-instance.com/login?error=sso_failed`
+
+#### Step 4: Extract tokens from WebView Cookies, store tokens securely and clean up the WebView
+When SSO succeeds, extract authentication tokens from the WebView's cookie store and store them securely:
+
+**Cookies to Extract:**
+
+- `endurain_access_token`: JWT access token (15 min expiry)
+- `endurain_refresh_token`: JWT refresh token (7 day expiry)
+
+#### Step 5: Make Authenticated API Requests
+Use extracted tokens for subsequent API calls with the required headers:
+
+**Required Headers:**
+
+- `Authorization: Bearer {access_token}`
+- `X-Client-Type: mobile`
+
+#### Step 6: Implement Token Refresh
+Access tokens expire after 15 minutes. Implement automatic refresh logic:
+
+**Refresh Request:**
+
+```http
+POST /api/v1/refresh
+Authorization: Bearer {refresh_token}
+X-Client-Type: mobile
+```
+
+**Response:**
+
+```json
+{
+  "access_token": "eyJ...",
+  "refresh_token": "eyJ...",
+  "session_id": "uuid",
+  "token_type": "Bearer",
+  "expires_in": 900
+}
+```
 
 ## Configuration
 
