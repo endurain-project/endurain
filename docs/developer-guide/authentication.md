@@ -30,10 +30,10 @@ Endurain supports integration with other apps through a comprehensive authentica
 5. Tokens are delivered based on client type (cookies for web, JSON for mobile)
 
 ### OAuth/SSO Flow
-1. Client requests list of enabled providers from `/identity-providers`
-2. Client initiates OAuth by redirecting to `/identity-providers/login/{idp_slug}`
+1. Client requests list of enabled providers from `/public/idp`
+2. Client initiates OAuth by redirecting to `/public/idp/login/{idp_slug}`
 3. User authenticates with the OAuth provider
-4. Provider redirects back to `/identity-providers/callback/{idp_slug}` with authorization code
+4. Provider redirects back to `/public/idp/callback/{idp_slug}` with authorization code
 5. Backend exchanges code for provider tokens and user info
 6. Backend creates or links user account and generates session tokens
 7. User is redirected to the app with active session
@@ -60,10 +60,10 @@ The API is reachable under `/api/v1`. Below are the authentication-related endpo
 
 | What | Url | Expected Information | Rate Limit |
 | ---- | --- | -------------------- | ---------- |
-| **Get Enabled Providers** | `/identity-providers` | None (public endpoint) | - |
-| **Initiate OAuth Login** | `/identity-providers/login/{idp_slug}` | Query param: `redirect=<path>` (optional) | 10 requests/min per IP |
-| **OAuth Callback** | `/identity-providers/callback/{idp_slug}` | Query params: `code=<code>`, `state=<state>` | Configurable |
-| **Link IdP to Account** | `/identity-providers/login/{idp_slug}?link=true` | Requires authenticated session | 10 requests/min per IP |
+| **Get Enabled Providers** | `/public/idp` | None (public endpoint) | - |
+| **Initiate OAuth Login** | `/public/idp/login/{idp_slug}` | Query param: `redirect=<path>` (optional) | 10 requests/min per IP |
+| **OAuth Callback** | `/public/idp/callback/{idp_slug}` | Query params: `code=<code>`, `state=<state>` | Configurable |
+| **Link IdP to Account** | `/profile/idp/{idp_id}/link` | Requires authenticated session | 10 requests/min per IP |
 
 ### Example Resource Endpoints
 
@@ -196,13 +196,13 @@ Identity providers must be configured with the following parameters:
 - `authorization_endpoint`: Provider's authorization URL
 - `token_endpoint`: Provider's token exchange URL
 - `userinfo_endpoint`: Provider's user information URL
-- `redirect_uri`: Callback URL (typically `/api/v1/identity-providers/callback/{idp_slug}`)
+- `redirect_uri`: Callback URL (typically `/public/idp/callback/{idp_slug}`)
 
 ### Linking Accounts
 Users can link their Endurain account to an OAuth provider:
 
 1. User must be authenticated with a valid session
-2. Navigate to `/identity-providers/login/{idp_slug}?link=true`
+2. Navigate to `/profile/idp/{idp_id}/link`
 3. Authenticate with the identity provider
 4. Provider is linked to the existing account
 

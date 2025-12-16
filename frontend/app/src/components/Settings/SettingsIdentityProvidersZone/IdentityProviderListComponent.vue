@@ -15,7 +15,8 @@
               provider.icon === 'authelia' ||
               provider.icon === 'authentik' ||
               provider.icon === 'casdoor' ||
-              provider.icon === 'keycloak'
+              provider.icon === 'keycloak' ||
+              provider.icon === 'pocketid'
             "
           />
           <img
