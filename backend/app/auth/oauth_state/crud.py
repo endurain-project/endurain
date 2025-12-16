@@ -9,7 +9,7 @@ import core.logger as core_logger
 
 
 def get_oauth_state_by_id(
-    db: Session, state_id: str
+    state_id: str, db: Session
 ) -> oauth_state_models.OAuthState | None:
     """
     Get OAuth state by ID, validate not expired/used.
@@ -32,7 +32,7 @@ def get_oauth_state_by_id(
         return None
 
     # Check expiry
-    if datetime.now(timezone.utc) > oauth_state.expires_at:
+    if datetime.now() > oauth_state.expires_at:
         core_logger.print_to_log(f"OAuth state expired: {state_id[:8]}...", "warning")
         return None
 

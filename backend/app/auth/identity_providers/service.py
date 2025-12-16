@@ -32,6 +32,7 @@ import users.user_identity_providers.crud as user_idp_crud
 import users.user_identity_providers.models as user_idp_models
 import auth.password_hasher as auth_password_hasher
 import auth.oauth_state.models as oauth_state_models
+import auth.oauth_state.crud as oauth_state_crud
 import server_settings.schema as server_settings_schema
 
 
@@ -712,10 +713,10 @@ class IdentityProviderService:
             if oauth_state_id:
                 # Mobile flow: Use database-backed state with PKCE
                 state = oauth_state_id
-                # Retrieve OAuth state to get nonce (nonce is from database)
-                from auth.oauth_state.crud import get_oauth_state_by_id
 
-                oauth_state_obj = get_oauth_state_by_id(oauth_state_id, db)
+                oauth_state_obj = oauth_state_crud.get_oauth_state_by_id(
+                    oauth_state_id, db
+                )
                 if not oauth_state_obj:
                     raise HTTPException(
                         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
