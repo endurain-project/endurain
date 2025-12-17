@@ -15,7 +15,7 @@ export function formatDuration(seconds) {
 /**
  * Formats HR zone label with percentage and optional time duration.
  * @param {number} value - Percentage value
- * @param {number} timeSeconds - Time in seconds (0 or null means no time)
+ * @param {number|null} timeSeconds - Time in seconds (0 or null means no time)
  * @returns {string} Formatted label (e.g., "25%" or "25% (15m)")
  */
 export function formatHrZoneLabel(value, timeSeconds) {
