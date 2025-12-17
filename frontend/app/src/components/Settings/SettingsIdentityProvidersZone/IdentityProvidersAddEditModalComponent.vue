@@ -223,6 +223,7 @@
               <option value="authentik">Authentik</option>
               <option value="casdoor">Casdoor</option>
               <option value="keycloak">Keycloak</option>
+              <option value="pocketid">Pocket ID</option>
               <option value="custom">{{ $t('identityProvidersAddEditModal.iconCustom') }}</option>
             </select>
             <div
@@ -511,7 +512,8 @@ const loadProviderData = (): void => {
       props.provider.icon !== 'authelia' &&
       props.provider.icon !== 'authentik' &&
       props.provider.icon !== 'casdoor' &&
-      props.provider.icon !== 'keycloak'
+      props.provider.icon !== 'keycloak' &&
+      props.provider.icon !== 'pocketid'
     ) {
       iconSelect = 'custom'
       iconCustom = props.provider.icon
@@ -564,7 +566,8 @@ const createProvider = async (): Promise<void> => {
       formData.value.icon !== 'authelia' &&
       formData.value.icon !== 'authentik' &&
       formData.value.icon !== 'casdoor' &&
-      formData.value.icon !== 'keycloak'
+      formData.value.icon !== 'keycloak' &&
+      formData.value.icon !== 'pocketid'
     ) {
       icon = formData.value.custom_icon_url
     } else {
@@ -611,7 +614,8 @@ const updateProvider = async (): Promise<void> => {
       formData.value.icon !== 'authelia' &&
       formData.value.icon !== 'authentik' &&
       formData.value.icon !== 'casdoor' &&
-      formData.value.icon !== 'keycloak'
+      formData.value.icon !== 'keycloak' &&
+      formData.value.icon !== 'pocketid'
     ) {
       icon = formData.value.custom_icon_url
     } else {

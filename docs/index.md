@@ -27,6 +27,19 @@
   </p>
 </div>
 
+## 🚀 Try the Demo
+
+Experience Endurain without installation:
+
+**Demo URL:** [https://demo.endurain.com](https://demo.endurain.com)
+
+- **Username:** `admin`
+- **Password:** `admin`
+- **Reset Schedule:** Daily at midnight (Europe/Lisbon timezone)
+
+!!! warning "Demo Environment"
+    The demo environment resets every day at midnight. Do not store important data or expect persistence.
+
 ## What is Endurain?
 
 Endurain is a self-hosted fitness tracking service designed to give users full control over their data and hosting environment. Built with:

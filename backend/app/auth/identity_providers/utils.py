@@ -69,6 +69,20 @@ IDP_TEMPLATES = {
         "description": "Keycloak - Open Source Identity and Access Management",
         "configuration_notes": "Replace {your-keycloak-domain} with your Keycloak server domain (e.g., keycloak.example.com) and {realm} with your realm name. Create an OIDC client in Keycloak admin console.",
     },
+    "pocketid": {
+        "name": "Pocket ID",
+        "provider_type": "oidc",
+        "issuer_url": "https://{your-pocketid-domain}",
+        "scopes": "openid profile email",
+        "icon": "pocketid",
+        "user_mapping": {
+            "username": ["preferred_username", "username", "email"],
+            "email": ["email"],
+            "name": ["name"],
+        },
+        "description": "Pocket ID - Simple OIDC provider for passwordless passkey authentication",
+        "configuration_notes": "Replace {your-pocketid-domain} with your Pocket ID server domain (e.g., auth.example.com). Create a new OIDC client in Pocket ID admin panel and copy the Client ID, Client Secret, and OIDC Discovery URL.",
+    },
 }
 
 
