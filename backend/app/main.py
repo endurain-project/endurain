@@ -138,6 +138,10 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
+    # Add security headers middleware (before CSRF for proper header ordering)
+    fastapi_app.add_middleware(core_middleware.SecurityHeadersMiddleware)
+
+    # Add CSRF protection middleware
     fastapi_app.add_middleware(core_middleware.CSRFMiddleware)
 
     # Add rate limiting

@@ -2,6 +2,90 @@ from fastapi import Request, HTTPException
 from starlette.middleware.base import BaseHTTPMiddleware
 
 
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    """
+    Middleware to add security headers to all HTTP responses.
+
+    This middleware adds essential security headers to protect against common web vulnerabilities:
+    - XSS (Cross-Site Scripting)
+    - Clickjacking
+    - MIME sniffing attacks
+    - Information leakage through referrer
+    - Unauthorized feature access
+
+    Headers added:
+        X-Content-Type-Options: nosniff
+            Prevents MIME sniffing attacks by forcing browsers to respect declared content types.
+
+        X-Frame-Options: DENY
+            Prevents clickjacking attacks by disallowing the page to be embedded in iframes.
+
+        X-XSS-Protection: 1; mode=block
+            Enables browser's XSS filter and blocks page rendering if XSS attack detected.
+            (Legacy header but still supported by older browsers)
+
+        Referrer-Policy: strict-origin-when-cross-origin
+            Controls how much referrer information is sent with requests:
+            - Same origin: full URL
+            - Cross origin: only origin (no path/query)
+            - HTTPS to HTTP: no referrer
+
+        Permissions-Policy: geolocation=(), microphone=(), camera=()
+            Disables unnecessary browser features to reduce attack surface.
+            Prevents unauthorized access to sensitive device APIs.
+
+        Content-Security-Policy: default-src 'self'
+            Restricts resources to same origin by default (API responses).
+            For frontend serving, this would need customization.
+
+    Note:
+        These headers are applied globally to all responses.
+        Individual endpoints can override headers if needed via response objects.
+    """
+
+    async def dispatch(self, request: Request, call_next):
+        """
+        Process request and add security headers to response.
+
+        Args:
+            request: The incoming HTTP request
+            call_next: The next middleware or endpoint handler
+
+        Returns:
+            Response with security headers added
+        """
+        response = await call_next(request)
+
+        # Prevent MIME sniffing
+        response.headers["X-Content-Type-Options"] = "nosniff"
+
+        # Prevent clickjacking
+        response.headers["X-Frame-Options"] = "DENY"
+
+        # XSS protection (legacy but still useful for older browsers)
+        response.headers["X-XSS-Protection"] = "1; mode=block"
+
+        # Control referrer information leakage
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+
+        # Disable unnecessary browser features
+        response.headers["Permissions-Policy"] = (
+            "geolocation=(), microphone=(), camera=()"
+        )
+
+        # Content Security Policy for API responses
+        # Note: Only add CSP for HTML responses to avoid affecting JSON API responses
+        content_type = response.headers.get("content-type", "")
+        if "text/html" in content_type:
+            response.headers["Content-Security-Policy"] = "default-src 'self'"
+
+        # Remove server version header for security through obscurity
+        if "Server" in response.headers:
+            del response.headers["Server"]
+
+        return response
+
+
 class CSRFMiddleware(BaseHTTPMiddleware):
     """
     Middleware for CSRF protection in FastAPI applications.
