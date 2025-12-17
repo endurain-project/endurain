@@ -27,11 +27,6 @@ header_client_type_scheme_optional = APIKeyHeader(
     name="X-Client-Type", auto_error=False
 )
 
-# Define the API key cookie for the access token
-cookie_access_token_scheme = APIKeyCookie(
-    name="endurain_access_token",
-    auto_error=False,
-)
 # Define the API key cookie for the refresh token
 cookie_refresh_token_scheme = APIKeyCookie(
     name="endurain_refresh_token",
@@ -46,79 +41,87 @@ def get_token(
     token_type: str,
 ) -> str | None:
     """
-    Retrieves the authentication token based on client type and available sources.
+    Retrieves the authentication token based on client type and token type.
 
     Args:
-        non_cookie_token (str | None): Token provided via non-cookie method (e.g., Authorization header).
+        non_cookie_token (str | None): Token provided via Authorization header.
         cookie_token (str | None): Token provided via cookie.
         client_type (str): Type of client requesting the token ("web" or "mobile").
-        token_type (str): Type of token being requested (e.g., "access", "refresh").
+        token_type (str): Type of token being requested ("access" or "refresh").
 
     Returns:
-        str: The authentication token appropriate for the client type.
+        str: The authentication token appropriate for the client type and token type.
 
     Raises:
-        HTTPException: If both tokens are missing, or if the client type is invalid.
+        HTTPException: If the required token is missing, or if the client type is invalid.
     """
-    if non_cookie_token is None and cookie_token is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=f"{token_type.capitalize()} token missing",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-
-    if client_type == "web":
-        return cookie_token
-    if client_type == "mobile":
+    # OAuth 2.1: Access tokens always come from Authorization header (all clients)
+    if token_type == "access":
+        if non_cookie_token is None:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Access token missing from Authorization header",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
         return non_cookie_token
+
+    # Refresh tokens: cookie (web) or Authorization header (mobile)
+    if token_type == "refresh":
+        if client_type == "web":
+            if cookie_token is None:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Refresh token missing from cookie",
+                    headers={"WWW-Authenticate": "Bearer"},
+                )
+            return cookie_token
+        if client_type == "mobile":
+            if non_cookie_token is None:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Refresh token missing from Authorization header",
+                    headers={"WWW-Authenticate": "Bearer"},
+                )
+            return non_cookie_token
+
     raise HTTPException(
         status_code=status.HTTP_403_FORBIDDEN,
-        detail="Invalid client type",
+        detail="Invalid client type or token type",
         headers={"WWW-Authenticate": "Bearer"},
     )
 
 
 ## ACCESS TOKEN VALIDATION
 def get_access_token(
-    non_cookie_access_token: Annotated[Union[str, None], Depends(oauth2_scheme)],
-    cookie_access_token: Union[str, None] = Depends(cookie_access_token_scheme),
+    access_token: Annotated[Union[str, None], Depends(oauth2_scheme)],
     client_type: str = Depends(header_client_type_scheme),
 ) -> str | None:
     """
-    Retrieves the access token from either the Authorization header or a cookie, depending on the client type.
+    Retrieves the access token from the Authorization header.
 
     Args:
-        non_cookie_access_token (str | None): Access token provided via the Authorization header (OAuth2 scheme).
-        cookie_access_token (str | None): Access token provided via a cookie.
+        access_token (str | None): Access token provided via the Authorization header (OAuth2 scheme).
         client_type (str): The type of client making the request, extracted from a custom header.
 
     Returns:
-        str: The resolved access token based on the client type and available sources.
+        str: The access token from the Authorization header.
 
     Raises:
-        HTTPException: If no valid access token is found or the client type is unsupported.
+        HTTPException: If the access token is missing from the Authorization header.
     """
-    return get_token(
-        non_cookie_access_token, cookie_access_token, client_type, "access"
-    )
+    return get_token(access_token, None, client_type, "access")
 
 
 def get_access_token_for_browser_redirect(
-    non_cookie_access_token: Annotated[Union[str, None], Depends(oauth2_scheme)],
-    cookie_access_token: Union[str, None] = Depends(cookie_access_token_scheme),
+    access_token: Annotated[Union[str, None], Depends(oauth2_scheme)],
     client_type: str | None = Depends(header_client_type_scheme_optional),
 ) -> str | None:
     """
     Retrieve the access token for browser redirect scenarios.
 
-    This function handles token retrieval during OAuth redirects and browser navigation,
-    prioritizing the appropriate token source based on the client type.
-
     Args:
-        non_cookie_access_token (Union[str, None]): The access token from the Authorization header
+        access_token (Union[str, None]): The access token from the Authorization header
             or query parameter, extracted via OAuth2 scheme dependency.
-        cookie_access_token (Union[str, None], optional): The access token from cookies.
-            Defaults to the result of cookie_access_token_scheme dependency.
         client_type (str | None, optional): The type of client making the request
             (e.g., "web", "mobile"). Defaults to "web" if not provided, as browser
             redirects typically originate from web clients.
@@ -131,14 +134,12 @@ def get_access_token_for_browser_redirect(
         specifically to handle OAuth redirect scenarios where the client type
         may not be explicitly specified.
     """
-    print("Client type for browser redirect:", client_type)
     if client_type is None:
         client_type = "web"
-    print("Client type for browser redirect:", client_type)
 
     return get_token(
-        non_cookie_access_token,
-        cookie_access_token,
+        access_token,
+        None,
         client_type,
         "access",
     )
@@ -367,7 +368,6 @@ def get_refresh_token(
 
 
 def validate_refresh_token(
-    # access_token: Annotated[str, Depends(get_access_token_from_cookies)]
     refresh_token: Annotated[str, Depends(get_refresh_token)],
     token_manager: Annotated[
         auth_token_manager.TokenManager,

@@ -6,20 +6,43 @@ let refreshTokenPromise = null
 export const API_URL = `${window.env.ENDURAIN_HOST}/api/v1/`
 export const FRONTEND_URL = `${window.env.ENDURAIN_HOST}/`
 
-// Helper function to get CSRF token from cookie
+// Helper function to get CSRF token from auth store (in-memory)
 function getCsrfToken() {
-  return document.cookie
-    .split('; ')
-    .find((row) => row.startsWith('endurain_csrf_token='))
-    ?.split('=')[1]
+  const authStore = useAuthStore()
+  return authStore.getCsrfToken()
 }
 
-// Helper function to add CSRF token to options if needed
-function addCsrfTokenToOptions(url, options) {
+// Helper function to get access token from auth store (in-memory)
+function getAccessToken() {
+  const authStore = useAuthStore()
+  return authStore.getAccessToken()
+}
+
+// Helper function to add authorization and CSRF headers
+function addAuthHeaders(url, options) {
+  // Add Authorization Bearer header for all authenticated requests
+  // Skip public endpoints (token, password-reset, sign-up)
+  if (
+    url !== 'token' &&
+    url !== 'password-reset/request' &&
+    url !== 'password-reset/confirm' &&
+    url !== 'sign-up/request' &&
+    url !== 'sign-up/confirm' &&
+    !url.startsWith('public/')
+  ) {
+    const accessToken = getAccessToken()
+    if (accessToken) {
+      options.headers = {
+        ...options.headers,
+        Authorization: `Bearer ${accessToken}`
+      }
+    }
+  }
+
+  // Add CSRF token for state-changing requests
   if (
     ['POST', 'PUT', 'DELETE', 'PATCH'].includes(options.method) &&
     url !== 'token' &&
-    url !== 'refresh' &&
     url !== 'mfa/verify' &&
     url !== 'password-reset/request' &&
     url !== 'password-reset/confirm' &&
@@ -27,7 +50,6 @@ function addCsrfTokenToOptions(url, options) {
     url !== 'sign-up/confirm'
   ) {
     const csrfToken = getCsrfToken()
-
     if (csrfToken) {
       options.headers = {
         ...options.headers,
@@ -35,17 +57,24 @@ function addCsrfTokenToOptions(url, options) {
       }
     }
   }
+
   return options
 }
 
 async function fetchWithRetry(url, options, responseType = 'json') {
-  // Add CSRF token to headers for state-changing requests
-  options = addCsrfTokenToOptions(url, options)
+  // Add Authorization and CSRF headers
+  options = addAuthHeaders(url, options)
 
   try {
     return await attemptFetch(url, options, responseType)
   } catch (error) {
-    if (error.message.startsWith('401') && url !== 'token') {
+    // Don't retry on 401 for: token, refresh, logout, MFA verify, or Garmin link errors
+    if (
+      error.message.startsWith('401') &&
+      url !== 'token' &&
+      url !== 'refresh' &&
+      url !== 'logout'
+    ) {
       if (
         url === 'garminconnect/link' &&
         error.message.includes('There was an authentication error using Garmin Connect')
@@ -56,9 +85,11 @@ async function fetchWithRetry(url, options, responseType = 'json') {
         throw error
       }
       try {
-        await refreshAccessToken()
-        // Re-add CSRF token after refresh (new token was set in cookie)
-        options = addCsrfTokenToOptions(url, options)
+        // Use auth store's refreshAccessToken which updates tokens in memory
+        const authStore = useAuthStore()
+        await authStore.refreshAccessToken()
+        // Re-add auth headers after refresh (new tokens in memory)
+        options = addAuthHeaders(url, options)
         return await attemptFetch(url, options, responseType)
       } catch {
         const authStore = useAuthStore()
@@ -94,6 +125,9 @@ async function refreshAccessToken() {
   }
 
   const url = 'refresh'
+  const authStore = useAuthStore()
+  const csrfToken = authStore.getCsrfToken()
+
   const options = {
     method: 'POST',
     credentials: 'include',
@@ -103,12 +137,25 @@ async function refreshAccessToken() {
     }
   }
 
+  // Add CSRF token if available (optional on initial load, required for subsequent refreshes)
+  if (csrfToken) {
+    options.headers['X-CSRF-Token'] = csrfToken
+  }
+
   refreshTokenPromise = (async () => {
     try {
       const response = await attemptFetch(url, options)
 
-      const authStore = useAuthStore()
-      authStore.setUserSessionId(response.session_id)
+      // Update tokens in auth store
+      if (response.access_token) {
+        authStore.setAccessToken(response.access_token)
+      }
+      if (response.csrf_token) {
+        authStore.setCsrfToken(response.csrf_token)
+      }
+      if (response.session_id) {
+        authStore.setUserSessionId(response.session_id)
+      }
 
       return response
     } catch (error) {

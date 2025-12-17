@@ -5,7 +5,7 @@ import {
   fetchDeleteRequest,
   API_URL
 } from '@/utils/serviceUtils'
-import { fetchPublicGetRequest } from '@/utils/servicePublicUtils'
+import { fetchPublicGetRequest, fetchPublicPostRequest } from '@/utils/servicePublicUtils'
 
 export const identityProviders = {
   getAllProviders() {
@@ -28,5 +28,10 @@ export const identityProviders = {
   },
   initiateLogin(slug, params) {
     window.location.href = `${API_URL}public/idp/login/${slug}${params}`
+  },
+  exchangeSessionForTokens(sessionId, codeVerifier) {
+    return fetchPublicPostRequest(`public/idp/session/${sessionId}/tokens`, {
+      code_verifier: codeVerifier
+    })
   }
 }

@@ -47,6 +47,11 @@ SESSION_LOGIN_LIMIT = "5/minute"  # Login attempts
 SESSION_REFRESH_LIMIT = "20/minute"  # Token refresh (more frequent but still limited)
 SESSION_LOGOUT_LIMIT = "10/minute"  # Logout requests
 
+# MFA endpoints - very strict protection (high-value target for brute-force)
+MFA_VERIFY_LIMIT = (
+    "3/minute"  # MFA code verification (AuthQuake-style attack prevention)
+)
+
 # API endpoints - generous limits for normal usage
 API_READ_LIMIT = "60/minute"  # GET requests (read operations)
 API_WRITE_LIMIT = "30/minute"  # POST/PUT/DELETE (write operations)

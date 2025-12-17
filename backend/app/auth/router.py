@@ -1,3 +1,5 @@
+import os
+from datetime import datetime, timedelta, timezone
 from typing import Annotated, Callable
 
 from fastapi import (
@@ -14,6 +16,7 @@ from sqlalchemy.orm import Session
 import session.utils as session_utils
 import auth.security as auth_security
 import auth.utils as auth_utils
+import auth.constants as auth_constants
 import session.crud as session_crud
 import auth.password_hasher as auth_password_hasher
 import auth.token_manager as auth_token_manager
@@ -117,6 +120,7 @@ async def login_for_access_token(
 
 
 @router.post("/mfa/verify")
+@core_rate_limit.limiter.limit(core_rate_limit.MFA_VERIFY_LIMIT)
 async def verify_mfa_and_login(
     response: Response,
     request: Request,
@@ -160,6 +164,18 @@ async def verify_mfa_and_login(
     Raises:
         HTTPException: If no pending login found, MFA code is invalid, or user not found
     """
+    # Check if user is locked out from too many failed attempts
+    if pending_mfa_store.is_locked_out(mfa_request.username):
+        lockout_until = pending_mfa_store.get_lockout_time(mfa_request.username)
+        if lockout_until:
+            seconds_remaining = int(
+                (lockout_until - datetime.now(timezone.utc)).total_seconds()
+            )
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail=f"Too many failed MFA attempts. Account locked for {seconds_remaining} seconds.",
+            )
+
     # Check if there's a pending MFA login for this username
     user_id = pending_mfa_store.get_pending_login(mfa_request.username)
     if not user_id:
@@ -170,8 +186,11 @@ async def verify_mfa_and_login(
 
     # Verify the MFA code
     if not profile_utils.verify_user_mfa(user_id, mfa_request.mfa_code, db):
+        # Record failed attempt and apply lockout if threshold exceeded
+        failed_count = pending_mfa_store.record_failed_attempt(mfa_request.username)
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid MFA code"
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=f"Invalid MFA code. Failed attempts: {failed_count}",
         )
 
     # Get the user and complete login
@@ -184,6 +203,9 @@ async def verify_mfa_and_login(
 
     # Check if the user is still active
     users_utils.check_user_is_active(user)
+
+    # MFA verification successful - reset failed attempts counter
+    pending_mfa_store.reset_failed_attempts(mfa_request.username)
 
     # Clean up pending login
     pending_mfa_store.delete_pending_login(mfa_request.username)
@@ -213,7 +235,6 @@ async def refresh_token(
         str,
         Depends(auth_security.get_and_return_refresh_token),
     ],
-    client_type: Annotated[str, Depends(auth_security.header_client_type_scheme)],
     password_hasher: Annotated[
         auth_password_hasher.PasswordHasher,
         Depends(auth_password_hasher.get_password_hasher),
@@ -231,7 +252,7 @@ async def refresh_token(
     Handles the refresh token process for user sessions.
 
     This endpoint validates the provided refresh token, checks session and user status,
-    and issues new access, refresh, and CSRF tokens. The response format depends on the client type.
+    and issues new access, refresh, and CSRF tokens.
 
     Args:
         response (Response): The HTTP response object.
@@ -240,18 +261,16 @@ async def refresh_token(
         token_user_id (int): User ID extracted from the refresh token.
         token_session_id (str): Session ID extracted from the refresh token.
         refresh_token_value (str): The raw refresh token value.
-        client_type (str): The type of client ("web" or "mobile").
         password_hasher (PasswordHasher): Utility for verifying token hashes.
         token_manager (TokenManager): Utility for creating tokens.
         db (Session): Database session.
 
     Returns:
-        Union[str, dict]: For "web" clients, returns the session ID.
-                          For "mobile" clients, returns a dictionary with new tokens and session ID.
+        dict: Contains session_id, access_token, csrf_token, token_type, and expires_in
 
     Raises:
         HTTPException: If the session is not found, the refresh token is invalid,
-                       the user is inactive, or the client type is invalid.
+                       the user is inactive, or CSRF token is missing/invalid.
     """
     # Get the session from the database
     session = session_crud.get_session_by_id(token_session_id, db)
@@ -263,6 +282,11 @@ async def refresh_token(
             detail="Session not found",
             headers={"WWW-Authenticate": "Bearer"},
         )
+
+    # Validate CSRF token matches session
+    # Note: CSRF token is stored in session during initial authentication
+    # For now, we validate that a CSRF token was provided (checked by middleware)
+    # Future enhancement: Store CSRF token hash in session for validation
 
     is_valid = password_hasher.verify(refresh_token_value, session.refresh_token)
 
@@ -291,7 +315,7 @@ async def refresh_token(
         session_id,
         new_access_token_exp,
         new_access_token,
-        _new_refresh_token_exp,
+        _,
         new_refresh_token,
         new_csrf_token,
     ) = auth_utils.create_tokens(user, token_manager, session.id)
@@ -302,29 +326,26 @@ async def refresh_token(
     # Opportunistically refresh IdP tokens for all linked identity providers
     await idp_utils.refresh_idp_tokens_if_needed(user.id, db)
 
-    if client_type == "web":
-        response = auth_utils.create_response_with_tokens(
-            response, new_access_token, new_refresh_token, new_csrf_token
-        )
-
-        # Return session ID
-        return {
-            "session_id": session_id,
-        }
-    if client_type == "mobile":
-        # Return the tokens
-        return {
-            "access_token": new_access_token,
-            "refresh_token": new_refresh_token,
-            "session_id": session_id,
-            "token_type": "bearer",
-            "expires_in": int(new_access_token_exp.timestamp()),
-        }
-    raise HTTPException(
-        status_code=status.HTTP_403_FORBIDDEN,
-        detail="Invalid client type",
-        headers={"WWW-Authenticate": "Bearer"},
+    secure = os.environ.get("FRONTEND_PROTOCOL") == "https"
+    response.set_cookie(
+        key="endurain_refresh_token",
+        value=new_refresh_token,
+        expires=datetime.now(timezone.utc)
+        + timedelta(days=auth_constants.JWT_REFRESH_TOKEN_EXPIRE_DAYS),
+        httponly=True,
+        path="/",
+        secure=secure,
+        samesite="strict",
     )
+
+    # Return tokens in response body for in-memory storage
+    return {
+        "session_id": session_id,
+        "access_token": new_access_token,
+        "csrf_token": new_csrf_token,
+        "token_type": "bearer",
+        "expires_in": int(new_access_token_exp.timestamp()),
+    }
 
 
 @router.post("/logout")
@@ -356,7 +377,7 @@ async def logout(
     ],
 ):
     """
-    Logs out a user by validating and deleting their session, and clearing authentication cookies for web clients.
+    Logs out a user by validating and deleting their session, and clearing the refresh token cookie.
     Parameters:
         response (Response): The response object to modify cookies.
         _validate_access_token (Callable): Dependency to validate the access token.
@@ -395,10 +416,7 @@ async def logout(
         await idp_utils.clear_all_idp_tokens(token_user_id, db)
 
     if client_type == "web":
-        # Clear the cookies by setting their expiration to the past
-        response.delete_cookie(key="endurain_access_token", path="/")
         response.delete_cookie(key="endurain_refresh_token", path="/")
-        response.delete_cookie(key="endurain_csrf_token", path="/")
         return {"message": "Logout successful"}
     if client_type == "mobile":
         return {"message": "Logout successful"}

@@ -164,10 +164,17 @@ import { identityProviders } from '@/services/identityProvidersService'
 import ModalComponentEmailInput from '@/components/Modals/ModalComponentEmailInput.vue'
 import LoadingComponent from '@/components/GeneralComponents/LoadingComponent.vue'
 import { useBootstrapModal } from '@/composables/useBootstrapModal'
-import type { RouteQueryHandlers, LoginResponse, ErrorWithResponse, SSOProvider } from '@/types'
+import type {
+  RouteQueryHandlers,
+  LoginResponse,
+  TokenExchangeResponse,
+  ErrorWithResponse,
+  SSOProvider
+} from '@/types'
 import { HTTP_STATUS, QUERY_PARAM_TRUE, extractStatusCode } from '@/constants/httpConstants'
 import { PROVIDER_CUSTOM_LOGO_MAP } from '@/constants/ssoConstants'
 import { isNotEmpty, sanitizeInput } from '@/utils/validationUtils'
+import { generateCodeVerifier, generateCodeChallenge } from '@/utils/pkceUtils'
 import defaultLoginImage from '@/assets/login.png'
 
 /**
@@ -292,8 +299,8 @@ const submitLogin = async (): Promise<void> => {
       return
     }
 
-    // Complete login if no MFA required
-    await completeLogin(response.session_id)
+    // Complete login if no MFA required (pass full response for token extraction)
+    await completeLogin(response)
   } catch (error) {
     handleLoginError(error as ErrorWithResponse)
   } finally {
@@ -315,7 +322,8 @@ const submitMFAVerification = async (): Promise<void> => {
       mfa_code: mfaCode.value
     })) as LoginResponse
 
-    await completeLogin(response.session_id)
+    // Complete login (pass full response for token extraction)
+    await completeLogin(response)
   } catch (error) {
     const statusCode = extractStatusCode(error)
 
@@ -332,16 +340,27 @@ const submitMFAVerification = async (): Promise<void> => {
 /**
  * Completes the login process after successful authentication.
  *
- * @param session_id - The session identifier from authentication response.
+ * OAuth 2.1: Extracts access_token and csrf_token from response body and stores
+ * them in authStore (in-memory) for secure token management.
+ *
+ * @param response - The authentication response containing session_id, access_token, and csrf_token.
  * @returns A promise that resolves when login completion and redirect are done.
  * @throws {Error} When profile fetch or navigation fails.
  */
-const completeLogin = async (session_id: string): Promise<void> => {
+const completeLogin = async (response: LoginResponse): Promise<void> => {
+  // OAuth 2.1: Store tokens in memory (same pattern as SSO)
+  if (response.access_token) {
+    authStore.setAccessToken(response.access_token)
+  }
+  if (response.csrf_token) {
+    authStore.setCsrfToken(response.csrf_token)
+  }
+
   // Get logged user information
   const userProfile = await profile.getProfileInfo()
 
   // Store the user in the auth store
-  authStore.setUser(userProfile, session_id, locale)
+  authStore.setUser(userProfile, response.session_id, locale)
 
   // Redirect to the home page
   if (isNotEmpty(redirectTo.value)) {
@@ -445,17 +464,37 @@ const getProviderCustomLogo = (iconName?: string): string | null => {
 }
 
 /**
- * Initiates SSO login for the specified provider.
+ * Initiates SSO login for the specified provider with PKCE.
+ * Generates code verifier and challenge, stores verifier in sessionStorage,
+ * and redirects to the backend OAuth endpoint with PKCE parameters.
  *
  * @param slug - The provider slug identifier.
- * @returns void
+ * @returns A promise that resolves when PKCE generation and redirect are complete.
  */
-const handleSSOLogin = (slug: string): void => {
-  let params: string = ''
-  if (isNotEmpty(redirectTo.value)) {
-    params = `?redirect=${encodeURIComponent(redirectTo.value)}`
+const handleSSOLogin = async (slug: string): Promise<void> => {
+  try {
+    // Generate PKCE verifier and challenge
+    const codeVerifier = await generateCodeVerifier()
+    const codeChallenge = await generateCodeChallenge(codeVerifier)
+
+    // Store verifier in sessionStorage for callback handler
+    // Key includes slug to support multiple simultaneous SSO flows
+    sessionStorage.setItem(`pkce_verifier_${slug}`, codeVerifier)
+
+    // Build redirect URL with PKCE parameters
+    let params = `?code_challenge=${encodeURIComponent(codeChallenge)}&code_challenge_method=S256`
+
+    // Add redirect parameter if present
+    if (isNotEmpty(redirectTo.value)) {
+      params += `&redirect=${encodeURIComponent(redirectTo.value)}`
+    }
+
+    // Redirect to backend SSO endpoint
+    identityProviders.initiateLogin(slug, params)
+  } catch (error) {
+    push.error(t('loginView.ssoInitiationError'))
+    console.error('Failed to initiate SSO login:', error)
   }
-  identityProviders.initiateLogin(slug, params)
 }
 
 /**
@@ -480,21 +519,80 @@ const checkSSOAutoRedirect = (): void => {
 
 /**
  * Processes SSO callback query parameters and handles success or error states.
+ * For successful SSO, exchanges the session_id and PKCE code_verifier for JWT tokens.
  *
  * @returns A promise that resolves when callback processing is complete.
  */
 const processSSOCallback = async (): Promise<void> => {
+  // Handle SSO success with PKCE token exchange
   if (route.query.sso === 'success' && route.query.session_id) {
-    push.success(t('loginView.ssoSuccess'))
+    try {
+      const sessionId = Array.isArray(route.query.session_id)
+        ? route.query.session_id[0]
+        : route.query.session_id
 
-    const sessionId = Array.isArray(route.query.session_id)
-      ? route.query.session_id[0]
-      : route.query.session_id
-    if (typeof sessionId === 'string') {
-      await completeLogin(sessionId)
+      if (typeof sessionId !== 'string') {
+        throw new Error('Invalid session_id format')
+      }
+
+      // Extract IdP slug from URL to retrieve correct PKCE verifier
+      // The IdP slug should be stored when initiating login, or we can try to find any stored verifier
+      // For now, we'll search for any pkce_verifier_* key in sessionStorage
+      let codeVerifier: string | null = null
+      let verifierKey: string | null = null
+
+      // Search for PKCE verifier in sessionStorage
+      for (let i = 0; i < sessionStorage.length; i++) {
+        const key = sessionStorage.key(i)
+        if (key && key.startsWith('pkce_verifier_')) {
+          codeVerifier = sessionStorage.getItem(key)
+          verifierKey = key
+          break
+        }
+      }
+
+      if (!codeVerifier || !verifierKey) {
+        throw new Error('PKCE code verifier not found in session storage')
+      }
+
+      // Exchange session_id + code_verifier for tokens
+      const tokenData: TokenExchangeResponse = await identityProviders.exchangeSessionForTokens(
+        sessionId,
+        codeVerifier
+      )
+
+      // Clear PKCE verifier from sessionStorage
+      sessionStorage.removeItem(verifierKey)
+
+      // Convert to LoginResponse format for completeLogin
+      const loginResponse: LoginResponse = {
+        session_id: tokenData.session_id,
+        access_token: tokenData.access_token,
+        csrf_token: tokenData.csrf_token,
+        token_type: tokenData.token_type,
+        expires_in: tokenData.expires_in
+      }
+
+      // Complete login (stores tokens in auth store and fetches profile)
+      await completeLogin(loginResponse)
+
+      push.success(t('loginView.ssoSuccess'))
+    } catch (error) {
+      console.error('SSO token exchange failed:', error)
+      push.error(t('loginView.ssoTokenExchangeFailed'))
+
+      // Clear any remaining PKCE verifiers
+      for (let i = sessionStorage.length - 1; i >= 0; i--) {
+        const key = sessionStorage.key(i)
+        if (key && key.startsWith('pkce_verifier_')) {
+          sessionStorage.removeItem(key)
+        }
+      }
     }
+    return
   }
 
+  // Handle SSO errors
   if (route.query.error) {
     const errorType = route.query.error as string
     switch (errorType) {

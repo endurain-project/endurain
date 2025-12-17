@@ -50,11 +50,36 @@ export interface RouteQueryHandlers {
  * @property mfa_required - Whether MFA verification is required.
  * @property username - The authenticated username.
  * @property session_id - The session identifier token.
+ * @property access_token - The JWT access token (OAuth 2.1).
+ * @property csrf_token - The CSRF token for request validation (OAuth 2.1).
+ * @property token_type - The token type (always "bearer").
+ * @property expires_in - Token expiration timestamp.
  */
 export interface LoginResponse {
   mfa_required?: boolean
   username?: string
   session_id: string
+  access_token?: string
+  csrf_token?: string
+  token_type?: string
+  expires_in?: number
+}
+
+/**
+ * Response from SSO token exchange endpoint.
+ *
+ * @property session_id - The session identifier.
+ * @property access_token - The JWT access token.
+ * @property csrf_token - The CSRF token.
+ * @property token_type - The token type (always "bearer").
+ * @property expires_in - Token expiration timestamp.
+ */
+export interface TokenExchangeResponse {
+  session_id: string
+  access_token: string
+  csrf_token: string
+  token_type: string
+  expires_in: number
 }
 
 /**

@@ -30,6 +30,10 @@ class CSRFMiddleware(BaseHTTPMiddleware):
             "/api/v1/sign-up/request",
             "/api/v1/sign-up/confirm",
         ]
+        # Define path prefixes that don't need CSRF protection (for dynamic routes)
+        self.exempt_path_prefixes = [
+            "/api/v1/public/idp/session/",
+        ]
 
     async def dispatch(self, request: Request, call_next):
         """
@@ -46,8 +50,8 @@ class CSRFMiddleware(BaseHTTPMiddleware):
             - Skips CSRF checks for non-web clients (determined by "X-Client-Type" header).
             - Skips CSRF checks for exempt paths.
             - For web clients and non-exempt paths, validates CSRF token for POST, PUT, DELETE, and PATCH requests:
-                - Requires both "endurain_csrf_token" cookie and "X-CSRF-Token" header.
-                - Raises HTTPException 403 if tokens are missing or do not match.
+                - Requires "X-CSRF-Token" header.
+                - Raises HTTPException 403 if token is missing.
         """
         # Get client type from header
         client_type = request.headers.get("X-Client-Type")
@@ -56,20 +60,21 @@ class CSRFMiddleware(BaseHTTPMiddleware):
         if client_type != "web":
             return await call_next(request)
 
-        # Skip CSRF check for exempt paths
+        # Skip CSRF check for exempt paths (exact match)
         if request.url.path in self.exempt_paths:
             return await call_next(request)
 
+        # Skip CSRF check for exempt path prefixes (dynamic routes)
+        for prefix in self.exempt_path_prefixes:
+            if request.url.path.startswith(prefix):
+                return await call_next(request)
+
         # Check for CSRF token in POST, PUT, DELETE, and PATCH requests
         if request.method in ["POST", "PUT", "DELETE", "PATCH"]:
-            csrf_cookie = request.cookies.get("endurain_csrf_token")
             csrf_header = request.headers.get("X-CSRF-Token")
 
-            if not csrf_cookie or not csrf_header:
-                raise HTTPException(status_code=403, detail="CSRF token missing")
-
-            if csrf_cookie != csrf_header:
-                raise HTTPException(status_code=403, detail="CSRF token invalid")
+            if not csrf_header:
+                raise HTTPException(status_code=403, detail="CSRF token required")
 
         response = await call_next(request)
         return response

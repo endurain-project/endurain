@@ -10,3 +10,15 @@ export async function fetchPublicGetRequest(url) {
   }
   return attemptFetch(url, options)
 }
+
+export async function fetchPublicPostRequest(url, data) {
+  const options = {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Client-Type': 'web'
+    },
+    body: JSON.stringify(data)
+  }
+  return attemptFetch(url, options)
+}

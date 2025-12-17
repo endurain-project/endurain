@@ -41,7 +41,9 @@ export const useAuthStore = defineStore('auth', {
     },
     isAuthenticated: false,
     user_websocket: null,
-    session_id: ''
+    session_id: '',
+    accessToken: null,
+    csrfToken: null
   }),
   actions: {
     async logoutUser(router = null, locale = null) {
@@ -116,6 +118,8 @@ export const useAuthStore = defineStore('auth', {
       }
       this.user_websocket = null
       this.session_id = ''
+      this.accessToken = null
+      this.csrfToken = null
       localStorage.removeItem('user')
       localStorage.removeItem('session_id')
 
@@ -160,6 +164,38 @@ export const useAuthStore = defineStore('auth', {
         }
       } catch (error) {
         console.error('Failed to initialize WebSocket:', error)
+      }
+    },
+    setAccessToken(token) {
+      this.accessToken = token
+    },
+    setCsrfToken(token) {
+      this.csrfToken = token
+    },
+    getAccessToken() {
+      return this.accessToken
+    },
+    getCsrfToken() {
+      return this.csrfToken
+    },
+    async refreshAccessToken() {
+      try {
+        const response = await session.refreshToken()
+        if (response && response.access_token) {
+          this.accessToken = response.access_token
+          if (response.csrf_token) {
+            this.csrfToken = response.csrf_token
+          }
+          return response.access_token
+        }
+        throw new Error('No access token in refresh response')
+      } catch (error) {
+        console.error('Failed to refresh access token:', error)
+        // Clear tokens and redirect to login
+        this.accessToken = null
+        this.csrfToken = null
+        this.isAuthenticated = false
+        throw error
       }
     }
   }

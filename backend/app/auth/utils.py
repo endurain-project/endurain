@@ -129,57 +129,6 @@ def create_tokens(
     )
 
 
-def create_response_with_tokens(
-    response: Response, access_token: str, refresh_token: str, csrf_token: str
-) -> Response:
-    """
-    Sets access, refresh, and CSRF tokens as cookies on the given response object.
-
-    Args:
-        response (Response): The response object to set cookies on.
-        access_token (str): The JWT access token to be set as a cookie.
-        refresh_token (str): The JWT refresh token to be set as a cookie.
-        csrf_token (str): The CSRF token to be set as a cookie.
-
-    Returns:
-        Response: The response object with the tokens set as cookies.
-    """
-    secure = os.environ.get("FRONTEND_PROTOCOL") == "https"
-
-    # Set the cookies with the tokens
-    response.set_cookie(
-        key="endurain_access_token",
-        value=access_token,
-        expires=datetime.now(timezone.utc)
-        + timedelta(minutes=auth_constants.JWT_ACCESS_TOKEN_EXPIRE_MINUTES),
-        httponly=True,
-        path="/",
-        secure=secure,
-        samesite="lax",
-    )
-    response.set_cookie(
-        key="endurain_refresh_token",
-        value=refresh_token,
-        expires=datetime.now(timezone.utc)
-        + timedelta(days=auth_constants.JWT_REFRESH_TOKEN_EXPIRE_DAYS),
-        httponly=True,
-        path="/",
-        secure=secure,
-        samesite="lax",
-    )
-    response.set_cookie(
-        key="endurain_csrf_token",
-        value=csrf_token,
-        httponly=False,
-        path="/",
-        secure=secure,
-        samesite="lax",
-    )
-
-    # Return the response
-    return response
-
-
 def complete_login(
     response: Response,
     request: Request,
@@ -188,13 +137,19 @@ def complete_login(
     password_hasher: auth_password_hasher.PasswordHasher,
     token_manager: auth_token_manager.TokenManager,
     db: Session,
-) -> dict | str:
+) -> dict:
     """
     Handles the completion of the login process by generating session and authentication tokens,
-    storing the session in the database, and returning appropriate responses based on client type.
+    storing the session in the database, and returning tokens in response body.
+
+    OAuth 2.1 compliant: Returns tokens in response body for all clients.
+    - Access token and CSRF token: Returned in body (for in-memory storage)
+    - Refresh token: Set as httpOnly cookie with SameSite=Strict
+
+    This unified model works for both username/password and SSO login flows.
 
     Args:
-        response (Response): The HTTP response object to set cookies for web clients.
+        response (Response): The HTTP response object to set refresh cookie.
         request (Request): The HTTP request object containing client information.
         user (users_schema.UserRead): The authenticated user object.
         client_type (str): The type of client ("web" or "mobile").
@@ -203,12 +158,18 @@ def complete_login(
         db (Session): Database session for storing session information.
 
     Returns:
-        dict | str: For web clients, returns the session ID as a string.
-                    For mobile clients, returns a dictionary containing tokens and session info.
+        dict: Contains session_id, access_token, csrf_token, token_type, and expires_in.
 
     Raises:
         HTTPException: If the client type is invalid, raises a 403 Forbidden error.
     """
+    if client_type not in ["web", "mobile"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Invalid client type",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
     # Create the tokens
     (
         session_id,
@@ -224,26 +185,24 @@ def complete_login(
         session_id, user, request, refresh_token, password_hasher, db
     )
 
-    if client_type == "web":
-        # Set response cookies with tokens
-        create_response_with_tokens(response, access_token, refresh_token, csrf_token)
-
-        # Return the session_id
-        return {
-            "session_id": session_id,
-        }
-    if client_type == "mobile":
-        # Return the tokens directly (no cookies for mobile)
-        return {
-            "access_token": access_token,
-            "refresh_token": refresh_token,
-            "session_id": session_id,
-            "token_type": "Bearer",
-            "expires_in": int(access_token_exp.timestamp()),
-        }
-
-    raise HTTPException(
-        status_code=status.HTTP_403_FORBIDDEN,
-        detail="Invalid client type",
-        headers={"WWW-Authenticate": "Bearer"},
+    # Access token and CSRF token returned in body for in-memory storage
+    secure = os.environ.get("FRONTEND_PROTOCOL") == "https"
+    response.set_cookie(
+        key="endurain_refresh_token",
+        value=refresh_token,
+        expires=datetime.now(timezone.utc)
+        + timedelta(days=auth_constants.JWT_REFRESH_TOKEN_EXPIRE_DAYS),
+        httponly=True,
+        path="/",
+        secure=secure,
+        samesite="strict",  # OAuth 2.1: Strict for defense-in-depth
     )
+
+    # Return tokens in response body for all clients (unified OAuth 2.1 model)
+    return {
+        "session_id": session_id,
+        "access_token": access_token,
+        "csrf_token": csrf_token,
+        "token_type": "bearer",
+        "expires_in": int(access_token_exp.timestamp()),
+    }

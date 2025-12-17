@@ -20,5 +20,8 @@ export const session = {
   },
   logoutUser() {
     return fetchPostRequest('logout', null)
+  },
+  refreshToken() {
+    return fetchPostRequest('refresh', null)
   }
 }

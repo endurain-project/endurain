@@ -45,5 +45,6 @@
   "ssoAccountDisabled": "Your account has been disabled. Please contact your administrator",
   "ssoAutoCreateDisabled": "Account auto-creation is disabled. Please contact your administrator",
   "ssoErrorUndefined": "An unexpected error occurred during SSO authentication",
-  "forceLocalLogin": "Local login flag enabled. Please use your username and password to log in."
+  "forceLocalLogin": "Local login flag enabled. Please use your username and password to log in.",
+  "ssoTokenExchangeFailed": "SSO token exchange failed."
 }

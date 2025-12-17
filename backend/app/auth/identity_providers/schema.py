@@ -285,6 +285,7 @@ class TokenExchangeResponse(BaseModel):
     and use them for authenticated requests.
 
     Attributes:
+        session_id (str): Session identifier.
         access_token (str): JWT access token (15-minute expiry).
         refresh_token (str): JWT refresh token (7-day expiry).
         csrf_token (str): CSRF protection token (required for mutation requests).
@@ -292,6 +293,7 @@ class TokenExchangeResponse(BaseModel):
         token_type (str): Token type, always "Bearer".
     """
 
+    session_id: str = Field(..., description="Session identifier")
     access_token: str = Field(..., description="JWT access token")
     refresh_token: str = Field(..., description="JWT refresh token")
     csrf_token: str = Field(..., description="CSRF protection token")

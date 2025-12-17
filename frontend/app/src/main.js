@@ -67,6 +67,20 @@ async function initApp() {
   const authStore = useAuthStore()
   authStore.loadUserFromStorage(i18n)
 
+  // OAuth 2.1: Restore tokens on app initialization
+  // Access and CSRF tokens are stored in-memory only, so they're lost on page refresh.
+  // If user is authenticated but has no access token, refresh to get new tokens.
+  if (authStore.isAuthenticated && !authStore.getAccessToken()) {
+    try {
+      await authStore.refreshAccessToken()
+    } catch (error) {
+      // If refresh fails, clear user and redirect to login
+      console.error('Failed to restore session on app init:', error)
+      authStore.clearUser(i18n)
+      router.push('/login?sessionExpired=true')
+    }
+  }
+
   const themeStore = useThemeStore()
   themeStore.loadThemeFromStorage()
 

@@ -1,5 +1,8 @@
 from typing import Annotated, List
+from datetime import datetime, timezone, timedelta
 import secrets
+from uuid import uuid4
+import os
 from fastapi import APIRouter, Depends, HTTPException, status, Response, Request, Query
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
@@ -9,6 +12,7 @@ import core.rate_limit as core_rate_limit
 import auth.password_hasher as auth_password_hasher
 import auth.token_manager as auth_token_manager
 import auth.utils as auth_utils
+import auth.constants as auth_constants
 import session.utils as session_utils
 import session.crud as session_crud
 import auth.identity_providers.crud as idp_crud
@@ -58,6 +62,18 @@ async def initiate_login(
     idp_slug: str,
     request: Request,
     db: Annotated[Session, Depends(core_database.get_db)],
+    code_challenge: Annotated[
+        str,
+        Query(
+            description="PKCE code challenge (base64url-encoded SHA256, 43-128 chars). REQUIRED for OAuth 2.1 compliance.",
+        ),
+    ],
+    code_challenge_method: Annotated[
+        str,
+        Query(
+            description="PKCE method (must be S256). REQUIRED for OAuth 2.1 compliance.",
+        ),
+    ],
     redirect: Annotated[
         str | None,
         Query(
@@ -65,24 +81,12 @@ async def initiate_login(
             description="Frontend redirect path after successful login",
         ),
     ] = None,
-    code_challenge: Annotated[
-        str | None,
-        Query(
-            description="PKCE code challenge (base64url-encoded SHA256, 43-128 chars)",
-        ),
-    ] = None,
-    code_challenge_method: Annotated[
-        str | None,
-        Query(
-            description="PKCE method (must be S256 if provided)",
-        ),
-    ] = None,
 ):
     """
     Initiates the login process for a given identity provider using OAuth.
 
-    Supports both web (traditional) and mobile (PKCE) flows. For mobile clients,
-    both code_challenge and code_challenge_method (S256) are required.
+    PKCE (Proof Key for Code Exchange) is REQUIRED for all clients (OAuth 2.1 compliance).
+    Both code_challenge and code_challenge_method=S256 must be provided.
 
     Rate Limit: 10 requests per minute per IP
     Args:
@@ -90,8 +94,8 @@ async def initiate_login(
         request (Request): The incoming HTTP request object.
         db (Session): Database session dependency.
         redirect (str | None): Optional frontend path to redirect to after login.
-        code_challenge (str | None): PKCE code challenge (for mobile clients).
-        code_challenge_method (str | None): PKCE method (only S256 supported).
+        code_challenge (str): PKCE code challenge (base64url-encoded SHA256, 43-128 chars). REQUIRED.
+        code_challenge_method (str): PKCE method (only S256 supported). REQUIRED.
 
     Returns:
         RedirectResponse: A redirect response to the identity provider's authorization URL.
@@ -108,17 +112,25 @@ async def initiate_login(
                 detail="Identity provider not found or disabled",
             )
 
-        # Detect client type: mobile if PKCE params present, else web
-        client_type = "mobile" if code_challenge else "web"
+        # PKCE is REQUIRED for all clients (OAuth 2.1 compliance)
+        if not code_challenge:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="code_challenge is required (PKCE mandatory for all clients)",
+            )
+        if not code_challenge_method or code_challenge_method != "S256":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="code_challenge_method must be S256",
+            )
 
-        # Validate PKCE if mobile flow
-        if client_type == "mobile":
-            if not code_challenge or not code_challenge_method:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="code_challenge and code_challenge_method required for mobile",
-                )
-            idp_utils.validate_pkce_challenge(code_challenge, code_challenge_method)
+        # Validate PKCE challenge format
+        idp_utils.validate_pkce_challenge(code_challenge, code_challenge_method)
+
+        # Detect client type from X-Client-Type header
+        client_type = request.headers.get("X-Client-Type", "web")
+        if client_type not in ["web", "mobile"]:
+            client_type = "web"  # Default to web if invalid
 
         # Generate OAuth state and nonce
         state_id = secrets.token_urlsafe(32)
@@ -183,6 +195,7 @@ async def handle_callback(
 ):
     """
     Handle OAuth callback from an identity provider.
+
     This endpoint processes the OAuth authorization callback from external identity providers.
     It supports two modes: login mode (default) and link mode (for linking IdP to existing account).
     Args:
@@ -191,19 +204,22 @@ async def handle_callback(
         token_manager (auth_token_manager.TokenManager): Token manager dependency for creating session tokens.
         db (Session): Database session dependency.
         code (str): Authorization code received from the identity provider.
-        state (str): State parameter used for CSRF protection.
-        request (Request | None): The incoming HTTP request. Defaults to None.
-        response (Response | None): The HTTP response object. Defaults to None.
+        state (str): State parameter used for CSRF protection (database state ID).
+        request (Request): The incoming HTTP request.
+
     Returns:
         RedirectResponse: A redirect response to either:
             - Settings page (link mode): /settings with success parameters
-            - Login page (login mode): /login with session_id
+            - Login page (login mode): /login with session_id for token exchange
             - Error page: /login with error parameter if callback fails
+
     Raises:
         HTTPException: If the identity provider is not found, disabled, or if callback processing fails.
+
     Notes:
         - In link mode: Redirects to settings without creating a new session
-        - In login mode: Creates session tokens, stores session in database, sets authentication cookies
+        - In login mode: Creates session, redirects with session_id (client must exchange for tokens)
+        - All clients must call /tokens exchange endpoint with PKCE verifier to get JWT tokens
         - On error: Redirects to login page with error parameter
         - All redirects use HTTP 307 (Temporary Redirect) status code
     """
@@ -216,25 +232,26 @@ async def handle_callback(
                 detail="Identity provider not found or disabled",
             )
 
-        # Lookup OAuth state from database (replaces cookie lookup)
+        # Lookup OAuth state from database (mandatory for all clients)
         oauth_state = oauth_state_crud.get_oauth_state_by_id(state, db)
 
-        # If no database state found, attempt fallback to cookie-based state (backward compatibility)
-        # This allows existing web flows to continue working during migration
         if not oauth_state:
             core_logger.print_to_log(
-                f"OAuth state not found in database: {state[:8]}..., falling back to cookie-based flow",
-                "debug",
+                f"OAuth state not found in database: {state[:8]}...",
+                "warning",
             )
-            # Cookie-based flow will be handled by service layer
-        else:
-            # Mark state as used atomically (prevents replay attacks)
-            oauth_state_crud.mark_oauth_state_used(db, state)
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid or expired OAuth state",
+            )
 
-            core_logger.print_to_log(
-                f"OAuth callback received for state {state[:8]}... (client_type={oauth_state.client_type})",
-                "debug",
-            )
+        # Mark state as used atomically (prevents replay attacks)
+        oauth_state_crud.mark_oauth_state_used(db, state)
+
+        core_logger.print_to_log(
+            f"OAuth callback received for state {state[:8]}... (client_type={oauth_state.client_type})",
+            "debug",
+        )
 
         # Process the OAuth callback (service will handle both DB and cookie state)
         result = await idp_service.idp_service.handle_callback(
@@ -258,41 +275,35 @@ async def handle_callback(
                 status_code=status.HTTP_307_TEMPORARY_REDIRECT,
             )
 
-        # LOGIN MODE: Create session and redirect to dashboard
+        # LOGIN MODE: Create session WITHOUT tokens (tokens created during exchange)
         # Convert to UserRead schema
         user_read = users_schema.UserRead.model_validate(user)
 
-        # Create session tokens
-        (
-            session_id,
-            access_token_exp,
-            access_token,
-            refresh_token_exp,
-            refresh_token,
-            csrf_token,
-        ) = auth_utils.create_tokens(user_read, token_manager)
+        # Generate session ID
+        session_id = str(uuid4())
+
+        # Create placeholder session (tokens will be created during exchange)
+        # Use a temporary refresh token that will be replaced during exchange
+        temp_refresh_token = "pending_exchange"
 
         # Create the session and store it in the database
-        # Link to OAuth state if present (enables mobile token exchange)
+        if not oauth_state:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="OAuth state required for token exchange",
+            )
+
         session_utils.create_session(
             session_id,
             user_read,
             request,
-            refresh_token,
+            temp_refresh_token,
             password_hasher,
             db,
-            oauth_state_id=oauth_state.id if oauth_state else None,
+            oauth_state_id=oauth_state.id,
         )
 
-        # Set authentication cookies
-        response = auth_utils.create_response_with_tokens(
-            response,
-            access_token,
-            refresh_token,
-            csrf_token,
-        )
-
-        # Redirect to frontend
+        # Redirect to frontend with session_id for token exchange
         frontend_url = core_config.ENDURAIN_HOST
         redirect_url = f"{frontend_url}/login?sso=success&session_id={session_id}"
 
@@ -301,13 +312,13 @@ async def handle_callback(
             redirect_url += f"&redirect={redirect_path}"
 
         core_logger.print_to_log(
-            f"SSO login successful for user {user.username} via {idp.name}", "info"
+            f"SSO login successful for user {user.username} via {idp.name} (session_id={session_id})",
+            "info",
         )
 
         return RedirectResponse(
             url=redirect_url,
             status_code=status.HTTP_307_TEMPORARY_REDIRECT,
-            headers=response.headers,
         )
 
     except HTTPException:
@@ -333,6 +344,7 @@ async def handle_callback(
 async def exchange_tokens_for_session(
     session_id: str,
     request: Request,
+    response: Response,
     token_exchange: idp_schema.TokenExchangeRequest,
     password_hasher: Annotated[
         auth_password_hasher.PasswordHasher,
@@ -363,8 +375,8 @@ async def exchange_tokens_for_session(
     Args:
         session_id (str): Session ID from OAuth callback redirect.
         request (Request): FastAPI request object (for rate limiting).
+        response (Response): FastAPI response object.
         token_exchange (TokenExchangeRequest): Request body with code_verifier.
-        password_hasher (PasswordHasher): Password hasher dependency.
         token_manager (TokenManager): Token manager dependency.
         db (Session): Database session dependency.
 
@@ -437,15 +449,38 @@ async def exchange_tokens_for_session(
         user = session_obj.user
         user_read = users_schema.UserRead.model_validate(user)
 
-        # Create JWT tokens
+        # Create JWT tokens (now that PKCE is verified)
         (
-            _,  # session_id (already have it)
-            _,  # access_token_exp (not needed for response)
+            _,
+            access_token_exp,
             access_token,
-            _,  # refresh_token_exp (not needed for response)
+            _,
             refresh_token,
             csrf_token,
-        ) = auth_utils.create_tokens(user_read, token_manager)
+        ) = auth_utils.create_tokens(user_read, token_manager, session_id)
+
+        # Calculate expires_in from access token expiration
+        expires_in = int(
+            (access_token_exp - datetime.now(timezone.utc)).total_seconds()
+        )
+
+        # Update session with the actual hashed refresh token
+        session_obj.refresh_token = password_hasher.hash_password(refresh_token)
+        db.commit()
+
+        # Set refresh token cookie for web clients (enables logout)
+        if oauth_state.client_type == "web":
+            secure = os.environ.get("FRONTEND_PROTOCOL") == "https"
+            response.set_cookie(
+                key="endurain_refresh_token",
+                value=refresh_token,
+                expires=datetime.now(timezone.utc)
+                + timedelta(days=auth_constants.JWT_REFRESH_TOKEN_EXPIRE_DAYS),
+                httponly=True,
+                path="/",
+                secure=secure,
+                samesite="strict",
+            )
 
         # Mark tokens as exchanged to prevent replay attacks
         session_crud.mark_tokens_exchanged(session_id, db)
@@ -456,10 +491,11 @@ async def exchange_tokens_for_session(
         )
 
         return idp_schema.TokenExchangeResponse(
+            session_id=session_id,
             access_token=access_token,
             refresh_token=refresh_token,
             csrf_token=csrf_token,
-            expires_in=900,  # 15 minutes
+            expires_in=expires_in,
             token_type="Bearer",
         )
 
