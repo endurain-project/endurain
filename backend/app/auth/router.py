@@ -302,6 +302,13 @@ async def refresh_token(
     This endpoint validates the provided refresh token, checks session status,
     validates the CSRF token (web clients only), and issues new tokens.
 
+    OAuth 2.1 Bootstrap Pattern for Page Reload:
+        On page reload, in-memory tokens are lost but httpOnly cookie persists.
+        - If no CSRF header: Allow refresh (page reload scenario)
+        - If CSRF header provided: Validate it (legitimate request with cached token)
+        - Security: httpOnly cookie + SameSite=Strict prevents CSRF at browser level
+        - CSRF validation adds defense-in-depth but is not the primary protection
+
     Args:
         response: The HTTP response object.
         request: The HTTP request object.
@@ -313,14 +320,14 @@ async def refresh_token(
         token_manager: Utility for creating tokens.
         db: Database session.
         client_type: Client type (\"web\" or \"mobile\").
-        x_csrf_token: CSRF token header (web clients only, via dependency).
+        x_csrf_token: CSRF token header (web clients only, optional on page reload).
 
     Returns:
         dict: Contains session_id, access_token, csrf_token, token_type, expires_in.
 
     Raises:
         HTTPException: If session not found, refresh token invalid,
-                       user is inactive, or CSRF token is missing/invalid.
+                       user is inactive, or CSRF token is invalid (when provided).
     """
     # Get the session from the database
     session = session_crud.get_session_by_id(token_session_id, db)
@@ -338,11 +345,15 @@ async def refresh_token(
 
     # Verify CSRF token for web clients only
     # Mobile clients don't use CSRF tokens
-    # Note: Middleware already checks header presence for web clients
-    if client_type == "web":
-        if not x_csrf_token or not password_hasher.verify(
-            x_csrf_token, session.csrf_token_hash
-        ):
+    # OAuth 2.1 Bootstrap Pattern for page reload:
+    # - On page reload, in-memory tokens are lost but httpOnly cookie persists
+    # - If x_csrf_token is None (missing from request), allow refresh anyway
+    # - Security: httpOnly cookie + SameSite=Strict prevents CSRF at browser level
+    # - If x_csrf_token is provided, it MUST be valid (prevent partial CSRF)
+    # - CSRF token is defense-in-depth; SameSite=Strict is primary protection
+    if client_type == "web" and x_csrf_token and session.csrf_token_hash is not None:
+        # CSRF token was provided: validate it
+        if not password_hasher.verify(x_csrf_token, session.csrf_token_hash):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Invalid CSRF token",

@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 import auth.oauth_state.models as oauth_state_models
 import session.models as session_models
 import session.schema as session_schema
+import session.rotated_refresh_tokens.crud as rotated_tokens_crud
 
 import core.logger as core_logger
 
@@ -321,10 +322,30 @@ def delete_session(session_id: str, user_id: int, db: Session) -> None:
         HTTPException: If the session is not found (404) or if an error occurs during deletion (500).
 
     Notes:
+        - Deletes rotated tokens associated with the session before deleting the session
         - Rolls back the transaction and logs the error if an unexpected exception occurs.
         - Commits the transaction if the session is successfully deleted.
     """
     try:
+        # Get the session to retrieve token_family_id before deletion
+        session = (
+            db.query(session_models.UsersSessions)
+            .filter(
+                session_models.UsersSessions.id == session_id,
+                session_models.UsersSessions.user_id == user_id,
+            )
+            .first()
+        )
+
+        # Check if the session was found
+        if session is None:
+            raise SessionNotFoundError(
+                f"Session {session_id} not found for user {user_id}"
+            )
+
+        # Delete rotated tokens for this session's family (foreign key constraint)
+        rotated_tokens_crud.delete_by_family(session.token_family_id, db)
+
         # Delete the session
         num_deleted = (
             db.query(session_models.UsersSessions)
@@ -334,12 +355,6 @@ def delete_session(session_id: str, user_id: int, db: Session) -> None:
             )
             .delete()
         )
-
-        # Check if the session was found and deleted
-        if num_deleted == 0:
-            raise SessionNotFoundError(
-                f"Session {session_id} not found for user {user_id}"
-            )
 
         # Commit the transaction
         db.commit()

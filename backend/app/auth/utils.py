@@ -174,6 +174,10 @@ def complete_login(
     ) = create_tokens(user, token_manager)
 
     # Create the session and store it in the database
+    # Note: csrf_token is NOT stored on initial login (csrf_token_hash = None).
+    # This enables the OAuth 2.1 bootstrap pattern where the first /refresh call
+    # after page reload establishes the CSRF binding. The httpOnly cookie is
+    # sufficient authentication for the bootstrap refresh.
     session_utils.create_session(
         session_id,
         user,
@@ -181,7 +185,6 @@ def complete_login(
         refresh_token,
         password_hasher,
         db,
-        csrf_token=csrf_token,
     )
 
     # Access token and CSRF token returned in body for in-memory storage

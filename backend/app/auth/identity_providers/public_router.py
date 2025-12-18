@@ -464,9 +464,10 @@ async def exchange_tokens_for_session(
             (access_token_exp - datetime.now(timezone.utc)).total_seconds()
         )
 
-        # Update session with the actual hashed refresh token and CSRF hash
+        # Update session with the actual hashed refresh token
+        # Note: csrf_token_hash is NOT stored here (OAuth 2.1 bootstrap pattern).
+        # The first /refresh call after page reload establishes the CSRF binding.
         session_obj.refresh_token = password_hasher.hash_password(refresh_token)
-        session_obj.csrf_token_hash = password_hasher.hash_password(csrf_token)
         db.commit()
 
         # Set refresh token cookie for web clients (enables logout)

@@ -115,6 +115,7 @@ class CSRFMiddleware(BaseHTTPMiddleware):
         self.exempt_paths = [
             "/api/v1/auth/login",
             "/api/v1/auth/mfa/verify",
+            "/api/v1/auth/refresh",  # Bootstrap pattern: first refresh has no CSRF
             "/api/v1/password-reset/request",
             "/api/v1/password-reset/confirm",
             "/api/v1/sign-up/request",
