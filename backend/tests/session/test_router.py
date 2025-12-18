@@ -74,7 +74,7 @@ class TestLoginEndpointSecurity:
             )
 
             resp = fast_api_client.post(
-                "/token",
+                "/auth/login",
                 data={"username": "testuser", "password": "secret"},
                 headers={"X-Client-Type": client_type},
             )
@@ -134,7 +134,7 @@ class TestLoginEndpointSecurity:
             mock_mfa.return_value = True
 
             resp = fast_api_client.post(
-                "/token",
+                "/auth/login",
                 data={"username": "testuser", "password": "secret"},
                 headers={"X-Client-Type": client_type},
             )
@@ -154,7 +154,7 @@ class TestLoginEndpointSecurity:
 
         This test sets the application's client type to "desktop" and mocks the authentication,
         user activity check, MFA status, token creation, and session creation utilities. It then
-        sends a POST request to the "/token" endpoint with the "X-Client-Type" header set to "desktop".
+        sends a POST request to the "/auth/login" endpoint with the "X-Client-Type" header set to "desktop".
         The test asserts that the response status code is 403 Forbidden and the response detail
         indicates an invalid client type.
 
@@ -187,7 +187,7 @@ class TestLoginEndpointSecurity:
             mock_create_session.return_value = None
 
             resp = fast_api_client.post(
-                "/token",
+                "/auth/login",
                 data={"username": "x", "password": "y"},
                 headers={"X-Client-Type": "desktop"},
             )
@@ -236,7 +236,7 @@ class TestLoginEndpointSecurity:
 
 class TestMFAVerifyEndpoint:
     """
-    Test suite for the MFA verification endpoint (/mfa/verify).
+    Test suite for the MFA verification endpoint (/auth/mfa/verify).
 
     This class contains tests that cover various scenarios for the MFA verification endpoint, including:
     - Successful MFA verification and login for different client types (web and mobile).
@@ -310,7 +310,7 @@ class TestMFAVerifyEndpoint:
             )
 
             resp = fast_api_client.post(
-                "/mfa/verify",
+                "/auth/mfa/verify",
                 json={"username": "testuser", "mfa_code": "123456"},
                 headers={"X-Client-Type": client_type},
             )
@@ -335,7 +335,7 @@ class TestMFAVerifyEndpoint:
         fast_api_app.state.fake_store._store = {}
 
         resp = fast_api_client.post(
-            "/mfa/verify",
+            "/auth/mfa/verify",
             json={"username": "testuser", "mfa_code": "123456"},
             headers={"X-Client-Type": "web"},
         )
@@ -359,7 +359,7 @@ class TestMFAVerifyEndpoint:
             mock_verify_mfa.return_value = False
 
             resp = fast_api_client.post(
-                "/mfa/verify",
+                "/auth/mfa/verify",
                 json={"username": "testuser", "mfa_code": "999999"},
                 headers={"X-Client-Type": "web"},
             )
@@ -389,7 +389,7 @@ class TestMFAVerifyEndpoint:
             mock_get_user.return_value = None
 
             resp = fast_api_client.post(
-                "/mfa/verify",
+                "/auth/mfa/verify",
                 json={"username": "testuser", "mfa_code": "123456"},
                 headers={"X-Client-Type": "web"},
             )
@@ -423,7 +423,7 @@ class TestMFAVerifyEndpoint:
             )
 
             resp = fast_api_client.post(
-                "/mfa/verify",
+                "/auth/mfa/verify",
                 json={"username": "inactive", "mfa_code": "123456"},
                 headers={"X-Client-Type": "web"},
             )
@@ -434,7 +434,7 @@ class TestMFAVerifyEndpoint:
 
 class TestRefreshTokenEndpoint:
     """
-    Test suite for the refresh token endpoint (/refresh).
+    Test suite for the refresh token endpoint (/auth/refresh).
 
     This class contains tests that cover various scenarios for the token refresh endpoint, including:
     - Successful token refresh for different client types (web and mobile).
@@ -521,7 +521,7 @@ class TestRefreshTokenEndpoint:
             fast_api_client.cookies.set("endurain_refresh_token", "refresh_token_value")
 
             resp = fast_api_client.post(
-                "/refresh",
+                "/auth/refresh",
                 headers={"X-Client-Type": client_type},
             )
 
@@ -552,7 +552,7 @@ class TestRefreshTokenEndpoint:
             fast_api_client.cookies.set("endurain_refresh_token", "refresh_token_value")
 
             resp = fast_api_client.post(
-                "/refresh",
+                "/auth/refresh",
                 headers={"X-Client-Type": "web"},
             )
 
@@ -584,7 +584,7 @@ class TestRefreshTokenEndpoint:
             fast_api_client.cookies.set("endurain_refresh_token", "wrong_token_value")
 
             resp = fast_api_client.post(
-                "/refresh",
+                "/auth/refresh",
                 headers={"X-Client-Type": "web"},
             )
 
@@ -626,7 +626,7 @@ class TestRefreshTokenEndpoint:
             fast_api_client.cookies.set("endurain_refresh_token", "refresh_token_value")
 
             resp = fast_api_client.post(
-                "/refresh",
+                "/auth/refresh",
                 headers={"X-Client-Type": "web"},
             )
 
@@ -680,7 +680,7 @@ class TestRefreshTokenEndpoint:
             fast_api_client.cookies.set("endurain_refresh_token", "refresh_token_value")
 
             resp = fast_api_client.post(
-                "/refresh",
+                "/auth/refresh",
                 headers={"X-Client-Type": "desktop"},
             )
 
@@ -690,7 +690,7 @@ class TestRefreshTokenEndpoint:
 
 class TestLogoutEndpoint:
     """
-    Test suite for the logout endpoint (/logout).
+    Test suite for the logout endpoint (/auth/logout).
 
     This class contains tests that cover various scenarios for the logout endpoint, including:
     - Successful logout for different client types (web and mobile).
@@ -749,7 +749,7 @@ class TestLogoutEndpoint:
             fast_api_client.cookies.set("endurain_refresh_token", "refresh_token_value")
 
             resp = fast_api_client.post(
-                "/logout",
+                "/auth/logout",
                 headers={"X-Client-Type": client_type},
             )
 
@@ -788,7 +788,7 @@ class TestLogoutEndpoint:
             fast_api_client.cookies.set("endurain_refresh_token", "wrong_token_value")
 
             resp = fast_api_client.post(
-                "/logout",
+                "/auth/logout",
                 headers={"X-Client-Type": "web"},
             )
 
@@ -815,7 +815,7 @@ class TestLogoutEndpoint:
             fast_api_client.cookies.set("endurain_refresh_token", "refresh_token_value")
 
             resp = fast_api_client.post(
-                "/logout",
+                "/auth/logout",
                 headers={"X-Client-Type": "web"},
             )
 
@@ -846,7 +846,7 @@ class TestLogoutEndpoint:
             fast_api_client.cookies.set("endurain_refresh_token", "refresh_token_value")
 
             resp = fast_api_client.post(
-                "/logout",
+                "/auth/logout",
                 headers={"X-Client-Type": "desktop"},
             )
 

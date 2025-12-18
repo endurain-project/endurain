@@ -21,9 +21,9 @@ function getAccessToken() {
 // Helper function to add authorization and CSRF headers
 function addAuthHeaders(url, options) {
   // Add Authorization Bearer header for all authenticated requests
-  // Skip public endpoints (token, password-reset, sign-up)
+  // Skip public endpoints (login, password-reset, sign-up)
   if (
-    url !== 'token' &&
+    url !== 'auth/login' &&
     url !== 'password-reset/request' &&
     url !== 'password-reset/confirm' &&
     url !== 'sign-up/request' &&
@@ -42,8 +42,8 @@ function addAuthHeaders(url, options) {
   // Add CSRF token for state-changing requests
   if (
     ['POST', 'PUT', 'DELETE', 'PATCH'].includes(options.method) &&
-    url !== 'token' &&
-    url !== 'mfa/verify' &&
+    url !== 'auth/login' &&
+    url !== 'auth/mfa/verify' &&
     url !== 'password-reset/request' &&
     url !== 'password-reset/confirm' &&
     url !== 'sign-up/request' &&
@@ -71,9 +71,9 @@ async function fetchWithRetry(url, options, responseType = 'json') {
     // Don't retry on 401 for: token, refresh, logout, MFA verify, or Garmin link errors
     if (
       error.message.startsWith('401') &&
-      url !== 'token' &&
-      url !== 'refresh' &&
-      url !== 'logout'
+      url !== 'auth/login' &&
+      url !== 'auth/refresh' &&
+      url !== 'auth/logout'
     ) {
       if (
         url === 'garminconnect/link' &&

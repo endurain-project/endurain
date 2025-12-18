@@ -23,7 +23,7 @@ Endurain supports integration with other apps through a comprehensive authentica
 ## Authentication Flows
 
 ### Standard Login Flow
-1. Client sends credentials to `/token` endpoint
+1. Client sends credentials to `/auth/login` endpoint
 2. Backend validates credentials
 3. If MFA is enabled, backend requests MFA code
 4. If MFA is disabled or verified, backend generates tokens
@@ -39,7 +39,7 @@ Endurain supports integration with other apps through a comprehensive authentica
 7. User is redirected to the app with active session
 
 ### Token Refresh Flow
-1. When access token expires, client sends refresh token to `/refresh`
+1. When access token expires, client sends refresh token to `/auth/refresh`
 2. Backend validates refresh token and session
 3. New access token is generated and returned
 4. Refresh token may be rotated based on configuration
@@ -51,10 +51,10 @@ The API is reachable under `/api/v1`. Below are the authentication-related endpo
 
 | What | Url | Expected Information | Rate Limit |
 | ---- | --- | -------------------- | ---------- |
-| **Authorize** | `/token` |  `FORM` with the fields `username` and `password`. This will be sent in clear text, use of HTTPS is highly recommended | 5 requests/min per IP |
-| **Refresh Token** | `/refresh` | header `Authorization Bearer: <Refresh Token>`  | - |
-| **Verify MFA** | `/mfa/verify` | JSON `{'username': <username>, 'mfa_code': '123456'}` | - |
-| **Logout** | `/logout` | header `Authorization Bearer: <Access Token>` | - |
+| **Authorize** | `/auth/login` |  `FORM` with the fields `username` and `password`. This will be sent in clear text, use of HTTPS is highly recommended | 5 requests/min per IP |
+| **Refresh Token** | `/auth/refresh` | header `Authorization Bearer: <Refresh Token>`  | - |
+| **Verify MFA** | `/auth/mfa/verify` | JSON `{'username': <username>, 'mfa_code': '123456'}` | - |
+| **Logout** | `/auth/logout` | header `Authorization Bearer: <Access Token>` | - |
 
 ### OAuth/SSO Endpoints
 
@@ -78,11 +78,11 @@ The API is reachable under `/api/v1`. Below are the authentication-related endpo
 When Multi-Factor Authentication (MFA) is enabled for a user, the authentication process requires two steps:
 
 ### Step 1: Initial Login Request
-Make a standard login request to `/token`:
+Make a standard login request to `/auth/login`:
 
 **Request:**
 ```http
-POST /api/v1/token
+POST /api/v1/auth/login
 Content-Type: application/x-www-form-urlencoded
 X-Client-Type: web|mobile
 
@@ -112,11 +112,11 @@ username=user@example.com&password=userpassword
 ```
 
 ### Step 2: MFA Verification
-Complete the login by providing the MFA code to `/mfa/verify`:
+Complete the login by providing the MFA code to `/auth/mfa/verify`:
 
 **Request:**
 ```http
-POST /api/v1/mfa/verify
+POST /api/v1/auth/mfa/verify
 Content-Type: application/json
 X-Client-Type: web|mobile
 

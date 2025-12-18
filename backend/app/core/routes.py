@@ -99,7 +99,7 @@ router.include_router(
 )
 router.include_router(
     auth_router.router,
-    prefix=core_config.ROOT_PATH,
+    prefix=core_config.ROOT_PATH + "/auth",
     tags=["auth"],
 )
 router.include_router(

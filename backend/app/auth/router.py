@@ -35,7 +35,7 @@ import core.rate_limit as core_rate_limit
 router = APIRouter()
 
 
-@router.post("/token")
+@router.post("/login")
 @core_rate_limit.limiter.limit(core_rate_limit.SESSION_LOGIN_LIMIT)
 async def login_for_access_token(
     response: Response,
