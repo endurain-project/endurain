@@ -94,10 +94,12 @@ def upgrade() -> None:
         sa.ForeignKeyConstraint(
             ["idp_id"],
             ["identity_providers.id"],
+            ondelete="CASCADE",
         ),
         sa.ForeignKeyConstraint(
             ["user_id"],
             ["users.id"],
+            ondelete="CASCADE",
         ),
         sa.PrimaryKeyConstraint("id"),
     )
@@ -158,7 +160,13 @@ def upgrade() -> None:
     )
     # Add last_activity_at column with default value = created_at
     op.add_column(
-        "users_sessions", sa.Column("last_activity_at", sa.DateTime(), nullable=True)
+        "users_sessions",
+        sa.Column(
+            "last_activity_at",
+            sa.DateTime(),
+            nullable=True,
+            comment="Last activity timestamp for idle timeout",
+        ),
     )
 
     # Backfill existing sessions: set last_activity_at = created_at
@@ -167,7 +175,13 @@ def upgrade() -> None:
     )
 
     # Make column non-nullable after backfill
-    op.alter_column("users_sessions", "last_activity_at", nullable=False)
+    op.alter_column(
+        "users_sessions",
+        "last_activity_at",
+        nullable=False,
+        comment="Last activity timestamp for idle timeout",
+        existing_type=sa.DateTime(),
+    )
     # ### end Alembic commands ###
 
 

@@ -29,115 +29,103 @@ class IdentityProvider(Base):
         created_at (datetime): Timestamp when the provider was created.
         updated_at (datetime): Timestamp when the provider was last updated.
         user_identity_providers (list[UserIdentityProvider]): Relationship to user identity providers (many-to-many).
+        oauth_states (list[OAuthState]): Relationship to OAuth states.
     """
+
     __tablename__ = "identity_providers"
 
     id = Column(Integer, primary_key=True, index=True)
-    name = Column(
-        String(length=100),
-        nullable=False,
-        comment="Display name of the IdP"
-    )
+    name = Column(String(length=100), nullable=False, comment="Display name of the IdP")
     slug = Column(
         String(length=50),
         nullable=False,
         unique=True,
         index=True,
-        comment="URL-safe identifier"
+        comment="URL-safe identifier",
     )
     provider_type = Column(
         String(length=50),
         nullable=False,
         default="oidc",
-        comment="Type: oidc, oauth2, saml"
+        comment="Type: oidc, oauth2, saml",
     )
     enabled = Column(
         Boolean,
         nullable=False,
         default=False,
         index=True,
-        comment="Whether this provider is enabled"
+        comment="Whether this provider is enabled",
     )
     client_id = Column(
-        String(length=512),
-        nullable=True,
-        comment="OAuth2/OIDC client ID (encrypted)"
+        String(length=512), nullable=True, comment="OAuth2/OIDC client ID (encrypted)"
     )
     client_secret = Column(
         String(length=512),
         nullable=True,
-        comment="OAuth2/OIDC client secret (encrypted)"
+        comment="OAuth2/OIDC client secret (encrypted)",
     )
     issuer_url = Column(
-        String(length=500),
-        nullable=True,
-        comment="OIDC issuer/discovery URL"
+        String(length=500), nullable=True, comment="OIDC issuer/discovery URL"
     )
     authorization_endpoint = Column(
-        String(length=500),
-        nullable=True,
-        comment="OAuth2/OIDC authorization endpoint"
+        String(length=500), nullable=True, comment="OAuth2/OIDC authorization endpoint"
     )
     token_endpoint = Column(
-        String(length=500),
-        nullable=True,
-        comment="OAuth2/OIDC token endpoint"
+        String(length=500), nullable=True, comment="OAuth2/OIDC token endpoint"
     )
     userinfo_endpoint = Column(
-        String(length=500),
-        nullable=True,
-        comment="OIDC userinfo endpoint"
+        String(length=500), nullable=True, comment="OIDC userinfo endpoint"
     )
     jwks_uri = Column(
         String(length=500),
         nullable=True,
-        comment="OIDC JWKS URI for token verification"
+        comment="OIDC JWKS URI for token verification",
     )
     scopes = Column(
         String(length=500),
         nullable=True,
         default="openid profile email",
-        comment="OAuth2/OIDC scopes to request"
+        comment="OAuth2/OIDC scopes to request",
     )
     icon = Column(
         String(length=100),
         nullable=True,
-        comment="Icon name (FontAwesome) or custom URL"
+        comment="Icon name (FontAwesome) or custom URL",
     )
     auto_create_users = Column(
         Boolean,
         nullable=False,
         default=True,
-        comment="Automatically create users on first login"
+        comment="Automatically create users on first login",
     )
     sync_user_info = Column(
-        Boolean,
-        nullable=False,
-        default=True,
-        comment="Sync user info on each login"
+        Boolean, nullable=False, default=True, comment="Sync user info on each login"
     )
     user_mapping = Column(
-        JSON,
-        nullable=True,
-        comment="JSON mapping of IdP claims to user fields"
+        JSON, nullable=True, comment="JSON mapping of IdP claims to user fields"
     )
     created_at = Column(
         DateTime,
         nullable=False,
         server_default=func.now(),
-        comment="When this provider was created"
+        comment="When this provider was created",
     )
     updated_at = Column(
         DateTime,
         nullable=False,
         server_default=func.now(),
         onupdate=func.now(),
-        comment="When this provider was last updated"
+        comment="When this provider was last updated",
     )
 
     # Relationship to user identity providers (many-to-many through junction table)
     user_identity_providers = relationship(
         "UserIdentityProvider",
         back_populates="identity_providers",
-        cascade="all, delete-orphan"
+        cascade="all, delete-orphan",
+    )
+
+    # Relationship to OAuth states
+    oauth_states = relationship(
+        "OAuthState", back_populates="identity_provider", cascade="all, delete-orphan"
     )

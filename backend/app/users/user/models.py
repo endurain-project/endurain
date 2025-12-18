@@ -51,6 +51,7 @@ class User(Base):
         notifications: List of notifications for the user.
         goals: List of user goals.
         user_identity_providers: List of identity providers linked to the user.
+        oauth_states: List of OAuth states for the user (link mode).
     """
 
     __tablename__ = "users"
@@ -263,6 +264,13 @@ class User(Base):
     # Establish a many-to-many relationship with user_identity_providers
     user_identity_providers = relationship(
         "UserIdentityProvider",
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
+
+    # Establish a one-to-many relationship with oauth_states
+    oauth_states = relationship(
+        "OAuthState",
         back_populates="user",
         cascade="all, delete-orphan",
     )
