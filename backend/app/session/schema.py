@@ -22,8 +22,6 @@ class UsersSessions(BaseModel):
         from_attributes (bool): Allows model initialization from attributes.
         extra (str): Forbids extra fields not defined in the model.
         validate_assignment (bool): Enables validation on assignment.
-    Validators:
-        expires_at: Ensures that the expiration timestamp is after the creation timestamp.
     """
 
     id: str = Field(..., description="Unique session identifier")
@@ -45,6 +43,15 @@ class UsersSessions(BaseModel):
     )
     tokens_exchanged: bool = Field(
         default=False, description="Prevents duplicate token exchange for mobile"
+    )
+    token_family_id: str = Field(
+        ..., description="UUID identifying token family for reuse detection"
+    )
+    rotation_count: int = Field(
+        default=0, description="Number of times refresh token has been rotated"
+    )
+    last_rotation_at: datetime | None = Field(
+        None, description="Timestamp of last token rotation"
     )
 
     model_config = ConfigDict(

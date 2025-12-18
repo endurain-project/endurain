@@ -13,6 +13,8 @@ import sign_up_tokens.utils as sign_up_tokens_utils
 
 import session.utils as session_utils
 
+import session.rotated_refresh_tokens.utils as rotated_tokens_utils
+
 import auth.oauth_state.utils as oauth_state_utils
 
 import core.logger as core_logger
@@ -88,6 +90,14 @@ def start_scheduler():
         15,
         [],
         "delete expired sessions from the database",
+    )
+
+    add_scheduler_job(
+        rotated_tokens_utils.cleanup_expired_rotated_tokens,
+        "interval",
+        5,
+        [],
+        "delete expired rotated tokens from the database",
     )
 
 

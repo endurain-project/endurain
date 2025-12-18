@@ -1,8 +1,8 @@
 """v0.16.4 migration
 
-Revision ID: ef6cd7775aa2
+Revision ID: ed5f1c867943
 Revises: 2af2c0629b37
-Create Date: 2025-12-16 12:47:18.298420
+Create Date: 2025-12-18 12:02:47.808747
 
 """
 
@@ -13,7 +13,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = "ef6cd7775aa2"
+revision: str = "ed5f1c867943"
 down_revision: Union[str, None] = "2af2c0629b37"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -94,12 +94,10 @@ def upgrade() -> None:
         sa.ForeignKeyConstraint(
             ["idp_id"],
             ["identity_providers.id"],
-            ondelete="CASCADE",
         ),
         sa.ForeignKeyConstraint(
             ["user_id"],
             ["users.id"],
-            ondelete="CASCADE",
         ),
         sa.PrimaryKeyConstraint("id"),
     )
@@ -116,7 +114,20 @@ def upgrade() -> None:
     op.create_index(
         op.f("ix_oauth_states_user_id"), "oauth_states", ["user_id"], unique=False
     )
-    # Add oauth_state_id and tokens_exchanged to users_sessions table
+
+    # Delete all existing sessions before altering user_sessions table
+    op.execute("DELETE FROM users_sessions")
+
+    # Add new columns to users_sessions
+    op.add_column(
+        "users_sessions",
+        sa.Column(
+            "last_activity_at",
+            sa.DateTime(),
+            nullable=False,
+            comment="Last activity timestamp for idle timeout",
+        ),
+    )
     op.add_column(
         "users_sessions",
         sa.Column(
@@ -131,23 +142,36 @@ def upgrade() -> None:
         sa.Column(
             "tokens_exchanged",
             sa.Boolean(),
-            nullable=True,
+            nullable=False,
             comment="Prevents duplicate token exchange for mobile",
         ),
     )
-    op.execute(
-        """
-        UPDATE users_sessions
-        SET tokens_exchanged = false
-        WHERE tokens_exchanged IS NULL;
-    """
-    )
-    op.alter_column(
+    op.add_column(
         "users_sessions",
-        "tokens_exchanged",
-        nullable=False,
-        comment="Prevents duplicate token exchange for mobile",
-        existing_type=sa.Boolean(),
+        sa.Column(
+            "token_family_id",
+            sa.String(length=36),
+            nullable=False,
+            comment="UUID identifying token family for reuse detection",
+        ),
+    )
+    op.add_column(
+        "users_sessions",
+        sa.Column(
+            "rotation_count",
+            sa.Integer(),
+            nullable=False,
+            comment="Number of times refresh token has been rotated",
+        ),
+    )
+    op.add_column(
+        "users_sessions",
+        sa.Column(
+            "last_rotation_at",
+            sa.DateTime(),
+            nullable=True,
+            comment="Timestamp of last token rotation",
+        ),
     )
     op.create_index(
         op.f("ix_users_sessions_oauth_state_id"),
@@ -155,43 +179,84 @@ def upgrade() -> None:
         ["oauth_state_id"],
         unique=False,
     )
+    op.create_index(
+        op.f("ix_users_sessions_token_family_id"),
+        "users_sessions",
+        ["token_family_id"],
+        unique=True,
+    )
     op.create_foreign_key(
         None, "users_sessions", "oauth_states", ["oauth_state_id"], ["id"]
     )
-    # Add last_activity_at column with default value = created_at
-    op.add_column(
-        "users_sessions",
+
+    # Create rotated_refresh_tokens table
+    op.create_table(
+        "rotated_refresh_tokens",
+        sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
         sa.Column(
-            "last_activity_at",
-            sa.DateTime(),
-            nullable=True,
-            comment="Last activity timestamp for idle timeout",
+            "token_family_id",
+            sa.String(length=36),
+            nullable=False,
+            comment="UUID of the token family",
         ),
+        sa.Column(
+            "hashed_token",
+            sa.String(length=255),
+            nullable=False,
+            comment="Hashed old refresh token",
+        ),
+        sa.Column(
+            "rotation_count",
+            sa.Integer(),
+            nullable=False,
+            comment="Which rotation this token belonged to",
+        ),
+        sa.Column(
+            "rotated_at",
+            sa.DateTime(),
+            nullable=False,
+            comment="When this token was rotated",
+        ),
+        sa.Column(
+            "expires_at",
+            sa.DateTime(),
+            nullable=False,
+            comment="Cleanup marker (rotated_at + 60 seconds)",
+        ),
+        sa.ForeignKeyConstraint(
+            ["token_family_id"],
+            ["users_sessions.token_family_id"],
+        ),
+        sa.PrimaryKeyConstraint("id"),
+        sa.UniqueConstraint("hashed_token"),
     )
-
-    # Backfill existing sessions: set last_activity_at = created_at
-    op.execute(
-        "UPDATE users_sessions SET last_activity_at = created_at WHERE last_activity_at IS NULL"
-    )
-
-    # Make column non-nullable after backfill
-    op.alter_column(
-        "users_sessions",
-        "last_activity_at",
-        nullable=False,
-        comment="Last activity timestamp for idle timeout",
-        existing_type=sa.DateTime(),
+    op.create_index(
+        op.f("ix_rotated_refresh_tokens_token_family_id"),
+        "rotated_refresh_tokens",
+        ["token_family_id"],
+        unique=False,
     )
     # ### end Alembic commands ###
 
 
 def downgrade() -> None:
     # ### commands auto generated by Alembic - please adjust! ###
-    op.drop_column("users_sessions", "last_activity_at")
     op.drop_constraint(None, "users_sessions", type_="foreignkey")
+    op.drop_index(
+        op.f("ix_users_sessions_token_family_id"), table_name="users_sessions"
+    )
     op.drop_index(op.f("ix_users_sessions_oauth_state_id"), table_name="users_sessions")
+    op.drop_column("users_sessions", "last_rotation_at")
+    op.drop_column("users_sessions", "rotation_count")
+    op.drop_column("users_sessions", "token_family_id")
     op.drop_column("users_sessions", "tokens_exchanged")
     op.drop_column("users_sessions", "oauth_state_id")
+    op.drop_column("users_sessions", "last_activity_at")
+    op.drop_index(
+        op.f("ix_rotated_refresh_tokens_token_family_id"),
+        table_name="rotated_refresh_tokens",
+    )
+    op.drop_table("rotated_refresh_tokens")
     op.drop_index(op.f("ix_oauth_states_user_id"), table_name="oauth_states")
     op.drop_index(op.f("ix_oauth_states_used"), table_name="oauth_states")
     op.drop_index(op.f("ix_oauth_states_idp_id"), table_name="oauth_states")

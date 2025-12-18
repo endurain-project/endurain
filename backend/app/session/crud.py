@@ -405,3 +405,39 @@ def delete_idle_sessions(cutoff_time: datetime, db: Session) -> int:
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to delete idle sessions",
         ) from err
+
+
+def delete_sessions_by_family(token_family_id: str, db: Session) -> int:
+    """
+    Delete all sessions belonging to a token family.
+
+    Args:
+        token_family_id: The family ID to delete sessions for.
+        db: The SQLAlchemy database session.
+
+    Returns:
+        Number of sessions deleted.
+
+    Raises:
+        HTTPException: If an error occurs during deletion (500).
+    """
+    try:
+        num_deleted = (
+            db.query(session_models.UsersSessions)
+            .filter(session_models.UsersSessions.token_family_id == token_family_id)
+            .delete()
+        )
+
+        db.commit()
+        return num_deleted
+    except Exception as err:
+        db.rollback()
+        core_logger.print_to_log(
+            f"Error in delete_sessions_by_family: {err}",
+            "error",
+            exc=err,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to delete sessions by family",
+        ) from err

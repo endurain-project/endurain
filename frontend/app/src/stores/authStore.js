@@ -48,6 +48,15 @@ export const useAuthStore = defineStore('auth', {
   actions: {
     async logoutUser(router = null, locale = null) {
       try {
+        // Ensure we have fresh tokens before logout (handles page refresh case)
+        if (!this.csrfToken || !this.accessToken) {
+          try {
+            await this.refreshAccessToken()
+          } catch (refreshError) {
+            console.error('Failed to refresh tokens before logout:', refreshError)
+            // Continue with logout attempt even if refresh fails
+          }
+        }
         await session.logoutUser()
       } catch (error) {
         console.error('Error during logout:', error)

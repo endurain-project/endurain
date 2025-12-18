@@ -144,6 +144,9 @@ def create_session_object(
         expires_at=refresh_token_exp,
         oauth_state_id=oauth_state_id,
         tokens_exchanged=False,
+        token_family_id=session_id,
+        rotation_count=0,
+        last_rotation_at=None,
     )
 
 
@@ -168,6 +171,9 @@ def edit_session_object(
     user_agent = get_user_agent(request)
     device_info = parse_user_agent(user_agent)
 
+    now = datetime.now(timezone.utc)
+    new_rotation_count = session.rotation_count + 1
+
     return session_schema.UsersSessions(
         id=session.id,
         user_id=session.user_id,
@@ -179,10 +185,13 @@ def edit_session_object(
         browser=device_info.browser,
         browser_version=device_info.browser_version,
         created_at=session.created_at,
-        last_activity_at=datetime.now(timezone.utc),
+        last_activity_at=now,
         expires_at=refresh_token_exp,
         oauth_state_id=session.oauth_state_id,
         tokens_exchanged=session.tokens_exchanged,
+        token_family_id=session.token_family_id,
+        rotation_count=new_rotation_count,
+        last_rotation_at=now,
     )
 
 

@@ -31,6 +31,8 @@ import profile.utils as profile_utils
 import core.database as core_database
 import core.rate_limit as core_rate_limit
 
+import session.rotated_refresh_tokens.utils as rotated_tokens_utils
+
 # Define the API router
 router = APIRouter()
 
@@ -325,13 +327,29 @@ async def refresh_token(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    # NEW: Validate session hasn't exceeded idle or absolute timeout
+    # Validate session hasn't exceeded idle or absolute timeout
     session_utils.validate_session_timeout(session)
 
+    # Check for token reuse BEFORE validating token
+    # Hash the incoming token to compare with rotated tokens
+    hashed_refresh_token = password_hasher.hash_password(refresh_token_value)
+    is_reused, in_grace = rotated_tokens_utils.check_token_reuse(
+        hashed_refresh_token, db
+    )
+
+    if is_reused and not in_grace:
+        # Token theft detected - invalidate entire family
+        rotated_tokens_utils.invalidate_token_family(session.token_family_id, db)
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token reuse detected. All sessions invalidated.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
     # Validate CSRF token matches session
-    # Note: CSRF token is stored in session during initial authentication
-    # For now, we validate that a CSRF token was provided (checked by middleware)
-    # Future enhancement: Store CSRF token hash in session for validation
+    # Note: CSRF token is stored in session during initial auth
+    # For now, we validate that a CSRF token was provided
+    # Future enhancement: Store CSRF token hash in session
 
     is_valid = password_hasher.verify(refresh_token_value, session.refresh_token)
 
@@ -355,6 +373,15 @@ async def refresh_token(
     # Check if the user is active
     users_utils.check_user_is_active(user)
 
+    # Store old refresh token BEFORE rotating
+    # This enables detection if the old token is reused later
+    rotated_tokens_utils.store_rotated_token(
+        session.refresh_token,
+        session.token_family_id,
+        session.rotation_count,
+        db,
+    )
+
     # Create the tokens
     (
         session_id,
@@ -365,7 +392,9 @@ async def refresh_token(
         new_csrf_token,
     ) = auth_utils.create_tokens(user, token_manager, session.id)
 
-    # Edit the session and store it in the database
+    # Edit session and store in database
+    # Note: edit_session automatically increments rotation_count
+    # and updates last_rotation_at
     session_utils.edit_session(session, request, new_refresh_token, password_hasher, db)
 
     # Opportunistically refresh IdP tokens for all linked identity providers

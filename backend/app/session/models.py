@@ -28,6 +28,7 @@ class UsersSessions(Base):
         last_activity_at (datetime): Timestamp of last user activity (for idle timeout).
         expires_at (datetime): Timestamp when the session expires.
         user (User): Relationship to the User model.
+        rotated_refresh_tokens (list): Rotated tokens for this session.
     """
 
     __tablename__ = "users_sessions"
@@ -77,9 +78,32 @@ class UsersSessions(Base):
         nullable=False,
         comment="Prevents duplicate token exchange for mobile",
     )
+    token_family_id = Column(
+        String(36),
+        nullable=False,
+        unique=True,
+        index=True,
+        comment="UUID identifying token family for reuse detection",
+    )
+    rotation_count = Column(
+        Integer,
+        default=0,
+        nullable=False,
+        comment="Number of times refresh token has been rotated",
+    )
+    last_rotation_at = Column(
+        DateTime, nullable=True, comment="Timestamp of last token rotation"
+    )
 
     # Define a relationship to the User model
     user = relationship("User", back_populates="users_sessions")
 
     # Define a relationship to the OAuthState model
     oauth_state = relationship("OAuthState", back_populates="users_sessions")
+
+    # Define a relationship to RotatedRefreshToken model
+    rotated_refresh_tokens = relationship(
+        "RotatedRefreshToken",
+        back_populates="user_session",
+        cascade="all, delete-orphan",
+    )
