@@ -68,12 +68,11 @@ async function fetchWithRetry(url, options, responseType = 'json') {
   try {
     return await attemptFetch(url, options, responseType)
   } catch (error) {
-    // Don't retry on 401 for: token, refresh, logout, MFA verify, or Garmin link errors
+    // Don't retry on 401 for: login, refresh, MFA verify, or Garmin link errors
     if (
       error.message.startsWith('401') &&
       url !== 'auth/login' &&
-      url !== 'auth/refresh' &&
-      url !== 'auth/logout'
+      url !== 'auth/refresh'
     ) {
       if (
         url === 'garminconnect/link' &&
