@@ -43,7 +43,9 @@ OAUTH_DISCONNECT_LIMIT = "5/minute"  # Account disconnection (less frequent)
 PKCE_TOKEN_EXCHANGE_LIMIT = "10/minute"  # Mobile PKCE token exchange
 
 # Session endpoints - stricter protection (potential brute-force target)
-SESSION_LOGIN_LIMIT = "5/minute"  # Login attempts
+SESSION_LOGIN_LIMIT = (
+    "3/minute"  # Login attempts (reduced from 5 to prevent brute-force)
+)
 SESSION_REFRESH_LIMIT = "20/minute"  # Token refresh (more frequent but still limited)
 SESSION_LOGOUT_LIMIT = "10/minute"  # Logout requests
 

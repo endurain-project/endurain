@@ -270,3 +270,156 @@ def get_pending_mfa_store():
 
 
 pending_mfa_store = PendingMFALogin()
+
+
+class FailedLoginAttempts:
+    """
+    Track failed login attempts and apply progressive lockouts.
+
+    This class prevents brute-force attacks on user accounts by tracking failed
+    login attempts per username and applying increasingly strict lockouts.
+
+    Unlike rate limiting (which is per-IP), this tracks per-username to prevent
+    distributed attacks targeting a single account from multiple IPs.
+
+    Attributes:
+        _attempts (dict): Maps username to (failed_count, lockout_until) tuples
+
+    Lockout Policy:
+        - 5 failures: 5 minute lockout
+        - 10 failures: 30 minute lockout
+        - 20 failures: 24 hour lockout (requires admin intervention)
+    """
+
+    def __init__(self):
+        # {username: (failed_count, lockout_until)}
+        self._attempts: dict[str, tuple[int, datetime | None]] = {}
+
+    def is_locked_out(self, username: str) -> bool:
+        """
+        Check if username is locked out from failed login attempts.
+
+        Args:
+            username: Username to check
+
+        Returns:
+            True if username is currently locked out, False otherwise
+        """
+        if username not in self._attempts:
+            return False
+
+        _, lockout_until = self._attempts[username]
+        if lockout_until is None:
+            return False
+
+        # Check if lockout has expired
+        if datetime.now(timezone.utc) > lockout_until:
+            # Lockout expired, reset
+            del self._attempts[username]
+            return False
+
+        return True
+
+    def get_lockout_time(self, username: str) -> datetime | None:
+        """
+        Get lockout expiry time for username.
+
+        Args:
+            username: Username to check
+
+        Returns:
+            Lockout expiry datetime if locked out, None otherwise
+        """
+        if username not in self._attempts:
+            return None
+
+        _, lockout_until = self._attempts[username]
+        if lockout_until and datetime.now(timezone.utc) <= lockout_until:
+            return lockout_until
+
+        return None
+
+    def record_failed_attempt(self, username: str) -> int:
+        """
+        Record a failed login attempt and apply lockout if threshold exceeded.
+
+        Lockout policy:
+        - 5 failures: 5 minute lockout
+        - 10 failures: 30 minute lockout
+        - 20 failures: 24 hour lockout (severe - requires admin intervention)
+
+        Args:
+            username: Username that failed login
+
+        Returns:
+            Number of failed attempts
+        """
+        now = datetime.now(timezone.utc)
+
+        if username in self._attempts:
+            failed_count, lockout_until = self._attempts[username]
+            # If still locked out, don't increment counter
+            if lockout_until and now <= lockout_until:
+                return failed_count
+            failed_count += 1
+        else:
+            failed_count = 1
+
+        # Determine lockout duration based on failure count
+        lockout_until = None
+        if failed_count >= 20:
+            lockout_until = now + timedelta(hours=24)
+            core_logger.print_to_log(
+                f"Login lockout (24 hours) applied to user {username} after {failed_count} failed attempts",
+                "warning",
+                context={"username": username, "failed_attempts": failed_count},
+            )
+        elif failed_count >= 10:
+            lockout_until = now + timedelta(minutes=30)
+            core_logger.print_to_log(
+                f"Login lockout (30 min) applied to user {username} after {failed_count} failed attempts",
+                "warning",
+                context={"username": username, "failed_attempts": failed_count},
+            )
+        elif failed_count >= 5:
+            lockout_until = now + timedelta(minutes=5)
+            core_logger.print_to_log(
+                f"Login lockout (5 min) applied to user {username} after {failed_count} failed attempts",
+                "warning",
+                context={"username": username, "failed_attempts": failed_count},
+            )
+
+        self._attempts[username] = (failed_count, lockout_until)
+        return failed_count
+
+    def reset_attempts(self, username: str) -> None:
+        """
+        Clear failed attempts counter on successful login.
+
+        Args:
+            username: Username to reset
+        """
+        if username in self._attempts:
+            del self._attempts[username]
+
+    def clear_all(self) -> None:
+        """
+        Clear all failed attempt records.
+
+        Used for testing or admin operations.
+        """
+        self._attempts.clear()
+
+
+# Create singleton instance
+failed_login_attempts = FailedLoginAttempts()
+
+
+def get_failed_login_attempts():
+    """
+    Dependency injection for FastAPI.
+
+    Returns:
+        FailedLoginAttempts: The global failed login attempts tracker
+    """
+    return failed_login_attempts

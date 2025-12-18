@@ -6,12 +6,21 @@ import core.config as core_config
 # JWT config (typed + validated)
 JWT_ALGORITHM: Final[str] = os.environ.get("ALGORITHM", "HS256")
 JWT_ACCESS_TOKEN_EXPIRE_MINUTES: Final[int] = int(
-    os.environ.get("ACCESS_TOKEN_EXPIRE_MINUTES", "15")
+    os.environ.get("ACCESS_TOKEN_EXPIRE_MINUTES", 15)
 )
 JWT_REFRESH_TOKEN_EXPIRE_DAYS: Final[int] = int(
-    os.environ.get("REFRESH_TOKEN_EXPIRE_DAYS", "7")
+    os.environ.get("REFRESH_TOKEN_EXPIRE_DAYS", 7)
 )
 JWT_SECRET_KEY: Final[str | None] = core_config.read_secret("SECRET_KEY")
+SESSION_IDLE_TIMEOUT_ENABLED: Final[bool] = (
+    os.getenv("SESSION_IDLE_TIMEOUT_ENABLED", "false").lower() == "true"
+)
+SESSION_IDLE_TIMEOUT_HOURS: Final[int] = int(
+    os.environ.get("SESSION_IDLE_TIMEOUT_HOURS", 1)
+)
+SESSION_ABSOLUTE_TIMEOUT_HOURS: Final[int] = int(
+    os.environ.get("SESSION_ABSOLUTE_TIMEOUT_HOURS", 24)
+)
 
 if JWT_ACCESS_TOKEN_EXPIRE_MINUTES <= 0:
     raise ValueError("ACCESS_TOKEN_EXPIRE_MINUTES must be positive")

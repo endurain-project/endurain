@@ -42,6 +42,10 @@ async def login_for_access_token(
     request: Request,
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
     client_type: Annotated[str, Depends(auth_security.header_client_type_scheme)],
+    failed_attempts: Annotated[
+        auth_schema.FailedLoginAttempts,
+        Depends(auth_schema.get_failed_login_attempts),
+    ],
     pending_mfa_store: Annotated[
         auth_schema.PendingMFALogin, Depends(auth_schema.get_pending_mfa_store)
     ],
@@ -61,7 +65,12 @@ async def login_for_access_token(
     """
     Handles user login and access token generation, including Multi-Factor Authentication (MFA) flow.
 
-    Rate Limit: 5 requests per minute per IP
+    Protection Mechanisms:
+    - Rate limiting: 3 requests per minute per IP (prevents DoS attacks)
+    - Progressive lockout: Per-username tracking prevents targeted brute-force:
+      * 5 failures: 5 minute lockout
+      * 10 failures: 30 minute lockout
+      * 20 failures: 24 hour lockout
 
     This endpoint authenticates a user using provided credentials, checks if the user is active,
     and determines if MFA is required. If MFA is enabled for the user, it stores the pending login
@@ -73,6 +82,7 @@ async def login_for_access_token(
         request: The HTTP request object
         form_data: Form data containing username and password
         client_type: The type of client making the request ("web" or "mobile")
+        failed_attempts: Failed login attempts tracker for progressive lockout
         pending_mfa_store: Store for pending MFA logins
         password_hasher: The password hasher instance used for verifying passwords
         token_manager: The token manager instance used for token operations
@@ -84,11 +94,30 @@ async def login_for_access_token(
             - If MFA is not required, proceeds with normal login via auth_utils.complete_login()
 
     Raises:
-        HTTPException: If authentication fails or the user is inactive
+        HTTPException: If authentication fails, user is inactive, or account is locked
     """
-    user = auth_utils.authenticate_user(
-        form_data.username, form_data.password, password_hasher, db
-    )
+    # Check if username is locked out from too many failed login attempts
+    if failed_attempts.is_locked_out(form_data.username):
+        lockout_until = failed_attempts.get_lockout_time(form_data.username)
+        if lockout_until:
+            seconds_remaining = int(
+                (lockout_until - datetime.now(timezone.utc)).total_seconds()
+            )
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail=f"Account locked due to too many failed login attempts. Try again in {seconds_remaining} seconds.",
+            )
+
+    # Authenticate user
+    try:
+        user = auth_utils.authenticate_user(
+            form_data.username, form_data.password, password_hasher, db
+        )
+    except HTTPException as err:
+        # Record failed attempt on authentication errors (401 Unauthorized)
+        if err.status_code == 401:
+            failed_attempts.record_failed_attempt(form_data.username)
+        raise err
 
     # Check if the user is active
     users_utils.check_user_is_active(user)
@@ -97,6 +126,9 @@ async def login_for_access_token(
     if profile_utils.is_mfa_enabled_for_user(user.id, db):
         # Store the user for pending MFA verification
         pending_mfa_store.add_pending_login(form_data.username, user.id)
+
+        # Don't reset failed login attempts yet - wait for MFA verification
+        # This prevents bypassing lockout by triggering MFA flow
 
         # Return MFA required response
         if client_type == "web":
@@ -113,6 +145,10 @@ async def login_for_access_token(
                 "message": "MFA verification required",
             }
 
+    # Password authentication successful and no MFA required
+    # Reset failed login attempts counter
+    failed_attempts.reset_attempts(form_data.username)
+
     # If no MFA required, proceed with normal login
     return auth_utils.complete_login(
         response, request, user, client_type, password_hasher, token_manager, db
@@ -126,6 +162,10 @@ async def verify_mfa_and_login(
     request: Request,
     mfa_request: auth_schema.MFALoginRequest,
     client_type: Annotated[str, Depends(auth_security.header_client_type_scheme)],
+    failed_attempts: Annotated[
+        auth_schema.FailedLoginAttempts,
+        Depends(auth_schema.get_failed_login_attempts),
+    ],
     pending_mfa_store: Annotated[
         auth_schema.PendingMFALogin, Depends(auth_schema.get_pending_mfa_store)
     ],
@@ -151,6 +191,7 @@ async def verify_mfa_and_login(
     Args:
         response: The HTTP response object
         request: The HTTP request object
+        failed_attempts: Failed login attempts tracker for progressive lockout
         mfa_request: MFA login request containing username and MFA code
         client_type: The type of client making the request ("web" or "mobile")
         pending_mfa_store: Store for pending MFA logins
@@ -204,8 +245,9 @@ async def verify_mfa_and_login(
     # Check if the user is still active
     users_utils.check_user_is_active(user)
 
-    # MFA verification successful - reset failed attempts counter
+    # MFA verification successful - reset both MFA and login failed attempts counters
     pending_mfa_store.reset_failed_attempts(mfa_request.username)
+    failed_attempts.reset_attempts(mfa_request.username)
 
     # Clean up pending login
     pending_mfa_store.delete_pending_login(mfa_request.username)
@@ -282,6 +324,9 @@ async def refresh_token(
             detail="Session not found",
             headers={"WWW-Authenticate": "Bearer"},
         )
+
+    # NEW: Validate session hasn't exceeded idle or absolute timeout
+    session_utils.validate_session_timeout(session)
 
     # Validate CSRF token matches session
     # Note: CSRF token is stored in session during initial authentication

@@ -41,6 +41,9 @@ Table below shows supported environment variables. Variables marked with optiona
 | ALGORITHM | HS256 | Yes | Currently only HS256 is supported |
 | ACCESS_TOKEN_EXPIRE_MINUTES | 15 | Yes | Time in minutes |
 | REFRESH_TOKEN_EXPIRE_DAYS | 7 | Yes | Time in days |
+| SESSION_IDLE_TIMEOUT_ENABLED | false | Yes | Enforce idle timeouts (supported values are `true` and `false`) |
+| SESSION_IDLE_TIMEOUT_HOURS | 1 | Yes | Time in hours |
+| SESSION_ABSOLUTE_TIMEOUT_HOURS | 24 | Yes | Time in hours |
 | JAEGER_ENABLED | false | Yes | N/A |
 | JAEGER_PROTOCOL | http | Yes | N/A |
 | JAEGER_HOST | jaeger | Yes | N/A |
@@ -69,6 +72,26 @@ Frontend dependencies:
 
 - To check npm dependencies used, use npm file (package.json)
 - Logo created on Canva
+
+## Session Timeout Configuration (Optional)
+
+By default, Endurain sessions last 7 days without enforcing idle timeouts.
+For enhanced security, you can enable automatic session expiration:
+
+**Environment Variables:**
+
+- `SESSION_IDLE_TIMEOUT_ENABLED`: Enable timeout enforcement (default: `false`)
+- `SESSION_IDLE_TIMEOUT_HOURS`: Logout after inactivity (default: `1`)
+- `SESSION_ABSOLUTE_TIMEOUT_HOURS`: Force re-login after duration (default: `24`)
+
+**Example:**
+
+```yaml
+environment:
+  SESSION_IDLE_TIMEOUT_ENABLED: "true"
+  SESSION_IDLE_TIMEOUT_HOURS: "2"
+  SESSION_ABSOLUTE_TIMEOUT_HOURS: "48"
+```
 
 ## Docker Secrets Support
 

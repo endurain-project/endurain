@@ -1,7 +1,6 @@
 import os
 
 from datetime import datetime, timedelta, timezone
-from dataclasses import dataclass
 from typing import Tuple
 from fastapi import (
     HTTPException,
@@ -14,18 +13,12 @@ from uuid import uuid4
 from sqlalchemy.orm import Session
 
 import auth.constants as auth_constants
-import session.schema as session_schema
-import session.crud as session_crud
 import session.utils as session_utils
 import auth.password_hasher as auth_password_hasher
 import auth.token_manager as auth_token_manager
 
 import users.user.crud as users_crud
 import users.user.schema as users_schema
-import users.user_identity_providers.crud as user_idp_crud
-
-import auth.identity_providers.service as idp_service
-import core.logger as core_logger
 
 
 def authenticate_user(

@@ -16,6 +16,7 @@ class UsersSessions(BaseModel):
         browser (str): Browser name (max length: 45).
         browser_version (str): Browser version (max length: 45).
         created_at (datetime): Session creation timestamp.
+        last_activity_at (datetime): Last activity timestamp for idle timeout.
         expires_at (datetime): Session expiration timestamp.
     Config:
         from_attributes (bool): Allows model initialization from attributes.
@@ -35,6 +36,9 @@ class UsersSessions(BaseModel):
     browser: str = Field(..., max_length=45, description="Browser name")
     browser_version: str = Field(..., max_length=45, description="Browser version")
     created_at: datetime = Field(..., description="Session creation timestamp")
+    last_activity_at: datetime = Field(
+        ..., description="Last activity timestamp for idle timeout"
+    )
     expires_at: datetime = Field(..., description="Session expiration timestamp")
     oauth_state_id: str | None = Field(
         None, max_length=64, description="Link to OAuth state for PKCE validation"

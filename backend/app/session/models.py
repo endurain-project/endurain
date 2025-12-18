@@ -25,6 +25,7 @@ class UsersSessions(Base):
         browser (str): Browser used for the session.
         browser_version (str): Version of the browser.
         created_at (datetime): Timestamp when the session was created.
+        last_activity_at (datetime): Timestamp of last user activity (for idle timeout).
         expires_at (datetime): Timestamp when the session expires.
         user (User): Relationship to the User model.
     """
@@ -56,6 +57,9 @@ class UsersSessions(Base):
     )
     created_at = Column(
         DateTime, nullable=False, comment="Session creation date (datetime)"
+    )
+    last_activity_at = Column(
+        DateTime, nullable=False, comment="Last activity timestamp for idle timeout"
     )
     expires_at = Column(
         DateTime, nullable=False, comment="Session expiration date (datetime)"

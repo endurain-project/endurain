@@ -11,6 +11,8 @@ import password_reset_tokens.utils as password_reset_tokens_utils
 
 import sign_up_tokens.utils as sign_up_tokens_utils
 
+import session.utils as session_utils
+
 import auth.oauth_state.utils as oauth_state_utils
 
 import core.logger as core_logger
@@ -78,6 +80,14 @@ def start_scheduler():
         5,
         [],
         "delete expired OAuth states from the database",
+    )
+
+    add_scheduler_job(
+        session_utils.cleanup_idle_sessions,
+        "interval",
+        15,
+        [],
+        "delete expired sessions from the database",
     )
 
 

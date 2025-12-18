@@ -5,6 +5,8 @@ from datetime import datetime, timedelta, timezone
 from dataclasses import dataclass
 from fastapi import (
     Request,
+    HTTPException,
+    status,
 )
 from user_agents import parse
 
@@ -16,6 +18,9 @@ import session.crud as session_crud
 import auth.password_hasher as auth_password_hasher
 
 import users.user.schema as users_schema
+
+import core.logger as core_logger
+from core.database import SessionLocal
 
 
 class DeviceType(Enum):
@@ -53,6 +58,50 @@ class DeviceInfo:
     browser_version: str
 
 
+def validate_session_timeout(session: session_schema.UsersSessions) -> None:
+    """
+    Validate session hasn't exceeded idle or absolute timeout.
+    Only enforces timeout when SESSION_IDLE_TIMEOUT_ENABLED=true.
+
+    Checks:
+    1. Idle timeout: last_activity_at must be within SESSION_IDLE_TIMEOUT_HOURS
+    2. Absolute timeout: created_at must be within SESSION_ABSOLUTE_TIMEOUT_HOURS
+
+    Args:
+        session: The session to validate
+
+    Raises:
+        HTTPException: 401 if session has timed out
+    """
+    # Skip validation if timeouts are disabled
+    if not auth_constants.SESSION_IDLE_TIMEOUT_ENABLED:
+        return
+
+    now = datetime.now(timezone.utc)
+
+    # Check idle timeout
+    idle_limit = session.last_activity_at + timedelta(
+        hours=auth_constants.SESSION_IDLE_TIMEOUT_HOURS
+    )
+    if now > idle_limit:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Session expired due to inactivity",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    # Check absolute timeout
+    absolute_limit = session.created_at + timedelta(
+        hours=auth_constants.SESSION_ABSOLUTE_TIMEOUT_HOURS
+    )
+    if now > absolute_limit:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Session expired. Please login again for security.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+
 def create_session_object(
     session_id: str,
     user: users_schema.UserRead,
@@ -78,6 +127,8 @@ def create_session_object(
     user_agent = get_user_agent(request)
     device_info = parse_user_agent(user_agent)
 
+    now = datetime.now(timezone.utc)
+
     return session_schema.UsersSessions(
         id=session_id,
         user_id=user.id,
@@ -88,7 +139,8 @@ def create_session_object(
         operating_system_version=device_info.operating_system_version,
         browser=device_info.browser,
         browser_version=device_info.browser_version,
-        created_at=datetime.now(timezone.utc),
+        created_at=now,
+        last_activity_at=now,
         expires_at=refresh_token_exp,
         oauth_state_id=oauth_state_id,
         tokens_exchanged=False,
@@ -127,6 +179,7 @@ def edit_session_object(
         browser=device_info.browser,
         browser_version=device_info.browser_version,
         created_at=session.created_at,
+        last_activity_at=datetime.now(timezone.utc),
         expires_at=refresh_token_exp,
         oauth_state_id=session.oauth_state_id,
         tokens_exchanged=session.tokens_exchanged,
@@ -289,3 +342,41 @@ def parse_user_agent(user_agent: str) -> DeviceInfo:
         browser=ua.browser.family or "Unknown",
         browser_version=ua.browser.version_string or "Unknown",
     )
+
+
+def cleanup_idle_sessions():
+    """
+    Clean up idle user sessions that have exceeded the timeout threshold.
+    This function removes sessions from the database that have been inactive for longer
+    than the configured idle timeout period. It only runs if session idle timeout is enabled.
+    The function:
+    1. Checks if session idle timeout is enabled via auth_constants
+    2. Calculates the cutoff time based on SESSION_IDLE_TIMEOUT_HOURS
+    3. Deletes sessions with last_activity_at older than the cutoff time
+    4. Logs the number of sessions cleaned up if any were removed
+    Returns:
+        None
+    Raises:
+        Any database-related exceptions from session_crud.delete_idle_sessions
+        are propagated to the caller.
+    Note:
+        The database session is always properly closed in the finally block.
+    """
+    if not auth_constants.SESSION_IDLE_TIMEOUT_ENABLED:
+        return
+
+    db = SessionLocal()
+    try:
+        cutoff_time = datetime.now(timezone.utc) - timedelta(
+            hours=auth_constants.SESSION_IDLE_TIMEOUT_HOURS
+        )
+
+        # Delete sessions with last_activity_at older than cutoff
+        deleted_count = session_crud.delete_idle_sessions(cutoff_time, db)
+
+        if deleted_count > 0:
+            core_logger.print_to_log(
+                f"Cleaned up {deleted_count} idle sessions", "info"
+            )
+    finally:
+        db.close()
