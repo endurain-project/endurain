@@ -2013,8 +2013,9 @@ class IdentityProviderService:
             )
             return False
 
-        # Calculate token age
-        token_age = now - token_timestamp
+        # Calculate token age (ensure timezone-aware comparison - DB stores naive UTC)
+        token_timestamp_aware = token_timestamp.replace(tzinfo=timezone.utc)
+        token_age = now - token_timestamp_aware
 
         # Check if token exceeds maximum age
         max_age = timedelta(days=MAX_IDP_TOKEN_AGE_DAYS)
@@ -2076,13 +2077,19 @@ class IdentityProviderService:
 
         # Check if token was refreshed very recently (rate limiting)
         if link.idp_refresh_token_updated_at:
-            time_since_refresh = now - link.idp_refresh_token_updated_at
+            # Ensure timezone-aware comparison (DB stores naive UTC datetimes)
+            updated_at_aware = link.idp_refresh_token_updated_at.replace(
+                tzinfo=timezone.utc
+            )
+            time_since_refresh = now - updated_at_aware
             if time_since_refresh < timedelta(minutes=TOKEN_REFRESH_RATE_LIMIT_MINUTES):
                 # Refreshed less than defined - don't refresh again
                 return TokenAction.SKIP
 
         # Check if access token is close to expiry
-        time_until_expiry = link.idp_access_token_expires_at - now
+        # Ensure timezone-aware comparison (DB stores naive UTC datetimes)
+        expires_at_aware = link.idp_access_token_expires_at.replace(tzinfo=timezone.utc)
+        time_until_expiry = expires_at_aware - now
         if time_until_expiry < timedelta(minutes=TOKEN_EXPIRY_THRESHOLD_MINUTES):
             # Token expires soon - should refresh
             return TokenAction.REFRESH

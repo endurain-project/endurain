@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta, timezone
 
 from sqlalchemy.orm import Session
+from fastapi import HTTPException, status
 
 import auth.oauth_state.models as oauth_state_models
 import session.models as session_models
@@ -181,6 +182,40 @@ def mark_oauth_state_used(
     core_logger.print_to_log(f"OAuth state marked as used: {state_id[:8]}...", "debug")
 
     return oauth_state
+
+
+def delete_oauth_state(oauth_state_id: str, db: Session) -> int:
+    """
+    Delete OAuth state for a specific OAuth state ID.
+
+    Args:
+        oauth_state_id: The OAuth state ID to delete tokens for.
+        db: Database session.
+
+    Returns:
+        Number of OAuth states deleted.
+
+    Raises:
+        HTTPException: If an error occurs during deletion (500).
+    """
+    try:
+        num_deleted = (
+            db.query(oauth_state_models.OAuthState)
+            .filter(oauth_state_models.OAuthState.id == oauth_state_id)
+            .delete()
+        )
+
+        db.commit()
+        return num_deleted
+    except Exception as err:
+        db.rollback()
+        core_logger.print_to_log(
+            f"Error in delete_oauth_state: {err}", "error", exc=err
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to delete OAuth state",
+        ) from err
 
 
 def delete_expired_oauth_states(db: Session) -> int:

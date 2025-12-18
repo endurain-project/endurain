@@ -5,6 +5,7 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 import auth.oauth_state.models as oauth_state_models
+import auth.oauth_state.crud as oauth_state_crud
 import session.models as session_models
 import session.schema as session_schema
 import session.rotated_refresh_tokens.crud as rotated_tokens_crud
@@ -343,6 +344,9 @@ def delete_session(session_id: str, user_id: int, db: Session) -> None:
                 f"Session {session_id} not found for user {user_id}"
             )
 
+        # Store oauth_state_id before deleting session (if exists)
+        oauth_state_id_to_delete = session.oauth_state_id
+
         # Delete rotated tokens for this session's family (foreign key constraint)
         rotated_tokens_crud.delete_by_family(session.token_family_id, db)
 
@@ -355,6 +359,10 @@ def delete_session(session_id: str, user_id: int, db: Session) -> None:
             )
             .delete()
         )
+
+        # Delete OAuth state after session is deleted if exists
+        if oauth_state_id_to_delete:
+            oauth_state_crud.delete_oauth_state(oauth_state_id_to_delete, db)
 
         # Commit the transaction
         db.commit()
