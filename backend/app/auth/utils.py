@@ -175,7 +175,13 @@ def complete_login(
 
     # Create the session and store it in the database
     session_utils.create_session(
-        session_id, user, request, refresh_token, password_hasher, db
+        session_id,
+        user,
+        request,
+        refresh_token,
+        password_hasher,
+        db,
+        csrf_token=csrf_token,
     )
 
     # Access token and CSRF token returned in body for in-memory storage

@@ -107,7 +107,6 @@ class CSRFMiddleware(BaseHTTPMiddleware):
         # Define paths that don't need CSRF protection
         self.exempt_paths = [
             "/api/v1/auth/login",
-            "/api/v1/auth/refresh",
             "/api/v1/auth/mfa/verify",
             "/api/v1/password-reset/request",
             "/api/v1/password-reset/confirm",

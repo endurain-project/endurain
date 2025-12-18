@@ -291,30 +291,36 @@ async def refresh_token(
         Session,
         Depends(core_database.get_db),
     ],
+    client_type: Annotated[str, Depends(auth_security.header_client_type_scheme)],
+    x_csrf_token: Annotated[
+        str | None, Depends(auth_security.header_csrf_token_scheme)
+    ] = None,
 ):
     """
     Handles the refresh token process for user sessions.
 
-    This endpoint validates the provided refresh token, checks session and user status,
-    and issues new access, refresh, and CSRF tokens.
+    This endpoint validates the provided refresh token, checks session status,
+    validates the CSRF token (web clients only), and issues new tokens.
 
     Args:
-        response (Response): The HTTP response object.
-        request (Request): The HTTP request object.
-        _validate_refresh_token (Callable): Dependency to validate the refresh token.
-        token_user_id (int): User ID extracted from the refresh token.
-        token_session_id (str): Session ID extracted from the refresh token.
-        refresh_token_value (str): The raw refresh token value.
-        password_hasher (PasswordHasher): Utility for verifying token hashes.
-        token_manager (TokenManager): Utility for creating tokens.
-        db (Session): Database session.
+        response: The HTTP response object.
+        request: The HTTP request object.
+        _validate_refresh_token: Dependency to validate the refresh token.
+        token_user_id: User ID extracted from the refresh token.
+        token_session_id: Session ID extracted from the refresh token.
+        refresh_token_value: The raw refresh token value.
+        password_hasher: Utility for verifying token hashes.
+        token_manager: Utility for creating tokens.
+        db: Database session.
+        client_type: Client type (\"web\" or \"mobile\").
+        x_csrf_token: CSRF token header (web clients only, via dependency).
 
     Returns:
-        dict: Contains session_id, access_token, csrf_token, token_type, and expires_in
+        dict: Contains session_id, access_token, csrf_token, token_type, expires_in.
 
     Raises:
-        HTTPException: If the session is not found, the refresh token is invalid,
-                       the user is inactive, or CSRF token is missing/invalid.
+        HTTPException: If session not found, refresh token invalid,
+                       user is inactive, or CSRF token is missing/invalid.
     """
     # Get the session from the database
     session = session_crud.get_session_by_id(token_session_id, db)
@@ -329,6 +335,19 @@ async def refresh_token(
 
     # Validate session hasn't exceeded idle or absolute timeout
     session_utils.validate_session_timeout(session)
+
+    # Verify CSRF token for web clients only
+    # Mobile clients don't use CSRF tokens
+    # Note: Middleware already checks header presence for web clients
+    if client_type == "web":
+        if not x_csrf_token or not password_hasher.verify(
+            x_csrf_token, session.csrf_token_hash
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Invalid CSRF token",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
 
     # Check for token reuse BEFORE validating token
     # Hash the incoming token to compare with rotated tokens
@@ -345,11 +364,6 @@ async def refresh_token(
             detail="Token reuse detected. All sessions invalidated.",
             headers={"WWW-Authenticate": "Bearer"},
         )
-
-    # Validate CSRF token matches session
-    # Note: CSRF token is stored in session during initial auth
-    # For now, we validate that a CSRF token was provided
-    # Future enhancement: Store CSRF token hash in session
 
     is_valid = password_hasher.verify(refresh_token_value, session.refresh_token)
 
@@ -395,7 +409,14 @@ async def refresh_token(
     # Edit session and store in database
     # Note: edit_session automatically increments rotation_count
     # and updates last_rotation_at
-    session_utils.edit_session(session, request, new_refresh_token, password_hasher, db)
+    session_utils.edit_session(
+        session,
+        request,
+        new_refresh_token,
+        password_hasher,
+        db,
+        new_csrf_token=new_csrf_token,
+    )
 
     # Opportunistically refresh IdP tokens for all linked identity providers
     await idp_utils.refresh_idp_tokens_if_needed(user.id, db)

@@ -18,6 +18,7 @@ class UsersSessions(Base):
         id (str): Unique identifier for the session (UUID).
         user_id (int): ID of the user to whom the session belongs.
         refresh_token (str): Hashed refresh token for the session.
+        csrf_token_hash (str): Hashed CSRF token for refresh validation.
         ip_address (str): IP address of the client initiating the session.
         device_type (str): Type of device used for the session.
         operating_system (str): Operating system of the device.
@@ -25,7 +26,7 @@ class UsersSessions(Base):
         browser (str): Browser used for the session.
         browser_version (str): Version of the browser.
         created_at (datetime): Timestamp when the session was created.
-        last_activity_at (datetime): Timestamp of last user activity (for idle timeout).
+        last_activity_at (datetime): Timestamp of last user activity.
         expires_at (datetime): Timestamp when the session expires.
         user (User): Relationship to the User model.
         rotated_refresh_tokens (list): Rotated tokens for this session.
@@ -93,6 +94,11 @@ class UsersSessions(Base):
     )
     last_rotation_at = Column(
         DateTime, nullable=True, comment="Timestamp of last token rotation"
+    )
+    csrf_token_hash = Column(
+        String(length=255),
+        nullable=True,
+        comment="Hashed CSRF token for refresh validation",
     )
 
     # Define a relationship to the User model

@@ -157,6 +157,7 @@ router.include_router(
     identity_providers_router.router,
     prefix=core_config.ROOT_PATH + "/idp",
     tags=["identity_providers"],
+    dependencies=[Depends(auth_security.validate_access_token)],
 )
 router.include_router(
     notifications_router.router,

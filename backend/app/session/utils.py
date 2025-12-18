@@ -109,20 +109,22 @@ def create_session_object(
     hashed_refresh_token: str,
     refresh_token_exp: datetime,
     oauth_state_id: str | None = None,
+    csrf_token_hash: str | None = None,
 ) -> session_schema.UsersSessions:
     """
-    Creates a UsersSessions object representing a user session with device and request metadata.
+    Creates a UsersSessions object with device and request metadata.
 
     Args:
-        session_id (str): Unique identifier for the session.
-        user (users_schema.UserRead): The user associated with the session.
-        request (Request): The HTTP request object containing client information.
-        hashed_refresh_token (str): The hashed refresh token for the session.
-        refresh_token_exp (datetime): The expiration datetime for the refresh token.
-        oauth_state_id (str | None): Optional OAuth state ID for PKCE mobile flows.
+        session_id: Unique identifier for the session.
+        user: The user associated with the session.
+        request: The HTTP request object containing client information.
+        hashed_refresh_token: The hashed refresh token for the session.
+        refresh_token_exp: The expiration datetime for the refresh token.
+        oauth_state_id: Optional OAuth state ID for PKCE mobile flows.
+        csrf_token_hash: Hashed CSRF token for refresh validation.
 
     Returns:
-        session_schema.UsersSessions: The session object populated with user, device, and request details.
+        The session object populated with user, device, and request details.
     """
     user_agent = get_user_agent(request)
     device_info = parse_user_agent(user_agent)
@@ -147,6 +149,7 @@ def create_session_object(
         token_family_id=session_id,
         rotation_count=0,
         last_rotation_at=None,
+        csrf_token_hash=csrf_token_hash,
     )
 
 
@@ -155,18 +158,20 @@ def edit_session_object(
     hashed_refresh_token: str,
     refresh_token_exp: datetime,
     session: Session,
+    csrf_token_hash: str | None = None,
 ) -> session_schema.UsersSessions:
     """
-    Edits and returns a UsersSessions object with updated session information.
+    Edits and returns a UsersSessions object with updated session info.
 
     Args:
-        request (Request): The incoming HTTP request object.
-        hashed_refresh_token (str): The hashed refresh token to associate with the session.
-        refresh_token_exp (datetime): The expiration datetime for the refresh token.
-        session (Session): The existing session object to update.
+        request: The incoming HTTP request object.
+        hashed_refresh_token: The hashed refresh token for the session.
+        refresh_token_exp: The expiration datetime for the refresh token.
+        session: The existing session object to update.
+        csrf_token_hash: Hashed CSRF token for refresh validation.
 
     Returns:
-        session_schema.UsersSessions: The updated UsersSessions object containing session details such as device info, IP address, and token expiration.
+        The updated UsersSessions object with device and token details.
     """
     user_agent = get_user_agent(request)
     device_info = parse_user_agent(user_agent)
@@ -192,6 +197,7 @@ def edit_session_object(
         token_family_id=session.token_family_id,
         rotation_count=new_rotation_count,
         last_rotation_at=now,
+        csrf_token_hash=csrf_token_hash,
     )
 
 
@@ -203,18 +209,20 @@ def create_session(
     password_hasher: auth_password_hasher.PasswordHasher,
     db: Session,
     oauth_state_id: str | None = None,
+    csrf_token: str | None = None,
 ) -> None:
     """
     Creates a new user session and stores it in the database.
 
     Args:
-        session_id (str): Unique identifier for the session.
-        user (users_schema.UserRead): The user for whom the session is being created.
-        request (Request): The incoming HTTP request object.
-        refresh_token (str): The refresh token to be associated with the session.
-        password_hasher (auth_password_hasher.PasswordHasher): Utility to hash the refresh token.
-        db (Session): Database session for storing the session.
-        oauth_state_id (str | None): Optional OAuth state ID for PKCE mobile flows.
+        session_id: Unique identifier for the session.
+        user: The user for whom the session is being created.
+        request: The incoming HTTP request object.
+        refresh_token: The refresh token to be associated with the session.
+        password_hasher: Utility to hash tokens.
+        db: Database session for storing the session.
+        oauth_state_id: Optional OAuth state ID for PKCE mobile flows.
+        csrf_token: Plain CSRF token to hash and store for validation.
 
     Returns:
         None
@@ -224,6 +232,11 @@ def create_session(
         days=auth_constants.JWT_REFRESH_TOKEN_EXPIRE_DAYS
     )
 
+    # Hash the CSRF token if provided
+    csrf_hash = None
+    if csrf_token:
+        csrf_hash = password_hasher.hash_password(csrf_token)
+
     # Create a new session
     new_session = create_session_object(
         session_id,
@@ -232,6 +245,7 @@ def create_session(
         password_hasher.hash_password(refresh_token),
         exp,
         oauth_state_id,
+        csrf_hash,
     )
 
     # Add the session to the database
@@ -244,16 +258,18 @@ def edit_session(
     new_refresh_token: str,
     password_hasher: auth_password_hasher.PasswordHasher,
     db: Session,
+    new_csrf_token: str | None = None,
 ) -> None:
     """
-    Edits an existing user session by updating its refresh token and expiration date.
+    Edits an existing user session by updating its refresh token.
 
     Args:
-        session (session_schema.UsersSessions): The current user session object to be edited.
-        request (Request): The incoming request object containing session context.
-        new_refresh_token (str): The new refresh token to be set for the session.
-        password_hasher (auth_password_hasher.PasswordHasher): Utility for hashing the refresh token.
-        db (Session): Database session for committing changes.
+        session: The current user session object to be edited.
+        request: The incoming request object containing session context.
+        new_refresh_token: The new refresh token to be set for the session.
+        password_hasher: Utility for hashing tokens.
+        db: Database session for committing changes.
+        new_csrf_token: Plain CSRF token to hash and store for validation.
 
     Returns:
         None
@@ -263,12 +279,18 @@ def edit_session(
         days=auth_constants.JWT_REFRESH_TOKEN_EXPIRE_DAYS
     )
 
+    # Hash the new CSRF token if provided
+    csrf_hash = None
+    if new_csrf_token:
+        csrf_hash = password_hasher.hash_password(new_csrf_token)
+
     # Update the session
     updated_session = edit_session_object(
         request,
         password_hasher.hash_password(new_refresh_token),
         exp,
         session,
+        csrf_hash,
     )
 
     # Update the session in the database

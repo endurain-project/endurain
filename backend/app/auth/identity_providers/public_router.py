@@ -464,8 +464,9 @@ async def exchange_tokens_for_session(
             (access_token_exp - datetime.now(timezone.utc)).total_seconds()
         )
 
-        # Update session with the actual hashed refresh token
+        # Update session with the actual hashed refresh token and CSRF hash
         session_obj.refresh_token = password_hasher.hash_password(refresh_token)
+        session_obj.csrf_token_hash = password_hasher.hash_password(csrf_token)
         db.commit()
 
         # Set refresh token cookie for web clients (enables logout)

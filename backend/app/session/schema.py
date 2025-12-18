@@ -18,6 +18,7 @@ class UsersSessions(BaseModel):
         created_at (datetime): Session creation timestamp.
         last_activity_at (datetime): Last activity timestamp for idle timeout.
         expires_at (datetime): Session expiration timestamp.
+        csrf_token_hash (str | None): Hashed CSRF token for refresh validation (max length: 255).
     Config:
         from_attributes (bool): Allows model initialization from attributes.
         extra (str): Forbids extra fields not defined in the model.
@@ -52,6 +53,11 @@ class UsersSessions(BaseModel):
     )
     last_rotation_at: datetime | None = Field(
         None, description="Timestamp of last token rotation"
+    )
+    csrf_token_hash: str | None = Field(
+        None,
+        max_length=255,
+        description="Hashed CSRF token for refresh validation",
     )
 
     model_config = ConfigDict(

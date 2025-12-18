@@ -173,6 +173,15 @@ def upgrade() -> None:
             comment="Timestamp of last token rotation",
         ),
     )
+    op.add_column(
+        "users_sessions",
+        sa.Column(
+            "csrf_token_hash",
+            sa.String(length=255),
+            nullable=True,
+            comment="Hashed CSRF token for refresh validation",
+        ),
+    )
     op.create_index(
         op.f("ix_users_sessions_oauth_state_id"),
         "users_sessions",
@@ -246,6 +255,7 @@ def downgrade() -> None:
         op.f("ix_users_sessions_token_family_id"), table_name="users_sessions"
     )
     op.drop_index(op.f("ix_users_sessions_oauth_state_id"), table_name="users_sessions")
+    op.drop_column("users_sessions", "csrf_token_hash")
     op.drop_column("users_sessions", "last_rotation_at")
     op.drop_column("users_sessions", "rotation_count")
     op.drop_column("users_sessions", "token_family_id")

@@ -86,7 +86,19 @@ async function fetchWithRetry(url, options, responseType = 'json') {
       try {
         // Use auth store's refreshAccessToken which updates tokens in memory
         const authStore = useAuthStore()
-        await authStore.refreshAccessToken()
+
+        // Implement refresh token lock to prevent concurrent refresh requests
+        // If a refresh is already in progress, wait for it instead of starting a new one
+        if (!refreshTokenPromise) {
+          refreshTokenPromise = authStore.refreshAccessToken()
+            .finally(() => {
+              // Clear the promise after completion (success or failure)
+              refreshTokenPromise = null
+            })
+        }
+
+        await refreshTokenPromise
+
         // Re-add auth headers after refresh (new tokens in memory)
         options = addAuthHeaders(url, options)
         return await attemptFetch(url, options, responseType)

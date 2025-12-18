@@ -27,6 +27,9 @@ header_client_type_scheme_optional = APIKeyHeader(
     name="X-Client-Type", auto_error=False
 )
 
+# Define the API key header for CSRF token
+header_csrf_token_scheme = APIKeyHeader(name="X-CSRF-Token", auto_error=False)
+
 # Define the API key cookie for the refresh token
 cookie_refresh_token_scheme = APIKeyCookie(
     name="endurain_refresh_token",
