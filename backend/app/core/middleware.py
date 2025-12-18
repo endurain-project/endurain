@@ -34,8 +34,10 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
             Disables unnecessary browser features to reduce attack surface.
             Prevents unauthorized access to sensitive device APIs.
 
-        Content-Security-Policy: default-src 'self'
+        Content-Security-Policy: default-src 'self'; img-src 'self' data: https://*.tile.openstreetmap.org; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'
             Restricts resources to same origin by default (API responses).
+            Allows inline base64 images (data: URIs) and OpenStreetMap tiles for maps.
+            Allows inline styles and scripts required by frontend libraries.
             For frontend serving, this would need customization.
 
     Note:
@@ -77,7 +79,12 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         # Note: Only add CSP for HTML responses to avoid affecting JSON API responses
         content_type = response.headers.get("content-type", "")
         if "text/html" in content_type:
-            response.headers["Content-Security-Policy"] = "default-src 'self'"
+            response.headers["Content-Security-Policy"] = (
+                "default-src 'self'; "
+                "img-src 'self' data: https://*.tile.openstreetmap.org; "
+                "style-src 'self' 'unsafe-inline'; "
+                "script-src 'self' 'unsafe-inline'"
+            )
 
         # Remove server version header for security through obscurity
         if "Server" in response.headers:

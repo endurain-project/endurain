@@ -1,60 +1,132 @@
 # Handling authentication
 
-Endurain supports integration with other apps through a comprehensive authentication system that includes standard username/password authentication, Multi-Factor Authentication (MFA), OAuth/SSO integration, and JWT-based session management.
+Endurain supports integration with other apps through a comprehensive OAuth 2.1 compliant authentication system that includes standard username/password authentication, Multi-Factor Authentication (MFA), OAuth/SSO integration, and JWT-based session management with refresh token rotation.
 
 ## API Requirements
-- **Add a header:** Every request must include an `X-Client-Type` header with either `web` or `mobile` as the value. Requests with other values will receive a `403` error.
-- **Authorization:** Every request must include an `Authorization: Bearer <access token>` header with a valid (new or refreshed) access token.
+
+- **Client Type Header:** Every request must include an `X-Client-Type` header with either `web` or `mobile` as the value. Requests with other values will receive a `403` error.
+- **Authorization:** Every request must include an `Authorization: Bearer <access token>` header with a valid access token.
+- **CSRF Protection (Web Only):** State-changing requests (`POST`, `PUT`, `DELETE`, `PATCH`) from web clients must include an `X-CSRF-Token` header.
 
 ## Token Handling
 
 ### Token Lifecycle
-- The backend generates an `access_token` valid for 15 minutes (default) and a `refresh_token` valid for 7 days (default). This follows the best practice of short-lived and long-lived tokens for authentication sessions.
-- The `access_token` is used for authorization; The `refresh_token` is used to refresh the `access_token`.
+
+- The backend generates an `access_token` valid for 15 minutes (default) and a `refresh_token` valid for 7 days (default).
+- The `access_token` is used for authorization; the `refresh_token` is used to obtain new access tokens.
+- A `csrf_token` is generated for CSRF protection on state-changing requests.
 - Token expiration times can be customized via environment variables (see Configuration section below).
 
-### Client-Specific Token Delivery
-- **For web apps**: The backend sends access/refresh tokens as HTTP-only cookies:
-  - `endurain_access_token` (HttpOnly, Secure in production)
-  - `endurain_refresh_token` (HttpOnly, Secure in production)
-  - `endurain_csrf_token` (HttpOnly, for CSRF protection)
-- **For mobile apps**: Tokens are included in the response body as JSON.
+### OAuth 2.1 Token Storage Model (Hybrid Approach)
+
+Endurain implements an OAuth 2.1 compliant hybrid token storage model that provides both security and usability:
+
+| Token | Storage Location | Lifetime | Security Purpose |
+|-------|------------------|----------|------------------|
+| **Access Token** | In-memory (JavaScript) | 15 minutes | Short-lived, XSS-resistant (not persisted) |
+| **Refresh Token** | httpOnly cookie | 7 days | CSRF-protected, auto-sent by browser |
+| **CSRF Token** | In-memory (JavaScript) | Session | Prevents CSRF attacks on state-changing requests |
+
+**Security Properties:**
+
+- **XSS Protection:** Access tokens stored in memory cannot be exfiltrated via XSS attacks
+- **CSRF Protection:** Refresh token in httpOnly cookie + CSRF token header prevents CSRF attacks
+- **Session Persistence:** Page reload triggers `/auth/refresh` with httpOnly cookie to restore tokens
+- **Multi-tab Support:** httpOnly cookie shared across browser tabs
+
+### Token Delivery by Client Type
+
+- **For web apps:** 
+    - Access token and CSRF token returned in JSON response body (stored in-memory)
+    - Refresh token set as httpOnly cookie (`endurain_refresh_token`)
+    - On page reload, call `/auth/refresh` to restore in-memory tokens
+
+- **For mobile apps:** 
+    - All tokens (access, refresh, CSRF) returned in JSON response body
+    - Store tokens in secure platform storage (iOS Keychain, Android EncryptedSharedPreferences)
 
 ## Authentication Flows
 
-### Standard Login Flow
+### Standard Login Flow (Username/Password)
+
 1. Client sends credentials to `/auth/login` endpoint
-2. Backend validates credentials
-3. If MFA is enabled, backend requests MFA code
+2. Backend validates credentials and checks for account lockout
+3. If MFA is enabled, backend returns MFA-required response
 4. If MFA is disabled or verified, backend generates tokens
-5. Tokens are delivered based on client type (cookies for web, JSON for mobile)
+5. Tokens are delivered based on client type:
+    - **Web:** Access token + CSRF token in response body, refresh token as httpOnly cookie
+    - **Mobile:** All tokens in response body
 
 ### OAuth/SSO Flow
+
 1. Client requests list of enabled providers from `/public/idp`
-2. Client initiates OAuth by redirecting to `/public/idp/login/{idp_slug}`
+2. Client initiates OAuth by redirecting to `/public/idp/login/{idp_slug}` with PKCE challenge
 3. User authenticates with the OAuth provider
 4. Provider redirects back to `/public/idp/callback/{idp_slug}` with authorization code
 5. Backend exchanges code for provider tokens and user info
-6. Backend creates or links user account and generates session tokens
-7. User is redirected to the app with active session
+6. Backend creates or links user account and generates session tokens based on client type:
+    - **Web clients:** Redirected to app with tokens set automatically
+    - **Mobile clients:** Exchange session for tokens via PKCE token exchange endpoint `/public/idp/session/{session_id}/tokens`
 
 ### Token Refresh Flow
-1. When access token expires, client sends refresh token to `/auth/refresh`
-2. Backend validates refresh token and session
-3. New access token is generated and returned
-4. Refresh token may be rotated based on configuration
+
+The token refresh flow implements OAuth 2.1 compliant refresh token rotation:
+
+1. When access token expires, client calls `POST /auth/refresh`:
+    - **Web clients:** Include `X-CSRF-Token` header with current CSRF token
+    - **Mobile clients:** Include refresh token in request
+2. Backend validates refresh token and session, checks for token reuse
+    - **If token reuse detected:** Entire token family is invalidated (security breach response)
+3. New tokens are generated (access, refresh, CSRF) with refresh token rotation
+4. Old refresh token is stored for reuse detection (grace period: 30 seconds)
+5. Response includes new tokens; web clients receive new httpOnly cookie
+
+**Token Refresh Request (Web):**
+
+```http
+POST /api/v1/auth/refresh
+X-Client-Type: web
+X-CSRF-Token: {current_csrf_token}
+Cookie: endurain_refresh_token={refresh_token}
+```
+
+**Token Refresh Response:**
+
+```json
+{
+  "session_id": "uuid",
+  "access_token": "eyJ...",
+  "csrf_token": "new_csrf_token",
+  "token_type": "bearer",
+  "expires_in": 1734567890
+}
+```
+
+### Refresh Token Rotation & Reuse Detection
+
+Endurain implements automatic refresh token rotation with reuse detection to prevent token theft:
+
+| Security Feature | Description |
+|------------------|-------------|
+| **Automatic Rotation** | New refresh token issued on every `/auth/refresh` call |
+| **Token Family Tracking** | All tokens in a session share a `token_family_id` |
+| **Reuse Detection** | Old tokens are stored and monitored for reuse |
+| **Grace Period** | 30-second window allows for network retry scenarios |
+| **Family Invalidation** | If reuse detected, ALL tokens in family are invalidated |
+| **Rotation Count** | Tracks number of rotations for audit purposes |
 
 ## API Endpoints 
+
 The API is reachable under `/api/v1`. Below are the authentication-related endpoints. Complete API documentation is available on the backend docs (`http://localhost:98/api/v1/docs` or `http://ip_address:98/api/v1/docs` or `https://domain/api/v1/docs`):
 
 ### Core Authentication Endpoints
 
 | What | Url | Expected Information | Rate Limit |
 | ---- | --- | -------------------- | ---------- |
-| **Authorize** | `/auth/login` |  `FORM` with the fields `username` and `password`. This will be sent in clear text, use of HTTPS is highly recommended | 5 requests/min per IP |
-| **Refresh Token** | `/auth/refresh` | header `Authorization Bearer: <Refresh Token>`  | - |
-| **Verify MFA** | `/auth/mfa/verify` | JSON `{'username': <username>, 'mfa_code': '123456'}` | - |
-| **Logout** | `/auth/logout` | header `Authorization Bearer: <Access Token>` | - |
+| **Authorize** | `/auth/login` | `FORM` with the fields `username` and `password`. HTTPS highly recommended | 3 requests/min per IP |
+| **Refresh Token** | `/auth/refresh` | Cookie: `endurain_refresh_token`, Header: `X-CSRF-Token` (web only) | - |
+| **Verify MFA** | `/auth/mfa/verify` | JSON `{'username': <username>, 'mfa_code': '123456'}` | 5 requests/min per IP |
+| **Logout** | `/auth/logout` | Header: `Authorization: Bearer <Access Token>` | - |
 
 ### OAuth/SSO Endpoints
 
@@ -66,12 +138,36 @@ The API is reachable under `/api/v1`. Below are the authentication-related endpo
 | **Token Exchange (PKCE)** | `/public/idp/session/{session_id}/tokens` | JSON: `{"code_verifier": "<verifier>"}` | 10 requests/min per IP |
 | **Link IdP to Account** | `/profile/idp/{idp_id}/link` | Requires authenticated session | 10 requests/min per IP |
 
+### Session Management Endpoints
+
+| What | Url | Expected Information |
+| ---- | --- | -------------------- |
+| **Get User Sessions** | `/sessions/user/{user_id}` | Header: `Authorization: Bearer <Access Token>` |
+| **Delete Session** | `/sessions/{session_id}/user/{user_id}` | Header: `Authorization: Bearer <Access Token>` |
+
 ### Example Resource Endpoints
 
 | What | Url | Expected Information |
 | ---- | --- | -------------------- |
 | **Activity Upload** | `/activities/create/upload` | .gpx, .tcx, .gz or .fit file |
 | **Set Weight** | `/health/weight` | JSON `{'weight': <number>, 'created_at': 'yyyy-MM-dd'}` |
+
+## Progressive Account Lockout
+
+Endurain implements progressive brute-force protection to prevent credential stuffing attacks:
+
+| Failed Attempts | Lockout Duration |
+|-----------------|------------------|
+| 5 failures | 5 minutes |
+| 10 failures | 30 minutes |
+| 20 failures | 24 hours |
+
+**Features:**
+
+- Per-username tracking prevents targeted attacks
+- Lockout persists through MFA flow (prevents bypass)
+- Counter resets on successful authentication
+- Graceful error messages with remaining lockout time
 
 ## MFA Authentication Flow
 
@@ -128,23 +224,28 @@ X-Client-Type: web|mobile
 
 **Response (successful verification):**
 
-- **Web clients**: Tokens are set as HTTP-only cookies
+- **Web clients**: Access token and CSRF token in response body, refresh token as httpOnly cookie
 
 ```json
 {
-  "session_id": "unique_session_id"
+  "session_id": "unique_session_id",
+  "access_token": "eyJ...",
+  "csrf_token": "abc123...",
+  "token_type": "bearer",
+  "expires_in": 1734567890
 }
 ```
 
-- **Mobile clients**: Tokens are returned in response body
+- **Mobile clients**: All tokens returned in response body
 
 ```json
 {
+  "session_id": "unique_session_id",
   "access_token": "eyJ...",
   "refresh_token": "eyJ...",
-  "session_id": "unique_session_id",
-  "token_type": "Bearer",
-  "expires_in": 900
+  "csrf_token": "abc123...",
+  "token_type": "bearer",
+  "expires_in": 1734567890
 }
 ```
 
@@ -380,24 +481,44 @@ X-CSRF-Token: {csrf_token}
 ## Configuration
 
 ### Environment Variables
+
 The following environment variables control authentication behavior:
+
+#### Token Configuration
 
 | Variable | Description | Default | Required |
 | -------- | ----------- | ------- | -------- |
-| `SECRET_KEY` | Secret key for JWT signing | - | Yes |
+| `SECRET_KEY` | Secret key for JWT signing (min 32 characters recommended) | - | Yes |
 | `ALGORITHM` | JWT signing algorithm | `HS256` | No |
 | `ACCESS_TOKEN_EXPIRE_MINUTES` | Access token lifetime in minutes | `15` | No |
 | `REFRESH_TOKEN_EXPIRE_DAYS` | Refresh token lifetime in days | `7` | No |
-| `BACKEND_CORS_ORIGINS` | Allowed CORS origins | `[]` | No |
+
+#### Session Configuration
+
+| Variable | Description | Default | Required |
+| -------- | ----------- | ------- | -------- |
+| `SESSION_IDLE_TIMEOUT_ENABLED` | Enable session idle timeout | `false` | No |
+| `SESSION_IDLE_TIMEOUT_HOURS` | Hours of inactivity before session expires | `1` | No |
+| `SESSION_ABSOLUTE_TIMEOUT_HOURS` | Maximum session lifetime in hours | `24` | No |
+
+#### Security Configuration
+
+| Variable | Description | Default | Required |
+| -------- | ----------- | ------- | -------- |
+| `BACKEND_CORS_ORIGINS` | Allowed CORS origins (JSON array) | `[]` | No |
+| `FRONTEND_PROTOCOL` | Protocol for cookie security (`http` or `https`) | `http` | No |
 
 ### Cookie Configuration
-For web clients, cookies are configured with:
 
-- **HttpOnly**: Prevents JavaScript access (security measure)
-- **Secure**: Only sent over HTTPS in production
-- **SameSite**: Protection against CSRF attacks
-- **Domain**: Set to match your application domain
-- **Path**: Set to `/` for application-wide access
+For web clients, the refresh token cookie is configured with:
+
+| Attribute | Value | Purpose |
+|-----------|-------|---------|
+| **HttpOnly** | `true` | Prevents JavaScript access (XSS protection) |
+| **Secure** | `true` (in production) | Only sent over HTTPS |
+| **SameSite** | `Strict` | Prevents CSRF attacks |
+| **Path** | `/` | Application-wide access |
+| **Expires** | 7 days (default) | Matches refresh token lifetime |
 
 ## Security Scopes
 
@@ -485,30 +606,46 @@ Scopes are automatically assigned based on user permissions and are embedded in 
 
 ## Best Practices
 
-### For Client Applications
+### For Web Client Applications
 
-1. **Always use HTTPS** in production to protect credentials and tokens
-2. **Store tokens securely**:
-   - Web: Use HTTP-only cookies (handled automatically)
-   - Mobile: Use secure storage (Keychain on iOS, KeyStore on Android)
-3. **Implement token refresh** before access token expires
-4. **Handle rate limits** with exponential backoff
-5. **Validate SSL certificates** to prevent man-in-the-middle attacks
-6. **Clear tokens on logout** to prevent unauthorized access
+1. **Store access and CSRF tokens in memory** - Never persist in localStorage or sessionStorage
+2. **Implement automatic token refresh** - Refresh before access token expires (e.g., at 80% of lifetime)
+3. **Handle concurrent refresh requests** - Use a refresh lock pattern to prevent race conditions
+4. **Always include required headers:**
+    - `Authorization: Bearer {access_token}` for all authenticated requests
+    - `X-Client-Type: web` for all requests
+    - `X-CSRF-Token: {csrf_token}` for POST/PUT/DELETE/PATCH requests
+5. **Handle page reload gracefully** - Call `/auth/refresh` on app initialization to restore in-memory tokens
+6. **Clear tokens on logout** - The httpOnly cookie is cleared by the backend
+
+### For Mobile Client Applications
+
+1. **Store tokens securely**:
+    - **iOS**: Keychain Services
+    - **Android**: EncryptedSharedPreferences or Android Keystore
+2. **Use PKCE for OAuth/SSO** - Required for mobile OAuth flows
+3. **Include required headers:**
+    - `Authorization: Bearer {access_token}` for all authenticated requests
+    - `X-Client-Type: mobile` for all requests
+    - `X-CSRF-Token: {csrf_token}` for state-changing requests
+4. **Handle token refresh proactively** - Refresh before expiration
+5. **Implement secure token deletion** on logout
 
 ### For Security
 
 1. **Never expose `SECRET_KEY`** in client code or version control
-2. **Use strong, randomly generated secrets** for production
-3. **Enable MFA** for enhanced account security
-4. **Monitor failed login attempts** for suspicious activity
-5. **Rotate refresh tokens** periodically for long-lived sessions
-6. **Use appropriate scopes** - request only the permissions needed
+2. **Use strong, randomly generated secrets** (minimum 32 characters)
+3. **Always use HTTPS** in production environments
+4. **Enable MFA** for enhanced account security
+5. **Monitor for token reuse** - Indicates potential token theft
+6. **Enable session idle timeout** for sensitive applications
+7. **Use appropriate scopes** - Request only necessary permissions
 
-### For OAuth/SSO
+### For OAuth/SSO Integration
 
-1. **Validate state parameter** to prevent CSRF attacks
-2. **Use PKCE** (Proof Key for Code Exchange) for mobile apps
-3. **Implement proper redirect URL validation** to prevent open redirects
+1. **Always use PKCE** - Required for mobile, recommended for web
+2. **Validate state parameter** - Prevents CSRF attacks on OAuth flow
+3. **Implement proper redirect URL validation** - Prevents open redirects
 4. **Handle provider errors gracefully** with user-friendly messages
-5. **Support account linking** to allow users to connect multiple providers
+5. **Support account linking** - Allow users to connect multiple providers
+6. **Respect token expiry** - OAuth state expires after 10 minutes
