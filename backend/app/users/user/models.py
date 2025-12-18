@@ -52,6 +52,7 @@ class User(Base):
         goals: List of user goals.
         user_identity_providers: List of identity providers linked to the user.
         oauth_states: List of OAuth states for the user (link mode).
+        mfa_backup_codes: List of MFA backup codes associated with the user.
     """
 
     __tablename__ = "users"
@@ -273,4 +274,9 @@ class User(Base):
         "OAuthState",
         back_populates="user",
         cascade="all, delete-orphan",
+    )
+
+    # Establish a one-to-many relationship with mfa_backup_codes
+    mfa_backup_codes = relationship(
+        "MFABackupCode", back_populates="user", cascade="all, delete-orphan"
     )

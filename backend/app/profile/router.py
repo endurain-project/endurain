@@ -623,6 +623,10 @@ async def enable_mfa(
         int,
         Depends(auth_security.get_sub_from_access_token),
     ],
+    password_hasher: Annotated[
+        auth_password_hasher.PasswordHasher,
+        Depends(auth_password_hasher.get_password_hasher),
+    ],
     db: Annotated[Session, Depends(core_database.get_db)],
     mfa_secret_store: Annotated[
         profile_schema.MFASecretStore, Depends(profile_schema.get_mfa_secret_store)
@@ -634,6 +638,7 @@ async def enable_mfa(
     Args:
         request: MFA setup request with code.
         token_user_id: User ID from access token.
+        password_hasher: Password hasher instance for backup code generation.
         db: Database session.
         mfa_secret_store: Temporary secret storage.
 
@@ -652,10 +657,15 @@ async def enable_mfa(
         )
 
     try:
-        profile_utils.enable_user_mfa(token_user_id, secret, request.mfa_code, db)
+        backup_codes = profile_utils.enable_user_mfa(
+            token_user_id, secret, request.mfa_code, password_hasher, db
+        )
         # Clean up the temporary secret
         mfa_secret_store.delete_secret(token_user_id)
-        return {"message": "MFA enabled successfully"}
+        return {
+            "message": "MFA enabled successfully",
+            "backup_codes": backup_codes,
+        }
     except HTTPException:
         # Clean up on error
         mfa_secret_store.delete_secret(token_user_id)
@@ -693,6 +703,10 @@ async def verify_mfa(
         int,
         Depends(auth_security.get_sub_from_access_token),
     ],
+    password_hasher: Annotated[
+        auth_password_hasher.PasswordHasher,
+        Depends(auth_password_hasher.get_password_hasher),
+    ],
     db: Annotated[Session, Depends(core_database.get_db)],
 ):
     """
@@ -701,6 +715,7 @@ async def verify_mfa(
     Args:
         request: MFA request with code to verify.
         token_user_id: User ID from access token.
+        password_hasher: Password hasher instance for backup code verification.
         db: Database session.
 
     Returns:
@@ -709,7 +724,9 @@ async def verify_mfa(
     Raises:
         HTTPException: If MFA code is invalid.
     """
-    is_valid = profile_utils.verify_user_mfa(token_user_id, request.mfa_code, db)
+    is_valid = profile_utils.verify_user_mfa(
+        token_user_id, request.mfa_code, password_hasher, db
+    )
     if not is_valid:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid MFA code"

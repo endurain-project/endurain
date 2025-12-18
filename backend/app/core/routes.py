@@ -16,6 +16,10 @@ import activities.activity_summaries.router as activity_summaries_router
 import activities.activity_workout_steps.router as activity_workout_steps_router
 import activities.activity_workout_steps.public_router as activity_workout_steps_public_router
 import auth.router as auth_router
+import auth.mfa_backup_codes.router as mfa_backup_codes_router
+import auth.identity_providers.router as identity_providers_router
+import auth.identity_providers.public_router as identity_providers_public_router
+import auth.security as auth_security
 import core.config as core_config
 import core.router as core_router
 import followers.router as followers_router
@@ -26,8 +30,6 @@ import health_sleep.router as health_sleep_router
 import health_weight.router as health_weight_router
 import health_steps.router as health_steps_router
 import health_targets.router as health_targets_router
-import auth.identity_providers.router as identity_providers_router
-import auth.identity_providers.public_router as identity_providers_public_router
 import notifications.router as notifications_router
 import password_reset_tokens.router as password_reset_tokens_router
 import profile.browser_redirect_router as profile_browser_redirect_router
@@ -35,7 +37,6 @@ import profile.router as profile_router
 import server_settings.public_router as server_settings_public_router
 import server_settings.router as server_settings_router
 import session.router as session_router
-import auth.security as auth_security
 import sign_up_tokens.router as sign_up_tokens_router
 import strava.router as strava_router
 import users.user.router as users_router
@@ -101,6 +102,12 @@ router.include_router(
     auth_router.router,
     prefix=core_config.ROOT_PATH + "/auth",
     tags=["auth"],
+)
+router.include_router(
+    mfa_backup_codes_router.router,
+    prefix=core_config.ROOT_PATH + "/auth/mfa/backup-codes",
+    tags=["auth"],
+    dependencies=[Depends(auth_security.validate_access_token)],
 )
 router.include_router(
     followers_router.router,

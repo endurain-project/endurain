@@ -14,6 +14,9 @@ import core.cryptography as core_cryptography
 import core.logger as core_logger
 import profile.schema as profile_schema
 import users.user.crud as users_crud
+import auth.password_hasher as auth_password_hasher
+import auth.mfa_backup_codes.crud as mfa_backup_codes_crud
+import auth.mfa_backup_codes.utils as mfa_backup_codes_utils
 from profile.exceptions import (
     MemoryAllocationError,
 )
@@ -187,7 +190,13 @@ def setup_user_mfa(user_id: int, db: Session) -> profile_schema.MFASetupResponse
     )
 
 
-def enable_user_mfa(user_id: int, secret: str, mfa_code: str, db: Session):
+def enable_user_mfa(
+    user_id: int,
+    secret: str,
+    mfa_code: str,
+    password_hasher: auth_password_hasher.PasswordHasher,
+    db: Session,
+) -> list[str]:
     """
     Enable MFA for user after verification.
 
@@ -195,7 +204,11 @@ def enable_user_mfa(user_id: int, secret: str, mfa_code: str, db: Session):
         user_id: User ID to enable MFA for.
         secret: TOTP secret to verify.
         mfa_code: MFA code to verify.
+        password_hasher: Password hasher instance for backup code generation.
         db: Database session.
+
+    Returns:
+        List of generated backup codes.
 
     Raises:
         HTTPException: If user not found, MFA enabled, code
@@ -232,8 +245,14 @@ def enable_user_mfa(user_id: int, secret: str, mfa_code: str, db: Session):
     # Update user with MFA enabled and secret
     users_crud.enable_user_mfa(user_id, encrypted_secret, db)
 
+    backup_codes = mfa_backup_codes_crud.create_backup_codes(
+        user_id, password_hasher, db
+    )
 
-def disable_user_mfa(user_id: int, mfa_code: str, db: Session):
+    return backup_codes
+
+
+def disable_user_mfa(user_id: int, mfa_code: str, db: Session) -> None:
     """
     Disable MFA for user after verification.
 
@@ -277,14 +296,23 @@ def disable_user_mfa(user_id: int, mfa_code: str, db: Session):
     # Disable MFA for user
     users_crud.disable_user_mfa(user_id, db)
 
+    # Delete all backup codes for user
+    mfa_backup_codes_crud.delete_user_backup_codes(user_id, db)
 
-def verify_user_mfa(user_id: int, mfa_code: str, db: Session) -> bool:
+
+def verify_user_mfa(
+    user_id: int,
+    mfa_code: str,
+    password_hasher: auth_password_hasher.PasswordHasher,
+    db: Session,
+) -> bool:
     """
-    Verify MFA code for user.
+    Verify MFA code for user (TOTP or backup code).
 
     Args:
         user_id: User ID to verify MFA for.
-        mfa_code: MFA code to verify.
+        mfa_code: MFA code to verify (6-digit TOTP or 8-character backup code).
+        password_hasher: Password hasher instance for backup code verification.
         db: Database session.
 
     Returns:
@@ -292,6 +320,11 @@ def verify_user_mfa(user_id: int, mfa_code: str, db: Session) -> bool:
 
     Raises:
         HTTPException: If user not found.
+
+    Notes:
+        - First tries TOTP verification (6 digits)
+        - If TOTP fails and code is 8 characters, tries backup code
+        - Backup codes are consumed on successful verification
     """
     user = users_crud.get_user_by_id(user_id, db)
     if not user:
@@ -302,16 +335,46 @@ def verify_user_mfa(user_id: int, mfa_code: str, db: Session) -> bool:
     if not user.mfa_enabled or not user.mfa_secret:
         return False
 
-    # Decrypt the secret
-    try:
-        secret = core_cryptography.decrypt_token_fernet(user.mfa_secret)
-        if not secret:
-            core_logger.print_to_log("Failed to decrypt MFA secret", "error")
+    # Normalize code (remove dashes, uppercase)
+    normalized_code = mfa_code.strip().replace("-", "").upper()
+
+    # Try TOTP first (6 digits)
+    if len(normalized_code) == 6 and normalized_code.isdigit():
+        try:
+            secret = core_cryptography.decrypt_token_fernet(user.mfa_secret)
+            if not secret:
+                core_logger.print_to_log("Failed to decrypt MFA secret", "error")
+                return False
+
+            if verify_totp(secret, normalized_code):
+                core_logger.print_to_log(
+                    f"User {user_id} verified MFA with TOTP", "info"
+                )
+                return True
+        except Exception as err:
+            core_logger.print_to_log(
+                f"Error in TOTP verification: {err}", "error", exc=err
+            )
             return False
-        return verify_totp(secret, mfa_code)
-    except Exception as err:
-        core_logger.print_to_log(f"Error in verify_user_mfa: {err}", "error", exc=err)
-        return False
+
+    # Try backup code (8 alphanumeric characters)
+    elif len(normalized_code) == 8:
+        try:
+            if mfa_backup_codes_utils.verify_and_consume_backup_code(
+                user_id, normalized_code, password_hasher, db
+            ):
+                core_logger.print_to_log(
+                    f"User {user_id} verified MFA with backup code", "warning"
+                )
+                return True
+        except Exception as err:
+            core_logger.print_to_log(
+                f"Error in backup code verification: {err}", "error", exc=err
+            )
+            return False
+
+    # Invalid format or code didn't match
+    return False
 
 
 def is_mfa_enabled_for_user(user_id: int, db: Session) -> bool:

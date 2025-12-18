@@ -227,8 +227,10 @@ async def verify_mfa_and_login(
             detail="No pending MFA login found for this username",
         )
 
-    # Verify the MFA code
-    if not profile_utils.verify_user_mfa(user_id, mfa_request.mfa_code, db):
+    # Verify the MFA code (TOTP or backup code)
+    if not profile_utils.verify_user_mfa(
+        user_id, mfa_request.mfa_code, password_hasher, db
+    ):
         # Record failed attempt and apply lockout if threshold exceeded
         failed_count = pending_mfa_store.record_failed_attempt(mfa_request.username)
         raise HTTPException(
