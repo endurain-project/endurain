@@ -1,20 +1,12 @@
 from typing import Annotated, Callable
 
-from fastapi import APIRouter, Depends, UploadFile, Security, HTTPException, status
+from fastapi import APIRouter, Depends, UploadFile, Security
 from sqlalchemy.orm import Session
 
 import users.user.schema as users_schema
 import users.user.crud as users_crud
 import users.user.dependencies as users_dependencies
 import users.user.utils as users_utils
-
-import users.user_integrations.crud as user_integrations_crud
-
-import users.user_default_gear.crud as user_default_gear_crud
-
-import users.user_privacy_settings.crud as users_privacy_settings_crud
-
-import health_targets.crud as health_targets_crud
 
 import sign_up_tokens.utils as sign_up_tokens_utils
 import auth.security as auth_security

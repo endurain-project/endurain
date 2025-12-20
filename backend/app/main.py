@@ -116,7 +116,9 @@ def create_app() -> FastAPI:
         session_cookie="endurain_session",
         max_age=3600,  # 1 hour session timeout
         same_site="lax",
-        https_only=(core_config.ENVIRONMENT == "production"),
+        https_only=(
+            core_config.ENVIRONMENT == "production" or core_config.ENVIRONMENT == "demo"
+        ),
     )
 
     # Add CORS middleware to allow requests from the frontend

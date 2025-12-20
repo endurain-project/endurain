@@ -33,6 +33,7 @@ import auth.password_hasher as auth_password_hasher
 
 import core.database as core_database
 import core.logger as core_logger
+import core.config as core_config
 
 import websocket.schema as websocket_schema
 
@@ -140,7 +141,14 @@ async def read_sessions_me(
         List of session objects for the user.
     """
     # Get the sessions from the database
-    return session_crud.get_user_sessions(token_user_id, db)
+    if core_config.ENVIRONMENT != "demo":
+        return session_crud.get_user_sessions(token_user_id, db)
+    else:
+        core_logger.print_to_log(
+            "Session retrieval attempted in demo environment - returning empty list",
+            "info",
+        )
+        return []
 
 
 @router.post(

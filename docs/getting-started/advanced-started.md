@@ -49,7 +49,7 @@ Table below shows supported environment variables. Variables marked with optiona
 | JAEGER_HOST | jaeger | Yes | N/A |
 | JAEGER_PORT | 4317 | Yes | N/A |
 | BEHIND_PROXY | false | Yes | Change to true if behind reverse proxy |
-| ENVIRONMENT | production | Yes | "production" and "development" allowed. "development" allows connections from localhost:8080 and localhost:5173 at the CORS level |
+| ENVIRONMENT | production | Yes | `production`, `demo` and `development` allowed. `development` allows connections from localhost:8080 and localhost:5173 at the CORS level. `demo` equals to `production` except it does not return user sessions |
 | SMTP_HOST | No default set | Yes | The SMTP host of your email provider. Example `smtp.protonmail.ch` |
 | SMTP_PORT | 587 | Yes | The SMTP port of your email provider. Default is 587 |
 | SMTP_USERNAME | No default set | Yes | The username of your SMTP email provider, probably your email address |

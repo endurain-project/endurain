@@ -11,6 +11,8 @@ import auth.security as auth_security
 import session.crud as session_crud
 
 import core.database as core_database
+import core.logger as core_logger
+import core.config as core_config
 
 # Define the API router
 router = APIRouter()
@@ -40,7 +42,14 @@ async def read_sessions_user(
         List[Session]: A list of session objects associated with the specified user.
     """
     # Get the sessions from the database
-    return session_crud.get_user_sessions(user_id, db)
+    if core_config.ENVIRONMENT != "demo":
+        return session_crud.get_user_sessions(user_id, db)
+    else:
+        core_logger.print_to_log(
+            "Session retrieval attempted in demo environment - returning empty list",
+            "info",
+        )
+        return []
 
 
 @router.delete("/{session_id}/user/{user_id}")
