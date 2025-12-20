@@ -521,11 +521,12 @@ async def read_activities_user_activities_refresh(
     activities = []
 
     # Get the strava activities for the user for the last 24h
-    strava_activities = await strava_activity_utils.get_user_strava_activities_by_days(
-        (datetime.now(timezone.utc) - timedelta(days=1)).strftime("%Y-%m-%dT%H:%M:%S"),
-        token_user_id,
-        websocket_manager,
-        db,
+    strava_activities = await strava_activity_utils.get_user_strava_activities_by_dates(
+        start_date=datetime.now(timezone.utc) - timedelta(days=1),
+        end_date=datetime.now(timezone.utc),
+        user_id=token_user_id,
+        websocket_manager=websocket_manager,
+        db=db,
     )
 
     # Get the garmin activities for the user for the last 24h

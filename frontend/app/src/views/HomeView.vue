@@ -362,6 +362,9 @@ async function refreshActivities() {
         // Fetch media for the new activity
         activityMediaMap.value[newActivity.id] = await fetchActivityMedia(newActivity.id)
       }
+
+      // Set the user number of activities
+      userNumberOfActivities.value += newActivities.length
     }
 
     // Set the success message
@@ -369,9 +372,6 @@ async function refreshActivities() {
 
     // Fetch the user stats
     fetchUserStars()
-
-    // Set the user number of activities
-    userNumberOfActivities.value += newActivities.length
   } catch (error) {
     // Set the error message
     notification.reject(`${error}`)

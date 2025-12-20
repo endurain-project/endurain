@@ -709,7 +709,7 @@ async def retrieve_strava_users_activities_for_days(
             if users:
                 for user in users:
                     try:
-                        await get_user_garminconnect_activities_by_dates(
+                        await get_user_strava_activities_by_dates(
                             calculated_start_date,
                             calculated_end_date,
                             user.id,
@@ -765,7 +765,7 @@ async def retrieve_strava_users_activities_for_days(
                 ) from err
 
 
-async def get_user_garminconnect_activities_by_dates(
+async def get_user_strava_activities_by_dates(
     start_date: datetime,
     end_date: datetime,
     user_id: int,

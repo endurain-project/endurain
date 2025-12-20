@@ -69,11 +69,7 @@ async function fetchWithRetry(url, options, responseType = 'json') {
     return await attemptFetch(url, options, responseType)
   } catch (error) {
     // Don't retry on 401 for: login, refresh, MFA verify, or Garmin link errors
-    if (
-      error.message.startsWith('401') &&
-      url !== 'auth/login' &&
-      url !== 'auth/refresh'
-    ) {
+    if (error.message.startsWith('401') && url !== 'auth/login' && url !== 'auth/refresh') {
       if (
         url === 'garminconnect/link' &&
         error.message.includes('There was an authentication error using Garmin Connect')
@@ -90,11 +86,10 @@ async function fetchWithRetry(url, options, responseType = 'json') {
         // Implement refresh token lock to prevent concurrent refresh requests
         // If a refresh is already in progress, wait for it instead of starting a new one
         if (!refreshTokenPromise) {
-          refreshTokenPromise = authStore.refreshAccessToken()
-            .finally(() => {
-              // Clear the promise after completion (success or failure)
-              refreshTokenPromise = null
-            })
+          refreshTokenPromise = authStore.refreshAccessToken().finally(() => {
+            // Clear the promise after completion (success or failure)
+            refreshTokenPromise = null
+          })
         }
 
         await refreshTokenPromise

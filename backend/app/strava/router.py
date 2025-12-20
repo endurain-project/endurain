@@ -134,7 +134,7 @@ async def strava_retrieve_activities_days(
 
     # Process strava activities in the background
     background_tasks.add_task(
-        strava_activity_utils.get_user_garminconnect_activities_by_dates,
+        strava_activity_utils.get_user_strava_activities_by_dates,
         start_datetime,
         end_datetime,
         token_user_id,

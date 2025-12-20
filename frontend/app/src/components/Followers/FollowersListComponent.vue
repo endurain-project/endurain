@@ -46,6 +46,7 @@
 
     <!-- delete following modal -->
     <ModalComponent
+      v-if="type == 1 && authStore.user.id == idFromParam"
       :modalId="`deleteFollowingModal${userFollower.id}`"
       :title="t('followersListComponent.followingModalTitle')"
       :body="`${t('followersListComponent.followingModalBody')}<b>${userFollower.name}</b>?`"
@@ -67,6 +68,7 @@
 
     <!-- Modal delete follower -->
     <ModalComponent
+      v-if="type != 1 && authStore.user.id == idFromParam && follower.is_accepted == 1"
       :modalId="`deleteFollowerModal${userFollower.id}`"
       :title="t('followersListComponent.followerModalTitle')"
       :body="`${t('followersListComponent.followerModalBody')}<b>${userFollower.name}</b>?`"
@@ -88,6 +90,7 @@
 
     <!-- Modal accept user request -->
     <ModalComponent
+      v-if="type != 1 && authStore.user.id == idFromParam && follower.is_accepted == 0"
       :modalId="`acceptRequestModal${userFollower.id}`"
       :title="t('followersListComponent.followerAcceptModalTitle')"
       :body="`${t('followersListComponent.followerAcceptModalBody')}<b>${userFollower.name}</b>?`"
@@ -109,6 +112,7 @@
 
     <!-- Modal decline user request -->
     <ModalComponent
+      v-if="type != 1 && authStore.user.id == idFromParam && follower.is_accepted == 0"
       :modalId="`declineRequestModal${userFollower.id}`"
       :title="t('followersListComponent.followerDeclineModalTitle')"
       :body="`${t('followersListComponent.followerDeclineModalBody')}<b>${userFollower.name}</b>?`"
@@ -155,7 +159,7 @@ export default {
     const authStore = useAuthStore()
     const userFollower = ref(null)
     const isLoading = ref(true)
-    const idFromParam = computed(() => route.params.id)
+    const idFromParam = computed(() => Number(route.params.id))
 
     async function submitDeleteFollowing() {
       try {
