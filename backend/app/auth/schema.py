@@ -21,12 +21,16 @@ class MFALoginRequest(BaseModel):
     Schema for Multi-Factor Authentication (MFA) login request.
 
     Attributes:
-        username (str): The username of the user attempting to log in. Must be between 1 and 250 characters.
-        mfa_code (str): The 6-digit MFA code provided by the user. Must match the pattern: six consecutive digits.
+        username: Username of the user attempting to log in.
+        mfa_code: Either a 6-digit TOTP code or a backup code
+            (XXXX-XXXX format).
     """
 
     username: str = Field(..., min_length=1, max_length=250)
-    mfa_code: str = Field(..., pattern=r"^\d{6}$")
+    mfa_code: str = Field(
+        ...,
+        pattern=r"^(\d{6}|[A-Z0-9]{4}-[A-Z0-9]{4})$",
+    )
 
 
 class MFARequiredResponse(BaseModel):

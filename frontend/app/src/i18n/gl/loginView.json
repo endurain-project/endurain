@@ -11,6 +11,7 @@
   "hidePassword": "Ocultar contrasinal",
   "showPassword": "Mostrar contrasinal",
   "mfaCode": "Código AMF",
+  "mfaCodeHint": "Introduce o código de 6 díxitos da túa aplicación de autenticación, ou usa un código de respaldo",
   "mfaRequired": "Requírese a Autenticación Multi-Factor. Escribe o código de 6 díxitos.",
   "verifyMFAButton": "Verificar AMF",
   "invalidMFACode": "Código AMF non válido. Inténtao outra vez.",

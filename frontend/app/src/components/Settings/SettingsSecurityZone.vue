@@ -125,15 +125,47 @@
         </div>
         <div v-else>
           <p>{{ $t('settingsSecurityZone.mfaEnabledDescription') }}</p>
-          <button
-            type="button"
-            class="btn btn-danger"
-            data-bs-toggle="modal"
-            data-bs-target="#mfaDisableModal"
-            :disabled="mfaDisableLoading"
-          >
-            {{ $t('settingsSecurityZone.disableMFAButton') }}
-          </button>
+
+          <!-- Backup Codes Status -->
+          <div v-if="backupCodeStatusLoading" class="mb-3">
+            <LoadingComponent />
+          </div>
+          <div v-else-if="backupCodeStatus" class="alert alert-info mb-3" role="alert">
+            <font-awesome-icon :icon="['fas', 'key']" class="me-2" />
+            {{
+              $t('settingsSecurityZone.backupCodesRemaining', {
+                remaining: backupCodeStatus.unused,
+                total: backupCodeStatus.total
+              })
+            }}
+          </div>
+
+          <div class="d-flex flex-wrap gap-2">
+            <button
+              type="button"
+              class="btn btn-primary"
+              @click="regenerateBackupCodes"
+              :disabled="regenerateBackupCodesLoading"
+            >
+              <span
+                v-if="regenerateBackupCodesLoading"
+                class="spinner-border spinner-border-sm me-2"
+                role="status"
+                aria-hidden="true"
+              ></span>
+              <font-awesome-icon v-else :icon="['fas', 'rotate']" class="me-1" />
+              {{ $t('settingsSecurityZone.regenerateBackupCodesButton') }}
+            </button>
+            <button
+              type="button"
+              class="btn btn-danger"
+              data-bs-toggle="modal"
+              data-bs-target="#mfaDisableModal"
+              :disabled="mfaDisableLoading"
+            >
+              {{ $t('settingsSecurityZone.disableMFAButton') }}
+            </button>
+          </div>
         </div>
       </div>
 
@@ -165,6 +197,23 @@
         :actionButtonType="`danger`"
         :actionButtonText="t('settingsSecurityZone.disableMFAButton')"
         @numberToEmitAction="disableMFA"
+      />
+
+      <!-- MFA Backup Codes Modal -->
+      <ModalComponentMFABackupCodes
+        ref="mfaBackupCodesModalRef"
+        modalId="mfaBackupCodesModal"
+        :title="t('settingsSecurityZone.backupCodesModalTitle')"
+        :description="t('settingsSecurityZone.backupCodesModalDescription')"
+        :warningTitle="t('settingsSecurityZone.backupCodesWarningTitle')"
+        :warningMessage="t('settingsSecurityZone.backupCodesWarningMessage')"
+        :codes="backupCodes"
+        :copyButtonText="t('settingsSecurityZone.backupCodesCopyAll')"
+        :downloadButtonText="t('settingsSecurityZone.backupCodesDownload')"
+        :copySuccessMessage="t('settingsSecurityZone.backupCodesCopySuccess')"
+        :confirmationText="t('settingsSecurityZone.backupCodesSaveConfirmation')"
+        :closeButtonText="t('settingsSecurityZone.backupCodesClose')"
+        @closed="onBackupCodesModalClosed"
       />
 
       <hr />
@@ -246,6 +295,7 @@ import { push } from 'notivue'
 import UsersPasswordRequirementsComponent from '@/components/Settings/SettingsUsersZone/UsersPasswordRequirementsComponent.vue'
 import ModalComponentNumberInput from '@/components/Modals/ModalComponentNumberInput.vue'
 import ModalComponentMFASetup from '@/components/Modals/ModalComponentMFASetup.vue'
+import ModalComponentMFABackupCodes from '@/components/Modals/ModalComponentMFABackupCodes.vue'
 import UserIdentityProviderListComponent from '@/components/Settings/SettingsUsersZone/UserIdentityProviderListComponent.vue'
 // Importing validation utilities
 import { isValidPassword, passwordsMatch } from '@/utils/validationUtils'
@@ -282,6 +332,11 @@ const mfaDisableLoading = ref(false)
 const qrCodeData = ref('')
 const mfaSecret = ref('')
 const mfaSetupModalRef = ref(null)
+const mfaBackupCodesModalRef = ref(null)
+const backupCodes = ref([])
+const backupCodeStatus = ref(null)
+const backupCodeStatusLoading = ref(false)
+const regenerateBackupCodesLoading = ref(false)
 
 const showNewPassword = ref(false)
 const showNewPasswordRepeat = ref(false)
@@ -371,12 +426,18 @@ async function setupMFA() {
 async function enableMFA(verificationCode) {
   try {
     mfaEnableLoading.value = true
-    await profile.enableMFA({ mfa_code: verificationCode })
+    const response = await profile.enableMFA({ mfa_code: verificationCode })
     mfaEnabled.value = true
     mfaSetupModalRef.value?.hide()
     qrCodeData.value = ''
     mfaSecret.value = ''
     push.success(t('settingsSecurityZone.mfaEnabledSuccess'))
+
+    // Show backup codes modal if codes are returned
+    if (response.backup_codes && response.backup_codes.length > 0) {
+      backupCodes.value = response.backup_codes
+      mfaBackupCodesModalRef.value?.show()
+    }
   } catch (error) {
     push.error(`${t('settingsSecurityZone.errorEnableMFA')} - ${error}`)
   } finally {
@@ -391,12 +452,49 @@ async function disableMFA(mfaCode) {
     mfaDisableLoading.value = true
     await profile.disableMFA({ mfa_code: mfaCode.toString() })
     mfaEnabled.value = false
+    backupCodeStatus.value = null
     push.success(t('settingsSecurityZone.mfaDisabledSuccess'))
   } catch (error) {
     push.error(`${t('settingsSecurityZone.errorDisableMFA')} - ${error}`)
   } finally {
     mfaDisableLoading.value = false
   }
+}
+
+async function loadBackupCodeStatus() {
+  if (!mfaEnabled.value) return
+
+  try {
+    backupCodeStatusLoading.value = true
+    backupCodeStatus.value = await profile.getBackupCodeStatus()
+  } catch (error) {
+    push.error(`${t('settingsSecurityZone.errorLoadBackupCodeStatus')} - ${error}`)
+  } finally {
+    backupCodeStatusLoading.value = false
+  }
+}
+
+async function regenerateBackupCodes() {
+  try {
+    regenerateBackupCodesLoading.value = true
+    const response = await profile.regenerateBackupCodes()
+
+    if (response.codes && response.codes.length > 0) {
+      backupCodes.value = response.codes
+      mfaBackupCodesModalRef.value?.show()
+      push.success(t('settingsSecurityZone.successRegenerateBackupCodes'))
+    }
+  } catch (error) {
+    push.error(`${t('settingsSecurityZone.errorRegenerateBackupCodes')} - ${error}`)
+  } finally {
+    regenerateBackupCodesLoading.value = false
+  }
+}
+
+function onBackupCodesModalClosed() {
+  backupCodes.value = []
+  // Refresh backup code status after modal is closed
+  loadBackupCodeStatus()
 }
 
 const getProviderCustomLogo = (iconName) => {
@@ -485,6 +583,9 @@ onMounted(async () => {
 
   // Load MFA status
   await loadMFAStatus()
+
+  // Load backup code status if MFA is enabled
+  await loadBackupCodeStatus()
 
   // Load linked accounts
   await loadLinkedAccounts()

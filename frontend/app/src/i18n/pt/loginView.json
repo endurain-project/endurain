@@ -11,6 +11,7 @@
   "hidePassword": "Esconder palavra-passe",
   "showPassword": "Mostrar palavra-passe",
   "mfaCode": "Código MFA",
+  "mfaCodeHint": "Insira o código de 6 dígitos da sua aplicação de autenticação, ou use um código de backup",
   "mfaRequired": "Autenticação multi-fator necessária. Insira o seu código de 6 dígitos.",
   "verifyMFAButton": "Verificar MFA",
   "invalidMFACode": "Código MFA inválido. Por favor, tente novamente.",

@@ -234,8 +234,8 @@ async def verify_mfa_and_login(
         # Record failed attempt and apply lockout if threshold exceeded
         failed_count = pending_mfa_store.record_failed_attempt(mfa_request.username)
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=f"Invalid MFA code. Failed attempts: {failed_count}",
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid MFA code, backup code or backup code already used. Failed attempts: {failed_count}.",
         )
 
     # Get the user and complete login

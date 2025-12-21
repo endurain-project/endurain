@@ -51,6 +51,7 @@ export const extractStatusCode = (error: unknown): number | null => {
 
   // Fallback: try to extract from error string
   const errorString = error?.toString() || ''
+  if (errorString.includes('400')) return HTTP_STATUS.BAD_REQUEST
   if (errorString.includes('401')) return HTTP_STATUS.UNAUTHORIZED
   if (errorString.includes('403')) return HTTP_STATUS.FORBIDDEN
   if (errorString.includes('404')) return HTTP_STATUS.NOT_FOUND

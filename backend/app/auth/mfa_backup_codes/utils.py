@@ -40,6 +40,18 @@ def verify_and_consume_backup_code(
     password_hasher: auth_password_hasher.PasswordHasher,
     db: Session,
 ) -> bool:
+    """
+    Verify and consume a backup code for MFA authentication.
+
+    Args:
+        user_id: User ID to verify backup code for.
+        code: Backup code to verify (format: XXXX-XXXX).
+        password_hasher: Password hasher for verification.
+        db: Database session.
+
+    Returns:
+        True if code is valid and consumed, False otherwise.
+    """
     # Get all unused codes for this user
     unused_codes = mfa_backup_codes_crud.get_user_unused_backup_codes(user_id, db)
 

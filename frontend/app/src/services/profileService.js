@@ -60,6 +60,13 @@ export const profile = {
   verifyMFA(data) {
     return fetchPostRequest('profile/mfa/verify', data)
   },
+  // Backup codes endpoints
+  getBackupCodeStatus() {
+    return fetchGetRequest('profile/mfa/backup-codes/status')
+  },
+  regenerateBackupCodes() {
+    return fetchPostRequest('profile/mfa/backup-codes', {})
+  },
   getMyIdentityProviders() {
     return fetchGetRequest('profile/idp')
   },

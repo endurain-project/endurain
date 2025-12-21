@@ -11,6 +11,7 @@
   "hidePassword": "Hide password",
   "showPassword": "Show password",
   "mfaCode": "MFA koda",
+  "mfaCodeHint": "Vnesite 6-mestno kodo iz aplikacije za preverjanje pristnosti ali uporabite rezervno kodo",
   "mfaRequired": "Zahteva se večfaktorska avtentikacija. Vnesite svojo 6-mestno kodo.",
   "verifyMFAButton": "Preveri MFA",
   "invalidMFACode": "Neveljavna koda MFA. Poskusite znova.",

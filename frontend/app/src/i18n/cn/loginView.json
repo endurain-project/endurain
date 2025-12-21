@@ -11,6 +11,7 @@
   "hidePassword": "Hide password",
   "showPassword": "Show password",
   "mfaCode": "两步验证代码",
+  "mfaCodeHint": "输入您验证器应用中的 6 位数字代码，或使用备用码",
   "mfaRequired": "需要两步验证。请输入您的 6 位数字代码。",
   "verifyMFAButton": "验证 MFA",
   "invalidMFACode": "无效的两步验证代码，请重试。",

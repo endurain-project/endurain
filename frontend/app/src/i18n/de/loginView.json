@@ -11,6 +11,7 @@
   "hidePassword": "Hide password",
   "showPassword": "Show password",
   "mfaCode": "MFA-Code",
+  "mfaCodeHint": "Geben Sie den 6-stelligen Code aus Ihrer Authentifizierungs-App ein, oder verwenden Sie einen Backup-Code",
   "mfaRequired": "Mehrstufige Authentifizierung erforderlich. Bitte geben Sie Ihren 6-stelligen Code ein.",
   "verifyMFAButton": "MFA überprüfen",
   "invalidMFACode": "Ungültiger MFA-Code. Bitte versuchen Sie es erneut.",

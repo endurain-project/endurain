@@ -16,7 +16,6 @@ import activities.activity_summaries.router as activity_summaries_router
 import activities.activity_workout_steps.router as activity_workout_steps_router
 import activities.activity_workout_steps.public_router as activity_workout_steps_public_router
 import auth.router as auth_router
-import auth.mfa_backup_codes.router as mfa_backup_codes_router
 import auth.identity_providers.router as identity_providers_router
 import auth.identity_providers.public_router as identity_providers_public_router
 import auth.security as auth_security
@@ -102,12 +101,6 @@ router.include_router(
     auth_router.router,
     prefix=core_config.ROOT_PATH + "/auth",
     tags=["auth"],
-)
-router.include_router(
-    mfa_backup_codes_router.router,
-    prefix=core_config.ROOT_PATH + "/auth/mfa/backup-codes",
-    tags=["auth"],
-    dependencies=[Depends(auth_security.validate_access_token)],
 )
 router.include_router(
     followers_router.router,

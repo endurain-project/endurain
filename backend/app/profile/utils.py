@@ -335,8 +335,8 @@ def verify_user_mfa(
     if not user.mfa_enabled or not user.mfa_secret:
         return False
 
-    # Normalize code (remove dashes, uppercase)
-    normalized_code = mfa_code.strip().replace("-", "").upper()
+    # Normalize code (remove whitespaces in the beginning and end, uppercase)
+    normalized_code = mfa_code.strip().upper()
 
     # Try TOTP first (6 digits)
     if len(normalized_code) == 6 and normalized_code.isdigit():
@@ -357,15 +357,12 @@ def verify_user_mfa(
             )
             return False
 
-    # Try backup code (8 alphanumeric characters)
-    elif len(normalized_code) == 8:
+    # Try backup code (9 alphanumeric characters with dash XXXX-XXXX)
+    elif len(normalized_code) == 9 and normalized_code[4] == "-":
         try:
             if mfa_backup_codes_utils.verify_and_consume_backup_code(
                 user_id, normalized_code, password_hasher, db
             ):
-                core_logger.print_to_log(
-                    f"User {user_id} verified MFA with backup code", "warning"
-                )
                 return True
         except Exception as err:
             core_logger.print_to_log(

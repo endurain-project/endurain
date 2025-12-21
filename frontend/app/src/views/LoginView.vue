@@ -65,6 +65,7 @@
                 autocomplete="one-time-code"
               />
               <label for="mfaCode">{{ $t('loginView.mfaCode') }}</label>
+              <small class="form-text text-muted">{{ $t('loginView.mfaCodeHint') }}</small>
             </div>
 
             <button class="w-100 btn btn-lg btn-primary" type="submit" :disabled="loading">
