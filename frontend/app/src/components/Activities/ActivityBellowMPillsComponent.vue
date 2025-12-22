@@ -286,7 +286,7 @@ import BarChartComponent from '@/components/GeneralComponents/BarChartComponent.
 // Import Notivue push
 import { push } from 'notivue'
 // Import the utils
-import { getHrBarChartData } from '@/utils/chartUtils'
+import { getHrBarChartData, formatHrZoneLabel } from '@/utils/chartUtils'
 import {
   formatPaceMetric,
   formatPaceImperial,

@@ -125,7 +125,8 @@
               :barColors="hrChartData.barColors"
               :timeSeconds="hrChartData.timeSeconds"
               :datalabelsFormatter="
-                (value, context) => formatHrZoneLabel(value, hrChartData.timeSeconds[context.dataIndex])
+                (value, context) =>
+                  formatHrZoneLabel(value, hrChartData.timeSeconds[context.dataIndex])
               "
               :title="$t('activityMandAbovePillsComponent.labelHRZones')"
             />

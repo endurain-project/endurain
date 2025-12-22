@@ -210,9 +210,14 @@ def mark_tokens_exchanged(session_id: str, db: Session) -> None:
     """
     Atomically mark tokens as exchanged for a session to prevent duplicate mobile token exchanges.
 
-    This function sets the tokens_exchanged flag to True for a specific session.
+    This function sets the tokens_exchanged flag to True for a specific session,
+    clears the oauth_state_id reference, and deletes the associated OAuth state.
     Prevents replay attacks where multiple token exchange requests could be made
     for the same session.
+
+    Per OAuth 2.1 best practices, the OAuth state parameter is ephemeral and should
+    be deleted immediately after successful token exchange. The session maintains
+    its own security mechanisms (refresh tokens, CSRF tokens) independently.
 
     Args:
         session_id (str): The unique identifier of the session.
@@ -234,9 +239,28 @@ def mark_tokens_exchanged(session_id: str, db: Session) -> None:
         if not db_session:
             raise SessionNotFoundError(f"Session {session_id} not found")
 
-        # Mark tokens as exchanged
+        # Store oauth_state_id before clearing (for cleanup)
+        oauth_state_id_to_delete = db_session.oauth_state_id
+
+        # Mark tokens as exchanged and clear OAuth state reference
+        # Per OAuth 2.1: state is ephemeral, only needed during authorization flow
         db_session.tokens_exchanged = True
+        db_session.oauth_state_id = None
         db.commit()
+
+        # Delete the OAuth state now that tokens are exchanged
+        # The state has served its CSRF protection purpose
+        if oauth_state_id_to_delete:
+            try:
+                oauth_state_crud.delete_oauth_state(oauth_state_id_to_delete, db)
+            except Exception as err:
+                # Log but don't fail - cleanup job will handle orphaned states
+                core_logger.print_to_log(
+                    f"Failed to delete OAuth state {oauth_state_id_to_delete[:8]}... "
+                    f"after token exchange: {err}",
+                    "warning",
+                    exc=err,
+                )
     except SessionNotFoundError as err:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail=str(err)

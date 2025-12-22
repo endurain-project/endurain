@@ -68,7 +68,7 @@ class UsersSessions(Base):
     )
     oauth_state_id = Column(
         String(64),
-        ForeignKey("oauth_states.id"),
+        ForeignKey("oauth_states.id", ondelete="SET NULL"),
         nullable=True,
         index=True,
         comment="Link to OAuth state for PKCE validation",

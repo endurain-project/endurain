@@ -195,7 +195,12 @@ def upgrade() -> None:
         unique=True,
     )
     op.create_foreign_key(
-        None, "users_sessions", "oauth_states", ["oauth_state_id"], ["id"]
+        "users_sessions_oauth_state_id_fkey",
+        "users_sessions",
+        "oauth_states",
+        ["oauth_state_id"],
+        ["id"],
+        ondelete="SET NULL",
     )
 
     # Create rotated_refresh_tokens table
@@ -308,7 +313,9 @@ def downgrade() -> None:
     op.drop_index(op.f("ix_mfa_backup_codes_used"), table_name="mfa_backup_codes")
     op.drop_index("idx_user_unused_codes", table_name="mfa_backup_codes")
     op.drop_table("mfa_backup_codes")
-    op.drop_constraint(None, "users_sessions", type_="foreignkey")
+    op.drop_constraint(
+        "users_sessions_oauth_state_id_fkey", "users_sessions", type_="foreignkey"
+    )
     op.drop_index(
         op.f("ix_users_sessions_token_family_id"), table_name="users_sessions"
     )
