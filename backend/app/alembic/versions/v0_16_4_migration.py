@@ -94,10 +94,12 @@ def upgrade() -> None:
         sa.ForeignKeyConstraint(
             ["idp_id"],
             ["identity_providers.id"],
+            ondelete="CASCADE",
         ),
         sa.ForeignKeyConstraint(
             ["user_id"],
             ["users.id"],
+            ondelete="CASCADE",
         ),
         sa.PrimaryKeyConstraint("id"),
     )
@@ -240,6 +242,7 @@ def upgrade() -> None:
         sa.ForeignKeyConstraint(
             ["token_family_id"],
             ["users_sessions.token_family_id"],
+            ondelete="CASCADE",
         ),
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint("hashed_token"),

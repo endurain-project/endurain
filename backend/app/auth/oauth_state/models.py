@@ -42,7 +42,7 @@ class OAuthState(Base):
 
     idp_id = Column(
         Integer,
-        ForeignKey("identity_providers.id"),
+        ForeignKey("identity_providers.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
         comment="Identity provider ID",
@@ -50,7 +50,7 @@ class OAuthState(Base):
 
     user_id = Column(
         Integer,
-        ForeignKey("users.id"),
+        ForeignKey("users.id", ondelete="CASCADE"),
         nullable=True,
         index=True,
         comment="User ID (for link mode)",

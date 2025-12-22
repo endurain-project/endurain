@@ -28,7 +28,7 @@ class RotatedRefreshToken(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     token_family_id = Column(
         String(36),
-        ForeignKey("users_sessions.token_family_id"),
+        ForeignKey("users_sessions.token_family_id", ondelete="CASCADE"),
         nullable=False,
         index=True,
         comment="UUID of the token family",
