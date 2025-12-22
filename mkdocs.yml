@@ -30,7 +30,7 @@ nav:
   - Hosting Guide:
     - Getting started easy: getting-started/getting-started.md
     - Getting started advanced: getting-started/advanced-started.md
-    - Bare-Metal Installation Guide: getting-started/bare-metal.md
+    - Bare-Metal installation guide: getting-started/bare-metal.md
     - Proxmox community script: https://community-scripts.github.io/ProxmoxVE/scripts?id=endurain&category=Gaming+%26+Leisure
     - MariaDB to Postgres migration: getting-started/maria-to-postgres-migration.md
   - Features:

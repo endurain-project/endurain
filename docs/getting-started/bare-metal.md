@@ -172,6 +172,7 @@ systemctl start endurain
 ## 9. Update to a new version of Endurain.
 
 Remove old version and get the latest.
+
 ```bash
 systemctl stop endurain
 rm -rf /path/to/endurain/*
