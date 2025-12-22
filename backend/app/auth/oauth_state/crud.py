@@ -33,7 +33,7 @@ def get_oauth_state_by_id(
         return None
 
     # Check expiry
-    if datetime.now(timezone.utc) > oauth_state.expires_at:
+    if datetime.now(timezone.utc) > oauth_state.expires_at.replace(tzinfo=timezone.utc):
         core_logger.print_to_log(f"OAuth state expired: {state_id[:8]}...", "warning")
         return None
 
