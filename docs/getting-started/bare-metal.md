@@ -168,3 +168,46 @@ systemctl daemon-reload
 systemctl enable endurain
 systemctl start endurain
 ```
+
+## 9. Update to a new version of Endurain.
+
+Remove old version and get the latest.
+```bash
+systemctl stop endurain
+rm -rf /path/to/endurain/*
+cd /path/to/endurain
+
+TAG=$(curl -s https://api.github.com/repos/endurain-project/endurain/releases/latest \
+  | grep -oP '"tag_name": "\K(.*)(?=")')
+curl -L "https://github.com/endurain-project/endurain/archive/refs/tags/$TAG.tar.gz" \
+  | tar xz
+EXTRACTED=$(ls -d endurain-*)
+shopt -s dotglob
+mv "$EXTRACTED"/* .
+shopt -u dotglob
+rm -rf "$EXTRACTED"
+```
+
+Build the Frontend.
+
+```bash
+cd /path/to/endurain/frontend/app
+npm ci
+npm run build
+```
+
+Set Up the Backend.
+
+```bash
+cd /path/to/endurain/backend
+poetry export -f requirements.txt --output requirements.txt --without-hashes
+
+uv venv
+uv pip install -r requirements.txt
+```
+
+start the service.
+
+```bash
+systemctl start endurain
+```
