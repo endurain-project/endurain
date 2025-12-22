@@ -208,7 +208,7 @@ username=user@example.com&password=userpassword
 ```
 
 ### Step 2: MFA Verification
-Complete the login by providing the MFA code to `/auth/mfa/verify`:
+Complete the login by providing the MFA code (TOTP or backup code) to `/auth/mfa/verify`:
 
 **Request:**
 ```http
@@ -221,6 +221,9 @@ X-Client-Type: web|mobile
   "mfa_code": "123456"
 }
 ```
+
+!!! tip "Backup Code Format"
+    Users can also use a backup code instead of a TOTP code. Backup codes are in `XXXX-XXXX` format (e.g., `A3K9-7BDF`). See [MFA Backup Codes](#mfa-backup-codes) for details.
 
 **Response (successful verification):**
 
@@ -258,11 +261,19 @@ X-Client-Type: web|mobile
 }
 ```
 
-- **Invalid MFA code**: HTTP 401 Unauthorized
+- **Invalid MFA code**: HTTP 400 Bad Request
 
 ```json
 {
-  "detail": "Invalid MFA code"
+  "detail": "Invalid MFA code. Failed attempts: 1"
+}
+```
+
+- **Account locked out (too many failures)**: HTTP 429 Too Many Requests
+
+```json
+{
+  "detail": "Too many failed MFA attempts. Account locked for 300 seconds."
 }
 ```
 
@@ -271,6 +282,75 @@ X-Client-Type: web|mobile
 - After successful MFA verification, the pending login is automatically cleaned up
 - The user must still be active at the time of MFA verification
 - If no MFA is enabled for the user, the standard single-step authentication flow applies
+
+## MFA Backup Codes
+
+Backup codes provide a recovery mechanism when users lose access to their authenticator app. When MFA is enabled, users receive 10 one-time backup codes that can be used instead of TOTP codes.
+
+### Backup Code Format
+
+- Format: `XXXX-XXXX` (8 alphanumeric characters with hyphen)
+- Example: `A3K9-7BDF`
+- Characters: Uppercase letters and digits (excluding ambiguous: 0, O, 1, I)
+- One-time use: Each code can only be used once
+
+### When Backup Codes Are Generated
+
+1. **Automatically on MFA Enable**: When a user enables MFA, 10 backup codes are generated and returned in the response
+2. **Manual Regeneration**: Users can regenerate all backup codes via `POST /profile/mfa/backup-codes` (invalidates all previous codes)
+
+### API Endpoints
+
+| What | URL | Method | Description |
+| ---- | --- | ------ | ----------- |
+| **Get Backup Code Status** | `/profile/mfa/backup-codes/status` | GET | Returns count of unused/used codes |
+| **Regenerate Backup Codes** | `/profile/mfa/backup-codes` | POST | Generates new codes (invalidates old) |
+
+### Backup Code Status Response
+
+```json
+{
+  "has_codes": true,
+  "total": 10,
+  "unused": 8,
+  "used": 2,
+  "created_at": "2025-12-21T10:30:00Z"
+}
+```
+
+### Regenerate Backup Codes Response
+
+```json
+{
+  "codes": [
+    "A3K9-7BDF",
+    "X2M5-9NPQ",
+    "..."
+  ],
+  "created_at": "2025-12-21T10:30:00Z"
+}
+```
+
+### Using Backup Codes for Login
+
+Backup codes can be used in the MFA verification step instead of TOTP codes:
+
+```http
+POST /api/v1/auth/mfa/verify
+Content-Type: application/json
+X-Client-Type: web|mobile
+
+{
+  "username": "user@example.com",
+  "mfa_code": "A3K9-7BDF"
+}
+```
+
+!!! warning "Important"
+    - Backup codes are shown only once when generated - users must save them securely
+    - Each backup code can only be used once
+    - Regenerating codes invalidates ALL previous backup codes
+    - Store backup codes in a secure location separate from your authenticator device
 
 ## OAuth/SSO Integration
 
