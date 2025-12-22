@@ -120,10 +120,13 @@
             />
             <BarChartComponent
               v-if="Object.values(hrZones).length > 0 && graphSelection === 'hrZones' && hrPresent"
-              :labels="getHrBarChartData(hrZones, t).labels"
-              :values="getHrBarChartData(hrZones, t).values"
-              :barColors="getHrBarChartData(hrZones, t).barColors"
-              :datalabelsFormatter="(value) => `${Math.round(value)}%`"
+              :labels="hrChartData.labels"
+              :values="hrChartData.values"
+              :barColors="hrChartData.barColors"
+              :timeSeconds="hrChartData.timeSeconds"
+              :datalabelsFormatter="
+                (value, context) => formatHrZoneLabel(value, hrChartData.timeSeconds[context.dataIndex])
+              "
               :title="$t('activityMandAbovePillsComponent.labelHRZones')"
             />
           </div>
@@ -167,7 +170,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 // Importing the components
 import ActivityLapsComponent from '@/components/Activities/ActivityLapsComponent.vue'
@@ -186,7 +189,7 @@ import {
 // Import Notivue push
 import { push } from 'notivue'
 // Import the utils
-import { getHrBarChartData } from '@/utils/chartUtils'
+import { getHrBarChartData, formatHrZoneLabel } from '@/utils/chartUtils'
 
 // Props
 const props = defineProps({
@@ -233,6 +236,9 @@ const cadPresent = ref(false)
 const velPresent = ref(false)
 const pacePresent = ref(false)
 const hrZones = ref({})
+
+// Computed properties
+const hrChartData = computed(() => getHrBarChartData(hrZones.value, t))
 
 // Methods
 function selectGraph(type) {

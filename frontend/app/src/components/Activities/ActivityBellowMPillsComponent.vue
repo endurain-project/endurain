@@ -138,10 +138,13 @@
       </div>
       <BarChartComponent
         v-if="Object.values(hrZones).length > 0 && hrPresent"
-        :labels="getHrBarChartData(hrZones, t).labels"
-        :values="getHrBarChartData(hrZones, t).values"
-        :barColors="getHrBarChartData(hrZones, t).barColors"
-        :datalabelsFormatter="(value) => `${Math.round(value)}%`"
+        :labels="hrChartData.labels"
+        :values="hrChartData.values"
+        :barColors="hrChartData.barColors"
+        :timeSeconds="hrChartData.timeSeconds"
+        :datalabelsFormatter="
+          (value, context) => formatHrZoneLabel(value, hrChartData.timeSeconds[context.dataIndex])
+        "
         :title="$t('activityMandAbovePillsComponent.labelHRZones')"
       />
       <hr />
@@ -345,6 +348,9 @@ const velPresent = ref(false)
 const pacePresent = ref(false)
 const formattedPace = ref(null)
 const hrZones = ref({})
+
+// Computed properties
+const hrChartData = computed(() => getHrBarChartData(hrZones.value, t))
 
 onMounted(async () => {
   try {

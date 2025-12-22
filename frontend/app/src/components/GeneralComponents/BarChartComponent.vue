@@ -31,6 +31,10 @@ const props = defineProps({
   datalabelsFormatter: {
     type: Function,
     default: null
+  },
+  timeSeconds: {
+    type: Array,
+    default: () => []
   }
 })
 
