@@ -1,4 +1,4 @@
-"""add mapping tiles fields to server settings
+"""v0.17.0 migration: add mapping tiles fields to server settings
 
 Revision ID: da1a7a9cf8ac
 Revises: ed5f1c867943
