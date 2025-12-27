@@ -31,5 +31,9 @@
   "successPhotoDelete": "Foto succesvol verwijderd",
   "successUpdateServerSettings": "Serverinstellingen succesvol bijgewerkt",
   "errorUpdateServerSettings": "Fout bij het bijwerken van de serverinstellingen",
-  "errorFetchingServerSettings": "Error fetching server settings"
+  "errorFetchingServerSettings": "Error fetching server settings",
+  "mapsTitle": "Kaarten",
+  "tileserverUrlLabel": "Tile server URL",
+  "tileserverAttributionLabel": "Tile server attributie",
+  "mapBackgroundColorLabel": "Achtergrondkleur kaart"
 }

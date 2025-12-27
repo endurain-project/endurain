@@ -31,5 +31,9 @@
   "successPhotoDelete": "Foto borrada correctament",
   "successUpdateServerSettings": "Opcions de servidor actualitzades",
   "errorUpdateServerSettings": "Error actualitzant opcions de servidor",
-  "errorFetchingServerSettings": "Error actualitzant opcions de servidor"
+  "errorFetchingServerSettings": "Error actualitzant opcions de servidor",
+  "mapsTitle": "Mapes",
+  "tileserverUrlLabel": "URL del servidor de teseles",
+  "tileserverAttributionLabel": "Atribució del servidor de teseles",
+  "mapBackgroundColorLabel": "Color de fons del mapa"
 }

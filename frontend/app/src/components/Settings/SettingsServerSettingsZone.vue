@@ -221,6 +221,48 @@
         </div>
       </div>
       <hr />
+      <!-- Maps -->
+      <h4 class="mt-4">{{ $t('settingsServerSettingsZoneComponent.mapsTitle') }}</h4>
+      <LoadingComponent v-if="isLoading" />
+      <div v-else>
+        <!-- Tile server URL -->
+        <label class="form-label" for="serverSettingsTileserverUrl">{{
+          $t('settingsServerSettingsZoneComponent.tileserverUrlLabel')
+        }}</label>
+        <input
+          type="text"
+          class="form-control"
+          name="serverSettingsTileserverUrl"
+          v-model="tileserverUrl"
+          required
+          @blur="updateServerSettings"
+        />
+        <!-- Tile server Attribution -->
+        <label class="form-label mt-1" for="serverSettingsTileserverAttribution">{{
+          $t('settingsServerSettingsZoneComponent.tileserverAttributionLabel')
+        }}</label>
+        <input
+          type="text"
+          class="form-control"
+          name="serverSettingsTileserverAttribution"
+          v-model="tileserverAttribution"
+          required
+          @blur="updateServerSettings"
+        />
+        <!-- Map Background Color -->
+        <label class="form-label mt-1" for="serverSettingsMapBackgroundColor">{{
+          $t('settingsServerSettingsZoneComponent.mapBackgroundColorLabel')
+        }}</label>
+        <input
+          type="color"
+          class="form-control form-control-color"
+          name="serverSettingsMapBackgroundColor"
+          v-model="mapBackgroundColor"
+          required
+          @change="updateServerSettings"
+        />
+      </div>
+      <hr />
       <!-- Login photo set -->
       <h4 class="mt-4">{{ $t('settingsServerSettingsZoneComponent.photosLabel') }}</h4>
       <LoadingComponent v-if="isLoading" />
@@ -307,6 +349,9 @@ const emailConfirmation = ref(serverSettingsStore.serverSettings.signup_require_
 const ssoEnabled = ref(serverSettingsStore.serverSettings.sso_enabled)
 const localLoginEnabled = ref(serverSettingsStore.serverSettings.local_login_enabled)
 const ssoAutoRedirect = ref(serverSettingsStore.serverSettings.sso_auto_redirect)
+const tileserverUrl = ref(serverSettingsStore.serverSettings.tileserver_url)
+const tileserverAttribution = ref(serverSettingsStore.serverSettings.tileserver_attribution)
+const mapBackgroundColor = ref(serverSettingsStore.serverSettings.map_background_color)
 
 async function updateServerSettings() {
   const data = {
@@ -322,7 +367,10 @@ async function updateServerSettings() {
     signup_require_email_verification: emailConfirmation.value,
     sso_enabled: ssoEnabled.value,
     local_login_enabled: localLoginEnabled.value,
-    sso_auto_redirect: ssoAutoRedirect.value
+    sso_auto_redirect: ssoAutoRedirect.value,
+    tileserver_url: tileserverUrl.value,
+    tileserver_attribution: tileserverAttribution.value,
+    map_background_color: mapBackgroundColor.value
   }
   try {
     // Update the server settings in the DB
@@ -400,6 +448,9 @@ onMounted(async () => {
     ssoEnabled.value = serverSettingsStore.serverSettings.sso_enabled
     localLoginEnabled.value = serverSettingsStore.serverSettings.local_login_enabled
     ssoAutoRedirect.value = serverSettingsStore.serverSettings.sso_auto_redirect
+    tileserverUrl.value = serverSettingsStore.serverSettings.tileserver_url
+    tileserverAttribution.value = serverSettingsStore.serverSettings.tileserver_attribution
+    mapBackgroundColor.value = serverSettingsStore.serverSettings.map_background_color
 
     await nextTick()
     isLoading.value = false
@@ -424,7 +475,7 @@ watch(
     ssoAutoRedirect
   ],
   async () => {
-    if (isLoading.value == false) {
+    if (isLoading.value === false) {
       await updateServerSettings()
     }
   },

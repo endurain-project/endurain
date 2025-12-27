@@ -31,5 +31,9 @@
   "successPhotoDelete": "Foto eliminada correctamente",
   "successUpdateServerSettings": "Axustes do servidor actualizados correctamente",
   "errorUpdateServerSettings": "Erro ao actualizar os axustes do servidor",
-  "errorFetchingServerSettings": "Erro ao obter os axustes do servidor"
+  "errorFetchingServerSettings": "Erro ao obter os axustes do servidor",
+  "mapsTitle": "Mapas",
+  "tileserverUrlLabel": "URL do servidor de teselas",
+  "tileserverAttributionLabel": "Atribución do servidor de teselas",
+  "mapBackgroundColorLabel": "Color de fondo do mapa"
 }

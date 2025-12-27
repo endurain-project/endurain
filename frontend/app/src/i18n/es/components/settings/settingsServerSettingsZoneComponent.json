@@ -31,5 +31,9 @@
   "successPhotoDelete": "Foto eliminada con éxito",
   "successUpdateServerSettings": "Ajustes del servidor actualizados correctamente",
   "errorUpdateServerSettings": "Error al actualizar los ajustes del servidor",
-  "errorFetchingServerSettings": "Error obteniendo la configuración del servidor"
+  "errorFetchingServerSettings": "Error obteniendo la configuración del servidor",
+  "mapsTitle": "Mapas",
+  "tileserverUrlLabel": "URL del servidor de teselas",
+  "tileserverAttributionLabel": "Atribución del servidor de teselas",
+  "mapBackgroundColorLabel": "Color de fondo del mapa"
 }

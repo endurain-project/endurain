@@ -31,5 +31,9 @@
   "successPhotoDelete": "Photo deleted successfully",
   "successUpdateServerSettings": "Server settings updated successfully",
   "errorUpdateServerSettings": "Error updating server settings",
-  "errorFetchingServerSettings": "Error fetching server settings"
+  "errorFetchingServerSettings": "Error fetching server settings",
+  "mapsTitle": "地圖",
+  "tileserverUrlLabel": "瓦片伺服器 URL",
+  "tileserverAttributionLabel": "瓦片伺服器歸屬",
+  "mapBackgroundColorLabel": "地圖背景顏色"
 }

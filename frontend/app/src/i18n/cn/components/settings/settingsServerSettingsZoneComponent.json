@@ -31,5 +31,9 @@
   "successPhotoDelete": "图片删除成功",
   "successUpdateServerSettings": "服务器设置更新成功",
   "errorUpdateServerSettings": "更新服务器设置时出错",
-  "errorFetchingServerSettings": "获取服务器设置时出错"
+  "errorFetchingServerSettings": "获取服务器设置时出错",
+  "mapsTitle": "地图",
+  "tileserverUrlLabel": "瓦片服务器 URL",
+  "tileserverAttributionLabel": "瓦片服务器归属",
+  "mapBackgroundColorLabel": "地图背景颜色"
 }

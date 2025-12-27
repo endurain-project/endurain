@@ -16,7 +16,10 @@ export const useServerSettingsStore = defineStore('serverSettings', {
       signup_require_email_verification: null,
       sso_enabled: false,
       local_login_enabled: true,
-      sso_auto_redirect: false
+      sso_auto_redirect: false,
+      tileserver_url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+      tileserver_attribution: '© OpenStreetMap contributors',
+      map_background_color: '#DDDDDD'
     }
   }),
   actions: {
