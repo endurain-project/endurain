@@ -133,7 +133,7 @@ import { useAuthStore } from '@/stores/authStore'
 // Import Notivue push
 import { push } from 'notivue'
 import { activityMedia } from '@/services/activityMediaService'
-import { useServerSettingsStore } from '@/stores/serverSettingsStore.js'
+import { useServerSettingsStore } from '@/stores/serverSettingsStore'
 
 // Emit definition
 const emit = defineEmits(['activityMediaDeleted'])
@@ -231,10 +231,11 @@ const initMap = () => {
     zoomControl: props.source === 'activity' // Enable if 'activity', disable if 'home'
   }).fitWorld()
 
-  leafletMap.value.getContainer().style.backgroundColor = serverSettingsStore.serverSettings.map_background_color;
+  leafletMap.value.getContainer().style.backgroundColor =
+    serverSettingsStore.serverSettings.map_background_color
 
   L.tileLayer(serverSettingsStore.serverSettings.tileserver_url, {
-    attribution: serverSettingsStore.serverSettings.tileserver_attribution,
+    attribution: serverSettingsStore.serverSettings.tileserver_attribution
   }).addTo(leafletMap.value)
 
   const polyline = L.polyline(latlngs, {

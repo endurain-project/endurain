@@ -18,8 +18,9 @@ export const useServerSettingsStore = defineStore('serverSettings', {
       local_login_enabled: true,
       sso_auto_redirect: false,
       tileserver_url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-      tileserver_attribution: '© OpenStreetMap contributors',
-      map_background_color: '#DDDDDD'
+      tileserver_attribution:
+        '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+      map_background_color: '#dddddd'
     }
   }),
   actions: {
