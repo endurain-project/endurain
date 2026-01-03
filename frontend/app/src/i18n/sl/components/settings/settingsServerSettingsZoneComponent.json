@@ -31,5 +31,9 @@
   "successPhotoDelete": "Fotografija uspešno izbrisana",
   "successUpdateServerSettings": "Nastavitve strežnika uspešno posodobljene",
   "errorUpdateServerSettings": "Napaka pri posodabljanju nastavitev strežnika",
-  "errorFetchingServerSettings": "Napaka pri pridobivanju nastavitev strežnika"
+  "errorFetchingServerSettings": "Napaka pri pridobivanju nastavitev strežnika",
+  "mapsTitle": "Zemljevidi",
+  "tileserverUrlLabel": "URL strežnika ploščic",
+  "tileserverAttributionLabel": "Atribucija strežnika ploščic",
+  "mapBackgroundColorLabel": "Barva ozadja zemljevida"
 }

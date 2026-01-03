@@ -31,5 +31,9 @@
   "successPhotoDelete": "La photo a bien été supprimée",
   "successUpdateServerSettings": "Paramètres du serveur mis à jour avec succès",
   "errorUpdateServerSettings": "Erreur lors de la mise à jour des paramètres du serveur",
-  "errorFetchingServerSettings": "Error fetching server settings"
+  "errorFetchingServerSettings": "Error fetching server settings",
+  "mapsTitle": "Cartes",
+  "tileserverUrlLabel": "URL du serveur de tuiles",
+  "tileserverAttributionLabel": "Attribution du serveur de tuiles",
+  "mapBackgroundColorLabel": "Couleur de fond de la carte"
 }

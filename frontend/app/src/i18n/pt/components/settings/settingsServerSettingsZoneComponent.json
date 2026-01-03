@@ -31,5 +31,9 @@
   "successPhotoDelete": "Foto eliminada com sucesso",
   "successUpdateServerSettings": "Definições do servidor atualizadas com sucesso",
   "errorUpdateServerSettings": "Erro ao atualizar definições do servidor",
-  "errorFetchingServerSettings": "Erro ao obter definições do servidor"
+  "errorFetchingServerSettings": "Erro ao obter definições do servidor",
+  "mapsTitle": "Mapas",
+  "tileserverUrlLabel": "URL do servidor de tile",
+  "tileserverAttributionLabel": "Atribuição do servidor de tile",
+  "mapBackgroundColorLabel": "Cor de fundo do mapa"
 }

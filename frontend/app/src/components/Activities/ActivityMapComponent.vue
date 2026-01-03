@@ -133,6 +133,7 @@ import { useAuthStore } from '@/stores/authStore'
 // Import Notivue push
 import { push } from 'notivue'
 import { activityMedia } from '@/services/activityMediaService'
+import { useServerSettingsStore } from '@/stores/serverSettingsStore'
 
 // Emit definition
 const emit = defineEmits(['activityMediaDeleted'])
@@ -159,6 +160,8 @@ const isLoading = ref(true)
 const activityStreamLatLng = ref(null)
 const activityMap = ref(null)
 const leafletMap = ref(null)
+const serverSettingsStore = useServerSettingsStore()
+
 const hasGalleryItems = computed(() => {
   return Array.isArray(props.activityActivityMedia) && props.activityActivityMedia.length > 0
 })
@@ -228,8 +231,11 @@ const initMap = () => {
     zoomControl: props.source === 'activity' // Enable if 'activity', disable if 'home'
   }).fitWorld()
 
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '© OpenStreetMap contributors'
+  leafletMap.value.getContainer().style.backgroundColor =
+    serverSettingsStore.serverSettings.map_background_color
+
+  L.tileLayer(serverSettingsStore.serverSettings.tileserver_url, {
+    attribution: serverSettingsStore.serverSettings.tileserver_attribution
   }).addTo(leafletMap.value)
 
   const polyline = L.polyline(latlngs, {

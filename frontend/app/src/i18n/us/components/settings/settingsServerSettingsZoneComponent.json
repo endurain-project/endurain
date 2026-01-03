@@ -31,5 +31,9 @@
   "successPhotoDelete": "Photo deleted successfully",
   "successUpdateServerSettings": "Server settings updated successfully",
   "errorUpdateServerSettings": "Error updating server settings",
-  "errorFetchingServerSettings": "Error fetching server settings"
+  "errorFetchingServerSettings": "Error fetching server settings",
+  "mapsTitle": "Maps",
+  "tileserverUrlLabel": "Tile server URL",
+  "tileserverAttributionLabel": "Tile server attribution",
+  "mapBackgroundColorLabel": "Map background color"
 }

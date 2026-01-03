@@ -46,6 +46,9 @@ class ServerSettings(BaseModel):
         sso_enabled (bool): Indicates if SSO/IdP login is enabled.
         local_login_enabled (bool): Indicates if local username/password login is allowed.
         sso_auto_redirect (bool): Auto-redirect to SSO if only one IdP is configured.
+        tileserver_url (str): URL template for the map tileserver.
+        tileserver_attribution (str): Attribution string for the map tileserver.
+        map_background_color (str): Background color for the map.
     """
 
     id: StrictInt
@@ -59,6 +62,9 @@ class ServerSettings(BaseModel):
     sso_enabled: bool
     local_login_enabled: bool
     sso_auto_redirect: bool
+    tileserver_url: str
+    tileserver_attribution: str
+    map_background_color: str
 
     model_config = ConfigDict(
         from_attributes=True,

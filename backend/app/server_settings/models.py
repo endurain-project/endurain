@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, Boolean, CheckConstraint
+from sqlalchemy import Column, Integer, Boolean, CheckConstraint, String
 from core.database import Base
 
 
@@ -77,6 +77,24 @@ class ServerSettings(Base):
         nullable=False,
         default=False,
         comment="Auto-redirect to SSO if only one IdP (true - yes, false - no)",
+    )
+    tileserver_url = Column(
+        String,
+        nullable=False,
+        default="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+        comment="URL template for the map tileserver",
+    )
+    tileserver_attribution = Column(
+        String,
+        nullable=False,
+        default='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+        comment="Attribution string for the map tileserver",
+    )
+    map_background_color = Column(
+        String,
+        nullable=False,
+        default="#dddddd",
+        comment="Background color for the map",
     )
 
     __table_args__ = (CheckConstraint("id = 1", name="single_row_check"),)

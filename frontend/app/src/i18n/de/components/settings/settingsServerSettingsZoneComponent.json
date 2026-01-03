@@ -31,5 +31,9 @@
   "successPhotoDelete": "Bild erfolgreich gelöscht",
   "successUpdateServerSettings": "Servereinstellungen erfolgreich aktualisiert",
   "errorUpdateServerSettings": "Fehler beim Aktualisieren der Servereinstellungen",
-  "errorFetchingServerSettings": "Fehler beim Abrufen der Benutzerstatistiken"
+  "errorFetchingServerSettings": "Fehler beim Abrufen der Benutzerstatistiken",
+  "mapsTitle": "Karten",
+  "tileserverUrlLabel": "Tile-Server-URL",
+  "tileserverAttributionLabel": "Tile-Server-Attributierung",
+  "mapBackgroundColorLabel": "Kartenhintergrundfarbe"
 }
