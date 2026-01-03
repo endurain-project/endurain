@@ -1,7 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-import health_targets.schema as health_targets_schema
+import health.health_targets.schema as health_targets_schema
 
 
 class TestHealthTargetsSchema:

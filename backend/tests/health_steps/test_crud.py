@@ -4,9 +4,9 @@ from unittest.mock import MagicMock, patch
 from fastapi import HTTPException, status
 from sqlalchemy.exc import IntegrityError
 
-import health_steps.crud as health_steps_crud
-import health_steps.schema as health_steps_schema
-import health_steps.models as health_steps_models
+import health.health_steps.crud as health_steps_crud
+import health.health_steps.schema as health_steps_schema
+import health.health_steps.models as health_steps_models
 
 
 class TestGetHealthStepsNumber:
@@ -283,7 +283,7 @@ class TestCreateHealthSteps:
             mock_db.commit.assert_called_once()
             mock_db.refresh.assert_called_once()
 
-    @patch("health_steps.crud.func")
+    @patch("health.health_steps.crud.func")
     def test_create_health_steps_with_none_date(self, mock_func, mock_db):
         """
         Test creation with None date sets current date.

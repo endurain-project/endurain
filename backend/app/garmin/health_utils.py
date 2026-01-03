@@ -9,14 +9,14 @@ import core.logger as core_logger
 
 import garmin.utils as garmin_utils
 
-import health_weight.crud as health_weight_crud
-import health_weight.schema as health_weight_schema
+import health.health_weight.crud as health_weight_crud
+import health.health_weight.schema as health_weight_schema
 
-import health_steps.crud as health_steps_crud
-import health_steps.schema as health_steps_schema
+import health.health_steps.crud as health_steps_crud
+import health.health_steps.schema as health_steps_schema
 
-import health_sleep.crud as health_sleep_crud
-import health_sleep.schema as health_sleep_schema
+import health.health_sleep.crud as health_sleep_crud
+import health.health_sleep.schema as health_sleep_schema
 
 import users.user.crud as users_crud
 

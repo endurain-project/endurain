@@ -26,8 +26,8 @@ import activities.activity_media.crud as activity_media_crud
 import activities.activity_exercise_titles.crud as activity_exercise_titles_crud
 import gears.gear.crud as gear_crud
 import gears.gear_components.crud as gear_components_crud
-import health_weight.crud as health_weight_crud
-import health_targets.crud as health_targets_crud
+import health.health_weight.crud as health_weight_crud
+import health.health_targets.crud as health_targets_crud
 import notifications.crud as notifications_crud
 import users.user_default_gear.crud as user_default_gear_crud
 import users.user_goals.crud as user_goals_crud

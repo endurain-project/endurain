@@ -2,7 +2,7 @@ import pytest
 from datetime import date as datetime_date
 from pydantic import ValidationError
 
-import health_weight.schema as health_weight_schema
+import health.health_weight.schema as health_weight_schema
 
 
 class TestHealthWeightSchema:

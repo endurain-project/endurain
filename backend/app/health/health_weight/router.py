@@ -4,8 +4,8 @@ from datetime import date
 from fastapi import APIRouter, Depends, Security, HTTPException
 from sqlalchemy.orm import Session
 
-import health_weight.schema as health_weight_schema
-import health_weight.crud as health_weight_crud
+import health.health_weight.schema as health_weight_schema
+import health.health_weight.crud as health_weight_crud
 
 import auth.security as auth_security
 

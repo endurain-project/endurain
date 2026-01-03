@@ -2,7 +2,7 @@
 Sleep scoring calculations.
 """
 
-import health_sleep.schema as health_sleep_schema
+import health.health_sleep.schema as health_sleep_schema
 
 from datetime import datetime
 

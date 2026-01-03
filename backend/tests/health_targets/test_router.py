@@ -2,8 +2,8 @@ import pytest
 from unittest.mock import MagicMock, patch, ANY
 from fastapi import HTTPException, status
 
-import health_targets.schema as health_targets_schema
-import health_targets.models as health_targets_models
+import health.health_targets.schema as health_targets_schema
+import health.health_targets.models as health_targets_models
 
 
 class TestReadHealthTargetsAll:
@@ -11,7 +11,9 @@ class TestReadHealthTargetsAll:
     Test suite for read_health_targets_all endpoint.
     """
 
-    @patch("health_targets.router.health_targets_crud.get_health_targets_by_user_id")
+    @patch(
+        "health.health_targets.router.health_targets_crud.get_health_targets_by_user_id"
+    )
     def test_read_health_targets_all_success(
         self, mock_get_targets, fast_api_client, fast_api_app
     ):
@@ -41,7 +43,9 @@ class TestReadHealthTargetsAll:
         assert data["steps"] == 10000
         assert data["sleep"] == 28800
 
-    @patch("health_targets.router.health_targets_crud.get_health_targets_by_user_id")
+    @patch(
+        "health.health_targets.router.health_targets_crud.get_health_targets_by_user_id"
+    )
     def test_read_health_targets_all_not_found(
         self, mock_get_targets, fast_api_client, fast_api_app
     ):
@@ -61,7 +65,9 @@ class TestReadHealthTargetsAll:
         assert response.status_code == 200
         assert response.json() is None
 
-    @patch("health_targets.router.health_targets_crud.get_health_targets_by_user_id")
+    @patch(
+        "health.health_targets.router.health_targets_crud.get_health_targets_by_user_id"
+    )
     def test_read_health_targets_all_partial_data(
         self, mock_get_targets, fast_api_client, fast_api_app
     ):
@@ -97,7 +103,7 @@ class TestUpdateHealthTargets:
     Test suite for update_health_targets endpoint.
     """
 
-    @patch("health_targets.router.health_targets_crud.edit_health_target")
+    @patch("health.health_targets.router.health_targets_crud.edit_health_target")
     def test_update_health_targets_success(
         self, mock_edit, fast_api_client, fast_api_app
     ):
@@ -132,7 +138,7 @@ class TestUpdateHealthTargets:
         assert data["steps"] == 12000
         assert data["sleep"] == 32400
 
-    @patch("health_targets.router.health_targets_crud.edit_health_target")
+    @patch("health.health_targets.router.health_targets_crud.edit_health_target")
     def test_update_health_targets_partial_update(
         self, mock_edit, fast_api_client, fast_api_app
     ):
@@ -163,7 +169,7 @@ class TestUpdateHealthTargets:
         data = response.json()
         assert data["weight"] == 75.0
 
-    @patch("health_targets.router.health_targets_crud.edit_health_target")
+    @patch("health.health_targets.router.health_targets_crud.edit_health_target")
     def test_update_health_targets_clear_values(
         self, mock_edit, fast_api_client, fast_api_app
     ):
@@ -198,7 +204,7 @@ class TestUpdateHealthTargets:
         assert data["steps"] is None
         assert data["sleep"] is None
 
-    @patch("health_targets.router.health_targets_crud.edit_health_target")
+    @patch("health.health_targets.router.health_targets_crud.edit_health_target")
     def test_update_health_targets_not_found(
         self, mock_edit, fast_api_client, fast_api_app
     ):
@@ -223,7 +229,7 @@ class TestUpdateHealthTargets:
         # Assert
         assert response.status_code == 404
 
-    @patch("health_targets.router.health_targets_crud.edit_health_target")
+    @patch("health.health_targets.router.health_targets_crud.edit_health_target")
     def test_update_health_targets_with_all_fields(
         self, mock_edit, fast_api_client, fast_api_app
     ):

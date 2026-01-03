@@ -19,10 +19,10 @@ import activities.activity_workout_steps.models
 import followers.models
 import gears.gear.models
 import gears.gear_components.models
-import health_sleep.models
-import health_steps.models
-import health_targets.models
-import health_weight.models
+import health.health_sleep.models
+import health.health_steps.models
+import health.health_targets.models
+import health.health_weight.models
 import migrations.models
 import notifications.models
 import password_reset_tokens.models

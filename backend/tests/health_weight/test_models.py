@@ -2,7 +2,7 @@ import pytest
 from datetime import date as datetime_date
 from decimal import Decimal
 
-import health_weight.models as health_weight_models
+import health.health_weight.models as health_weight_models
 
 
 class TestHealthWeightModel:

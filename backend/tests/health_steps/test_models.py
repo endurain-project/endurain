@@ -1,7 +1,7 @@
 import pytest
 from datetime import date as datetime_date
 
-import health_steps.models as health_steps_models
+import health.health_steps.models as health_steps_models
 
 
 class TestHealthStepsModel:

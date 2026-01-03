@@ -12,7 +12,7 @@ import users.user.utils as users_utils
 import users.user.models as users_models
 import users.user_identity_providers.crud as user_idp_crud
 
-import health_weight.utils as health_weight_utils
+import health.health_weight.utils as health_weight_utils
 
 import server_settings.utils as server_settings_utils
 import server_settings.schema as server_settings_schema

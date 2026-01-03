@@ -2,8 +2,8 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 
-import health_targets.models as health_targets_models
-import health_targets.schema as health_targets_schema
+import health.health_targets.models as health_targets_models
+import health.health_targets.schema as health_targets_schema
 
 import core.logger as core_logger
 

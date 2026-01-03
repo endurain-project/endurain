@@ -3,8 +3,8 @@ from datetime import date as datetime_date
 from unittest.mock import MagicMock, patch
 from sqlalchemy.orm import Session
 
-import health_weight.utils as health_weight_utils
-import health_weight.schema as health_weight_schema
+import health.health_weight.utils as health_weight_utils
+import health.health_weight.schema as health_weight_schema
 import users.user.schema as user_schema
 
 
@@ -13,7 +13,7 @@ class TestCalculateBMI:
     Test suite for calculate_bmi function.
     """
 
-    @patch("health_weight.utils.users_crud.get_user_by_id")
+    @patch("health.health_weight.utils.users_crud.get_user_by_id")
     def test_calculate_bmi_success(self, mock_get_user):
         """
         Test successful BMI calculation.
@@ -39,7 +39,7 @@ class TestCalculateBMI:
         assert abs(result.bmi - expected_bmi) < 0.01
         mock_get_user.assert_called_once_with(user_id, mock_db)
 
-    @patch("health_weight.utils.users_crud.get_user_by_id")
+    @patch("health.health_weight.utils.users_crud.get_user_by_id")
     def test_calculate_bmi_user_not_found(self, mock_get_user):
         """
         Test BMI calculation when user not found.
@@ -59,7 +59,7 @@ class TestCalculateBMI:
         # Assert
         assert result.bmi is None
 
-    @patch("health_weight.utils.users_crud.get_user_by_id")
+    @patch("health.health_weight.utils.users_crud.get_user_by_id")
     def test_calculate_bmi_no_height(self, mock_get_user):
         """
         Test BMI calculation when user has no height.
@@ -82,7 +82,7 @@ class TestCalculateBMI:
         # Assert
         assert result.bmi is None
 
-    @patch("health_weight.utils.users_crud.get_user_by_id")
+    @patch("health.health_weight.utils.users_crud.get_user_by_id")
     def test_calculate_bmi_no_weight(self, mock_get_user):
         """
         Test BMI calculation when health weight has no weight.
@@ -105,7 +105,7 @@ class TestCalculateBMI:
         # Assert
         assert result.bmi is None
 
-    @patch("health_weight.utils.users_crud.get_user_by_id")
+    @patch("health.health_weight.utils.users_crud.get_user_by_id")
     def test_calculate_bmi_various_heights_and_weights(self, mock_get_user):
         """
         Test BMI calculation with various heights and weights.
@@ -145,9 +145,12 @@ class TestCalculateBMIAllUserEntries:
     Test suite for calculate_bmi_all_user_entries function.
     """
 
-    @patch("health_weight.utils.health_weight_crud.edit_health_weight")
-    @patch("health_weight.utils.health_weight_crud." "get_all_health_weight_by_user_id")
-    @patch("health_weight.utils.calculate_bmi")
+    @patch("health.health_weight.utils.health_weight_crud.edit_health_weight")
+    @patch(
+        "health.health_weight.utils.health_weight_crud."
+        "get_all_health_weight_by_user_id"
+    )
+    @patch("health.health_weight.utils.calculate_bmi")
     def test_calculate_bmi_all_user_entries_success(
         self, mock_calculate_bmi, mock_get_all, mock_edit
     ):
@@ -206,7 +209,10 @@ class TestCalculateBMIAllUserEntries:
         assert mock_calculate_bmi.call_count == 2
         assert mock_edit.call_count == 2
 
-    @patch("health_weight.utils.health_weight_crud." "get_all_health_weight_by_user_id")
+    @patch(
+        "health.health_weight.utils.health_weight_crud."
+        "get_all_health_weight_by_user_id"
+    )
     def test_calculate_bmi_all_user_entries_no_entries(self, mock_get_all):
         """
         Test BMI calculation when user has no entries.
@@ -222,7 +228,10 @@ class TestCalculateBMIAllUserEntries:
         # Assert
         mock_get_all.assert_called_once_with(user_id, mock_db)
 
-    @patch("health_weight.utils.health_weight_crud." "get_all_health_weight_by_user_id")
+    @patch(
+        "health.health_weight.utils.health_weight_crud."
+        "get_all_health_weight_by_user_id"
+    )
     def test_calculate_bmi_all_user_entries_empty_list(self, mock_get_all):
         """
         Test BMI calculation when user has empty list of entries.
@@ -238,9 +247,12 @@ class TestCalculateBMIAllUserEntries:
         # Assert
         mock_get_all.assert_called_once_with(user_id, mock_db)
 
-    @patch("health_weight.utils.health_weight_crud.edit_health_weight")
-    @patch("health_weight.utils.health_weight_crud." "get_all_health_weight_by_user_id")
-    @patch("health_weight.utils.calculate_bmi")
+    @patch("health.health_weight.utils.health_weight_crud.edit_health_weight")
+    @patch(
+        "health.health_weight.utils.health_weight_crud."
+        "get_all_health_weight_by_user_id"
+    )
+    @patch("health.health_weight.utils.calculate_bmi")
     def test_calculate_bmi_all_user_entries_with_all_fields(
         self, mock_calculate_bmi, mock_get_all, mock_edit
     ):

@@ -5,9 +5,9 @@ from unittest.mock import MagicMock, patch
 from fastapi import HTTPException, status
 from sqlalchemy.exc import IntegrityError
 
-import health_sleep.crud as health_sleep_crud
-import health_sleep.schema as health_sleep_schema
-import health_sleep.models as health_sleep_models
+import health.health_sleep.crud as health_sleep_crud
+import health.health_sleep.schema as health_sleep_schema
+import health.health_sleep.models as health_sleep_models
 
 
 class TestGetHealthSleepNumber:
@@ -284,7 +284,7 @@ class TestCreateHealthSleep:
             mock_db.commit.assert_called_once()
             mock_db.refresh.assert_called_once()
 
-    @patch("health_sleep.crud.func")
+    @patch("health.health_sleep.crud.func")
     def test_create_health_sleep_with_none_date(self, mock_func, mock_db):
         """
         Test creation with None date sets current date.

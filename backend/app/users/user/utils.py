@@ -14,7 +14,7 @@ import users.user.schema as users_schema
 import users.user_integrations.crud as user_integrations_crud
 import users.user_default_gear.crud as user_default_gear_crud
 import users.user_privacy_settings.crud as users_privacy_settings_crud
-import health_targets.crud as health_targets_crud
+import health.health_targets.crud as health_targets_crud
 
 import core.logger as core_logger
 import core.config as core_config

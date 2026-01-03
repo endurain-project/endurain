@@ -3,7 +3,7 @@ from datetime import datetime, date as datetime_date
 from decimal import Decimal
 from pydantic import ValidationError
 
-import health_sleep.schema as health_sleep_schema
+import health.health_sleep.schema as health_sleep_schema
 
 
 class TestHealthSleepSchema:

@@ -4,9 +4,9 @@ from unittest.mock import MagicMock, patch
 from fastapi import HTTPException, status
 from sqlalchemy.exc import IntegrityError
 
-import health_weight.crud as health_weight_crud
-import health_weight.schema as health_weight_schema
-import health_weight.models as health_weight_models
+import health.health_weight.crud as health_weight_crud
+import health.health_weight.schema as health_weight_schema
+import health.health_weight.models as health_weight_models
 
 
 class TestGetAllHealthWeight:
@@ -260,7 +260,7 @@ class TestCreateHealthWeight:
     Test suite for create_health_weight function.
     """
 
-    @patch("health_weight.crud.health_weight_utils.calculate_bmi")
+    @patch("health.health_weight.crud.health_weight_utils.calculate_bmi")
     def test_create_health_weight_success(self, mock_calculate_bmi, mock_db):
         """
         Test successful creation of health weight entry.
@@ -302,8 +302,8 @@ class TestCreateHealthWeight:
             mock_db.commit.assert_called_once()
             mock_db.refresh.assert_called_once()
 
-    @patch("health_weight.crud.health_weight_utils.calculate_bmi")
-    @patch("health_weight.crud.func")
+    @patch("health.health_weight.crud.health_weight_utils.calculate_bmi")
+    @patch("health.health_weight.crud.func")
     def test_create_health_weight_with_none_date(
         self, mock_func, mock_calculate_bmi, mock_db
     ):
@@ -392,7 +392,7 @@ class TestEditHealthWeight:
     Test suite for edit_health_weight function.
     """
 
-    @patch("health_weight.crud.health_weight_utils.calculate_bmi")
+    @patch("health.health_weight.crud.health_weight_utils.calculate_bmi")
     def test_edit_health_weight_success(self, mock_calculate_bmi, mock_db):
         """
         Test successful edit of health weight entry.

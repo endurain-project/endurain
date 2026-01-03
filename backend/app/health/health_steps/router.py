@@ -3,8 +3,8 @@ from typing import Annotated, Callable
 from fastapi import APIRouter, Depends, Security, HTTPException
 from sqlalchemy.orm import Session
 
-import health_steps.schema as health_steps_schema
-import health_steps.crud as health_steps_crud
+import health.health_steps.schema as health_steps_schema
+import health.health_steps.crud as health_steps_crud
 
 import auth.security as auth_security
 

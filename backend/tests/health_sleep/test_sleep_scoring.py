@@ -2,8 +2,8 @@ import pytest
 from datetime import datetime
 from unittest.mock import MagicMock
 
-import health_sleep.sleep_scoring as sleep_scoring
-import health_sleep.schema as health_sleep_schema
+import health.health_sleep.sleep_scoring as sleep_scoring
+import health.health_sleep.schema as health_sleep_schema
 
 
 class TestCalculateSleepDurationHours:

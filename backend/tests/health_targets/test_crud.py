@@ -3,9 +3,9 @@ from unittest.mock import MagicMock, patch
 from fastapi import HTTPException, status
 from sqlalchemy.exc import IntegrityError
 
-import health_targets.crud as health_targets_crud
-import health_targets.schema as health_targets_schema
-import health_targets.models as health_targets_models
+import health.health_targets.crud as health_targets_crud
+import health.health_targets.schema as health_targets_schema
+import health.health_targets.models as health_targets_models
 
 
 class TestGetHealthTargetsByUserId:

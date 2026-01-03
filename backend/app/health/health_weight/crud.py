@@ -3,9 +3,9 @@ from sqlalchemy import func, desc
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 
-import health_weight.schema as health_weight_schema
-import health_weight.models as health_weight_models
-import health_weight.utils as health_weight_utils
+import health.health_weight.schema as health_weight_schema
+import health.health_weight.models as health_weight_models
+import health.health_weight.utils as health_weight_utils
 
 import core.logger as core_logger
 

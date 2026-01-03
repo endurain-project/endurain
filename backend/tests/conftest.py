@@ -26,10 +26,10 @@ import users.user.schema as user_schema
 # Variables and constants
 DEFAULT_ROUTER_MODULES = [
     "session.router",
-    "health_sleep.router",
-    "health_steps.router",
-    "health_targets.router",
-    "health_weight.router",
+    "health.health_sleep.router",
+    "health.health_steps.router",
+    "health.health_targets.router",
+    "health.health_weight.router",
 ]
 
 
@@ -139,13 +139,13 @@ def _include_router_if_exists(app: FastAPI, dotted: str):
         mod = import_module(dotted)
         router = getattr(mod, "router", None)
         if router is not None:
-            if dotted == "health_sleep.router":
+            if dotted == "health.health_sleep.router":
                 app.include_router(router, prefix="/health_sleep")
-            elif dotted == "health_steps.router":
+            elif dotted == "health.health_steps.router":
                 app.include_router(router, prefix="/health_steps")
-            elif dotted == "health_targets.router":
+            elif dotted == "health.health_targets.router":
                 app.include_router(router, prefix="/health_targets")
-            elif dotted == "health_weight.router":
+            elif dotted == "health.health_weight.router":
                 app.include_router(router, prefix="/health_weight")
             else:
                 app.include_router(router)

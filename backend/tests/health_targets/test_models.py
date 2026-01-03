@@ -1,6 +1,6 @@
 import pytest
 
-import health_targets.models as health_targets_models
+import health.health_targets.models as health_targets_models
 
 
 class TestHealthTargetsModel:

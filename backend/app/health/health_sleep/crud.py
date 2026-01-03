@@ -3,8 +3,8 @@ from sqlalchemy import func, desc
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 
-import health_sleep.schema as health_sleep_schema
-import health_sleep.models as health_sleep_models
+import health.health_sleep.schema as health_sleep_schema
+import health.health_sleep.models as health_sleep_models
 
 import core.logger as core_logger
 

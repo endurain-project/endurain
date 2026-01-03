@@ -3,8 +3,8 @@ from typing import Annotated, Callable
 from fastapi import APIRouter, Depends, Security
 from sqlalchemy.orm import Session
 
-import health_targets.schema as health_targets_schema
-import health_targets.crud as health_targets_crud
+import health.health_targets.schema as health_targets_schema
+import health.health_targets.crud as health_targets_crud
 
 import auth.security as auth_security
 

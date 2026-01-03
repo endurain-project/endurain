@@ -8,7 +8,7 @@ import activities.activity_streams.crud as activity_streams_crud
 
 import migrations.crud as migrations_crud
 
-import health_weight.crud as health_weight_crud
+import health.health_weight.crud as health_weight_crud
 
 import core.logger as core_logger
 import core.config as core_config

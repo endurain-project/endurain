@@ -1,7 +1,7 @@
 import pytest
 from datetime import date as datetime_date
 
-import health_sleep.models as health_sleep_models
+import health.health_sleep.models as health_sleep_models
 
 
 class TestHealthSleepModel:

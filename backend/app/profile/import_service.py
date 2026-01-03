@@ -67,11 +67,11 @@ import gears.gear_components.schema as gear_components_schema
 import notifications.crud as notifications_crud
 import notifications.schema as notifications_schema
 
-import health_weight.crud as health_weight_crud
-import health_weight.schema as health_weight_schema
+import health.health_weight.crud as health_weight_crud
+import health.health_weight.schema as health_weight_schema
 
-import health_targets.crud as health_targets_crud
-import health_targets.schema as health_targets_schema
+import health.health_targets.crud as health_targets_crud
+import health.health_targets.schema as health_targets_schema
 
 import websocket.schema as websocket_schema
 
