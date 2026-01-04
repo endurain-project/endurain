@@ -206,10 +206,26 @@ class ServerSettings(BaseModel):
         # Replace safe links with placeholders
         temp = safe_link_pattern.sub(extract_link, value)
 
-        # Escape all remaining HTML
+        # Preserve HTML entities while escaping dangerous content
+        html_entity_pattern = re.compile(r"&[a-zA-Z]+;|&#\d+;")
+        entities = []
+        entity_placeholder = "___ENTITY_{}___"
+
+        def extract_entity(match):
+            entities.append(match.group(0))
+            return entity_placeholder.format(len(entities) - 1)
+
+        # Extract HTML entities
+        temp = html_entity_pattern.sub(extract_entity, temp)
+
+        # Escape remaining HTML
         sanitized = html.escape(temp)
 
-        # Restore safe links from placeholders
+        # Restore HTML entities
+        for idx, entity in enumerate(entities):
+            sanitized = sanitized.replace(entity_placeholder.format(idx), entity)
+
+        # Restore safe links
         for idx, link in enumerate(safe_links):
             sanitized = sanitized.replace(placeholder_template.format(idx), link)
 
