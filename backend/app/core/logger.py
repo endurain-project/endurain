@@ -8,18 +8,31 @@ def setup_main_logger():
     Sets up the main application logger and attaches a file handler to it, as well as to the Alembic and APScheduler loggers.
 
     The logger writes log messages to 'logs/app.log' with a specific format and log level.
-    - The main logger ('main_logger') is set to DEBUG level.
+    - The main logger ('main_logger') uses the LOG_LEVEL from configuration (default: WARNING).
     - The Alembic logger ('alembic') and APScheduler logger ('apscheduler') are set to INFO level.
     - All three loggers share the same file handler and formatter.
 
     Returns:
         logging.Logger: The configured main logger instance.
     """
+    # Map string log levels to Python logging constants
+    log_level_map = {
+        "critical": logging.CRITICAL,
+        "error": logging.ERROR,
+        "warning": logging.WARNING,
+        "info": logging.INFO,
+        "debug": logging.DEBUG,
+        "trace": logging.DEBUG,  # Map trace to debug (Python logging doesn't have trace)
+    }
+
+    # Get log level from config, default to WARNING if invalid
+    log_level = log_level_map.get(core_config.LOG_LEVEL.lower(), logging.WARNING)
+
     main_logger = logging.getLogger("main_logger")
-    main_logger.setLevel(logging.DEBUG)
+    main_logger.setLevel(log_level)
 
     file_handler = logging.FileHandler(f"{core_config.LOGS_DIR}/app.log")
-    file_handler.setLevel(logging.DEBUG)
+    file_handler.setLevel(log_level)
 
     formatter = logging.Formatter(
         "%(asctime)s - %(name)s - %(levelname)s - %(message)s"

@@ -12,6 +12,7 @@ LICENSE_NAME = "GNU Affero General Public License v3.0 or later"
 LICENSE_IDENTIFIER = "AGPL-3.0-or-later"
 LICENSE_URL = "https://spdx.org/licenses/AGPL-3.0-or-later.html"
 ROOT_PATH = "/api/v1"
+LOG_LEVEL = os.getenv("LOG_LEVEL", "warning").lower()
 ENDURAIN_HOST = os.getenv("ENDURAIN_HOST", "http://localhost:8080")
 FRONTEND_DIR = os.getenv("FRONTEND_DIR", "/app/frontend/dist")
 BACKEND_DIR = os.getenv("BACKEND_DIR", "/app/backend")
@@ -231,6 +232,27 @@ def validate_fernet_key(fernet_key: str | None) -> bool:
         return False
 
 
+def validate_log_level(log_level: str) -> bool:
+    """
+    Validate log level string.
+
+    Args:
+        log_level: Log level to validate.
+
+    Returns:
+        True if log level is valid, False otherwise.
+    """
+    valid_levels = {"critical", "error", "warning", "info", "debug", "trace"}
+    if log_level.lower() in valid_levels:
+        return True
+    else:
+        core_logger.print_to_log_and_console(
+            f"Log level '{log_level}' is invalid. Must be one of: {', '.join(valid_levels)}",
+            "error",
+        )
+        return False
+
+
 def check_required_env_vars():
     """
     Validate required environment variables are set.
@@ -285,6 +307,8 @@ def check_required_env_vars():
                 "FERNET_KEY validation failed. Please check the key format and regenerate if necessary.",
                 "warning",
             )
+
+    validate_log_level(LOG_LEVEL)
 
 
 def check_required_dirs():

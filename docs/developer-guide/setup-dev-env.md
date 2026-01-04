@@ -35,6 +35,7 @@ services:
             - ENDURAIN_HOST=http://localhost:8080 # change if needed
             - BEHIND_PROXY=false
             - ENVIRONMENT=development
+            - LOG_LEVEL=debug # change log level if needed. Supported levels: critical, error, warning, info, debug, trace
         volumes:
             - <folder_to_store_code>/backend/app:/app/backend # this will replace the backend code logic with yours. Any changes in the code need a container reboot for them to apply
         ports:

@@ -56,6 +56,7 @@ Table below shows supported environment variables. Variables marked with optiona
 | SMTP_PASSWORD | No default set | Yes | The password of your SMTP email provider. Some providers allow the use of your account password, others require the creation of an app password. Please refer to your provider documentation. Alternatively, use `SMTP_PASSWORD_FILE` for Docker secrets |
 | SMTP_SECURE | true | Yes | By default it uses secure communications. Accepted values are `true` and `false` |
 | SMTP_SECURE_TYPE | starttls | Yes | If SMTP_SECURE is set you can set the communication type. Accepted values are `starttls` and `ssl` |
+| LOG_LEVEL | warning | Yes | Supported levels: critical, error, warning, info, debug, trace |
 
 Table below shows the obligatory environment variables for postgres container. You should set them based on what was also set for the Endurain container.
 

@@ -29,9 +29,24 @@ if [ -n "$ENDURAIN_HOST" ]; then
     echo_info_log "Runtime env.js written with ENDURAIN_HOST=$ENDURAIN_HOST"
 fi
 
-echo_info_log "Starting FastAPI with BEHIND_PROXY=$BEHIND_PROXY"
+# Set log level (default: warning)
+# Supported levels: critical, error, warning, info, debug, trace
+LOG_LEVEL="${LOG_LEVEL:-warning}"
 
-CMD="uvicorn main:app --host 0.0.0.0 --port 8080"
+# Validate log level
+case "$LOG_LEVEL" in
+    critical|error|warning|info|debug|trace)
+        # Valid log level
+        ;;
+    *)
+        echo_error_log "Invalid LOG_LEVEL '$LOG_LEVEL'. Supported levels: critical, error, warning, info, debug, trace. Defaulting to 'warning'."
+        LOG_LEVEL="warning"
+        ;;
+esac
+
+echo_info_log "Starting FastAPI with BEHIND_PROXY=$BEHIND_PROXY, LOG_LEVEL=$LOG_LEVEL"
+
+CMD="uvicorn main:app --host 0.0.0.0 --port 8080 --log-level $LOG_LEVEL"
 if [ "$BEHIND_PROXY" = "true" ]; then
     CMD="$CMD --proxy-headers"
 fi
