@@ -81,10 +81,15 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         if "text/html" in content_type:
             response.headers["Content-Security-Policy"] = (
                 "default-src 'self'; "
-                "img-src 'self' data: https://*.tile.openstreetmap.org; "
-                "style-src 'self' 'unsafe-inline'; "
-                "script-src 'self' 'unsafe-inline'"
+                "img-src 'self' data: https://*.tile.openstreetmap.org https://fastapi.tiangolo.com; "
+                "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+                "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+                "connect-src 'self' https://cdn.jsdelivr.net; "
+                "media-src 'self' data:"
             )
+            # TODO: Serve Swagger UI locally to reduce security risks introduced by allowing CDN resources.
+            # Currently allowing cdn.jsdelivr.net and fastapi.tiangolo.com for Swagger UI functionality.
+            # See documentation for implementing local Swagger UI serving.
 
         # Remove server version header for security through obscurity
         if "Server" in response.headers:
