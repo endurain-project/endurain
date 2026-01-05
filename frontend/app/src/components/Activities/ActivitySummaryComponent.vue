@@ -169,14 +169,22 @@
     </h1>
 
     <!-- Activity description -->
-    <p v-if="activity.description">{{ activity.description }}</p>
+    <div v-if="activity.description" class="mt-2">
+      <MarkdownContentComponent
+        :content="activity.description"
+        :aria-label="$t('activitySummaryComponent.activityDescription')"
+      />
+    </div>
 
     <div v-if="activity.private_notes">
       <hr />
       <h6 class="text-body-secondary">
         {{ $t('activitySummaryComponent.privateNotes') }}
       </h6>
-      <p>{{ activity.private_notes }}</p>
+      <MarkdownContentComponent
+        :content="activity.private_notes"
+        :aria-label="$t('activitySummaryComponent.privateNotes')"
+      />
       <hr />
     </div>
 
@@ -348,6 +356,7 @@ import UserAvatarComponent from '@/components/Users/UserAvatarComponent.vue'
 import ModalComponentUploadFile from '@/components/Modals/ModalComponentUploadFile.vue'
 import EditActivityModalComponent from '@/components/Activities/Modals/EditActivityModalComponent.vue'
 import ModalComponent from '@/components/Modals/ModalComponent.vue'
+import MarkdownContentComponent from '@/components/GeneralComponents/MarkdownContentComponent.vue'
 // Importing constants
 import { INTEGRATION_LOGOS } from '@/constants/integrationLogoConstants'
 // Importing the services

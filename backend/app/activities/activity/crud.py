@@ -8,6 +8,7 @@ import activities.activity.utils as activities_utils
 import followers.models as followers_models
 
 import core.logger as core_logger
+import core.sanitization as core_sanitization
 
 import notifications.utils as notifications_utils
 
@@ -460,7 +461,7 @@ def get_user_activities_per_timeframe(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal Server Error",
         ) from err
-    
+
 
 def get_user_activities_per_timeframe_and_activity_type(
     user_id: int,
@@ -509,14 +510,16 @@ def get_user_activities_per_timeframe_and_activity_type(
     except Exception as err:
         # Log the exception
         core_logger.print_to_log(
-            f"Error in get_user_activities_per_timeframe_and_activity_type: {err}", "error", exc=err
+            f"Error in get_user_activities_per_timeframe_and_activity_type: {err}",
+            "error",
+            exc=err,
         )
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal Server Error",
         ) from err
-    
+
 
 def get_user_activities_per_timeframe_and_activity_types(
     user_id: int,
@@ -565,7 +568,9 @@ def get_user_activities_per_timeframe_and_activity_types(
     except Exception as err:
         # Log the exception
         core_logger.print_to_log(
-            f"Error in get_user_activities_per_timeframe_and_activity_types: {err}", "error", exc=err
+            f"Error in get_user_activities_per_timeframe_and_activity_types: {err}",
+            "error",
+            exc=err,
         )
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
@@ -950,7 +955,9 @@ def get_activity_by_id_if_is_public(activity_id: int, db: Session):
         ) from err
 
 
-def get_activity_by_id(activity_id: int, db: Session) -> activities_schema.Activity | None:
+def get_activity_by_id(
+    activity_id: int, db: Session
+) -> activities_schema.Activity | None:
     try:
         # Get the activities from the database
         activity = (
@@ -1265,6 +1272,16 @@ def edit_activity(
                 for key, value in vars(activity_attributes).items()
                 if value is not None
             }
+
+        # Sanitize markdown fields to prevent XSS
+        if "description" in activity_data:
+            activity_data["description"] = core_sanitization.sanitize_markdown(
+                activity_data["description"]
+            )
+        if "private_notes" in activity_data:
+            activity_data["private_notes"] = core_sanitization.sanitize_markdown(
+                activity_data["private_notes"]
+            )
 
         # Iterate over the fields and update the db_activity dynamically
         for key, value in activity_data.items():

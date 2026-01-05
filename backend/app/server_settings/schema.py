@@ -1,5 +1,4 @@
 from enum import IntEnum
-import html
 import re
 from pydantic import (
     BaseModel,
@@ -9,6 +8,7 @@ from pydantic import (
     field_validator,
     ValidationError,
 )
+from core.sanitization import sanitize_attribution
 
 
 class Units(IntEnum):
@@ -147,7 +147,7 @@ class ServerSettings(BaseModel):
 
     @field_validator("tileserver_attribution")
     @classmethod
-    def sanitize_attribution(cls, value: str) -> str:
+    def validate_attribution(cls, value: str) -> str:
         """
         Sanitize tileserver attribution to prevent XSS.
 
@@ -157,79 +157,7 @@ class ServerSettings(BaseModel):
         Returns:
             Sanitized string with only safe HTML.
         """
-        if not value:
-            return value
-
-        # Pattern for anchor tags with http/https URLs
-        safe_link_pattern = re.compile(
-            r"<a\s+([^>]+)>(.*?)</a>", re.IGNORECASE | re.DOTALL
-        )
-
-        safe_links = []
-        placeholder_template = "___SAFE_LINK_{}___"
-
-        def extract_link(match):
-            attrs_str = match.group(1)
-            text = match.group(2)
-
-            # Extract href attribute
-            href_match = re.search(
-                r'href=(["\'])?(https?://[^\s"\'>]+)\1?',
-                attrs_str,
-                re.IGNORECASE,
-            )
-            if not href_match:
-                return html.escape(match.group(0))
-
-            url = href_match.group(2)
-
-            # Block dangerous URL protocols
-            if url.lower().startswith(("javascript:", "data:", "vbscript:")):
-                return html.escape(match.group(0))
-
-            # Extract safe attributes (title, target, rel)
-            safe_attrs = ['href="{}"'.format(url)]
-            for attr in ["title", "target", "rel"]:
-                attr_match = re.search(
-                    rf'{attr}=(["\'])([^\1]*?)\1',
-                    attrs_str,
-                    re.IGNORECASE,
-                )
-                if attr_match:
-                    attr_value = html.escape(attr_match.group(2))
-                    safe_attrs.append('{}="{}"'.format(attr, attr_value))
-
-            link = "<a {}>{}</a>".format(" ".join(safe_attrs), text)
-            safe_links.append(link)
-            return placeholder_template.format(len(safe_links) - 1)
-
-        # Replace safe links with placeholders
-        temp = safe_link_pattern.sub(extract_link, value)
-
-        # Preserve HTML entities while escaping dangerous content
-        html_entity_pattern = re.compile(r"&[a-zA-Z]+;|&#\d+;")
-        entities = []
-        entity_placeholder = "___ENTITY_{}___"
-
-        def extract_entity(match):
-            entities.append(match.group(0))
-            return entity_placeholder.format(len(entities) - 1)
-
-        # Extract HTML entities
-        temp = html_entity_pattern.sub(extract_entity, temp)
-
-        # Escape remaining HTML
-        sanitized = html.escape(temp)
-
-        # Restore HTML entities
-        for idx, entity in enumerate(entities):
-            sanitized = sanitized.replace(entity_placeholder.format(idx), entity)
-
-        # Restore safe links
-        for idx, link in enumerate(safe_links):
-            sanitized = sanitized.replace(placeholder_template.format(idx), link)
-
-        return sanitized
+        return sanitize_attribution(value) or ""
 
 
 class ServerSettingsEdit(ServerSettings):

@@ -48,6 +48,7 @@ httpx = "^0.28.1"
 itsdangerous = "^2.2.0"
 slowapi = "^0.1.9"
 safeuploads = {extras = ["fastapi"], version = "^0.1.0"}
+bleach = "^6.3.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.3.4"

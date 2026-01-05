@@ -46,6 +46,7 @@ import fit.utils as fit_utils
 import core.logger as core_logger
 import core.config as core_config
 import core.database as core_database
+import core.sanitization as core_sanitization
 
 # Global Activity Type Mappings (ID to Name)
 ACTIVITY_ID_TO_NAME = {
@@ -248,11 +249,17 @@ def transform_schema_activity_to_model_activity(
     if activity.created_at is not None:
         created_date = activity.created_at
 
+    # Sanitize markdown fields to prevent XSS
+    sanitized_description = core_sanitization.sanitize_markdown(activity.description)
+    sanitized_private_notes = core_sanitization.sanitize_markdown(
+        activity.private_notes
+    )
+
     # Create a new activity object
     new_activity = activities_models.Activity(
         user_id=activity.user_id,
-        description=activity.description,
-        private_notes=activity.private_notes,
+        description=sanitized_description,
+        private_notes=sanitized_private_notes,
         distance=activity.distance,
         name=activity.name,
         activity_type=activity.activity_type,

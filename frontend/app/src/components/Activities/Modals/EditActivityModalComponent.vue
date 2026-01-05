@@ -36,36 +36,26 @@
               required
             />
             <!-- description fields -->
-            <label for="activityDescriptionEdit"
-              ><b>{{
-                $t('editActivityModalComponent.modalEditActivityDescriptionLabel')
-              }}</b></label
-            >
-            <input
-              class="form-control"
-              type="text"
-              name="activityDescriptionEdit"
+            <MarkdownEditorComponent
+              v-model="editActivityDescription"
+              :label="$t('editActivityModalComponent.modalEditActivityDescriptionLabel')"
               :placeholder="
                 $t('editActivityModalComponent.modalEditActivityDescriptionPlaceholder')
               "
-              maxlength="2500"
-              v-model="editActivityDescription"
+              :maxlength="2500"
+              :rows="4"
+              input-id="activityDescriptionEdit"
             />
             <!-- private_notes fields -->
-            <label for="activityPrivateNotesEdit"
-              ><b>{{
-                $t('editActivityModalComponent.modalEditActivityPrivateNotesLabel')
-              }}</b></label
-            >
-            <input
-              class="form-control"
-              type="text"
-              name="activityPrivateNotesEdit"
+            <MarkdownEditorComponent
+              v-model="editActivityPrivateNotes"
+              :label="$t('editActivityModalComponent.modalEditActivityPrivateNotesLabel')"
               :placeholder="
                 $t('editActivityModalComponent.modalEditActivityPrivateNotesPlaceholder')
               "
-              maxlength="2500"
-              v-model="editActivityPrivateNotes"
+              :maxlength="2500"
+              :rows="4"
+              input-id="activityPrivateNotesEdit"
             />
             <!-- type fields -->
             <label for="activityTypeEdit"
@@ -489,6 +479,8 @@ import { ref, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 // Import Notivue push
 import { push } from 'notivue'
+// Importing the components
+import MarkdownEditorComponent from '@/components/GeneralComponents/MarkdownEditorComponent.vue'
 // Importing the services
 import { activities } from '@/services/activitiesService'
 // Importing the utils
