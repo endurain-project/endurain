@@ -203,6 +203,47 @@ export interface UserIdentityProviderEnriched extends UserIdentityProvider {
 }
 
 /**
+ * Activity data structure from the backend.
+ *
+ * @property activity_type - Numeric identifier for the activity type.
+ * @property distance - Total distance in meters.
+ */
+export interface Activity {
+  activity_type: number
+  distance: number
+}
+
+/**
+ * Single waypoint in an activity stream.
+ *
+ * @property hr - Heart rate value (as string).
+ * @property power - Power value in watts (as string).
+ * @property cad - Cadence value in RPM or stroke rate in SPM (as string).
+ * @property ele - Elevation value in meters (as string).
+ * @property vel - Velocity value in m/s.
+ * @property pace - Pace value in seconds per meter, or null if unavailable.
+ */
+export interface StreamWaypoint {
+  hr?: string
+  power?: string
+  cad?: string
+  ele?: string
+  vel?: number
+  pace?: number | null
+}
+
+/**
+ * Activity stream containing time-series data.
+ *
+ * @property stream_type - Numeric identifier for the stream type (1=HR, 2=Power, 3=Cadence, 4=Elevation, 5=Velocity, 6=Pace).
+ * @property stream_waypoints - Array of waypoint data for this stream.
+ */
+export interface ActivityStream {
+  stream_type: number
+  stream_waypoints: StreamWaypoint[]
+}
+
+/**
  * Global Window interface extension for environment configuration.
  *
  * @property env - Environment configuration object.
