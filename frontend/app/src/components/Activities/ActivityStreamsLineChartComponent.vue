@@ -263,9 +263,9 @@ export default {
           }
         } else {
           if (activityTypeIsSwimming(props.activity)) {
-            labels.push(`${(i * distanceInterval).toFixed(1)}mi`)
+            labels.push(`${kmToMiles(i * distanceInterval)}mi`)
           } else {
-            labels.push(`${(i * kmToMiles(distanceInterval)).toFixed(0)}mi`)
+            labels.push(`${kmToMiles(i * distanceInterval)}mi`)
           }
         }
       }
