@@ -19,7 +19,8 @@
               (activity.activity_type === 10 ||
                 activity.activity_type === 19 ||
                 activity.activity_type === 20 ||
-                activity.activity_type === 41) &&
+                activity.activity_type === 41 ||
+                activity.activity_type === 46) &&
               activityActivityWorkoutSteps &&
               activityActivityWorkoutSteps.length > 0
             "
@@ -31,7 +32,8 @@
               (activity.activity_type === 10 ||
                 activity.activity_type === 19 ||
                 activity.activity_type === 20 ||
-                activity.activity_type === 41) &&
+                activity.activity_type === 41 ||
+                activity.activity_type === 46) &&
               activityActivityWorkoutSteps &&
               activityActivityWorkoutSteps.length > 0
             "
@@ -99,7 +101,8 @@
               (activity.activity_type === 10 ||
                 activity.activity_type === 19 ||
                 activity.activity_type === 20 ||
-                activity.activity_type === 41) &&
+                activity.activity_type === 41 ||
+                activity.activity_type === 46) &&
               activityActivityWorkoutSteps &&
               activityActivityWorkoutSteps.length > 0
             "
@@ -118,7 +121,8 @@
               (activity.activity_type === 10 ||
                 activity.activity_type === 19 ||
                 activity.activity_type === 20 ||
-                activity.activity_type === 41) &&
+                activity.activity_type === 41 ||
+                activity.activity_type === 46) &&
               activityActivityWorkoutSteps &&
               activityActivityWorkoutSteps.length > 0
             "
@@ -208,7 +212,8 @@
               (activity.activity_type === 10 ||
                 activity.activity_type === 19 ||
                 activity.activity_type === 20 ||
-                activity.activity_type === 41) &&
+                activity.activity_type === 41 ||
+                activity.activity_type === 46) &&
               activityActivitySets &&
               activityActivitySets.length > 0
             "
@@ -246,7 +251,8 @@
               (activity.activity_type === 10 ||
                 activity.activity_type === 19 ||
                 activity.activity_type === 20 ||
-                activity.activity_type === 41) &&
+                activity.activity_type === 41 ||
+                activity.activity_type === 46) &&
               activityActivitySets &&
               activityActivitySets.length > 0
             "

@@ -42,6 +42,7 @@
           <option value="16">{{ $t('searchView.searchSelectActivityType16') }}</option>
           <option value="17">{{ $t('searchView.searchSelectActivityType17') }}</option>
           <option value="21">{{ $t('searchView.searchSelectActivityType21') }}</option>
+          <option value="22">{{ $t('searchView.searchSelectActivityType22') }}</option>
         </select>
         <!-- Gear type area -->
         <select
@@ -344,6 +345,10 @@ function updateSearchResultsBasedOnActivityType() {
   } else if (searchSelectActivityType.value === '21') {
     searchResults.value = searchResultsOriginal.value.filter((user) =>
       [45].includes(user.activity_type)
+    )
+  } else if (searchSelectActivityType.value === '22') {
+    searchResults.value = searchResultsOriginal.value.filter((user) =>
+      [46].includes(user.activity_type)
     )
   } else {
     searchResults.value = searchResultsOriginal.value

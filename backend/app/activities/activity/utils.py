@@ -94,6 +94,7 @@ ACTIVITY_ID_TO_NAME = {
     43: "Sailing",
     44: "Snow shoeing",
     45: "Inline skating",
+    46: "HIIT",
     # Add other mappings as needed based on the full list in define_activity_type comments if required
     # "AlpineSki",
     # "BackcountrySki",
@@ -195,6 +196,7 @@ ACTIVITY_NAME_TO_ID.update(
         "pickleball": 26,
         "commuting_ride": 27,
         "indoor_ride": 28,
+        "indoor_cycling": 28,
         "mixed_surface_ride": 29,
         "windsurf": 30,
         "windsurfing": 30,
@@ -209,6 +211,7 @@ ACTIVITY_NAME_TO_ID.update(
         "e_bike": 35,
         "ebike": 35,
         "e_bike_ride": 35,
+        "e_bike_fitness": 35,
         "emountainbikeride": 36,
         "e_bike_mountain": 36,
         "ebikemountain": 36,
@@ -228,6 +231,9 @@ ACTIVITY_NAME_TO_ID.update(
         "snowshoe": 44,
         "inline_skating": 45,
         "inlineskate": 45,
+        "hiit": 46,
+        "high_intensity_interval_training": 46,
+        "highintensityintervaltraining": 46,
     }
 )
 

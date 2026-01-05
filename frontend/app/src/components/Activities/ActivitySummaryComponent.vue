@@ -192,6 +192,7 @@
           activity.activity_type != 19 &&
           activity.activity_type != 20 &&
           activity.activity_type != 41 &&
+          activity.activity_type != 46 &&
           activityTypeNotRacquet(activity)
         "
       >
@@ -236,6 +237,7 @@
             activity.activity_type != 20 &&
             activityTypeNotWindsurf(activity) &&
             activity.activity_type != 41 &&
+            activity.activity_type != 46 &&
             activityTypeNotSailing(activity) &&
             activityTypeNotRacquet(activity)
           "
@@ -274,6 +276,7 @@
         activity.activity_type != 19 &&
         activity.activity_type != 20 &&
         activity.activity_type != 41 &&
+        activity.activity_type != 46 &&
         activityTypeNotRacquet(activity)
       "
     >

@@ -8,7 +8,7 @@ import { formatDateMed, formatTime, formatSecondsToMinutes } from '@/utils/dateT
  */
 const ACTIVITY_TYPES = [
   1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27,
-  28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45
+  28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46
 ]
 
 /**
@@ -66,7 +66,8 @@ const activityLabelMap = {
   42: (t) => t('activityItems.kayaking'),
   43: (t) => t('activityItems.sailing'),
   44: (t) => t('activityItems.snowShoeing'),
-  45: (t) => t('activityItems.inlineSkating')
+  45: (t) => t('activityItems.inlineSkating'),
+  46: (t) => t('activityItems.hiit')
 }
 
 /**
@@ -775,7 +776,8 @@ export function getIcon(typeId) {
     42: ['fas', 'sailboat'], // Kayaking icon might be better if available
     43: ['fas', 'wind'], // Sailing icon might be better if available
     44: ['fas', 'person-hiking'],
-    45: ['fas', 'person-skating']
+    45: ['fas', 'person-skating'],
+    46: ['fas', 'heart-pulse'] // HIIT icon might be better if available
   }
 
   return iconMap[typeId] || ['fas', 'dumbbell']
