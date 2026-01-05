@@ -235,23 +235,23 @@ export function formatPaceSwimImperial(pace, units = true) {
 }
 
 /**
- * Converts a speed from meters per second (m/s) to kilometers per hour (km/h) and formats it to a whole number.
+ * Converts a speed from meters per second (m/s) to kilometers per hour (km/h) and formats it to two decimal places.
  *
  * @param {number} speed - The speed in meters per second (m/s).
- * @returns {string} The speed converted to kilometers per hour (km/h) and rounded to the nearest whole number.
+ * @returns {string} The speed converted to kilometers per hour (km/h) and formatted to two decimal places.
  */
 export function formatAverageSpeedMetric(speed) {
-  return (speed * 3.6).toFixed(0)
+  return (speed * 3.6).toFixed(2)
 }
 
 /**
- * Converts a speed from meters per second to miles per hour and formats it to a whole number.
+ * Converts a speed from meters per second to miles per hour and formats it to two decimal places.
  *
  * @param {number} speed - The speed in meters per second.
- * @returns {string} The speed in miles per hour, rounded to the nearest whole number.
+ * @returns {string} The speed in miles per hour, formatted to two decimal places.
  */
 export function formatAverageSpeedImperial(speed) {
-  return (speed * 2.23694).toFixed(0)
+  return (speed * 2.23694).toFixed(2)
 }
 
 /**
