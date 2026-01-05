@@ -29,9 +29,9 @@ if [ -n "$ENDURAIN_HOST" ]; then
     echo_info_log "Runtime env.js written with ENDURAIN_HOST=$ENDURAIN_HOST"
 fi
 
-# Set log level (default: warning)
+# Set log level (default: info)
 # Supported levels: critical, error, warning, info, debug, trace
-LOG_LEVEL="${LOG_LEVEL:-warning}"
+LOG_LEVEL="${LOG_LEVEL:-info}"
 
 # Validate log level
 case "$LOG_LEVEL" in
@@ -39,8 +39,8 @@ case "$LOG_LEVEL" in
         # Valid log level
         ;;
     *)
-        echo_error_log "Invalid LOG_LEVEL '$LOG_LEVEL'. Supported levels: critical, error, warning, info, debug, trace. Defaulting to 'warning'."
-        LOG_LEVEL="warning"
+        echo_error_log "Invalid LOG_LEVEL '$LOG_LEVEL'. Supported levels: critical, error, warning, info, debug, trace. Defaulting to 'info'."
+        LOG_LEVEL="info"
         ;;
 esac
 
