@@ -8,6 +8,18 @@ import core.logger as core_logger
 
 
 def get_server_settings(db: Session) -> server_settings_models.ServerSettings:
+    """
+    Retrieve singleton server settings from database.
+
+    Args:
+        db: Database session.
+
+    Returns:
+        ServerSettings instance or None if not found.
+
+    Raises:
+        HTTPException: If database error occurs.
+    """
     try:
         # Get the user from the database
         return (
@@ -23,13 +35,26 @@ def get_server_settings(db: Session) -> server_settings_models.ServerSettings:
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Internal Server Error: {err}",
+            detail=f"Internal Server Error: {err}",
         ) from err
 
 
 def edit_server_settings(
     server_settings: server_settings_schema.ServerSettingsEdit, db: Session
 ) -> server_settings_models.ServerSettings:
+    """
+    Update server settings in database.
+
+    Args:
+        server_settings: New settings to apply.
+        db: Database session.
+
+    Returns:
+        Updated ServerSettings instance.
+
+    Raises:
+        HTTPException: If settings not found or database error.
+    """
     try:
         # Get the server_settings from the database
         db_server_settings = get_server_settings(db)
@@ -49,6 +74,8 @@ def edit_server_settings(
 
         # Commit the transaction
         db.commit()
+        # Refresh the object to ensure it reflects database state
+        db.refresh(db_server_settings)
 
         return db_server_settings
     except HTTPException as http_err:
@@ -65,5 +92,5 @@ def edit_server_settings(
         # Raise an HTTPException with a 500 Internal Server Error status code
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Internal Server Error: {err}",
+            detail=f"Internal Server Error: {err}",
         ) from err

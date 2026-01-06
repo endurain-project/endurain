@@ -19,10 +19,16 @@ async def read_public_server_settings(
         Depends(core_database.get_db),
     ],
 ):
-    # Get the server_settings from the database
+    """
+    Get public server settings (unauthenticated).
+
+    Returns only the public subset of server configuration
+    (sensitive signup approval/verification settings excluded).
+    Pydantic model filtering automatically excludes sensitive fields.
+
+    Returns:
+        Public subset of server configuration.
+    """
     server_settings = server_settings_utils.get_server_settings(db)
-
-    delattr(server_settings, "signup_require_admin_approval")
-    delattr(server_settings, "signup_require_email_verification")
-
+    # Pydantic model_validate handles field filtering automatically
     return server_settings

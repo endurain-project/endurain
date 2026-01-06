@@ -51,31 +51,33 @@ class PasswordType(Enum):
     LENGTH_ONLY = "length_only"
 
 
-class ServerSettings(BaseModel):
+class ServerSettingsBase(BaseModel):
     """
-    Represents the configuration settings for a server.
+    Base schema for server configuration settings.
+
+    Shared fields and validation rules used across all server settings
+    schemas. Does not include the id field, allowing flexible inheritance
+    for different use cases.
 
     Attributes:
-        id (StrictInt): Unique identifier for the server settings.
-        units (Units): Measurement units used by the server.
-        public_shareable_links (bool): Indicates if public shareable links are enabled.
-        public_shareable_links_user_info (bool): Indicates if user information is included in public shareable links.
-        login_photo_set (bool): Specifies if a login photo has been set.
-        currency (Currency): Currency used by the server.
-        num_records_per_page (int): Number of records displayed per page.
-        signup_enabled (bool): Indicates if user signup is enabled.
-        sso_enabled (bool): Indicates if SSO/IdP login is enabled.
-        local_login_enabled (bool): Indicates if local username/password login is allowed.
-        sso_auto_redirect (bool): Auto-redirect to SSO if only one IdP is configured.
-        tileserver_url (str): URL template for the map tileserver.
-        tileserver_attribution (str): Attribution string for the map tileserver.
-        map_background_color (str): Background color for the map.
-        password_type (PasswordType): Type of password policy enforced.
-        password_length_regular_users (int): Minimum password length for regular users.
-        password_length_admin_users (int): Minimum password length for admin users.
+        units: Measurement units (metric/imperial).
+        public_shareable_links: Enable public shareable activity links.
+        public_shareable_links_user_info: Show user info on public links.
+        login_photo_set: Whether login photo has been configured.
+        currency: Currency type (euro/dollar/pound).
+        num_records_per_page: Default pagination size.
+        signup_enabled: Allow new user registration.
+        sso_enabled: Enable SSO/IdP authentication.
+        local_login_enabled: Allow username/password login.
+        sso_auto_redirect: Auto-redirect to SSO login.
+        tileserver_url: Map tile server URL template.
+        tileserver_attribution: Map tile attribution HTML.
+        map_background_color: Map background hex color.
+        password_type: Password policy type.
+        password_length_regular_users: Min length for regular users.
+        password_length_admin_users: Min length for admin users.
     """
 
-    id: StrictInt
     units: Units
     public_shareable_links: bool
     public_shareable_links_user_info: bool
@@ -178,6 +180,22 @@ class ServerSettings(BaseModel):
         return sanitize_attribution(value) or ""
 
 
+class ServerSettings(ServerSettingsBase):
+    """
+    Complete server settings schema with unique identifier.
+
+    Extends ServerSettingsBase by adding the id field for complete
+    server settings representation. Used for internal operations and
+    full server configuration responses.
+
+    Attributes:
+        id: Unique identifier (always 1, singleton pattern).
+        (plus all fields inherited from ServerSettingsBase)
+    """
+
+    id: StrictInt
+
+
 class ServerSettingsEdit(ServerSettings):
     """
     Extends ServerSettings with additional fields for user signup configuration.
@@ -198,10 +216,14 @@ class ServerSettingsRead(ServerSettingsEdit):
     """
 
 
-class ServerSettingsReadPublic(ServerSettings):
+class ServerSettingsReadPublic(ServerSettingsBase):
     """
-    A public-facing schema for reading server settings.
+    Public-facing schema for unauthenticated server settings access.
 
-    This class inherits all fields and behaviors from `ServerSettings` and is intended
-    for use cases where only public server settings should be exposed.
+    Provides only public-safe server settings, excluding sensitive
+    configuration like signup requirements. Used for the public API
+    endpoint that doesn't require authentication.
+
+    Inherits all safe fields from ServerSettingsBase but explicitly
+    excludes admin-level configuration fields.
     """
